@@ -209,6 +209,41 @@ begin
   insert into public.revisal_events (organization_id, employee_id, event_type, data_evenimentului, termen_transmitere)
   values (v_alfa, (select val from t_ids where cheie='ang_alfa'), 'angajare', current_date - 400, current_date - 401),
          (v_beta, (select val from t_ids where cheie='ang_beta'), 'angajare', current_date - 300, current_date - 301);
+
+  -- Conformitate (Faza 4). `entity_type` acoperă deliberat două regimuri
+  -- diferite: un document de vehicul (drept de conformitate) și unul de angajat
+  -- (drept asupra fișei), ca verificarea de vizibilitate să fie chiar exercitată.
+  insert into t_ids
+  select 'exp_' || e, gen_random_uuid() from unnest(array['alfa','beta']) e union all
+  select 'expmed_' || e, gen_random_uuid() from unnest(array['alfa','beta']) e;
+
+  insert into public.expirables (id, organization_id, entity_type, entity_id, kind, label, expires_at, source_table, responsible_employee_id)
+  values ((select val from t_ids where cheie='exp_alfa'), v_alfa, 'vehicle_document',
+          gen_random_uuid(), 'rca', 'RCA — B 01 ALF', current_date + 20, 'vehicle_documents',
+          (select val from t_ids where cheie='ang_alfa')),
+         ((select val from t_ids where cheie='exp_beta'), v_beta, 'vehicle_document',
+          gen_random_uuid(), 'rca', 'RCA — TM 01 BET', current_date + 20, 'vehicle_documents',
+          (select val from t_ids where cheie='ang_beta')),
+         ((select val from t_ids where cheie='expmed_alfa'), v_alfa, 'employee_document',
+          (select val from t_ids where cheie='ang_alfa'), 'fisa_aptitudine',
+          'Fișă de aptitudine — marca 001', current_date + 10, 'employee_documents',
+          (select val from t_ids where cheie='ang_alfa')),
+         ((select val from t_ids where cheie='expmed_beta'), v_beta, 'employee_document',
+          (select val from t_ids where cheie='ang_beta'), 'fisa_aptitudine',
+          'Fișă de aptitudine — marca 001', current_date + 10, 'employee_documents',
+          (select val from t_ids where cheie='ang_beta'));
+
+  insert into public.alert_rules (organization_id, entity_type, kind)
+  values (v_alfa, 'vehicle_document', 'rca'), (v_beta, 'vehicle_document', 'rca');
+
+  insert into public.compliance_alerts (organization_id, expirable_id, prag_zile, due_date)
+  values (v_alfa, (select val from t_ids where cheie='exp_alfa'), 30, current_date - 10),
+         (v_beta, (select val from t_ids where cheie='exp_beta'), 30, current_date - 10);
+
+  insert into public.alert_notifications (organization_id, alert_id, canal)
+  select o.org, a.id, 'in_app'
+  from (values (v_alfa), (v_beta)) o(org)
+  join public.compliance_alerts a on a.organization_id = o.org;
 end
 $$;
 
