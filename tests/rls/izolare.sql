@@ -530,6 +530,56 @@ begin
   raise notice '(k) coloanele rezervate platformei rămân blocate pentru org_admin ✓';
 end $$;
 
+-- ─────────────────────────────────────────────────────────────────────────────
+-- (l) Politicile NU blochează scrierile legitime
+--
+-- Verificările (a)–(k) demonstrează că nimeni nu vede ce nu are voie. Niciuna
+-- nu demonstrează că cine ARE voie chiar poate lucra. Diferența nu e teoretică:
+-- Faza 2 a trecut typecheck, lint, teste, cele trei bariere ȘI izolarea, în timp
+-- ce un `org_admin` nu putea insera un angajat — `WITH CHECK` cerea o coloană
+-- pe care un trigger BEFORE o scrisese deja.
+--
+-- O politică prea strictă nu e o problemă de securitate, dar e o aplicație care
+-- nu funcționează. Testul trebuie să prindă ambele direcții.
+-- ─────────────────────────────────────────────────────────────────────────────
+do $$
+declare
+  v_alfa uuid := pg_temp.id('alfa');
+  v_actor uuid := pg_temp.id('admin_alfa');
+  v_dep uuid;
+  v_ang uuid;
+begin
+  perform set_config('request.jwt.claim.sub', v_actor::text, true);
+  set local role authenticated;
+
+  insert into public.departments (organization_id, cod, denumire)
+  values (v_alfa, 'TEST-L', 'Departament de probă')
+  returning id into v_dep;
+
+  insert into public.employees (organization_id, marca, first_name, last_name, department_id)
+  values (v_alfa, 'TEST-L-001', 'Test', 'Utilizator', v_dep)
+  returning id into v_ang;
+
+  reset role;
+
+  if v_dep is null or v_ang is null then
+    perform pg_temp.esueaza('(l) inserarea a reușit dar nu a întors identificatorul');
+  end if;
+
+  -- Coloanele de actor se completează automat; politicile le cer.
+  if (select created_by from public.employees where id = v_ang) is null then
+    perform pg_temp.esueaza('(l) `created_by` nu a fost completat — lipsește triggerul set_actor');
+  end if;
+  if (select manager_path from public.employees where id = v_ang) = '{}'::uuid[] then
+    perform pg_temp.esueaza('(l) `manager_path` nu a fost calculat de trigger');
+  end if;
+
+  raise notice '(l) un org_admin poate crea departamente și angajați ✓';
+exception when others then
+  reset role;
+  perform pg_temp.esueaza(format('(l) o scriere LEGITIMĂ a fost respinsă: %s (%s)', sqlerrm, sqlstate));
+end $$;
+
 rollback;
 
 \echo ''

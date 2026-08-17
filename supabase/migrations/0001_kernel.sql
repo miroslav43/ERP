@@ -26,6 +26,12 @@ begin
 
   if to_regclass('auth.users') is null then
     create schema if not exists auth;
+    -- Pe Supabase, `authenticated` are USAGE pe schema `auth` și EXECUTE pe
+    -- `auth.uid()` (verificat pe proiectul real). Substitutul local trebuie să
+    -- reproducă asta, altfel orice trigger care apelează `auth.uid()` cade cu
+    -- „permission denied for schema auth" — un eșec care există doar local și
+    -- trimite pe piste false.
+    grant usage on schema auth to anon, authenticated, service_role;
     create table auth.users (
       id uuid primary key,
       email text,

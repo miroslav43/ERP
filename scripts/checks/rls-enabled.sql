@@ -42,7 +42,11 @@ declare
   -- RLS activat fără nicio politică înseamnă refuz total pentru `authenticated`;
   -- accesul se face exclusiv prin funcții SECURITY DEFINER.
   lista_alba_fara_politici text[] := array[
-    'rate_limits'  -- contorul de limitare; un client nu are ce citi sau scrie aici
+    'rate_limits',             -- contorul de limitare; un client nu are ce citi sau scrie aici
+    'employee_sensitive_data'  -- CNP/IBAN: accesul trece exclusiv prin
+                               -- hr_read_sensitive / hr_write_sensitive, care
+                               -- auditează fiecare apel. O politică de SELECT ar
+                               -- deschide o cale directă care ocolește auditul.
   ];
 
   -- Tabele pentru care ABSENȚA privilegiilor este intenționată: accesul trece

@@ -211,3 +211,49 @@ migrări + cele trei bariere + **izolarea 11/11**, atât pe Postgres 17 local c�
   Super-Admin nu poate rula (folosește clientul admin).
 - ⛔ Cei 25 de pași de testare manuală nu au fost executați.
 - ⛔ Fluxul de invitație end-to-end (cere GoTrue real + un email).
+
+---
+
+## Faza 2 — corecție: nucleul HR nu funcționa
+
+Faza 2 a fost comisă ca livrată. **Nu era.** Un `org_admin` nu putea insera un
+angajat:
+
+```
+insert into public.employees (...) as authenticated
+→ new row violates row-level security policy for table "employees" (42501)
+```
+
+Toate verificările automate treceau — typecheck, lint, 175 de teste, cele trei
+bariere, izolarea 11/11. **Niciuna nu execută o scriere reală ca utilizator
+obișnuit.** Verificam că nimeni nu vede ce nu are voie, dar nu și că cine are
+voie poate lucra.
+
+### Cauzele
+
+| Defect                                                                                                                                                                              | De ce a scăpat                                                         |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `WITH CHECK` cerea `manager_path = '{}'`, cu comentariul „calculat de trigger" — dar triggerele `BEFORE` rulează **înaintea** lui `WITH CHECK`, deci politica vedea `array[new.id]` | Comentariul descria exact inversul realității; nimic nu îl contrazicea |
+| Politicile cereau `created_by = auth.uid()`, dar `set_actor` nu era atașat pe tabelele HR — bucla din `0002` rulase înainte ca ele să existe                                        | Aceeași clasă ca la granturi: „toate tabelele" înseamnă „cele de acum" |
+| `sensitive_select` permitea SELECT direct pe `employee_sensitive_data`, ocolind funcțiile care auditează                                                                            | Politica părea o măsură de securitate, nu o breșă                      |
+| `salary_components` și `employee_tax_exemptions` foloseau `has_permission(...) <> 'none'`, tratând `own` și `team` ca `all` — un angajat vedea sporurile tuturor colegilor          | Predicatul arată corect la citire rapidă                               |
+
+### Ce s-a schimbat durabil
+
+Testul de izolare are acum verificarea **(l)**: un `org_admin` chiar poate crea
+departamente și angajați, iar coloanele calculate de trigger se completează.
+Testat prin regresie — repunerea condiției greșite îl face roșu.
+
+Substitutul local `auth` nu acorda `USAGE` lui `authenticated`, deși Supabase o
+face (verificat pe proiectul real). Diferența producea un eșec care exista doar
+local și trimitea pe piste false.
+
+### ⛔ Rămân deschise, din vânătoarea Opus (43 constatări, 16 critice)
+
+- **Două module de criptare.** `src/lib/hr/criptare.ts` citește
+  `HR_ENCRYPTION_KEY` (singular) și `HR_ENCRYPTION_KEY_VERSION` — variabile care
+  nu există. Modulul corect este `src/lib/crypto/aes-gcm.ts`.
+- **Importul Excel scrie CNP și IBAN în CLAR** în bucket-ul de documente.
+- **Bucket-ul `documente` nu există** — sunt `org-documents` și `org-branding`.
+- **REVISAL este cod mort**: `genereazaEvenimenteRevisal` nu are niciun apelant.
+- **Excel parsează tot registrul** înainte de a aplica limita de rânduri.
