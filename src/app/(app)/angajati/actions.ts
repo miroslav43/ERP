@@ -7,9 +7,17 @@ import { readRequestMeta, writeAuditLog } from "@/lib/actions/audit";
 import { businessRule, notFound } from "@/lib/actions/errors";
 import { createAction } from "@/lib/actions/create-action";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { amprenta, cripteaza, decripteaza } from "@/lib/hr/criptare";
+import {
+  amprentaSensibila,
+  catreBytea,
+  decrypt,
+  dinBytea,
+  encrypt,
+  versiuneCaNumar,
+} from "@/lib/crypto/aes-gcm";
 import { ultimeleCifreCnp } from "@/domain/hr/cnp";
 import { ultimeleCifreIban } from "@/domain/hr/iban";
+import { genereazaEvenimenteRevisal } from "@/lib/revisal/genereaza-evenimente";
 import {
   actualizeazaAngajatSchema,
   creeazaAngajatSchema,
@@ -45,14 +53,14 @@ async function salveazaDateSensibile(
     cnp === null
       ? {}
       : (() => {
-          const criptat = cripteaza(cnp);
+          const criptat = encrypt(cnp);
           return {
-            cnp_ciphertext: criptat.ciphertext,
-            cnp_iv: criptat.iv,
-            cnp_tag: criptat.tag,
-            cnp_key_version: criptat.keyVersion,
+            cnp_ciphertext: catreBytea(criptat.ciphertext),
+            cnp_iv: catreBytea(criptat.iv),
+            cnp_tag: catreBytea(criptat.tag),
+            cnp_key_version: versiuneCaNumar(criptat.keyVersion),
             cnp_last4: ultimeleCifreCnp(cnp),
-            cnp_hash: amprenta(cnp),
+            cnp_hash: amprentaSensibila(cnp),
           };
         })();
 
@@ -60,14 +68,14 @@ async function salveazaDateSensibile(
     iban === null
       ? {}
       : (() => {
-          const criptat = cripteaza(iban);
+          const criptat = encrypt(iban);
           return {
-            iban_ciphertext: criptat.ciphertext,
-            iban_iv: criptat.iv,
-            iban_tag: criptat.tag,
-            iban_key_version: criptat.keyVersion,
+            iban_ciphertext: catreBytea(criptat.ciphertext),
+            iban_iv: catreBytea(criptat.iv),
+            iban_tag: catreBytea(criptat.tag),
+            iban_key_version: versiuneCaNumar(criptat.keyVersion),
             iban_last4: ultimeleCifreIban(iban),
-            iban_hash: amprenta(iban),
+            iban_hash: amprentaSensibila(iban),
           };
         })();
 
@@ -265,7 +273,41 @@ export const creeazaContract = createAction({
       .single();
     if (error !== null) throw error;
 
+    // REVISAL: angajarea se transmite la Inspecția Muncii într-un termen legal,
+    // iar netransmiterea în termen este contravenție PER SALARIAT. Evenimentul
+    // se generează AICI, în aceeași acțiune care creează contractul — altfel
+    // depinde de cineva care își amintește să deschidă un alt ecran.
+    //
+    // Generarea nu aruncă: un contract creat cu succes nu trebuie anulat pentru
+    // că evidența REVISAL a eșuat. Eșecul se vede în jurnal și evenimentul poate
+    // fi regenerat, pentru că `genereazaEvenimenteRevisal` este idempotentă.
+    try {
+      await genereazaEvenimenteRevisal({
+        supabase: db,
+        organizationId: ctx.tenant.organizationId,
+        userId: ctx.user.id,
+        evenimente: [
+          {
+            employeeId: input.employee_id,
+            contractId: data.id,
+            tip: "angajare",
+            dataEvenimentului: input.valabil_de_la,
+            valabilDeLa: input.valabil_de_la,
+            dataContract: input.data_contract,
+            payload: { numar: input.numar, salariu_baza: input.salariu_baza },
+          },
+        ],
+      });
+    } catch (eroare) {
+      console.error("[revisal] evenimentul de angajare nu a putut fi generat", {
+        contractId: data.id,
+        requestId: ctx.requestId,
+        eroare,
+      });
+    }
+
     revalidatePath(`/angajati/${input.employee_id}`);
+    revalidatePath("/revisal");
     return { id: data.id };
   },
 });
@@ -367,19 +409,33 @@ export const dezvaluieDateSensibile = createAction({
     if (error !== null) throw error;
     if (data === null) throw notFound("Angajatul nu are date de identificare înregistrate.");
 
-    const valoare =
+    // Coloanele sunt nullable: un angajat poate exista fără CNP sau fără IBAN.
+    // Absența se tratează înainte de decriptare — `decrypt` primește doar valori
+    // complete, iar un câmp parțial (criptotext fără IV sau fără tag) înseamnă
+    // date corupte, nu date lipsă, și trebuie să se vadă ca atare.
+    const brut =
       input.camp === "cnp"
-        ? decripteaza({
+        ? {
             ciphertext: data.cnp_ciphertext,
             iv: data.cnp_iv,
             tag: data.cnp_tag,
             keyVersion: data.cnp_key_version,
-          })
-        : decripteaza({
+          }
+        : {
             ciphertext: data.iban_ciphertext,
             iv: data.iban_iv,
             tag: data.iban_tag,
             keyVersion: data.iban_key_version,
+          };
+
+    const valoare =
+      brut.ciphertext === null || brut.iv === null || brut.tag === null || brut.keyVersion === null
+        ? null
+        : decrypt({
+            ciphertext: dinBytea(brut.ciphertext),
+            iv: dinBytea(brut.iv),
+            tag: dinBytea(brut.tag),
+            keyVersion: String(brut.keyVersion),
           });
     if (valoare === null) {
       throw notFound(

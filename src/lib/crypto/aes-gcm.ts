@@ -191,3 +191,42 @@ export function amprentaSensibila(valoare: string): string {
   }
   return createHmac("sha256", cheie).update(valoare, "utf8").digest("hex");
 }
+
+/**
+ * Transportul `bytea` prin PostgREST.
+ *
+ * PostgREST serializează `bytea` ca text hexazecimal prefixat cu `\x`. Fără
+ * conversie explicită, un `Buffer` ajunge în JSON ca `{"type":"Buffer","data":[…]}`,
+ * pe care Postgres îl respinge — sau, mai rău, îl acceptă ca text și stochează
+ * reprezentarea în loc de octeți.
+ *
+ * Aceste două funcții au trăit într-un al doilea modul de criptare, paralel cu
+ * acesta. Locul lor este lângă cifrare, nu într-un modul separat pe care cineva
+ * îl poate folosi fără ea.
+ */
+export function catreBytea(valoare: Buffer): string {
+  return `\\x${valoare.toString("hex")}`;
+}
+
+export function dinBytea(valoare: string | Buffer): Buffer {
+  if (Buffer.isBuffer(valoare)) return valoare;
+  return Buffer.from(valoare.startsWith("\\x") ? valoare.slice(2) : valoare, "hex");
+}
+
+/**
+ * Versiunea cheii, ca număr — forma cerută de coloanele `*_key_version int`.
+ *
+ * În TypeScript versiunea este un șir (cheie într-un dicționar); în schemă este
+ * `int`. Conversia se face aici, o singură dată, în loc să fie presărată la
+ * fiecare scriere.
+ */
+export function versiuneCaNumar(versiune: string): number {
+  const n = Number(versiune);
+  if (!Number.isInteger(n) || n < 1) {
+    throw new EroareCriptografica(
+      "versiune_invalida",
+      `Versiunea de cheie „${versiune}” nu este un număr întreg pozitiv.`,
+    );
+  }
+  return n;
+}

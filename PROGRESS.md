@@ -248,15 +248,24 @@ Substitutul local `auth` nu acorda `USAGE` lui `authenticated`, deși Supabase o
 face (verificat pe proiectul real). Diferența producea un eșec care exista doar
 local și trimitea pe piste false.
 
-### ⛔ Rămân deschise, din vânătoarea Opus (43 constatări, 16 critice)
+### ✅ Cele cinci defecte din vânătoare — închise
 
-- **Două module de criptare.** `src/lib/hr/criptare.ts` citește
-  `HR_ENCRYPTION_KEY` (singular) și `HR_ENCRYPTION_KEY_VERSION` — variabile care
-  nu există. Modulul corect este `src/lib/crypto/aes-gcm.ts`.
-- **Importul Excel scrie CNP și IBAN în CLAR** în bucket-ul de documente.
-- **Bucket-ul `documente` nu există** — sunt `org-documents` și `org-branding`.
-- **REVISAL este cod mort**: `genereazaEvenimenteRevisal` nu are niciun apelant.
-- **Excel parsează tot registrul** înainte de a aplica limita de rânduri.
+| Defect | Corecție |
+|---|---|
+| Două module de criptare; cel folosit de calea principală citea variabile de mediu inexistente | `src/lib/hr/` eliminat; totul trece prin `crypto/aes-gcm.ts`, unde au fost mutate și conversiile `bytea` |
+| **Importul Excel scria CNP și IBAN în CLAR** într-un fișier din Storage | Criptare la parsare; schema lotului nici nu mai acceptă câmpurile în clar |
+| Bucket-ul `documente` nu există | `org-documents`, numele real din `0002` |
+| REVISAL era cod mort, fără apelanți | Evenimentul de angajare se generează în aceeași acțiune care creează contractul |
+| Excel parsa tot registrul înainte de limita de rânduri | Limită separată pe conținutul **decomprimat**, citită din antetele zip fără a decomprima |
+
+Scurgerea de CNP a fost cea mai gravă: lotul de import ajungea în Storage în text
+simplu, deci un fișier uitat acolo era o breșă completă — fără să atingă nicio
+politică RLS și fără urmă în audit. `protejare.test.ts` verifică acum forma
+lotului, ca reintroducerea câmpului în clar să pice imediat.
+
+**Aplicația răspunde.** Rutele publice dau 200, cele protejate redirecționează
+către autentificare cu linkul profund păstrat (pasul 26 din testarea manuală).
+Diacriticele sunt corecte: 6 ș și 6 ț cu virgulă pe landing, zero cu sedilă.
 
 ---
 
@@ -275,10 +284,10 @@ de integrare:
 2. **`expirables` e polimorfă, dar politica verifică doar `compliance:read`** —
    o fișă de aptitudine medicală devine vizibilă oricui are dreptul generic de
    conformitate. `label` e text liber copiat din sursă („Fișă de aptitudine —
-   Popescu Ana, inapt”), deci eticheta *este* informația, iar ea ajunge și în
+   Popescu Ana, inapt”), deci eticheta _este_ informația, iar ea ajunge și în
    emailul de alertă și în `email_log`.
 3. **Indexul de deduplicare e total**, iar generarea face `on conflict do
-   nothing`: o alertă rezolvată blochează pentru totdeauna reapariția aceleiași
+nothing`: o alertă rezolvată blochează pentru totdeauna reapariția aceleiași
    scadențe.
 4. **Nimic nu populează `expirables`** — niciun trigger nu e atașat pe tabelele
    HR care există deja.

@@ -187,7 +187,41 @@ export const schemaAngajatValidat = z.object({
 });
 
 export type AngajatValidat = z.infer<typeof schemaAngajatValidat>;
-export const schemaLotImport = z.array(schemaAngajatValidat).max(1000);
+
+/**
+ * Forma unei valori sensibile după criptare.
+ *
+ * `bytea` circulă prin PostgREST ca text hexazecimal `\x…`, iar versiunea cheii
+ * este `int` în schemă. Amprenta este un HMAC, nu un hash simplu: peste 13 cifre
+ * cu structură cunoscută, un hash fără cheie se sparge prin dicționar.
+ */
+export const schemaValoareProtejata = z.object({
+  ciphertext: z.string().regex(/^\\x[0-9a-f]+$/, "Criptotext invalid."),
+  iv: z.string().regex(/^\\x[0-9a-f]+$/, "Vector de inițializare invalid."),
+  tag: z.string().regex(/^\\x[0-9a-f]+$/, "Etichetă de autentificare invalidă."),
+  keyVersion: z.number().int().positive(),
+  last4: z.string().max(4),
+  hash: z.string().min(1),
+});
+
+export type ValoareProtejata = z.infer<typeof schemaValoareProtejata>;
+
+/**
+ * Lotul persistat între previzualizare și aplicare.
+ *
+ * CNP-ul și IBAN-ul apar EXCLUSIV în formă criptată. Câmpurile `cnp` și `iban`
+ * în clar sunt omise deliberat: lotul ajunge într-un fișier în Storage, iar un
+ * import uitat acolo ar fi fost o breșă completă, fără să atingă nicio politică
+ * RLS.
+ */
+export const schemaAngajatProtejat = schemaAngajatValidat.omit({ cnp: true, iban: true }).extend({
+  cnpProtejat: schemaValoareProtejata.optional(),
+  ibanProtejat: schemaValoareProtejata.optional(),
+});
+
+export type AngajatProtejat = z.infer<typeof schemaAngajatProtejat>;
+
+export const schemaLotImport = z.array(schemaAngajatProtejat).max(1000);
 
 const ETICHETE: Readonly<Record<string, string>> = {
   marca: "Marcă",

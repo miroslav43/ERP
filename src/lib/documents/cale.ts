@@ -1,7 +1,15 @@
 // src/lib/documents/cale.ts
 // Contractul de cale în Storage, singurul loc unde se construiește:
 // {organization_id}/{entity}/{entity_id}/{uuid}-{filename}
-export const BUCKET_DOCUMENTE = "documente";
+/**
+ * Numele REAL al bucket-ului, cel creat în `0002_authz.sql`.
+ *
+ * Codul folosea „documente", care nu există: politicile de pe `storage.objects`
+ * restrâng explicit la `org-documents` și `org-branding`, deci orice încărcare
+ * ar fi eșuat la primul fișier real. Numele trăiește într-o singură constantă
+ * tocmai ca să nu poată diverge din nou de schemă.
+ */
+export const BUCKET_DOCUMENTE = "org-documents";
 export const LIMITA_DOCUMENT_BYTES = 20 * 1024 * 1024;
 export const MIME_ACCEPTATE = [
   "application/pdf",

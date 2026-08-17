@@ -5,6 +5,14 @@ import * as ExcelJS from "exceljs";
 
 export const LIMITA_FISIER_BYTES = 5 * 1024 * 1024; // 5 MB
 export const LIMITA_RANDURI = 1000;
+/**
+ * Limita pe conținutul DECOMPRIMAT.
+ *
+ * Distinctă de `LIMITA_FISIER_BYTES`, care se aplică arhivei. Un `.xlsx` este un
+ * zip: raportul de compresie al unui XML repetitiv depășește ușor 100:1, deci
+ * limita pe fișier singură nu mărginește memoria.
+ */
+export const LIMITA_DECOMPRIMAT_BYTES = 60 * 1024 * 1024; // 60 MB
 export const LOT_IMPORT = 25; // rânduri procesate într-o singură invocare de Server Action
 const EXTENSII_ACCEPTATE = [".xlsx", ".xlsm"] as const;
 
@@ -64,10 +72,47 @@ function textDinCelula(valoare: unknown): string {
   return "";
 }
 
+/**
+ * Suma dimensiunilor necomprimate, citită din directorul central al arhivei.
+ *
+ * Nu decomprimă nimic: parcurge doar antetele zip, care declară dimensiunea
+ * fiecărei intrări. O arhivă care minte în antet va fi oprită oricum de limita
+ * de rânduri, dar acest calcul costă microsecunde și blochează cazul obișnuit
+ * de „zip bomb" înainte de orice alocare.
+ */
+async function dimensiuneDecomprimata(buffer: ArrayBuffer): Promise<number> {
+  const octeti = new Uint8Array(buffer);
+  const vedere = new DataView(buffer);
+  const SEMNATURA_CENTRAL = 0x02014b50;
+  let total = 0;
+
+  // Antetele directorului central apar spre finalul arhivei; le căutăm liniar.
+  for (let i = 0; i + 46 <= octeti.length; i += 1) {
+    if (vedere.getUint32(i, true) !== SEMNATURA_CENTRAL) continue;
+    total += vedere.getUint32(i + 24, true); // dimensiune necomprimată
+    if (total > LIMITA_DECOMPRIMAT_BYTES) return total;
+  }
+  return total;
+}
+
 export async function citesteExcelDinBuffer(buffer: ArrayBuffer): Promise<RezultatCitire> {
   if (buffer.byteLength > LIMITA_FISIER_BYTES) {
     return { ok: false, mesaj: "Fișierul depășește dimensiunea maximă acceptată." };
   }
+  // `load()` materializează TOT registrul înainte ca limita de rânduri să conteze.
+  //
+  // Limita de 5 MB este pe fișierul COMPRIMAT. Un `.xlsx` este o arhivă zip, iar
+  // un fișier construit ostil se poate decomprima de sute de ori — 5 MB pe disc
+  // devin gigaocteți în memorie, într-un proces care servește toți clienții.
+  // Verificăm de aceea și dimensiunea DECOMPRIMATĂ, înainte de a parsa.
+  const decomprimat = await dimensiuneDecomprimata(buffer);
+  if (decomprimat > LIMITA_DECOMPRIMAT_BYTES) {
+    return {
+      ok: false,
+      mesaj: `Fișierul se extinde la ${Math.round(decomprimat / 1024 / 1024)} MB, peste limita de ${Math.round(LIMITA_DECOMPRIMAT_BYTES / 1024 / 1024)} MB. Verifică dacă nu conține foi ascunse sau formatări pe coloane întregi.`,
+    };
+  }
+
   const registru = new ExcelJS.Workbook();
   try {
     await registru.xlsx.load(buffer);

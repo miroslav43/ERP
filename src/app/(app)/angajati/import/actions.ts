@@ -21,7 +21,7 @@ import { createAction } from "@/lib/actions/create-action";
 import { businessRule, invalidInput } from "@/lib/actions/errors";
 import { citesteExcelDinBuffer, LOT_IMPORT, verificaFisierImport } from "@/lib/import/excel";
 import { etichetaCampImport, mapeazaColoane, mapeazaRand } from "@/domain/import/mapare";
-import { schemaLotImport, valideazaRanduri, type AngajatValidat } from "@/domain/import/validare";
+import { schemaLotImport, valideazaRanduri, type AngajatProtejat } from "@/domain/import/validare";
 import { BUCKET_DOCUMENTE, caleLotImport, construiesteCaleDocument } from "@/lib/documents/cale";
 import type { ActionContext } from "@/lib/actions/types";
 
@@ -91,7 +91,36 @@ export const analizeazaImportAngajati = createAction({
       citire.foaie.randuri.map((brut) => mapeazaRand(brut, mapare)),
     );
 
-    const lot = new Blob([JSON.stringify(rezultat.valide)], { type: "application/json" });
+    // CNP-ul și IBAN-ul NU se scriu niciodată în clar.
+    //
+    // Lotul validat trebuie să supraviețuiască între previzualizare și aplicare,
+    // deci ajunge într-un fișier în Storage. Varianta anterioară serializa
+    // rândurile așa cum veniseau din Excel — adică urca într-un bucket, în text
+    // simplu, CNP-urile și IBAN-urile a sute de angajați. Un fișier de import
+    // uitat acolo ar fi fost o breșă completă, fără să atingă nicio politică RLS.
+    //
+    // Criptăm la parsare, o singură dată. Din acest punct, textul clar nu mai
+    // există nicăieri: nici în Storage, nici în memoria pasului de aplicare.
+    const { encrypt, amprentaSensibila, catreBytea, versiuneCaNumar } =
+      await import("@/lib/crypto/aes-gcm");
+    const protejeaza = (valoare: string) => {
+      const c = encrypt(valoare);
+      return {
+        ciphertext: catreBytea(c.ciphertext),
+        iv: catreBytea(c.iv),
+        tag: catreBytea(c.tag),
+        keyVersion: versiuneCaNumar(c.keyVersion),
+        last4: valoare.slice(-4),
+        hash: amprentaSensibila(valoare),
+      };
+    };
+    const valideProtejate = rezultat.valide.map(({ cnp, iban, ...rest }) => ({
+      ...rest,
+      ...(cnp === undefined ? {} : { cnpProtejat: protejeaza(cnp) }),
+      ...(iban === undefined ? {} : { ibanProtejat: protejeaza(iban) }),
+    }));
+
+    const lot = new Blob([JSON.stringify(valideProtejate)], { type: "application/json" });
     const salvare = await ctx.supabase.storage
       .from(BUCKET_DOCUMENTE)
       .upload(caleLotImport(ctx.tenant.organizationId, input.batchId), lot, {
@@ -135,7 +164,7 @@ async function idDupaCheie(
   return data?.id ?? null;
 }
 
-async function importaUnRand(ctx: ActionContext, angajat: AngajatValidat): Promise<string | null> {
+async function importaUnRand(ctx: ActionContext, angajat: AngajatProtejat): Promise<string | null> {
   const organizationId = ctx.tenant.organizationId;
   const departmentId =
     angajat.departament === undefined
@@ -195,7 +224,7 @@ async function importaUnRand(ctx: ActionContext, angajat: AngajatValidat): Promi
     return motiv;
   };
 
-  if (angajat.cnp !== undefined || angajat.iban !== undefined) {
+  if (angajat.cnpProtejat !== undefined || angajat.ibanProtejat !== undefined) {
     const sensibile = await salveazaDateSensibile(ctx, employeeId, angajat);
     if (sensibile !== null) return anuleaza(sensibile);
   }
@@ -232,38 +261,33 @@ async function importaUnRand(ctx: ActionContext, angajat: AngajatValidat): Promi
 async function salveazaDateSensibile(
   ctx: ActionContext,
   employeeId: string,
-  angajat: AngajatValidat,
+  angajat: AngajatProtejat,
 ): Promise<string | null> {
-  const { encrypt, amprentaSensibila } = await import("@/lib/crypto/aes-gcm");
-  const cripteaza = (valoare: string) => {
-    const criptat = encrypt(valoare);
-    return { ...criptat, last4: valoare.slice(-4), hash: amprentaSensibila(valoare) };
-  };
-  const cnp = angajat.cnp === undefined ? null : cripteaza(angajat.cnp);
-  const iban = angajat.iban === undefined ? null : cripteaza(angajat.iban);
-  const bytea = (valoare: Buffer): string => `\\x${valoare.toString("hex")}`;
+  // Valorile sosesc DEJA criptate, din pasul de previzualizare. Aici nu se mai
+  // face criptare: dacă am recripta, ar însemna că textul clar a călătorit până
+  // aici — adică prin fișierul din Storage, exact ce am eliminat.
   const { error } = await ctx.supabase.from("employee_sensitive_data").insert({
     employee_id: employeeId,
     organization_id: ctx.tenant.organizationId,
-    ...(cnp === null
+    ...(angajat.cnpProtejat === undefined
       ? {}
       : {
-          cnp_ciphertext: bytea(cnp.ciphertext),
-          cnp_iv: bytea(cnp.iv),
-          cnp_tag: bytea(cnp.tag),
-          cnp_key_version: Number(cnp.keyVersion),
-          cnp_last4: cnp.last4,
-          cnp_hash: cnp.hash,
+          cnp_ciphertext: angajat.cnpProtejat.ciphertext,
+          cnp_iv: angajat.cnpProtejat.iv,
+          cnp_tag: angajat.cnpProtejat.tag,
+          cnp_key_version: angajat.cnpProtejat.keyVersion,
+          cnp_last4: angajat.cnpProtejat.last4,
+          cnp_hash: angajat.cnpProtejat.hash,
         }),
-    ...(iban === null
+    ...(angajat.ibanProtejat === undefined
       ? {}
       : {
-          iban_ciphertext: bytea(iban.ciphertext),
-          iban_iv: bytea(iban.iv),
-          iban_tag: bytea(iban.tag),
-          iban_key_version: Number(iban.keyVersion),
-          iban_last4: iban.last4,
-          iban_hash: iban.hash,
+          iban_ciphertext: angajat.ibanProtejat.ciphertext,
+          iban_iv: angajat.ibanProtejat.iv,
+          iban_tag: angajat.ibanProtejat.tag,
+          iban_key_version: angajat.ibanProtejat.keyVersion,
+          iban_last4: angajat.ibanProtejat.last4,
+          iban_hash: angajat.ibanProtejat.hash,
         }),
     ...(angajat.banca === undefined ? {} : { banca: angajat.banca }),
   });
