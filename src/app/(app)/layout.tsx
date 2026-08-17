@@ -8,7 +8,6 @@ import { Topbar } from "@/components/layout/topbar";
 import { getEnabledFeatures } from "@/lib/auth/features";
 import { getPermissionMap } from "@/lib/auth/permissions";
 import { buildNavigation } from "@/lib/navigation/build-navigation";
-import { listUserOrganizations } from "@/lib/queries/organizations";
 import { resolveTenant } from "@/lib/tenant/resolve-tenant";
 import type { AuthUser, Tenant } from "@/lib/tenant/types";
 
@@ -35,12 +34,11 @@ async function requireTenant(): Promise<{ user: AuthUser; tenant: Tenant }> {
 }
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
-  const { user, tenant } = await requireTenant();
+  const { tenant } = await requireTenant();
 
-  const [features, permissions, organizations, store] = await Promise.all([
+  const [features, permissions, store] = await Promise.all([
     getEnabledFeatures(tenant.organizationId),
     getPermissionMap(tenant.organizationId, tenant.role),
-    listUserOrganizations(),
     cookies(),
   ]);
 
@@ -91,7 +89,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           <SidebarNav groups={navigare} />
         </Sidebar>
         <div className="flex min-w-0 flex-1 flex-col">
-          <Topbar user={user} tenant={tenant} organizations={organizations} />
+          {/* `Topbar` este Server Component fără props: își rezolvă singur
+              tenantul, utilizatorul și lista de organizații. */}
+          <Topbar />
           <main id="continut" className="min-w-0 flex-1 p-4 md:p-6">
             {children}
           </main>

@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { LogOut, UserRound } from "lucide-react";
-import { signOut } from "@/app/(app)/actions";
+import { deconecteaza } from "@/app/(app)/actions";
 import type { AppRole, AuthUser } from "@/lib/tenant/types";
 
 const ROLURI: Record<string, string> = {
@@ -50,7 +50,7 @@ export function UserMenu({ user, role }: { user: AuthUser; role: AppRole }) {
             <p className="text-muted-foreground truncate text-xs">{user.email}</p>
             <p className="text-muted-foreground mt-1 text-xs">{ROLURI[role] ?? role}</p>
           </div>
-          <form action={signOut} role="none">
+          <form action={deconecteaza} role="none">
             <button
               type="submit"
               role="menuitem"

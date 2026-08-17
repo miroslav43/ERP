@@ -1,0 +1,201 @@
+// src/app/(platform)/super-admin/organizatii/[orgId]/permisiuni/page.tsx
+import { notFound } from "next/navigation";
+import { RotateCw, ShieldCheck } from "lucide-react";
+
+import { requirePlatformAdmin } from "@/lib/auth/platform";
+import { createServerSupabase } from "@/lib/supabase/server";
+import { ETICHETE_ROL, ROLURI_APLICATIE, type RolAplicatie } from "@/schemas/membership";
+
+import { CULORI_SCOPE, ETICHETE_SCOPE } from "../../../_lib/platform";
+
+type Scope = "none" | "own" | "team" | "all";
+
+type RandPermisiune = Readonly<{
+  role: RolAplicatie;
+  permission_key: string;
+  scope: Scope;
+}>;
+
+const CLASA_ANTET =
+  "px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground";
+
+function cheieCelula(permisiune: string, rol: RolAplicatie): string {
+  return `${permisiune}::${rol}`;
+}
+
+export default async function PaginaPermisiuni({ params }: { params: Promise<{ orgId: string }> }) {
+  await requirePlatformAdmin();
+  const { orgId } = await params;
+  const supabase = await createServerSupabase();
+
+  const [rezOrg, rezImplicite, rezSuprascrise] = await Promise.all([
+    supabase
+      .from("organizations")
+      .select("id, name")
+      .eq("id", orgId)
+      .is("deleted_at", null)
+      .maybeSingle(),
+    supabase
+      .from("role_permissions")
+      .select("role, permission_key, scope")
+      .is("organization_id", null)
+      .returns<RandPermisiune[]>(),
+    supabase
+      .from("role_permissions")
+      .select("role, permission_key, scope")
+      .eq("organization_id", orgId)
+      .returns<RandPermisiune[]>(),
+  ]);
+
+  if (rezOrg.error || rezImplicite.error || rezSuprascrise.error) {
+    return (
+      <div
+        role="alert"
+        className="border-border bg-surface flex flex-col items-center gap-3 rounded-xl border p-10 text-center"
+      >
+        <p className="text-danger text-sm font-medium">
+          Matricea de permisiuni nu a putut fi încărcată
+        </p>
+        <a
+          href={`/super-admin/organizatii/${orgId}/permisiuni`}
+          className="bg-primary text-primary-foreground hover:bg-primary-hover focus-visible:ring-ring inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:outline-none"
+        >
+          <RotateCw aria-hidden="true" className="h-4 w-4" />
+          Reîncearcă
+        </a>
+      </div>
+    );
+  }
+
+  const org = rezOrg.data;
+  if (!org) notFound();
+
+  const implicite = rezImplicite.data ?? [];
+  const suprascrise = rezSuprascrise.data ?? [];
+
+  const valori = new Map<string, Scope>();
+  for (const rand of implicite) valori.set(cheieCelula(rand.permission_key, rand.role), rand.scope);
+
+  const celuleSuprascrise = new Set<string>();
+  const permisiuniSuprascrise = new Set<string>();
+  for (const rand of suprascrise) {
+    const cheie = cheieCelula(rand.permission_key, rand.role);
+    valori.set(cheie, rand.scope);
+    celuleSuprascrise.add(cheie);
+    permisiuniSuprascrise.add(rand.permission_key);
+  }
+
+  const cheiPermisiuni = Array.from(
+    new Set([...implicite, ...suprascrise].map((rand) => rand.permission_key)),
+  ).sort((a, b) => a.localeCompare(b, "ro"));
+
+  if (cheiPermisiuni.length === 0) {
+    return (
+      <section className="space-y-6">
+        <h1 className="text-foreground text-2xl font-semibold">Permisiuni — {org.name}</h1>
+        <div className="border-border bg-surface flex flex-col items-center gap-3 rounded-xl border p-10 text-center">
+          <ShieldCheck aria-hidden="true" className="text-muted-foreground h-8 w-8" />
+          <p className="text-foreground text-sm font-medium">Nu există permisiuni definite</p>
+          <p className="text-muted-foreground max-w-md text-sm">
+            Tabela <code>role_permissions</code> nu conține încă reguli implicite. Rulează seed-ul
+            de permisiuni, apoi revino aici.
+          </p>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="space-y-6">
+      <header className="space-y-1">
+        <h1 className="text-foreground text-2xl font-semibold">Permisiuni — {org.name}</h1>
+        <p className="text-muted-foreground text-sm">
+          Matrice doar pentru consultare: {cheiPermisiuni.length} resurse pe{" "}
+          {ROLURI_APLICATIE.length} roluri. Editarea permisiunilor va fi disponibilă într-o etapă
+          următoare.
+        </p>
+      </header>
+
+      <div className="border-border bg-surface rounded-xl border p-4">
+        <h2 className="text-foreground text-sm font-semibold">Legendă</h2>
+        <ul className="mt-2 flex flex-wrap gap-3 text-xs">
+          {(["none", "own", "team", "all"] as const).map((scope) => (
+            <li
+              key={scope}
+              className={`border-border inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${CULORI_SCOPE[scope]}`}
+            >
+              <span className="font-mono">{scope}</span>
+              <span className="text-muted-foreground">— {ETICHETE_SCOPE[scope]}</span>
+            </li>
+          ))}
+          <li className="border-border text-muted-foreground inline-flex items-center gap-1 rounded-full border px-2 py-0.5">
+            <span aria-hidden="true">•</span> valoare suprascrisă pentru această organizație
+          </li>
+        </ul>
+      </div>
+
+      <div className="border-border bg-surface overflow-x-auto rounded-xl border">
+        <table className="w-full min-w-[52rem] border-collapse">
+          <caption className="sr-only">
+            Matricea permisiunilor pentru organizația {org.name}. Rândurile marcate au valori
+            suprascrise față de implicitul global.
+          </caption>
+          <thead className="border-border border-b">
+            <tr>
+              <th scope="col" className={CLASA_ANTET}>
+                Resursă
+              </th>
+              {ROLURI_APLICATIE.map((rol) => (
+                <th key={rol} scope="col" className={CLASA_ANTET}>
+                  {ETICHETE_ROL[rol]}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-border divide-y">
+            {cheiPermisiuni.map((cheie) => {
+              const suprascrisa = permisiuniSuprascrise.has(cheie);
+              return (
+                <tr key={cheie}>
+                  <th
+                    scope="row"
+                    className="text-foreground px-3 py-2 text-left align-top text-sm font-medium"
+                  >
+                    <span className="font-mono text-xs">{cheie}</span>
+                    {suprascrisa ? (
+                      <span className="border-border text-accent ml-2 rounded-full border px-2 py-0.5 text-[0.65rem]">
+                        suprascrisă
+                      </span>
+                    ) : null}
+                  </th>
+                  {ROLURI_APLICATIE.map((rol) => {
+                    const cheieCel = cheieCelula(cheie, rol);
+                    const scope = valori.get(cheieCel) ?? "none";
+                    const esteSuprascrisa = celuleSuprascrise.has(cheieCel);
+                    return (
+                      <td key={rol} className="px-3 py-2 align-top">
+                        <span
+                          className={`border-border inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${CULORI_SCOPE[scope]}`}
+                        >
+                          {ETICHETE_SCOPE[scope]}
+                          {esteSuprascrisa ? (
+                            <>
+                              <span aria-hidden="true">•</span>
+                              <span className="sr-only">
+                                suprascrisă pentru această organizație
+                              </span>
+                            </>
+                          ) : null}
+                        </span>
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
