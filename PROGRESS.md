@@ -257,3 +257,35 @@ local și trimitea pe piste false.
 - **Bucket-ul `documente` nu există** — sunt `org-documents` și `org-branding`.
 - **REVISAL este cod mort**: `genereazaEvenimenteRevisal` nu are niciun apelant.
 - **Excel parsează tot registrul** înainte de a aplica limita de rânduri.
+
+---
+
+## Faza 4 — expirări și alerte ⏸ produsă, NEINTEGRATĂ
+
+Codul există în `docs/design/faza-4/` (152 KB): schema motorului, dashboardul de
+conformitate, jobul zilnic, notificările. **Nu e instalat în `src/`** și nu a
+fost verificat.
+
+Vânătoarea Opus a găsit 50 de constatări, 6 critice. Cele care contează înainte
+de integrare:
+
+1. **`app.has_permission` apelată cu semnătura greșită** în toate politicile noi:
+   `('compliance:read', 'all')` în loc de `(organization_id, 'compliance', 'read')`.
+   Politicile nu ar funcționa deloc.
+2. **`expirables` e polimorfă, dar politica verifică doar `compliance:read`** —
+   o fișă de aptitudine medicală devine vizibilă oricui are dreptul generic de
+   conformitate. `label` e text liber copiat din sursă („Fișă de aptitudine —
+   Popescu Ana, inapt”), deci eticheta *este* informația, iar ea ajunge și în
+   emailul de alertă și în `email_log`.
+3. **Indexul de deduplicare e total**, iar generarea face `on conflict do
+   nothing`: o alertă rezolvată blochează pentru totdeauna reapariția aceleiași
+   scadențe.
+4. **Nimic nu populează `expirables`** — niciun trigger nu e atașat pe tabelele
+   HR care există deja.
+5. **Căsuța proprie de notificări cere `compliance:read`** — un angajat obișnuit
+   nu și-ar putea citi propriile notificări.
+
+### Numerotarea migrărilor
+
+Faza 4 a fost generată cu `0006_expirables.sql`, dar `0006` și `0007` sunt deja
+folosite de corecțiile Fazei 2. La integrare devin `0008`/`0009`/`0010`.
