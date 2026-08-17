@@ -39,27 +39,40 @@ declare
   v_emp_alfa   uuid := gen_random_uuid();
   v_admin_beta uuid := gen_random_uuid();
   v_emp_beta   uuid := gen_random_uuid();
+  v_sufix      text;
 begin
+  -- Identificatorii se generează la fiecare rulare, nu sunt ficși.
+  --
+  -- Testul trebuie să meargă și pe o bază care conține deja date — altfel
+  -- eșuează cu „duplicate key" și pare că izolarea e ruptă, când de fapt doar
+  -- cineva a lăsat un rând în urmă. Un test care cere condiții de laborator ca
+  -- să dea verde nu spune nimic despre producție.
+  -- Cifra de start fixează diferența: „1…” pentru Alfa, „2…” pentru Beta.
+  -- Prima variantă folosea `'9' || substr(sufix, 2)` pentru Beta, ceea ce
+  -- producea ACELAȘI CUI ori de câte ori numărul aleator începea cu 9 — un
+  -- eșec intermitent, adică exact felul de bug care se pune pe seama „bazei”.
+  v_sufix := to_char(floor(random() * 9000000 + 1000000), 'FM9999999');
+
   insert into t_ids values
     ('alfa', v_alfa), ('beta', v_beta),
     ('admin_alfa', v_admin_alfa), ('emp_alfa', v_emp_alfa),
     ('admin_beta', v_admin_beta), ('emp_beta', v_emp_beta);
 
   insert into auth.users (id, email) values
-    (v_admin_alfa, 'admin@alfa.test'), (v_emp_alfa, 'angajat@alfa.test'),
-    (v_admin_beta, 'admin@beta.test'), (v_emp_beta, 'angajat@beta.test');
+    (v_admin_alfa, 'admin-' || v_sufix || '@alfa.test'), (v_emp_alfa, 'angajat-' || v_sufix || '@alfa.test'),
+    (v_admin_beta, 'admin-' || v_sufix || '@beta.test'), (v_emp_beta, 'angajat-' || v_sufix || '@beta.test');
 
   insert into public.profiles (id, email, full_name) values
-    (v_admin_alfa, 'admin@alfa.test',   'Administrator Alfa'),
-    (v_emp_alfa,   'angajat@alfa.test', 'Angajat Alfa'),
-    (v_admin_beta, 'admin@beta.test',   'Administrator Beta'),
-    (v_emp_beta,   'angajat@beta.test', 'Angajat Beta')
+    (v_admin_alfa, 'admin-' || v_sufix || '@alfa.test',   'Administrator Alfa'),
+    (v_emp_alfa,   'angajat-' || v_sufix || '@alfa.test', 'Angajat Alfa'),
+    (v_admin_beta, 'admin-' || v_sufix || '@beta.test',   'Administrator Beta'),
+    (v_emp_beta,   'angajat-' || v_sufix || '@beta.test', 'Angajat Beta')
   on conflict (id) do nothing;
 
   insert into public.organizations (id, slug, name, legal_name, cui, judet, oras, status)
   values
-    (v_alfa, 'alfa', 'Alfa SRL', 'ALFA SRL', 'RO12345678', 'Cluj', 'Cluj-Napoca', 'active'),
-    (v_beta, 'beta', 'Beta SRL', 'BETA SRL', 'RO87654321', 'Timiș', 'Timișoara', 'active');
+    (v_alfa, 'alfa-' || v_sufix, 'Alfa SRL', 'ALFA SRL', '1' || v_sufix, 'Cluj', 'Cluj-Napoca', 'active'),
+    (v_beta, 'beta-' || v_sufix, 'Beta SRL', 'BETA SRL', '2' || v_sufix, 'Timiș', 'Timișoara', 'active');
 
   insert into public.organization_members (organization_id, user_id, role, status, joined_at) values
     (v_alfa, v_admin_alfa, 'org_admin', 'active', now()),
@@ -85,8 +98,117 @@ begin
          (v_beta, v_emp_beta, 'info', 'Notificare Beta');
 
   insert into public.invitations (organization_id, email, role, token_hash, expires_at, invited_by)
-  values (v_alfa, 'nou@alfa.test', 'employee', encode(sha256('alfa'::bytea), 'hex'), now() + interval '7 days', v_admin_alfa),
-         (v_beta, 'nou@beta.test', 'employee', encode(sha256('beta'::bytea), 'hex'), now() + interval '7 days', v_admin_beta);
+  values (v_alfa, 'nou-' || v_sufix || '@alfa.test', 'employee', encode(sha256('alfa'::bytea), 'hex'), now() + interval '7 days', v_admin_alfa),
+         (v_beta, 'nou-' || v_sufix || '@beta.test', 'employee', encode(sha256('beta'::bytea), 'hex'), now() + interval '7 days', v_admin_beta);
+
+  -- ── Acoperire completă: fiecare tabelă cu organization_id primește rânduri
+  -- pentru AMBELE organizații ──────────────────────────────────────────────
+  --
+  -- Fără rânduri pentru Beta, verificarea (c) nu demonstrează nimic pe acea
+  -- tabelă: trece indiferent de politici. 21 de tabele erau în situația asta,
+  -- printre ele `employees` și `employee_sensitive_data` — exact cele care
+  -- contează. Testul raporta „6 tabele verificate ✓" și părea verde.
+
+  -- Nucleu
+  insert into public.document_sequences (organization_id, document_type, year)
+  values (v_alfa, 'adeverinta', 2026), (v_beta, 'adeverinta', 2026);
+
+  insert into public.email_log (organization_id, destinatar, subiect, template)
+  values (v_alfa, 'a-' || v_sufix || '@alfa.test', 'Test Alfa', 'invitatie'),
+         (v_beta, 'b-' || v_sufix || '@beta.test', 'Test Beta', 'invitatie');
+
+  insert into public.notification_preferences (organization_id, user_id, kind)
+  values (v_alfa, v_emp_alfa, 'info'), (v_beta, v_emp_beta, 'info');
+
+  insert into public.retention_policies (organization_id, entity_type, retention_months)
+  values (v_alfa, 'audit_logs', 36), (v_beta, 'audit_logs', 36);
+
+  -- Suprascrieri de permisiuni per organizație (rândurile globale au org NULL).
+  insert into public.role_permissions (organization_id, role, resource, action, scope)
+  values (v_alfa, 'manager', 'payroll', 'read', 'team'),
+         (v_beta, 'manager', 'payroll', 'read', 'none');
+
+  -- HR
+  insert into t_ids
+  select 'dep_' || e, gen_random_uuid() from unnest(array['alfa','beta']) e union all
+  select 'poz_' || e, gen_random_uuid() from unnest(array['alfa','beta']) e union all
+  select 'ang_' || e, gen_random_uuid() from unnest(array['alfa','beta']) e union all
+  select 'tipdoc_' || e, gen_random_uuid() from unnest(array['alfa','beta']) e union all
+  select 'sct_' || e, gen_random_uuid() from unnest(array['alfa','beta']) e;
+
+  insert into public.departments (id, organization_id, cod, denumire)
+  values ((select val from t_ids where cheie='dep_alfa'), v_alfa, 'ADM', 'Administrativ'),
+         ((select val from t_ids where cheie='dep_beta'), v_beta, 'ADM', 'Administrativ');
+
+  insert into public.job_positions (id, organization_id, cod, denumire)
+  values ((select val from t_ids where cheie='poz_alfa'), v_alfa, 'REF', 'Referent'),
+         ((select val from t_ids where cheie='poz_beta'), v_beta, 'REF', 'Referent');
+
+  insert into public.employees (id, organization_id, marca, first_name, last_name,
+                                department_id, job_position_id, hired_on, status)
+  values ((select val from t_ids where cheie='ang_alfa'), v_alfa, '001', 'Ana', 'Popescu',
+          (select val from t_ids where cheie='dep_alfa'), (select val from t_ids where cheie='poz_alfa'),
+          current_date - 400, 'activ'),
+         ((select val from t_ids where cheie='ang_beta'), v_beta, '001', 'Bogdan', 'Ionescu',
+          (select val from t_ids where cheie='dep_beta'), (select val from t_ids where cheie='poz_beta'),
+          current_date - 300, 'activ');
+
+  insert into public.employment_contracts (organization_id, employee_id, numar, data_contract, valabil_de_la, salariu_baza)
+  values (v_alfa, (select val from t_ids where cheie='ang_alfa'), 'CIM-1', current_date - 400, current_date - 400, 5000.00),
+         (v_beta, (select val from t_ids where cheie='ang_beta'), 'CIM-1', current_date - 300, current_date - 300, 6000.00);
+
+  -- Criptotext fictiv: aici se verifică IZOLAREA, nu criptografia.
+  insert into public.employee_sensitive_data (employee_id, organization_id, cnp_last4, cnp_hash)
+  values ((select val from t_ids where cheie='ang_alfa'), v_alfa, '1234', 'amprenta-alfa-' || v_sufix),
+         ((select val from t_ids where cheie='ang_beta'), v_beta, '5678', 'amprenta-beta-' || v_sufix);
+
+  insert into public.employee_document_types (id, organization_id, cod, denumire)
+  values ((select val from t_ids where cheie='tipdoc_alfa'), v_alfa, 'ci-org', 'Carte de identitate'),
+         ((select val from t_ids where cheie='tipdoc_beta'), v_beta, 'ci-org', 'Carte de identitate');
+
+  insert into public.employee_documents (organization_id, employee_id, document_type_id, titlu, fisier_path, fisier_nume)
+  values (v_alfa, (select val from t_ids where cheie='ang_alfa'), (select val from t_ids where cheie='tipdoc_alfa'),
+          'CI Ana', v_alfa || '/employee/x/a.pdf', 'a.pdf'),
+         (v_beta, (select val from t_ids where cheie='ang_beta'), (select val from t_ids where cheie='tipdoc_beta'),
+          'CI Bogdan', v_beta || '/employee/y/b.pdf', 'b.pdf');
+
+  -- CHECK-ul cere ținta: fișa postului se atașează unui angajat SAU unei funcții.
+  insert into public.job_descriptions (organization_id, job_position_id, titlu, valabil_de_la)
+  values (v_alfa, (select val from t_ids where cheie='poz_alfa'), 'Fișa postului — Referent', current_date - 400),
+         (v_beta, (select val from t_ids where cheie='poz_beta'), 'Fișa postului — Referent', current_date - 300);
+
+  insert into public.employee_tax_exemptions (organization_id, employee_id, exemption_type, valabil_de_la)
+  values (v_alfa, (select val from t_ids where cheie='ang_alfa'), 'it', current_date - 200),
+         (v_beta, (select val from t_ids where cheie='ang_beta'), 'constructii', current_date - 200);
+
+  insert into public.work_permits (organization_id, employee_id, tip_permis, numar, valabil_de_la, valabil_pana, cetatenie)
+  values (v_alfa, (select val from t_ids where cheie='ang_alfa'), 'aviz', 'A-' || v_sufix, current_date - 100, current_date + 265, 'MD'),
+         (v_beta, (select val from t_ids where cheie='ang_beta'), 'aviz', 'B-' || v_sufix, current_date - 100, current_date + 265, 'UA');
+
+  insert into public.salary_component_types (id, organization_id, cod, denumire, kind)
+  values ((select val from t_ids where cheie='sct_alfa'), v_alfa, 'spor_vechime_org', 'Spor de vechime', 'spor_procent'),
+         ((select val from t_ids where cheie='sct_beta'), v_beta, 'spor_vechime_org', 'Spor de vechime', 'spor_procent');
+
+  -- CHECK-ul cere exclusivitate: spor_procent are `procent`, restul au `suma`.
+  insert into public.salary_components (organization_id, employee_id, component_type_id, kind, procent, valabil_de_la)
+  values (v_alfa, (select val from t_ids where cheie='ang_alfa'), (select val from t_ids where cheie='sct_alfa'), 'spor_procent', 15.00, current_date - 100),
+         (v_beta, (select val from t_ids where cheie='ang_beta'), (select val from t_ids where cheie='sct_beta'), 'spor_procent', 10.00, current_date - 100);
+
+  insert into public.hr_document_templates (organization_id, cod, denumire, continut_html)
+  values (v_alfa, 'adeverinta_venit_org', 'Adeverință de venit', '<p>Alfa</p>'),
+         (v_beta, 'adeverinta_venit_org', 'Adeverință de venit', '<p>Beta</p>');
+
+  insert into public.hr_issued_documents (organization_id, employee_id, serie, numar, numar_afisat, titlu, continut_checksum)
+  values (v_alfa, (select val from t_ids where cheie='ang_alfa'), 'ADV', 1, 'ADV-1', 'Adeverință de venit', 'suma-alfa'),
+         (v_beta, (select val from t_ids where cheie='ang_beta'), 'ADV', 1, 'ADV-1', 'Adeverință de venit', 'suma-beta');
+
+  insert into public.revisal_config (organization_id, event_type, termen_zile, valabil_de_la)
+  values (v_alfa, 'angajare', -1, current_date - 500),
+         (v_beta, 'angajare', -1, current_date - 500);
+
+  insert into public.revisal_events (organization_id, employee_id, event_type, data_evenimentului, termen_transmitere)
+  values (v_alfa, (select val from t_ids where cheie='ang_alfa'), 'angajare', current_date - 400, current_date - 401),
+         (v_beta, (select val from t_ids where cheie='ang_beta'), 'angajare', current_date - 300, current_date - 301);
 end
 $$;
 
@@ -146,6 +268,8 @@ declare
   v_beta uuid := pg_temp.id('beta');
   v_actor uuid := pg_temp.id('admin_alfa');
   probleme text := '';
+  neacoperite text := '';
+  blocate text := '';
   verificate int := 0;
 begin
   for t in
@@ -157,26 +281,53 @@ begin
     where nsp.nspname = 'public' and c.relkind = 'r'
     order by c.relname
   loop
-    -- Sanity: tabela chiar conține rânduri ale lui Beta? Altfel testul ar trece
-    -- degeaba, iar asta e mai periculos decât un test roșu.
+    -- Tabela chiar conține rânduri ale lui Beta? Dacă nu, verificarea de mai jos
+    -- ar trece indiferent de politici — un test verde care nu demonstrează nimic.
+    -- O astfel de tabelă se RAPORTEAZĂ, nu se sare în tăcere: tăcerea arată
+    -- identic cu succesul, iar aici diferența e între „izolare dovedită" și
+    -- „izolare presupusă".
     execute format('select count(*) from public.%I where organization_id = $1', t.relname)
       into n using v_beta;
-    if n = 0 then continue; end if;
+    if n = 0 then
+      neacoperite := neacoperite || format(E'\n  %s', t.relname);
+      continue;
+    end if;
     verificate := verificate + 1;
 
     perform set_config('request.jwt.claim.sub', v_actor::text, true);
     set local role authenticated;
-    execute format('select count(*) from public.%I where organization_id = $1', t.relname)
-      into n using v_beta;
+    begin
+      execute format('select count(*) from public.%I where organization_id = $1', t.relname)
+        into n using v_beta;
+    exception when insufficient_privilege then
+      -- Privilegiul lipsește cu totul, deci nici RLS nu mai apucă să conteze.
+      -- Este o protecție MAI TARE decât o politică: `employee_sensitive_data`
+      -- se atinge exclusiv prin funcțiile care scriu în audit la fiecare apel,
+      -- iar un SELECT direct ar ocoli tocmai auditul. Refuzul e rezultatul dorit.
+      n := -1;
+    end;
     reset role;
 
     if n > 0 then
       probleme := probleme || format(E'\n  %s: %s rânduri ale lui Beta vizibile', t.relname, n);
+    elsif n = -1 then
+      blocate := blocate || format(E'\n  %s', t.relname);
     end if;
   end loop;
 
   if probleme <> '' then perform pg_temp.esueaza('(c) SCURGERE LA CITIRE:' || probleme); end if;
   if verificate = 0 then perform pg_temp.esueaza('(c) nicio tabelă verificată — fixture-ul nu populează nimic'); end if;
+  if neacoperite <> '' then
+    perform pg_temp.esueaza(format(
+      E'(c) IZOLARE NEVERIFICATĂ pentru %s tabele — fixture-ul nu are rânduri ale organizației Beta în:%s\n\n'
+      'Nu înseamnă că sunt nesigure; înseamnă că nimeni nu a demonstrat că sunt.\n'
+      'Adaugă rânduri pentru AMBELE organizații în fixture, sau, dacă tabela chiar nu\n'
+      'poate fi populată, trece-o în lista albă din acest fișier CU MOTIVUL SCRIS.',
+      (length(neacoperite) - length(replace(neacoperite, E'\n', '')))::text, neacoperite));
+  end if;
+  if blocate <> '' then
+    raise notice '(c) tabele inaccesibile direct lui authenticated — protecție mai tare decât RLS:%', blocate;
+  end if;
   raise notice '(c) niciun rând al lui Beta vizibil din Alfa (% tabele verificate) ✓', verificate;
 end $$;
 

@@ -27,6 +27,7 @@ declare
   fara_rls text;
   fara_force text;
   fara_politici text;
+  fara_grant text;
   n integer;
 
   -- Motivul fiecărei intrări: sunt citite de helperii SECURITY DEFINER.
@@ -42,6 +43,12 @@ declare
   -- accesul se face exclusiv prin funcții SECURITY DEFINER.
   lista_alba_fara_politici text[] := array[
     'rate_limits'  -- contorul de limitare; un client nu are ce citi sau scrie aici
+  ];
+
+  -- Tabele pentru care ABSENȚA privilegiilor este intenționată: accesul trece
+  -- obligatoriu printr-o funcție care auditează, iar un SELECT direct l-ar ocoli.
+  lista_alba_fara_grant text[] := array[
+    'employee_sensitive_data'  -- doar prin hr_read_sensitive / hr_write_sensitive
   ];
 begin
   -- 1. RLS activat
@@ -90,6 +97,27 @@ begin
       n, fara_politici;
   end if;
 
-  raise notice 'Bariera 3 trecută: RLS activat, FORCE aplicat, politici prezente.';
+  -- 4. Tabelele cu politici trebuie să aibă și privilegii: RLS filtrează RÂNDURI,
+  --    dar `GRANT` decide dacă rolul poate atinge tabela. Fără grant, politicile
+  --    sunt cod mort și aplicația primește „permission denied”.
+  --    `grant ... on all tables` dintr-o migrare veche NU acoperă tabelele create
+  --    ulterior — exact așa au rămas descoperite cele din 0004.
+  select count(*), string_agg(format('  %I.%I', ns.nspname, c.relname), e'\n' order by c.relname)
+    into n, fara_grant
+  from pg_class c
+  join pg_namespace ns on ns.oid = c.relnamespace
+  where ns.nspname = 'public'
+    and c.relkind = 'r'
+    and c.relrowsecurity
+    and exists (select 1 from pg_policy p where p.polrelid = c.oid)
+    and not has_table_privilege('authenticated', c.oid, 'SELECT')
+    and not (c.relname = any (lista_alba_fara_grant));
+
+  if n > 0 then
+    raise exception e'BARIERA 3 A EȘUAT: % tabele au politici RLS dar NICIUN privilegiu pentru `authenticated`:\n%\n\nPoliticile sunt cod mort — accesul e refuzat înainte de ele. Adaugă `grant select, insert, update` în migrarea care creează tabelele, sau treci tabela în lista albă cu motivul scris.',
+      n, fara_grant;
+  end if;
+
+  raise notice 'Bariera 3 trecută: RLS activat, FORCE aplicat, politici prezente, privilegii acordate.';
 end
 $$;

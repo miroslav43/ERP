@@ -72,6 +72,17 @@ const serverSchema = z
     HR_ENCRYPTION_KEYS: encryptionKeysSchema,
     HR_ENCRYPTION_ACTIVE_KEY: z.string().min(1, "HR_ENCRYPTION_ACTIVE_KEY lipsește"),
     TENANT_COOKIE_SECRET: base64Key(32, "TENANT_COOKIE_SECRET"),
+    /**
+     * Cheie SEPARATĂ de cele de criptare, pentru amprentele de deduplicare
+     * (`cnp_hash`, `iban_hash`).
+     *
+     * Un hash simplu peste spațiul CNP-urilor plauzibile — 13 cifre cu
+     * structură cunoscută, deci ordinul a 10^13 combinații — se sparge prin
+     * forță brută. HMAC cu o cheie secretă face dicționarul inutil fără ea.
+     * Distinctă de cheile AES pentru că are alt ciclu de viață: se poate roti
+     * doar cu recalcularea amprentelor, nu a datelor.
+     */
+    HR_HASH_KEY: base64Key(32, "HR_HASH_KEY"),
     EMAIL_MODE: z.enum(["test", "live"]).default("test"),
     RESEND_API_KEY: z.string().default(""),
     EMAIL_FROM: z.string().min(1).default("Administrativo <noreply@administrativo.ro>"),
