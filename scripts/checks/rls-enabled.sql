@@ -36,6 +36,13 @@ declare
     'role_permissions',      -- citită de app.has_permission
     'features'               -- citită de app.feature_on
   ];
+
+  -- Tabele pentru care ZERO politici este starea CORECTĂ, nu o migrare uitată.
+  -- RLS activat fără nicio politică înseamnă refuz total pentru `authenticated`;
+  -- accesul se face exclusiv prin funcții SECURITY DEFINER.
+  lista_alba_fara_politici text[] := array[
+    'rate_limits'  -- contorul de limitare; un client nu are ce citi sau scrie aici
+  ];
 begin
   -- 1. RLS activat
   select count(*), string_agg(format('  %I.%I', schemaname, tablename), e'\n' order by tablename)
@@ -75,10 +82,11 @@ begin
   where ns.nspname in ('public', 'app')
     and c.relkind = 'r'
     and c.relrowsecurity
-    and not exists (select 1 from pg_policy p where p.polrelid = c.oid);
+    and not exists (select 1 from pg_policy p where p.polrelid = c.oid)
+    and not (c.relname = any (lista_alba_fara_politici));
 
   if n > 0 then
-    raise exception e'BARIERA 3 A EȘUAT: % tabele cu RLS activat dar FĂRĂ nicio politică (blochează complet accesul):\n%',
+    raise exception e'BARIERA 3 A EȘUAT: % tabele cu RLS activat dar FĂRĂ nicio politică (blochează complet accesul):\n%\n\nCorecție: adaugă politicile lipsă, sau — dacă refuzul total este intenționat — trece tabela în lista_alba_fara_politici din acest fișier, CU MOTIVUL SCRIS.',
       n, fara_politici;
   end if;
 

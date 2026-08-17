@@ -52,14 +52,21 @@ const eslintConfig = defineConfig([
 
   {
     /**
-     * Excepțiile: chiar fișierul admin, Server Actions, Route Handlers și
-     * scripturile de întreținere au voie să importe clientul admin.
+     * Lista celor care au voie să ocolească RLS. Este scurtă intenționat și
+     * fiecare intrare are un motiv scris: aceasta este evidența auditabilă a
+     * locurilor unde `service_role` intră în joc. Un `eslint-disable` presărat
+     * prin cod ar avea același efect tehnic, dar ar dispărea din vedere la
+     * primul review.
      */
     name: "administrativo/securitate-exceptii",
     files: [
-      "src/lib/supabase/admin.ts",
-      "src/**/actions.ts",
-      "src/app/api/**/route.ts",
+      "src/lib/supabase/admin.ts", // chiar constructorul clientului
+      "src/**/actions.ts", // Server Actions — rulează exclusiv pe server
+      "src/app/api/**/route.ts", // Route Handlers — idem
+      // Limitarea de rată trebuie să funcționeze ȘI pentru cereri
+      // neautentificate (login, resetare de parolă), unde nu există sesiune
+      // care să treacă prin RLS. Cheia se compune server-side.
+      "src/lib/utils/rate-limit.ts",
       "scripts/**/*.ts",
       "tests/**/*.ts",
     ],
