@@ -140,3 +140,74 @@ demo, jurnal de audit, comutator de organizație, Resend în mod test.
 
 Nu poate începe înainte de conectarea MCP-ului și de rularea, măcar o dată, a
 testului de izolare.
+
+---
+
+## Faza 1b — Super-Admin ✅ livrată
+
+86 de fișiere, 27 de rute. CRUD organizații cu validare de CUI (cifră de
+control reală, cu teste), module per organizație, membri și invitații,
+matricea de permisiuni read-only, landing public cu formular de demo, jurnal de
+audit cu paginare keyset, email prin Resend în mod test, comutator de
+organizație, paletă de comenzi.
+
+### Ce a mers prost și de ce contează
+
+Șase agenți în paralel au produs **91 de erori de compilare**, aproape toate din
+aceeași cauză: fiecare și-a inventat propriile căi de import pentru aceleași
+module. În loc să le ghicesc, am construit un index simbol→modul din fișierele
+care există efectiv și am rescris fiecare import după _ce_ importă — 40
+rezolvate automat, 3 simboluri chiar lipseau. Restul de 41 au fost reparate de
+17 agenți în paralel, câte unul per fișier.
+
+**Lecție pentru fazele următoare:** agenții paraleli trebuie să primească
+inventarul exact al modulelor existente, nu doar contractul de API.
+
+Criticii au raportat 5 observații „CRITICE" **false** — reclamau fișiere lipsă
+care există din Faza 1a. Vedeau doar ieșirea 1b, nu depozitul.
+
+### Două vulnerabilități reale, verificate empiric
+
+**Evaziune din jurnalul de audit.** `X-Forwarded-For` este un antet controlat de
+client, iar `log_audit_event` îl convertea cu `p_ip::inet`. Un antet care nu e
+adresă IP făcea **fiecare** scriere în audit să eșueze cu 22P02:
+
+```
+select public.log_audit_event(..., p_ip => '<script>alert(1)</script>', ...);
+ERROR: invalid input syntax for type inet
+```
+
+Cum `createAction` scrie în audit și la succes, și la refuz, un atacator își
+putea face acțiunile invizibile în jurnal. Corectat în `0003`: conversia
+întoarce `NULL` în loc să arunce, iar rândul se scrie oricum. Un IP lipsă e o
+pierdere acceptabilă; un eveniment neînregistrat nu este.
+
+**Divulgare pe paginile de setări.** `setari/membri` și `setari/organizatie`
+citeau datele fără nicio verificare de permisiune — orice membru autentificat
+vedea lista membrilor, planul și plafonul de locuri. Acțiunile refuzau corect,
+deci nu se putea _modifica_ nimic, dar divulgarea rămâne divulgare.
+
+### Trei defecte de React, corectate de fond
+
+- Componenta `Eroare` era definită în corpul formularului: la fiecare randare
+  primea identitate nouă, deci React demonta subarborele — utilizatorul pierdea
+  focusul exact în timp ce scria.
+- `<dialog>`-ul paletei de comenzi era condus imperativ prin ref din handlere;
+  acum din stare, cu reful atins doar într-un efect.
+- Variabila `module` intra în conflict cu `module` din CommonJS.
+
+Două module `"use server"` exportau constante. Next refuză build-ul, corect:
+tot ce exportă un astfel de modul devine punct de intrare apelabil din rețea.
+
+### Verificare
+
+`typecheck 0` · `lint 0` · **97 teste verzi** · build cu 27 de rute ·
+migrări + cele trei bariere + **izolarea 11/11**, atât pe Postgres 17 local cât
+și pe **Supabase real**.
+
+### Restant
+
+- ⛔ `SUPABASE_SERVICE_ROLE_KEY` lipsește din `.env.local` — fără ea, panoul
+  Super-Admin nu poate rula (folosește clientul admin).
+- ⛔ Cei 25 de pași de testare manuală nu au fost executați.
+- ⛔ Fluxul de invitație end-to-end (cere GoTrue real + un email).

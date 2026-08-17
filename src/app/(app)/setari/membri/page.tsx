@@ -7,6 +7,8 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { resolveTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime } from "@/lib/format/date";
 import { RUTA_ALEGE_ORGANIZATIA, RUTA_AUTENTIFICARE } from "@/config/routes";
+import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
+import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 export const metadata: Metadata = { title: "Membri și invitații" };
 
 export default async function SetariMembriPage() {
@@ -18,6 +20,17 @@ export default async function SetariMembriPage() {
     redirect(RUTA_ALEGE_ORGANIZATIA);
   }
   const { tenant } = rezolvare;
+
+  // Pagina citea datele fără nicio verificare de permisiune: orice membru
+  // autentificat al organizației le vedea. Acțiunile refuzau corect (prin
+  // `createAction`), deci nu se putea MODIFICA nimic — dar divulgarea rămâne
+  // divulgare, iar S2 cere verificarea și la afișare, nu doar la scriere.
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  if (scopeFor(permisiuni, "users:update") !== "all") {
+    return (
+      <AccesRestrictionat mesaj="Lista membrilor și invitațiile pot fi consultate doar de administratorii organizației. Cere-i administratorului tău dreptul necesar dacă ai nevoie de el." />
+    );
+  }
 
   const supabase = await createServerSupabase();
   const [membriRezultat, invitatiiRezultat] = await Promise.all([

@@ -8,6 +8,8 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { resolveTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate } from "@/lib/format/date";
 import { RUTA_ALEGE_ORGANIZATIA, RUTA_AUTENTIFICARE } from "@/config/routes";
+import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
+import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 export const metadata: Metadata = { title: "Datele firmei" };
 
 const ETICHETE_PLAN: Readonly<Record<string, string>> = {
@@ -43,6 +45,18 @@ export default async function SetariOrganizatiePage() {
   }
   if (rezolvare.status !== "ok") {
     redirect(RUTA_ALEGE_ORGANIZATIA);
+  }
+
+  // Pagina citea datele firmei fără nicio verificare de permisiune: orice
+  // membru autentificat le vedea, inclusiv planul și plafonul de locuri.
+  // Acțiunile refuzau corect (prin `createAction`), deci nu se putea MODIFICA
+  // nimic — dar divulgarea rămâne divulgare, iar S2 cere verificarea și la
+  // afișare, nu doar la scriere.
+  const permisiuni = await getPermissionMap(rezolvare.tenant.organizationId, rezolvare.tenant.role);
+  if (scopeFor(permisiuni, "organizations:update") !== "all") {
+    return (
+      <AccesRestrictionat mesaj="Datele firmei pot fi consultate doar de administratorii organizației. Cere-i administratorului tău dreptul necesar dacă ai nevoie de el." />
+    );
   }
 
   const supabase = await createServerSupabase();
