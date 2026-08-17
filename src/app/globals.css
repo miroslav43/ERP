@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+/**
+ * Paleta implicită a platformei.
+ *
+ * Regula de aur: crem = fundal, navy = structură și acțiuni, accent = folosit rar.
+ * Interfața trebuie să arate ca un instrument profesional, nu ca un site de
+ * prezentare.
+ *
+ * Aceste valori sunt doar valorile IMPLICITE. Fiecare organizație își poate
+ * suprascrie culoarea primară, iar layout-ul organizației va reinjecta
+ * variabilele de mai jos direct în `<html>`, din server — deci fără flash de
+ * temă greșită la încărcare.
+ */
+:root {
+  /* Navy — structură și acțiuni */
+  --color-primary: #0f1e3d;
+  --color-primary-hover: #1b2a4e;
+  --color-primary-active: #2a3d66;
+  --color-primary-foreground: #faf7f0;
+
+  /* Crem — fundal */
+  --color-background: #faf7f0;
+  --color-surface: #f2ede1;
+  --color-foreground: #14213d;
+  --color-muted-foreground: #5b6478;
+
+  /* Accent auriu — folosit rar, pentru evidențieri și stări de atenție */
+  --color-accent: #c9a227;
+  --color-accent-foreground: #14213d;
+
+  /* Stări */
+  --color-success: #1f7a5c;
+  --color-warning: #b7791f;
+  --color-danger: #b3261e;
+  --color-success-foreground: #faf7f0;
+  --color-warning-foreground: #faf7f0;
+  --color-danger-foreground: #faf7f0;
+
+  --color-border: #e3dbc9;
+  --color-ring: #2a3d66;
+
+  --radius: 0.5rem;
+}
+
+@theme inline {
+  --color-primary: var(--color-primary);
+  --color-primary-hover: var(--color-primary-hover);
+  --color-primary-active: var(--color-primary-active);
+  --color-primary-foreground: var(--color-primary-foreground);
+
+  --color-background: var(--color-background);
+  --color-surface: var(--color-surface);
+  --color-foreground: var(--color-foreground);
+  --color-muted-foreground: var(--color-muted-foreground);
+
+  --color-accent: var(--color-accent);
+  --color-accent-foreground: var(--color-accent-foreground);
+
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-danger: var(--color-danger);
+  --color-success-foreground: var(--color-success-foreground);
+  --color-warning-foreground: var(--color-warning-foreground);
+  --color-danger-foreground: var(--color-danger-foreground);
+
+  --color-border: var(--color-border);
+  --color-ring: var(--color-ring);
+
+  --font-sans: var(--font-inter);
+  --radius-DEFAULT: var(--radius);
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+}
+
+/* Accesibilitate: focus vizibil peste tot, cerință WCAG 2.1 AA. */
+:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
+
+/* Respectă preferința de mișcare redusă a sistemului. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

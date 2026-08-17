@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "22"
+
+jobs:
+  # ───────────────────────────────────────────────────────────────────────────
+  # Calitatea codului: tipuri, lint, teste unitare, build.
+  # ───────────────────────────────────────────────────────────────────────────
+  quality:
+    name: Tipuri, lint, teste, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Verificare tipuri (strict, zero any)
+        run: pnpm typecheck
+
+      - run: pnpm lint
+
+      - name: Verificare formatare
+        run: pnpm format:check
+
+      - name: Teste unitare (logica pură de calcul)
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+        env:
+          # Valori de substituție: build-ul nu atinge baza reală, dar `config/env.ts`
+          # validează prezența variabilelor la import.
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder
+          HR_ENCRYPTION_KEYS: '{"1":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}'
+          HR_ENCRYPTION_ACTIVE_KEY: "1"
+          TENANT_COOKIE_SECRET: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+          EMAIL_MODE: test
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Migrările trebuie să aplice curat pe o bază GOALĂ, de fiecare dată.
+  #
+  # Rulăm pe un Postgres real, nu pe proiectul din cloud: aici se prinde ordinea
+  # greșită a migrărilor, o dependență lipsă sau un `CHECK` cu funcție care nu e
+  # IMMUTABLE — înainte ca oricare dintre ele să atingă producția.
+  # ───────────────────────────────────────────────────────────────────────────
+  migrations:
+    name: Migrări pe bază goală
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: administrativo_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/administrativo_test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Aplică toate migrările, în ordine, oprindu-te la prima eroare
+        run: |
+          shopt -s nullglob
+          files=(supabase/migrations/*.sql)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "Nicio migrare încă — se sare peste."
+            exit 0
+          fi
+          for f in "${files[@]}"; do
+            echo "── $f"
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$f"
+          done
+
+      - name: Bariera 1 — nicio funcție SECURITY DEFINER fără search_path controlat
+        run: |
+          if [ ! -d supabase/migrations ] || [ -z "$(ls -A supabase/migrations 2>/dev/null)" ]; then
+            exit 0
+          fi
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -t -A -f scripts/checks/security-definer.sql
+
+      - name: Bariera 2 — fiecare politică RLS referă doar coloane existente
+        run: |
+          if [ ! -d supabase/migrations ] || [ -z "$(ls -A supabase/migrations 2>/dev/null)" ]; then
+            exit 0
+          fi
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -t -A -f scripts/checks/policies-explain.sql
+
+      - name: Bariera 3 — RLS activat pe fiecare tabelă, fără excepții neînregistrate
+        run: |
+          if [ ! -d supabase/migrations ] || [ -z "$(ls -A supabase/migrations 2>/dev/null)" ]; then
+            exit 0
+          fi
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -t -A -f scripts/checks/rls-enabled.sql
