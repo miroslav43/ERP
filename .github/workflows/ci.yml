@@ -117,3 +117,15 @@ jobs:
             exit 0
           fi
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -t -A -f scripts/checks/rls-enabled.sql
+
+      # Cel mai important test din proiect. Rulează pe Postgres simplu, fără
+      # GoTrue: PostgREST execută fiecare cerere ca `set local role authenticated`
+      # plus claim-urile în GUC-uri, iar testul reproduce exact acel context.
+      # Deci izolarea se verifică la FIECARE pull request, nu doar când cineva
+      # își amintește să configureze un proiect de test în cloud.
+      - name: Izolarea între tenanți
+        run: |
+          if [ ! -d supabase/migrations ] || [ -z "$(ls -A supabase/migrations 2>/dev/null)" ]; then
+            exit 0
+          fi
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/rls/izolare.sql

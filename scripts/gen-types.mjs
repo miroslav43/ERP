@@ -113,6 +113,10 @@ const coloane = query(`
   order by c.relname, a.attnum
 `);
 
+// Funcțiile care aparțin unei EXTENSII sunt excluse deliberat: instalarea unei
+// extensii în `public` ar adăuga zeci de intrări străine în tipurile noastre și
+// le-ar face să difere între medii, după cum e sau nu instalată extensia acolo.
+// `pg_depend` cu deptype 'e' este legătura care marchează apartenența.
 const functii = query(`
   select p.proname as nume,
          pg_get_function_arguments(p.oid) as argumente,
@@ -122,6 +126,10 @@ const functii = query(`
   join pg_namespace n on n.oid = p.pronamespace
   join pg_type t on t.oid = p.prorettype
   where n.nspname = 'public' and p.prokind = 'f'
+    and not exists (
+      select 1 from pg_depend d
+      where d.objid = p.oid and d.classid = 'pg_proc'::regclass and d.deptype = 'e'
+    )
   order by p.proname
 `);
 

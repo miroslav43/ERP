@@ -11,23 +11,33 @@ Planul complet aprobat: [`docs/design/00-PLAN-APROBAT.md`](docs/design/00-PLAN-A
 
 ## 1. De configurat înainte de a continua
 
-| Ce                            | Stare                          | Acțiune                                                                                                           |
-| ----------------------------- | ------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
-| Server MCP Supabase           | ⚠️ **indică proiectul greșit** | `.mcp.json` are `project_ref=nggtvmdazpzmqfgomyct` (Budgeting App). Trebuie `nybmhorngsajoqaxjlbr`. Vezi mai jos. |
-| Chei Supabase în `.env.local` | ⚠️ substituenți                | După conectarea MCP: `NEXT_PUBLIC_SUPABASE_ANON_KEY` și `SUPABASE_SERVICE_ROLE_KEY`.                              |
-| Proiect Supabase de test      | ⛔ neconfigurat                | Testele de izolare RLS își resetează baza; nu pot rula pe proiectul de dezvoltare.                                |
-| DNS Resend                    | ⛔ amânat deliberat            | `EMAIL_MODE="test"` până la Faza 11.                                                                              |
-| `HR_ENCRYPTION_KEYS`          | ⚠️ chei locale de dezvoltare   | Cheile de producție se generează separat și **nu** trec prin repo. Vezi §4.                                       |
+| Ce                            | Stare                        | Acțiune                                                                                                          |
+| ----------------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Server MCP Supabase           | ✅ conectat și autentificat  | Proiect `nybmhorngsajoqaxjlbr`, regiune **aws-1-eu-west-1**.                                                     |
+| Chei Supabase în `.env.local` | ⚠️ parțial                   | URL și cheia publicabilă sunt setate. `SUPABASE_SERVICE_ROLE_KEY` lipsește — Dashboard → Project Settings → API. |
+| Proiect Supabase de test      | ⛔ neconfigurat              | Testele de izolare RLS își resetează baza; nu pot rula pe proiectul de dezvoltare.                               |
+| DNS Resend                    | ⛔ amânat deliberat          | `EMAIL_MODE="test"` până la Faza 11.                                                                             |
+| `HR_ENCRYPTION_KEYS`          | ⚠️ chei locale de dezvoltare | Cheile de producție se generează separat și **nu** trec prin repo. Vezi §4.                                      |
 
-**Corectarea MCP-ului:**
+### Conexiunea directă la baza din cloud
+
+Regiunea proiectului este **aws-1-eu-west-1**, nu cea implicită. Găsirea ei a
+cerut încercarea mai multor endpoint-uri; `db.<ref>.supabase.co` nu rezolvă
+deloc (proiectele noi nu mai au IPv4 direct), deci se folosește pooler-ul:
 
 ```bash
-claude mcp remove supabase
-claude mcp add --scope project --transport http supabase \
-  "https://mcp.supabase.com/mcp?project_ref=nybmhorngsajoqaxjlbr&features=docs%2Caccount%2Cdatabase%2Cdebugging%2Cdevelopment%2Cfunctions%2Cbranching%2Cstorage"
+export PGPASSWORD='<parola bazei>'
+psql -h aws-1-eu-west-1.pooler.supabase.com -p 5432 \
+     -U postgres.nybmhorngsajoqaxjlbr -d postgres -f supabase/migrations/0001_kernel.sql
 ```
 
-apoi `/mcp` → `supabase` → Authenticate.
+Migrările se aplică prin `psql`, nu prin MCP: `apply_migration` cere ca SQL-ul
+să treacă prin model ca text, iar 104 KB de DDL retranscris este exact locul în
+care apare o eroare subtilă imposibil de observat. `psql` trimite fișierul
+byte-exact. MCP-ul rămâne util pentru inspecție, advisors și interogări.
+
+**Verificarea că transferul a fost fidel:** tipurile generate din cloud sunt
+byte-identice cu cele generate din schema locală.
 
 ### Fără Supabase local — decizie a clientului
 
