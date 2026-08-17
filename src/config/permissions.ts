@@ -33,44 +33,66 @@ export function meetsScope(granted: PermissionScope | undefined, min: MinScope):
   return RANK[granted ?? "none"] >= RANK[min];
 }
 
+/**
+ * Vocabularul de permisiuni. **Sursa de adevăr este seed-ul din
+ * `0002_authz.sql`**, nu această listă: politicile RLS interoghează acele
+ * rânduri, iar o cheie inventată aici pur și simplu nu are corespondent și
+ * întoarce `none` — adică refuz tăcut.
+ *
+ * Nepotrivirea a fost reală o dată: codul cerea `leave_requests:read`,
+ * `organization:update`, `members:manage`, iar baza avea `leave:read`,
+ * `organizations:update`, `users:update`. Efectul nu era o eroare, ci un meniu
+ * gol pentru toată lumea, inclusiv pentru `org_admin`. Testul `permisiuni.test.ts`
+ * compară acum cele două liste și eșuează dacă diverg din nou.
+ *
+ * Resurse: announcements, attendance, audit, branding, checklists, compliance,
+ * departments, employees, features, inventory, leave, maintenance,
+ * organizations, payroll, per_diem, reports, roles, ssm, trip_sheets, users,
+ * vehicles. Acțiuni: read, create, update, delete, approve, export.
+ */
 export const PERMISSION_KEYS = [
-  "dashboard:read",
+  "announcements:read",
+  "announcements:create",
+  "attendance:read",
+  "attendance:create",
+  "attendance:approve",
+  "audit:read",
+  "branding:update",
+  "checklists:read",
+  "checklists:update",
+  "compliance:read",
+  "departments:read",
   "employees:read",
   "employees:create",
   "employees:update",
   "employees:delete",
-  "employee_sensitive:read",
-  "attendance:read",
-  "attendance:create",
-  "attendance:approve",
-  "leave_requests:read",
-  "leave_requests:create",
-  "leave_requests:update",
-  "leave_requests:approve",
-  "leave_balances:read",
-  "leave_balances:update",
-  "vehicles:read",
-  "vehicles:update",
-  "ssm_trainings:read",
-  "ssm_trainings:create",
-  "maintenance:read",
-  "maintenance:update",
+  "features:read",
+  "features:update",
   "inventory:read",
   "inventory:update",
-  "onboarding:read",
-  "onboarding:update",
-  "announcements:read",
-  "announcements:create",
+  "leave:read",
+  "leave:create",
+  "leave:update",
+  "leave:approve",
+  "maintenance:read",
+  "maintenance:update",
+  "organizations:read",
+  "organizations:update",
   "payroll:read",
   "payroll:update",
   "per_diem:read",
   "per_diem:create",
   "reports:read",
-  "organization:update",
-  "members:manage",
-  "roles:manage",
-  "features:manage",
-  "audit:read",
+  "roles:read",
+  "roles:update",
+  "ssm:read",
+  "ssm:create",
+  "trip_sheets:read",
+  "users:read",
+  "users:create",
+  "users:update",
+  "vehicles:read",
+  "vehicles:update",
 ] as const;
 
 export type PermissionKey = (typeof PERMISSION_KEYS)[number];

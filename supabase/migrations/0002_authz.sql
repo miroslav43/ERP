@@ -1631,3 +1631,30 @@ revoke execute on function public.log_audit_event(
 grant execute on function public.log_audit_event(
   public.audit_action, public.audit_status, uuid, text, uuid, jsonb, jsonb, text, text, text, text
 ) to authenticated, service_role;
+
+-- ── 12. Resurse adăugate după alinierea vocabularului ───────────────────────
+--
+-- `roles` (editarea matricei de permisiuni a organizației) și `reports` lipseau
+-- din seed, deși codul le cerea. O cheie fără corespondent nu produce eroare:
+-- `app.has_permission` întoarce `none`, adică refuz tăcut — iar efectul vizibil
+-- era că intrările respective dispăreau din meniu pentru toată lumea, inclusiv
+-- pentru `org_admin`.
+insert into public.role_permissions (organization_id, role, resource, action, scope)
+values
+  -- roles: doar org_admin își ajustează matricea de permisiuni.
+  (null, 'org_admin', 'roles', 'read',   'all'),
+  (null, 'org_admin', 'roles', 'update', 'all'),
+  (null, 'manager',   'roles', 'read',   'none'),
+  (null, 'hr',        'roles', 'read',   'none'),
+  (null, 'employee',  'roles', 'read',   'none'),
+
+  -- reports: rapoartele agregă date pe care rolul le vede oricum; scope-ul de
+  -- aici decide doar ce arie acoperă raportul, nu ce rânduri sunt vizibile —
+  -- acelea rămân filtrate de RLS-ul tabelelor sursă.
+  (null, 'org_admin', 'reports', 'read',   'all'),
+  (null, 'org_admin', 'reports', 'export', 'all'),
+  (null, 'hr',        'reports', 'read',   'all'),
+  (null, 'hr',        'reports', 'export', 'all'),
+  (null, 'manager',   'reports', 'read',   'team'),
+  (null, 'employee',  'reports', 'read',   'none')
+on conflict do nothing;

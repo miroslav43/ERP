@@ -38,7 +38,9 @@ export type NavGroupResult = Readonly<{
 function esteVizibil(item: NavItem, input: NavigationInput): boolean {
   // `featureKey === null` marchează nucleul, mereu disponibil.
   const modulActiv = item.featureKey === null || input.features.has(item.featureKey);
-  return modulActiv && input.permissions.has(item.permission);
+  // `permission === null` = vizibil oricărui membru activ (tabloul de bord).
+  const arePermisiune = item.permission === null || input.permissions.has(item.permission);
+  return modulActiv && arePermisiune;
 }
 
 export function buildNavigation(input: NavigationInput): readonly NavGroupResult[] {

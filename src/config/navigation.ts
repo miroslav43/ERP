@@ -48,7 +48,14 @@ export type NavLink = Readonly<{
   href: string;
   /** `null` = nucleu, mereu disponibil. */
   featureKey: FeatureKey | null;
-  permission: PermissionKey;
+  /**
+   * `null` = vizibil oricărui membru activ.
+   *
+   * Tabloul de bord nu are resursă proprie în `role_permissions` și nici nu
+   * trebuie să aibă: nu afișează date proprii, ci doar ce vine din modulele
+   * active. O permisiune inventată pentru el ar fi un rând fals în matrice.
+   */
+  permission: PermissionKey | null;
   minScope: MinScope;
 }>;
 
@@ -69,7 +76,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: LayoutDashboard,
     group: "operatiuni",
     featureKey: null,
-    permission: "dashboard:read",
+    permission: null,
     minScope: "own",
     order: 10,
   },
@@ -91,7 +98,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: CalendarDays,
     group: "operatiuni",
     featureKey: "leave",
-    permission: "leave_requests:read",
+    permission: "leave:read",
     minScope: "own",
     badge: "leave_pending",
     order: 30,
@@ -101,7 +108,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
         label: "Cereri",
         href: "/concedii",
         featureKey: "leave",
-        permission: "leave_requests:read",
+        permission: "leave:read",
         minScope: "own",
       },
       {
@@ -109,7 +116,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
         label: "Soldul zilelor",
         href: "/concedii/sold",
         featureKey: "leave",
-        permission: "leave_balances:read",
+        permission: "leave:read",
         minScope: "own",
       },
     ],
@@ -132,7 +139,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: ClipboardList,
     group: "personal",
     featureKey: "onboarding",
-    permission: "onboarding:read",
+    permission: "checklists:read",
     minScope: "team",
     order: 50,
   },
@@ -143,7 +150,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: HardHat,
     group: "personal",
     featureKey: "ssm",
-    permission: "ssm_trainings:read",
+    permission: "ssm:read",
     minScope: "own",
     badge: "ssm_expiring",
     order: 60,
@@ -234,7 +241,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: Settings,
     group: "administrare",
     featureKey: null,
-    permission: "organization:update",
+    permission: "organizations:update",
     minScope: "all",
     order: 140,
     children: [
@@ -243,7 +250,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
         label: "Organizație",
         href: "/setari/organizatie",
         featureKey: null,
-        permission: "organization:update",
+        permission: "organizations:update",
         minScope: "all",
       },
       {
@@ -251,7 +258,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
         label: "Membri și invitații",
         href: "/setari/membri",
         featureKey: null,
-        permission: "members:manage",
+        permission: "users:update",
         minScope: "all",
       },
       {
@@ -259,7 +266,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
         label: "Roluri și permisiuni",
         href: "/setari/roluri",
         featureKey: null,
-        permission: "roles:manage",
+        permission: "roles:update",
         minScope: "all",
       },
       {
@@ -267,7 +274,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
         label: "Module active",
         href: "/setari/module",
         featureKey: null,
-        permission: "features:manage",
+        permission: "features:read",
         minScope: "all",
       },
     ],
@@ -294,7 +301,7 @@ export const PORTAL_NAV_ITEMS: readonly NavItem[] = [
     icon: LayoutDashboard,
     group: "operatiuni",
     featureKey: "employee_portal",
-    permission: "dashboard:read",
+    permission: null,
     minScope: "own",
     order: 10,
   },
@@ -305,7 +312,7 @@ export const PORTAL_NAV_ITEMS: readonly NavItem[] = [
     icon: CalendarDays,
     group: "operatiuni",
     featureKey: "leave",
-    permission: "leave_requests:read",
+    permission: "leave:read",
     minScope: "own",
     order: 20,
   },
