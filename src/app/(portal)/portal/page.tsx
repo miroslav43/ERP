@@ -13,9 +13,9 @@ import { ETICHETE_STATUS_CERERE } from "./etichete";
 export const metadata: Metadata = { title: "Portalul meu" };
 
 export default async function PaginaPortal() {
-  const { tenant } = await requireTenant();
+  const { tenant, user } = await requireTenant();
   const moduleActive = await getEnabledFeatures(tenant.organizationId);
-  const fisa = await fisaProprie(tenant.organizationId);
+  const fisa = await fisaProprie(tenant.organizationId, user.id);
 
   if (fisa === null) {
     // Un membru al organizației poate să nu aibă fișă de personal — un
@@ -35,8 +35,12 @@ export default async function PaginaPortal() {
 
   const an = Number(todayInBucharest().slice(0, 4));
   const [solduri, cereri, tipuri] = await Promise.all([
-    moduleActive.has("leave") ? soldurileMele(tenant.organizationId, an) : Promise.resolve([]),
-    moduleActive.has("leave") ? cererileMele(tenant.organizationId, 5) : Promise.resolve([]),
+    moduleActive.has("leave")
+      ? soldurileMele(tenant.organizationId, an, fisa.id)
+      : Promise.resolve([]),
+    moduleActive.has("leave")
+      ? cererileMele(tenant.organizationId, fisa.id, 5)
+      : Promise.resolve([]),
     moduleActive.has("leave")
       ? tipuriConcediu(tenant.organizationId)
       : Promise.resolve(new Map<string, { id: string; denumire: string; culoare: string | null }>()),

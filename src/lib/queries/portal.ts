@@ -1,12 +1,15 @@
 // src/lib/queries/portal.ts
 // Citirile portalului angajatului.
 //
-// Toate întorc DOAR datele omului autentificat, și nu fiindcă filtrăm noi: RLS
-// o face, prin ramurile `own` ale politicilor. `employees:read = own` înseamnă
-// literal `user_id = auth.uid()` — un singur rând — iar `leave:read = own`,
-// `attendance:read = own` la fel. Un filtru duplicat în TypeScript ar părea că
-// apără ceva și ar putea diverge tăcut de regula reală.
-
+// Toate cer explicit `userId`/`employeeId` și filtrează pe ei — NU se bazează
+// pe RLS ca să îngusteze rezultatul la „propriul rând”. Motivul: scope-ul
+// `employees:read`/`leave:read`/`attendance:read` al unui `org_admin` sau `hr`
+// e `all`, nu `own`. Un asemenea cont poate deschide și el portalul (poate fi
+// simultan și angajat), iar fără filtrul explicit interogarea ar întoarce TOATĂ
+// organizația sub eticheta „ale mele” — pentru `fisaProprie` (`.maybeSingle()`
+// pe N rânduri) chiar cade cu 500; pentru liste, ar afișa concediile și
+// pontajul colegilor ca fiind proprii. Reprodus cu `demo_admin` (org_admin,
+// `employees:read = all`) deschizând `/portal`.
 import { createServerSupabase } from "@/lib/supabase/server";
 
 export interface FisaProprie {
@@ -73,12 +76,18 @@ export interface DocumentPropriu {
  * fără să aibă încă fișă de personal — de exemplu un administrator invitat, care
  * nu e angajat. Portalul trebuie să spună asta, nu să cadă.
  */
-export async function fisaProprie(organizationId: string): Promise<FisaProprie | null> {
+export async function fisaProprie(
+  organizationId: string,
+  userId: string,
+): Promise<FisaProprie | null> {
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("employees")
     .select("id, full_name, marca, hired_on, department_id, job_position_id, status")
     .eq("organization_id", organizationId)
+    .eq("user_id", userId)
+    .order("is_primary", { ascending: false })
+    .limit(1)
     .is("deleted_at", null)
     .maybeSingle<FisaProprie>();
 
@@ -89,12 +98,14 @@ export async function fisaProprie(organizationId: string): Promise<FisaProprie |
 export async function soldurileMele(
   organizationId: string,
   an: number,
+  employeeId: string,
 ): Promise<readonly SoldConcediu[]> {
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("leave_balances")
     .select("leave_type_id, an, drept_anual, reportate, folosite, in_asteptare, ramase")
     .eq("organization_id", organizationId)
+    .eq("employee_id", employeeId)
     .eq("an", an)
     .is("deleted_at", null)
     .returns<SoldConcediu[]>();
@@ -105,6 +116,7 @@ export async function soldurileMele(
 
 export async function cererileMele(
   organizationId: string,
+  employeeId: string,
   limita = 50,
 ): Promise<readonly CerereProprie[]> {
   const db = await createServerSupabase();
@@ -114,6 +126,7 @@ export async function cererileMele(
       "id, leave_type_id, data_inceput, data_sfarsit, zile_lucratoare, status, motiv_respingere",
     )
     .eq("organization_id", organizationId)
+    .eq("employee_id", employeeId)
     .is("deleted_at", null)
     .order("data_inceput", { ascending: false })
     .limit(limita)
@@ -149,6 +162,7 @@ export async function pontajulMeu(
   organizationId: string,
   an: number,
   luna: number,
+  employeeId: string,
 ): Promise<readonly ZiPontaj[]> {
   const prima = `${an}-${String(luna).padStart(2, "0")}-01`;
   const urmatoareaLuna = luna === 12 ? 1 : luna + 1;
@@ -160,6 +174,7 @@ export async function pontajulMeu(
     .from("attendance_entries")
     .select("id, data, ore_lucrate, ore_suplimentare, ore_noapte, tip_zi, observatii")
     .eq("organization_id", organizationId)
+    .eq("employee_id", employeeId)
     .gte("data", prima)
     .lt("data", primaUrmatoare)
     .is("deleted_at", null)

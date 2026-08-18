@@ -11,10 +11,10 @@ import { documenteleMele, fisaProprie } from "@/lib/queries/portal";
 export const metadata: Metadata = { title: "Documentele mele" };
 
 export default async function PaginaDocumenteleMele() {
-  const { tenant } = await requireTenant();
+  const { tenant, user } = await requireTenant();
   await requireFeature(tenant.organizationId, "employee_portal");
 
-  const fisa = await fisaProprie(tenant.organizationId);
+  const fisa = await fisaProprie(tenant.organizationId, user.id);
   if (fisa === null) {
     return (
       <div className="p-4">

@@ -36,11 +36,22 @@ const ICONURI: Readonly<Record<string, LucideIcon>> = {
   building: Building2,
 };
 
-/** Doar rutele care chiar există în Faza 1b. Restul modulelor sunt anunțate onest ca „în dezvoltare”. */
+/**
+ * Doar modulele care chiar au ecrane. Restul sunt anunțate onest ca „în
+ * dezvoltare” — lista asta rămâne datoria scrisă negru pe alb, exact ca
+ * `MODULE_NECONSTRUITE` din `config/navigation.test.ts`.
+ */
 const RUTE_IMPLEMENTATE: Readonly<Record<string, string>> = {
-  settings: "/setari/organizatie",
-  users: "/setari/membri",
-  notifications: "/notificari",
+  nucleu: "/angajati",
+  attendance: "/pontaj",
+  leave: "/concedii",
+  onboarding: "/onboarding",
+  per_diem: "/diurna",
+  fleet: "/flota",
+  maintenance: "/mentenanta",
+  inventory: "/inventar",
+  ssm: "/ssm",
+  employee_portal: "/portal",
 };
 
 export default async function PanouPage() {

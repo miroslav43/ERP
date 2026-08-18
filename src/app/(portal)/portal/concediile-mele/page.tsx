@@ -9,6 +9,7 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
 import { anDinUrl } from "@/lib/rute/parametri";
+import { idFisaProprie } from "@/lib/queries/employees";
 import { cererileMele, soldurileMele, tipuriConcediu } from "@/lib/queries/portal";
 
 import { CLASE_STATUS_CERERE, ETICHETE_STATUS_CERERE } from "../etichete";
@@ -20,7 +21,7 @@ interface ProprietatiPagina {
 }
 
 export default async function PaginaConcediileMele({ searchParams }: ProprietatiPagina) {
-  const { tenant } = await requireTenant();
+  const { tenant, user } = await requireTenant();
   await requireFeature(tenant.organizationId, "leave");
   const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
 
@@ -32,12 +33,26 @@ export default async function PaginaConcediileMele({ searchParams }: Proprietati
     );
   }
 
+  const propriaFisaId = await idFisaProprie(tenant.organizationId, user.id);
+  if (propriaFisaId === null) {
+    return (
+      <div className="p-4">
+        <div className="bg-surface border-border rounded-lg border p-6 text-center">
+          <h1 className="text-foreground text-lg font-semibold">Nu aveți încă o fișă de personal</h1>
+          <p className="text-muted-foreground mt-2 text-sm">
+            Concediile se leagă de un angajat. Cereți resurselor umane să vă completeze fișa.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const parametri = await searchParams;
   const an = anDinUrl(parametri["an"], Number(todayInBucharest().slice(0, 4)));
 
   const [solduri, cereri, tipuri] = await Promise.all([
-    soldurileMele(tenant.organizationId, an),
-    cererileMele(tenant.organizationId, 100),
+    soldurileMele(tenant.organizationId, an, propriaFisaId),
+    cererileMele(tenant.organizationId, propriaFisaId, 100),
     tipuriConcediu(tenant.organizationId),
   ]);
 

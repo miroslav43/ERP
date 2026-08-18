@@ -10,6 +10,7 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, formatMonthYear, todayInBucharest } from "@/lib/format/date";
 import { anDinUrl } from "@/lib/rute/parametri";
+import { idFisaProprie } from "@/lib/queries/employees";
 import { pontajulMeu } from "@/lib/queries/portal";
 
 import { ETICHETE_TIP_ZI } from "../etichete";
@@ -30,7 +31,7 @@ function lunaDinUrl(valoare: string | string[] | undefined, implicit: number): n
 }
 
 export default async function PaginaPontajulMeu({ searchParams }: ProprietatiPagina) {
-  const { tenant } = await requireTenant();
+  const { tenant, user } = await requireTenant();
   await requireFeature(tenant.organizationId, "attendance");
   const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
 
@@ -42,12 +43,26 @@ export default async function PaginaPontajulMeu({ searchParams }: ProprietatiPag
     );
   }
 
+  const propriaFisaId = await idFisaProprie(tenant.organizationId, user.id);
+  if (propriaFisaId === null) {
+    return (
+      <div className="p-4">
+        <div className="bg-surface border-border rounded-lg border p-6 text-center">
+          <h1 className="text-foreground text-lg font-semibold">Nu aveți încă o fișă de personal</h1>
+          <p className="text-muted-foreground mt-2 text-sm">
+            Pontajul se leagă de un angajat. Cereți resurselor umane să vă completeze fișa.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const parametri = await searchParams;
   const azi = todayInBucharest();
   const an = anDinUrl(parametri["an"], Number(azi.slice(0, 4)));
   const luna = lunaDinUrl(parametri["luna"], Number(azi.slice(5, 7)));
 
-  const zile = await pontajulMeu(tenant.organizationId, an, luna);
+  const zile = await pontajulMeu(tenant.organizationId, an, luna, propriaFisaId);
 
   const total = zile.reduce(
     (s, z) => ({
