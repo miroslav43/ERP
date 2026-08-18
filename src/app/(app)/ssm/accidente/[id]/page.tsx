@@ -1,0 +1,140 @@
+// src/app/(app)/ssm/accidente/[id]/page.tsx
+import { notFound } from "next/navigation";
+import Link from "next/link";
+import type { Metadata } from "next";
+
+import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { can, getPermissionMap } from "@/lib/auth/permissions";
+import { requireFeature } from "@/lib/auth/features";
+import { requireUser } from "@/lib/auth/current-user";
+import { requireTenant } from "@/lib/tenant/resolve-tenant";
+import { formatDate } from "@/lib/format/date";
+import { idDinRuta } from "@/lib/rute/parametri";
+import { angajatiDupaId, citesteAccident } from "@/lib/queries/ssm";
+import { momentLimitaComunicareItm, oreRamasePanaLaTermen } from "@/domain/ssm/termen-itm";
+
+import { CLASE_TIP_ACCIDENT, ETICHETE_TIP_ACCIDENT } from "../../etichete";
+import { FormularComunicareItm } from "./formular-comunicare-itm";
+
+export const metadata: Metadata = { title: "Accident de muncă" };
+
+interface ProprietatiPagina {
+  readonly params: Promise<{ readonly id: string }>;
+}
+
+export default async function PaginaAccident({ params }: ProprietatiPagina) {
+  const id = idDinRuta((await params).id);
+
+  await requireUser();
+  const { tenant } = await requireTenant();
+  await requireFeature(tenant.organizationId, "ssm");
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+
+  if (!can(permisiuni, "ssm:read", "team")) {
+    return (
+      <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta registrul de accidente. Solicitați administratorului organizației rolul potrivit." />
+    );
+  }
+
+  const accident = await citesteAccident(tenant.organizationId, id);
+  if (accident === null) notFound();
+
+  const angajati = await angajatiDupaId(
+    tenant.organizationId,
+    accident.employee_id === null ? [] : [accident.employee_id],
+  );
+  const angajat = accident.employee_id === null ? undefined : angajati.get(accident.employee_id);
+  const poateActualiza = can(permisiuni, "ssm:update", "team");
+
+  const termenOre = accident.termen_comunicare_ore ?? 24;
+  const momentLimita = momentLimitaComunicareItm(accident.data_producerii, accident.ora_producerii, termenOre);
+  const oreRamase =
+    accident.comunicat_la_itm_la === null ? oreRamasePanaLaTermen(momentLimita, new Date()) : null;
+
+  return (
+    <main className="mx-auto w-full max-w-3xl space-y-6 p-6">
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+            <Link href="/ssm/accidente" className="underline-offset-2 hover:underline">
+              Accidente de muncă
+            </Link>
+          </p>
+          <h1 className="text-2xl font-semibold">
+            {formatDate(accident.data_producerii)}
+            {accident.numar_intern === null ? null : <span className="text-zinc-500"> · {accident.numar_intern}</span>}
+          </h1>
+          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+            {angajat === undefined ? "Angajat neidentificat" : `${angajat.full_name ?? "—"} (${angajat.marca})`}
+            {" · "}
+            {accident.locul}
+          </p>
+        </div>
+        <span className={`rounded px-2 py-1 text-xs font-medium ${CLASE_TIP_ACCIDENT[accident.tip]}`}>
+          {ETICHETE_TIP_ACCIDENT[accident.tip]}
+        </span>
+      </header>
+
+      {oreRamase === null ? null : (
+        <div
+          role="alert"
+          className={`rounded-lg border p-4 text-sm ${
+            oreRamase >= 0
+              ? "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100"
+              : "border-red-300 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950 dark:text-red-100"
+          }`}
+        >
+          {oreRamase >= 0
+            ? `Nu a fost încă comunicat la ITM. Mai sunt ${oreRamase.toFixed(1)} ore până la termenul legal.`
+            : `Nu a fost încă comunicat la ITM. Termenul legal a fost depășit cu ${Math.abs(oreRamase).toFixed(1)} ore.`}
+        </div>
+      )}
+
+      <section
+        aria-label="Detalii accident"
+        className="grid gap-4 rounded-lg border border-zinc-200 p-4 sm:grid-cols-2 dark:border-zinc-800"
+      >
+        <Camp eticheta="Ora producerii" valoare={accident.ora_producerii ?? "—"} />
+        <Camp eticheta="Zile de incapacitate" valoare={String(accident.zile_incapacitate)} />
+        <Camp
+          eticheta="Comunicat la ITM"
+          valoare={accident.comunicat_la_itm_la === null ? "Nu" : formatDate(accident.comunicat_la_itm_la.slice(0, 10))}
+        />
+        <Camp eticheta="Număr proces verbal" valoare={accident.numar_proces_verbal ?? "—"} />
+        <Camp
+          eticheta="Cercetare finalizată"
+          valoare={accident.cercetare_finalizata_la === null ? "În curs" : formatDate(accident.cercetare_finalizata_la)}
+        />
+      </section>
+
+      <section aria-label="Împrejurări" className="space-y-1 text-sm">
+        <p className="text-zinc-500">Împrejurări:</p>
+        <p className="whitespace-pre-wrap">{accident.imprejurari}</p>
+        {accident.urmari === null ? null : (
+          <>
+            <p className="mt-3 text-zinc-500">Urmări:</p>
+            <p className="whitespace-pre-wrap">{accident.urmari}</p>
+          </>
+        )}
+      </section>
+
+      {poateActualiza ? (
+        <FormularComunicareItm
+          id={accident.id}
+          comunicatLaItm={accident.comunicat_la_itm_la}
+          cercetareFinalizata={accident.cercetare_finalizata_la}
+          zileIncapacitate={accident.zile_incapacitate}
+        />
+      ) : null}
+    </main>
+  );
+}
+
+function Camp({ eticheta, valoare }: { readonly eticheta: string; readonly valoare: string }) {
+  return (
+    <div>
+      <dt className="text-xs text-zinc-500 dark:text-zinc-400">{eticheta}</dt>
+      <dd className="text-sm font-medium">{valoare}</dd>
+    </div>
+  );
+}

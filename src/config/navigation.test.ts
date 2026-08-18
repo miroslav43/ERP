@@ -32,13 +32,8 @@ import { NAV_ITEMS, type NavLink } from "./navigation";
  * necondiționat și nu are cum să fie ascunsă.
  */
 const MODULE_NECONSTRUITE: readonly string[] = [
-  "/pontaj", // Faza 3b
-  "/onboarding", // Faza 6
-  "/ssm", // Faza 7
-  "/mentenanta", // Faza 7
   "/anunturi", // Faza 11
   "/salarizare", // Faza 9
-  "/diurna", // Faza 10
   "/portal", // Faza 11
   "/portal/concediile-mele",
   "/portal/documentele-mele",

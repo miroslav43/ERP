@@ -1,0 +1,341 @@
+"use client";
+
+import { useMemo, useState } from "react";
+
+import { type TipZi } from "@/schemas/attendance";
+import { CLASE_TIP_ZI, ETICHETE_TIP_ZI, esteZiLucratoare, tipZiAutomat } from "./etichete";
+import { CelulaZi } from "./celula-zi";
+
+export interface IntrareZiClient {
+  readonly id: string;
+  readonly oraInceput: string | null;
+  readonly oraSfarsit: string | null;
+  readonly oreLucrate: number;
+  readonly oreSuplimentare: number;
+  readonly oreNoapte: number;
+  readonly tipZi: TipZi;
+  readonly esteDinConcediu: boolean;
+  readonly aprobat: boolean;
+  readonly observatii: string | null;
+}
+
+export interface RandFoaie {
+  /** `null` = fișa proprie (scope „own”): `salveazaZiPontaj` o rezolvă server-side. */
+  readonly angajatId: string | null;
+  readonly eticheta: string;
+  /** Cheia e ziua ISO (`"2026-03-09"`) — serializabil peste granița server/client. */
+  readonly intrari: Readonly<Record<string, IntrareZiClient>>;
+}
+
+interface Proprietati {
+  readonly dataInceput: string;
+  readonly dataSfarsit: string;
+  readonly statusPerioada: "deschisa" | "in_aprobare" | "blocata";
+  readonly blocataLa: string | null;
+  readonly randuri: readonly RandFoaie[];
+  readonly sarbatoriNationale: Readonly<Record<string, string>>;
+  readonly zileRecuperare: readonly string[];
+  readonly liberSuplimentar: readonly string[];
+  readonly poateEdita: boolean;
+  readonly poateAproba: boolean;
+}
+
+interface Selectie {
+  readonly angajatId: string | null;
+  readonly eticheta: string;
+  readonly data: string;
+}
+
+function enumeraZile(dataInceput: string, dataSfarsit: string): readonly string[] {
+  const zile: string[] = [];
+  let curent = new Date(`${dataInceput}T00:00:00Z`);
+  const limita = new Date(`${dataSfarsit}T00:00:00Z`);
+  while (curent.getTime() <= limita.getTime()) {
+    zile.push(curent.toISOString().slice(0, 10));
+    curent = new Date(curent.getTime() + 24 * 60 * 60 * 1000);
+  }
+  return zile;
+}
+
+function ziuaDinIso(data: string): string {
+  return data.slice(8, 10);
+}
+
+const CATEGORII_SPECIALE: readonly TipZi[] = [
+  "concediu",
+  "medical",
+  "absenta_nemotivata",
+  "delegatie",
+];
+
+/**
+ * Matricea angajați × zile a lunii, cu totaluri pe rând și pe coloană.
+ *
+ * `<div class="overflow-x-auto">` + coloana „Angajat” sticky la stânga +
+ * antet sticky sus, ca la fișele lungi. Totalurile din `<tfoot>` sunt
+ * etichetate explicit „pe pagina curentă": PostgREST nu agregă, iar pagina
+ * are cel mult 30 angajați.
+ */
+export function FoaieColectiva({
+  dataInceput,
+  dataSfarsit,
+  statusPerioada,
+  blocataLa,
+  randuri,
+  sarbatoriNationale,
+  zileRecuperare,
+  liberSuplimentar,
+  poateEdita,
+  poateAproba,
+}: Proprietati) {
+  const [selectie, setSelectie] = useState<Selectie | null>(null);
+
+  const zile = useMemo(() => enumeraZile(dataInceput, dataSfarsit), [dataInceput, dataSfarsit]);
+  const setNationale = useMemo(
+    () => new Set(Object.keys(sarbatoriNationale)),
+    [sarbatoriNationale],
+  );
+  const setRecuperare = useMemo(() => new Set(zileRecuperare), [zileRecuperare]);
+  const setLiber = useMemo(() => new Set(liberSuplimentar), [liberSuplimentar]);
+
+  const perioadaBlocata = statusPerioada === "blocata";
+
+  const infoZile = useMemo(
+    () =>
+      new Map(
+        zile.map((zi) => {
+          const lucratoare = esteZiLucratoare(zi, setNationale, setRecuperare, setLiber);
+          const tip = tipZiAutomat(zi, setNationale, setRecuperare, setLiber);
+          return [zi, { lucratoare, tip, denumireSarbatoare: sarbatoriNationale[zi] ?? null }];
+        }),
+      ),
+    [zile, setNationale, setRecuperare, setLiber, sarbatoriNationale],
+  );
+
+  const totaluriColoana = useMemo(() => {
+    const harta = new Map<string, number>();
+    for (const zi of zile) harta.set(zi, 0);
+    for (const rand of randuri) {
+      for (const [zi, intrare] of Object.entries(rand.intrari)) {
+        harta.set(zi, (harta.get(zi) ?? 0) + intrare.oreLucrate);
+      }
+    }
+    return harta;
+  }, [randuri, zile]);
+
+  const totalGeneral = [...totaluriColoana.values()].reduce((a, b) => a + b, 0);
+
+  const randSelectat =
+    selectie === null ? undefined : randuri.find((r) => r.angajatId === selectie.angajatId);
+  const intrareSelectata =
+    selectie === null || randSelectat === undefined ? null : (randSelectat.intrari[selectie.data] ?? null);
+
+  return (
+    <div className="space-y-3">
+      {perioadaBlocata ? (
+        <p className="rounded-lg border border-zinc-300 bg-zinc-50 p-3 text-sm text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+          Perioada este <strong>blocată</strong>
+          {blocataLa === null ? "" : ` din ${new Date(blocataLa).toLocaleDateString("ro-RO")}`} — foaia
+          nu mai poate fi modificată. Redeschideți luna din „Perioade” dacă aveți nevoie de corecții.
+        </p>
+      ) : null}
+
+      <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+        <table className="w-full border-collapse text-sm">
+          <caption className="sr-only">Pontajul angajaților pentru zilele lunii selectate.</caption>
+          <thead className="sticky top-0 z-20 bg-zinc-50 dark:bg-zinc-900">
+            <tr>
+              <th
+                scope="col"
+                className="sticky left-0 z-30 min-w-40 border-b border-zinc-200 bg-zinc-50 px-3 py-2 text-left font-medium dark:border-zinc-800 dark:bg-zinc-900"
+              >
+                Angajat
+              </th>
+              {zile.map((zi) => {
+                const info = infoZile.get(zi);
+                const esteWeekend = info?.tip === "weekend";
+                const esteSarbatoare = info?.tip === "sarbatoare";
+                return (
+                  <th
+                    key={zi}
+                    scope="col"
+                    title={info?.denumireSarbatoare ?? undefined}
+                    aria-label={
+                      info?.denumireSarbatoare !== null && info?.denumireSarbatoare !== undefined
+                        ? `${ziuaDinIso(zi)} — ${info.denumireSarbatoare}`
+                        : undefined
+                    }
+                    className={`min-w-11 border-b border-zinc-200 px-1 py-2 text-center text-xs font-medium dark:border-zinc-800 ${
+                      esteWeekend
+                        ? "bg-zinc-100 dark:bg-zinc-800"
+                        : esteSarbatoare
+                          ? "bg-amber-50 dark:bg-amber-950"
+                          : ""
+                    }`}
+                  >
+                    <div>{ziuaDinIso(zi)}</div>
+                    <div className="text-[10px] text-zinc-500 dark:text-zinc-400">
+                      {esteWeekend ? (new Date(`${zi}T00:00:00Z`).getUTCDay() === 6 ? "S" : "D") : null}
+                      {esteSarbatoare ? "*" : null}
+                    </div>
+                  </th>
+                );
+              })}
+              <th scope="col" className="border-b border-zinc-200 px-2 py-2 text-right font-medium dark:border-zinc-800">
+                Ore
+              </th>
+              <th scope="col" className="border-b border-zinc-200 px-2 py-2 text-right font-medium dark:border-zinc-800">
+                Supl.
+              </th>
+              <th scope="col" className="border-b border-zinc-200 px-2 py-2 text-right font-medium dark:border-zinc-800">
+                Noapte
+              </th>
+              <th scope="col" className="border-b border-zinc-200 px-2 py-2 text-left font-medium dark:border-zinc-800">
+                Zile speciale
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+            {randuri.map((rand) => {
+              const intrari = Object.values(rand.intrari);
+              const totalOre = intrari.reduce((s, i) => s + i.oreLucrate, 0);
+              const totalSuplimentar = intrari.reduce((s, i) => s + i.oreSuplimentare, 0);
+              const totalNoapte = intrari.reduce((s, i) => s + i.oreNoapte, 0);
+              const speciale = CATEGORII_SPECIALE.map((tip) => ({
+                tip,
+                numar: intrari.filter((i) => i.tipZi === tip).length,
+              })).filter((s) => s.numar > 0);
+
+              return (
+                <tr key={rand.angajatId ?? "own"}>
+                  <th
+                    scope="row"
+                    className="sticky left-0 z-10 border-r border-zinc-100 bg-white px-3 py-2 text-left font-normal whitespace-nowrap dark:border-zinc-800 dark:bg-zinc-900"
+                  >
+                    {rand.eticheta}
+                  </th>
+                  {zile.map((zi) => {
+                    const intrare = rand.intrari[zi] ?? null;
+                    const info = infoZile.get(zi);
+                    const tipEfectiv = intrare?.tipZi ?? info?.tip ?? "lucratoare";
+                    const needitabilaDinConcediu = intrare?.esteDinConcediu === true;
+                    const needitabilaAprobata = intrare?.aprobat === true && !poateAproba;
+                    const needitabila =
+                      !poateEdita || perioadaBlocata || needitabilaDinConcediu || needitabilaAprobata;
+
+                    const titlu = needitabilaDinConcediu
+                      ? "Completat din concediul aprobat — se modifică din modulul Concedii"
+                      : needitabilaAprobata
+                        ? "Ziua a fost deja aprobată"
+                        : perioadaBlocata
+                          ? "Perioada este blocată"
+                          : undefined;
+
+                    const continut =
+                      intrare === null ? (
+                        <span className="text-zinc-300 dark:text-zinc-700">—</span>
+                      ) : (
+                        <span className="tabular-nums">
+                          {intrare.oreLucrate > 0 ? intrare.oreLucrate : ETICHETE_TIP_ZI[intrare.tipZi].slice(0, 3)}
+                        </span>
+                      );
+
+                    const clasaFundal = CLASE_TIP_ZI[tipEfectiv];
+
+                    if (needitabila) {
+                      return (
+                        <td
+                          key={zi}
+                          aria-disabled="true"
+                          title={titlu}
+                          className={`border-r border-zinc-50 px-1 py-2 text-center text-xs dark:border-zinc-900 ${clasaFundal}`}
+                        >
+                          {continut}
+                        </td>
+                      );
+                    }
+
+                    return (
+                      <td key={zi} className={`border-r border-zinc-50 p-0 text-center text-xs dark:border-zinc-900 ${clasaFundal}`}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectie({ angajatId: rand.angajatId, eticheta: rand.eticheta, data: zi });
+                          }}
+                          className="w-full px-1 py-2 hover:bg-blue-50 focus-visible:outline-2 dark:hover:bg-blue-950"
+                        >
+                          {continut}
+                        </button>
+                      </td>
+                    );
+                  })}
+                  <td className="px-2 py-2 text-right tabular-nums">{totalOre}</td>
+                  <td className="px-2 py-2 text-right tabular-nums">{totalSuplimentar}</td>
+                  <td className="px-2 py-2 text-right tabular-nums">{totalNoapte}</td>
+                  <td className="px-2 py-2 text-left text-xs text-zinc-600 dark:text-zinc-300">
+                    {speciale.length === 0
+                      ? "—"
+                      : speciale.map((s) => `${ETICHETE_TIP_ZI[s.tip]}: ${s.numar}`).join(", ")}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot className="bg-zinc-50 font-medium dark:bg-zinc-900">
+            <tr>
+              <th scope="row" className="sticky left-0 z-10 bg-zinc-50 px-3 py-2 text-left dark:bg-zinc-900">
+                Total pe pagina curentă ({randuri.length} angajați)
+              </th>
+              {zile.map((zi) => (
+                <td key={zi} className="px-1 py-2 text-center text-xs tabular-nums">
+                  {totaluriColoana.get(zi) ?? 0}
+                </td>
+              ))}
+              <td className="px-2 py-2 text-right tabular-nums">{totalGeneral}</td>
+              <td />
+              <td />
+              <td />
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <p className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-600 dark:text-zinc-300">
+        <span>
+          <span aria-hidden="true" className="mr-1 inline-block size-3 rounded bg-zinc-100 align-middle dark:bg-zinc-800" />
+          Weekend (S/D)
+        </span>
+        <span>
+          <span aria-hidden="true" className="mr-1 inline-block size-3 rounded bg-amber-50 align-middle dark:bg-amber-950" />
+          Sărbătoare legală (*)
+        </span>
+        <span>
+          <span aria-hidden="true" className="mr-1 inline-block size-3 rounded bg-blue-50 align-middle dark:bg-blue-950" />
+          Concediu
+        </span>
+        <span>
+          <span aria-hidden="true" className="mr-1 inline-block size-3 rounded bg-purple-50 align-middle dark:bg-purple-950" />
+          Medical
+        </span>
+      </p>
+
+      {selectie === null ? null : (
+        <CelulaZi
+          key={`${selectie.angajatId ?? "own"}-${selectie.data}`}
+          angajatId={selectie.angajatId}
+          data={selectie.data}
+          eticheta={`${selectie.eticheta} · ${new Date(`${selectie.data}T00:00:00Z`).toLocaleDateString("ro-RO")}`}
+          intrare={intrareSelectata}
+          poateSterge={
+            intrareSelectata !== null &&
+            !intrareSelectata.esteDinConcediu &&
+            (!intrareSelectata.aprobat || poateAproba)
+          }
+          onInchide={() => {
+            setSelectie(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}

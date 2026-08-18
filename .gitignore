@@ -50,3 +50,6 @@ supabase/.branches
 /playwright-report
 /blob-report
 /playwright/.cache
+
+# Capturi de ecran lăsate la rădăcină în timpul lucrului.
+/image*.png
