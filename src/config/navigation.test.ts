@@ -35,7 +35,6 @@ const MODULE_NECONSTRUITE: readonly string[] = [
   "/pontaj", // Faza 3b
   "/onboarding", // Faza 6
   "/ssm", // Faza 7
-  "/flota", // Faza 8
   "/mentenanta", // Faza 7
   "/anunturi", // Faza 11
   "/salarizare", // Faza 9

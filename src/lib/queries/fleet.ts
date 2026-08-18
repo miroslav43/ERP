@@ -1,0 +1,508 @@
+// src/lib/queries/fleet.ts
+// Citirile modulului de flotă. Ca la inventar, NU se adaugă niciun filtru de
+// scope (own/team/all): politicile din 0012/0016/0018 restrâng rândurile direct
+// în Postgres. Un filtru duplicat aici ar fi cod care pare să apere ceva, dar
+// care poate diverge tăcut de regula reală.
+
+import type { FiltreFoi, FiltreVehicule } from "@/schemas/fleet";
+import type {
+  CategorieVehicul,
+  Combustibil,
+  StatusFoaie,
+  StatusVehicul,
+} from "@/schemas/fleet";
+import { createServerSupabase } from "@/lib/supabase/server";
+
+export interface RandVehicul {
+  readonly id: string;
+  readonly nr_inmatriculare: string;
+  readonly marca: string;
+  readonly model: string;
+  readonly categorie: CategorieVehicul;
+  readonly tip_combustibil: Combustibil;
+  readonly an_fabricatie: number | null;
+  readonly km_curent: number;
+  readonly employee_id: string | null;
+  readonly department_id: string | null;
+  readonly status: StatusVehicul;
+  readonly prag_salt_km: number | null;
+  readonly data_iesire: string | null;
+}
+
+export interface RezultatVehicule {
+  readonly randuri: readonly RandVehicul[];
+  readonly urmatorulCursor: string | null;
+}
+
+export interface Vehicul extends RandVehicul {
+  readonly vin: string | null;
+  readonly culoare: string | null;
+  readonly capacitate_cilindrica: number | null;
+  readonly masa_maxima_kg: number | null;
+  readonly numar_locuri: number | null;
+  readonly consum_mediu_declarat: number | null;
+  readonly valoare_achizitie: number | null;
+  readonly data_achizitie: string | null;
+  readonly motiv_iesire: string | null;
+  readonly observatii: string | null;
+  readonly created_at: string;
+}
+
+export interface DocumentVehicul {
+  readonly id: string;
+  readonly document_type_id: string;
+  readonly numar: string | null;
+  readonly emitent: string | null;
+  readonly valabil_de_la: string | null;
+  readonly expira_la: string | null;
+  readonly cost: number | null;
+  readonly fisier_path: string | null;
+  readonly este_curent: boolean;
+  readonly observatii: string | null;
+}
+
+export interface TipDocument {
+  readonly id: string;
+  readonly cod: string;
+  readonly denumire: string;
+  readonly descriere: string | null;
+  readonly cere_expirare: boolean;
+  readonly obligatoriu: boolean;
+  readonly ordine: number;
+}
+
+/** Scadența cea mai apropiată a unui vehicul, pentru semaforul din listă. */
+export interface ScadentaVehicul {
+  readonly vehicle_id: string;
+  readonly document_type_id: string;
+  readonly expira_la: string | null;
+  readonly numar: string | null;
+}
+
+export interface RandFoaie {
+  readonly id: string;
+  readonly vehicle_id: string;
+  readonly employee_id: string | null;
+  readonly numar: string | null;
+  readonly plecare_la: string;
+  readonly sosire_la: string | null;
+  readonly km_plecare: number | null;
+  readonly km_sosire: number | null;
+  readonly km_parcursi: number | null;
+  readonly traseu: string | null;
+  readonly scop: string | null;
+  readonly status: StatusFoaie;
+  readonly trimis_la: string | null;
+  readonly aprobat_la: string | null;
+}
+
+export interface RezultatFoi {
+  readonly randuri: readonly RandFoaie[];
+  readonly urmatorulCursor: string | null;
+}
+
+export interface Alimentare {
+  readonly id: string;
+  readonly litri: number;
+  readonly cost: number;
+  readonly pret_litru: number | null;
+  readonly statie: string | null;
+  readonly numar_bon: string | null;
+  readonly alimentat_la: string;
+  readonly plin: boolean;
+  readonly observatii: string | null;
+}
+
+export interface Anomalie {
+  readonly id: string;
+  readonly vehicle_id: string;
+  readonly trip_sheet_id: string | null;
+  readonly km_asteptat: number;
+  readonly km_declarat: number;
+  readonly diferenta: number | null;
+  readonly tip: "regres" | "salt";
+  readonly explicatie: string | null;
+  readonly confirmat_la: string | null;
+  readonly nota: string | null;
+  readonly created_at: string;
+}
+
+export interface AngajatRezumat {
+  readonly id: string;
+  readonly full_name: string | null;
+  readonly marca: string;
+}
+
+// ── Cursorul keyset ─────────────────────────────────────────────────────────
+//
+// Separatorul e scris ca SECVENȚĂ DE EVADARE, nu ca octet brut. Scris brut,
+// fișierul devine binar pentru `grep` și `git grep` — s-a întâmplat deja o dată,
+// în queries/leave.ts și inventory.ts.
+
+interface CursorText {
+  readonly cheie: string;
+  readonly id: string;
+}
+
+function codificaCursor(cursor: CursorText): string {
+  return Buffer.from(`${cursor.cheie}\u0000${cursor.id}`, "utf8").toString("base64url");
+}
+
+function decodificaCursor(valoare: string): CursorText | null {
+  try {
+    const bucati = Buffer.from(valoare, "base64url").toString("utf8").split("\u0000");
+    const cheie = bucati[0];
+    const id = bucati[1];
+    if (cheie === undefined || id === undefined || id.length === 0) return null;
+    return { cheie, id };
+  } catch {
+    return null;
+  }
+}
+
+/** PostgREST desparte filtrele lui `or()` cu virgulă; valoarea trebuie citată. */
+function ghilimeleaza(valoare: string): string {
+  return `"${valoare.replace(/\\/gu, "\\\\").replace(/"/gu, '\\"')}"`;
+}
+
+const COLOANE_VEHICUL_LISTA =
+  "id, nr_inmatriculare, marca, model, categorie, tip_combustibil, an_fabricatie, " +
+  "km_curent, employee_id, department_id, status, prag_salt_km, data_iesire";
+
+const COLOANE_FOAIE =
+  "id, vehicle_id, employee_id, numar, plecare_la, sosire_la, km_plecare, km_sosire, " +
+  "km_parcursi, traseu, scop, status, trimis_la, aprobat_la";
+
+// ── Vehicule ────────────────────────────────────────────────────────────────
+
+export async function listeazaVehicule(
+  organizationId: string,
+  filtre: FiltreVehicule,
+): Promise<RezultatVehicule> {
+  const db = await createServerSupabase();
+
+  let interogare = db
+    .from("vehicles")
+    .select(COLOANE_VEHICUL_LISTA)
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    // Ordinea urmează indexul unic `vehicles_org_nr_uq`, deci paginarea nu cere
+    // sortare suplimentară.
+    .order("nr_inmatriculare", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(filtre.limita + 1);
+
+  if (filtre.status !== null) interogare = interogare.eq("status", filtre.status);
+  if (filtre.categorie !== null) interogare = interogare.eq("categorie", filtre.categorie);
+  if (filtre.cauta !== null) {
+    interogare = interogare.ilike("nr_inmatriculare", `%${filtre.cauta}%`);
+  }
+
+  if (filtre.cursor !== null) {
+    const c = decodificaCursor(filtre.cursor);
+    // Un cursor stricat înseamnă prima pagină, nu o eroare: cel mai probabil
+    // vine dintr-un link vechi sau trunchiat la copiere.
+    if (c !== null) {
+      interogare = interogare.or(
+        `nr_inmatriculare.gt.${ghilimeleaza(c.cheie)},` +
+          `and(nr_inmatriculare.eq.${ghilimeleaza(c.cheie)},id.gt.${c.id})`,
+      );
+    }
+  }
+
+  const { data, error } = await interogare.returns<RandVehicul[]>();
+  if (error !== null) throw error;
+
+  const toate = data ?? [];
+  const areUrmatoarea = toate.length > filtre.limita;
+  const randuri = areUrmatoarea ? toate.slice(0, filtre.limita) : toate;
+  const ultim = randuri.at(-1);
+
+  return {
+    randuri,
+    urmatorulCursor:
+      areUrmatoarea && ultim !== undefined
+        ? codificaCursor({ cheie: ultim.nr_inmatriculare, id: ultim.id })
+        : null,
+  };
+}
+
+export async function citesteVehicul(
+  organizationId: string,
+  id: string,
+): Promise<Vehicul | null> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("vehicles")
+    .select(
+      `${COLOANE_VEHICUL_LISTA}, vin, culoare, capacitate_cilindrica, masa_maxima_kg, ` +
+        "numar_locuri, consum_mediu_declarat, valoare_achizitie, data_achizitie, " +
+        "motiv_iesire, observatii, created_at",
+    )
+    .eq("organization_id", organizationId)
+    .eq("id", id)
+    .is("deleted_at", null)
+    .maybeSingle<Vehicul>();
+
+  if (error !== null) throw error;
+  return data;
+}
+
+/**
+ * Scadențele curente ale unui grup de vehicule, pentru semaforul din listă.
+ *
+ * Se citește din `vehicle_documents`, NU din `expirables`. Politica
+ * `expirabile_select` cere și `compliance:read`, pe care un administrator de
+ * flotă nu-l are — semaforul ar fi fost gol tocmai pentru omul care are nevoie
+ * de el. `vehicle_documents` se vede cu `vehicles:read`.
+ */
+export async function scadenteCurente(
+  idVehicule: readonly string[],
+): Promise<readonly ScadentaVehicul[]> {
+  if (idVehicule.length === 0) return [];
+
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("vehicle_documents")
+    .select("vehicle_id, document_type_id, expira_la, numar")
+    .in("vehicle_id", [...idVehicule])
+    .eq("este_curent", true)
+    .is("deleted_at", null)
+    .returns<ScadentaVehicul[]>();
+
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+export async function documenteleVehiculului(
+  vehiculId: string,
+): Promise<readonly DocumentVehicul[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("vehicle_documents")
+    .select(
+      "id, document_type_id, numar, emitent, valabil_de_la, expira_la, cost, " +
+        "fisier_path, este_curent, observatii",
+    )
+    .eq("vehicle_id", vehiculId)
+    .is("deleted_at", null)
+    .order("expira_la", { ascending: false, nullsFirst: false })
+    .returns<DocumentVehicul[]>();
+
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+/**
+ * Nomenclatorul de tipuri de document.
+ *
+ * FĂRĂ filtru pe `organization_id`: rândurile de platformă îl au NULL și sunt
+ * vizibile tuturor. Un filtru pe organizație ar fi ascuns cele unsprezece tipuri
+ * implicite — ITP, RCA, casco, rovinietă, revizie, extinctor, trusă medicală,
+ * licență de transport, copie conformă, tahograf, ADR — adică exact pe cele pe
+ * care le folosește oricine.
+ */
+export async function tipuriDocument(): Promise<readonly TipDocument[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("vehicle_document_types")
+    .select("id, cod, denumire, descriere, cere_expirare, obligatoriu, ordine")
+    .eq("activ", true)
+    .is("deleted_at", null)
+    .order("ordine", { ascending: true })
+    .returns<TipDocument[]>();
+
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+// ── Foi de parcurs ──────────────────────────────────────────────────────────
+
+export async function listeazaFoi(
+  organizationId: string,
+  filtre: FiltreFoi,
+): Promise<RezultatFoi> {
+  const db = await createServerSupabase();
+
+  let interogare = db
+    .from("trip_sheets")
+    .select(COLOANE_FOAIE)
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .order("plecare_la", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(filtre.limita + 1);
+
+  if (filtre.status !== null) interogare = interogare.eq("status", filtre.status);
+  if (filtre.vehicul !== null) interogare = interogare.eq("vehicle_id", filtre.vehicul);
+
+  if (filtre.cursor !== null) {
+    const c = decodificaCursor(filtre.cursor);
+    if (c !== null) {
+      interogare = interogare.or(
+        `plecare_la.lt.${ghilimeleaza(c.cheie)},` +
+          `and(plecare_la.eq.${ghilimeleaza(c.cheie)},id.lt.${c.id})`,
+      );
+    }
+  }
+
+  const { data, error } = await interogare.returns<RandFoaie[]>();
+  if (error !== null) throw error;
+
+  const toate = data ?? [];
+  const areUrmatoarea = toate.length > filtre.limita;
+  const randuri = areUrmatoarea ? toate.slice(0, filtre.limita) : toate;
+  const ultim = randuri.at(-1);
+
+  return {
+    randuri,
+    urmatorulCursor:
+      areUrmatoarea && ultim !== undefined
+        ? codificaCursor({ cheie: ultim.plecare_la, id: ultim.id })
+        : null,
+  };
+}
+
+export async function citesteFoaie(
+  organizationId: string,
+  id: string,
+): Promise<RandFoaie | null> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("trip_sheets")
+    .select(`${COLOANE_FOAIE}, observatii, motiv_respingere`)
+    .eq("organization_id", organizationId)
+    .eq("id", id)
+    .is("deleted_at", null)
+    .maybeSingle<RandFoaie & { observatii: string | null; motiv_respingere: string | null }>();
+
+  if (error !== null) throw error;
+  return data;
+}
+
+/**
+ * Kilometrajul de la care pornește o foaie nouă.
+ *
+ * `max(ultimul km de sosire aprobat, vehicles.km_curent)` — exact ce face
+ * triggerul care prepopulează. Îl calculăm și în client ca omul să vadă cifra
+ * ÎNAINTE de a salva, nu după ce baza i-o corectează pe tăcute.
+ */
+export async function kmDePlecareSugerat(
+  organizationId: string,
+  vehiculId: string,
+): Promise<number | null> {
+  const db = await createServerSupabase();
+
+  const [foaie, vehicul] = await Promise.all([
+    db
+      .from("trip_sheets")
+      .select("km_sosire")
+      .eq("organization_id", organizationId)
+      .eq("vehicle_id", vehiculId)
+      .eq("status", "aprobat")
+      .not("km_sosire", "is", null)
+      .is("deleted_at", null)
+      .order("km_sosire", { ascending: false })
+      .limit(1)
+      .maybeSingle<{ km_sosire: number | null }>(),
+    db
+      .from("vehicles")
+      .select("km_curent")
+      .eq("organization_id", organizationId)
+      .eq("id", vehiculId)
+      .is("deleted_at", null)
+      .maybeSingle<{ km_curent: number }>(),
+  ]);
+
+  if (foaie.error !== null) throw foaie.error;
+  if (vehicul.error !== null) throw vehicul.error;
+
+  const dinFoaie = foaie.data?.km_sosire ?? null;
+  const dinVehicul = vehicul.data?.km_curent ?? null;
+  if (dinFoaie === null && dinVehicul === null) return null;
+  return Math.max(dinFoaie ?? 0, dinVehicul ?? 0);
+}
+
+export async function alimentarileFoii(foaieId: string): Promise<readonly Alimentare[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("fuel_entries")
+    .select(
+      "id, litri, cost, pret_litru, statie, numar_bon, alimentat_la, plin, observatii",
+    )
+    .eq("trip_sheet_id", foaieId)
+    .is("deleted_at", null)
+    .order("alimentat_la", { ascending: true })
+    .returns<Alimentare[]>();
+
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+export async function anomaliiNeconfirmate(
+  organizationId: string,
+): Promise<readonly Anomalie[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("odometer_anomalies")
+    .select(
+      "id, vehicle_id, trip_sheet_id, km_asteptat, km_declarat, diferenta, tip, " +
+        "explicatie, confirmat_la, nota, created_at",
+    )
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .is("confirmat_la", null)
+    .order("created_at", { ascending: false })
+    .limit(200)
+    .returns<Anomalie[]>();
+
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+/**
+ * Numele șoferilor, citite separat.
+ *
+ * Nu prin embed: un manager are `trip_sheets:read` la scope `team` dar niciun
+ * drept pe `vehicles`, iar un embed refuzat de RLS vine NULL fără nicio eroare —
+ * adică o coloană goală pe care nimeni n-o explică. Citirea separată face
+ * absența vizibilă și tipabilă.
+ */
+export async function angajatiDupaId(
+  organizationId: string,
+  ids: readonly string[],
+): Promise<ReadonlyMap<string, AngajatRezumat>> {
+  const unice = [...new Set(ids)];
+  if (unice.length === 0) return new Map();
+
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("employees")
+    .select("id, full_name, marca")
+    .eq("organization_id", organizationId)
+    .in("id", unice)
+    .returns<AngajatRezumat[]>();
+
+  if (error !== null) throw error;
+  return new Map((data ?? []).map((a) => [a.id, a]));
+}
+
+export async function vehiculeDupaId(
+  organizationId: string,
+  ids: readonly string[],
+): Promise<ReadonlyMap<string, RandVehicul>> {
+  const unice = [...new Set(ids)];
+  if (unice.length === 0) return new Map();
+
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("vehicles")
+    .select(COLOANE_VEHICUL_LISTA)
+    .eq("organization_id", organizationId)
+    .in("id", unice)
+    .is("deleted_at", null)
+    .returns<RandVehicul[]>();
+
+  if (error !== null) throw error;
+  return new Map((data ?? []).map((v) => [v.id, v]));
+}

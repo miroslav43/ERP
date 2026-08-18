@@ -91,10 +91,14 @@ export const PERMISSION_KEYS = [
   "ssm:read",
   "ssm:create",
   "trip_sheets:read",
+  "trip_sheets:create",
+  "trip_sheets:update",
+  "trip_sheets:approve",
   "users:read",
   "users:create",
   "users:update",
   "vehicles:read",
+  "vehicles:create",
   "vehicles:update",
 ] as const;
 

@@ -1,0 +1,60 @@
+"use client";
+
+import { useId, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+
+import { confirmaAnomalie } from "../actions";
+
+/**
+ * Confirmarea unei anomalii — o explicație, nu o corecție.
+ *
+ * Cifrele constatate rămân neatinse: `internal.anomalii_protejeaza` respinge
+ * modificarea lor. Se scrie doar nota și momentul confirmării.
+ */
+export function ConfirmaAnomalie({ id }: { readonly id: string }) {
+  const router = useRouter();
+  const [inCurs, porneste] = useTransition();
+  const [eroare, setEroare] = useState<string | null>(null);
+  const idNota = useId();
+
+  function trimite(formular: FormData): void {
+    setEroare(null);
+    const nota = String(formular.get("nota") ?? "").trim();
+    porneste(async () => {
+      const rezultat = await confirmaAnomalie({ id, nota: nota.length > 0 ? nota : null });
+      if (!rezultat.ok) {
+        setEroare(rezultat.error.message);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
+  return (
+    <form action={trimite} className="flex flex-wrap items-center gap-2">
+      <label htmlFor={idNota} className="sr-only">
+        Explicația diferenței de kilometraj
+      </label>
+      <input
+        id={idNota}
+        name="nota"
+        type="text"
+        maxLength={500}
+        placeholder="Ex. cursă necompletată pe 14 septembrie"
+        className="min-w-56 flex-1 rounded-md border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+      />
+      <button
+        type="submit"
+        disabled={inCurs}
+        className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-700 dark:hover:bg-zinc-900"
+      >
+        {inCurs ? "Se salvează…" : "Confirmă"}
+      </button>
+      {eroare === null ? null : (
+        <p role="alert" className="w-full text-xs text-red-700 dark:text-red-400">
+          {eroare}
+        </p>
+      )}
+    </form>
+  );
+}
