@@ -429,3 +429,58 @@ date și niciun ecran.**
   de cazuri de test de la contabil.
 - Parola de bază de date și cheia `service_role` au trecut prin conversație; de
   rotit înainte de producție.
+
+---
+
+## Actualizare — toate modulele cu ecrane, Faza 9 livrată
+
+**Tot ce e deasupra acestei linii e istoric** și nu mai descrie starea reală:
+între timp au primit ecrane complete `pontaj`, `flotă`, `SSM și PSI`,
+`mentenanță`, `inventar`, `concedii`, `integrare angajați`, `diurne și
+deplasări` și `portalul angajatului` — plus o pagină de profil propriu
+(`/profil`, `/portal/profilul-meu`) care lipsea complet. Secțiunea asta e
+sursa de adevăr curentă.
+
+**27 de migrări** (`0001`–`0027`), aplicate identic local și pe cloud. **354 de
+teste unitare** (`domain/`, `format/`, `config/` — încă zero pe `lib/queries/`,
+`lib/actions/` sau pagini). Typecheck curat, lint 0 erori, build 101 rute.
+
+### Faza 9 — Salarizare, livrată cu scop redus deliberat
+
+Motorul de calcul (`domain/payroll/calc.ts`, 17 teste) NU acoperă: concediul
+medical (indemnizația CNAS e proces separat, doar avertizează), sporurile pe
+trepte pentru orele suplimentare (o singură treaptă configurabilă), plafonul
+lunar cumulat al veniturilor neimpozabile, integrarea automată cu diurna peste
+plafon. Fiecare simplificare e comentată explicit în cod. Banner de
+neconformitate pe fiecare ecran; `payroll_settings.verificat_de_contabil`
+implicit `false`.
+
+Verificat manual, capăt la capăt, pe organizația demo: setări → prag de
+deducere → perioadă → calculat (8 angajați) → aprobat → fluturaș vizibil în
+portal pentru angajat, invizibil pentru manager. Trei defecte reale prinse în
+timpul verificării, nu doar citind codul — vezi mesajul commit-ului
+`9e721ca` pentru detalii (upsert pe index parțial, RLS care se bloca singur pe
+propriul fluturaș al angajatului, demo fără niciun contract de muncă).
+
+### Ce chiar blochează încă livrarea
+
+1. **Testul de izolare RLS n-a rulat niciodată pe un proiect de test.** Codul
+   acoperă cele 103 tabele (`tests/rls/izolare.test.ts`), dar are nevoie de un
+   proiect Supabase resetabil, separat de dezvoltare — încă neconfigurat.
+2. **`plpgsql_check` n-a rulat pe migrările de după `0006`.** Extensia există
+   doar pe Supabase; ~150 de funcții PL/pgSQL scrise de atunci nu au trecut
+   prin verificarea de fond, doar prin bariera 2 (care sare verificarea dacă
+   extensia lipsește).
+3. **Zero teste pe `lib/queries/`, `lib/actions/` și pagini.** Fiecare defect
+   real găsit în sesiunile astea (permisiuni greșite, RLS care se auto-blochează,
+   `.upsert` pe index parțial) a scăpat exact de aici — verificat manual în
+   browser, nu de un test automat care să prindă regresia data viitoare.
+4. **Faza 11** (anunțuri, `employee_change_requests`) — fără schemă încă.
+   Singurul modul rămas onest neconstruit în `MODULE_NECONSTRUITE`.
+5. Cei 25 de pași de testare manuală din planul aprobat, niciunul executat ca
+   parcurs complet — bucăți din ei au fost verificate ad-hoc, pe module.
+6. Valorile fiscale din `payroll_settings` — de introdus și verificat de
+   contabil înainte de orice calcul real. Cotele din demo sunt ilustrative.
+7. Doar 1 proiect Supabase din cele 4 planificate (dev/staging/test/prod).
+8. Parola de bază de date și cheia `service_role` au trecut prin conversație
+   într-o sesiune anterioară — de rotit înainte de date reale.
