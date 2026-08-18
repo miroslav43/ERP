@@ -13,6 +13,7 @@
 #   ./dev.sh --seed       + (re)creează conturile de demonstrație
 #   ./dev.sh --reset-demo + șterge și recreează demonstrația de la zero
 #   ./dev.sh --check      doar verificările, fără să pornească nimic
+#   ./dev.sh --kill       oprește serverul care rulează deja și pornește curat
 #   ./dev.sh --port 3001  alt port
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
@@ -23,12 +24,14 @@ PORT=3000
 SEED=0
 RESET_DEMO=0
 DOAR_VERIFIC=0
+OMOARA=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --seed)       SEED=1 ;;
     --reset-demo) SEED=1; RESET_DEMO=1 ;;
     --check)      DOAR_VERIFIC=1 ;;
+    --kill)       OMOARA=1 ;;
     --port)       PORT="${2:?--port cere un număr}"; shift ;;
     -h|--help)    sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *)            echo "Argument necunoscut: $1. Încearcă --help." >&2; exit 2 ;;
@@ -136,17 +139,68 @@ ok "${NR_MIGRARI} fișiere în supabase/migrations/"
 atent "Scriptul NU le aplică singur — o migrare aplicată din greșeală pe proiectul"
 atent "greșit nu se poate da înapoi. Aplicarea rămâne o decizie explicită."
 
-# ── 5. Portul ────────────────────────────────────────────────────────────────
-titlu "Port ${PORT}"
+# ── 5. Un alt `next dev` pe același proiect ─────────────────────────────────
+#
+# Next 16 permite UN SINGUR server de dezvoltare per director, indiferent de port,
+# și refuză al doilea DUPĂ ce a afișat deja „Ready in 351ms" — deci pare că a
+# pornit, iar mesajul adevărat trece neobservat sub bannerul verde. Alegerea unui
+# alt port nu ajută cu nimic.
+#
+# Serverul își scrie starea în .next/dev/lock. O citim de acolo, nu ghicim.
+titlu "Server de dezvoltare"
 
-if command -v lsof >/dev/null 2>&1 && lsof -ti :"$PORT" >/dev/null 2>&1; then
-  PID="$(lsof -ti :"$PORT" | head -1)"
-  CINE="$(ps -p "$PID" -o comm= 2>/dev/null || echo necunoscut)"
-  atent "Portul ${PORT} e ocupat de ${CINE} (PID ${PID})."
-  atent "Oprește-l cu: kill ${PID}   — sau pornește pe alt port: ./dev.sh --port 3001"
-  # Nu omorâm noi procesul: ar putea fi altceva decât o rulare uitată.
+LOCK=".next/dev/lock"
+LOCK_PID=""
+LOCK_URL=""
+
+if [ -f "$LOCK" ]; then
+  LOCK_PID="$(sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p' "$LOCK")"
+  LOCK_URL="$(sed -n 's/.*"appUrl":[[:space:]]*"\([^"]*\)".*/\1/p' "$LOCK")"
+  # Un lock rămas de la un proces mort nu înseamnă nimic.
+  if [ -n "$LOCK_PID" ] && ! kill -0 "$LOCK_PID" 2>/dev/null; then
+    LOCK_PID=""
+  fi
+fi
+
+if [ -n "$LOCK_PID" ]; then
+  DE_CAND="$(ps -p "$LOCK_PID" -o lstart= 2>/dev/null | sed 's/^ *//' || echo '?')"
+  if [ "$OMOARA" -eq 1 ]; then
+    atent "Opresc serverul existent (PID ${LOCK_PID}, pornit ${DE_CAND})."
+    kill "$LOCK_PID" 2>/dev/null || true
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+      kill -0 "$LOCK_PID" 2>/dev/null || break
+      sleep 0.5
+    done
+    if kill -0 "$LOCK_PID" 2>/dev/null; then
+      esec "Nu s-a oprit. Încearcă: kill -9 ${LOCK_PID}"
+      exit 1
+    fi
+    ok "oprit"
+  else
+    atent "Rulează deja un server pentru acest proiect: ${LOCK_URL:-?}"
+    atent "PID ${LOCK_PID}, pornit ${DE_CAND}."
+    printf '\n'
+    printf '  Next permite unul singur per director, deci un alt port NU ajută.\n'
+    printf '  Ai două variante:\n'
+    printf '    · folosește-l pe cel existent  → %s\n' "${LOCK_URL:-http://localhost:3000}"
+    printf '    · repornește-l curat           → ./dev.sh --kill%s\n' \
+      "$([ "$SEED" -eq 1 ] && echo ' --seed' || echo '')"
+    printf '\n'
+    exit 0
+  fi
 else
-  ok "liber"
+  ok "niciun server pornit pentru acest proiect"
+fi
+
+# Portul poate fi ocupat de altceva decât Next — un tunel, alt proiect.
+if command -v lsof >/dev/null 2>&1 && lsof -ti :"$PORT" >/dev/null 2>&1; then
+  PID_PORT="$(lsof -ti :"$PORT" | head -1)"
+  CINE="$(ps -p "$PID_PORT" -o comm= 2>/dev/null || echo necunoscut)"
+  atent "Portul ${PORT} e ocupat de ${CINE} (PID ${PID_PORT}) — alt proces, nu Next."
+  atent "Oprește-l cu: kill ${PID_PORT}   — sau alege alt port: ./dev.sh --port 3001"
+  # Nu îl omorâm noi: nu e al nostru.
+else
+  ok "portul ${PORT} e liber"
 fi
 
 # ── 6. Demonstrație ──────────────────────────────────────────────────────────
