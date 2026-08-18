@@ -9,7 +9,6 @@
  * iar RLS respinge rândul chiar dacă primele trei sunt ocolite.
  */
 import {
-  BarChart3,
   CalendarDays,
   Car,
   ClipboardList,
@@ -189,6 +188,29 @@ export const NAV_ITEMS: readonly NavItem[] = [
     permission: "inventory:read",
     minScope: "own",
     order: 90,
+    children: [
+      {
+        id: "inventar-obiecte",
+        label: "Obiecte",
+        href: "/inventar",
+        featureKey: "inventory",
+        permission: "inventory:read",
+        minScope: "own",
+      },
+      {
+        // Pagina exista și era complet funcțională, dar nu avea NICIUN link
+        // către ea — nici în meniu, nici din lista de obiecte. Iar ea e singurul
+        // loc unde trăiește confirmarea primirii, deci acțiunea `confirmaPrimirea`
+        // era cod mort din punctul de vedere al utilizatorului: angajatul nu avea
+        // cum să ajungă la ecranul unde își confirmă bunurile.
+        id: "inventar-in-primire",
+        label: "Ce am în primire",
+        href: "/inventar/in-primire",
+        featureKey: "inventory",
+        permission: "inventory:read",
+        minScope: "own",
+      },
+    ],
   },
   {
     id: "anunturi",
@@ -223,17 +245,11 @@ export const NAV_ITEMS: readonly NavItem[] = [
     minScope: "own",
     order: 120,
   },
-  {
-    id: "rapoarte",
-    label: "Rapoarte",
-    href: "/rapoarte",
-    icon: BarChart3,
-    group: "financiar",
-    featureKey: null,
-    permission: "reports:read",
-    minScope: "team",
-    order: 130,
-  },
+  // „Rapoarte" (/rapoarte) a fost scos din meniu: intrarea exista, pagina nu.
+  // Era vizibilă pentru hr și org_admin și ducea garantat în 404 — verificat cu
+  // sesiune reală. O intrare de meniu care nu duce nicăieri e mai rea decât
+  // absența ei: îl pune pe om să creadă că aplicația e stricată, nu neterminată.
+  // Se pune la loc odată cu ecranul, în Faza 11.
   {
     id: "setari",
     label: "Setări",
@@ -261,22 +277,14 @@ export const NAV_ITEMS: readonly NavItem[] = [
         permission: "users:update",
         minScope: "all",
       },
-      {
-        id: "setari-roluri",
-        label: "Roluri și permisiuni",
-        href: "/setari/roluri",
-        featureKey: null,
-        permission: "roles:update",
-        minScope: "all",
-      },
-      {
-        id: "setari-module",
-        label: "Module active",
-        href: "/setari/module",
-        featureKey: null,
-        permission: "features:read",
-        minScope: "all",
-      },
+      // „Roluri și permisiuni" (/setari/roluri) și „Module active"
+      // (/setari/module) sunt scoase din același motiv: intrări fără pagină,
+      // vizibile pentru org_admin, 404 garantat.
+      //
+      // Matricea de roluri rămâne pe deplin funcțională fără ecran — se
+      // modifică în `role_permissions`, iar efectul apare la reîncărcare, fără
+      // deploy. Ecranul doar o face vizibilă; absența lui nu blochează nimic.
+      // Modulele organizației se comută azi din Super-Admin, pe fișa firmei.
     ],
   },
   {
