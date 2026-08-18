@@ -41,6 +41,29 @@
   --color-ring: #2a3d66;
 
   --radius: 0.5rem;
+
+  /*
+   * Aplicația are O SINGURĂ temă: crem cu navy. Nu există variantă întunecată
+   * nicăieri — nici bloc `prefers-color-scheme`, nici clasă `.dark`.
+   *
+   * Fără declarația de mai jos, browserul nu știe asta. Când sistemul de operare
+   * e pe temă întunecată, el desenează controalele NATIVE în negru: `<select>` și
+   * lista lui de opțiuni, `<input type="date">` cu calendarul lui, spinnerele
+   * numerice, bara de derulare, autofill-ul. Rezultatul e o cutie neagră cu text
+   * negru pe pagină crem — exact ce se vedea în ecranul de filtre al concediilor.
+   *
+   * Nicio clasă utilitară nu putea repara asta: culoarea vine din interiorul
+   * widgetului, dintr-un strat pe care CSS-ul paginii nu-l atinge. De aceea linia
+   * asta se pune ÎNAINTEA oricărei curățenii de clase — altfel se șterg sute de
+   * `dark:` degeaba, iar concluzia ar fi că munca n-a folosit la nimic.
+   *
+   * Stă aici, lângă paletă, nu ca utilitar pe <html>: o editare de layout nu o
+   * poate șterge din greșeală, iar așa prinde și bara de derulare a documentului.
+   */
+  color-scheme: light;
+
+  /* Bifele, radio-urile și barele de progres iau navy-ul platformei. */
+  accent-color: var(--color-primary);
 }
 
 @theme inline {
@@ -80,6 +103,34 @@ body {
 :focus-visible {
   outline: 2px solid var(--color-ring);
   outline-offset: 2px;
+}
+
+/*
+ * Autofill-ul din Chrome își impune propriul fundal, printr-un stil de user-agent
+ * pe care nici `!important` nu-l bate. Singura pârghie e umbra interioară, care
+ * acoperă zona, plus `-webkit-text-fill-color` pentru text — `color` e ignorat.
+ * Fără ele, câmpul de e-mail completat automat rămâne galben-pal cu text negru.
+ */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--color-foreground);
+  box-shadow: 0 0 0 1000px var(--color-background) inset;
+  caret-color: var(--color-foreground);
+}
+
+/*
+ * Glifa de calendar a lui `<input type="date">` e desenată de browser, nu de noi.
+ * Nu-i putem da culoarea paletei, dar îi putem cere să nu strige: la repaus e
+ * ștearsă, la hover devine plină, ca să se vadă că e apăsabilă.
+ */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0.6;
+  cursor: pointer;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
 }
 
 /* Respectă preferința de mișcare redusă a sistemului. */
