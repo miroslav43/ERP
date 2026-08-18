@@ -18,7 +18,7 @@ export default function EroarePlatforma({
       <button
         type="button"
         onClick={reset}
-        className="bg-primary text-primary-foreground hover:bg-primary-hover focus-visible:ring-ring mt-4 inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:outline-none"
+        className="bg-primary text-primary-foreground hover:bg-primary-hover mt-4 inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium"
       >
         <RotateCcw aria-hidden="true" className="size-4" />
         Reîncearcă

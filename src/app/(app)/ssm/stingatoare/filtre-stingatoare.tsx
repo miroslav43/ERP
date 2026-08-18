@@ -30,7 +30,7 @@ export function FiltreStingatoare() {
   return (
     <form
       action={aplica}
-      className="flex flex-wrap items-end gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
+      className="flex flex-wrap items-end gap-3 rounded-lg border border-border p-4"
     >
       <div className="flex flex-col gap-1">
         <label htmlFor={idCauta} className="text-sm font-medium">
@@ -41,7 +41,7 @@ export function FiltreStingatoare() {
           name="cauta"
           type="search"
           defaultValue={parametri.get("cauta") ?? ""}
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -53,7 +53,7 @@ export function FiltreStingatoare() {
           id={idStatus}
           name="status"
           defaultValue={parametri.get("status") ?? ""}
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         >
           <option value="">Toate</option>
           {STATUS_STINGATOR.map((s) => (
@@ -67,7 +67,7 @@ export function FiltreStingatoare() {
       <button
         type="submit"
         disabled={inCurs}
-        className="inline-flex items-center gap-2 rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-700 dark:hover:bg-zinc-900"
+        className="inline-flex items-center gap-2 rounded-md border border-foreground/60 px-4 py-2 text-sm font-medium hover:bg-surface disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
       >
         <Search aria-hidden="true" className="size-4" />
         {inCurs ? "Se filtrează…" : "Filtrează"}

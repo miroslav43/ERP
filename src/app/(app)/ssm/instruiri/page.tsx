@@ -98,14 +98,14 @@ async function Matrice({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+      <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-sm">
           <caption className="sr-only">
             Matricea de instruiri {ETICHETE_DOMENIU[filtre.domeniu]}, angajați × tipuri.
           </caption>
-          <thead className="bg-zinc-50 text-left dark:bg-zinc-900">
+          <thead className="bg-surface text-left">
             <tr>
-              <th scope="col" className="sticky left-0 bg-zinc-50 px-4 py-3 font-medium dark:bg-zinc-900">
+              <th scope="col" className="sticky left-0 bg-surface px-4 py-3 font-medium">
                 Angajat
               </th>
               {tipuri.map((tip) => {
@@ -121,10 +121,10 @@ async function Matrice({
               })}
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+          <tbody className="divide-y divide-border">
             {angajati.map((angajat) => (
-              <tr key={angajat.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900">
-                <td className="sticky left-0 bg-white px-4 py-3 font-medium whitespace-nowrap dark:bg-zinc-950">
+              <tr key={angajat.id} className="hover:bg-surface">
+                <td className="sticky left-0 bg-background px-4 py-3 font-medium whitespace-nowrap">
                   {angajat.full_name}
                 </td>
                 {tipuri.map((tip) => {
@@ -136,7 +136,7 @@ async function Matrice({
                         {ETICHETE_SCADENTA[stare]}
                       </span>
                       {rand === undefined ? null : (
-                        <span className="ml-2 text-xs text-zinc-500">{formatDate(rand.data_instruirii)}</span>
+                        <span className="ml-2 text-xs text-muted-foreground">{formatDate(rand.data_instruirii)}</span>
                       )}
                     </td>
                   );
@@ -151,7 +151,7 @@ async function Matrice({
         {urmatorulCursor === null ? null : (
           <Link
             href={`/ssm/instruiri?${cautare.toString()}`}
-            className="rounded-md border border-zinc-300 px-4 py-2 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-4 py-2 text-sm hover:bg-surface"
           >
             Pagina următoare
           </Link>
@@ -186,14 +186,14 @@ export default async function PaginaInstruiri({ searchParams }: ProprietatiPagin
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Instruiri</h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-muted-foreground">
             Matricea angajați × tipuri de instruire, cu cea mai recentă efectuare.
           </p>
         </div>
         {poateCrea ? (
           <Link
             href="/ssm/instruiri/noua"
-            className="inline-flex items-center gap-2 rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2"
+            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
           >
             <Plus aria-hidden="true" className="size-4" />
             Instruire nouă

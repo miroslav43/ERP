@@ -48,7 +48,7 @@ export default async function PaginaPlanuri() {
     <main className="space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">Planuri de mentenanță</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="text-sm text-muted-foreground">
           Planurile ACTIVE ale organizației, cu cea mai apropiată scadență prima. Scadența pe
           contor se vede exact pe fișa fiecărui echipament, unde intră și ultima citire.
         </p>
@@ -63,10 +63,10 @@ export default async function PaginaPlanuri() {
           description="Planurile se adaugă din fișa fiecărui echipament."
         />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+        <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-sm">
             <caption className="sr-only">Planurile de mentenanță active, cu scadența lor.</caption>
-            <thead className="bg-zinc-50 text-left dark:bg-zinc-900">
+            <thead className="bg-surface text-left">
               <tr>
                 <th scope="col" className="px-4 py-3 font-medium">
                   Plan
@@ -85,15 +85,15 @@ export default async function PaginaPlanuri() {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+            <tbody className="divide-y divide-border">
               {planuri.map((plan) => {
                 const echipament = echipamente.get(plan.equipment_id);
                 const stare = stareScadentaData(plan.urmatoarea_scadenta, azi);
                 return (
-                  <tr key={plan.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900">
+                  <tr key={plan.id} className="hover:bg-surface">
                     <td className="px-4 py-3 font-medium">
                       {plan.denumire}
-                      <span className="ml-1 text-xs text-zinc-500">
+                      <span className="ml-1 text-xs text-muted-foreground">
                         ({ETICHETE_TIP_MENTENANTA[plan.tip]})
                       </span>
                     </td>
@@ -109,7 +109,7 @@ export default async function PaginaPlanuri() {
                         </Link>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-xs text-zinc-600 dark:text-zinc-300">
+                    <td className="px-4 py-3 text-xs text-muted-foreground">
                       {plan.periodicitate_zile !== null ? `${plan.periodicitate_zile} zile` : ""}
                       {plan.periodicitate_zile !== null && plan.periodicitate_contor !== null ? " · " : ""}
                       {plan.periodicitate_contor !== null && plan.tip_contor !== null
@@ -128,7 +128,7 @@ export default async function PaginaPlanuri() {
                         {ETICHETE_STARE_SCADENTA[stare]}
                       </span>
                       {plan.urmatoarea_scadenta !== null ? (
-                        <span className="ml-2 text-xs text-zinc-500">
+                        <span className="ml-2 text-xs text-muted-foreground">
                           {formatDate(plan.urmatoarea_scadenta)}
                         </span>
                       ) : null}

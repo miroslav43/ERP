@@ -59,7 +59,7 @@ export function FormularEip({ angajati }: { readonly angajati: readonly AngajatO
   return (
     <form
       action={trimite}
-      className="grid gap-3 rounded-lg border border-zinc-200 p-4 sm:grid-cols-3 dark:border-zinc-800"
+      className="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-3"
     >
       <p className="text-sm font-medium sm:col-span-3">Predă echipament</p>
 
@@ -71,7 +71,7 @@ export function FormularEip({ angajati }: { readonly angajati: readonly AngajatO
           id={id.angajat}
           name="employee_id"
           required
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         >
           {angajati.map((a) => (
             <option key={a.id} value={a.id}>
@@ -90,7 +90,7 @@ export function FormularEip({ angajati }: { readonly angajati: readonly AngajatO
           name="articol"
           required
           maxLength={160}
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -102,7 +102,7 @@ export function FormularEip({ angajati }: { readonly angajati: readonly AngajatO
           id={id.cod}
           name="cod_articol"
           maxLength={64}
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -117,7 +117,7 @@ export function FormularEip({ angajati }: { readonly angajati: readonly AngajatO
           min="0.01"
           step="1"
           defaultValue={1}
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -130,7 +130,7 @@ export function FormularEip({ angajati }: { readonly angajati: readonly AngajatO
           name="unitate"
           defaultValue="buc"
           maxLength={20}
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -143,7 +143,7 @@ export function FormularEip({ angajati }: { readonly angajati: readonly AngajatO
           name="data_predarii"
           type="date"
           required
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -156,7 +156,7 @@ export function FormularEip({ angajati }: { readonly angajati: readonly AngajatO
           name="durata_utilizare_luni"
           type="number"
           min="1"
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -170,7 +170,7 @@ export function FormularEip({ angajati }: { readonly angajati: readonly AngajatO
           type="number"
           min="0"
           step="0.01"
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -178,12 +178,12 @@ export function FormularEip({ angajati }: { readonly angajati: readonly AngajatO
         <button
           type="submit"
           disabled={inCurs}
-          className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
           {inCurs ? "Se salvează…" : "Predă echipamentul"}
         </button>
         {eroare === null ? null : (
-          <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+          <p role="alert" className="text-sm text-danger">
             {eroare}
           </p>
         )}

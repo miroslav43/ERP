@@ -96,7 +96,7 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
             />
             {tip?.denumire ?? "Cerere de concediu"}
           </h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-muted-foreground">
             {angajat !== null ? `${angajat.full_name} (${angajat.marca}) · ` : ""}
             {formatDate(cerere.data_inceput)} – {formatDate(cerere.data_sfarsit)}
           </p>
@@ -110,22 +110,22 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
 
       <section
         aria-labelledby="titlu-rezumat"
-        className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700"
+        className="rounded-lg border border-border p-4"
       >
         <h2 id="titlu-rezumat" className="mb-4 text-lg font-medium">
           Rezumat
         </h2>
         <dl className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
-            <dt className="text-xs tracking-wide text-zinc-500 uppercase">Zile lucrătoare</dt>
+            <dt className="text-xs tracking-wide text-muted-foreground uppercase">Zile lucrătoare</dt>
             <dd className="mt-0.5 text-sm">{formatAmount(cerere.zile_lucratoare)}</dd>
           </div>
           <div>
-            <dt className="text-xs tracking-wide text-zinc-500 uppercase">Zile calendaristice</dt>
+            <dt className="text-xs tracking-wide text-muted-foreground uppercase">Zile calendaristice</dt>
             <dd className="mt-0.5 text-sm">{cerere.zile_calendaristice}</dd>
           </div>
           <div>
-            <dt className="text-xs tracking-wide text-zinc-500 uppercase">Porțiuni</dt>
+            <dt className="text-xs tracking-wide text-muted-foreground uppercase">Porțiuni</dt>
             <dd className="mt-0.5 text-sm">
               {ETICHETE_PORTIUNE[cerere.portiune_inceput]}
               {cerere.portiune_inceput !== cerere.portiune_sfarsit
@@ -135,25 +135,25 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
           </div>
           {cerere.trimisa_la !== null ? (
             <div>
-              <dt className="text-xs tracking-wide text-zinc-500 uppercase">Trimisă la</dt>
+              <dt className="text-xs tracking-wide text-muted-foreground uppercase">Trimisă la</dt>
               <dd className="mt-0.5 text-sm">{formatDateTime(cerere.trimisa_la)}</dd>
             </div>
           ) : null}
           {cerere.decis_la !== null ? (
             <div>
-              <dt className="text-xs tracking-wide text-zinc-500 uppercase">Decisă la</dt>
+              <dt className="text-xs tracking-wide text-muted-foreground uppercase">Decisă la</dt>
               <dd className="mt-0.5 text-sm">{formatDateTime(cerere.decis_la)}</dd>
             </div>
           ) : null}
           {cerere.motiv !== null && cerere.motiv.length > 0 ? (
             <div className="sm:col-span-3">
-              <dt className="text-xs tracking-wide text-zinc-500 uppercase">Motiv</dt>
+              <dt className="text-xs tracking-wide text-muted-foreground uppercase">Motiv</dt>
               <dd className="mt-0.5 text-sm">{cerere.motiv}</dd>
             </div>
           ) : null}
           {cerere.atasament_path !== null ? (
             <div className="sm:col-span-3">
-              <dt className="text-xs tracking-wide text-zinc-500 uppercase">
+              <dt className="text-xs tracking-wide text-muted-foreground uppercase">
                 Document justificativ
               </dt>
               <dd className="mt-0.5 font-mono text-sm">{cerere.atasament_path}</dd>
@@ -161,7 +161,7 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
           ) : null}
           {cerere.motiv_respingere !== null ? (
             <div className="sm:col-span-3">
-              <dt className="text-xs tracking-wide text-rose-600 uppercase dark:text-rose-400">
+              <dt className="text-xs tracking-wide text-danger uppercase">
                 Motivul respingerii
               </dt>
               <dd className="mt-0.5 text-sm">{cerere.motiv_respingere}</dd>
@@ -172,13 +172,13 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
 
       <section
         aria-labelledby="titlu-zile"
-        className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700"
+        className="rounded-lg border border-border p-4"
       >
         <h2 id="titlu-zile" className="mb-4 text-lg font-medium">
           Zilele cererii
         </h2>
         {zile.length === 0 ? (
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-muted-foreground">
             Zilele cererii nu au fost încă generate.
           </p>
         ) : (
@@ -188,8 +188,8 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
                 key={zi.data}
                 className={`rounded-md border px-2 py-1.5 text-center ${
                   zi.este_lucratoare
-                    ? "border-zinc-200 dark:border-zinc-700"
-                    : "border-zinc-100 text-zinc-400 dark:border-zinc-800 dark:text-zinc-600"
+                    ? "border-border"
+                    : "border-border text-muted-foreground"
                 }`}
               >
                 <div className="font-medium">{formatDate(zi.data)}</div>
@@ -204,20 +204,20 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
 
       <section
         aria-labelledby="titlu-aprobare"
-        className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700"
+        className="rounded-lg border border-border p-4"
       >
         <h2 id="titlu-aprobare" className="mb-4 text-lg font-medium">
           Lanțul de aprobare
         </h2>
         {cerere.status === "ciorna" ? (
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-muted-foreground">
             Cererea este încă o ciornă; lanțul de aprobare se generează la trimitere.
           </p>
         ) : lant.length === 0 ? (
           // Solicitantul vede lanțul GOL dacă nu e el însuși aprobator:
           // `approval_tasks_select` arată doar sarcinile proprii. Nu se
           // randează un tabel gol — mesajul explică ce urmează.
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-muted-foreground">
             Cererea a fost trimisă spre aprobare; rezultatul apare aici după decizie.
           </p>
         ) : (
@@ -225,31 +225,31 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
             {lant.map((pas) => (
               <li
                 key={pas.id}
-                className="rounded-md border border-zinc-200 p-3 dark:border-zinc-700"
+                className="rounded-md border border-border p-3"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-medium">Pasul {pas.ordine}</span>
                   <span
                     className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                       pas.status === "aprobata"
-                        ? "bg-emerald-100 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-50"
+                        ? "bg-surface text-foreground"
                         : pas.status === "respinsa"
-                          ? "bg-rose-100 text-rose-900 dark:bg-rose-900 dark:text-rose-50"
-                          : "bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-50"
+                          ? "bg-danger/8 text-danger"
+                          : "bg-warning/12 text-foreground"
                     }`}
                   >
                     {ETICHETE_STATUS_SARCINA[pas.status]}
                   </span>
                 </div>
                 {pas.comentariu !== null && pas.comentariu.length > 0 ? (
-                  <p className="mt-1 text-zinc-600 dark:text-zinc-300">{pas.comentariu}</p>
+                  <p className="mt-1 text-muted-foreground">{pas.comentariu}</p>
                 ) : null}
                 {pas.decis_la !== null ? (
-                  <p className="mt-1 text-xs text-zinc-500">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     Decis la {formatDateTime(pas.decis_la)}
                   </p>
                 ) : pas.termen_la !== null ? (
-                  <p className="mt-1 text-xs text-zinc-500">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     Termen: {formatDateTime(pas.termen_la)}
                   </p>
                 ) : null}

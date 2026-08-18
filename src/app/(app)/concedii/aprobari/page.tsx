@@ -35,7 +35,7 @@ export default async function PaginaAprobariConcedii() {
     <main className="space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">Aprobări</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="text-sm text-muted-foreground">
           Cererile de concediu care așteaptă decizia dumneavoastră.
         </p>
       </header>
@@ -53,7 +53,7 @@ export default async function PaginaAprobariConcedii() {
           {sarcini.map((sarcina) => (
             <li
               key={sarcina.taskId}
-              className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700"
+              className="rounded-lg border border-border p-4"
             >
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
@@ -69,19 +69,19 @@ export default async function PaginaAprobariConcedii() {
                     {" · "}
                     {sarcina.tip?.denumire ?? "Concediu"}
                   </p>
-                  <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
+                  <p className="mt-1 text-sm text-muted-foreground">
                     {formatDate(sarcina.cerere.dataInceput)} –{" "}
                     {formatDate(sarcina.cerere.dataSfarsit)} ·{" "}
                     {formatAmount(sarcina.cerere.zileLucratoare)} zile lucrătoare
                   </p>
                   {sarcina.termenLa !== null ? (
-                    <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+                    <p className="mt-1 text-xs text-foreground">
                       Termen de decizie: {formatDateTime(sarcina.termenLa)}
                     </p>
                   ) : null}
                   <Link
                     href={`/concedii/${sarcina.cerere.id}`}
-                    className="mt-1 inline-block text-xs text-blue-700 underline-offset-2 hover:underline dark:text-blue-300"
+                    className="mt-1 inline-block text-xs text-primary underline-offset-2 hover:underline"
                   >
                     Vezi cererea completă
                   </Link>

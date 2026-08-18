@@ -96,7 +96,7 @@ export function FormularSablon({ departamente, posturi, astazi, initial }: Propr
             minLength={2}
             maxLength={160}
             defaultValue={initial?.denumire}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
 
@@ -108,7 +108,7 @@ export function FormularSablon({ departamente, posturi, astazi, initial }: Propr
             id={id.tip}
             name="tip"
             defaultValue={initial?.tip ?? "onboarding"}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           >
             {CHECKLIST_TIP.map((t) => (
               <option key={t} value={t}>
@@ -124,7 +124,7 @@ export function FormularSablon({ departamente, posturi, astazi, initial }: Propr
             name="activ"
             type="checkbox"
             defaultChecked={initial?.activ ?? true}
-            className="size-4 rounded border-zinc-300 dark:border-zinc-700"
+            className="size-4 rounded border-foreground/60"
           />
           <label htmlFor={id.activ} className="text-sm font-medium">
             Activ
@@ -140,7 +140,7 @@ export function FormularSablon({ departamente, posturi, astazi, initial }: Propr
               id={id.departament}
               name="department_id"
               defaultValue={initial?.department_id ?? ""}
-              className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
             >
               <option value="">Toate departamentele</option>
               {departamente.map((d) => (
@@ -161,7 +161,7 @@ export function FormularSablon({ departamente, posturi, astazi, initial }: Propr
               id={id.post}
               name="job_position_id"
               defaultValue={initial?.job_position_id ?? ""}
-              className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
             >
               <option value="">Toate posturile</option>
               {posturi.map((p) => (
@@ -183,7 +183,7 @@ export function FormularSablon({ departamente, posturi, astazi, initial }: Propr
             type="date"
             required
             defaultValue={initial?.valabil_de_la ?? astazi}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
 
@@ -196,7 +196,7 @@ export function FormularSablon({ departamente, posturi, astazi, initial }: Propr
             name="valabil_pana_la"
             type="date"
             defaultValue={initial?.valabil_pana_la ?? ""}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
 
@@ -210,7 +210,7 @@ export function FormularSablon({ departamente, posturi, astazi, initial }: Propr
             rows={3}
             maxLength={2000}
             defaultValue={initial?.descriere ?? ""}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
       </div>
@@ -219,12 +219,12 @@ export function FormularSablon({ departamente, posturi, astazi, initial }: Propr
         <button
           type="submit"
           disabled={inCurs}
-          className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
           {inCurs ? "Se salvează…" : initial === undefined ? "Creează șablonul" : "Salvează modificările"}
         </button>
         {eroare === null ? null : (
-          <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+          <p role="alert" className="text-sm text-danger">
             {eroare}
           </p>
         )}

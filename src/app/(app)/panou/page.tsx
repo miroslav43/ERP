@@ -148,7 +148,7 @@ export default async function PanouPage() {
                   {ruta !== undefined ? (
                     <Link
                       href={ruta}
-                      className="border-border bg-surface hover:bg-background focus-visible:ring-ring block h-full rounded-lg border p-4 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                      className="border-border bg-surface hover:bg-background block h-full rounded-lg border p-4 transition-colors"
                     >
                       {continut}
                     </Link>

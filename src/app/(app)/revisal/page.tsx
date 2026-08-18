@@ -26,11 +26,11 @@ function esteStare(valoare: string | undefined): valoare is FiltruStare {
 }
 
 const CLASA_STARE: Record<string, string> = {
-  intarziat: "bg-red-100 text-red-900 ring-1 ring-red-300",
-  astazi: "bg-amber-100 text-amber-900 ring-1 ring-amber-300",
-  in_termen: "bg-slate-100 text-slate-800 ring-1 ring-slate-300",
-  transmis: "bg-emerald-100 text-emerald-900 ring-1 ring-emerald-300",
-  anulat: "bg-slate-100 text-slate-500 ring-1 ring-slate-300",
+  intarziat: "bg-danger/8 text-danger ring-1 ring-danger/40",
+  astazi: "bg-warning/12 text-foreground ring-1 ring-warning/40",
+  in_termen: "bg-surface text-foreground ring-1 ring-border",
+  transmis: "bg-surface text-foreground ring-1 ring-success/40",
+  anulat: "bg-surface text-muted-foreground ring-1 ring-border",
 };
 
 export default async function PaginaRevisal(props: {
@@ -63,8 +63,8 @@ export default async function PaginaRevisal(props: {
   return (
     <main className="space-y-6 p-6">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold text-slate-900">REVISAL</h1>
-        <p className="text-sm text-slate-600">
+        <h1 className="text-2xl font-semibold text-foreground">REVISAL</h1>
+        <p className="text-sm text-muted-foreground">
           Registrul general de evidență a salariaților. Netransmiterea în termen a unui eveniment
           este contravenție, separat pentru fiecare salariat. Situația la {formatDate(azi)}.
         </p>
@@ -96,8 +96,8 @@ export default async function PaginaRevisal(props: {
               key={optiune.valoare}
               href={`/revisal?stare=${optiune.valoare}`}
               aria-current={activ ? "page" : undefined}
-              className={`rounded-md px-3 py-1.5 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 ${
-                activ ? "bg-slate-900 text-white" : "bg-white text-slate-700 ring-1 ring-slate-300"
+              className={`rounded-md px-3 py-1.5 text-sm focus-visible:outline    ${
+                activ ? "bg-primary text-primary-foreground" : "bg-background text-foreground ring-1 ring-border"
               }`}
             >
               {optiune.eticheta}
@@ -115,12 +115,12 @@ export default async function PaginaRevisal(props: {
           action={{ label: "Vezi angajații", href: "/angajati" }}
         />
       ) : (
-        <div className="overflow-x-auto rounded-lg ring-1 ring-slate-200">
+        <div className="overflow-x-auto rounded-lg ring-1 ring-border">
           <table className="w-full min-w-[64rem] text-left text-sm">
             <caption className="sr-only">
               Evenimente REVISAL, ordonate după termenul de transmitere
             </caption>
-            <thead className="bg-slate-50 text-slate-700">
+            <thead className="bg-surface text-foreground">
               <tr>
                 <th scope="col" className="px-4 py-2">
                   Salariat
@@ -145,12 +145,12 @@ export default async function PaginaRevisal(props: {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 bg-white">
+            <tbody className="divide-y divide-border bg-background">
               {randuri.map((rand) => (
-                <tr key={rand.id} className={rand.stare === "intarziat" ? "bg-red-50" : undefined}>
+                <tr key={rand.id} className={rand.stare === "intarziat" ? "bg-danger/8" : undefined}>
                   <td className="px-4 py-3">
-                    <span className="font-medium text-slate-900">{rand.angajatNume}</span>
-                    <span className="block text-xs text-slate-500">
+                    <span className="font-medium text-foreground">{rand.angajatNume}</span>
+                    <span className="block text-xs text-muted-foreground">
                       Marca {rand.angajatMarca}
                       {rand.contractNumar === null ? "" : ` · CIM ${rand.contractNumar}`}
                     </span>
@@ -171,13 +171,13 @@ export default async function PaginaRevisal(props: {
                             : ETICHETE_STATUS[rand.status]}
                     </span>
                     {rand.eroare === null ? null : (
-                      <span className="mt-1 block text-xs text-red-700">{rand.eroare}</span>
+                      <span className="mt-1 block text-xs text-danger">{rand.eroare}</span>
                     )}
                   </td>
                   <td className="px-4 py-3">{rand.numarInregistrare ?? "—"}</td>
                   <td className="px-4 py-3">
                     {rand.stare === "transmis" || rand.stare === "anulat" ? (
-                      <span className="text-xs text-slate-500">Nimic de făcut</span>
+                      <span className="text-xs text-muted-foreground">Nimic de făcut</span>
                     ) : poateActualiza ? (
                       <ActiuniEveniment
                         evenimentId={rand.id}
@@ -185,7 +185,7 @@ export default async function PaginaRevisal(props: {
                         azi={azi}
                       />
                     ) : (
-                      <span className="text-xs text-slate-500">Fără drept de marcare</span>
+                      <span className="text-xs text-muted-foreground">Fără drept de marcare</span>
                     )}
                   </td>
                 </tr>

@@ -58,7 +58,7 @@ export default async function PaginaPermisiuni({ params }: { params: Promise<{ o
         </p>
         <a
           href={`/super-admin/organizatii/${orgId}/permisiuni`}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover focus-visible:ring-ring inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:outline-none"
+          className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium"
         >
           <RotateCw aria-hidden="true" className="h-4 w-4" />
           Reîncearcă

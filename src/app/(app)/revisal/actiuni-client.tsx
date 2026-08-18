@@ -43,16 +43,16 @@ export function ActiuniEveniment(props: {
         type="button"
         onClick={() => setDeschis((valoare) => !valoare)}
         aria-expanded={deschis}
-        className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+        className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground focus-visible:outline"
       >
         Marchează transmis
       </button>
 
       {deschis ? (
-        <form action={trimite} className="space-y-2 rounded-md bg-slate-50 p-3">
-          <p className="text-xs text-slate-600">Transmitere pentru {props.numeAngajat}</p>
+        <form action={trimite} className="space-y-2 rounded-md bg-surface p-3">
+          <p className="text-xs text-muted-foreground">Transmitere pentru {props.numeAngajat}</p>
           <div>
-            <label htmlFor={idData} className="block text-xs font-medium text-slate-700">
+            <label htmlFor={idData} className="block text-xs font-medium text-foreground">
               Data transmiterii
             </label>
             <input
@@ -62,11 +62,11 @@ export function ActiuniEveniment(props: {
               required
               max={props.azi}
               defaultValue={props.azi}
-              className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm"
+              className="mt-1 w-full rounded border border-foreground/60 px-2 py-1 text-sm"
             />
           </div>
           <div>
-            <label htmlFor={idNumar} className="block text-xs font-medium text-slate-700">
+            <label htmlFor={idNumar} className="block text-xs font-medium text-foreground">
               Număr de înregistrare ITM
             </label>
             <input
@@ -75,13 +75,13 @@ export function ActiuniEveniment(props: {
               type="text"
               required
               maxLength={60}
-              className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-sm"
+              className="mt-1 w-full rounded border border-foreground/60 px-2 py-1 text-sm"
             />
           </div>
           <button
             type="submit"
             disabled={inCurs}
-            className="rounded bg-emerald-700 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-60"
+            className="rounded bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
           >
             {inCurs ? "Se salvează…" : "Confirmă transmiterea"}
           </button>
@@ -90,7 +90,7 @@ export function ActiuniEveniment(props: {
 
       <p
         aria-live="polite"
-        className={`text-xs ${mesaj?.tip === "eroare" ? "text-red-700" : "text-emerald-700"}`}
+        className={`text-xs ${mesaj?.tip === "eroare" ? "text-danger" : "text-foreground"}`}
       >
         {mesaj?.text ?? ""}
       </p>
@@ -130,11 +130,11 @@ export function ButonExport() {
         type="button"
         onClick={descarca}
         disabled={inCurs}
-        className="rounded-md bg-white px-3 py-1.5 text-sm text-slate-700 ring-1 ring-slate-300 disabled:opacity-60"
+        className="rounded-md bg-background px-3 py-1.5 text-sm text-foreground ring-1 ring-border disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
       >
         {inCurs ? "Se pregătește…" : "Descarcă listing (CSV)"}
       </button>
-      <span aria-live="polite" className="text-xs text-slate-600">
+      <span aria-live="polite" className="text-xs text-muted-foreground">
         {mesaj}
       </span>
     </span>

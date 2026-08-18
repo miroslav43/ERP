@@ -69,7 +69,7 @@ export function OrgSwitcher({ organizatii, organizatiaCurentaId }: Props) {
           value={selectata}
           onChange={(eveniment) => setSelectata(eveniment.target.value)}
           disabled={inCurs}
-          className="border-border bg-surface text-foreground focus-visible:ring-ring h-9 max-w-56 truncate rounded-md border py-1 pr-2 pl-8 text-sm focus-visible:ring-2 focus-visible:outline-none disabled:opacity-60"
+          className="border-border bg-surface text-foreground h-9 max-w-56 truncate rounded-md border py-1 pr-2 pl-8 text-sm disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
           {organizatii.map((organizatie) => (
             <option key={organizatie.id} value={organizatie.id}>
@@ -82,7 +82,7 @@ export function OrgSwitcher({ organizatii, organizatiaCurentaId }: Props) {
       <button
         type="submit"
         disabled={neschimbata || inCurs}
-        className="bg-primary text-primary-foreground hover:bg-primary-hover focus-visible:ring-ring inline-flex h-9 items-center gap-1.5 rounded-md px-3 text-sm font-medium focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+        className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex h-9 items-center gap-1.5 rounded-md px-3 text-sm font-medium disabled:cursor-not-allowed disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
       >
         {inCurs ? (
           <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />

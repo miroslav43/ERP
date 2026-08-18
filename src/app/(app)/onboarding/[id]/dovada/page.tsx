@@ -51,7 +51,7 @@ export default async function PaginaDovada({ params }: ProprietatiPagina) {
   if (dovada === null) {
     return (
       <main className="mx-auto w-full max-w-3xl space-y-6 p-6">
-        <p className="print:hidden text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="print:hidden text-sm text-muted-foreground">
           <Link href={`/onboarding/${id}`} className="underline-offset-2 hover:underline">
             Înapoi la checklist
           </Link>
@@ -76,7 +76,7 @@ export default async function PaginaDovada({ params }: ProprietatiPagina) {
     : undefined;
 
   return (
-    <main className="mx-auto w-full max-w-3xl space-y-6 bg-white p-6 text-black print:p-0 dark:bg-white">
+    <main className="mx-auto w-full max-w-3xl space-y-6 bg-background p-6 text-black print:p-0">
       <div className="print:hidden flex items-center justify-between">
         <Link href={`/onboarding/${id}`} className="text-sm underline-offset-2 hover:underline">
           Înapoi la checklist
@@ -84,7 +84,7 @@ export default async function PaginaDovada({ params }: ProprietatiPagina) {
         <ButonTiparire />
       </div>
 
-      <header className="space-y-1 border-b border-zinc-300 pb-4 print:break-inside-avoid">
+      <header className="space-y-1 border-b border-foreground/60 pb-4 print:break-inside-avoid">
         <h1 className="text-xl font-semibold">Dovadă de parcurgere a checklistului</h1>
         <p className="text-sm">
           {angajat === undefined ? "Angajat" : `${angajat.full_name ?? angajat.marca} (${angajat.marca})`}{" "}
@@ -95,7 +95,7 @@ export default async function PaginaDovada({ params }: ProprietatiPagina) {
           {dovada.pasi_bifati} din {dovada.total_pasi} pași bifați, {dovada.pasi_obligatorii}{" "}
           obligatorii
         </p>
-        <p className="font-mono text-xs text-zinc-500">
+        <p className="font-mono text-xs text-muted-foreground">
           Amprenta documentului: {dovada.continut_checksum}
         </p>
       </header>
@@ -103,7 +103,7 @@ export default async function PaginaDovada({ params }: ProprietatiPagina) {
       <table className="w-full border-collapse text-sm">
         <caption className="sr-only">Pașii checklistului, așa cum erau la finalizare.</caption>
         <thead>
-          <tr className="border-b border-zinc-300 text-left">
+          <tr className="border-b border-foreground/60 text-left">
             <th scope="col" className="py-2 pr-2 font-medium">
               #
             </th>
@@ -123,13 +123,13 @@ export default async function PaginaDovada({ params }: ProprietatiPagina) {
         </thead>
         <tbody>
           {continut.map((pas) => (
-            <tr key={pas.ordine} className="border-b border-zinc-200 print:break-inside-avoid">
+            <tr key={pas.ordine} className="border-b border-border print:break-inside-avoid">
               <td className="py-2 pr-2 align-top">{pas.ordine}</td>
               <td className="py-2 pr-2 align-top">
                 {pas.titlu}
                 {pas.obligatoriu ? <span className="ml-1 text-xs">(obligatoriu)</span> : null}
                 {pas.observatii === null ? null : (
-                  <p className="text-xs text-zinc-600">{pas.observatii}</p>
+                  <p className="text-xs text-muted-foreground">{pas.observatii}</p>
                 )}
               </td>
               <td className="py-2 pr-2 align-top">{ETICHETE_TIP_DOVADA[pas.tip_dovada]}</td>

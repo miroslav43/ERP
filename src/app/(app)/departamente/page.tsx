@@ -63,7 +63,7 @@ function Arbore({
       className={
         nivel === 1
           ? "space-y-2"
-          : "mt-2 space-y-2 border-l border-zinc-200 pl-4 dark:border-zinc-700"
+          : "mt-2 space-y-2 border-l border-border pl-4"
       }
     >
       {noduri.map((nod) => (
@@ -73,19 +73,19 @@ function Arbore({
           aria-expanded={nod.copii.length > 0 ? true : undefined}
           aria-level={nivel}
         >
-          <div className="flex flex-wrap items-center gap-3 rounded-md border border-zinc-200 px-3 py-2 dark:border-zinc-700">
+          <div className="flex flex-wrap items-center gap-3 rounded-md border border-border px-3 py-2">
             <span className="font-medium">{nod.denumire}</span>
-            <span className="font-mono text-xs text-zinc-500">{nod.cod}</span>
+            <span className="font-mono text-xs text-muted-foreground">{nod.cod}</span>
             {!nod.activ ? (
-              <span className="rounded bg-zinc-200 px-2 py-0.5 text-xs dark:bg-zinc-700">
+              <span className="rounded bg-surface px-2 py-0.5 text-xs">
                 Inactiv
               </span>
             ) : null}
-            <span className="text-sm text-zinc-600 dark:text-zinc-300">
+            <span className="text-sm text-muted-foreground">
               Manager: {nod.manager?.full_name ?? "nedesemnat"}
             </span>
             <span className="ml-auto inline-flex items-center gap-1 text-sm">
-              <Users aria-hidden="true" className="size-4 text-zinc-500" />
+              <Users aria-hidden="true" className="size-4 text-muted-foreground" />
               <span>{nod.numarAngajati}</span>
               <span className="sr-only">angajați în acest departament</span>
             </span>
@@ -140,7 +140,7 @@ export default async function PaginaDepartamente() {
     <main className="space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">Departamente</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="text-sm text-muted-foreground">
           Structura organizatorică, cu managerul și numărul de angajați pe fiecare nivel.
         </p>
       </header>

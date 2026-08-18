@@ -38,12 +38,12 @@ async function TabelAnomalii({ organizationId }: { readonly organizationId: stri
   );
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+    <div className="overflow-x-auto rounded-lg border border-border">
       <table className="w-full text-sm">
         <caption className="sr-only">
           Discontinuități de kilometraj constatate automat, în așteptarea unei explicații.
         </caption>
-        <thead className="bg-zinc-50 text-left dark:bg-zinc-900">
+        <thead className="bg-surface text-left">
           <tr>
             <th scope="col" className="px-4 py-3 font-medium">
               Constatată
@@ -62,9 +62,9 @@ async function TabelAnomalii({ organizationId }: { readonly organizationId: stri
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+        <tbody className="divide-y divide-border">
           {anomalii.map((a) => (
-            <tr key={a.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900">
+            <tr key={a.id} className="hover:bg-surface">
               <td className="px-4 py-3 whitespace-nowrap">
                 {formatDateTime(new Date(a.created_at))}
               </td>
@@ -76,7 +76,7 @@ async function TabelAnomalii({ organizationId }: { readonly organizationId: stri
               </td>
               <td className="px-4 py-3 text-right tabular-nums">
                 {a.km_declarat.toLocaleString("ro-RO")} km
-                <span className="ml-2 text-xs text-amber-700 dark:text-amber-400">
+                <span className="ml-2 text-xs text-foreground">
                   +{(a.km_declarat - a.km_asteptat).toLocaleString("ro-RO")}
                 </span>
               </td>
@@ -106,7 +106,7 @@ export default async function PaginaAnomalii() {
     <main className="space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">Anomalii de kilometraj</h1>
-        <p className="max-w-3xl text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="max-w-3xl text-sm text-muted-foreground">
           Un kilometraj care sare peste o diferență neobișnuită nu blochează salvarea foii —
           cea mai frecventă explicație e o cursă necompletată, iar un refuz l-ar împinge pe
           șofer să potrivească cifra. Diferența ajunge aici, ca cineva să o explice.

@@ -17,13 +17,13 @@ export const ETICHETE_STATUS_DEPLASARE: Readonly<Record<StatusDeplasare, string>
 };
 
 export const CLASE_STATUS_DEPLASARE: Readonly<Record<StatusDeplasare, string>> = {
-  ciorna: "bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-100",
-  in_aprobare: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-100",
-  aprobata: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100",
-  respinsa: "bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-100",
-  anulata: "bg-zinc-200 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400",
-  incheiata: "bg-blue-100 text-blue-900 dark:bg-blue-950 dark:text-blue-100",
-  decontata: "bg-violet-100 text-violet-900 dark:bg-violet-950 dark:text-violet-100",
+  ciorna: "bg-zinc-200 text-zinc-800",
+  in_aprobare: "bg-amber-100 text-amber-900",
+  aprobata: "bg-emerald-100 text-emerald-900",
+  respinsa: "bg-red-100 text-red-900",
+  anulata: "bg-zinc-200 text-zinc-500",
+  incheiata: "bg-blue-100 text-blue-900",
+  decontata: "bg-violet-100 text-violet-900",
 };
 
 export const ETICHETE_MIJLOC_TRANSPORT: Readonly<Record<MijlocTransport, string>> = {

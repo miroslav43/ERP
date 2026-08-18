@@ -36,7 +36,7 @@ interface Proprietati {
 const PORTIUNI: readonly PortiuneZi[] = ["zi_intreaga", "prima_jumatate", "a_doua_jumatate"];
 
 const CLASA_CAMP =
-  "mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus-visible:outline-2 dark:border-zinc-600 dark:bg-zinc-900";
+  "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
 
 export function FormularCerere({
   tipuri,
@@ -181,7 +181,7 @@ export function FormularCerere({
             ))}
           </select>
           {tip?.necesita_document ? (
-            <p className="mt-1 text-xs text-amber-700 dark:text-amber-400">
+            <p className="mt-1 text-xs text-foreground">
               Acest tip de concediu necesită un document justificativ atașat înainte de trimitere.
             </p>
           ) : null}
@@ -293,10 +293,10 @@ export function FormularCerere({
 
       <div
         aria-live="polite"
-        className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-sm dark:border-zinc-700 dark:bg-zinc-800"
+        className="rounded-lg border border-border bg-surface p-4 text-sm"
       >
         {previzualizare === null ? (
-          <p className="text-zinc-600 dark:text-zinc-300">
+          <p className="text-muted-foreground">
             Completați ambele date pentru a vedea câte zile lucrătoare consumă cererea.
           </p>
         ) : (
@@ -307,7 +307,7 @@ export function FormularCerere({
               {previzualizare.zileCalendaristice} zile calendaristice.
             </p>
             {tip !== null && !tip.scade_din_sold ? (
-              <p className="mt-1 text-xs text-zinc-500">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Acest tip de concediu nu scade din soldul de zile.
               </p>
             ) : ramaseAfisate !== null ? (
@@ -317,7 +317,7 @@ export function FormularCerere({
                 <strong>{formatAmount(ramaseAfisate - previzualizare.zileLucratoare)}</strong>.
               </p>
             ) : (
-              <p className="mt-1 text-xs text-zinc-500">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Soldul disponibil se verifică exact la trimitere.
               </p>
             )}
@@ -327,7 +327,7 @@ export function FormularCerere({
 
       <div aria-live="polite">
         {eroare !== null ? (
-          <p className="rounded-md border border-rose-300 bg-rose-50 p-3 text-sm text-rose-800 dark:border-rose-700 dark:bg-rose-950 dark:text-rose-200">
+          <p className="rounded-md border border-danger bg-danger/8 p-3 text-sm text-danger">
             {eroare}
           </p>
         ) : null}
@@ -340,7 +340,7 @@ export function FormularCerere({
           onClick={() => {
             trimiteFormular(false);
           }}
-          className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-600 dark:hover:bg-zinc-800"
+          className="rounded-md border border-foreground/60 px-4 py-2 text-sm font-medium hover:bg-surface disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
           {inCurs ? "Se salvează…" : "Salvează ca ciornă"}
         </button>
@@ -350,7 +350,7 @@ export function FormularCerere({
           onClick={() => {
             trimiteFormular(true);
           }}
-          className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
           {inCurs ? "Se trimite…" : "Trimite spre aprobare"}
         </button>

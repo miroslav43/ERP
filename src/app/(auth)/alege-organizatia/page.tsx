@@ -70,7 +70,7 @@ export default async function AlegeOrganizatiaPage({ searchParams }: Props) {
                 <input type="hidden" name="organizationId" value={organizatie.id} />
                 <button
                   type="submit"
-                  className="border-border bg-surface hover:bg-background focus-visible:ring-ring flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                  className="border-border bg-surface hover:bg-background flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left transition-colors"
                 >
                   <Building2 aria-hidden="true" className="text-primary h-5 w-5" />
                   <span className="flex min-w-0 flex-col">
@@ -107,7 +107,7 @@ export default async function AlegeOrganizatiaPage({ searchParams }: Props) {
             Nu aveți încă o organizație în Administrativo?{" "}
             <Link
               href="/#cere-demo"
-              className="text-primary focus-visible:ring-ring font-medium underline underline-offset-4 focus-visible:ring-2 focus-visible:outline-none"
+              className="text-primary font-medium underline underline-offset-4"
             >
               Cereți o prezentare
             </Link>{" "}
@@ -119,7 +119,7 @@ export default async function AlegeOrganizatiaPage({ searchParams }: Props) {
       <form action={deconecteaza}>
         <button
           type="submit"
-          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring inline-flex items-center gap-2 text-sm underline underline-offset-4 focus-visible:ring-2 focus-visible:outline-none"
+          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 text-sm underline underline-offset-4"
         >
           <LogOut aria-hidden="true" className="h-4 w-4" />
           Deconectare

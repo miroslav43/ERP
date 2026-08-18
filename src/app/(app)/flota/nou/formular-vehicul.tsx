@@ -80,7 +80,7 @@ export function FormularVehicul() {
             id={id.categorie}
             name="categorie"
             defaultValue="autoturism"
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           >
             {CATEGORII_VEHICUL.map((c) => (
               <option key={c} value={c}>
@@ -98,7 +98,7 @@ export function FormularVehicul() {
             id={id.combustibil}
             name="tip_combustibil"
             defaultValue="motorina"
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           >
             {COMBUSTIBILI.map((c) => (
               <option key={c} value={c}>
@@ -129,12 +129,12 @@ export function FormularVehicul() {
         <button
           type="submit"
           disabled={inCurs}
-          className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
           {inCurs ? "Se salvează…" : "Adaugă vehiculul"}
         </button>
         {eroare === null ? null : (
-          <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+          <p role="alert" className="text-sm text-danger">
             {eroare}
           </p>
         )}
@@ -166,7 +166,7 @@ function Camp({
       <label htmlFor={id} className="text-sm font-medium">
         {eticheta}
         {obligatoriu ? (
-          <span aria-hidden="true" className="text-red-700 dark:text-red-400">
+          <span aria-hidden="true" className="text-danger">
             {" "}
             *
           </span>
@@ -179,10 +179,10 @@ function Camp({
         step={pas}
         required={obligatoriu}
         aria-describedby={ajutor === undefined ? undefined : idAjutor}
-        className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+        className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
       />
       {ajutor === undefined ? null : (
-        <p id={idAjutor} className="text-xs text-zinc-500 dark:text-zinc-400">
+        <p id={idAjutor} className="text-xs text-muted-foreground">
           {ajutor}
         </p>
       )}

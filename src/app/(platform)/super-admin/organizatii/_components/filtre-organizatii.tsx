@@ -58,7 +58,7 @@ export function FiltreOrganizatii({
           value={cautare}
           onChange={(eveniment) => setCautare(eveniment.target.value)}
           placeholder="ex. Firma Mea sau RO 14399840"
-          className="border-border bg-background text-foreground focus-visible:ring-ring mt-1 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none"
+          className="border-border bg-background text-foreground mt-1 w-full rounded-md border px-3 py-2 text-sm"
         />
       </div>
 
@@ -73,7 +73,7 @@ export function FiltreOrganizatii({
             setStatus(eveniment.target.value);
             navigheaza(cautare, eveniment.target.value);
           }}
-          className="border-border bg-background text-foreground focus-visible:ring-ring mt-1 rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none"
+          className="border-border bg-background text-foreground mt-1 rounded-md border px-3 py-2 text-sm"
         >
           <option value="">Toate</option>
           {STATUSURI_ORGANIZATIE.map((valoare) => (
@@ -86,7 +86,7 @@ export function FiltreOrganizatii({
 
       <button
         type="submit"
-        className="bg-primary text-primary-foreground hover:bg-primary-hover focus-visible:ring-ring inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:outline-none"
+        className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
       >
         <Search aria-hidden="true" className="size-4" />
         Caută

@@ -80,7 +80,7 @@ export default async function PaginaDeplasareNoua() {
     <main className="mx-auto w-full max-w-4xl space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">Deplasare nouă</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="text-sm text-muted-foreground">
           Zilele și suma diurnei se calculează pe măsură ce completați formularul; suma finală se
           verifică din nou, exact, pe fișa deplasării, după ce adăugați etapele reale ale
           traseului.

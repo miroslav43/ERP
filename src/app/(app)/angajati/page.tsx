@@ -59,10 +59,10 @@ async function TabelAngajati({ organizationId, scope, userId, parametri }: Propr
 
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
+      <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-left text-sm">
           <caption className="sr-only">Lista angajaților din organizație</caption>
-          <thead className="bg-zinc-50 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+          <thead className="bg-surface text-foreground">
             <tr>
               <th scope="col" className="px-4 py-3 font-medium">
                 Marcă
@@ -84,19 +84,19 @@ async function TabelAngajati({ organizationId, scope, userId, parametri }: Propr
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
+          <tbody className="divide-y divide-border">
             {randuri.map((rand) => (
-              <tr key={rand.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800">
+              <tr key={rand.id} className="hover:bg-surface">
                 <td className="px-4 py-3 font-mono text-xs">{rand.marca}</td>
                 <td className="px-4 py-3">
                   <Link
                     href={`/angajati/${rand.id}`}
-                    className="font-medium text-blue-700 underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 dark:text-blue-300"
+                    className="font-medium text-primary underline-offset-2 hover:underline"
                   >
                     {rand.full_name}
                   </Link>
                   {!rand.is_primary ? (
-                    <span className="ml-2 text-xs text-zinc-500">(cumul de funcții)</span>
+                    <span className="ml-2 text-xs text-muted-foreground">(cumul de funcții)</span>
                   ) : null}
                 </td>
                 <td className="px-4 py-3">{rand.department?.denumire ?? "—"}</td>
@@ -119,11 +119,11 @@ async function TabelAngajati({ organizationId, scope, userId, parametri }: Propr
 
       <nav aria-label="Paginare" className="mt-4 flex justify-end">
         {urmatorulCursor === null ? (
-          <p className="text-sm text-zinc-500">Aceasta este ultima pagină.</p>
+          <p className="text-sm text-muted-foreground">Aceasta este ultima pagină.</p>
         ) : (
           <Link
             href={`/angajati?${cautare.toString()}`}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium hover:bg-zinc-50 focus-visible:outline-2 focus-visible:outline-offset-2 dark:border-zinc-600 dark:hover:bg-zinc-800"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm font-medium hover:bg-surface"
           >
             Pagina următoare
           </Link>
@@ -154,7 +154,7 @@ export default async function PaginaAngajati({ searchParams }: ProprietatiPagina
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Angajați</h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-muted-foreground">
             {scope === "own"
               ? "Vedeți propria fișă de personal."
               : scope === "team"
@@ -165,7 +165,7 @@ export default async function PaginaAngajati({ searchParams }: ProprietatiPagina
         {poateCrea ? (
           <Link
             href="/angajati/nou"
-            className="inline-flex items-center gap-2 rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2"
+            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
           >
             <UserPlus aria-hidden="true" className="size-4" />
             Angajat nou

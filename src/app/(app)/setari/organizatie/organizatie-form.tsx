@@ -137,7 +137,7 @@ export function FormularOrganizatie({ initiale }: Readonly<{ initiale: ValoriOrg
                 aria-describedby={
                   erori !== undefined && erori.length > 0 ? `${id}-eroare` : undefined
                 }
-                className="border-border bg-surface text-foreground focus-visible:ring-ring h-9 rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
+                className="border-border bg-surface text-foreground h-9 rounded-md border px-3 text-sm"
               />
             </Camp>
           );
@@ -151,7 +151,7 @@ export function FormularOrganizatie({ initiale }: Readonly<{ initiale: ValoriOrg
             onChange={(eveniment) =>
               setValori((precedente) => ({ ...precedente, platitor_tva: eveniment.target.checked }))
             }
-            className="border-border focus-visible:ring-ring h-4 w-4 rounded focus-visible:ring-2 focus-visible:outline-none"
+            className="border-border h-4 w-4 rounded"
           />
           <label htmlFor="org-platitor-tva" className="text-foreground text-sm">
             Plătitor de TVA
@@ -163,7 +163,7 @@ export function FormularOrganizatie({ initiale }: Readonly<{ initiale: ValoriOrg
         <button
           type="submit"
           disabled={seSalveaza}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover focus-visible:ring-ring inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-medium focus-visible:ring-2 focus-visible:outline-none disabled:opacity-60"
+          className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-medium disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
           <Save aria-hidden="true" className="h-4 w-4" />
           {seSalveaza ? "Se salvează…" : "Salvează modificările"}

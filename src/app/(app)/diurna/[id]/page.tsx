@@ -90,13 +90,13 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
     <main className="space-y-6 p-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-muted-foreground">
             <Link href="/diurna" className="underline-offset-2 hover:underline">
               Deplasări
             </Link>
           </p>
           <h1 className="text-2xl font-semibold">{deplasare.scop}</h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-muted-foreground">
             {angajat === undefined ? "" : `${angajat.full_name ?? "—"} (${angajat.marca}) · `}
             {formatDateTime(new Date(deplasare.plecare_la))} –{" "}
             {formatDateTime(new Date(deplasare.sosire_la))}
@@ -112,7 +112,7 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
 
       <section
         aria-labelledby="titlu-rezumat"
-        className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700"
+        className="rounded-lg border border-border p-4"
       >
         <h2 id="titlu-rezumat" className="mb-4 text-lg font-medium">
           Rezumat
@@ -131,7 +131,7 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
           <Camp eticheta="Kilometri parcurși" valoare={deplasare.km_parcursi === null ? "—" : `${deplasare.km_parcursi.toLocaleString("ro-RO")} km`} />
           {deplasare.detasare_transnationala ? (
             <div className="col-span-2 sm:col-span-4">
-              <dt className="text-xs tracking-wide text-zinc-500 uppercase">Detașare transnațională</dt>
+              <dt className="text-xs tracking-wide text-muted-foreground uppercase">Detașare transnațională</dt>
               <dd className="mt-0.5 text-sm">
                 Stat gazdă: {deplasare.stat_gazda_country_id === null ? "—" : hartaTari.get(deplasare.stat_gazda_country_id)?.denumire ?? deplasare.stat_gazda_country_id}
                 {deplasare.salariu_minim_stat_gazda === null
@@ -142,7 +142,7 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
           ) : null}
           {deplasare.observatii === null ? null : (
             <div className="col-span-2 sm:col-span-4">
-              <dt className="text-xs tracking-wide text-zinc-500 uppercase">Observații</dt>
+              <dt className="text-xs tracking-wide text-muted-foreground uppercase">Observații</dt>
               <dd className="mt-0.5 text-sm">{deplasare.observatii}</dd>
             </div>
           )}
@@ -159,7 +159,7 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
         {poateAdaugaEtapa ? (
           <FormularEtapa tripId={deplasare.id} tari={listaTari} />
         ) : (
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-muted-foreground">
             {editabila
               ? ""
               : "Traseul nu mai poate fi modificat — deplasarea a ieșit din starea editabilă."}
@@ -172,11 +172,11 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
           Cheltuieli
         </h2>
         {cheltuieliTrip.length === 0 ? (
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">Nicio cheltuială înregistrată încă.</p>
+          <p className="text-sm text-muted-foreground">Nicio cheltuială înregistrată încă.</p>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+          <div className="overflow-x-auto rounded-lg border border-border">
             <table className="w-full text-sm">
-              <thead className="bg-zinc-50 text-left dark:bg-zinc-900">
+              <thead className="bg-surface text-left">
                 <tr>
                   <th scope="col" className="px-3 py-2 font-medium">Tip</th>
                   <th scope="col" className="px-3 py-2 font-medium">Data</th>
@@ -185,7 +185,7 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
                   <th scope="col" className="px-3 py-2 font-medium">Stare</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+              <tbody className="divide-y divide-border">
                 {cheltuieliTrip.map((c) => (
                   <tr key={c.id}>
                     <td className="px-3 py-2">
@@ -199,15 +199,15 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
                     <td className="px-3 py-2 text-right tabular-nums">{formatLei(c.suma_lei)}</td>
                     <td className="px-3 py-2">
                       {c.aprobata ? (
-                        <span className="rounded bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">
+                        <span className="rounded bg-surface px-2 py-0.5 text-xs font-medium text-foreground">
                           Aprobată
                         </span>
                       ) : c.motiv_respingere !== null ? (
-                        <span className="rounded bg-red-100 px-2 py-0.5 text-xs font-medium text-red-900 dark:bg-red-950 dark:text-red-100">
+                        <span className="rounded bg-danger/8 px-2 py-0.5 text-xs font-medium text-danger">
                           Respinsă
                         </span>
                       ) : (
-                        <span className="rounded bg-zinc-200 px-2 py-0.5 text-xs font-medium text-zinc-800 dark:bg-zinc-800 dark:text-zinc-100">
+                        <span className="rounded bg-surface px-2 py-0.5 text-xs font-medium text-foreground">
                           În așteptare
                         </span>
                       )}
@@ -233,7 +233,7 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
 function Camp({ eticheta, valoare }: { readonly eticheta: string; readonly valoare: string }) {
   return (
     <div>
-      <dt className="text-xs tracking-wide text-zinc-500 uppercase">{eticheta}</dt>
+      <dt className="text-xs tracking-wide text-muted-foreground uppercase">{eticheta}</dt>
       <dd className="mt-0.5 text-sm">{valoare}</dd>
     </div>
   );

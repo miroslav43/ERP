@@ -42,7 +42,7 @@ export function FiltreInstruiri() {
 
   return (
     <div className="space-y-3">
-      <div role="tablist" aria-label="Domeniu" className="inline-flex rounded-md border border-zinc-300 dark:border-zinc-700">
+      <div role="tablist" aria-label="Domeniu" className="inline-flex rounded-md border border-foreground/60">
         {DOMENII_SSM.map((d) => (
           <button
             key={d}
@@ -54,8 +54,8 @@ export function FiltreInstruiri() {
             }}
             className={
               domeniuCurent === d
-                ? "rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white"
-                : "px-4 py-2 text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+                ? "rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+                : "px-4 py-2 text-sm text-muted-foreground hover:text-foreground"
             }
           >
             {ETICHETE_DOMENIU[d]}
@@ -65,7 +65,7 @@ export function FiltreInstruiri() {
 
       <form
         action={aplica}
-        className="flex flex-wrap items-end gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
+        className="flex flex-wrap items-end gap-3 rounded-lg border border-border p-4"
       >
         <div className="flex flex-col gap-1">
           <label htmlFor={idCauta} className="text-sm font-medium">
@@ -77,13 +77,13 @@ export function FiltreInstruiri() {
             type="search"
             defaultValue={parametri.get("q") ?? ""}
             placeholder="Nume angajat"
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
         <button
           type="submit"
           disabled={inCurs}
-          className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-700 dark:hover:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-4 py-2 text-sm font-medium hover:bg-surface disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
           {inCurs ? "Se filtrează…" : "Filtrează"}
         </button>

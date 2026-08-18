@@ -83,7 +83,7 @@ export function FormularDocument({
   return (
     <form
       action={(formular) => void trimite(formular)}
-      className="grid gap-3 rounded-lg border border-slate-200 p-4 sm:grid-cols-3 dark:border-slate-700"
+      className="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-3"
     >
       <div className="flex flex-col gap-1">
         <label htmlFor={idTip} className="text-sm font-medium">
@@ -93,7 +93,7 @@ export function FormularDocument({
           id={idTip}
           name="tip"
           required
-          className="rounded-md border border-slate-300 p-2 dark:border-slate-600"
+          className="rounded-md border border-foreground/60 p-2"
         >
           {tipuri.map((tip) => (
             <option key={tip.id} value={tip.id}>
@@ -111,7 +111,7 @@ export function FormularDocument({
           name="titlu"
           required
           maxLength={200}
-          className="rounded-md border border-slate-300 p-2 dark:border-slate-600"
+          className="rounded-md border border-foreground/60 p-2"
         />
       </div>
       <div className="flex flex-col gap-1">
@@ -124,14 +124,14 @@ export function FormularDocument({
         <button
           type="submit"
           disabled={stare.tip === "lucru"}
-          className="rounded-md bg-sky-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
           {stare.tip === "lucru" ? "Se încarcă…" : "Adaugă documentul"}
         </button>
         <p
           role="status"
           aria-live="polite"
-          className={stare.tip === "eroare" ? "text-sm text-rose-700" : "text-sm text-emerald-700"}
+          className={stare.tip === "eroare" ? "text-sm text-danger" : "text-sm text-foreground"}
         >
           {stare.mesaj}
         </p>
@@ -159,14 +159,14 @@ export function ListaDescarcare({
   return (
     <span className="flex items-center gap-2">
       {eroare !== null && (
-        <span role="alert" className="text-sm text-rose-700">
+        <span role="alert" className="text-sm text-danger">
           {eroare}
         </span>
       )}
       <button
         type="button"
         onClick={() => void descarca()}
-        className="rounded-md border border-slate-300 px-3 py-1.5 text-sm dark:border-slate-600"
+        className="rounded-md border border-foreground/60 px-3 py-1.5 text-sm"
       >
         Descarcă <span className="sr-only">{numeFisier}</span>
       </button>

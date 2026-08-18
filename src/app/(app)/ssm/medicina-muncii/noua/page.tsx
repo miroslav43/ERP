@@ -38,13 +38,13 @@ export default async function PaginaFisaNoua() {
   return (
     <main className="mx-auto w-full max-w-2xl space-y-6 p-6">
       <header>
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="text-sm text-muted-foreground">
           <Link href="/ssm/medicina-muncii" className="underline-offset-2 hover:underline">
             Medicina muncii
           </Link>
         </p>
         <h1 className="text-2xl font-semibold">Fișă de aptitudine nouă</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="text-sm text-muted-foreground">
           Se stochează doar rezultatul aptitudinii — formularul nu are câmp de diagnostic.
         </p>
       </header>

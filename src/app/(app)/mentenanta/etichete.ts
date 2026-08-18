@@ -17,10 +17,10 @@ export const ETICHETE_STATUS_ECHIPAMENT: Readonly<Record<StatusEchipament, strin
 };
 
 export const CLASE_STATUS_ECHIPAMENT: Readonly<Record<StatusEchipament, string>> = {
-  in_functiune: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100",
-  in_reparatie: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-100",
-  in_conservare: "bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-100",
-  casat: "bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-100",
+  in_functiune: "bg-emerald-100 text-emerald-900",
+  in_reparatie: "bg-amber-100 text-amber-900",
+  in_conservare: "bg-zinc-200 text-zinc-800",
+  casat: "bg-zinc-200 text-zinc-800",
 };
 
 export const ETICHETE_TIP_CONTOR: Readonly<Record<TipContor, string>> = {
@@ -43,10 +43,10 @@ export const ETICHETE_REZULTAT_INTERVENTIE: Readonly<Record<RezultatInterventie,
 };
 
 export const CLASE_REZULTAT_INTERVENTIE: Readonly<Record<RezultatInterventie, string>> = {
-  reusita: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100",
-  partiala: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-100",
-  esuata: "bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-100",
-  amanata: "bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-100",
+  reusita: "bg-emerald-100 text-emerald-900",
+  partiala: "bg-amber-100 text-amber-900",
+  esuata: "bg-red-100 text-red-900",
+  amanata: "bg-zinc-200 text-zinc-800",
 };
 
 export const ETICHETE_URGENTA_SESIZARE: Readonly<Record<UrgentaSesizare, string>> = {
@@ -57,10 +57,10 @@ export const ETICHETE_URGENTA_SESIZARE: Readonly<Record<UrgentaSesizare, string>
 };
 
 export const CLASE_URGENTA_SESIZARE: Readonly<Record<UrgentaSesizare, string>> = {
-  scazuta: "bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-100",
-  medie: "bg-blue-100 text-blue-900 dark:bg-blue-950 dark:text-blue-100",
-  ridicata: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-100",
-  critica: "bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-100",
+  scazuta: "bg-zinc-200 text-zinc-800",
+  medie: "bg-blue-100 text-blue-900",
+  ridicata: "bg-amber-100 text-amber-900",
+  critica: "bg-red-100 text-red-900",
 };
 
 export const ETICHETE_STATUS_SESIZARE: Readonly<Record<StatusSesizare, string>> = {
@@ -72,11 +72,11 @@ export const ETICHETE_STATUS_SESIZARE: Readonly<Record<StatusSesizare, string>> 
 };
 
 export const CLASE_STATUS_SESIZARE: Readonly<Record<StatusSesizare, string>> = {
-  nou: "bg-blue-100 text-blue-900 dark:bg-blue-950 dark:text-blue-100",
-  in_analiza: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-100",
-  in_lucru: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-100",
-  rezolvat: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100",
-  respins: "bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-100",
+  nou: "bg-blue-100 text-blue-900",
+  in_analiza: "bg-amber-100 text-amber-900",
+  in_lucru: "bg-amber-100 text-amber-900",
+  rezolvat: "bg-emerald-100 text-emerald-900",
+  respins: "bg-red-100 text-red-900",
 };
 
 export const ETICHETE_STARE_SCADENTA: Readonly<Record<StareScadentaMentenanta, string>> = {
@@ -87,8 +87,8 @@ export const ETICHETE_STARE_SCADENTA: Readonly<Record<StareScadentaMentenanta, s
 };
 
 export const CLASE_STARE_SCADENTA: Readonly<Record<StareScadentaMentenanta, string>> = {
-  in_intarziere: "bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-100",
-  scadenta_apropiata: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-100",
-  in_regula: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100",
-  fara_scadenta: "bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-100",
+  in_intarziere: "bg-red-100 text-red-900",
+  scadenta_apropiata: "bg-amber-100 text-amber-900",
+  in_regula: "bg-emerald-100 text-emerald-900",
+  fara_scadenta: "bg-zinc-200 text-zinc-800",
 };

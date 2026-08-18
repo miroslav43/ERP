@@ -28,7 +28,7 @@ export default async function LayoutSuperAdmin({ children }: { children: ReactNo
             <span className="text-muted-foreground">{utilizator.email}</span>
             <Link
               href={RUTA_DUPA_AUTENTIFICARE}
-              className="text-primary focus-visible:ring-ring rounded-md px-2 py-1 underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:outline-none"
+              className="text-primary rounded-md px-2 py-1 underline-offset-4 hover:underline"
             >
               Înapoi în aplicație
             </Link>

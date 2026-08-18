@@ -79,7 +79,7 @@ export function ActiuniSesizare({ sesizareId }: { readonly sesizareId: string })
     return (
       <form
         action={rezolva}
-        className="grid gap-3 rounded-lg border border-zinc-200 p-4 sm:grid-cols-2 dark:border-zinc-700"
+        className="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-2"
       >
         <p className="text-sm font-medium sm:col-span-2">
           Rezolvarea creează intervenția care a rezolvat defecțiunea.
@@ -93,7 +93,7 @@ export function ActiuniSesizare({ sesizareId }: { readonly sesizareId: string })
             name="data"
             type="date"
             required
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
         <div className="flex flex-col gap-1">
@@ -104,7 +104,7 @@ export function ActiuniSesizare({ sesizareId }: { readonly sesizareId: string })
             id={idRezultat}
             name="rezultat"
             defaultValue="reusita"
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           >
             {REZULTATE_INTERVENTIE.map((r) => (
               <option key={r} value={r}>
@@ -123,7 +123,7 @@ export function ActiuniSesizare({ sesizareId }: { readonly sesizareId: string })
             rows={3}
             required
             minLength={3}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
         <div className="flex flex-col gap-1">
@@ -137,7 +137,7 @@ export function ActiuniSesizare({ sesizareId }: { readonly sesizareId: string })
             min="0"
             step="0.01"
             defaultValue="0"
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
         <div className="flex flex-col gap-1">
@@ -151,13 +151,13 @@ export function ActiuniSesizare({ sesizareId }: { readonly sesizareId: string })
             min="0"
             step="0.01"
             defaultValue="0"
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
 
         <div aria-live="polite" className="sm:col-span-2">
           {eroare === null ? null : (
-            <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">
+            <p role="alert" className="text-sm text-danger">
               {eroare}
             </p>
           )}
@@ -167,7 +167,7 @@ export function ActiuniSesizare({ sesizareId }: { readonly sesizareId: string })
           <button
             type="submit"
             disabled={inCurs}
-            className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-60"
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
           >
             {inCurs ? "Se salvează…" : "Confirmă rezolvarea"}
           </button>
@@ -178,7 +178,7 @@ export function ActiuniSesizare({ sesizareId }: { readonly sesizareId: string })
               setEroare(null);
             }}
             disabled={inCurs}
-            className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-600 dark:hover:bg-zinc-800"
+            className="rounded-md border border-foreground/60 px-4 py-2 text-sm font-medium hover:bg-surface disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
           >
             Renunță
           </button>
@@ -189,7 +189,7 @@ export function ActiuniSesizare({ sesizareId }: { readonly sesizareId: string })
 
   if (panou === "respingere") {
     return (
-      <div className="space-y-2 rounded-md border border-zinc-200 p-3 dark:border-zinc-700">
+      <div className="space-y-2 rounded-md border border-border p-3">
         <div>
           <label htmlFor={idMotiv} className="block text-xs font-medium">
             Motivul respingerii *
@@ -200,11 +200,11 @@ export function ActiuniSesizare({ sesizareId }: { readonly sesizareId: string })
             onChange={(eveniment) => {
               setMotivRespingere(eveniment.target.value);
             }}
-            className="mt-1 w-full rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-900"
+            className="mt-1 w-full rounded-md border border-foreground/60 px-2 py-1.5 text-sm"
           />
         </div>
         <div aria-live="polite">
-          {eroare === null ? null : <p className="text-xs text-rose-700 dark:text-rose-300">{eroare}</p>}
+          {eroare === null ? null : <p className="text-xs text-danger">{eroare}</p>}
         </div>
         <div className="flex gap-2">
           <button
@@ -213,7 +213,7 @@ export function ActiuniSesizare({ sesizareId }: { readonly sesizareId: string })
             onClick={() => {
               triaza("respins");
             }}
-            className="rounded-md bg-rose-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-rose-800 disabled:opacity-60"
+            className="rounded-md bg-danger px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-danger disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
           >
             {inCurs ? "Se salvează…" : "Confirmă respingerea"}
           </button>
@@ -223,7 +223,7 @@ export function ActiuniSesizare({ sesizareId }: { readonly sesizareId: string })
               setPanou("inchis");
               setEroare(null);
             }}
-            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-50 dark:border-zinc-600 dark:hover:bg-zinc-800"
+            className="rounded-md border border-foreground/60 px-3 py-1.5 text-sm font-medium hover:bg-surface"
           >
             Renunță
           </button>
@@ -236,7 +236,7 @@ export function ActiuniSesizare({ sesizareId }: { readonly sesizareId: string })
     <div className="space-y-2">
       <div aria-live="polite">
         {eroare === null ? null : (
-          <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">
+          <p role="alert" className="text-sm text-danger">
             {eroare}
           </p>
         )}
@@ -248,7 +248,7 @@ export function ActiuniSesizare({ sesizareId }: { readonly sesizareId: string })
           onClick={() => {
             triaza("in_analiza");
           }}
-          className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-600 dark:hover:bg-zinc-800"
+          className="rounded-md border border-foreground/60 px-3 py-1.5 text-sm font-medium hover:bg-surface disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
           În analiză
         </button>
@@ -258,7 +258,7 @@ export function ActiuniSesizare({ sesizareId }: { readonly sesizareId: string })
           onClick={() => {
             triaza("in_lucru");
           }}
-          className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-600 dark:hover:bg-zinc-800"
+          className="rounded-md border border-foreground/60 px-3 py-1.5 text-sm font-medium hover:bg-surface disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
           <Wrench aria-hidden="true" className="mr-1 inline size-3.5" />
           În lucru
@@ -269,7 +269,7 @@ export function ActiuniSesizare({ sesizareId }: { readonly sesizareId: string })
           onClick={() => {
             setPanou("rezolvare");
           }}
-          className="inline-flex items-center gap-1.5 rounded-md bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-60"
+          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
           <Check aria-hidden="true" className="size-4" />
           Rezolvă
@@ -280,7 +280,7 @@ export function ActiuniSesizare({ sesizareId }: { readonly sesizareId: string })
           onClick={() => {
             setPanou("respingere");
           }}
-          className="inline-flex items-center gap-1.5 rounded-md border border-rose-300 px-3 py-1.5 text-sm font-medium text-rose-800 hover:bg-rose-50 disabled:opacity-60 dark:border-rose-700 dark:text-rose-200 dark:hover:bg-rose-950"
+          className="inline-flex items-center gap-1.5 rounded-md border border-danger px-3 py-1.5 text-sm font-medium text-danger hover:bg-danger hover:text-danger-foreground disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
           <X aria-hidden="true" className="size-4" />
           Respinge

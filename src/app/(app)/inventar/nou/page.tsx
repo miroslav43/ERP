@@ -28,7 +28,7 @@ export default async function PaginaObiectNou() {
     <main className="space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">Obiect de inventar nou</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="text-sm text-muted-foreground">
           Obiectul se înregistrează cu starea de circuit „În stoc”. Predarea către un angajat se
           face separat, din fișa obiectului.
         </p>

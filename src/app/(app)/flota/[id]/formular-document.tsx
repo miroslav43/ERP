@@ -70,7 +70,7 @@ export function FormularDocument({
   return (
     <form
       action={trimite}
-      className="grid gap-3 rounded-lg border border-zinc-200 p-4 sm:grid-cols-2 lg:grid-cols-3 dark:border-zinc-800"
+      className="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-2 lg:grid-cols-3"
     >
       <p className="sm:col-span-2 lg:col-span-3 text-sm font-medium">
         Adaugă sau reînnoiește un document
@@ -84,7 +84,7 @@ export function FormularDocument({
           id={idTip}
           name="document_type_id"
           required
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         >
           {tipuri.map((t) => (
             <option key={t.id} value={t.id}>
@@ -102,7 +102,7 @@ export function FormularDocument({
           id={idNumar}
           name="numar"
           maxLength={64}
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -114,7 +114,7 @@ export function FormularDocument({
           id={idEmitent}
           name="emitent"
           maxLength={120}
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -126,7 +126,7 @@ export function FormularDocument({
           id={idDeLa}
           name="valabil_de_la"
           type="date"
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -138,7 +138,7 @@ export function FormularDocument({
           id={idExpira}
           name="expira_la"
           type="date"
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -152,7 +152,7 @@ export function FormularDocument({
           type="number"
           min="0"
           step="0.01"
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -160,17 +160,17 @@ export function FormularDocument({
         <button
           type="submit"
           disabled={inCurs}
-          className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
           {inCurs ? "Se salvează…" : "Salvează documentul"}
         </button>
         {eroare === null ? null : (
-          <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+          <p role="alert" className="text-sm text-danger">
             {eroare}
           </p>
         )}
         {reusit ? (
-          <p role="status" className="text-sm text-emerald-700 dark:text-emerald-400">
+          <p role="status" className="text-sm text-foreground">
             Document salvat. Cel cu data de expirare cea mai îndepărtată devine documentul
             curent.
           </p>

@@ -117,7 +117,7 @@ export function FormularInstruireBloc({
             id={id.tip}
             name="training_type_id"
             required
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           >
             {tipuri.map((t) => (
               <option key={t.id} value={t.id}>
@@ -136,7 +136,7 @@ export function FormularInstruireBloc({
             name="data_instruirii"
             type="date"
             required
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
 
@@ -151,7 +151,7 @@ export function FormularInstruireBloc({
             min={0}
             step="0.5"
             defaultValue={2}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
 
@@ -165,7 +165,7 @@ export function FormularInstruireBloc({
             type="number"
             min={0}
             max={100}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
 
@@ -177,7 +177,7 @@ export function FormularInstruireBloc({
             id={id.lectorAngajat}
             name="lector_employee_id"
             defaultValue=""
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           >
             <option value="">—</option>
             {angajati.map((a) => (
@@ -196,7 +196,7 @@ export function FormularInstruireBloc({
             id={id.lectorExtern}
             name="lector_extern"
             maxLength={120}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
 
@@ -209,7 +209,7 @@ export function FormularInstruireBloc({
             name="tematica"
             rows={2}
             maxLength={2000}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
 
@@ -221,7 +221,7 @@ export function FormularInstruireBloc({
             id={id.materiale}
             name="materiale"
             maxLength={500}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
 
@@ -233,12 +233,12 @@ export function FormularInstruireBloc({
             id={id.observatii}
             name="observatii"
             maxLength={1000}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
       </div>
 
-      <fieldset className="space-y-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+      <fieldset className="space-y-3 rounded-lg border border-border p-4">
         <legend className="px-1 text-sm font-medium">
           Angajați ({selectati.size} selectați din {angajati.length})
         </legend>
@@ -255,12 +255,12 @@ export function FormularInstruireBloc({
             onChange={(e) => {
               setCauta(e.target.value);
             }}
-            className="min-w-56 flex-1 rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="min-w-56 flex-1 rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
           <button
             type="button"
             onClick={selecteazaToti}
-            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-1.5 text-sm hover:bg-surface"
           >
             Selectează toți cei afișați
           </button>
@@ -269,20 +269,20 @@ export function FormularInstruireBloc({
             onClick={() => {
               setSelectati(new Set());
             }}
-            className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-1.5 text-sm hover:bg-surface"
           >
             Golește selecția
           </button>
         </div>
 
-        <div className="max-h-72 space-y-1 overflow-y-auto rounded-md border border-zinc-200 p-2 dark:border-zinc-800">
+        <div className="max-h-72 space-y-1 overflow-y-auto rounded-md border border-border p-2">
           {angajatiFiltrati.length === 0 ? (
-            <p className="p-2 text-sm text-zinc-500">Niciun angajat nu se potrivește căutării.</p>
+            <p className="p-2 text-sm text-muted-foreground">Niciun angajat nu se potrivește căutării.</p>
           ) : (
             angajatiFiltrati.map((a) => (
               <label
                 key={a.id}
-                className="flex items-center gap-2 rounded px-2 py-1 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-900"
+                className="flex items-center gap-2 rounded px-2 py-1 text-sm hover:bg-surface"
               >
                 <input
                   type="checkbox"
@@ -291,7 +291,7 @@ export function FormularInstruireBloc({
                     comuta(a.id);
                   }}
                 />
-                {a.full_name ?? "—"} <span className="text-zinc-500">({a.marca})</span>
+                {a.full_name ?? "—"} <span className="text-muted-foreground">({a.marca})</span>
               </label>
             ))
           )}
@@ -302,12 +302,12 @@ export function FormularInstruireBloc({
         <button
           type="submit"
           disabled={inCurs}
-          className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
           {inCurs ? "Se salvează…" : "Înregistrează instruirea"}
         </button>
         {eroare === null ? null : (
-          <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+          <p role="alert" className="text-sm text-danger">
             {eroare}
           </p>
         )}

@@ -57,10 +57,10 @@ async function TabelEchipamente({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+      <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-sm">
           <caption className="sr-only">Echipamentele organizației.</caption>
-          <thead className="bg-zinc-50 text-left dark:bg-zinc-900">
+          <thead className="bg-surface text-left">
             <tr>
               <th scope="col" className="px-4 py-3 font-medium">
                 Cod
@@ -79,13 +79,13 @@ async function TabelEchipamente({
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+          <tbody className="divide-y divide-border">
             {randuri.map((echipament) => (
-              <tr key={echipament.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900">
+              <tr key={echipament.id} className="hover:bg-surface">
                 <td className="px-4 py-3 font-medium">
                   <Link
                     href={`/mentenanta/echipamente/${echipament.id}`}
-                    className="underline-offset-2 hover:underline focus-visible:outline-2"
+                    className="underline-offset-2 hover:underline"
                   >
                     {echipament.cod}
                   </Link>
@@ -94,7 +94,7 @@ async function TabelEchipamente({
                 <td className="px-4 py-3">{echipament.locatie ?? "—"}</td>
                 <td className="px-4 py-3">
                   {echipament.este_iscir ? (
-                    <WrenchIcon aria-label="Sub incidența ISCIR" className="size-4 text-amber-600" />
+                    <WrenchIcon aria-label="Sub incidența ISCIR" className="size-4 text-foreground" />
                   ) : (
                     "—"
                   )}
@@ -116,7 +116,7 @@ async function TabelEchipamente({
         {urmatorulCursor === null ? null : (
           <Link
             href={`/mentenanta/echipamente?${cautare.toString()}`}
-            className="rounded-md border border-zinc-300 px-4 py-2 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-4 py-2 text-sm hover:bg-surface"
           >
             Pagina următoare
           </Link>
@@ -145,14 +145,14 @@ export default async function PaginaEchipamente({ searchParams }: ProprietatiPag
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Echipamente</h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-muted-foreground">
             Parcul de echipamente al organizației, cu starea și acoperirea ISCIR.
           </p>
         </div>
         {poateAdauga ? (
           <Link
             href="/mentenanta/echipamente/nou"
-            className="inline-flex items-center gap-2 rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2"
+            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
           >
             Echipament nou
           </Link>

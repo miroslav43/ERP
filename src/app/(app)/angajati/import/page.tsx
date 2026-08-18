@@ -28,10 +28,10 @@ export default async function PaginaImportAngajati() {
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-6">
       <header>
-        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">
+        <h1 className="text-2xl font-semibold text-foreground">
           Import angajați din Excel
         </h1>
-        <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+        <p className="mt-1 text-sm text-muted-foreground">
           Încarci fișierul, verifici previzualizarea, apoi aplici doar rândurile corecte. Rândurile
           respinse se descarcă într-un raport pe care îl poți corecta și reîncărca.
         </p>

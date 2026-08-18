@@ -57,7 +57,7 @@ export function FormularVerificare({ extinguisherId }: { readonly extinguisherId
   return (
     <form
       action={trimite}
-      className="grid gap-3 rounded-lg border border-zinc-200 p-4 sm:grid-cols-2 dark:border-zinc-800"
+      className="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-2"
     >
       <p className="text-sm font-medium sm:col-span-2">Înregistrează o verificare</p>
 
@@ -69,7 +69,7 @@ export function FormularVerificare({ extinguisherId }: { readonly extinguisherId
           id={id.tip}
           name="tip_verificare"
           required
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         >
           {TIPURI_VERIFICARE_STINGATOR.map((t) => (
             <option key={t} value={t}>
@@ -88,7 +88,7 @@ export function FormularVerificare({ extinguisherId }: { readonly extinguisherId
           name="data"
           type="date"
           required
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -100,7 +100,7 @@ export function FormularVerificare({ extinguisherId }: { readonly extinguisherId
           id={id.firma}
           name="firma_autorizata"
           maxLength={160}
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -112,7 +112,7 @@ export function FormularVerificare({ extinguisherId }: { readonly extinguisherId
           id={id.executant}
           name="executant"
           maxLength={120}
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -124,7 +124,7 @@ export function FormularVerificare({ extinguisherId }: { readonly extinguisherId
           id={id.rezultat}
           name="rezultat"
           defaultValue="conform"
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         >
           {REZULTATE_VERIFICARE_STINGATOR.map((r) => (
             <option key={r} value={r}>
@@ -144,7 +144,7 @@ export function FormularVerificare({ extinguisherId }: { readonly extinguisherId
           type="number"
           min="0"
           step="0.01"
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -156,7 +156,7 @@ export function FormularVerificare({ extinguisherId }: { readonly extinguisherId
           id={id.observatii}
           name="observatii"
           maxLength={1000}
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -164,12 +164,12 @@ export function FormularVerificare({ extinguisherId }: { readonly extinguisherId
         <button
           type="submit"
           disabled={inCurs}
-          className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
           {inCurs ? "Se salvează…" : "Înregistrează verificarea"}
         </button>
         {eroare === null ? null : (
-          <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+          <p role="alert" className="text-sm text-danger">
             {eroare}
           </p>
         )}

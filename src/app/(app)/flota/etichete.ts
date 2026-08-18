@@ -14,10 +14,10 @@ export const ETICHETE_STATUS_VEHICUL: Readonly<Record<StatusVehicul, string>> = 
 };
 
 export const CLASE_STATUS_VEHICUL: Readonly<Record<StatusVehicul, string>> = {
-  activ: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100",
-  in_service: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-100",
-  vandut: "bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-100",
-  casat: "bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-100",
+  activ: "bg-emerald-100 text-emerald-900",
+  in_service: "bg-amber-100 text-amber-900",
+  vandut: "bg-zinc-200 text-zinc-800",
+  casat: "bg-zinc-200 text-zinc-800",
 };
 
 export const ETICHETE_CATEGORIE: Readonly<Record<CategorieVehicul, string>> = {
@@ -52,10 +52,10 @@ export const ETICHETE_STATUS_FOAIE: Readonly<Record<StatusFoaie, string>> = {
 };
 
 export const CLASE_STATUS_FOAIE: Readonly<Record<StatusFoaie, string>> = {
-  draft: "bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-100",
-  trimis: "bg-blue-100 text-blue-900 dark:bg-blue-950 dark:text-blue-100",
-  aprobat: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100",
-  respins: "bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-100",
+  draft: "bg-zinc-200 text-zinc-800",
+  trimis: "bg-blue-100 text-blue-900",
+  aprobat: "bg-emerald-100 text-emerald-900",
+  respins: "bg-red-100 text-red-900",
 };
 
 /** Câte zile înainte de expirare scadența devine portocalie. */
@@ -71,10 +71,10 @@ export const ETICHETE_SCADENTA: Readonly<Record<StareScadenta, string>> = {
 };
 
 export const CLASE_SCADENTA: Readonly<Record<StareScadenta, string>> = {
-  expirat: "bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-100",
-  curand: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-100",
-  in_regula: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100",
-  lipsa: "bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-100",
+  expirat: "bg-red-100 text-red-900",
+  curand: "bg-amber-100 text-amber-900",
+  in_regula: "bg-emerald-100 text-emerald-900",
+  lipsa: "bg-zinc-200 text-zinc-800",
 };
 
 /**

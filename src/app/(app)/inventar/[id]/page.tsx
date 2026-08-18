@@ -26,7 +26,7 @@ interface ProprietatiPagina {
 function Camp({ eticheta, valoare }: { readonly eticheta: string; readonly valoare: string | null }) {
   return (
     <div>
-      <dt className="text-xs tracking-wide text-zinc-500 uppercase">{eticheta}</dt>
+      <dt className="text-xs tracking-wide text-muted-foreground uppercase">{eticheta}</dt>
       <dd className="mt-0.5 text-sm">{valoare === null || valoare.length === 0 ? "—" : valoare}</dd>
     </div>
   );
@@ -86,7 +86,7 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">{obiect.denumire}</h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-muted-foreground">
             Nr. inventar <span className="font-mono">{obiect.numar_inventar}</span>
             {categorieNume !== null ? ` · ${categorieNume}` : ""}
           </p>
@@ -107,7 +107,7 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
 
       <section
         aria-labelledby="titlu-date-generale"
-        className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700"
+        className="rounded-lg border border-border p-4"
       >
         <h2 id="titlu-date-generale" className="mb-4 text-lg font-medium">
           Date generale
@@ -133,7 +133,7 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
       {alocareDeschisa !== null ? (
         <section
           aria-labelledby="titlu-predare-curenta"
-          className="rounded-lg border border-blue-200 bg-blue-50/40 p-4 dark:border-blue-800 dark:bg-blue-950/30"
+          className="rounded-lg border border-border bg-surface p-4"
         >
           <h2 id="titlu-predare-curenta" className="mb-4 text-lg font-medium">
             Predare curentă
@@ -155,7 +155,7 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
             />
           </dl>
           {poateScrie ? (
-            <div className="mt-4 border-t border-blue-200 pt-4 dark:border-blue-800">
+            <div className="mt-4 border-t border-border pt-4">
               <h3 className="mb-3 text-sm font-medium">Înregistrează returnarea</h3>
               <FormularReturnare alocareId={alocareDeschisa.id} />
             </div>
@@ -164,7 +164,7 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
       ) : poateScrie && obiect.status !== "casat" ? (
         <section
           aria-labelledby="titlu-predare-noua"
-          className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700"
+          className="rounded-lg border border-border p-4"
         >
           <h2 id="titlu-predare-noua" className="mb-4 text-lg font-medium">
             Predă obiectul unui angajat
@@ -175,13 +175,13 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
 
       <section
         aria-labelledby="titlu-istoric"
-        className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700"
+        className="rounded-lg border border-border p-4"
       >
         <h2 id="titlu-istoric" className="mb-4 text-lg font-medium">
           Istoric predări-primiri
         </h2>
         {istoric.length === 0 ? (
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-muted-foreground">
             Obiectul nu a fost încă predat niciunui angajat.
           </p>
         ) : (
@@ -189,14 +189,14 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
             {istoric.map((alocare) => (
               <li
                 key={alocare.id}
-                className="rounded-md border border-zinc-200 p-3 dark:border-zinc-700"
+                className="rounded-md border border-border p-3"
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium">
                     {angajati.get(alocare.employee_id)?.full_name ?? "Angajat"}
                   </span>
                   {alocare.returnat_la === null ? (
-                    <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-900 dark:bg-blue-900 dark:text-blue-50">
+                    <span className="rounded bg-surface px-2 py-0.5 text-xs font-medium text-foreground">
                       În curs
                     </span>
                   ) : null}
@@ -224,7 +224,7 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
       {poateScrie ? (
         <section
           aria-labelledby="titlu-actiuni"
-          className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700"
+          className="rounded-lg border border-border p-4"
         >
           <h2 id="titlu-actiuni" className="mb-4 text-lg font-medium">
             Acțiuni

@@ -68,7 +68,7 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
     <main className="space-y-6 p-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-muted-foreground">
             <Link href="/flota/foi" className="underline-offset-2 hover:underline">
               Foi de parcurs
             </Link>
@@ -76,10 +76,10 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
           <h1 className="text-2xl font-semibold">
             {vehicul?.nr_inmatriculare ?? "Vehicul indisponibil"}
             {foaie.numar === null ? null : (
-              <span className="text-zinc-500"> · {foaie.numar}</span>
+              <span className="text-muted-foreground"> · {foaie.numar}</span>
             )}
           </h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-muted-foreground">
             {formatDateTime(new Date(foaie.plecare_la))}
             {foaie.sosire_la === null ? null : ` – ${formatDateTime(new Date(foaie.sosire_la))}`}
             {sofer === undefined ? null : ` · ${sofer.full_name ?? sofer.marca}`}
@@ -95,7 +95,7 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
       {foaie.status === "respins" ? (
         <div
           role="alert"
-          className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm dark:border-red-900 dark:bg-red-950"
+          className="rounded-lg border border-danger/40 bg-danger/8 p-4 text-sm"
         >
           <p className="font-medium">Foaia a fost respinsă</p>
           <p className="mt-1">
@@ -107,7 +107,7 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
 
       <section
         aria-label="Kilometraj și consum"
-        className="grid gap-4 rounded-lg border border-zinc-200 p-4 sm:grid-cols-4 dark:border-zinc-800"
+        className="grid gap-4 rounded-lg border border-border p-4 sm:grid-cols-4"
       >
         <Camp
           eticheta="Plecare"
@@ -135,13 +135,13 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
         <section aria-label="Traseu și scop" className="space-y-1 text-sm">
           {foaie.traseu === null ? null : (
             <p>
-              <span className="text-zinc-500">Traseu: </span>
+              <span className="text-muted-foreground">Traseu: </span>
               {foaie.traseu}
             </p>
           )}
           {foaie.scop === null ? null : (
             <p>
-              <span className="text-zinc-500">Scop: </span>
+              <span className="text-muted-foreground">Scop: </span>
               {foaie.scop}
             </p>
           )}
@@ -153,13 +153,13 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
           Alimentări
         </h2>
         {alimentari.length === 0 ? (
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-muted-foreground">
             Nicio alimentare înregistrată pe această cursă.
           </p>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+          <div className="overflow-x-auto rounded-lg border border-border">
             <table className="w-full text-sm">
-              <thead className="bg-zinc-50 text-left dark:bg-zinc-900">
+              <thead className="bg-surface text-left">
                 <tr>
                   <th scope="col" className="px-4 py-3 font-medium">
                     Data
@@ -178,7 +178,7 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+              <tbody className="divide-y divide-border">
                 {alimentari.map((a) => (
                   <tr key={a.id}>
                     <td className="px-4 py-3 whitespace-nowrap">
@@ -193,7 +193,7 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
                   </tr>
                 ))}
               </tbody>
-              <tfoot className="bg-zinc-50 font-medium dark:bg-zinc-900">
+              <tfoot className="bg-surface font-medium">
                 <tr>
                   <td className="px-4 py-3" colSpan={2}>
                     Total
@@ -224,7 +224,7 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
 function Camp({ eticheta, valoare }: { readonly eticheta: string; readonly valoare: string }) {
   return (
     <div>
-      <dt className="text-xs text-zinc-500 dark:text-zinc-400">{eticheta}</dt>
+      <dt className="text-xs text-muted-foreground">{eticheta}</dt>
       <dd className="text-sm font-medium">{valoare}</dd>
     </div>
   );

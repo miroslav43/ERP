@@ -29,7 +29,7 @@ export function FiltreSesizariForm() {
   return (
     <form
       action={aplica}
-      className="flex flex-wrap items-end gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
+      className="flex flex-wrap items-end gap-3 rounded-lg border border-border p-4"
     >
       <div className="flex flex-col gap-1">
         <label htmlFor={idStatus} className="text-sm font-medium">
@@ -39,7 +39,7 @@ export function FiltreSesizariForm() {
           id={idStatus}
           name="status"
           defaultValue={parametri.get("status") ?? ""}
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         >
           <option value="">Toate</option>
           {STATUSURI_SESIZARE.map((s) => (
@@ -58,7 +58,7 @@ export function FiltreSesizariForm() {
           id={idUrgenta}
           name="urgenta"
           defaultValue={parametri.get("urgenta") ?? ""}
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         >
           <option value="">Toate</option>
           {URGENTE_SESIZARE.map((u) => (
@@ -72,7 +72,7 @@ export function FiltreSesizariForm() {
       <button
         type="submit"
         disabled={inCurs}
-        className="inline-flex items-center gap-2 rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-700 dark:hover:bg-zinc-900"
+        className="inline-flex items-center gap-2 rounded-md border border-foreground/60 px-4 py-2 text-sm font-medium hover:bg-surface disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
       >
         <Search aria-hidden="true" className="size-4" />
         {inCurs ? "Se filtrează…" : "Filtrează"}

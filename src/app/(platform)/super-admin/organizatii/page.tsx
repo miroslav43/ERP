@@ -65,7 +65,7 @@ export default async function PaginaOrganizatii({
         </div>
         <Link
           href="/super-admin/organizatii/nou"
-          className="bg-primary text-primary-foreground hover:bg-primary-hover focus-visible:ring-ring rounded-md px-4 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:outline-none"
+          className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium"
         >
           Organizație nouă
         </Link>
@@ -90,7 +90,7 @@ export default async function PaginaOrganizatii({
           </p>
           <Link
             href={areFiltre ? "/super-admin/organizatii" : "/super-admin/organizatii/nou"}
-            className="bg-primary text-primary-foreground hover:bg-primary-hover focus-visible:ring-ring mt-4 inline-block rounded-md px-4 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:outline-none"
+            className="bg-primary text-primary-foreground hover:bg-primary-hover mt-4 inline-block rounded-md px-4 py-2 text-sm font-medium"
           >
             {areFiltre ? "Șterge filtrele" : "Creează organizație"}
           </Link>
@@ -130,7 +130,7 @@ export default async function PaginaOrganizatii({
                     {/* Conținut introdus de om: randat ca text de React, niciodată ca HTML. */}
                     <Link
                       href={`/super-admin/organizatii/${organizatie.id}`}
-                      className="text-primary focus-visible:ring-ring font-medium underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:outline-none"
+                      className="text-primary font-medium underline-offset-4 hover:underline"
                     >
                       {organizatie.name}
                     </Link>
@@ -180,7 +180,7 @@ export default async function PaginaOrganizatii({
               <Link
                 href={construiesteLink(rezultat.pagina - 1)}
                 rel="prev"
-                className="border-border hover:bg-surface focus-visible:ring-ring rounded-md border px-3 py-1.5 focus-visible:ring-2 focus-visible:outline-none"
+                className="border-border hover:bg-surface rounded-md border px-3 py-1.5"
               >
                 Pagina anterioară
               </Link>
@@ -189,7 +189,7 @@ export default async function PaginaOrganizatii({
               <Link
                 href={construiesteLink(rezultat.pagina + 1)}
                 rel="next"
-                className="border-border hover:bg-surface focus-visible:ring-ring rounded-md border px-3 py-1.5 focus-visible:ring-2 focus-visible:outline-none"
+                className="border-border hover:bg-surface rounded-md border px-3 py-1.5"
               >
                 Pagina următoare
               </Link>

@@ -170,7 +170,7 @@ export function CommandPalette({ elemente, organizatii }: Props) {
         onClick={deschide}
         aria-haspopup="dialog"
         aria-keyshortcuts="Meta+K Control+K"
-        className="border-border bg-background text-muted-foreground hover:text-foreground focus-visible:ring-ring hidden h-9 items-center gap-2 rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none md:inline-flex"
+        className="border-border bg-background text-muted-foreground hover:text-foreground hidden h-9 items-center gap-2 rounded-md border px-3 text-sm md:inline-flex"
       >
         <Search aria-hidden="true" className="h-4 w-4" />
         Căutare
@@ -208,7 +208,7 @@ export function CommandPalette({ elemente, organizatii }: Props) {
             }}
             onKeyDown={laTastaLista}
             placeholder="Căutați o pagină sau o organizație…"
-            className="placeholder:text-muted-foreground h-11 w-full bg-transparent text-sm outline-none"
+            className="placeholder:text-muted-foreground h-11 w-full bg-transparent text-sm"
           />
         </div>
 

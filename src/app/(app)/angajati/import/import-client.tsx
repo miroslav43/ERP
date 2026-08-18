@@ -172,10 +172,10 @@ export function ImportAngajatiClient() {
       )}
 
       {pas === "incarcare" && (
-        <div className="rounded-lg border border-slate-200 p-6 dark:border-slate-700">
+        <div className="rounded-lg border border-border p-6">
           <label
             htmlFor={idFisier}
-            className="block text-sm font-medium text-slate-900 dark:text-slate-100"
+            className="block text-sm font-medium text-foreground"
           >
             Fișier Excel (.xlsx), maximum {Math.round(LIMITA_FISIER_BYTES / 1024 / 1024)} MB
           </label>
@@ -185,16 +185,16 @@ export function ImportAngajatiClient() {
             type="file"
             accept=".xlsx,.xlsm"
             aria-describedby={`${idFisier}-ajutor`}
-            className="mt-2 block w-full text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
+            className="mt-2 block w-full text-sm"
           />
-          <p id={`${idFisier}-ajutor`} className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+          <p id={`${idFisier}-ajutor`} className="mt-2 text-sm text-muted-foreground">
             Primul rând trebuie să conțină antetul coloanelor. Obligatorii: Marcă, Nume (sau Nume
             complet) și Data angajării.
           </p>
           <button
             type="button"
             onClick={() => void incarca()}
-            className="mt-4 rounded-md bg-sky-700 px-4 py-2 text-sm font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
+            className="mt-4 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
           >
             Încarcă și previzualizează
           </button>
@@ -203,14 +203,14 @@ export function ImportAngajatiClient() {
 
       {pas === "previzualizare" && previzualizare !== null && (
         <div className="flex flex-col gap-4">
-          <p aria-live="polite" className="text-sm text-slate-700 dark:text-slate-200">
+          <p aria-live="polite" className="text-sm text-foreground">
             {previzualizare.totalRanduri} rânduri citite din foaia „{previzualizare.numeFoaie}”:{" "}
             {previzualizare.numarValide} pot fi importate, {previzualizare.invalide.length} probleme
             de corectat.
             {previzualizare.trunchiat && " Fișierul a fost trunchiat la limita de 1000 de rânduri."}
           </p>
           {previzualizare.coloaneIgnorate.length > 0 && (
-            <p className="text-sm text-amber-700 dark:text-amber-400">
+            <p className="text-sm text-foreground">
               Coloane ignorate: {previzualizare.coloaneIgnorate.join(", ")}.
             </p>
           )}
@@ -241,7 +241,7 @@ export function ImportAngajatiClient() {
                   {previzualizare.invalide.slice(0, 50).map((e: EroareRand, i: number) => (
                     <tr
                       key={`${e.rand}-${e.camp}-${i}`}
-                      className="border-t border-rose-200 bg-rose-50/60 dark:border-rose-900 dark:bg-rose-950/30"
+                      className="border-t border-danger/40 bg-danger/8"
                     >
                       <td className="p-2">{e.rand}</td>
                       <td className="p-2">{e.camp}</td>
@@ -257,14 +257,14 @@ export function ImportAngajatiClient() {
               type="button"
               disabled={previzualizare.numarValide === 0}
               onClick={() => void aplica()}
-              className="rounded-md bg-sky-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
             >
               Importă cele {previzualizare.numarValide} rânduri valide
             </button>
             <button
               type="button"
               onClick={descarcaRaport}
-              className="rounded-md border border-slate-300 px-4 py-2 text-sm dark:border-slate-600"
+              className="rounded-md border border-foreground/60 px-4 py-2 text-sm"
             >
               Descarcă raportul rândurilor respinse
             </button>
@@ -280,7 +280,7 @@ export function ImportAngajatiClient() {
       )}
 
       {pas === "gata" && (
-        <div className="rounded-lg border border-emerald-300 bg-emerald-50 p-4 dark:border-emerald-800 dark:bg-emerald-950/40">
+        <div className="rounded-lg border border-success/40 bg-surface p-4">
           <p role="status" aria-live="polite" className="text-sm font-medium">
             Import încheiat: {progres.reusite} fișe create, {esecuri.length} rânduri respinse la
             scriere.
@@ -288,7 +288,7 @@ export function ImportAngajatiClient() {
           <button
             type="button"
             onClick={descarcaRaport}
-            className="mt-3 rounded-md border border-slate-300 px-4 py-2 text-sm dark:border-slate-600"
+            className="mt-3 rounded-md border border-foreground/60 px-4 py-2 text-sm"
           >
             Descarcă raportul complet
           </button>

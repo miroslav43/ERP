@@ -71,7 +71,7 @@ export function FormularComunicareItm({
       {comunicatLaItm === null ? (
         <form
           action={comunica}
-          className="grid gap-3 rounded-lg border border-zinc-200 p-4 sm:grid-cols-2 dark:border-zinc-800"
+          className="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-2"
         >
           <p className="text-sm font-medium sm:col-span-2">Comunicare la ITM</p>
           <div className="flex flex-col gap-1">
@@ -83,7 +83,7 @@ export function FormularComunicareItm({
               name="comunicat_la_itm_la"
               type="datetime-local"
               required
-              className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
             />
           </div>
           <div className="flex flex-col gap-1">
@@ -94,19 +94,19 @@ export function FormularComunicareItm({
               id={idPv}
               name="numar_proces_verbal"
               maxLength={64}
-              className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
             />
           </div>
           <div className="sm:col-span-2 flex flex-wrap items-center gap-3">
             <button
               type="submit"
               disabled={inCurs}
-              className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
             >
               {inCurs ? "Se salvează…" : "Marchează comunicat"}
             </button>
             {eroareComunicare === null ? null : (
-              <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+              <p role="alert" className="text-sm text-danger">
                 {eroareComunicare}
               </p>
             )}
@@ -117,7 +117,7 @@ export function FormularComunicareItm({
       {comunicatLaItm === null || cercetareFinalizata !== null ? null : (
         <form
           action={finalizeaza}
-          className="grid gap-3 rounded-lg border border-zinc-200 p-4 sm:grid-cols-2 dark:border-zinc-800"
+          className="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-2"
         >
           <p className="text-sm font-medium sm:col-span-2">Finalizarea cercetării</p>
           <div className="flex flex-col gap-1">
@@ -129,7 +129,7 @@ export function FormularComunicareItm({
               name="cercetare_finalizata_la"
               type="date"
               required
-              className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
             />
           </div>
           <div className="flex flex-col gap-1">
@@ -142,7 +142,7 @@ export function FormularComunicareItm({
               type="number"
               min={0}
               defaultValue={zileIncapacitate}
-              className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
             />
           </div>
           <div className="flex flex-col gap-1 sm:col-span-2">
@@ -154,19 +154,19 @@ export function FormularComunicareItm({
               name="urmari"
               rows={3}
               maxLength={2000}
-              className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
             />
           </div>
           <div className="sm:col-span-2 flex flex-wrap items-center gap-3">
             <button
               type="submit"
               disabled={inCurs}
-              className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
             >
               {inCurs ? "Se salvează…" : "Finalizează cercetarea"}
             </button>
             {eroareCercetare === null ? null : (
-              <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+              <p role="alert" className="text-sm text-danger">
                 {eroareCercetare}
               </p>
             )}

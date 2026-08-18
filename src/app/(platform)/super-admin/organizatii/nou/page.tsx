@@ -11,7 +11,7 @@ export default function PaginaOrganizatieNoua() {
       <nav aria-label="Firimituri" className="text-sm">
         <Link
           href="/super-admin/organizatii"
-          className="text-primary focus-visible:ring-ring underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:outline-none"
+          className="text-primary underline-offset-4 hover:underline"
         >
           Organizații
         </Link>

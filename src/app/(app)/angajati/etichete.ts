@@ -13,12 +13,12 @@ export const ETICHETE_STATUS: Readonly<Record<StatusAngajat, string>> = {
 };
 
 export const CLASE_STATUS: Readonly<Record<StatusAngajat, string>> = {
-  candidat: "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100",
-  activ: "bg-emerald-100 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-50",
-  suspendat: "bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-50",
-  preaviz: "bg-orange-100 text-orange-900 dark:bg-orange-900 dark:text-orange-50",
-  incetat: "bg-rose-100 text-rose-900 dark:bg-rose-900 dark:text-rose-50",
-  arhivat: "bg-zinc-200 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-100",
+  candidat: "bg-slate-100 text-slate-800",
+  activ: "bg-emerald-100 text-emerald-900",
+  suspendat: "bg-amber-100 text-amber-900",
+  preaviz: "bg-orange-100 text-orange-900",
+  incetat: "bg-rose-100 text-rose-900",
+  arhivat: "bg-zinc-200 text-zinc-800",
 };
 
 export const ETICHETE_CONTRACT: Readonly<Record<string, string>> = {

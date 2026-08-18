@@ -10,7 +10,7 @@ import { adaugaCheltuiala } from "../actions";
 import { ETICHETE_TIP_CHELTUIALA } from "../etichete";
 
 const CLASA_CAMP =
-  "mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-900";
+  "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
 
 /**
  * Adaugă o cheltuială decontabilă (`trip_expenses`).
@@ -90,7 +90,7 @@ export function FormularCheltuiala({ tripId }: { readonly tripId: string }) {
   }
 
   return (
-    <div className="grid gap-3 rounded-lg border border-zinc-200 p-4 sm:grid-cols-2 lg:grid-cols-3 dark:border-zinc-800">
+    <div className="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-2 lg:grid-cols-3">
       <p className="text-sm font-medium sm:col-span-2 lg:col-span-3">Adaugă o cheltuială</p>
 
       <div className="flex flex-col gap-1">
@@ -193,7 +193,7 @@ export function FormularCheltuiala({ tripId }: { readonly tripId: string }) {
           className={CLASA_CAMP}
         />
         {sumaLei === null ? null : (
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">= {formatLei(sumaLei)}</p>
+          <p className="text-xs text-muted-foreground">= {formatLei(sumaLei)}</p>
         )}
       </div>
 
@@ -218,12 +218,12 @@ export function FormularCheltuiala({ tripId }: { readonly tripId: string }) {
           type="button"
           disabled={inCurs}
           onClick={trimite}
-          className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
           {inCurs ? "Se salvează…" : "Adaugă cheltuiala"}
         </button>
         {eroare === null ? null : (
-          <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+          <p role="alert" className="text-sm text-danger">
             {eroare}
           </p>
         )}

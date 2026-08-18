@@ -61,7 +61,7 @@ export default async function PaginaSesizare({ params }: ProprietatiPagina) {
   return (
     <main className="mx-auto w-full max-w-3xl space-y-6 p-6">
       <div>
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="text-sm text-muted-foreground">
           <Link href="/mentenanta/sesizari" className="underline-offset-2 hover:underline">
             Sesizări
           </Link>
@@ -87,10 +87,10 @@ export default async function PaginaSesizare({ params }: ProprietatiPagina) {
         </div>
       </div>
 
-      <section className="space-y-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-700">
+      <section className="space-y-3 rounded-lg border border-border p-4">
         <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <dt className="text-xs tracking-wide text-zinc-500 uppercase">Raportată de</dt>
+            <dt className="text-xs tracking-wide text-muted-foreground uppercase">Raportată de</dt>
             <dd className="mt-0.5 text-sm">
               {sesizare.raportat_de_employee_id === null
                 ? "—"
@@ -98,23 +98,23 @@ export default async function PaginaSesizare({ params }: ProprietatiPagina) {
             </dd>
           </div>
           <div>
-            <dt className="text-xs tracking-wide text-zinc-500 uppercase">Raportată la</dt>
+            <dt className="text-xs tracking-wide text-muted-foreground uppercase">Raportată la</dt>
             <dd className="mt-0.5 text-sm">{formatDateTime(sesizare.raportat_la)}</dd>
           </div>
           <div className="sm:col-span-2">
-            <dt className="text-xs tracking-wide text-zinc-500 uppercase">Descriere</dt>
+            <dt className="text-xs tracking-wide text-muted-foreground uppercase">Descriere</dt>
             <dd className="mt-0.5 text-sm">{sesizare.descriere}</dd>
           </div>
           {sesizare.opreste_functionarea ? (
             <div className="sm:col-span-2">
-              <p className="text-sm font-medium text-rose-700 dark:text-rose-300">
+              <p className="text-sm font-medium text-danger">
                 Defecțiunea oprește funcționarea echipamentului.
               </p>
             </div>
           ) : null}
           {sesizare.motiv_respingere !== null ? (
             <div className="sm:col-span-2">
-              <dt className="text-xs tracking-wide text-rose-600 uppercase dark:text-rose-400">
+              <dt className="text-xs tracking-wide text-danger uppercase">
                 Motivul respingerii
               </dt>
               <dd className="mt-0.5 text-sm">{sesizare.motiv_respingere}</dd>
@@ -122,7 +122,7 @@ export default async function PaginaSesizare({ params }: ProprietatiPagina) {
           ) : null}
           {sesizare.rezolvat_la !== null ? (
             <div className="sm:col-span-2">
-              <dt className="text-xs tracking-wide text-zinc-500 uppercase">Rezolvată la</dt>
+              <dt className="text-xs tracking-wide text-muted-foreground uppercase">Rezolvată la</dt>
               <dd className="mt-0.5 text-sm">{formatDateTime(sesizare.rezolvat_la)}</dd>
             </div>
           ) : null}

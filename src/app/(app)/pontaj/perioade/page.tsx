@@ -52,10 +52,10 @@ async function TabelPerioade({
   const dupaLuna = new Map(perioade.map((p) => [p.luna, p]));
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+    <div className="overflow-x-auto rounded-lg border border-border">
       <table className="w-full text-sm">
         <caption className="sr-only">Perioadele de pontaj ale anului {an}.</caption>
-        <thead className="bg-zinc-50 text-left dark:bg-zinc-900">
+        <thead className="bg-surface text-left">
           <tr>
             <th scope="col" className="px-4 py-3 font-medium">
               Luna
@@ -71,21 +71,21 @@ async function TabelPerioade({
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+        <tbody className="divide-y divide-border">
           {LUNI_ETICHETE.map((eticheta, index) => {
             const luna = index + 1;
             const perioada = dupaLuna.get(luna) ?? null;
             return (
-              <tr key={luna} className="hover:bg-zinc-50 dark:hover:bg-zinc-900">
+              <tr key={luna} className="hover:bg-surface">
                 <td className="px-4 py-3 font-medium">{eticheta}</td>
-                <td className="px-4 py-3 text-zinc-600 dark:text-zinc-300">
+                <td className="px-4 py-3 text-muted-foreground">
                   {perioada === null
                     ? "—"
                     : `${formatDate(perioada.data_inceput)} – ${formatDate(perioada.data_sfarsit)}`}
                 </td>
                 <td className="px-4 py-3">
                   {perioada === null ? (
-                    <span className="text-xs text-zinc-500">Neschisă</span>
+                    <span className="text-xs text-muted-foreground">Neschisă</span>
                   ) : (
                     <span
                       className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_STATUS_PERIOADA[perioada.status]}`}
@@ -136,7 +136,7 @@ export default async function PaginaPerioadePontaj({ searchParams }: Proprietati
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Perioade de pontaj</h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-muted-foreground">
             Deschiderea și blocarea lunilor de pontaj ale anului {String(an)}.
           </p>
         </div>

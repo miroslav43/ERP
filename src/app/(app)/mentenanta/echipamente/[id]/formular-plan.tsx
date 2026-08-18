@@ -65,7 +65,7 @@ export function FormularPlan({
   return (
     <form
       action={trimite}
-      className="grid gap-3 rounded-lg border border-zinc-200 p-4 sm:grid-cols-2 lg:grid-cols-3 dark:border-zinc-800"
+      className="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-2 lg:grid-cols-3"
     >
       <p className="text-sm font-medium sm:col-span-2 lg:col-span-3">Plan de mentenanță nou</p>
 
@@ -78,7 +78,7 @@ export function FormularPlan({
           name="denumire"
           required
           maxLength={200}
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -90,7 +90,7 @@ export function FormularPlan({
           id={idTip}
           name="tip"
           defaultValue="preventiva"
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         >
           {TIPURI_MENTENANTA.map((t) => (
             <option key={t} value={t}>
@@ -116,7 +116,7 @@ export function FormularPlan({
           name="periodicitate_zile"
           type="number"
           min="1"
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -130,7 +130,7 @@ export function FormularPlan({
           type="number"
           min="0.01"
           step="0.01"
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -141,7 +141,7 @@ export function FormularPlan({
         <select
           id={idTipContor}
           name="tip_contor"
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         >
           <option value="">— (doar dacă e periodicitate pe contor)</option>
           {TIPURI_CONTOR.map((t) => (
@@ -160,7 +160,7 @@ export function FormularPlan({
           id="ultima_executie"
           name="ultima_executie"
           type="date"
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -171,7 +171,7 @@ export function FormularPlan({
         <select
           id={idResponsabil}
           name="responsabil_employee_id"
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         >
           <option value="">Nespecificat</option>
           {angajati.map((a) => (
@@ -191,7 +191,7 @@ export function FormularPlan({
           name="instructiuni"
           rows={2}
           maxLength={2000}
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -199,12 +199,12 @@ export function FormularPlan({
         <button
           type="submit"
           disabled={inCurs}
-          className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
           {inCurs ? "Se salvează…" : "Salvează planul"}
         </button>
         {eroare === null ? null : (
-          <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+          <p role="alert" className="text-sm text-danger">
             {eroare}
           </p>
         )}

@@ -182,7 +182,7 @@ async function Foaie({
         {urmatorulCursor === null ? null : (
           <Link
             href={`/pontaj?${cautare.toString()}`}
-            className="rounded-md border border-zinc-300 px-4 py-2 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-4 py-2 text-sm hover:bg-surface"
           >
             Pagina următoare
           </Link>
@@ -222,7 +222,7 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
     <main className="space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">Pontaj</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="text-sm text-muted-foreground">
           Foaia colectivă pentru {formatMonthYear(an, filtre.luna)}.
         </p>
       </header>

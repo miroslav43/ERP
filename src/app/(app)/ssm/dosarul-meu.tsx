@@ -37,7 +37,7 @@ export async function DosarulMeu({ organizationId }: { readonly organizationId: 
     <div className="space-y-8">
       <header>
         <h1 className="text-2xl font-semibold">Dosarul meu SSM/PSI</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="text-sm text-muted-foreground">
           Instruirile, fișa de aptitudine și echipamentul dumneavoastră. Pentru completări sau
           corecturi, contactați responsabilul SSM al organizației.
         </p>
@@ -54,9 +54,9 @@ export async function DosarulMeu({ organizationId }: { readonly organizationId: 
             description="Anunțați responsabilul SSM al organizației."
           />
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+          <div className="overflow-x-auto rounded-lg border border-border">
             <table className="w-full text-sm">
-              <thead className="bg-zinc-50 text-left dark:bg-zinc-900">
+              <thead className="bg-surface text-left">
                 <tr>
                   <th scope="col" className="px-4 py-3 font-medium">
                     Domeniu
@@ -72,7 +72,7 @@ export async function DosarulMeu({ organizationId }: { readonly organizationId: 
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+              <tbody className="divide-y divide-border">
                 {instruiri.map((i) => {
                   const tip = denumireTip.get(i.training_type_id);
                   const stare = stareScadentaSsm(true, i.urmatoarea_scadenta, azi);
@@ -85,13 +85,13 @@ export async function DosarulMeu({ organizationId }: { readonly organizationId: 
                       <td className="px-4 py-3">{formatDate(i.data_instruirii)}</td>
                       <td className="px-4 py-3">
                         {i.urmatoarea_scadenta === null ? (
-                          <span className="text-zinc-500">fără scadență</span>
+                          <span className="text-muted-foreground">fără scadență</span>
                         ) : (
                           <>
                             <span className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_SCADENTA[stare]}`}>
                               {ETICHETE_SCADENTA[stare]}
                             </span>{" "}
-                            <span className="text-zinc-500">{formatDate(i.urmatoarea_scadenta)}</span>
+                            <span className="text-muted-foreground">{formatDate(i.urmatoarea_scadenta)}</span>
                           </>
                         )}
                       </td>
@@ -109,13 +109,13 @@ export async function DosarulMeu({ organizationId }: { readonly organizationId: 
           Fișă de aptitudine
         </h2>
         {fise.randuri.length === 0 ? (
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">Nicio fișă de aptitudine înregistrată.</p>
+          <p className="text-sm text-muted-foreground">Nicio fișă de aptitudine înregistrată.</p>
         ) : (
           <ul className="space-y-2">
             {fise.randuri.map((f) => (
               <li
                 key={f.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-200 p-3 text-sm dark:border-zinc-800"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border p-3 text-sm"
               >
                 <span>
                   {formatDate(f.data_examinarii)}
@@ -132,7 +132,7 @@ export async function DosarulMeu({ organizationId }: { readonly organizationId: 
         {restrictii.length === 0 ? null : (
           <div
             role="alert"
-            className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm dark:border-amber-900 dark:bg-amber-950"
+            className="rounded-lg border border-warning/40 bg-warning/12 p-4 text-sm"
           >
             <p className="font-medium">Restricții active</p>
             <ul className="mt-1 list-inside list-disc space-y-1">
@@ -149,18 +149,18 @@ export async function DosarulMeu({ organizationId }: { readonly organizationId: 
           Echipament individual de protecție
         </h2>
         {echipamente.randuri.length === 0 ? (
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">Niciun echipament predat.</p>
+          <p className="text-sm text-muted-foreground">Niciun echipament predat.</p>
         ) : (
           <ul className="space-y-2">
             {echipamente.randuri.map((e) => (
               <li
                 key={e.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-200 p-3 text-sm dark:border-zinc-800"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border p-3 text-sm"
               >
                 <span>
                   {e.articol} ({e.cantitate} {e.unitate})
                 </span>
-                <span className="text-zinc-500">
+                <span className="text-muted-foreground">
                   predat {formatDate(e.data_predarii)}
                   {e.data_inlocuirii === null ? "" : ` · înlocuire până la ${formatDate(e.data_inlocuirii)}`}
                 </span>
@@ -179,12 +179,12 @@ export async function DosarulMeu({ organizationId }: { readonly organizationId: 
             {autorizatii.map((a) => (
               <li
                 key={a.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-200 p-3 text-sm dark:border-zinc-800"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border p-3 text-sm"
               >
                 <span>
                   {a.tip} · nr. {a.numar}
                 </span>
-                <span className="text-zinc-500">valabilă până la {formatDate(a.valabil_pana)}</span>
+                <span className="text-muted-foreground">valabilă până la {formatDate(a.valabil_pana)}</span>
               </li>
             ))}
           </ul>

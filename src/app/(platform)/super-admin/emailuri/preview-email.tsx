@@ -28,7 +28,7 @@ export function PreviewEmail({ subiect, sablon, html }: Props) {
       <button
         type="button"
         onClick={deschide}
-        className="border-border text-foreground hover:bg-surface focus-visible:ring-ring inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium focus-visible:ring-2 focus-visible:outline-none"
+        className="border-border text-foreground hover:bg-surface inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium"
       >
         <Eye aria-hidden="true" className="size-3.5" />
         Vezi conținutul
@@ -51,7 +51,7 @@ export function PreviewEmail({ subiect, sablon, html }: Props) {
           <button
             type="button"
             onClick={inchide}
-            className="text-muted-foreground hover:bg-background focus-visible:ring-ring rounded-md p-1 focus-visible:ring-2 focus-visible:outline-none"
+            className="text-muted-foreground hover:bg-background rounded-md p-1"
             aria-label="Închide previzualizarea"
           >
             <X aria-hidden="true" className="size-4" />
@@ -62,7 +62,7 @@ export function PreviewEmail({ subiect, sablon, html }: Props) {
             title={`Previzualizare email: ${subiect}`}
             sandbox=""
             srcDoc={html}
-            className="h-[60vh] w-full border-0 bg-white"
+            className="h-[60vh] w-full border-0 bg-background"
           />
         ) : null}
       </dialog>

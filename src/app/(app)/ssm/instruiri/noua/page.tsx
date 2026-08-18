@@ -54,13 +54,13 @@ export default async function PaginaInstruireNoua() {
   return (
     <main className="mx-auto w-full max-w-3xl space-y-6 p-6">
       <header>
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="text-sm text-muted-foreground">
           <Link href="/ssm/instruiri" className="underline-offset-2 hover:underline">
             Instruiri
           </Link>
         </p>
         <h1 className="text-2xl font-semibold">Instruire nouă</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="text-sm text-muted-foreground">
           Un tip, o dată, câți angajați aveți nevoie — toți intră într-o singură înregistrare.
         </p>
       </header>

@@ -36,18 +36,18 @@ function Card({ href, icon: Icon, titlu, numar }: CardPanou) {
   return (
     <Link
       href={href}
-      className="flex flex-col gap-3 rounded-lg border border-zinc-200 p-4 hover:bg-zinc-50 focus-visible:outline-2 focus-visible:outline-offset-2 dark:border-zinc-800 dark:hover:bg-zinc-900"
+      className="flex flex-col gap-3 rounded-lg border border-border p-4 hover:bg-surface"
     >
       <div className="flex items-center justify-between">
-        <Icon aria-hidden="true" className="size-5 text-zinc-500" />
+        <Icon aria-hidden="true" className="size-5 text-muted-foreground" />
         {numar > 0 ? (
-          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-100">
+          <span className="rounded-full bg-warning/12 px-2 py-0.5 text-xs font-semibold text-foreground">
             {numar}
           </span>
         ) : null}
       </div>
       <p className="text-sm font-medium">{titlu}</p>
-      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+      <p className="text-xs text-muted-foreground">
         {numar === 0 ? "Nimic de atenționat" : `${numar} de atenționat`}
       </p>
     </Link>
@@ -68,9 +68,9 @@ async function BandaAccidente({ organizationId }: { readonly organizationId: str
     <section
       aria-labelledby="accidente-necomunicate"
       role="alert"
-      className="space-y-3 rounded-lg border border-red-300 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950"
+      className="space-y-3 rounded-lg border border-danger/40 bg-danger/8 p-4"
     >
-      <h2 id="accidente-necomunicate" className="flex items-center gap-2 text-sm font-semibold text-red-900 dark:text-red-100">
+      <h2 id="accidente-necomunicate" className="flex items-center gap-2 text-sm font-semibold text-danger">
         <ShieldAlert aria-hidden="true" className="size-4" />
         Accidente necomunicate la ITM
       </h2>
@@ -90,7 +90,7 @@ async function BandaAccidente({ organizationId }: { readonly organizationId: str
                 {" · "}
                 {formatDate(a.data_producerii)}
               </span>
-              <span className="font-medium text-red-900 dark:text-red-100">
+              <span className="font-medium text-danger">
                 {raman >= 0
                   ? `mai sunt ${raman.toFixed(1)} ore`
                   : `termen depășit cu ${Math.abs(raman).toFixed(1)} ore`}
@@ -137,7 +137,7 @@ export default async function PaginaSsm() {
     <main className="space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">SSM și PSI</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="text-sm text-muted-foreground">
           Situația la zi a instruirilor, medicinei muncii și apărării împotriva incendiilor.
         </p>
       </header>

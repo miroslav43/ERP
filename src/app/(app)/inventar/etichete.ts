@@ -11,10 +11,10 @@ export const ETICHETE_STATUS: Readonly<Record<StatusObiect, string>> = {
 };
 
 export const CLASE_STATUS: Readonly<Record<StatusObiect, string>> = {
-  in_stoc: "bg-emerald-100 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-50",
-  alocat: "bg-blue-100 text-blue-900 dark:bg-blue-900 dark:text-blue-50",
-  in_reparatie: "bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-50",
-  casat: "bg-zinc-200 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-100",
+  in_stoc: "bg-emerald-100 text-emerald-900",
+  alocat: "bg-blue-100 text-blue-900",
+  in_reparatie: "bg-amber-100 text-amber-900",
+  casat: "bg-zinc-200 text-zinc-800",
 };
 
 export const ETICHETE_STARE: Readonly<Record<StareObiect, string>> = {
@@ -25,8 +25,8 @@ export const ETICHETE_STARE: Readonly<Record<StareObiect, string>> = {
 };
 
 export const CLASE_STARE: Readonly<Record<StareObiect, string>> = {
-  nou: "bg-sky-100 text-sky-900 dark:bg-sky-900 dark:text-sky-50",
-  bun: "bg-emerald-100 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-50",
-  uzat: "bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-50",
-  defect: "bg-rose-100 text-rose-900 dark:bg-rose-900 dark:text-rose-50",
+  nou: "bg-sky-100 text-sky-900",
+  bun: "bg-emerald-100 text-emerald-900",
+  uzat: "bg-amber-100 text-amber-900",
+  defect: "bg-rose-100 text-rose-900",
 };

@@ -41,17 +41,17 @@ export function ConfirmaAnomalie({ id }: { readonly id: string }) {
         type="text"
         maxLength={500}
         placeholder="Ex. cursă necompletată pe 14 septembrie"
-        className="min-w-56 flex-1 rounded-md border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+        className="min-w-56 flex-1 rounded-md border border-foreground/60 px-3 py-1.5 text-sm"
       />
       <button
         type="submit"
         disabled={inCurs}
-        className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-700 dark:hover:bg-zinc-900"
+        className="rounded-md border border-foreground/60 px-3 py-1.5 text-sm font-medium hover:bg-surface disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
       >
         {inCurs ? "Se salvează…" : "Confirmă"}
       </button>
       {eroare === null ? null : (
-        <p role="alert" className="w-full text-xs text-red-700 dark:text-red-400">
+        <p role="alert" className="w-full text-xs text-danger">
           {eroare}
         </p>
       )}

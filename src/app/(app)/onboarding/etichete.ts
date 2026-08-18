@@ -25,9 +25,9 @@ export const ETICHETE_STATUS_INSTANTA: Readonly<Record<ChecklistInstantaStatus, 
 };
 
 export const CLASE_STATUS_INSTANTA: Readonly<Record<ChecklistInstantaStatus, string>> = {
-  in_curs: "bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-50",
-  finalizata: "bg-emerald-100 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-50",
-  anulata: "bg-zinc-200 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-100",
+  in_curs: "bg-amber-100 text-amber-900",
+  finalizata: "bg-emerald-100 text-emerald-900",
+  anulata: "bg-zinc-200 text-zinc-800",
 };
 
 export const ETICHETE_STATUS_ITEM: Readonly<Record<ChecklistItemStatus, string>> = {
@@ -38,10 +38,10 @@ export const ETICHETE_STATUS_ITEM: Readonly<Record<ChecklistItemStatus, string>>
 };
 
 export const CLASE_STATUS_ITEM: Readonly<Record<ChecklistItemStatus, string>> = {
-  de_facut: "bg-zinc-200 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-100",
-  in_lucru: "bg-blue-100 text-blue-900 dark:bg-blue-900 dark:text-blue-50",
-  bifat: "bg-emerald-100 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-50",
-  neaplicabil: "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400",
+  de_facut: "bg-zinc-200 text-zinc-800",
+  in_lucru: "bg-blue-100 text-blue-900",
+  bifat: "bg-emerald-100 text-emerald-900",
+  neaplicabil: "bg-zinc-100 text-zinc-500",
 };
 
 export const ETICHETE_TIP_DOVADA: Readonly<Record<ChecklistTipDovada, string>> = {

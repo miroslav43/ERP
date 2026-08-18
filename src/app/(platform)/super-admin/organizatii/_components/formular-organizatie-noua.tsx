@@ -90,7 +90,7 @@ export function FormularOrganizatieNoua() {
   });
 
   const claseCamp =
-    "mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+    "mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground   ";
 
   return (
     <form onSubmit={trimite} noValidate className="space-y-6">
@@ -174,7 +174,7 @@ export function FormularOrganizatieNoua() {
             id={`${idFormular}-tva`}
             type="checkbox"
             {...register("platitor_tva")}
-            className="border-border focus-visible:ring-ring size-4 rounded focus-visible:ring-2 focus-visible:outline-none"
+            className="border-border size-4 rounded"
           />
           <label htmlFor={`${idFormular}-tva`} className="text-foreground text-sm">
             Plătitor de TVA
@@ -339,7 +339,7 @@ export function FormularOrganizatieNoua() {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover focus-visible:ring-ring rounded-md px-4 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:outline-none disabled:opacity-60"
+          className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
           {isSubmitting ? "Se creează…" : "Creează organizația"}
         </button>

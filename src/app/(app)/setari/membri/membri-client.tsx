@@ -129,7 +129,7 @@ export function PanouMembri({
               required
               value={email}
               onChange={(eveniment) => setEmail(eveniment.target.value)}
-              className="border-border bg-background text-foreground focus-visible:ring-ring h-9 rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none"
+              className="border-border bg-background text-foreground h-9 rounded-md border px-3 text-sm"
             />
           </div>
           <div className="flex flex-col gap-1">
@@ -142,7 +142,7 @@ export function PanouMembri({
               onChange={(eveniment) =>
                 setRol(eveniment.target.value as "org_admin" | "manager" | "hr" | "employee")
               }
-              className="border-border bg-background text-foreground focus-visible:ring-ring h-9 rounded-md border px-2 text-sm focus-visible:ring-2 focus-visible:outline-none"
+              className="border-border bg-background text-foreground h-9 rounded-md border px-2 text-sm"
             >
               {ROLURI.map((element) => (
                 <option key={element.valoare} value={element.valoare}>
@@ -154,7 +154,7 @@ export function PanouMembri({
           <button
             type="submit"
             disabled={inCurs}
-            className="bg-primary text-primary-foreground hover:bg-primary-hover focus-visible:ring-ring inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-medium focus-visible:ring-2 focus-visible:outline-none disabled:opacity-60"
+            className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-medium disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
           >
             <MailPlus aria-hidden="true" className="h-4 w-4" />
             {inCurs ? "Se trimite…" : "Trimite invitația"}
@@ -177,7 +177,7 @@ export function PanouMembri({
             <button
               type="button"
               onClick={() => void navigator.clipboard.writeText(linkInvitatie)}
-              className="border-border text-foreground focus-visible:ring-ring inline-flex h-8 items-center gap-1 rounded-md border px-2 text-xs focus-visible:ring-2 focus-visible:outline-none"
+              className="border-border text-foreground inline-flex h-8 items-center gap-1 rounded-md border px-2 text-xs"
             >
               <Copy aria-hidden="true" className="h-3.5 w-3.5" />
               Copiază linkul
@@ -241,7 +241,7 @@ export function PanouMembri({
                               "Rolul a fost actualizat.",
                             )
                           }
-                          className="border-border bg-background focus-visible:ring-ring h-8 rounded-md border px-2 text-sm focus-visible:ring-2 focus-visible:outline-none"
+                          className="border-border bg-background h-8 rounded-md border px-2 text-sm"
                         >
                           {ROLURI.map((element) => (
                             <option key={element.valoare} value={element.valoare}>
@@ -273,7 +273,7 @@ export function PanouMembri({
                               : "Membrul a fost reactivat.",
                           )
                         }
-                        className="border-border text-foreground hover:bg-surface focus-visible:ring-ring rounded-md border px-2 py-1 text-xs focus-visible:ring-2 focus-visible:outline-none disabled:opacity-60"
+                        className="border-border text-foreground hover:bg-surface rounded-md border px-2 py-1 text-xs disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
                       >
                         {membru.status === "active" ? "Dezactivează" : "Reactivează"}
                       </button>
@@ -314,7 +314,7 @@ export function PanouMembri({
                       "Invitația a fost revocată.",
                     )
                   }
-                  className="border-border text-danger focus-visible:ring-ring ml-auto rounded-md border px-2 py-1 text-xs focus-visible:ring-2 focus-visible:outline-none disabled:opacity-60"
+                  className="border-border text-danger ml-auto rounded-md border px-2 py-1 text-xs disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
                 >
                   Revocă
                 </button>

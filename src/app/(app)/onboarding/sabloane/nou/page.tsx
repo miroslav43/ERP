@@ -55,13 +55,13 @@ export default async function PaginaSablonNou() {
   return (
     <main className="mx-auto w-full max-w-2xl space-y-6 p-6">
       <header>
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="text-sm text-muted-foreground">
           <Link href="/onboarding/sabloane" className="underline-offset-2 hover:underline">
             Șabloane
           </Link>
         </p>
         <h1 className="text-2xl font-semibold">Șablon de checklist nou</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="text-sm text-muted-foreground">
           Pașii se adaugă după salvare, din fișa șablonului.
         </p>
       </header>

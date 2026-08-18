@@ -38,7 +38,7 @@ export default async function PaginaPolitica() {
     <main className="space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">Politica de diurnă</h1>
-        <p className="max-w-3xl text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="max-w-3xl text-sm text-muted-foreground">
           Politica e versionată: fiecare deplasare se calculează cu versiunea valabilă la data
           plecării, nu cu cea curentă. Adăugarea unei versiuni noi nu schimbă istoricul.
         </p>
@@ -57,10 +57,10 @@ export default async function PaginaPolitica() {
           }
         />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+        <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-sm">
             <caption className="sr-only">Versiunile politicii de diurnă, cea mai recentă primă.</caption>
-            <thead className="bg-zinc-50 text-left dark:bg-zinc-900">
+            <thead className="bg-surface text-left">
               <tr>
                 <th scope="col" className="px-4 py-3 font-medium">Denumire</th>
                 <th scope="col" className="px-4 py-3 font-medium">Valabilă</th>
@@ -69,7 +69,7 @@ export default async function PaginaPolitica() {
                 <th scope="col" className="px-4 py-3 font-medium">Trecere frontieră</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+            <tbody className="divide-y divide-border">
               {politici.map((p) => (
                 <tr key={p.id}>
                   <td className="px-4 py-3 font-medium">{p.denumire}</td>
@@ -90,7 +90,7 @@ export default async function PaginaPolitica() {
       {poateEdita ? (
         <FormularPolitica tari={listaTari} />
       ) : (
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="text-sm text-muted-foreground">
           Politica se configurează de administratorii organizației.
         </p>
       )}

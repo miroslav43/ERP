@@ -59,10 +59,10 @@ async function TabelEip({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+      <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-sm">
           <caption className="sr-only">Echipamentul individual de protecție predat.</caption>
-          <thead className="bg-zinc-50 text-left dark:bg-zinc-900">
+          <thead className="bg-surface text-left">
             <tr>
               <th scope="col" className="px-4 py-3 font-medium">
                 Angajat
@@ -84,17 +84,17 @@ async function TabelEip({
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+          <tbody className="divide-y divide-border">
             {randuri.map((e) => {
               const angajat = angajati.get(e.employee_id);
               return (
-                <tr key={e.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900">
+                <tr key={e.id} className="hover:bg-surface">
                   <td className="px-4 py-3">
                     {angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`}
                   </td>
                   <td className="px-4 py-3">
                     {e.articol}
-                    {e.cod_articol === null ? null : <span className="text-zinc-500"> · {e.cod_articol}</span>}
+                    {e.cod_articol === null ? null : <span className="text-muted-foreground"> · {e.cod_articol}</span>}
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums">
                     {e.cantitate} {e.unitate}
@@ -113,7 +113,7 @@ async function TabelEip({
         {urmatorulCursor === null ? null : (
           <Link
             href={`/ssm/eip?${cautare.toString()}`}
-            className="rounded-md border border-zinc-300 px-4 py-2 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-4 py-2 text-sm hover:bg-surface"
           >
             Pagina următoare
           </Link>
@@ -156,7 +156,7 @@ export default async function PaginaEip({ searchParams }: ProprietatiPagina) {
     <main className="space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">Echipament individual de protecție</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="text-sm text-muted-foreground">
           Predările de EIP, cu data de înlocuire calculată automat.
         </p>
       </header>

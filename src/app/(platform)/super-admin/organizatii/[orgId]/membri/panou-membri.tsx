@@ -29,7 +29,7 @@ import {
 } from "./actions";
 
 const CLASA_BUTON =
-  "inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs font-medium text-foreground hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60";
+  "inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs font-medium text-foreground hover:bg-background    disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground";
 
 function Mesaj({ text, ton }: Readonly<{ text: string | null; ton: "succes" | "eroare" }>) {
   if (!text) return null;
@@ -177,7 +177,7 @@ export function FormularInvitatie({ organizationId }: Readonly<{ organizationId:
             autoComplete="email"
             aria-invalid={errors.email ? true : false}
             aria-describedby={errors.email ? "eroare-email" : undefined}
-            className="border-border bg-background text-foreground focus-visible:ring-ring mt-1 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none"
+            className="border-border bg-background text-foreground mt-1 w-full rounded-md border px-3 py-2 text-sm"
             {...register("email")}
           />
           {errors.email ? (
@@ -194,7 +194,7 @@ export function FormularInvitatie({ organizationId }: Readonly<{ organizationId:
           <select
             id="rol-invitatie"
             aria-describedby="descriere-rol"
-            className="border-border bg-background text-foreground focus-visible:ring-ring mt-1 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none"
+            className="border-border bg-background text-foreground mt-1 w-full rounded-md border px-3 py-2 text-sm"
             {...register("role")}
           >
             {ROLURI_ATRIBUIBILE.map((rol) => (
@@ -219,7 +219,7 @@ export function FormularInvitatie({ organizationId }: Readonly<{ organizationId:
             max={ZILE_EXPIRARE_MAX}
             aria-invalid={errors.expiraInZile ? true : false}
             aria-describedby={errors.expiraInZile ? "eroare-expirare" : undefined}
-            className="border-border bg-background text-foreground focus-visible:ring-ring mt-1 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none"
+            className="border-border bg-background text-foreground mt-1 w-full rounded-md border px-3 py-2 text-sm"
             {...register("expiraInZile", { valueAsNumber: true })}
           />
           {errors.expiraInZile ? (
@@ -235,7 +235,7 @@ export function FormularInvitatie({ organizationId }: Readonly<{ organizationId:
       <button
         type="submit"
         disabled={isSubmitting}
-        className="bg-primary text-primary-foreground hover:bg-primary-hover focus-visible:ring-ring mt-4 inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:outline-none disabled:opacity-60"
+        className="bg-primary text-primary-foreground hover:bg-primary-hover mt-4 inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
       >
         {isSubmitting ? (
           <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
@@ -300,7 +300,7 @@ export function ActiuniMembru({
           id={`rol-${memberId}`}
           defaultValue={rol}
           disabled={inCurs}
-          className="border-border bg-background text-foreground focus-visible:ring-ring rounded-md border px-2 py-1 text-xs focus-visible:ring-2 focus-visible:outline-none disabled:opacity-60"
+          className="border-border bg-background text-foreground rounded-md border px-2 py-1 text-xs disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
           onChange={(eveniment) => {
             const rolNou = eveniment.target.value;
             ruleaza(async () => {

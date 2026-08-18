@@ -88,7 +88,7 @@ async function TabelCereri({
     const tip = hartaTipuri.get(cerere.leave_type_id);
     const angajat = hartaAngajati.get(cerere.employee_id);
     return (
-      <tr key={cerere.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800">
+      <tr key={cerere.id} className="hover:bg-surface">
         {aratăAngajat ? (
           <td className="px-4 py-3">
             {angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`}
@@ -116,7 +116,7 @@ async function TabelCereri({
         <td className="px-4 py-3">
           <Link
             href={`/concedii/${cerere.id}`}
-            className="font-medium text-blue-700 underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 dark:text-blue-300"
+            className="font-medium text-primary underline-offset-2 hover:underline"
           >
             Detalii
           </Link>
@@ -127,10 +127,10 @@ async function TabelCereri({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
+      <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-left text-sm">
           <caption className="sr-only">Lista cererilor de concediu</caption>
-          <thead className="bg-zinc-50 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+          <thead className="bg-surface text-foreground">
             <tr>
               {aratăAngajat ? (
                 <th scope="col" className="px-4 py-3 font-medium">
@@ -154,7 +154,7 @@ async function TabelCereri({
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
+          <tbody className="divide-y divide-border">
             {randuri.map(randCa)}
           </tbody>
         </table>
@@ -162,11 +162,11 @@ async function TabelCereri({
 
       <nav aria-label="Paginare" className="mt-4 flex justify-end">
         {urmatorulCursor === null ? (
-          <p className="text-sm text-zinc-500">Aceasta este ultima pagină.</p>
+          <p className="text-sm text-muted-foreground">Aceasta este ultima pagină.</p>
         ) : (
           <Link
             href={`/concedii?${cautare.toString()}`}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium hover:bg-zinc-50 focus-visible:outline-2 focus-visible:outline-offset-2 dark:border-zinc-600 dark:hover:bg-zinc-800"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm font-medium hover:bg-surface"
           >
             Pagina următoare
           </Link>
@@ -185,7 +185,7 @@ async function RezumatSoldPropriu({ organizationId }: { readonly organizationId:
   const ramase = sold?.ramase ?? tipOdihna.zile_implicite;
 
   return (
-    <p className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-900 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-100">
+    <p className="rounded-lg border border-border bg-surface px-4 py-2 text-sm text-foreground">
       Aveți <strong>{formatAmount(ramase)}</strong> zile rămase din „{tipOdihna.denumire}” pentru
       anul {String(an)}.{" "}
       <Link href="/concedii/sold" className="underline underline-offset-2">
@@ -233,7 +233,7 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Concedii</h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-muted-foreground">
             {scope === "own"
               ? "Cererile dumneavoastră de concediu."
               : scope === "team"
@@ -244,7 +244,7 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
         {poateCrea ? (
           <Link
             href="/concedii/noua"
-            className="inline-flex items-center gap-2 rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2"
+            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
           >
             <CalendarPlus aria-hidden="true" className="size-4" />
             Cerere nouă

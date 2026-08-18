@@ -70,7 +70,7 @@ export function Breadcrumb() {
               ) : (
                 <Link
                   href={href}
-                  className="text-muted-foreground hover:text-foreground focus-visible:ring-ring truncate focus-visible:ring-2 focus-visible:outline-none"
+                  className="text-muted-foreground hover:text-foreground truncate"
                 >
                   {tradu(segment)}
                 </Link>

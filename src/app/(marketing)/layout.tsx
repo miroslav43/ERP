@@ -24,7 +24,7 @@ const LINKURI_LEGALE = [
 ] as const;
 
 const FOCUS =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+  "   focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 
 export default function LayoutMarketing({ children }: { children: ReactNode }) {
   const anCurent = new Date().getFullYear();

@@ -57,10 +57,10 @@ async function TabelSabloane({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+      <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-sm">
           <caption className="sr-only">Șabloanele de checklist ale organizației.</caption>
-          <thead className="bg-zinc-50 text-left dark:bg-zinc-900">
+          <thead className="bg-surface text-left">
             <tr>
               <th scope="col" className="px-4 py-3 font-medium">
                 Denumire
@@ -76,13 +76,13 @@ async function TabelSabloane({
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+          <tbody className="divide-y divide-border">
             {randuri.map((s) => (
-              <tr key={s.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900">
+              <tr key={s.id} className="hover:bg-surface">
                 <td className="px-4 py-3 font-medium">
                   <Link
                     href={`/onboarding/sabloane/${s.id}`}
-                    className="underline-offset-2 hover:underline focus-visible:outline-2"
+                    className="underline-offset-2 hover:underline"
                   >
                     {s.denumire}
                   </Link>
@@ -93,8 +93,8 @@ async function TabelSabloane({
                   <span
                     className={`rounded px-2 py-0.5 text-xs font-medium ${
                       s.activ
-                        ? "bg-emerald-100 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-50"
-                        : "bg-zinc-200 text-zinc-800 dark:bg-zinc-700 dark:text-zinc-100"
+                        ? "bg-surface text-foreground"
+                        : "bg-surface text-foreground"
                     }`}
                   >
                     {s.activ ? "Activ" : "Dezactivat"}
@@ -110,7 +110,7 @@ async function TabelSabloane({
         {urmatorulCursor === null ? null : (
           <Link
             href={`/onboarding/sabloane?${cautare.toString()}`}
-            className="rounded-md border border-zinc-300 px-4 py-2 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-4 py-2 text-sm hover:bg-surface"
           >
             Pagina următoare
           </Link>
@@ -141,14 +141,14 @@ export default async function PaginaSabloane({ searchParams }: ProprietatiPagina
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Șabloane de checklist</h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-muted-foreground">
             Structura pașilor pentru integrare, ieșire sau transfer.
           </p>
         </div>
         {poateCrea ? (
           <Link
             href="/onboarding/sabloane/nou"
-            className="inline-flex items-center gap-2 rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2"
+            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
           >
             <FilePlus2 aria-hidden="true" className="size-4" />
             Șablon nou
@@ -161,7 +161,7 @@ export default async function PaginaSabloane({ searchParams }: ProprietatiPagina
       {/* Formular simplu, fără JavaScript: GET direct pe query string. */}
       <form
         method="get"
-        className="flex flex-wrap items-end gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
+        className="flex flex-wrap items-end gap-3 rounded-lg border border-border p-4"
       >
         <div className="flex flex-col gap-1">
           <label htmlFor="cauta" className="text-sm font-medium">
@@ -172,7 +172,7 @@ export default async function PaginaSabloane({ searchParams }: ProprietatiPagina
             name="cauta"
             type="search"
             defaultValue={cautaCurent}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
         <div className="flex flex-col gap-1">
@@ -183,7 +183,7 @@ export default async function PaginaSabloane({ searchParams }: ProprietatiPagina
             id="tip"
             name="tip"
             defaultValue={tipCurent}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           >
             <option value="">Toate</option>
             {CHECKLIST_TIP.map((t) => (
@@ -195,7 +195,7 @@ export default async function PaginaSabloane({ searchParams }: ProprietatiPagina
         </div>
         <button
           type="submit"
-          className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-4 py-2 text-sm font-medium hover:bg-surface"
         >
           Filtrează
         </button>

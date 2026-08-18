@@ -40,24 +40,24 @@ function ListaGrup({
         {randuri.map((r) => {
           const angajat = angajati.get(r.employee_id);
           return (
-            <li key={r.id} className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+            <li key={r.id} className="rounded-lg border border-border p-4">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="space-y-1">
                   <p className="font-medium">
                     <Link
                       href={`/diurna/${r.id}`}
-                      className="underline-offset-2 hover:underline focus-visible:outline-2"
+                      className="underline-offset-2 hover:underline"
                     >
                       {r.scop}
                     </Link>
                     {angajat === undefined ? null : (
-                      <span className="text-zinc-600 dark:text-zinc-300">
+                      <span className="text-muted-foreground">
                         {" "}
                         · {angajat.full_name ?? "—"} ({angajat.marca})
                       </span>
                     )}
                   </p>
-                  <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                  <p className="text-sm text-muted-foreground">
                     {formatDateTime(new Date(r.plecare_la))} – {formatDateTime(new Date(r.sosire_la))}
                     {r.localitate === null ? "" : ` · ${r.localitate}`}
                   </p>
@@ -114,7 +114,7 @@ export default async function PaginaAprobari() {
     <main className="space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">Deplasări de aprobat</h1>
-        <p className="max-w-3xl text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="max-w-3xl text-sm text-muted-foreground">
           Nu vă puteți aproba propria deplasare — regula e verificată de baza de date, indiferent
           de rol.
         </p>

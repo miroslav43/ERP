@@ -43,7 +43,7 @@ export default async function PaginaEchipamentNou() {
   return (
     <main className="space-y-6 p-6">
       <div>
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="text-sm text-muted-foreground">
           <Link href="/mentenanta/echipamente" className="underline-offset-2 hover:underline">
             Echipamente
           </Link>

@@ -46,7 +46,7 @@ export default async function PaginaInPrimire() {
     <main className="space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">În primirea mea</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="text-sm text-muted-foreground">
           Obiectele pe care le aveți acum în primire. Un obiect returnat dispare din această
           listă — istoricul complet rămâne pe fișa fiecărui obiect.
         </p>
@@ -63,21 +63,21 @@ export default async function PaginaInPrimire() {
           {randuri.map((rand) => (
             <li
               key={rand.id}
-              className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700"
+              className="rounded-lg border border-border p-4"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="font-medium">{rand.obiect.denumire}</p>
-                  <p className="text-xs text-zinc-500">
+                  <p className="text-xs text-muted-foreground">
                     Nr. inventar <span className="font-mono">{rand.obiect.numar_inventar}</span>
                     {rand.obiect.serie !== null ? ` · Serie ${rand.obiect.serie}` : ""}
                   </p>
-                  <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
+                  <p className="mt-1 text-sm text-muted-foreground">
                     Predat la {formatDateTime(rand.predat_la)} · Stare la predare:{" "}
                     {ETICHETE_STARE[rand.stare_la_predare]}
                   </p>
                   {rand.observatii !== null ? (
-                    <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
+                    <p className="mt-1 text-sm text-muted-foreground">
                       Observații: {rand.observatii}
                     </p>
                   ) : null}
@@ -85,7 +85,7 @@ export default async function PaginaInPrimire() {
                 {rand.confirmat_de_angajat_la === null ? (
                   <ButonConfirmare alocareId={rand.id} />
                 ) : (
-                  <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-900 dark:bg-emerald-900 dark:text-emerald-50">
+                  <span className="rounded-full bg-surface px-3 py-1 text-xs font-medium text-foreground">
                     Confirmat la {formatDateTime(rand.confirmat_de_angajat_la)}
                   </span>
                 )}

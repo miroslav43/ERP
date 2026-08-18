@@ -49,7 +49,7 @@ export default async function PaginaFisaOrganizatie({
       <nav aria-label="Firimituri" className="text-sm">
         <Link
           href="/super-admin/organizatii"
-          className="text-primary focus-visible:ring-ring underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:outline-none"
+          className="text-primary underline-offset-4 hover:underline"
         >
           Organizații
         </Link>
@@ -173,7 +173,7 @@ export default async function PaginaFisaOrganizatie({
           )}
           <Link
             href={`/super-admin/organizatii/${organizatie.id}/module`}
-            className="text-primary focus-visible:ring-ring mt-4 inline-block text-sm underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:outline-none"
+            className="text-primary mt-4 inline-block text-sm underline-offset-4 hover:underline"
           >
             Gestionează modulele
           </Link>
@@ -191,7 +191,7 @@ export default async function PaginaFisaOrganizatie({
               <p className="text-foreground text-sm">Organizația nu are încă niciun membru.</p>
               <Link
                 href={`/super-admin/organizatii/${organizatie.id}/membri`}
-                className="text-primary focus-visible:ring-ring mt-2 inline-block text-sm underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:outline-none"
+                className="text-primary mt-2 inline-block text-sm underline-offset-4 hover:underline"
               >
                 Invită administratorul organizației
               </Link>

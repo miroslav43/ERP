@@ -10,7 +10,7 @@ import { creeazaPolitica } from "../actions";
 import { ETICHETE_REGULA_TRECERE } from "../etichete";
 
 const CLASA_CAMP =
-  "mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-900";
+  "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
 
 /**
  * O versiune NOUĂ de politică — niciodată o editare a celei vechi. Politica e
@@ -103,7 +103,7 @@ export function FormularPolitica({ tari }: { readonly tari: readonly Tara[] }) {
   }
 
   return (
-    <div className="grid gap-3 rounded-lg border border-zinc-200 p-4 sm:grid-cols-2 lg:grid-cols-3 dark:border-zinc-800">
+    <div className="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-2 lg:grid-cols-3">
       <p className="text-sm font-medium sm:col-span-2 lg:col-span-3">O versiune nouă de politică</p>
 
       <div className="flex flex-col gap-1">
@@ -207,15 +207,15 @@ export function FormularPolitica({ tari }: { readonly tari: readonly Tara[] }) {
           type="button"
           disabled={inCurs}
           onClick={trimite}
-          className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
           {inCurs ? "Se salvează…" : "Salvează versiunea nouă"}
         </button>
         {eroare === null ? null : (
-          <p role="alert" className="text-sm text-red-700 dark:text-red-400">{eroare}</p>
+          <p role="alert" className="text-sm text-danger">{eroare}</p>
         )}
         {reusit ? (
-          <p role="status" className="text-sm text-emerald-700 dark:text-emerald-400">
+          <p role="status" className="text-sm text-foreground">
             Versiune salvată. Deplasările plecate de acum înainte se vor calcula cu ea.
           </p>
         ) : null}

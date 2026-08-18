@@ -67,7 +67,7 @@ export function FormularInstanta({ sabloane, angajati, astazi }: Proprietati) {
           id={id.sablon}
           name="template_id"
           required
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         >
           {sabloane.map((s) => (
             <option key={s.id} value={s.id}>
@@ -89,9 +89,9 @@ export function FormularInstanta({ sabloane, angajati, astazi }: Proprietati) {
               required
               placeholder="id-ul angajatului"
               aria-describedby={`${id.angajat}-ajutor`}
-              className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
             />
-            <p id={`${id.angajat}-ajutor`} className="text-xs text-zinc-500 dark:text-zinc-400">
+            <p id={`${id.angajat}-ajutor`} className="text-xs text-muted-foreground">
               Nu aveți acces la lista de angajați; introduceți identificatorul angajatului (îl
               găsiți pe fișa lui, în modulul Personal).
             </p>
@@ -101,7 +101,7 @@ export function FormularInstanta({ sabloane, angajati, astazi }: Proprietati) {
             id={id.angajat}
             name="employee_id"
             required
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           >
             {angajati.map((a) => (
               <option key={a.id} value={a.id}>
@@ -123,9 +123,9 @@ export function FormularInstanta({ sabloane, angajati, astazi }: Proprietati) {
           required
           defaultValue={astazi}
           aria-describedby={`${id.data}-ajutor`}
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
-        <p id={`${id.data}-ajutor`} className="text-xs text-zinc-500 dark:text-zinc-400">
+        <p id={`${id.data}-ajutor`} className="text-xs text-muted-foreground">
           Prima zi de lucru (integrare) sau ultima zi (ieșire) — termenele pașilor se calculează
           de la ea.
         </p>
@@ -140,7 +140,7 @@ export function FormularInstanta({ sabloane, angajati, astazi }: Proprietati) {
           name="observatii"
           rows={3}
           maxLength={2000}
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -148,12 +148,12 @@ export function FormularInstanta({ sabloane, angajati, astazi }: Proprietati) {
         <button
           type="submit"
           disabled={inCurs}
-          className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
           {inCurs ? "Se pornește…" : "Pornește checklistul"}
         </button>
         {eroare === null ? null : (
-          <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+          <p role="alert" className="text-sm text-danger">
             {eroare}
           </p>
         )}

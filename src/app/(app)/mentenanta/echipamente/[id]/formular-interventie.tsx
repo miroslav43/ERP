@@ -77,7 +77,7 @@ export function FormularInterventie({
   return (
     <form
       action={trimite}
-      className="grid gap-3 rounded-lg border border-zinc-200 p-4 sm:grid-cols-2 lg:grid-cols-3 dark:border-zinc-800"
+      className="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-2 lg:grid-cols-3"
     >
       <p className="text-sm font-medium sm:col-span-2 lg:col-span-3">Intervenție nouă</p>
 
@@ -88,7 +88,7 @@ export function FormularInterventie({
         <select
           id={idPlan}
           name="plan_id"
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         >
           <option value="">Fără plan (intervenție corectivă)</option>
           {planuri.map((p) => (
@@ -107,7 +107,7 @@ export function FormularInterventie({
           id={idTip}
           name="tip"
           defaultValue="corectiva"
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         >
           {TIPURI_MENTENANTA.map((t) => (
             <option key={t} value={t}>
@@ -126,7 +126,7 @@ export function FormularInterventie({
           name="data"
           type="date"
           required
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -138,7 +138,7 @@ export function FormularInterventie({
           id={idOraStart}
           name="ora_start"
           type="time"
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -152,7 +152,7 @@ export function FormularInterventie({
           type="number"
           min="0"
           step="0.5"
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -163,7 +163,7 @@ export function FormularInterventie({
         <select
           id={idExecutantAngajat}
           name="executant_employee_id"
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         >
           <option value="">—</option>
           {angajati.map((a) => (
@@ -182,7 +182,7 @@ export function FormularInterventie({
           id={idExecutantExtern}
           name="executant_extern"
           maxLength={200}
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -196,7 +196,7 @@ export function FormularInterventie({
           rows={2}
           required
           maxLength={2000}
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -209,7 +209,7 @@ export function FormularInterventie({
           name="piese"
           rows={2}
           maxLength={2000}
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -224,7 +224,7 @@ export function FormularInterventie({
           min="0"
           step="0.01"
           defaultValue="0"
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -239,7 +239,7 @@ export function FormularInterventie({
           min="0"
           step="0.01"
           defaultValue="0"
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -251,7 +251,7 @@ export function FormularInterventie({
           id={idRezultat}
           name="rezultat"
           defaultValue="reusita"
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         >
           {REZULTATE_INTERVENTIE.map((r) => (
             <option key={r} value={r}>
@@ -270,7 +270,7 @@ export function FormularInterventie({
           name="oprire_minute"
           type="number"
           min="0"
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -284,7 +284,7 @@ export function FormularInterventie({
           type="number"
           min="0"
           step="0.01"
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -297,7 +297,7 @@ export function FormularInterventie({
           name="observatii"
           rows={2}
           maxLength={2000}
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -305,12 +305,12 @@ export function FormularInterventie({
         <button
           type="submit"
           disabled={inCurs}
-          className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
           {inCurs ? "Se salvează…" : "Salvează intervenția"}
         </button>
         {eroare === null ? null : (
-          <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+          <p role="alert" className="text-sm text-danger">
             {eroare}
           </p>
         )}

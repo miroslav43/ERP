@@ -14,12 +14,12 @@ export const ETICHETE_TIP_ZI: Readonly<Record<TipZi, string>> = {
 /** Marcaj de fundal per tip de zi — folosit ÎMPREUNĂ cu text, niciodată singur. */
 export const CLASE_TIP_ZI: Readonly<Record<TipZi, string>> = {
   lucratoare: "",
-  weekend: "bg-zinc-100 dark:bg-zinc-800",
-  sarbatoare: "bg-amber-50 dark:bg-amber-950",
-  concediu: "bg-blue-50 dark:bg-blue-950",
-  medical: "bg-purple-50 dark:bg-purple-950",
-  absenta_nemotivata: "bg-red-50 dark:bg-red-950",
-  delegatie: "bg-emerald-50 dark:bg-emerald-950",
+  weekend: "bg-surface",
+  sarbatoare: "bg-warning/12",
+  concediu: "bg-surface",
+  medical: "bg-purple-50",
+  absenta_nemotivata: "bg-danger/8",
+  delegatie: "bg-surface",
 };
 
 export const ETICHETE_STATUS_PERIOADA: Readonly<Record<StatusPerioada, string>> = {
@@ -29,9 +29,9 @@ export const ETICHETE_STATUS_PERIOADA: Readonly<Record<StatusPerioada, string>> 
 };
 
 export const CLASE_STATUS_PERIOADA: Readonly<Record<StatusPerioada, string>> = {
-  deschisa: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100",
-  in_aprobare: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-100",
-  blocata: "bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-100",
+  deschisa: "bg-emerald-100 text-emerald-900",
+  in_aprobare: "bg-amber-100 text-amber-900",
+  blocata: "bg-zinc-200 text-zinc-800",
 };
 
 export const ETICHETE_SURSA: Readonly<Record<SursaIntrare, string>> = {

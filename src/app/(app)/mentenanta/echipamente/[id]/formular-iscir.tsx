@@ -46,7 +46,7 @@ export function FormularIscir({ equipmentId }: { readonly equipmentId: string })
   return (
     <form
       action={trimite}
-      className="grid gap-3 rounded-lg border border-zinc-200 p-4 sm:grid-cols-2 lg:grid-cols-3 dark:border-zinc-800"
+      className="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-2 lg:grid-cols-3"
     >
       <p className="text-sm font-medium sm:col-span-2 lg:col-span-3">Autorizație ISCIR nouă</p>
 
@@ -59,7 +59,7 @@ export function FormularIscir({ equipmentId }: { readonly equipmentId: string })
           name="numar"
           required
           maxLength={80}
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -73,7 +73,7 @@ export function FormularIscir({ equipmentId }: { readonly equipmentId: string })
           required
           maxLength={80}
           placeholder="Ex. macara, stivuitor, cazan"
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -86,7 +86,7 @@ export function FormularIscir({ equipmentId }: { readonly equipmentId: string })
           name="emitent"
           defaultValue="ISCIR"
           maxLength={120}
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -98,7 +98,7 @@ export function FormularIscir({ equipmentId }: { readonly equipmentId: string })
           id={idEmisLa}
           name="emis_la"
           type="date"
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -111,7 +111,7 @@ export function FormularIscir({ equipmentId }: { readonly equipmentId: string })
           name="valabil_pana"
           type="date"
           required
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -123,7 +123,7 @@ export function FormularIscir({ equipmentId }: { readonly equipmentId: string })
           id={idScadentaVerificare}
           name="scadenta_verificare_tehnica"
           type="date"
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -136,7 +136,7 @@ export function FormularIscir({ equipmentId }: { readonly equipmentId: string })
           name="conditii"
           rows={2}
           maxLength={1000}
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -144,12 +144,12 @@ export function FormularIscir({ equipmentId }: { readonly equipmentId: string })
         <button
           type="submit"
           disabled={inCurs}
-          className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
           {inCurs ? "Se salvează…" : "Salvează autorizația"}
         </button>
         {eroare === null ? null : (
-          <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+          <p role="alert" className="text-sm text-danger">
             {eroare}
           </p>
         )}

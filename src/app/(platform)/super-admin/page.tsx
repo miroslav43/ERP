@@ -23,7 +23,7 @@ function Cartela({
   return href ? (
     <Link
       href={href}
-      className="border-border bg-surface hover:border-primary focus-visible:ring-ring block rounded-lg border p-4 transition focus-visible:ring-2 focus-visible:outline-none"
+      className="border-border bg-surface hover:border-primary block rounded-lg border p-4 transition"
     >
       <dl>{continut}</dl>
     </Link>
@@ -57,7 +57,7 @@ export default async function PaginaSumarPlatforma() {
           </p>
           <Link
             href="/super-admin/organizatii/nou"
-            className="bg-primary text-primary-foreground hover:bg-primary-hover focus-visible:ring-ring mt-4 inline-block rounded-md px-4 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:outline-none"
+            className="bg-primary text-primary-foreground hover:bg-primary-hover mt-4 inline-block rounded-md px-4 py-2 text-sm font-medium"
           >
             Creează prima organizație
           </Link>

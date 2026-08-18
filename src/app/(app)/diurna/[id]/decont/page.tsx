@@ -122,17 +122,17 @@ export default async function PaginaDecont({ params }: ProprietatiPagina) {
         <ButonTipar />
       </div>
 
-      <header className="space-y-1 border-b border-zinc-300 pb-4">
+      <header className="space-y-1 border-b border-foreground/60 pb-4">
         <h1 className="text-xl font-semibold">Decont de deplasare</h1>
-        <p className="text-sm text-zinc-600">
+        <p className="text-sm text-muted-foreground">
           Nr. document: {deplasare.numar_document ?? "(fără număr)"} · Stare:{" "}
           {ETICHETE_STATUS_DEPLASARE[deplasare.status]}
         </p>
-        <p className="text-sm text-zinc-600">
+        <p className="text-sm text-muted-foreground">
           {angajat === undefined ? "" : `${angajat.full_name ?? "—"} (${angajat.marca}) · `}
           {deplasare.scop}
         </p>
-        <p className="text-sm text-zinc-600">
+        <p className="text-sm text-muted-foreground">
           {formatDateTime(new Date(deplasare.plecare_la))} –{" "}
           {formatDateTime(new Date(deplasare.sosire_la))}
           {deplasare.localitate === null ? "" : ` · ${deplasare.localitate}`} ·{" "}
@@ -145,7 +145,7 @@ export default async function PaginaDecont({ params }: ProprietatiPagina) {
           Diurnă
         </h2>
         {politica === null ? (
-          <p className="text-sm text-zinc-600">
+          <p className="text-sm text-muted-foreground">
             Nu există o politică de diurnă valabilă la data plecării.
           </p>
         ) : calcul === null ? null : (
@@ -161,11 +161,11 @@ export default async function PaginaDecont({ params }: ProprietatiPagina) {
           Cheltuieli aprobate
         </h2>
         {cheltuieliTrip.filter((c) => c.aprobata).length === 0 ? (
-          <p className="text-sm text-zinc-600">Nicio cheltuială aprobată.</p>
+          <p className="text-sm text-muted-foreground">Nicio cheltuială aprobată.</p>
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-zinc-300 text-left">
+              <tr className="border-b border-foreground/60 text-left">
                 <th className="py-1 font-medium">Tip</th>
                 <th className="py-1 font-medium">Data</th>
                 <th className="py-1 text-right font-medium">Lei</th>
@@ -175,7 +175,7 @@ export default async function PaginaDecont({ params }: ProprietatiPagina) {
               {cheltuieliTrip
                 .filter((c) => c.aprobata)
                 .map((c) => (
-                  <tr key={c.id} className="border-b border-zinc-200">
+                  <tr key={c.id} className="border-b border-border">
                     <td className="py-1">
                       {ETICHETE_TIP_CHELTUIALA[c.tip]}
                       {c.descriere === null ? "" : ` · ${c.descriere}`}
@@ -189,7 +189,7 @@ export default async function PaginaDecont({ params }: ProprietatiPagina) {
         )}
       </section>
 
-      <section aria-labelledby="titlu-total" className="border-t border-zinc-300 pt-4">
+      <section aria-labelledby="titlu-total" className="border-t border-foreground/60 pt-4">
         <h2 id="titlu-total" className="mb-2 text-base font-medium">
           Total decont
         </h2>
@@ -206,7 +206,7 @@ export default async function PaginaDecont({ params }: ProprietatiPagina) {
             <dt>Avans acordat</dt>
             <dd>− {formatLei(deplasare.avans_acordat)}</dd>
           </div>
-          <div className="flex justify-between border-t border-zinc-300 pt-1 font-semibold">
+          <div className="flex justify-between border-t border-foreground/60 pt-1 font-semibold">
             <dt>Total de decontat</dt>
             <dd>{totalDecont === null ? "necunoscut" : formatLei(totalDecont)}</dd>
           </div>

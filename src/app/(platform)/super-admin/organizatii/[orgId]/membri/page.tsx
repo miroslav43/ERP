@@ -79,7 +79,7 @@ export default async function PaginaMembri({ params }: { params: Promise<{ orgId
         </p>
         <a
           href={`/super-admin/organizatii/${orgId}/membri`}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover focus-visible:ring-ring inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:outline-none"
+          className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium"
         >
           <RotateCw aria-hidden="true" className="h-4 w-4" />
           Reîncearcă

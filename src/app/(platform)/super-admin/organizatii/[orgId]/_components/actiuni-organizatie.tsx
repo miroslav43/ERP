@@ -46,7 +46,7 @@ export function ActiuniOrganizatie({
   };
 
   const claseButon =
-    "rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-surface disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+    "rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-surface disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground   ";
 
   return (
     <div className="w-full max-w-md space-y-3">
@@ -63,7 +63,7 @@ export function ActiuniOrganizatie({
                   : "Organizația a fost activată.",
               )
             }
-            className="bg-primary text-primary-foreground hover:bg-primary-hover focus-visible:ring-ring rounded-md px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:outline-none disabled:opacity-60"
+            className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
           >
             {status === "suspended" ? "Reactivează" : "Activează"}
           </button>
@@ -123,7 +123,7 @@ export function ActiuniOrganizatie({
             rows={3}
             value={motiv}
             onChange={(eveniment) => setMotiv(eveniment.target.value)}
-            className="border-border bg-background text-foreground focus-visible:ring-ring mt-1 w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none"
+            className="border-border bg-background text-foreground mt-1 w-full rounded-md border px-3 py-2 text-sm"
           />
           <p className="text-muted-foreground mt-1 text-xs">
             Motivul se salvează în jurnalul de audit.
@@ -132,7 +132,7 @@ export function ActiuniOrganizatie({
             <button
               type="submit"
               disabled={inCurs}
-              className="bg-primary text-primary-foreground hover:bg-primary-hover focus-visible:ring-ring rounded-md px-3 py-2 text-sm font-medium focus-visible:ring-2 focus-visible:outline-none disabled:opacity-60"
+              className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
             >
               {inCurs ? "Se procesează…" : "Confirmă"}
             </button>

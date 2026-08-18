@@ -52,7 +52,7 @@ interface ValoriEditare {
 }
 
 const CLASA_CAMP =
-  "mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus-visible:outline-2 dark:border-zinc-600 dark:bg-zinc-900";
+  "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
 
 function laText(valoare: string | null): string {
   return valoare ?? "";
@@ -244,7 +244,7 @@ export function ActiuniObiect({ obiect, categorii, poateCasa }: Proprietati) {
 
         <div aria-live="polite">
           {eroare !== null ? (
-            <p className="rounded-md border border-rose-300 bg-rose-50 p-3 text-sm text-rose-800 dark:border-rose-700 dark:bg-rose-950 dark:text-rose-200">
+            <p className="rounded-md border border-danger bg-danger/8 p-3 text-sm text-danger">
               {eroare}
             </p>
           ) : null}
@@ -254,7 +254,7 @@ export function ActiuniObiect({ obiect, categorii, poateCasa }: Proprietati) {
           <button
             type="submit"
             disabled={inCurs}
-            className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
+            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
           >
             {inCurs ? "Se salvează…" : "Salvează modificările"}
           </button>
@@ -264,7 +264,7 @@ export function ActiuniObiect({ obiect, categorii, poateCasa }: Proprietati) {
               setModEditare(false);
             }}
             disabled={inCurs}
-            className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-600 dark:hover:bg-zinc-800"
+            className="rounded-md border border-foreground/60 px-4 py-2 text-sm font-medium hover:bg-surface disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
           >
             Renunță
           </button>
@@ -277,7 +277,7 @@ export function ActiuniObiect({ obiect, categorii, poateCasa }: Proprietati) {
     <div className="space-y-3">
       <div aria-live="polite">
         {eroare !== null ? (
-          <p className="rounded-md border border-rose-300 bg-rose-50 p-3 text-sm text-rose-800 dark:border-rose-700 dark:bg-rose-950 dark:text-rose-200">
+          <p className="rounded-md border border-danger bg-danger/8 p-3 text-sm text-danger">
             {eroare}
           </p>
         ) : null}
@@ -289,7 +289,7 @@ export function ActiuniObiect({ obiect, categorii, poateCasa }: Proprietati) {
           onClick={() => {
             setModEditare(true);
           }}
-          className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-50 dark:border-zinc-600 dark:hover:bg-zinc-800"
+          className="rounded-md border border-foreground/60 px-4 py-2 text-sm font-medium hover:bg-surface"
         >
           Editează datele obiectului
         </button>
@@ -299,7 +299,7 @@ export function ActiuniObiect({ obiect, categorii, poateCasa }: Proprietati) {
             onClick={() => {
               setConfirmaCasare(true);
             }}
-            className="rounded-md border border-rose-300 px-4 py-2 text-sm font-medium text-rose-800 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-200 dark:hover:bg-rose-950"
+            className="rounded-md border border-danger px-4 py-2 text-sm font-medium text-danger hover:bg-danger hover:text-danger-foreground"
           >
             Casează obiectul
           </button>
@@ -307,8 +307,8 @@ export function ActiuniObiect({ obiect, categorii, poateCasa }: Proprietati) {
       </div>
 
       {confirmaCasare ? (
-        <div className="rounded-md border border-rose-300 bg-rose-50 p-4 dark:border-rose-700 dark:bg-rose-950">
-          <p className="text-sm text-rose-900 dark:text-rose-100">
+        <div className="rounded-md border border-danger bg-danger/8 p-4">
+          <p className="text-sm text-danger">
             Obiectul trece definitiv în starea „Casat” și nu mai poate fi predat unui angajat.
             Rămâne în evidența organizației permanent — istoricul de predări-primiri nu se poate
             șterge.
@@ -318,7 +318,7 @@ export function ActiuniObiect({ obiect, categorii, poateCasa }: Proprietati) {
               type="button"
               onClick={caseaza}
               disabled={inCurs}
-              className="rounded-md bg-rose-700 px-4 py-2 text-sm font-medium text-white hover:bg-rose-800 disabled:opacity-60"
+              className="rounded-md bg-danger px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-danger disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
             >
               {inCurs ? "Se casează…" : "Confirmă casarea"}
             </button>
@@ -328,7 +328,7 @@ export function ActiuniObiect({ obiect, categorii, poateCasa }: Proprietati) {
                 setConfirmaCasare(false);
               }}
               disabled={inCurs}
-              className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-600 dark:hover:bg-zinc-800"
+              className="rounded-md border border-foreground/60 px-4 py-2 text-sm font-medium hover:bg-surface disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
             >
               Renunță
             </button>

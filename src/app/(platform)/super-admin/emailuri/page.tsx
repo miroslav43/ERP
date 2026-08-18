@@ -76,7 +76,7 @@ async function TabelEmailuri({ filtre }: { readonly filtre: Filtre }) {
         <p className="text-foreground mt-2 text-sm">Nu am putut încărca jurnalul de emailuri.</p>
         <a
           href="/super-admin/emailuri"
-          className="bg-primary text-primary-foreground hover:bg-primary-hover focus-visible:ring-ring mt-3 inline-block rounded-md px-3 py-1.5 text-sm focus-visible:ring-2 focus-visible:outline-none"
+          className="bg-primary text-primary-foreground hover:bg-primary-hover mt-3 inline-block rounded-md px-3 py-1.5 text-sm"
         >
           Reîncearcă
         </a>
@@ -95,7 +95,7 @@ async function TabelEmailuri({ filtre }: { readonly filtre: Filtre }) {
         </p>
         <Link
           href="/super-admin/organizatii"
-          className="bg-primary text-primary-foreground hover:bg-primary-hover focus-visible:ring-ring mt-4 inline-block rounded-md px-3 py-1.5 text-sm focus-visible:ring-2 focus-visible:outline-none"
+          className="bg-primary text-primary-foreground hover:bg-primary-hover mt-4 inline-block rounded-md px-3 py-1.5 text-sm"
         >
           Mergi la organizații
         </Link>
@@ -213,7 +213,7 @@ export default async function PaginaEmailuri({
             type="search"
             defaultValue={filtre.q}
             placeholder="ana@exemplu.ro"
-            className="border-border bg-background text-foreground focus-visible:ring-ring rounded-md border px-2.5 py-1.5 text-sm focus-visible:ring-2 focus-visible:outline-none"
+            className="border-border bg-background text-foreground rounded-md border px-2.5 py-1.5 text-sm"
           />
         </div>
         <div className="flex flex-col gap-1">
@@ -224,7 +224,7 @@ export default async function PaginaEmailuri({
             id="status"
             name="status"
             defaultValue={filtre.status}
-            className="border-border bg-background text-foreground focus-visible:ring-ring rounded-md border px-2.5 py-1.5 text-sm focus-visible:ring-2 focus-visible:outline-none"
+            className="border-border bg-background text-foreground rounded-md border px-2.5 py-1.5 text-sm"
           >
             <option value="">Toate</option>
             {STATUSURI.map((s) => (
@@ -242,7 +242,7 @@ export default async function PaginaEmailuri({
             id="sablon"
             name="sablon"
             defaultValue={filtre.sablon}
-            className="border-border bg-background text-foreground focus-visible:ring-ring rounded-md border px-2.5 py-1.5 text-sm focus-visible:ring-2 focus-visible:outline-none"
+            className="border-border bg-background text-foreground rounded-md border px-2.5 py-1.5 text-sm"
           >
             <option value="">Toate</option>
             {EMAIL_TEMPLATE_KEYS.map((k) => (
@@ -254,7 +254,7 @@ export default async function PaginaEmailuri({
         </div>
         <button
           type="submit"
-          className="bg-primary text-primary-foreground hover:bg-primary-hover focus-visible:ring-ring rounded-md px-3 py-1.5 text-sm focus-visible:ring-2 focus-visible:outline-none"
+          className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-3 py-1.5 text-sm"
         >
           Filtrează
         </button>

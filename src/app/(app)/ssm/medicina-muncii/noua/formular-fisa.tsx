@@ -74,7 +74,7 @@ export function FormularFisa({ angajati }: { readonly angajati: readonly Angajat
             id={id.angajat}
             name="employee_id"
             required
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           >
             {angajati.map((a) => (
               <option key={a.id} value={a.id}>
@@ -92,7 +92,7 @@ export function FormularFisa({ angajati }: { readonly angajati: readonly Angajat
             id={id.tip}
             name="tip"
             defaultValue="periodic"
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           >
             {TIPURI_EXAMEN.map((t) => (
               <option key={t} value={t}>
@@ -111,7 +111,7 @@ export function FormularFisa({ angajati }: { readonly angajati: readonly Angajat
             name="data_examinarii"
             type="date"
             required
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
 
@@ -123,7 +123,7 @@ export function FormularFisa({ angajati }: { readonly angajati: readonly Angajat
             id={id.rezultat}
             name="rezultat"
             defaultValue="apt"
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           >
             {REZULTATE_EXAMEN.map((r) => (
               <option key={r} value={r}>
@@ -141,7 +141,7 @@ export function FormularFisa({ angajati }: { readonly angajati: readonly Angajat
             id={id.valabil}
             name="valabil_pana"
             type="date"
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
 
@@ -153,7 +153,7 @@ export function FormularFisa({ angajati }: { readonly angajati: readonly Angajat
             id={id.medic}
             name="medic"
             maxLength={120}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
 
@@ -165,7 +165,7 @@ export function FormularFisa({ angajati }: { readonly angajati: readonly Angajat
             id={id.unitate}
             name="unitate_medicala"
             maxLength={160}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
 
@@ -177,7 +177,7 @@ export function FormularFisa({ angajati }: { readonly angajati: readonly Angajat
             id={id.numar}
             name="numar_fisa"
             maxLength={64}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
 
@@ -191,7 +191,7 @@ export function FormularFisa({ angajati }: { readonly angajati: readonly Angajat
             type="number"
             min="0"
             step="0.01"
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
       </div>
@@ -200,12 +200,12 @@ export function FormularFisa({ angajati }: { readonly angajati: readonly Angajat
         <button
           type="submit"
           disabled={inCurs}
-          className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
           {inCurs ? "Se salvează…" : "Salvează fișa"}
         </button>
         {eroare === null ? null : (
-          <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+          <p role="alert" className="text-sm text-danger">
             {eroare}
           </p>
         )}

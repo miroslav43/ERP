@@ -61,13 +61,13 @@ export default async function PaginaFoaieNoua() {
   return (
     <main className="mx-auto w-full max-w-3xl space-y-6 p-6">
       <header>
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="text-sm text-muted-foreground">
           <Link href="/flota/foi" className="underline-offset-2 hover:underline">
             Foi de parcurs
           </Link>
         </p>
         <h1 className="text-2xl font-semibold">Foaie de parcurs nouă</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="text-sm text-muted-foreground">
           Kilometrajul de plecare se completează singur din ultimul cunoscut al vehiculului.
           Verificați-l înainte de salvare — un kilometraj mai mic decât ultimul e refuzat.
         </p>

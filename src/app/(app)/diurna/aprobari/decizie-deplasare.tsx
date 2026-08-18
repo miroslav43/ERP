@@ -52,7 +52,7 @@ export function DecizieDeplasare({ id, status }: { readonly id: string; readonly
               onClick={() => {
                 decide("aprobata");
               }}
-              className="rounded-md bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-60"
+              className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
             >
               {inCurs ? "Se trimite…" : "Aprobă"}
             </button>
@@ -62,7 +62,7 @@ export function DecizieDeplasare({ id, status }: { readonly id: string; readonly
               onClick={() => {
                 decide("respinsa");
               }}
-              className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-700 dark:hover:bg-zinc-900"
+              className="rounded-md border border-foreground/60 px-3 py-1.5 text-sm hover:bg-surface disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
             >
               Respinge
             </button>
@@ -72,14 +72,14 @@ export function DecizieDeplasare({ id, status }: { readonly id: string; readonly
             type="button"
             disabled={inCurs}
             onClick={deconteaza}
-            className="rounded-md bg-violet-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-violet-800 disabled:opacity-60"
+            className="rounded-md bg-violet-700 px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-violet-800 disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
           >
             {inCurs ? "Se marchează…" : "Marchează decontată"}
           </button>
         )}
       </div>
       {eroare === null ? null : (
-        <p role="alert" className="max-w-sm text-xs text-red-700 dark:text-red-400">
+        <p role="alert" className="max-w-sm text-xs text-danger">
           {eroare}
         </p>
       )}

@@ -38,13 +38,13 @@ export default async function PaginaAccidentNou() {
   return (
     <main className="mx-auto w-full max-w-2xl space-y-6 p-6">
       <header>
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="text-sm text-muted-foreground">
           <Link href="/ssm/accidente" className="underline-offset-2 hover:underline">
             Accidente de muncă
           </Link>
         </p>
         <h1 className="text-2xl font-semibold">Accident nou</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="text-sm text-muted-foreground">
           Termenul de comunicare la ITM se calculează automat, din parametrii legali ai
           organizației.
         </p>

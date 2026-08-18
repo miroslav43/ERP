@@ -53,7 +53,7 @@ export default async function PaginaCereriDemo({
           </p>
           <Link
             href={statusActiv ? `${RUTA}?status=${statusActiv}` : RUTA}
-            className="border-border hover:border-primary focus-visible:ring-ring mt-4 inline-flex rounded-md border px-4 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
+            className="border-border hover:border-primary mt-4 inline-flex rounded-md border px-4 py-2 text-sm font-medium transition-colors"
           >
             Încearcă din nou
           </Link>
@@ -66,7 +66,7 @@ export default async function PaginaCereriDemo({
                 <Link
                   href={RUTA}
                   aria-current={statusActiv === null ? "page" : undefined}
-                  className={`focus-visible:ring-ring inline-flex rounded-full border px-3 py-1.5 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none ${
+                  className={` inline-flex rounded-full border px-3 py-1.5 text-sm transition-colors   ${
                     statusActiv === null
                       ? "border-primary bg-primary text-primary-foreground"
                       : "border-border text-muted-foreground hover:text-foreground"
@@ -80,7 +80,7 @@ export default async function PaginaCereriDemo({
                   <Link
                     href={`${RUTA}?status=${status}`}
                     aria-current={statusActiv === status ? "page" : undefined}
-                    className={`focus-visible:ring-ring inline-flex rounded-full border px-3 py-1.5 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none ${
+                    className={` inline-flex rounded-full border px-3 py-1.5 text-sm transition-colors   ${
                       statusActiv === status
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-border text-muted-foreground hover:text-foreground"
@@ -109,7 +109,7 @@ export default async function PaginaCereriDemo({
               </p>
               <Link
                 href={statusActiv === null ? "/" : RUTA}
-                className="border-border hover:border-primary focus-visible:ring-ring mt-6 inline-flex rounded-md border px-4 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                className="border-border hover:border-primary mt-6 inline-flex rounded-md border px-4 py-2 text-sm font-medium transition-colors"
               >
                 {statusActiv === null ? "Deschide pagina publică" : "Vezi toate cererile"}
               </Link>
@@ -166,7 +166,7 @@ export default async function PaginaCereriDemo({
                     <SchimbaStatus cerereId={cerere.id} statusCurent={cerere.status} />
                     <Link
                       href={`/super-admin/organizatii/noua?cerere=${cerere.id}`}
-                      className="bg-primary text-primary-foreground hover:bg-primary-hover focus-visible:ring-ring inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
+                      className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors"
                     >
                       <Building2 className="h-4 w-4" aria-hidden="true" />
                       Creează organizație din această cerere

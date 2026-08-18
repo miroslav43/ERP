@@ -44,7 +44,7 @@ export default async function PaginaAngajatNou() {
     <main className="space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">Angajat nou</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="text-sm text-muted-foreground">
           Fișa se creează cu starea „Candidat”. Devine activă după înregistrarea contractului
           individual de muncă.
         </p>

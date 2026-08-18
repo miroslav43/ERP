@@ -55,16 +55,16 @@ export default async function PaginaAccident({ params }: ProprietatiPagina) {
     <main className="mx-auto w-full max-w-3xl space-y-6 p-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-muted-foreground">
             <Link href="/ssm/accidente" className="underline-offset-2 hover:underline">
               Accidente de muncă
             </Link>
           </p>
           <h1 className="text-2xl font-semibold">
             {formatDate(accident.data_producerii)}
-            {accident.numar_intern === null ? null : <span className="text-zinc-500"> · {accident.numar_intern}</span>}
+            {accident.numar_intern === null ? null : <span className="text-muted-foreground"> · {accident.numar_intern}</span>}
           </h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-muted-foreground">
             {angajat === undefined ? "Angajat neidentificat" : `${angajat.full_name ?? "—"} (${angajat.marca})`}
             {" · "}
             {accident.locul}
@@ -80,8 +80,8 @@ export default async function PaginaAccident({ params }: ProprietatiPagina) {
           role="alert"
           className={`rounded-lg border p-4 text-sm ${
             oreRamase >= 0
-              ? "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100"
-              : "border-red-300 bg-red-50 text-red-900 dark:border-red-900 dark:bg-red-950 dark:text-red-100"
+              ? "border-warning/40 bg-warning/12 text-foreground"
+              : "border-danger/40 bg-danger/8 text-danger"
           }`}
         >
           {oreRamase >= 0
@@ -92,7 +92,7 @@ export default async function PaginaAccident({ params }: ProprietatiPagina) {
 
       <section
         aria-label="Detalii accident"
-        className="grid gap-4 rounded-lg border border-zinc-200 p-4 sm:grid-cols-2 dark:border-zinc-800"
+        className="grid gap-4 rounded-lg border border-border p-4 sm:grid-cols-2"
       >
         <Camp eticheta="Ora producerii" valoare={accident.ora_producerii ?? "—"} />
         <Camp eticheta="Zile de incapacitate" valoare={String(accident.zile_incapacitate)} />
@@ -108,11 +108,11 @@ export default async function PaginaAccident({ params }: ProprietatiPagina) {
       </section>
 
       <section aria-label="Împrejurări" className="space-y-1 text-sm">
-        <p className="text-zinc-500">Împrejurări:</p>
+        <p className="text-muted-foreground">Împrejurări:</p>
         <p className="whitespace-pre-wrap">{accident.imprejurari}</p>
         {accident.urmari === null ? null : (
           <>
-            <p className="mt-3 text-zinc-500">Urmări:</p>
+            <p className="mt-3 text-muted-foreground">Urmări:</p>
             <p className="whitespace-pre-wrap">{accident.urmari}</p>
           </>
         )}
@@ -133,7 +133,7 @@ export default async function PaginaAccident({ params }: ProprietatiPagina) {
 function Camp({ eticheta, valoare }: { readonly eticheta: string; readonly valoare: string }) {
   return (
     <div>
-      <dt className="text-xs text-zinc-500 dark:text-zinc-400">{eticheta}</dt>
+      <dt className="text-xs text-muted-foreground">{eticheta}</dt>
       <dd className="text-sm font-medium">{valoare}</dd>
     </div>
   );

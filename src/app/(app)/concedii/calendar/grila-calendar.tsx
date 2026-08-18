@@ -74,20 +74,20 @@ export function GrilaCalendar({ an, luna, zileHarta, lunaAnterioara, lunaUrmatoa
       <nav aria-label="Navigare lunară" className="flex items-center justify-between text-sm">
         <Link
           href={`/concedii/calendar?an=${String(lunaAnterioara.an)}&luna=${String(lunaAnterioara.luna)}`}
-          className="rounded-md border border-zinc-300 px-3 py-1.5 hover:bg-zinc-50 dark:border-zinc-600 dark:hover:bg-zinc-800"
+          className="rounded-md border border-foreground/60 px-3 py-1.5 hover:bg-surface"
         >
           ← Luna anterioară
         </Link>
         <Link
           href={`/concedii/calendar?an=${String(lunaUrmatoare.an)}&luna=${String(lunaUrmatoare.luna)}`}
-          className="rounded-md border border-zinc-300 px-3 py-1.5 hover:bg-zinc-50 dark:border-zinc-600 dark:hover:bg-zinc-800"
+          className="rounded-md border border-foreground/60 px-3 py-1.5 hover:bg-surface"
         >
           Luna următoare →
         </Link>
       </nav>
 
       {!areEvenimente ? (
-        <p className="rounded-lg border border-dashed border-zinc-300 p-4 text-center text-sm text-zinc-600 dark:border-zinc-700 dark:text-zinc-300">
+        <p className="rounded-lg border border-dashed border-foreground/60 p-4 text-center text-sm text-muted-foreground">
           Nicio absență de echipă înregistrată în această lună.
         </p>
       ) : null}
@@ -101,7 +101,7 @@ export function GrilaCalendar({ an, luna, zileHarta, lunaAnterioara, lunaUrmatoa
                 <th
                   key={zi}
                   scope="col"
-                  className="border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-xs font-medium text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                  className="border border-border bg-surface px-2 py-1.5 text-xs font-medium text-muted-foreground"
                 >
                   {zi}
                 </th>
@@ -116,7 +116,7 @@ export function GrilaCalendar({ an, luna, zileHarta, lunaAnterioara, lunaUrmatoa
                     return (
                       <td
                         key={indexZi}
-                        className="h-24 border border-zinc-100 bg-zinc-50/50 align-top dark:border-zinc-800 dark:bg-zinc-900/40"
+                        className="h-24 border border-border bg-surface align-top"
                       />
                     );
                   }
@@ -125,10 +125,10 @@ export function GrilaCalendar({ an, luna, zileHarta, lunaAnterioara, lunaUrmatoa
                   return (
                     <td
                       key={iso}
-                      className="h-24 border border-zinc-200 align-top dark:border-zinc-700"
+                      className="h-24 border border-border align-top"
                     >
                       <div className="p-1.5">
-                        <span className="text-xs font-medium text-zinc-500">{zi}</span>
+                        <span className="text-xs font-medium text-muted-foreground">{zi}</span>
                         <ul className="mt-1 space-y-0.5">
                           {evenimente.slice(0, 3).map((eveniment, indexEveniment) => (
                             <li
@@ -136,7 +136,7 @@ export function GrilaCalendar({ an, luna, zileHarta, lunaAnterioara, lunaUrmatoa
                               title={`${eveniment.employeeLabel} · ${eveniment.tipDenumire} (${
                                 eveniment.status === "aprobata" ? "aprobată" : "în aprobare"
                               })`}
-                              className={`truncate rounded px-1 py-0.5 text-xs text-white ${
+                              className={`truncate rounded px-1 py-0.5 text-xs text-primary-foreground ${
                                 eveniment.status === "aprobata" ? "" : "opacity-60"
                               }`}
                               style={{ backgroundColor: eveniment.tipCuloare }}
@@ -145,7 +145,7 @@ export function GrilaCalendar({ an, luna, zileHarta, lunaAnterioara, lunaUrmatoa
                             </li>
                           ))}
                           {evenimente.length > 3 ? (
-                            <li className="text-xs text-zinc-500">
+                            <li className="text-xs text-muted-foreground">
                               +{evenimente.length - 3} altele
                             </li>
                           ) : null}

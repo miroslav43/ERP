@@ -44,7 +44,7 @@ function CelulaScadenta({
       <span className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_SCADENTA[stare]}`}>
         {ETICHETE_SCADENTA[stare]}
       </span>
-      {data === null ? null : <span className="ml-2 text-xs text-zinc-500">{formatDate(data)}</span>}
+      {data === null ? null : <span className="ml-2 text-xs text-muted-foreground">{formatDate(data)}</span>}
     </td>
   );
 }
@@ -85,12 +85,12 @@ async function TabelStingatoare({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+      <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-sm">
           <caption className="sr-only">
             Stingătoarele organizației, cu cele trei obligații de întreținere pe coloane distincte.
           </caption>
-          <thead className="bg-zinc-50 text-left dark:bg-zinc-900">
+          <thead className="bg-surface text-left">
             <tr>
               <th scope="col" className="px-4 py-3 font-medium">
                 Cod
@@ -112,20 +112,20 @@ async function TabelStingatoare({
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+          <tbody className="divide-y divide-border">
             {randuri.map((s) => (
-              <tr key={s.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900">
+              <tr key={s.id} className="hover:bg-surface">
                 <td className="px-4 py-3 font-medium">
                   <Link
                     href={`/ssm/stingatoare/${s.id}`}
-                    className="underline-offset-2 hover:underline focus-visible:outline-2"
+                    className="underline-offset-2 hover:underline"
                   >
                     {s.cod}
                   </Link>
                 </td>
                 <td className="px-4 py-3">
                   {s.locatie}
-                  {s.cladire === null ? null : <span className="text-zinc-500"> · {s.cladire}</span>}
+                  {s.cladire === null ? null : <span className="text-muted-foreground"> · {s.cladire}</span>}
                 </td>
                 <td className="px-4 py-3">
                   <span
@@ -162,7 +162,7 @@ async function TabelStingatoare({
         {urmatorulCursor === null ? null : (
           <Link
             href={`/ssm/stingatoare?${cautare.toString()}`}
-            className="rounded-md border border-zinc-300 px-4 py-2 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-4 py-2 text-sm hover:bg-surface"
           >
             Pagina următoare
           </Link>
@@ -192,7 +192,7 @@ export default async function PaginaStingatoare({ searchParams }: ProprietatiPag
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Stingătoare</h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-muted-foreground">
             Verificarea tehnică, reîncărcarea și proba de presiune — trei obligații cu
             periodicități diferite.
           </p>
@@ -200,7 +200,7 @@ export default async function PaginaStingatoare({ searchParams }: ProprietatiPag
         {poateCrea ? (
           <Link
             href="/ssm/stingatoare/nou"
-            className="inline-flex items-center gap-2 rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2"
+            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
           >
             <Plus aria-hidden="true" className="size-4" />
             Stingător nou

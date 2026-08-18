@@ -58,25 +58,25 @@ async function ListaDeAprobat({ organizationId }: { readonly organizationId: str
         return (
           <li
             key={f.id}
-            className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
+            className="rounded-lg border border-border p-4"
           >
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="space-y-1">
                 <p className="font-medium">
                   <Link
                     href={`/flota/foi/${f.id}`}
-                    className="underline-offset-2 hover:underline focus-visible:outline-2"
+                    className="underline-offset-2 hover:underline"
                   >
                     {vehicul?.nr_inmatriculare ?? "Vehicul indisponibil"}
                   </Link>
                   {sofer === undefined ? null : (
-                    <span className="text-zinc-600 dark:text-zinc-300">
+                    <span className="text-muted-foreground">
                       {" "}
                       · {sofer.full_name} ({sofer.marca})
                     </span>
                   )}
                 </p>
-                <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                <p className="text-sm text-muted-foreground">
                   {formatDateTime(new Date(f.plecare_la))}
                   {f.sosire_la === null
                     ? null
@@ -86,7 +86,7 @@ async function ListaDeAprobat({ organizationId }: { readonly organizationId: str
                     : ` · ${f.km_parcursi.toLocaleString("ro-RO")} km`}
                 </p>
                 {f.traseu === null ? null : (
-                  <p className="text-sm text-zinc-600 dark:text-zinc-300">{f.traseu}</p>
+                  <p className="text-sm text-muted-foreground">{f.traseu}</p>
                 )}
               </div>
               <DecizieFoaie id={f.id} />
@@ -113,7 +113,7 @@ export default async function PaginaAprobari() {
     <main className="space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">Foi de aprobat</h1>
-        <p className="max-w-3xl text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="max-w-3xl text-sm text-muted-foreground">
           Foaia de parcurs justifică fiscal consumul de combustibil, de aceea nu vă puteți
           aproba propria foaie — nici măcar cu drepturi depline.
         </p>

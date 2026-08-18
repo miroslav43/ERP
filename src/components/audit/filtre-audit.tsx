@@ -13,7 +13,7 @@ type Props = Readonly<{
 }>;
 
 const clasaCamp =
-  "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:  ";
 const clasaEticheta = "mb-1 block text-xs font-medium text-muted-foreground";
 
 export function FiltreAuditForm({ cale, filtre, organizatii }: Props) {
@@ -152,14 +152,14 @@ export function FiltreAuditForm({ cale, filtre, organizatii }: Props) {
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <button
           type="submit"
-          className="bg-primary text-primary-foreground hover:bg-primary-hover focus-visible:ring-ring inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium focus:outline-none focus-visible:ring-2"
+          className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium focus:"
         >
           <Search aria-hidden="true" className="size-4" />
           Filtrează
         </button>
         <a
           href={cale}
-          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring rounded-md px-2 py-2 text-sm underline underline-offset-4 focus:outline-none focus-visible:ring-2"
+          className="text-muted-foreground hover:text-foreground rounded-md px-2 py-2 text-sm underline underline-offset-4 focus:"
         >
           Golește filtrele
         </a>

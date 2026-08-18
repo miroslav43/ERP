@@ -120,7 +120,7 @@ export async function Topbar() {
           aria-label={
             necitite > 0 ? `Notificări: ${necitite} necitite` : "Notificări: niciuna necitită"
           }
-          className="text-muted-foreground hover:bg-background hover:text-foreground focus-visible:ring-ring relative inline-flex h-9 w-9 items-center justify-center rounded-md focus-visible:ring-2 focus-visible:outline-none"
+          className="text-muted-foreground hover:bg-background hover:text-foreground relative inline-flex h-9 w-9 items-center justify-center rounded-md"
         >
           <Bell aria-hidden="true" className="h-5 w-5" />
           {necitite > 0 ? (
@@ -131,7 +131,7 @@ export async function Topbar() {
         </Link>
 
         <details className="relative">
-          <summary className="text-foreground hover:bg-background focus-visible:ring-ring flex h-9 cursor-pointer list-none items-center gap-1.5 rounded-md px-2 text-sm focus-visible:ring-2 focus-visible:outline-none">
+          <summary className="text-foreground hover:bg-background flex h-9 cursor-pointer list-none items-center gap-1.5 rounded-md px-2 text-sm">
             <UserRound aria-hidden="true" className="text-muted-foreground h-4 w-4" />
             <span className="max-w-40 truncate">{utilizator?.email ?? "Contul meu"}</span>
             <ChevronDown aria-hidden="true" className="text-muted-foreground h-4 w-4" />
@@ -139,7 +139,7 @@ export async function Topbar() {
           <div className="border-border bg-surface absolute right-0 z-20 mt-1 w-56 rounded-md border p-1 shadow-lg">
             <Link
               href="/setari/profil"
-              className="text-foreground hover:bg-background focus-visible:ring-ring flex items-center gap-2 rounded px-2 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none"
+              className="text-foreground hover:bg-background flex items-center gap-2 rounded px-2 py-2 text-sm"
             >
               <UserRound aria-hidden="true" className="h-4 w-4" />
               Profilul meu
@@ -147,7 +147,7 @@ export async function Topbar() {
             <form action={deconecteaza}>
               <button
                 type="submit"
-                className="text-danger hover:bg-background focus-visible:ring-ring flex w-full items-center gap-2 rounded px-2 py-2 text-left text-sm focus-visible:ring-2 focus-visible:outline-none"
+                className="text-danger hover:bg-background flex w-full items-center gap-2 rounded px-2 py-2 text-left text-sm"
               >
                 <LogOut aria-hidden="true" className="h-4 w-4" />
                 Deconectare

@@ -78,13 +78,13 @@ export default async function PaginaDocumenteAngajat({
     <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">Documente — {angajat.full_name}</h1>
-        <p className="text-sm text-slate-600 dark:text-slate-300">Marca {angajat.marca}</p>
+        <p className="text-sm text-muted-foreground">Marca {angajat.marca}</p>
       </header>
 
       {poateIncarca ? (
         <FormularDocument employeeId={angajat.id} tipuri={tipuri.data} />
       ) : (
-        <p className="text-sm text-slate-600 dark:text-slate-300">
+        <p className="text-sm text-muted-foreground">
           Ai doar drept de consultare a dosarului.
         </p>
       )}
@@ -96,7 +96,7 @@ export default async function PaginaDocumenteAngajat({
           description="Încarcă primul document: contractul individual de muncă sau actul de identitate."
         />
       ) : (
-        <ul className="divide-y divide-slate-200 dark:divide-slate-700">
+        <ul className="divide-y divide-border">
           {documente.data.map((document) => (
             <li
               key={document.id}
@@ -106,12 +106,12 @@ export default async function PaginaDocumenteAngajat({
                 <p className="font-medium">
                   {document.titlu}
                   {document.confidential && (
-                    <span className="ml-2 rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-900">
+                    <span className="ml-2 rounded bg-warning/12 px-2 py-0.5 text-xs text-foreground">
                       confidențial
                     </span>
                   )}
                 </p>
-                <p className="text-sm text-slate-600 dark:text-slate-300">
+                <p className="text-sm text-muted-foreground">
                   {document.data_document === null
                     ? "fără dată"
                     : formatDate(document.data_document)}

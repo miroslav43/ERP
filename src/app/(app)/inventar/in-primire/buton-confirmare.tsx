@@ -32,12 +32,12 @@ export function ButonConfirmare({ alocareId }: Proprietati) {
         type="button"
         onClick={confirma}
         disabled={inCurs}
-        className="rounded-md bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
+        className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
       >
         {inCurs ? "Se confirmă…" : "Confirmă primirea"}
       </button>
       {eroare !== null ? (
-        <p role="alert" className="mt-1 text-xs text-rose-700 dark:text-rose-300">
+        <p role="alert" className="mt-1 text-xs text-danger">
           {eroare}
         </p>
       ) : null}

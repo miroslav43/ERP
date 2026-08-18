@@ -61,7 +61,7 @@ interface ValoriFormular {
 }
 
 const CLASA_CAMP =
-  "mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus-visible:outline-2 dark:border-zinc-600 dark:bg-zinc-900";
+  "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
 
 function laText(valoare: string | null): string {
   return valoare ?? "";
@@ -259,7 +259,7 @@ export function FormularEchipament({
         </div>
       </div>
 
-      <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700">
+      <div className="rounded-lg border border-border p-4">
         <label className="flex items-center gap-2 text-sm font-medium">
           <input type="checkbox" className="size-4" {...register("este_iscir")} />
           Echipament sub incidența ISCIR
@@ -297,7 +297,7 @@ export function FormularEchipament({
               </select>
             </div>
 
-            <p className="text-xs text-amber-700 sm:col-span-2 dark:text-amber-400">
+            <p className="text-xs text-foreground sm:col-span-2">
               {ssmActiv
                 ? "Responsabilul trebuie să aibă o autorizație nominală valabilă pe acest tip, altfel baza va respinge salvarea — verificați-o în modulul SSM."
                 : "Autorizațiile nominale se administrează în modulul SSM; fără el, un responsabil pe echipament ISCIR se poate desemna doar prin derogare motivată."}
@@ -341,7 +341,7 @@ export function FormularEchipament({
 
       <div aria-live="polite">
         {eroare !== null ? (
-          <p className="rounded-md border border-rose-300 bg-rose-50 p-3 text-sm text-rose-800 dark:border-rose-700 dark:bg-rose-950 dark:text-rose-200">
+          <p className="rounded-md border border-danger bg-danger/8 p-3 text-sm text-danger">
             {eroare}
           </p>
         ) : null}
@@ -350,7 +350,7 @@ export function FormularEchipament({
       <button
         type="submit"
         disabled={inCurs}
-        className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
+        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
       >
         {inCurs ? "Se salvează…" : modEditare ? "Salvează modificările" : "Adaugă echipamentul"}
       </button>

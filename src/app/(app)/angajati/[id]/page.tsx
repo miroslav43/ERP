@@ -33,7 +33,7 @@ function Camp({
 }) {
   return (
     <div>
-      <dt className="text-xs tracking-wide text-zinc-500 uppercase">{eticheta}</dt>
+      <dt className="text-xs tracking-wide text-muted-foreground uppercase">{eticheta}</dt>
       <dd className="mt-0.5 text-sm">{valoare === null || valoare.length === 0 ? "—" : valoare}</dd>
     </div>
   );
@@ -67,7 +67,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">{angajat.full_name}</h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-muted-foreground">
             Marca <span className="font-mono">{angajat.marca}</span>
             {angajat.job_position !== null ? ` · ${angajat.job_position.denumire}` : ""}
             {angajat.department !== null ? ` · ${angajat.department.denumire}` : ""}
@@ -82,7 +82,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
 
       <section
         aria-labelledby="titlu-date-personale"
-        className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700"
+        className="rounded-lg border border-border p-4"
       >
         <h2 id="titlu-date-personale" className="mb-4 text-lg font-medium">
           Date personale
@@ -124,13 +124,13 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
 
       <section
         aria-labelledby="titlu-contracte"
-        className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700"
+        className="rounded-lg border border-border p-4"
       >
         <h2 id="titlu-contracte" className="mb-4 text-lg font-medium">
           Contracte
         </h2>
         {angajat.contracts.length === 0 ? (
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-muted-foreground">
             Fișa nu are încă niciun contract. Adăugați contractul individual de muncă înainte de
             transmiterea în REVISAL.
           </p>
@@ -139,21 +139,21 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
             {angajat.contracts.map((contract) => (
               <li
                 key={contract.id}
-                className="rounded-md border border-zinc-200 p-3 dark:border-zinc-700"
+                className="rounded-md border border-border p-3"
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium">Contract nr. {contract.numar}</span>
                   {contract.id === contractPrincipal?.id ? (
-                    <span className="rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-900 dark:bg-blue-900 dark:text-blue-50">
+                    <span className="rounded bg-surface px-2 py-0.5 text-xs font-medium text-foreground">
                       Contract principal
                     </span>
                   ) : null}
                   {contract.este_act_aditional ? (
-                    <span className="rounded bg-zinc-100 px-2 py-0.5 text-xs dark:bg-zinc-700">
+                    <span className="rounded bg-surface px-2 py-0.5 text-xs">
                       Act adițional
                     </span>
                   ) : null}
-                  <span className="ml-auto text-xs text-zinc-600 dark:text-zinc-300">
+                  <span className="ml-auto text-xs text-muted-foreground">
                     {ETICHETE_CONTRACT[contract.status] ?? contract.status}
                   </span>
                 </div>
@@ -186,26 +186,26 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
 
       <section
         aria-labelledby="titlu-documente"
-        className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700"
+        className="rounded-lg border border-border p-4"
       >
         <h2 id="titlu-documente" className="mb-4 text-lg font-medium">
           Documente
         </h2>
         {angajat.documents.length === 0 ? (
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-muted-foreground">
             Nu există documente încărcate pentru acest angajat.
           </p>
         ) : (
-          <ul className="divide-y divide-zinc-200 text-sm dark:divide-zinc-700">
+          <ul className="divide-y divide-border text-sm">
             {angajat.documents.map((document) => (
               <li key={document.id} className="flex flex-wrap items-center gap-3 py-2">
                 <span className="font-medium">{document.titlu}</span>
                 {document.confidential ? (
-                  <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-900 dark:bg-amber-900 dark:text-amber-50">
+                  <span className="rounded bg-warning/12 px-2 py-0.5 text-xs text-foreground">
                     Confidențial
                   </span>
                 ) : null}
-                <span className="ml-auto text-zinc-600 dark:text-zinc-300">
+                <span className="ml-auto text-muted-foreground">
                   {document.data_document === null ? "—" : formatDate(document.data_document)}
                   {document.valabil_pana !== null
                     ? ` · expiră ${formatDate(document.valabil_pana)}`

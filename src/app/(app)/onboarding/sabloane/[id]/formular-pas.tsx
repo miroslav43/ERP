@@ -94,7 +94,7 @@ export function FormularPas({ templateId, initial, onGata }: Proprietati) {
   return (
     <form
       action={trimite}
-      className="space-y-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
+      className="space-y-3 rounded-lg border border-border p-4"
     >
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1 sm:col-span-2">
@@ -108,7 +108,7 @@ export function FormularPas({ templateId, initial, onGata }: Proprietati) {
             minLength={2}
             maxLength={200}
             defaultValue={initial?.titlu}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
 
@@ -122,7 +122,7 @@ export function FormularPas({ templateId, initial, onGata }: Proprietati) {
             rows={2}
             maxLength={2000}
             defaultValue={initial?.descriere ?? ""}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
 
@@ -137,7 +137,7 @@ export function FormularPas({ templateId, initial, onGata }: Proprietati) {
             onChange={(e) => {
               setResponsabilTip(e.target.value as typeof responsabilTip);
             }}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           >
             {CHECKLIST_RESPONSABIL_TIP.map((r) => (
               <option key={r} value={r}>
@@ -156,7 +156,7 @@ export function FormularPas({ templateId, initial, onGata }: Proprietati) {
               id={id.responsabilRol}
               name="responsabil_rol"
               defaultValue={initial?.responsabil_rol ?? ""}
-              className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
             >
               <option value="">Alegeți rolul</option>
               {ROLURI_RESPONSABIL.map((r) => (
@@ -178,7 +178,7 @@ export function FormularPas({ templateId, initial, onGata }: Proprietati) {
               name="responsabil_employee_id"
               defaultValue={initial?.responsabil_employee_id ?? ""}
               placeholder="id-ul angajatului"
-              className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
             />
           </div>
         ) : null}
@@ -194,7 +194,7 @@ export function FormularPas({ templateId, initial, onGata }: Proprietati) {
             min={-365}
             max={365}
             defaultValue={initial?.termen_zile_relativ ?? 0}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
 
@@ -204,7 +204,7 @@ export function FormularPas({ templateId, initial, onGata }: Proprietati) {
             name="obligatoriu"
             type="checkbox"
             defaultChecked={initial?.obligatoriu ?? true}
-            className="size-4 rounded border-zinc-300 dark:border-zinc-700"
+            className="size-4 rounded border-foreground/60"
           />
           <label htmlFor={id.obligatoriu} className="text-sm font-medium">
             Obligatoriu
@@ -219,7 +219,7 @@ export function FormularPas({ templateId, initial, onGata }: Proprietati) {
             id={id.tipDovada}
             name="tip_dovada"
             defaultValue={initial?.tip_dovada ?? "bifa"}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           >
             {CHECKLIST_TIP_DOVADA.map((t) => (
               <option key={t} value={t}>
@@ -238,7 +238,7 @@ export function FormularPas({ templateId, initial, onGata }: Proprietati) {
             name="verificare_automata"
             defaultValue={initial?.verificare_automata ?? ""}
             aria-describedby={`${id.verificare}-ajutor`}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           >
             <option value="">Fără</option>
             {CHECKLIST_VERIFICARE.map((v) => (
@@ -247,7 +247,7 @@ export function FormularPas({ templateId, initial, onGata }: Proprietati) {
               </option>
             ))}
           </select>
-          <p id={`${id.verificare}-ajutor`} className="text-xs text-zinc-500 dark:text-zinc-400">
+          <p id={`${id.verificare}-ajutor`} className="text-xs text-muted-foreground">
             Cere pasul obligatoriu și cu dovadă de tip „bifă”; se bifează singur, de sistem.
           </p>
         </div>
@@ -257,7 +257,7 @@ export function FormularPas({ templateId, initial, onGata }: Proprietati) {
         <button
           type="submit"
           disabled={inCurs}
-          className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
           {inCurs ? "Se salvează…" : initial === undefined ? "Adaugă pasul" : "Salvează pasul"}
         </button>
@@ -265,13 +265,13 @@ export function FormularPas({ templateId, initial, onGata }: Proprietati) {
           <button
             type="button"
             onClick={onGata}
-            className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-4 py-2 text-sm font-medium hover:bg-surface"
           >
             Renunță
           </button>
         )}
         {eroare === null ? null : (
-          <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+          <p role="alert" className="text-sm text-danger">
             {eroare}
           </p>
         )}

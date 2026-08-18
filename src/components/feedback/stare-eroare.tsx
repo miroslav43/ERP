@@ -27,7 +27,7 @@ export function StareEroare({ titlu, eroare, reincearca }: Props) {
       <button
         type="button"
         onClick={reincearca}
-        className="bg-primary text-primary-foreground hover:bg-primary-hover focus-visible:ring-ring mt-4 inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-medium focus-visible:ring-2 focus-visible:outline-none"
+        className="bg-primary text-primary-foreground hover:bg-primary-hover mt-4 inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-medium"
       >
         <RotateCcw aria-hidden="true" className="h-4 w-4" />
         Reîncearcă

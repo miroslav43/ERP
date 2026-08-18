@@ -19,7 +19,7 @@ type Props = Readonly<{
 }>;
 
 const clasaLink =
-  "inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-foreground hover:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-foreground hover:bg-surface focus:  ";
 
 const href = (cale: string, interogare: string): string =>
   interogare === "" ? cale : `${cale}?${interogare}`;

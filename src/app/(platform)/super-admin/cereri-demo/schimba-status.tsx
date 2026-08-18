@@ -46,7 +46,7 @@ export function SchimbaStatus({
           value={selectat}
           disabled={inCurs}
           onChange={(eveniment) => setSelectat(eveniment.target.value as StatusCerere)}
-          className="border-border bg-background focus-visible:ring-ring mt-1.5 rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none"
+          className="border-border bg-background mt-1.5 rounded-md border px-3 py-2 text-sm"
         >
           {STATUSURI_CERERE.map((status) => (
             <option key={status} value={status}>
@@ -60,7 +60,7 @@ export function SchimbaStatus({
         type="button"
         onClick={salveaza}
         disabled={inCurs || selectat === statusCurent}
-        className="border-border hover:border-primary focus-visible:ring-ring inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+        className="border-border hover:border-primary inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
       >
         {inCurs ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
         {inCurs ? "Se salvează…" : "Salvează statusul"}

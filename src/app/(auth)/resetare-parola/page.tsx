@@ -54,7 +54,7 @@ export default async function PaginaResetareParola({ searchParams }: Props) {
             type="email"
             autoComplete="username"
             required
-            className="border-border bg-background focus:border-ring w-full rounded-md border px-3 py-2 text-sm outline-none"
+            className="border-border bg-background focus:border-ring w-full rounded-md border px-3 py-2 text-sm"
           />
         </div>
         <button

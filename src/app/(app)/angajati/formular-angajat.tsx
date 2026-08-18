@@ -35,7 +35,7 @@ interface ValoriFormular {
 }
 
 const CLASA_CAMP =
-  "mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus-visible:outline-2 dark:border-zinc-600 dark:bg-zinc-900";
+  "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
 
 export function FormularAngajat({ departamente, functii }: Proprietati) {
   const router = useRouter();
@@ -90,7 +90,7 @@ export function FormularAngajat({ departamente, functii }: Proprietati) {
               )}
             />
             {formState.errors[nume] !== undefined ? (
-              <p className="mt-1 text-xs text-rose-700 dark:text-rose-300">
+              <p className="mt-1 text-xs text-danger">
                 {formState.errors[nume]?.message}
               </p>
             ) : null}
@@ -141,7 +141,7 @@ export function FormularAngajat({ departamente, functii }: Proprietati) {
 
       <div aria-live="polite">
         {eroare !== null ? (
-          <p className="rounded-md border border-rose-300 bg-rose-50 p-3 text-sm text-rose-800 dark:border-rose-700 dark:bg-rose-950 dark:text-rose-200">
+          <p className="rounded-md border border-danger bg-danger/8 p-3 text-sm text-danger">
             {eroare}
           </p>
         ) : null}
@@ -150,7 +150,7 @@ export function FormularAngajat({ departamente, functii }: Proprietati) {
       <button
         type="submit"
         disabled={inCurs}
-        className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
+        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
       >
         {inCurs ? "Se salvează…" : "Salvează fișa"}
       </button>

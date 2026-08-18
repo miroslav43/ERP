@@ -50,9 +50,9 @@ const ETICHETE_EVENIMENT: Readonly<Record<string, string>> = {
 
 function TabelTipuri({ randuri }: { readonly randuri: readonly RandSold[] }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
+    <div className="overflow-x-auto rounded-lg border border-border">
       <table className="w-full text-left text-sm">
-        <thead className="bg-zinc-50 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+        <thead className="bg-surface text-foreground">
           <tr>
             <th scope="col" className="px-4 py-2 font-medium">
               Tip de concediu
@@ -74,7 +74,7 @@ function TabelTipuri({ randuri }: { readonly randuri: readonly RandSold[] }) {
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
+        <tbody className="divide-y divide-border">
           {randuri.map(({ tip, sold }) => (
             <tr key={tip.id}>
               <td className="px-4 py-2">
@@ -163,7 +163,7 @@ export default async function PaginaSoldConcediu({ searchParams }: ProprietatiPa
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Soldul de concediu</h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-muted-foreground">
             {scope === "own"
               ? "Soldul dumneavoastră de zile de concediu, pe tip."
               : "Soldul de zile de concediu al angajaților vizibili pentru dvs., pe tip."}
@@ -192,13 +192,13 @@ export default async function PaginaSoldConcediu({ searchParams }: ProprietatiPa
 
       <section
         aria-labelledby="titlu-istoric"
-        className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-700"
+        className="rounded-lg border border-border p-4"
       >
         <h2 id="titlu-istoric" className="mb-4 text-lg font-medium">
           Istoricul soldului {String(an)}
         </h2>
         {istoric.length === 0 ? (
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-muted-foreground">
             {scope === "all" || fisaProprie !== null
               ? "Fără mișcări de sold înregistrate în acest an."
               : "Istoricul detaliat este vizibil doar pentru soldul propriu sau pentru rolurile cu citire extinsă asupra concediilor."}
@@ -223,7 +223,7 @@ async function SectiuniPeAngajat({
   const grupuri = grupeazaSoldDupaAngajat(solduri);
   if (grupuri.size === 0) {
     return (
-      <p className="text-sm text-zinc-600 dark:text-zinc-300">
+      <p className="text-sm text-muted-foreground">
         Nu există încă niciun rând de sold pentru anul acesta, pentru angajații vizibili
         dumneavoastră.
       </p>
@@ -267,9 +267,9 @@ function IstoricTabel({
 }) {
   const hartaTipuri = new Map(tipuri.map((t) => [t.id, t]));
   return (
-    <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
+    <div className="overflow-x-auto rounded-lg border border-border">
       <table className="w-full text-left text-sm">
-        <thead className="bg-zinc-50 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+        <thead className="bg-surface text-foreground">
           <tr>
             <th scope="col" className="px-4 py-2 font-medium">
               Data
@@ -291,7 +291,7 @@ function IstoricTabel({
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-zinc-200 dark:divide-zinc-700">
+        <tbody className="divide-y divide-border">
           {randuri.map((rand, index) => (
             // Rândurile append-only nu au `id` în select (plan de interogare) — indexul e stabil pentru o listă needitabilă.
             <tr key={index}>
@@ -299,7 +299,7 @@ function IstoricTabel({
               <td className="px-4 py-2">{hartaTipuri.get(rand.leave_type_id)?.denumire ?? "—"}</td>
               <td className="px-4 py-2">{ETICHETE_EVENIMENT[rand.eveniment] ?? rand.eveniment}</td>
               <td
-                className={`px-4 py-2 tabular-nums ${rand.delta < 0 ? "text-rose-700 dark:text-rose-300" : ""}`}
+                className={`px-4 py-2 tabular-nums ${rand.delta < 0 ? "text-danger" : ""}`}
               >
                 {rand.delta > 0 ? "+" : ""}
                 {formatAmount(rand.delta)}

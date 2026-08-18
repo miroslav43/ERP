@@ -109,7 +109,7 @@ export function FormularSesizare({
         </label>
 
         {echipamentSelectat !== null ? (
-          <div className="flex items-center justify-between rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600">
+          <div className="flex items-center justify-between rounded-md border border-foreground/60 px-3 py-2 text-sm">
             <span>
               <strong>{echipamentSelectat.cod}</strong> — {echipamentSelectat.denumire}
               {echipamentSelectat.locatie !== null ? ` · ${echipamentSelectat.locatie}` : ""}
@@ -120,7 +120,7 @@ export function FormularSesizare({
                 setEchipamentSelectat(null);
                 setInterogare("");
               }}
-              className="text-xs text-blue-700 underline-offset-2 hover:underline dark:text-blue-400"
+              className="text-xs text-primary underline-offset-2 hover:underline"
             >
               Schimbă
             </button>
@@ -136,14 +136,14 @@ export function FormularSesizare({
               }}
               placeholder="Căutați după cod sau denumire (minimum 2 caractere)"
               autoComplete="off"
-              className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-900"
+              className="w-full rounded-md border border-foreground/60 px-3 py-2 text-sm"
             />
-            {inCautare ? <p className="mt-1 text-xs text-zinc-500">Se caută…</p> : null}
+            {inCautare ? <p className="mt-1 text-xs text-muted-foreground">Se caută…</p> : null}
             {rezultate.length > 0 ? (
               <ul
                 role="listbox"
                 aria-label="Rezultate căutare echipament"
-                className="absolute z-10 mt-1 w-full rounded-md border border-zinc-300 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
+                className="absolute z-10 mt-1 w-full rounded-md border border-foreground/60 bg-background shadow-lg"
               >
                 {rezultate.map((echipament) => (
                   <li key={echipament.id}>
@@ -155,11 +155,11 @@ export function FormularSesizare({
                         setEchipamentSelectat(echipament);
                         setRezultate([]);
                       }}
-                      className="block w-full px-3 py-2 text-left text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                      className="block w-full px-3 py-2 text-left text-sm hover:bg-surface"
                     >
                       <strong>{echipament.cod}</strong> — {echipament.denumire}
                       {echipament.locatie !== null ? (
-                        <span className="text-zinc-500"> · {echipament.locatie}</span>
+                        <span className="text-muted-foreground"> · {echipament.locatie}</span>
                       ) : null}
                     </button>
                   </li>
@@ -184,7 +184,7 @@ export function FormularSesizare({
             setDescriere(eveniment.target.value);
           }}
           placeholder="Descrieți ce ați observat: zgomot, scurgere, oprire neașteptată etc."
-          className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-900"
+          className="mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
 
@@ -199,7 +199,7 @@ export function FormularSesizare({
             onChange={(eveniment) => {
               setUrgenta(eveniment.target.value as (typeof URGENTE_SESIZARE)[number]);
             }}
-            className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-900"
+            className="mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm"
           >
             {URGENTE_SESIZARE.map((u) => (
               <option key={u} value={u}>
@@ -227,7 +227,7 @@ export function FormularSesizare({
 
       <div aria-live="polite">
         {eroare !== null ? (
-          <p className="rounded-md border border-rose-300 bg-rose-50 p-3 text-sm text-rose-800 dark:border-rose-700 dark:bg-rose-950 dark:text-rose-200">
+          <p className="rounded-md border border-danger bg-danger/8 p-3 text-sm text-danger">
             {eroare}
           </p>
         ) : null}
@@ -236,7 +236,7 @@ export function FormularSesizare({
       <button
         type="submit"
         disabled={inCurs}
-        className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
+        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
       >
         {inCurs ? "Se trimite…" : "Trimite sesizarea"}
       </button>

@@ -25,7 +25,7 @@ const VALORI_INITIALE: CereDemoInput = {
 };
 
 const CLASA_CAMP =
-  "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+  "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground transition-colors   ";
 
 export function FormularDemo() {
   const idFormular = useId();
@@ -76,7 +76,7 @@ export function FormularDemo() {
         </p>
         <Link
           href="/"
-          className="border-border hover:border-primary focus-visible:ring-ring mt-6 inline-flex rounded-md border px-4 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none"
+          className="border-border hover:border-primary mt-6 inline-flex rounded-md border px-4 py-2 text-sm font-medium transition-colors"
         >
           Înapoi la pagina principală
         </Link>
@@ -227,7 +227,7 @@ export function FormularDemo() {
       <button
         type="submit"
         disabled={inCurs}
-        className="bg-primary text-primary-foreground hover:bg-primary-hover focus-visible:ring-ring inline-flex w-full items-center justify-center gap-2 rounded-md px-6 py-3 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+        className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex w-full items-center justify-center gap-2 rounded-md px-6 py-3 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground sm:w-auto"
       >
         {inCurs ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
         {inCurs ? "Se trimite…" : "Trimite cererea"}

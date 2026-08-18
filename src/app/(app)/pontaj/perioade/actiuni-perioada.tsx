@@ -66,20 +66,20 @@ export function ActiuniPerioada({ an, luna, periodId, status, poateDeschide, poa
   }
 
   if (periodId === null) {
-    if (!poateDeschide) return <span className="text-xs text-zinc-500">—</span>;
+    if (!poateDeschide) return <span className="text-xs text-muted-foreground">—</span>;
     return (
       <div className="space-y-1">
         <button
           type="button"
           onClick={deschide}
           disabled={inCurs}
-          className="inline-flex items-center gap-1.5 rounded-md border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-700 dark:hover:bg-zinc-900"
+          className="inline-flex items-center gap-1.5 rounded-md border border-foreground/60 px-3 py-1.5 text-sm hover:bg-surface disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
           <PlusCircle aria-hidden="true" className="size-4" />
           {inCurs ? "Se deschide…" : "Deschide luna"}
         </button>
         {eroare === null ? null : (
-          <p role="alert" className="max-w-xs text-xs text-rose-700 dark:text-rose-300">
+          <p role="alert" className="max-w-xs text-xs text-danger">
             {eroare}
           </p>
         )}
@@ -100,7 +100,7 @@ export function ActiuniPerioada({ an, luna, periodId, status, poateDeschide, poa
           type="button"
           onClick={blocheaza}
           disabled={inCurs}
-          className="inline-flex items-center gap-1.5 rounded-md border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-700 dark:hover:bg-zinc-900"
+          className="inline-flex items-center gap-1.5 rounded-md border border-foreground/60 px-3 py-1.5 text-sm hover:bg-surface disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
           <Lock aria-hidden="true" className="size-4" />
           {inCurs ? "Se blochează…" : "Blochează"}
@@ -111,14 +111,14 @@ export function ActiuniPerioada({ an, luna, periodId, status, poateDeschide, poa
           type="button"
           onClick={redeschide}
           disabled={inCurs}
-          className="inline-flex items-center gap-1.5 rounded-md border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-700 dark:hover:bg-zinc-900"
+          className="inline-flex items-center gap-1.5 rounded-md border border-foreground/60 px-3 py-1.5 text-sm hover:bg-surface disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
           <LockOpen aria-hidden="true" className="size-4" />
           {inCurs ? "Se redeschide…" : "Redeschide"}
         </button>
       ) : null}
       {eroare === null ? null : (
-        <p role="alert" className="w-full text-xs text-rose-700 dark:text-rose-300">
+        <p role="alert" className="w-full text-xs text-danger">
           {eroare}
         </p>
       )}

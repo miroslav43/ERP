@@ -34,21 +34,21 @@ export function Etape({
   return (
     <div className="space-y-6">
       {etape.length === 0 ? (
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="text-sm text-muted-foreground">
           Deplasarea nu are încă nicio etapă înregistrată — calculul de mai jos folosește o
           singură țară, cea a deplasării.
         </p>
       ) : (
         <ol className="space-y-2 text-sm">
           {etape.map((e) => (
-            <li key={e.id} className="rounded-md border border-zinc-200 p-3 dark:border-zinc-700">
+            <li key={e.id} className="rounded-md border border-border p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-medium">
                   {numeTara(tari, e.from_country_id)} → {numeTara(tari, e.to_country_id)}
                 </span>
-                <span className="text-xs text-zinc-500">Etapa {e.ordine}</span>
+                <span className="text-xs text-muted-foreground">Etapa {e.ordine}</span>
               </div>
-              <p className="text-zinc-600 dark:text-zinc-300">
+              <p className="text-muted-foreground">
                 {formatDateTime(new Date(e.plecare_la))} – {formatDateTime(new Date(e.sosire_la))}
                 {e.localitate_sosire === null ? "" : ` · ${e.localitate_sosire}`}
               </p>
@@ -58,7 +58,7 @@ export function Etape({
       )}
 
       {politica === null ? (
-        <p className="text-sm text-amber-800 dark:text-amber-200">
+        <p className="text-sm text-foreground">
           Nu există o politică de diurnă valabilă la data plecării — calculul nu poate fi afișat.
         </p>
       ) : (
@@ -97,7 +97,7 @@ function CalculDiurna({
 
   if (ferestre.length === 0) {
     return (
-      <p className="text-sm text-zinc-700 dark:text-zinc-200">
+      <p className="text-sm text-foreground">
         <strong>0 zile de diurnă</strong> — deplasarea a durat {formatAmount(durataOre)} ore, sub
         pragul de {formatAmount(politica.prag_ore_minim)} ore din politică.
       </p>
@@ -106,10 +106,10 @@ function CalculDiurna({
 
   return (
     <div className="space-y-3">
-      <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+      <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-sm">
           <caption className="sr-only">Ferestrele de 24 de ore ale diurnei și fracțiunea acordată fiecăreia.</caption>
-          <thead className="bg-zinc-50 text-left dark:bg-zinc-900">
+          <thead className="bg-surface text-left">
             <tr>
               <th scope="col" className="px-3 py-2 font-medium">#</th>
               <th scope="col" className="px-3 py-2 font-medium">Interval</th>
@@ -118,7 +118,7 @@ function CalculDiurna({
               <th scope="col" className="px-3 py-2 font-medium">Motiv</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+          <tbody className="divide-y divide-border">
             {ferestre.map((f) => (
               <tr key={f.numarFereastra}>
                 <td className="px-3 py-2 tabular-nums">{f.numarFereastra}</td>
@@ -127,32 +127,32 @@ function CalculDiurna({
                 </td>
                 <td className="px-3 py-2">{numeTara(tari, f.taraId)}</td>
                 <td className="px-3 py-2 tabular-nums">{formatAmount(f.fractiune)}</td>
-                <td className="px-3 py-2 text-zinc-600 dark:text-zinc-300">{f.motiv}</td>
+                <td className="px-3 py-2 text-muted-foreground">{f.motiv}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      <dl className="grid grid-cols-2 gap-4 rounded-lg border border-zinc-200 p-4 sm:grid-cols-4 dark:border-zinc-800">
+      <dl className="grid grid-cols-2 gap-4 rounded-lg border border-border p-4 sm:grid-cols-4">
         <div>
-          <dt className="text-xs tracking-wide text-zinc-500 uppercase">Zile total</dt>
+          <dt className="text-xs tracking-wide text-muted-foreground uppercase">Zile total</dt>
           <dd className="mt-0.5 text-sm font-medium">{formatAmount(rezultat.zileTotal)}</dd>
         </div>
         <div>
-          <dt className="text-xs tracking-wide text-zinc-500 uppercase">Valoare</dt>
+          <dt className="text-xs tracking-wide text-muted-foreground uppercase">Valoare</dt>
           <dd className="mt-0.5 text-sm font-medium">
             {rezultat.valoareLei === null ? "necunoscută" : formatLei(rezultat.valoareLei)}
           </dd>
         </div>
         <div>
-          <dt className="text-xs tracking-wide text-zinc-500 uppercase">Neimpozabil</dt>
+          <dt className="text-xs tracking-wide text-muted-foreground uppercase">Neimpozabil</dt>
           <dd className="mt-0.5 text-sm font-medium">
             {rezultat.parteNeimpozabilaLei === null ? "—" : formatLei(rezultat.parteNeimpozabilaLei)}
           </dd>
         </div>
         <div>
-          <dt className="text-xs tracking-wide text-zinc-500 uppercase">Impozabil</dt>
+          <dt className="text-xs tracking-wide text-muted-foreground uppercase">Impozabil</dt>
           <dd className="mt-0.5 text-sm font-medium">
             {rezultat.parteImpozabilaLei === null ? "—" : formatLei(rezultat.parteImpozabilaLei)}
           </dd>
@@ -160,12 +160,12 @@ function CalculDiurna({
       </dl>
 
       {rezultat.baremLipsa ? (
-        <p className="text-sm text-amber-800 dark:text-amber-200">
+        <p className="text-sm text-foreground">
           Lipsește baremul de diurnă pentru cel puțin o țară din traseu, la data respectivă —
           sumele nu pot fi calculate integral.
         </p>
       ) : rezultat.cursIncomplet ? (
-        <p className="text-sm text-amber-800 dark:text-amber-200">
+        <p className="text-sm text-foreground">
           Zilele sunt calculate; suma în lei necesită cursul valutar (curs diurnă).
         </p>
       ) : null}

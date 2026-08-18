@@ -85,8 +85,8 @@ async function ContinutAprobare({
       />
 
       {poateBloca ? (
-        <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
-          <p className="mb-2 text-sm text-zinc-600 dark:text-zinc-300">
+        <div className="rounded-lg border border-border p-4">
+          <p className="mb-2 text-sm text-muted-foreground">
             Blocarea perioadei este aprobarea finală: oprește orice scriere ulterioară asupra
             lunii, inclusiv corecțiile manuale.
           </p>
@@ -108,10 +108,10 @@ async function ContinutAprobare({
           description="Toate liniile de pontaj ale acestei luni au fost deja aprobate."
         />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+        <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-sm">
             <caption className="sr-only">Angajații cu linii de pontaj neaprobate.</caption>
-            <thead className="bg-zinc-50 text-left dark:bg-zinc-900">
+            <thead className="bg-surface text-left">
               <tr>
                 <th scope="col" className="px-4 py-3 font-medium">
                   Angajat
@@ -124,7 +124,7 @@ async function ContinutAprobare({
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+            <tbody className="divide-y divide-border">
               {[...perAngajat.entries()].map(([id, rand]) => (
                 <tr key={id}>
                   <td className="px-4 py-3">{rand.nume}</td>
@@ -166,7 +166,7 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
     <main className="space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">Aprobare pontaj</h1>
-        <p className="max-w-3xl text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="max-w-3xl text-sm text-muted-foreground">
           Aprobarea în bloc pentru {formatMonthYear(an, filtre.luna)}.
         </p>
       </header>
@@ -174,7 +174,7 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
       <NavPontaj poateAproba={true} />
 
       {listaDepartamente.length === 0 ? null : (
-        <form className="flex flex-wrap items-end gap-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+        <form className="flex flex-wrap items-end gap-3 rounded-lg border border-border p-4">
           {/* Formular GET simplu, fără JavaScript: fără câmp explicit, `an` s-ar
               pierde din query string la reîncărcare. */}
           <input type="hidden" name="an" value={an} />
@@ -189,7 +189,7 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
               min={1}
               max={12}
               defaultValue={filtre.luna}
-              className="w-20 rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="w-20 rounded-md border border-foreground/60 px-3 py-2 text-sm"
             />
           </div>
           <div className="flex flex-col gap-1">
@@ -200,7 +200,7 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
               id="departament"
               name="departament"
               defaultValue={filtre.departament ?? ""}
-              className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+              className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
             >
               <option value="">Toate</option>
               {listaDepartamente.map((d) => (
@@ -212,7 +212,7 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
           </div>
           <button
             type="submit"
-            className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-4 py-2 text-sm font-medium hover:bg-surface"
           >
             Filtrează
           </button>

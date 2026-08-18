@@ -38,7 +38,7 @@ export default async function PaginaSesizareNoua({ searchParams }: ProprietatiPa
     <main className="mx-auto w-full max-w-2xl space-y-6 p-6">
       <div>
         <h1 className="text-2xl font-semibold">Sesizare nouă</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="text-sm text-muted-foreground">
           Raportați o defecțiune. Căutați echipamentul după cod sau denumire — durează un minut.
         </p>
       </div>

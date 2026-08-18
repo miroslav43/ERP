@@ -72,7 +72,7 @@ export function AprobareBloc({
   }
 
   return (
-    <div className="space-y-4 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+    <div className="space-y-4 rounded-lg border border-border p-4">
       <div className="space-y-2">
         <label htmlFor={idObservatii} className="block text-sm font-medium">
           Observații lot (opțional)
@@ -85,13 +85,13 @@ export function AprobareBloc({
           onChange={(e) => {
             setObservatii(e.target.value);
           }}
-          className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-900"
+          className="w-full rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
         <button
           type="button"
           onClick={aproba}
           disabled={inCursAprobare || numarLiniiNeaprobate === 0}
-          className="inline-flex items-center gap-2 rounded-md bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
           <CheckCheck aria-hidden="true" className="size-4" />
           {inCursAprobare
@@ -99,15 +99,15 @@ export function AprobareBloc({
             : `Aprobă în bloc (${String(numarLiniiNeaprobate)} linii)`}
         </button>
         {eroareAprobare === null ? null : (
-          <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">
+          <p role="alert" className="text-sm text-danger">
             {eroareAprobare}
           </p>
         )}
       </div>
 
       {poateSincroniza ? (
-        <div className="space-y-2 border-t border-zinc-200 pt-4 dark:border-zinc-800">
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        <div className="space-y-2 border-t border-border pt-4">
+          <p className="text-sm text-muted-foreground">
             Completează automat zilele de concediu aprobat lipsă din foaie, fără să atingă vreo
             zi introdusă manual.
           </p>
@@ -115,18 +115,18 @@ export function AprobareBloc({
             type="button"
             onClick={sincronizeaza}
             disabled={inCursSincronizare}
-            className="inline-flex items-center gap-2 rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            className="inline-flex items-center gap-2 rounded-md border border-foreground/60 px-4 py-2 text-sm font-medium hover:bg-surface disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
           >
             <RefreshCw aria-hidden="true" className="size-4" />
             {inCursSincronizare ? "Se sincronizează…" : "Sincronizează cu concediile aprobate"}
           </button>
           <div aria-live="polite">
             {eroareSincronizare !== null ? (
-              <p role="alert" className="text-sm text-rose-700 dark:text-rose-300">
+              <p role="alert" className="text-sm text-danger">
                 {eroareSincronizare}
               </p>
             ) : rezultatSincronizare !== null ? (
-              <p className="text-sm text-zinc-600 dark:text-zinc-300">{rezultatSincronizare}</p>
+              <p className="text-sm text-muted-foreground">{rezultatSincronizare}</p>
             ) : null}
           </div>
         </div>

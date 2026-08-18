@@ -66,7 +66,7 @@ export function FormularAccident({ angajati }: { readonly angajati: readonly Ang
             id={id.numar}
             name="numar_intern"
             maxLength={64}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
 
@@ -78,7 +78,7 @@ export function FormularAccident({ angajati }: { readonly angajati: readonly Ang
             id={id.angajat}
             name="employee_id"
             defaultValue=""
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           >
             <option value="">—</option>
             {angajati.map((a) => (
@@ -98,7 +98,7 @@ export function FormularAccident({ angajati }: { readonly angajati: readonly Ang
             name="data_producerii"
             type="date"
             required
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
 
@@ -110,7 +110,7 @@ export function FormularAccident({ angajati }: { readonly angajati: readonly Ang
             id={id.ora}
             name="ora_producerii"
             type="time"
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
 
@@ -122,7 +122,7 @@ export function FormularAccident({ angajati }: { readonly angajati: readonly Ang
             id={id.tip}
             name="tip"
             defaultValue="usor"
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           >
             {TIPURI_ACCIDENT.map((t) => (
               <option key={t} value={t}>
@@ -142,7 +142,7 @@ export function FormularAccident({ angajati }: { readonly angajati: readonly Ang
             type="number"
             min={0}
             defaultValue={0}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
 
@@ -155,7 +155,7 @@ export function FormularAccident({ angajati }: { readonly angajati: readonly Ang
             name="locul"
             required
             maxLength={200}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
 
@@ -169,7 +169,7 @@ export function FormularAccident({ angajati }: { readonly angajati: readonly Ang
             required
             rows={4}
             maxLength={4000}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
       </div>
@@ -178,12 +178,12 @@ export function FormularAccident({ angajati }: { readonly angajati: readonly Ang
         <button
           type="submit"
           disabled={inCurs}
-          className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
           {inCurs ? "Se salvează…" : "Înregistrează accidentul"}
         </button>
         {eroare === null ? null : (
-          <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+          <p role="alert" className="text-sm text-danger">
             {eroare}
           </p>
         )}

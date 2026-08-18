@@ -89,7 +89,7 @@ export default async function PaginaCerereNoua() {
     <main className="space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">Cerere de concediu nouă</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="text-sm text-muted-foreground">
           Previzualizarea zilelor consumate se calculează pe măsură ce completați formularul; soldul
           se verifică din nou, exact, la trimitere.
         </p>
@@ -98,7 +98,7 @@ export default async function PaginaCerereNoua() {
       <NavConcedii poateAproba={poateAproba} poateVedeaCalendar={poateVedeaCalendar} />
 
       {tipuri === null || tipuri.length === 0 ? (
-        <p className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100">
+        <p className="rounded-lg border border-warning/40 bg-warning/12 p-4 text-sm text-foreground">
           Organizația nu are niciun tip de concediu activ configurat. Contactați administratorul.
         </p>
       ) : (

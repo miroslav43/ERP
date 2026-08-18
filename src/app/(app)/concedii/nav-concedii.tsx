@@ -40,7 +40,7 @@ export function NavConcedii({ poateAproba, poateVedeaCalendar }: Proprietati) {
   return (
     <nav
       aria-label="Navigare concedii"
-      className="flex flex-wrap gap-1 border-b border-zinc-200 dark:border-zinc-700"
+      className="flex flex-wrap gap-1 border-b border-border"
     >
       {file.map((fila) => {
         const activ = esteActiv(cale, fila.href);
@@ -49,10 +49,10 @@ export function NavConcedii({ poateAproba, poateVedeaCalendar }: Proprietati) {
             key={fila.href}
             href={fila.href}
             aria-current={activ ? "page" : undefined}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 ${
+            className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium   ${
               activ
-                ? "border-blue-700 text-blue-700 dark:border-blue-400 dark:text-blue-300"
-                : "border-transparent text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-50"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
             {fila.eticheta}

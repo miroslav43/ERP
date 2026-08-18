@@ -55,7 +55,7 @@ export function PasChecklist({ pasi, idPasuriBifabile }: Proprietati) {
   return (
     <ol className="space-y-3">
       {pasi.map((pas) => (
-        <li key={pas.id} className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+        <li key={pas.id} className="rounded-lg border border-border p-4">
           <PasRand pas={pas} poateBifa={bifabile.has(pas.id)} />
         </li>
       ))}
@@ -114,13 +114,13 @@ function PasRand({ pas, poateBifa }: { readonly pas: PasAfisat; readonly poateBi
           <p className="font-medium">
             {pas.ordine}. {pas.titlu}
             {pas.obligatoriu ? (
-              <span className="ml-1 text-xs text-zinc-500">(obligatoriu)</span>
+              <span className="ml-1 text-xs text-muted-foreground">(obligatoriu)</span>
             ) : null}
           </p>
           {pas.descriere === null ? null : (
-            <p className="mt-0.5 text-sm text-zinc-600 dark:text-zinc-300">{pas.descriere}</p>
+            <p className="mt-0.5 text-sm text-muted-foreground">{pas.descriere}</p>
           )}
-          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="mt-1 text-xs text-muted-foreground">
             Responsabil: {responsabilText(pas)}
             {pas.termen === null ? "" : ` · Termen: ${formatDate(pas.termen)}`}
           </p>
@@ -131,16 +131,16 @@ function PasRand({ pas, poateBifa }: { readonly pas: PasAfisat; readonly poateBi
       </div>
 
       {pas.verificare_automata !== null ? (
-        <p className="rounded-md bg-zinc-50 p-2 text-xs text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
+        <p className="rounded-md bg-surface p-2 text-xs text-muted-foreground">
           Se bifează automat de sistem, pe baza altui modul.
           {pas.observatii === null ? "" : ` ${pas.observatii}`}
         </p>
       ) : !poateBifa ? (
         pas.observatii === null ? null : (
-          <p className="text-xs text-zinc-600 dark:text-zinc-400">Observații: {pas.observatii}</p>
+          <p className="text-xs text-muted-foreground">Observații: {pas.observatii}</p>
         )
       ) : (
-        <form action={salveaza} className="space-y-2 rounded-md bg-zinc-50 p-3 dark:bg-zinc-900">
+        <form action={salveaza} className="space-y-2 rounded-md bg-surface p-3">
           <div className="flex flex-wrap items-end gap-2">
             <div className="flex flex-col gap-1">
               <label htmlFor={idStatus} className="text-xs font-medium">
@@ -153,7 +153,7 @@ function PasRand({ pas, poateBifa }: { readonly pas: PasAfisat; readonly poateBi
                 onChange={(e) => {
                   setStatus(e.target.value as ChecklistItemStatus);
                 }}
-                className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+                className="rounded-md border border-foreground/60 px-2 py-1.5 text-sm"
               >
                 {CHECKLIST_ITEM_STATUS.map((s) => (
                   <option key={s} value={s}>
@@ -173,7 +173,7 @@ function PasRand({ pas, poateBifa }: { readonly pas: PasAfisat; readonly poateBi
                   name="dovada_document_id"
                   defaultValue={pas.dovada_document_id ?? ""}
                   placeholder="id-ul documentului"
-                  className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+                  className="rounded-md border border-foreground/60 px-2 py-1.5 text-sm"
                 />
               </div>
             ) : null}
@@ -188,7 +188,7 @@ function PasRand({ pas, poateBifa }: { readonly pas: PasAfisat; readonly poateBi
                   name="dovada"
                   defaultValue={pas.dovada ?? ""}
                   placeholder="numele semnatarului"
-                  className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+                  className="rounded-md border border-foreground/60 px-2 py-1.5 text-sm"
                 />
               </div>
             ) : null}
@@ -196,7 +196,7 @@ function PasRand({ pas, poateBifa }: { readonly pas: PasAfisat; readonly poateBi
             <button
               type="submit"
               disabled={inCurs}
-              className="rounded-md bg-blue-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
+              className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
             >
               {inCurs ? "Se salvează…" : "Salvează"}
             </button>
@@ -211,12 +211,12 @@ function PasRand({ pas, poateBifa }: { readonly pas: PasAfisat; readonly poateBi
               name="observatii"
               defaultValue={pas.observatii ?? ""}
               maxLength={1000}
-              className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+              className="rounded-md border border-foreground/60 px-2 py-1.5 text-sm"
             />
           </div>
 
           {eroare === null ? null : (
-            <p role="alert" className="text-xs text-red-700 dark:text-red-400">
+            <p role="alert" className="text-xs text-danger">
               {eroare}
             </p>
           )}
@@ -224,7 +224,7 @@ function PasRand({ pas, poateBifa }: { readonly pas: PasAfisat; readonly poateBi
       )}
 
       {pas.bifat_la === null ? null : (
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+        <p className="text-xs text-muted-foreground">
           Bifat {pas.bifat_automat ? "automat" : ""} la {formatDateTime(pas.bifat_la)}.
         </p>
       )}

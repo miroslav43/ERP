@@ -48,13 +48,13 @@ export default async function PaginaInstantaNoua() {
   return (
     <main className="mx-auto w-full max-w-2xl space-y-6 p-6">
       <header>
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="text-sm text-muted-foreground">
           <Link href="/onboarding" className="underline-offset-2 hover:underline">
             Onboarding
           </Link>
         </p>
         <h1 className="text-2xl font-semibold">Instanță de checklist nouă</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="text-sm text-muted-foreground">
           Pașii se copiază automat din șablon la salvare, pe baza datei de referință alese.
         </p>
       </header>

@@ -18,7 +18,7 @@ interface Angajat {
 }
 
 const CLASA_CAMP =
-  "mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus-visible:outline-2 dark:border-zinc-600 dark:bg-zinc-900";
+  "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
 
 export function FormularDeplasare({
   tari,
@@ -264,7 +264,7 @@ export function FormularDeplasare({
                 }}
                 className={CLASA_CAMP}
               />
-              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Fără curs, zilele se văd, dar suma în lei rămâne necunoscută.
               </p>
             </div>
@@ -395,7 +395,7 @@ export function FormularDeplasare({
 
         <div aria-live="polite">
           {eroare !== null ? (
-            <p className="rounded-md border border-rose-300 bg-rose-50 p-3 text-sm text-rose-800 dark:border-rose-700 dark:bg-rose-950 dark:text-rose-200">
+            <p className="rounded-md border border-danger bg-danger/8 p-3 text-sm text-danger">
               {eroare}
             </p>
           ) : null}
@@ -405,11 +405,11 @@ export function FormularDeplasare({
           type="button"
           disabled={inCurs}
           onClick={trimite}
-          className="rounded-md bg-blue-700 px-4 py-2 text-sm font-medium text-white hover:bg-blue-800 disabled:opacity-60"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
           {inCurs ? "Se salvează…" : "Salvează ciorna"}
         </button>
-        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+        <p className="text-xs text-muted-foreground">
           Deplasarea se salvează ca ciornă; traseul pe etape și trimiterea spre aprobare se fac pe
           fișa deplasării, după salvare.
         </p>
@@ -417,7 +417,7 @@ export function FormularDeplasare({
 
       <aside
         aria-live="polite"
-        className="h-fit rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800"
+        className="h-fit rounded-lg border border-border bg-surface p-4"
       >
         <h2 className="mb-2 text-sm font-semibold">Previzualizare diurnă</h2>
         <PrevizualizareDiurna

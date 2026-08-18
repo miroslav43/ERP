@@ -76,13 +76,13 @@ export default async function PaginaStingator({ params }: ProprietatiPagina) {
     <main className="mx-auto w-full max-w-3xl space-y-6 p-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-muted-foreground">
             <Link href="/ssm/stingatoare" className="underline-offset-2 hover:underline">
               Stingătoare
             </Link>
           </p>
           <h1 className="text-2xl font-semibold">{stingator.cod}</h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm text-muted-foreground">
             {stingator.tip} · {stingator.locatie}
             {stingator.cladire === null ? null : ` · ${stingator.cladire}`}
           </p>
@@ -94,13 +94,13 @@ export default async function PaginaStingator({ params }: ProprietatiPagina) {
 
       <section
         aria-label="Cele trei obligații de întreținere"
-        className="grid gap-4 rounded-lg border border-zinc-200 p-4 sm:grid-cols-3 dark:border-zinc-800"
+        className="grid gap-4 rounded-lg border border-border p-4 sm:grid-cols-3"
       >
         {obligatii.map((o) => {
           const stare = stareScadentaSsm(o.data !== null, o.scadenta, azi);
           return (
             <div key={o.cheie}>
-              <dt className="text-xs text-zinc-500 dark:text-zinc-400">{o.titlu}</dt>
+              <dt className="text-xs text-muted-foreground">{o.titlu}</dt>
               <dd className="mt-1 space-y-1">
                 <span className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${CLASE_SCADENTA[stare]}`}>
                   {ETICHETE_SCADENTA[stare]}
@@ -108,7 +108,7 @@ export default async function PaginaStingator({ params }: ProprietatiPagina) {
                 <p className="text-sm">
                   {o.data === null ? "niciodată" : `ultima: ${formatDate(o.data)}`}
                 </p>
-                {o.scadenta === null ? null : <p className="text-xs text-zinc-500">scadență: {formatDate(o.scadenta)}</p>}
+                {o.scadenta === null ? null : <p className="text-xs text-muted-foreground">scadență: {formatDate(o.scadenta)}</p>}
               </dd>
             </div>
           );
@@ -120,11 +120,11 @@ export default async function PaginaStingator({ params }: ProprietatiPagina) {
           Istoric verificări
         </h2>
         {verificari.length === 0 ? (
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">Nicio verificare înregistrată.</p>
+          <p className="text-sm text-muted-foreground">Nicio verificare înregistrată.</p>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+          <div className="overflow-x-auto rounded-lg border border-border">
             <table className="w-full text-sm">
-              <thead className="bg-zinc-50 text-left dark:bg-zinc-900">
+              <thead className="bg-surface text-left">
                 <tr>
                   <th scope="col" className="px-4 py-3 font-medium">
                     Data
@@ -143,7 +143,7 @@ export default async function PaginaStingator({ params }: ProprietatiPagina) {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+              <tbody className="divide-y divide-border">
                 {verificari.map((v) => (
                   <tr key={v.id}>
                     <td className="px-4 py-3 whitespace-nowrap">{formatDate(v.data)}</td>

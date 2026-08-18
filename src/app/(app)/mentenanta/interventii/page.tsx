@@ -68,10 +68,10 @@ async function TabelInterventii({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+      <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-sm">
           <caption className="sr-only">Intervențiile de mentenanță ale organizației.</caption>
-          <thead className="bg-zinc-50 text-left dark:bg-zinc-900">
+          <thead className="bg-surface text-left">
             <tr>
               <th scope="col" className="px-4 py-3 font-medium">
                 Data
@@ -93,11 +93,11 @@ async function TabelInterventii({
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+          <tbody className="divide-y divide-border">
             {randuri.map((interventie) => {
               const echipament = echipamente.get(interventie.equipment_id);
               return (
-                <tr key={interventie.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900">
+                <tr key={interventie.id} className="hover:bg-surface">
                   <td className="px-4 py-3">{formatDate(interventie.data)}</td>
                   <td className="px-4 py-3">
                     {echipament === undefined ? (
@@ -134,7 +134,7 @@ async function TabelInterventii({
         {urmatorulCursor === null ? null : (
           <Link
             href={`/mentenanta/interventii?${cautare.toString()}`}
-            className="rounded-md border border-zinc-300 px-4 py-2 text-sm hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            className="rounded-md border border-foreground/60 px-4 py-2 text-sm hover:bg-surface"
           >
             Pagina următoare
           </Link>
@@ -161,7 +161,7 @@ export default async function PaginaInterventii({ searchParams }: ProprietatiPag
     <main className="space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">Intervenții de mentenanță</h1>
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="text-sm text-muted-foreground">
           Istoricul intervențiilor, cu costurile lor. Se adaugă din fișa fiecărui echipament.
         </p>
       </header>
