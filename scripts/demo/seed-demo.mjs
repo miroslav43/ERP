@@ -148,6 +148,9 @@ const POSTURI = [
   { cod: "AGV", denumire: "Agent de vânzări" },
 ];
 
+/** Cifre ilustrative pentru contractele demo — NU cote sau salarii reale. */
+const SALARIU_DUPA_POST = { DIR: 12000, HR: 6500, SEF: 5500, OPR: 4200, AGV: 4600 };
+
 /** Colegi fără cont de autentificare, ca listele să nu arate a bază goală. */
 const COLEGI = [
   { marca: "DEMO-005", first_name: "Andrei", last_name: "Dumitrescu", dep: "PROD", post: "OPR", seful: "DEMO-003" },
@@ -157,12 +160,23 @@ const COLEGI = [
 ];
 
 /**
- * Module activate pe organizația demo. Deliberat PUȚINE: fazele lor au schemă în
- * bază, dar încă niciun ecran, iar o intrare de meniu care duce la 404 e un demo
- * prost. Cele două de aici sunt suficiente ca să se vadă mecanismul — Beta nu are
- * niciunul, deci comutarea între organizații schimbă vizibil meniul.
+ * Module activate pe organizația demo — toate cele care au ecrane reale.
+ * `announcements` rămâne afară: e Faza 11, fără nicio pagină încă, iar o
+ * intrare de meniu care duce la 404 e un demo prost. Beta nu are niciun modul
+ * opțional, ca diferența să se vadă vizibil la comutare.
  */
-const MODULE_DEMO = ["leave", "inventory"];
+const MODULE_DEMO = [
+  "attendance",
+  "leave",
+  "onboarding",
+  "payroll",
+  "per_diem",
+  "fleet",
+  "maintenance",
+  "inventory",
+  "ssm",
+  "employee_portal",
+];
 
 // ── utilitare ───────────────────────────────────────────────────────────────
 
@@ -422,6 +436,91 @@ async function creeaza() {
     );
   }
   console.log(`  · ${toti.length} angajați, ${DEPARTAMENTE.length} departamente`);
+
+  /**
+   * Fără contract, un angajat există doar cu numele — nici REVISAL, nici
+   * salarizarea nu au ce calcula. `SALARIU_DUPA_POST` sunt cifre ilustrative,
+   * NU cote reale (vezi avertismentul din modulul de salarizare).
+   */
+  for (const a of toti) {
+    await asigura(
+      "employment_contracts",
+      { organization_id: idOrg.demo, employee_id: idAngajat[a.marca] },
+      {
+        numar: `CIM-${a.marca}`,
+        data_contract: "2024-03-01",
+        valabil_de_la: "2024-03-01",
+        contract_duration: "nedeterminat",
+        norma_ore_saptamana: 40,
+        work_mode: "sediu",
+        department_id: idDep[a.dep] ?? null,
+        job_position_id: idPost[a.post] ?? null,
+        salariu_baza: SALARIU_DUPA_POST[a.post] ?? 4000,
+        moneda: "RON",
+        status: "activ",
+        deleted_at: null,
+      },
+    );
+  }
+  console.log(`  · ${toti.length} contracte individuale de muncă`);
+
+  /**
+   * Pontaj complet și blocat pentru perioada deschisă — fără el, salarizarea
+   * n-are ce agrega (`internal.payroll_periods_tranzitie` refuză calculul peste
+   * un pontaj nelocat) și modulul de pontaj arată gol la prima deschidere.
+   *
+   * Zilele de weekend se sar simplu, fără calendarul de sărbători al aplicației
+   * (`app.este_zi_lucratoare`) — e pontaj de DEMONSTRAȚIE, nu sursa de adevăr
+   * pentru numărătoarea de zile lucrătoare, pe care motorul de calcul o
+   * recalculează oricum independent.
+   */
+  const { data: perioadePontaj, error: eroarePerioadePontaj } = await db
+    .from("attendance_periods")
+    .select("id, data_inceput, data_sfarsit, status")
+    .eq("organization_id", idOrg.demo)
+    .is("deleted_at", null);
+  verifica("select attendance_periods", { error: eroarePerioadePontaj });
+
+  for (const perioada of perioadePontaj ?? []) {
+    let zileLucratoare = 0;
+    for (const a of toti) {
+      let curent = new Date(`${perioada.data_inceput}T00:00:00Z`);
+      const limita = new Date(`${perioada.data_sfarsit}T00:00:00Z`);
+      while (curent.getTime() <= limita.getTime()) {
+        const ziIso = curent.toISOString().slice(0, 10);
+        const ziSaptamana = curent.getUTCDay(); // 0 = duminică, 6 = sâmbătă
+        if (ziSaptamana !== 0 && ziSaptamana !== 6) {
+          await asigura(
+            "attendance_entries",
+            { organization_id: idOrg.demo, employee_id: idAngajat[a.marca], data: ziIso },
+            {
+              period_id: perioada.id,
+              ore_lucrate: 8,
+              tip_zi: "lucratoare",
+              sursa: "manuala",
+              approved_at: new Date().toISOString(),
+              approved_by: idUtilizator["demo_admin@gmail.com"],
+              deleted_at: null,
+            },
+          );
+          zileLucratoare += 1;
+        }
+        curent = new Date(curent.getTime() + 24 * 60 * 60 * 1000);
+      }
+    }
+    if (perioada.status !== "blocata") {
+      verifica(
+        // `blocata_la`/`blocata_de` nu se trimit: triggerul le rescrie, exact
+        // ca în `blocheazaPerioada` din `pontaj/actions.ts`.
+        `update attendance_periods ${perioada.id}`,
+        await db
+          .from("attendance_periods")
+          .update({ status: "blocata" })
+          .eq("id", perioada.id),
+      );
+    }
+    console.log(`  · pontaj ${perioada.data_inceput.slice(0, 7)}: ${zileLucratoare} zile lucrătoare pontate și blocate`);
+  }
 }
 
 // ── raport ──────────────────────────────────────────────────────────────────
@@ -440,9 +539,8 @@ function afiseazaCredentiale() {
   }
   console.log("└" + "─".repeat(63) + "┘");
   console.log(
-    "\nModulele fără ecrane (pontaj, flotă, SSM, salarizare…) apar în meniu doar\n" +
-      "dacă sunt activate; le-am lăsat dezactivate tocmai fiindcă ar duce la 404.\n" +
-      "Ce se poate vedea acum: Super-Admin, angajați, departamente, REVISAL, setări.",
+    `\n${ORG_DEMO.name} are toate modulele cu ecrane reale activate — vezi lista de mai sus.\n` +
+      "Anunțurile (Faza 11) rămân dezactivate: n-au încă nicio pagină.",
   );
 }
 

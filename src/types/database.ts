@@ -1,6402 +1,9352 @@
 // GENERAT AUTOMAT — nu edita manual.
 //
-// Regenerare din schema locală:
-//   node scripts/gen-types.mjs "postgresql://$USER@localhost:5433/adm_v" > src/types/database.ts
-//
-// Odată ce proiectul Supabase este conectat, calea preferată devine:
+// Regenerare: mcp__supabase__generate_typescript_types (proiectul e conectat prin
+// MCP, nu prin Supabase CLI — vezi NOTES.md §1). Odată autentificat CLI-ul local:
 //   pnpm db:types
+//
+// Trei funcții RPC (hr_write_sensitive, log_audit_event, submit_demo_request)
+// au primit înapoi manual `| null` pe argumentele opționale: generatorul curent
+// le tipează doar `?: T` (omisibil), dar parametrii SQL au `default null` —
+// apelanții existenți trimit explicit `null`, nu omit cheia. Fără patch,
+// regenerarea rupe ~8 fișiere fără nicio schimbare de schemă.
 
-export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.15"
+  }
   public: {
     Tables: {
       alert_notifications: {
         Row: {
-          id: string;
-          organization_id: string;
-          alert_id: string;
-          canal: string;
-          recipient_user_id: string | null;
-          recipient_employee_id: string | null;
-          notification_id: string | null;
-          email_log_id: string | null;
-          status: string;
-          sent_at: string | null;
-          eroare: string | null;
-          destinatar_cheie: string | null;
-          created_at: string;
-          updated_at: string;
-          deleted_at: string | null;
-        };
+          alert_id: string
+          canal: string
+          created_at: string
+          deleted_at: string | null
+          destinatar_cheie: string | null
+          email_log_id: string | null
+          eroare: string | null
+          id: string
+          notification_id: string | null
+          organization_id: string
+          recipient_employee_id: string | null
+          recipient_user_id: string | null
+          sent_at: string | null
+          status: string
+          updated_at: string
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          alert_id: string;
-          canal: string;
-          recipient_user_id?: string | null;
-          recipient_employee_id?: string | null;
-          notification_id?: string | null;
-          email_log_id?: string | null;
-          status?: string;
-          sent_at?: string | null;
-          eroare?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-        };
+          alert_id: string
+          canal: string
+          created_at?: string
+          deleted_at?: string | null
+          destinatar_cheie?: string | null
+          email_log_id?: string | null
+          eroare?: string | null
+          id?: string
+          notification_id?: string | null
+          organization_id: string
+          recipient_employee_id?: string | null
+          recipient_user_id?: string | null
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          alert_id?: string;
-          canal?: string;
-          recipient_user_id?: string | null;
-          recipient_employee_id?: string | null;
-          notification_id?: string | null;
-          email_log_id?: string | null;
-          status?: string;
-          sent_at?: string | null;
-          eroare?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          alert_id?: string
+          canal?: string
+          created_at?: string
+          deleted_at?: string | null
+          destinatar_cheie?: string | null
+          email_log_id?: string | null
+          eroare?: string | null
+          id?: string
+          notification_id?: string | null
+          organization_id?: string
+          recipient_employee_id?: string | null
+          recipient_user_id?: string | null
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alert_notifications_alert_id_fkey"
+            columns: ["alert_id"]
+            isOneToOne: false
+            referencedRelation: "compliance_alerts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alert_notifications_email_log_id_fkey"
+            columns: ["email_log_id"]
+            isOneToOne: false
+            referencedRelation: "email_log"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alert_notifications_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alert_notifications_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alert_notifications_recipient_employee_id_fkey"
+            columns: ["recipient_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alert_notifications_recipient_user_id_fkey"
+            columns: ["recipient_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       alert_rules: {
         Row: {
-          id: string;
-          organization_id: string;
-          entity_type: string;
-          kind: string;
-          praguri_zile: number[];
-          alerteaza_la_depasire: boolean;
-          valabil_de_la: string;
-          created_at: string;
-          updated_at: string;
-          deleted_at: string | null;
-        };
+          alerteaza_la_depasire: boolean
+          created_at: string
+          deleted_at: string | null
+          entity_type: string
+          id: string
+          kind: string
+          organization_id: string
+          praguri_zile: number[]
+          updated_at: string
+          valabil_de_la: string
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          entity_type?: string;
-          kind?: string;
-          praguri_zile?: number[];
-          alerteaza_la_depasire?: boolean;
-          valabil_de_la?: string;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-        };
+          alerteaza_la_depasire?: boolean
+          created_at?: string
+          deleted_at?: string | null
+          entity_type?: string
+          id?: string
+          kind?: string
+          organization_id: string
+          praguri_zile?: number[]
+          updated_at?: string
+          valabil_de_la?: string
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          entity_type?: string;
-          kind?: string;
-          praguri_zile?: number[];
-          alerteaza_la_depasire?: boolean;
-          valabil_de_la?: string;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          alerteaza_la_depasire?: boolean
+          created_at?: string
+          deleted_at?: string | null
+          entity_type?: string
+          id?: string
+          kind?: string
+          organization_id?: string
+          praguri_zile?: number[]
+          updated_at?: string
+          valabil_de_la?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alert_rules_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       approval_flows: {
         Row: {
-          id: string;
-          organization_id: string;
-          entity_type: string;
-          denumire: string;
-          activ: boolean;
-          valabil_de_la: string;
-          created_at: string;
-          updated_at: string;
-          deleted_at: string | null;
-        };
+          activ: boolean
+          created_at: string
+          deleted_at: string | null
+          denumire: string
+          entity_type: string
+          id: string
+          organization_id: string
+          updated_at: string
+          valabil_de_la: string
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          entity_type: string;
-          denumire: string;
-          activ?: boolean;
-          valabil_de_la?: string;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-        };
+          activ?: boolean
+          created_at?: string
+          deleted_at?: string | null
+          denumire: string
+          entity_type: string
+          id?: string
+          organization_id: string
+          updated_at?: string
+          valabil_de_la?: string
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          entity_type?: string;
-          denumire?: string;
-          activ?: boolean;
-          valabil_de_la?: string;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          activ?: boolean
+          created_at?: string
+          deleted_at?: string | null
+          denumire?: string
+          entity_type?: string
+          id?: string
+          organization_id?: string
+          updated_at?: string
+          valabil_de_la?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_flows_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       approval_steps: {
         Row: {
-          id: string;
-          organization_id: string;
-          flow_id: string;
-          ordine: number;
-          tip: Database["public"]["Enums"]["approval_step_kind"];
-          rol: Database["public"]["Enums"]["app_role"] | null;
-          permission_key: string | null;
-          approver_user_id: string | null;
-          optional: boolean;
-          sla_ore: number | null;
-          created_at: string;
-          updated_at: string;
-          deleted_at: string | null;
-        };
+          approver_user_id: string | null
+          created_at: string
+          deleted_at: string | null
+          flow_id: string
+          id: string
+          optional: boolean
+          ordine: number
+          organization_id: string
+          permission_key: string | null
+          rol: Database["public"]["Enums"]["app_role"] | null
+          sla_ore: number | null
+          tip: Database["public"]["Enums"]["approval_step_kind"]
+          updated_at: string
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          flow_id: string;
-          ordine: number;
-          tip: Database["public"]["Enums"]["approval_step_kind"];
-          rol?: Database["public"]["Enums"]["app_role"] | null;
-          permission_key?: string | null;
-          approver_user_id?: string | null;
-          optional?: boolean;
-          sla_ore?: number | null;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-        };
+          approver_user_id?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          flow_id: string
+          id?: string
+          optional?: boolean
+          ordine: number
+          organization_id: string
+          permission_key?: string | null
+          rol?: Database["public"]["Enums"]["app_role"] | null
+          sla_ore?: number | null
+          tip: Database["public"]["Enums"]["approval_step_kind"]
+          updated_at?: string
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          flow_id?: string;
-          ordine?: number;
-          tip?: Database["public"]["Enums"]["approval_step_kind"];
-          rol?: Database["public"]["Enums"]["app_role"] | null;
-          permission_key?: string | null;
-          approver_user_id?: string | null;
-          optional?: boolean;
-          sla_ore?: number | null;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          approver_user_id?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          flow_id?: string
+          id?: string
+          optional?: boolean
+          ordine?: number
+          organization_id?: string
+          permission_key?: string | null
+          rol?: Database["public"]["Enums"]["app_role"] | null
+          sla_ore?: number | null
+          tip?: Database["public"]["Enums"]["approval_step_kind"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_steps_flow_id_fkey"
+            columns: ["flow_id"]
+            isOneToOne: false
+            referencedRelation: "approval_flows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_steps_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       approval_tasks: {
         Row: {
-          id: string;
-          organization_id: string;
-          flow_id: string;
-          step_id: string;
-          entity_type: string;
-          entity_id: string;
-          ordine: number;
-          approver_user_id: string | null;
-          approver_employee_id: string | null;
-          status: Database["public"]["Enums"]["approval_task_status"];
-          comentariu: string | null;
-          decis_la: string | null;
-          termen_la: string | null;
-          delegat_catre: string | null;
-          created_at: string;
-          updated_at: string;
-          deleted_at: string | null;
-        };
+          approver_employee_id: string | null
+          approver_user_id: string | null
+          comentariu: string | null
+          created_at: string
+          decis_la: string | null
+          delegat_catre: string | null
+          deleted_at: string | null
+          entity_id: string
+          entity_type: string
+          flow_id: string
+          id: string
+          ordine: number
+          organization_id: string
+          status: Database["public"]["Enums"]["approval_task_status"]
+          step_id: string
+          termen_la: string | null
+          updated_at: string
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          flow_id: string;
-          step_id: string;
-          entity_type: string;
-          entity_id: string;
-          ordine: number;
-          approver_user_id?: string | null;
-          approver_employee_id?: string | null;
-          status?: Database["public"]["Enums"]["approval_task_status"];
-          comentariu?: string | null;
-          decis_la?: string | null;
-          termen_la?: string | null;
-          delegat_catre?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-        };
+          approver_employee_id?: string | null
+          approver_user_id?: string | null
+          comentariu?: string | null
+          created_at?: string
+          decis_la?: string | null
+          delegat_catre?: string | null
+          deleted_at?: string | null
+          entity_id: string
+          entity_type: string
+          flow_id: string
+          id?: string
+          ordine: number
+          organization_id: string
+          status?: Database["public"]["Enums"]["approval_task_status"]
+          step_id: string
+          termen_la?: string | null
+          updated_at?: string
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          flow_id?: string;
-          step_id?: string;
-          entity_type?: string;
-          entity_id?: string;
-          ordine?: number;
-          approver_user_id?: string | null;
-          approver_employee_id?: string | null;
-          status?: Database["public"]["Enums"]["approval_task_status"];
-          comentariu?: string | null;
-          decis_la?: string | null;
-          termen_la?: string | null;
-          delegat_catre?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          approver_employee_id?: string | null
+          approver_user_id?: string | null
+          comentariu?: string | null
+          created_at?: string
+          decis_la?: string | null
+          delegat_catre?: string | null
+          deleted_at?: string | null
+          entity_id?: string
+          entity_type?: string
+          flow_id?: string
+          id?: string
+          ordine?: number
+          organization_id?: string
+          status?: Database["public"]["Enums"]["approval_task_status"]
+          step_id?: string
+          termen_la?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_tasks_approver_employee_id_fkey"
+            columns: ["approver_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_tasks_flow_id_fkey"
+            columns: ["flow_id"]
+            isOneToOne: false
+            referencedRelation: "approval_flows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_tasks_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_tasks_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "approval_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_approval_batches: {
         Row: {
-          id: string;
-          organization_id: string;
-          period_id: string;
-          department_id: string | null;
-          manager_employee_id: string | null;
-          aprobat_de: string | null;
-          aprobat_la: string;
-          linii_aprobate: number;
-          observatii: string | null;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          aprobat_de: string | null
+          aprobat_la: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          department_id: string | null
+          id: string
+          linii_aprobate: number
+          manager_employee_id: string | null
+          observatii: string | null
+          organization_id: string
+          period_id: string
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          period_id: string;
-          department_id?: string | null;
-          manager_employee_id?: string | null;
-          aprobat_de?: string | null;
-          aprobat_la?: string;
-          linii_aprobate?: number;
-          observatii?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          aprobat_de?: string | null
+          aprobat_la?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          department_id?: string | null
+          id?: string
+          linii_aprobate?: number
+          manager_employee_id?: string | null
+          observatii?: string | null
+          organization_id: string
+          period_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          period_id?: string;
-          department_id?: string | null;
-          manager_employee_id?: string | null;
-          aprobat_de?: string | null;
-          aprobat_la?: string;
-          linii_aprobate?: number;
-          observatii?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          aprobat_de?: string | null
+          aprobat_la?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          department_id?: string | null
+          id?: string
+          linii_aprobate?: number
+          manager_employee_id?: string | null
+          observatii?: string | null
+          organization_id?: string
+          period_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_approval_batches_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_approval_batches_manager_employee_id_fkey"
+            columns: ["manager_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_approval_batches_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_approval_batches_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_entries: {
         Row: {
-          id: string;
-          organization_id: string;
-          period_id: string;
-          employee_id: string;
-          data: string;
-          ora_inceput: string | null;
-          ora_sfarsit: string | null;
-          ore_lucrate: number;
-          ore_suplimentare: number;
-          ore_noapte: number;
-          tip_zi: Database["public"]["Enums"]["attendance_day_type"];
-          sursa: Database["public"]["Enums"]["attendance_entry_source"];
-          leave_request_id: string | null;
-          observatii: string | null;
-          approved_at: string | null;
-          approved_by: string | null;
-          batch_id: string | null;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          approved_at: string | null
+          approved_by: string | null
+          batch_id: string | null
+          created_at: string
+          created_by: string | null
+          data: string
+          deleted_at: string | null
+          employee_id: string
+          id: string
+          leave_request_id: string | null
+          observatii: string | null
+          ora_inceput: string | null
+          ora_sfarsit: string | null
+          ore_lucrate: number
+          ore_noapte: number
+          ore_suplimentare: number
+          organization_id: string
+          period_id: string
+          sursa: Database["public"]["Enums"]["attendance_entry_source"]
+          tip_zi: Database["public"]["Enums"]["attendance_day_type"]
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          period_id: string;
-          employee_id: string;
-          data: string;
-          ora_inceput?: string | null;
-          ora_sfarsit?: string | null;
-          ore_lucrate?: number;
-          ore_suplimentare?: number;
-          ore_noapte?: number;
-          tip_zi: Database["public"]["Enums"]["attendance_day_type"];
-          sursa?: Database["public"]["Enums"]["attendance_entry_source"];
-          leave_request_id?: string | null;
-          observatii?: string | null;
-          approved_at?: string | null;
-          approved_by?: string | null;
-          batch_id?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          approved_at?: string | null
+          approved_by?: string | null
+          batch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data: string
+          deleted_at?: string | null
+          employee_id: string
+          id?: string
+          leave_request_id?: string | null
+          observatii?: string | null
+          ora_inceput?: string | null
+          ora_sfarsit?: string | null
+          ore_lucrate?: number
+          ore_noapte?: number
+          ore_suplimentare?: number
+          organization_id: string
+          period_id: string
+          sursa?: Database["public"]["Enums"]["attendance_entry_source"]
+          tip_zi: Database["public"]["Enums"]["attendance_day_type"]
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          period_id?: string;
-          employee_id?: string;
-          data?: string;
-          ora_inceput?: string | null;
-          ora_sfarsit?: string | null;
-          ore_lucrate?: number;
-          ore_suplimentare?: number;
-          ore_noapte?: number;
-          tip_zi?: Database["public"]["Enums"]["attendance_day_type"];
-          sursa?: Database["public"]["Enums"]["attendance_entry_source"];
-          leave_request_id?: string | null;
-          observatii?: string | null;
-          approved_at?: string | null;
-          approved_by?: string | null;
-          batch_id?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          approved_at?: string | null
+          approved_by?: string | null
+          batch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          deleted_at?: string | null
+          employee_id?: string
+          id?: string
+          leave_request_id?: string | null
+          observatii?: string | null
+          ora_inceput?: string | null
+          ora_sfarsit?: string | null
+          ore_lucrate?: number
+          ore_noapte?: number
+          ore_suplimentare?: number
+          organization_id?: string
+          period_id?: string
+          sursa?: Database["public"]["Enums"]["attendance_entry_source"]
+          tip_zi?: Database["public"]["Enums"]["attendance_day_type"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_entries_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_approval_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_entries_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_entries_leave_request_id_fkey"
+            columns: ["leave_request_id"]
+            isOneToOne: false
+            referencedRelation: "leave_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_entries_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_entries_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_periods: {
         Row: {
-          id: string;
-          organization_id: string;
-          an: number;
-          luna: number;
-          data_inceput: string;
-          data_sfarsit: string;
-          status: Database["public"]["Enums"]["attendance_period_status"];
-          blocata_la: string | null;
-          blocata_de: string | null;
-          observatii: string | null;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          an: number
+          blocata_de: string | null
+          blocata_la: string | null
+          created_at: string
+          created_by: string | null
+          data_inceput: string
+          data_sfarsit: string
+          deleted_at: string | null
+          id: string
+          luna: number
+          observatii: string | null
+          organization_id: string
+          status: Database["public"]["Enums"]["attendance_period_status"]
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          an: number;
-          luna: number;
-          data_inceput: string;
-          data_sfarsit: string;
-          status?: Database["public"]["Enums"]["attendance_period_status"];
-          blocata_la?: string | null;
-          blocata_de?: string | null;
-          observatii?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          an: number
+          blocata_de?: string | null
+          blocata_la?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_inceput: string
+          data_sfarsit: string
+          deleted_at?: string | null
+          id?: string
+          luna: number
+          observatii?: string | null
+          organization_id: string
+          status?: Database["public"]["Enums"]["attendance_period_status"]
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          an?: number;
-          luna?: number;
-          data_inceput?: string;
-          data_sfarsit?: string;
-          status?: Database["public"]["Enums"]["attendance_period_status"];
-          blocata_la?: string | null;
-          blocata_de?: string | null;
-          observatii?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          an?: number
+          blocata_de?: string | null
+          blocata_la?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_inceput?: string
+          data_sfarsit?: string
+          deleted_at?: string | null
+          id?: string
+          luna?: number
+          observatii?: string | null
+          organization_id?: string
+          status?: Database["public"]["Enums"]["attendance_period_status"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_periods_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_settings: {
         Row: {
-          id: string;
-          organization_id: string;
-          valabil_de_la: string;
-          ore_pe_zi: number;
-          ore_pe_saptamana: number;
-          ore_maxime_saptamanale: number;
-          perioada_referinta_luni: number;
-          repaus_zilnic_minim_ore: number;
-          repaus_saptamanal_minim_ore: number;
-          spor_suplimentare_procent: number;
-          spor_noapte_procent: number;
-          spor_weekend_procent: number;
-          spor_sarbatoare_procent: number;
-          noapte_start: string;
-          noapte_sfarsit: string;
-          termen_compensare_suplimentare_zile: number;
-          termen_compensare_sarbatoare_zile: number;
-          pauza_masa_minute: number;
-          pauza_masa_inclusa_in_program: boolean;
-          pauza_obligatorie_peste_ore: number;
-          observatii_juridice: string | null;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          noapte_sfarsit: string
+          noapte_start: string
+          observatii_juridice: string | null
+          ore_maxime_saptamanale: number
+          ore_pe_saptamana: number
+          ore_pe_zi: number
+          organization_id: string
+          pauza_masa_inclusa_in_program: boolean
+          pauza_masa_minute: number
+          pauza_obligatorie_peste_ore: number
+          perioada_referinta_luni: number
+          repaus_saptamanal_minim_ore: number
+          repaus_zilnic_minim_ore: number
+          spor_noapte_procent: number
+          spor_sarbatoare_procent: number
+          spor_suplimentare_procent: number
+          spor_weekend_procent: number
+          termen_compensare_sarbatoare_zile: number
+          termen_compensare_suplimentare_zile: number
+          updated_at: string
+          updated_by: string | null
+          valabil_de_la: string
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          valabil_de_la: string;
-          ore_pe_zi: number;
-          ore_pe_saptamana: number;
-          ore_maxime_saptamanale: number;
-          perioada_referinta_luni: number;
-          repaus_zilnic_minim_ore: number;
-          repaus_saptamanal_minim_ore: number;
-          spor_suplimentare_procent: number;
-          spor_noapte_procent: number;
-          spor_weekend_procent: number;
-          spor_sarbatoare_procent: number;
-          noapte_start: string;
-          noapte_sfarsit: string;
-          termen_compensare_suplimentare_zile: number;
-          termen_compensare_sarbatoare_zile: number;
-          pauza_masa_minute: number;
-          pauza_masa_inclusa_in_program: boolean;
-          pauza_obligatorie_peste_ore: number;
-          observatii_juridice?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          noapte_sfarsit: string
+          noapte_start: string
+          observatii_juridice?: string | null
+          ore_maxime_saptamanale: number
+          ore_pe_saptamana: number
+          ore_pe_zi: number
+          organization_id: string
+          pauza_masa_inclusa_in_program: boolean
+          pauza_masa_minute: number
+          pauza_obligatorie_peste_ore: number
+          perioada_referinta_luni: number
+          repaus_saptamanal_minim_ore: number
+          repaus_zilnic_minim_ore: number
+          spor_noapte_procent: number
+          spor_sarbatoare_procent: number
+          spor_suplimentare_procent: number
+          spor_weekend_procent: number
+          termen_compensare_sarbatoare_zile: number
+          termen_compensare_suplimentare_zile: number
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la: string
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          valabil_de_la?: string;
-          ore_pe_zi?: number;
-          ore_pe_saptamana?: number;
-          ore_maxime_saptamanale?: number;
-          perioada_referinta_luni?: number;
-          repaus_zilnic_minim_ore?: number;
-          repaus_saptamanal_minim_ore?: number;
-          spor_suplimentare_procent?: number;
-          spor_noapte_procent?: number;
-          spor_weekend_procent?: number;
-          spor_sarbatoare_procent?: number;
-          noapte_start?: string;
-          noapte_sfarsit?: string;
-          termen_compensare_suplimentare_zile?: number;
-          termen_compensare_sarbatoare_zile?: number;
-          pauza_masa_minute?: number;
-          pauza_masa_inclusa_in_program?: boolean;
-          pauza_obligatorie_peste_ore?: number;
-          observatii_juridice?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          noapte_sfarsit?: string
+          noapte_start?: string
+          observatii_juridice?: string | null
+          ore_maxime_saptamanale?: number
+          ore_pe_saptamana?: number
+          ore_pe_zi?: number
+          organization_id?: string
+          pauza_masa_inclusa_in_program?: boolean
+          pauza_masa_minute?: number
+          pauza_obligatorie_peste_ore?: number
+          perioada_referinta_luni?: number
+          repaus_saptamanal_minim_ore?: number
+          repaus_zilnic_minim_ore?: number
+          spor_noapte_procent?: number
+          spor_sarbatoare_procent?: number
+          spor_suplimentare_procent?: number
+          spor_weekend_procent?: number
+          termen_compensare_sarbatoare_zile?: number
+          termen_compensare_suplimentare_zile?: number
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
-          id: string;
-          organization_id: string | null;
-          actor_id: string | null;
-          action: Database["public"]["Enums"]["audit_action"];
-          status: Database["public"]["Enums"]["audit_status"];
-          entity_type: string | null;
-          entity_id: string | null;
-          before: Json | null;
-          after: Json | null;
-          ip: string | null;
-          user_agent: string | null;
-          request_id: string | null;
-          error_code: string | null;
-          created_at: string;
-        };
+          action: Database["public"]["Enums"]["audit_action"]
+          actor_id: string | null
+          after: Json | null
+          before: Json | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          error_code: string | null
+          id: string
+          ip: unknown
+          organization_id: string | null
+          request_id: string | null
+          status: Database["public"]["Enums"]["audit_status"]
+          user_agent: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id?: string | null;
-          actor_id?: string | null;
-          action: Database["public"]["Enums"]["audit_action"];
-          status?: Database["public"]["Enums"]["audit_status"];
-          entity_type?: string | null;
-          entity_id?: string | null;
-          before?: Json | null;
-          after?: Json | null;
-          ip?: string | null;
-          user_agent?: string | null;
-          request_id?: string | null;
-          error_code?: string | null;
-          created_at?: string;
-        };
+          action: Database["public"]["Enums"]["audit_action"]
+          actor_id?: string | null
+          after?: Json | null
+          before?: Json | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          error_code?: string | null
+          id?: string
+          ip?: unknown
+          organization_id?: string | null
+          request_id?: string | null
+          status?: Database["public"]["Enums"]["audit_status"]
+          user_agent?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string | null;
-          actor_id?: string | null;
-          action?: Database["public"]["Enums"]["audit_action"];
-          status?: Database["public"]["Enums"]["audit_status"];
-          entity_type?: string | null;
-          entity_id?: string | null;
-          before?: Json | null;
-          after?: Json | null;
-          ip?: string | null;
-          user_agent?: string | null;
-          request_id?: string | null;
-          error_code?: string | null;
-          created_at?: string;
-        };
-        Relationships: [];
-      };
+          action?: Database["public"]["Enums"]["audit_action"]
+          actor_id?: string | null
+          after?: Json | null
+          before?: Json | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          error_code?: string | null
+          id?: string
+          ip?: unknown
+          organization_id?: string | null
+          request_id?: string | null
+          status?: Database["public"]["Enums"]["audit_status"]
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_trip_legs: {
         Row: {
-          id: string;
-          organization_id: string;
-          business_trip_id: string;
-          ordine: number;
-          from_country_id: string;
-          to_country_id: string;
-          plecare_la: string;
-          sosire_la: string;
-          mijloc_transport: Database["public"]["Enums"]["business_trip_transport"] | null;
-          localitate_sosire: string | null;
-          observatii: string | null;
-          deleted_at: string | null;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-        };
+          business_trip_id: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          from_country_id: string
+          id: string
+          localitate_sosire: string | null
+          mijloc_transport:
+            | Database["public"]["Enums"]["business_trip_transport"]
+            | null
+          observatii: string | null
+          ordine: number
+          organization_id: string
+          plecare_la: string
+          sosire_la: string
+          to_country_id: string
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          business_trip_id: string;
-          ordine: number;
-          from_country_id: string;
-          to_country_id: string;
-          plecare_la: string;
-          sosire_la: string;
-          mijloc_transport?: Database["public"]["Enums"]["business_trip_transport"] | null;
-          localitate_sosire?: string | null;
-          observatii?: string | null;
-          deleted_at?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-        };
+          business_trip_id: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          from_country_id: string
+          id?: string
+          localitate_sosire?: string | null
+          mijloc_transport?:
+            | Database["public"]["Enums"]["business_trip_transport"]
+            | null
+          observatii?: string | null
+          ordine: number
+          organization_id: string
+          plecare_la: string
+          sosire_la: string
+          to_country_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          business_trip_id?: string;
-          ordine?: number;
-          from_country_id?: string;
-          to_country_id?: string;
-          plecare_la?: string;
-          sosire_la?: string;
-          mijloc_transport?: Database["public"]["Enums"]["business_trip_transport"] | null;
-          localitate_sosire?: string | null;
-          observatii?: string | null;
-          deleted_at?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-        };
-        Relationships: [];
-      };
+          business_trip_id?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          from_country_id?: string
+          id?: string
+          localitate_sosire?: string | null
+          mijloc_transport?:
+            | Database["public"]["Enums"]["business_trip_transport"]
+            | null
+          observatii?: string | null
+          ordine?: number
+          organization_id?: string
+          plecare_la?: string
+          sosire_la?: string
+          to_country_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_trip_legs_business_trip_id_fkey"
+            columns: ["business_trip_id"]
+            isOneToOne: false
+            referencedRelation: "business_trips"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_trip_legs_from_country_id_fkey"
+            columns: ["from_country_id"]
+            isOneToOne: false
+            referencedRelation: "countries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_trip_legs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_trip_legs_to_country_id_fkey"
+            columns: ["to_country_id"]
+            isOneToOne: false
+            referencedRelation: "countries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_trips: {
         Row: {
-          id: string;
-          organization_id: string;
-          employee_id: string;
-          numar_document: string | null;
-          scop: string;
-          country_id: string | null;
-          localitate: string | null;
-          plecare_la: string;
-          sosire_la: string;
-          plecare_efectiva_la: string | null;
-          sosire_efectiva_la: string | null;
-          mijloc_transport: Database["public"]["Enums"]["business_trip_transport"];
-          vehicle_id: string | null;
-          km_parcursi: number | null;
-          avans_acordat: number;
-          moneda_avans: string | null;
-          curs_diurna: number | null;
-          status: Database["public"]["Enums"]["business_trip_status"];
-          approval_task_id: string | null;
-          detasare_transnationala: boolean;
-          stat_gazda_country_id: string | null;
-          salariu_minim_stat_gazda: number | null;
-          moneda_salariu_minim: string | null;
-          formular_a1_solicitat: boolean;
-          formular_a1_numar: string | null;
-          formular_a1_valabil_de_la: string | null;
-          formular_a1_valabil_pana: string | null;
-          declaratie_detasare_numar: string | null;
-          observatii: string | null;
-          deleted_at: string | null;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-        };
+          approval_task_id: string | null
+          avans_acordat: number
+          country_id: string | null
+          created_at: string
+          created_by: string | null
+          curs_diurna: number | null
+          declaratie_detasare_numar: string | null
+          deleted_at: string | null
+          detasare_transnationala: boolean
+          employee_id: string
+          formular_a1_numar: string | null
+          formular_a1_solicitat: boolean
+          formular_a1_valabil_de_la: string | null
+          formular_a1_valabil_pana: string | null
+          id: string
+          km_parcursi: number | null
+          localitate: string | null
+          mijloc_transport: Database["public"]["Enums"]["business_trip_transport"]
+          moneda_avans: string | null
+          moneda_salariu_minim: string | null
+          numar_document: string | null
+          observatii: string | null
+          organization_id: string
+          plecare_efectiva_la: string | null
+          plecare_la: string
+          salariu_minim_stat_gazda: number | null
+          scop: string
+          sosire_efectiva_la: string | null
+          sosire_la: string
+          stat_gazda_country_id: string | null
+          status: Database["public"]["Enums"]["business_trip_status"]
+          updated_at: string
+          updated_by: string | null
+          vehicle_id: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          employee_id: string;
-          numar_document?: string | null;
-          scop: string;
-          country_id?: string | null;
-          localitate?: string | null;
-          plecare_la: string;
-          sosire_la: string;
-          plecare_efectiva_la?: string | null;
-          sosire_efectiva_la?: string | null;
-          mijloc_transport: Database["public"]["Enums"]["business_trip_transport"];
-          vehicle_id?: string | null;
-          km_parcursi?: number | null;
-          avans_acordat?: number;
-          moneda_avans?: string | null;
-          curs_diurna?: number | null;
-          status?: Database["public"]["Enums"]["business_trip_status"];
-          approval_task_id?: string | null;
-          detasare_transnationala?: boolean;
-          stat_gazda_country_id?: string | null;
-          salariu_minim_stat_gazda?: number | null;
-          moneda_salariu_minim?: string | null;
-          formular_a1_solicitat?: boolean;
-          formular_a1_numar?: string | null;
-          formular_a1_valabil_de_la?: string | null;
-          formular_a1_valabil_pana?: string | null;
-          declaratie_detasare_numar?: string | null;
-          observatii?: string | null;
-          deleted_at?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-        };
+          approval_task_id?: string | null
+          avans_acordat?: number
+          country_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          curs_diurna?: number | null
+          declaratie_detasare_numar?: string | null
+          deleted_at?: string | null
+          detasare_transnationala?: boolean
+          employee_id: string
+          formular_a1_numar?: string | null
+          formular_a1_solicitat?: boolean
+          formular_a1_valabil_de_la?: string | null
+          formular_a1_valabil_pana?: string | null
+          id?: string
+          km_parcursi?: number | null
+          localitate?: string | null
+          mijloc_transport: Database["public"]["Enums"]["business_trip_transport"]
+          moneda_avans?: string | null
+          moneda_salariu_minim?: string | null
+          numar_document?: string | null
+          observatii?: string | null
+          organization_id: string
+          plecare_efectiva_la?: string | null
+          plecare_la: string
+          salariu_minim_stat_gazda?: number | null
+          scop: string
+          sosire_efectiva_la?: string | null
+          sosire_la: string
+          stat_gazda_country_id?: string | null
+          status?: Database["public"]["Enums"]["business_trip_status"]
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          employee_id?: string;
-          numar_document?: string | null;
-          scop?: string;
-          country_id?: string | null;
-          localitate?: string | null;
-          plecare_la?: string;
-          sosire_la?: string;
-          plecare_efectiva_la?: string | null;
-          sosire_efectiva_la?: string | null;
-          mijloc_transport?: Database["public"]["Enums"]["business_trip_transport"];
-          vehicle_id?: string | null;
-          km_parcursi?: number | null;
-          avans_acordat?: number;
-          moneda_avans?: string | null;
-          curs_diurna?: number | null;
-          status?: Database["public"]["Enums"]["business_trip_status"];
-          approval_task_id?: string | null;
-          detasare_transnationala?: boolean;
-          stat_gazda_country_id?: string | null;
-          salariu_minim_stat_gazda?: number | null;
-          moneda_salariu_minim?: string | null;
-          formular_a1_solicitat?: boolean;
-          formular_a1_numar?: string | null;
-          formular_a1_valabil_de_la?: string | null;
-          formular_a1_valabil_pana?: string | null;
-          declaratie_detasare_numar?: string | null;
-          observatii?: string | null;
-          deleted_at?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-        };
-        Relationships: [];
-      };
+          approval_task_id?: string | null
+          avans_acordat?: number
+          country_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          curs_diurna?: number | null
+          declaratie_detasare_numar?: string | null
+          deleted_at?: string | null
+          detasare_transnationala?: boolean
+          employee_id?: string
+          formular_a1_numar?: string | null
+          formular_a1_solicitat?: boolean
+          formular_a1_valabil_de_la?: string | null
+          formular_a1_valabil_pana?: string | null
+          id?: string
+          km_parcursi?: number | null
+          localitate?: string | null
+          mijloc_transport?: Database["public"]["Enums"]["business_trip_transport"]
+          moneda_avans?: string | null
+          moneda_salariu_minim?: string | null
+          numar_document?: string | null
+          observatii?: string | null
+          organization_id?: string
+          plecare_efectiva_la?: string | null
+          plecare_la?: string
+          salariu_minim_stat_gazda?: number | null
+          scop?: string
+          sosire_efectiva_la?: string | null
+          sosire_la?: string
+          stat_gazda_country_id?: string | null
+          status?: Database["public"]["Enums"]["business_trip_status"]
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_trips_approval_task_fk"
+            columns: ["approval_task_id"]
+            isOneToOne: false
+            referencedRelation: "approval_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_trips_country_id_fkey"
+            columns: ["country_id"]
+            isOneToOne: false
+            referencedRelation: "countries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_trips_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_trips_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_trips_stat_gazda_country_id_fkey"
+            columns: ["stat_gazda_country_id"]
+            isOneToOne: false
+            referencedRelation: "countries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_trips_vehicle_fk"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       checklist_completion_records: {
         Row: {
-          id: string;
-          organization_id: string;
-          instance_id: string;
-          employee_id: string;
-          tip: Database["public"]["Enums"]["checklist_tip"];
-          ciclu: number;
-          finalizata_la: string;
-          finalizat_de: string | null;
-          total_pasi: number;
-          pasi_bifati: number;
-          pasi_obligatorii: number;
-          continut: Json;
-          continut_checksum: string;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-        };
+          ciclu: number
+          continut: Json
+          continut_checksum: string
+          created_at: string
+          created_by: string | null
+          employee_id: string
+          finalizat_de: string | null
+          finalizata_la: string
+          id: string
+          instance_id: string
+          organization_id: string
+          pasi_bifati: number
+          pasi_obligatorii: number
+          tip: Database["public"]["Enums"]["checklist_tip"]
+          total_pasi: number
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          instance_id: string;
-          employee_id: string;
-          tip: Database["public"]["Enums"]["checklist_tip"];
-          ciclu: number;
-          finalizata_la: string;
-          finalizat_de?: string | null;
-          total_pasi: number;
-          pasi_bifati: number;
-          pasi_obligatorii: number;
-          continut: Json;
-          continut_checksum: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-        };
+          ciclu: number
+          continut: Json
+          continut_checksum: string
+          created_at?: string
+          created_by?: string | null
+          employee_id: string
+          finalizat_de?: string | null
+          finalizata_la: string
+          id?: string
+          instance_id: string
+          organization_id: string
+          pasi_bifati: number
+          pasi_obligatorii: number
+          tip: Database["public"]["Enums"]["checklist_tip"]
+          total_pasi: number
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          instance_id?: string;
-          employee_id?: string;
-          tip?: Database["public"]["Enums"]["checklist_tip"];
-          ciclu?: number;
-          finalizata_la?: string;
-          finalizat_de?: string | null;
-          total_pasi?: number;
-          pasi_bifati?: number;
-          pasi_obligatorii?: number;
-          continut?: Json;
-          continut_checksum?: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-        };
-        Relationships: [];
-      };
+          ciclu?: number
+          continut?: Json
+          continut_checksum?: string
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string
+          finalizat_de?: string | null
+          finalizata_la?: string
+          id?: string
+          instance_id?: string
+          organization_id?: string
+          pasi_bifati?: number
+          pasi_obligatorii?: number
+          tip?: Database["public"]["Enums"]["checklist_tip"]
+          total_pasi?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_completion_records_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_completion_records_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: true
+            referencedRelation: "checklist_instances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_completion_records_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       checklist_instance_items: {
         Row: {
-          id: string;
-          organization_id: string;
-          instance_id: string;
-          employee_id: string;
-          template_item_id: string | null;
-          ordine: number;
-          titlu: string;
-          descriere: string | null;
-          responsabil_tip: Database["public"]["Enums"]["checklist_responsabil_tip"];
-          responsabil_rol: Database["public"]["Enums"]["app_role"] | null;
-          responsabil_employee_id: string | null;
-          termen: string | null;
-          obligatoriu: boolean;
-          tip_dovada: Database["public"]["Enums"]["checklist_tip_dovada"];
-          verificare_automata: Database["public"]["Enums"]["checklist_verificare"] | null;
-          status: Database["public"]["Enums"]["checklist_item_status"];
-          bifat_de: string | null;
-          bifat_la: string | null;
-          bifat_automat: boolean;
-          dovada: string | null;
-          dovada_document_id: string | null;
-          observatii: string | null;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          bifat_automat: boolean
+          bifat_de: string | null
+          bifat_la: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          descriere: string | null
+          dovada: string | null
+          dovada_document_id: string | null
+          employee_id: string
+          id: string
+          instance_id: string
+          obligatoriu: boolean
+          observatii: string | null
+          ordine: number
+          organization_id: string
+          responsabil_employee_id: string | null
+          responsabil_rol: Database["public"]["Enums"]["app_role"] | null
+          responsabil_tip: Database["public"]["Enums"]["checklist_responsabil_tip"]
+          status: Database["public"]["Enums"]["checklist_item_status"]
+          template_item_id: string | null
+          termen: string | null
+          tip_dovada: Database["public"]["Enums"]["checklist_tip_dovada"]
+          titlu: string
+          updated_at: string
+          updated_by: string | null
+          verificare_automata:
+            | Database["public"]["Enums"]["checklist_verificare"]
+            | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          instance_id: string;
-          employee_id: string;
-          template_item_id?: string | null;
-          ordine: number;
-          titlu: string;
-          descriere?: string | null;
-          responsabil_tip: Database["public"]["Enums"]["checklist_responsabil_tip"];
-          responsabil_rol?: Database["public"]["Enums"]["app_role"] | null;
-          responsabil_employee_id?: string | null;
-          termen?: string | null;
-          obligatoriu: boolean;
-          tip_dovada: Database["public"]["Enums"]["checklist_tip_dovada"];
-          verificare_automata?: Database["public"]["Enums"]["checklist_verificare"] | null;
-          status?: Database["public"]["Enums"]["checklist_item_status"];
-          bifat_de?: string | null;
-          bifat_la?: string | null;
-          bifat_automat?: boolean;
-          dovada?: string | null;
-          dovada_document_id?: string | null;
-          observatii?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          bifat_automat?: boolean
+          bifat_de?: string | null
+          bifat_la?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          descriere?: string | null
+          dovada?: string | null
+          dovada_document_id?: string | null
+          employee_id: string
+          id?: string
+          instance_id: string
+          obligatoriu: boolean
+          observatii?: string | null
+          ordine: number
+          organization_id: string
+          responsabil_employee_id?: string | null
+          responsabil_rol?: Database["public"]["Enums"]["app_role"] | null
+          responsabil_tip: Database["public"]["Enums"]["checklist_responsabil_tip"]
+          status?: Database["public"]["Enums"]["checklist_item_status"]
+          template_item_id?: string | null
+          termen?: string | null
+          tip_dovada: Database["public"]["Enums"]["checklist_tip_dovada"]
+          titlu: string
+          updated_at?: string
+          updated_by?: string | null
+          verificare_automata?:
+            | Database["public"]["Enums"]["checklist_verificare"]
+            | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          instance_id?: string;
-          employee_id?: string;
-          template_item_id?: string | null;
-          ordine?: number;
-          titlu?: string;
-          descriere?: string | null;
-          responsabil_tip?: Database["public"]["Enums"]["checklist_responsabil_tip"];
-          responsabil_rol?: Database["public"]["Enums"]["app_role"] | null;
-          responsabil_employee_id?: string | null;
-          termen?: string | null;
-          obligatoriu?: boolean;
-          tip_dovada?: Database["public"]["Enums"]["checklist_tip_dovada"];
-          verificare_automata?: Database["public"]["Enums"]["checklist_verificare"] | null;
-          status?: Database["public"]["Enums"]["checklist_item_status"];
-          bifat_de?: string | null;
-          bifat_la?: string | null;
-          bifat_automat?: boolean;
-          dovada?: string | null;
-          dovada_document_id?: string | null;
-          observatii?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          bifat_automat?: boolean
+          bifat_de?: string | null
+          bifat_la?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          descriere?: string | null
+          dovada?: string | null
+          dovada_document_id?: string | null
+          employee_id?: string
+          id?: string
+          instance_id?: string
+          obligatoriu?: boolean
+          observatii?: string | null
+          ordine?: number
+          organization_id?: string
+          responsabil_employee_id?: string | null
+          responsabil_rol?: Database["public"]["Enums"]["app_role"] | null
+          responsabil_tip?: Database["public"]["Enums"]["checklist_responsabil_tip"]
+          status?: Database["public"]["Enums"]["checklist_item_status"]
+          template_item_id?: string | null
+          termen?: string | null
+          tip_dovada?: Database["public"]["Enums"]["checklist_tip_dovada"]
+          titlu?: string
+          updated_at?: string
+          updated_by?: string | null
+          verificare_automata?:
+            | Database["public"]["Enums"]["checklist_verificare"]
+            | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_instance_items_dovada_document_id_fkey"
+            columns: ["dovada_document_id"]
+            isOneToOne: false
+            referencedRelation: "employee_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_instance_items_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_instance_items_instance_fk"
+            columns: ["instance_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_instances"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "checklist_instance_items_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_instance_items_responsabil_employee_id_fkey"
+            columns: ["responsabil_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_instance_items_template_item_id_fkey"
+            columns: ["template_item_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_template_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       checklist_instances: {
         Row: {
-          id: string;
-          organization_id: string;
-          template_id: string;
-          employee_id: string;
-          tip: Database["public"]["Enums"]["checklist_tip"];
-          data_referinta: string;
-          status: Database["public"]["Enums"]["checklist_instanta_status"];
-          ciclu: number;
-          observatii: string | null;
-          finalizata_la: string | null;
-          finalizata_de: string | null;
-          anulata_la: string | null;
-          motiv_anulare: string | null;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          anulata_la: string | null
+          ciclu: number
+          created_at: string
+          created_by: string | null
+          data_referinta: string
+          deleted_at: string | null
+          employee_id: string
+          finalizata_de: string | null
+          finalizata_la: string | null
+          id: string
+          motiv_anulare: string | null
+          observatii: string | null
+          organization_id: string
+          status: Database["public"]["Enums"]["checklist_instanta_status"]
+          template_id: string
+          tip: Database["public"]["Enums"]["checklist_tip"]
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          template_id: string;
-          employee_id: string;
-          tip: Database["public"]["Enums"]["checklist_tip"];
-          data_referinta: string;
-          status?: Database["public"]["Enums"]["checklist_instanta_status"];
-          ciclu?: number;
-          observatii?: string | null;
-          finalizata_la?: string | null;
-          finalizata_de?: string | null;
-          anulata_la?: string | null;
-          motiv_anulare?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          anulata_la?: string | null
+          ciclu?: number
+          created_at?: string
+          created_by?: string | null
+          data_referinta: string
+          deleted_at?: string | null
+          employee_id: string
+          finalizata_de?: string | null
+          finalizata_la?: string | null
+          id?: string
+          motiv_anulare?: string | null
+          observatii?: string | null
+          organization_id: string
+          status?: Database["public"]["Enums"]["checklist_instanta_status"]
+          template_id: string
+          tip: Database["public"]["Enums"]["checklist_tip"]
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          template_id?: string;
-          employee_id?: string;
-          tip?: Database["public"]["Enums"]["checklist_tip"];
-          data_referinta?: string;
-          status?: Database["public"]["Enums"]["checklist_instanta_status"];
-          ciclu?: number;
-          observatii?: string | null;
-          finalizata_la?: string | null;
-          finalizata_de?: string | null;
-          anulata_la?: string | null;
-          motiv_anulare?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          anulata_la?: string | null
+          ciclu?: number
+          created_at?: string
+          created_by?: string | null
+          data_referinta?: string
+          deleted_at?: string | null
+          employee_id?: string
+          finalizata_de?: string | null
+          finalizata_la?: string | null
+          id?: string
+          motiv_anulare?: string | null
+          observatii?: string | null
+          organization_id?: string
+          status?: Database["public"]["Enums"]["checklist_instanta_status"]
+          template_id?: string
+          tip?: Database["public"]["Enums"]["checklist_tip"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_instances_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_instances_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_instances_template_fk"
+            columns: ["template_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_templates"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
+      }
       checklist_template_items: {
         Row: {
-          id: string;
-          organization_id: string;
-          template_id: string;
-          ordine: number;
-          titlu: string;
-          descriere: string | null;
-          responsabil_tip: Database["public"]["Enums"]["checklist_responsabil_tip"];
-          responsabil_rol: Database["public"]["Enums"]["app_role"] | null;
-          responsabil_employee_id: string | null;
-          termen_zile_relativ: number;
-          obligatoriu: boolean;
-          tip_dovada: Database["public"]["Enums"]["checklist_tip_dovada"];
-          verificare_automata: Database["public"]["Enums"]["checklist_verificare"] | null;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          descriere: string | null
+          id: string
+          obligatoriu: boolean
+          ordine: number
+          organization_id: string
+          responsabil_employee_id: string | null
+          responsabil_rol: Database["public"]["Enums"]["app_role"] | null
+          responsabil_tip: Database["public"]["Enums"]["checklist_responsabil_tip"]
+          template_id: string
+          termen_zile_relativ: number
+          tip_dovada: Database["public"]["Enums"]["checklist_tip_dovada"]
+          titlu: string
+          updated_at: string
+          updated_by: string | null
+          verificare_automata:
+            | Database["public"]["Enums"]["checklist_verificare"]
+            | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          template_id: string;
-          ordine: number;
-          titlu: string;
-          descriere?: string | null;
-          responsabil_tip?: Database["public"]["Enums"]["checklist_responsabil_tip"];
-          responsabil_rol?: Database["public"]["Enums"]["app_role"] | null;
-          responsabil_employee_id?: string | null;
-          termen_zile_relativ?: number;
-          obligatoriu?: boolean;
-          tip_dovada?: Database["public"]["Enums"]["checklist_tip_dovada"];
-          verificare_automata?: Database["public"]["Enums"]["checklist_verificare"] | null;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          descriere?: string | null
+          id?: string
+          obligatoriu?: boolean
+          ordine: number
+          organization_id: string
+          responsabil_employee_id?: string | null
+          responsabil_rol?: Database["public"]["Enums"]["app_role"] | null
+          responsabil_tip?: Database["public"]["Enums"]["checklist_responsabil_tip"]
+          template_id: string
+          termen_zile_relativ?: number
+          tip_dovada?: Database["public"]["Enums"]["checklist_tip_dovada"]
+          titlu: string
+          updated_at?: string
+          updated_by?: string | null
+          verificare_automata?:
+            | Database["public"]["Enums"]["checklist_verificare"]
+            | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          template_id?: string;
-          ordine?: number;
-          titlu?: string;
-          descriere?: string | null;
-          responsabil_tip?: Database["public"]["Enums"]["checklist_responsabil_tip"];
-          responsabil_rol?: Database["public"]["Enums"]["app_role"] | null;
-          responsabil_employee_id?: string | null;
-          termen_zile_relativ?: number;
-          obligatoriu?: boolean;
-          tip_dovada?: Database["public"]["Enums"]["checklist_tip_dovada"];
-          verificare_automata?: Database["public"]["Enums"]["checklist_verificare"] | null;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          descriere?: string | null
+          id?: string
+          obligatoriu?: boolean
+          ordine?: number
+          organization_id?: string
+          responsabil_employee_id?: string | null
+          responsabil_rol?: Database["public"]["Enums"]["app_role"] | null
+          responsabil_tip?: Database["public"]["Enums"]["checklist_responsabil_tip"]
+          template_id?: string
+          termen_zile_relativ?: number
+          tip_dovada?: Database["public"]["Enums"]["checklist_tip_dovada"]
+          titlu?: string
+          updated_at?: string
+          updated_by?: string | null
+          verificare_automata?:
+            | Database["public"]["Enums"]["checklist_verificare"]
+            | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_template_items_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_template_items_responsabil_employee_id_fkey"
+            columns: ["responsabil_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_template_items_template_fk"
+            columns: ["template_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_templates"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
+      }
       checklist_templates: {
         Row: {
-          id: string;
-          organization_id: string;
-          denumire: string;
-          tip: Database["public"]["Enums"]["checklist_tip"];
-          descriere: string | null;
-          department_id: string | null;
-          job_position_id: string | null;
-          activ: boolean;
-          valabil_de_la: string;
-          valabil_pana_la: string | null;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          activ: boolean
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          denumire: string
+          department_id: string | null
+          descriere: string | null
+          id: string
+          job_position_id: string | null
+          organization_id: string
+          tip: Database["public"]["Enums"]["checklist_tip"]
+          updated_at: string
+          updated_by: string | null
+          valabil_de_la: string
+          valabil_pana_la: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          denumire: string;
-          tip: Database["public"]["Enums"]["checklist_tip"];
-          descriere?: string | null;
-          department_id?: string | null;
-          job_position_id?: string | null;
-          activ?: boolean;
-          valabil_de_la?: string;
-          valabil_pana_la?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          activ?: boolean
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire: string
+          department_id?: string | null
+          descriere?: string | null
+          id?: string
+          job_position_id?: string | null
+          organization_id: string
+          tip: Database["public"]["Enums"]["checklist_tip"]
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la?: string
+          valabil_pana_la?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          denumire?: string;
-          tip?: Database["public"]["Enums"]["checklist_tip"];
-          descriere?: string | null;
-          department_id?: string | null;
-          job_position_id?: string | null;
-          activ?: boolean;
-          valabil_de_la?: string;
-          valabil_pana_la?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          activ?: boolean
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire?: string
+          department_id?: string | null
+          descriere?: string | null
+          id?: string
+          job_position_id?: string | null
+          organization_id?: string
+          tip?: Database["public"]["Enums"]["checklist_tip"]
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la?: string
+          valabil_pana_la?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_templates_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_templates_job_position_id_fkey"
+            columns: ["job_position_id"]
+            isOneToOne: false
+            referencedRelation: "job_positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_templates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       compliance_alerts: {
         Row: {
-          id: string;
-          organization_id: string;
-          expirable_id: string;
-          prag_zile: number;
-          due_date: string;
-          status: string;
-          acknowledged_by: string | null;
-          acknowledged_at: string | null;
-          resolved_at: string | null;
-          resolved_by: string | null;
-          nota: string | null;
-          created_at: string;
-          updated_at: string;
-          deleted_at: string | null;
-        };
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          created_at: string
+          deleted_at: string | null
+          due_date: string
+          expirable_id: string
+          id: string
+          nota: string | null
+          organization_id: string
+          prag_zile: number
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          updated_at: string
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          expirable_id: string;
-          prag_zile: number;
-          due_date: string;
-          status?: string;
-          acknowledged_by?: string | null;
-          acknowledged_at?: string | null;
-          resolved_at?: string | null;
-          resolved_by?: string | null;
-          nota?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-        };
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          due_date: string
+          expirable_id: string
+          id?: string
+          nota?: string | null
+          organization_id: string
+          prag_zile: number
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_at?: string
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          expirable_id?: string;
-          prag_zile?: number;
-          due_date?: string;
-          status?: string;
-          acknowledged_by?: string | null;
-          acknowledged_at?: string | null;
-          resolved_at?: string | null;
-          resolved_by?: string | null;
-          nota?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          due_date?: string
+          expirable_id?: string
+          id?: string
+          nota?: string | null
+          organization_id?: string
+          prag_zile?: number
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compliance_alerts_acknowledged_by_fkey"
+            columns: ["acknowledged_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compliance_alerts_expirable_id_fkey"
+            columns: ["expirable_id"]
+            isOneToOne: false
+            referencedRelation: "expirables"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compliance_alerts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compliance_alerts_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       countries: {
         Row: {
-          id: string;
-          cod_alpha2: string;
-          cod_alpha3: string;
-          denumire: string;
-          denumire_oficiala: string | null;
-          moneda: string;
-          este_ue: boolean;
-          este_see: boolean;
-          deleted_at: string | null;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-        };
+          cod_alpha2: string
+          cod_alpha3: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          denumire: string
+          denumire_oficiala: string | null
+          este_see: boolean
+          este_ue: boolean
+          id: string
+          moneda: string
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          cod_alpha2: string;
-          cod_alpha3: string;
-          denumire: string;
-          denumire_oficiala?: string | null;
-          moneda: string;
-          este_ue?: boolean;
-          este_see?: boolean;
-          deleted_at?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-        };
+          cod_alpha2: string
+          cod_alpha3: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire: string
+          denumire_oficiala?: string | null
+          este_see?: boolean
+          este_ue?: boolean
+          id?: string
+          moneda: string
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          cod_alpha2?: string;
-          cod_alpha3?: string;
-          denumire?: string;
-          denumire_oficiala?: string | null;
-          moneda?: string;
-          este_ue?: boolean;
-          este_see?: boolean;
-          deleted_at?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-        };
-        Relationships: [];
-      };
+          cod_alpha2?: string
+          cod_alpha3?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire?: string
+          denumire_oficiala?: string | null
+          este_see?: boolean
+          este_ue?: boolean
+          id?: string
+          moneda?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       dangerous_incidents: {
         Row: {
-          id: string;
-          organization_id: string;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-          numar_intern: string | null;
-          data_producerii: string;
-          ora_producerii: string | null;
-          locul: string;
-          descriere: string;
-          cauze: string | null;
-          masuri: string | null;
-          employee_id: string | null;
-          comunicat_la_itm_la: string | null;
-        };
+          cauze: string | null
+          comunicat_la_itm_la: string | null
+          created_at: string
+          created_by: string | null
+          data_producerii: string
+          deleted_at: string | null
+          descriere: string
+          employee_id: string | null
+          id: string
+          locul: string
+          masuri: string | null
+          numar_intern: string | null
+          ora_producerii: string | null
+          organization_id: string
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          numar_intern?: string | null;
-          data_producerii: string;
-          ora_producerii?: string | null;
-          locul: string;
-          descriere: string;
-          cauze?: string | null;
-          masuri?: string | null;
-          employee_id?: string | null;
-          comunicat_la_itm_la?: string | null;
-        };
+          cauze?: string | null
+          comunicat_la_itm_la?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_producerii: string
+          deleted_at?: string | null
+          descriere: string
+          employee_id?: string | null
+          id?: string
+          locul: string
+          masuri?: string | null
+          numar_intern?: string | null
+          ora_producerii?: string | null
+          organization_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          numar_intern?: string | null;
-          data_producerii?: string;
-          ora_producerii?: string | null;
-          locul?: string;
-          descriere?: string;
-          cauze?: string | null;
-          masuri?: string | null;
-          employee_id?: string | null;
-          comunicat_la_itm_la?: string | null;
-        };
-        Relationships: [];
-      };
+          cauze?: string | null
+          comunicat_la_itm_la?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_producerii?: string
+          deleted_at?: string | null
+          descriere?: string
+          employee_id?: string | null
+          id?: string
+          locul?: string
+          masuri?: string | null
+          numar_intern?: string | null
+          ora_producerii?: string | null
+          organization_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dangerous_incidents_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dangerous_incidents_org_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       demo_requests: {
         Row: {
-          id: string;
-          nume: string;
-          firma: string;
-          email: string;
-          telefon: string | null;
-          nr_angajati: Database["public"]["Enums"]["employee_band"] | null;
-          mesaj: string | null;
-          status: Database["public"]["Enums"]["demo_request_status"];
-          ip: string | null;
-          user_agent: string | null;
-          created_at: string;
-          created_day: string | null;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          created_at: string
+          created_by: string | null
+          created_day: string | null
+          deleted_at: string | null
+          email: string
+          firma: string
+          id: string
+          ip: unknown
+          mesaj: string | null
+          nr_angajati: Database["public"]["Enums"]["employee_band"] | null
+          nume: string
+          status: Database["public"]["Enums"]["demo_request_status"]
+          telefon: string | null
+          updated_at: string
+          updated_by: string | null
+          user_agent: string | null
+        }
         Insert: {
-          id?: string;
-          nume: string;
-          firma: string;
-          email: string;
-          telefon?: string | null;
-          nr_angajati?: Database["public"]["Enums"]["employee_band"] | null;
-          mesaj?: string | null;
-          status?: Database["public"]["Enums"]["demo_request_status"];
-          ip?: string | null;
-          user_agent?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          created_at?: string
+          created_by?: string | null
+          created_day?: string | null
+          deleted_at?: string | null
+          email: string
+          firma: string
+          id?: string
+          ip?: unknown
+          mesaj?: string | null
+          nr_angajati?: Database["public"]["Enums"]["employee_band"] | null
+          nume: string
+          status?: Database["public"]["Enums"]["demo_request_status"]
+          telefon?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          user_agent?: string | null
+        }
         Update: {
-          id?: string;
-          nume?: string;
-          firma?: string;
-          email?: string;
-          telefon?: string | null;
-          nr_angajati?: Database["public"]["Enums"]["employee_band"] | null;
-          mesaj?: string | null;
-          status?: Database["public"]["Enums"]["demo_request_status"];
-          ip?: string | null;
-          user_agent?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          created_by?: string | null
+          created_day?: string | null
+          deleted_at?: string | null
+          email?: string
+          firma?: string
+          id?: string
+          ip?: unknown
+          mesaj?: string | null
+          nr_angajati?: Database["public"]["Enums"]["employee_band"] | null
+          nume?: string
+          status?: Database["public"]["Enums"]["demo_request_status"]
+          telefon?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       departments: {
         Row: {
-          id: string;
-          organization_id: string;
-          parent_id: string | null;
-          path: string[];
-          depth: number;
-          cod: string;
-          denumire: string;
-          descriere: string | null;
-          manager_employee_id: string | null;
-          cost_center: string | null;
-          activ: boolean;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          activ: boolean
+          cod: string
+          cost_center: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          denumire: string
+          depth: number
+          descriere: string | null
+          id: string
+          manager_employee_id: string | null
+          organization_id: string
+          parent_id: string | null
+          path: string[]
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          parent_id?: string | null;
-          path?: string[];
-          depth?: number;
-          cod: string;
-          denumire: string;
-          descriere?: string | null;
-          manager_employee_id?: string | null;
-          cost_center?: string | null;
-          activ?: boolean;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          activ?: boolean
+          cod: string
+          cost_center?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire: string
+          depth?: number
+          descriere?: string | null
+          id?: string
+          manager_employee_id?: string | null
+          organization_id: string
+          parent_id?: string | null
+          path?: string[]
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          parent_id?: string | null;
-          path?: string[];
-          depth?: number;
-          cod?: string;
-          denumire?: string;
-          descriere?: string | null;
-          manager_employee_id?: string | null;
-          cost_center?: string | null;
-          activ?: boolean;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          activ?: boolean
+          cod?: string
+          cost_center?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire?: string
+          depth?: number
+          descriere?: string | null
+          id?: string
+          manager_employee_id?: string | null
+          organization_id?: string
+          parent_id?: string | null
+          path?: string[]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "departments_manager_fk"
+            columns: ["manager_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "departments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "departments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_sequences: {
         Row: {
-          id: string;
-          organization_id: string;
-          document_type: string;
-          year: number;
-          prefix: string;
-          next_number: number;
-          padding: number;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-        };
+          created_at: string
+          created_by: string | null
+          document_type: string
+          id: string
+          next_number: number
+          organization_id: string
+          padding: number
+          prefix: string
+          updated_at: string
+          updated_by: string | null
+          year: number
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          document_type: string;
-          year: number;
-          prefix?: string;
-          next_number?: number;
-          padding?: number;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-        };
+          created_at?: string
+          created_by?: string | null
+          document_type: string
+          id?: string
+          next_number?: number
+          organization_id: string
+          padding?: number
+          prefix?: string
+          updated_at?: string
+          updated_by?: string | null
+          year: number
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          document_type?: string;
-          year?: number;
-          prefix?: string;
-          next_number?: number;
-          padding?: number;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          created_by?: string | null
+          document_type?: string
+          id?: string
+          next_number?: number
+          organization_id?: string
+          padding?: number
+          prefix?: string
+          updated_at?: string
+          updated_by?: string | null
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_sequences_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_log: {
         Row: {
-          id: string;
-          organization_id: string | null;
-          destinatar: string;
-          subiect: string;
-          template: string;
-          status: Database["public"]["Enums"]["email_status"];
-          provider_id: string | null;
-          error: string | null;
-          sent_at: string | null;
-          created_at: string;
-          updated_at: string;
-        };
+          created_at: string
+          destinatar: string
+          error: string | null
+          id: string
+          organization_id: string | null
+          provider_id: string | null
+          sent_at: string | null
+          status: Database["public"]["Enums"]["email_status"]
+          subiect: string
+          template: string
+          updated_at: string
+        }
         Insert: {
-          id?: string;
-          organization_id?: string | null;
-          destinatar: string;
-          subiect: string;
-          template: string;
-          status?: Database["public"]["Enums"]["email_status"];
-          provider_id?: string | null;
-          error?: string | null;
-          sent_at?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
+          created_at?: string
+          destinatar: string
+          error?: string | null
+          id?: string
+          organization_id?: string | null
+          provider_id?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["email_status"]
+          subiect: string
+          template: string
+          updated_at?: string
+        }
         Update: {
-          id?: string;
-          organization_id?: string | null;
-          destinatar?: string;
-          subiect?: string;
-          template?: string;
-          status?: Database["public"]["Enums"]["email_status"];
-          provider_id?: string | null;
-          error?: string | null;
-          sent_at?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          destinatar?: string
+          error?: string | null
+          id?: string
+          organization_id?: string | null
+          provider_id?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["email_status"]
+          subiect?: string
+          template?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_log_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_document_types: {
         Row: {
-          id: string;
-          organization_id: string | null;
-          cod: string;
-          denumire: string;
-          cere_valabilitate: boolean;
-          confidential_implicit: boolean;
-          vizibil_angajatului_implicit: boolean;
-          ordine: number;
-          activ: boolean;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          activ: boolean
+          cere_valabilitate: boolean
+          cod: string
+          confidential_implicit: boolean
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          denumire: string
+          id: string
+          ordine: number
+          organization_id: string | null
+          updated_at: string
+          updated_by: string | null
+          vizibil_angajatului_implicit: boolean
+        }
         Insert: {
-          id?: string;
-          organization_id?: string | null;
-          cod: string;
-          denumire: string;
-          cere_valabilitate?: boolean;
-          confidential_implicit?: boolean;
-          vizibil_angajatului_implicit?: boolean;
-          ordine?: number;
-          activ?: boolean;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          activ?: boolean
+          cere_valabilitate?: boolean
+          cod: string
+          confidential_implicit?: boolean
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire: string
+          id?: string
+          ordine?: number
+          organization_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          vizibil_angajatului_implicit?: boolean
+        }
         Update: {
-          id?: string;
-          organization_id?: string | null;
-          cod?: string;
-          denumire?: string;
-          cere_valabilitate?: boolean;
-          confidential_implicit?: boolean;
-          vizibil_angajatului_implicit?: boolean;
-          ordine?: number;
-          activ?: boolean;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          activ?: boolean
+          cere_valabilitate?: boolean
+          cod?: string
+          confidential_implicit?: boolean
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire?: string
+          id?: string
+          ordine?: number
+          organization_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          vizibil_angajatului_implicit?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_document_types_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_documents: {
         Row: {
-          id: string;
-          organization_id: string;
-          employee_id: string;
-          document_type_id: string;
-          contract_id: string | null;
-          titlu: string;
-          numar_document: string | null;
-          data_document: string | null;
-          valabil_de_la: string | null;
-          valabil_pana: string | null;
-          fisier_path: string;
-          fisier_nume: string;
-          fisier_marime_bytes: number | null;
-          fisier_mime: string | null;
-          fisier_checksum: string | null;
-          confidential: boolean;
-          vizibil_angajatului: boolean;
-          observatii: string | null;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          confidential: boolean
+          contract_id: string | null
+          created_at: string
+          created_by: string | null
+          data_document: string | null
+          deleted_at: string | null
+          document_type_id: string
+          employee_id: string
+          fisier_checksum: string | null
+          fisier_marime_bytes: number | null
+          fisier_mime: string | null
+          fisier_nume: string
+          fisier_path: string
+          id: string
+          numar_document: string | null
+          observatii: string | null
+          organization_id: string
+          titlu: string
+          updated_at: string
+          updated_by: string | null
+          valabil_de_la: string | null
+          valabil_pana: string | null
+          vizibil_angajatului: boolean
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          employee_id: string;
-          document_type_id: string;
-          contract_id?: string | null;
-          titlu: string;
-          numar_document?: string | null;
-          data_document?: string | null;
-          valabil_de_la?: string | null;
-          valabil_pana?: string | null;
-          fisier_path: string;
-          fisier_nume: string;
-          fisier_marime_bytes?: number | null;
-          fisier_mime?: string | null;
-          fisier_checksum?: string | null;
-          confidential?: boolean;
-          vizibil_angajatului?: boolean;
-          observatii?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          confidential?: boolean
+          contract_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_document?: string | null
+          deleted_at?: string | null
+          document_type_id: string
+          employee_id: string
+          fisier_checksum?: string | null
+          fisier_marime_bytes?: number | null
+          fisier_mime?: string | null
+          fisier_nume: string
+          fisier_path: string
+          id?: string
+          numar_document?: string | null
+          observatii?: string | null
+          organization_id: string
+          titlu: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la?: string | null
+          valabil_pana?: string | null
+          vizibil_angajatului?: boolean
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          employee_id?: string;
-          document_type_id?: string;
-          contract_id?: string | null;
-          titlu?: string;
-          numar_document?: string | null;
-          data_document?: string | null;
-          valabil_de_la?: string | null;
-          valabil_pana?: string | null;
-          fisier_path?: string;
-          fisier_nume?: string;
-          fisier_marime_bytes?: number | null;
-          fisier_mime?: string | null;
-          fisier_checksum?: string | null;
-          confidential?: boolean;
-          vizibil_angajatului?: boolean;
-          observatii?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          confidential?: boolean
+          contract_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_document?: string | null
+          deleted_at?: string | null
+          document_type_id?: string
+          employee_id?: string
+          fisier_checksum?: string | null
+          fisier_marime_bytes?: number | null
+          fisier_mime?: string | null
+          fisier_nume?: string
+          fisier_path?: string
+          id?: string
+          numar_document?: string | null
+          observatii?: string | null
+          organization_id?: string
+          titlu?: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la?: string | null
+          valabil_pana?: string | null
+          vizibil_angajatului?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_documents_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "employment_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_documents_document_type_id_fkey"
+            columns: ["document_type_id"]
+            isOneToOne: false
+            referencedRelation: "employee_document_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_documents_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_documents_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_sensitive_data: {
         Row: {
-          employee_id: string;
-          organization_id: string;
-          cnp_ciphertext: string | null;
-          cnp_iv: string | null;
-          cnp_tag: string | null;
-          cnp_key_version: number | null;
-          cnp_last4: string | null;
-          cnp_hash: string | null;
-          iban_ciphertext: string | null;
-          iban_iv: string | null;
-          iban_tag: string | null;
-          iban_key_version: number | null;
-          iban_last4: string | null;
-          iban_hash: string | null;
-          banca: string | null;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          banca: string | null
+          cnp_ciphertext: string | null
+          cnp_hash: string | null
+          cnp_iv: string | null
+          cnp_key_version: number | null
+          cnp_last4: string | null
+          cnp_tag: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          employee_id: string
+          iban_ciphertext: string | null
+          iban_hash: string | null
+          iban_iv: string | null
+          iban_key_version: number | null
+          iban_last4: string | null
+          iban_tag: string | null
+          organization_id: string
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          employee_id: string;
-          organization_id: string;
-          cnp_ciphertext?: string | null;
-          cnp_iv?: string | null;
-          cnp_tag?: string | null;
-          cnp_key_version?: number | null;
-          cnp_last4?: string | null;
-          cnp_hash?: string | null;
-          iban_ciphertext?: string | null;
-          iban_iv?: string | null;
-          iban_tag?: string | null;
-          iban_key_version?: number | null;
-          iban_last4?: string | null;
-          iban_hash?: string | null;
-          banca?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          banca?: string | null
+          cnp_ciphertext?: string | null
+          cnp_hash?: string | null
+          cnp_iv?: string | null
+          cnp_key_version?: number | null
+          cnp_last4?: string | null
+          cnp_tag?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          employee_id: string
+          iban_ciphertext?: string | null
+          iban_hash?: string | null
+          iban_iv?: string | null
+          iban_key_version?: number | null
+          iban_last4?: string | null
+          iban_tag?: string | null
+          organization_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          employee_id?: string;
-          organization_id?: string;
-          cnp_ciphertext?: string | null;
-          cnp_iv?: string | null;
-          cnp_tag?: string | null;
-          cnp_key_version?: number | null;
-          cnp_last4?: string | null;
-          cnp_hash?: string | null;
-          iban_ciphertext?: string | null;
-          iban_iv?: string | null;
-          iban_tag?: string | null;
-          iban_key_version?: number | null;
-          iban_last4?: string | null;
-          iban_hash?: string | null;
-          banca?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          banca?: string | null
+          cnp_ciphertext?: string | null
+          cnp_hash?: string | null
+          cnp_iv?: string | null
+          cnp_key_version?: number | null
+          cnp_last4?: string | null
+          cnp_tag?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          employee_id?: string
+          iban_ciphertext?: string | null
+          iban_hash?: string | null
+          iban_iv?: string | null
+          iban_key_version?: number | null
+          iban_last4?: string | null
+          iban_tag?: string | null
+          organization_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_sensitive_data_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: true
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_sensitive_data_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_tax_exemptions: {
         Row: {
-          id: string;
-          organization_id: string;
-          employee_id: string;
-          contract_id: string | null;
-          exemption_type: Database["public"]["Enums"]["exemption_type"];
-          valabil_de_la: string;
-          valabil_pana: string | null;
-          procent_scutire: number | null;
-          plafon_lunar: number | null;
-          temei_legal: string | null;
-          document_id: string | null;
-          observatii: string | null;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          contract_id: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          document_id: string | null
+          employee_id: string
+          exemption_type: Database["public"]["Enums"]["exemption_type"]
+          id: string
+          observatii: string | null
+          organization_id: string
+          plafon_lunar: number | null
+          procent_scutire: number | null
+          temei_legal: string | null
+          updated_at: string
+          updated_by: string | null
+          valabil_de_la: string
+          valabil_pana: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          employee_id: string;
-          contract_id?: string | null;
-          exemption_type: Database["public"]["Enums"]["exemption_type"];
-          valabil_de_la: string;
-          valabil_pana?: string | null;
-          procent_scutire?: number | null;
-          plafon_lunar?: number | null;
-          temei_legal?: string | null;
-          document_id?: string | null;
-          observatii?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          contract_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          document_id?: string | null
+          employee_id: string
+          exemption_type: Database["public"]["Enums"]["exemption_type"]
+          id?: string
+          observatii?: string | null
+          organization_id: string
+          plafon_lunar?: number | null
+          procent_scutire?: number | null
+          temei_legal?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la: string
+          valabil_pana?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          employee_id?: string;
-          contract_id?: string | null;
-          exemption_type?: Database["public"]["Enums"]["exemption_type"];
-          valabil_de_la?: string;
-          valabil_pana?: string | null;
-          procent_scutire?: number | null;
-          plafon_lunar?: number | null;
-          temei_legal?: string | null;
-          document_id?: string | null;
-          observatii?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          contract_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          document_id?: string | null
+          employee_id?: string
+          exemption_type?: Database["public"]["Enums"]["exemption_type"]
+          id?: string
+          observatii?: string | null
+          organization_id?: string
+          plafon_lunar?: number | null
+          procent_scutire?: number | null
+          temei_legal?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la?: string
+          valabil_pana?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_tax_exemptions_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "employment_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_tax_exemptions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "employee_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_tax_exemptions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_tax_exemptions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_work_restrictions: {
         Row: {
-          id: string;
-          organization_id: string;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-          employee_id: string;
-          exam_id: string | null;
-          sursa: string;
-          restrictie: string;
-          valabil_de_la: string;
-          valabil_pana: string | null;
-          generata_automat: boolean;
-          ridicata_la: string | null;
-          observatii: string | null;
-        };
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          employee_id: string
+          exam_id: string | null
+          generata_automat: boolean
+          id: string
+          observatii: string | null
+          organization_id: string
+          restrictie: string
+          ridicata_la: string | null
+          sursa: string
+          updated_at: string
+          updated_by: string | null
+          valabil_de_la: string
+          valabil_pana: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          employee_id: string;
-          exam_id?: string | null;
-          sursa?: string;
-          restrictie: string;
-          valabil_de_la: string;
-          valabil_pana?: string | null;
-          generata_automat?: boolean;
-          ridicata_la?: string | null;
-          observatii?: string | null;
-        };
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          employee_id: string
+          exam_id?: string | null
+          generata_automat?: boolean
+          id?: string
+          observatii?: string | null
+          organization_id: string
+          restrictie: string
+          ridicata_la?: string | null
+          sursa?: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la: string
+          valabil_pana?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          employee_id?: string;
-          exam_id?: string | null;
-          sursa?: string;
-          restrictie?: string;
-          valabil_de_la?: string;
-          valabil_pana?: string | null;
-          generata_automat?: boolean;
-          ridicata_la?: string | null;
-          observatii?: string | null;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          employee_id?: string
+          exam_id?: string | null
+          generata_automat?: boolean
+          id?: string
+          observatii?: string | null
+          organization_id?: string
+          restrictie?: string
+          ridicata_la?: string | null
+          sursa?: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la?: string
+          valabil_pana?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_work_restrictions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_work_restrictions_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "occupational_health_exams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_work_restrictions_org_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employees: {
         Row: {
-          id: string;
-          organization_id: string;
-          marca: string;
-          first_name: string;
-          last_name: string;
-          full_name: string | null;
-          email_personal: string | null;
-          telefon: string | null;
-          adresa_strada: string | null;
-          adresa_oras: string | null;
-          adresa_judet: string | null;
-          adresa_cod_postal: string | null;
-          adresa_tara: string;
-          data_nasterii: string | null;
-          gen: Database["public"]["Enums"]["gen"];
-          cetatenie: string;
-          tip_act_identitate: string | null;
-          serie_act: string | null;
-          numar_act: string | null;
-          act_eliberat_de: string | null;
-          act_valabil_pana: string | null;
-          department_id: string | null;
-          job_position_id: string | null;
-          manager_employee_id: string | null;
-          manager_path: string[];
-          hired_on: string | null;
-          terminated_on: string | null;
-          conditii_munca: Database["public"]["Enums"]["conditii_munca"];
-          grad_handicap: string | null;
-          nr_persoane_intretinere: number;
-          optiune_pilon_ii: boolean;
-          status: Database["public"]["Enums"]["employee_status"];
-          user_id: string | null;
-          is_primary: boolean;
-          contact_urgenta_nume: string | null;
-          contact_urgenta_telefon: string | null;
-          contact_urgenta_relatie: string | null;
-          observatii: string | null;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          act_eliberat_de: string | null
+          act_valabil_pana: string | null
+          adresa_cod_postal: string | null
+          adresa_judet: string | null
+          adresa_oras: string | null
+          adresa_strada: string | null
+          adresa_tara: string
+          cetatenie: string
+          conditii_munca: Database["public"]["Enums"]["conditii_munca"]
+          contact_urgenta_nume: string | null
+          contact_urgenta_relatie: string | null
+          contact_urgenta_telefon: string | null
+          created_at: string
+          created_by: string | null
+          data_nasterii: string | null
+          deleted_at: string | null
+          department_id: string | null
+          email_personal: string | null
+          first_name: string
+          full_name: string | null
+          gen: Database["public"]["Enums"]["gen"]
+          grad_handicap: string | null
+          hired_on: string | null
+          id: string
+          is_primary: boolean
+          job_position_id: string | null
+          last_name: string
+          manager_employee_id: string | null
+          manager_path: string[]
+          marca: string
+          nr_persoane_intretinere: number
+          numar_act: string | null
+          observatii: string | null
+          optiune_pilon_ii: boolean
+          organization_id: string
+          serie_act: string | null
+          status: Database["public"]["Enums"]["employee_status"]
+          telefon: string | null
+          terminated_on: string | null
+          tip_act_identitate: string | null
+          updated_at: string
+          updated_by: string | null
+          user_id: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          marca: string;
-          first_name: string;
-          last_name: string;
-          email_personal?: string | null;
-          telefon?: string | null;
-          adresa_strada?: string | null;
-          adresa_oras?: string | null;
-          adresa_judet?: string | null;
-          adresa_cod_postal?: string | null;
-          adresa_tara?: string;
-          data_nasterii?: string | null;
-          gen?: Database["public"]["Enums"]["gen"];
-          cetatenie?: string;
-          tip_act_identitate?: string | null;
-          serie_act?: string | null;
-          numar_act?: string | null;
-          act_eliberat_de?: string | null;
-          act_valabil_pana?: string | null;
-          department_id?: string | null;
-          job_position_id?: string | null;
-          manager_employee_id?: string | null;
-          manager_path?: string[];
-          hired_on?: string | null;
-          terminated_on?: string | null;
-          conditii_munca?: Database["public"]["Enums"]["conditii_munca"];
-          grad_handicap?: string | null;
-          nr_persoane_intretinere?: number;
-          optiune_pilon_ii?: boolean;
-          status?: Database["public"]["Enums"]["employee_status"];
-          user_id?: string | null;
-          is_primary?: boolean;
-          contact_urgenta_nume?: string | null;
-          contact_urgenta_telefon?: string | null;
-          contact_urgenta_relatie?: string | null;
-          observatii?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          act_eliberat_de?: string | null
+          act_valabil_pana?: string | null
+          adresa_cod_postal?: string | null
+          adresa_judet?: string | null
+          adresa_oras?: string | null
+          adresa_strada?: string | null
+          adresa_tara?: string
+          cetatenie?: string
+          conditii_munca?: Database["public"]["Enums"]["conditii_munca"]
+          contact_urgenta_nume?: string | null
+          contact_urgenta_relatie?: string | null
+          contact_urgenta_telefon?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_nasterii?: string | null
+          deleted_at?: string | null
+          department_id?: string | null
+          email_personal?: string | null
+          first_name: string
+          full_name?: string | null
+          gen?: Database["public"]["Enums"]["gen"]
+          grad_handicap?: string | null
+          hired_on?: string | null
+          id?: string
+          is_primary?: boolean
+          job_position_id?: string | null
+          last_name: string
+          manager_employee_id?: string | null
+          manager_path?: string[]
+          marca: string
+          nr_persoane_intretinere?: number
+          numar_act?: string | null
+          observatii?: string | null
+          optiune_pilon_ii?: boolean
+          organization_id: string
+          serie_act?: string | null
+          status?: Database["public"]["Enums"]["employee_status"]
+          telefon?: string | null
+          terminated_on?: string | null
+          tip_act_identitate?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          marca?: string;
-          first_name?: string;
-          last_name?: string;
-          email_personal?: string | null;
-          telefon?: string | null;
-          adresa_strada?: string | null;
-          adresa_oras?: string | null;
-          adresa_judet?: string | null;
-          adresa_cod_postal?: string | null;
-          adresa_tara?: string;
-          data_nasterii?: string | null;
-          gen?: Database["public"]["Enums"]["gen"];
-          cetatenie?: string;
-          tip_act_identitate?: string | null;
-          serie_act?: string | null;
-          numar_act?: string | null;
-          act_eliberat_de?: string | null;
-          act_valabil_pana?: string | null;
-          department_id?: string | null;
-          job_position_id?: string | null;
-          manager_employee_id?: string | null;
-          manager_path?: string[];
-          hired_on?: string | null;
-          terminated_on?: string | null;
-          conditii_munca?: Database["public"]["Enums"]["conditii_munca"];
-          grad_handicap?: string | null;
-          nr_persoane_intretinere?: number;
-          optiune_pilon_ii?: boolean;
-          status?: Database["public"]["Enums"]["employee_status"];
-          user_id?: string | null;
-          is_primary?: boolean;
-          contact_urgenta_nume?: string | null;
-          contact_urgenta_telefon?: string | null;
-          contact_urgenta_relatie?: string | null;
-          observatii?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          act_eliberat_de?: string | null
+          act_valabil_pana?: string | null
+          adresa_cod_postal?: string | null
+          adresa_judet?: string | null
+          adresa_oras?: string | null
+          adresa_strada?: string | null
+          adresa_tara?: string
+          cetatenie?: string
+          conditii_munca?: Database["public"]["Enums"]["conditii_munca"]
+          contact_urgenta_nume?: string | null
+          contact_urgenta_relatie?: string | null
+          contact_urgenta_telefon?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_nasterii?: string | null
+          deleted_at?: string | null
+          department_id?: string | null
+          email_personal?: string | null
+          first_name?: string
+          full_name?: string | null
+          gen?: Database["public"]["Enums"]["gen"]
+          grad_handicap?: string | null
+          hired_on?: string | null
+          id?: string
+          is_primary?: boolean
+          job_position_id?: string | null
+          last_name?: string
+          manager_employee_id?: string | null
+          manager_path?: string[]
+          marca?: string
+          nr_persoane_intretinere?: number
+          numar_act?: string | null
+          observatii?: string | null
+          optiune_pilon_ii?: boolean
+          organization_id?: string
+          serie_act?: string | null
+          status?: Database["public"]["Enums"]["employee_status"]
+          telefon?: string | null
+          terminated_on?: string | null
+          tip_act_identitate?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employees_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_job_position_id_fkey"
+            columns: ["job_position_id"]
+            isOneToOne: false
+            referencedRelation: "job_positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_manager_employee_id_fkey"
+            columns: ["manager_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employees_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employment_contracts: {
         Row: {
-          id: string;
-          organization_id: string;
-          employee_id: string;
-          parent_contract_id: string | null;
-          este_act_aditional: boolean;
-          numar: string;
-          data_contract: string;
-          valabil_de_la: string;
-          valabil_pana: string | null;
-          contract_duration: Database["public"]["Enums"]["contract_duration"];
-          motiv_determinat: string | null;
-          norma_ore_saptamana: number;
-          norma_ore_zi: number;
-          work_mode: Database["public"]["Enums"]["work_mode"];
-          special_regime: Database["public"]["Enums"]["special_regime"] | null;
-          loc_telemunca: string | null;
-          loc_munca: string | null;
-          department_id: string | null;
-          job_position_id: string | null;
-          conditii_munca: Database["public"]["Enums"]["conditii_munca"];
-          salariu_baza: number;
-          moneda: string;
-          zile_concediu_anual: number;
-          perioada_proba_zile: number | null;
-          preaviz_zile: number | null;
-          status: Database["public"]["Enums"]["contract_status"];
-          cod_revisal: string | null;
-          fisier_path: string | null;
-          motiv_incetare: string | null;
-          temei_incetare: string | null;
-          incetat_la: string | null;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          cod_revisal: string | null
+          conditii_munca: Database["public"]["Enums"]["conditii_munca"]
+          contract_duration: Database["public"]["Enums"]["contract_duration"]
+          created_at: string
+          created_by: string | null
+          data_contract: string
+          deleted_at: string | null
+          department_id: string | null
+          employee_id: string
+          este_act_aditional: boolean
+          fisier_path: string | null
+          id: string
+          incetat_la: string | null
+          job_position_id: string | null
+          loc_munca: string | null
+          loc_telemunca: string | null
+          moneda: string
+          motiv_determinat: string | null
+          motiv_incetare: string | null
+          norma_ore_saptamana: number
+          norma_ore_zi: number
+          numar: string
+          organization_id: string
+          parent_contract_id: string | null
+          perioada_proba_zile: number | null
+          preaviz_zile: number | null
+          salariu_baza: number
+          special_regime: Database["public"]["Enums"]["special_regime"] | null
+          status: Database["public"]["Enums"]["contract_status"]
+          temei_incetare: string | null
+          updated_at: string
+          updated_by: string | null
+          valabil_de_la: string
+          valabil_pana: string | null
+          work_mode: Database["public"]["Enums"]["work_mode"]
+          zile_concediu_anual: number
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          employee_id: string;
-          parent_contract_id?: string | null;
-          este_act_aditional?: boolean;
-          numar: string;
-          data_contract: string;
-          valabil_de_la: string;
-          valabil_pana?: string | null;
-          contract_duration?: Database["public"]["Enums"]["contract_duration"];
-          motiv_determinat?: string | null;
-          norma_ore_saptamana?: number;
-          norma_ore_zi?: number;
-          work_mode?: Database["public"]["Enums"]["work_mode"];
-          special_regime?: Database["public"]["Enums"]["special_regime"] | null;
-          loc_telemunca?: string | null;
-          loc_munca?: string | null;
-          department_id?: string | null;
-          job_position_id?: string | null;
-          conditii_munca?: Database["public"]["Enums"]["conditii_munca"];
-          salariu_baza: number;
-          moneda?: string;
-          zile_concediu_anual?: number;
-          perioada_proba_zile?: number | null;
-          preaviz_zile?: number | null;
-          status?: Database["public"]["Enums"]["contract_status"];
-          cod_revisal?: string | null;
-          fisier_path?: string | null;
-          motiv_incetare?: string | null;
-          temei_incetare?: string | null;
-          incetat_la?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          cod_revisal?: string | null
+          conditii_munca?: Database["public"]["Enums"]["conditii_munca"]
+          contract_duration?: Database["public"]["Enums"]["contract_duration"]
+          created_at?: string
+          created_by?: string | null
+          data_contract: string
+          deleted_at?: string | null
+          department_id?: string | null
+          employee_id: string
+          este_act_aditional?: boolean
+          fisier_path?: string | null
+          id?: string
+          incetat_la?: string | null
+          job_position_id?: string | null
+          loc_munca?: string | null
+          loc_telemunca?: string | null
+          moneda?: string
+          motiv_determinat?: string | null
+          motiv_incetare?: string | null
+          norma_ore_saptamana?: number
+          norma_ore_zi?: number
+          numar: string
+          organization_id: string
+          parent_contract_id?: string | null
+          perioada_proba_zile?: number | null
+          preaviz_zile?: number | null
+          salariu_baza: number
+          special_regime?: Database["public"]["Enums"]["special_regime"] | null
+          status?: Database["public"]["Enums"]["contract_status"]
+          temei_incetare?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la: string
+          valabil_pana?: string | null
+          work_mode?: Database["public"]["Enums"]["work_mode"]
+          zile_concediu_anual?: number
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          employee_id?: string;
-          parent_contract_id?: string | null;
-          este_act_aditional?: boolean;
-          numar?: string;
-          data_contract?: string;
-          valabil_de_la?: string;
-          valabil_pana?: string | null;
-          contract_duration?: Database["public"]["Enums"]["contract_duration"];
-          motiv_determinat?: string | null;
-          norma_ore_saptamana?: number;
-          norma_ore_zi?: number;
-          work_mode?: Database["public"]["Enums"]["work_mode"];
-          special_regime?: Database["public"]["Enums"]["special_regime"] | null;
-          loc_telemunca?: string | null;
-          loc_munca?: string | null;
-          department_id?: string | null;
-          job_position_id?: string | null;
-          conditii_munca?: Database["public"]["Enums"]["conditii_munca"];
-          salariu_baza?: number;
-          moneda?: string;
-          zile_concediu_anual?: number;
-          perioada_proba_zile?: number | null;
-          preaviz_zile?: number | null;
-          status?: Database["public"]["Enums"]["contract_status"];
-          cod_revisal?: string | null;
-          fisier_path?: string | null;
-          motiv_incetare?: string | null;
-          temei_incetare?: string | null;
-          incetat_la?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          cod_revisal?: string | null
+          conditii_munca?: Database["public"]["Enums"]["conditii_munca"]
+          contract_duration?: Database["public"]["Enums"]["contract_duration"]
+          created_at?: string
+          created_by?: string | null
+          data_contract?: string
+          deleted_at?: string | null
+          department_id?: string | null
+          employee_id?: string
+          este_act_aditional?: boolean
+          fisier_path?: string | null
+          id?: string
+          incetat_la?: string | null
+          job_position_id?: string | null
+          loc_munca?: string | null
+          loc_telemunca?: string | null
+          moneda?: string
+          motiv_determinat?: string | null
+          motiv_incetare?: string | null
+          norma_ore_saptamana?: number
+          norma_ore_zi?: number
+          numar?: string
+          organization_id?: string
+          parent_contract_id?: string | null
+          perioada_proba_zile?: number | null
+          preaviz_zile?: number | null
+          salariu_baza?: number
+          special_regime?: Database["public"]["Enums"]["special_regime"] | null
+          status?: Database["public"]["Enums"]["contract_status"]
+          temei_incetare?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la?: string
+          valabil_pana?: string | null
+          work_mode?: Database["public"]["Enums"]["work_mode"]
+          zile_concediu_anual?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employment_contracts_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employment_contracts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employment_contracts_job_position_id_fkey"
+            columns: ["job_position_id"]
+            isOneToOne: false
+            referencedRelation: "job_positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employment_contracts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employment_contracts_parent_contract_id_fkey"
+            columns: ["parent_contract_id"]
+            isOneToOne: false
+            referencedRelation: "employment_contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       environmental_permits: {
         Row: {
-          id: string;
-          organization_id: string;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-          numar: string;
-          tip: string;
-          emitent: string;
-          obiect: string | null;
-          emis_la: string | null;
-          valabil_pana: string;
-          conditii: string | null;
-          responsabil_employee_id: string | null;
-        };
+          conditii: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          emis_la: string | null
+          emitent: string
+          id: string
+          numar: string
+          obiect: string | null
+          organization_id: string
+          responsabil_employee_id: string | null
+          tip: string
+          updated_at: string
+          updated_by: string | null
+          valabil_pana: string
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          numar: string;
-          tip: string;
-          emitent: string;
-          obiect?: string | null;
-          emis_la?: string | null;
-          valabil_pana: string;
-          conditii?: string | null;
-          responsabil_employee_id?: string | null;
-        };
+          conditii?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          emis_la?: string | null
+          emitent: string
+          id?: string
+          numar: string
+          obiect?: string | null
+          organization_id: string
+          responsabil_employee_id?: string | null
+          tip: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_pana: string
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          numar?: string;
-          tip?: string;
-          emitent?: string;
-          obiect?: string | null;
-          emis_la?: string | null;
-          valabil_pana?: string;
-          conditii?: string | null;
-          responsabil_employee_id?: string | null;
-        };
-        Relationships: [];
-      };
+          conditii?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          emis_la?: string | null
+          emitent?: string
+          id?: string
+          numar?: string
+          obiect?: string | null
+          organization_id?: string
+          responsabil_employee_id?: string | null
+          tip?: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_pana?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "environmental_permits_org_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "environmental_permits_responsabil_employee_id_fkey"
+            columns: ["responsabil_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       equipment: {
         Row: {
-          id: string;
-          organization_id: string;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-          cod: string;
-          denumire: string;
-          serie: string | null;
-          producator: string | null;
-          model: string | null;
-          an_fabricatie: number | null;
-          locatie: string | null;
-          department_id: string | null;
-          responsabil_employee_id: string | null;
-          status: Database["public"]["Enums"]["equipment_status"];
-          este_iscir: boolean;
-          tip_autorizare_necesara: string | null;
-          valoare_achizitie: number | null;
-          data_punerii_in_functiune: string | null;
-          derogare_motiv: string | null;
-          derogare_acordata_de: string | null;
-          derogare_acordata_la: string | null;
-        };
+          an_fabricatie: number | null
+          cod: string
+          created_at: string
+          created_by: string | null
+          data_punerii_in_functiune: string | null
+          deleted_at: string | null
+          denumire: string
+          department_id: string | null
+          derogare_acordata_de: string | null
+          derogare_acordata_la: string | null
+          derogare_motiv: string | null
+          este_iscir: boolean
+          id: string
+          locatie: string | null
+          model: string | null
+          organization_id: string
+          producator: string | null
+          responsabil_employee_id: string | null
+          serie: string | null
+          status: Database["public"]["Enums"]["equipment_status"]
+          tip_autorizare_necesara: string | null
+          updated_at: string
+          updated_by: string | null
+          valoare_achizitie: number | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          cod: string;
-          denumire: string;
-          serie?: string | null;
-          producator?: string | null;
-          model?: string | null;
-          an_fabricatie?: number | null;
-          locatie?: string | null;
-          department_id?: string | null;
-          responsabil_employee_id?: string | null;
-          status?: Database["public"]["Enums"]["equipment_status"];
-          este_iscir?: boolean;
-          tip_autorizare_necesara?: string | null;
-          valoare_achizitie?: number | null;
-          data_punerii_in_functiune?: string | null;
-          derogare_motiv?: string | null;
-          derogare_acordata_de?: string | null;
-          derogare_acordata_la?: string | null;
-        };
+          an_fabricatie?: number | null
+          cod: string
+          created_at?: string
+          created_by?: string | null
+          data_punerii_in_functiune?: string | null
+          deleted_at?: string | null
+          denumire: string
+          department_id?: string | null
+          derogare_acordata_de?: string | null
+          derogare_acordata_la?: string | null
+          derogare_motiv?: string | null
+          este_iscir?: boolean
+          id?: string
+          locatie?: string | null
+          model?: string | null
+          organization_id: string
+          producator?: string | null
+          responsabil_employee_id?: string | null
+          serie?: string | null
+          status?: Database["public"]["Enums"]["equipment_status"]
+          tip_autorizare_necesara?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          valoare_achizitie?: number | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          cod?: string;
-          denumire?: string;
-          serie?: string | null;
-          producator?: string | null;
-          model?: string | null;
-          an_fabricatie?: number | null;
-          locatie?: string | null;
-          department_id?: string | null;
-          responsabil_employee_id?: string | null;
-          status?: Database["public"]["Enums"]["equipment_status"];
-          este_iscir?: boolean;
-          tip_autorizare_necesara?: string | null;
-          valoare_achizitie?: number | null;
-          data_punerii_in_functiune?: string | null;
-          derogare_motiv?: string | null;
-          derogare_acordata_de?: string | null;
-          derogare_acordata_la?: string | null;
-        };
-        Relationships: [];
-      };
+          an_fabricatie?: number | null
+          cod?: string
+          created_at?: string
+          created_by?: string | null
+          data_punerii_in_functiune?: string | null
+          deleted_at?: string | null
+          denumire?: string
+          department_id?: string | null
+          derogare_acordata_de?: string | null
+          derogare_acordata_la?: string | null
+          derogare_motiv?: string | null
+          este_iscir?: boolean
+          id?: string
+          locatie?: string | null
+          model?: string | null
+          organization_id?: string
+          producator?: string | null
+          responsabil_employee_id?: string | null
+          serie?: string | null
+          status?: Database["public"]["Enums"]["equipment_status"]
+          tip_autorizare_necesara?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          valoare_achizitie?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_org_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_responsabil_employee_id_fkey"
+            columns: ["responsabil_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       equipment_meters: {
         Row: {
-          id: string;
-          organization_id: string;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-          equipment_id: string;
-          tip: Database["public"]["Enums"]["meter_kind"];
-          citire: number;
-          data_citirii: string;
-          resetare_contor: boolean;
-          sursa: string;
-          citit_de_employee_id: string | null;
-          observatii: string | null;
-        };
+          citire: number
+          citit_de_employee_id: string | null
+          created_at: string
+          created_by: string | null
+          data_citirii: string
+          deleted_at: string | null
+          equipment_id: string
+          id: string
+          observatii: string | null
+          organization_id: string
+          resetare_contor: boolean
+          sursa: string
+          tip: Database["public"]["Enums"]["meter_kind"]
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          equipment_id: string;
-          tip: Database["public"]["Enums"]["meter_kind"];
-          citire: number;
-          data_citirii: string;
-          resetare_contor?: boolean;
-          sursa?: string;
-          citit_de_employee_id?: string | null;
-          observatii?: string | null;
-        };
+          citire: number
+          citit_de_employee_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_citirii: string
+          deleted_at?: string | null
+          equipment_id: string
+          id?: string
+          observatii?: string | null
+          organization_id: string
+          resetare_contor?: boolean
+          sursa?: string
+          tip: Database["public"]["Enums"]["meter_kind"]
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          equipment_id?: string;
-          tip?: Database["public"]["Enums"]["meter_kind"];
-          citire?: number;
-          data_citirii?: string;
-          resetare_contor?: boolean;
-          sursa?: string;
-          citit_de_employee_id?: string | null;
-          observatii?: string | null;
-        };
-        Relationships: [];
-      };
+          citire?: number
+          citit_de_employee_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_citirii?: string
+          deleted_at?: string | null
+          equipment_id?: string
+          id?: string
+          observatii?: string | null
+          organization_id?: string
+          resetare_contor?: boolean
+          sursa?: string
+          tip?: Database["public"]["Enums"]["meter_kind"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_meters_citit_de_employee_id_fkey"
+            columns: ["citit_de_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_meters_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_meters_org_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       evacuation_drills: {
         Row: {
-          id: string;
-          organization_id: string;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-          data: string;
-          ora_start: string | null;
-          durata_minute: number | null;
-          scenariu: string;
-          numar_participanti: number | null;
-          timp_evacuare_secunde: number | null;
-          responsabil_employee_id: string | null;
-          deficiente: string | null;
-          observatii: string | null;
-        };
+          created_at: string
+          created_by: string | null
+          data: string
+          deficiente: string | null
+          deleted_at: string | null
+          durata_minute: number | null
+          id: string
+          numar_participanti: number | null
+          observatii: string | null
+          ora_start: string | null
+          organization_id: string
+          responsabil_employee_id: string | null
+          scenariu: string
+          timp_evacuare_secunde: number | null
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          data: string;
-          ora_start?: string | null;
-          durata_minute?: number | null;
-          scenariu: string;
-          numar_participanti?: number | null;
-          timp_evacuare_secunde?: number | null;
-          responsabil_employee_id?: string | null;
-          deficiente?: string | null;
-          observatii?: string | null;
-        };
+          created_at?: string
+          created_by?: string | null
+          data: string
+          deficiente?: string | null
+          deleted_at?: string | null
+          durata_minute?: number | null
+          id?: string
+          numar_participanti?: number | null
+          observatii?: string | null
+          ora_start?: string | null
+          organization_id: string
+          responsabil_employee_id?: string | null
+          scenariu: string
+          timp_evacuare_secunde?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          data?: string;
-          ora_start?: string | null;
-          durata_minute?: number | null;
-          scenariu?: string;
-          numar_participanti?: number | null;
-          timp_evacuare_secunde?: number | null;
-          responsabil_employee_id?: string | null;
-          deficiente?: string | null;
-          observatii?: string | null;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          deficiente?: string | null
+          deleted_at?: string | null
+          durata_minute?: number | null
+          id?: string
+          numar_participanti?: number | null
+          observatii?: string | null
+          ora_start?: string | null
+          organization_id?: string
+          responsabil_employee_id?: string | null
+          scenariu?: string
+          timp_evacuare_secunde?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evacuation_drills_org_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evacuation_drills_responsabil_employee_id_fkey"
+            columns: ["responsabil_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expirables: {
         Row: {
-          id: string;
-          organization_id: string;
-          entity_type: string;
-          entity_id: string;
-          kind: string;
-          label: string;
-          expires_at: string;
-          responsible_employee_id: string | null;
-          is_active: boolean;
-          source_table: string;
-          notes: string | null;
-          created_at: string;
-          updated_at: string;
-          deleted_at: string | null;
-        };
+          created_at: string
+          deleted_at: string | null
+          entity_id: string
+          entity_type: string
+          expires_at: string
+          id: string
+          is_active: boolean
+          kind: string
+          label: string
+          notes: string | null
+          organization_id: string
+          responsible_employee_id: string | null
+          source_table: string
+          updated_at: string
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          entity_type: string;
-          entity_id: string;
-          kind: string;
-          label: string;
-          expires_at: string;
-          responsible_employee_id?: string | null;
-          is_active?: boolean;
-          source_table: string;
-          notes?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-        };
+          created_at?: string
+          deleted_at?: string | null
+          entity_id: string
+          entity_type: string
+          expires_at: string
+          id?: string
+          is_active?: boolean
+          kind: string
+          label: string
+          notes?: string | null
+          organization_id: string
+          responsible_employee_id?: string | null
+          source_table: string
+          updated_at?: string
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          entity_type?: string;
-          entity_id?: string;
-          kind?: string;
-          label?: string;
-          expires_at?: string;
-          responsible_employee_id?: string | null;
-          is_active?: boolean;
-          source_table?: string;
-          notes?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          deleted_at?: string | null
+          entity_id?: string
+          entity_type?: string
+          expires_at?: string
+          id?: string
+          is_active?: boolean
+          kind?: string
+          label?: string
+          notes?: string | null
+          organization_id?: string
+          responsible_employee_id?: string | null
+          source_table?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expirables_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expirables_responsible_employee_id_fkey"
+            columns: ["responsible_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fault_reports: {
         Row: {
-          id: string;
-          organization_id: string;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-          equipment_id: string;
-          raportat_de_employee_id: string | null;
-          descriere: string;
-          urgenta: Database["public"]["Enums"]["fault_urgency"];
-          status: Database["public"]["Enums"]["fault_status"];
-          raportat_la: string;
-          opreste_functionarea: boolean;
-          intervention_id: string | null;
-          rezolvat_la: string | null;
-          motiv_respingere: string | null;
-        };
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          descriere: string
+          equipment_id: string
+          id: string
+          intervention_id: string | null
+          motiv_respingere: string | null
+          opreste_functionarea: boolean
+          organization_id: string
+          raportat_de_employee_id: string | null
+          raportat_la: string
+          rezolvat_la: string | null
+          status: Database["public"]["Enums"]["fault_status"]
+          updated_at: string
+          updated_by: string | null
+          urgenta: Database["public"]["Enums"]["fault_urgency"]
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          equipment_id: string;
-          raportat_de_employee_id?: string | null;
-          descriere: string;
-          urgenta?: Database["public"]["Enums"]["fault_urgency"];
-          status?: Database["public"]["Enums"]["fault_status"];
-          raportat_la?: string;
-          opreste_functionarea?: boolean;
-          intervention_id?: string | null;
-          rezolvat_la?: string | null;
-          motiv_respingere?: string | null;
-        };
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          descriere: string
+          equipment_id: string
+          id?: string
+          intervention_id?: string | null
+          motiv_respingere?: string | null
+          opreste_functionarea?: boolean
+          organization_id: string
+          raportat_de_employee_id?: string | null
+          raportat_la?: string
+          rezolvat_la?: string | null
+          status?: Database["public"]["Enums"]["fault_status"]
+          updated_at?: string
+          updated_by?: string | null
+          urgenta?: Database["public"]["Enums"]["fault_urgency"]
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          equipment_id?: string;
-          raportat_de_employee_id?: string | null;
-          descriere?: string;
-          urgenta?: Database["public"]["Enums"]["fault_urgency"];
-          status?: Database["public"]["Enums"]["fault_status"];
-          raportat_la?: string;
-          opreste_functionarea?: boolean;
-          intervention_id?: string | null;
-          rezolvat_la?: string | null;
-          motiv_respingere?: string | null;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          descriere?: string
+          equipment_id?: string
+          id?: string
+          intervention_id?: string | null
+          motiv_respingere?: string | null
+          opreste_functionarea?: boolean
+          organization_id?: string
+          raportat_de_employee_id?: string | null
+          raportat_la?: string
+          rezolvat_la?: string | null
+          status?: Database["public"]["Enums"]["fault_status"]
+          updated_at?: string
+          updated_by?: string | null
+          urgenta?: Database["public"]["Enums"]["fault_urgency"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fault_reports_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fault_reports_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fault_reports_org_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fault_reports_raportat_de_employee_id_fkey"
+            columns: ["raportat_de_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       features: {
         Row: {
-          feature_key: string;
-          denumire: string;
-          descriere: string | null;
-          icon: string;
-          grup: Database["public"]["Enums"]["feature_group"];
-          is_core: boolean;
-          sort_order: number;
-          created_at: string;
-          updated_at: string;
-        };
+          created_at: string
+          denumire: string
+          descriere: string | null
+          feature_key: string
+          grup: Database["public"]["Enums"]["feature_group"]
+          icon: string
+          is_core: boolean
+          sort_order: number
+          updated_at: string
+        }
         Insert: {
-          feature_key: string;
-          denumire: string;
-          descriere?: string | null;
-          icon?: string;
-          grup: Database["public"]["Enums"]["feature_group"];
-          is_core?: boolean;
-          sort_order?: number;
-          created_at?: string;
-          updated_at?: string;
-        };
+          created_at?: string
+          denumire: string
+          descriere?: string | null
+          feature_key: string
+          grup: Database["public"]["Enums"]["feature_group"]
+          icon?: string
+          is_core?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
         Update: {
-          feature_key?: string;
-          denumire?: string;
-          descriere?: string | null;
-          icon?: string;
-          grup?: Database["public"]["Enums"]["feature_group"];
-          is_core?: boolean;
-          sort_order?: number;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          denumire?: string
+          descriere?: string | null
+          feature_key?: string
+          grup?: Database["public"]["Enums"]["feature_group"]
+          icon?: string
+          is_core?: boolean
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       fire_extinguisher_checks: {
         Row: {
-          id: string;
-          organization_id: string;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-          extinguisher_id: string;
-          tip_verificare: string;
-          data: string;
-          executant: string | null;
-          firma_autorizata: string | null;
-          rezultat: string;
-          cost: number | null;
-          observatii: string | null;
-        };
+          cost: number | null
+          created_at: string
+          created_by: string | null
+          data: string
+          deleted_at: string | null
+          executant: string | null
+          extinguisher_id: string
+          firma_autorizata: string | null
+          id: string
+          observatii: string | null
+          organization_id: string
+          rezultat: string
+          tip_verificare: string
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          extinguisher_id: string;
-          tip_verificare: string;
-          data: string;
-          executant?: string | null;
-          firma_autorizata?: string | null;
-          rezultat?: string;
-          cost?: number | null;
-          observatii?: string | null;
-        };
+          cost?: number | null
+          created_at?: string
+          created_by?: string | null
+          data: string
+          deleted_at?: string | null
+          executant?: string | null
+          extinguisher_id: string
+          firma_autorizata?: string | null
+          id?: string
+          observatii?: string | null
+          organization_id: string
+          rezultat?: string
+          tip_verificare: string
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          extinguisher_id?: string;
-          tip_verificare?: string;
-          data?: string;
-          executant?: string | null;
-          firma_autorizata?: string | null;
-          rezultat?: string;
-          cost?: number | null;
-          observatii?: string | null;
-        };
-        Relationships: [];
-      };
+          cost?: number | null
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          deleted_at?: string | null
+          executant?: string | null
+          extinguisher_id?: string
+          firma_autorizata?: string | null
+          id?: string
+          observatii?: string | null
+          organization_id?: string
+          rezultat?: string
+          tip_verificare?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fire_extinguisher_checks_extinguisher_id_fkey"
+            columns: ["extinguisher_id"]
+            isOneToOne: false
+            referencedRelation: "fire_extinguishers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fire_extinguisher_checks_org_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fire_extinguishers: {
         Row: {
-          id: string;
-          organization_id: string;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-          cod: string;
-          tip: string;
-          masa_kg: number | null;
-          cladire: string | null;
-          locatie: string;
-          producator: string | null;
-          serie: string | null;
-          data_punerii_in_functiune: string | null;
-          ultima_verificare: string | null;
-          ultima_reincarcare: string | null;
-          ultima_proba_presiune: string | null;
-          scadenta_verificare: string | null;
-          scadenta_reincarcare: string | null;
-          scadenta_proba_presiune: string | null;
-          status: string;
-        };
+          cladire: string | null
+          cod: string
+          created_at: string
+          created_by: string | null
+          data_punerii_in_functiune: string | null
+          deleted_at: string | null
+          id: string
+          locatie: string
+          masa_kg: number | null
+          organization_id: string
+          producator: string | null
+          scadenta_proba_presiune: string | null
+          scadenta_reincarcare: string | null
+          scadenta_verificare: string | null
+          serie: string | null
+          status: string
+          tip: string
+          ultima_proba_presiune: string | null
+          ultima_reincarcare: string | null
+          ultima_verificare: string | null
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          cod: string;
-          tip: string;
-          masa_kg?: number | null;
-          cladire?: string | null;
-          locatie: string;
-          producator?: string | null;
-          serie?: string | null;
-          data_punerii_in_functiune?: string | null;
-          ultima_verificare?: string | null;
-          ultima_reincarcare?: string | null;
-          ultima_proba_presiune?: string | null;
-          scadenta_verificare?: string | null;
-          scadenta_reincarcare?: string | null;
-          scadenta_proba_presiune?: string | null;
-          status?: string;
-        };
+          cladire?: string | null
+          cod: string
+          created_at?: string
+          created_by?: string | null
+          data_punerii_in_functiune?: string | null
+          deleted_at?: string | null
+          id?: string
+          locatie: string
+          masa_kg?: number | null
+          organization_id: string
+          producator?: string | null
+          scadenta_proba_presiune?: string | null
+          scadenta_reincarcare?: string | null
+          scadenta_verificare?: string | null
+          serie?: string | null
+          status?: string
+          tip: string
+          ultima_proba_presiune?: string | null
+          ultima_reincarcare?: string | null
+          ultima_verificare?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          cod?: string;
-          tip?: string;
-          masa_kg?: number | null;
-          cladire?: string | null;
-          locatie?: string;
-          producator?: string | null;
-          serie?: string | null;
-          data_punerii_in_functiune?: string | null;
-          ultima_verificare?: string | null;
-          ultima_reincarcare?: string | null;
-          ultima_proba_presiune?: string | null;
-          scadenta_verificare?: string | null;
-          scadenta_reincarcare?: string | null;
-          scadenta_proba_presiune?: string | null;
-          status?: string;
-        };
-        Relationships: [];
-      };
+          cladire?: string | null
+          cod?: string
+          created_at?: string
+          created_by?: string | null
+          data_punerii_in_functiune?: string | null
+          deleted_at?: string | null
+          id?: string
+          locatie?: string
+          masa_kg?: number | null
+          organization_id?: string
+          producator?: string | null
+          scadenta_proba_presiune?: string | null
+          scadenta_reincarcare?: string | null
+          scadenta_verificare?: string | null
+          serie?: string | null
+          status?: string
+          tip?: string
+          ultima_proba_presiune?: string | null
+          ultima_reincarcare?: string | null
+          ultima_verificare?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fire_extinguishers_org_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fuel_entries: {
         Row: {
-          id: string;
-          organization_id: string;
-          trip_sheet_id: string;
-          litri: number;
-          cost: number;
-          statie: string | null;
-          numar_bon: string | null;
-          fisier_bon_path: string | null;
-          alimentat_la: string;
-          plin: boolean;
-          observatii: string | null;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-          pret_litru: number | null;
-        };
+          alimentat_la: string
+          cost: number
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          fisier_bon_path: string | null
+          id: string
+          litri: number
+          numar_bon: string | null
+          observatii: string | null
+          organization_id: string
+          plin: boolean
+          pret_litru: number | null
+          statie: string | null
+          trip_sheet_id: string
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          trip_sheet_id: string;
-          litri: number;
-          cost: number;
-          statie?: string | null;
-          numar_bon?: string | null;
-          fisier_bon_path?: string | null;
-          alimentat_la: string;
-          plin?: boolean;
-          observatii?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          alimentat_la: string
+          cost: number
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          fisier_bon_path?: string | null
+          id?: string
+          litri: number
+          numar_bon?: string | null
+          observatii?: string | null
+          organization_id: string
+          plin?: boolean
+          pret_litru?: number | null
+          statie?: string | null
+          trip_sheet_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          trip_sheet_id?: string;
-          litri?: number;
-          cost?: number;
-          statie?: string | null;
-          numar_bon?: string | null;
-          fisier_bon_path?: string | null;
-          alimentat_la?: string;
-          plin?: boolean;
-          observatii?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          alimentat_la?: string
+          cost?: number
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          fisier_bon_path?: string | null
+          id?: string
+          litri?: number
+          numar_bon?: string | null
+          observatii?: string | null
+          organization_id?: string
+          plin?: boolean
+          pret_litru?: number | null
+          statie?: string | null
+          trip_sheet_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fuel_entries_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fuel_entries_trip_sheet_id_fkey"
+            columns: ["trip_sheet_id"]
+            isOneToOne: false
+            referencedRelation: "trip_sheets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       holiday_compensation: {
         Row: {
-          id: string;
-          organization_id: string;
-          employee_id: string;
-          entry_id: string | null;
-          data_sarbatorii: string;
-          ore_lucrate: number;
-          tip: Database["public"]["Enums"]["holiday_compensation_type"];
-          termen_acordare: string;
-          data_zilei_libere: string | null;
-          spor_procent: number | null;
-          spor_valoare: number | null;
-          acordata: boolean;
-          acordata_la: string | null;
-          observatii: string | null;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          acordata: boolean
+          acordata_la: string | null
+          created_at: string
+          created_by: string | null
+          data_sarbatorii: string
+          data_zilei_libere: string | null
+          deleted_at: string | null
+          employee_id: string
+          entry_id: string | null
+          id: string
+          observatii: string | null
+          ore_lucrate: number
+          organization_id: string
+          spor_procent: number | null
+          spor_valoare: number | null
+          termen_acordare: string
+          tip: Database["public"]["Enums"]["holiday_compensation_type"]
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          employee_id: string;
-          entry_id?: string | null;
-          data_sarbatorii: string;
-          ore_lucrate: number;
-          tip?: Database["public"]["Enums"]["holiday_compensation_type"];
-          termen_acordare: string;
-          data_zilei_libere?: string | null;
-          spor_procent?: number | null;
-          spor_valoare?: number | null;
-          acordata?: boolean;
-          acordata_la?: string | null;
-          observatii?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          acordata?: boolean
+          acordata_la?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_sarbatorii: string
+          data_zilei_libere?: string | null
+          deleted_at?: string | null
+          employee_id: string
+          entry_id?: string | null
+          id?: string
+          observatii?: string | null
+          ore_lucrate: number
+          organization_id: string
+          spor_procent?: number | null
+          spor_valoare?: number | null
+          termen_acordare: string
+          tip?: Database["public"]["Enums"]["holiday_compensation_type"]
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          employee_id?: string;
-          entry_id?: string | null;
-          data_sarbatorii?: string;
-          ore_lucrate?: number;
-          tip?: Database["public"]["Enums"]["holiday_compensation_type"];
-          termen_acordare?: string;
-          data_zilei_libere?: string | null;
-          spor_procent?: number | null;
-          spor_valoare?: number | null;
-          acordata?: boolean;
-          acordata_la?: string | null;
-          observatii?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          acordata?: boolean
+          acordata_la?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_sarbatorii?: string
+          data_zilei_libere?: string | null
+          deleted_at?: string | null
+          employee_id?: string
+          entry_id?: string | null
+          id?: string
+          observatii?: string | null
+          ore_lucrate?: number
+          organization_id?: string
+          spor_procent?: number | null
+          spor_valoare?: number | null
+          termen_acordare?: string
+          tip?: Database["public"]["Enums"]["holiday_compensation_type"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "holiday_compensation_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "holiday_compensation_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "holiday_compensation_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hot_work_permits: {
         Row: {
-          id: string;
-          organization_id: string;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-          numar: string;
-          locul: string;
-          lucrare: string;
-          valabil_de_la: string;
-          valabil_pana: string;
-          executant_employee_id: string | null;
-          executant_extern: string | null;
-          emitent_employee_id: string | null;
-          supraveghetor: string | null;
-          masuri: string;
-          status: string;
-          incheiat_la: string | null;
-        };
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          emitent_employee_id: string | null
+          executant_employee_id: string | null
+          executant_extern: string | null
+          id: string
+          incheiat_la: string | null
+          locul: string
+          lucrare: string
+          masuri: string
+          numar: string
+          organization_id: string
+          status: string
+          supraveghetor: string | null
+          updated_at: string
+          updated_by: string | null
+          valabil_de_la: string
+          valabil_pana: string
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          numar: string;
-          locul: string;
-          lucrare: string;
-          valabil_de_la: string;
-          valabil_pana: string;
-          executant_employee_id?: string | null;
-          executant_extern?: string | null;
-          emitent_employee_id?: string | null;
-          supraveghetor?: string | null;
-          masuri: string;
-          status?: string;
-          incheiat_la?: string | null;
-        };
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          emitent_employee_id?: string | null
+          executant_employee_id?: string | null
+          executant_extern?: string | null
+          id?: string
+          incheiat_la?: string | null
+          locul: string
+          lucrare: string
+          masuri: string
+          numar: string
+          organization_id: string
+          status?: string
+          supraveghetor?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la: string
+          valabil_pana: string
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          numar?: string;
-          locul?: string;
-          lucrare?: string;
-          valabil_de_la?: string;
-          valabil_pana?: string;
-          executant_employee_id?: string | null;
-          executant_extern?: string | null;
-          emitent_employee_id?: string | null;
-          supraveghetor?: string | null;
-          masuri?: string;
-          status?: string;
-          incheiat_la?: string | null;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          emitent_employee_id?: string | null
+          executant_employee_id?: string | null
+          executant_extern?: string | null
+          id?: string
+          incheiat_la?: string | null
+          locul?: string
+          lucrare?: string
+          masuri?: string
+          numar?: string
+          organization_id?: string
+          status?: string
+          supraveghetor?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la?: string
+          valabil_pana?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hot_work_permits_emitent_employee_id_fkey"
+            columns: ["emitent_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hot_work_permits_executant_employee_id_fkey"
+            columns: ["executant_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hot_work_permits_org_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_document_templates: {
         Row: {
-          id: string;
-          organization_id: string | null;
-          cod: string;
-          denumire: string;
-          descriere: string | null;
-          continut_html: string;
-          variabile: Json;
-          serie: string;
-          necesita_aprobare: boolean;
-          activ: boolean;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          activ: boolean
+          cod: string
+          continut_html: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          denumire: string
+          descriere: string | null
+          id: string
+          necesita_aprobare: boolean
+          organization_id: string | null
+          serie: string
+          updated_at: string
+          updated_by: string | null
+          variabile: Json
+        }
         Insert: {
-          id?: string;
-          organization_id?: string | null;
-          cod: string;
-          denumire: string;
-          descriere?: string | null;
-          continut_html: string;
-          variabile?: Json;
-          serie?: string;
-          necesita_aprobare?: boolean;
-          activ?: boolean;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          activ?: boolean
+          cod: string
+          continut_html: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire: string
+          descriere?: string | null
+          id?: string
+          necesita_aprobare?: boolean
+          organization_id?: string | null
+          serie?: string
+          updated_at?: string
+          updated_by?: string | null
+          variabile?: Json
+        }
         Update: {
-          id?: string;
-          organization_id?: string | null;
-          cod?: string;
-          denumire?: string;
-          descriere?: string | null;
-          continut_html?: string;
-          variabile?: Json;
-          serie?: string;
-          necesita_aprobare?: boolean;
-          activ?: boolean;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          activ?: boolean
+          cod?: string
+          continut_html?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire?: string
+          descriere?: string | null
+          id?: string
+          necesita_aprobare?: boolean
+          organization_id?: string | null
+          serie?: string
+          updated_at?: string
+          updated_by?: string | null
+          variabile?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_document_templates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_issued_documents: {
         Row: {
-          id: string;
-          organization_id: string;
-          template_id: string | null;
-          employee_id: string;
-          contract_id: string | null;
-          serie: string;
-          numar: number;
-          numar_afisat: string;
-          titlu: string;
-          scop: string | null;
-          emis_la: string;
-          valabil_pana: string | null;
-          date_document: Json;
-          continut_html: string | null;
-          fisier_path: string | null;
-          continut_checksum: string;
-          cod_verificare: string | null;
-          emis_de: string | null;
-          anulat_la: string | null;
-          motiv_anulare: string | null;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          anulat_la: string | null
+          cod_verificare: string | null
+          continut_checksum: string
+          continut_html: string | null
+          contract_id: string | null
+          created_at: string
+          created_by: string | null
+          date_document: Json
+          deleted_at: string | null
+          emis_de: string | null
+          emis_la: string
+          employee_id: string
+          fisier_path: string | null
+          id: string
+          motiv_anulare: string | null
+          numar: number
+          numar_afisat: string
+          organization_id: string
+          scop: string | null
+          serie: string
+          template_id: string | null
+          titlu: string
+          updated_at: string
+          updated_by: string | null
+          valabil_pana: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          template_id?: string | null;
-          employee_id: string;
-          contract_id?: string | null;
-          serie: string;
-          numar: number;
-          numar_afisat: string;
-          titlu: string;
-          scop?: string | null;
-          emis_la?: string;
-          valabil_pana?: string | null;
-          date_document?: Json;
-          continut_html?: string | null;
-          fisier_path?: string | null;
-          continut_checksum: string;
-          cod_verificare?: string | null;
-          emis_de?: string | null;
-          anulat_la?: string | null;
-          motiv_anulare?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          anulat_la?: string | null
+          cod_verificare?: string | null
+          continut_checksum: string
+          continut_html?: string | null
+          contract_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          date_document?: Json
+          deleted_at?: string | null
+          emis_de?: string | null
+          emis_la?: string
+          employee_id: string
+          fisier_path?: string | null
+          id?: string
+          motiv_anulare?: string | null
+          numar: number
+          numar_afisat: string
+          organization_id: string
+          scop?: string | null
+          serie: string
+          template_id?: string | null
+          titlu: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_pana?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          template_id?: string | null;
-          employee_id?: string;
-          contract_id?: string | null;
-          serie?: string;
-          numar?: number;
-          numar_afisat?: string;
-          titlu?: string;
-          scop?: string | null;
-          emis_la?: string;
-          valabil_pana?: string | null;
-          date_document?: Json;
-          continut_html?: string | null;
-          fisier_path?: string | null;
-          continut_checksum?: string;
-          cod_verificare?: string | null;
-          emis_de?: string | null;
-          anulat_la?: string | null;
-          motiv_anulare?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          anulat_la?: string | null
+          cod_verificare?: string | null
+          continut_checksum?: string
+          continut_html?: string | null
+          contract_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          date_document?: Json
+          deleted_at?: string | null
+          emis_de?: string | null
+          emis_la?: string
+          employee_id?: string
+          fisier_path?: string | null
+          id?: string
+          motiv_anulare?: string | null
+          numar?: number
+          numar_afisat?: string
+          organization_id?: string
+          scop?: string | null
+          serie?: string
+          template_id?: string | null
+          titlu?: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_pana?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_issued_documents_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "employment_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_issued_documents_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_issued_documents_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_issued_documents_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "hr_document_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_allocations: {
         Row: {
-          id: string;
-          organization_id: string;
-          item_id: string;
-          employee_id: string;
-          predat_la: string;
-          returnat_la: string | null;
-          stare_la_predare: Database["public"]["Enums"]["inventory_item_stare"];
-          stare_la_returnare: Database["public"]["Enums"]["inventory_item_stare"] | null;
-          observatii: string | null;
-          pv_document_path: string | null;
-          confirmat_de_angajat_la: string | null;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          confirmat_de_angajat_la: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          employee_id: string
+          id: string
+          item_id: string
+          observatii: string | null
+          organization_id: string
+          predat_la: string
+          pv_document_path: string | null
+          returnat_la: string | null
+          stare_la_predare: Database["public"]["Enums"]["inventory_item_stare"]
+          stare_la_returnare:
+            | Database["public"]["Enums"]["inventory_item_stare"]
+            | null
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          item_id: string;
-          employee_id: string;
-          predat_la?: string;
-          returnat_la?: string | null;
-          stare_la_predare?: Database["public"]["Enums"]["inventory_item_stare"];
-          stare_la_returnare?: Database["public"]["Enums"]["inventory_item_stare"] | null;
-          observatii?: string | null;
-          pv_document_path?: string | null;
-          confirmat_de_angajat_la?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          confirmat_de_angajat_la?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          employee_id: string
+          id?: string
+          item_id: string
+          observatii?: string | null
+          organization_id: string
+          predat_la?: string
+          pv_document_path?: string | null
+          returnat_la?: string | null
+          stare_la_predare?: Database["public"]["Enums"]["inventory_item_stare"]
+          stare_la_returnare?:
+            | Database["public"]["Enums"]["inventory_item_stare"]
+            | null
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          item_id?: string;
-          employee_id?: string;
-          predat_la?: string;
-          returnat_la?: string | null;
-          stare_la_predare?: Database["public"]["Enums"]["inventory_item_stare"];
-          stare_la_returnare?: Database["public"]["Enums"]["inventory_item_stare"] | null;
-          observatii?: string | null;
-          pv_document_path?: string | null;
-          confirmat_de_angajat_la?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          confirmat_de_angajat_la?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          employee_id?: string
+          id?: string
+          item_id?: string
+          observatii?: string | null
+          organization_id?: string
+          predat_la?: string
+          pv_document_path?: string | null
+          returnat_la?: string | null
+          stare_la_predare?: Database["public"]["Enums"]["inventory_item_stare"]
+          stare_la_returnare?:
+            | Database["public"]["Enums"]["inventory_item_stare"]
+            | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_allocations_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_allocations_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_allocations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_categories: {
         Row: {
-          id: string;
-          organization_id: string | null;
-          cod: string;
-          denumire: string;
-          descriere: string | null;
-          ordine: number;
-          activ: boolean;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          activ: boolean
+          cod: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          denumire: string
+          descriere: string | null
+          id: string
+          ordine: number
+          organization_id: string | null
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id?: string | null;
-          cod: string;
-          denumire: string;
-          descriere?: string | null;
-          ordine?: number;
-          activ?: boolean;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          activ?: boolean
+          cod: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire: string
+          descriere?: string | null
+          id?: string
+          ordine?: number
+          organization_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string | null;
-          cod?: string;
-          denumire?: string;
-          descriere?: string | null;
-          ordine?: number;
-          activ?: boolean;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          activ?: boolean
+          cod?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire?: string
+          descriere?: string | null
+          id?: string
+          ordine?: number
+          organization_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_categories_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_import_batches: {
         Row: {
-          id: string;
-          organization_id: string;
-          fisier_nume: string;
-          fisier_path: string | null;
-          randuri_total: number;
-          randuri_importate: number;
-          randuri_esuate: number;
-          status: Database["public"]["Enums"]["inventory_import_status"];
-          erori: Json;
-          importat_de: string | null;
-          importat_la: string;
-          revocat_la: string | null;
-          revocat_de: string | null;
-          motiv_revocare: string | null;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          erori: Json
+          fisier_nume: string
+          fisier_path: string | null
+          id: string
+          importat_de: string | null
+          importat_la: string
+          motiv_revocare: string | null
+          organization_id: string
+          randuri_esuate: number
+          randuri_importate: number
+          randuri_total: number
+          revocat_de: string | null
+          revocat_la: string | null
+          status: Database["public"]["Enums"]["inventory_import_status"]
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          fisier_nume: string;
-          fisier_path?: string | null;
-          randuri_total?: number;
-          randuri_importate?: number;
-          randuri_esuate?: number;
-          status?: Database["public"]["Enums"]["inventory_import_status"];
-          erori?: Json;
-          importat_de?: string | null;
-          importat_la?: string;
-          revocat_la?: string | null;
-          revocat_de?: string | null;
-          motiv_revocare?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          erori?: Json
+          fisier_nume: string
+          fisier_path?: string | null
+          id?: string
+          importat_de?: string | null
+          importat_la?: string
+          motiv_revocare?: string | null
+          organization_id: string
+          randuri_esuate?: number
+          randuri_importate?: number
+          randuri_total?: number
+          revocat_de?: string | null
+          revocat_la?: string | null
+          status?: Database["public"]["Enums"]["inventory_import_status"]
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          fisier_nume?: string;
-          fisier_path?: string | null;
-          randuri_total?: number;
-          randuri_importate?: number;
-          randuri_esuate?: number;
-          status?: Database["public"]["Enums"]["inventory_import_status"];
-          erori?: Json;
-          importat_de?: string | null;
-          importat_la?: string;
-          revocat_la?: string | null;
-          revocat_de?: string | null;
-          motiv_revocare?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          erori?: Json
+          fisier_nume?: string
+          fisier_path?: string | null
+          id?: string
+          importat_de?: string | null
+          importat_la?: string
+          motiv_revocare?: string | null
+          organization_id?: string
+          randuri_esuate?: number
+          randuri_importate?: number
+          randuri_total?: number
+          revocat_de?: string | null
+          revocat_la?: string | null
+          status?: Database["public"]["Enums"]["inventory_import_status"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_import_batches_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_items: {
         Row: {
-          id: string;
-          organization_id: string;
-          category_id: string | null;
-          denumire: string;
-          numar_inventar: string;
-          serie: string | null;
-          model: string | null;
-          producator: string | null;
-          data_achizitie: string | null;
-          valoare: number | null;
-          garantie_expira: string | null;
-          stare: Database["public"]["Enums"]["inventory_item_stare"];
-          status: Database["public"]["Enums"]["inventory_item_status"];
-          locatie: string | null;
-          observatii: string | null;
-          import_batch_id: string | null;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-        };
+          category_id: string | null
+          created_at: string
+          created_by: string | null
+          data_achizitie: string | null
+          denumire: string
+          garantie_expira: string | null
+          id: string
+          import_batch_id: string | null
+          locatie: string | null
+          model: string | null
+          numar_inventar: string
+          observatii: string | null
+          organization_id: string
+          producator: string | null
+          serie: string | null
+          stare: Database["public"]["Enums"]["inventory_item_stare"]
+          status: Database["public"]["Enums"]["inventory_item_status"]
+          updated_at: string
+          updated_by: string | null
+          valoare: number | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          category_id?: string | null;
-          denumire: string;
-          numar_inventar: string;
-          serie?: string | null;
-          model?: string | null;
-          producator?: string | null;
-          data_achizitie?: string | null;
-          valoare?: number | null;
-          garantie_expira?: string | null;
-          stare?: Database["public"]["Enums"]["inventory_item_stare"];
-          status?: Database["public"]["Enums"]["inventory_item_status"];
-          locatie?: string | null;
-          observatii?: string | null;
-          import_batch_id?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-        };
+          category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_achizitie?: string | null
+          denumire: string
+          garantie_expira?: string | null
+          id?: string
+          import_batch_id?: string | null
+          locatie?: string | null
+          model?: string | null
+          numar_inventar: string
+          observatii?: string | null
+          organization_id: string
+          producator?: string | null
+          serie?: string | null
+          stare?: Database["public"]["Enums"]["inventory_item_stare"]
+          status?: Database["public"]["Enums"]["inventory_item_status"]
+          updated_at?: string
+          updated_by?: string | null
+          valoare?: number | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          category_id?: string | null;
-          denumire?: string;
-          numar_inventar?: string;
-          serie?: string | null;
-          model?: string | null;
-          producator?: string | null;
-          data_achizitie?: string | null;
-          valoare?: number | null;
-          garantie_expira?: string | null;
-          stare?: Database["public"]["Enums"]["inventory_item_stare"];
-          status?: Database["public"]["Enums"]["inventory_item_status"];
-          locatie?: string | null;
-          observatii?: string | null;
-          import_batch_id?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-        };
-        Relationships: [];
-      };
+          category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_achizitie?: string | null
+          denumire?: string
+          garantie_expira?: string | null
+          id?: string
+          import_batch_id?: string | null
+          locatie?: string | null
+          model?: string | null
+          numar_inventar?: string
+          observatii?: string | null
+          organization_id?: string
+          producator?: string | null
+          serie?: string | null
+          stare?: Database["public"]["Enums"]["inventory_item_stare"]
+          status?: Database["public"]["Enums"]["inventory_item_status"]
+          updated_at?: string
+          updated_by?: string | null
+          valoare?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_items_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_items_import_batch_id_fkey"
+            columns: ["import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_items_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invitations: {
         Row: {
-          id: string;
-          organization_id: string;
-          email: string;
-          role: Database["public"]["Enums"]["app_role"];
-          token_hash: string;
-          expires_at: string;
-          status: Database["public"]["Enums"]["invitation_status"];
-          invited_by: string | null;
-          accepted_at: string | null;
-          accepted_by: string | null;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          accepted_at: string | null
+          accepted_by: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string | null
+          organization_id: string
+          role: Database["public"]["Enums"]["app_role"]
+          status: Database["public"]["Enums"]["invitation_status"]
+          token_hash: string
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          email: string;
-          role?: Database["public"]["Enums"]["app_role"];
-          token_hash: string;
-          expires_at: string;
-          status?: Database["public"]["Enums"]["invitation_status"];
-          invited_by?: string | null;
-          accepted_at?: string | null;
-          accepted_by?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          email: string
+          expires_at: string
+          id?: string
+          invited_by?: string | null
+          organization_id: string
+          role?: Database["public"]["Enums"]["app_role"]
+          status?: Database["public"]["Enums"]["invitation_status"]
+          token_hash: string
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          email?: string;
-          role?: Database["public"]["Enums"]["app_role"];
-          token_hash?: string;
-          expires_at?: string;
-          status?: Database["public"]["Enums"]["invitation_status"];
-          invited_by?: string | null;
-          accepted_at?: string | null;
-          accepted_by?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          organization_id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          status?: Database["public"]["Enums"]["invitation_status"]
+          token_hash?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invitations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       iscir_authorizations: {
         Row: {
-          id: string;
-          organization_id: string;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-          equipment_id: string;
-          numar: string;
-          tip: string;
-          emitent: string;
-          emis_la: string | null;
-          valabil_pana: string;
-          scadenta_verificare_tehnica: string | null;
-          conditii: string | null;
-          suspendata_la: string | null;
-        };
+          conditii: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          emis_la: string | null
+          emitent: string
+          equipment_id: string
+          id: string
+          numar: string
+          organization_id: string
+          scadenta_verificare_tehnica: string | null
+          suspendata_la: string | null
+          tip: string
+          updated_at: string
+          updated_by: string | null
+          valabil_pana: string
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          equipment_id: string;
-          numar: string;
-          tip: string;
-          emitent?: string;
-          emis_la?: string | null;
-          valabil_pana: string;
-          scadenta_verificare_tehnica?: string | null;
-          conditii?: string | null;
-          suspendata_la?: string | null;
-        };
+          conditii?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          emis_la?: string | null
+          emitent?: string
+          equipment_id: string
+          id?: string
+          numar: string
+          organization_id: string
+          scadenta_verificare_tehnica?: string | null
+          suspendata_la?: string | null
+          tip: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_pana: string
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          equipment_id?: string;
-          numar?: string;
-          tip?: string;
-          emitent?: string;
-          emis_la?: string | null;
-          valabil_pana?: string;
-          scadenta_verificare_tehnica?: string | null;
-          conditii?: string | null;
-          suspendata_la?: string | null;
-        };
-        Relationships: [];
-      };
+          conditii?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          emis_la?: string | null
+          emitent?: string
+          equipment_id?: string
+          id?: string
+          numar?: string
+          organization_id?: string
+          scadenta_verificare_tehnica?: string | null
+          suspendata_la?: string | null
+          tip?: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_pana?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "iscir_authorizations_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "iscir_authorizations_org_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_descriptions: {
         Row: {
-          id: string;
-          organization_id: string;
-          employee_id: string | null;
-          job_position_id: string | null;
-          contract_id: string | null;
-          versiune: number;
-          titlu: string;
-          continut: string | null;
-          atributii: Json;
-          competente: Json;
-          subordonare: string | null;
-          valabil_de_la: string;
-          valabil_pana: string | null;
-          fisier_path: string | null;
-          semnat_la: string | null;
-          semnat_de_angajat: boolean;
-          semnatura_ip: string | null;
-          activ: boolean;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          activ: boolean
+          atributii: Json
+          competente: Json
+          continut: string | null
+          contract_id: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          employee_id: string | null
+          fisier_path: string | null
+          id: string
+          job_position_id: string | null
+          organization_id: string
+          semnat_de_angajat: boolean
+          semnat_la: string | null
+          semnatura_ip: string | null
+          subordonare: string | null
+          titlu: string
+          updated_at: string
+          updated_by: string | null
+          valabil_de_la: string
+          valabil_pana: string | null
+          versiune: number
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          employee_id?: string | null;
-          job_position_id?: string | null;
-          contract_id?: string | null;
-          versiune?: number;
-          titlu: string;
-          continut?: string | null;
-          atributii?: Json;
-          competente?: Json;
-          subordonare?: string | null;
-          valabil_de_la: string;
-          valabil_pana?: string | null;
-          fisier_path?: string | null;
-          semnat_la?: string | null;
-          semnat_de_angajat?: boolean;
-          semnatura_ip?: string | null;
-          activ?: boolean;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          activ?: boolean
+          atributii?: Json
+          competente?: Json
+          continut?: string | null
+          contract_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          employee_id?: string | null
+          fisier_path?: string | null
+          id?: string
+          job_position_id?: string | null
+          organization_id: string
+          semnat_de_angajat?: boolean
+          semnat_la?: string | null
+          semnatura_ip?: string | null
+          subordonare?: string | null
+          titlu: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la: string
+          valabil_pana?: string | null
+          versiune?: number
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          employee_id?: string | null;
-          job_position_id?: string | null;
-          contract_id?: string | null;
-          versiune?: number;
-          titlu?: string;
-          continut?: string | null;
-          atributii?: Json;
-          competente?: Json;
-          subordonare?: string | null;
-          valabil_de_la?: string;
-          valabil_pana?: string | null;
-          fisier_path?: string | null;
-          semnat_la?: string | null;
-          semnat_de_angajat?: boolean;
-          semnatura_ip?: string | null;
-          activ?: boolean;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          activ?: boolean
+          atributii?: Json
+          competente?: Json
+          continut?: string | null
+          contract_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          employee_id?: string | null
+          fisier_path?: string | null
+          id?: string
+          job_position_id?: string | null
+          organization_id?: string
+          semnat_de_angajat?: boolean
+          semnat_la?: string | null
+          semnatura_ip?: string | null
+          subordonare?: string | null
+          titlu?: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la?: string
+          valabil_pana?: string | null
+          versiune?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_descriptions_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "employment_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_descriptions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_descriptions_job_position_id_fkey"
+            columns: ["job_position_id"]
+            isOneToOne: false
+            referencedRelation: "job_positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_descriptions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_positions: {
         Row: {
-          id: string;
-          organization_id: string;
-          cod: string;
-          denumire: string;
-          cod_cor: string | null;
-          nivel_studii: string | null;
-          descriere: string | null;
-          activ: boolean;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          activ: boolean
+          cod: string
+          cod_cor: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          denumire: string
+          descriere: string | null
+          id: string
+          nivel_studii: string | null
+          organization_id: string
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          cod: string;
-          denumire: string;
-          cod_cor?: string | null;
-          nivel_studii?: string | null;
-          descriere?: string | null;
-          activ?: boolean;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          activ?: boolean
+          cod: string
+          cod_cor?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire: string
+          descriere?: string | null
+          id?: string
+          nivel_studii?: string | null
+          organization_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          cod?: string;
-          denumire?: string;
-          cod_cor?: string | null;
-          nivel_studii?: string | null;
-          descriere?: string | null;
-          activ?: boolean;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          activ?: boolean
+          cod?: string
+          cod_cor?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire?: string
+          descriere?: string | null
+          id?: string
+          nivel_studii?: string | null
+          organization_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_positions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leave_accruals: {
         Row: {
-          id: string;
-          organization_id: string;
-          employee_id: string;
-          leave_type_id: string;
-          an: number;
-          eveniment: Database["public"]["Enums"]["leave_accrual_event"];
-          delta: number;
-          sold_dupa: number | null;
-          motiv: string;
-          data_eveniment: string;
-          leave_request_id: string | null;
-          created_by: string | null;
-          created_at: string;
-        };
+          an: number
+          created_at: string
+          created_by: string | null
+          data_eveniment: string
+          delta: number
+          employee_id: string
+          eveniment: Database["public"]["Enums"]["leave_accrual_event"]
+          id: string
+          leave_request_id: string | null
+          leave_type_id: string
+          motiv: string
+          organization_id: string
+          sold_dupa: number | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          employee_id: string;
-          leave_type_id: string;
-          an: number;
-          eveniment: Database["public"]["Enums"]["leave_accrual_event"];
-          delta: number;
-          sold_dupa?: number | null;
-          motiv: string;
-          data_eveniment?: string;
-          leave_request_id?: string | null;
-          created_by?: string | null;
-          created_at?: string;
-        };
+          an: number
+          created_at?: string
+          created_by?: string | null
+          data_eveniment?: string
+          delta: number
+          employee_id: string
+          eveniment: Database["public"]["Enums"]["leave_accrual_event"]
+          id?: string
+          leave_request_id?: string | null
+          leave_type_id: string
+          motiv: string
+          organization_id: string
+          sold_dupa?: number | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          employee_id?: string;
-          leave_type_id?: string;
-          an?: number;
-          eveniment?: Database["public"]["Enums"]["leave_accrual_event"];
-          delta?: number;
-          sold_dupa?: number | null;
-          motiv?: string;
-          data_eveniment?: string;
-          leave_request_id?: string | null;
-          created_by?: string | null;
-          created_at?: string;
-        };
-        Relationships: [];
-      };
+          an?: number
+          created_at?: string
+          created_by?: string | null
+          data_eveniment?: string
+          delta?: number
+          employee_id?: string
+          eveniment?: Database["public"]["Enums"]["leave_accrual_event"]
+          id?: string
+          leave_request_id?: string | null
+          leave_type_id?: string
+          motiv?: string
+          organization_id?: string
+          sold_dupa?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_accruals_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_accruals_leave_request_id_fkey"
+            columns: ["leave_request_id"]
+            isOneToOne: false
+            referencedRelation: "leave_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_accruals_leave_type_id_fkey"
+            columns: ["leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "leave_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_accruals_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leave_balances: {
         Row: {
-          id: string;
-          organization_id: string;
-          employee_id: string;
-          leave_type_id: string;
-          an: number;
-          drept_anual: number;
-          reportate: number;
-          termen_folosire_reportate: string | null;
-          folosite: number;
-          in_asteptare: number;
-          ramase: number | null;
-          created_at: string;
-          updated_at: string;
-          deleted_at: string | null;
-        };
+          an: number
+          created_at: string
+          deleted_at: string | null
+          drept_anual: number
+          employee_id: string
+          folosite: number
+          id: string
+          in_asteptare: number
+          leave_type_id: string
+          organization_id: string
+          ramase: number | null
+          reportate: number
+          termen_folosire_reportate: string | null
+          updated_at: string
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          employee_id: string;
-          leave_type_id: string;
-          an: number;
-          drept_anual?: number;
-          reportate?: number;
-          termen_folosire_reportate?: string | null;
-          folosite?: number;
-          in_asteptare?: number;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-        };
+          an: number
+          created_at?: string
+          deleted_at?: string | null
+          drept_anual?: number
+          employee_id: string
+          folosite?: number
+          id?: string
+          in_asteptare?: number
+          leave_type_id: string
+          organization_id: string
+          ramase?: number | null
+          reportate?: number
+          termen_folosire_reportate?: string | null
+          updated_at?: string
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          employee_id?: string;
-          leave_type_id?: string;
-          an?: number;
-          drept_anual?: number;
-          reportate?: number;
-          termen_folosire_reportate?: string | null;
-          folosite?: number;
-          in_asteptare?: number;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          an?: number
+          created_at?: string
+          deleted_at?: string | null
+          drept_anual?: number
+          employee_id?: string
+          folosite?: number
+          id?: string
+          in_asteptare?: number
+          leave_type_id?: string
+          organization_id?: string
+          ramase?: number | null
+          reportate?: number
+          termen_folosire_reportate?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_balances_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_balances_leave_type_id_fkey"
+            columns: ["leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "leave_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_balances_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leave_entitlement_rules: {
         Row: {
-          id: string;
-          organization_id: string;
-          leave_type_id: string;
-          categorie: string;
-          denumire: string;
-          zile_suplimentare: number;
-          valabil_de_la: string;
-          valabil_pana_la: string | null;
-          temei_legal: string | null;
-          created_at: string;
-          updated_at: string;
-          deleted_at: string | null;
-        };
+          categorie: string
+          created_at: string
+          deleted_at: string | null
+          denumire: string
+          id: string
+          leave_type_id: string
+          organization_id: string
+          temei_legal: string | null
+          updated_at: string
+          valabil_de_la: string
+          valabil_pana_la: string | null
+          zile_suplimentare: number
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          leave_type_id: string;
-          categorie: string;
-          denumire: string;
-          zile_suplimentare: number;
-          valabil_de_la?: string;
-          valabil_pana_la?: string | null;
-          temei_legal?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-        };
+          categorie: string
+          created_at?: string
+          deleted_at?: string | null
+          denumire: string
+          id?: string
+          leave_type_id: string
+          organization_id: string
+          temei_legal?: string | null
+          updated_at?: string
+          valabil_de_la?: string
+          valabil_pana_la?: string | null
+          zile_suplimentare: number
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          leave_type_id?: string;
-          categorie?: string;
-          denumire?: string;
-          zile_suplimentare?: number;
-          valabil_de_la?: string;
-          valabil_pana_la?: string | null;
-          temei_legal?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          categorie?: string
+          created_at?: string
+          deleted_at?: string | null
+          denumire?: string
+          id?: string
+          leave_type_id?: string
+          organization_id?: string
+          temei_legal?: string | null
+          updated_at?: string
+          valabil_de_la?: string
+          valabil_pana_la?: string | null
+          zile_suplimentare?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_entitlement_rules_leave_type_id_fkey"
+            columns: ["leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "leave_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_entitlement_rules_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leave_request_days: {
         Row: {
-          id: string;
-          organization_id: string;
-          leave_request_id: string;
-          data: string;
-          portiune: Database["public"]["Enums"]["leave_day_portion"];
-          este_lucratoare: boolean;
-          status: Database["public"]["Enums"]["leave_request_status"];
-          created_at: string;
-          updated_at: string;
-        };
+          created_at: string
+          data: string
+          este_lucratoare: boolean
+          id: string
+          leave_request_id: string
+          organization_id: string
+          portiune: Database["public"]["Enums"]["leave_day_portion"]
+          status: Database["public"]["Enums"]["leave_request_status"]
+          updated_at: string
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          leave_request_id: string;
-          data: string;
-          portiune?: Database["public"]["Enums"]["leave_day_portion"];
-          este_lucratoare?: boolean;
-          status?: Database["public"]["Enums"]["leave_request_status"];
-          created_at?: string;
-          updated_at?: string;
-        };
+          created_at?: string
+          data: string
+          este_lucratoare?: boolean
+          id?: string
+          leave_request_id: string
+          organization_id: string
+          portiune?: Database["public"]["Enums"]["leave_day_portion"]
+          status?: Database["public"]["Enums"]["leave_request_status"]
+          updated_at?: string
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          leave_request_id?: string;
-          data?: string;
-          portiune?: Database["public"]["Enums"]["leave_day_portion"];
-          este_lucratoare?: boolean;
-          status?: Database["public"]["Enums"]["leave_request_status"];
-          created_at?: string;
-          updated_at?: string;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          data?: string
+          este_lucratoare?: boolean
+          id?: string
+          leave_request_id?: string
+          organization_id?: string
+          portiune?: Database["public"]["Enums"]["leave_day_portion"]
+          status?: Database["public"]["Enums"]["leave_request_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_request_days_leave_request_id_fkey"
+            columns: ["leave_request_id"]
+            isOneToOne: false
+            referencedRelation: "leave_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_request_days_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leave_requests: {
         Row: {
-          id: string;
-          organization_id: string;
-          employee_id: string;
-          leave_type_id: string;
-          data_inceput: string;
-          data_sfarsit: string;
-          portiune_inceput: Database["public"]["Enums"]["leave_day_portion"];
-          portiune_sfarsit: Database["public"]["Enums"]["leave_day_portion"];
-          zile_lucratoare: number;
-          zile_calendaristice: number;
-          motiv: string | null;
-          atasament_path: string | null;
-          status: Database["public"]["Enums"]["leave_request_status"];
-          intrerupe_alte_concedii: boolean;
-          medical_code_id: string | null;
-          serie_certificat: string | null;
-          numar_certificat: string | null;
-          flow_id: string | null;
-          pas_curent: number;
-          trimisa_la: string | null;
-          decis_la: string | null;
-          decis_de: string | null;
-          motiv_respingere: string | null;
-          created_by: string | null;
-          created_at: string;
-          updated_at: string;
-          deleted_at: string | null;
-        };
+          atasament_path: string | null
+          created_at: string
+          created_by: string | null
+          data_inceput: string
+          data_sfarsit: string
+          decis_de: string | null
+          decis_la: string | null
+          deleted_at: string | null
+          employee_id: string
+          flow_id: string | null
+          id: string
+          intrerupe_alte_concedii: boolean
+          leave_type_id: string
+          medical_code_id: string | null
+          motiv: string | null
+          motiv_respingere: string | null
+          numar_certificat: string | null
+          organization_id: string
+          pas_curent: number
+          portiune_inceput: Database["public"]["Enums"]["leave_day_portion"]
+          portiune_sfarsit: Database["public"]["Enums"]["leave_day_portion"]
+          serie_certificat: string | null
+          status: Database["public"]["Enums"]["leave_request_status"]
+          trimisa_la: string | null
+          updated_at: string
+          zile_calendaristice: number
+          zile_lucratoare: number
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          employee_id: string;
-          leave_type_id: string;
-          data_inceput: string;
-          data_sfarsit: string;
-          portiune_inceput?: Database["public"]["Enums"]["leave_day_portion"];
-          portiune_sfarsit?: Database["public"]["Enums"]["leave_day_portion"];
-          zile_lucratoare?: number;
-          zile_calendaristice?: number;
-          motiv?: string | null;
-          atasament_path?: string | null;
-          status?: Database["public"]["Enums"]["leave_request_status"];
-          intrerupe_alte_concedii?: boolean;
-          medical_code_id?: string | null;
-          serie_certificat?: string | null;
-          numar_certificat?: string | null;
-          flow_id?: string | null;
-          pas_curent?: number;
-          trimisa_la?: string | null;
-          decis_la?: string | null;
-          decis_de?: string | null;
-          motiv_respingere?: string | null;
-          created_by?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-        };
+          atasament_path?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_inceput: string
+          data_sfarsit: string
+          decis_de?: string | null
+          decis_la?: string | null
+          deleted_at?: string | null
+          employee_id: string
+          flow_id?: string | null
+          id?: string
+          intrerupe_alte_concedii?: boolean
+          leave_type_id: string
+          medical_code_id?: string | null
+          motiv?: string | null
+          motiv_respingere?: string | null
+          numar_certificat?: string | null
+          organization_id: string
+          pas_curent?: number
+          portiune_inceput?: Database["public"]["Enums"]["leave_day_portion"]
+          portiune_sfarsit?: Database["public"]["Enums"]["leave_day_portion"]
+          serie_certificat?: string | null
+          status?: Database["public"]["Enums"]["leave_request_status"]
+          trimisa_la?: string | null
+          updated_at?: string
+          zile_calendaristice?: number
+          zile_lucratoare?: number
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          employee_id?: string;
-          leave_type_id?: string;
-          data_inceput?: string;
-          data_sfarsit?: string;
-          portiune_inceput?: Database["public"]["Enums"]["leave_day_portion"];
-          portiune_sfarsit?: Database["public"]["Enums"]["leave_day_portion"];
-          zile_lucratoare?: number;
-          zile_calendaristice?: number;
-          motiv?: string | null;
-          atasament_path?: string | null;
-          status?: Database["public"]["Enums"]["leave_request_status"];
-          intrerupe_alte_concedii?: boolean;
-          medical_code_id?: string | null;
-          serie_certificat?: string | null;
-          numar_certificat?: string | null;
-          flow_id?: string | null;
-          pas_curent?: number;
-          trimisa_la?: string | null;
-          decis_la?: string | null;
-          decis_de?: string | null;
-          motiv_respingere?: string | null;
-          created_by?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          atasament_path?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_inceput?: string
+          data_sfarsit?: string
+          decis_de?: string | null
+          decis_la?: string | null
+          deleted_at?: string | null
+          employee_id?: string
+          flow_id?: string | null
+          id?: string
+          intrerupe_alte_concedii?: boolean
+          leave_type_id?: string
+          medical_code_id?: string | null
+          motiv?: string | null
+          motiv_respingere?: string | null
+          numar_certificat?: string | null
+          organization_id?: string
+          pas_curent?: number
+          portiune_inceput?: Database["public"]["Enums"]["leave_day_portion"]
+          portiune_sfarsit?: Database["public"]["Enums"]["leave_day_portion"]
+          serie_certificat?: string | null
+          status?: Database["public"]["Enums"]["leave_request_status"]
+          trimisa_la?: string | null
+          updated_at?: string
+          zile_calendaristice?: number
+          zile_lucratoare?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_flow_id_fkey"
+            columns: ["flow_id"]
+            isOneToOne: false
+            referencedRelation: "approval_flows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_leave_type_id_fkey"
+            columns: ["leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "leave_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_medical_code_id_fkey"
+            columns: ["medical_code_id"]
+            isOneToOne: false
+            referencedRelation: "medical_leave_codes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leave_types: {
         Row: {
-          id: string;
-          organization_id: string;
-          key: string;
-          denumire: string;
-          zile_implicite: number;
-          scade_din_sold: boolean;
-          necesita_document: boolean;
-          se_reporteaza: boolean;
-          termen_reportare: number | null;
-          intrerupe_alte_concedii: boolean;
-          mod_rotunjire_acumulare: Database["public"]["Enums"]["leave_rounding_mode"];
-          plafon_reportare_zile: number | null;
-          culoare: string;
-          activ: boolean;
-          valabil_de_la: string;
-          temei_legal: string | null;
-          created_at: string;
-          updated_at: string;
-          deleted_at: string | null;
-        };
+          activ: boolean
+          created_at: string
+          culoare: string
+          deleted_at: string | null
+          denumire: string
+          id: string
+          intrerupe_alte_concedii: boolean
+          key: string
+          mod_rotunjire_acumulare: Database["public"]["Enums"]["leave_rounding_mode"]
+          necesita_document: boolean
+          organization_id: string
+          plafon_reportare_zile: number | null
+          scade_din_sold: boolean
+          se_reporteaza: boolean
+          temei_legal: string | null
+          termen_reportare: number | null
+          updated_at: string
+          valabil_de_la: string
+          zile_implicite: number
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          key: string;
-          denumire: string;
-          zile_implicite?: number;
-          scade_din_sold?: boolean;
-          necesita_document?: boolean;
-          se_reporteaza?: boolean;
-          termen_reportare?: number | null;
-          intrerupe_alte_concedii?: boolean;
-          mod_rotunjire_acumulare?: Database["public"]["Enums"]["leave_rounding_mode"];
-          plafon_reportare_zile?: number | null;
-          culoare?: string;
-          activ?: boolean;
-          valabil_de_la?: string;
-          temei_legal?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-        };
+          activ?: boolean
+          created_at?: string
+          culoare?: string
+          deleted_at?: string | null
+          denumire: string
+          id?: string
+          intrerupe_alte_concedii?: boolean
+          key: string
+          mod_rotunjire_acumulare?: Database["public"]["Enums"]["leave_rounding_mode"]
+          necesita_document?: boolean
+          organization_id: string
+          plafon_reportare_zile?: number | null
+          scade_din_sold?: boolean
+          se_reporteaza?: boolean
+          temei_legal?: string | null
+          termen_reportare?: number | null
+          updated_at?: string
+          valabil_de_la?: string
+          zile_implicite?: number
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          key?: string;
-          denumire?: string;
-          zile_implicite?: number;
-          scade_din_sold?: boolean;
-          necesita_document?: boolean;
-          se_reporteaza?: boolean;
-          termen_reportare?: number | null;
-          intrerupe_alte_concedii?: boolean;
-          mod_rotunjire_acumulare?: Database["public"]["Enums"]["leave_rounding_mode"];
-          plafon_reportare_zile?: number | null;
-          culoare?: string;
-          activ?: boolean;
-          valabil_de_la?: string;
-          temei_legal?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          activ?: boolean
+          created_at?: string
+          culoare?: string
+          deleted_at?: string | null
+          denumire?: string
+          id?: string
+          intrerupe_alte_concedii?: boolean
+          key?: string
+          mod_rotunjire_acumulare?: Database["public"]["Enums"]["leave_rounding_mode"]
+          necesita_document?: boolean
+          organization_id?: string
+          plafon_reportare_zile?: number | null
+          scade_din_sold?: boolean
+          se_reporteaza?: boolean
+          temei_legal?: string | null
+          termen_reportare?: number | null
+          updated_at?: string
+          valabil_de_la?: string
+          zile_implicite?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_types_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       maintenance_interventions: {
         Row: {
-          id: string;
-          organization_id: string;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-          plan_id: string | null;
-          equipment_id: string;
-          tip: Database["public"]["Enums"]["maintenance_kind"];
-          data: string;
-          ora_start: string | null;
-          durata_ore: number | null;
-          executant_employee_id: string | null;
-          executant_extern: string | null;
-          descriere: string;
-          piese: string | null;
-          cost_piese: number;
-          cost_manopera: number;
-          cost_total: number | null;
-          rezultat: Database["public"]["Enums"]["maintenance_result"];
-          oprire_minute: number | null;
-          citire_contor: number | null;
-          observatii: string | null;
-        };
+          citire_contor: number | null
+          cost_manopera: number
+          cost_piese: number
+          cost_total: number | null
+          created_at: string
+          created_by: string | null
+          data: string
+          deleted_at: string | null
+          descriere: string
+          durata_ore: number | null
+          equipment_id: string
+          executant_employee_id: string | null
+          executant_extern: string | null
+          id: string
+          observatii: string | null
+          oprire_minute: number | null
+          ora_start: string | null
+          organization_id: string
+          piese: string | null
+          plan_id: string | null
+          rezultat: Database["public"]["Enums"]["maintenance_result"]
+          tip: Database["public"]["Enums"]["maintenance_kind"]
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          plan_id?: string | null;
-          equipment_id: string;
-          tip?: Database["public"]["Enums"]["maintenance_kind"];
-          data: string;
-          ora_start?: string | null;
-          durata_ore?: number | null;
-          executant_employee_id?: string | null;
-          executant_extern?: string | null;
-          descriere: string;
-          piese?: string | null;
-          cost_piese?: number;
-          cost_manopera?: number;
-          rezultat?: Database["public"]["Enums"]["maintenance_result"];
-          oprire_minute?: number | null;
-          citire_contor?: number | null;
-          observatii?: string | null;
-        };
+          citire_contor?: number | null
+          cost_manopera?: number
+          cost_piese?: number
+          cost_total?: number | null
+          created_at?: string
+          created_by?: string | null
+          data: string
+          deleted_at?: string | null
+          descriere: string
+          durata_ore?: number | null
+          equipment_id: string
+          executant_employee_id?: string | null
+          executant_extern?: string | null
+          id?: string
+          observatii?: string | null
+          oprire_minute?: number | null
+          ora_start?: string | null
+          organization_id: string
+          piese?: string | null
+          plan_id?: string | null
+          rezultat?: Database["public"]["Enums"]["maintenance_result"]
+          tip?: Database["public"]["Enums"]["maintenance_kind"]
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          plan_id?: string | null;
-          equipment_id?: string;
-          tip?: Database["public"]["Enums"]["maintenance_kind"];
-          data?: string;
-          ora_start?: string | null;
-          durata_ore?: number | null;
-          executant_employee_id?: string | null;
-          executant_extern?: string | null;
-          descriere?: string;
-          piese?: string | null;
-          cost_piese?: number;
-          cost_manopera?: number;
-          rezultat?: Database["public"]["Enums"]["maintenance_result"];
-          oprire_minute?: number | null;
-          citire_contor?: number | null;
-          observatii?: string | null;
-        };
-        Relationships: [];
-      };
+          citire_contor?: number | null
+          cost_manopera?: number
+          cost_piese?: number
+          cost_total?: number | null
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          deleted_at?: string | null
+          descriere?: string
+          durata_ore?: number | null
+          equipment_id?: string
+          executant_employee_id?: string | null
+          executant_extern?: string | null
+          id?: string
+          observatii?: string | null
+          oprire_minute?: number | null
+          ora_start?: string | null
+          organization_id?: string
+          piese?: string | null
+          plan_id?: string | null
+          rezultat?: Database["public"]["Enums"]["maintenance_result"]
+          tip?: Database["public"]["Enums"]["maintenance_kind"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_interventions_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_interventions_executant_employee_id_fkey"
+            columns: ["executant_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_interventions_org_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_interventions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "maintenance_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       maintenance_plans: {
         Row: {
-          id: string;
-          organization_id: string;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-          equipment_id: string;
-          denumire: string;
-          tip: Database["public"]["Enums"]["maintenance_kind"];
-          periodicitate_zile: number | null;
-          periodicitate_contor: number | null;
-          tip_contor: Database["public"]["Enums"]["meter_kind"] | null;
-          ultima_executie: string | null;
-          ultima_citire_contor: number | null;
-          urmatoarea_scadenta: string | null;
-          urmatoarea_scadenta_contor: number | null;
-          responsabil_employee_id: string | null;
-          instructiuni: string | null;
-          activ: boolean;
-        };
+          activ: boolean
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          denumire: string
+          equipment_id: string
+          id: string
+          instructiuni: string | null
+          organization_id: string
+          periodicitate_contor: number | null
+          periodicitate_zile: number | null
+          responsabil_employee_id: string | null
+          tip: Database["public"]["Enums"]["maintenance_kind"]
+          tip_contor: Database["public"]["Enums"]["meter_kind"] | null
+          ultima_citire_contor: number | null
+          ultima_executie: string | null
+          updated_at: string
+          updated_by: string | null
+          urmatoarea_scadenta: string | null
+          urmatoarea_scadenta_contor: number | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          equipment_id: string;
-          denumire: string;
-          tip?: Database["public"]["Enums"]["maintenance_kind"];
-          periodicitate_zile?: number | null;
-          periodicitate_contor?: number | null;
-          tip_contor?: Database["public"]["Enums"]["meter_kind"] | null;
-          ultima_executie?: string | null;
-          ultima_citire_contor?: number | null;
-          urmatoarea_scadenta?: string | null;
-          urmatoarea_scadenta_contor?: number | null;
-          responsabil_employee_id?: string | null;
-          instructiuni?: string | null;
-          activ?: boolean;
-        };
+          activ?: boolean
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire: string
+          equipment_id: string
+          id?: string
+          instructiuni?: string | null
+          organization_id: string
+          periodicitate_contor?: number | null
+          periodicitate_zile?: number | null
+          responsabil_employee_id?: string | null
+          tip?: Database["public"]["Enums"]["maintenance_kind"]
+          tip_contor?: Database["public"]["Enums"]["meter_kind"] | null
+          ultima_citire_contor?: number | null
+          ultima_executie?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          urmatoarea_scadenta?: string | null
+          urmatoarea_scadenta_contor?: number | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          equipment_id?: string;
-          denumire?: string;
-          tip?: Database["public"]["Enums"]["maintenance_kind"];
-          periodicitate_zile?: number | null;
-          periodicitate_contor?: number | null;
-          tip_contor?: Database["public"]["Enums"]["meter_kind"] | null;
-          ultima_executie?: string | null;
-          ultima_citire_contor?: number | null;
-          urmatoarea_scadenta?: string | null;
-          urmatoarea_scadenta_contor?: number | null;
-          responsabil_employee_id?: string | null;
-          instructiuni?: string | null;
-          activ?: boolean;
-        };
-        Relationships: [];
-      };
+          activ?: boolean
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire?: string
+          equipment_id?: string
+          id?: string
+          instructiuni?: string | null
+          organization_id?: string
+          periodicitate_contor?: number | null
+          periodicitate_zile?: number | null
+          responsabil_employee_id?: string | null
+          tip?: Database["public"]["Enums"]["maintenance_kind"]
+          tip_contor?: Database["public"]["Enums"]["meter_kind"] | null
+          ultima_citire_contor?: number | null
+          ultima_executie?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          urmatoarea_scadenta?: string | null
+          urmatoarea_scadenta_contor?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_plans_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_plans_org_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_plans_responsabil_employee_id_fkey"
+            columns: ["responsabil_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       medical_leave_codes: {
         Row: {
-          id: string;
-          cod: string;
-          denumire: string;
-          procent: number;
-          zile_angajator: number;
-          platitor: Database["public"]["Enums"]["medical_payer"];
-          luni_baza_calcul: number;
-          plafon_salarii_minime: number | null;
-          valabil_de_la: string;
-          valabil_pana_la: string | null;
-          temei_legal: string | null;
-          created_at: string;
-          updated_at: string;
-          deleted_at: string | null;
-        };
+          cod: string
+          created_at: string
+          deleted_at: string | null
+          denumire: string
+          id: string
+          luni_baza_calcul: number
+          plafon_salarii_minime: number | null
+          platitor: Database["public"]["Enums"]["medical_payer"]
+          procent: number
+          temei_legal: string | null
+          updated_at: string
+          valabil_de_la: string
+          valabil_pana_la: string | null
+          zile_angajator: number
+        }
         Insert: {
-          id?: string;
-          cod: string;
-          denumire: string;
-          procent: number;
-          zile_angajator?: number;
-          platitor: Database["public"]["Enums"]["medical_payer"];
-          luni_baza_calcul?: number;
-          plafon_salarii_minime?: number | null;
-          valabil_de_la: string;
-          valabil_pana_la?: string | null;
-          temei_legal?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-        };
+          cod: string
+          created_at?: string
+          deleted_at?: string | null
+          denumire: string
+          id?: string
+          luni_baza_calcul?: number
+          plafon_salarii_minime?: number | null
+          platitor: Database["public"]["Enums"]["medical_payer"]
+          procent: number
+          temei_legal?: string | null
+          updated_at?: string
+          valabil_de_la: string
+          valabil_pana_la?: string | null
+          zile_angajator?: number
+        }
         Update: {
-          id?: string;
-          cod?: string;
-          denumire?: string;
-          procent?: number;
-          zile_angajator?: number;
-          platitor?: Database["public"]["Enums"]["medical_payer"];
-          luni_baza_calcul?: number;
-          plafon_salarii_minime?: number | null;
-          valabil_de_la?: string;
-          valabil_pana_la?: string | null;
-          temei_legal?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          cod?: string
+          created_at?: string
+          deleted_at?: string | null
+          denumire?: string
+          id?: string
+          luni_baza_calcul?: number
+          plafon_salarii_minime?: number | null
+          platitor?: Database["public"]["Enums"]["medical_payer"]
+          procent?: number
+          temei_legal?: string | null
+          updated_at?: string
+          valabil_de_la?: string
+          valabil_pana_la?: string | null
+          zile_angajator?: number
+        }
+        Relationships: []
+      }
       notification_preferences: {
         Row: {
-          id: string;
-          user_id: string;
-          organization_id: string;
-          kind: Database["public"]["Enums"]["notification_kind"];
-          in_app: boolean;
-          email: boolean;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          email: boolean
+          id: string
+          in_app: boolean
+          kind: Database["public"]["Enums"]["notification_kind"]
+          organization_id: string
+          updated_at: string
+          updated_by: string | null
+          user_id: string
+        }
         Insert: {
-          id?: string;
-          user_id: string;
-          organization_id: string;
-          kind: Database["public"]["Enums"]["notification_kind"];
-          in_app?: boolean;
-          email?: boolean;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          email?: boolean
+          id?: string
+          in_app?: boolean
+          kind: Database["public"]["Enums"]["notification_kind"]
+          organization_id: string
+          updated_at?: string
+          updated_by?: string | null
+          user_id: string
+        }
         Update: {
-          id?: string;
-          user_id?: string;
-          organization_id?: string;
-          kind?: Database["public"]["Enums"]["notification_kind"];
-          in_app?: boolean;
-          email?: boolean;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          email?: boolean
+          id?: string
+          in_app?: boolean
+          kind?: Database["public"]["Enums"]["notification_kind"]
+          organization_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_preferences_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
-          id: string;
-          user_id: string;
-          organization_id: string;
-          kind: Database["public"]["Enums"]["notification_kind"];
-          title: string;
-          body: string | null;
-          link: string | null;
-          entity_type: string | null;
-          entity_id: string | null;
-          read_at: string | null;
-          sent_email_at: string | null;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          body: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          kind: Database["public"]["Enums"]["notification_kind"]
+          link: string | null
+          organization_id: string
+          read_at: string | null
+          sent_email_at: string | null
+          title: string
+          updated_at: string
+          updated_by: string | null
+          user_id: string
+        }
         Insert: {
-          id?: string;
-          user_id: string;
-          organization_id: string;
-          kind?: Database["public"]["Enums"]["notification_kind"];
-          title: string;
-          body?: string | null;
-          link?: string | null;
-          entity_type?: string | null;
-          entity_id?: string | null;
-          read_at?: string | null;
-          sent_email_at?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          body?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["notification_kind"]
+          link?: string | null
+          organization_id: string
+          read_at?: string | null
+          sent_email_at?: string | null
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+          user_id: string
+        }
         Update: {
-          id?: string;
-          user_id?: string;
-          organization_id?: string;
-          kind?: Database["public"]["Enums"]["notification_kind"];
-          title?: string;
-          body?: string | null;
-          link?: string | null;
-          entity_type?: string | null;
-          entity_id?: string | null;
-          read_at?: string | null;
-          sent_email_at?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          body?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["notification_kind"]
+          link?: string | null
+          organization_id?: string
+          read_at?: string | null
+          sent_email_at?: string | null
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       occupational_diseases: {
         Row: {
-          id: string;
-          organization_id: string;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-          employee_id: string;
-          numar_fisa_bp: string | null;
-          data_semnalarii: string;
-          data_confirmarii: string | null;
-          noxa_profesionala: string;
-          denumire_boala: string | null;
-          unitate_sanitara: string | null;
-          zile_incapacitate: number;
-          masuri: string | null;
-        };
+          created_at: string
+          created_by: string | null
+          data_confirmarii: string | null
+          data_semnalarii: string
+          deleted_at: string | null
+          denumire_boala: string | null
+          employee_id: string
+          id: string
+          masuri: string | null
+          noxa_profesionala: string
+          numar_fisa_bp: string | null
+          organization_id: string
+          unitate_sanitara: string | null
+          updated_at: string
+          updated_by: string | null
+          zile_incapacitate: number
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          employee_id: string;
-          numar_fisa_bp?: string | null;
-          data_semnalarii: string;
-          data_confirmarii?: string | null;
-          noxa_profesionala: string;
-          denumire_boala?: string | null;
-          unitate_sanitara?: string | null;
-          zile_incapacitate?: number;
-          masuri?: string | null;
-        };
+          created_at?: string
+          created_by?: string | null
+          data_confirmarii?: string | null
+          data_semnalarii: string
+          deleted_at?: string | null
+          denumire_boala?: string | null
+          employee_id: string
+          id?: string
+          masuri?: string | null
+          noxa_profesionala: string
+          numar_fisa_bp?: string | null
+          organization_id: string
+          unitate_sanitara?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          zile_incapacitate?: number
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          employee_id?: string;
-          numar_fisa_bp?: string | null;
-          data_semnalarii?: string;
-          data_confirmarii?: string | null;
-          noxa_profesionala?: string;
-          denumire_boala?: string | null;
-          unitate_sanitara?: string | null;
-          zile_incapacitate?: number;
-          masuri?: string | null;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          created_by?: string | null
+          data_confirmarii?: string | null
+          data_semnalarii?: string
+          deleted_at?: string | null
+          denumire_boala?: string | null
+          employee_id?: string
+          id?: string
+          masuri?: string | null
+          noxa_profesionala?: string
+          numar_fisa_bp?: string | null
+          organization_id?: string
+          unitate_sanitara?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          zile_incapacitate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "occupational_diseases_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "occupational_diseases_org_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       occupational_health_exams: {
         Row: {
-          id: string;
-          organization_id: string;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-          employee_id: string;
-          tip: Database["public"]["Enums"]["ssm_exam_type"];
-          data_examinarii: string;
-          medic: string | null;
-          unitate_medicala: string | null;
-          rezultat: Database["public"]["Enums"]["ssm_exam_result"];
-          valabil_pana: string | null;
-          numar_fisa: string | null;
-          cost: number | null;
-          observatii: string | null;
-        };
+          cost: number | null
+          created_at: string
+          created_by: string | null
+          data_examinarii: string
+          deleted_at: string | null
+          employee_id: string
+          id: string
+          medic: string | null
+          numar_fisa: string | null
+          observatii: string | null
+          organization_id: string
+          rezultat: Database["public"]["Enums"]["ssm_exam_result"]
+          tip: Database["public"]["Enums"]["ssm_exam_type"]
+          unitate_medicala: string | null
+          updated_at: string
+          updated_by: string | null
+          valabil_pana: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          employee_id: string;
-          tip: Database["public"]["Enums"]["ssm_exam_type"];
-          data_examinarii: string;
-          medic?: string | null;
-          unitate_medicala?: string | null;
-          rezultat: Database["public"]["Enums"]["ssm_exam_result"];
-          valabil_pana?: string | null;
-          numar_fisa?: string | null;
-          cost?: number | null;
-          observatii?: string | null;
-        };
+          cost?: number | null
+          created_at?: string
+          created_by?: string | null
+          data_examinarii: string
+          deleted_at?: string | null
+          employee_id: string
+          id?: string
+          medic?: string | null
+          numar_fisa?: string | null
+          observatii?: string | null
+          organization_id: string
+          rezultat: Database["public"]["Enums"]["ssm_exam_result"]
+          tip: Database["public"]["Enums"]["ssm_exam_type"]
+          unitate_medicala?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          valabil_pana?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          employee_id?: string;
-          tip?: Database["public"]["Enums"]["ssm_exam_type"];
-          data_examinarii?: string;
-          medic?: string | null;
-          unitate_medicala?: string | null;
-          rezultat?: Database["public"]["Enums"]["ssm_exam_result"];
-          valabil_pana?: string | null;
-          numar_fisa?: string | null;
-          cost?: number | null;
-          observatii?: string | null;
-        };
-        Relationships: [];
-      };
+          cost?: number | null
+          created_at?: string
+          created_by?: string | null
+          data_examinarii?: string
+          deleted_at?: string | null
+          employee_id?: string
+          id?: string
+          medic?: string | null
+          numar_fisa?: string | null
+          observatii?: string | null
+          organization_id?: string
+          rezultat?: Database["public"]["Enums"]["ssm_exam_result"]
+          tip?: Database["public"]["Enums"]["ssm_exam_type"]
+          unitate_medicala?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          valabil_pana?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "occupational_health_exams_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "occupational_health_exams_org_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       odometer_anomalies: {
         Row: {
-          id: string;
-          organization_id: string;
-          vehicle_id: string;
-          trip_sheet_id: string | null;
-          km_asteptat: number;
-          km_declarat: number;
-          diferenta: number | null;
-          tip: Database["public"]["Enums"]["odometer_anomaly_type"];
-          explicatie: string | null;
-          confirmat_de: string | null;
-          confirmat_la: string | null;
-          nota: string | null;
-          created_at: string;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          confirmat_de: string | null
+          confirmat_la: string | null
+          created_at: string
+          deleted_at: string | null
+          diferenta: number | null
+          explicatie: string | null
+          id: string
+          km_asteptat: number
+          km_declarat: number
+          nota: string | null
+          organization_id: string
+          tip: Database["public"]["Enums"]["odometer_anomaly_type"]
+          trip_sheet_id: string | null
+          updated_at: string
+          updated_by: string | null
+          vehicle_id: string
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          vehicle_id: string;
-          trip_sheet_id?: string | null;
-          km_asteptat: number;
-          km_declarat: number;
-          tip: Database["public"]["Enums"]["odometer_anomaly_type"];
-          explicatie?: string | null;
-          confirmat_de?: string | null;
-          confirmat_la?: string | null;
-          nota?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          confirmat_de?: string | null
+          confirmat_la?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          diferenta?: number | null
+          explicatie?: string | null
+          id?: string
+          km_asteptat: number
+          km_declarat: number
+          nota?: string | null
+          organization_id: string
+          tip: Database["public"]["Enums"]["odometer_anomaly_type"]
+          trip_sheet_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id: string
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          vehicle_id?: string;
-          trip_sheet_id?: string | null;
-          km_asteptat?: number;
-          km_declarat?: number;
-          tip?: Database["public"]["Enums"]["odometer_anomaly_type"];
-          explicatie?: string | null;
-          confirmat_de?: string | null;
-          confirmat_la?: string | null;
-          nota?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          confirmat_de?: string | null
+          confirmat_la?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          diferenta?: number | null
+          explicatie?: string | null
+          id?: string
+          km_asteptat?: number
+          km_declarat?: number
+          nota?: string | null
+          organization_id?: string
+          tip?: Database["public"]["Enums"]["odometer_anomaly_type"]
+          trip_sheet_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "odometer_anomalies_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "odometer_anomalies_trip_sheet_id_fkey"
+            columns: ["trip_sheet_id"]
+            isOneToOne: false
+            referencedRelation: "trip_sheets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "odometer_anomalies_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_branding: {
         Row: {
-          organization_id: string;
-          denumire_afisata: string | null;
-          primary_color: string | null;
-          logo_light_path: string | null;
-          logo_dark_path: string | null;
-          favicon_path: string | null;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          denumire_afisata: string | null
+          favicon_path: string | null
+          logo_dark_path: string | null
+          logo_light_path: string | null
+          organization_id: string
+          primary_color: string | null
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          organization_id: string;
-          denumire_afisata?: string | null;
-          primary_color?: string | null;
-          logo_light_path?: string | null;
-          logo_dark_path?: string | null;
-          favicon_path?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire_afisata?: string | null
+          favicon_path?: string | null
+          logo_dark_path?: string | null
+          logo_light_path?: string | null
+          organization_id: string
+          primary_color?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          organization_id?: string;
-          denumire_afisata?: string | null;
-          primary_color?: string | null;
-          logo_light_path?: string | null;
-          logo_dark_path?: string | null;
-          favicon_path?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire_afisata?: string | null
+          favicon_path?: string | null
+          logo_dark_path?: string | null
+          logo_light_path?: string | null
+          organization_id?: string
+          primary_color?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_branding_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_features: {
         Row: {
-          id: string;
-          organization_id: string;
-          feature_key: string;
-          enabled: boolean;
-          activated_at: string | null;
-          activated_by: string | null;
-          settings: Json;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          activated_at: string | null
+          activated_by: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          enabled: boolean
+          feature_key: string
+          id: string
+          organization_id: string
+          settings: Json
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          feature_key: string;
-          enabled?: boolean;
-          activated_at?: string | null;
-          activated_by?: string | null;
-          settings?: Json;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          activated_at?: string | null
+          activated_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          enabled?: boolean
+          feature_key: string
+          id?: string
+          organization_id: string
+          settings?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          feature_key?: string;
-          enabled?: boolean;
-          activated_at?: string | null;
-          activated_by?: string | null;
-          settings?: Json;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          activated_at?: string | null
+          activated_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          enabled?: boolean
+          feature_key?: string
+          id?: string
+          organization_id?: string
+          settings?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_features_feature_key_fkey"
+            columns: ["feature_key"]
+            isOneToOne: false
+            referencedRelation: "features"
+            referencedColumns: ["feature_key"]
+          },
+          {
+            foreignKeyName: "organization_features_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_holidays: {
         Row: {
-          id: string;
-          organization_id: string;
-          data: string;
-          denumire: string;
-          tip: Database["public"]["Enums"]["org_holiday_kind"];
-          observatii: string | null;
-          created_by: string | null;
-          created_at: string;
-          updated_at: string;
-          deleted_at: string | null;
-        };
+          created_at: string
+          created_by: string | null
+          data: string
+          deleted_at: string | null
+          denumire: string
+          id: string
+          observatii: string | null
+          organization_id: string
+          tip: Database["public"]["Enums"]["org_holiday_kind"]
+          updated_at: string
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          data: string;
-          denumire: string;
-          tip?: Database["public"]["Enums"]["org_holiday_kind"];
-          observatii?: string | null;
-          created_by?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-        };
+          created_at?: string
+          created_by?: string | null
+          data: string
+          deleted_at?: string | null
+          denumire: string
+          id?: string
+          observatii?: string | null
+          organization_id: string
+          tip?: Database["public"]["Enums"]["org_holiday_kind"]
+          updated_at?: string
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          data?: string;
-          denumire?: string;
-          tip?: Database["public"]["Enums"]["org_holiday_kind"];
-          observatii?: string | null;
-          created_by?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          deleted_at?: string | null
+          denumire?: string
+          id?: string
+          observatii?: string | null
+          organization_id?: string
+          tip?: Database["public"]["Enums"]["org_holiday_kind"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_holidays_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_members: {
         Row: {
-          id: string;
-          organization_id: string;
-          user_id: string;
-          role: Database["public"]["Enums"]["app_role"];
-          status: Database["public"]["Enums"]["member_status"];
-          job_title: string | null;
-          joined_at: string;
-          invited_by: string | null;
-          invitation_id: string | null;
-          deactivated_at: string | null;
-          deactivated_by: string | null;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          created_at: string
+          created_by: string | null
+          deactivated_at: string | null
+          deactivated_by: string | null
+          deleted_at: string | null
+          id: string
+          invitation_id: string | null
+          invited_by: string | null
+          job_title: string | null
+          joined_at: string
+          organization_id: string
+          role: Database["public"]["Enums"]["app_role"]
+          status: Database["public"]["Enums"]["member_status"]
+          updated_at: string
+          updated_by: string | null
+          user_id: string
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          user_id: string;
-          role?: Database["public"]["Enums"]["app_role"];
-          status?: Database["public"]["Enums"]["member_status"];
-          job_title?: string | null;
-          joined_at?: string;
-          invited_by?: string | null;
-          invitation_id?: string | null;
-          deactivated_at?: string | null;
-          deactivated_by?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          created_at?: string
+          created_by?: string | null
+          deactivated_at?: string | null
+          deactivated_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          invitation_id?: string | null
+          invited_by?: string | null
+          job_title?: string | null
+          joined_at?: string
+          organization_id: string
+          role?: Database["public"]["Enums"]["app_role"]
+          status?: Database["public"]["Enums"]["member_status"]
+          updated_at?: string
+          updated_by?: string | null
+          user_id: string
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          user_id?: string;
-          role?: Database["public"]["Enums"]["app_role"];
-          status?: Database["public"]["Enums"]["member_status"];
-          job_title?: string | null;
-          joined_at?: string;
-          invited_by?: string | null;
-          invitation_id?: string | null;
-          deactivated_at?: string | null;
-          deactivated_by?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          created_by?: string | null
+          deactivated_at?: string | null
+          deactivated_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          invitation_id?: string | null
+          invited_by?: string | null
+          job_title?: string | null
+          joined_at?: string
+          organization_id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          status?: Database["public"]["Enums"]["member_status"]
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_members_invitation_id_fkey"
+            columns: ["invitation_id"]
+            isOneToOne: false
+            referencedRelation: "invitations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_members_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
-          id: string;
-          slug: string;
-          name: string;
-          legal_name: string | null;
-          forma_juridica: string | null;
-          cui: string;
-          cui_normalizat: string | null;
-          platitor_tva: boolean;
-          reg_com: string | null;
-          adresa: string | null;
-          judet: string | null;
-          oras: string | null;
-          cod_postal: string | null;
-          tara: string;
-          email_contact: string | null;
-          telefon_contact: string | null;
-          website: string | null;
-          reprezentant_legal: string | null;
-          status: Database["public"]["Enums"]["organization_status"];
-          plan: Database["public"]["Enums"]["plan_type"];
-          seats_limit: number;
-          subscription_status: Database["public"]["Enums"]["subscription_status_type"];
-          trial_ends_at: string | null;
-          timezone: string;
-          locale: Database["public"]["Enums"]["locale_code"];
-          moneda: string;
-          activated_at: string | null;
-          suspended_at: string | null;
-          suspended_reason: string | null;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          activated_at: string | null
+          adresa: string | null
+          cod_postal: string | null
+          created_at: string
+          created_by: string | null
+          cui: string
+          cui_normalizat: string | null
+          deleted_at: string | null
+          email_contact: string | null
+          forma_juridica: string | null
+          id: string
+          judet: string | null
+          legal_name: string | null
+          locale: Database["public"]["Enums"]["locale_code"]
+          moneda: string
+          name: string
+          oras: string | null
+          plan: Database["public"]["Enums"]["plan_type"]
+          platitor_tva: boolean
+          reg_com: string | null
+          reprezentant_legal: string | null
+          seats_limit: number
+          slug: string
+          status: Database["public"]["Enums"]["organization_status"]
+          subscription_status: Database["public"]["Enums"]["subscription_status_type"]
+          suspended_at: string | null
+          suspended_reason: string | null
+          tara: string
+          telefon_contact: string | null
+          timezone: string
+          trial_ends_at: string | null
+          updated_at: string
+          updated_by: string | null
+          website: string | null
+        }
         Insert: {
-          id?: string;
-          slug: string;
-          name: string;
-          legal_name?: string | null;
-          forma_juridica?: string | null;
-          cui: string;
-          platitor_tva?: boolean;
-          reg_com?: string | null;
-          adresa?: string | null;
-          judet?: string | null;
-          oras?: string | null;
-          cod_postal?: string | null;
-          tara?: string;
-          email_contact?: string | null;
-          telefon_contact?: string | null;
-          website?: string | null;
-          reprezentant_legal?: string | null;
-          status?: Database["public"]["Enums"]["organization_status"];
-          plan?: Database["public"]["Enums"]["plan_type"];
-          seats_limit?: number;
-          subscription_status?: Database["public"]["Enums"]["subscription_status_type"];
-          trial_ends_at?: string | null;
-          timezone?: string;
-          locale?: Database["public"]["Enums"]["locale_code"];
-          moneda?: string;
-          activated_at?: string | null;
-          suspended_at?: string | null;
-          suspended_reason?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          activated_at?: string | null
+          adresa?: string | null
+          cod_postal?: string | null
+          created_at?: string
+          created_by?: string | null
+          cui: string
+          cui_normalizat?: string | null
+          deleted_at?: string | null
+          email_contact?: string | null
+          forma_juridica?: string | null
+          id?: string
+          judet?: string | null
+          legal_name?: string | null
+          locale?: Database["public"]["Enums"]["locale_code"]
+          moneda?: string
+          name: string
+          oras?: string | null
+          plan?: Database["public"]["Enums"]["plan_type"]
+          platitor_tva?: boolean
+          reg_com?: string | null
+          reprezentant_legal?: string | null
+          seats_limit?: number
+          slug: string
+          status?: Database["public"]["Enums"]["organization_status"]
+          subscription_status?: Database["public"]["Enums"]["subscription_status_type"]
+          suspended_at?: string | null
+          suspended_reason?: string | null
+          tara?: string
+          telefon_contact?: string | null
+          timezone?: string
+          trial_ends_at?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          website?: string | null
+        }
         Update: {
-          id?: string;
-          slug?: string;
-          name?: string;
-          legal_name?: string | null;
-          forma_juridica?: string | null;
-          cui?: string;
-          platitor_tva?: boolean;
-          reg_com?: string | null;
-          adresa?: string | null;
-          judet?: string | null;
-          oras?: string | null;
-          cod_postal?: string | null;
-          tara?: string;
-          email_contact?: string | null;
-          telefon_contact?: string | null;
-          website?: string | null;
-          reprezentant_legal?: string | null;
-          status?: Database["public"]["Enums"]["organization_status"];
-          plan?: Database["public"]["Enums"]["plan_type"];
-          seats_limit?: number;
-          subscription_status?: Database["public"]["Enums"]["subscription_status_type"];
-          trial_ends_at?: string | null;
-          timezone?: string;
-          locale?: Database["public"]["Enums"]["locale_code"];
-          moneda?: string;
-          activated_at?: string | null;
-          suspended_at?: string | null;
-          suspended_reason?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          activated_at?: string | null
+          adresa?: string | null
+          cod_postal?: string | null
+          created_at?: string
+          created_by?: string | null
+          cui?: string
+          cui_normalizat?: string | null
+          deleted_at?: string | null
+          email_contact?: string | null
+          forma_juridica?: string | null
+          id?: string
+          judet?: string | null
+          legal_name?: string | null
+          locale?: Database["public"]["Enums"]["locale_code"]
+          moneda?: string
+          name?: string
+          oras?: string | null
+          plan?: Database["public"]["Enums"]["plan_type"]
+          platitor_tva?: boolean
+          reg_com?: string | null
+          reprezentant_legal?: string | null
+          seats_limit?: number
+          slug?: string
+          status?: Database["public"]["Enums"]["organization_status"]
+          subscription_status?: Database["public"]["Enums"]["subscription_status_type"]
+          suspended_at?: string | null
+          suspended_reason?: string | null
+          tara?: string
+          telefon_contact?: string | null
+          timezone?: string
+          trial_ends_at?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          website?: string | null
+        }
+        Relationships: []
+      }
       overtime_compensation: {
         Row: {
-          id: string;
-          organization_id: string;
-          employee_id: string;
-          entry_id: string | null;
-          data_generarii: string;
-          ore: number;
-          termen_folosire: string;
-          ore_folosite: number;
-          ore_expirate: number;
-          leave_request_id: string | null;
-          observatii: string | null;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          created_at: string
+          created_by: string | null
+          data_generarii: string
+          deleted_at: string | null
+          employee_id: string
+          entry_id: string | null
+          id: string
+          leave_request_id: string | null
+          observatii: string | null
+          ore: number
+          ore_expirate: number
+          ore_folosite: number
+          organization_id: string
+          termen_folosire: string
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          employee_id: string;
-          entry_id?: string | null;
-          data_generarii: string;
-          ore: number;
-          termen_folosire: string;
-          ore_folosite?: number;
-          ore_expirate?: number;
-          leave_request_id?: string | null;
-          observatii?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          created_at?: string
+          created_by?: string | null
+          data_generarii: string
+          deleted_at?: string | null
+          employee_id: string
+          entry_id?: string | null
+          id?: string
+          leave_request_id?: string | null
+          observatii?: string | null
+          ore: number
+          ore_expirate?: number
+          ore_folosite?: number
+          organization_id: string
+          termen_folosire: string
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          employee_id?: string;
-          entry_id?: string | null;
-          data_generarii?: string;
-          ore?: number;
-          termen_folosire?: string;
-          ore_folosite?: number;
-          ore_expirate?: number;
-          leave_request_id?: string | null;
-          observatii?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          created_by?: string | null
+          data_generarii?: string
+          deleted_at?: string | null
+          employee_id?: string
+          entry_id?: string | null
+          id?: string
+          leave_request_id?: string | null
+          observatii?: string | null
+          ore?: number
+          ore_expirate?: number
+          ore_folosite?: number
+          organization_id?: string
+          termen_folosire?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "overtime_compensation_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "overtime_compensation_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "overtime_compensation_leave_request_id_fkey"
+            columns: ["leave_request_id"]
+            isOneToOne: false
+            referencedRelation: "leave_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "overtime_compensation_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_bonuses: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          employee_id: string
+          id: string
+          impozabil: boolean
+          motiv: string
+          organization_id: string
+          period_id: string
+          suma: number
+          supus_contributii: boolean
+          tip: Database["public"]["Enums"]["payroll_bonus_type"]
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          employee_id: string
+          id?: string
+          impozabil?: boolean
+          motiv: string
+          organization_id: string
+          period_id: string
+          suma: number
+          supus_contributii?: boolean
+          tip: Database["public"]["Enums"]["payroll_bonus_type"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          employee_id?: string
+          id?: string
+          impozabil?: boolean
+          motiv?: string
+          organization_id?: string
+          period_id?: string
+          suma?: number
+          supus_contributii?: boolean
+          tip?: Database["public"]["Enums"]["payroll_bonus_type"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_bonuses_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_bonuses_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_bonuses_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_deductions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          employee_id: string
+          id: string
+          motiv: string
+          organization_id: string
+          period_id: string
+          procent_maxim_din_net: number | null
+          suma: number
+          tip: Database["public"]["Enums"]["payroll_deduction_type"]
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          employee_id: string
+          id?: string
+          motiv: string
+          organization_id: string
+          period_id: string
+          procent_maxim_din_net?: number | null
+          suma: number
+          tip: Database["public"]["Enums"]["payroll_deduction_type"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          employee_id?: string
+          id?: string
+          motiv?: string
+          organization_id?: string
+          period_id?: string
+          procent_maxim_din_net?: number | null
+          suma?: number
+          tip?: Database["public"]["Enums"]["payroll_deduction_type"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_deductions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_deductions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_deductions_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_entries: {
+        Row: {
+          baza_cas_cass: number
+          baza_impozit: number
+          baza_salariu: number
+          brut: number
+          calc_breakdown: Json
+          calc_warnings: Json
+          calculat_la: string | null
+          cam_angajator: number
+          cas: number
+          cass: number
+          contract_id: string | null
+          cost_total_angajator: number
+          created_at: string
+          created_by: string | null
+          deducere_personala: number
+          deleted_at: string | null
+          employee_id: string
+          id: string
+          impozit: number
+          net: number
+          net_de_plata: number
+          nr_tichete: number
+          ore_lucrate: number
+          ore_noapte: number
+          ore_suplimentare: number
+          organization_id: string
+          period_id: string
+          prime_total: number
+          retineri_total: number
+          settings_snapshot: Json
+          spor_noapte: number
+          status: Database["public"]["Enums"]["payroll_entry_status"]
+          suma_ore_suplimentare: number
+          updated_at: string
+          updated_by: string | null
+          valoare_tichete: number
+          zile_absenta_nemotivata: number
+          zile_concediu_medical: number
+          zile_concediu_odihna: number
+          zile_lucrate: number
+          zile_lucratoare_luna: number
+        }
+        Insert: {
+          baza_cas_cass?: number
+          baza_impozit?: number
+          baza_salariu?: number
+          brut?: number
+          calc_breakdown?: Json
+          calc_warnings?: Json
+          calculat_la?: string | null
+          cam_angajator?: number
+          cas?: number
+          cass?: number
+          contract_id?: string | null
+          cost_total_angajator?: number
+          created_at?: string
+          created_by?: string | null
+          deducere_personala?: number
+          deleted_at?: string | null
+          employee_id: string
+          id?: string
+          impozit?: number
+          net?: number
+          net_de_plata?: number
+          nr_tichete?: number
+          ore_lucrate?: number
+          ore_noapte?: number
+          ore_suplimentare?: number
+          organization_id: string
+          period_id: string
+          prime_total?: number
+          retineri_total?: number
+          settings_snapshot: Json
+          spor_noapte?: number
+          status?: Database["public"]["Enums"]["payroll_entry_status"]
+          suma_ore_suplimentare?: number
+          updated_at?: string
+          updated_by?: string | null
+          valoare_tichete?: number
+          zile_absenta_nemotivata?: number
+          zile_concediu_medical?: number
+          zile_concediu_odihna?: number
+          zile_lucrate?: number
+          zile_lucratoare_luna: number
+        }
+        Update: {
+          baza_cas_cass?: number
+          baza_impozit?: number
+          baza_salariu?: number
+          brut?: number
+          calc_breakdown?: Json
+          calc_warnings?: Json
+          calculat_la?: string | null
+          cam_angajator?: number
+          cas?: number
+          cass?: number
+          contract_id?: string | null
+          cost_total_angajator?: number
+          created_at?: string
+          created_by?: string | null
+          deducere_personala?: number
+          deleted_at?: string | null
+          employee_id?: string
+          id?: string
+          impozit?: number
+          net?: number
+          net_de_plata?: number
+          nr_tichete?: number
+          ore_lucrate?: number
+          ore_noapte?: number
+          ore_suplimentare?: number
+          organization_id?: string
+          period_id?: string
+          prime_total?: number
+          retineri_total?: number
+          settings_snapshot?: Json
+          spor_noapte?: number
+          status?: Database["public"]["Enums"]["payroll_entry_status"]
+          suma_ore_suplimentare?: number
+          updated_at?: string
+          updated_by?: string | null
+          valoare_tichete?: number
+          zile_absenta_nemotivata?: number
+          zile_concediu_medical?: number
+          zile_concediu_odihna?: number
+          zile_lucrate?: number
+          zile_lucratoare_luna?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_entries_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "employment_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_entries_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_entries_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_entries_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_periods"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_periods: {
+        Row: {
+          an: number
+          aprobat_de: string | null
+          aprobat_la: string | null
+          attendance_period_id: string
+          calculat_de: string | null
+          calculat_la: string | null
+          created_at: string
+          created_by: string | null
+          data_plata: string | null
+          deleted_at: string | null
+          id: string
+          inchis_de: string | null
+          inchis_la: string | null
+          luna: number
+          observatii: string | null
+          organization_id: string
+          settings_id: string
+          status: Database["public"]["Enums"]["payroll_period_status"]
+          total_brut: number
+          total_cost_angajator: number
+          total_net: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          an: number
+          aprobat_de?: string | null
+          aprobat_la?: string | null
+          attendance_period_id: string
+          calculat_de?: string | null
+          calculat_la?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_plata?: string | null
+          deleted_at?: string | null
+          id?: string
+          inchis_de?: string | null
+          inchis_la?: string | null
+          luna: number
+          observatii?: string | null
+          organization_id: string
+          settings_id: string
+          status?: Database["public"]["Enums"]["payroll_period_status"]
+          total_brut?: number
+          total_cost_angajator?: number
+          total_net?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          an?: number
+          aprobat_de?: string | null
+          aprobat_la?: string | null
+          attendance_period_id?: string
+          calculat_de?: string | null
+          calculat_la?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_plata?: string | null
+          deleted_at?: string | null
+          id?: string
+          inchis_de?: string | null
+          inchis_la?: string | null
+          luna?: number
+          observatii?: string | null
+          organization_id?: string
+          settings_id?: string
+          status?: Database["public"]["Enums"]["payroll_period_status"]
+          total_brut?: number
+          total_cost_angajator?: number
+          total_net?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_periods_attendance_period_id_fkey"
+            columns: ["attendance_period_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_periods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_periods_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_periods_settings_id_fkey"
+            columns: ["settings_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_personal_deduction_brackets: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          nr_persoane_intretinere_max: number | null
+          nr_persoane_intretinere_min: number
+          ordine: number
+          organization_id: string
+          settings_id: string
+          updated_at: string
+          updated_by: string | null
+          valoare: number
+          venit_brut_max: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          nr_persoane_intretinere_max?: number | null
+          nr_persoane_intretinere_min: number
+          ordine?: number
+          organization_id: string
+          settings_id: string
+          updated_at?: string
+          updated_by?: string | null
+          valoare: number
+          venit_brut_max: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          nr_persoane_intretinere_max?: number | null
+          nr_persoane_intretinere_min?: number
+          ordine?: number
+          organization_id?: string
+          settings_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          valoare?: number
+          venit_brut_max?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_personal_deduction_brackets_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_personal_deduction_brackets_settings_id_fkey"
+            columns: ["settings_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_settings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_settings: {
+        Row: {
+          cota_cam_angajator: number
+          cota_cas: number
+          cota_cass: number
+          cota_impozit: number
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          norma_zilnica_ore: number
+          note: string | null
+          organization_id: string
+          procent_ore_suplimentare: number
+          procent_spor_noapte: number
+          procent_spor_weekend: number
+          rotunjire_lei: boolean
+          tichete_impozabile: boolean
+          updated_at: string
+          updated_by: string | null
+          valabil_de_la: string
+          valoare_tichet_masa: number
+          verificat_de_contabil: boolean
+          verificat_la: string | null
+        }
+        Insert: {
+          cota_cam_angajator: number
+          cota_cas: number
+          cota_cass: number
+          cota_impozit: number
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          norma_zilnica_ore?: number
+          note?: string | null
+          organization_id: string
+          procent_ore_suplimentare?: number
+          procent_spor_noapte?: number
+          procent_spor_weekend?: number
+          rotunjire_lei?: boolean
+          tichete_impozabile?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la: string
+          valoare_tichet_masa?: number
+          verificat_de_contabil?: boolean
+          verificat_la?: string | null
+        }
+        Update: {
+          cota_cam_angajator?: number
+          cota_cas?: number
+          cota_cass?: number
+          cota_impozit?: number
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          norma_zilnica_ore?: number
+          note?: string | null
+          organization_id?: string
+          procent_ore_suplimentare?: number
+          procent_spor_noapte?: number
+          procent_spor_weekend?: number
+          rotunjire_lei?: boolean
+          tichete_impozabile?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la?: string
+          valoare_tichet_masa?: number
+          verificat_de_contabil?: boolean
+          verificat_la?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       per_diem_calculations: {
         Row: {
-          id: string;
-          organization_id: string;
-          business_trip_id: string;
-          policy_id: string;
-          calculat_la: string;
-          zile_total: number;
-          valoare_lei: number | null;
-          plafon_neimpozabil_lei: number | null;
-          parte_neimpozabila_lei: number | null;
-          parte_impozabila_lei: number | null;
-          curs_incomplet: boolean;
-          detalii: Json;
-          created_at: string;
-          updated_at: string;
-        };
+          business_trip_id: string
+          calculat_la: string
+          created_at: string
+          curs_incomplet: boolean
+          detalii: Json
+          id: string
+          organization_id: string
+          parte_impozabila_lei: number | null
+          parte_neimpozabila_lei: number | null
+          plafon_neimpozabil_lei: number | null
+          policy_id: string
+          updated_at: string
+          valoare_lei: number | null
+          zile_total: number
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          business_trip_id: string;
-          policy_id: string;
-          calculat_la?: string;
-          zile_total: number;
-          valoare_lei?: number | null;
-          plafon_neimpozabil_lei?: number | null;
-          parte_neimpozabila_lei?: number | null;
-          parte_impozabila_lei?: number | null;
-          curs_incomplet?: boolean;
-          detalii?: Json;
-          created_at?: string;
-          updated_at?: string;
-        };
+          business_trip_id: string
+          calculat_la?: string
+          created_at?: string
+          curs_incomplet?: boolean
+          detalii?: Json
+          id?: string
+          organization_id: string
+          parte_impozabila_lei?: number | null
+          parte_neimpozabila_lei?: number | null
+          plafon_neimpozabil_lei?: number | null
+          policy_id: string
+          updated_at?: string
+          valoare_lei?: number | null
+          zile_total: number
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          business_trip_id?: string;
-          policy_id?: string;
-          calculat_la?: string;
-          zile_total?: number;
-          valoare_lei?: number | null;
-          plafon_neimpozabil_lei?: number | null;
-          parte_neimpozabila_lei?: number | null;
-          parte_impozabila_lei?: number | null;
-          curs_incomplet?: boolean;
-          detalii?: Json;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Relationships: [];
-      };
+          business_trip_id?: string
+          calculat_la?: string
+          created_at?: string
+          curs_incomplet?: boolean
+          detalii?: Json
+          id?: string
+          organization_id?: string
+          parte_impozabila_lei?: number | null
+          parte_neimpozabila_lei?: number | null
+          plafon_neimpozabil_lei?: number | null
+          policy_id?: string
+          updated_at?: string
+          valoare_lei?: number | null
+          zile_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "per_diem_calculations_business_trip_id_fkey"
+            columns: ["business_trip_id"]
+            isOneToOne: true
+            referencedRelation: "business_trips"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "per_diem_calculations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "per_diem_calculations_policy_id_fkey"
+            columns: ["policy_id"]
+            isOneToOne: false
+            referencedRelation: "per_diem_policies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       per_diem_country_rates: {
         Row: {
-          id: string;
-          country_id: string;
-          categorie: string;
-          valoare: number;
-          moneda: string;
-          valabil_de_la: string;
-          valabil_pana: string | null;
-          sursa: string;
-          de_verificat_de_jurist: boolean;
-          observatii: string | null;
-          deleted_at: string | null;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-        };
+          categorie: string
+          country_id: string
+          created_at: string
+          created_by: string | null
+          de_verificat_de_jurist: boolean
+          deleted_at: string | null
+          id: string
+          moneda: string
+          observatii: string | null
+          sursa: string
+          updated_at: string
+          updated_by: string | null
+          valabil_de_la: string
+          valabil_pana: string | null
+          valoare: number
+        }
         Insert: {
-          id?: string;
-          country_id: string;
-          categorie?: string;
-          valoare: number;
-          moneda: string;
-          valabil_de_la: string;
-          valabil_pana?: string | null;
-          sursa?: string;
-          de_verificat_de_jurist?: boolean;
-          observatii?: string | null;
-          deleted_at?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-        };
+          categorie?: string
+          country_id: string
+          created_at?: string
+          created_by?: string | null
+          de_verificat_de_jurist?: boolean
+          deleted_at?: string | null
+          id?: string
+          moneda: string
+          observatii?: string | null
+          sursa?: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la: string
+          valabil_pana?: string | null
+          valoare: number
+        }
         Update: {
-          id?: string;
-          country_id?: string;
-          categorie?: string;
-          valoare?: number;
-          moneda?: string;
-          valabil_de_la?: string;
-          valabil_pana?: string | null;
-          sursa?: string;
-          de_verificat_de_jurist?: boolean;
-          observatii?: string | null;
-          deleted_at?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-        };
-        Relationships: [];
-      };
+          categorie?: string
+          country_id?: string
+          created_at?: string
+          created_by?: string | null
+          de_verificat_de_jurist?: boolean
+          deleted_at?: string | null
+          id?: string
+          moneda?: string
+          observatii?: string | null
+          sursa?: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la?: string
+          valabil_pana?: string | null
+          valoare?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "per_diem_country_rates_country_id_fkey"
+            columns: ["country_id"]
+            isOneToOne: false
+            referencedRelation: "countries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       per_diem_policies: {
         Row: {
-          id: string;
-          organization_id: string;
-          denumire: string;
-          country_id_intern: string;
-          moneda_interna: string;
-          diurna_interna_zi: number;
-          diurna_baza_legala_interna: number;
-          multiplu_plafon_neimpozabil: number;
-          multiplu_diurna_externa: number;
-          categorie_barem: string;
-          prag_ore_minim: number;
-          prag_ore_zi_intreaga: number;
-          fractiune_zi_partiala: number;
-          acorda_diurna_ziua_trecerii: boolean;
-          regula_tara_trecere: Database["public"]["Enums"]["per_diem_border_rule"];
-          tarif_km_auto_personal: number;
-          moneda_tarif_km: string;
-          plafon_salarii_baza_luna: number;
-          valabil_de_la: string;
-          valabil_pana: string | null;
-          observatii: string | null;
-          deleted_at: string | null;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-        };
+          acorda_diurna_ziua_trecerii: boolean
+          categorie_barem: string
+          country_id_intern: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          denumire: string
+          diurna_baza_legala_interna: number
+          diurna_interna_zi: number
+          fractiune_zi_partiala: number
+          id: string
+          moneda_interna: string
+          moneda_tarif_km: string
+          multiplu_diurna_externa: number
+          multiplu_plafon_neimpozabil: number
+          observatii: string | null
+          organization_id: string
+          plafon_salarii_baza_luna: number
+          prag_ore_minim: number
+          prag_ore_zi_intreaga: number
+          regula_tara_trecere: Database["public"]["Enums"]["per_diem_border_rule"]
+          tarif_km_auto_personal: number
+          updated_at: string
+          updated_by: string | null
+          valabil_de_la: string
+          valabil_pana: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          denumire: string;
-          country_id_intern: string;
-          moneda_interna: string;
-          diurna_interna_zi: number;
-          diurna_baza_legala_interna: number;
-          multiplu_plafon_neimpozabil: number;
-          multiplu_diurna_externa: number;
-          categorie_barem?: string;
-          prag_ore_minim: number;
-          prag_ore_zi_intreaga: number;
-          fractiune_zi_partiala: number;
-          acorda_diurna_ziua_trecerii?: boolean;
-          regula_tara_trecere?: Database["public"]["Enums"]["per_diem_border_rule"];
-          tarif_km_auto_personal: number;
-          moneda_tarif_km: string;
-          plafon_salarii_baza_luna: number;
-          valabil_de_la: string;
-          valabil_pana?: string | null;
-          observatii?: string | null;
-          deleted_at?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-        };
+          acorda_diurna_ziua_trecerii?: boolean
+          categorie_barem?: string
+          country_id_intern: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire: string
+          diurna_baza_legala_interna: number
+          diurna_interna_zi: number
+          fractiune_zi_partiala: number
+          id?: string
+          moneda_interna: string
+          moneda_tarif_km: string
+          multiplu_diurna_externa: number
+          multiplu_plafon_neimpozabil: number
+          observatii?: string | null
+          organization_id: string
+          plafon_salarii_baza_luna: number
+          prag_ore_minim: number
+          prag_ore_zi_intreaga: number
+          regula_tara_trecere?: Database["public"]["Enums"]["per_diem_border_rule"]
+          tarif_km_auto_personal: number
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la: string
+          valabil_pana?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          denumire?: string;
-          country_id_intern?: string;
-          moneda_interna?: string;
-          diurna_interna_zi?: number;
-          diurna_baza_legala_interna?: number;
-          multiplu_plafon_neimpozabil?: number;
-          multiplu_diurna_externa?: number;
-          categorie_barem?: string;
-          prag_ore_minim?: number;
-          prag_ore_zi_intreaga?: number;
-          fractiune_zi_partiala?: number;
-          acorda_diurna_ziua_trecerii?: boolean;
-          regula_tara_trecere?: Database["public"]["Enums"]["per_diem_border_rule"];
-          tarif_km_auto_personal?: number;
-          moneda_tarif_km?: string;
-          plafon_salarii_baza_luna?: number;
-          valabil_de_la?: string;
-          valabil_pana?: string | null;
-          observatii?: string | null;
-          deleted_at?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-        };
-        Relationships: [];
-      };
+          acorda_diurna_ziua_trecerii?: boolean
+          categorie_barem?: string
+          country_id_intern?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire?: string
+          diurna_baza_legala_interna?: number
+          diurna_interna_zi?: number
+          fractiune_zi_partiala?: number
+          id?: string
+          moneda_interna?: string
+          moneda_tarif_km?: string
+          multiplu_diurna_externa?: number
+          multiplu_plafon_neimpozabil?: number
+          observatii?: string | null
+          organization_id?: string
+          plafon_salarii_baza_luna?: number
+          prag_ore_minim?: number
+          prag_ore_zi_intreaga?: number
+          regula_tara_trecere?: Database["public"]["Enums"]["per_diem_border_rule"]
+          tarif_km_auto_personal?: number
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la?: string
+          valabil_pana?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "per_diem_policies_country_id_intern_fkey"
+            columns: ["country_id_intern"]
+            isOneToOne: false
+            referencedRelation: "countries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "per_diem_policies_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       personnel_authorizations: {
         Row: {
-          id: string;
-          organization_id: string;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-          employee_id: string;
-          tip: string;
-          grupa: string | null;
-          numar: string;
-          emitent: string;
-          emis_la: string | null;
-          valabil_pana: string;
-          suspendata_la: string | null;
-          observatii: string | null;
-        };
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          emis_la: string | null
+          emitent: string
+          employee_id: string
+          grupa: string | null
+          id: string
+          numar: string
+          observatii: string | null
+          organization_id: string
+          suspendata_la: string | null
+          tip: string
+          updated_at: string
+          updated_by: string | null
+          valabil_pana: string
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          employee_id: string;
-          tip: string;
-          grupa?: string | null;
-          numar: string;
-          emitent: string;
-          emis_la?: string | null;
-          valabil_pana: string;
-          suspendata_la?: string | null;
-          observatii?: string | null;
-        };
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          emis_la?: string | null
+          emitent: string
+          employee_id: string
+          grupa?: string | null
+          id?: string
+          numar: string
+          observatii?: string | null
+          organization_id: string
+          suspendata_la?: string | null
+          tip: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_pana: string
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          employee_id?: string;
-          tip?: string;
-          grupa?: string | null;
-          numar?: string;
-          emitent?: string;
-          emis_la?: string | null;
-          valabil_pana?: string;
-          suspendata_la?: string | null;
-          observatii?: string | null;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          emis_la?: string | null
+          emitent?: string
+          employee_id?: string
+          grupa?: string | null
+          id?: string
+          numar?: string
+          observatii?: string | null
+          organization_id?: string
+          suspendata_la?: string | null
+          tip?: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_pana?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "personnel_authorizations_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "personnel_authorizations_org_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       platform_admins: {
         Row: {
-          id: string;
-          user_id: string;
-          granted_by: string | null;
-          granted_at: string;
-          revoked_at: string | null;
-          revoked_by: string | null;
-          motiv: string | null;
-          created_at: string;
-          updated_at: string;
-        };
+          created_at: string
+          granted_at: string
+          granted_by: string | null
+          id: string
+          motiv: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+          updated_at: string
+          user_id: string
+        }
         Insert: {
-          id?: string;
-          user_id: string;
-          granted_by?: string | null;
-          granted_at?: string;
-          revoked_at?: string | null;
-          revoked_by?: string | null;
-          motiv?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
+          created_at?: string
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          motiv?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          updated_at?: string
+          user_id: string
+        }
         Update: {
-          id?: string;
-          user_id?: string;
-          granted_by?: string | null;
-          granted_at?: string;
-          revoked_at?: string | null;
-          revoked_by?: string | null;
-          motiv?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          motiv?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ppe_issuances: {
         Row: {
-          id: string;
-          organization_id: string;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-          employee_id: string;
-          articol: string;
-          cod_articol: string | null;
-          cantitate: number;
-          unitate: string;
-          data_predarii: string;
-          durata_utilizare_luni: number | null;
-          data_inlocuirii: string | null;
-          valoare: number | null;
-          semnatura_confirmata: boolean;
-          returnat_la: string | null;
-          observatii: string | null;
-        };
+          articol: string
+          cantitate: number
+          cod_articol: string | null
+          created_at: string
+          created_by: string | null
+          data_inlocuirii: string | null
+          data_predarii: string
+          deleted_at: string | null
+          durata_utilizare_luni: number | null
+          employee_id: string
+          id: string
+          observatii: string | null
+          organization_id: string
+          returnat_la: string | null
+          semnatura_confirmata: boolean
+          unitate: string
+          updated_at: string
+          updated_by: string | null
+          valoare: number | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          employee_id: string;
-          articol: string;
-          cod_articol?: string | null;
-          cantitate?: number;
-          unitate?: string;
-          data_predarii: string;
-          durata_utilizare_luni?: number | null;
-          data_inlocuirii?: string | null;
-          valoare?: number | null;
-          semnatura_confirmata?: boolean;
-          returnat_la?: string | null;
-          observatii?: string | null;
-        };
+          articol: string
+          cantitate?: number
+          cod_articol?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_inlocuirii?: string | null
+          data_predarii: string
+          deleted_at?: string | null
+          durata_utilizare_luni?: number | null
+          employee_id: string
+          id?: string
+          observatii?: string | null
+          organization_id: string
+          returnat_la?: string | null
+          semnatura_confirmata?: boolean
+          unitate?: string
+          updated_at?: string
+          updated_by?: string | null
+          valoare?: number | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          employee_id?: string;
-          articol?: string;
-          cod_articol?: string | null;
-          cantitate?: number;
-          unitate?: string;
-          data_predarii?: string;
-          durata_utilizare_luni?: number | null;
-          data_inlocuirii?: string | null;
-          valoare?: number | null;
-          semnatura_confirmata?: boolean;
-          returnat_la?: string | null;
-          observatii?: string | null;
-        };
-        Relationships: [];
-      };
+          articol?: string
+          cantitate?: number
+          cod_articol?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_inlocuirii?: string | null
+          data_predarii?: string
+          deleted_at?: string | null
+          durata_utilizare_luni?: number | null
+          employee_id?: string
+          id?: string
+          observatii?: string | null
+          organization_id?: string
+          returnat_la?: string | null
+          semnatura_confirmata?: boolean
+          unitate?: string
+          updated_at?: string
+          updated_by?: string | null
+          valoare?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ppe_issuances_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ppe_issuances_org_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prevention_plan_measures: {
         Row: {
-          id: string;
-          organization_id: string;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-          assessment_id: string | null;
-          masura: string;
-          tip: string;
-          termen: string;
-          responsabil_employee_id: string | null;
-          cost_estimat: number | null;
-          cost_realizat: number | null;
-          status: Database["public"]["Enums"]["ssm_measure_status"];
-          realizat_la: string | null;
-          observatii: string | null;
-        };
+          assessment_id: string | null
+          cost_estimat: number | null
+          cost_realizat: number | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          masura: string
+          observatii: string | null
+          organization_id: string
+          realizat_la: string | null
+          responsabil_employee_id: string | null
+          status: Database["public"]["Enums"]["ssm_measure_status"]
+          termen: string
+          tip: string
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          assessment_id?: string | null;
-          masura: string;
-          tip?: string;
-          termen: string;
-          responsabil_employee_id?: string | null;
-          cost_estimat?: number | null;
-          cost_realizat?: number | null;
-          status?: Database["public"]["Enums"]["ssm_measure_status"];
-          realizat_la?: string | null;
-          observatii?: string | null;
-        };
+          assessment_id?: string | null
+          cost_estimat?: number | null
+          cost_realizat?: number | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          masura: string
+          observatii?: string | null
+          organization_id: string
+          realizat_la?: string | null
+          responsabil_employee_id?: string | null
+          status?: Database["public"]["Enums"]["ssm_measure_status"]
+          termen: string
+          tip?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          assessment_id?: string | null;
-          masura?: string;
-          tip?: string;
-          termen?: string;
-          responsabil_employee_id?: string | null;
-          cost_estimat?: number | null;
-          cost_realizat?: number | null;
-          status?: Database["public"]["Enums"]["ssm_measure_status"];
-          realizat_la?: string | null;
-          observatii?: string | null;
-        };
-        Relationships: [];
-      };
+          assessment_id?: string | null
+          cost_estimat?: number | null
+          cost_realizat?: number | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          masura?: string
+          observatii?: string | null
+          organization_id?: string
+          realizat_la?: string | null
+          responsabil_employee_id?: string | null
+          status?: Database["public"]["Enums"]["ssm_measure_status"]
+          termen?: string
+          tip?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prevention_plan_measures_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "risk_assessments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prevention_plan_measures_org_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "prevention_plan_measures_responsabil_employee_id_fkey"
+            columns: ["responsabil_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
-          id: string;
-          email: string;
-          full_name: string | null;
-          avatar_path: string | null;
-          phone: string | null;
-          locale: Database["public"]["Enums"]["locale_code"];
-          timezone: string;
-          last_seen_at: string | null;
-          last_organization_id: string | null;
-          created_at: string;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          avatar_path: string | null
+          created_at: string
+          deleted_at: string | null
+          email: string
+          full_name: string | null
+          id: string
+          last_organization_id: string | null
+          last_seen_at: string | null
+          locale: Database["public"]["Enums"]["locale_code"]
+          phone: string | null
+          timezone: string
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id: string;
-          email: string;
-          full_name?: string | null;
-          avatar_path?: string | null;
-          phone?: string | null;
-          locale?: Database["public"]["Enums"]["locale_code"];
-          timezone?: string;
-          last_seen_at?: string | null;
-          last_organization_id?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          avatar_path?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          email: string
+          full_name?: string | null
+          id: string
+          last_organization_id?: string | null
+          last_seen_at?: string | null
+          locale?: Database["public"]["Enums"]["locale_code"]
+          phone?: string | null
+          timezone?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          email?: string;
-          full_name?: string | null;
-          avatar_path?: string | null;
-          phone?: string | null;
-          locale?: Database["public"]["Enums"]["locale_code"];
-          timezone?: string;
-          last_seen_at?: string | null;
-          last_organization_id?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          avatar_path?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          email?: string
+          full_name?: string | null
+          id?: string
+          last_organization_id?: string | null
+          last_seen_at?: string | null
+          locale?: Database["public"]["Enums"]["locale_code"]
+          phone?: string | null
+          timezone?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_last_organization_id_fkey"
+            columns: ["last_organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       public_holidays: {
         Row: {
-          id: string;
-          tara: string;
-          an: number;
-          data: string;
-          denumire: string;
-          tip: Database["public"]["Enums"]["holiday_type"];
-          temei_legal: string | null;
-          created_at: string;
-          updated_at: string;
-          deleted_at: string | null;
-        };
+          an: number
+          created_at: string
+          data: string
+          deleted_at: string | null
+          denumire: string
+          id: string
+          tara: string
+          temei_legal: string | null
+          tip: Database["public"]["Enums"]["holiday_type"]
+          updated_at: string
+        }
         Insert: {
-          id?: string;
-          tara?: string;
-          an: number;
-          data: string;
-          denumire: string;
-          tip: Database["public"]["Enums"]["holiday_type"];
-          temei_legal?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-        };
+          an: number
+          created_at?: string
+          data: string
+          deleted_at?: string | null
+          denumire: string
+          id?: string
+          tara?: string
+          temei_legal?: string | null
+          tip: Database["public"]["Enums"]["holiday_type"]
+          updated_at?: string
+        }
         Update: {
-          id?: string;
-          tara?: string;
-          an?: number;
-          data?: string;
-          denumire?: string;
-          tip?: Database["public"]["Enums"]["holiday_type"];
-          temei_legal?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          an?: number
+          created_at?: string
+          data?: string
+          deleted_at?: string | null
+          denumire?: string
+          id?: string
+          tara?: string
+          temei_legal?: string | null
+          tip?: Database["public"]["Enums"]["holiday_type"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       rate_limits: {
         Row: {
-          key: string;
-          window_start: string;
-          count: number;
-          created_at: string;
-          updated_at: string;
-        };
+          count: number
+          created_at: string
+          key: string
+          updated_at: string
+          window_start: string
+        }
         Insert: {
-          key: string;
-          window_start: string;
-          count?: number;
-          created_at?: string;
-          updated_at?: string;
-        };
+          count?: number
+          created_at?: string
+          key: string
+          updated_at?: string
+          window_start: string
+        }
         Update: {
-          key?: string;
-          window_start?: string;
-          count?: number;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Relationships: [];
-      };
+          count?: number
+          created_at?: string
+          key?: string
+          updated_at?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       retention_policies: {
         Row: {
-          id: string;
-          organization_id: string | null;
-          entity_type: string;
-          retention_months: number;
-          anonymize_only: boolean;
-          enabled: boolean;
-          legal_basis: string | null;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          anonymize_only: boolean
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          enabled: boolean
+          entity_type: string
+          id: string
+          legal_basis: string | null
+          organization_id: string | null
+          retention_months: number
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id?: string | null;
-          entity_type: string;
-          retention_months: number;
-          anonymize_only?: boolean;
-          enabled?: boolean;
-          legal_basis?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          anonymize_only?: boolean
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          enabled?: boolean
+          entity_type: string
+          id?: string
+          legal_basis?: string | null
+          organization_id?: string | null
+          retention_months: number
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string | null;
-          entity_type?: string;
-          retention_months?: number;
-          anonymize_only?: boolean;
-          enabled?: boolean;
-          legal_basis?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          anonymize_only?: boolean
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          enabled?: boolean
+          entity_type?: string
+          id?: string
+          legal_basis?: string | null
+          organization_id?: string | null
+          retention_months?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "retention_policies_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       revisal_config: {
         Row: {
-          id: string;
-          organization_id: string | null;
-          event_type: Database["public"]["Enums"]["revisal_event_type"];
-          termen_zile: number;
-          reper: string;
-          zile_lucratoare: boolean;
-          cod_revisal: string | null;
-          descriere: string | null;
-          valabil_de_la: string;
-          valabil_pana: string | null;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          cod_revisal: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          descriere: string | null
+          event_type: Database["public"]["Enums"]["revisal_event_type"]
+          id: string
+          organization_id: string | null
+          reper: string
+          termen_zile: number
+          updated_at: string
+          updated_by: string | null
+          valabil_de_la: string
+          valabil_pana: string | null
+          zile_lucratoare: boolean
+        }
         Insert: {
-          id?: string;
-          organization_id?: string | null;
-          event_type: Database["public"]["Enums"]["revisal_event_type"];
-          termen_zile: number;
-          reper?: string;
-          zile_lucratoare?: boolean;
-          cod_revisal?: string | null;
-          descriere?: string | null;
-          valabil_de_la: string;
-          valabil_pana?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          cod_revisal?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          descriere?: string | null
+          event_type: Database["public"]["Enums"]["revisal_event_type"]
+          id?: string
+          organization_id?: string | null
+          reper?: string
+          termen_zile: number
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la: string
+          valabil_pana?: string | null
+          zile_lucratoare?: boolean
+        }
         Update: {
-          id?: string;
-          organization_id?: string | null;
-          event_type?: Database["public"]["Enums"]["revisal_event_type"];
-          termen_zile?: number;
-          reper?: string;
-          zile_lucratoare?: boolean;
-          cod_revisal?: string | null;
-          descriere?: string | null;
-          valabil_de_la?: string;
-          valabil_pana?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          cod_revisal?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          descriere?: string | null
+          event_type?: Database["public"]["Enums"]["revisal_event_type"]
+          id?: string
+          organization_id?: string | null
+          reper?: string
+          termen_zile?: number
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la?: string
+          valabil_pana?: string | null
+          zile_lucratoare?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revisal_config_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       revisal_events: {
         Row: {
-          id: string;
-          organization_id: string;
-          employee_id: string;
-          contract_id: string | null;
-          event_type: Database["public"]["Enums"]["revisal_event_type"];
-          data_evenimentului: string;
-          termen_transmitere: string;
-          transmis_la: string | null;
-          transmis_de: string | null;
-          status: Database["public"]["Enums"]["revisal_status"];
-          payload: Json;
-          export_path: string | null;
-          export_checksum: string | null;
-          numar_inregistrare: string | null;
-          eroare: string | null;
-          observatii: string | null;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          contract_id: string | null
+          created_at: string
+          created_by: string | null
+          data_evenimentului: string
+          deleted_at: string | null
+          employee_id: string
+          eroare: string | null
+          event_type: Database["public"]["Enums"]["revisal_event_type"]
+          export_checksum: string | null
+          export_path: string | null
+          id: string
+          numar_inregistrare: string | null
+          observatii: string | null
+          organization_id: string
+          payload: Json
+          status: Database["public"]["Enums"]["revisal_status"]
+          termen_transmitere: string
+          transmis_de: string | null
+          transmis_la: string | null
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          employee_id: string;
-          contract_id?: string | null;
-          event_type: Database["public"]["Enums"]["revisal_event_type"];
-          data_evenimentului: string;
-          termen_transmitere: string;
-          transmis_la?: string | null;
-          transmis_de?: string | null;
-          status?: Database["public"]["Enums"]["revisal_status"];
-          payload?: Json;
-          export_path?: string | null;
-          export_checksum?: string | null;
-          numar_inregistrare?: string | null;
-          eroare?: string | null;
-          observatii?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          contract_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_evenimentului: string
+          deleted_at?: string | null
+          employee_id: string
+          eroare?: string | null
+          event_type: Database["public"]["Enums"]["revisal_event_type"]
+          export_checksum?: string | null
+          export_path?: string | null
+          id?: string
+          numar_inregistrare?: string | null
+          observatii?: string | null
+          organization_id: string
+          payload?: Json
+          status?: Database["public"]["Enums"]["revisal_status"]
+          termen_transmitere: string
+          transmis_de?: string | null
+          transmis_la?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          employee_id?: string;
-          contract_id?: string | null;
-          event_type?: Database["public"]["Enums"]["revisal_event_type"];
-          data_evenimentului?: string;
-          termen_transmitere?: string;
-          transmis_la?: string | null;
-          transmis_de?: string | null;
-          status?: Database["public"]["Enums"]["revisal_status"];
-          payload?: Json;
-          export_path?: string | null;
-          export_checksum?: string | null;
-          numar_inregistrare?: string | null;
-          eroare?: string | null;
-          observatii?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          contract_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_evenimentului?: string
+          deleted_at?: string | null
+          employee_id?: string
+          eroare?: string | null
+          event_type?: Database["public"]["Enums"]["revisal_event_type"]
+          export_checksum?: string | null
+          export_path?: string | null
+          id?: string
+          numar_inregistrare?: string | null
+          observatii?: string | null
+          organization_id?: string
+          payload?: Json
+          status?: Database["public"]["Enums"]["revisal_status"]
+          termen_transmitere?: string
+          transmis_de?: string | null
+          transmis_la?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revisal_events_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "employment_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "revisal_events_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "revisal_events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       risk_assessment_items: {
         Row: {
-          id: string;
-          organization_id: string;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-          assessment_id: string;
-          factor_risc: string;
-          pericol: string;
-          consecinta: string | null;
-          probabilitate: number;
-          gravitate: number;
-          nivel_risc: number | null;
-          masuri: string | null;
-          termen: string | null;
-          responsabil_employee_id: string | null;
-        };
+          assessment_id: string
+          consecinta: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          factor_risc: string
+          gravitate: number
+          id: string
+          masuri: string | null
+          nivel_risc: number | null
+          organization_id: string
+          pericol: string
+          probabilitate: number
+          responsabil_employee_id: string | null
+          termen: string | null
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          assessment_id: string;
-          factor_risc: string;
-          pericol: string;
-          consecinta?: string | null;
-          probabilitate: number;
-          gravitate: number;
-          masuri?: string | null;
-          termen?: string | null;
-          responsabil_employee_id?: string | null;
-        };
+          assessment_id: string
+          consecinta?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          factor_risc: string
+          gravitate: number
+          id?: string
+          masuri?: string | null
+          nivel_risc?: number | null
+          organization_id: string
+          pericol: string
+          probabilitate: number
+          responsabil_employee_id?: string | null
+          termen?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          assessment_id?: string;
-          factor_risc?: string;
-          pericol?: string;
-          consecinta?: string | null;
-          probabilitate?: number;
-          gravitate?: number;
-          masuri?: string | null;
-          termen?: string | null;
-          responsabil_employee_id?: string | null;
-        };
-        Relationships: [];
-      };
+          assessment_id?: string
+          consecinta?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          factor_risc?: string
+          gravitate?: number
+          id?: string
+          masuri?: string | null
+          nivel_risc?: number | null
+          organization_id?: string
+          pericol?: string
+          probabilitate?: number
+          responsabil_employee_id?: string | null
+          termen?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "risk_assessment_items_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "risk_assessments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "risk_assessment_items_org_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "risk_assessment_items_responsabil_employee_id_fkey"
+            columns: ["responsabil_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       risk_assessments: {
         Row: {
-          id: string;
-          organization_id: string;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-          cod: string;
-          denumire: string;
-          job_position_id: string | null;
-          department_id: string | null;
-          locatie: string | null;
-          data_evaluarii: string;
-          evaluator: string | null;
-          metoda: string;
-          valabil_pana: string | null;
-          status: string;
-          aprobat_de: string | null;
-          aprobat_la: string | null;
-        };
+          aprobat_de: string | null
+          aprobat_la: string | null
+          cod: string
+          created_at: string
+          created_by: string | null
+          data_evaluarii: string
+          deleted_at: string | null
+          denumire: string
+          department_id: string | null
+          evaluator: string | null
+          id: string
+          job_position_id: string | null
+          locatie: string | null
+          metoda: string
+          organization_id: string
+          status: string
+          updated_at: string
+          updated_by: string | null
+          valabil_pana: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          cod: string;
-          denumire: string;
-          job_position_id?: string | null;
-          department_id?: string | null;
-          locatie?: string | null;
-          data_evaluarii: string;
-          evaluator?: string | null;
-          metoda?: string;
-          valabil_pana?: string | null;
-          status?: string;
-          aprobat_de?: string | null;
-          aprobat_la?: string | null;
-        };
+          aprobat_de?: string | null
+          aprobat_la?: string | null
+          cod: string
+          created_at?: string
+          created_by?: string | null
+          data_evaluarii: string
+          deleted_at?: string | null
+          denumire: string
+          department_id?: string | null
+          evaluator?: string | null
+          id?: string
+          job_position_id?: string | null
+          locatie?: string | null
+          metoda?: string
+          organization_id: string
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_pana?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          cod?: string;
-          denumire?: string;
-          job_position_id?: string | null;
-          department_id?: string | null;
-          locatie?: string | null;
-          data_evaluarii?: string;
-          evaluator?: string | null;
-          metoda?: string;
-          valabil_pana?: string | null;
-          status?: string;
-          aprobat_de?: string | null;
-          aprobat_la?: string | null;
-        };
-        Relationships: [];
-      };
+          aprobat_de?: string | null
+          aprobat_la?: string | null
+          cod?: string
+          created_at?: string
+          created_by?: string | null
+          data_evaluarii?: string
+          deleted_at?: string | null
+          denumire?: string
+          department_id?: string | null
+          evaluator?: string | null
+          id?: string
+          job_position_id?: string | null
+          locatie?: string | null
+          metoda?: string
+          organization_id?: string
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_pana?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "risk_assessments_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "risk_assessments_job_position_id_fkey"
+            columns: ["job_position_id"]
+            isOneToOne: false
+            referencedRelation: "job_positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "risk_assessments_org_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       role_permissions: {
         Row: {
-          id: string;
-          organization_id: string | null;
-          role: Database["public"]["Enums"]["app_role"];
-          resource: string;
-          action: string;
-          scope: Database["public"]["Enums"]["permission_scope"];
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          action: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          organization_id: string | null
+          resource: string
+          role: Database["public"]["Enums"]["app_role"]
+          scope: Database["public"]["Enums"]["permission_scope"]
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id?: string | null;
-          role: Database["public"]["Enums"]["app_role"];
-          resource: string;
-          action: string;
-          scope?: Database["public"]["Enums"]["permission_scope"];
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          action: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          organization_id?: string | null
+          resource: string
+          role: Database["public"]["Enums"]["app_role"]
+          scope?: Database["public"]["Enums"]["permission_scope"]
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string | null;
-          role?: Database["public"]["Enums"]["app_role"];
-          resource?: string;
-          action?: string;
-          scope?: Database["public"]["Enums"]["permission_scope"];
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          action?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          organization_id?: string | null
+          resource?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          scope?: Database["public"]["Enums"]["permission_scope"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       safety_committee_meetings: {
         Row: {
-          id: string;
-          organization_id: string;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-          data: string;
-          ora: string | null;
-          tip: string;
-          participanti: string | null;
-          ordine_de_zi: string;
-          hotarari: string | null;
-          numar_proces_verbal: string | null;
-          presedinte_employee_id: string | null;
-          secretar_employee_id: string | null;
-          numar_lucratori_la_data: number | null;
-          prag_obligativitate: number | null;
-        };
+          created_at: string
+          created_by: string | null
+          data: string
+          deleted_at: string | null
+          hotarari: string | null
+          id: string
+          numar_lucratori_la_data: number | null
+          numar_proces_verbal: string | null
+          ora: string | null
+          ordine_de_zi: string
+          organization_id: string
+          participanti: string | null
+          prag_obligativitate: number | null
+          presedinte_employee_id: string | null
+          secretar_employee_id: string | null
+          tip: string
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          data: string;
-          ora?: string | null;
-          tip?: string;
-          participanti?: string | null;
-          ordine_de_zi: string;
-          hotarari?: string | null;
-          numar_proces_verbal?: string | null;
-          presedinte_employee_id?: string | null;
-          secretar_employee_id?: string | null;
-          numar_lucratori_la_data?: number | null;
-          prag_obligativitate?: number | null;
-        };
+          created_at?: string
+          created_by?: string | null
+          data: string
+          deleted_at?: string | null
+          hotarari?: string | null
+          id?: string
+          numar_lucratori_la_data?: number | null
+          numar_proces_verbal?: string | null
+          ora?: string | null
+          ordine_de_zi: string
+          organization_id: string
+          participanti?: string | null
+          prag_obligativitate?: number | null
+          presedinte_employee_id?: string | null
+          secretar_employee_id?: string | null
+          tip?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          data?: string;
-          ora?: string | null;
-          tip?: string;
-          participanti?: string | null;
-          ordine_de_zi?: string;
-          hotarari?: string | null;
-          numar_proces_verbal?: string | null;
-          presedinte_employee_id?: string | null;
-          secretar_employee_id?: string | null;
-          numar_lucratori_la_data?: number | null;
-          prag_obligativitate?: number | null;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          deleted_at?: string | null
+          hotarari?: string | null
+          id?: string
+          numar_lucratori_la_data?: number | null
+          numar_proces_verbal?: string | null
+          ora?: string | null
+          ordine_de_zi?: string
+          organization_id?: string
+          participanti?: string | null
+          prag_obligativitate?: number | null
+          presedinte_employee_id?: string | null
+          secretar_employee_id?: string | null
+          tip?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "safety_committee_meetings_org_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "safety_committee_meetings_presedinte_employee_id_fkey"
+            columns: ["presedinte_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "safety_committee_meetings_secretar_employee_id_fkey"
+            columns: ["secretar_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       salary_component_types: {
         Row: {
-          id: string;
-          organization_id: string | null;
-          cod: string;
-          denumire: string;
-          kind: Database["public"]["Enums"]["salary_component_kind"];
-          impozabil: boolean;
-          intra_in_baza_cas: boolean;
-          intra_in_baza_cass: boolean;
-          cod_revisal: string | null;
-          ordine: number;
-          activ: boolean;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          activ: boolean
+          cod: string
+          cod_revisal: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          denumire: string
+          id: string
+          impozabil: boolean
+          intra_in_baza_cas: boolean
+          intra_in_baza_cass: boolean
+          kind: Database["public"]["Enums"]["salary_component_kind"]
+          ordine: number
+          organization_id: string | null
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id?: string | null;
-          cod: string;
-          denumire: string;
-          kind: Database["public"]["Enums"]["salary_component_kind"];
-          impozabil?: boolean;
-          intra_in_baza_cas?: boolean;
-          intra_in_baza_cass?: boolean;
-          cod_revisal?: string | null;
-          ordine?: number;
-          activ?: boolean;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          activ?: boolean
+          cod: string
+          cod_revisal?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire: string
+          id?: string
+          impozabil?: boolean
+          intra_in_baza_cas?: boolean
+          intra_in_baza_cass?: boolean
+          kind: Database["public"]["Enums"]["salary_component_kind"]
+          ordine?: number
+          organization_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string | null;
-          cod?: string;
-          denumire?: string;
-          kind?: Database["public"]["Enums"]["salary_component_kind"];
-          impozabil?: boolean;
-          intra_in_baza_cas?: boolean;
-          intra_in_baza_cass?: boolean;
-          cod_revisal?: string | null;
-          ordine?: number;
-          activ?: boolean;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          activ?: boolean
+          cod?: string
+          cod_revisal?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire?: string
+          id?: string
+          impozabil?: boolean
+          intra_in_baza_cas?: boolean
+          intra_in_baza_cass?: boolean
+          kind?: Database["public"]["Enums"]["salary_component_kind"]
+          ordine?: number
+          organization_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "salary_component_types_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       salary_components: {
         Row: {
-          id: string;
-          organization_id: string;
-          employee_id: string;
-          contract_id: string | null;
-          component_type_id: string;
-          kind: Database["public"]["Enums"]["salary_component_kind"];
-          procent: number | null;
-          suma: number | null;
-          moneda: string;
-          valabil_de_la: string;
-          valabil_pana: string | null;
-          observatii: string | null;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          component_type_id: string
+          contract_id: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          employee_id: string
+          id: string
+          kind: Database["public"]["Enums"]["salary_component_kind"]
+          moneda: string
+          observatii: string | null
+          organization_id: string
+          procent: number | null
+          suma: number | null
+          updated_at: string
+          updated_by: string | null
+          valabil_de_la: string
+          valabil_pana: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          employee_id: string;
-          contract_id?: string | null;
-          component_type_id: string;
-          kind: Database["public"]["Enums"]["salary_component_kind"];
-          procent?: number | null;
-          suma?: number | null;
-          moneda?: string;
-          valabil_de_la: string;
-          valabil_pana?: string | null;
-          observatii?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          component_type_id: string
+          contract_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          employee_id: string
+          id?: string
+          kind: Database["public"]["Enums"]["salary_component_kind"]
+          moneda?: string
+          observatii?: string | null
+          organization_id: string
+          procent?: number | null
+          suma?: number | null
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la: string
+          valabil_pana?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          employee_id?: string;
-          contract_id?: string | null;
-          component_type_id?: string;
-          kind?: Database["public"]["Enums"]["salary_component_kind"];
-          procent?: number | null;
-          suma?: number | null;
-          moneda?: string;
-          valabil_de_la?: string;
-          valabil_pana?: string | null;
-          observatii?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          component_type_id?: string
+          contract_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          employee_id?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["salary_component_kind"]
+          moneda?: string
+          observatii?: string | null
+          organization_id?: string
+          procent?: number | null
+          suma?: number | null
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la?: string
+          valabil_pana?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "salary_components_component_type_id_fkey"
+            columns: ["component_type_id"]
+            isOneToOne: false
+            referencedRelation: "salary_component_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "salary_components_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "employment_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "salary_components_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "salary_components_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ssm_legal_parameters: {
         Row: {
-          id: string;
-          organization_id: string;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-          cod: string;
-          denumire: string;
-          valoare: number;
-          unitate: string;
-          valabil_de_la: string;
-          temei_legal: string | null;
-          de_verificat_de_jurist: boolean;
-          observatii: string | null;
-        };
+          cod: string
+          created_at: string
+          created_by: string | null
+          de_verificat_de_jurist: boolean
+          deleted_at: string | null
+          denumire: string
+          id: string
+          observatii: string | null
+          organization_id: string
+          temei_legal: string | null
+          unitate: string
+          updated_at: string
+          updated_by: string | null
+          valabil_de_la: string
+          valoare: number
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          cod: string;
-          denumire: string;
-          valoare: number;
-          unitate: string;
-          valabil_de_la: string;
-          temei_legal?: string | null;
-          de_verificat_de_jurist?: boolean;
-          observatii?: string | null;
-        };
+          cod: string
+          created_at?: string
+          created_by?: string | null
+          de_verificat_de_jurist?: boolean
+          deleted_at?: string | null
+          denumire: string
+          id?: string
+          observatii?: string | null
+          organization_id: string
+          temei_legal?: string | null
+          unitate: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la: string
+          valoare: number
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          cod?: string;
-          denumire?: string;
-          valoare?: number;
-          unitate?: string;
-          valabil_de_la?: string;
-          temei_legal?: string | null;
-          de_verificat_de_jurist?: boolean;
-          observatii?: string | null;
-        };
-        Relationships: [];
-      };
+          cod?: string
+          created_at?: string
+          created_by?: string | null
+          de_verificat_de_jurist?: boolean
+          deleted_at?: string | null
+          denumire?: string
+          id?: string
+          observatii?: string | null
+          organization_id?: string
+          temei_legal?: string | null
+          unitate?: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la?: string
+          valoare?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ssm_legal_parameters_org_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ssm_training_type_periods: {
         Row: {
-          id: string;
-          organization_id: string;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-          training_type_id: string;
-          periodicitate_luni: number | null;
-          durata_minima_ore: number;
-          valabil_de_la: string;
-          temei_legal: string | null;
-          de_verificat_de_jurist: boolean;
-        };
+          created_at: string
+          created_by: string | null
+          de_verificat_de_jurist: boolean
+          deleted_at: string | null
+          durata_minima_ore: number
+          id: string
+          organization_id: string
+          periodicitate_luni: number | null
+          temei_legal: string | null
+          training_type_id: string
+          updated_at: string
+          updated_by: string | null
+          valabil_de_la: string
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          training_type_id: string;
-          periodicitate_luni?: number | null;
-          durata_minima_ore?: number;
-          valabil_de_la: string;
-          temei_legal?: string | null;
-          de_verificat_de_jurist?: boolean;
-        };
+          created_at?: string
+          created_by?: string | null
+          de_verificat_de_jurist?: boolean
+          deleted_at?: string | null
+          durata_minima_ore?: number
+          id?: string
+          organization_id: string
+          periodicitate_luni?: number | null
+          temei_legal?: string | null
+          training_type_id: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la: string
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          training_type_id?: string;
-          periodicitate_luni?: number | null;
-          durata_minima_ore?: number;
-          valabil_de_la?: string;
-          temei_legal?: string | null;
-          de_verificat_de_jurist?: boolean;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          created_by?: string | null
+          de_verificat_de_jurist?: boolean
+          deleted_at?: string | null
+          durata_minima_ore?: number
+          id?: string
+          organization_id?: string
+          periodicitate_luni?: number | null
+          temei_legal?: string | null
+          training_type_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ssm_training_type_periods_org_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ssm_training_type_periods_training_type_id_fkey"
+            columns: ["training_type_id"]
+            isOneToOne: false
+            referencedRelation: "ssm_training_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ssm_training_types: {
         Row: {
-          id: string;
-          organization_id: string;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-          cod: string;
-          denumire: string;
-          domeniu: Database["public"]["Enums"]["ssm_domain"];
-          obligatoriu: boolean;
-          cine_poate_instrui: string;
-          activ: boolean;
-        };
+          activ: boolean
+          cine_poate_instrui: string
+          cod: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          denumire: string
+          domeniu: Database["public"]["Enums"]["ssm_domain"]
+          id: string
+          obligatoriu: boolean
+          organization_id: string
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          cod: string;
-          denumire: string;
-          domeniu: Database["public"]["Enums"]["ssm_domain"];
-          obligatoriu?: boolean;
-          cine_poate_instrui?: string;
-          activ?: boolean;
-        };
+          activ?: boolean
+          cine_poate_instrui?: string
+          cod: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire: string
+          domeniu: Database["public"]["Enums"]["ssm_domain"]
+          id?: string
+          obligatoriu?: boolean
+          organization_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          cod?: string;
-          denumire?: string;
-          domeniu?: Database["public"]["Enums"]["ssm_domain"];
-          obligatoriu?: boolean;
-          cine_poate_instrui?: string;
-          activ?: boolean;
-        };
-        Relationships: [];
-      };
+          activ?: boolean
+          cine_poate_instrui?: string
+          cod?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire?: string
+          domeniu?: Database["public"]["Enums"]["ssm_domain"]
+          id?: string
+          obligatoriu?: boolean
+          organization_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ssm_training_types_org_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ssm_trainings: {
         Row: {
-          id: string;
-          organization_id: string;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-          employee_id: string;
-          training_type_id: string;
-          data_instruirii: string;
-          durata_ore: number;
-          lector_employee_id: string | null;
-          lector_extern: string | null;
-          tematica: string | null;
-          materiale: string | null;
-          test_punctaj: number | null;
-          semnatura_confirmata: boolean;
-          semnat_la: string | null;
-          urmatoarea_scadenta: string | null;
-          observatii: string | null;
-        };
+          created_at: string
+          created_by: string | null
+          data_instruirii: string
+          deleted_at: string | null
+          durata_ore: number
+          employee_id: string
+          id: string
+          lector_employee_id: string | null
+          lector_extern: string | null
+          materiale: string | null
+          observatii: string | null
+          organization_id: string
+          semnat_la: string | null
+          semnatura_confirmata: boolean
+          tematica: string | null
+          test_punctaj: number | null
+          training_type_id: string
+          updated_at: string
+          updated_by: string | null
+          urmatoarea_scadenta: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          employee_id: string;
-          training_type_id: string;
-          data_instruirii: string;
-          durata_ore?: number;
-          lector_employee_id?: string | null;
-          lector_extern?: string | null;
-          tematica?: string | null;
-          materiale?: string | null;
-          test_punctaj?: number | null;
-          semnatura_confirmata?: boolean;
-          semnat_la?: string | null;
-          urmatoarea_scadenta?: string | null;
-          observatii?: string | null;
-        };
+          created_at?: string
+          created_by?: string | null
+          data_instruirii: string
+          deleted_at?: string | null
+          durata_ore?: number
+          employee_id: string
+          id?: string
+          lector_employee_id?: string | null
+          lector_extern?: string | null
+          materiale?: string | null
+          observatii?: string | null
+          organization_id: string
+          semnat_la?: string | null
+          semnatura_confirmata?: boolean
+          tematica?: string | null
+          test_punctaj?: number | null
+          training_type_id: string
+          updated_at?: string
+          updated_by?: string | null
+          urmatoarea_scadenta?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          employee_id?: string;
-          training_type_id?: string;
-          data_instruirii?: string;
-          durata_ore?: number;
-          lector_employee_id?: string | null;
-          lector_extern?: string | null;
-          tematica?: string | null;
-          materiale?: string | null;
-          test_punctaj?: number | null;
-          semnatura_confirmata?: boolean;
-          semnat_la?: string | null;
-          urmatoarea_scadenta?: string | null;
-          observatii?: string | null;
-        };
-        Relationships: [];
-      };
+          created_at?: string
+          created_by?: string | null
+          data_instruirii?: string
+          deleted_at?: string | null
+          durata_ore?: number
+          employee_id?: string
+          id?: string
+          lector_employee_id?: string | null
+          lector_extern?: string | null
+          materiale?: string | null
+          observatii?: string | null
+          organization_id?: string
+          semnat_la?: string | null
+          semnatura_confirmata?: boolean
+          tematica?: string | null
+          test_punctaj?: number | null
+          training_type_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          urmatoarea_scadenta?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ssm_trainings_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ssm_trainings_lector_employee_id_fkey"
+            columns: ["lector_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ssm_trainings_org_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ssm_trainings_training_type_id_fkey"
+            columns: ["training_type_id"]
+            isOneToOne: false
+            referencedRelation: "ssm_training_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trip_expenses: {
         Row: {
-          id: string;
-          organization_id: string;
-          business_trip_id: string;
-          tip: Database["public"]["Enums"]["trip_expense_type"];
-          descriere: string | null;
-          data_cheltuielii: string;
-          suma: number;
-          moneda: string;
-          curs_valutar: number;
-          suma_lei: number | null;
-          document_tip: string | null;
-          document_numar: string | null;
-          document_cale: string | null;
-          aprobata: boolean;
-          aprobata_de: string | null;
-          aprobata_la: string | null;
-          motiv_respingere: string | null;
-          deleted_at: string | null;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-        };
+          aprobata: boolean
+          aprobata_de: string | null
+          aprobata_la: string | null
+          business_trip_id: string
+          created_at: string
+          created_by: string | null
+          curs_valutar: number
+          data_cheltuielii: string
+          deleted_at: string | null
+          descriere: string | null
+          document_cale: string | null
+          document_numar: string | null
+          document_tip: string | null
+          id: string
+          moneda: string
+          motiv_respingere: string | null
+          organization_id: string
+          suma: number
+          suma_lei: number | null
+          tip: Database["public"]["Enums"]["trip_expense_type"]
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          business_trip_id: string;
-          tip: Database["public"]["Enums"]["trip_expense_type"];
-          descriere?: string | null;
-          data_cheltuielii: string;
-          suma: number;
-          moneda: string;
-          curs_valutar: number;
-          document_tip?: string | null;
-          document_numar?: string | null;
-          document_cale?: string | null;
-          aprobata?: boolean;
-          aprobata_de?: string | null;
-          aprobata_la?: string | null;
-          motiv_respingere?: string | null;
-          deleted_at?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-        };
+          aprobata?: boolean
+          aprobata_de?: string | null
+          aprobata_la?: string | null
+          business_trip_id: string
+          created_at?: string
+          created_by?: string | null
+          curs_valutar: number
+          data_cheltuielii: string
+          deleted_at?: string | null
+          descriere?: string | null
+          document_cale?: string | null
+          document_numar?: string | null
+          document_tip?: string | null
+          id?: string
+          moneda: string
+          motiv_respingere?: string | null
+          organization_id: string
+          suma: number
+          suma_lei?: number | null
+          tip: Database["public"]["Enums"]["trip_expense_type"]
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          business_trip_id?: string;
-          tip?: Database["public"]["Enums"]["trip_expense_type"];
-          descriere?: string | null;
-          data_cheltuielii?: string;
-          suma?: number;
-          moneda?: string;
-          curs_valutar?: number;
-          document_tip?: string | null;
-          document_numar?: string | null;
-          document_cale?: string | null;
-          aprobata?: boolean;
-          aprobata_de?: string | null;
-          aprobata_la?: string | null;
-          motiv_respingere?: string | null;
-          deleted_at?: string | null;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-        };
-        Relationships: [];
-      };
+          aprobata?: boolean
+          aprobata_de?: string | null
+          aprobata_la?: string | null
+          business_trip_id?: string
+          created_at?: string
+          created_by?: string | null
+          curs_valutar?: number
+          data_cheltuielii?: string
+          deleted_at?: string | null
+          descriere?: string | null
+          document_cale?: string | null
+          document_numar?: string | null
+          document_tip?: string | null
+          id?: string
+          moneda?: string
+          motiv_respingere?: string | null
+          organization_id?: string
+          suma?: number
+          suma_lei?: number | null
+          tip?: Database["public"]["Enums"]["trip_expense_type"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_expenses_business_trip_id_fkey"
+            columns: ["business_trip_id"]
+            isOneToOne: false
+            referencedRelation: "business_trips"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_expenses_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trip_sheets: {
         Row: {
-          id: string;
-          organization_id: string;
-          vehicle_id: string;
-          employee_id: string;
-          numar: string | null;
-          plecare_la: string;
-          sosire_la: string | null;
-          km_plecare: number;
-          km_sosire: number | null;
-          km_parcursi: number | null;
-          traseu: string | null;
-          scop: string | null;
-          status: Database["public"]["Enums"]["trip_sheet_status"];
-          trimis_la: string | null;
-          aprobat_de: string | null;
-          aprobat_la: string | null;
-          motiv_respingere: string | null;
-          observatii: string | null;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          aprobat_de: string | null
+          aprobat_la: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          employee_id: string
+          id: string
+          km_parcursi: number | null
+          km_plecare: number
+          km_sosire: number | null
+          motiv_respingere: string | null
+          numar: string | null
+          observatii: string | null
+          organization_id: string
+          plecare_la: string
+          scop: string | null
+          sosire_la: string | null
+          status: Database["public"]["Enums"]["trip_sheet_status"]
+          traseu: string | null
+          trimis_la: string | null
+          updated_at: string
+          updated_by: string | null
+          vehicle_id: string
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          vehicle_id: string;
-          employee_id: string;
-          numar?: string | null;
-          plecare_la: string;
-          sosire_la?: string | null;
-          km_plecare: number;
-          km_sosire?: number | null;
-          traseu?: string | null;
-          scop?: string | null;
-          status?: Database["public"]["Enums"]["trip_sheet_status"];
-          trimis_la?: string | null;
-          aprobat_de?: string | null;
-          aprobat_la?: string | null;
-          motiv_respingere?: string | null;
-          observatii?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          aprobat_de?: string | null
+          aprobat_la?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          employee_id: string
+          id?: string
+          km_parcursi?: number | null
+          km_plecare: number
+          km_sosire?: number | null
+          motiv_respingere?: string | null
+          numar?: string | null
+          observatii?: string | null
+          organization_id: string
+          plecare_la: string
+          scop?: string | null
+          sosire_la?: string | null
+          status?: Database["public"]["Enums"]["trip_sheet_status"]
+          traseu?: string | null
+          trimis_la?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id: string
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          vehicle_id?: string;
-          employee_id?: string;
-          numar?: string | null;
-          plecare_la?: string;
-          sosire_la?: string | null;
-          km_plecare?: number;
-          km_sosire?: number | null;
-          traseu?: string | null;
-          scop?: string | null;
-          status?: Database["public"]["Enums"]["trip_sheet_status"];
-          trimis_la?: string | null;
-          aprobat_de?: string | null;
-          aprobat_la?: string | null;
-          motiv_respingere?: string | null;
-          observatii?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          aprobat_de?: string | null
+          aprobat_la?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          employee_id?: string
+          id?: string
+          km_parcursi?: number | null
+          km_plecare?: number
+          km_sosire?: number | null
+          motiv_respingere?: string | null
+          numar?: string | null
+          observatii?: string | null
+          organization_id?: string
+          plecare_la?: string
+          scop?: string | null
+          sosire_la?: string | null
+          status?: Database["public"]["Enums"]["trip_sheet_status"]
+          traseu?: string | null
+          trimis_la?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_sheets_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_sheets_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_sheets_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicle_document_types: {
         Row: {
-          id: string;
-          organization_id: string | null;
-          cod: string;
-          denumire: string;
-          descriere: string | null;
-          cere_expirare: boolean;
-          obligatoriu: boolean;
-          ordine: number;
-          activ: boolean;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          activ: boolean
+          cere_expirare: boolean
+          cod: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          denumire: string
+          descriere: string | null
+          id: string
+          obligatoriu: boolean
+          ordine: number
+          organization_id: string | null
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id?: string | null;
-          cod: string;
-          denumire: string;
-          descriere?: string | null;
-          cere_expirare?: boolean;
-          obligatoriu?: boolean;
-          ordine?: number;
-          activ?: boolean;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          activ?: boolean
+          cere_expirare?: boolean
+          cod: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire: string
+          descriere?: string | null
+          id?: string
+          obligatoriu?: boolean
+          ordine?: number
+          organization_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string | null;
-          cod?: string;
-          denumire?: string;
-          descriere?: string | null;
-          cere_expirare?: boolean;
-          obligatoriu?: boolean;
-          ordine?: number;
-          activ?: boolean;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          activ?: boolean
+          cere_expirare?: boolean
+          cod?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire?: string
+          descriere?: string | null
+          id?: string
+          obligatoriu?: boolean
+          ordine?: number
+          organization_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_document_types_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicle_documents: {
         Row: {
-          id: string;
-          organization_id: string;
-          vehicle_id: string;
-          document_type_id: string;
-          numar: string | null;
-          emitent: string | null;
-          valabil_de_la: string | null;
-          expira_la: string | null;
-          cost: number | null;
-          fisier_path: string | null;
-          fisier_nume: string | null;
-          fisier_checksum: string | null;
-          este_curent: boolean;
-          observatii: string | null;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          cost: number | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          document_type_id: string
+          emitent: string | null
+          este_curent: boolean
+          expira_la: string | null
+          fisier_checksum: string | null
+          fisier_nume: string | null
+          fisier_path: string | null
+          id: string
+          numar: string | null
+          observatii: string | null
+          organization_id: string
+          updated_at: string
+          updated_by: string | null
+          valabil_de_la: string | null
+          vehicle_id: string
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          vehicle_id: string;
-          document_type_id: string;
-          numar?: string | null;
-          emitent?: string | null;
-          valabil_de_la?: string | null;
-          expira_la?: string | null;
-          cost?: number | null;
-          fisier_path?: string | null;
-          fisier_nume?: string | null;
-          fisier_checksum?: string | null;
-          este_curent?: boolean;
-          observatii?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          cost?: number | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          document_type_id: string
+          emitent?: string | null
+          este_curent?: boolean
+          expira_la?: string | null
+          fisier_checksum?: string | null
+          fisier_nume?: string | null
+          fisier_path?: string | null
+          id?: string
+          numar?: string | null
+          observatii?: string | null
+          organization_id: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la?: string | null
+          vehicle_id: string
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          vehicle_id?: string;
-          document_type_id?: string;
-          numar?: string | null;
-          emitent?: string | null;
-          valabil_de_la?: string | null;
-          expira_la?: string | null;
-          cost?: number | null;
-          fisier_path?: string | null;
-          fisier_nume?: string | null;
-          fisier_checksum?: string | null;
-          este_curent?: boolean;
-          observatii?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          cost?: number | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          document_type_id?: string
+          emitent?: string | null
+          este_curent?: boolean
+          expira_la?: string | null
+          fisier_checksum?: string | null
+          fisier_nume?: string | null
+          fisier_path?: string | null
+          id?: string
+          numar?: string | null
+          observatii?: string | null
+          organization_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la?: string | null
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_documents_document_type_id_fkey"
+            columns: ["document_type_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_document_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_documents_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_documents_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicles: {
         Row: {
-          id: string;
-          organization_id: string;
-          nr_inmatriculare: string;
-          marca: string;
-          model: string;
-          vin: string | null;
-          categorie: Database["public"]["Enums"]["vehicle_category"];
-          tip_combustibil: Database["public"]["Enums"]["fuel_type"];
-          an_fabricatie: number | null;
-          culoare: string | null;
-          capacitate_cilindrica: number | null;
-          masa_maxima_kg: number | null;
-          numar_locuri: number | null;
-          consum_mediu_declarat: number | null;
-          km_curent: number;
-          employee_id: string | null;
-          department_id: string | null;
-          status: Database["public"]["Enums"]["vehicle_status"];
-          data_achizitie: string | null;
-          valoare_achizitie: number | null;
-          data_iesire: string | null;
-          motiv_iesire: string | null;
-          prag_salt_km: number | null;
-          observatii: string | null;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          an_fabricatie: number | null
+          capacitate_cilindrica: number | null
+          categorie: Database["public"]["Enums"]["vehicle_category"]
+          consum_mediu_declarat: number | null
+          created_at: string
+          created_by: string | null
+          culoare: string | null
+          data_achizitie: string | null
+          data_iesire: string | null
+          deleted_at: string | null
+          department_id: string | null
+          employee_id: string | null
+          id: string
+          km_curent: number
+          marca: string
+          masa_maxima_kg: number | null
+          model: string
+          motiv_iesire: string | null
+          nr_inmatriculare: string
+          numar_locuri: number | null
+          observatii: string | null
+          organization_id: string
+          prag_salt_km: number | null
+          status: Database["public"]["Enums"]["vehicle_status"]
+          tip_combustibil: Database["public"]["Enums"]["fuel_type"]
+          updated_at: string
+          updated_by: string | null
+          valoare_achizitie: number | null
+          vin: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          nr_inmatriculare: string;
-          marca: string;
-          model: string;
-          vin?: string | null;
-          categorie?: Database["public"]["Enums"]["vehicle_category"];
-          tip_combustibil?: Database["public"]["Enums"]["fuel_type"];
-          an_fabricatie?: number | null;
-          culoare?: string | null;
-          capacitate_cilindrica?: number | null;
-          masa_maxima_kg?: number | null;
-          numar_locuri?: number | null;
-          consum_mediu_declarat?: number | null;
-          km_curent?: number;
-          employee_id?: string | null;
-          department_id?: string | null;
-          status?: Database["public"]["Enums"]["vehicle_status"];
-          data_achizitie?: string | null;
-          valoare_achizitie?: number | null;
-          data_iesire?: string | null;
-          motiv_iesire?: string | null;
-          prag_salt_km?: number | null;
-          observatii?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          an_fabricatie?: number | null
+          capacitate_cilindrica?: number | null
+          categorie?: Database["public"]["Enums"]["vehicle_category"]
+          consum_mediu_declarat?: number | null
+          created_at?: string
+          created_by?: string | null
+          culoare?: string | null
+          data_achizitie?: string | null
+          data_iesire?: string | null
+          deleted_at?: string | null
+          department_id?: string | null
+          employee_id?: string | null
+          id?: string
+          km_curent?: number
+          marca: string
+          masa_maxima_kg?: number | null
+          model: string
+          motiv_iesire?: string | null
+          nr_inmatriculare: string
+          numar_locuri?: number | null
+          observatii?: string | null
+          organization_id: string
+          prag_salt_km?: number | null
+          status?: Database["public"]["Enums"]["vehicle_status"]
+          tip_combustibil?: Database["public"]["Enums"]["fuel_type"]
+          updated_at?: string
+          updated_by?: string | null
+          valoare_achizitie?: number | null
+          vin?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          nr_inmatriculare?: string;
-          marca?: string;
-          model?: string;
-          vin?: string | null;
-          categorie?: Database["public"]["Enums"]["vehicle_category"];
-          tip_combustibil?: Database["public"]["Enums"]["fuel_type"];
-          an_fabricatie?: number | null;
-          culoare?: string | null;
-          capacitate_cilindrica?: number | null;
-          masa_maxima_kg?: number | null;
-          numar_locuri?: number | null;
-          consum_mediu_declarat?: number | null;
-          km_curent?: number;
-          employee_id?: string | null;
-          department_id?: string | null;
-          status?: Database["public"]["Enums"]["vehicle_status"];
-          data_achizitie?: string | null;
-          valoare_achizitie?: number | null;
-          data_iesire?: string | null;
-          motiv_iesire?: string | null;
-          prag_salt_km?: number | null;
-          observatii?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
+          an_fabricatie?: number | null
+          capacitate_cilindrica?: number | null
+          categorie?: Database["public"]["Enums"]["vehicle_category"]
+          consum_mediu_declarat?: number | null
+          created_at?: string
+          created_by?: string | null
+          culoare?: string | null
+          data_achizitie?: string | null
+          data_iesire?: string | null
+          deleted_at?: string | null
+          department_id?: string | null
+          employee_id?: string | null
+          id?: string
+          km_curent?: number
+          marca?: string
+          masa_maxima_kg?: number | null
+          model?: string
+          motiv_iesire?: string | null
+          nr_inmatriculare?: string
+          numar_locuri?: number | null
+          observatii?: string | null
+          organization_id?: string
+          prag_salt_km?: number | null
+          status?: Database["public"]["Enums"]["vehicle_status"]
+          tip_combustibil?: Database["public"]["Enums"]["fuel_type"]
+          updated_at?: string
+          updated_by?: string | null
+          valoare_achizitie?: number | null
+          vin?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicles_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicles_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicles_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       work_accidents: {
         Row: {
-          id: string;
-          organization_id: string;
-          created_at: string;
-          updated_at: string;
-          created_by: string | null;
-          updated_by: string | null;
-          deleted_at: string | null;
-          numar_intern: string | null;
-          employee_id: string | null;
-          data_producerii: string;
-          ora_producerii: string | null;
-          locul: string;
-          imprejurari: string;
-          tip: Database["public"]["Enums"]["ssm_accident_type"];
-          zile_incapacitate: number;
-          comunicat_la_itm_la: string | null;
-          termen_comunicare_ore: number | null;
-          numar_proces_verbal: string | null;
-          cercetare_finalizata_la: string | null;
-          urmari: string | null;
-        };
+          cercetare_finalizata_la: string | null
+          comunicat_la_itm_la: string | null
+          created_at: string
+          created_by: string | null
+          data_producerii: string
+          deleted_at: string | null
+          employee_id: string | null
+          id: string
+          imprejurari: string
+          locul: string
+          numar_intern: string | null
+          numar_proces_verbal: string | null
+          ora_producerii: string | null
+          organization_id: string
+          termen_comunicare_ore: number | null
+          tip: Database["public"]["Enums"]["ssm_accident_type"]
+          updated_at: string
+          updated_by: string | null
+          urmari: string | null
+          zile_incapacitate: number
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          numar_intern?: string | null;
-          employee_id?: string | null;
-          data_producerii: string;
-          ora_producerii?: string | null;
-          locul: string;
-          imprejurari: string;
-          tip: Database["public"]["Enums"]["ssm_accident_type"];
-          zile_incapacitate?: number;
-          comunicat_la_itm_la?: string | null;
-          termen_comunicare_ore?: number | null;
-          numar_proces_verbal?: string | null;
-          cercetare_finalizata_la?: string | null;
-          urmari?: string | null;
-        };
+          cercetare_finalizata_la?: string | null
+          comunicat_la_itm_la?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_producerii: string
+          deleted_at?: string | null
+          employee_id?: string | null
+          id?: string
+          imprejurari: string
+          locul: string
+          numar_intern?: string | null
+          numar_proces_verbal?: string | null
+          ora_producerii?: string | null
+          organization_id: string
+          termen_comunicare_ore?: number | null
+          tip: Database["public"]["Enums"]["ssm_accident_type"]
+          updated_at?: string
+          updated_by?: string | null
+          urmari?: string | null
+          zile_incapacitate?: number
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          created_at?: string;
-          updated_at?: string;
-          created_by?: string | null;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-          numar_intern?: string | null;
-          employee_id?: string | null;
-          data_producerii?: string;
-          ora_producerii?: string | null;
-          locul?: string;
-          imprejurari?: string;
-          tip?: Database["public"]["Enums"]["ssm_accident_type"];
-          zile_incapacitate?: number;
-          comunicat_la_itm_la?: string | null;
-          termen_comunicare_ore?: number | null;
-          numar_proces_verbal?: string | null;
-          cercetare_finalizata_la?: string | null;
-          urmari?: string | null;
-        };
-        Relationships: [];
-      };
+          cercetare_finalizata_la?: string | null
+          comunicat_la_itm_la?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_producerii?: string
+          deleted_at?: string | null
+          employee_id?: string | null
+          id?: string
+          imprejurari?: string
+          locul?: string
+          numar_intern?: string | null
+          numar_proces_verbal?: string | null
+          ora_producerii?: string | null
+          organization_id?: string
+          termen_comunicare_ore?: number | null
+          tip?: Database["public"]["Enums"]["ssm_accident_type"]
+          updated_at?: string
+          updated_by?: string | null
+          urmari?: string | null
+          zile_incapacitate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_accidents_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_accidents_org_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       work_permits: {
         Row: {
-          id: string;
-          organization_id: string;
-          employee_id: string;
-          tip_permis: string;
-          numar: string;
-          emis_de: string | null;
-          emis_la: string | null;
-          valabil_de_la: string;
-          valabil_pana: string;
-          numar_pasaport: string | null;
-          cetatenie: string;
-          document_id: string | null;
-          notificat_la: string | null;
-          observatii: string | null;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-          deleted_at: string | null;
-        };
+          cetatenie: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          document_id: string | null
+          emis_de: string | null
+          emis_la: string | null
+          employee_id: string
+          id: string
+          notificat_la: string | null
+          numar: string
+          numar_pasaport: string | null
+          observatii: string | null
+          organization_id: string
+          tip_permis: string
+          updated_at: string
+          updated_by: string | null
+          valabil_de_la: string
+          valabil_pana: string
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          employee_id: string;
-          tip_permis: string;
-          numar: string;
-          emis_de?: string | null;
-          emis_la?: string | null;
-          valabil_de_la: string;
-          valabil_pana: string;
-          numar_pasaport?: string | null;
-          cetatenie: string;
-          document_id?: string | null;
-          notificat_la?: string | null;
-          observatii?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
+          cetatenie: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          document_id?: string | null
+          emis_de?: string | null
+          emis_la?: string | null
+          employee_id: string
+          id?: string
+          notificat_la?: string | null
+          numar: string
+          numar_pasaport?: string | null
+          observatii?: string | null
+          organization_id: string
+          tip_permis: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la: string
+          valabil_pana: string
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          employee_id?: string;
-          tip_permis?: string;
-          numar?: string;
-          emis_de?: string | null;
-          emis_la?: string | null;
-          valabil_de_la?: string;
-          valabil_pana?: string;
-          numar_pasaport?: string | null;
-          cetatenie?: string;
-          document_id?: string | null;
-          notificat_la?: string | null;
-          observatii?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-          deleted_at?: string | null;
-        };
-        Relationships: [];
-      };
-    };
+          cetatenie?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          document_id?: string | null
+          emis_de?: string | null
+          emis_la?: string | null
+          employee_id?: string
+          id?: string
+          notificat_la?: string | null
+          numar?: string
+          numar_pasaport?: string | null
+          observatii?: string | null
+          organization_id?: string
+          tip_permis?: string
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la?: string
+          valabil_pana?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_permits_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "employee_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_permits_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_permits_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+    }
     Views: {
-      [_ in never]: never;
-    };
+      [_ in never]: never
+    }
     Functions: {
-      accept_invitation: {
-        Args: {
-          p_token: string;
-        };
-        Returns: string;
-      };
+      accept_invitation: { Args: { p_token: string }; Returns: string }
       consume_rate_limit: {
-        Args: {
-          p_key: string;
-          p_limit: unknown;
-          p_window_seconds: unknown;
-        };
-        Returns: boolean;
-      };
+        Args: { p_key: string; p_limit: number; p_window_seconds: number }
+        Returns: boolean
+      }
       hr_read_sensitive: {
-        Args: {
-          p_employee: string;
-        };
-        Returns: unknown[];
-      };
+        Args: { p_employee: string }
+        Returns: {
+          banca: string
+          cnp_ciphertext: string
+          cnp_iv: string
+          cnp_key_version: number
+          cnp_last4: string
+          cnp_tag: string
+          employee_id: string
+          iban_ciphertext: string
+          iban_iv: string
+          iban_key_version: number
+          iban_last4: string
+          iban_tag: string
+          organization_id: string
+        }[]
+      }
       hr_write_sensitive: {
         Args: {
-          p_employee: string;
-          p_cnp_ciphertext?: string | null;
-          p_cnp_iv?: string | null;
-          p_cnp_tag?: string | null;
-          p_cnp_key_version?: unknown | null;
-          p_cnp_last4?: string | null;
-          p_cnp_hash?: string | null;
-          p_iban_ciphertext?: string | null;
-          p_iban_iv?: string | null;
-          p_iban_tag?: string | null;
-          p_iban_key_version?: unknown | null;
-          p_iban_last4?: string | null;
-          p_iban_hash?: string | null;
-          p_banca?: string | null;
-        };
-        Returns: string;
-      };
+          p_banca?: string | null
+          p_cnp_ciphertext?: string | null
+          p_cnp_hash?: string | null
+          p_cnp_iv?: string | null
+          p_cnp_key_version?: number | null
+          p_cnp_last4?: string | null
+          p_cnp_tag?: string | null
+          p_employee: string
+          p_iban_ciphertext?: string | null
+          p_iban_hash?: string | null
+          p_iban_iv?: string | null
+          p_iban_key_version?: number | null
+          p_iban_last4?: string | null
+          p_iban_tag?: string | null
+        }
+        Returns: string
+      }
       log_audit_event: {
         Args: {
-          p_action: Database["public"]["Enums"]["audit_action"];
-          p_status?: Database["public"]["Enums"]["audit_status"] | null;
-          p_organization_id?: string | null;
-          p_entity_type?: string | null;
-          p_entity_id?: string | null;
-          p_before?: Json | null;
-          p_after?: Json | null;
-          p_ip?: string | null;
-          p_user_agent?: string | null;
-          p_request_id?: string | null;
-          p_error_code?: string | null;
-        };
-        Returns: string;
-      };
-      peek_invitation: {
-        Args: {
-          p_token: string;
-        };
-        Returns: Json;
-      };
+          p_action: Database["public"]["Enums"]["audit_action"]
+          p_after?: Json | null
+          p_before?: Json | null
+          p_entity_id?: string | null
+          p_entity_type?: string | null
+          p_error_code?: string | null
+          p_ip?: string | null
+          p_organization_id?: string | null
+          p_request_id?: string | null
+          p_status?: Database["public"]["Enums"]["audit_status"] | null
+          p_user_agent?: string | null
+        }
+        Returns: string
+      }
+      peek_invitation: { Args: { p_token: string }; Returns: Json }
       submit_demo_request: {
         Args: {
-          p_nume: string;
-          p_firma: string;
-          p_email: string;
-          p_telefon?: string | null;
-          p_nr_angajati?: Database["public"]["Enums"]["employee_band"] | null;
-          p_mesaj?: string | null;
-        };
-        Returns: string;
-      };
-      tg_contracts_validari: {
-        Args: Record<PropertyKey, never>;
-        Returns: unknown;
-      };
-      tg_departments_path: {
-        Args: Record<PropertyKey, never>;
-        Returns: unknown;
-      };
-      tg_departments_path_cascade: {
-        Args: Record<PropertyKey, never>;
-        Returns: unknown;
-      };
-      tg_employees_manager_path: {
-        Args: Record<PropertyKey, never>;
-        Returns: unknown;
-      };
-      tg_employees_manager_path_cascade: {
-        Args: Record<PropertyKey, never>;
-        Returns: unknown;
-      };
-      tg_employees_validari: {
-        Args: Record<PropertyKey, never>;
-        Returns: unknown;
-      };
-      tg_set_updated_at: {
-        Args: Record<PropertyKey, never>;
-        Returns: unknown;
-      };
-    };
+          p_email: string
+          p_firma: string
+          p_mesaj?: string | null
+          p_nr_angajati?: Database["public"]["Enums"]["employee_band"] | null
+          p_nume: string
+          p_telefon?: string | null
+        }
+        Returns: string
+      }
+    }
     Enums: {
-      app_role: "super_admin" | "org_admin" | "manager" | "hr" | "employee";
-      approval_step_kind: "manager_direct" | "rol" | "permisiune" | "utilizator";
-      approval_task_status: "in_asteptare" | "aprobata" | "respinsa" | "delegata" | "expirata" | "anulata";
-      attendance_day_type: "lucratoare" | "weekend" | "sarbatoare" | "concediu" | "medical" | "absenta_nemotivata" | "delegatie";
-      attendance_entry_source: "manuala" | "import" | "sincronizare_concedii";
-      attendance_period_status: "deschisa" | "in_aprobare" | "blocata";
-      audit_action: "create" | "update" | "delete" | "restore" | "view" | "export" | "import" | "login" | "logout" | "login_failed" | "password_reset" | "invite_sent" | "invite_accepted" | "invite_revoked" | "member_added" | "member_removed" | "role_changed" | "permission_changed" | "feature_toggled" | "org_created" | "org_activated" | "org_suspended" | "tenant_switch" | "tenant_forged" | "rate_limited" | "email_sent" | "demo_requested" | "impersonation_start" | "impersonation_end";
-      audit_status: "success" | "failure" | "denied";
-      business_trip_status: "ciorna" | "in_aprobare" | "aprobata" | "respinsa" | "anulata" | "incheiata" | "decontata";
-      business_trip_transport: "auto_serviciu" | "auto_personal" | "tren" | "avion" | "autocar" | "naval" | "mixt" | "altul";
-      checklist_instanta_status: "in_curs" | "finalizata" | "anulata";
-      checklist_item_status: "de_facut" | "in_lucru" | "bifat" | "neaplicabil";
-      checklist_responsabil_tip: "rol" | "angajat" | "manager_direct";
-      checklist_tip: "onboarding" | "offboarding" | "transfer" | "altul";
-      checklist_tip_dovada: "niciuna" | "bifa" | "document" | "semnatura";
-      checklist_verificare: "inventar_returnat" | "acces_revocat" | "documente_semnate";
-      conditii_munca: "normale" | "deosebite" | "speciale";
-      contract_duration: "nedeterminat" | "determinat";
-      contract_status: "proiect" | "activ" | "suspendat" | "incetat" | "anulat";
-      demo_request_status: "new" | "contacted" | "qualified" | "converted" | "rejected" | "spam";
-      email_status: "queued" | "sent" | "delivered" | "bounced" | "complained" | "failed";
-      employee_band: "1-9" | "10-49" | "50-249" | "250+";
-      employee_status: "candidat" | "activ" | "suspendat" | "preaviz" | "incetat" | "arhivat";
-      equipment_status: "in_functiune" | "in_reparatie" | "in_conservare" | "casat";
-      exemption_type: "it" | "constructii" | "agricultura" | "industrie_alimentara" | "persoana_handicap" | "cercetare_dezvoltare";
-      fault_status: "nou" | "in_analiza" | "in_lucru" | "rezolvat" | "respins";
-      fault_urgency: "scazuta" | "medie" | "ridicata" | "critica";
-      feature_group: "core" | "hr" | "operations" | "finance" | "communication" | "portal";
-      fuel_type: "benzina" | "motorina" | "gpl" | "gnc" | "electric" | "hibrid" | "hibrid_plugin" | "altul";
-      gen: "masculin" | "feminin" | "nedeclarat";
-      holiday_compensation_type: "zi_libera" | "spor";
-      holiday_type: "fix" | "mobil";
-      inventory_import_status: "in_lucru" | "finalizat" | "esuat" | "revocat";
-      inventory_item_stare: "nou" | "bun" | "uzat" | "defect";
-      inventory_item_status: "in_stoc" | "alocat" | "in_reparatie" | "casat";
-      invitation_status: "pending" | "accepted" | "expired" | "revoked";
-      leave_accrual_event: "drept_initial" | "acumulare_lunara" | "reportare" | "expirare_reportate" | "consum" | "restituire" | "ajustare_manuala" | "corectie_incadrare";
-      leave_day_portion: "zi_intreaga" | "prima_jumatate" | "a_doua_jumatate";
-      leave_request_status: "ciorna" | "trimisa" | "in_aprobare" | "aprobata" | "respinsa" | "anulata" | "intrerupta";
-      leave_rounding_mode: "fara_rotunjire" | "jumatate_in_sus" | "jumatate_in_jos" | "zi_in_sus" | "zi_in_jos" | "matematic";
-      locale_code: "ro-RO" | "en-US";
-      maintenance_kind: "preventiva" | "predictiva" | "corectiva";
-      maintenance_result: "reusita" | "partiala" | "esuata" | "amanata";
-      medical_payer: "angajator" | "fnuass" | "mixt";
-      member_status: "active" | "suspended" | "inactive";
-      meter_kind: "ore" | "km" | "cicluri";
-      notification_kind: "info" | "success" | "warning" | "error" | "task" | "reminder" | "approval" | "announcement";
-      odometer_anomaly_type: "regres" | "salt";
-      org_holiday_kind: "liber_suplimentar" | "zi_recuperare";
-      organization_status: "pending" | "active" | "suspended" | "archived";
-      per_diem_border_rule: "tara_plecare" | "tara_sosire" | "tara_cu_valoare_mai_mare" | "durata_maxima";
-      permission_scope: "none" | "own" | "team" | "all";
-      plan_type: "trial" | "starter" | "professional" | "enterprise";
-      revisal_event_type: "angajare" | "modificare_salariu" | "modificare_functie" | "modificare_norma" | "modificare_durata" | "suspendare" | "reluare_activitate" | "detasare" | "incetare" | "corectie";
-      revisal_status: "de_pregatit" | "pregatit" | "transmis" | "confirmat" | "respins" | "anulat";
-      salary_component_kind: "spor_procent" | "spor_suma" | "indemnizatie" | "prima_recurenta" | "beneficiu_natura";
-      special_regime: "ucenicie" | "internship" | "zilier";
-      ssm_accident_type: "usor" | "grav" | "mortal" | "colectiv";
-      ssm_domain: "ssm" | "psi";
-      ssm_exam_result: "apt" | "apt_conditionat" | "inapt_temporar" | "inapt";
-      ssm_exam_type: "angajare" | "periodic" | "reluare" | "adaptare";
-      ssm_measure_status: "planificata" | "in_lucru" | "realizata" | "amanata" | "anulata";
-      subscription_status_type: "trialing" | "active" | "past_due" | "canceled" | "expired";
-      trip_expense_type: "cazare" | "transport" | "combustibil" | "taxa_drum" | "parcare" | "alta";
-      trip_sheet_status: "draft" | "trimis" | "aprobat" | "respins";
-      vehicle_category: "autoturism" | "autoutilitara" | "camion" | "autobuz" | "microbuz" | "remorca" | "semiremorca" | "utilaj" | "motocicleta" | "altele";
-      vehicle_status: "activ" | "in_service" | "vandut" | "casat";
-      work_mode: "sediu" | "telemunca" | "domiciliu" | "mixt";
-    };
+      app_role: "super_admin" | "org_admin" | "manager" | "hr" | "employee"
+      approval_step_kind: "manager_direct" | "rol" | "permisiune" | "utilizator"
+      approval_task_status:
+        | "in_asteptare"
+        | "aprobata"
+        | "respinsa"
+        | "delegata"
+        | "expirata"
+        | "anulata"
+      attendance_day_type:
+        | "lucratoare"
+        | "weekend"
+        | "sarbatoare"
+        | "concediu"
+        | "medical"
+        | "absenta_nemotivata"
+        | "delegatie"
+      attendance_entry_source: "manuala" | "import" | "sincronizare_concedii"
+      attendance_period_status: "deschisa" | "in_aprobare" | "blocata"
+      audit_action:
+        | "create"
+        | "update"
+        | "delete"
+        | "restore"
+        | "view"
+        | "export"
+        | "import"
+        | "login"
+        | "logout"
+        | "login_failed"
+        | "password_reset"
+        | "invite_sent"
+        | "invite_accepted"
+        | "invite_revoked"
+        | "member_added"
+        | "member_removed"
+        | "role_changed"
+        | "permission_changed"
+        | "feature_toggled"
+        | "org_created"
+        | "org_activated"
+        | "org_suspended"
+        | "tenant_switch"
+        | "tenant_forged"
+        | "rate_limited"
+        | "email_sent"
+        | "demo_requested"
+        | "impersonation_start"
+        | "impersonation_end"
+      audit_status: "success" | "failure" | "denied"
+      business_trip_status:
+        | "ciorna"
+        | "in_aprobare"
+        | "aprobata"
+        | "respinsa"
+        | "anulata"
+        | "incheiata"
+        | "decontata"
+      business_trip_transport:
+        | "auto_serviciu"
+        | "auto_personal"
+        | "tren"
+        | "avion"
+        | "autocar"
+        | "naval"
+        | "mixt"
+        | "altul"
+      checklist_instanta_status: "in_curs" | "finalizata" | "anulata"
+      checklist_item_status: "de_facut" | "in_lucru" | "bifat" | "neaplicabil"
+      checklist_responsabil_tip: "rol" | "angajat" | "manager_direct"
+      checklist_tip: "onboarding" | "offboarding" | "transfer" | "altul"
+      checklist_tip_dovada: "niciuna" | "bifa" | "document" | "semnatura"
+      checklist_verificare:
+        | "inventar_returnat"
+        | "acces_revocat"
+        | "documente_semnate"
+      conditii_munca: "normale" | "deosebite" | "speciale"
+      contract_duration: "nedeterminat" | "determinat"
+      contract_status: "proiect" | "activ" | "suspendat" | "incetat" | "anulat"
+      demo_request_status:
+        | "new"
+        | "contacted"
+        | "qualified"
+        | "converted"
+        | "rejected"
+        | "spam"
+      email_status:
+        | "queued"
+        | "sent"
+        | "delivered"
+        | "bounced"
+        | "complained"
+        | "failed"
+      employee_band: "1-9" | "10-49" | "50-249" | "250+"
+      employee_status:
+        | "candidat"
+        | "activ"
+        | "suspendat"
+        | "preaviz"
+        | "incetat"
+        | "arhivat"
+      equipment_status:
+        | "in_functiune"
+        | "in_reparatie"
+        | "in_conservare"
+        | "casat"
+      exemption_type:
+        | "it"
+        | "constructii"
+        | "agricultura"
+        | "industrie_alimentara"
+        | "persoana_handicap"
+        | "cercetare_dezvoltare"
+      fault_status: "nou" | "in_analiza" | "in_lucru" | "rezolvat" | "respins"
+      fault_urgency: "scazuta" | "medie" | "ridicata" | "critica"
+      feature_group:
+        | "core"
+        | "hr"
+        | "operations"
+        | "finance"
+        | "communication"
+        | "portal"
+      fuel_type:
+        | "benzina"
+        | "motorina"
+        | "gpl"
+        | "gnc"
+        | "electric"
+        | "hibrid"
+        | "hibrid_plugin"
+        | "altul"
+      gen: "masculin" | "feminin" | "nedeclarat"
+      holiday_compensation_type: "zi_libera" | "spor"
+      holiday_type: "fix" | "mobil"
+      inventory_import_status: "in_lucru" | "finalizat" | "esuat" | "revocat"
+      inventory_item_stare: "nou" | "bun" | "uzat" | "defect"
+      inventory_item_status: "in_stoc" | "alocat" | "in_reparatie" | "casat"
+      invitation_status: "pending" | "accepted" | "expired" | "revoked"
+      leave_accrual_event:
+        | "drept_initial"
+        | "acumulare_lunara"
+        | "reportare"
+        | "expirare_reportate"
+        | "consum"
+        | "restituire"
+        | "ajustare_manuala"
+        | "corectie_incadrare"
+      leave_day_portion: "zi_intreaga" | "prima_jumatate" | "a_doua_jumatate"
+      leave_request_status:
+        | "ciorna"
+        | "trimisa"
+        | "in_aprobare"
+        | "aprobata"
+        | "respinsa"
+        | "anulata"
+        | "intrerupta"
+      leave_rounding_mode:
+        | "fara_rotunjire"
+        | "jumatate_in_sus"
+        | "jumatate_in_jos"
+        | "zi_in_sus"
+        | "zi_in_jos"
+        | "matematic"
+      locale_code: "ro-RO" | "en-US"
+      maintenance_kind: "preventiva" | "predictiva" | "corectiva"
+      maintenance_result: "reusita" | "partiala" | "esuata" | "amanata"
+      medical_payer: "angajator" | "fnuass" | "mixt"
+      member_status: "active" | "suspended" | "inactive"
+      meter_kind: "ore" | "km" | "cicluri"
+      notification_kind:
+        | "info"
+        | "success"
+        | "warning"
+        | "error"
+        | "task"
+        | "reminder"
+        | "approval"
+        | "announcement"
+      odometer_anomaly_type: "regres" | "salt"
+      org_holiday_kind: "liber_suplimentar" | "zi_recuperare"
+      organization_status: "pending" | "active" | "suspended" | "archived"
+      payroll_bonus_type:
+        | "prima_performanta"
+        | "prima_proiect"
+        | "prima_vacanta"
+        | "spor_conditii"
+        | "alta"
+      payroll_deduction_type:
+        | "avans"
+        | "poprire"
+        | "imputatie"
+        | "rata_interna"
+        | "retinere_sindicat"
+        | "alta"
+      payroll_entry_status: "draft" | "calculat"
+      payroll_period_status: "draft" | "calculat" | "aprobat" | "inchis"
+      per_diem_border_rule:
+        | "tara_plecare"
+        | "tara_sosire"
+        | "tara_cu_valoare_mai_mare"
+        | "durata_maxima"
+      permission_scope: "none" | "own" | "team" | "all"
+      plan_type: "trial" | "starter" | "professional" | "enterprise"
+      revisal_event_type:
+        | "angajare"
+        | "modificare_salariu"
+        | "modificare_functie"
+        | "modificare_norma"
+        | "modificare_durata"
+        | "suspendare"
+        | "reluare_activitate"
+        | "detasare"
+        | "incetare"
+        | "corectie"
+      revisal_status:
+        | "de_pregatit"
+        | "pregatit"
+        | "transmis"
+        | "confirmat"
+        | "respins"
+        | "anulat"
+      salary_component_kind:
+        | "spor_procent"
+        | "spor_suma"
+        | "indemnizatie"
+        | "prima_recurenta"
+        | "beneficiu_natura"
+      special_regime: "ucenicie" | "internship" | "zilier"
+      ssm_accident_type: "usor" | "grav" | "mortal" | "colectiv"
+      ssm_domain: "ssm" | "psi"
+      ssm_exam_result: "apt" | "apt_conditionat" | "inapt_temporar" | "inapt"
+      ssm_exam_type: "angajare" | "periodic" | "reluare" | "adaptare"
+      ssm_measure_status:
+        | "planificata"
+        | "in_lucru"
+        | "realizata"
+        | "amanata"
+        | "anulata"
+      subscription_status_type:
+        | "trialing"
+        | "active"
+        | "past_due"
+        | "canceled"
+        | "expired"
+      trip_expense_type:
+        | "cazare"
+        | "transport"
+        | "combustibil"
+        | "taxa_drum"
+        | "parcare"
+        | "alta"
+      trip_sheet_status: "draft" | "trimis" | "aprobat" | "respins"
+      vehicle_category:
+        | "autoturism"
+        | "autoutilitara"
+        | "camion"
+        | "autobuz"
+        | "microbuz"
+        | "remorca"
+        | "semiremorca"
+        | "utilaj"
+        | "motocicleta"
+        | "altele"
+      vehicle_status: "activ" | "in_service" | "vandut" | "casat"
+      work_mode: "sediu" | "telemunca" | "domiciliu" | "mixt"
+    }
     CompositeTypes: {
-      [_ in never]: never;
-    };
-  };
-};
+      [_ in never]: never
+    }
+  }
+}
 
-export type Tables<T extends keyof Database["public"]["Tables"]> =
-  Database["public"]["Tables"][T]["Row"];
-export type Enums<T extends keyof Database["public"]["Enums"]> =
-  Database["public"]["Enums"][T];
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      app_role: ["super_admin", "org_admin", "manager", "hr", "employee"],
+      approval_step_kind: ["manager_direct", "rol", "permisiune", "utilizator"],
+      approval_task_status: [
+        "in_asteptare",
+        "aprobata",
+        "respinsa",
+        "delegata",
+        "expirata",
+        "anulata",
+      ],
+      attendance_day_type: [
+        "lucratoare",
+        "weekend",
+        "sarbatoare",
+        "concediu",
+        "medical",
+        "absenta_nemotivata",
+        "delegatie",
+      ],
+      attendance_entry_source: ["manuala", "import", "sincronizare_concedii"],
+      attendance_period_status: ["deschisa", "in_aprobare", "blocata"],
+      audit_action: [
+        "create",
+        "update",
+        "delete",
+        "restore",
+        "view",
+        "export",
+        "import",
+        "login",
+        "logout",
+        "login_failed",
+        "password_reset",
+        "invite_sent",
+        "invite_accepted",
+        "invite_revoked",
+        "member_added",
+        "member_removed",
+        "role_changed",
+        "permission_changed",
+        "feature_toggled",
+        "org_created",
+        "org_activated",
+        "org_suspended",
+        "tenant_switch",
+        "tenant_forged",
+        "rate_limited",
+        "email_sent",
+        "demo_requested",
+        "impersonation_start",
+        "impersonation_end",
+      ],
+      audit_status: ["success", "failure", "denied"],
+      business_trip_status: [
+        "ciorna",
+        "in_aprobare",
+        "aprobata",
+        "respinsa",
+        "anulata",
+        "incheiata",
+        "decontata",
+      ],
+      business_trip_transport: [
+        "auto_serviciu",
+        "auto_personal",
+        "tren",
+        "avion",
+        "autocar",
+        "naval",
+        "mixt",
+        "altul",
+      ],
+      checklist_instanta_status: ["in_curs", "finalizata", "anulata"],
+      checklist_item_status: ["de_facut", "in_lucru", "bifat", "neaplicabil"],
+      checklist_responsabil_tip: ["rol", "angajat", "manager_direct"],
+      checklist_tip: ["onboarding", "offboarding", "transfer", "altul"],
+      checklist_tip_dovada: ["niciuna", "bifa", "document", "semnatura"],
+      checklist_verificare: [
+        "inventar_returnat",
+        "acces_revocat",
+        "documente_semnate",
+      ],
+      conditii_munca: ["normale", "deosebite", "speciale"],
+      contract_duration: ["nedeterminat", "determinat"],
+      contract_status: ["proiect", "activ", "suspendat", "incetat", "anulat"],
+      demo_request_status: [
+        "new",
+        "contacted",
+        "qualified",
+        "converted",
+        "rejected",
+        "spam",
+      ],
+      email_status: [
+        "queued",
+        "sent",
+        "delivered",
+        "bounced",
+        "complained",
+        "failed",
+      ],
+      employee_band: ["1-9", "10-49", "50-249", "250+"],
+      employee_status: [
+        "candidat",
+        "activ",
+        "suspendat",
+        "preaviz",
+        "incetat",
+        "arhivat",
+      ],
+      equipment_status: [
+        "in_functiune",
+        "in_reparatie",
+        "in_conservare",
+        "casat",
+      ],
+      exemption_type: [
+        "it",
+        "constructii",
+        "agricultura",
+        "industrie_alimentara",
+        "persoana_handicap",
+        "cercetare_dezvoltare",
+      ],
+      fault_status: ["nou", "in_analiza", "in_lucru", "rezolvat", "respins"],
+      fault_urgency: ["scazuta", "medie", "ridicata", "critica"],
+      feature_group: [
+        "core",
+        "hr",
+        "operations",
+        "finance",
+        "communication",
+        "portal",
+      ],
+      fuel_type: [
+        "benzina",
+        "motorina",
+        "gpl",
+        "gnc",
+        "electric",
+        "hibrid",
+        "hibrid_plugin",
+        "altul",
+      ],
+      gen: ["masculin", "feminin", "nedeclarat"],
+      holiday_compensation_type: ["zi_libera", "spor"],
+      holiday_type: ["fix", "mobil"],
+      inventory_import_status: ["in_lucru", "finalizat", "esuat", "revocat"],
+      inventory_item_stare: ["nou", "bun", "uzat", "defect"],
+      inventory_item_status: ["in_stoc", "alocat", "in_reparatie", "casat"],
+      invitation_status: ["pending", "accepted", "expired", "revoked"],
+      leave_accrual_event: [
+        "drept_initial",
+        "acumulare_lunara",
+        "reportare",
+        "expirare_reportate",
+        "consum",
+        "restituire",
+        "ajustare_manuala",
+        "corectie_incadrare",
+      ],
+      leave_day_portion: ["zi_intreaga", "prima_jumatate", "a_doua_jumatate"],
+      leave_request_status: [
+        "ciorna",
+        "trimisa",
+        "in_aprobare",
+        "aprobata",
+        "respinsa",
+        "anulata",
+        "intrerupta",
+      ],
+      leave_rounding_mode: [
+        "fara_rotunjire",
+        "jumatate_in_sus",
+        "jumatate_in_jos",
+        "zi_in_sus",
+        "zi_in_jos",
+        "matematic",
+      ],
+      locale_code: ["ro-RO", "en-US"],
+      maintenance_kind: ["preventiva", "predictiva", "corectiva"],
+      maintenance_result: ["reusita", "partiala", "esuata", "amanata"],
+      medical_payer: ["angajator", "fnuass", "mixt"],
+      member_status: ["active", "suspended", "inactive"],
+      meter_kind: ["ore", "km", "cicluri"],
+      notification_kind: [
+        "info",
+        "success",
+        "warning",
+        "error",
+        "task",
+        "reminder",
+        "approval",
+        "announcement",
+      ],
+      odometer_anomaly_type: ["regres", "salt"],
+      org_holiday_kind: ["liber_suplimentar", "zi_recuperare"],
+      organization_status: ["pending", "active", "suspended", "archived"],
+      payroll_bonus_type: [
+        "prima_performanta",
+        "prima_proiect",
+        "prima_vacanta",
+        "spor_conditii",
+        "alta",
+      ],
+      payroll_deduction_type: [
+        "avans",
+        "poprire",
+        "imputatie",
+        "rata_interna",
+        "retinere_sindicat",
+        "alta",
+      ],
+      payroll_entry_status: ["draft", "calculat"],
+      payroll_period_status: ["draft", "calculat", "aprobat", "inchis"],
+      per_diem_border_rule: [
+        "tara_plecare",
+        "tara_sosire",
+        "tara_cu_valoare_mai_mare",
+        "durata_maxima",
+      ],
+      permission_scope: ["none", "own", "team", "all"],
+      plan_type: ["trial", "starter", "professional", "enterprise"],
+      revisal_event_type: [
+        "angajare",
+        "modificare_salariu",
+        "modificare_functie",
+        "modificare_norma",
+        "modificare_durata",
+        "suspendare",
+        "reluare_activitate",
+        "detasare",
+        "incetare",
+        "corectie",
+      ],
+      revisal_status: [
+        "de_pregatit",
+        "pregatit",
+        "transmis",
+        "confirmat",
+        "respins",
+        "anulat",
+      ],
+      salary_component_kind: [
+        "spor_procent",
+        "spor_suma",
+        "indemnizatie",
+        "prima_recurenta",
+        "beneficiu_natura",
+      ],
+      special_regime: ["ucenicie", "internship", "zilier"],
+      ssm_accident_type: ["usor", "grav", "mortal", "colectiv"],
+      ssm_domain: ["ssm", "psi"],
+      ssm_exam_result: ["apt", "apt_conditionat", "inapt_temporar", "inapt"],
+      ssm_exam_type: ["angajare", "periodic", "reluare", "adaptare"],
+      ssm_measure_status: [
+        "planificata",
+        "in_lucru",
+        "realizata",
+        "amanata",
+        "anulata",
+      ],
+      subscription_status_type: [
+        "trialing",
+        "active",
+        "past_due",
+        "canceled",
+        "expired",
+      ],
+      trip_expense_type: [
+        "cazare",
+        "transport",
+        "combustibil",
+        "taxa_drum",
+        "parcare",
+        "alta",
+      ],
+      trip_sheet_status: ["draft", "trimis", "aprobat", "respins"],
+      vehicle_category: [
+        "autoturism",
+        "autoutilitara",
+        "camion",
+        "autobuz",
+        "microbuz",
+        "remorca",
+        "semiremorca",
+        "utilaj",
+        "motocicleta",
+        "altele",
+      ],
+      vehicle_status: ["activ", "in_service", "vandut", "casat"],
+      work_mode: ["sediu", "telemunca", "domiciliu", "mixt"],
+    },
+  },
+} as const

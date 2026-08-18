@@ -346,4 +346,15 @@ export const PORTAL_NAV_ITEMS: readonly NavItem[] = [
     minScope: "own",
     order: 40,
   },
+  {
+    id: "portal-salariul",
+    label: "Salariul meu",
+    href: "/portal/salariul-meu",
+    icon: Wallet,
+    group: "operatiuni",
+    featureKey: "payroll",
+    permission: "payroll:read",
+    minScope: "own",
+    order: 50,
+  },
 ];

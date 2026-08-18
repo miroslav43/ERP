@@ -31,10 +31,7 @@ import { NAV_ITEMS, type NavLink } from "./navigation";
  * invizibil fiindcă flagul lui e stins; o intrare de nucleu se randează
  * necondiționat și nu are cum să fie ascunsă.
  */
-const MODULE_NECONSTRUITE: readonly string[] = [
-  "/anunturi", // Faza 11
-  "/salarizare", // Faza 9
-];
+const MODULE_NECONSTRUITE: readonly string[] = ["/anunturi"]; // Faza 11
 
 type IntrarePlata = Readonly<{ href: string; featureKey: string | null; id: string }>;
 

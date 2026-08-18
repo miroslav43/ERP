@@ -46,6 +46,7 @@ const RUTE_IMPLEMENTATE: Readonly<Record<string, string>> = {
   attendance: "/pontaj",
   leave: "/concedii",
   onboarding: "/onboarding",
+  payroll: "/salarizare",
   per_diem: "/diurna",
   fleet: "/flota",
   maintenance: "/mentenanta",

@@ -1,7 +1,7 @@
 // src/app/(portal)/portal/page.tsx
 import Link from "next/link";
 import type { Metadata } from "next";
-import { CalendarDays, Clock, FileText } from "lucide-react";
+import { CalendarDays, Clock, FileText, Wallet } from "lucide-react";
 
 import { getEnabledFeatures } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -128,6 +128,14 @@ export default async function PaginaPortal() {
             eticheta="Pontajul meu"
             descriere="Orele lunii curente"
             Iconita={Clock}
+          />
+        ) : null}
+        {moduleActive.has("payroll") ? (
+          <Scurtatura
+            href="/portal/salariul-meu"
+            eticheta="Salariul meu"
+            descriere="Ultimul fluturaș aprobat"
+            Iconita={Wallet}
           />
         ) : null}
         <Scurtatura
