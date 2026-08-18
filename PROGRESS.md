@@ -269,32 +269,163 @@ Diacriticele sunt corecte: 6 ș și 6 ț cu virgulă pe landing, zero cu sedilă
 
 ---
 
-## Faza 4 — expirări și alerte ⏸ produsă, NEINTEGRATĂ
+## Faza 4 — expirări și alerte ✅ schema livrată
 
-Codul există în `docs/design/faza-4/` (152 KB): schema motorului, dashboardul de
-conformitate, jobul zilnic, notificările. **Nu e instalat în `src/`** și nu a
-fost verificat.
+`0008_expirables.sql`. `expirables` e proiecția comună a scadențelor din toate
+modulele, alimentată prin triggere care apelează `internal.sync_expirable()`.
+Cheia unică include `kind`, ca un stingător să poată avea simultan verificarea la
+zi și proba de presiune expirată.
 
-Vânătoarea Opus a găsit 50 de constatări, 6 critice. Cele care contează înainte
-de integrare:
+Trei corecții față de ce au produs agenții:
 
-1. **`app.has_permission` apelată cu semnătura greșită** în toate politicile noi:
-   `('compliance:read', 'all')` în loc de `(organization_id, 'compliance', 'read')`.
-   Politicile nu ar funcționa deloc.
-2. **`expirables` e polimorfă, dar politica verifică doar `compliance:read`** —
-   o fișă de aptitudine medicală devine vizibilă oricui are dreptul generic de
-   conformitate. `label` e text liber copiat din sursă („Fișă de aptitudine —
-   Popescu Ana, inapt”), deci eticheta _este_ informația, iar ea ajunge și în
-   emailul de alertă și în `email_log`.
-3. **Indexul de deduplicare e total**, iar generarea face `on conflict do
-nothing`: o alertă rezolvată blochează pentru totdeauna reapariția aceleiași
-   scadențe.
-4. **Nimic nu populează `expirables`** — niciun trigger nu e atașat pe tabelele
-   HR care există deja.
-5. **Căsuța proprie de notificări cere `compliance:read`** — un angajat obișnuit
-   nu și-ar putea citi propriile notificări.
+1. **Toate politicile apelau `app.has_permission(org, 'compliance:read', 'all')`**
+   — resursa și acțiunea lipite, iar scope-ul pus în locul acțiunii. Semnătura
+   reală e `(org, resursă, acțiune)` și întoarce scope-ul. Nu ar fi funcționat
+   niciuna.
+2. **`expirables` e polimorfă**, deci același rând descrie fie o rovinietă, fie o
+   fișă de aptitudine medicală. Politica verifica doar `compliance:read` — drept
+   administrativ pe care îl are și un referent — iar `label` copiază text din
+   sursă („Fișă de aptitudine — Popescu Ana, inapt”). ETICHETA este informația.
+   `app.poate_vedea_expirabil()` reevaluează acum permisiunea entității sursă, cu
+   implicit **restrictiv**: un `entity_type` neînregistrat devine invizibil.
+3. `pg_trgm` nu era declarat, deși un index îl folosea.
 
-### Numerotarea migrărilor
+**Respinsă**, după verificare: constatarea că indexul total de deduplicare
+blochează pentru totdeauna o scadență. `due_date` derivă din `expires_at`, deci
+un document reînnoit produce o cheie nouă. Argumentul autorului împotriva unui
+index parțial — o alertă ștearsă ar fi regenerată zilnic — este corect.
 
-Faza 4 a fost generată cu `0006_expirables.sql`, dar `0006` și `0007` sunt deja
-folosite de corecțiile Fazei 2. La integrare devin `0008`/`0009`/`0010`.
+**Restant:** stratul TypeScript (dashboard, job zilnic, notificări) e în
+`docs/design/faza-4/`, neinstalat. Și **niciun trigger nu leagă tabelele HR de
+`expirables`** — un permis de muncă ce expiră mâine nu apare nicăieri.
+Inventarul și flota și-l au; HR-ul nu.
+
+---
+
+## Fazele 3a, 5, 8 — concedii, inventar, flotă ⚠️ schemă livrată, module NEfuncționale
+
+`0009_leave.sql`, `0010_inventory.sql`, `0012_fleet.sql` + `0012b`.
+
+Trei defecte reparate ca să se aplice migrarea de concedii: 14 apeluri
+`has_permission` folosite ca boolean, rolurile `owner`/`admin` care nu există, și
+fluxurile de aprobare blocate pe **rol** în loc de permisiune — ceea ce ar fi
+făcut matricea `role_permissions` decorativă și ar fi picat pasul 14 din
+testarea manuală.
+
+### Verificat încrucișat
+
+**Paștele ortodox:** `internal.paste_ortodox` (PL/pgSQL) și `pasteOrtodox`
+(TypeScript), scrise separat, dau aceleași 17 valori pentru 2024–2040. Cinci sunt
+ancorate în date de referință scrise de mână.
+
+**Reconcilierea calendar ↔ pontaj:** zilele lucrătoare din
+`app.numara_zile_lucratoare` și din `calculeazaZileLucratoare` coincid pe **36 de
+luni consecutive**. E invariantul de care depinde toată salarizarea; rulat
+înainte ca Faza 3b să existe, și din nou după fiecare atingere a funcției.
+
+Cele 51 de zile de sărbătoare 2026–2028 se potrivesc exact, inclusiv 1 iunie
+2026, care e simultan Ziua Copilului și a doua zi de Rusalii.
+
+### ⛔ Ce nu funcționează
+
+Vânătoarea adversarială a **reprodus empiric** fiecare punct de mai jos.
+
+**Concedii:** nicio cerere nu se poate crea — `WITH CHECK` cere zerouri pe
+coloane pe care triggerul `BEFORE` tocmai le-a calculat, exact defectul reparat
+în `0007`, reapărut. Fluxul de aprobare e mort: sarcinile se creează cu
+destinatar `NULL`, fiindcă pașii `manager_direct` au `approver_user_id` NULL prin
+constrângere. Două funcții crapă la aprobare (o variabilă care umbrește un alias
+de tabelă; un `CASE` care dă `text` unde coloana e enum). Soldul devine oricât de
+negativ.
+
+**Flotă:** verificarea de regres de kilometraj rulează la **orice** `UPDATE`,
+deci o foaie de parcurs nu mai poate fi aprobată, respinsă sau adnotată.
+Ștergerea logică e imposibilă pe toate tabelele modulului.
+
+**Inventar:** editarea unei alocări istorice rescrie starea curentă a obiectului;
+un obiect returnat „defect” apare imediat disponibil pentru predare.
+
+Găurile de **izolare** din aceleași faze sunt închise în `0016` — vezi mai jos.
+
+---
+
+## Fazele 7, 3b, 6, 10 — SSM, pontaj, checklist, diurne ⚠️ doar schema
+
+`0011_ssm.sql`, `0013_attendance.sql`, `0014_checklist.sql`, `0015_per_diem.sql`.
+Se aplică curat, trec cele trei bariere. **Zero cod de aplicație** — agenții de
+construcție au murit la limita de sesiune; ce apucaseră e în `docs/design/`.
+
+`0010b_fix_garda_audit.sql` repară un fals pozitiv de limbă română: garda R9
+refuza să atașeze auditul pe `safety_committee_meetings`, fiindcă tiparul
+`%secret%` prinde **`secretar_employee_id`**. Lăsa neauditată o tabelă din
+registrul obligatoriu ITM. Tiparul e acum delimitat de underscore, iar migrarea
+verifică singură că restrângerea n-a mers prea departe.
+
+---
+
+## 0016 — găurile de izolare, închise
+
+Clasa R1 din planul de riscuri. Fiecare defect reprodus cap-coadă.
+
+**Ștergere fizică cross-tenant (Faza 5).** Firma B muta un obiect în lotul firmei
+A — nimic nu lega lotul de organizație. A revoca lotul, legitim, iar funcția
+filtra doar pe `import_batch_id`. Obiectul firmei B dispărea **fizic**, de pe
+singura tabelă fără soft delete, iar rândul de audit se scria în organizația A.
+Reparat pe două straturi.
+
+**Escaladare la date de sănătate (Faza 3a, art. 9 GDPR).** Un singur `INSERT`
+neverificat în `approval_tasks` deschidea certificatul medical al colegului: cod
+de indemnizație CNAS, serie, număr, plus câmpul liber în care oamenii scriu
+diagnosticul. Politica nu s-a restrâns, s-a **șters** — fluxul normal trece
+printr-un trigger `SECURITY DEFINER` și n-avea nevoie de dreptul utilizatorului.
+
+Plus: auto-aprobare la concedii și la foi de parcurs; oracol cross-tenant pe
+calendar (`app.este_zi_lucratoare` era definer fără verificare de apartenență);
+cheia primară a unei predări-primiri rescriibilă de un angajat cu drepturi
+minime; „ce am în primire” arăta și ce returnasem; dreptul de scriere pe flotă
+deriva din scope-ul de **citire**; și `grant ... on all tables` recompensa cele
+cinci tabele revocate anume în `0001`.
+
+### Două greșeli proprii, prinse înainte de comit
+
+Rescrisesem `app.este_zi_lucratoare` de la zero și pierdusem ramura
+`zi_recuperare`, care se evaluează **înaintea** weekendului — o sâmbătă lucrată
+în locul unei punți ar fi devenit nelucrătoare, tăcut, în pontaj și în concedii.
+Și redefinisem `numara_zile_lucratoare` cu trei parametri când originalul are
+cinci: n-am suprascris nimic, am creat o supraîncărcare ambiguă, deci apelul care
+mergea înainte de „corecție” a încetat să meargă după ea. Reconcilierea pe 36 de
+luni le-a prins pe amândouă.
+
+---
+
+## Starea generală
+
+**18 migrări, 103 tabele local, 37 pe cloud.** Cele trei bariere verzi.
+254 de teste unitare, typecheck curat.
+
+Aplicația acoperă `angajati`, `departamente`, `revisal`, `setari`, `panou` și
+Super-Admin — adică fazele 0, 1a, 1b și 2. **Opt din unsprezece module au bază de
+date și niciun ecran.**
+
+### Ce blochează livrarea
+
+1. Modulele nefuncționale de mai sus.
+2. **Fixture-ul de izolare nu acoperă cele ~66 de tabele noi.** Verificarea (c)
+   eșuează deliberat, deci testul nu rulează în lanț — și tot el trebuie să
+   conțină verificarea **(l)**, scrieri reale ca utilizator obișnuit. Ea ar fi
+   prins din prima că nicio cerere de concediu nu se poate crea. Fără ea, nimic
+   nu are voie pe cloud.
+3. **`plpgsql_check` n-a rulat niciodată pe cele 10 migrări noi.** Extensia există
+   doar pe Supabase. Ea a găsit defectele din `0006` — coloane inexistente în
+   corpuri de funcții care se creaseră fără nicio eroare. Sunt ~40 de funcții
+   PL/pgSQL noi, neverificate.
+4. Stratul TypeScript pentru opt module.
+5. Fazele **9** (salarizare, depinde de pontaj funcțional) și **11** (portal).
+
+### Restanțe mai mici
+
+- Cei 25 de pași de testare manuală, niciunul executat.
+- Valorile marcate „DE VERIFICAT DE JURIST”. Faza 9 nu se livrează fără fișierul
+  de cazuri de test de la contabil.
+- Parola de bază de date și cheia `service_role` au trecut prin conversație; de
+  rotit înainte de producție.
