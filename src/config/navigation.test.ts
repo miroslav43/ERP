@@ -34,10 +34,6 @@ import { NAV_ITEMS, type NavLink } from "./navigation";
 const MODULE_NECONSTRUITE: readonly string[] = [
   "/anunturi", // Faza 11
   "/salarizare", // Faza 9
-  "/portal", // Faza 11
-  "/portal/concediile-mele",
-  "/portal/documentele-mele",
-  "/portal/pontajul-meu",
 ];
 
 type IntrarePlata = Readonly<{ href: string; featureKey: string | null; id: string }>;
