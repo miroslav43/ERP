@@ -19,9 +19,30 @@ import type { AppRole, OrgSummary } from "@/lib/tenant/types";
 export const listUserOrganizations = cache(async (): Promise<readonly OrgSummary[]> => {
   const supabase = await createServerSupabase();
 
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (user === null) return [];
+
   const { data, error } = await supabase
     .from("organization_members")
     .select("role, organizations!inner(id, slug, name, status, deleted_at)")
+    // Filtrul pe `user_id` NU e redundant cu RLS, deși pare.
+    //
+    // Politicile din 0002 lasă un membru să-și vadă COLEGII — trebuie, altfel
+    // ecranul de membri ar fi gol. Fără filtrul de aici, interogarea întorcea
+    // câte un rând per coleg, iar selectorul de organizație afișa aceeași firmă
+    // de cinci ori, o dată pentru fiecare membru, cu rolul LUI: „Demo SRL —
+    // Angajat", „Demo SRL — Manager", „Demo SRL — Resurse umane"…
+    //
+    // Pe lângă lista absurdă, era și o divulgare: cine sunt colegii și ce rol
+    // are fiecare, pe un ecran dinaintea alegerii organizației. Iar pentru un
+    // administrator de platformă, care prin aceleași politici citește TOATE
+    // apartenențele, selectorul ar fi listat toate firmele-client.
+    //
+    // `resolveTenant()` are exact acest filtru, cu exact acest motiv scris
+    // lângă el. Aici lipsea.
+    .eq("user_id", user.id)
     .is("deleted_at", null)
     .eq("status", "active");
 

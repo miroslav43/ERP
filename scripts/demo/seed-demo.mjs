@@ -317,6 +317,36 @@ async function creeaza() {
   }
 
   console.log("── Module activate");
+
+  /**
+   * Modulele `is_core` NU sunt implicite nicăieri: `requireFeature()` verifică
+   * apartenența la mulțimea rândurilor din `organization_features` și nu face
+   * excepție pentru ele. Fără un rând `nucleu`, TOATE paginile de bază —
+   * angajați, departamente, REVISAL, setări — dau 404, deși nu e vorba de niciun
+   * modul contractat.
+   *
+   * Prima versiune a seed-ului a activat doar `leave` și `inventory` și exact
+   * asta s-a întâmplat. Le citim acum din catalog, ca lista să nu rămână în urmă
+   * dacă apare un al doilea modul de bază.
+   */
+  const { data: deBaza, error: eroareCore } = await db
+    .from("features")
+    .select("feature_key")
+    .eq("is_core", true);
+  verifica("select features is_core", { error: eroareCore });
+  const CHEI_DE_BAZA = (deBaza ?? []).map((f) => f.feature_key);
+
+  for (const org of ["demo", "beta-demo"]) {
+    for (const cheie of CHEI_DE_BAZA) {
+      await asigura(
+        "organization_features",
+        { organization_id: idOrg[org], feature_key: cheie },
+        { enabled: true, deleted_at: null },
+      );
+    }
+  }
+  console.log(`  · ambele organizații: ${CHEI_DE_BAZA.join(", ")} (module de bază)`);
+
   for (const cheie of MODULE_DEMO) {
     await asigura(
       "organization_features",
@@ -325,7 +355,7 @@ async function creeaza() {
     );
   }
   console.log(`  · ${ORG_DEMO.name}: ${MODULE_DEMO.join(", ")}`);
-  console.log(`  · ${ORG_BETA.name}: niciunul (ca să se vadă diferența la comutare)`);
+  console.log(`  · ${ORG_BETA.name}: niciun modul opțional, ca diferența să se vadă la comutare`);
 
   console.log("── Structură și angajați");
   for (const d of DEPARTAMENTE) {
