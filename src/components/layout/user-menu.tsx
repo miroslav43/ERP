@@ -2,7 +2,8 @@
 "use client";
 
 import { useState } from "react";
-import { LogOut, UserRound } from "lucide-react";
+import Link from "next/link";
+import { LogOut, User, UserRound } from "lucide-react";
 import { deconecteaza } from "@/app/(app)/actions";
 import type { AppRole, AuthUser } from "@/lib/tenant/types";
 
@@ -50,6 +51,15 @@ export function UserMenu({ user, role }: { user: AuthUser; role: AppRole }) {
             <p className="text-muted-foreground truncate text-xs">{user.email}</p>
             <p className="text-muted-foreground mt-1 text-xs">{ROLURI[role] ?? role}</p>
           </div>
+          <Link
+            href="/profil"
+            role="menuitem"
+            onClick={() => setDeschis(false)}
+            className="hover:bg-background flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm"
+          >
+            <User className="size-4 shrink-0" aria-hidden />
+            Profilul meu
+          </Link>
           <form action={deconecteaza} role="none">
             <button
               type="submit"

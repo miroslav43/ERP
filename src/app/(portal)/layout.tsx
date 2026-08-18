@@ -1,5 +1,7 @@
 // src/app/(portal)/layout.tsx
 import { redirect } from "next/navigation";
+import Link from "next/link";
+import { UserRound } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { getEnabledFeatures } from "@/lib/auth/features";
@@ -44,9 +46,18 @@ export default async function PortalLayout({ children }: { children: ReactNode }
 
   return (
     <div className="bg-background flex min-h-dvh flex-col">
-      <header className="border-border bg-surface border-b px-4 py-3">
-        <p className="text-muted-foreground text-xs">{tenant.name}</p>
-        <p className="text-foreground text-sm font-semibold">Portalul meu</p>
+      <header className="border-border bg-surface flex items-center justify-between border-b px-4 py-3">
+        <div>
+          <p className="text-muted-foreground text-xs">{tenant.name}</p>
+          <p className="text-foreground text-sm font-semibold">Portalul meu</p>
+        </div>
+        <Link
+          href="/portal/profilul-meu"
+          aria-label="Profilul meu"
+          className="hover:bg-background flex size-9 shrink-0 items-center justify-center rounded-full"
+        >
+          <UserRound className="text-muted-foreground size-5" aria-hidden />
+        </Link>
       </header>
 
       {/* `pb-20` lasă loc barei de jos, care e fixă: fără el, ultimul rând al
