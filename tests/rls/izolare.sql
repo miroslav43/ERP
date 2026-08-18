@@ -81,11 +81,16 @@ begin
     (v_beta, v_emp_beta,   'employee',  'active', now());
 
   -- Alfa are „leave" activ, Beta nu: verificăm și feature flag-ul, nu doar tenantul.
-  -- Alfa are și „inventory"/„fleet" activate — altfel scrierile reale din
-  -- verificarea (l) ar fi refuzate de app.feature_on(), nu de lipsa dreptului.
+  -- Alfa are toate modulele necesare verificării (l) activate — altfel scrierile
+  -- reale ar fi refuzate de app.feature_on(), nu de lipsa dreptului.
+  -- „nucleu" este is_core (mereu activ prin features.is_core — vezi (i)), dar NU
+  -- primește implicit un rând în organization_features: îl adăugăm explicit.
   insert into public.organization_features (organization_id, feature_key, enabled)
-  values (v_alfa, 'leave', true), (v_beta, 'leave', false),
-         (v_alfa, 'inventory', true), (v_alfa, 'fleet', true);
+  values (v_alfa, 'nucleu', true),
+         (v_alfa, 'leave', true), (v_beta, 'leave', false),
+         (v_alfa, 'inventory', true), (v_alfa, 'fleet', true),
+         (v_alfa, 'attendance', true), (v_alfa, 'ssm', true), (v_alfa, 'maintenance', true),
+         (v_alfa, 'onboarding', true), (v_alfa, 'per_diem', true);
 
   insert into public.organization_branding (organization_id, denumire_afisata)
   values (v_alfa, 'Alfa'), (v_beta, 'Beta');
@@ -135,6 +140,7 @@ begin
   insert into t_ids
   select 'dep_' || e, gen_random_uuid() from unnest(array['alfa','beta']) e union all
   select 'poz_' || e, gen_random_uuid() from unnest(array['alfa','beta']) e union all
+  select 'mgr_' || e, gen_random_uuid() from unnest(array['alfa','beta']) e union all
   select 'ang_' || e, gen_random_uuid() from unnest(array['alfa','beta']) e union all
   select 'tipdoc_' || e, gen_random_uuid() from unnest(array['alfa','beta']) e union all
   select 'sct_' || e, gen_random_uuid() from unnest(array['alfa','beta']) e;
@@ -147,16 +153,32 @@ begin
   values ((select val from t_ids where cheie='poz_alfa'), v_alfa, 'REF', 'Referent'),
          ((select val from t_ids where cheie='poz_beta'), v_beta, 'REF', 'Referent');
 
+  -- Manager direct, ÎNAINTE de angajatul care îl va referi: fără o fișă de
+  -- angajat legată de contul de admin, pasul „manager_direct” din fluxul de
+  -- aprobare a concediilor (0009 §12, reparat în 0017) are mulțime vidă pentru
+  -- Ana/Bogdan și cererea escaladează direct la org_admin — ceea ce ar ascunde
+  -- exact regresia pe care 0017 a reparat-o, în loc s-o exercite.
+  insert into public.employees (id, organization_id, marca, first_name, last_name,
+                                department_id, job_position_id, hired_on, status, user_id)
+  values ((select val from t_ids where cheie='mgr_alfa'), v_alfa, '000', 'Maria', 'Manager',
+          (select val from t_ids where cheie='dep_alfa'), (select val from t_ids where cheie='poz_alfa'),
+          current_date - 500, 'activ', v_admin_alfa),
+         ((select val from t_ids where cheie='mgr_beta'), v_beta, '000', 'Mihai', 'Manager',
+          (select val from t_ids where cheie='dep_beta'), (select val from t_ids where cheie='poz_beta'),
+          current_date - 500, 'activ', v_admin_beta);
+
   -- `user_id` leagă fișa de angajat de contul de autentificare: fără el,
   -- app.current_employee_id() nu găsește nimic, iar orice verificare pe scope
   -- 'own' (concediu propriu, în (l)) eșuează fără să demonstreze nimic real.
   insert into public.employees (id, organization_id, marca, first_name, last_name,
-                                department_id, job_position_id, hired_on, status, user_id)
+                                department_id, job_position_id, manager_employee_id, hired_on, status, user_id)
   values ((select val from t_ids where cheie='ang_alfa'), v_alfa, '001', 'Ana', 'Popescu',
           (select val from t_ids where cheie='dep_alfa'), (select val from t_ids where cheie='poz_alfa'),
+          (select val from t_ids where cheie='mgr_alfa'),
           current_date - 400, 'activ', v_emp_alfa),
          ((select val from t_ids where cheie='ang_beta'), v_beta, '001', 'Bogdan', 'Ionescu',
           (select val from t_ids where cheie='dep_beta'), (select val from t_ids where cheie='poz_beta'),
+          (select val from t_ids where cheie='mgr_beta'),
           current_date - 300, 'activ', v_emp_beta);
 
   insert into public.employment_contracts (organization_id, employee_id, numar, data_contract, valabil_de_la, salariu_baza)
@@ -355,6 +377,259 @@ begin
   insert into public.fuel_entries (organization_id, trip_sheet_id, litri, cost, alimentat_la, statie, created_by, updated_by)
   values (v_alfa, (select val from t_ids where cheie='trip_alfa'), 40.50, 320.00, now() - interval '90 minutes', 'Stație de test Alfa', v_admin_alfa, v_admin_alfa),
          (v_beta, (select val from t_ids where cheie='trip_beta'), 40.50, 320.00, now() - interval '90 minutes', 'Stație de test Beta', v_admin_beta, v_admin_beta);
+
+  -- ── Faza 7 (migrarea 0011): SSM, PSI, medicina muncii, ISCIR, mentenanță ────
+  -- `ssm_legal_parameters`, `ssm_training_types` și `ssm_training_type_periods`
+  -- se seedează SINGURE la crearea organizației (trg organizations_ssm_seed,
+  -- 0011 §10) — nu se ating aici, la fel ca `leave_types` mai sus.
+  insert into t_ids
+  select 'equip_' || e, gen_random_uuid() from unnest(array['alfa','beta']) e union all
+  select 'mplan_' || e, gen_random_uuid() from unnest(array['alfa','beta']) e union all
+  select 'ra_' || e, gen_random_uuid() from unnest(array['alfa','beta']) e union all
+  select 'fext_' || e, gen_random_uuid() from unnest(array['alfa','beta']) e;
+
+  -- Tipul 'la_locul_de_munca' NU are periodicitate (luni = null în seed), deci
+  -- `ssm_training_calc` nu calculează `urmatoarea_scadenta` și triggerul de
+  -- sincronizare (ssm_training_sync) nu ajunge să scrie în `expirables`. Tipul
+  -- 'periodic' ARE periodicitate și declanșează un defect real — vezi verificarea
+  -- (l), unde e exercitat deliberat ca `authenticated`.
+  insert into public.ssm_trainings (organization_id, employee_id, training_type_id, data_instruirii, durata_ore, semnatura_confirmata)
+  select v_alfa, (select val from t_ids where cheie='ang_alfa'), tt.id, current_date - 100, 2.0, true
+    from public.ssm_training_types tt where tt.organization_id = v_alfa and tt.cod = 'la_locul_de_munca' and tt.deleted_at is null
+  union all
+  select v_beta, (select val from t_ids where cheie='ang_beta'), tt.id, current_date - 100, 2.0, true
+    from public.ssm_training_types tt where tt.organization_id = v_beta and tt.cod = 'la_locul_de_munca' and tt.deleted_at is null;
+
+  insert into public.risk_assessments (id, organization_id, cod, denumire, department_id, data_evaluarii)
+  values ((select val from t_ids where cheie='ra_alfa'), v_alfa, 'RA-' || v_sufix, 'Evaluare de risc — test',
+          (select val from t_ids where cheie='dep_alfa'), current_date - 200),
+         ((select val from t_ids where cheie='ra_beta'), v_beta, 'RA-' || v_sufix, 'Evaluare de risc — test',
+          (select val from t_ids where cheie='dep_beta'), current_date - 200);
+
+  insert into public.risk_assessment_items (organization_id, assessment_id, factor_risc, pericol, probabilitate, gravitate, responsabil_employee_id)
+  values (v_alfa, (select val from t_ids where cheie='ra_alfa'), 'Cădere de la același nivel', 'Pardoseală alunecoasă', 3, 2,
+          (select val from t_ids where cheie='ang_alfa')),
+         (v_beta, (select val from t_ids where cheie='ra_beta'), 'Cădere de la același nivel', 'Pardoseală alunecoasă', 3, 2,
+          (select val from t_ids where cheie='ang_beta'));
+
+  insert into public.prevention_plan_measures (organization_id, assessment_id, masura, termen, responsabil_employee_id)
+  values (v_alfa, (select val from t_ids where cheie='ra_alfa'), 'Montare bandă antiderapantă', current_date + 60,
+          (select val from t_ids where cheie='ang_alfa')),
+         (v_beta, (select val from t_ids where cheie='ra_beta'), 'Montare bandă antiderapantă', current_date + 60,
+          (select val from t_ids where cheie='ang_beta'));
+
+  insert into public.work_accidents (organization_id, numar_intern, employee_id, data_producerii, locul, imprejurari, tip)
+  values (v_alfa, 'WA-' || v_sufix || '-A', (select val from t_ids where cheie='ang_alfa'), current_date - 50,
+          'Depozit', 'Alunecare pe pardoseală umedă.', 'usor'),
+         (v_beta, 'WA-' || v_sufix || '-B', (select val from t_ids where cheie='ang_beta'), current_date - 50,
+          'Depozit', 'Alunecare pe pardoseală umedă.', 'usor');
+
+  insert into public.dangerous_incidents (organization_id, data_producerii, locul, descriere, employee_id)
+  values (v_alfa, current_date - 40, 'Hală producție', 'Scurtcircuit fără victime.', (select val from t_ids where cheie='ang_alfa')),
+         (v_beta, current_date - 40, 'Hală producție', 'Scurtcircuit fără victime.', (select val from t_ids where cheie='ang_beta'));
+
+  insert into public.occupational_diseases (organization_id, employee_id, numar_fisa_bp, data_semnalarii, noxa_profesionala)
+  values (v_alfa, (select val from t_ids where cheie='ang_alfa'), 'BP-' || v_sufix || '-A', current_date - 30, 'zgomot'),
+         (v_beta, (select val from t_ids where cheie='ang_beta'), 'BP-' || v_sufix || '-B', current_date - 30, 'zgomot');
+
+  insert into public.safety_committee_meetings (organization_id, data, ordine_de_zi, presedinte_employee_id)
+  values (v_alfa, current_date - 20, 'Ședință CSSM de test', (select val from t_ids where cheie='mgr_alfa')),
+         (v_beta, current_date - 20, 'Ședință CSSM de test', (select val from t_ids where cheie='mgr_beta'));
+
+  insert into public.ppe_issuances (organization_id, employee_id, articol, data_predarii)
+  values (v_alfa, (select val from t_ids where cheie='ang_alfa'), 'Cizme de protecție', current_date - 60),
+         (v_beta, (select val from t_ids where cheie='ang_beta'), 'Cizme de protecție', current_date - 60);
+
+  insert into public.fire_extinguishers (id, organization_id, cod, tip, locatie)
+  values ((select val from t_ids where cheie='fext_alfa'), v_alfa, 'ST-' || v_sufix || '-A', 'pulbere', 'Hol parter'),
+         ((select val from t_ids where cheie='fext_beta'), v_beta, 'ST-' || v_sufix || '-B', 'pulbere', 'Hol parter');
+
+  insert into public.fire_extinguisher_checks (organization_id, extinguisher_id, tip_verificare, data)
+  values (v_alfa, (select val from t_ids where cheie='fext_alfa'), 'verificare', current_date - 10),
+         (v_beta, (select val from t_ids where cheie='fext_beta'), 'verificare', current_date - 10);
+
+  insert into public.evacuation_drills (organization_id, data, scenariu, responsabil_employee_id)
+  values (v_alfa, current_date - 15, 'Incendiu la parter', (select val from t_ids where cheie='mgr_alfa')),
+         (v_beta, current_date - 15, 'Incendiu la parter', (select val from t_ids where cheie='mgr_beta'));
+
+  insert into public.hot_work_permits (organization_id, numar, locul, lucrare, valabil_de_la, valabil_pana, masuri)
+  values (v_alfa, 'HWP-' || v_sufix || '-A', 'Atelier', 'Sudură', now() - interval '10 days', now() - interval '9 days', 'Stingător la îndemână.'),
+         (v_beta, 'HWP-' || v_sufix || '-B', 'Atelier', 'Sudură', now() - interval '10 days', now() - interval '9 days', 'Stingător la îndemână.');
+
+  insert into public.environmental_permits (organization_id, numar, tip, emitent, valabil_pana, responsabil_employee_id)
+  values (v_alfa, 'EP-' || v_sufix || '-A', 'gestionare deșeuri', 'APM', current_date + 300, (select val from t_ids where cheie='mgr_alfa')),
+         (v_beta, 'EP-' || v_sufix || '-B', 'gestionare deșeuri', 'APM', current_date + 300, (select val from t_ids where cheie='mgr_beta'));
+
+  -- Fișă de aptitudine cu restricție: `rezultat <> 'apt'` declanșează, prin
+  -- trigger (ssm_exam_sync, 0011), inserarea AUTOMATĂ în employee_work_restrictions
+  -- — populăm ambele tabele printr-un singur INSERT, prin motorul real.
+  insert into public.occupational_health_exams (organization_id, employee_id, tip, data_examinarii, rezultat, valabil_pana)
+  values (v_alfa, (select val from t_ids where cheie='ang_alfa'), 'periodic', current_date - 100, 'apt_conditionat', current_date + 265),
+         (v_beta, (select val from t_ids where cheie='ang_beta'), 'periodic', current_date - 100, 'apt_conditionat', current_date + 265);
+
+  -- Echipament ISCIR: capcana reală e triggerul `equipment_iscir_guard` (0011)
+  -- — un echipament `este_iscir` cere ca `responsabil_employee_id` să aibă o
+  -- autorizație nominală (`personnel_authorizations`) VALABILĂ și de tipul
+  -- cerut, altfel INSERT-ul eșuează cu P0001. Autorizația trebuie inserată
+  -- ÎNAINTEA echipamentului, nu după.
+  insert into public.personnel_authorizations (organization_id, employee_id, tip, numar, emitent, valabil_pana)
+  values (v_alfa, (select val from t_ids where cheie='mgr_alfa'), 'stivuitorist', 'AUT-' || v_sufix || '-A', 'ISCIR', current_date + 300),
+         (v_beta, (select val from t_ids where cheie='mgr_beta'), 'stivuitorist', 'AUT-' || v_sufix || '-B', 'ISCIR', current_date + 300);
+
+  insert into public.equipment (id, organization_id, cod, denumire, department_id, responsabil_employee_id,
+                                este_iscir, tip_autorizare_necesara)
+  values ((select val from t_ids where cheie='equip_alfa'), v_alfa, 'ECH-' || v_sufix || '-A', 'Stivuitor de test',
+          (select val from t_ids where cheie='dep_alfa'), (select val from t_ids where cheie='mgr_alfa'), true, 'stivuitorist'),
+         ((select val from t_ids where cheie='equip_beta'), v_beta, 'ECH-' || v_sufix || '-B', 'Stivuitor de test',
+          (select val from t_ids where cheie='dep_beta'), (select val from t_ids where cheie='mgr_beta'), true, 'stivuitorist');
+
+  insert into public.equipment_meters (organization_id, equipment_id, tip, citire, data_citirii)
+  values (v_alfa, (select val from t_ids where cheie='equip_alfa'), 'ore', 120.50, current_date - 5),
+         (v_beta, (select val from t_ids where cheie='equip_beta'), 'ore', 120.50, current_date - 5);
+
+  insert into public.maintenance_plans (id, organization_id, equipment_id, denumire, periodicitate_zile, responsabil_employee_id)
+  values ((select val from t_ids where cheie='mplan_alfa'), v_alfa, (select val from t_ids where cheie='equip_alfa'),
+          'Revizie periodică', 180, (select val from t_ids where cheie='mgr_alfa')),
+         ((select val from t_ids where cheie='mplan_beta'), v_beta, (select val from t_ids where cheie='equip_beta'),
+          'Revizie periodică', 180, (select val from t_ids where cheie='mgr_beta'));
+
+  insert into public.maintenance_interventions (organization_id, plan_id, equipment_id, data, descriere, executant_employee_id)
+  values (v_alfa, (select val from t_ids where cheie='mplan_alfa'), (select val from t_ids where cheie='equip_alfa'),
+          current_date - 3, 'Intervenție de test', (select val from t_ids where cheie='mgr_alfa')),
+         (v_beta, (select val from t_ids where cheie='mplan_beta'), (select val from t_ids where cheie='equip_beta'),
+          current_date - 3, 'Intervenție de test', (select val from t_ids where cheie='mgr_beta'));
+
+  insert into public.fault_reports (organization_id, equipment_id, raportat_de_employee_id, descriere)
+  values (v_alfa, (select val from t_ids where cheie='equip_alfa'), (select val from t_ids where cheie='ang_alfa'), 'Zgomot neobișnuit la ridicare.'),
+         (v_beta, (select val from t_ids where cheie='equip_beta'), (select val from t_ids where cheie='ang_beta'), 'Zgomot neobișnuit la ridicare.');
+
+  insert into public.iscir_authorizations (organization_id, equipment_id, numar, tip, valabil_pana)
+  values (v_alfa, (select val from t_ids where cheie='equip_alfa'), 'ISCIR-' || v_sufix || '-A', 'verificare_tehnica_periodica', current_date + 300),
+         (v_beta, (select val from t_ids where cheie='equip_beta'), 'ISCIR-' || v_sufix || '-B', 'verificare_tehnica_periodica', current_date + 300);
+
+  -- ── Faza 3b (migrarea 0013): pontaj ─────────────────────────────────────────
+  insert into t_ids
+  select 'aper_' || e, gen_random_uuid() from unnest(array['alfa','beta']) e;
+
+  insert into public.attendance_settings (organization_id, valabil_de_la, ore_pe_zi, ore_pe_saptamana,
+    ore_maxime_saptamanale, perioada_referinta_luni, repaus_zilnic_minim_ore, repaus_saptamanal_minim_ore,
+    spor_suplimentare_procent, spor_noapte_procent, spor_weekend_procent, spor_sarbatoare_procent,
+    noapte_start, noapte_sfarsit, termen_compensare_suplimentare_zile, termen_compensare_sarbatoare_zile,
+    pauza_masa_minute, pauza_masa_inclusa_in_program, pauza_obligatorie_peste_ore)
+  values
+    (v_alfa, current_date - 400, 8, 40, 48, 3, 12, 24, 75, 25, 100, 100, '22:00', '06:00', 60, 30, 30, false, 6),
+    (v_beta, current_date - 400, 8, 40, 48, 3, 12, 24, 75, 25, 100, 100, '22:00', '06:00', 60, 30, 30, false, 6);
+
+  -- `an`/`luna` din perioada deschisă mai jos trebuie să acopere data folosită
+  -- de linia de pontaj — triggerul `pontaj_intrare_pregateste` (0013) refuză
+  -- orice înregistrare a cărei lună n-a fost deschisă explicit.
+  insert into public.attendance_periods (id, organization_id, an, luna, data_inceput, data_sfarsit)
+  values ((select val from t_ids where cheie='aper_alfa'), v_alfa,
+          extract(year from current_date)::smallint, extract(month from current_date)::smallint,
+          current_date, current_date),
+         ((select val from t_ids where cheie='aper_beta'), v_beta,
+          extract(year from current_date)::smallint, extract(month from current_date)::smallint,
+          current_date, current_date);
+
+  insert into public.attendance_approval_batches (organization_id, period_id, department_id, manager_employee_id)
+  values (v_alfa, (select val from t_ids where cheie='aper_alfa'), (select val from t_ids where cheie='dep_alfa'),
+          (select val from t_ids where cheie='mgr_alfa')),
+         (v_beta, (select val from t_ids where cheie='aper_beta'), (select val from t_ids where cheie='dep_beta'),
+          (select val from t_ids where cheie='mgr_beta'));
+
+  -- O zi de sărbătoare lucrată declanșează, prin trigger
+  -- (pontaj_genereaza_compensare_sarbatoare, 0013), inserarea AUTOMATĂ în
+  -- holiday_compensation — două tabele populate printr-un singur INSERT, prin
+  -- motorul real.
+  insert into public.attendance_entries (organization_id, employee_id, data, ore_lucrate, tip_zi)
+  values (v_alfa, (select val from t_ids where cheie='ang_alfa'), current_date, 8, 'sarbatoare'),
+         (v_beta, (select val from t_ids where cheie='ang_beta'), current_date, 8, 'sarbatoare');
+
+  insert into public.overtime_compensation (organization_id, employee_id, data_generarii, ore, termen_folosire)
+  values (v_alfa, (select val from t_ids where cheie='ang_alfa'), current_date - 10, 4, current_date + 50),
+         (v_beta, (select val from t_ids where cheie='ang_beta'), current_date - 10, 4, current_date + 50);
+
+  -- ── Faza 6 (migrarea 0014): checklist de onboarding/offboarding ────────────
+  insert into t_ids
+  select 'ctpl_' || e, gen_random_uuid() from unnest(array['alfa','beta']) e;
+
+  insert into public.checklist_templates (id, organization_id, denumire, tip)
+  values ((select val from t_ids where cheie='ctpl_alfa'), v_alfa, 'Onboarding de test ' || v_sufix, 'onboarding'),
+         ((select val from t_ids where cheie='ctpl_beta'), v_beta, 'Onboarding de test ' || v_sufix, 'onboarding');
+
+  -- Pas neobligatoriu, responsabil = managerul direct: simplifică finalizarea
+  -- de mai jos (fără el, ar trebui bifat manual înainte de a putea finaliza).
+  insert into public.checklist_template_items (organization_id, template_id, ordine, titlu, responsabil_tip, obligatoriu)
+  values (v_alfa, (select val from t_ids where cheie='ctpl_alfa'), 1, 'Predare echipament', 'manager_direct', false),
+         (v_beta, (select val from t_ids where cheie='ctpl_beta'), 1, 'Predare echipament', 'manager_direct', false);
+
+  -- Pornirea instanței copiază pașii din șablon prin trigger
+  -- (checklist_copiaza_pasii, 0014) — populează checklist_instance_items prin
+  -- motorul real. Finalizarea (fără pași obligatorii nebifați) generează, tot
+  -- prin trigger, dovada imutabilă din checklist_completion_records — patru
+  -- tabele, un singur flux.
+  insert into public.checklist_instances (organization_id, template_id, employee_id, tip, data_referinta)
+  values (v_alfa, (select val from t_ids where cheie='ctpl_alfa'), (select val from t_ids where cheie='ang_alfa'), 'onboarding', current_date),
+         (v_beta, (select val from t_ids where cheie='ctpl_beta'), (select val from t_ids where cheie='ang_beta'), 'onboarding', current_date);
+
+  update public.checklist_instances set status = 'finalizata'
+   where organization_id in (v_alfa, v_beta) and status = 'in_curs';
+
+  -- ── Faza 10 (migrarea 0015): diurne și deplasări ────────────────────────────
+  -- `countries` și `per_diem_country_rates` sunt nomenclatoare GLOBALE (fără
+  -- organization_id) — ies din bucla verificării (c) automat, la fel ca
+  -- `medical_leave_codes`/`public_holidays` mai sus.
+  insert into t_ids
+  select 'btrip_' || e, gen_random_uuid() from unnest(array['alfa','beta']) e;
+
+  -- Politica firmei TREBUIE să existe înaintea oricărei deplasări: triggerul
+  -- `valideaza_deplasare` (0015) refuză INSERT-ul dacă nu găsește o politică
+  -- valabilă la data plecării.
+  insert into public.per_diem_policies (organization_id, denumire, country_id_intern, moneda_interna,
+    diurna_interna_zi, diurna_baza_legala_interna, multiplu_plafon_neimpozabil, multiplu_diurna_externa,
+    prag_ore_minim, prag_ore_zi_intreaga, fractiune_zi_partiala, tarif_km_auto_personal, moneda_tarif_km,
+    plafon_salarii_baza_luna, valabil_de_la)
+  select v_alfa, 'Politică diurnă de test', c.id, 'RON', 50, 50, 2.5, 1, 8, 12, 0.5, 2, 'RON', 3, current_date - 400
+    from public.countries c where c.cod_alpha2 = 'RO'
+  union all
+  select v_beta, 'Politică diurnă de test', c.id, 'RON', 50, 50, 2.5, 1, 8, 12, 0.5, 2, 'RON', 3, current_date - 400
+    from public.countries c where c.cod_alpha2 = 'RO';
+
+  insert into public.business_trips (id, organization_id, employee_id, scop, country_id, plecare_la, sosire_la, mijloc_transport)
+  select (select val from t_ids where cheie='btrip_alfa'), v_alfa, (select val from t_ids where cheie='ang_alfa'),
+         'Deplasare de test — verificare izolare ' || v_sufix, c.id, now() - interval '3 days', now() - interval '1 day',
+         'auto_personal'::public.business_trip_transport
+    from public.countries c where c.cod_alpha2 = 'RO'
+  union all
+  select (select val from t_ids where cheie='btrip_beta'), v_beta, (select val from t_ids where cheie='ang_beta'),
+         'Deplasare de test — verificare izolare ' || v_sufix, c.id, now() - interval '3 days', now() - interval '1 day',
+         'auto_personal'::public.business_trip_transport
+    from public.countries c where c.cod_alpha2 = 'RO';
+
+  -- Etapă spre altă țară: `business_trip_legs` cere două țări DIFERITE
+  -- (valideaza_etapa_deplasare, 0015) și un interval încadrat în deplasare.
+  insert into public.business_trip_legs (organization_id, business_trip_id, ordine, from_country_id, to_country_id, plecare_la, sosire_la)
+  select v_alfa, (select val from t_ids where cheie='btrip_alfa'), 1, ro.id, de.id, now() - interval '3 days', now() - interval '2 days'
+    from public.countries ro, public.countries de where ro.cod_alpha2 = 'RO' and de.cod_alpha2 = 'DE'
+  union all
+  select v_beta, (select val from t_ids where cheie='btrip_beta'), 1, ro.id, de.id, now() - interval '3 days', now() - interval '2 days'
+    from public.countries ro, public.countries de where ro.cod_alpha2 = 'RO' and de.cod_alpha2 = 'DE';
+
+  insert into public.trip_expenses (organization_id, business_trip_id, tip, data_cheltuielii, suma, moneda, curs_valutar)
+  values (v_alfa, (select val from t_ids where cheie='btrip_alfa'), 'cazare', current_date - 2, 250.00, 'RON', 1),
+         (v_beta, (select val from t_ids where cheie='btrip_beta'), 'cazare', current_date - 2, 250.00, 'RON', 1);
+
+  -- `per_diem_calculations` se scrie, în producție, EXCLUSIV prin
+  -- app.recalculeaza_diurna() (SECURITY DEFINER care verifică drepturile
+  -- apelantului) — de aceea nu are politică INSERT pentru `authenticated`.
+  -- Pentru fixture (proprietar, ocolește RLS) inserăm direct rezultatul, ca
+  -- pentru orice altă tabelă derivată (compliance_alerts mai sus).
+  insert into public.per_diem_calculations (organization_id, business_trip_id, policy_id, zile_total, valoare_lei)
+  select v_alfa, (select val from t_ids where cheie='btrip_alfa'), p.id, 2, 100.00
+    from public.per_diem_policies p where p.organization_id = v_alfa
+  union all
+  select v_beta, (select val from t_ids where cheie='btrip_beta'), p.id, 2, 100.00
+    from public.per_diem_policies p where p.organization_id = v_beta;
 end
 $$;
 
@@ -727,26 +1002,31 @@ exception when others then
 end $$;
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- (l), continuare — trei scrieri reale în modulele noi (concedii, inventar, flotă)
+-- (l), continuare — scrieri reale în modulele noi (concedii, aprobare, inventar,
+-- flotă, pontaj, SSM, onboarding, deplasări)
 --
 -- Blocul de mai sus testează un singur rol (org_admin) pe un singur modul (HR).
 -- Nu e suficient: un `employee` care nu-și poate crea propria cerere de concediu,
--- sau un `org_admin` care nu poate înregistra un obiect de inventar ori un
--- vehicul, ar trece toate verificările (a)-(k) fără să demonstreze că aplicația
--- chiar funcționează. Cele trei scrieri de mai jos rulează independent, fiecare
--- cu propriul actor și propriul rezultat capturat separat — ca un eșec izolat
--- să nu ascundă succesul (sau eșecul) celorlalte două.
+-- un manager care nu-și vede sarcina de aprobare, sau un `org_admin` care nu
+-- poate înregistra un obiect de inventar, un vehicul, o linie de pontaj, o
+-- instruire SSM sau un checklist, ar trece toate verificările (a)-(k) fără să
+-- demonstreze că aplicația chiar funcționează. Fiecare scriere de mai jos
+-- rulează independent, cu propriul actor și propriul rezultat capturat separat
+-- — ca un eșec izolat să nu ascundă succesul (sau eșecul) celorlalte.
 -- ─────────────────────────────────────────────────────────────────────────────
 do $$
 declare
-  v_alfa      uuid := pg_temp.id('alfa');
-  v_admin     uuid := pg_temp.id('admin_alfa');
-  v_emp_user  uuid := pg_temp.id('emp_alfa');
-  v_ang_alfa  uuid := pg_temp.id('ang_alfa');
+  v_alfa       uuid := pg_temp.id('alfa');
+  v_admin      uuid := pg_temp.id('admin_alfa');   -- și org_admin, și managerul direct al Anei (mgr_alfa.user_id)
+  v_emp_user   uuid := pg_temp.id('emp_alfa');
+  v_ang_alfa   uuid := pg_temp.id('ang_alfa');
   v_leave_type uuid;
-  v_rand      text := replace(gen_random_uuid()::text, '-', '');
-  v_esuate    text := '';
-  v_reusite   text := '';
+  v_leave_req_id uuid;
+  v_task_id    uuid;
+  v_veh_id     uuid;
+  v_rand       text := replace(gen_random_uuid()::text, '-', '');
+  v_esuate     text := '';
+  v_reusite    text := '';
 begin
   select id into v_leave_type from public.leave_types
    where organization_id = v_alfa and key = 'odihna' and deleted_at is null;
@@ -758,14 +1038,53 @@ begin
     insert into public.leave_requests
       (organization_id, employee_id, leave_type_id, data_inceput, data_sfarsit, motiv, status, created_by)
     values (v_alfa, v_ang_alfa, v_leave_type, current_date + 60, current_date + 61,
-            'Verificare (l) — cerere proprie ' || v_rand, 'trimisa', v_emp_user);
+            'Verificare (l) — cerere proprie ' || v_rand, 'trimisa', v_emp_user)
+    returning id into v_leave_req_id;
     v_reusite := v_reusite || E'\n  employee -> leave_requests (cerere proprie de concediu)';
   exception when others then
     v_esuate := v_esuate || format(E'\n  employee -> leave_requests (cerere proprie de concediu): %s (%s)', sqlerrm, sqlstate);
   end;
   reset role;
 
-  -- 2) un `org_admin` din Alfa inserează un obiect de inventar.
+  -- 2) managerul direct al Anei (mgr_alfa, user_id = v_admin — vezi pregătirea
+  -- HR de mai sus) vede sarcina de aprobare generată de cererea de la pasul 1,
+  -- prin pasul „manager_direct” al fluxului implicit (0009 §12, reparat în 0017).
+  -- Listă goală = defect, nu absență de date: managerul a fost legat explicit.
+  if v_leave_req_id is not null then
+    perform set_config('request.jwt.claim.sub', v_admin::text, true);
+    set local role authenticated;
+    begin
+      select t.id into v_task_id from public.approval_tasks t
+       where t.organization_id = v_alfa and t.entity_type = 'leave_request' and t.entity_id = v_leave_req_id
+         and t.approver_user_id = v_admin and t.status = 'in_asteptare'
+       order by t.ordine limit 1;
+      if v_task_id is null then
+        raise exception using errcode = 'P0001',
+          message = 'lista de sarcini vizibile managerului direct este goală';
+      end if;
+      v_reusite := v_reusite || E'\n  manager -> approval_tasks (vede sarcina de aprobare)';
+    exception when others then
+      v_esuate := v_esuate || format(E'\n  manager -> approval_tasks (vede sarcina de aprobare): %s (%s)', sqlerrm, sqlstate);
+    end;
+    reset role;
+  end if;
+
+  -- 3) managerul aprobă acea sarcină.
+  if v_task_id is not null then
+    perform set_config('request.jwt.claim.sub', v_admin::text, true);
+    set local role authenticated;
+    begin
+      update public.approval_tasks
+         set status = 'aprobata', decis_la = now(), comentariu = 'Verificare (l) — aprobat automat'
+       where id = v_task_id;
+      v_reusite := v_reusite || E'\n  manager -> approval_tasks (aprobă sarcina)';
+    exception when others then
+      v_esuate := v_esuate || format(E'\n  manager -> approval_tasks (aprobă sarcina): %s (%s)', sqlerrm, sqlstate);
+    end;
+    reset role;
+  end if;
+
+  -- 4) un `org_admin` din Alfa inserează un obiect de inventar.
   perform set_config('request.jwt.claim.sub', v_admin::text, true);
   set local role authenticated;
   begin
@@ -777,15 +1096,89 @@ begin
   end;
   reset role;
 
-  -- 3) un `org_admin` din Alfa inserează un vehicul.
+  -- 5) un `org_admin` din Alfa inserează un vehicul, apoi îl șterge logic
+  -- (ștergerea logică a flotei a fost reparată în 0018).
   perform set_config('request.jwt.claim.sub', v_admin::text, true);
   set local role authenticated;
   begin
     insert into public.vehicles (organization_id, nr_inmatriculare, marca, model, created_by, updated_by)
-    values (v_alfa, 'CJ' || upper(left(v_rand, 7)) || 'L', 'Dacia', 'Logan', v_admin, v_admin);
+    values (v_alfa, 'CJ' || upper(left(v_rand, 7)) || 'L', 'Dacia', 'Logan', v_admin, v_admin)
+    returning id into v_veh_id;
     v_reusite := v_reusite || E'\n  org_admin -> vehicles (vehicul nou)';
   exception when others then
     v_esuate := v_esuate || format(E'\n  org_admin -> vehicles (vehicul nou): %s (%s)', sqlerrm, sqlstate);
+  end;
+  reset role;
+
+  if v_veh_id is not null then
+    perform set_config('request.jwt.claim.sub', v_admin::text, true);
+    set local role authenticated;
+    begin
+      update public.vehicles set deleted_at = now() where id = v_veh_id;
+      v_reusite := v_reusite || E'\n  org_admin -> vehicles (ștergere logică)';
+    exception when others then
+      v_esuate := v_esuate || format(E'\n  org_admin -> vehicles (ștergere logică): %s (%s)', sqlerrm, sqlstate);
+    end;
+    reset role;
+  end if;
+
+  -- 6) un `org_admin` din Alfa inserează o linie de pontaj pentru Ana, într-o
+  -- lună deja deschisă (attendance_periods, pregătit mai sus).
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  begin
+    insert into public.attendance_entries (organization_id, employee_id, data, ore_lucrate, tip_zi)
+    values (v_alfa, v_ang_alfa, current_date - 1, 8, 'lucratoare');
+    v_reusite := v_reusite || E'\n  org_admin -> attendance_entries (linie de pontaj)';
+  exception when others then
+    v_esuate := v_esuate || format(E'\n  org_admin -> attendance_entries (linie de pontaj): %s (%s)', sqlerrm, sqlstate);
+  end;
+  reset role;
+
+  -- 7) un `org_admin` din Alfa înregistrează o instruire SSM, de tipul CU
+  -- periodicitate ('periodic', spre deosebire de 'la_locul_de_munca' folosit în
+  -- pregătire) — cel mai obișnuit caz real de utilizare a acestei tabele.
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  begin
+    insert into public.ssm_trainings (organization_id, employee_id, training_type_id, data_instruirii, durata_ore, semnatura_confirmata)
+    select v_alfa, v_ang_alfa, tt.id, current_date - 1, 2.0, true
+      from public.ssm_training_types tt
+     where tt.organization_id = v_alfa and tt.cod = 'periodic' and tt.deleted_at is null;
+    v_reusite := v_reusite || E'\n  org_admin -> ssm_trainings (instruire periodică)';
+  exception when others then
+    v_esuate := v_esuate || format(E'\n  org_admin -> ssm_trainings (instruire periodică): %s (%s)', sqlerrm, sqlstate);
+  end;
+  reset role;
+
+  -- 8) un `org_admin` din Alfa pornește o nouă instanță de checklist pentru Ana
+  -- (ciclul se calculează automat — vezi 0014, checklist_pregateste_instanta).
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  begin
+    insert into public.checklist_instances (organization_id, template_id, employee_id, tip, data_referinta)
+    select v_alfa, t.id, v_ang_alfa, 'onboarding', current_date
+      from public.checklist_templates t
+     where t.organization_id = v_alfa and t.tip = 'onboarding' and t.deleted_at is null
+     order by t.created_at limit 1;
+    v_reusite := v_reusite || E'\n  org_admin -> checklist_instances (pornește un checklist)';
+  exception when others then
+    v_esuate := v_esuate || format(E'\n  org_admin -> checklist_instances (pornește un checklist): %s (%s)', sqlerrm, sqlstate);
+  end;
+  reset role;
+
+  -- 9) un `employee` din Alfa își creează o deplasare (per_diem_policies pentru
+  -- Alfa a fost pregătită mai sus — fără ea, valideaza_deplasare ar refuza-o
+  -- pentru un motiv greșit).
+  perform set_config('request.jwt.claim.sub', v_emp_user::text, true);
+  set local role authenticated;
+  begin
+    insert into public.business_trips (organization_id, employee_id, scop, plecare_la, sosire_la, mijloc_transport)
+    values (v_alfa, v_ang_alfa, 'Verificare (l) — deplasare proprie ' || v_rand,
+            now() + interval '10 days', now() + interval '12 days', 'auto_personal');
+    v_reusite := v_reusite || E'\n  employee -> business_trips (deplasare proprie)';
+  exception when others then
+    v_esuate := v_esuate || format(E'\n  employee -> business_trips (deplasare proprie): %s (%s)', sqlerrm, sqlstate);
   end;
   reset role;
 
@@ -795,10 +1188,10 @@ begin
 
   if v_esuate <> '' then
     perform pg_temp.esueaza(format(
-      E'(l) SCRIERI LEGITIME RESPINSE — defect real în politică, nu în test:%s', v_esuate));
+      E'(l) SCRIERI LEGITIME RESPINSE — defect real în politică sau trigger, nu în test:%s', v_esuate));
   end if;
 
-  raise notice '(l) employee + org_admin pot crea concediu propriu, inventar și vehicule ✓';
+  raise notice '(l) employee + manager + org_admin pot lucra în concedii, inventar, flotă, pontaj, SSM, onboarding și deplasări ✓';
 end $$;
 
 rollback;
