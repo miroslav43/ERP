@@ -4,7 +4,7 @@ import { MailPlus, RotateCw, Users } from "lucide-react";
 
 import { requirePlatformAdmin } from "@/lib/auth/platform";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { formatDate } from "@/lib/format/date";
+import { formatDateTime } from "@/lib/format/date";
 import {
   ETICHETE_ROL,
   ETICHETE_STATUS_MEMBRU,
@@ -196,7 +196,7 @@ export default async function PaginaMembri({ params }: { params: Promise<{ orgId
                         </span>
                       </td>
                       <td className={`${CLASA_CELULA} text-muted-foreground`}>
-                        {membru.joined_at ? formatDate(membru.joined_at) : "—"}
+                        {membru.joined_at ? formatDateTime(membru.joined_at) : "—"}
                       </td>
                       <td className={CLASA_CELULA}>
                         <ActiuniMembru
@@ -261,10 +261,10 @@ export default async function PaginaMembri({ params }: { params: Promise<{ orgId
                     <td className={CLASA_CELULA}>{invitatie.email}</td>
                     <td className={CLASA_CELULA}>{ETICHETE_ROL[invitatie.role]}</td>
                     <td className={`${CLASA_CELULA} text-muted-foreground`}>
-                      {invitatie.created_at ? formatDate(invitatie.created_at) : "—"}
+                      {invitatie.created_at ? formatDateTime(invitatie.created_at) : "—"}
                     </td>
                     <td className={`${CLASA_CELULA} text-muted-foreground`}>
-                      {formatDate(invitatie.expires_at)}
+                      {formatDateTime(invitatie.expires_at)}
                     </td>
                     <td className={CLASA_CELULA}>
                       <ActiuniInvitatie organizationId={org.id} invitationId={invitatie.id} />

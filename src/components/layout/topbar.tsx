@@ -138,7 +138,7 @@ export async function Topbar() {
           </summary>
           <div className="border-border bg-surface absolute right-0 z-20 mt-1 w-56 rounded-md border p-1 shadow-lg">
             <Link
-              href="/setari/profil"
+              href="/profil"
               className="text-foreground hover:bg-background flex items-center gap-2 rounded px-2 py-2 text-sm"
             >
               <UserRound aria-hidden="true" className="h-4 w-4" />

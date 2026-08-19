@@ -6,7 +6,8 @@
 // sau selecție multiplă — funcționalități care nu sunt în Faza 1b.
 import Link from "next/link";
 
-import { formatDate } from "@/lib/format/date";
+import { RandTabel } from "@/components/data/rand-tabel";
+import { formatDateTime } from "@/lib/format/date";
 import { STATUSURI_ORGANIZATIE } from "@/schemas/organization";
 import {
   InsignaPlan,
@@ -125,7 +126,11 @@ export default async function PaginaOrganizatii({
             </thead>
             <tbody>
               {rezultat.randuri.map((organizatie) => (
-                <tr key={organizatie.id} className="border-border hover:bg-surface border-t">
+                <RandTabel
+                  key={organizatie.id}
+                  href={`/super-admin/organizatii/${organizatie.id}`}
+                  className="border-border border-t"
+                >
                   <td className="px-4 py-3">
                     {/* Conținut introdus de om: randat ca text de React, niciodată ca HTML. */}
                     <Link
@@ -158,9 +163,9 @@ export default async function PaginaOrganizatii({
                     <span className="text-muted-foreground"> / {organizatie.seats_limit}</span>
                   </td>
                   <td className="text-muted-foreground px-4 py-3">
-                    {formatDate(organizatie.created_at)}
+                    {formatDateTime(organizatie.created_at)}
                   </td>
-                </tr>
+                </RandTabel>
               ))}
             </tbody>
           </table>

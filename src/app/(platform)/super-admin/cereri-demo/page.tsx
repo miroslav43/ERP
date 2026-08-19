@@ -165,7 +165,7 @@ export default async function PaginaCereriDemo({
                   <div className="border-border mt-5 flex flex-wrap items-end justify-between gap-4 border-t pt-5">
                     <SchimbaStatus cerereId={cerere.id} statusCurent={cerere.status} />
                     <Link
-                      href={`/super-admin/organizatii/noua?cerere=${cerere.id}`}
+                      href={`/super-admin/organizatii/nou?cerere=${cerere.id}`}
                       className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors"
                     >
                       <Building2 className="h-4 w-4" aria-hidden="true" />

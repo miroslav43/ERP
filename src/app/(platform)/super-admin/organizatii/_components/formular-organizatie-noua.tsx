@@ -49,7 +49,18 @@ function Eroare({ id, mesaj }: { id: string; mesaj?: string | undefined }) {
   );
 }
 
-export function FormularOrganizatieNoua() {
+export interface ValoriInitialeOrganizatie {
+  readonly name?: string;
+  readonly slug?: string;
+  readonly email_contact?: string;
+  readonly telefon_contact?: string;
+}
+
+interface ProprietatiFormular {
+  readonly valoriInitiale?: ValoriInitialeOrganizatie;
+}
+
+export function FormularOrganizatieNoua({ valoriInitiale }: ProprietatiFormular = {}) {
   const router = useRouter();
   const idFormular = useId();
   const [eroareServer, setEroareServer] = useState<string | null>(null);
@@ -67,6 +78,10 @@ export function FormularOrganizatieNoua() {
       platitor_tva: false,
       forma_juridica: "SRL",
       judet: "București",
+      name: valoriInitiale?.name ?? "",
+      slug: valoriInitiale?.slug ?? "",
+      email_contact: valoriInitiale?.email_contact ?? "",
+      telefon_contact: valoriInitiale?.telefon_contact ?? "",
     },
   });
 

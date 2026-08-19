@@ -134,6 +134,20 @@ export async function citesteCereriDemo(
   };
 }
 
+/**
+ * O singură cerere — pentru pre-completarea formularului de organizație nouă
+ * (`/super-admin/organizatii/nou?cerere=id`). `null` la id invalid sau cerere
+ * inexistentă: pagina tratează asta ca formular gol, nu ca eroare.
+ */
+export async function citesteCerereDemo(id: string): Promise<CerereDemo | null> {
+  await requirePlatformAdmin();
+  if (!z.uuid().safeParse(id).success) return null;
+  const supabase = createAdminSupabase();
+  const { data, error } = await supabase.from("demo_requests").select(CAMPURI).eq("id", id).maybeSingle();
+  if (error !== null || data === null) return null;
+  return mapeaza(data);
+}
+
 /** Schimbarea statusului. Audit prin RPC log_audit_event (S6), cu allow-list (S7). */
 export async function schimbaStatusCerere(
   raw: unknown,
@@ -191,31 +205,4 @@ export async function schimbaStatusCerere(
 
   revalidatePath(RUTA);
   return { ok: true, data: { id, status: actualizare.data.status } };
-}
-
-/** Folosită de formularul de creare organizație pentru preumplere. */
-export async function citesteCerereaPentruPreumplere(
-  cerereId: string,
-): Promise<ActionResult<CerereDemo>> {
-  await requirePlatformAdmin();
-  const validare = z.uuid().safeParse(cerereId);
-  if (!validare.success) {
-    return eroare("VALIDARE", "Identificatorul cererii nu este valid.", null);
-  }
-
-  const supabase = createAdminSupabase();
-  const { data, error } = await supabase
-    .from("demo_requests")
-    .select(CAMPURI)
-    .eq("id", validare.data)
-    .maybeSingle();
-
-  if (error) {
-    console.error("[super-admin.cereri-demo] preumplere", error.message);
-    return eroare("EROARE_INTERNA", "Nu am putut citi cererea de demo.", null);
-  }
-  if (!data) {
-    return eroare("NEGASIT", "Cererea de demo nu a fost găsită.", null);
-  }
-  return { ok: true, data: mapeaza(data) };
 }

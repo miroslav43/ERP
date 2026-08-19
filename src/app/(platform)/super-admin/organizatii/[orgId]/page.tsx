@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { formatDate, formatDateTime } from "@/lib/format/date";
+import { formatDateTime } from "@/lib/format/date";
 import { formateazaCui } from "@/domain/organization/cui";
 import {
   InsignaPlan,
@@ -112,10 +112,10 @@ export default async function PaginaFisaOrganizatie({
               eticheta="Contact"
               valoare={`${organizatie.email_contact} · ${organizatie.telefon_contact}`}
             />
-            <Rand eticheta="Creată la" valoare={formatDate(organizatie.created_at)} />
+            <Rand eticheta="Creată la" valoare={formatDateTime(organizatie.created_at)} />
             <Rand
               eticheta="Activată la"
-              valoare={organizatie.activated_at ? formatDate(organizatie.activated_at) : null}
+              valoare={organizatie.activated_at ? formatDateTime(organizatie.activated_at) : null}
             />
           </dl>
         </section>
@@ -137,7 +137,9 @@ export default async function PaginaFisaOrganizatie({
             <Rand eticheta="Invitații în așteptare" valoare={String(invitatiiInAsteptare)} />
             <Rand
               eticheta="Probă până la"
-              valoare={organizatie.trial_ends_at ? formatDate(organizatie.trial_ends_at) : null}
+              valoare={
+                organizatie.trial_ends_at ? formatDateTime(organizatie.trial_ends_at) : null
+              }
             />
           </dl>
           {membriActivi >= organizatie.seats_limit && (

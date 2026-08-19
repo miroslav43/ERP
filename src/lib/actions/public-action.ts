@@ -3,6 +3,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { createServerSupabase, type ServerSupabase } from "@/lib/supabase/server";
+import { consumeRateLimit } from "@/lib/utils/rate-limit";
 import { readRequestMeta, type RequestMeta } from "./audit";
 import { ActionDenied, isPostgrestError, mapPostgrestError } from "./errors";
 import type { ActionError, ActionResult } from "./types";
@@ -48,26 +49,16 @@ export function createPublicAction<TSchema extends z.ZodType, TData>(
 
     // ── 1. LIMITARE DE RATĂ ───────────────────────────────────────────────
     // Înaintea validării: un flood nu trebuie să ne coste nici măcar parsarea.
+    // `consume_rate_limit` e restricționată la `service_role` (0002_authz.sql) —
+    // clientul anon al vizitatorului nu are GRANT pe ea, deci contorul trece
+    // obligatoriu prin `consumeRateLimit()`, nu prin `supabase.rpc(...)` direct.
     const cheie = `${def.name}:${meta.ip ?? "necunoscut"}`;
-    const { data: permis, error: eroareLimita } = await supabase.rpc("consume_rate_limit", {
-      p_key: cheie,
-      p_limit: def.rateLimit.max,
-      p_window_seconds: def.rateLimit.windowSeconds,
+    const { allowed: permis } = await consumeRateLimit({
+      key: cheie,
+      limit: def.rateLimit.max,
+      windowSeconds: def.rateLimit.windowSeconds,
     });
 
-    if (eroareLimita) {
-      console.error("[public] limitare indisponibilă", {
-        name: def.name,
-        requestId,
-        code: eroareLimita.code,
-      });
-      return esec({
-        code: "EROARE_INTERNA",
-        message: `A apărut o eroare neașteptată. Cod de referință: ${requestId}`,
-        fieldErrors: null,
-        requestId,
-      });
-    }
     if (permis !== true) {
       // Rândul `rate_limited` din audit e scris de funcția SECURITY DEFINER.
       return esec({

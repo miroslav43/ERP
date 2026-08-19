@@ -166,7 +166,9 @@ export async function requireTenant(): Promise<Readonly<{ user: AuthUser; tenant
     case "neautentificat":
       redirect("/autentificare");
     case "fara_organizatie":
-      redirect("/fara-acces");
+      // `/alege-organizatia` gestionează deja acest caz explicit (lista goală
+      // arată exact mesajul + opțiunile potrivite) — nu duplicăm acel ecran.
+      redirect("/alege-organizatia");
     case "alegere_necesara":
       redirect("/alege-organizatia");
   }
