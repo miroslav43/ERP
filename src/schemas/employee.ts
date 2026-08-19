@@ -287,3 +287,36 @@ export const dezvaluieDateSensibileSchema = z.object({
   camp: z.enum(["cnp", "iban"]),
   motiv: textObligatoriu(5, 200, "Motivul consultării"),
 });
+
+// ── Scutiri fiscale ────────────────────────────────────────────────────────────
+// Oglinda enum-ului public.exemption_type din 0004_hr.sql.
+
+export const TIPURI_SCUTIRE = [
+  "it",
+  "constructii",
+  "agricultura",
+  "industrie_alimentara",
+  "persoana_handicap",
+  "cercetare_dezvoltare",
+] as const;
+export type TipScutire = (typeof TIPURI_SCUTIRE)[number];
+
+export const creeazaScutireFiscalaSchema = z
+  .object({
+    employee_id: z.uuid("Angajatul selectat nu este valid."),
+    exemption_type: z.enum(TIPURI_SCUTIRE, "Alegeți tipul de scutire."),
+    valabil_de_la: dataObligatorie("Valabil de la"),
+    valabil_pana: dataOptionala,
+    procent_scutire: numarOptional(0, 100),
+    plafon_lunar: numarOptional(0, 1_000_000),
+    temei_legal: textOptional(500),
+  })
+  .superRefine((valoare, ctx) => {
+    if (valoare.valabil_pana !== null && valoare.valabil_pana < valoare.valabil_de_la) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["valabil_pana"],
+        message: "Data de sfârșit nu poate fi înainte de data de început.",
+      });
+    }
+  });

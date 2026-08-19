@@ -2,6 +2,8 @@
 // Reguli identice pe client (react-hook-form + zodResolver) și pe server (createPlatformAction).
 import { z } from "zod";
 import { normalizeazaCui, validateazaCui } from "@/domain/organization/cui";
+import { validateazaCnp } from "@/domain/hr/cnp";
+import { validateazaIban } from "@/domain/hr/iban";
 
 export const JUDETE = [
   "Alba",
@@ -142,6 +144,62 @@ export const judetSchema = z.enum(JUDETE, "Alegeți județul din listă.");
 export const planSchema = z.enum(PLANURI, "Alegeți un plan valid.");
 export const statusOrganizatieSchema = z.enum(STATUSURI_ORGANIZATIE);
 
+export const SECTOARE_BUCURESTI = ["1", "2", "3", "4", "5", "6"] as const;
+export const FURNIZORI_TICHETE = ["edenred", "pluxee", "up", "sodexo", "altul"] as const;
+
+const opțional = <T extends z.ZodType>(schema: T) =>
+  schema
+    .optional()
+    .or(z.literal("").transform(() => undefined));
+
+export const capitalSocialSchema = opțional(
+  z.coerce.number("Capitalul social trebuie să fie o sumă.").min(0, "Capitalul social nu poate fi negativ."),
+);
+
+export const codCaenSchema = opțional(
+  z.string().trim().regex(/^[0-9]{4}$/, "Codul CAEN are 4 cifre (ex. 6201)."),
+);
+
+export const sectorSchema = opțional(z.enum(SECTOARE_BUCURESTI, "Alegeți sectorul."));
+
+export const functieReprezentantSchema = textOptional(120);
+
+export const ibanOrganizatieSchema = z
+  .string()
+  .trim()
+  .transform((valoare, ctx) => {
+    const rezultat = validateazaIban(valoare);
+    if (!rezultat.valid) {
+      ctx.addIssue({ code: "custom", message: rezultat.motiv });
+      return z.NEVER;
+    }
+    return rezultat.iban;
+  });
+
+export const cnpReprezentantSchema = opțional(
+  z.string().trim().transform((valoare, ctx) => {
+    const rezultat = validateazaCnp(valoare);
+    if (!rezultat.valid) {
+      ctx.addIssue({ code: "custom", message: rezultat.motiv });
+      return z.NEVER;
+    }
+    return rezultat.cnp;
+  }),
+);
+
+export const ticheteFurnizorSchema = opțional(z.enum(FURNIZORI_TICHETE));
+
+export const ziuaLuniiSchema = opțional(
+  z.coerce.number().int("Ziua trebuie să fie un număr întreg.").min(1).max(31),
+);
+
+export const zileConcediuImplicitSchema = z.coerce
+  .number("Numărul de zile trebuie să fie o cifră.")
+  .int()
+  .min(0)
+  .max(60)
+  .default(20);
+
 export const seatsLimitSchema = z.coerce
   .number("Numărul de locuri trebuie să fie o cifră.")
   .int("Numărul de locuri trebuie să fie un număr întreg.")
@@ -182,6 +240,49 @@ export const creeazaOrganizatieSchema = z.object({
 export type CreeazaOrganizatieInput = z.input<typeof creeazaOrganizatieSchema>;
 export type CreeazaOrganizatieOutput = z.output<typeof creeazaOrganizatieSchema>;
 
+/**
+ * Wizard-ul de înrolare: superset peste `creeazaOrganizatieSchema` — un singur
+ * `useForm` pentru toți pașii, validare parțială per pas via `trigger([...])`
+ * din react-hook-form. Contul bancar și punctul de lucru sunt UNUL singur aici
+ * (nu un array): la înrolare e suficient primul; restul se adaugă ulterior din
+ * ecranele dedicate. Un rând se creează doar dacă utilizatorul a completat
+ * câmpurile lui — decizia se ia în acțiune, nu în schemă.
+ */
+export const onboardeazaOrganizatieSchema = creeazaOrganizatieSchema.extend({
+  capital_social: capitalSocialSchema,
+  cod_caen: codCaenSchema,
+  sector: sectorSchema,
+  functie_reprezentant_legal: functieReprezentantSchema,
+  reprezentant_cnp: cnpReprezentantSchema,
+
+  banca_nume: textOptional(160),
+  banca_iban: opțional(ibanOrganizatieSchema),
+
+  plata_avans: z.boolean().default(false),
+  ziua_plata_avans: ziuaLuniiSchema,
+  ziua_plata_lichidare: ziuaLuniiSchema,
+  tichete_furnizor: ticheteFurnizorSchema,
+
+  punct_lucru_denumire: textOptional(160),
+  punct_lucru_adresa: textOptional(240),
+  punct_lucru_judet: opțional(judetSchema),
+  punct_lucru_oras: textOptional(80),
+  punct_lucru_cod_postal: textOptional(10),
+
+  zile_concediu_anual_implicit: zileConcediuImplicitSchema,
+
+  ssm_furnizor_extern: textOptional(200),
+  ssm_persoana_responsabila: textOptional(160),
+
+  owner_nume: z.string().trim().min(1, "Introduceți numele proprietarului.").max(120),
+  owner_prenume: z.string().trim().min(1, "Introduceți prenumele proprietarului.").max(120),
+  owner_email: emailSchema,
+  owner_telefon: telefonSchema,
+});
+
+export type OnboardeazaOrganizatieInput = z.input<typeof onboardeazaOrganizatieSchema>;
+export type OnboardeazaOrganizatieOutput = z.output<typeof onboardeazaOrganizatieSchema>;
+
 export const actualizeazaOrganizatieSchema = z.object({
   orgId: z.uuid("Organizație invalidă."),
   name: z.string().trim().min(2, "Denumirea trebuie să aibă cel puțin 2 caractere.").max(120),
@@ -199,6 +300,13 @@ export const actualizeazaOrganizatieSchema = z.object({
   reprezentant_legal: textOptional(120),
   plan: planSchema,
   seats_limit: seatsLimitSchema,
+  capital_social: capitalSocialSchema,
+  cod_caen: codCaenSchema,
+  sector: sectorSchema,
+  functie_reprezentant_legal: functieReprezentantSchema,
+  ssm_furnizor_extern: textOptional(200),
+  ssm_persoana_responsabila: textOptional(160),
+  zile_concediu_anual_implicit: zileConcediuImplicitSchema,
 });
 
 export const idOrganizatieSchema = z.object({ orgId: z.uuid("Organizație invalidă.") });

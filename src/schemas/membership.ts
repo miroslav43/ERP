@@ -56,6 +56,13 @@ const identificator = z.uuid({ error: "Identificatorul trimis nu este valid." })
  * (`requirePlatformAdmin` + existența organizației). Autoritatea stă în
  * verificare, nu în valoarea trimisă.
  */
+const numeOptional = z
+  .string()
+  .trim()
+  .max(120)
+  .optional()
+  .transform((v) => (v === undefined || v === "" ? undefined : v));
+
 export const schemaInvitatie = z.object({
   organizationId: identificator,
   email: z
@@ -71,8 +78,22 @@ export const schemaInvitatie = z.object({
     .max(ZILE_EXPIRARE_MAX, {
       error: `Invitația poate fi valabilă cel mult ${ZILE_EXPIRARE_MAX} de zile.`,
     }),
+  /** Capturate opțional la înrolarea companiei, ca să precompleteze profilul la acceptare. */
+  nume: numeOptional,
+  prenume: numeOptional,
+  telefon: z
+    .string()
+    .trim()
+    .max(32)
+    .optional()
+    .transform((v) => (v === undefined || v === "" ? undefined : v)),
 });
-export type DateInvitatie = z.infer<typeof schemaInvitatie>;
+/**
+ * Tipul de INTRARE, nu de ieșire: `nume`/`prenume`/`telefon` devin opționale
+ * doar după transform, iar `useForm` + `zodResolver` trebuie tipate pe forma pe
+ * care o completează utilizatorul, nu pe cea rezultată după validare.
+ */
+export type DateInvitatie = z.input<typeof schemaInvitatie>;
 
 export const schemaSchimbareRol = z.object({
   organizationId: identificator,

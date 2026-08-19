@@ -2,6 +2,7 @@
 // Citirile modulului de salarizare.
 
 import { numaraZileCerere } from "@/domain/leave/zile-cerere";
+import type { TaxExemptionSnapshot } from "@/domain/payroll/calc";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { zileNelucratoare } from "@/lib/queries/leave";
 
@@ -216,6 +217,7 @@ export interface DetaliuInregistrare {
   readonly cas: number;
   readonly cass: number;
   readonly deducere_personala: number;
+  readonly scutire_fiscala: number;
   readonly baza_impozit: number;
   readonly impozit: number;
   readonly cam_angajator: number;
@@ -229,7 +231,7 @@ export interface DetaliuInregistrare {
 }
 
 const COLOANE_INREGISTRARE =
-  "id, period_id, employee_id, angajat:employees!employee_id(full_name, marca), zile_lucratoare_luna, zile_lucrate, zile_concediu_odihna, zile_concediu_medical, zile_absenta_nemotivata, ore_lucrate, ore_suplimentare, ore_noapte, baza_salariu, suma_ore_suplimentare, spor_noapte, prime_total, brut, nr_tichete, valoare_tichete, baza_cas_cass, cas, cass, deducere_personala, baza_impozit, impozit, cam_angajator, net, retineri_total, net_de_plata, cost_total_angajator, calc_breakdown, calc_warnings, calculat_la";
+  "id, period_id, employee_id, angajat:employees!employee_id(full_name, marca), zile_lucratoare_luna, zile_lucrate, zile_concediu_odihna, zile_concediu_medical, zile_absenta_nemotivata, ore_lucrate, ore_suplimentare, ore_noapte, baza_salariu, suma_ore_suplimentare, spor_noapte, prime_total, brut, nr_tichete, valoare_tichete, baza_cas_cass, cas, cass, deducere_personala, scutire_fiscala, baza_impozit, impozit, cam_angajator, net, retineri_total, net_de_plata, cost_total_angajator, calc_breakdown, calc_warnings, calculat_la";
 
 export async function citesteInregistrare(
   organizationId: string,
@@ -357,6 +359,48 @@ export async function angajatiActiviCuContract(
     });
   }
   return rezultat;
+}
+
+/**
+ * Scutirile fiscale active în luna calculată — `employee_tax_exemptions`,
+ * populat azi doar din formularul de pe fișa angajatului (§ AGENTS.md/CAEN).
+ * `procent_scutire` e stocat ca procent 0-100 în bază; motorul de calcul
+ * lucrează cu fracții 0-1, deci se împarte aici, o singură dată.
+ */
+export async function scutiriActivePerioada(
+  organizationId: string,
+  an: number,
+  luna: number,
+): Promise<ReadonlyMap<string, readonly TaxExemptionSnapshot[]>> {
+  const db = await createServerSupabase();
+  const primaZi = `${String(an)}-${String(luna).padStart(2, "0")}-01`;
+  const ultimaZi = new Date(Date.UTC(an, luna, 0)).getUTCDate();
+  const finalaZi = `${String(an)}-${String(luna).padStart(2, "0")}-${String(ultimaZi).padStart(2, "0")}`;
+
+  const { data, error } = await db
+    .from("employee_tax_exemptions")
+    .select("employee_id, procent_scutire, plafon_lunar")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .lte("valabil_de_la", finalaZi)
+    .or(`valabil_pana.is.null,valabil_pana.gte.${primaZi}`)
+    .returns<
+      { employee_id: string; procent_scutire: number | null; plafon_lunar: number | null }[]
+    >();
+  if (error !== null) throw error;
+
+  const harta = new Map<string, TaxExemptionSnapshot[]>();
+  for (const rand of data ?? []) {
+    const listaAnterioara = harta.get(rand.employee_id) ?? [];
+    harta.set(rand.employee_id, [
+      ...listaAnterioara,
+      {
+        procentScutire: rand.procent_scutire === null ? null : rand.procent_scutire / 100,
+        plafonLunar: rand.plafon_lunar,
+      },
+    ]);
+  }
+  return harta;
 }
 
 // ── Prime și rețineri, dinaintea calculului ─────────────────────────────────

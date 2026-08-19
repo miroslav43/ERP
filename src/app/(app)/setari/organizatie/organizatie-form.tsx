@@ -22,6 +22,13 @@ export type ValoriOrganizatie = Readonly<{
   telefon_contact: string;
   website: string;
   reprezentant_legal: string;
+  capital_social: string;
+  cod_caen: string;
+  sector: string;
+  functie_reprezentant_legal: string;
+  ssm_furnizor_extern: string;
+  ssm_persoana_responsabila: string;
+  zile_concediu_anual_implicit: string;
 }>;
 
 type CheiText = Exclude<keyof ValoriOrganizatie, "platitor_tva">;
@@ -41,7 +48,17 @@ const ETICHETE: Readonly<Record<CheiText, string>> = {
   telefon_contact: "Telefon de contact",
   website: "Site web",
   reprezentant_legal: "Reprezentant legal",
+  capital_social: "Capital social (RON)",
+  cod_caen: "Cod CAEN",
+  sector: "Sector (doar București)",
+  functie_reprezentant_legal: "Funcția reprezentantului legal",
+  ssm_furnizor_extern: "Furnizor medicina muncii",
+  ssm_persoana_responsabila: "Serviciu extern SSM/PSI",
+  zile_concediu_anual_implicit: "Zile de concediu anual, implicit",
 };
+
+/** Randate ca `<input type="number">` — restul câmpurilor din `ORDINE` sunt text. */
+const CAMPURI_NUMERICE: ReadonlySet<CheiText> = new Set(["capital_social", "zile_concediu_anual_implicit"]);
 
 const ORDINE: readonly CheiText[] = [
   "name",
@@ -50,14 +67,21 @@ const ORDINE: readonly CheiText[] = [
   "cui",
   "reg_com",
   "reprezentant_legal",
+  "functie_reprezentant_legal",
+  "capital_social",
+  "cod_caen",
   "adresa",
   "oras",
   "judet",
+  "sector",
   "cod_postal",
   "tara",
   "email_contact",
   "telefon_contact",
   "website",
+  "ssm_furnizor_extern",
+  "ssm_persoana_responsabila",
+  "zile_concediu_anual_implicit",
 ];
 
 type StareFormular = Readonly<{
@@ -128,7 +152,15 @@ export function FormularOrganizatie({ initiale }: Readonly<{ initiale: ValoriOrg
               <input
                 id={id}
                 name={cheie}
-                type={cheie === "email_contact" ? "email" : cheie === "website" ? "url" : "text"}
+                type={
+                  cheie === "email_contact"
+                    ? "email"
+                    : cheie === "website"
+                      ? "url"
+                      : CAMPURI_NUMERICE.has(cheie)
+                        ? "number"
+                        : "text"
+                }
                 value={valori[cheie]}
                 onChange={(eveniment) =>
                   setValori((precedente) => ({ ...precedente, [cheie]: eveniment.target.value }))

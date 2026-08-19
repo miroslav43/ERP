@@ -1,7 +1,7 @@
 // src/app/(app)/angajati/etichete.ts
 // Etichete de interfață — separate de actions.ts, care poate exporta doar funcții async.
 
-import type { StatusAngajat } from "@/schemas/employee";
+import type { StatusAngajat, TipScutire } from "@/schemas/employee";
 
 export const ETICHETE_STATUS: Readonly<Record<StatusAngajat, string>> = {
   candidat: "Candidat",
@@ -34,4 +34,13 @@ export const ETICHETE_MOD_LUCRU: Readonly<Record<string, string>> = {
   telemunca: "Telemuncă",
   domiciliu: "La domiciliu",
   mixt: "Mixt",
+};
+
+export const ETICHETE_SCUTIRE: Readonly<Record<TipScutire, string>> = {
+  it: "IT — creație software",
+  constructii: "Construcții",
+  agricultura: "Agricultură și industrie alimentară",
+  industrie_alimentara: "Industria alimentară",
+  persoana_handicap: "Persoană cu handicap",
+  cercetare_dezvoltare: "Cercetare-dezvoltare",
 };

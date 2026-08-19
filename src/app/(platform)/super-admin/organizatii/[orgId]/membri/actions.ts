@@ -249,6 +249,9 @@ export async function invitaMembru(raw: unknown): Promise<ActionResult<RezultatI
       expires_at: expiraLa,
       status: "pending",
       invited_by: actorId,
+      nume: input.nume ?? null,
+      prenume: input.prenume ?? null,
+      telefon: input.telefon ?? null,
     })
     .select("id, email, role, expires_at")
     .single();

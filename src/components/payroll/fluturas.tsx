@@ -20,6 +20,7 @@ const ETICHETE_PAS: Record<string, string> = {
   cas: "CAS",
   cass: "CASS",
   deducerePersonala: "Deducere personală",
+  scutireFiscala: "Scutire fiscală",
   bazaImpozit: "Bază de impozit",
   impozit: "Impozit pe venit",
   camAngajator: "CAM (angajator)",

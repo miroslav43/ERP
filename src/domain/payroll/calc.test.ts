@@ -239,6 +239,103 @@ describe("calculatePayrollEntry — rotunjire", () => {
   });
 });
 
+describe("calculatePayrollEntry — scutiri fiscale (ex. cod CAEN IT)", () => {
+  it("fără scutire, baza de impozit rămâne neschimbată", () => {
+    const rezultat = calculatePayrollEntry({
+      settings: SETARI,
+      contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0 },
+      attendance: PONTAJ_STANDARD,
+      bonuses: [],
+      deductions: [],
+    });
+    expect(rezultat.scutireFiscala).toBe(0);
+    expect(rezultat.bazaImpozit).toBeCloseTo(5000 - 1250 - 500, 2);
+  });
+
+  it("o scutire sub plafon reduce baza de impozit cu procentul aplicat pe brut", () => {
+    const rezultat = calculatePayrollEntry({
+      settings: SETARI,
+      contract: {
+        salariuBaza: 5000,
+        nrPersoaneIntretinere: 0,
+        exemptii: [{ procentScutire: 0.1, plafonLunar: null }],
+      },
+      attendance: PONTAJ_STANDARD,
+      bonuses: [],
+      deductions: [],
+    });
+    expect(rezultat.scutireFiscala).toBeCloseTo(5000 * 0.1, 2);
+    expect(rezultat.bazaImpozit).toBeCloseTo(5000 - 1250 - 500 - 500, 2);
+    expect(rezultat.warnings.map((w) => w.cod)).not.toContain("SCUTIRI_FISCALE_MULTIPLE");
+  });
+
+  it("un plafon lunar sub brut limitează baza scutibilă", () => {
+    const rezultat = calculatePayrollEntry({
+      settings: SETARI,
+      contract: {
+        salariuBaza: 5000,
+        nrPersoaneIntretinere: 0,
+        exemptii: [{ procentScutire: 0.1, plafonLunar: 3000 }],
+      },
+      attendance: PONTAJ_STANDARD,
+      bonuses: [],
+      deductions: [],
+    });
+    expect(rezultat.scutireFiscala).toBeCloseTo(3000 * 0.1, 2);
+  });
+
+  it("baza de impozit nu scade sub zero când scutirea depășește baza", () => {
+    const rezultat = calculatePayrollEntry({
+      settings: SETARI,
+      contract: {
+        salariuBaza: 5000,
+        nrPersoaneIntretinere: 0,
+        exemptii: [{ procentScutire: 1, plafonLunar: null }],
+      },
+      attendance: PONTAJ_STANDARD,
+      bonuses: [],
+      deductions: [],
+    });
+    expect(rezultat.bazaImpozit).toBe(0);
+    expect(rezultat.impozit).toBe(0);
+  });
+
+  it("mai multe scutiri active simultan se însumează și avertizează", () => {
+    const rezultat = calculatePayrollEntry({
+      settings: SETARI,
+      contract: {
+        salariuBaza: 5000,
+        nrPersoaneIntretinere: 0,
+        exemptii: [
+          { procentScutire: 0.1, plafonLunar: null },
+          { procentScutire: 0.05, plafonLunar: null },
+        ],
+      },
+      attendance: PONTAJ_STANDARD,
+      bonuses: [],
+      deductions: [],
+    });
+    expect(rezultat.scutireFiscala).toBeCloseTo(5000 * 0.15, 2);
+    expect(rezultat.warnings.map((w) => w.cod)).toContain("SCUTIRI_FISCALE_MULTIPLE");
+  });
+
+  it("o scutire fără procent configurat nu se aplică automat, dar avertizează", () => {
+    const rezultat = calculatePayrollEntry({
+      settings: SETARI,
+      contract: {
+        salariuBaza: 5000,
+        nrPersoaneIntretinere: 0,
+        exemptii: [{ procentScutire: null, plafonLunar: null }],
+      },
+      attendance: PONTAJ_STANDARD,
+      bonuses: [],
+      deductions: [],
+    });
+    expect(rezultat.scutireFiscala).toBe(0);
+    expect(rezultat.warnings.map((w) => w.cod)).toContain("SCUTIRE_FARA_PROCENT");
+  });
+});
+
 describe("calculatePayrollEntry — breakdown", () => {
   it("fiecare pas al calculului apare în breakdown, în ordine", () => {
     const rezultat = calculatePayrollEntry({

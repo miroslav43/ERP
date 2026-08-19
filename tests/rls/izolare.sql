@@ -131,6 +131,17 @@ begin
   insert into public.retention_policies (organization_id, entity_type, retention_months)
   values (v_alfa, 'audit_logs', 36), (v_beta, 'audit_logs', 36);
 
+  -- Onboarding companie (0030): criptotext fictiv, ca la employee_sensitive_data mai jos.
+  insert into public.organization_sensitive_data (organization_id, cnp_last4)
+  values (v_alfa, '1111'), (v_beta, '2222');
+
+  insert into public.organization_bank_accounts (organization_id, banca, iban)
+  values (v_alfa, 'Banca Alfa', 'RO49AAAA' || v_sufix),
+         (v_beta, 'Banca Beta', 'RO50BBBB' || v_sufix);
+
+  insert into public.puncte_lucru (organization_id, denumire)
+  values (v_alfa, 'Sediu Alfa'), (v_beta, 'Sediu Beta');
+
   -- Suprascrieri de permisiuni per organizație (rândurile globale au org NULL).
   insert into public.role_permissions (organization_id, role, resource, action, scope)
   values (v_alfa, 'manager', 'payroll', 'read', 'team'),

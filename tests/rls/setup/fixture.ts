@@ -78,6 +78,26 @@ export const SABLOANE: Readonly<Record<string, Sablon>> = {
     rand: (c) => ({ organization_id: c.organizationId, denumire_afisata: `Marcă ${c.sufix}` }),
     actualizare: { denumire_afisata: "Preluată de atacator" },
   },
+  organization_sensitive_data: {
+    // Toate coloanele de cifrare rămân null — constrângerea `org_sensitive_cnp_complet`
+    // acceptă explicit acest caz. Nu are nevoie de `sufix`: cheia e `organization_id`
+    // însuși (1:1), fără altă coloană unică pe care un cross-tenant s-o poată lovi.
+    rand: (c) => ({ organization_id: c.organizationId }),
+    actualizare: { cnp_last4: "9999" },
+  },
+  organization_bank_accounts: {
+    rand: (c) => ({
+      organization_id: c.organizationId,
+      banca: `Banca ${c.sufix}`,
+      iban: `RO99${c.sufix.toUpperCase()}`.slice(0, 24),
+      este_principal: false,
+    }),
+    actualizare: { banca: "Preluată de atacator" },
+  },
+  puncte_lucru: {
+    rand: (c) => ({ organization_id: c.organizationId, denumire: `Punct ${c.sufix}` }),
+    actualizare: { denumire: "Preluat de atacator" },
+  },
   invitations: {
     rand: (c) => ({
       organization_id: c.organizationId,

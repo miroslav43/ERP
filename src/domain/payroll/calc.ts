@@ -43,9 +43,23 @@ export interface PayrollSettingsSnapshot {
   readonly rotunjireLei: boolean;
 }
 
+/**
+ * Scutire fiscală per-angajat (cod CAEN IT/Construcții/Agricultură/Industria
+ * Alimentară, persoană cu handicap, cercetare-dezvoltare) — `procent_scutire`
+ * e opțional în `employee_tax_exemptions`: `null` înseamnă că nimeni nu a
+ * configurat procentul, deci NU se aplică automat (vezi avertismentul
+ * `SCUTIRE_FARA_PROCENT`), nu se presupune scutire totală.
+ */
+export interface TaxExemptionSnapshot {
+  /** Fracție 0-1 (nu procent 0-100) — convertit la citirea din baza de date. */
+  readonly procentScutire: number | null;
+  readonly plafonLunar: number | null;
+}
+
 export interface EmployeeContractSnapshot {
   readonly salariuBaza: number;
   readonly nrPersoaneIntretinere: number;
+  readonly exemptii?: readonly TaxExemptionSnapshot[];
 }
 
 export interface AttendanceSummary {
@@ -95,6 +109,7 @@ export interface PayrollCalcResult {
   readonly cas: number;
   readonly cass: number;
   readonly deducerePersonala: number;
+  readonly scutireFiscala: number;
   readonly bazaImpozit: number;
   readonly impozit: number;
   readonly camAngajator: number;
@@ -212,6 +227,32 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     cautaPragDeducere(settings.deducerePersonala, contract.nrPersoaneIntretinere, brut),
   );
 
+  const exemptii = contract.exemptii ?? [];
+  const exemptiiAplicabile = exemptii.filter((e) => e.procentScutire !== null);
+  if (exemptii.some((e) => e.procentScutire === null)) {
+    warnings.push({
+      cod: "SCUTIRE_FARA_PROCENT",
+      mesaj: "Există o scutire fiscală activă fără procent configurat — nu a fost aplicată automat la calcul.",
+    });
+  }
+  if (exemptiiAplicabile.length > 1) {
+    warnings.push({
+      cod: "SCUTIRI_FISCALE_MULTIPLE",
+      mesaj: "Angajatul are mai multe scutiri fiscale active simultan — verificați manual dacă se pot cumula legal.",
+    });
+  }
+  // Scutirile reduc baza de impozit pe venit (uz cel mai răspândit — ex. IT),
+  // niciodată baza CAS/CASS: cazurile în care legea scutește și contribuțiile
+  // ies din scopul acestei simplificări (vezi antetul modulului).
+  const scutireFiscala = inregistreaza(
+    "scutireFiscala",
+    exemptiiAplicabile.reduce((suma, e) => {
+      const procent = e.procentScutire ?? 0;
+      const bazaScutibila = e.plafonLunar === null ? brut : Math.min(brut, e.plafonLunar);
+      return suma + bazaScutibila * procent;
+    }, 0),
+  );
+
   const bazaImpozit = inregistreaza(
     "bazaImpozit",
     Math.max(
@@ -221,7 +262,8 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
         cass -
         deducerePersonala +
         primeImpozabileFaraContributii +
-        (settings.ticheteImpozabile ? valoareTichete : 0),
+        (settings.ticheteImpozabile ? valoareTichete : 0) -
+        scutireFiscala,
     ),
   );
   const impozit = inregistreaza("impozit", bazaImpozit * settings.cotaImpozit);
@@ -266,6 +308,7 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     cas: rotundLeu(cas, r),
     cass: rotundLeu(cass, r),
     deducerePersonala: rotundLeu(deducerePersonala, r),
+    scutireFiscala: rotundLeu(scutireFiscala, r),
     bazaImpozit: rotundLeu(bazaImpozit, r),
     impozit: rotundLeu(impozit, r),
     camAngajator: rotundLeu(camAngajator, r),

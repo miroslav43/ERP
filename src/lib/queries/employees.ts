@@ -377,3 +377,30 @@ export async function citesteRezumatDateSensibile(
   if (error !== null) throw error;
   return data;
 }
+
+export interface ScutireFiscala {
+  readonly id: string;
+  readonly exemption_type: string;
+  readonly valabil_de_la: string;
+  readonly valabil_pana: string | null;
+  readonly procent_scutire: number | null;
+  readonly plafon_lunar: number | null;
+  readonly temei_legal: string | null;
+}
+
+export async function citesteScutiriFiscale(
+  organizationId: string,
+  employeeId: string,
+): Promise<readonly ScutireFiscala[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("employee_tax_exemptions")
+    .select("id, exemption_type, valabil_de_la, valabil_pana, procent_scutire, plafon_lunar, temei_legal")
+    .eq("organization_id", organizationId)
+    .eq("employee_id", employeeId)
+    .is("deleted_at", null)
+    .order("valabil_de_la", { ascending: false })
+    .returns<ScutireFiscala[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}

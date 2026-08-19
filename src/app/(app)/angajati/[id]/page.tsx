@@ -18,15 +18,23 @@ import { pregatesteIncarcareAvatarulPropriu, salveazaAvatarulPropriu } from "@/l
 import {
   citesteAngajat,
   citesteRezumatDateSensibile,
+  citesteScutiriFiscale,
   idFisaProprie,
   lantulDeManageri,
 } from "@/lib/queries/employees";
 
-import { CLASE_STATUS, ETICHETE_CONTRACT, ETICHETE_MOD_LUCRU, ETICHETE_STATUS } from "../etichete";
+import {
+  CLASE_STATUS,
+  ETICHETE_CONTRACT,
+  ETICHETE_MOD_LUCRU,
+  ETICHETE_SCUTIRE,
+  ETICHETE_STATUS,
+} from "../etichete";
 import { DateSensibile } from "./date-sensibile";
 import { FormularContractNou } from "./formular-contract-nou";
 import { FormularInceteazaContract } from "./formular-inceteaza-contract";
 import { FormularModificaSalariu } from "./formular-modifica-salariu";
+import { FormularScutireFiscala } from "./formular-scutire-fiscala";
 import { IncarcareAvatarAdmin } from "./incarcare-avatar-admin";
 
 export const metadata: Metadata = { title: "Fișa angajatului" };
@@ -94,6 +102,9 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
   // Datele sensibile nu se randează deloc dacă scope-ul nu acoperă întreaga organizație.
   const rezumatSensibil =
     scope === "all" ? await citesteRezumatDateSensibile(tenant.organizationId, id) : null;
+  const scutiriFiscale =
+    scope === "all" ? await citesteScutiriFiscale(tenant.organizationId, id) : [];
+  const poateAdaugaScutire = can(permisiuni, "payroll:create", "all");
   const contractPrincipal =
     angajat.contracts.find((c) => !c.este_act_aditional && c.status === "activ") ?? null;
   const contracteIstoric = angajat.contracts.filter((c) => c.id !== contractPrincipal?.id);
@@ -345,6 +356,55 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
               : null}
         </div>
       </section>
+
+      {scope === "all" ? (
+        <section aria-labelledby="titlu-scutiri" className={CLASA_SECTIUNE}>
+          <h2 id="titlu-scutiri" className="mb-4 text-lg font-medium">
+            Scutiri fiscale
+          </h2>
+          {scutiriFiscale.length === 0 ? (
+            <StareGoala mesaj="Angajatul nu are nicio scutire fiscală înregistrată." />
+          ) : (
+            <ul className="space-y-3">
+              {scutiriFiscale.map((scutire) => (
+                <li key={scutire.id} className="border-border rounded-md border p-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium">
+                      {ETICHETE_SCUTIRE[scutire.exemption_type as keyof typeof ETICHETE_SCUTIRE] ??
+                        scutire.exemption_type}
+                    </span>
+                    {scutire.procent_scutire === null ? (
+                      <span className="bg-warning/12 rounded-full px-2 py-0.5 text-xs font-medium">
+                        Fără procent — nu se aplică automat
+                      </span>
+                    ) : (
+                      <span className="bg-success/12 text-success rounded-full px-2 py-0.5 text-xs font-medium">
+                        {scutire.procent_scutire}%
+                      </span>
+                    )}
+                  </div>
+                  <dl className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <Camp
+                      eticheta="Valabil"
+                      valoare={`${formatDate(scutire.valabil_de_la)} – ${scutire.valabil_pana === null ? "nedeterminat" : formatDate(scutire.valabil_pana)}`}
+                    />
+                    <Camp
+                      eticheta="Plafon lunar"
+                      valoare={scutire.plafon_lunar === null ? null : formatLei(scutire.plafon_lunar)}
+                    />
+                    <Camp eticheta="Temei legal" valoare={scutire.temei_legal} />
+                  </dl>
+                </li>
+              ))}
+            </ul>
+          )}
+          {poateAdaugaScutire ? (
+            <div className="mt-4">
+              <FormularScutireFiscala employeeId={angajat.id} />
+            </div>
+          ) : null}
+        </section>
+      ) : null}
 
       <section aria-labelledby="titlu-documente" className={CLASA_SECTIUNE}>
         <h2 id="titlu-documente" className="mb-4 text-lg font-medium">

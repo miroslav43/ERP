@@ -6,6 +6,7 @@ import {
   angajatiActiviCuContract,
   citesteSetariPeId,
   pontajAgregatPerioada,
+  scutiriActivePerioada,
   zileLucratoareLuna,
 } from "@/lib/queries/payroll";
 import { calculatePayrollEntry, type PayrollSettingsSnapshot } from "@/domain/payroll/calc";
@@ -186,10 +187,11 @@ export const calculeazaPerioada = createAction({
     if (setari === null) throw notFound("Setările de salarizare ale perioadei nu mai există.");
     const snapshot = laSetariSnapshot(setari);
 
-    const [zileLuna, angajati, pontaj] = await Promise.all([
+    const [zileLuna, angajati, pontaj, scutiri] = await Promise.all([
       zileLucratoareLuna(ctx.tenant.organizationId, perioada.an, perioada.luna),
       angajatiActiviCuContract(ctx.tenant.organizationId),
       pontajAgregatPerioada(ctx.tenant.organizationId, perioada.attendance_period_id),
+      scutiriActivePerioada(ctx.tenant.organizationId, perioada.an, perioada.luna),
     ]);
     if (angajati.length === 0) {
       throw businessRule("Nu există niciun angajat activ cu contract activ de calculat.");
@@ -248,6 +250,7 @@ export const calculeazaPerioada = createAction({
         contract: {
           salariuBaza: angajat.salariu_baza,
           nrPersoaneIntretinere: angajat.nr_persoane_intretinere,
+          exemptii: scutiri.get(angajat.employee_id) ?? [],
         },
         attendance: {
           zileLucratoareLuna: zileLuna,
@@ -295,6 +298,7 @@ export const calculeazaPerioada = createAction({
         cas: rezultat.cas,
         cass: rezultat.cass,
         deducere_personala: rezultat.deducerePersonala,
+        scutire_fiscala: rezultat.scutireFiscala,
         baza_impozit: rezultat.bazaImpozit,
         impozit: rezultat.impozit,
         cam_angajator: rezultat.camAngajator,

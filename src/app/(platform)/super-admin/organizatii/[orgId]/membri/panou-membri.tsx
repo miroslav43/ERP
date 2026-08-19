@@ -133,6 +133,9 @@ export function FormularInvitatie({ organizationId }: Readonly<{ organizationId:
     email: "",
     role: "employee",
     expiraInZile: ZILE_EXPIRARE_IMPLICIT,
+    nume: undefined,
+    prenume: undefined,
+    telefon: undefined,
   };
 
   const {

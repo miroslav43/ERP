@@ -33,6 +33,21 @@ const schemaOrganizatie = z.object({
     .union([z.literal(""), z.url("Adresa de web trebuie să înceapă cu https://")])
     .optional(),
   reprezentant_legal: textOptional(160),
+  functie_reprezentant_legal: textOptional(120),
+  capital_social: z
+    .union([z.literal(""), z.coerce.number().min(0, "Capitalul social nu poate fi negativ.")])
+    .optional(),
+  cod_caen: z
+    .union([z.literal(""), z.string().trim().regex(/^[0-9]{4}$/, "Codul CAEN are 4 cifre (ex. 6201).")])
+    .optional(),
+  sector: textOptional(4),
+  ssm_furnizor_extern: textOptional(200),
+  ssm_persoana_responsabila: textOptional(160),
+  zile_concediu_anual_implicit: z.coerce
+    .number("Numărul de zile trebuie să fie o cifră.")
+    .int()
+    .min(0)
+    .max(60),
 });
 
 const CAMPURI_AUDITATE = [
@@ -51,6 +66,13 @@ const CAMPURI_AUDITATE = [
   "telefon_contact",
   "website",
   "reprezentant_legal",
+  "functie_reprezentant_legal",
+  "capital_social",
+  "cod_caen",
+  "sector",
+  "ssm_furnizor_extern",
+  "ssm_persoana_responsabila",
+  "zile_concediu_anual_implicit",
 ] as const;
 
 function golSauNull(valoare: string | undefined): string | null {
@@ -88,6 +110,8 @@ export const actualizeazaOrganizatia = createAction<
     // în loc să fie trimis `null`.
     const cui = golSauNull(input.cui)?.toUpperCase().replace(/\s+/g, "");
     const tara = golSauNull(input.tara);
+    const capitalSocial = input.capital_social === undefined || input.capital_social === "" ? null : input.capital_social;
+    const codCaen = golSauNull(input.cod_caen);
 
     // S1: organizația vine din tenant, nu din payload-ul clientului.
     const { data, error } = await ctx.supabase
@@ -108,6 +132,13 @@ export const actualizeazaOrganizatia = createAction<
         telefon_contact: golSauNull(input.telefon_contact),
         website: golSauNull(input.website),
         reprezentant_legal: golSauNull(input.reprezentant_legal),
+        functie_reprezentant_legal: golSauNull(input.functie_reprezentant_legal),
+        capital_social: capitalSocial,
+        cod_caen: codCaen,
+        sector: golSauNull(input.sector),
+        ssm_furnizor_extern: golSauNull(input.ssm_furnizor_extern),
+        ssm_persoana_responsabila: golSauNull(input.ssm_persoana_responsabila),
+        zile_concediu_anual_implicit: input.zile_concediu_anual_implicit,
         updated_by: ctx.user.id,
         updated_at: ctx.now.toISOString(),
       })

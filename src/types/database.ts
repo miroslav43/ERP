@@ -4175,9 +4175,12 @@ export type Database = {
           expires_at: string
           id: string
           invited_by: string | null
+          nume: string | null
           organization_id: string
+          prenume: string | null
           role: Database["public"]["Enums"]["app_role"]
           status: Database["public"]["Enums"]["invitation_status"]
+          telefon: string | null
           token_hash: string
           updated_at: string
           updated_by: string | null
@@ -4192,9 +4195,12 @@ export type Database = {
           expires_at: string
           id?: string
           invited_by?: string | null
+          nume?: string | null
           organization_id: string
+          prenume?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           status?: Database["public"]["Enums"]["invitation_status"]
+          telefon?: string | null
           token_hash: string
           updated_at?: string
           updated_by?: string | null
@@ -4209,9 +4215,12 @@ export type Database = {
           expires_at?: string
           id?: string
           invited_by?: string | null
+          nume?: string | null
           organization_id?: string
+          prenume?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           status?: Database["public"]["Enums"]["invitation_status"]
+          telefon?: string | null
           token_hash?: string
           updated_at?: string
           updated_by?: string | null
@@ -5515,6 +5524,62 @@ export type Database = {
           },
         ]
       }
+      organization_bank_accounts: {
+        Row: {
+          activ: boolean
+          banca: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          este_principal: boolean
+          iban: string
+          id: string
+          moneda: string
+          observatii: string | null
+          organization_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          activ?: boolean
+          banca: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          este_principal?: boolean
+          iban: string
+          id?: string
+          moneda?: string
+          observatii?: string | null
+          organization_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          activ?: boolean
+          banca?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          este_principal?: boolean
+          iban?: string
+          id?: string
+          moneda?: string
+          observatii?: string | null
+          organization_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_bank_accounts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_branding: {
         Row: {
           created_at: string
@@ -5744,10 +5809,65 @@ export type Database = {
           },
         ]
       }
+      organization_sensitive_data: {
+        Row: {
+          cnp_ciphertext: string | null
+          cnp_hash: string | null
+          cnp_iv: string | null
+          cnp_key_version: number | null
+          cnp_last4: string | null
+          cnp_tag: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          organization_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          cnp_ciphertext?: string | null
+          cnp_hash?: string | null
+          cnp_iv?: string | null
+          cnp_key_version?: number | null
+          cnp_last4?: string | null
+          cnp_tag?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          organization_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          cnp_ciphertext?: string | null
+          cnp_hash?: string | null
+          cnp_iv?: string | null
+          cnp_key_version?: number | null
+          cnp_last4?: string | null
+          cnp_tag?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          organization_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_sensitive_data_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           activated_at: string | null
           adresa: string | null
+          capital_social: number | null
+          cod_caen: string | null
           cod_postal: string | null
           created_at: string
           created_by: string | null
@@ -5756,6 +5876,7 @@ export type Database = {
           deleted_at: string | null
           email_contact: string | null
           forma_juridica: string | null
+          functie_reprezentant_legal: string | null
           id: string
           judet: string | null
           legal_name: string | null
@@ -5768,7 +5889,10 @@ export type Database = {
           reg_com: string | null
           reprezentant_legal: string | null
           seats_limit: number
+          sector: string | null
           slug: string
+          ssm_furnizor_extern: string | null
+          ssm_persoana_responsabila: string | null
           status: Database["public"]["Enums"]["organization_status"]
           subscription_status: Database["public"]["Enums"]["subscription_status_type"]
           suspended_at: string | null
@@ -5780,10 +5904,13 @@ export type Database = {
           updated_at: string
           updated_by: string | null
           website: string | null
+          zile_concediu_anual_implicit: number
         }
         Insert: {
           activated_at?: string | null
           adresa?: string | null
+          capital_social?: number | null
+          cod_caen?: string | null
           cod_postal?: string | null
           created_at?: string
           created_by?: string | null
@@ -5792,6 +5919,7 @@ export type Database = {
           deleted_at?: string | null
           email_contact?: string | null
           forma_juridica?: string | null
+          functie_reprezentant_legal?: string | null
           id?: string
           judet?: string | null
           legal_name?: string | null
@@ -5804,7 +5932,10 @@ export type Database = {
           reg_com?: string | null
           reprezentant_legal?: string | null
           seats_limit?: number
+          sector?: string | null
           slug: string
+          ssm_furnizor_extern?: string | null
+          ssm_persoana_responsabila?: string | null
           status?: Database["public"]["Enums"]["organization_status"]
           subscription_status?: Database["public"]["Enums"]["subscription_status_type"]
           suspended_at?: string | null
@@ -5816,10 +5947,13 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
           website?: string | null
+          zile_concediu_anual_implicit?: number
         }
         Update: {
           activated_at?: string | null
           adresa?: string | null
+          capital_social?: number | null
+          cod_caen?: string | null
           cod_postal?: string | null
           created_at?: string
           created_by?: string | null
@@ -5828,6 +5962,7 @@ export type Database = {
           deleted_at?: string | null
           email_contact?: string | null
           forma_juridica?: string | null
+          functie_reprezentant_legal?: string | null
           id?: string
           judet?: string | null
           legal_name?: string | null
@@ -5840,7 +5975,10 @@ export type Database = {
           reg_com?: string | null
           reprezentant_legal?: string | null
           seats_limit?: number
+          sector?: string | null
           slug?: string
+          ssm_furnizor_extern?: string | null
+          ssm_persoana_responsabila?: string | null
           status?: Database["public"]["Enums"]["organization_status"]
           subscription_status?: Database["public"]["Enums"]["subscription_status_type"]
           suspended_at?: string | null
@@ -5852,6 +5990,7 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
           website?: string | null
+          zile_concediu_anual_implicit?: number
         }
         Relationships: []
       }
@@ -6115,6 +6254,7 @@ export type Database = {
           period_id: string
           prime_total: number
           retineri_total: number
+          scutire_fiscala: number
           settings_snapshot: Json
           spor_noapte: number
           status: Database["public"]["Enums"]["payroll_entry_status"]
@@ -6158,6 +6298,7 @@ export type Database = {
           period_id: string
           prime_total?: number
           retineri_total?: number
+          scutire_fiscala?: number
           settings_snapshot: Json
           spor_noapte?: number
           status?: Database["public"]["Enums"]["payroll_entry_status"]
@@ -6201,6 +6342,7 @@ export type Database = {
           period_id?: string
           prime_total?: number
           retineri_total?: number
+          scutire_fiscala?: number
           settings_snapshot?: Json
           spor_noapte?: number
           status?: Database["public"]["Enums"]["payroll_entry_status"]
@@ -6421,10 +6563,12 @@ export type Database = {
           norma_zilnica_ore: number
           note: string | null
           organization_id: string
+          plata_avans: boolean
           procent_ore_suplimentare: number
           procent_spor_noapte: number
           procent_spor_weekend: number
           rotunjire_lei: boolean
+          tichete_furnizor: string | null
           tichete_impozabile: boolean
           updated_at: string
           updated_by: string | null
@@ -6432,6 +6576,8 @@ export type Database = {
           valoare_tichet_masa: number
           verificat_de_contabil: boolean
           verificat_la: string | null
+          ziua_plata_avans: number | null
+          ziua_plata_lichidare: number | null
         }
         Insert: {
           cota_cam_angajator: number
@@ -6445,10 +6591,12 @@ export type Database = {
           norma_zilnica_ore?: number
           note?: string | null
           organization_id: string
+          plata_avans?: boolean
           procent_ore_suplimentare?: number
           procent_spor_noapte?: number
           procent_spor_weekend?: number
           rotunjire_lei?: boolean
+          tichete_furnizor?: string | null
           tichete_impozabile?: boolean
           updated_at?: string
           updated_by?: string | null
@@ -6456,6 +6604,8 @@ export type Database = {
           valoare_tichet_masa?: number
           verificat_de_contabil?: boolean
           verificat_la?: string | null
+          ziua_plata_avans?: number | null
+          ziua_plata_lichidare?: number | null
         }
         Update: {
           cota_cam_angajator?: number
@@ -6469,10 +6619,12 @@ export type Database = {
           norma_zilnica_ore?: number
           note?: string | null
           organization_id?: string
+          plata_avans?: boolean
           procent_ore_suplimentare?: number
           procent_spor_noapte?: number
           procent_spor_weekend?: number
           rotunjire_lei?: boolean
+          tichete_furnizor?: string | null
           tichete_impozabile?: boolean
           updated_at?: string
           updated_by?: string | null
@@ -6480,6 +6632,8 @@ export type Database = {
           valoare_tichet_masa?: number
           verificat_de_contabil?: boolean
           verificat_la?: string | null
+          ziua_plata_avans?: number | null
+          ziua_plata_lichidare?: number | null
         }
         Relationships: [
           {
@@ -7093,6 +7247,68 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      puncte_lucru: {
+        Row: {
+          activ: boolean
+          adresa: string | null
+          cod_postal: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          denumire: string
+          id: string
+          judet: string | null
+          observatii: string | null
+          oras: string | null
+          organization_id: string
+          sediu_principal: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          activ?: boolean
+          adresa?: string | null
+          cod_postal?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire: string
+          id?: string
+          judet?: string | null
+          observatii?: string | null
+          oras?: string | null
+          organization_id: string
+          sediu_principal?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          activ?: boolean
+          adresa?: string | null
+          cod_postal?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire?: string
+          id?: string
+          judet?: string | null
+          observatii?: string | null
+          oras?: string | null
+          organization_id?: string
+          sediu_principal?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "puncte_lucru_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       rate_limits: {
         Row: {
@@ -8752,6 +8968,29 @@ export type Database = {
           p_request_id?: string | null
           p_status?: Database["public"]["Enums"]["audit_status"] | null
           p_user_agent?: string | null
+        }
+        Returns: string
+      }
+      org_read_sensitive: {
+        Args: { p_organization_id: string }
+        Returns: {
+          cnp_ciphertext: string
+          cnp_iv: string
+          cnp_key_version: number
+          cnp_last4: string
+          cnp_tag: string
+          organization_id: string
+        }[]
+      }
+      org_write_sensitive: {
+        Args: {
+          p_cnp_ciphertext?: string
+          p_cnp_hash?: string
+          p_cnp_iv?: string
+          p_cnp_key_version?: number
+          p_cnp_last4?: string
+          p_cnp_tag?: string
+          p_organization_id: string
         }
         Returns: string
       }

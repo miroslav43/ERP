@@ -2,7 +2,7 @@
 import Link from "next/link";
 
 import { citesteCerereDemo } from "../../cereri-demo/actions";
-import { FormularOrganizatieNoua } from "../_components/formular-organizatie-noua";
+import { AsistentOrganizatieNoua } from "./_components/asistent-organizatie-noua";
 
 export const metadata = { title: "Organizație nouă · Panou de platformă" };
 
@@ -52,17 +52,17 @@ export default async function PaginaOrganizatieNoua({ searchParams }: Proprietat
       </nav>
 
       <header>
-        <h1 className="text-foreground text-2xl font-semibold">Organizație nouă</h1>
+        <h1 className="text-foreground text-2xl font-semibold">Înrolare companie nouă</h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          Organizația se creează în starea „În așteptare”. Modulele de bază se activează automat,
-          iar accesul membrilor începe după activare.
+          Organizația se creează în starea „În așteptare”, cu modulele de bază activate automat.
+          La final se trimite automat o invitație fără parolă către primul utilizator (owner).
         </p>
       </header>
 
       {valoriInitiale === undefined ? (
-        <FormularOrganizatieNoua />
+        <AsistentOrganizatieNoua />
       ) : (
-        <FormularOrganizatieNoua valoriInitiale={valoriInitiale} />
+        <AsistentOrganizatieNoua valoriInitiale={valoriInitiale} />
       )}
     </div>
   );
