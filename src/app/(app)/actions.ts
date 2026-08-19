@@ -9,7 +9,7 @@ import { z } from "zod";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { listUserOrganizations } from "@/lib/queries/organizations";
 import { setOrganizationCookie, clearOrganizationCookie } from "@/lib/tenant/organization-cookie";
-import { RUTA_AUTENTIFICARE, RUTA_DUPA_AUTENTIFICARE, RUTA_PUBLICA } from "@/config/routes";
+import { RUTA_DUPA_AUTENTIFICARE, RUTA_PUBLICA } from "@/config/routes";
 import type { StareComutare } from "./actions-types";
 type Supabase = Awaited<ReturnType<typeof createServerSupabase>>;
 
@@ -142,8 +142,4 @@ export async function deconecteaza(): Promise<void> {
   await clearOrganizationCookie();
   revalidatePath("/", "layout");
   redirect(RUTA_PUBLICA);
-}
-
-export async function cereAutentificare(): Promise<void> {
-  redirect(RUTA_AUTENTIFICARE);
 }
