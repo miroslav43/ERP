@@ -2,6 +2,7 @@
 // Reguli identice pe client (react-hook-form + zodResolver) și pe server (createPlatformAction).
 import { z } from "zod";
 import { normalizeazaCui, validateazaCui } from "@/domain/organization/cui";
+import { valideazaCnp } from "@/domain/employee/cnp";
 
 export const JUDETE = [
   "Alba",
@@ -138,6 +139,31 @@ export const telefonSchema = z
     "Introduceți un număr de telefon românesc valid (ex. 0721 234 567).",
   );
 
+export const codCaenSchema = z
+  .string()
+  .trim()
+  .regex(/^[0-9]{4}$/, "Codul CAEN are exact 4 cifre (ex. 6201).")
+  .optional()
+  .or(z.literal("").transform(() => undefined));
+
+export const capitalSocialSchema = z.coerce
+  .number("Capitalul social trebuie să fie o sumă.")
+  .min(0, "Capitalul social nu poate fi negativ.")
+  .max(999_999_999.99, "Valoarea depășește limita acceptată.");
+
+export const cnpReprezentantSchema = z
+  .string()
+  .trim()
+  .optional()
+  // La fel ca `textOptional`: golul devine `undefined` DUPĂ parsare, nu prin
+  // `.or(z.literal(""))` — acel combinator nu s-ar atinge niciodată aici,
+  // pentru că un `z.string().optional()` fără altă constrângere acceptă deja
+  // "" ca șir valid, deci a doua ramură a uniunii n-ar mai fi încercată.
+  .transform((v) => (v === undefined || v === "" ? undefined : v))
+  .refine((v) => v === undefined || valideazaCnp(v).valid, {
+    error: "CNP-ul reprezentantului nu este valid.",
+  });
+
 export const judetSchema = z.enum(JUDETE, "Alegeți județul din listă.");
 export const planSchema = z.enum(PLANURI, "Alegeți un plan valid.");
 export const statusOrganizatieSchema = z.enum(STATUSURI_ORGANIZATIE);
@@ -148,39 +174,66 @@ export const seatsLimitSchema = z.coerce
   .min(1, "Organizația are nevoie de cel puțin un loc.")
   .max(1000, "Pentru mai mult de 1000 de locuri contactați echipa de vânzări.");
 
-export const creeazaOrganizatieSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(2, "Denumirea trebuie să aibă cel puțin 2 caractere.")
-    .max(120, "Denumirea este prea lungă."),
-  legal_name: textOptional(160),
-  forma_juridica: z.enum(FORME_JURIDICE, "Alegeți forma juridică."),
-  cui: cuiSchema,
-  platitor_tva: z.boolean().default(false),
-  reg_com: textOptional(40),
-  slug: slugSchema,
-  email_contact: emailSchema,
-  telefon_contact: telefonSchema,
-  judet: judetSchema,
-  oras: z
-    .string()
-    .trim()
-    .min(2, "Introduceți localitatea.")
-    .max(80, "Localitatea este prea lungă."),
-  adresa: textOptional(240),
-  cod_postal: textOptional(10),
-  website: z
-    .url("Introduceți o adresă web validă (ex. https://firma.ro).")
-    .optional()
-    .or(z.literal("").transform(() => undefined)),
-  reprezentant_legal: textOptional(120),
-  plan: planSchema,
-  seats_limit: seatsLimitSchema,
-});
+export const inroleazaOrganizatieSchema = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .min(2, "Denumirea trebuie să aibă cel puțin 2 caractere.")
+      .max(120, "Denumirea este prea lungă."),
+    legal_name: textOptional(160),
+    forma_juridica: z.enum(FORME_JURIDICE, "Alegeți forma juridică."),
+    cui: cuiSchema,
+    platitor_tva: z.boolean().default(false),
+    reg_com: textOptional(40),
+    cod_caen: codCaenSchema,
+    capital_social: capitalSocialSchema,
+    slug: slugSchema,
+    email_contact: emailSchema,
+    telefon_contact: telefonSchema,
+    judet: judetSchema,
+    oras: z.string().trim().min(2, "Introduceți localitatea.").max(80, "Localitatea este prea lungă."),
+    strada: z.string().trim().min(2, "Introduceți strada.").max(160, "Numele străzii este prea lung."),
+    numar: z.string().trim().min(1, "Introduceți numărul.").max(20, "Numărul este prea lung."),
+    sector: textOptional(20),
+    adresa: textOptional(240),
+    cod_postal: textOptional(10),
+    website: z
+      .url("Introduceți o adresă web validă (ex. https://firma.ro).")
+      .optional()
+      .or(z.literal("").transform(() => undefined)),
+    reprezentant_legal: textOptional(120),
+    reprezentant_functie: z
+      .string()
+      .trim()
+      .min(2, "Introduceți funcția reprezentantului.")
+      .max(80, "Funcția este prea lungă."),
+    reprezentant_cnp: cnpReprezentantSchema,
+    plan: planSchema,
+    seats_limit: seatsLimitSchema,
+    owner_nume: z
+      .string()
+      .trim()
+      .min(2, "Introduceți numele complet al proprietarului.")
+      .max(160, "Numele este prea lung."),
+    owner_email: emailSchema,
+    owner_telefon: telefonSchema,
+  })
+  .superRefine((valori, ctx) => {
+    if (valori.judet === "București" && (valori.sector === undefined || valori.sector.trim() === "")) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["sector"],
+        message: "Sectorul este obligatoriu pentru sediile din București.",
+      });
+    }
+  });
 
-export type CreeazaOrganizatieInput = z.input<typeof creeazaOrganizatieSchema>;
-export type CreeazaOrganizatieOutput = z.output<typeof creeazaOrganizatieSchema>;
+export type InroleazaOrganizatieInput = z.input<typeof inroleazaOrganizatieSchema>;
+export type InroleazaOrganizatieOutput = z.output<typeof inroleazaOrganizatieSchema>;
+
+export const cautaCuiAnafSchema = z.object({ cui: cuiSchema });
+export type CautaCuiAnafInput = z.input<typeof cautaCuiAnafSchema>;
 
 export const actualizeazaOrganizatieSchema = z.object({
   orgId: z.uuid("Organizație invalidă."),
