@@ -10,6 +10,14 @@
 // apelanții existenți trimit explicit `null`, nu omit cheia. Fără patch,
 // regenerarea rupe fișierele care apelează aceste RPC-uri fără nicio schimbare
 // reală de schemă.
+//
+// `organizations` (cod_caen, capital_social, strada, numar, sector,
+// reprezentant_functie), tabelul nou `organization_legal_representative` și
+// `profiles.must_change_password` au fost adăugate manual, cu mâna, ca să
+// reflecte migrația 0029_inrolare_companie.sql: mediul de execuție în care s-a
+// scris migrația nu avea niciun proiect Supabase legat, deci `pnpm db:types`
+// nu putea rula. Aceste forme sunt superseded de prima rulare reală a
+// `pnpm db:types` odată ce un proiect e legat.
 
 export type Json =
   | string
@@ -5672,6 +5680,63 @@ export type Database = {
           },
         ]
       }
+      // Hand-patched — vezi nota despre 0029_inrolare_companie.sql din capul fișierului.
+      organization_legal_representative: {
+        Row: {
+          cnp_ciphertext: string | null
+          cnp_iv: string | null
+          cnp_key_version: number | null
+          cnp_last4: string | null
+          cnp_tag: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          functie: string | null
+          nume: string | null
+          organization_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          cnp_ciphertext?: string | null
+          cnp_iv?: string | null
+          cnp_key_version?: number | null
+          cnp_last4?: string | null
+          cnp_tag?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          functie?: string | null
+          nume?: string | null
+          organization_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          cnp_ciphertext?: string | null
+          cnp_iv?: string | null
+          cnp_key_version?: number | null
+          cnp_last4?: string | null
+          cnp_tag?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          functie?: string | null
+          nume?: string | null
+          organization_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_legal_representative_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_members: {
         Row: {
           created_at: string
@@ -5748,6 +5813,8 @@ export type Database = {
         Row: {
           activated_at: string | null
           adresa: string | null
+          capital_social: number | null
+          cod_caen: string | null
           cod_postal: string | null
           created_at: string
           created_by: string | null
@@ -5762,14 +5829,18 @@ export type Database = {
           locale: Database["public"]["Enums"]["locale_code"]
           moneda: string
           name: string
+          numar: string | null
           oras: string | null
           plan: Database["public"]["Enums"]["plan_type"]
           platitor_tva: boolean
           reg_com: string | null
+          reprezentant_functie: string | null
           reprezentant_legal: string | null
           seats_limit: number
+          sector: string | null
           slug: string
           status: Database["public"]["Enums"]["organization_status"]
+          strada: string | null
           subscription_status: Database["public"]["Enums"]["subscription_status_type"]
           suspended_at: string | null
           suspended_reason: string | null
@@ -5784,6 +5855,8 @@ export type Database = {
         Insert: {
           activated_at?: string | null
           adresa?: string | null
+          capital_social?: number | null
+          cod_caen?: string | null
           cod_postal?: string | null
           created_at?: string
           created_by?: string | null
@@ -5798,14 +5871,18 @@ export type Database = {
           locale?: Database["public"]["Enums"]["locale_code"]
           moneda?: string
           name: string
+          numar?: string | null
           oras?: string | null
           plan?: Database["public"]["Enums"]["plan_type"]
           platitor_tva?: boolean
           reg_com?: string | null
+          reprezentant_functie?: string | null
           reprezentant_legal?: string | null
           seats_limit?: number
+          sector?: string | null
           slug: string
           status?: Database["public"]["Enums"]["organization_status"]
+          strada?: string | null
           subscription_status?: Database["public"]["Enums"]["subscription_status_type"]
           suspended_at?: string | null
           suspended_reason?: string | null
@@ -5820,6 +5897,8 @@ export type Database = {
         Update: {
           activated_at?: string | null
           adresa?: string | null
+          capital_social?: number | null
+          cod_caen?: string | null
           cod_postal?: string | null
           created_at?: string
           created_by?: string | null
@@ -5834,14 +5913,18 @@ export type Database = {
           locale?: Database["public"]["Enums"]["locale_code"]
           moneda?: string
           name?: string
+          numar?: string | null
           oras?: string | null
           plan?: Database["public"]["Enums"]["plan_type"]
           platitor_tva?: boolean
           reg_com?: string | null
+          reprezentant_functie?: string | null
           reprezentant_legal?: string | null
           seats_limit?: number
+          sector?: string | null
           slug?: string
           status?: Database["public"]["Enums"]["organization_status"]
+          strada?: string | null
           subscription_status?: Database["public"]["Enums"]["subscription_status_type"]
           suspended_at?: string | null
           suspended_reason?: string | null
@@ -7010,6 +7093,7 @@ export type Database = {
           last_organization_id: string | null
           last_seen_at: string | null
           locale: Database["public"]["Enums"]["locale_code"]
+          must_change_password: boolean
           phone: string | null
           timezone: string
           updated_at: string
@@ -7025,6 +7109,7 @@ export type Database = {
           last_organization_id?: string | null
           last_seen_at?: string | null
           locale?: Database["public"]["Enums"]["locale_code"]
+          must_change_password?: boolean
           phone?: string | null
           timezone?: string
           updated_at?: string
@@ -7040,6 +7125,7 @@ export type Database = {
           last_organization_id?: string | null
           last_seen_at?: string | null
           locale?: Database["public"]["Enums"]["locale_code"]
+          must_change_password?: boolean
           phone?: string | null
           timezone?: string
           updated_at?: string
