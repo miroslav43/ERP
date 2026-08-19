@@ -1,4 +1,5 @@
 // src/app/(app)/angajati/[id]/page.tsx
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
@@ -18,6 +19,7 @@ import {
 import { CLASE_STATUS, ETICHETE_CONTRACT, ETICHETE_MOD_LUCRU, ETICHETE_STATUS } from "../etichete";
 import { DateSensibile } from "./date-sensibile";
 import { FormularContractNou } from "./formular-contract-nou";
+import { FormularInceteazaContract } from "./formular-inceteaza-contract";
 import { FormularModificaSalariu } from "./formular-modifica-salariu";
 
 export const metadata: Metadata = { title: "Fișa angajatului" };
@@ -75,11 +77,21 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
             {angajat.department !== null ? ` · ${angajat.department.denumire}` : ""}
           </p>
         </div>
-        <span
-          className={`rounded-full px-3 py-1 text-sm font-medium ${CLASE_STATUS[angajat.status]}`}
-        >
-          {ETICHETE_STATUS[angajat.status]}
-        </span>
+        <div className="flex items-center gap-3">
+          {can(permisiuni, "employees:update", "all") ? (
+            <Link
+              href={`/angajati/${angajat.id}/editeaza`}
+              className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-1.5 text-sm font-medium"
+            >
+              Editează fișa
+            </Link>
+          ) : null}
+          <span
+            className={`rounded-full px-3 py-1 text-sm font-medium ${CLASE_STATUS[angajat.status]}`}
+          >
+            {ETICHETE_STATUS[angajat.status]}
+          </span>
+        </div>
       </header>
 
       <section
@@ -180,6 +192,9 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                     <Camp eticheta="Motivul încetării" valoare={contract.motiv_incetare} />
                   ) : null}
                 </dl>
+                {contract.status === "activ" && can(permisiuni, "employees:update", "all") ? (
+                  <FormularInceteazaContract contractId={contract.id} />
+                ) : null}
               </li>
             ))}
           </ul>

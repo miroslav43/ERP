@@ -3,7 +3,13 @@
 import { useId, useRef, useState } from "react";
 import { getBrowserSupabase } from "@/lib/supabase/browser";
 import { BUCKET_DOCUMENTE, verificaDocument } from "@/lib/documents/cale";
-import { linkDescarcareDocument, pregatesteIncarcareDocument, salveazaDocument } from "./actions";
+import { useRouter } from "next/navigation";
+import {
+  linkDescarcareDocument,
+  pregatesteIncarcareDocument,
+  salveazaDocument,
+  stergeDocument,
+} from "./actions";
 
 type TipDocument = {
   id: string;
@@ -170,6 +176,90 @@ export function ListaDescarcare({
       >
         Descarcă <span className="sr-only">{numeFisier}</span>
       </button>
+    </span>
+  );
+}
+
+export function ButonStergeDocument({
+  documentId,
+  poateSterge,
+}: {
+  documentId: string;
+  poateSterge: boolean;
+}) {
+  const router = useRouter();
+  const idMotiv = useId();
+  const [deschis, setDeschis] = useState(false);
+  const [motiv, setMotiv] = useState("");
+  const [inCurs, setInCurs] = useState(false);
+  const [eroare, setEroare] = useState<string | null>(null);
+
+  if (!poateSterge) return null;
+
+  async function confirma(): Promise<void> {
+    setInCurs(true);
+    setEroare(null);
+    const rezultat = await stergeDocument({ documentId, motiv });
+    setInCurs(false);
+    if (!rezultat.ok) {
+      setEroare(rezultat.error.message);
+      return;
+    }
+    setDeschis(false);
+    router.refresh();
+  }
+
+  if (!deschis) {
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          setDeschis(true);
+        }}
+        className="rounded-md border border-danger/40 px-3 py-1.5 text-sm text-danger hover:bg-danger/8"
+      >
+        Retrage din dosar
+      </button>
+    );
+  }
+
+  return (
+    <span className="flex flex-wrap items-center gap-2">
+      <label htmlFor={idMotiv} className="sr-only">
+        Motivul retragerii
+      </label>
+      <input
+        id={idMotiv}
+        value={motiv}
+        onChange={(eveniment) => {
+          setMotiv(eveniment.target.value);
+        }}
+        placeholder="Motivul retragerii (min. 3 caractere)"
+        className="rounded-md border border-foreground/60 px-2 py-1.5 text-sm"
+      />
+      <button
+        type="button"
+        onClick={() => void confirma()}
+        disabled={inCurs || motiv.trim().length < 3}
+        className="rounded-md bg-danger px-3 py-1.5 text-sm font-medium text-danger-foreground disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {inCurs ? "Se retrage…" : "Confirmă"}
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          setDeschis(false);
+          setEroare(null);
+        }}
+        className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+      >
+        Renunță
+      </button>
+      {eroare !== null && (
+        <span role="alert" className="text-sm text-danger">
+          {eroare}
+        </span>
+      )}
     </span>
   );
 }

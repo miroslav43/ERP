@@ -8,8 +8,7 @@ import { formatDate } from "@/lib/format/date";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { StareEroare } from "@/components/feedback/stare-eroare";
-import { FormularDocument } from "./formular-document";
-import { ListaDescarcare } from "./formular-document";
+import { ButonStergeDocument, FormularDocument, ListaDescarcare } from "./formular-document";
 
 export default async function PaginaDocumenteAngajat({
   params,
@@ -20,11 +19,14 @@ export default async function PaginaDocumenteAngajat({
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "nucleu");
   const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
-  const scopCitire = scopeFor(permisiuni, "employees.read");
-  if (scopCitire === "none") {
+  const scopCitire = scopeFor(permisiuni, "employees:read");
+  if (scopCitire === null || scopCitire === "none") {
     return <AccesRestrictionat mesaj="Nu ai dreptul de a vedea dosarele de personal." />;
   }
-  const poateIncarca = scopeFor(permisiuni, "employees.update") !== "none";
+  const scopActualizare = scopeFor(permisiuni, "employees:update");
+  const poateIncarca = scopActualizare !== null && scopActualizare !== "none";
+  const scopStergere = scopeFor(permisiuni, "employees:delete");
+  const poateSterge = scopStergere !== null && scopStergere !== "none";
 
   const supabase = await createServerSupabase();
   const { data: angajat } = await supabase
@@ -119,7 +121,10 @@ export default async function PaginaDocumenteAngajat({
                     ` · valabil până la ${formatDate(document.valabil_pana)}`}
                 </p>
               </div>
-              <ListaDescarcare documentId={document.id} numeFisier={document.fisier_nume} />
+              <span className="flex flex-wrap items-center gap-2">
+                <ListaDescarcare documentId={document.id} numeFisier={document.fisier_nume} />
+                <ButonStergeDocument documentId={document.id} poateSterge={poateSterge} />
+              </span>
             </li>
           ))}
         </ul>

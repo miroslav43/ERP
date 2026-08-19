@@ -6,16 +6,31 @@ import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 
 import { GENURI } from "@/schemas/employee";
-import { creeazaAngajat } from "./actions";
+import { actualizeazaAngajat, creeazaAngajat } from "./actions";
 
 interface Optiune {
   readonly id: string;
   readonly denumire: string;
 }
 
+interface AngajatExistent {
+  readonly id: string;
+  readonly last_name: string;
+  readonly first_name: string;
+  readonly email_personal: string | null;
+  readonly telefon: string | null;
+  readonly data_nasterii: string | null;
+  readonly gen: string;
+  readonly department_id: string | null;
+  readonly job_position_id: string | null;
+  readonly hired_on: string | null;
+}
+
 interface Proprietati {
   readonly departamente: readonly Optiune[];
   readonly functii: readonly Optiune[];
+  /** Prezent doar în modul editare — dacă lipsește, formularul creează o fișă nouă. */
+  readonly angajatExistent?: AngajatExistent;
 }
 
 interface ValoriFormular {
@@ -37,37 +52,70 @@ interface ValoriFormular {
 const CLASA_CAMP =
   "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
 
-export function FormularAngajat({ departamente, functii }: Proprietati) {
+export function FormularAngajat({ departamente, functii, angajatExistent }: Proprietati) {
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
   const [eroare, setEroare] = useState<string | null>(null);
-  const { register, handleSubmit, formState } = useForm<ValoriFormular>();
+  const editare = angajatExistent !== undefined;
+  const { register, handleSubmit, formState } = useForm<ValoriFormular>({
+    defaultValues:
+      angajatExistent === undefined
+        ? {}
+        : {
+            last_name: angajatExistent.last_name,
+            first_name: angajatExistent.first_name,
+            email_personal: angajatExistent.email_personal ?? "",
+            telefon: angajatExistent.telefon ?? "",
+            data_nasterii: angajatExistent.data_nasterii ?? "",
+            gen: angajatExistent.gen,
+            department_id: angajatExistent.department_id ?? "",
+            job_position_id: angajatExistent.job_position_id ?? "",
+            hired_on: angajatExistent.hired_on ?? "",
+          },
+  });
 
   function trimite(valori: ValoriFormular): void {
     setEroare(null);
     porneste(async () => {
-      const rezultat = await creeazaAngajat(valori);
+      const rezultat = editare
+        ? await actualizeazaAngajat({ ...valori, id: angajatExistent.id })
+        : await creeazaAngajat(valori);
       if (!rezultat.ok) {
         setEroare(rezultat.error.message);
         return;
       }
-      const angajatCreat = rezultat.data as { readonly id: string };
-      router.push(`/angajati/${angajatCreat.id}`);
+      const id = editare
+        ? angajatExistent.id
+        : (rezultat.data as { readonly id: string }).id;
+      router.push(`/angajati/${id}`);
+      router.refresh();
     });
   }
 
-  const campuri: readonly (readonly [keyof ValoriFormular, string, string, boolean])[] = [
-    ["marca", "Marcă", "text", true],
-    ["last_name", "Nume", "text", true],
-    ["first_name", "Prenume", "text", true],
-    ["email_personal", "E-mail personal", "email", false],
-    ["telefon", "Telefon", "tel", false],
-    ["data_nasterii", "Data nașterii", "date", false],
-    ["hired_on", "Data angajării", "date", false],
-    ["cnp", "CNP", "text", false],
-    ["iban", "IBAN", "text", false],
-    ["banca", "Bancă", "text", false],
-  ];
+  const campuri: readonly (readonly [keyof ValoriFormular, string, string, boolean])[] = editare
+    ? [
+        ["last_name", "Nume", "text", true],
+        ["first_name", "Prenume", "text", true],
+        ["email_personal", "E-mail personal", "email", false],
+        ["telefon", "Telefon", "tel", false],
+        ["data_nasterii", "Data nașterii", "date", false],
+        ["hired_on", "Data angajării", "date", false],
+        ["cnp", "CNP nou (gol = neschimbat)", "text", false],
+        ["iban", "IBAN nou (gol = neschimbat)", "text", false],
+        ["banca", "Bancă", "text", false],
+      ]
+    : [
+        ["marca", "Marcă", "text", true],
+        ["last_name", "Nume", "text", true],
+        ["first_name", "Prenume", "text", true],
+        ["email_personal", "E-mail personal", "email", false],
+        ["telefon", "Telefon", "tel", false],
+        ["data_nasterii", "Data nașterii", "date", false],
+        ["hired_on", "Data angajării", "date", false],
+        ["cnp", "CNP", "text", false],
+        ["iban", "IBAN", "text", false],
+        ["banca", "Bancă", "text", false],
+      ];
 
   return (
     <form onSubmit={handleSubmit(trimite)} className="space-y-6" noValidate>
