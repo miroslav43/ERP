@@ -432,18 +432,36 @@ date și niciun ecran.**
 
 ---
 
-## Actualizare — toate modulele cu ecrane, Faza 9 livrată
+## Actualizare — toate cele unsprezece module, Faza 11 livrată
 
 **Tot ce e deasupra acestei linii e istoric** și nu mai descrie starea reală:
 între timp au primit ecrane complete `pontaj`, `flotă`, `SSM și PSI`,
 `mentenanță`, `inventar`, `concedii`, `integrare angajați`, `diurne și
-deplasări` și `portalul angajatului` — plus o pagină de profil propriu
-(`/profil`, `/portal/profilul-meu`) care lipsea complet. Secțiunea asta e
+deplasări`, `portalul angajatului`, `salarizare` și `anunțuri` — plus o pagină
+de profil propriu (`/profil`, `/portal/profilul-meu`) care lipsea complet.
+**Nu mai există niciun modul cu bază de date și fără ecran.** Secțiunea asta e
 sursa de adevăr curentă.
 
-**27 de migrări** (`0001`–`0027`), aplicate identic local și pe cloud. **354 de
+**28 de migrări** (`0001`–`0028`), aplicate identic local și pe cloud. **354 de
 teste unitare** (`domain/`, `format/`, `config/` — încă zero pe `lib/queries/`,
-`lib/actions/` sau pagini). Typecheck curat, lint 0 erori, build 101 rute.
+`lib/actions/` sau pagini). Typecheck curat, lint 0 erori, build 104 rute.
+
+### Faza 11 — Anunțuri, livrată cu scop redus deliberat
+
+`announcements` + `announcement_reads` (confirmare de citire, append-only).
+Fără `announcement_attachments` și fără direcționare pe departament — seed-ul
+de permisiuni acordă `announcements:read = all` tuturor rolurilor, deci o
+tabelă de direcționare ar fi decorativă. Fanout automat spre `notifications`
+(tabelă din `0001_kernel.sql`, care avea deja pregătit `notification_kind =
+'announcement'`). `employee_change_requests` din planul original NU s-a
+construit — nu era în lista de datorii urmărită (`MODULE_NECONSTRUITE`
+conținea doar `/anunturi`), și fiecare angajat își editează deja direct datele
+de contact prin `/profil`.
+
+Verificat manual, cu toate cele trei roluri: publicare → notificare pentru toți
+membrii → citire pe portal cu bulină de „necitit" → marcare automată la
+deschidere → confirmare vizibilă pentru administrator, în timp real → managerul
+(fără `announcements:update`) vede anunțul, dar nu și formularul de creare.
 
 ### Faza 9 — Salarizare, livrată cu scop redus deliberat
 
@@ -475,8 +493,12 @@ propriul fluturaș al angajatului, demo fără niciun contract de muncă).
    real găsit în sesiunile astea (permisiuni greșite, RLS care se auto-blochează,
    `.upsert` pe index parțial) a scăpat exact de aici — verificat manual în
    browser, nu de un test automat care să prindă regresia data viitoare.
-4. **Faza 11** (anunțuri, `employee_change_requests`) — fără schemă încă.
-   Singurul modul rămas onest neconstruit în `MODULE_NECONSTRUITE`.
+4. `employee_change_requests` (cereri de modificare a datelor de personal cu
+   aprobare de HR) — singura piesă din planul original rămasă neconstruită,
+   nefiind urmărită ca datorie explicită. Angajații își editează direct datele
+   de contact prin `/profil`; ce lipsește e fluxul de aprobare pentru date mai
+   sensibile (adresă oficială, cont bancar) care ar trebui verificate de HR
+   înainte de a intra în `employees`/`employee_sensitive_data`.
 5. Cei 25 de pași de testare manuală din planul aprobat, niciunul executat ca
    parcurs complet — bucăți din ei au fost verificate ad-hoc, pe module.
 6. Valorile fiscale din `payroll_settings` — de introdus și verificat de
