@@ -11,6 +11,7 @@ import {
   type StatusOrganizatie,
 } from "../../_components/insigne";
 import { ActiuniOrganizatie } from "./_components/actiuni-organizatie";
+import { FormularEditeazaOrganizatie } from "./_components/formular-editeaza-organizatie";
 import { fisaOrganizatiei } from "../actions";
 
 const ETICHETE_ROL: Record<string, string> = {
@@ -118,6 +119,25 @@ export default async function PaginaFisaOrganizatie({
               valoare={organizatie.activated_at ? formatDateTime(organizatie.activated_at) : null}
             />
           </dl>
+          <div className="mt-4">
+            <FormularEditeazaOrganizatie
+              organizatie={{
+                orgId: organizatie.id,
+                name: organizatie.name,
+                legal_name: organizatie.legal_name,
+                email_contact: organizatie.email_contact,
+                telefon_contact: organizatie.telefon_contact,
+                judet: organizatie.judet,
+                oras: organizatie.oras,
+                adresa: organizatie.adresa,
+                cod_postal: organizatie.cod_postal,
+                website: organizatie.website,
+                reprezentant_legal: organizatie.reprezentant_legal,
+                plan: organizatie.plan,
+                seats_limit: organizatie.seats_limit,
+              }}
+            />
+          </div>
         </section>
 
         <section aria-labelledby="titlu-abonament" className="border-border rounded-lg border p-4">

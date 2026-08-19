@@ -198,9 +198,6 @@ export const activeazaOrganizatie = createPlatformAction({
   },
 });
 
-/** Reactivarea este aceeași tranziție ca activarea, dar auditată din starea „suspendată”. */
-export const reactiveazaOrganizatie = activeazaOrganizatie;
-
 export const suspendaOrganizatie = createPlatformAction({
   name: "platforma.org.suspend",
   input: suspendaOrganizatieSchema,
