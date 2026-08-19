@@ -9,14 +9,18 @@
 // adaugă doar autentificare și validare Zod.
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 
 import { requireUser } from "@/lib/auth/current-user";
+import { BUCKET_AVATARE, caleAvatar, verificaAvatar } from "@/lib/avatar/cale";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { schemaParolaNoua, schemaProfilPropriu } from "@/schemas/profile";
 import { isPostgrestError, mapPostgrestError } from "./errors";
 import type { ActionError, ActionResult } from "./types";
 
 const esec = (error: ActionError): ActionResult<never> => ({ ok: false, error });
+
+const RUTE_PROFIL_PROPRIU = ["/profil", "/portal/profilul-meu"] as const;
 
 export async function actualizeazaProfilul(rawInput: unknown): Promise<ActionResult<null>> {
   const requestId = randomUUID();
@@ -51,8 +55,7 @@ export async function actualizeazaProfilul(rawInput: unknown): Promise<ActionRes
     );
   }
 
-  revalidatePath("/profil");
-  revalidatePath("/portal/profilul-meu");
+  for (const cale of RUTE_PROFIL_PROPRIU) revalidatePath(cale);
   return { ok: true, data: null };
 }
 
@@ -90,5 +93,93 @@ export async function schimbaParola(rawInput: unknown): Promise<ActionResult<nul
     });
   }
 
+  return { ok: true, data: null };
+}
+
+const schemaPregatireAvatar = z.object({
+  numeFisier: z.string().min(1).max(255),
+  dimensiune: z.number().int().positive(),
+  mime: z.string().min(3).max(120),
+});
+
+/**
+ * Pas 1/2 al încărcării propriei fotografii: doar pregătește URL-ul semnat.
+ * Bytes-urile fișierului urcă direct din browser spre Storage (vezi
+ * `getBrowserSupabase().storage...uploadToSignedUrl`), nu trec prin acțiune —
+ * la fel ca la documentele de personal, ca să nu treacă imaginea prin server.
+ */
+export async function pregatesteIncarcareAvatarulPropriu(
+  rawInput: unknown,
+): Promise<ActionResult<{ cale: string; token: string }>> {
+  const requestId = randomUUID();
+  const user = await requireUser();
+
+  const parsat = schemaPregatireAvatar.safeParse(rawInput);
+  if (!parsat.success) {
+    return esec({
+      code: "VALIDARE",
+      message: "Datele introduse nu sunt valide.",
+      fieldErrors: parsat.error.flatten().fieldErrors,
+      requestId,
+    });
+  }
+
+  const problema = verificaAvatar(parsat.data.mime, parsat.data.dimensiune);
+  if (problema !== null) {
+    return esec({ code: "VALIDARE", message: problema, fieldErrors: null, requestId });
+  }
+
+  const cale = caleAvatar(user.id, parsat.data.numeFisier);
+  const db = await createServerSupabase();
+  const { data, error } = await db.storage.from(BUCKET_AVATARE).createSignedUploadUrl(cale);
+  if (error !== null || data === null) {
+    return esec({
+      code: "EROARE_INTERNA",
+      message: `Nu am putut pregăti încărcarea fotografiei. Cod de referință: ${requestId}`,
+      fieldErrors: null,
+      requestId,
+    });
+  }
+
+  return { ok: true, data: { cale, token: data.token } };
+}
+
+const schemaSalveazaAvatar = z.object({ cale: z.string().min(1).max(400) });
+
+/** Pas 2/2: fișierul e deja în Storage — doar reține calea pe profil. */
+export async function salveazaAvatarulPropriu(rawInput: unknown): Promise<ActionResult<null>> {
+  const requestId = randomUUID();
+  const user = await requireUser();
+
+  const parsat = schemaSalveazaAvatar.safeParse(rawInput);
+  if (!parsat.success || !parsat.data.cale.startsWith(`${user.id}/`)) {
+    return esec({
+      code: "VALIDARE",
+      message: "Calea fișierului nu este validă.",
+      fieldErrors: null,
+      requestId,
+    });
+  }
+
+  const db = await createServerSupabase();
+  const { error } = await db
+    .from("profiles")
+    .update({ avatar_path: parsat.data.cale })
+    .eq("id", user.id);
+
+  if (error !== null) {
+    return esec(
+      isPostgrestError(error)
+        ? mapPostgrestError(error, requestId)
+        : {
+            code: "EROARE_INTERNA",
+            message: `A apărut o eroare neașteptată. Cod de referință: ${requestId}`,
+            fieldErrors: null,
+            requestId,
+          },
+    );
+  }
+
+  for (const cale of RUTE_PROFIL_PROPRIU) revalidatePath(cale);
   return { ok: true, data: null };
 }

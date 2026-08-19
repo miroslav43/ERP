@@ -3,11 +3,18 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
-import { actualizeazaProfilul, schimbaParola } from "@/lib/actions/profile";
+import { IncarcareAvatar } from "@/components/forms/incarcare-avatar";
+import {
+  actualizeazaProfilul,
+  pregatesteIncarcareAvatarulPropriu,
+  salveazaAvatarulPropriu,
+  schimbaParola,
+} from "@/lib/actions/profile";
 
 interface ProprietatiFormularProfil {
   readonly numeInitial: string;
   readonly telefonInitial: string | null;
+  readonly avatarUrlInitial: string | null;
 }
 
 /**
@@ -16,7 +23,11 @@ interface ProprietatiFormularProfil {
  * un submit accidental pe Enter în câmpul de nume nu trebuie să încerce să
  * schimbe și parola.
  */
-export function FormularProfil({ numeInitial, telefonInitial }: ProprietatiFormularProfil) {
+export function FormularProfil({
+  numeInitial,
+  telefonInitial,
+  avatarUrlInitial,
+}: ProprietatiFormularProfil) {
   const router = useRouter();
   const [inCursDate, porniDate] = useTransition();
   const [eroareDate, setEroareDate] = useState<string | null>(null);
@@ -67,6 +78,15 @@ export function FormularProfil({ numeInitial, telefonInitial }: ProprietatiFormu
 
   return (
     <div className="space-y-6">
+      <div className="border-border rounded-lg border p-4">
+        <IncarcareAvatar
+          urlInitial={avatarUrlInitial}
+          nume={numeInitial}
+          pregateste={pregatesteIncarcareAvatarulPropriu}
+          salveaza={salveazaAvatarulPropriu}
+        />
+      </div>
+
       <form
         action={trimiteDate}
         className="border-border grid gap-4 rounded-lg border p-4 sm:grid-cols-2"

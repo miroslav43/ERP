@@ -1,12 +1,16 @@
 // src/app/(app)/departamente/page.tsx
+import Link from "next/link";
 import type { Metadata } from "next";
 import { Users } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AvatarAngajat } from "@/components/data/avatar-angajat";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
+import { urlAvatar } from "@/lib/avatar/cale";
+import { avataturiPeUtilizatori } from "@/lib/queries/profile";
 import { createServerSupabase } from "@/lib/supabase/server";
 
 import { ActiuniDepartament } from "./actiuni-departament";
@@ -26,8 +30,22 @@ interface RandDepartament {
   readonly manager: { readonly full_name: string } | null;
 }
 
+interface AngajatDepartament {
+  readonly id: string;
+  readonly full_name: string;
+  readonly marca: string;
+  readonly department_id: string | null;
+  readonly avatar_url: string | null;
+  readonly job_position: { readonly denumire: string } | null;
+}
+
+interface AngajatDepartamentBrut extends Omit<AngajatDepartament, "avatar_url"> {
+  readonly user_id: string | null;
+}
+
 interface NodDepartament extends RandDepartament {
   readonly copii: readonly NodDepartament[];
+  readonly angajatiiDepartamentului: readonly AngajatDepartament[];
   readonly numarAngajati: number;
 }
 
@@ -47,13 +65,17 @@ function grupeaza(
 function construieste(
   cheie: string,
   dupaParinte: ReadonlyMap<string, readonly RandDepartament[]>,
-  numarari: ReadonlyMap<string, number>,
+  angajatiPeDepartament: ReadonlyMap<string, readonly AngajatDepartament[]>,
 ): readonly NodDepartament[] {
-  return (dupaParinte.get(cheie) ?? []).map((rand) => ({
-    ...rand,
-    numarAngajati: numarari.get(rand.id) ?? 0,
-    copii: construieste(rand.id, dupaParinte, numarari),
-  }));
+  return (dupaParinte.get(cheie) ?? []).map((rand) => {
+    const angajatiiDepartamentului = angajatiPeDepartament.get(rand.id) ?? [];
+    return {
+      ...rand,
+      angajatiiDepartamentului,
+      numarAngajati: angajatiiDepartamentului.length,
+      copii: construieste(rand.id, dupaParinte, angajatiPeDepartament),
+    };
+  });
 }
 
 interface OptiuneDepartament {
@@ -110,10 +132,33 @@ function Arbore({
               </span>
               <span className="ml-auto inline-flex items-center gap-1 text-sm">
                 <Users aria-hidden="true" className="size-4 text-muted-foreground" />
-                <span>{nod.numarAngajati}</span>
-                <span className="sr-only">angajați în acest departament</span>
+                <span>{nod.angajatiiDepartamentului.length}</span>
+                <span className="sr-only">angajați activi în acest departament</span>
               </span>
             </div>
+            {nod.angajatiiDepartamentului.length > 0 ? (
+              <ul className="mt-3 flex flex-wrap gap-2">
+                {nod.angajatiiDepartamentului.map((angajat) => (
+                  <li key={angajat.id}>
+                    <Link
+                      href={`/angajati/${angajat.id}`}
+                      className="border-border hover:bg-surface inline-flex items-center gap-1.5 rounded-md border py-1 pr-2 pl-1 text-sm"
+                    >
+                      <AvatarAngajat url={angajat.avatar_url} nume={angajat.full_name} marime="sm" />
+                      <span>{angajat.full_name}</span>
+                      <span className="text-muted-foreground font-mono text-xs">{angajat.marca}</span>
+                      {angajat.job_position !== null ? (
+                        <span className="text-muted-foreground">· {angajat.job_position.denumire}</span>
+                      ) : null}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-muted-foreground mt-3 text-sm">
+                Niciun angajat activ repartizat în acest departament.
+              </p>
+            )}
             <ActiuniDepartament
               departament={nod}
               departamente={departamente}
@@ -149,7 +194,7 @@ export default async function PaginaDepartamente() {
   const poateEdita = can(permisiuni, "departments:update", "all");
 
   const db = await createServerSupabase();
-  const [structura, alocari, angajatiActivi] = await Promise.all([
+  const [structura, angajatiActivi] = await Promise.all([
     db
       .from("departments")
       .select(
@@ -161,34 +206,46 @@ export default async function PaginaDepartamente() {
       .returns<RandDepartament[]>(),
     db
       .from("employees")
-      .select("department_id")
-      .eq("organization_id", tenant.organizationId)
-      .is("deleted_at", null)
-      .not("department_id", "is", null)
-      .returns<{ department_id: string }[]>(),
-    db
-      .from("employees")
-      .select("id, full_name")
+      .select(
+        "id, full_name, marca, department_id, user_id, job_position:job_positions!job_position_id(denumire)",
+      )
       .eq("organization_id", tenant.organizationId)
       .eq("status", "activ")
       .is("deleted_at", null)
       .order("full_name")
-      .returns<OptiuneAngajat[]>(),
+      .returns<AngajatDepartamentBrut[]>(),
   ]);
 
   if (structura.error !== null) throw structura.error;
+  if (angajatiActivi.error !== null) throw angajatiActivi.error;
 
-  const numarari = (alocari.data ?? []).reduce<Map<string, number>>(
-    (acumulat, rand) =>
-      new Map(acumulat).set(rand.department_id, (acumulat.get(rand.department_id) ?? 0) + 1),
-    new Map<string, number>(),
+  const avataruri = await avataturiPeUtilizatori((angajatiActivi.data ?? []).map((a) => a.user_id));
+  const listaAngajatiActivi: readonly AngajatDepartament[] = (angajatiActivi.data ?? []).map(
+    ({ user_id, ...rest }) => ({
+      ...rest,
+      avatar_url: urlAvatar(avataruri.get(user_id ?? "") ?? null),
+    }),
+  );
+  const angajatiPeDepartament = listaAngajatiActivi.reduce<Map<string, readonly AngajatDepartament[]>>(
+    (acumulat, angajat) =>
+      angajat.department_id === null
+        ? acumulat
+        : new Map(acumulat).set(angajat.department_id, [
+            ...(acumulat.get(angajat.department_id) ?? []),
+            angajat,
+          ]),
+    new Map<string, readonly AngajatDepartament[]>(),
   );
   const randuri = structura.data ?? [];
-  const arbore = construieste(RADACINA, grupeaza(randuri), numarari);
+  const arbore = construieste(RADACINA, grupeaza(randuri), angajatiPeDepartament);
   const listaDepartamente: readonly OptiuneDepartament[] = randuri.map((r) => ({
     id: r.id,
     denumire: r.denumire,
     cod: r.cod,
+  }));
+  const optiuniAngajati: readonly OptiuneAngajat[] = listaAngajatiActivi.map((a) => ({
+    id: a.id,
+    full_name: a.full_name,
   }));
 
   return (
@@ -201,7 +258,7 @@ export default async function PaginaDepartamente() {
           </p>
         </div>
         {poateCrea ? (
-          <FormularDepartamentNou departamente={listaDepartamente} angajati={angajatiActivi.data ?? []} />
+          <FormularDepartamentNou departamente={listaDepartamente} angajati={optiuniAngajati} />
         ) : null}
       </header>
 
@@ -216,7 +273,7 @@ export default async function PaginaDepartamente() {
           noduri={arbore}
           nivel={1}
           departamente={listaDepartamente}
-          angajati={angajatiActivi.data ?? []}
+          angajati={optiuniAngajati}
           poateEdita={poateEdita}
         />
       )}

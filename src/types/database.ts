@@ -8756,6 +8756,14 @@ export type Database = {
         Returns: string
       }
       peek_invitation: { Args: { p_token: string }; Returns: Json }
+      set_member_avatar: {
+        Args: {
+          p_avatar_path: string
+          p_organization_id: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       submit_demo_request: {
         Args: {
           p_email: string

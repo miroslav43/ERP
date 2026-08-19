@@ -5,6 +5,7 @@ import { LogOut } from "lucide-react";
 import { deconecteaza } from "@/app/(app)/actions";
 import { FormularProfil } from "@/components/forms/formular-profil";
 import { requireUser } from "@/lib/auth/current-user";
+import { urlAvatar } from "@/lib/avatar/cale";
 import { citesteProfilPropriu } from "@/lib/queries/profile";
 
 export const metadata: Metadata = { title: "Profilul meu" };
@@ -23,6 +24,7 @@ export default async function PaginaProfilulMeu() {
       <FormularProfil
         numeInitial={profil?.full_name ?? user.fullName ?? ""}
         telefonInitial={profil?.phone ?? null}
+        avatarUrlInitial={urlAvatar(profil?.avatar_path ?? null)}
       />
 
       <form action={deconecteaza}>

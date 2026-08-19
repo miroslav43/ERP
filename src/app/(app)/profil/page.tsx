@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 
 import { FormularProfil } from "@/components/forms/formular-profil";
 import { requireUser } from "@/lib/auth/current-user";
+import { urlAvatar } from "@/lib/avatar/cale";
 import { citesteProfilPropriu } from "@/lib/queries/profile";
 import { formatDateTime } from "@/lib/format/date";
 
@@ -27,6 +28,7 @@ export default async function PaginaProfil() {
       <FormularProfil
         numeInitial={profil?.full_name ?? user.fullName ?? ""}
         telefonInitial={profil?.phone ?? null}
+        avatarUrlInitial={urlAvatar(profil?.avatar_path ?? null)}
       />
     </main>
   );

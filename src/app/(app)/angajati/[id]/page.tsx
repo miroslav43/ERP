@@ -4,16 +4,20 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AvatarAngajat } from "@/components/data/avatar-angajat";
+import { IncarcareAvatar } from "@/components/forms/incarcare-avatar";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate } from "@/lib/format/date";
 import { formatLei } from "@/lib/format/money";
+import { pregatesteIncarcareAvatarulPropriu, salveazaAvatarulPropriu } from "@/lib/actions/profile";
 import {
   citesteAngajat,
   citesteRezumatDateSensibile,
   idFisaProprie,
+  lantulDeManageri,
 } from "@/lib/queries/employees";
 
 import { CLASE_STATUS, ETICHETE_CONTRACT, ETICHETE_MOD_LUCRU, ETICHETE_STATUS } from "../etichete";
@@ -21,6 +25,7 @@ import { DateSensibile } from "./date-sensibile";
 import { FormularContractNou } from "./formular-contract-nou";
 import { FormularInceteazaContract } from "./formular-inceteaza-contract";
 import { FormularModificaSalariu } from "./formular-modifica-salariu";
+import { IncarcareAvatarAdmin } from "./incarcare-avatar-admin";
 
 export const metadata: Metadata = { title: "Fișa angajatului" };
 
@@ -65,17 +70,27 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
     scope === "all" ? await citesteRezumatDateSensibile(tenant.organizationId, id) : null;
   const contractPrincipal =
     angajat.contracts.find((c) => !c.este_act_aditional && c.status === "activ") ?? null;
+  const lantManageri = await lantulDeManageri(
+    tenant.organizationId,
+    angajat.manager_path,
+    angajat.id,
+  );
+  const esteFisaProprie = angajat.user_id === utilizator.id;
+  const poateIncarcaPtOricine = can(permisiuni, "users:update", "all");
 
   return (
     <main className="space-y-8 p-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">{angajat.full_name}</h1>
-          <p className="text-sm text-muted-foreground">
-            Marca <span className="font-mono">{angajat.marca}</span>
-            {angajat.job_position !== null ? ` · ${angajat.job_position.denumire}` : ""}
-            {angajat.department !== null ? ` · ${angajat.department.denumire}` : ""}
-          </p>
+        <div className="flex items-center gap-4">
+          <AvatarAngajat url={angajat.avatar_url} nume={angajat.full_name} marime="lg" />
+          <div>
+            <h1 className="text-2xl font-semibold">{angajat.full_name}</h1>
+            <p className="text-sm text-muted-foreground">
+              Marca <span className="font-mono">{angajat.marca}</span>
+              {angajat.job_position !== null ? ` · ${angajat.job_position.denumire}` : ""}
+              {angajat.department !== null ? ` · ${angajat.department.denumire}` : ""}
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           {can(permisiuni, "employees:update", "all") ? (
@@ -93,6 +108,73 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
           </span>
         </div>
       </header>
+
+      {esteFisaProprie ? (
+        <section aria-labelledby="titlu-foto" className="rounded-lg border border-border p-4">
+          <h2 id="titlu-foto" className="mb-4 text-lg font-medium">
+            Fotografia mea
+          </h2>
+          <IncarcareAvatar
+            urlInitial={angajat.avatar_url}
+            nume={angajat.full_name}
+            pregateste={pregatesteIncarcareAvatarulPropriu}
+            salveaza={salveazaAvatarulPropriu}
+          />
+        </section>
+      ) : poateIncarcaPtOricine ? (
+        <section aria-labelledby="titlu-foto" className="rounded-lg border border-border p-4">
+          <h2 id="titlu-foto" className="mb-4 text-lg font-medium">
+            Fotografie de profil
+          </h2>
+          {angajat.user_id === null ? (
+            <p className="text-sm text-muted-foreground">
+              Acest angajat nu are cont în portal — nu i se poate atașa o fotografie pe această
+              cale.
+            </p>
+          ) : (
+            <IncarcareAvatarAdmin
+              employeeId={angajat.id}
+              urlInitial={angajat.avatar_url}
+              nume={angajat.full_name}
+            />
+          )}
+        </section>
+      ) : null}
+
+      <section aria-labelledby="titlu-ierarhie" className="rounded-lg border border-border p-4">
+        <h2 id="titlu-ierarhie" className="mb-4 text-lg font-medium">
+          Ierarhie managerială
+        </h2>
+        {lantManageri.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            {angajat.manager_path.length <= 1
+              ? "Nu are niciun manager direct."
+              : "Lanțul de manageri nu a putut fi determinat."}
+          </p>
+        ) : (
+          <ol className="flex flex-wrap items-center gap-2 text-sm">
+            {lantManageri.map((veriga) => (
+              <li key={veriga.id} className="flex items-center gap-2">
+                <Link
+                  href={`/angajati/${veriga.id}`}
+                  className="border-border hover:bg-surface rounded-md border px-2 py-1"
+                >
+                  <span className="font-medium">{veriga.full_name}</span>
+                  {veriga.job_position !== null ? (
+                    <span className="text-muted-foreground"> · {veriga.job_position.denumire}</span>
+                  ) : null}
+                </Link>
+                <span aria-hidden="true" className="text-muted-foreground">
+                  →
+                </span>
+              </li>
+            ))}
+            <li className="border-foreground/60 bg-surface rounded-md border px-2 py-1 font-medium">
+              {angajat.full_name}
+            </li>
+          </ol>
+        )}
+      </section>
 
       <section
         aria-labelledby="titlu-date-personale"
@@ -122,7 +204,6 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
             valoare={String(angajat.nr_persoane_intretinere)}
           />
           <Camp eticheta="Grad de handicap" valoare={angajat.grad_handicap} />
-          <Camp eticheta="Manager direct" valoare={angajat.manager?.full_name ?? null} />
           <Camp
             eticheta="Angajat din"
             valoare={angajat.hired_on === null ? null : formatDate(angajat.hired_on)}

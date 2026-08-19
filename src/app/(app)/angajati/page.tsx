@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { UserPlus, Users } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AvatarAngajat } from "@/components/data/avatar-angajat";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { RandTabel } from "@/components/data/rand-tabel";
 import { SkeletonTable } from "@/components/data/skeleton-table";
@@ -66,6 +67,9 @@ async function TabelAngajati({ organizationId, scope, userId, parametri }: Propr
           <thead className="bg-surface text-foreground">
             <tr>
               <th scope="col" className="px-4 py-3 font-medium">
+                <span className="sr-only">Fotografie</span>
+              </th>
+              <th scope="col" className="px-4 py-3 font-medium">
                 Marcă
               </th>
               <th scope="col" className="px-4 py-3 font-medium">
@@ -88,6 +92,9 @@ async function TabelAngajati({ organizationId, scope, userId, parametri }: Propr
           <tbody className="divide-y divide-border">
             {randuri.map((rand) => (
               <RandTabel key={rand.id} href={`/angajati/${rand.id}`}>
+                <td className="px-4 py-3">
+                  <AvatarAngajat url={rand.avatar_url} nume={rand.full_name} marime="sm" />
+                </td>
                 <td className="px-4 py-3 font-mono text-xs">{rand.marca}</td>
                 <td className="px-4 py-3">
                   <Link
