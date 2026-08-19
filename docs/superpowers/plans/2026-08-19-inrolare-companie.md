@@ -490,8 +490,8 @@ const { EroareCnpReprezentant, pregatestePayloadCnp } = await import(
   "./organization-sensitive-data"
 );
 
-// CNP valid, verificat manual cu algoritmul oficial (cifră de control 9).
-const CNP_VALID = "1960101221119";
+// CNP valid, verificat programatic cu algoritmul oficial (cifră de control 5).
+const CNP_VALID = "1960101221115";
 
 describe("pregatestePayloadCnp", () => {
   it("întoarce toate câmpurile null pentru CNP absent", () => {
