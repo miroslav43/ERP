@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
+import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -17,6 +17,8 @@ import {
 
 import { CLASE_STATUS, ETICHETE_CONTRACT, ETICHETE_MOD_LUCRU, ETICHETE_STATUS } from "../etichete";
 import { DateSensibile } from "./date-sensibile";
+import { FormularContractNou } from "./formular-contract-nou";
+import { FormularModificaSalariu } from "./formular-modifica-salariu";
 
 export const metadata: Metadata = { title: "Fișa angajatului" };
 
@@ -182,6 +184,18 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
             ))}
           </ul>
         )}
+        {contractPrincipal === null
+          ? can(permisiuni, "employees:create", "all")
+            ? <FormularContractNou employeeId={angajat.id} />
+            : null
+          : can(permisiuni, "employees:update", "all")
+            ? (
+                <FormularModificaSalariu
+                  contractId={contractPrincipal.id}
+                  salariuActual={contractPrincipal.salariu_baza}
+                />
+              )
+            : null}
       </section>
 
       <section

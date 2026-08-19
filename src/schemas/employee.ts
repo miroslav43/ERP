@@ -248,6 +248,11 @@ export const incetareContractSchema = z.object({
   arhiveaza_fisa: z.coerce.boolean().default(false),
 });
 
+export const modificaSalariuContractSchema = z.object({
+  contract_id: z.uuid("Contractul selectat nu este valid."),
+  salariu_baza: z.coerce.number().min(0, "Salariul de bază nu poate fi negativ."),
+});
+
 // ── Dezvăluirea datelor sensibile ─────────────────────────────────────────────
 
 export const dezvaluieDateSensibileSchema = z.object({

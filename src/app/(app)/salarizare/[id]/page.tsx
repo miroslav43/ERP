@@ -10,11 +10,19 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatLei } from "@/lib/format/money";
 import { idDinRuta } from "@/lib/rute/parametri";
-import { citestePerioada, listeazaInregistrari } from "@/lib/queries/payroll";
+import {
+  angajatiActiviCuContract,
+  citestePerioada,
+  listeazaInregistrari,
+  primeSiRetineriPerioada,
+  type RandPrimaPerioada,
+  type RandRetinerePerioada,
+} from "@/lib/queries/payroll";
 import { Users } from "lucide-react";
 
 import { CLASE_STATUS_PERIOADA, ETICHETE_STATUS_PERIOADA, numeLuna } from "../etichete";
 import { ActiuniPerioada } from "./actiuni-perioada";
+import { RandAngajatDraft } from "./rand-angajat-draft";
 
 export const metadata: Metadata = { title: "Perioadă de salarizare" };
 
@@ -43,6 +51,24 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
   const inregistrari = perioada.status === "draft" ? [] : await listeazaInregistrari(perioada.id);
   const poateCalcula = can(permisiuni, "payroll:create", "all");
   const poateAproba = can(permisiuni, "payroll:approve", "all");
+
+  const angajatiDraft =
+    perioada.status === "draft" && poateCalcula
+      ? await angajatiActiviCuContract(tenant.organizationId)
+      : [];
+  const { prime, retineri } =
+    perioada.status === "draft" && poateCalcula
+      ? await primeSiRetineriPerioada(tenant.organizationId, perioada.id)
+      : { prime: [], retineri: [] };
+
+  const primePeAngajat = new Map<string, RandPrimaPerioada[]>();
+  for (const p of prime) {
+    primePeAngajat.set(p.employee_id, [...(primePeAngajat.get(p.employee_id) ?? []), p]);
+  }
+  const retineriPeAngajat = new Map<string, RandRetinerePerioada[]>();
+  for (const r of retineri) {
+    retineriPeAngajat.set(r.employee_id, [...(retineriPeAngajat.get(r.employee_id) ?? []), r]);
+  }
 
   return (
     <main className="space-y-6 p-6">
@@ -90,11 +116,29 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
       />
 
       {perioada.status === "draft" ? (
-        <EmptyState
-          icon={Users}
-          title="Perioada nu a fost încă calculată"
-          description="Apăsați „Calculează” pentru a genera fluturașii tuturor angajaților activi cu contract activ, pe baza pontajului blocat al lunii."
-        />
+        <>
+          <EmptyState
+            icon={Users}
+            title="Perioada nu a fost încă calculată"
+            description="Adăugați bonusuri sau rețineri per angajat mai jos, apoi apăsați „Calculează” pentru a genera fluturașii tuturor angajaților activi cu contract activ, pe baza pontajului blocat al lunii."
+          />
+          {poateCalcula && angajatiDraft.length > 0 ? (
+            <ul className="border-border divide-border divide-y rounded-lg border">
+              {angajatiDraft.map((a) => (
+                <li key={a.employee_id} className="p-4">
+                  <RandAngajatDraft
+                    periodId={perioada.id}
+                    employeeId={a.employee_id}
+                    nume={a.full_name || a.marca}
+                    salariuBaza={a.salariu_baza}
+                    prime={primePeAngajat.get(a.employee_id) ?? []}
+                    retineri={retineriPeAngajat.get(a.employee_id) ?? []}
+                  />
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </>
       ) : (
         <div className="border-border overflow-x-auto rounded-lg border">
           <table className="w-full text-sm">

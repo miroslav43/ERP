@@ -5,7 +5,9 @@
 // autorizate de pagina care o montează.
 
 import { formatLei } from "@/lib/format/money";
-import type { DetaliuInregistrare } from "@/lib/queries/payroll";
+import { ETICHETE_TIP_PRIMA, ETICHETE_TIP_RETINERE } from "@/domain/payroll/etichete";
+import type { DetaliuInregistrare, RandPrimaPerioada, RandRetinerePerioada } from "@/lib/queries/payroll";
+import { TaxePieChart } from "./taxe-pie-chart";
 
 const ETICHETE_PAS: Record<string, string> = {
   bazaSalariu: "Salariu de bază (zile plătite)",
@@ -27,7 +29,20 @@ const ETICHETE_PAS: Record<string, string> = {
   costTotalAngajator: "Cost total angajator",
 };
 
-export function Fluturas({ inregistrare }: { readonly inregistrare: DetaliuInregistrare }) {
+interface Proprietati {
+  readonly inregistrare: DetaliuInregistrare;
+  readonly bonusuri: readonly RandPrimaPerioada[];
+  readonly retineri: readonly RandRetinerePerioada[];
+}
+
+export function Fluturas({ inregistrare, bonusuri, retineri }: Proprietati) {
+  const felii = [
+    { eticheta: "Net (rămas angajatului)", valoare: inregistrare.net, culoareVar: "var(--color-success)" },
+    { eticheta: "CAS (pensie)", valoare: inregistrare.cas, culoareVar: "var(--color-warning)" },
+    { eticheta: "CASS (sănătate)", valoare: inregistrare.cass, culoareVar: "var(--color-accent)" },
+    { eticheta: "Impozit pe venit", valoare: inregistrare.impozit, culoareVar: "var(--color-danger)" },
+  ];
+
   return (
     <div className="space-y-6">
       <section
@@ -61,6 +76,44 @@ export function Fluturas({ inregistrare }: { readonly inregistrare: DetaliuInreg
             </li>
           ))}
         </ul>
+      )}
+
+      <section aria-label="Împărțirea salariului brut" className="border-border rounded-lg border p-4">
+        <TaxePieChart felii={felii} />
+        {inregistrare.retineri_total > 0 ? (
+          <p className="text-muted-foreground mt-3 text-sm">
+            Din net, {formatLei(inregistrare.retineri_total)} rețineri → net de plată efectiv:{" "}
+            <strong className="text-foreground">{formatLei(inregistrare.net_de_plata)}</strong>.
+          </p>
+        ) : null}
+        <p className="text-muted-foreground mt-1 text-xs">
+          Cost total angajator: {formatLei(inregistrare.cost_total_angajator)} (din care CAM
+          angajator: {formatLei(inregistrare.cam_angajator)} — cost suplimentar al angajatorului,
+          nu se scade din salariul dvs.).
+        </p>
+      </section>
+
+      {bonusuri.length === 0 && retineri.length === 0 ? null : (
+        <section aria-label="Prime și rețineri individuale" className="border-border rounded-lg border">
+          <ul className="divide-border divide-y text-sm">
+            {bonusuri.map((b) => (
+              <li key={b.id} className="text-success flex items-center gap-2 px-4 py-2">
+                <span className="tabular-nums">+ {formatLei(b.suma)}</span>
+                <span className="text-muted-foreground">
+                  {ETICHETE_TIP_PRIMA[b.tip] ?? b.tip} — {b.motiv}
+                </span>
+              </li>
+            ))}
+            {retineri.map((r) => (
+              <li key={r.id} className="text-danger flex items-center gap-2 px-4 py-2">
+                <span className="tabular-nums">− {formatLei(r.suma)}</span>
+                <span className="text-muted-foreground">
+                  {ETICHETE_TIP_RETINERE[r.tip] ?? r.tip} — {r.motiv}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       <section aria-label="Calculul detaliat" className="border-border rounded-lg border">

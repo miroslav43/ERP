@@ -8,7 +8,7 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { idFisaProprie } from "@/lib/queries/employees";
-import { citesteFluturasulPropriu } from "@/lib/queries/payroll";
+import { citesteFluturasulPropriu, listeazaBonusuriSiRetineri } from "@/lib/queries/payroll";
 import { Wallet } from "lucide-react";
 
 import { AVERTISMENT_SALARIZARE } from "../../../(app)/salarizare/etichete";
@@ -43,6 +43,14 @@ export default async function PaginaSalariulMeu() {
   }
 
   const inregistrare = await citesteFluturasulPropriu(tenant.organizationId, propriaFisaId);
+  const { bonusuri, retineri } =
+    inregistrare === null
+      ? { bonusuri: [], retineri: [] }
+      : await listeazaBonusuriSiRetineri(
+          tenant.organizationId,
+          inregistrare.period_id,
+          inregistrare.employee_id,
+        );
 
   return (
     <div className="space-y-4 p-4">
@@ -59,7 +67,7 @@ export default async function PaginaSalariulMeu() {
           <p className="text-muted-foreground border-warning/40 bg-warning/8 rounded-lg border p-3 text-xs">
             {AVERTISMENT_SALARIZARE}
           </p>
-          <Fluturas inregistrare={inregistrare} />
+          <Fluturas inregistrare={inregistrare} bonusuri={bonusuri} retineri={retineri} />
         </>
       )}
     </div>

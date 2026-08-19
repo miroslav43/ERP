@@ -9,7 +9,7 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { idDinRuta } from "@/lib/rute/parametri";
-import { citesteInregistrare } from "@/lib/queries/payroll";
+import { citesteInregistrare, listeazaBonusuriSiRetineri } from "@/lib/queries/payroll";
 
 import { AVERTISMENT_SALARIZARE } from "../../etichete";
 
@@ -38,6 +38,11 @@ export default async function PaginaFluturas({ params }: ProprietatiPagina) {
 
   const inregistrare = await citesteInregistrare(tenant.organizationId, idInregistrare);
   if (inregistrare === null) notFound();
+  const { bonusuri, retineri } = await listeazaBonusuriSiRetineri(
+    tenant.organizationId,
+    inregistrare.period_id,
+    inregistrare.employee_id,
+  );
 
   return (
     <main className="max-w-3xl space-y-6 p-6">
@@ -56,7 +61,7 @@ export default async function PaginaFluturas({ params }: ProprietatiPagina) {
         {AVERTISMENT_SALARIZARE}
       </div>
 
-      <Fluturas inregistrare={inregistrare} />
+      <Fluturas inregistrare={inregistrare} bonusuri={bonusuri} retineri={retineri} />
     </main>
   );
 }

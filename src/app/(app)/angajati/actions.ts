@@ -24,6 +24,7 @@ import {
   creeazaContractSchema,
   dezvaluieDateSensibileSchema,
   incetareContractSchema,
+  modificaSalariuContractSchema,
 } from "@/schemas/employee";
 
 interface RandSensibil {
@@ -377,6 +378,47 @@ export const inceteazaContract = createAction({
         .eq("organization_id", ctx.tenant.organizationId);
       if (eroareFisa !== null) throw eroareFisa;
     }
+
+    revalidatePath("/angajati");
+    revalidatePath(`/angajati/${contract.employee_id}`);
+    return { id: contract.id, employee_id: contract.employee_id };
+  },
+});
+
+export const modificaSalariulContractului = createAction({
+  name: "employees.contract.update_salary",
+  permission: "employees:update",
+  minScope: "all",
+  input: modificaSalariuContractSchema,
+  audit: {
+    action: "update",
+    entityType: "employment_contract",
+    entityId: (input) => input.contract_id,
+    // `salariu_baza` deliberat lipsă din allow-list — la fel ca la `creeazaContract`,
+    // suma salarială nu intră în jurnalul de audit în clar.
+    allow: ["contract_id"],
+  },
+  handler: async (ctx, input): Promise<Readonly<{ id: string; employee_id: string }>> => {
+    const db = await createServerSupabase();
+    const { data: contract, error: eroareCitire } = await db
+      .from("employment_contracts")
+      .select("id, employee_id, status, este_act_aditional")
+      .eq("id", input.contract_id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (eroareCitire !== null) throw eroareCitire;
+    if (contract === null) throw notFound("Contractul selectat nu a fost găsit.");
+    if (contract.status !== "activ" || contract.este_act_aditional) {
+      throw businessRule("Salariul se modifică doar pe contractul principal activ.");
+    }
+
+    const { error } = await db
+      .from("employment_contracts")
+      .update({ salariu_baza: input.salariu_baza, updated_by: ctx.user.id })
+      .eq("id", contract.id)
+      .eq("organization_id", ctx.tenant.organizationId);
+    if (error !== null) throw error;
 
     revalidatePath("/angajati");
     revalidatePath(`/angajati/${contract.employee_id}`);

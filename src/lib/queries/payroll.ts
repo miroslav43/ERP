@@ -194,6 +194,7 @@ export async function listeazaInregistrari(
 
 export interface DetaliuInregistrare {
   readonly id: string;
+  readonly period_id: string;
   readonly employee_id: string;
   readonly angajat: Readonly<{ full_name: string; marca: string }> | null;
   readonly zile_lucratoare_luna: number;
@@ -228,7 +229,7 @@ export interface DetaliuInregistrare {
 }
 
 const COLOANE_INREGISTRARE =
-  "id, employee_id, angajat:employees!employee_id(full_name, marca), zile_lucratoare_luna, zile_lucrate, zile_concediu_odihna, zile_concediu_medical, zile_absenta_nemotivata, ore_lucrate, ore_suplimentare, ore_noapte, baza_salariu, suma_ore_suplimentare, spor_noapte, prime_total, brut, nr_tichete, valoare_tichete, baza_cas_cass, cas, cass, deducere_personala, baza_impozit, impozit, cam_angajator, net, retineri_total, net_de_plata, cost_total_angajator, calc_breakdown, calc_warnings, calculat_la";
+  "id, period_id, employee_id, angajat:employees!employee_id(full_name, marca), zile_lucratoare_luna, zile_lucrate, zile_concediu_odihna, zile_concediu_medical, zile_absenta_nemotivata, ore_lucrate, ore_suplimentare, ore_noapte, baza_salariu, suma_ore_suplimentare, spor_noapte, prime_total, brut, nr_tichete, valoare_tichete, baza_cas_cass, cas, cass, deducere_personala, baza_impozit, impozit, cam_angajator, net, retineri_total, net_de_plata, cost_total_angajator, calc_breakdown, calc_warnings, calculat_la";
 
 export async function citesteInregistrare(
   organizationId: string,
@@ -309,6 +310,8 @@ export async function zileLucratoareLuna(
 export interface AngajatDeCalculat {
   readonly employee_id: string;
   readonly contract_id: string;
+  readonly full_name: string;
+  readonly marca: string;
   readonly salariu_baza: number;
   readonly nr_persoane_intretinere: number;
 }
@@ -319,6 +322,8 @@ export async function angajatiActiviCuContract(
   const db = await createServerSupabase();
   interface Bruta {
     readonly id: string;
+    readonly full_name: string;
+    readonly marca: string;
     readonly nr_persoane_intretinere: number;
     readonly contracts: readonly Readonly<{
       id: string;
@@ -330,7 +335,7 @@ export async function angajatiActiviCuContract(
   const { data, error } = await db
     .from("employees")
     .select(
-      "id, nr_persoane_intretinere, contracts:employment_contracts!employee_id(id, salariu_baza, status, este_act_aditional)",
+      "id, full_name, marca, nr_persoane_intretinere, contracts:employment_contracts!employee_id(id, salariu_baza, status, este_act_aditional)",
     )
     .eq("organization_id", organizationId)
     .eq("status", "activ")
@@ -345,11 +350,98 @@ export async function angajatiActiviCuContract(
     rezultat.push({
       employee_id: angajat.id,
       contract_id: contract.id,
+      full_name: angajat.full_name,
+      marca: angajat.marca,
       salariu_baza: contract.salariu_baza,
       nr_persoane_intretinere: angajat.nr_persoane_intretinere,
     });
   }
   return rezultat;
+}
+
+// ── Prime și rețineri, dinaintea calculului ─────────────────────────────────
+
+export interface RandPrimaPerioada {
+  readonly id: string;
+  readonly employee_id: string;
+  readonly tip: string;
+  readonly suma: number;
+  readonly motiv: string;
+  readonly impozabil: boolean;
+  readonly supus_contributii: boolean;
+}
+
+export interface RandRetinerePerioada {
+  readonly id: string;
+  readonly employee_id: string;
+  readonly tip: string;
+  readonly suma: number;
+  readonly motiv: string;
+  readonly procent_maxim_din_net: number | null;
+}
+
+export async function primeSiRetineriPerioada(
+  organizationId: string,
+  periodId: string,
+): Promise<
+  Readonly<{ prime: readonly RandPrimaPerioada[]; retineri: readonly RandRetinerePerioada[] }>
+> {
+  const db = await createServerSupabase();
+  const [{ data: prime, error: eroarePrime }, { data: retineri, error: eroareRetineri }] =
+    await Promise.all([
+      db
+        .from("payroll_bonuses")
+        .select("id, employee_id, tip, suma, motiv, impozabil, supus_contributii")
+        .eq("organization_id", organizationId)
+        .eq("period_id", periodId)
+        .is("deleted_at", null)
+        .returns<RandPrimaPerioada[]>(),
+      db
+        .from("payroll_deductions")
+        .select("id, employee_id, tip, suma, motiv, procent_maxim_din_net")
+        .eq("organization_id", organizationId)
+        .eq("period_id", periodId)
+        .is("deleted_at", null)
+        .returns<RandRetinerePerioada[]>(),
+    ]);
+  if (eroarePrime !== null) throw eroarePrime;
+  if (eroareRetineri !== null) throw eroareRetineri;
+  return { prime: prime ?? [], retineri: retineri ?? [] };
+}
+
+/** Prime și rețineri ale unui singur angajat pe o perioadă — pentru fluturașul individual. */
+export async function listeazaBonusuriSiRetineri(
+  organizationId: string,
+  periodId: string,
+  employeeId: string,
+): Promise<
+  Readonly<{ bonusuri: readonly RandPrimaPerioada[]; retineri: readonly RandRetinerePerioada[] }>
+> {
+  const db = await createServerSupabase();
+  const [{ data: bonusuri, error: eroareBonusuri }, { data: retineri, error: eroareRetineri }] =
+    await Promise.all([
+      db
+        .from("payroll_bonuses")
+        .select("id, employee_id, tip, suma, motiv, impozabil, supus_contributii")
+        .eq("organization_id", organizationId)
+        .eq("period_id", periodId)
+        .eq("employee_id", employeeId)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: true })
+        .returns<RandPrimaPerioada[]>(),
+      db
+        .from("payroll_deductions")
+        .select("id, employee_id, tip, suma, motiv, procent_maxim_din_net")
+        .eq("organization_id", organizationId)
+        .eq("period_id", periodId)
+        .eq("employee_id", employeeId)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: true })
+        .returns<RandRetinerePerioada[]>(),
+    ]);
+  if (eroareBonusuri !== null) throw eroareBonusuri;
+  if (eroareRetineri !== null) throw eroareRetineri;
+  return { bonusuri: bonusuri ?? [], retineri: retineri ?? [] };
 }
 
 export interface PontajAgregat {
