@@ -87,9 +87,19 @@ export default async function PaginaStingator({ params }: ProprietatiPagina) {
             {stingator.cladire === null ? null : ` · ${stingator.cladire}`}
           </p>
         </div>
-        <span className={`rounded px-2 py-1 text-xs font-medium ${CLASE_STATUS_STINGATOR[stingator.status]}`}>
-          {ETICHETE_STATUS_STINGATOR[stingator.status]}
-        </span>
+        <div className="flex items-center gap-3">
+          {can(permisiuni, "ssm:update", "team") ? (
+            <Link
+              href={`/ssm/stingatoare/${stingator.id}/editeaza`}
+              className="rounded-md border border-foreground/60 px-3 py-1.5 text-sm font-medium hover:bg-surface"
+            >
+              Editează
+            </Link>
+          ) : null}
+          <span className={`rounded px-2 py-1 text-xs font-medium ${CLASE_STATUS_STINGATOR[stingator.status]}`}>
+            {ETICHETE_STATUS_STINGATOR[stingator.status]}
+          </span>
+        </div>
       </header>
 
       <section

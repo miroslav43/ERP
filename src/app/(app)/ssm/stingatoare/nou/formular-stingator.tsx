@@ -5,11 +5,32 @@ import { useRouter } from "next/navigation";
 
 import { STATUS_STINGATOR } from "@/schemas/ssm";
 
-import { adaugaStingator } from "../../actions";
+import { actualizeazaStingator, adaugaStingator } from "../../actions";
 import { ETICHETE_STATUS_STINGATOR } from "../../etichete";
 
-export function FormularStingator() {
+export interface StingatorExistent {
+  readonly id: string;
+  readonly cod: string;
+  readonly tip: string;
+  readonly masa_kg: number | null;
+  readonly cladire: string | null;
+  readonly locatie: string;
+  readonly producator: string | null;
+  readonly serie: string | null;
+  readonly data_punerii_in_functiune: string | null;
+  readonly ultima_verificare: string | null;
+  readonly ultima_reincarcare: string | null;
+  readonly ultima_proba_presiune: string | null;
+  readonly status: string;
+}
+
+export function FormularStingator({
+  stingatorExistent,
+}: {
+  readonly stingatorExistent?: StingatorExistent;
+}) {
   const router = useRouter();
+  const editare = stingatorExistent !== undefined;
   const [inCurs, porneste] = useTransition();
   const [eroare, setEroare] = useState<string | null>(null);
   const id = {
@@ -36,7 +57,7 @@ export function FormularStingator() {
     const masa = text("masa_kg");
 
     porneste(async () => {
-      const rezultat = await adaugaStingator({
+      const valori = {
         cod: String(formular.get("cod") ?? ""),
         tip: String(formular.get("tip") ?? ""),
         masa_kg: masa === null ? null : Number(masa),
@@ -49,12 +70,17 @@ export function FormularStingator() {
         ultima_reincarcare: text("ultima_reincarcare"),
         ultima_proba_presiune: text("ultima_proba_presiune"),
         status: String(formular.get("status") ?? "activ"),
-      });
+      };
+      const rezultat = editare
+        ? await actualizeazaStingator({ ...valori, id: stingatorExistent.id })
+        : await adaugaStingator(valori);
       if (!rezultat.ok) {
         setEroare(rezultat.error.message);
         return;
       }
-      router.push(`/ssm/stingatoare/${rezultat.data.id}`);
+      const id = editare ? stingatorExistent.id : rezultat.data.id;
+      router.push(`/ssm/stingatoare/${id}`);
+      router.refresh();
     });
   }
 
@@ -70,6 +96,7 @@ export function FormularStingator() {
             name="cod"
             required
             maxLength={40}
+            defaultValue={stingatorExistent?.cod}
             className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
@@ -84,6 +111,7 @@ export function FormularStingator() {
             required
             maxLength={60}
             placeholder="pulbere, CO2, spumă…"
+            defaultValue={stingatorExistent?.tip}
             className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
@@ -98,6 +126,7 @@ export function FormularStingator() {
             type="number"
             min="0.1"
             step="0.1"
+            defaultValue={stingatorExistent?.masa_kg ?? undefined}
             className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
@@ -109,7 +138,7 @@ export function FormularStingator() {
           <select
             id={id.status}
             name="status"
-            defaultValue="activ"
+            defaultValue={stingatorExistent?.status ?? "activ"}
             className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           >
             {STATUS_STINGATOR.map((s) => (
@@ -129,6 +158,7 @@ export function FormularStingator() {
             name="locatie"
             required
             maxLength={200}
+            defaultValue={stingatorExistent?.locatie}
             className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
@@ -141,6 +171,7 @@ export function FormularStingator() {
             id={id.cladire}
             name="cladire"
             maxLength={120}
+            defaultValue={stingatorExistent?.cladire ?? undefined}
             className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
@@ -153,6 +184,7 @@ export function FormularStingator() {
             id={id.producator}
             name="producator"
             maxLength={120}
+            defaultValue={stingatorExistent?.producator ?? undefined}
             className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
@@ -165,6 +197,7 @@ export function FormularStingator() {
             id={id.serie}
             name="serie"
             maxLength={64}
+            defaultValue={stingatorExistent?.serie ?? undefined}
             className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
@@ -177,6 +210,7 @@ export function FormularStingator() {
             id={id.punere}
             name="data_punerii_in_functiune"
             type="date"
+            defaultValue={stingatorExistent?.data_punerii_in_functiune ?? undefined}
             className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
@@ -189,6 +223,7 @@ export function FormularStingator() {
             id={id.verificare}
             name="ultima_verificare"
             type="date"
+            defaultValue={stingatorExistent?.ultima_verificare ?? undefined}
             className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
@@ -201,6 +236,7 @@ export function FormularStingator() {
             id={id.reincarcare}
             name="ultima_reincarcare"
             type="date"
+            defaultValue={stingatorExistent?.ultima_reincarcare ?? undefined}
             className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
@@ -213,6 +249,7 @@ export function FormularStingator() {
             id={id.proba}
             name="ultima_proba_presiune"
             type="date"
+            defaultValue={stingatorExistent?.ultima_proba_presiune ?? undefined}
             className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
           />
         </div>
@@ -224,7 +261,7 @@ export function FormularStingator() {
           disabled={inCurs}
           className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
-          {inCurs ? "Se salvează…" : "Adaugă stingătorul"}
+          {inCurs ? "Se salvează…" : editare ? "Salvează modificările" : "Adaugă stingătorul"}
         </button>
         {eroare === null ? null : (
           <p role="alert" className="text-sm text-danger">
