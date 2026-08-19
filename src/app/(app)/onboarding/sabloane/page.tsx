@@ -6,6 +6,7 @@ import { FilePlus2, ListChecks } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { EmptyState } from "@/components/feedback/empty-state";
+import { RandTabel } from "@/components/data/rand-tabel";
 import { SkeletonTable } from "@/components/data/skeleton-table";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -78,7 +79,7 @@ async function TabelSabloane({
           </thead>
           <tbody className="divide-y divide-border">
             {randuri.map((s) => (
-              <tr key={s.id} className="hover:bg-surface">
+              <RandTabel key={s.id} href={`/onboarding/sabloane/${s.id}`}>
                 <td className="px-4 py-3 font-medium">
                   <Link
                     href={`/onboarding/sabloane/${s.id}`}
@@ -100,7 +101,7 @@ async function TabelSabloane({
                     {s.activ ? "Activ" : "Dezactivat"}
                   </span>
                 </td>
-              </tr>
+              </RandTabel>
             ))}
           </tbody>
         </table>

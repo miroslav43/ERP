@@ -7,6 +7,7 @@ import { Plane, PlaneTakeoff, Settings } from "lucide-react";
 import type { BaremTara } from "@/domain/per-diem/sume";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { EmptyState } from "@/components/feedback/empty-state";
+import { RandTabel } from "@/components/data/rand-tabel";
 import { SkeletonTable } from "@/components/data/skeleton-table";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -150,7 +151,7 @@ async function TabelDeplasari({
             {randuri.map((r) => {
               const angajat = angajati.get(r.employee_id);
               return (
-                <tr key={r.id} className="hover:bg-surface">
+                <RandTabel key={r.id} href={`/diurna/${r.id}`}>
                   <td className="px-4 py-3 font-medium">
                     <Link
                       href={`/diurna/${r.id}`}
@@ -190,7 +191,7 @@ async function TabelDeplasari({
                       );
                     })()}
                   </td>
-                </tr>
+                </RandTabel>
               );
             })}
           </tbody>

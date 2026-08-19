@@ -6,6 +6,7 @@ import { Plus, ShieldAlert } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { EmptyState } from "@/components/feedback/empty-state";
+import { RandTabel } from "@/components/data/rand-tabel";
 import { SkeletonTable } from "@/components/data/skeleton-table";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -90,7 +91,7 @@ async function TabelAccidente({
             {randuri.map((a) => {
               const angajat = a.employee_id === null ? undefined : angajati.get(a.employee_id);
               return (
-                <tr key={a.id} className="hover:bg-surface">
+                <RandTabel key={a.id} href={`/ssm/accidente/${a.id}`}>
                   <td className="px-4 py-3 whitespace-nowrap">
                     <Link
                       href={`/ssm/accidente/${a.id}`}
@@ -117,7 +118,7 @@ async function TabelAccidente({
                   <td className="px-4 py-3">
                     {a.cercetare_finalizata_la === null ? "În curs" : formatDate(a.cercetare_finalizata_la)}
                   </td>
-                </tr>
+                </RandTabel>
               );
             })}
           </tbody>

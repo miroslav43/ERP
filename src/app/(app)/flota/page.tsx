@@ -6,6 +6,7 @@ import { Car, CarFront } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { EmptyState } from "@/components/feedback/empty-state";
+import { RandTabel } from "@/components/data/rand-tabel";
 import { SkeletonTable } from "@/components/data/skeleton-table";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -116,7 +117,7 @@ async function TabelVehicule({
               const scadenta = celMaiApropiat(v.id);
               const stare = stareScadenta(scadenta?.expira_la ?? null, azi);
               return (
-                <tr key={v.id} className="hover:bg-surface">
+                <RandTabel key={v.id} href={`/flota/${v.id}`}>
                   <td className="px-4 py-3 font-medium">
                     <Link
                       href={`/flota/${v.id}`}
@@ -155,7 +156,7 @@ async function TabelVehicule({
                       </span>
                     )}
                   </td>
-                </tr>
+                </RandTabel>
               );
             })}
           </tbody>

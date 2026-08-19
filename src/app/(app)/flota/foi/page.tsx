@@ -6,6 +6,7 @@ import { ClipboardList, FilePlus2 } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { EmptyState } from "@/components/feedback/empty-state";
+import { RandTabel } from "@/components/data/rand-tabel";
 import { SkeletonTable } from "@/components/data/skeleton-table";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -102,7 +103,7 @@ async function TabelFoi({
               const vehicul = vehicule.get(f.vehicle_id);
               const sofer = f.employee_id === null ? undefined : soferi.get(f.employee_id);
               return (
-                <tr key={f.id} className="hover:bg-surface">
+                <RandTabel key={f.id} href={`/flota/foi/${f.id}`}>
                   <td className="px-4 py-3 whitespace-nowrap">
                     <Link
                       href={`/flota/foi/${f.id}`}
@@ -135,7 +136,7 @@ async function TabelFoi({
                       {ETICHETE_STATUS_FOAIE[f.status]}
                     </span>
                   </td>
-                </tr>
+                </RandTabel>
               );
             })}
           </tbody>

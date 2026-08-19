@@ -6,6 +6,7 @@ import { CalendarPlus, CalendarRange } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { EmptyState } from "@/components/feedback/empty-state";
+import { RandTabel } from "@/components/data/rand-tabel";
 import { SkeletonTable } from "@/components/data/skeleton-table";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -88,7 +89,7 @@ async function TabelCereri({
     const tip = hartaTipuri.get(cerere.leave_type_id);
     const angajat = hartaAngajati.get(cerere.employee_id);
     return (
-      <tr key={cerere.id} className="hover:bg-surface">
+      <RandTabel key={cerere.id} href={`/concedii/${cerere.id}`}>
         {aratăAngajat ? (
           <td className="px-4 py-3">
             {angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`}
@@ -121,7 +122,7 @@ async function TabelCereri({
             Detalii
           </Link>
         </td>
-      </tr>
+      </RandTabel>
     );
   }
 

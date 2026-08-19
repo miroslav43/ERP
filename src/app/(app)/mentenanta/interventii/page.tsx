@@ -6,6 +6,7 @@ import { Wrench } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { EmptyState } from "@/components/feedback/empty-state";
+import { RandTabel } from "@/components/data/rand-tabel";
 import { SkeletonTable } from "@/components/data/skeleton-table";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -97,7 +98,14 @@ async function TabelInterventii({
             {randuri.map((interventie) => {
               const echipament = echipamente.get(interventie.equipment_id);
               return (
-                <tr key={interventie.id} className="hover:bg-surface">
+                <RandTabel
+                  key={interventie.id}
+                  href={
+                    echipament === undefined
+                      ? null
+                      : `/mentenanta/echipamente/${interventie.equipment_id}`
+                  }
+                >
                   <td className="px-4 py-3">{formatDate(interventie.data)}</td>
                   <td className="px-4 py-3">
                     {echipament === undefined ? (
@@ -123,7 +131,7 @@ async function TabelInterventii({
                       {ETICHETE_REZULTAT_INTERVENTIE[interventie.rezultat]}
                     </span>
                   </td>
-                </tr>
+                </RandTabel>
               );
             })}
           </tbody>

@@ -6,6 +6,7 @@ import { Wrench } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { EmptyState } from "@/components/feedback/empty-state";
+import { RandTabel } from "@/components/data/rand-tabel";
 import { SkeletonTable } from "@/components/data/skeleton-table";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -94,7 +95,7 @@ async function TabelSesizari({
             {randuri.map((sesizare) => {
               const echipament = echipamente.get(sesizare.equipment_id);
               return (
-                <tr key={sesizare.id} className="hover:bg-surface">
+                <RandTabel key={sesizare.id} href={`/mentenanta/sesizari/${sesizare.id}`}>
                   <td className="px-4 py-3 font-medium">
                     {echipament === undefined ? "Echipament necunoscut" : `${echipament.cod} — ${echipament.denumire}`}
                   </td>
@@ -121,7 +122,7 @@ async function TabelSesizari({
                       {ETICHETE_STATUS_SESIZARE[sesizare.status]}
                     </span>
                   </td>
-                </tr>
+                </RandTabel>
               );
             })}
           </tbody>

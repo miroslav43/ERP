@@ -1,6 +1,7 @@
 // src/app/(app)/revisal/page.tsx
 import { FileCheck2 } from "lucide-react";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { RandTabel } from "@/components/data/rand-tabel";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { meetsScope } from "@/config/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -147,7 +148,11 @@ export default async function PaginaRevisal(props: {
             </thead>
             <tbody className="divide-y divide-border bg-background">
               {randuri.map((rand) => (
-                <tr key={rand.id} className={rand.stare === "intarziat" ? "bg-danger/8" : undefined}>
+                <RandTabel
+                  key={rand.id}
+                  href={`/angajati/${rand.angajatId}`}
+                  className={rand.stare === "intarziat" ? "bg-danger/8" : ""}
+                >
                   <td className="px-4 py-3">
                     <span className="font-medium text-foreground">{rand.angajatNume}</span>
                     <span className="block text-xs text-muted-foreground">
@@ -188,7 +193,7 @@ export default async function PaginaRevisal(props: {
                       <span className="text-xs text-muted-foreground">Fără drept de marcare</span>
                     )}
                   </td>
-                </tr>
+                </RandTabel>
               ))}
             </tbody>
           </table>

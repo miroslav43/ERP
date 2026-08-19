@@ -6,6 +6,7 @@ import { ClipboardList, ListChecks } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { EmptyState } from "@/components/feedback/empty-state";
+import { RandTabel } from "@/components/data/rand-tabel";
 import { SkeletonTable } from "@/components/data/skeleton-table";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -107,7 +108,7 @@ async function TabelInstante({
               const angajat = angajati.get(r.employee_id);
               const p = progres.get(r.id) ?? { total: 0, gata: 0, procent: 0 };
               return (
-                <tr key={r.id} className="hover:bg-surface">
+                <RandTabel key={r.id} href={`/onboarding/${r.id}`}>
                   <td className="px-4 py-3 font-medium">
                     <Link
                       href={`/onboarding/${r.id}`}
@@ -138,7 +139,7 @@ async function TabelInstante({
                       </span>
                     </div>
                   </td>
-                </tr>
+                </RandTabel>
               );
             })}
           </tbody>

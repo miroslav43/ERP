@@ -6,6 +6,7 @@ import { FireExtinguisher, Plus } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { EmptyState } from "@/components/feedback/empty-state";
+import { RandTabel } from "@/components/data/rand-tabel";
 import { SkeletonTable } from "@/components/data/skeleton-table";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -114,7 +115,7 @@ async function TabelStingatoare({
           </thead>
           <tbody className="divide-y divide-border">
             {randuri.map((s) => (
-              <tr key={s.id} className="hover:bg-surface">
+              <RandTabel key={s.id} href={`/ssm/stingatoare/${s.id}`}>
                 <td className="px-4 py-3 font-medium">
                   <Link
                     href={`/ssm/stingatoare/${s.id}`}
@@ -152,7 +153,7 @@ async function TabelStingatoare({
                   scadenta={s.scadenta_proba_presiune}
                   azi={azi}
                 />
-              </tr>
+              </RandTabel>
             ))}
           </tbody>
         </table>

@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { CalendarClock } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { RandTabel } from "@/components/data/rand-tabel";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -90,7 +91,14 @@ export default async function PaginaPlanuri() {
                 const echipament = echipamente.get(plan.equipment_id);
                 const stare = stareScadentaData(plan.urmatoarea_scadenta, azi);
                 return (
-                  <tr key={plan.id} className="hover:bg-surface">
+                  <RandTabel
+                    key={plan.id}
+                    href={
+                      echipament === undefined
+                        ? null
+                        : `/mentenanta/echipamente/${plan.equipment_id}`
+                    }
+                  >
                     <td className="px-4 py-3 font-medium">
                       {plan.denumire}
                       <span className="ml-1 text-xs text-muted-foreground">
@@ -133,7 +141,7 @@ export default async function PaginaPlanuri() {
                         </span>
                       ) : null}
                     </td>
-                  </tr>
+                  </RandTabel>
                 );
               })}
             </tbody>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { RandTabel } from "@/components/data/rand-tabel";
 import { SkeletonTable } from "@/components/data/skeleton-table";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -76,7 +77,10 @@ async function TabelPerioade({
             const luna = index + 1;
             const perioada = dupaLuna.get(luna) ?? null;
             return (
-              <tr key={luna} className="hover:bg-surface">
+              <RandTabel
+                key={luna}
+                href={perioada === null ? null : `/pontaj/perioade/${perioada.id}`}
+              >
                 <td className="px-4 py-3 font-medium">{eticheta}</td>
                 <td className="px-4 py-3 text-muted-foreground">
                   {perioada === null
@@ -104,7 +108,7 @@ async function TabelPerioade({
                     poateBloca={poateBloca}
                   />
                 </td>
-              </tr>
+              </RandTabel>
             );
           })}
         </tbody>

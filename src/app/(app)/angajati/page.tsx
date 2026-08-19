@@ -6,6 +6,7 @@ import { UserPlus, Users } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { EmptyState } from "@/components/feedback/empty-state";
+import { RandTabel } from "@/components/data/rand-tabel";
 import { SkeletonTable } from "@/components/data/skeleton-table";
 import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -86,7 +87,7 @@ async function TabelAngajati({ organizationId, scope, userId, parametri }: Propr
           </thead>
           <tbody className="divide-y divide-border">
             {randuri.map((rand) => (
-              <tr key={rand.id} className="hover:bg-surface">
+              <RandTabel key={rand.id} href={`/angajati/${rand.id}`}>
                 <td className="px-4 py-3 font-mono text-xs">{rand.marca}</td>
                 <td className="px-4 py-3">
                   <Link
@@ -111,7 +112,7 @@ async function TabelAngajati({ organizationId, scope, userId, parametri }: Propr
                     {ETICHETE_STATUS[rand.status]}
                   </span>
                 </td>
-              </tr>
+              </RandTabel>
             ))}
           </tbody>
         </table>

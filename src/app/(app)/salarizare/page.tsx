@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { RandTabel } from "@/components/data/rand-tabel";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -83,7 +84,7 @@ export default async function PaginaSalarizare() {
             </thead>
             <tbody className="divide-border divide-y">
               {perioade.map((p) => (
-                <tr key={p.id}>
+                <RandTabel key={p.id} href={`/salarizare/${p.id}`}>
                   <td className="px-4 py-3">
                     <Link href={`/salarizare/${p.id}`} className="underline-offset-2 hover:underline">
                       {numeLuna(p.luna)} {p.an}
@@ -99,7 +100,7 @@ export default async function PaginaSalarizare() {
                   <td className="px-4 py-3 text-right tabular-nums">{formatLei(p.total_brut)}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{formatLei(p.total_net)}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{formatLei(p.total_cost_angajator)}</td>
-                </tr>
+                </RandTabel>
               ))}
             </tbody>
           </table>

@@ -6,6 +6,7 @@ import { Package, PackagePlus } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { EmptyState } from "@/components/feedback/empty-state";
+import { RandTabel } from "@/components/data/rand-tabel";
 import { SkeletonTable } from "@/components/data/skeleton-table";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -93,7 +94,7 @@ async function TabelInventar({ organizationId, parametri, categorii: listaCatego
             {randuri.map((rand) => {
               const detinator = detinatori.get(rand.id);
               return (
-                <tr key={rand.id} className="hover:bg-surface">
+                <RandTabel key={rand.id} href={`/inventar/${rand.id}`}>
                   <td className="px-4 py-3">
                     <Link
                       href={`/inventar/${rand.id}`}
@@ -127,7 +128,7 @@ async function TabelInventar({ organizationId, parametri, categorii: listaCatego
                     {detinator === undefined ? "—" : (detinator.angajatNume ?? "—")}
                   </td>
                   <td className="px-4 py-3">{rand.valoare === null ? "—" : formatLei(rand.valoare)}</td>
-                </tr>
+                </RandTabel>
               );
             })}
           </tbody>
