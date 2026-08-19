@@ -5,21 +5,37 @@ import { useRouter } from "next/navigation";
 
 import { TIPURI_CONTOR, TIPURI_MENTENANTA } from "@/schemas/maintenance";
 import { ETICHETE_TIP_CONTOR, ETICHETE_TIP_MENTENANTA } from "../../etichete";
-import { creeazaPlan } from "../../actions";
+import { actualizeazaPlan, creeazaPlan } from "../../actions";
 
 interface Optiune {
   readonly id: string;
   readonly nume: string;
 }
 
+export interface PlanExistent {
+  readonly id: string;
+  readonly denumire: string;
+  readonly tip: string;
+  readonly periodicitate_zile: number | null;
+  readonly periodicitate_contor: number | null;
+  readonly tip_contor: string | null;
+  readonly ultima_executie: string | null;
+  readonly responsabil_employee_id: string | null;
+  readonly instructiuni: string | null;
+  readonly activ: boolean;
+}
+
 export function FormularPlan({
   equipmentId,
   angajati,
+  planExistent,
 }: {
   readonly equipmentId: string;
   readonly angajati: readonly Optiune[];
+  readonly planExistent?: PlanExistent;
 }) {
   const router = useRouter();
+  const editare = planExistent !== undefined;
   const [inCurs, porneste] = useTransition();
   const [eroare, setEroare] = useState<string | null>(null);
   const idDenumire = useId();
@@ -41,7 +57,7 @@ export function FormularPlan({
     const perContor = gol("periodicitate_contor");
 
     porneste(async () => {
-      const rezultat = await creeazaPlan({
+      const valori = {
         equipment_id: equipmentId,
         denumire: String(formular.get("denumire") ?? ""),
         tip: String(formular.get("tip") ?? "preventiva"),
@@ -53,7 +69,10 @@ export function FormularPlan({
         responsabil_employee_id: gol("responsabil_employee_id"),
         instructiuni: gol("instructiuni"),
         activ: formular.get("activ") === "on",
-      });
+      };
+      const rezultat = editare
+        ? await actualizeazaPlan({ ...valori, id: planExistent.id })
+        : await creeazaPlan(valori);
       if (!rezultat.ok) {
         setEroare(rezultat.error.message);
         return;
@@ -67,7 +86,9 @@ export function FormularPlan({
       action={trimite}
       className="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-2 lg:grid-cols-3"
     >
-      <p className="text-sm font-medium sm:col-span-2 lg:col-span-3">Plan de mentenanță nou</p>
+      <p className="text-sm font-medium sm:col-span-2 lg:col-span-3">
+        {editare ? "Editează planul" : "Plan de mentenanță nou"}
+      </p>
 
       <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-1">
         <label htmlFor={idDenumire} className="text-sm">
@@ -78,6 +99,7 @@ export function FormularPlan({
           name="denumire"
           required
           maxLength={200}
+          defaultValue={planExistent?.denumire}
           className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
@@ -89,7 +111,7 @@ export function FormularPlan({
         <select
           id={idTip}
           name="tip"
-          defaultValue="preventiva"
+          defaultValue={planExistent?.tip ?? "preventiva"}
           className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         >
           {TIPURI_MENTENANTA.map((t) => (
@@ -101,7 +123,13 @@ export function FormularPlan({
       </div>
 
       <div className="flex items-center gap-2 self-end">
-        <input id={idActiv} name="activ" type="checkbox" defaultChecked className="size-4" />
+        <input
+          id={idActiv}
+          name="activ"
+          type="checkbox"
+          defaultChecked={planExistent?.activ ?? true}
+          className="size-4"
+        />
         <label htmlFor={idActiv} className="text-sm">
           Plan activ
         </label>
@@ -116,6 +144,7 @@ export function FormularPlan({
           name="periodicitate_zile"
           type="number"
           min="1"
+          defaultValue={planExistent?.periodicitate_zile ?? undefined}
           className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
@@ -130,6 +159,7 @@ export function FormularPlan({
           type="number"
           min="0.01"
           step="0.01"
+          defaultValue={planExistent?.periodicitate_contor ?? undefined}
           className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
@@ -141,6 +171,7 @@ export function FormularPlan({
         <select
           id={idTipContor}
           name="tip_contor"
+          defaultValue={planExistent?.tip_contor ?? ""}
           className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         >
           <option value="">— (doar dacă e periodicitate pe contor)</option>
@@ -160,6 +191,7 @@ export function FormularPlan({
           id="ultima_executie"
           name="ultima_executie"
           type="date"
+          defaultValue={planExistent?.ultima_executie ?? undefined}
           className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
@@ -171,6 +203,7 @@ export function FormularPlan({
         <select
           id={idResponsabil}
           name="responsabil_employee_id"
+          defaultValue={planExistent?.responsabil_employee_id ?? ""}
           className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         >
           <option value="">Nespecificat</option>
@@ -191,6 +224,7 @@ export function FormularPlan({
           name="instructiuni"
           rows={2}
           maxLength={2000}
+          defaultValue={planExistent?.instructiuni ?? undefined}
           className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         />
       </div>
@@ -201,7 +235,7 @@ export function FormularPlan({
           disabled={inCurs}
           className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
-          {inCurs ? "Se salvează…" : "Salvează planul"}
+          {inCurs ? "Se salvează…" : editare ? "Salvează modificările" : "Salvează planul"}
         </button>
         {eroare === null ? null : (
           <p role="alert" className="text-sm text-danger">

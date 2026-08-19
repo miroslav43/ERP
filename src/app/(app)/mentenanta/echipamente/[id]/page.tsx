@@ -41,6 +41,7 @@ import { FormularEchipament } from "../formular-echipament";
 import { FormularContor } from "./formular-contor";
 import { FormularInterventie } from "./formular-interventie";
 import { FormularIscir } from "./formular-iscir";
+import { ButonEditeazaPlan } from "./buton-editeaza-plan";
 import { FormularPlan } from "./formular-plan";
 
 export const metadata: Metadata = { title: "Fișa echipamentului" };
@@ -351,6 +352,15 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
                         ? `La ${plan.periodicitate_contor} ${ETICHETE_TIP_CONTOR[plan.tip_contor]}`
                         : ""}
                     </p>
+                    {poateScrie ? (
+                      <div className="mt-2">
+                        <ButonEditeazaPlan
+                          equipmentId={echipament.id}
+                          angajati={angajatiGenerali}
+                          planExistent={plan}
+                        />
+                      </div>
+                    ) : null}
                   </div>
                   <div className="flex flex-col items-end gap-1 text-right">
                     <span className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_STARE_SCADENTA[stare]}`}>
