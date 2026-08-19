@@ -53,6 +53,7 @@ export function meetsScope(granted: PermissionScope | undefined, min: MinScope):
 export const PERMISSION_KEYS = [
   "announcements:read",
   "announcements:create",
+  "announcements:update",
   "attendance:read",
   "attendance:create",
   "attendance:approve",

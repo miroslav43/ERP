@@ -8,7 +8,8 @@
 // au primit înapoi manual `| null` pe argumentele opționale: generatorul curent
 // le tipează doar `?: T` (omisibil), dar parametrii SQL au `default null` —
 // apelanții existenți trimit explicit `null`, nu omit cheia. Fără patch,
-// regenerarea rupe ~8 fișiere fără nicio schimbare de schemă.
+// regenerarea rupe fișierele care apelează aceste RPC-uri fără nicio schimbare
+// reală de schemă.
 
 export type Json =
   | string
@@ -163,6 +164,111 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "alert_rules_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      announcement_reads: {
+        Row: {
+          announcement_id: string
+          citit_la: string
+          created_at: string
+          employee_id: string
+          id: string
+          organization_id: string
+          user_id: string
+        }
+        Insert: {
+          announcement_id: string
+          citit_la?: string
+          created_at?: string
+          employee_id: string
+          id?: string
+          organization_id: string
+          user_id: string
+        }
+        Update: {
+          announcement_id?: string
+          citit_la?: string
+          created_at?: string
+          employee_id?: string
+          id?: string
+          organization_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "announcement_reads_announcement_id_fkey"
+            columns: ["announcement_id"]
+            isOneToOne: false
+            referencedRelation: "announcements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "announcement_reads_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "announcement_reads_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      announcements: {
+        Row: {
+          continut: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          expira_la: string | null
+          fixat: boolean
+          id: string
+          organization_id: string
+          publicat_la: string | null
+          titlu: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          continut: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          expira_la?: string | null
+          fixat?: boolean
+          id?: string
+          organization_id: string
+          publicat_la?: string | null
+          titlu: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          continut?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          expira_la?: string | null
+          fixat?: boolean
+          id?: string
+          organization_id?: string
+          publicat_la?: string | null
+          titlu?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "announcements_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"

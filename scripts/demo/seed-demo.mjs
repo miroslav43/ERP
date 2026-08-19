@@ -176,6 +176,7 @@ const MODULE_DEMO = [
   "inventory",
   "ssm",
   "employee_portal",
+  "announcements",
 ];
 
 // ── utilitare ───────────────────────────────────────────────────────────────
@@ -538,10 +539,7 @@ function afiseazaCredentiale() {
     console.log(`│ ${c.email.padEnd(lat)} ${roluri.join(", ")}`.padEnd(64) + " │");
   }
   console.log("└" + "─".repeat(63) + "┘");
-  console.log(
-    `\n${ORG_DEMO.name} are toate modulele cu ecrane reale activate — vezi lista de mai sus.\n` +
-      "Anunțurile (Faza 11) rămân dezactivate: n-au încă nicio pagină.",
-  );
+  console.log(`\n${ORG_DEMO.name} are toate cele unsprezece module activate — vezi lista de mai sus.`);
 }
 
 // ── ─────────────────────────────────────────────────────────────────────────

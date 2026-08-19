@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, Clock, FileText, House } from "lucide-react";
+import { CalendarDays, Clock, FileText, House, Wallet } from "lucide-react";
 
 interface Intrare {
   readonly id: string;
@@ -23,6 +23,7 @@ const ICONITE: Readonly<Record<string, typeof House>> = {
   "portal-concedii": CalendarDays,
   "portal-pontaj": Clock,
   "portal-documente": FileText,
+  "portal-salariul": Wallet,
 };
 
 export function BaraPortal({ intrari }: { readonly intrari: readonly Intrare[] }) {

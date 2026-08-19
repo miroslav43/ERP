@@ -6,6 +6,7 @@ import { CalendarDays, Clock, FileText, Wallet } from "lucide-react";
 import { getEnabledFeatures } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
+import { idAnunturiCitite, listeazaAnunturi } from "@/lib/queries/announcements";
 import { cererileMele, fisaProprie, soldurileMele, tipuriConcediu } from "@/lib/queries/portal";
 
 import { ETICHETE_STATUS_CERERE } from "./etichete";
@@ -34,7 +35,7 @@ export default async function PaginaPortal() {
   }
 
   const an = Number(todayInBucharest().slice(0, 4));
-  const [solduri, cereri, tipuri] = await Promise.all([
+  const [solduri, cereri, tipuri, anunturi, anunturiCitite] = await Promise.all([
     moduleActive.has("leave")
       ? soldurileMele(tenant.organizationId, an, fisa.id)
       : Promise.resolve([]),
@@ -44,7 +45,14 @@ export default async function PaginaPortal() {
     moduleActive.has("leave")
       ? tipuriConcediu(tenant.organizationId)
       : Promise.resolve(new Map<string, { id: string; denumire: string; culoare: string | null }>()),
+    moduleActive.has("announcements")
+      ? listeazaAnunturi(tenant.organizationId)
+      : Promise.resolve([]),
+    moduleActive.has("announcements")
+      ? idAnunturiCitite(tenant.organizationId, fisa.id)
+      : Promise.resolve(new Set<string>()),
   ]);
+  const anunturiRecente = anunturi.filter((a) => a.publicat_la !== null).slice(0, 3);
 
   // Soldul care contează pentru un om e cel de odihnă. Îl alegem pe cel mai mare
   // drept anual: e concediul de odihnă în orice configurație rezonabilă, iar dacă
@@ -109,6 +117,43 @@ export default async function PaginaPortal() {
                 </div>
               </li>
             ))}
+          </ul>
+        </section>
+      )}
+
+      {anunturiRecente.length === 0 ? null : (
+        <section aria-labelledby="anunturi" className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h2 id="anunturi" className="text-foreground text-sm font-semibold">
+              Anunțuri
+            </h2>
+            <Link
+              href="/anunturi"
+              className="text-primary text-xs underline-offset-2 hover:underline"
+            >
+              Toate
+            </Link>
+          </div>
+          <ul className="space-y-2">
+            {anunturiRecente.map((a) => {
+              const necitit = !anunturiCitite.has(a.id);
+              return (
+                <li key={a.id}>
+                  <Link
+                    href={`/portal/anunturi/${a.id}`}
+                    className="bg-surface border-border flex items-center justify-between gap-3 rounded-lg border p-3"
+                  >
+                    <span className="text-foreground text-sm font-medium">{a.titlu}</span>
+                    {necitit ? (
+                      <span
+                        aria-label="Necitit"
+                        className="bg-primary size-2 shrink-0 rounded-full"
+                      />
+                    ) : null}
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </section>
       )}
