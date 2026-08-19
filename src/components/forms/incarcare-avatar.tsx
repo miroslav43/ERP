@@ -81,7 +81,7 @@ export function IncarcareAvatar({ urlInitial, nume, pregateste, salveaza }: Prop
       <AvatarAngajat url={urlInitial} nume={nume} marime="lg" />
       <div className="flex flex-col gap-1">
         <label htmlFor={idFisier} className="text-sm font-medium">
-          Fotografie de profil
+          Schimbă fotografia
         </label>
         <input
           ref={referinta}

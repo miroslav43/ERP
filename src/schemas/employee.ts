@@ -168,8 +168,35 @@ export const creeazaAngajatSchema = z.object({
 
 export type CreeazaAngajatInput = z.infer<typeof creeazaAngajatSchema>;
 
+/**
+ * `.pick()`, NU `.omit()`: formularul de editare atinge doar aceste 12 câmpuri.
+ * Un `creeazaAngajatSchema.omit({...})` ar fi moștenit implicit orice câmp
+ * viitor adăugat acolo (inclusiv unele cu `.default(...)`) — exact mecanismul
+ * care a provocat bug-ul găsit aici: `manager_employee_id` (și, la fel,
+ * `cetatenie`, `conditii_munca`, `nr_persoane_intretinere`, `optiune_pilon_ii`,
+ * adresa/actul de identitate, contactul de urgență, observațiile) erau
+ * ABSENTE din payload-ul trimis de client, Zod le aplica `.default(...)` la
+ * parsare, iar handler-ul le trimitea mai departe la `.update(...)` — deci
+ * FIECARE salvare din acest formular reseta silențios acele câmpuri, chiar și
+ * când angajatul modifica doar telefonul. `.pick()` e sigur implicit: un câmp
+ * nou adăugat la `creeazaAngajatSchema` NU ajunge aici decât dacă e listat
+ * explicit, deci formularul trebuie extins înainte ca schema să-l accepte.
+ */
 export const actualizeazaAngajatSchema = creeazaAngajatSchema
-  .omit({ marca: true, is_primary: true })
+  .pick({
+    last_name: true,
+    first_name: true,
+    email_personal: true,
+    telefon: true,
+    data_nasterii: true,
+    gen: true,
+    department_id: true,
+    job_position_id: true,
+    hired_on: true,
+    cnp: true,
+    iban: true,
+    banca: true,
+  })
   .extend({ id: z.uuid("Angajatul selectat nu este valid.") });
 
 // ── Contract ──────────────────────────────────────────────────────────────────

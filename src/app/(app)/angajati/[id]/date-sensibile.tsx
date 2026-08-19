@@ -68,7 +68,7 @@ export function DateSensibile({ employeeId, cnpUltimele4, ibanUltimele4, banca }
   return (
     <section
       aria-labelledby="titlu-date-sensibile"
-      className="rounded-lg border border-warning/40 p-4"
+      className="rounded-lg border border-warning/40 bg-surface p-5 shadow-sm"
     >
       <h2 id="titlu-date-sensibile" className="mb-1 flex items-center gap-2 text-lg font-medium">
         <ShieldAlert aria-hidden="true" className="size-5 text-foreground" />
@@ -109,7 +109,7 @@ export function DateSensibile({ employeeId, cnpUltimele4, ibanUltimele4, banca }
             setMotiv(eveniment.target.value);
           }}
           aria-describedby={`${idMotiv}-ajutor`}
-          className="mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm"
+          className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
           placeholder="Ex. întocmire adeverință de venit"
         />
         <p id={`${idMotiv}-ajutor`} className="mt-1 text-xs text-muted-foreground">
@@ -124,7 +124,7 @@ export function DateSensibile({ employeeId, cnpUltimele4, ibanUltimele4, banca }
             cere("cnp");
           }}
           disabled={inCurs || motiv.trim().length < 5 || cnpUltimele4 === null}
-          className="inline-flex items-center gap-2 rounded-md border border-foreground/60 px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+          className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:bg-surface disabled:text-muted-foreground"
         >
           <Eye aria-hidden="true" className="size-4" />
           Dezvăluie CNP
@@ -135,7 +135,7 @@ export function DateSensibile({ employeeId, cnpUltimele4, ibanUltimele4, banca }
             cere("iban");
           }}
           disabled={inCurs || motiv.trim().length < 5 || ibanUltimele4 === null}
-          className="inline-flex items-center gap-2 rounded-md border border-foreground/60 px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+          className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:bg-surface disabled:text-muted-foreground"
         >
           <Eye aria-hidden="true" className="size-4" />
           Dezvăluie IBAN
