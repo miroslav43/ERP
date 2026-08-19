@@ -3,6 +3,7 @@
 
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowRightLeft, Ban, Pencil } from "lucide-react";
 
 import { actualizeazaDepartament, dezactiveazaDepartament, mutaDepartament } from "./actions";
 
@@ -96,15 +97,16 @@ export function ActiuniDepartament({ departament, departamente, angajati, poateE
   }
 
   return (
-    <div className="mt-2 space-y-2">
-      <div className="flex flex-wrap gap-2 text-xs">
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-1 text-xs">
         <button
           type="button"
           onClick={() => {
             setPanou(panou === "editeaza" ? null : "editeaza");
           }}
-          className="border-foreground/60 hover:bg-surface rounded-md border px-2 py-1"
+          className="text-muted-foreground hover:bg-surface hover:text-foreground inline-flex items-center gap-1.5 rounded-md px-2 py-1"
         >
+          <Pencil aria-hidden="true" className="size-3.5" />
           Editează
         </button>
         <button
@@ -112,8 +114,9 @@ export function ActiuniDepartament({ departament, departamente, angajati, poateE
           onClick={() => {
             setPanou(panou === "muta" ? null : "muta");
           }}
-          className="border-foreground/60 hover:bg-surface rounded-md border px-2 py-1"
+          className="text-muted-foreground hover:bg-surface hover:text-foreground inline-flex items-center gap-1.5 rounded-md px-2 py-1"
         >
+          <ArrowRightLeft aria-hidden="true" className="size-3.5" />
           Mută
         </button>
         {departament.numarAngajati === 0 ? (
@@ -121,8 +124,9 @@ export function ActiuniDepartament({ departament, departamente, angajati, poateE
             type="button"
             onClick={dezactiveaza}
             disabled={inCurs}
-            className="text-danger border-danger/40 hover:bg-danger/8 rounded-md border px-2 py-1 disabled:cursor-not-allowed disabled:opacity-50"
+            className="text-danger hover:bg-danger/8 inline-flex items-center gap-1.5 rounded-md px-2 py-1 disabled:cursor-not-allowed disabled:opacity-50"
           >
+            <Ban aria-hidden="true" className="size-3.5" />
             Dezactivează
           </button>
         ) : null}

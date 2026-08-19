@@ -133,6 +133,88 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   opacity: 1;
 }
 
+/*
+ * Organigrama (/organigrama): linii de conector desenate cu ::before/::after,
+ * poziționate după :first-child/:last-child/:only-child. Genul ăsta de
+ * selector structural e ilizibil ca listă de clase Tailwind arbitrare — rămâne
+ * CSS numit, ca autofill-ul și glifa de calendar de mai sus.
+ *
+ * Mecanism (adaptarea standard „pure CSS org chart"):
+ *  - `.og-ramura` e orice <ul> imbricat (rândul de copii al unui nod) — NU și
+ *    rădăcina arborelui. `::before` pe ea trage linia verticală de la nodul
+ *    părinte până la bara orizontală a rândului de copii.
+ *  - fiecare <li> din acel rând are `::before` (jumătatea stângă a barei
+ *    orizontale) și `::after` (jumătatea dreaptă + tija verticală până la nod).
+ *  - `:only-child` ascunde bara orizontală (n-are frați de conectat) și
+ *    păstrează doar linia verticală moștenită de la `.og-ramura::before`.
+ *  - `:first-child`/`:last-child` taie bara acolo unde n-ar trebui să continue
+ *    dincolo de primul/ultimul nod al rândului.
+ */
+.og-radacina,
+.og-ramura {
+  display: flex;
+  justify-content: center;
+}
+.og-ramura {
+  position: relative;
+  padding-top: 28px;
+}
+.og-radacina > li,
+.og-ramura > li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  list-style: none;
+  position: relative;
+  padding: 0 14px;
+}
+.og-ramura > li {
+  padding-top: 28px;
+}
+.og-ramura > li::before,
+.og-ramura > li::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 50%;
+  width: 50%;
+  height: 28px;
+  border-top: 1px solid var(--color-border);
+}
+.og-ramura > li::after {
+  right: auto;
+  left: 50%;
+  border-top: 1px solid var(--color-border);
+  border-left: 1px solid var(--color-border);
+}
+.og-ramura > li:only-child::before,
+.og-ramura > li:only-child::after {
+  display: none;
+}
+.og-ramura > li:only-child {
+  padding-top: 0;
+}
+.og-ramura > li:first-child::before,
+.og-ramura > li:last-child::after {
+  border-top: none;
+}
+.og-ramura > li:last-child::before {
+  border-right: 1px solid var(--color-border);
+  border-radius: 0 6px 0 0;
+}
+.og-ramura > li:first-child::after {
+  border-radius: 6px 0 0 0;
+}
+.og-ramura::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 0;
+  height: 28px;
+  border-left: 1px solid var(--color-border);
+}
+
 /* Respectă preferința de mișcare redusă a sistemului. */
 @media (prefers-reduced-motion: reduce) {
   *,

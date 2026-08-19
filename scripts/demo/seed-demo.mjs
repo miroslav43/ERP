@@ -109,14 +109,28 @@ const CONTURI = [
     nume: "Elena Marin",
     platforma: false,
     membru: [{ org: "demo", rol: "hr" }],
-    angajat: { marca: "DEMO-002", first_name: "Elena", last_name: "Marin", dep: "ADM", post: "HR" },
+    angajat: {
+      marca: "DEMO-002",
+      first_name: "Elena",
+      last_name: "Marin",
+      dep: "ADM",
+      post: "HR",
+      seful: "DEMO-001",
+    },
   },
   {
     email: "demo_manager@gmail.com",
     nume: "Radu Pop",
     platforma: false,
     membru: [{ org: "demo", rol: "manager" }],
-    angajat: { marca: "DEMO-003", first_name: "Radu", last_name: "Pop", dep: "PROD", post: "SEF" },
+    angajat: {
+      marca: "DEMO-003",
+      first_name: "Radu",
+      last_name: "Pop",
+      dep: "PROD",
+      post: "SEF",
+      seful: "DEMO-001",
+    },
   },
   {
     email: "demo_employee@gmail.com",
@@ -155,8 +169,8 @@ const SALARIU_DUPA_POST = { DIR: 12000, HR: 6500, SEF: 5500, OPR: 4200, AGV: 460
 const COLEGI = [
   { marca: "DEMO-005", first_name: "Andrei", last_name: "Dumitrescu", dep: "PROD", post: "OPR", seful: "DEMO-003" },
   { marca: "DEMO-006", first_name: "Cristina", last_name: "Stan", dep: "PROD", post: "OPR", seful: "DEMO-003" },
-  { marca: "DEMO-007", first_name: "Vlad", last_name: "Nistor", dep: "VNZ", post: "AGV" },
-  { marca: "DEMO-008", first_name: "Alexandra", last_name: "Barbu", dep: "VNZ", post: "AGV" },
+  { marca: "DEMO-007", first_name: "Vlad", last_name: "Nistor", dep: "VNZ", post: "AGV", seful: "DEMO-001" },
+  { marca: "DEMO-008", first_name: "Alexandra", last_name: "Barbu", dep: "VNZ", post: "AGV", seful: "DEMO-001" },
 ];
 
 /**

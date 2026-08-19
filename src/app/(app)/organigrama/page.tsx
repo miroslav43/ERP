@@ -47,26 +47,23 @@ function construieste(
 
 function Arbore({ noduri, nivel }: { readonly noduri: readonly NodArbore[]; readonly nivel: number }) {
   return (
-    <ul
-      role={nivel === 1 ? "tree" : "group"}
-      className={nivel === 1 ? "space-y-2" : "border-border mt-2 space-y-2 border-l pl-4"}
-    >
+    <ul role={nivel === 1 ? "tree" : "group"} className={nivel === 1 ? "og-radacina" : "og-ramura"}>
       {noduri.map((nod) => (
         <li key={nod.id} role="treeitem" aria-expanded={nod.copii.length > 0} aria-level={nivel}>
           <Link
             href={`/angajati/${nod.id}`}
-            className="border-border hover:bg-surface flex flex-wrap items-center gap-3 rounded-md border px-3 py-2"
+            className="border-border bg-background hover:bg-surface hover:border-primary/40 flex w-40 flex-col items-center gap-1.5 rounded-lg border px-3 py-3 text-center shadow-sm"
           >
             <AvatarAngajat url={nod.avatar_url} nume={nod.full_name} marime="sm" />
-            <span className="font-medium">{nod.full_name}</span>
+            <span className="text-sm leading-tight font-medium">{nod.full_name}</span>
             <span className="text-muted-foreground font-mono text-xs">{nod.marca}</span>
-            <span className="text-muted-foreground text-sm">
+            <span className="text-muted-foreground text-xs leading-tight">
               {nod.job_position?.denumire ?? "fără funcție"}
               {nod.department === null ? "" : ` · ${nod.department.denumire}`}
             </span>
             {nod.copii.length > 0 ? (
-              <span className="text-muted-foreground ml-auto inline-flex items-center gap-1 text-sm">
-                <Users aria-hidden="true" className="size-4" />
+              <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
+                <Users aria-hidden="true" className="size-3.5" />
                 <span>{nod.copii.length}</span>
                 <span className="sr-only">subordonați direcți</span>
               </span>
@@ -116,7 +113,11 @@ export default async function PaginaOrganigrama() {
           description="Ierarhia se completează pe măsură ce fișele angajaților primesc un manager direct."
         />
       ) : (
-        <Arbore noduri={arbore} nivel={1} />
+        <div className="overflow-x-auto pb-4">
+          <div className="w-fit min-w-full px-4">
+            <Arbore noduri={arbore} nivel={1} />
+          </div>
+        </div>
       )}
     </main>
   );

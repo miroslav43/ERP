@@ -1,7 +1,7 @@
 // src/app/(app)/departamente/page.tsx
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Users } from "lucide-react";
+import { Building2, ChevronRight, Users } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AvatarAngajat } from "@/components/data/avatar-angajat";
@@ -27,7 +27,11 @@ interface RandDepartament {
   readonly activ: boolean;
   readonly manager_employee_id: string | null;
   readonly cost_center: string | null;
-  readonly manager: { readonly full_name: string } | null;
+  readonly manager: { readonly full_name: string; readonly avatar_url: string | null } | null;
+}
+
+interface RandDepartamentBrut extends Omit<RandDepartament, "manager"> {
+  readonly manager: { readonly full_name: string; readonly user_id: string | null } | null;
 }
 
 interface AngajatDepartament {
@@ -89,6 +93,19 @@ interface OptiuneAngajat {
   readonly full_name: string;
 }
 
+/**
+ * Fiecare card e o pereche <details>/rând de acțiuni, NU acțiunile ÎN
+ * <summary>: un buton imbricat în <summary> ar cere stopPropagation ca să nu
+ * declanșeze și extinderea la fiecare clic. Separate, rândul de acțiuni rămâne
+ * mereu vizibil (editarea unui departament n-ar trebui să ceară mai întâi
+ * desfacerea listei de angajați), iar lista de angajați — partea care crește
+ * necontrolat la o organizație mare — se strânge implicit.
+ *
+ * Fără role="tree"/"treeitem" (spre deosebire de /organigrama): acolo chiar e
+ * un widget de navigare ierarhică fără elemente interactive imbricate; aici e
+ * o listă administrativă obișnuită, cu link-uri și formulare în interior —
+ * exact ce pattern-ul ARIA de tip tree interzice.
+ */
 function Arbore({
   noduri,
   nivel,
@@ -103,68 +120,87 @@ function Arbore({
   readonly poateEdita: boolean;
 }) {
   return (
-    <ul
-      role={nivel === 1 ? "tree" : "group"}
-      className={
-        nivel === 1
-          ? "space-y-2"
-          : "mt-2 space-y-2 border-l border-border pl-4"
-      }
-    >
+    <ul className={nivel === 1 ? "space-y-3" : "border-primary/15 mt-3 ml-6 space-y-3 border-l-2 pl-5"}>
       {noduri.map((nod) => (
-        <li
-          key={nod.id}
-          role="treeitem"
-          aria-expanded={nod.copii.length > 0 ? true : undefined}
-          aria-level={nivel}
-        >
-          <div className="rounded-md border border-border px-3 py-2">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="font-medium">{nod.denumire}</span>
-              <span className="font-mono text-xs text-muted-foreground">{nod.cod}</span>
-              {!nod.activ ? (
-                <span className="rounded bg-surface px-2 py-0.5 text-xs">
-                  Inactiv
+        <li key={nod.id}>
+          <div className="border-border bg-surface overflow-hidden rounded-lg border shadow-sm">
+            <details className="group">
+              <summary className="focus-visible:outline-ring flex cursor-pointer list-none flex-wrap items-center gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+                <span className="bg-background flex size-9 shrink-0 items-center justify-center rounded-md">
+                  <Building2 aria-hidden="true" className="text-primary size-4.5" />
                 </span>
-              ) : null}
-              <span className="text-sm text-muted-foreground">
-                Manager: {nod.manager?.full_name ?? "nedesemnat"}
-              </span>
-              <span className="ml-auto inline-flex items-center gap-1 text-sm">
-                <Users aria-hidden="true" className="size-4 text-muted-foreground" />
-                <span>{nod.angajatiiDepartamentului.length}</span>
-                <span className="sr-only">angajați activi în acest departament</span>
-              </span>
-            </div>
-            {nod.angajatiiDepartamentului.length > 0 ? (
-              <ul className="mt-3 flex flex-wrap gap-2">
-                {nod.angajatiiDepartamentului.map((angajat) => (
-                  <li key={angajat.id}>
-                    <Link
-                      href={`/angajati/${angajat.id}`}
-                      className="border-border hover:bg-surface inline-flex items-center gap-1.5 rounded-md border py-1 pr-2 pl-1 text-sm"
-                    >
-                      <AvatarAngajat url={angajat.avatar_url} nume={angajat.full_name} marime="sm" />
-                      <span>{angajat.full_name}</span>
-                      <span className="text-muted-foreground font-mono text-xs">{angajat.marca}</span>
-                      {angajat.job_position !== null ? (
-                        <span className="text-muted-foreground">· {angajat.job_position.denumire}</span>
-                      ) : null}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-muted-foreground mt-3 text-sm">
-                Niciun angajat activ repartizat în acest departament.
-              </p>
-            )}
-            <ActiuniDepartament
-              departament={nod}
-              departamente={departamente}
-              angajati={angajati}
-              poateEdita={poateEdita}
-            />
+                <span className="min-w-0 flex-1">
+                  <span className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium">{nod.denumire}</span>
+                    <span className="text-muted-foreground font-mono text-xs">{nod.cod}</span>
+                    {!nod.activ ? (
+                      <span className="bg-background text-muted-foreground rounded-full px-2 py-0.5 text-xs font-medium">
+                        Inactiv
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="mt-1 flex items-center gap-1.5 text-sm">
+                    {nod.manager !== null ? (
+                      <Link
+                        href={`/angajati/${nod.manager_employee_id}`}
+                        className="text-muted-foreground hover:text-primary inline-flex items-center gap-1.5"
+                      >
+                        <AvatarAngajat url={nod.manager.avatar_url} nume={nod.manager.full_name} marime="sm" />
+                        {nod.manager.full_name}
+                      </Link>
+                    ) : (
+                      <span className="text-muted-foreground italic">manager nedesemnat</span>
+                    )}
+                  </span>
+                </span>
+                <span className="bg-background text-muted-foreground inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium">
+                  <Users aria-hidden="true" className="size-3.5" />
+                  {nod.angajatiiDepartamentului.length}
+                  <span className="sr-only">angajați activi în acest departament</span>
+                </span>
+                <ChevronRight
+                  aria-hidden="true"
+                  className="text-muted-foreground size-4 shrink-0 transition-transform group-open:rotate-90"
+                />
+              </summary>
+
+              <div className="border-border border-t px-4 py-3">
+                {nod.angajatiiDepartamentului.length > 0 ? (
+                  <ul className="flex flex-wrap gap-2">
+                    {nod.angajatiiDepartamentului.map((angajat) => (
+                      <li key={angajat.id}>
+                        <Link
+                          href={`/angajati/${angajat.id}`}
+                          className="border-border bg-background hover:border-primary/30 hover:bg-primary/5 inline-flex items-center gap-1.5 rounded-full border py-1 pr-3 pl-1 text-sm transition-colors"
+                        >
+                          <AvatarAngajat url={angajat.avatar_url} nume={angajat.full_name} marime="sm" />
+                          <span className="font-medium">{angajat.full_name}</span>
+                          <span className="text-muted-foreground font-mono text-xs">{angajat.marca}</span>
+                          {angajat.job_position !== null ? (
+                            <span className="text-muted-foreground">· {angajat.job_position.denumire}</span>
+                          ) : null}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="border-border text-muted-foreground rounded-md border border-dashed px-3 py-4 text-center text-sm">
+                    Niciun angajat activ repartizat în acest departament.
+                  </p>
+                )}
+              </div>
+            </details>
+
+            {poateEdita ? (
+              <div className="border-border bg-background border-t px-4 py-2">
+                <ActiuniDepartament
+                  departament={nod}
+                  departamente={departamente}
+                  angajati={angajati}
+                  poateEdita={poateEdita}
+                />
+              </div>
+            ) : null}
           </div>
           {nod.copii.length > 0 ? (
             <Arbore
@@ -198,12 +234,12 @@ export default async function PaginaDepartamente() {
     db
       .from("departments")
       .select(
-        "id, parent_id, cod, denumire, descriere, activ, manager_employee_id, cost_center, manager:employees!manager_employee_id(full_name)",
+        "id, parent_id, cod, denumire, descriere, activ, manager_employee_id, cost_center, manager:employees!manager_employee_id(full_name, user_id)",
       )
       .eq("organization_id", tenant.organizationId)
       .is("deleted_at", null)
       .order("denumire")
-      .returns<RandDepartament[]>(),
+      .returns<RandDepartamentBrut[]>(),
     db
       .from("employees")
       .select(
@@ -219,13 +255,30 @@ export default async function PaginaDepartamente() {
   if (structura.error !== null) throw structura.error;
   if (angajatiActivi.error !== null) throw angajatiActivi.error;
 
-  const avataruri = await avataturiPeUtilizatori((angajatiActivi.data ?? []).map((a) => a.user_id));
-  const listaAngajatiActivi: readonly AngajatDepartament[] = (angajatiActivi.data ?? []).map(
+  const structuraBruta = structura.data ?? [];
+  const angajatiiBruti = angajatiActivi.data ?? [];
+  const avataruri = await avataturiPeUtilizatori([
+    ...angajatiiBruti.map((a) => a.user_id),
+    ...structuraBruta.map((d) => d.manager?.user_id ?? null),
+  ]);
+
+  const listaAngajatiActivi: readonly AngajatDepartament[] = angajatiiBruti.map(
     ({ user_id, ...rest }) => ({
       ...rest,
       avatar_url: urlAvatar(avataruri.get(user_id ?? "") ?? null),
     }),
   );
+  const randuri: readonly RandDepartament[] = structuraBruta.map((d) => ({
+    ...d,
+    manager:
+      d.manager === null
+        ? null
+        : {
+            full_name: d.manager.full_name,
+            avatar_url: urlAvatar(avataruri.get(d.manager.user_id ?? "") ?? null),
+          },
+  }));
+
   const angajatiPeDepartament = listaAngajatiActivi.reduce<Map<string, readonly AngajatDepartament[]>>(
     (acumulat, angajat) =>
       angajat.department_id === null
@@ -236,7 +289,6 @@ export default async function PaginaDepartamente() {
           ]),
     new Map<string, readonly AngajatDepartament[]>(),
   );
-  const randuri = structura.data ?? [];
   const arbore = construieste(RADACINA, grupeaza(randuri), angajatiPeDepartament);
   const listaDepartamente: readonly OptiuneDepartament[] = randuri.map((r) => ({
     id: r.id,
