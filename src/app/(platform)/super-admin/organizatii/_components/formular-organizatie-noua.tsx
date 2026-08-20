@@ -1,19 +1,18 @@
 // src/app/(platform)/super-admin/organizatii/_components/formular-organizatie-noua.tsx
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import {
-  creeazaOrganizatieSchema,
+  inroleazaOrganizatieSchema,
   FORME_JURIDICE,
   JUDETE,
   PLANURI,
-  type CreeazaOrganizatieInput,
+  type InroleazaOrganizatieInput,
 } from "@/schemas/organization";
-import { creeazaOrganizatie } from "./../actions";
+import { inroleazaOrganizatie, type OrganizatieInrolata } from "./../actions";
 
 const ETICHETE_PLAN: Record<(typeof PLANURI)[number], string> = {
   trial: "Perioadă de probă",
@@ -21,16 +20,6 @@ const ETICHETE_PLAN: Record<(typeof PLANURI)[number], string> = {
   professional: "Professional",
   enterprise: "Enterprise",
 };
-
-/** Payload-ul acțiunii ajunge tipat `unknown` la client, deci îl îngustăm explicit înainte de navigare. */
-function areIdOrganizatie(valoare: unknown): valoare is Readonly<{ id: string }> {
-  return (
-    typeof valoare === "object" &&
-    valoare !== null &&
-    "id" in valoare &&
-    typeof valoare.id === "string"
-  );
-}
 
 /**
  * Definită la nivel de modul, nu în corpul formularului.
@@ -58,10 +47,10 @@ export interface ValoriInitialeOrganizatie {
 
 interface ProprietatiFormular {
   readonly valoriInitiale?: ValoriInitialeOrganizatie;
+  readonly onInrolata: (rezultat: OrganizatieInrolata) => void;
 }
 
-export function FormularOrganizatieNoua({ valoriInitiale }: ProprietatiFormular = {}) {
-  const router = useRouter();
+export function FormularOrganizatieNoua({ valoriInitiale, onInrolata }: ProprietatiFormular) {
   const idFormular = useId();
   const [eroareServer, setEroareServer] = useState<string | null>(null);
 
@@ -70,8 +59,8 @@ export function FormularOrganizatieNoua({ valoriInitiale }: ProprietatiFormular 
     handleSubmit,
     setError,
     formState: { errors, isSubmitting },
-  } = useForm<CreeazaOrganizatieInput>({
-    resolver: zodResolver(creeazaOrganizatieSchema),
+  } = useForm<InroleazaOrganizatieInput>({
+    resolver: zodResolver(inroleazaOrganizatieSchema),
     defaultValues: {
       plan: "trial",
       seats_limit: 10,
@@ -82,26 +71,24 @@ export function FormularOrganizatieNoua({ valoriInitiale }: ProprietatiFormular 
       slug: valoriInitiale?.slug ?? "",
       email_contact: valoriInitiale?.email_contact ?? "",
       telefon_contact: valoriInitiale?.telefon_contact ?? "",
+      owner_email: valoriInitiale?.email_contact ?? "",
+      owner_telefon: valoriInitiale?.telefon_contact ?? "",
     },
   });
 
   const trimite = handleSubmit(async (valori) => {
     setEroareServer(null);
-    const rezultat = await creeazaOrganizatie(valori);
-    if (rezultat.ok) {
-      router.push(
-        areIdOrganizatie(rezultat.data)
-          ? `/super-admin/organizatii/${rezultat.data.id}`
-          : "/super-admin/organizatii",
-      );
+    const rezultat = await inroleazaOrganizatie(valori);
+    if (!rezultat.ok) {
+      for (const [camp, mesaje] of Object.entries(rezultat.error.fieldErrors ?? {})) {
+        const primul = mesaje[0];
+        if (primul)
+          setError(camp as keyof InroleazaOrganizatieInput, { type: "server", message: primul });
+      }
+      setEroareServer(rezultat.error.message);
       return;
     }
-    for (const [camp, mesaje] of Object.entries(rezultat.error.fieldErrors ?? {})) {
-      const primul = mesaje[0];
-      if (primul)
-        setError(camp as keyof CreeazaOrganizatieInput, { type: "server", message: primul });
-    }
-    setEroareServer(rezultat.error.message);
+    onInrolata(rezultat.data);
   });
 
   const claseCamp =
@@ -228,6 +215,42 @@ export function FormularOrganizatieNoua({ valoriInitiale }: ProprietatiFormular 
             />
           </div>
         </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor={`${idFormular}-caen`} className="text-foreground block text-sm font-medium">
+              Cod CAEN principal
+            </label>
+            <input
+              id={`${idFormular}-caen`}
+              {...register("cod_caen")}
+              inputMode="numeric"
+              placeholder="6201"
+              aria-invalid={Boolean(errors.cod_caen)}
+              aria-describedby={`${idFormular}-caen-ajutor`}
+              className={claseCamp}
+            />
+            <p id={`${idFormular}-caen-ajutor`} className="text-muted-foreground mt-1 text-xs">
+              Poate lipsi pentru PFA/II — lasă gol dacă nu-l ai la îndemână.
+            </p>
+            <Eroare id={`${idFormular}-caen-eroare`} mesaj={errors.cod_caen?.message} />
+          </div>
+          <div>
+            <label htmlFor={`${idFormular}-capital`} className="text-foreground block text-sm font-medium">
+              Capital social (RON) *
+            </label>
+            <input
+              id={`${idFormular}-capital`}
+              type="number"
+              min={0}
+              step="0.01"
+              {...register("capital_social")}
+              aria-invalid={Boolean(errors.capital_social)}
+              className={claseCamp}
+            />
+            <Eroare id={`${idFormular}-capital-eroare`} mesaj={errors.capital_social?.message} />
+          </div>
+        </div>
       </fieldset>
 
       <fieldset className="border-border space-y-4 rounded-lg border p-4">
@@ -297,14 +320,149 @@ export function FormularOrganizatieNoua({ valoriInitiale }: ProprietatiFormular 
             <Eroare id={`${idFormular}-oras-eroare`} mesaj={errors.oras?.message} />
           </div>
         </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div>
+            <label htmlFor={`${idFormular}-strada`} className="text-foreground block text-sm font-medium">
+              Stradă *
+            </label>
+            <input
+              id={`${idFormular}-strada`}
+              {...register("strada")}
+              aria-invalid={Boolean(errors.strada)}
+              className={claseCamp}
+            />
+            <Eroare id={`${idFormular}-strada-eroare`} mesaj={errors.strada?.message} />
+          </div>
+          <div>
+            <label htmlFor={`${idFormular}-numar`} className="text-foreground block text-sm font-medium">
+              Număr *
+            </label>
+            <input
+              id={`${idFormular}-numar`}
+              {...register("numar")}
+              aria-invalid={Boolean(errors.numar)}
+              className={claseCamp}
+            />
+            <Eroare id={`${idFormular}-numar-eroare`} mesaj={errors.numar?.message} />
+          </div>
+          <div>
+            <label htmlFor={`${idFormular}-sector`} className="text-foreground block text-sm font-medium">
+              Sector (doar București)
+            </label>
+            <input
+              id={`${idFormular}-sector`}
+              {...register("sector")}
+              placeholder="Sector 1"
+              aria-invalid={Boolean(errors.sector)}
+              className={claseCamp}
+            />
+            <Eroare id={`${idFormular}-sector-eroare`} mesaj={errors.sector?.message} />
+          </div>
+        </div>
         <div>
-          <label
-            htmlFor={`${idFormular}-adresa`}
-            className="text-foreground block text-sm font-medium"
-          >
-            Adresă
+          <label htmlFor={`${idFormular}-adresa`} className="text-foreground block text-sm font-medium">
+            Detalii adresă (bloc, etaj, birou)
           </label>
           <input id={`${idFormular}-adresa`} {...register("adresa")} className={claseCamp} />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor={`${idFormular}-reprezentant`} className="text-foreground block text-sm font-medium">
+              Reprezentant legal
+            </label>
+            <input
+              id={`${idFormular}-reprezentant`}
+              {...register("reprezentant_legal")}
+              placeholder="Ion Popescu"
+              className={claseCamp}
+            />
+          </div>
+          <div>
+            <label htmlFor={`${idFormular}-functie`} className="text-foreground block text-sm font-medium">
+              Funcție *
+            </label>
+            <input
+              id={`${idFormular}-functie`}
+              {...register("reprezentant_functie")}
+              list={`${idFormular}-functii`}
+              placeholder="Administrator"
+              aria-invalid={Boolean(errors.reprezentant_functie)}
+              className={claseCamp}
+            />
+            <datalist id={`${idFormular}-functii`}>
+              <option value="Administrator" />
+              <option value="Director General" />
+              <option value="Președinte" />
+            </datalist>
+            <Eroare id={`${idFormular}-functie-eroare`} mesaj={errors.reprezentant_functie?.message} />
+          </div>
+        </div>
+        <div>
+          <label htmlFor={`${idFormular}-cnp`} className="text-foreground block text-sm font-medium">
+            CNP reprezentant (opțional)
+          </label>
+          <input
+            id={`${idFormular}-cnp`}
+            {...register("reprezentant_cnp")}
+            inputMode="numeric"
+            aria-invalid={Boolean(errors.reprezentant_cnp)}
+            aria-describedby={`${idFormular}-cnp-ajutor`}
+            className={claseCamp}
+          />
+          <p id={`${idFormular}-cnp-ajutor`} className="text-muted-foreground mt-1 text-xs">
+            Poate fi completat oricând ulterior din fișa organizației. Se stochează criptat.
+          </p>
+          <Eroare id={`${idFormular}-cnp-eroare`} mesaj={errors.reprezentant_cnp?.message} />
+        </div>
+      </fieldset>
+
+      <fieldset className="border-border space-y-4 rounded-lg border p-4">
+        <legend className="text-foreground px-1 text-sm font-medium">Cont proprietar</legend>
+        <p className="text-muted-foreground text-xs">
+          Persoana de mai jos devine automat administratorul (owner) organizației, cu o parolă
+          temporară afișată o singură dată după creare.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor={`${idFormular}-owner-nume`} className="text-foreground block text-sm font-medium">
+              Nume complet *
+            </label>
+            <input
+              id={`${idFormular}-owner-nume`}
+              {...register("owner_nume")}
+              aria-invalid={Boolean(errors.owner_nume)}
+              className={claseCamp}
+            />
+            <Eroare id={`${idFormular}-owner-nume-eroare`} mesaj={errors.owner_nume?.message} />
+          </div>
+          <div>
+            <label htmlFor={`${idFormular}-owner-email`} className="text-foreground block text-sm font-medium">
+              Email de business *
+            </label>
+            <input
+              id={`${idFormular}-owner-email`}
+              type="email"
+              {...register("owner_email")}
+              aria-invalid={Boolean(errors.owner_email)}
+              className={claseCamp}
+            />
+            <Eroare id={`${idFormular}-owner-email-eroare`} mesaj={errors.owner_email?.message} />
+          </div>
+          <div>
+            <label htmlFor={`${idFormular}-owner-telefon`} className="text-foreground block text-sm font-medium">
+              Telefon *
+            </label>
+            <input
+              id={`${idFormular}-owner-telefon`}
+              type="tel"
+              {...register("owner_telefon")}
+              placeholder="0721 234 567"
+              aria-invalid={Boolean(errors.owner_telefon)}
+              className={claseCamp}
+            />
+            <Eroare id={`${idFormular}-owner-telefon-eroare`} mesaj={errors.owner_telefon?.message} />
+          </div>
         </div>
       </fieldset>
 
@@ -356,7 +514,7 @@ export function FormularOrganizatieNoua({ valoriInitiale }: ProprietatiFormular 
           disabled={isSubmitting}
           className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
         >
-          {isSubmitting ? "Se creează…" : "Creează organizația"}
+          {isSubmitting ? "Se înrolează…" : "Înrolează organizația"}
         </button>
         <p aria-live="polite" className="text-muted-foreground text-sm">
           {isSubmitting ? "Se salvează datele…" : ""}
