@@ -1,17 +1,20 @@
 // src/app/(platform)/super-admin/organizatii/actions.ts
 "use server";
 
-import { businessRule, notFound } from "@/lib/actions/errors";
+import { headers } from "next/headers";
+import { randomBytes } from "node:crypto";
+import { businessRule, invalidInput, notFound } from "@/lib/actions/errors";
 import { createPlatformAction } from "@/lib/actions/platform";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { requirePlatformAdmin } from "@/lib/auth/platform";
 import { cautaFirmaAnaf } from "@/lib/anaf/cauta-firma";
 import { cautaCuiAnafSchema } from "@/schemas/organization";
+import { pregatestePayloadCnp, EroareCnpReprezentant } from "@/lib/crypto/organization-sensitive-data";
 import type { RezultatAnafGasit } from "@/domain/organization/anaf";
 import {
   actualizeazaOrganizatieSchema,
-  creeazaOrganizatieSchema,
   idOrganizatieSchema,
+  inroleazaOrganizatieSchema,
   listaOrganizatiiSchema,
   suspendaOrganizatieSchema,
   type ListaOrganizatiiInput,
@@ -26,9 +29,6 @@ const caiFisa = (orgId: string): readonly string[] => [
 /** Coloanele afișate în listă — nu selectăm niciodată `*`. */
 const COLOANE_LISTA =
   "id, name, slug, cui, cui_normalizat, status, plan, seats_limit, created_at, deleted_at";
-
-/** Rezultatul creării — declarat explicit ca să fie cunoscut și în callback-urile de audit. */
-type OrganizatieCreata = { id: string; name: string; slug: string };
 
 // ——— ACȚIUNI ————————————————————————————————————————————————————————————————
 
@@ -73,19 +73,45 @@ export const cautaCuiAnaf = createPlatformAction<typeof cautaCuiAnafSchema, Rezu
   },
 });
 
-export const creeazaOrganizatie = createPlatformAction<
-  typeof creeazaOrganizatieSchema,
-  OrganizatieCreata
+export type OrganizatieInrolata = Readonly<{
+  id: string;
+  name: string;
+  slug: string;
+  ownerEmail: string;
+  /** Afișată o singură dată în UI (Task 10) — NU se loghează, NU intră în audit. */
+  parolaTemporara: string;
+}>;
+
+function genereazaParolaTemporara(): string {
+  // 18 octeți -> 24 caractere base64url; peste minimul de 12 din parolaSchema.
+  return randomBytes(18).toString("base64url");
+}
+
+export const inroleazaOrganizatie = createPlatformAction<
+  typeof inroleazaOrganizatieSchema,
+  OrganizatieInrolata
 >({
-  name: "platforma.org.create",
-  input: creeazaOrganizatieSchema,
+  name: "platforma.org.inroleaza",
+  input: inroleazaOrganizatieSchema,
   rateLimit: { max: 20, windowSeconds: 3600 },
   audit: {
     action: "org_created",
     entityType: "organizations",
     entityId: (_input, data) => data.id,
     organizationId: (_input, data) => data.id,
-    allow: ["id", "name", "slug", "cui", "plan", "seats_limit", "judet", "oras", "forma_juridica"],
+    allow: [
+      "id",
+      "name",
+      "slug",
+      "cui",
+      "plan",
+      "seats_limit",
+      "judet",
+      "oras",
+      "forma_juridica",
+      "cod_caen",
+      "ownerEmail",
+    ],
   },
   revalidate: CAI_REVALIDATE,
   handler: async (ctx, input) => {
@@ -106,9 +132,20 @@ export const creeazaOrganizatie = createPlatformAction<
       );
     }
 
+    // Validăm CNP-ul reprezentantului ÎNAINTE de orice scriere: un CNP greșit
+    // nu trebuie să lase în urmă o organizație pe jumătate creată.
+    let payloadCnp: ReturnType<typeof pregatestePayloadCnp>;
+    try {
+      payloadCnp = pregatestePayloadCnp(input.reprezentant_cnp ?? null);
+    } catch (eroare) {
+      if (eroare instanceof EroareCnpReprezentant) {
+        throw invalidInput(eroare.message, { reprezentant_cnp: [eroare.message] });
+      }
+      throw eroare;
+    }
+
     const { data: organizatie, error } = await admin
       .from("organizations")
-      // Câmpurile opționale se omit complet când lipsesc (exactOptionalPropertyTypes).
       .insert({
         name: input.name,
         ...(input.legal_name === undefined ? {} : { legal_name: input.legal_name }),
@@ -116,25 +153,36 @@ export const creeazaOrganizatie = createPlatformAction<
         cui: input.cui,
         platitor_tva: input.platitor_tva,
         ...(input.reg_com === undefined ? {} : { reg_com: input.reg_com }),
+        ...(input.cod_caen === undefined ? {} : { cod_caen: input.cod_caen }),
+        capital_social: input.capital_social,
         slug: input.slug,
         email_contact: input.email_contact,
         telefon_contact: input.telefon_contact,
         judet: input.judet,
         oras: input.oras,
+        strada: input.strada,
+        numar: input.numar,
+        ...(input.sector === undefined ? {} : { sector: input.sector }),
         ...(input.adresa === undefined ? {} : { adresa: input.adresa }),
         ...(input.cod_postal === undefined ? {} : { cod_postal: input.cod_postal }),
-        tara: "România",
         ...(input.website === undefined ? {} : { website: input.website }),
         ...(input.reprezentant_legal === undefined
           ? {}
           : { reprezentant_legal: input.reprezentant_legal }),
+        reprezentant_functie: input.reprezentant_functie,
         plan: input.plan,
         seats_limit: input.seats_limit,
-        status: "pending",
+        // Spre deosebire de fluxul vechi: înrolarea e completă, nu un lead —
+        // organizația iese din acest flux activă, nu "pending".
+        status: "active",
+        activated_at: ctx.now.toISOString(),
         subscription_status: input.plan === "trial" ? "trialing" : "active",
         timezone: "Europe/Bucharest",
         locale: "ro-RO",
         moneda: "RON",
+        // NU seta `tara: "România"` (bug preexistent copiat din handler-ul
+        // vechi): coloana are `check (tara ~ '^[A-Z]{2}$')` — "România" ar
+        // respinge inserarea. Se omite complet, rămâne pe default-ul 'RO'.
         created_by: ctx.user.id,
         updated_by: ctx.user.id,
       })
@@ -161,7 +209,78 @@ export const creeazaOrganizatie = createPlatformAction<
       if (eroareActivare) throw eroareActivare;
     }
 
-    return { id: organizatie.id, name: organizatie.name, slug: organizatie.slug };
+    if (payloadCnp.cnp_ciphertext !== null || input.reprezentant_legal !== undefined) {
+      const { error: eroareReprezentant } = await admin
+        .from("organization_legal_representative")
+        .insert({
+          organization_id: organizatie.id,
+          nume: input.reprezentant_legal ?? null,
+          functie: input.reprezentant_functie,
+          ...payloadCnp,
+          created_by: ctx.user.id,
+          updated_by: ctx.user.id,
+        });
+      if (eroareReprezentant) throw eroareReprezentant;
+    }
+
+    const parolaTemporara = genereazaParolaTemporara();
+    const { data: userNou, error: eroareUser } = await admin.auth.admin.createUser({
+      email: input.owner_email,
+      password: parolaTemporara,
+      email_confirm: true,
+      phone: input.owner_telefon,
+      user_metadata: { full_name: input.owner_nume },
+    });
+
+    if (eroareUser || !userNou.user) {
+      // Compensare: CUI-ul/slug-ul nu rămân blocate de o înrolare eșuată pe
+      // jumătate. `organization_legal_representative` cade automat prin
+      // `on delete cascade`.
+      await admin.from("organizations").delete().eq("id", organizatie.id);
+      throw businessRule(
+        `Organizația nu a putut fi înrolată: contul proprietarului nu a putut fi creat (${eroareUser?.message ?? "motiv necunoscut"}). Reîncearcă.`,
+      );
+    }
+
+    const { error: eroareMembru } = await admin.from("organization_members").insert({
+      organization_id: organizatie.id,
+      user_id: userNou.user.id,
+      role: "org_admin",
+      status: "active",
+      created_by: ctx.user.id,
+      updated_by: ctx.user.id,
+    });
+    if (eroareMembru) throw eroareMembru;
+
+    const { error: eroareProfil } = await admin
+      .from("profiles")
+      .update({ phone: input.owner_telefon, must_change_password: true })
+      .eq("id", userNou.user.id);
+    if (eroareProfil) throw eroareProfil;
+
+    // Audit separat pentru crearea membrului — allow-list exclude parola.
+    const antete = await headers();
+    await ctx.supabase.rpc("log_audit_event", {
+      p_action: "member_added",
+      p_status: "success",
+      p_organization_id: organizatie.id,
+      p_entity_type: "organization_members",
+      p_entity_id: userNou.user.id,
+      p_before: null,
+      p_after: { email: input.owner_email, role: "org_admin" },
+      p_ip: antete.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null,
+      p_user_agent: antete.get("user-agent"),
+      p_request_id: ctx.requestId,
+      p_error_code: null,
+    });
+
+    return {
+      id: organizatie.id,
+      name: organizatie.name,
+      slug: organizatie.slug,
+      ownerEmail: input.owner_email,
+      parolaTemporara,
+    };
   },
 });
 
