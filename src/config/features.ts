@@ -10,6 +10,7 @@
 import {
   CalendarDays,
   Car,
+  ClipboardCheck,
   Clock,
   LayoutDashboard,
   Megaphone,
@@ -46,6 +47,7 @@ export const FEATURE_KEYS = [
   "ssm",
   "announcements",
   "employee_portal",
+  "evaluations",
 ] as const;
 
 export type FeatureKey = (typeof FEATURE_KEYS)[number];
@@ -113,6 +115,13 @@ export const FEATURES: Readonly<Record<FeatureKey, FeatureMeta>> = {
     grup: "portal",
     isCore: false,
     sortOrder: 120,
+  },
+  evaluations: {
+    denumire: "Evaluări angajați",
+    icon: ClipboardCheck,
+    grup: "hr",
+    isCore: false,
+    sortOrder: 130,
   },
 };
 

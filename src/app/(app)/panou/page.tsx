@@ -54,6 +54,7 @@ const RUTE_IMPLEMENTATE: Readonly<Record<string, string>> = {
   ssm: "/ssm",
   employee_portal: "/portal",
   announcements: "/anunturi",
+  evaluations: "/evaluari/sabloane",
 };
 
 export default async function PanouPage() {

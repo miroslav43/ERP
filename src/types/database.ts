@@ -2200,6 +2200,79 @@ export type Database = {
           },
         ]
       }
+      employee_evaluations: {
+        Row: {
+          concluzie: string | null
+          created_at: string
+          created_by: string | null
+          data_evaluarii: string
+          deleted_at: string | null
+          employee_id: string
+          evaluator_id: string | null
+          id: string
+          organization_id: string
+          raspunsuri: Json
+          status: Database["public"]["Enums"]["evaluation_status"]
+          template_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          concluzie?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_evaluarii: string
+          deleted_at?: string | null
+          employee_id: string
+          evaluator_id?: string | null
+          id?: string
+          organization_id: string
+          raspunsuri?: Json
+          status?: Database["public"]["Enums"]["evaluation_status"]
+          template_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          concluzie?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_evaluarii?: string
+          deleted_at?: string | null
+          employee_id?: string
+          evaluator_id?: string | null
+          id?: string
+          organization_id?: string
+          raspunsuri?: Json
+          status?: Database["public"]["Enums"]["evaluation_status"]
+          template_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_evaluations_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_evaluations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_evaluations_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "evaluation_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_marca_counters: {
         Row: {
           created_at: string
@@ -3144,6 +3217,56 @@ export type Database = {
             columns: ["responsabil_employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evaluation_templates: {
+        Row: {
+          activ: boolean
+          created_at: string
+          created_by: string | null
+          criterii: Json
+          deleted_at: string | null
+          denumire: string
+          descriere: string | null
+          id: string
+          organization_id: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          activ?: boolean
+          created_at?: string
+          created_by?: string | null
+          criterii?: Json
+          deleted_at?: string | null
+          denumire: string
+          descriere?: string | null
+          id?: string
+          organization_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          activ?: boolean
+          created_at?: string
+          created_by?: string | null
+          criterii?: Json
+          deleted_at?: string | null
+          denumire?: string
+          descriere?: string | null
+          id?: string
+          organization_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evaluation_templates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -4678,80 +4801,48 @@ export type Database = {
       }
       leave_entitlement_rules: {
         Row: {
-          activ: boolean
-          categorie: string | null
+          categorie: string
           created_at: string
           deleted_at: string | null
           denumire: string
-          department_id: string | null
           id: string
-          job_position_id: string | null
           leave_type_id: string
           organization_id: string
           temei_legal: string | null
-          tip_criteriu: Database["public"]["Enums"]["leave_rule_criterion"]
           updated_at: string
           valabil_de_la: string
           valabil_pana_la: string | null
-          valoare_text: string | null
-          vechime_ani_min: number | null
           zile_suplimentare: number
         }
         Insert: {
-          activ?: boolean
-          categorie?: string | null
+          categorie: string
           created_at?: string
           deleted_at?: string | null
           denumire: string
-          department_id?: string | null
           id?: string
-          job_position_id?: string | null
           leave_type_id: string
           organization_id: string
           temei_legal?: string | null
-          tip_criteriu?: Database["public"]["Enums"]["leave_rule_criterion"]
           updated_at?: string
           valabil_de_la?: string
           valabil_pana_la?: string | null
-          valoare_text?: string | null
-          vechime_ani_min?: number | null
           zile_suplimentare: number
         }
         Update: {
-          activ?: boolean
-          categorie?: string | null
+          categorie?: string
           created_at?: string
           deleted_at?: string | null
           denumire?: string
-          department_id?: string | null
           id?: string
-          job_position_id?: string | null
           leave_type_id?: string
           organization_id?: string
           temei_legal?: string | null
-          tip_criteriu?: Database["public"]["Enums"]["leave_rule_criterion"]
           updated_at?: string
           valabil_de_la?: string
           valabil_pana_la?: string | null
-          valoare_text?: string | null
-          vechime_ani_min?: number | null
           zile_suplimentare?: number
         }
         Relationships: [
-          {
-            foreignKeyName: "leave_entitlement_rules_department_id_fkey"
-            columns: ["department_id"]
-            isOneToOne: false
-            referencedRelation: "departments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "leave_entitlement_rules_job_position_id_fkey"
-            columns: ["job_position_id"]
-            isOneToOne: false
-            referencedRelation: "job_positions"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "leave_entitlement_rules_leave_type_id_fkey"
             columns: ["leave_type_id"]
@@ -4959,7 +5050,6 @@ export type Database = {
           necesita_document: boolean
           organization_id: string
           plafon_reportare_zile: number | null
-          reglementat: boolean
           scade_din_sold: boolean
           se_reporteaza: boolean
           temei_legal: string | null
@@ -4981,7 +5071,6 @@ export type Database = {
           necesita_document?: boolean
           organization_id: string
           plafon_reportare_zile?: number | null
-          reglementat?: boolean
           scade_din_sold?: boolean
           se_reporteaza?: boolean
           temei_legal?: string | null
@@ -5003,7 +5092,6 @@ export type Database = {
           necesita_document?: boolean
           organization_id?: string
           plafon_reportare_zile?: number | null
-          reglementat?: boolean
           scade_din_sold?: boolean
           se_reporteaza?: boolean
           temei_legal?: string | null
@@ -9005,20 +9093,6 @@ export type Database = {
     }
     Functions: {
       accept_invitation: { Args: { p_token: string }; Returns: string }
-      aplica_drepturi_concediu: {
-        Args: {
-          p_an: number
-          p_organization_id: string
-          p_simulare?: boolean
-        }
-        Returns: {
-          drept_nou: number
-          drept_vechi: number
-          employee_id: string
-          leave_type_id: string
-          ramase_dupa: number
-        }[]
-      }
       consume_rate_limit: {
         Args: { p_key: string; p_limit: number; p_window_seconds: number }
         Returns: boolean
@@ -9114,10 +9188,6 @@ export type Database = {
           p_organization_id: string
           p_user_id: string
         }
-        Returns: undefined
-      }
-      seteaza_zile_concediu_implicit: {
-        Args: { p_organization_id: string; p_zile: number }
         Returns: undefined
       }
       submit_demo_request: {
@@ -9240,6 +9310,7 @@ export type Database = {
         | "in_reparatie"
         | "in_conservare"
         | "casat"
+      evaluation_status: "draft" | "finalizat"
       exemption_type:
         | "it"
         | "constructii"
@@ -9297,13 +9368,6 @@ export type Database = {
         | "zi_in_sus"
         | "zi_in_jos"
         | "matematic"
-      leave_rule_criterion:
-        | "vechime"
-        | "conditii_munca"
-        | "grad_handicap"
-        | "varsta_sub_18"
-        | "departament"
-        | "functie"
       locale_code: "ro-RO" | "en-US"
       maintenance_kind: "preventiva" | "predictiva" | "corectiva"
       maintenance_result: "reusita" | "partiala" | "esuata" | "amanata"
@@ -9650,6 +9714,7 @@ export const Constants = {
         "in_conservare",
         "casat",
       ],
+      evaluation_status: ["draft", "finalizat"],
       exemption_type: [
         "it",
         "constructii",
@@ -9712,14 +9777,6 @@ export const Constants = {
         "zi_in_sus",
         "zi_in_jos",
         "matematic",
-      ],
-      leave_rule_criterion: [
-        "vechime",
-        "conditii_munca",
-        "grad_handicap",
-        "varsta_sub_18",
-        "departament",
-        "functie",
       ],
       locale_code: ["ro-RO", "en-US"],
       maintenance_kind: ["preventiva", "predictiva", "corectiva"],

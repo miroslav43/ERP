@@ -19,10 +19,12 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import {
   citesteAngajat,
   citesteComponenteSalariale,
+  citesteEvaluari,
   citesteRezumatDateSensibile,
   citesteScutiriFiscale,
   idFisaProprie,
   lantulDeManageri,
+  type CriteriuSablonEvaluare,
 } from "@/lib/queries/employees";
 
 import {
@@ -36,6 +38,7 @@ import { ButonIncheieComponenta } from "./buton-incheie-componenta";
 import { DateSensibile } from "./date-sensibile";
 import { FormularContractNou } from "./formular-contract-nou";
 import { FormularComponentaSalariala } from "./formular-componenta-salariala";
+import { FormularEvaluareNoua } from "./formular-evaluare-noua";
 import { FormularInceteazaContract } from "./formular-inceteaza-contract";
 import { FormularModificaSalariu } from "./formular-modifica-salariu";
 import { FormularScutireFiscala } from "./formular-scutire-fiscala";
@@ -127,6 +130,24 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
   const componenteSalariale =
     scope === "all" ? await citesteComponenteSalariale(tenant.organizationId, id) : [];
   const poateAdaugaComponenta = can(permisiuni, "payroll:create", "all");
+  const evaluari = await citesteEvaluari(tenant.organizationId, id);
+  const poateCreaEvaluare = can(permisiuni, "employees:update", "team");
+  const sabloaneEvaluare = poateCreaEvaluare
+    ? await (async () => {
+        const db = await createServerSupabase();
+        const { data } = await db
+          .from("evaluation_templates")
+          .select("id, denumire, criterii")
+          .or(`organization_id.eq.${tenant.organizationId},organization_id.is.null`)
+          .eq("activ", true)
+          .is("deleted_at", null)
+          .order("denumire")
+          .returns<
+            { id: string; denumire: string; criterii: CriteriuSablonEvaluare[] }[]
+          >();
+        return data ?? [];
+      })()
+    : [];
   const sabloaneComponente =
     scope === "all" && poateAdaugaComponenta
       ? await (async () => {
@@ -530,6 +551,61 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
           ) : null}
         </section>
       ) : null}
+
+      <section aria-labelledby="titlu-evaluari" className={CLASA_SECTIUNE}>
+        <h2 id="titlu-evaluari" className="mb-4 text-lg font-medium">
+          Evaluări
+        </h2>
+        {evaluari.length === 0 ? (
+          <StareGoala mesaj="Angajatul nu are nicio evaluare înregistrată." />
+        ) : (
+          <ul className="space-y-3">
+            {evaluari.map((evaluare) => {
+              const criteriiDupaCod = new Map(
+                (evaluare.template?.criterii ?? []).map((c) => [c.cod, c]),
+              );
+              return (
+                <li key={evaluare.id} className="border-border rounded-md border p-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium">
+                      {evaluare.template?.denumire ?? "Șablon șters"}
+                    </span>
+                    <span className="text-muted-foreground text-sm">
+                      {formatDate(evaluare.data_evaluarii)}
+                    </span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                        evaluare.status === "finalizat"
+                          ? "bg-success/12 text-success"
+                          : "bg-background text-muted-foreground"
+                      }`}
+                    >
+                      {evaluare.status === "finalizat" ? "Finalizată" : "Ciornă"}
+                    </span>
+                  </div>
+                  <ul className="mt-2 flex flex-wrap gap-2 text-xs">
+                    {evaluare.raspunsuri.map((raspuns) => {
+                      const criteriu = criteriiDupaCod.get(raspuns.criteriu_cod);
+                      return (
+                        <li key={raspuns.criteriu_cod} className="bg-background rounded-full px-2 py-1">
+                          {criteriu?.denumire ?? raspuns.criteriu_cod}: {raspuns.scor}
+                          {criteriu !== undefined ? `/${String(criteriu.scala_max)}` : ""}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  {evaluare.concluzie !== null ? (
+                    <p className="text-muted-foreground mt-2 text-sm">{evaluare.concluzie}</p>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {poateCreaEvaluare ? (
+          <FormularEvaluareNoua employeeId={angajat.id} sabloane={sabloaneEvaluare} />
+        ) : null}
+      </section>
 
       <section aria-labelledby="titlu-documente" className={CLASA_SECTIUNE}>
         <h2 id="titlu-documente" className="mb-4 text-lg font-medium">

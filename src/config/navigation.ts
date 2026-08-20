@@ -9,9 +9,11 @@
  * iar RLS respinge rândul chiar dacă primele trei sunt ocolite.
  */
 import {
+  BarChart3,
   Briefcase,
   CalendarDays,
   Car,
+  ClipboardCheck,
   ClipboardList,
   Clock,
   FileText,
@@ -181,6 +183,17 @@ export const NAV_ITEMS: readonly NavItem[] = [
     order: 46,
   },
   {
+    id: "evaluari",
+    label: "Evaluări",
+    href: "/evaluari/sabloane",
+    icon: ClipboardCheck,
+    group: "personal",
+    featureKey: "evaluations",
+    permission: "employees:read",
+    minScope: "team",
+    order: 48,
+  },
+  {
     id: "onboarding",
     label: "Integrare angajați",
     href: "/onboarding",
@@ -305,11 +318,19 @@ export const NAV_ITEMS: readonly NavItem[] = [
     minScope: "own",
     order: 120,
   },
-  // „Rapoarte" (/rapoarte) a fost scos din meniu: intrarea exista, pagina nu.
-  // Era vizibilă pentru hr și org_admin și ducea garantat în 404 — verificat cu
-  // sesiune reală. O intrare de meniu care nu duce nicăieri e mai rea decât
-  // absența ei: îl pune pe om să creadă că aplicația e stricată, nu neterminată.
-  // Se pune la loc odată cu ecranul, în Faza 11.
+  {
+    id: "rapoarte",
+    label: "Rapoarte",
+    href: "/rapoarte",
+    icon: BarChart3,
+    group: "financiar",
+    featureKey: "payroll",
+    permission: "payroll:read",
+    // "all", nu "team" ca la salarizare: date agregate pe toată organizația
+    // (venit, concediu, tichete per angajat) — prag de proprietar, nu de manager.
+    minScope: "all",
+    order: 115,
+  },
   {
     id: "setari",
     label: "Setări",
