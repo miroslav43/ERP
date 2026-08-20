@@ -148,16 +148,19 @@ export const SECTOARE_BUCURESTI = ["1", "2", "3", "4", "5", "6"] as const;
 export const FURNIZORI_TICHETE = ["edenred", "pluxee", "up", "sodexo", "altul"] as const;
 
 const opțional = <T extends z.ZodType>(schema: T) =>
-  schema
-    .optional()
-    .or(z.literal("").transform(() => undefined));
+  schema.optional().or(z.literal("").transform(() => undefined));
 
 export const capitalSocialSchema = opțional(
-  z.coerce.number("Capitalul social trebuie să fie o sumă.").min(0, "Capitalul social nu poate fi negativ."),
+  z.coerce
+    .number("Capitalul social trebuie să fie o sumă.")
+    .min(0, "Capitalul social nu poate fi negativ."),
 );
 
 export const codCaenSchema = opțional(
-  z.string().trim().regex(/^[0-9]{4}$/, "Codul CAEN are 4 cifre (ex. 6201)."),
+  z
+    .string()
+    .trim()
+    .regex(/^[0-9]{4}$/, "Codul CAEN are 4 cifre (ex. 6201)."),
 );
 
 export const sectorSchema = opțional(z.enum(SECTOARE_BUCURESTI, "Alegeți sectorul."));
@@ -177,14 +180,17 @@ export const ibanOrganizatieSchema = z
   });
 
 export const cnpReprezentantSchema = opțional(
-  z.string().trim().transform((valoare, ctx) => {
-    const rezultat = validateazaCnp(valoare);
-    if (!rezultat.valid) {
-      ctx.addIssue({ code: "custom", message: rezultat.motiv });
-      return z.NEVER;
-    }
-    return rezultat.cnp;
-  }),
+  z
+    .string()
+    .trim()
+    .transform((valoare, ctx) => {
+      const rezultat = validateazaCnp(valoare);
+      if (!rezultat.valid) {
+        ctx.addIssue({ code: "custom", message: rezultat.motiv });
+        return z.NEVER;
+      }
+      return rezultat.cnp;
+    }),
 );
 
 export const ticheteFurnizorSchema = opțional(z.enum(FURNIZORI_TICHETE));
@@ -193,12 +199,23 @@ export const ziuaLuniiSchema = opțional(
   z.coerce.number().int("Ziua trebuie să fie un număr întreg.").min(1).max(31),
 );
 
-export const zileConcediuImplicitSchema = z.coerce
+const zileConcediuImplicitBaza = z.coerce
   .number("Numărul de zile trebuie să fie o cifră.")
   .int()
   .min(0)
-  .max(60)
-  .default(20);
+  .max(60);
+
+/**
+ * Cu `.default(20)` — corect DOAR la înrolare (organizație nouă, fără
+ * valoare încă). La editare (`actualizeazaOrganizatieSchema`) folosește
+ * `zileConcediuImplicitBaza` prin `opțional(...)`, NU acest export: un
+ * `.default()` aplicat de Zod ajunge în `handler` deja substituit — câmpul
+ * omis din formular nu mai poate fi distins de „utilizatorul a scris 20”,
+ * deci garda `=== undefined ? {} : {...}` de la restul câmpurilor opționale
+ * n-ar avea niciun efect (bug confirmat: editarea oricărui alt câmp din
+ * fișa organizației reseta tăcut politica de concediu la 20 de zile).
+ */
+export const zileConcediuImplicitSchema = zileConcediuImplicitBaza.default(20);
 
 export const seatsLimitSchema = z.coerce
   .number("Numărul de locuri trebuie să fie o cifră.")
@@ -306,7 +323,7 @@ export const actualizeazaOrganizatieSchema = z.object({
   functie_reprezentant_legal: functieReprezentantSchema,
   ssm_furnizor_extern: textOptional(200),
   ssm_persoana_responsabila: textOptional(160),
-  zile_concediu_anual_implicit: zileConcediuImplicitSchema,
+  zile_concediu_anual_implicit: opțional(zileConcediuImplicitBaza),
 });
 
 export const idOrganizatieSchema = z.object({ orgId: z.uuid("Organizație invalidă.") });

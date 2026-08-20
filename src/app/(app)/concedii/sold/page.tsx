@@ -50,7 +50,7 @@ const ETICHETE_EVENIMENT: Readonly<Record<string, string>> = {
 
 function TabelTipuri({ randuri }: { readonly randuri: readonly RandSold[] }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-border">
+    <div className="border-border overflow-x-auto rounded-lg border">
       <table className="w-full text-left text-sm">
         <thead className="bg-surface text-foreground">
           <tr>
@@ -74,7 +74,7 @@ function TabelTipuri({ randuri }: { readonly randuri: readonly RandSold[] }) {
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-border">
+        <tbody className="divide-border divide-y">
           {randuri.map(({ tip, sold }) => (
             <tr key={tip.id}>
               <td className="px-4 py-2">
@@ -136,6 +136,7 @@ export default async function PaginaSoldConcediu({ searchParams }: ProprietatiPa
       : "own";
   const poateAproba = can(permisiuni, "leave:approve", "team");
   const poateVedeaCalendar = can(permisiuni, "leave:read", "team");
+  const poateConfigura = can(permisiuni, "leave:update", "all");
 
   const parametri = await searchParams;
   const an = anDinUrl(parametri["an"], Number(todayInBucharest().slice(0, 4)));
@@ -163,7 +164,7 @@ export default async function PaginaSoldConcediu({ searchParams }: ProprietatiPa
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Soldul de concediu</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             {scope === "own"
               ? "Soldul dumneavoastră de zile de concediu, pe tip."
               : "Soldul de zile de concediu al angajaților vizibili pentru dvs., pe tip."}
@@ -172,7 +173,11 @@ export default async function PaginaSoldConcediu({ searchParams }: ProprietatiPa
         <SelectorAn an={an} />
       </header>
 
-      <NavConcedii poateAproba={poateAproba} poateVedeaCalendar={poateVedeaCalendar} />
+      <NavConcedii
+        poateAproba={poateAproba}
+        poateVedeaCalendar={poateVedeaCalendar}
+        poateConfigura={poateConfigura}
+      />
 
       {tipuri.length === 0 ? (
         <EmptyState
@@ -190,15 +195,12 @@ export default async function PaginaSoldConcediu({ searchParams }: ProprietatiPa
         />
       )}
 
-      <section
-        aria-labelledby="titlu-istoric"
-        className="rounded-lg border border-border p-4"
-      >
+      <section aria-labelledby="titlu-istoric" className="border-border rounded-lg border p-4">
         <h2 id="titlu-istoric" className="mb-4 text-lg font-medium">
           Istoricul soldului {String(an)}
         </h2>
         {istoric.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             {scope === "all" || fisaProprie !== null
               ? "Fără mișcări de sold înregistrate în acest an."
               : "Istoricul detaliat este vizibil doar pentru soldul propriu sau pentru rolurile cu citire extinsă asupra concediilor."}
@@ -223,7 +225,7 @@ async function SectiuniPeAngajat({
   const grupuri = grupeazaSoldDupaAngajat(solduri);
   if (grupuri.size === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
+      <p className="text-muted-foreground text-sm">
         Nu există încă niciun rând de sold pentru anul acesta, pentru angajații vizibili
         dumneavoastră.
       </p>
@@ -267,7 +269,7 @@ function IstoricTabel({
 }) {
   const hartaTipuri = new Map(tipuri.map((t) => [t.id, t]));
   return (
-    <div className="overflow-x-auto rounded-lg border border-border">
+    <div className="border-border overflow-x-auto rounded-lg border">
       <table className="w-full text-left text-sm">
         <thead className="bg-surface text-foreground">
           <tr>
@@ -291,16 +293,14 @@ function IstoricTabel({
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-border">
+        <tbody className="divide-border divide-y">
           {randuri.map((rand, index) => (
             // Rândurile append-only nu au `id` în select (plan de interogare) — indexul e stabil pentru o listă needitabilă.
             <tr key={index}>
               <td className="px-4 py-2">{formatDate(rand.data_eveniment)}</td>
               <td className="px-4 py-2">{hartaTipuri.get(rand.leave_type_id)?.denumire ?? "—"}</td>
               <td className="px-4 py-2">{ETICHETE_EVENIMENT[rand.eveniment] ?? rand.eveniment}</td>
-              <td
-                className={`px-4 py-2 tabular-nums ${rand.delta < 0 ? "text-danger" : ""}`}
-              >
+              <td className={`px-4 py-2 tabular-nums ${rand.delta < 0 ? "text-danger" : ""}`}>
                 {rand.delta > 0 ? "+" : ""}
                 {formatAmount(rand.delta)}
               </td>

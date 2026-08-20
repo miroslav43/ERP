@@ -9,8 +9,10 @@
 import { createServerSupabase } from "@/lib/supabase/server";
 import type { PermissionScope } from "@/config/permissions";
 import type {
+  CriteriuGrila,
   EvenimentSold,
   FiltreCereri,
+  ModRotunjireAcumulare,
   PortiuneZi,
   StatusCerere,
   StatusSarcinaAprobare,
@@ -594,4 +596,139 @@ export async function zileNelucratoare(
   if (nationaleRes.error !== null) throw nationaleRes.error;
   if (organizatieRes.error !== null) throw organizatieRes.error;
   return { nationale: nationaleRes.data ?? [], organizatie: organizatieRes.data ?? [] };
+}
+
+// ── Setări concedii: tipuri + grile de zile suplimentare ──────────────────────
+//
+// `leave_types_select` e vizibilă oricărui membru cu modulul „leave” activ;
+// `ler_select` cere `leave:read = all` — un angajat obișnuit primește aici o
+// listă de reguli GOALĂ, nu o eroare (RLS filtrează rândurile, nu respinge
+// cererea). De aceea pagina /concedii/setari mai verifică o dată `can(...)`
+// înainte de a randa formularele de editare, dar orice alt apelant al
+// funcției ăsteia primește pur și simplu mai puține date, niciodată date greșite.
+
+export interface TipConcediuConfigurabil {
+  readonly id: string;
+  readonly key: string;
+  readonly denumire: string;
+  readonly culoare: string;
+  readonly zile_implicite: number;
+  readonly reglementat: boolean;
+  readonly activ: boolean;
+  readonly scade_din_sold: boolean;
+  readonly necesita_document: boolean;
+  readonly se_reporteaza: boolean;
+  readonly termen_reportare: number | null;
+  readonly plafon_reportare_zile: number | null;
+  readonly mod_rotunjire_acumulare: ModRotunjireAcumulare;
+  readonly temei_legal: string | null;
+}
+
+export interface RegulaConcediuRand {
+  readonly id: string;
+  readonly leave_type_id: string;
+  readonly tip_criteriu: CriteriuGrila;
+  readonly vechime_ani_min: number | null;
+  readonly valoare_text: string | null;
+  readonly department_id: string | null;
+  readonly job_position_id: string | null;
+  readonly zile_suplimentare: number;
+  readonly denumire: string;
+  readonly activ: boolean;
+  readonly valabil_de_la: string;
+  readonly valabil_pana_la: string | null;
+}
+
+export interface OptiuneNomenclator {
+  readonly id: string;
+  readonly denumire: string;
+}
+
+export interface ConfigurareConcedii {
+  readonly tipuri: readonly TipConcediuConfigurabil[];
+  readonly reguli: readonly RegulaConcediuRand[];
+  readonly departamente: readonly OptiuneNomenclator[];
+  readonly functii: readonly OptiuneNomenclator[];
+}
+
+export async function configurareConcedii(organizationId: string): Promise<ConfigurareConcedii> {
+  const db = await createServerSupabase();
+  const [tipuriRes, reguliRes, departamenteRes, functiiRes] = await Promise.all([
+    db
+      .from("leave_types")
+      .select(
+        "id, key, denumire, culoare, zile_implicite, reglementat, activ, scade_din_sold, " +
+          "necesita_document, se_reporteaza, termen_reportare, plafon_reportare_zile, " +
+          "mod_rotunjire_acumulare, temei_legal",
+      )
+      .eq("organization_id", organizationId)
+      .is("deleted_at", null)
+      .order("denumire")
+      .returns<TipConcediuConfigurabil[]>(),
+    db
+      .from("leave_entitlement_rules")
+      .select(
+        "id, leave_type_id, tip_criteriu, vechime_ani_min, valoare_text, department_id, " +
+          "job_position_id, zile_suplimentare, denumire, activ, valabil_de_la, valabil_pana_la",
+      )
+      .eq("organization_id", organizationId)
+      .is("deleted_at", null)
+      .order("valabil_de_la", { ascending: false })
+      .returns<RegulaConcediuRand[]>(),
+    db
+      .from("departments")
+      .select("id, denumire")
+      .eq("organization_id", organizationId)
+      .eq("activ", true)
+      .is("deleted_at", null)
+      .order("denumire")
+      .returns<OptiuneNomenclator[]>(),
+    db
+      .from("job_positions")
+      .select("id, denumire")
+      .eq("organization_id", organizationId)
+      .eq("activ", true)
+      .is("deleted_at", null)
+      .order("denumire")
+      .returns<OptiuneNomenclator[]>(),
+  ]);
+  if (tipuriRes.error !== null) throw tipuriRes.error;
+  if (reguliRes.error !== null) throw reguliRes.error;
+  if (departamenteRes.error !== null) throw departamenteRes.error;
+  if (functiiRes.error !== null) throw functiiRes.error;
+  return {
+    tipuri: tipuriRes.data ?? [],
+    reguli: reguliRes.data ?? [],
+    departamente: departamenteRes.data ?? [],
+    functii: functiiRes.data ?? [],
+  };
+}
+
+// ── Setări concedii: previzualizarea aplicării drepturilor ────────────────────
+
+export interface RandPrevizualizareDrept {
+  readonly employee_id: string;
+  readonly leave_type_id: string;
+  readonly drept_vechi: number;
+  readonly drept_nou: number;
+  readonly ramase_dupa: number;
+}
+
+/**
+ * `p_simulare = true`: `public.aplica_drepturi_concediu` (0035) doar
+ * ÎNTOARCE diferențele, nu scrie nimic. Aceeași funcție SQL e apelată din
+ * `aplicaDrepturileConcediu` (concedii/setari/actions.ts) cu `p_simulare = false`.
+ */
+export async function previzualizeazaDrepturi(
+  organizationId: string,
+  an: number,
+): Promise<readonly RandPrevizualizareDrept[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db.rpc("aplica_drepturi_concediu", {
+    p_organization_id: organizationId,
+    p_an: an,
+    p_simulare: true,
+  });
+  if (error !== null) throw error;
+  return data ?? [];
 }

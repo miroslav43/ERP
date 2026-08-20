@@ -164,7 +164,9 @@ export const actualizeazaOrganizatie = createPlatformAction({
         ...(input.ssm_persoana_responsabila === undefined
           ? {}
           : { ssm_persoana_responsabila: input.ssm_persoana_responsabila }),
-        zile_concediu_anual_implicit: input.zile_concediu_anual_implicit,
+        ...(input.zile_concediu_anual_implicit === undefined
+          ? {}
+          : { zile_concediu_anual_implicit: input.zile_concediu_anual_implicit }),
         updated_by: ctx.user.id,
       })
       .eq("id", input.orgId)

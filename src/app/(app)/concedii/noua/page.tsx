@@ -37,6 +37,7 @@ export default async function PaginaCerereNoua() {
   const poateAlegeAngajat = can(permisiuni, "leave:create", "all");
   const poateVedeaCalendar = can(permisiuni, "leave:read", "team");
   const poateAproba = can(permisiuni, "leave:approve", "team");
+  const poateConfigura = can(permisiuni, "leave:update", "all");
 
   const anCurent = Number(todayInBucharest().slice(0, 4));
   const db = await createServerSupabase();
@@ -89,16 +90,20 @@ export default async function PaginaCerereNoua() {
     <main className="space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">Cerere de concediu nouă</h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Previzualizarea zilelor consumate se calculează pe măsură ce completați formularul; soldul
           se verifică din nou, exact, la trimitere.
         </p>
       </header>
 
-      <NavConcedii poateAproba={poateAproba} poateVedeaCalendar={poateVedeaCalendar} />
+      <NavConcedii
+        poateAproba={poateAproba}
+        poateVedeaCalendar={poateVedeaCalendar}
+        poateConfigura={poateConfigura}
+      />
 
       {tipuri === null || tipuri.length === 0 ? (
-        <p className="rounded-lg border border-warning/40 bg-warning/12 p-4 text-sm text-foreground">
+        <p className="border-warning/40 bg-warning/12 text-foreground rounded-lg border p-4 text-sm">
           Organizația nu are niciun tip de concediu activ configurat. Contactați administratorul.
         </p>
       ) : (

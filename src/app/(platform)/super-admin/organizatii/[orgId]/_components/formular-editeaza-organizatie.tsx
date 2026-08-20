@@ -28,6 +28,7 @@ interface OrganizatieExistenta {
   readonly reprezentant_legal: string | null;
   readonly plan: string;
   readonly seats_limit: number;
+  readonly zile_concediu_anual_implicit: number;
 }
 
 const CLASA_CAMP = "mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm";
@@ -64,6 +65,7 @@ export function FormularEditeazaOrganizatie({
         reprezentant_legal: text("reprezentant_legal"),
         plan: String(fd.get("plan") ?? ""),
         seats_limit: Number(fd.get("seats_limit")),
+        zile_concediu_anual_implicit: Number(fd.get("zile_concediu_anual_implicit")),
       });
       if (!rezultat.ok) {
         setEroare(rezultat.error.message);
@@ -251,6 +253,21 @@ export function FormularEditeazaOrganizatie({
           max={1000}
           required
           defaultValue={organizatie.seats_limit}
+          className={CLASA_CAMP}
+        />
+      </div>
+      <div className="flex flex-col gap-1">
+        <label htmlFor={`${idFormular}-zile_concediu`} className="text-sm font-medium">
+          Zile de concediu de odihnă / an *
+        </label>
+        <input
+          id={`${idFormular}-zile_concediu`}
+          name="zile_concediu_anual_implicit"
+          type="number"
+          min={0}
+          max={60}
+          required
+          defaultValue={organizatie.zile_concediu_anual_implicit}
           className={CLASA_CAMP}
         />
       </div>

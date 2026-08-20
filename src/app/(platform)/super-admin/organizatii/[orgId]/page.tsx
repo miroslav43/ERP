@@ -135,6 +135,7 @@ export default async function PaginaFisaOrganizatie({
                 reprezentant_legal: organizatie.reprezentant_legal,
                 plan: organizatie.plan,
                 seats_limit: organizatie.seats_limit,
+                zile_concediu_anual_implicit: organizatie.zile_concediu_anual_implicit,
               }}
             />
           </div>
@@ -157,9 +158,7 @@ export default async function PaginaFisaOrganizatie({
             <Rand eticheta="Invitații în așteptare" valoare={String(invitatiiInAsteptare)} />
             <Rand
               eticheta="Probă până la"
-              valoare={
-                organizatie.trial_ends_at ? formatDateTime(organizatie.trial_ends_at) : null
-              }
+              valoare={organizatie.trial_ends_at ? formatDateTime(organizatie.trial_ends_at) : null}
             />
           </dl>
           {membriActivi >= organizatie.seats_limit && (

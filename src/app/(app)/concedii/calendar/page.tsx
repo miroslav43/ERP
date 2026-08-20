@@ -58,6 +58,7 @@ export default async function PaginaCalendarConcedii({ searchParams }: Proprieta
   }
 
   const poateAproba = can(permisiuni, "leave:approve", "team");
+  const poateConfigura = can(permisiuni, "leave:update", "all");
   const parametri = await searchParams;
   const azi = todayInBucharest();
   const anCurent = parametrulNumeric(parametri["an"]) ?? Number(azi.slice(0, 4));
@@ -127,12 +128,16 @@ export default async function PaginaCalendarConcedii({ searchParams }: Proprieta
     <main className="space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">Calendarul de concedii</h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Grila lunară a absențelor de echipă, pentru {formatMonthYear(anCurent, luna)}.
         </p>
       </header>
 
-      <NavConcedii poateAproba={poateAproba} poateVedeaCalendar={true} />
+      <NavConcedii
+        poateAproba={poateAproba}
+        poateVedeaCalendar={true}
+        poateConfigura={poateConfigura}
+      />
 
       <GrilaCalendar
         an={anCurent}

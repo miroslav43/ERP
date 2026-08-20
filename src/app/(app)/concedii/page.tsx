@@ -117,7 +117,7 @@ async function TabelCereri({
         <td className="px-4 py-3">
           <Link
             href={`/concedii/${cerere.id}`}
-            className="font-medium text-primary underline-offset-2 hover:underline"
+            className="text-primary font-medium underline-offset-2 hover:underline"
           >
             Detalii
           </Link>
@@ -128,7 +128,7 @@ async function TabelCereri({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div className="border-border overflow-x-auto rounded-lg border">
         <table className="w-full text-left text-sm">
           <caption className="sr-only">Lista cererilor de concediu</caption>
           <thead className="bg-surface text-foreground">
@@ -155,19 +155,17 @@ async function TabelCereri({
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
-            {randuri.map(randCa)}
-          </tbody>
+          <tbody className="divide-border divide-y">{randuri.map(randCa)}</tbody>
         </table>
       </div>
 
       <nav aria-label="Paginare" className="mt-4 flex justify-end">
         {urmatorulCursor === null ? (
-          <p className="text-sm text-muted-foreground">Aceasta este ultima pagină.</p>
+          <p className="text-muted-foreground text-sm">Aceasta este ultima pagină.</p>
         ) : (
           <Link
             href={`/concedii?${cautare.toString()}`}
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm font-medium hover:bg-surface"
+            className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-2 text-sm font-medium"
           >
             Pagina următoare
           </Link>
@@ -186,7 +184,7 @@ async function RezumatSoldPropriu({ organizationId }: { readonly organizationId:
   const ramase = sold?.ramase ?? tipOdihna.zile_implicite;
 
   return (
-    <p className="rounded-lg border border-border bg-surface px-4 py-2 text-sm text-foreground">
+    <p className="border-border bg-surface text-foreground rounded-lg border px-4 py-2 text-sm">
       Aveți <strong>{formatAmount(ramase)}</strong> zile rămase din „{tipOdihna.denumire}” pentru
       anul {String(an)}.{" "}
       <Link href="/concedii/sold" className="underline underline-offset-2">
@@ -217,6 +215,7 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
   const poateCrea = can(permisiuni, "leave:create", "own");
   const poateAproba = can(permisiuni, "leave:approve", "team");
   const poateVedeaCalendar = can(permisiuni, "leave:read", "team");
+  const poateConfigura = can(permisiuni, "leave:update", "all");
 
   const parametri = await searchParams;
   const db = await createServerSupabase();
@@ -234,7 +233,7 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Concedii</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             {scope === "own"
               ? "Cererile dumneavoastră de concediu."
               : scope === "team"
@@ -245,7 +244,7 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
         {poateCrea ? (
           <Link
             href="/concedii/noua"
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+            className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
           >
             <CalendarPlus aria-hidden="true" className="size-4" />
             Cerere nouă
@@ -253,7 +252,11 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
         ) : null}
       </header>
 
-      <NavConcedii poateAproba={poateAproba} poateVedeaCalendar={poateVedeaCalendar} />
+      <NavConcedii
+        poateAproba={poateAproba}
+        poateVedeaCalendar={poateVedeaCalendar}
+        poateConfigura={poateConfigura}
+      />
 
       {scope === "own" ? <RezumatSoldPropriu organizationId={tenant.organizationId} /> : null}
 

@@ -36,6 +36,7 @@ import { FormularInceteazaContract } from "./formular-inceteaza-contract";
 import { FormularModificaSalariu } from "./formular-modifica-salariu";
 import { FormularScutireFiscala } from "./formular-scutire-fiscala";
 import { IncarcareAvatarAdmin } from "./incarcare-avatar-admin";
+import { SectiuneConcedii } from "./sectiune-concedii";
 
 export const metadata: Metadata = { title: "Fișa angajatului" };
 
@@ -55,7 +56,7 @@ function Camp({
   const gol = valoare === null || valoare.length === 0;
   return (
     <div>
-      <dt className="text-xs tracking-wide text-muted-foreground uppercase">{eticheta}</dt>
+      <dt className="text-muted-foreground text-xs tracking-wide uppercase">{eticheta}</dt>
       <dd className={`mt-0.5 text-sm ${gol ? "text-muted-foreground/70 italic" : ""}`}>
         {gol ? "Necompletat" : valoare}
       </dd>
@@ -63,7 +64,13 @@ function Camp({
   );
 }
 
-function GrupCampuri({ titlu, children }: { readonly titlu: string; readonly children: ReactNode }) {
+function GrupCampuri({
+  titlu,
+  children,
+}: {
+  readonly titlu: string;
+  readonly children: ReactNode;
+}) {
   return (
     <div className="border-border border-t pt-4 first:border-t-0 first:pt-0">
       <h3 className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase">
@@ -116,6 +123,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
   const esteFisaProprie = angajat.user_id === utilizator.id;
   const poateIncarcaPtOricine = can(permisiuni, "users:update", "all");
   const poateEditaAngajat = can(permisiuni, "employees:update", "all");
+  const poateVedeaRegulileConcediu = can(permisiuni, "leave:read", "all");
 
   return (
     <main className="space-y-6 p-6">
@@ -160,10 +168,17 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                         href={`/angajati/${veriga.id}`}
                         className="border-border bg-background hover:border-primary/30 hover:bg-primary/5 inline-flex items-center gap-1.5 rounded-full border py-1 pr-3 pl-1 transition-colors"
                       >
-                        <AvatarAngajat url={veriga.avatar_url} nume={veriga.full_name} marime="sm" />
+                        <AvatarAngajat
+                          url={veriga.avatar_url}
+                          nume={veriga.full_name}
+                          marime="sm"
+                        />
                         <span className="font-medium">{veriga.full_name}</span>
                       </Link>
-                      <ChevronRight aria-hidden="true" className="text-muted-foreground size-4 shrink-0" />
+                      <ChevronRight
+                        aria-hidden="true"
+                        className="text-muted-foreground size-4 shrink-0"
+                      />
                     </li>
                   ))}
                   <li className="border-primary/30 bg-primary/5 inline-flex items-center gap-1.5 rounded-full border py-1 pr-3 pl-1">
@@ -260,7 +275,9 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                     {ETICHETE_CONTRACT[contractPrincipal.status] ?? contractPrincipal.status}
                   </span>
                   {contractPrincipal.este_act_aditional ? (
-                    <span className="bg-background rounded-full px-2 py-0.5 text-xs">Act adițional</span>
+                    <span className="bg-background rounded-full px-2 py-0.5 text-xs">
+                      Act adițional
+                    </span>
                   ) : null}
                 </div>
                 <dl className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -272,10 +289,15 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                     eticheta="Normă"
                     valoare={`${String(contractPrincipal.norma_ore_saptamana)} ore/săptămână`}
                   />
-                  <Camp eticheta="Salariu de bază" valoare={formatLei(contractPrincipal.salariu_baza)} />
+                  <Camp
+                    eticheta="Salariu de bază"
+                    valoare={formatLei(contractPrincipal.salariu_baza)}
+                  />
                   <Camp
                     eticheta="Mod de lucru"
-                    valoare={ETICHETE_MOD_LUCRU[contractPrincipal.work_mode] ?? contractPrincipal.work_mode}
+                    valoare={
+                      ETICHETE_MOD_LUCRU[contractPrincipal.work_mode] ?? contractPrincipal.work_mode
+                    }
                   />
                 </dl>
                 {poateEditaAngajat ? (
@@ -301,7 +323,9 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-medium">Contract nr. {contract.numar}</span>
                         {contract.este_act_aditional ? (
-                          <span className="bg-surface rounded-full px-2 py-0.5 text-xs">Act adițional</span>
+                          <span className="bg-surface rounded-full px-2 py-0.5 text-xs">
+                            Act adițional
+                          </span>
                         ) : null}
                         <span className="text-muted-foreground ml-auto text-xs">
                           {ETICHETE_CONTRACT[contract.status] ?? contract.status}
@@ -316,7 +340,10 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                           eticheta="Normă"
                           valoare={`${String(contract.norma_ore_saptamana)} ore/săptămână`}
                         />
-                        <Camp eticheta="Salariu de bază" valoare={formatLei(contract.salariu_baza)} />
+                        <Camp
+                          eticheta="Salariu de bază"
+                          valoare={formatLei(contract.salariu_baza)}
+                        />
                         <Camp
                           eticheta="Mod de lucru"
                           valoare={ETICHETE_MOD_LUCRU[contract.work_mode] ?? contract.work_mode}
@@ -342,20 +369,30 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
         )}
 
         <div className="mt-4">
-          {contractPrincipal === null
-            ? can(permisiuni, "employees:create", "all")
-              ? <FormularContractNou employeeId={angajat.id} />
-              : null
-            : poateEditaAngajat
-              ? (
-                  <FormularModificaSalariu
-                    contractId={contractPrincipal.id}
-                    salariuActual={contractPrincipal.salariu_baza}
-                  />
-                )
-              : null}
+          {contractPrincipal === null ? (
+            can(permisiuni, "employees:create", "all") ? (
+              <FormularContractNou employeeId={angajat.id} />
+            ) : null
+          ) : poateEditaAngajat ? (
+            <FormularModificaSalariu
+              contractId={contractPrincipal.id}
+              salariuActual={contractPrincipal.salariu_baza}
+            />
+          ) : null}
         </div>
       </section>
+
+      <SectiuneConcedii
+        organizationId={tenant.organizationId}
+        employeeId={angajat.id}
+        hiredOn={angajat.hired_on}
+        dataNasterii={angajat.data_nasterii}
+        conditiiMunca={angajat.conditii_munca}
+        gradHandicap={angajat.grad_handicap}
+        departmentId={angajat.department?.id ?? null}
+        jobPositionId={angajat.job_position?.id ?? null}
+        poateVedeaRegulile={poateVedeaRegulileConcediu}
+      />
 
       {scope === "all" ? (
         <section aria-labelledby="titlu-scutiri" className={CLASA_SECTIUNE}>
@@ -390,7 +427,9 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                     />
                     <Camp
                       eticheta="Plafon lunar"
-                      valoare={scutire.plafon_lunar === null ? null : formatLei(scutire.plafon_lunar)}
+                      valoare={
+                        scutire.plafon_lunar === null ? null : formatLei(scutire.plafon_lunar)
+                      }
                     />
                     <Camp eticheta="Temei legal" valoare={scutire.temei_legal} />
                   </dl>
@@ -419,7 +458,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                 <FileText aria-hidden="true" className="text-muted-foreground size-4 shrink-0" />
                 <span className="min-w-0 flex-1 font-medium">{document.titlu}</span>
                 {document.confidential ? (
-                  <span className="bg-warning/12 rounded-full px-2 py-0.5 text-xs font-medium text-foreground">
+                  <span className="bg-warning/12 text-foreground rounded-full px-2 py-0.5 text-xs font-medium">
                     Confidențial
                   </span>
                 ) : null}

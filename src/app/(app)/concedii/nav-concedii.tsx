@@ -12,6 +12,7 @@ interface Fila {
 interface Proprietati {
   readonly poateAproba: boolean;
   readonly poateVedeaCalendar: boolean;
+  readonly poateConfigura: boolean;
 }
 
 function esteActiv(cale: string, href: string): boolean {
@@ -27,7 +28,7 @@ function esteActiv(cale: string, href: string): boolean {
  * bariera de securitate: fiecare pagină verifică din nou permisiunea, iar RLS
  * respinge rândurile chiar dacă cineva tastează URL-ul direct.
  */
-export function NavConcedii({ poateAproba, poateVedeaCalendar }: Proprietati) {
+export function NavConcedii({ poateAproba, poateVedeaCalendar, poateConfigura }: Proprietati) {
   const cale = usePathname();
 
   const file: readonly Fila[] = [
@@ -35,13 +36,11 @@ export function NavConcedii({ poateAproba, poateVedeaCalendar }: Proprietati) {
     { href: "/concedii/sold", eticheta: "Soldul meu" },
     ...(poateAproba ? [{ href: "/concedii/aprobari", eticheta: "Aprobări" }] : []),
     ...(poateVedeaCalendar ? [{ href: "/concedii/calendar", eticheta: "Calendar echipă" }] : []),
+    ...(poateConfigura ? [{ href: "/concedii/setari", eticheta: "Setări" }] : []),
   ];
 
   return (
-    <nav
-      aria-label="Navigare concedii"
-      className="flex flex-wrap gap-1 border-b border-border"
-    >
+    <nav aria-label="Navigare concedii" className="border-border flex flex-wrap gap-1 border-b">
       {file.map((fila) => {
         const activ = esteActiv(cale, fila.href);
         return (
@@ -49,10 +48,10 @@ export function NavConcedii({ poateAproba, poateVedeaCalendar }: Proprietati) {
             key={fila.href}
             href={fila.href}
             aria-current={activ ? "page" : undefined}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium   ${
+            className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium ${
               activ
                 ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                : "text-muted-foreground hover:text-foreground border-transparent"
             }`}
           >
             {fila.eticheta}

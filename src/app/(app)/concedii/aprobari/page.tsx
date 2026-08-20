@@ -29,18 +29,23 @@ export default async function PaginaAprobariConcedii() {
   }
 
   const poateVedeaCalendar = can(permisiuni, "leave:read", "team");
+  const poateConfigura = can(permisiuni, "leave:update", "all");
   const sarcini = await deAprobat(tenant.organizationId, user.id);
 
   return (
     <main className="space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">Aprobări</h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Cererile de concediu care așteaptă decizia dumneavoastră.
         </p>
       </header>
 
-      <NavConcedii poateAproba={true} poateVedeaCalendar={poateVedeaCalendar} />
+      <NavConcedii
+        poateAproba={true}
+        poateVedeaCalendar={poateVedeaCalendar}
+        poateConfigura={poateConfigura}
+      />
 
       {sarcini.length === 0 ? (
         <EmptyState
@@ -51,10 +56,7 @@ export default async function PaginaAprobariConcedii() {
       ) : (
         <ul className="space-y-3">
           {sarcini.map((sarcina) => (
-            <li
-              key={sarcina.taskId}
-              className="rounded-lg border border-border p-4"
-            >
+            <li key={sarcina.taskId} className="border-border rounded-lg border p-4">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <p className="font-medium">
@@ -69,19 +71,19 @@ export default async function PaginaAprobariConcedii() {
                     {" · "}
                     {sarcina.tip?.denumire ?? "Concediu"}
                   </p>
-                  <p className="mt-1 text-sm text-muted-foreground">
+                  <p className="text-muted-foreground mt-1 text-sm">
                     {formatDate(sarcina.cerere.dataInceput)} –{" "}
                     {formatDate(sarcina.cerere.dataSfarsit)} ·{" "}
                     {formatAmount(sarcina.cerere.zileLucratoare)} zile lucrătoare
                   </p>
                   {sarcina.termenLa !== null ? (
-                    <p className="mt-1 text-xs text-foreground">
+                    <p className="text-foreground mt-1 text-xs">
                       Termen de decizie: {formatDateTime(sarcina.termenLa)}
                     </p>
                   ) : null}
                   <Link
                     href={`/concedii/${sarcina.cerere.id}`}
-                    className="mt-1 inline-block text-xs text-primary underline-offset-2 hover:underline"
+                    className="text-primary mt-1 inline-block text-xs underline-offset-2 hover:underline"
                   >
                     Vezi cererea completă
                   </Link>
