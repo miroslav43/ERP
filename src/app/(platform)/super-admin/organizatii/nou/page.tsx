@@ -2,7 +2,7 @@
 import Link from "next/link";
 
 import { citesteCerereDemo } from "../../cereri-demo/actions";
-import { FormularOrganizatieNoua } from "../_components/formular-organizatie-noua";
+import { InrolareOrganizatie } from "../_components/inrolare-organizatie";
 
 export const metadata = { title: "Organizație nouă · Panou de platformă" };
 
@@ -54,16 +54,12 @@ export default async function PaginaOrganizatieNoua({ searchParams }: Proprietat
       <header>
         <h1 className="text-foreground text-2xl font-semibold">Organizație nouă</h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          Organizația se creează în starea „În așteptare”. Modulele de bază se activează automat,
-          iar accesul membrilor începe după activare.
+          Căutăm CUI-ul la ANAF, apoi confirmi datele și creezi contul proprietarului. Organizația
+          devine activă imediat, cu modulele de bază pornite.
         </p>
       </header>
 
-      {valoriInitiale === undefined ? (
-        <FormularOrganizatieNoua />
-      ) : (
-        <FormularOrganizatieNoua valoriInitiale={valoriInitiale} />
-      )}
+      <InrolareOrganizatie {...(valoriInitiale === undefined ? {} : { valoriInitiale })} />
     </div>
   );
 }
