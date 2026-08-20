@@ -403,6 +403,79 @@ export async function scutiriActivePerioada(
   return harta;
 }
 
+export interface ComponentaSalarialaActiva {
+  readonly kind: string;
+  readonly procent: number | null;
+  readonly suma: number | null;
+  readonly impozabil: boolean;
+  /**
+   * Motorul de calcul (`calc.ts`) are un singur flag `supusContributii`, dar
+   * baza ține separat CAS/CASS — o componentă e „supusă contribuțiilor" dacă
+   * intră în ORICARE dintre cele două (simplificare deliberată, ca restul
+   * modulului: mai degrabă supra-taxată decât sub-taxată).
+   */
+  readonly supusContributii: boolean;
+}
+
+/**
+ * Sporurile/primele reutilizabile (`salary_components`, asociate de pe fișa
+ * angajatului) active în luna calculată — se transformă în `bonuses` pentru
+ * `calculatePayrollEntry`, ca angajatorul să nu le re-introducă manual în
+ * fiecare perioadă.
+ */
+export async function componenteSalarialeActivePerioada(
+  organizationId: string,
+  an: number,
+  luna: number,
+): Promise<ReadonlyMap<string, readonly ComponentaSalarialaActiva[]>> {
+  const db = await createServerSupabase();
+  const primaZi = `${String(an)}-${String(luna).padStart(2, "0")}-01`;
+  const ultimaZi = new Date(Date.UTC(an, luna, 0)).getUTCDate();
+  const finalaZi = `${String(an)}-${String(luna).padStart(2, "0")}-${String(ultimaZi).padStart(2, "0")}`;
+
+  const { data, error } = await db
+    .from("salary_components")
+    .select(
+      "employee_id, kind, procent, suma, component_type:salary_component_types!component_type_id(impozabil, intra_in_baza_cas, intra_in_baza_cass)",
+    )
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .lte("valabil_de_la", finalaZi)
+    .or(`valabil_pana.is.null,valabil_pana.gte.${primaZi}`)
+    .returns<
+      {
+        employee_id: string;
+        kind: string;
+        procent: number | null;
+        suma: number | null;
+        component_type: {
+          impozabil: boolean;
+          intra_in_baza_cas: boolean;
+          intra_in_baza_cass: boolean;
+        } | null;
+      }[]
+    >();
+  if (error !== null) throw error;
+
+  const harta = new Map<string, ComponentaSalarialaActiva[]>();
+  for (const rand of data ?? []) {
+    const listaAnterioara = harta.get(rand.employee_id) ?? [];
+    harta.set(rand.employee_id, [
+      ...listaAnterioara,
+      {
+        kind: rand.kind,
+        procent: rand.procent,
+        suma: rand.suma,
+        impozabil: rand.component_type?.impozabil ?? true,
+        supusContributii:
+          (rand.component_type?.intra_in_baza_cas ?? true) ||
+          (rand.component_type?.intra_in_baza_cass ?? true),
+      },
+    ]);
+  }
+  return harta;
+}
+
 // ── Prime și rețineri, dinaintea calculului ─────────────────────────────────
 
 export interface RandPrimaPerioada {

@@ -449,3 +449,33 @@ export async function citesteScutiriFiscale(
   if (error !== null) throw error;
   return data ?? [];
 }
+
+export interface ComponentaSalariala {
+  readonly id: string;
+  readonly kind: string;
+  readonly procent: number | null;
+  readonly suma: number | null;
+  readonly valabil_de_la: string;
+  readonly valabil_pana: string | null;
+  readonly observatii: string | null;
+  readonly component_type: Readonly<{ denumire: string; cod_revisal: string | null }> | null;
+}
+
+export async function citesteComponenteSalariale(
+  organizationId: string,
+  employeeId: string,
+): Promise<readonly ComponentaSalariala[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("salary_components")
+    .select(
+      "id, kind, procent, suma, valabil_de_la, valabil_pana, observatii, component_type:salary_component_types!component_type_id(denumire, cod_revisal)",
+    )
+    .eq("organization_id", organizationId)
+    .eq("employee_id", employeeId)
+    .is("deleted_at", null)
+    .order("valabil_de_la", { ascending: false })
+    .returns<ComponentaSalariala[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}

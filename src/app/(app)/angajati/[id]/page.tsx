@@ -15,8 +15,10 @@ import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate } from "@/lib/format/date";
 import { formatLei } from "@/lib/format/money";
 import { pregatesteIncarcareAvatarulPropriu, salveazaAvatarulPropriu } from "@/lib/actions/profile";
+import { createServerSupabase } from "@/lib/supabase/server";
 import {
   citesteAngajat,
+  citesteComponenteSalariale,
   citesteRezumatDateSensibile,
   citesteScutiriFiscale,
   idFisaProprie,
@@ -30,13 +32,23 @@ import {
   ETICHETE_SCUTIRE,
   ETICHETE_STATUS,
 } from "../etichete";
+import { ButonIncheieComponenta } from "./buton-incheie-componenta";
 import { DateSensibile } from "./date-sensibile";
 import { FormularContractNou } from "./formular-contract-nou";
+import { FormularComponentaSalariala } from "./formular-componenta-salariala";
 import { FormularInceteazaContract } from "./formular-inceteaza-contract";
 import { FormularModificaSalariu } from "./formular-modifica-salariu";
 import { FormularScutireFiscala } from "./formular-scutire-fiscala";
 import { IncarcareAvatarAdmin } from "./incarcare-avatar-admin";
 import { SectiuneConcedii } from "./sectiune-concedii";
+
+const ETICHETE_TIP_COMPONENTA: Readonly<Record<string, string>> = {
+  spor_procent: "Spor procentual",
+  spor_suma: "Spor — sumă fixă",
+  indemnizatie: "Indemnizație",
+  prima_recurenta: "Primă recurentă",
+  beneficiu_natura: "Beneficiu în natură",
+};
 
 export const metadata: Metadata = { title: "Fișa angajatului" };
 
@@ -112,6 +124,23 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
   const scutiriFiscale =
     scope === "all" ? await citesteScutiriFiscale(tenant.organizationId, id) : [];
   const poateAdaugaScutire = can(permisiuni, "payroll:create", "all");
+  const componenteSalariale =
+    scope === "all" ? await citesteComponenteSalariale(tenant.organizationId, id) : [];
+  const poateAdaugaComponenta = can(permisiuni, "payroll:create", "all");
+  const sabloaneComponente =
+    scope === "all" && poateAdaugaComponenta
+      ? await (async () => {
+          const db = await createServerSupabase();
+          const { data } = await db
+            .from("salary_component_types")
+            .select("id, denumire, kind")
+            .or(`organization_id.eq.${tenant.organizationId},organization_id.is.null`)
+            .eq("activ", true)
+            .is("deleted_at", null)
+            .order("denumire");
+          return data ?? [];
+        })()
+      : [];
   const contractPrincipal =
     angajat.contracts.find((c) => !c.este_act_aditional && c.status === "activ") ?? null;
   const contracteIstoric = angajat.contracts.filter((c) => c.id !== contractPrincipal?.id);
@@ -440,6 +469,63 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
           {poateAdaugaScutire ? (
             <div className="mt-4">
               <FormularScutireFiscala employeeId={angajat.id} />
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      {scope === "all" ? (
+        <section aria-labelledby="titlu-componente" className={CLASA_SECTIUNE}>
+          <h2 id="titlu-componente" className="mb-4 text-lg font-medium">
+            Sporuri și prime
+          </h2>
+          {componenteSalariale.length === 0 ? (
+            <StareGoala mesaj="Angajatul nu are niciun spor sau primă asociat(ă)." />
+          ) : (
+            <ul className="space-y-3">
+              {componenteSalariale.map((componenta) => {
+                const activa =
+                  componenta.valabil_pana === null ||
+                  componenta.valabil_pana >= new Date().toISOString().slice(0, 10);
+                return (
+                  <li key={componenta.id} className="border-border rounded-md border p-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium">
+                        {componenta.component_type?.denumire ??
+                          ETICHETE_TIP_COMPONENTA[componenta.kind] ??
+                          componenta.kind}
+                      </span>
+                      <span className="bg-primary/10 text-primary rounded-full px-2 py-0.5 text-xs font-medium">
+                        {componenta.procent !== null
+                          ? `${String(componenta.procent)}%`
+                          : formatLei(componenta.suma ?? 0)}
+                      </span>
+                      {!activa ? (
+                        <span className="bg-background text-muted-foreground rounded-full px-2 py-0.5 text-xs font-medium">
+                          Încheiată
+                        </span>
+                      ) : null}
+                      {activa && poateAdaugaComponenta ? (
+                        <span className="ml-auto">
+                          <ButonIncheieComponenta id={componenta.id} employeeId={angajat.id} />
+                        </span>
+                      ) : null}
+                    </div>
+                    <dl className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                      <Camp
+                        eticheta="Valabil"
+                        valoare={`${formatDate(componenta.valabil_de_la)} – ${componenta.valabil_pana === null ? "nedeterminat" : formatDate(componenta.valabil_pana)}`}
+                      />
+                      <Camp eticheta="Observații" valoare={componenta.observatii} />
+                    </dl>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {poateAdaugaComponenta ? (
+            <div className="mt-4">
+              <FormularComponentaSalariala employeeId={angajat.id} sabloane={sabloaneComponente} />
             </div>
           ) : null}
         </section>

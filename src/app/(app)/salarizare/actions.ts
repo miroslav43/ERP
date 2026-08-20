@@ -5,6 +5,7 @@ import { businessRule, notFound } from "@/lib/actions/errors";
 import {
   angajatiActiviCuContract,
   citesteSetariPeId,
+  componenteSalarialeActivePerioada,
   pontajAgregatPerioada,
   scutiriActivePerioada,
   zileLucratoareLuna,
@@ -187,11 +188,12 @@ export const calculeazaPerioada = createAction({
     if (setari === null) throw notFound("Setările de salarizare ale perioadei nu mai există.");
     const snapshot = laSetariSnapshot(setari);
 
-    const [zileLuna, angajati, pontaj, scutiri] = await Promise.all([
+    const [zileLuna, angajati, pontaj, scutiri, componenteSalariale] = await Promise.all([
       zileLucratoareLuna(ctx.tenant.organizationId, perioada.an, perioada.luna),
       angajatiActiviCuContract(ctx.tenant.organizationId),
       pontajAgregatPerioada(ctx.tenant.organizationId, perioada.attendance_period_id),
       scutiriActivePerioada(ctx.tenant.organizationId, perioada.an, perioada.luna),
+      componenteSalarialeActivePerioada(ctx.tenant.organizationId, perioada.an, perioada.luna),
     ]);
     if (angajati.length === 0) {
       throw businessRule("Nu există niciun angajat activ cu contract activ de calculat.");
@@ -262,11 +264,20 @@ export const calculeazaPerioada = createAction({
           zileConcediuMedical: pontajAngajat.zile_concediu_medical,
           zileAbsentaNemotivata: pontajAngajat.zile_absenta_nemotivata,
         },
-        bonuses: (primePeAngajat.get(angajat.employee_id) ?? []).map((p) => ({
-          suma: p.suma,
-          impozabil: p.impozabil,
-          supusContributii: p.supus_contributii,
-        })),
+        bonuses: [
+          ...(primePeAngajat.get(angajat.employee_id) ?? []).map((p) => ({
+            suma: p.suma,
+            impozabil: p.impozabil,
+            supusContributii: p.supus_contributii,
+          })),
+          // Sporuri/prime reutilizabile asociate pe fișă (etapa 3) — nu mai
+          // trebuie re-introduse manual în fiecare perioadă.
+          ...(componenteSalariale.get(angajat.employee_id) ?? []).map((c) => ({
+            suma: c.kind === "spor_procent" ? angajat.salariu_baza * ((c.procent ?? 0) / 100) : (c.suma ?? 0),
+            impozabil: c.impozabil,
+            supusContributii: c.supusContributii,
+          })),
+        ],
         deductions: (retineriPeAngajat.get(angajat.employee_id) ?? []).map((r) => ({
           suma: r.suma,
           procentMaximDinNet: r.procentMaximDinNet,
