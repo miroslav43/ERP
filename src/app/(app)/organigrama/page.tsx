@@ -83,7 +83,7 @@ export default async function PaginaOrganigrama() {
   const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
   const scope = scopeFor(permisiuni, "employees:read");
 
-  if (scope === null || scope === "none" || scope === "own") {
+  if (scope === null || scope === "none") {
     return (
       <main className="p-6">
         <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta organigrama. Solicitați administratorului organizației rolul potrivit." />
@@ -102,7 +102,9 @@ export default async function PaginaOrganigrama() {
         <p className="text-muted-foreground text-sm">
           {scope === "all"
             ? "Ierarhia managerială a întregii organizații."
-            : "Ierarhia managerială a echipei dumneavoastră."}
+            : scope === "team"
+              ? "Ierarhia managerială a echipei dumneavoastră."
+              : "Locul dumneavoastră în ierarhia managerială."}
         </p>
       </header>
 

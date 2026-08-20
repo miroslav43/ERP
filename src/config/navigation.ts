@@ -9,6 +9,7 @@
  * iar RLS respinge rândul chiar dacă primele trei sunt ocolite.
  */
 import {
+  Briefcase,
   CalendarDays,
   Car,
   ClipboardList,
@@ -135,6 +136,17 @@ export const NAV_ITEMS: readonly NavItem[] = [
     order: 40,
   },
   {
+    id: "functii",
+    label: "Funcții",
+    href: "/functii",
+    icon: Briefcase,
+    group: "personal",
+    featureKey: null,
+    permission: "departments:read",
+    minScope: "all",
+    order: 44,
+  },
+  {
     id: "departamente",
     label: "Departamente",
     href: "/departamente",
@@ -164,7 +176,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     group: "personal",
     featureKey: null,
     permission: "employees:read",
-    minScope: "team",
+    minScope: "own",
     order: 46,
   },
   {

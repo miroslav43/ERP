@@ -330,17 +330,62 @@ interface NodManagerialBrut extends Omit<NodManagerial, "avatar_url"> {
  * `manager_employee_id` nu se regăsește în acest set, fie pentru că e
  * `null`, fie pentru că managerul lor nu e vizibil la scope „team").
  */
+const COLOANE_NOD_MANAGERIAL = `id, full_name, marca, manager_employee_id, user_id, ${EMBED_DEPARTAMENT}, ${EMBED_FUNCTIE}`;
+
 export async function arboreleManagerial(
   organizationId: string,
   scope: PermissionScope,
   propriaFisaId: string | null,
 ): Promise<readonly NodManagerial[]> {
   const db = await createServerSupabase();
+
+  if (scope === "own" && propriaFisaId !== null) {
+    // Un angajat obișnuit nu vede toată organizația, dar tot trebuie să-și
+    // vadă locul în ea: propriul lanț de manageri (ca la breadcrumb-ul de pe
+    // fișa proprie, `lantulDeManageri`) + propria subarbore, dacă are
+    // subordonați direcți (posibil chiar și cu scope „own", dacă permisiunile
+    // sunt configurate neobișnuit).
+    const { data: proprie, error: eroareProprie } = await db
+      .from("employees")
+      .select("manager_path")
+      .eq("id", propriaFisaId)
+      .maybeSingle<{ manager_path: readonly string[] }>();
+    if (eroareProprie !== null) throw eroareProprie;
+
+    const idAscendenti = (proprie?.manager_path ?? []).filter((id) => id !== propriaFisaId);
+    const [subarbore, ascendenti] = await Promise.all([
+      db
+        .from("employees")
+        .select(COLOANE_NOD_MANAGERIAL)
+        .eq("organization_id", organizationId)
+        .eq("status", "activ")
+        .is("deleted_at", null)
+        .contains("manager_path", [propriaFisaId])
+        .returns<NodManagerialBrut[]>(),
+      idAscendenti.length === 0
+        ? Promise.resolve({ data: [] as NodManagerialBrut[], error: null })
+        : db
+            .from("employees")
+            .select(COLOANE_NOD_MANAGERIAL)
+            .eq("organization_id", organizationId)
+            .in("id", idAscendenti)
+            .is("deleted_at", null)
+            .returns<NodManagerialBrut[]>(),
+    ]);
+    if (subarbore.error !== null) throw subarbore.error;
+    if (ascendenti.error !== null) throw ascendenti.error;
+
+    const brute = [...ascendenti.data, ...subarbore.data];
+    const avataruri = await avataturiPeUtilizatori(brute.map((nod) => nod.user_id));
+    return brute.map(({ user_id, ...rest }) => ({
+      ...rest,
+      avatar_url: urlAvatar(avataruri.get(user_id ?? "") ?? null),
+    }));
+  }
+
   let interogare = db
     .from("employees")
-    .select(
-      `id, full_name, marca, manager_employee_id, user_id, ${EMBED_DEPARTAMENT}, ${EMBED_FUNCTIE}`,
-    )
+    .select(COLOANE_NOD_MANAGERIAL)
     .eq("organization_id", organizationId)
     .eq("status", "activ")
     .is("deleted_at", null)

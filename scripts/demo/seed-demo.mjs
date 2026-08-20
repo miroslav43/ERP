@@ -152,6 +152,7 @@ const DEPARTAMENTE = [
   { cod: "ADM", denumire: "Administrativ" },
   { cod: "PROD", denumire: "Producție" },
   { cod: "VNZ", denumire: "Vânzări" },
+  { cod: "ING", denumire: "Inginerie" },
 ];
 
 const POSTURI = [

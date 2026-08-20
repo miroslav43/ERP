@@ -176,7 +176,7 @@ async function importaUnRand(ctx: ActionContext, angajat: AngajatProtejat): Prom
   const jobPositionId =
     angajat.functie === undefined ? null : await idDupaCheie(ctx, "job_positions", angajat.functie);
   if (angajat.functie !== undefined && jobPositionId === null) {
-    return `Funcția „${angajat.functie}" nu există în nomenclator. Adaug-o întâi.`;
+    return `Funcția „${angajat.functie}" nu există în nomenclator. Adaug-o întâi din ecranul Funcții (/functii).`;
   }
 
   const inserare = await ctx.supabase
