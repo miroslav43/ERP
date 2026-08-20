@@ -5,6 +5,9 @@ import { businessRule, notFound } from "@/lib/actions/errors";
 import { createPlatformAction } from "@/lib/actions/platform";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { requirePlatformAdmin } from "@/lib/auth/platform";
+import { cautaFirmaAnaf } from "@/lib/anaf/cauta-firma";
+import { cautaCuiAnafSchema } from "@/schemas/organization";
+import type { RezultatAnafGasit } from "@/domain/organization/anaf";
 import {
   actualizeazaOrganizatieSchema,
   creeazaOrganizatieSchema,
@@ -28,6 +31,47 @@ const COLOANE_LISTA =
 type OrganizatieCreata = { id: string; name: string; slug: string };
 
 // ——— ACȚIUNI ————————————————————————————————————————————————————————————————
+
+export type RezultatCautareCui = Readonly<{
+  cui: string;
+  anaf: RezultatAnafGasit | null;
+}>;
+
+/**
+ * Verifică unicitatea CUI ÎNAINTE de a apela ANAF: dacă organizația există
+ * deja, nu are rost să interogăm un API extern. Rezultatul e mereu "ok" din
+ * perspectiva Ecranului 1 — un CUI negăsit sau un ANAF indisponibil întorc
+ * `anaf: null`, nu eroare, pentru ca formularul să treacă la completare manuală.
+ */
+export const cautaCuiAnaf = createPlatformAction<typeof cautaCuiAnafSchema, RezultatCautareCui>({
+  name: "platforma.org.cauta_cui",
+  input: cautaCuiAnafSchema,
+  rateLimit: { max: 30, windowSeconds: 3600 },
+  audit: {
+    action: "view",
+    entityType: "organizations",
+    allow: ["cui"],
+  },
+  handler: async (_ctx, input) => {
+    const admin = createAdminSupabase();
+    const { data: existent, error } = await admin
+      .from("organizations")
+      .select("id, name")
+      .eq("cui_normalizat", input.cui)
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    if (existent) {
+      throw businessRule(`Există deja o organizație cu CUI-ul ${input.cui}: „${existent.name}”.`);
+    }
+
+    const cautare = await cautaFirmaAnaf(input.cui);
+    return {
+      cui: input.cui,
+      anaf: cautare.stare === "gasit" ? cautare.rezultat : null,
+    };
+  },
+});
 
 export const creeazaOrganizatie = createPlatformAction<
   typeof creeazaOrganizatieSchema,
