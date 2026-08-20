@@ -20,7 +20,6 @@ import { ultimeleCifreIban } from "@/domain/hr/iban";
 import { genereazaEvenimenteRevisal } from "@/lib/revisal/genereaza-evenimente";
 import {
   actualizeazaAngajatSchema,
-  creeazaAngajatSchema,
   creeazaContractSchema,
   dezvaluieDateSensibileSchema,
   incetareContractSchema,
@@ -38,17 +37,23 @@ interface RandSensibil {
   readonly iban_key_version: number | null;
 }
 
-/** Scrie sau actualizează blocul criptat; se apelează doar dacă utilizatorul a trimis valori noi. */
-async function salveazaDateSensibile(
-  organizationId: string,
+/**
+ * Scrie sau actualizează blocul criptat prin RPC-ul `hr_write_sensitive`
+ * (SECURITY DEFINER) — se apelează doar dacă utilizatorul a trimis valori noi.
+ *
+ * NU un `.upsert()` direct pe `employee_sensitive_data`: migrarea 0005 a
+ * revocat orice grant `authenticated` pe acest tabel, tocmai ca accesul să
+ * treacă exclusiv prin RPC. Un upsert direct eșuează mereu cu 42501 — bug
+ * confirmat empiric, prezent probabil din prima zi a formularului de angajat.
+ */
+export async function salveazaDateSensibile(
+  db: Awaited<ReturnType<typeof createServerSupabase>>,
   employeeId: string,
-  actorId: string,
   cnp: string | null,
   iban: string | null,
   banca: string | null,
 ): Promise<void> {
   if (cnp === null && iban === null && banca === null) return;
-  const db = await createServerSupabase();
 
   const bucataCnp =
     cnp === null
@@ -56,12 +61,12 @@ async function salveazaDateSensibile(
       : (() => {
           const criptat = encrypt(cnp);
           return {
-            cnp_ciphertext: catreBytea(criptat.ciphertext),
-            cnp_iv: catreBytea(criptat.iv),
-            cnp_tag: catreBytea(criptat.tag),
-            cnp_key_version: versiuneCaNumar(criptat.keyVersion),
-            cnp_last4: ultimeleCifreCnp(cnp),
-            cnp_hash: amprentaSensibila(cnp),
+            p_cnp_ciphertext: catreBytea(criptat.ciphertext),
+            p_cnp_iv: catreBytea(criptat.iv),
+            p_cnp_tag: catreBytea(criptat.tag),
+            p_cnp_key_version: versiuneCaNumar(criptat.keyVersion),
+            p_cnp_last4: ultimeleCifreCnp(cnp),
+            p_cnp_hash: amprentaSensibila(cnp),
           };
         })();
 
@@ -71,92 +76,23 @@ async function salveazaDateSensibile(
       : (() => {
           const criptat = encrypt(iban);
           return {
-            iban_ciphertext: catreBytea(criptat.ciphertext),
-            iban_iv: catreBytea(criptat.iv),
-            iban_tag: catreBytea(criptat.tag),
-            iban_key_version: versiuneCaNumar(criptat.keyVersion),
-            iban_last4: ultimeleCifreIban(iban),
-            iban_hash: amprentaSensibila(iban),
+            p_iban_ciphertext: catreBytea(criptat.ciphertext),
+            p_iban_iv: catreBytea(criptat.iv),
+            p_iban_tag: catreBytea(criptat.tag),
+            p_iban_key_version: versiuneCaNumar(criptat.keyVersion),
+            p_iban_last4: ultimeleCifreIban(iban),
+            p_iban_hash: amprentaSensibila(iban),
           };
         })();
 
-  const { error } = await db.from("employee_sensitive_data").upsert(
-    {
-      employee_id: employeeId,
-      organization_id: organizationId,
-      ...bucataCnp,
-      ...bucataIban,
-      ...(banca === null ? {} : { banca }),
-      updated_by: actorId,
-    },
-    { onConflict: "employee_id" },
-  );
+  const { error } = await db.rpc("hr_write_sensitive", {
+    p_employee: employeeId,
+    ...bucataCnp,
+    ...bucataIban,
+    ...(banca === null ? {} : { p_banca: banca }),
+  });
   if (error !== null) throw error;
 }
-
-export const creeazaAngajat = createAction({
-  name: "employees.create",
-  permission: "employees:create",
-  minScope: "all",
-  input: creeazaAngajatSchema,
-  audit: {
-    action: "create",
-    entityType: "employee",
-    entityId: (_input, data: Readonly<{ id: string; full_name: string | null }>) => data.id,
-    allow: [
-      "marca",
-      "last_name",
-      "first_name",
-      "email_personal",
-      "telefon",
-      "adresa_strada",
-      "adresa_oras",
-      "adresa_judet",
-      "adresa_cod_postal",
-      "data_nasterii",
-      "gen",
-      "cetatenie",
-      "tip_act_identitate",
-      "serie_act",
-      "numar_act",
-      "act_valabil_pana",
-      "department_id",
-      "job_position_id",
-      "manager_employee_id",
-      "hired_on",
-      "conditii_munca",
-      "grad_handicap",
-      "nr_persoane_intretinere",
-      "optiune_pilon_ii",
-      "is_primary",
-      "contact_urgenta_nume",
-      "contact_urgenta_telefon",
-      "contact_urgenta_relatie",
-      "observatii",
-    ],
-  },
-  handler: async (ctx, input): Promise<Readonly<{ id: string; full_name: string | null }>> => {
-    const db = await createServerSupabase();
-    const { cnp, iban, banca, ...fisa } = input;
-
-    const { data, error } = await db
-      .from("employees")
-      .insert({
-        ...fisa,
-        organization_id: ctx.tenant.organizationId,
-        status: "candidat",
-        created_by: ctx.user.id,
-        updated_by: ctx.user.id,
-      })
-      .select("id, full_name")
-      .single();
-    if (error !== null) throw error;
-
-    await salveazaDateSensibile(ctx.tenant.organizationId, data.id, ctx.user.id, cnp, iban, banca);
-    revalidatePath("/angajati");
-    return { id: data.id, full_name: data.full_name };
-  },
-});
 
 export const actualizeazaAngajat = createAction({
   name: "employees.update",
@@ -196,7 +132,7 @@ export const actualizeazaAngajat = createAction({
     if (data === null)
       throw notFound("Fișa de angajat nu a fost găsită sau nu vă este accesibilă.");
 
-    await salveazaDateSensibile(ctx.tenant.organizationId, id, ctx.user.id, cnp, iban, banca);
+    await salveazaDateSensibile(db, id, cnp, iban, banca);
     revalidatePath("/angajati");
     revalidatePath(`/angajati/${id}`);
     return { id };
@@ -241,6 +177,9 @@ export const creeazaContract = createAction({
     const db = await createServerSupabase();
     const { data, error } = await db
       .from("employment_contracts")
+      // RLS (`contracts_insert`) forțează `status = 'proiect'` la INSERT —
+      // orice altă valoare e respinsă de politică, nu doar neconformă cu
+      // convenția. Activarea e un al doilea pas, prin UPDATE, mai jos.
       .insert({
         ...input,
         organization_id: ctx.tenant.organizationId,
@@ -255,6 +194,31 @@ export const creeazaContract = createAction({
       .select("id")
       .single();
     if (error !== null) throw error;
+
+    // "proiect" ar fi rămas definitiv — nimic altundeva în cod nu-l mai schimbă
+    // (bug confirmat: fișa angajatului și motorul de salarizare caută mereu
+    // status = 'activ', niciodată 'proiect'). `cod_revisal`/`revisal_events`
+    // urmăresc separat dacă transmiterea la ITM chiar a avut loc — statusul
+    // contractului nu mai trebuie să dubleze acea urmărire.
+    //
+    // Contractul de bază face fișa activă (dacă era „candidat" sau ieșise din
+    // efectiv). Un act adițional nu schimbă starea — modifică un contract deja
+    // activ, nu creează unul nou.
+    const { error: eroareActivare } = await db
+      .from("employment_contracts")
+      .update({ status: "activ", updated_by: ctx.user.id })
+      .eq("id", data.id)
+      .eq("organization_id", ctx.tenant.organizationId);
+    if (eroareActivare !== null) throw eroareActivare;
+
+    if (!input.este_act_aditional) {
+      const { error: eroareStatus } = await db
+        .from("employees")
+        .update({ status: "activ", updated_by: ctx.user.id })
+        .eq("id", input.employee_id)
+        .eq("organization_id", ctx.tenant.organizationId);
+      if (eroareStatus !== null) throw eroareStatus;
+    }
 
     // REVISAL: angajarea se transmite la Inspecția Muncii într-un termen legal,
     // iar netransmiterea în termen este contravenție PER SALARIAT. Evenimentul
@@ -421,17 +385,18 @@ export const dezvaluieDateSensibile = createAction({
   },
   handler: async (ctx, input): Promise<Readonly<{ camp: "cnp" | "iban"; valoare: string }>> => {
     const db = await createServerSupabase();
-    const { data, error } = await db
-      .from("employee_sensitive_data")
-      .select(
-        "cnp_ciphertext, cnp_iv, cnp_tag, cnp_key_version, iban_ciphertext, iban_iv, iban_tag, iban_key_version",
-      )
-      .eq("organization_id", ctx.tenant.organizationId)
-      .eq("employee_id", input.employee_id)
-      .is("deleted_at", null)
-      .maybeSingle<RandSensibil>();
+    // NU un `.select()` direct pe `employee_sensitive_data`: 0025_fisa_angajat_
+    // rezumat_sensibil.sql a acordat explicit grant DOAR pe cele 5 coloane
+    // mascate — criptotextul rămâne inaccesibil prin API-ul public „indiferent
+    // ce selectează clientul" (comentariul acelei migrări). Un SELECT pe
+    // cnp_ciphertext/iv/tag/key_version prin clientul RLS eșuează mereu cu
+    // 42501 — bug confirmat, geamănul celui de pe calea de scriere.
+    const { data: randuri, error } = await db.rpc("hr_read_sensitive", {
+      p_employee: input.employee_id,
+    });
     if (error !== null) throw error;
-    if (data === null) throw notFound("Angajatul nu are date de identificare înregistrate.");
+    const data: RandSensibil | undefined = randuri?.[0];
+    if (data === undefined) throw notFound("Angajatul nu are date de identificare înregistrate.");
 
     // Coloanele sunt nullable: un angajat poate exista fără CNP sau fără IBAN.
     // Absența se tratează înainte de decriptare — `decrypt` primește doar valori

@@ -85,6 +85,12 @@ export const SABLOANE: Readonly<Record<string, Sablon>> = {
     rand: (c) => ({ organization_id: c.organizationId }),
     actualizare: { cnp_last4: "9999" },
   },
+  employee_marca_counters: {
+    // 1:1 pe organization_id, ca organization_sensitive_data — zero grant-uri
+    // către authenticated, acces exclusiv prin `public.urmatoarea_marca()`.
+    rand: (c) => ({ organization_id: c.organizationId, next_marca: 1 }),
+    actualizare: { next_marca: 9999 },
+  },
   organization_bank_accounts: {
     rand: (c) => ({
       organization_id: c.organizationId,

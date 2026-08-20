@@ -1,12 +1,13 @@
 // src/lib/documents/adeverinte.ts
-// Generare adeverințe din șabloane: HTML printabil (fără PDF în Faza 2),
-// numerotare pe serie și amprentă SHA-256 peste conținutul final.
-import { createHash, randomBytes } from "node:crypto";
-import { escapeHtml } from "@/lib/email/templates/layout";
+// Generare adeverințe: adună datele angajatului/organizației într-o hartă de
+// variabile, apoi deleagă randarea/numerotarea/checksum-ul motorului comun
+// din `generator.ts` (folosit și de contractul de muncă și de fișa postului).
 import { formatDate, todayInBucharest } from "@/lib/format/date";
 import { formatLei } from "@/lib/format/money";
 import { businessRule, notFound } from "@/lib/actions/errors";
 import type { ServerSupabase } from "@/lib/supabase/server";
+import { genereazaDocument } from "./generator";
+import type { DocumentGenerat } from "./generator";
 
 export const SABLOANE_ADEVERINTA = {
   venit: "adeverinta_venit",
@@ -22,31 +23,7 @@ export type ParametriAdeverinta = {
   readonly emisDe: string;
   readonly scop?: string;
 };
-export type AdeverintaGenerata = {
-  readonly id: string;
-  readonly numarAfisat: string;
-  readonly html: string;
-  readonly hash: string;
-  readonly codVerificare: string;
-};
-
-const RE_VARIABILA = /\{\{\s*([a-z_]+)\s*\}\}/g;
-
-function randeaza(
-  sablon: string,
-  valori: ReadonlyMap<string, string>,
-): { html: string; lipsa: readonly string[] } {
-  const lipsa: string[] = [];
-  const html = sablon.replace(RE_VARIABILA, (_potrivire, cheie: string) => {
-    const valoare = valori.get(cheie);
-    if (valoare === undefined || valoare.length === 0) {
-      lipsa.push(cheie);
-      return "";
-    }
-    return escapeHtml(valoare); // conținutul e HTML de șablon; valorile sunt mereu evadate
-  });
-  return { html, lipsa };
-}
+export type AdeverintaGenerata = DocumentGenerat;
 
 function vechimeInText(deLa: string, panaLa: string): string {
   const inceput = new Date(`${deLa}T00:00:00Z`);
@@ -65,41 +42,11 @@ function vechimeInText(deLa: string, panaLa: string): string {
   return text.length > 0 ? text : "mai puțin de o lună";
 }
 
-/** Numerotare pe (organizație, serie). Coliziunile sunt prinse de indexul unic și reîncercate. */
-async function urmatorulNumar(
-  supabase: ServerSupabase,
-  organizationId: string,
-  serie: string,
-): Promise<number> {
-  const { data } = await supabase
-    .from("hr_issued_documents")
-    .select("numar")
-    .eq("organization_id", organizationId)
-    .eq("serie", serie)
-    .order("numar", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return (data?.numar ?? 0) + 1;
-}
-
 export async function genereazaAdeverinta(
   supabase: ServerSupabase,
   parametri: ParametriAdeverinta,
 ): Promise<AdeverintaGenerata> {
   const { organizationId, employeeId, codSablon } = parametri;
-
-  const { data: sablon } = await supabase
-    .from("hr_document_templates")
-    .select("id, denumire, continut_html, serie")
-    .eq("cod", codSablon)
-    .eq("activ", true)
-    .is("deleted_at", null)
-    .or(`organization_id.eq.${organizationId},organization_id.is.null`)
-    .order("organization_id", { ascending: true, nullsFirst: false }) // varianta organizației are prioritate
-    .limit(1)
-    .maybeSingle();
-  if (sablon === null)
-    throw notFound("Șablonul de adeverință nu este configurat pentru organizația ta.");
 
   const { data: angajat } = await supabase
     .from("employees")
@@ -168,69 +115,15 @@ export async function genereazaAdeverinta(
     ...(parametri.scop === undefined ? [] : [["scop", parametri.scop] as const]),
   ]);
 
-  const { html, lipsa } = randeaza(sablon.continut_html, valori);
-  if (lipsa.length > 0) {
-    throw businessRule(
-      `Adeverința nu poate fi emisă: lipsesc date din fișă (${lipsa.join(", ")}). Completează-le și încearcă din nou.`,
-    );
-  }
-
-  const hash = createHash("sha256").update(html, "utf8").digest("hex");
-  const codVerificare = randomBytes(16).toString("base64url");
-  const an = azi.slice(0, 4);
-
-  for (let incercare = 0; incercare < 5; incercare += 1) {
-    const numar = await urmatorulNumar(supabase, organizationId, sablon.serie);
-    const numarAfisat = `${sablon.serie} ${an}/${String(numar).padStart(6, "0")}`;
-    const { data, error } = await supabase
-      .from("hr_issued_documents")
-      .insert({
-        organization_id: organizationId,
-        template_id: sablon.id,
-        employee_id: employeeId,
-        serie: sablon.serie,
-        numar,
-        numar_afisat: numarAfisat,
-        titlu: sablon.denumire,
-        emis_la: azi,
-        continut_html: html,
-        continut_checksum: hash,
-        cod_verificare: codVerificare,
-        emis_de: parametri.emisDe,
-        date_document: Object.fromEntries(valori),
-        ...(parametri.scop === undefined ? {} : { scop: parametri.scop }),
-        ...(contract === null ? {} : { contract_id: contract.id }),
-      })
-      .select("id")
-      .single();
-
-    if (error === null && data !== null) {
-      return { id: data.id, numarAfisat, html, hash, codVerificare };
-    }
-    if (error?.code !== "23505") {
-      throw businessRule("Adeverința nu a putut fi înregistrată. Încearcă din nou.");
-    }
-    // 23505 = alt utilizator a luat între timp același număr: reluăm alocarea.
-  }
-  throw businessRule(
-    "Numerotarea adeverințelor este ocupată. Încearcă din nou peste câteva secunde.",
-  );
+  return genereazaDocument(supabase, {
+    organizationId,
+    employeeId,
+    codSablon,
+    emisDe: parametri.emisDe,
+    valori,
+    ...(parametri.scop === undefined ? {} : { scop: parametri.scop }),
+    ...(contract === null ? {} : { contractId: contract.id }),
+  });
 }
 
-/** HTML complet, pregătit pentru tipărire din browser (Ctrl+P). Fără resurse externe. */
-export function paginaTiparibila(
-  adeverinta: AdeverintaGenerata,
-  denumireOrganizatie: string,
-): string {
-  return [
-    '<!doctype html><html lang="ro"><head><meta charset="utf-8">',
-    `<title>${escapeHtml(adeverinta.numarAfisat)}</title>`,
-    "<style>body{font-family:Georgia,serif;max-width:18cm;margin:2cm auto;line-height:1.6;color:#111}",
-    "footer{margin-top:3cm;font-size:.8rem;color:#555;border-top:1px solid #ccc;padding-top:.5cm}",
-    "@media print{body{margin:0}}</style></head><body>",
-    `<p>${escapeHtml(denumireOrganizatie)} — nr. ${escapeHtml(adeverinta.numarAfisat)}</p>`,
-    adeverinta.html,
-    `<footer>Cod de verificare: ${escapeHtml(adeverinta.codVerificare)} · amprentă SHA-256: ${adeverinta.hash.slice(0, 16)}…</footer>`,
-    "</body></html>",
-  ].join("");
-}
+export { paginaTiparibila } from "./generator";

@@ -142,6 +142,10 @@ begin
   insert into public.puncte_lucru (organization_id, denumire)
   values (v_alfa, 'Sediu Alfa'), (v_beta, 'Sediu Beta');
 
+  -- Înrolare unificată angajat (0033): contorul de marcă, 1:1 pe organizație.
+  insert into public.employee_marca_counters (organization_id, next_marca)
+  values (v_alfa, 1), (v_beta, 1);
+
   -- Suprascrieri de permisiuni per organizație (rândurile globale au org NULL).
   insert into public.role_permissions (organization_id, role, resource, action, scope)
   values (v_alfa, 'manager', 'payroll', 'read', 'team'),

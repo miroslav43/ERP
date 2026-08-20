@@ -19,6 +19,8 @@ export const CONDITII_MUNCA = ["normale", "deosebite", "speciale"] as const;
 export const DURATE_CONTRACT = ["nedeterminat", "determinat"] as const;
 export const MODURI_LUCRU = ["sediu", "telemunca", "domiciliu", "mixt"] as const;
 export const REGIMURI_SPECIALE = ["ucenicie", "internship", "zilier"] as const;
+/** Oglinda enum-ului public.stare_civila din 0033_inrolare_unificata.sql. */
+export const STARI_CIVILE = ["necasatorit", "casatorit", "divortat", "vaduv"] as const;
 
 export type StatusAngajat = (typeof STATUSURI_ANGAJAT)[number];
 
@@ -89,6 +91,17 @@ const cnpOptional = z
     "CNP-ul introdus nu este valid.",
   );
 
+const emailOptional = z
+  .string()
+  .trim()
+  .nullable()
+  .default(null)
+  .transform((valoare) => (valoare === null || valoare.length === 0 ? null : valoare))
+  .refine(
+    (valoare) => valoare === null || z.email().safeParse(valoare).success,
+    "Adresa de e-mail nu este validă.",
+  );
+
 const ibanOptional = z
   .string()
   .trim()
@@ -118,24 +131,22 @@ export type FiltreAngajati = z.infer<typeof filtreAngajatiSchema>;
 // ── Angajat ───────────────────────────────────────────────────────────────────
 
 export const creeazaAngajatSchema = z.object({
-  marca: textObligatoriu(1, 32, "Marcă"),
   last_name: textObligatoriu(1, 80, "Nume"),
   first_name: textObligatoriu(1, 80, "Prenume"),
-  email_personal: z
-    .string()
-    .trim()
-    .nullable()
-    .default(null)
-    .transform((valoare) => (valoare === null || valoare.length === 0 ? null : valoare))
-    .refine(
-      (valoare) => valoare === null || z.email().safeParse(valoare).success,
-      "Adresa de e-mail nu este validă.",
-    ),
+  email_personal: emailOptional,
   telefon: textOptional(32),
   adresa_strada: textOptional(200),
   adresa_oras: textOptional(120),
   adresa_judet: textOptional(80),
   adresa_cod_postal: textOptional(12),
+  // Reședința se completează doar dacă diferă de domiciliul de mai sus.
+  adresa_resedinta_strada: textOptional(200),
+  adresa_resedinta_oras: textOptional(120),
+  adresa_resedinta_judet: textOptional(80),
+  adresa_resedinta_cod_postal: textOptional(12),
+  email_serviciu: emailOptional,
+  telefon_serviciu: textOptional(32),
+  stare_civila: z.enum(STARI_CIVILE).nullable().default(null),
   data_nasterii: dataOptionala,
   gen: z.enum(GENURI).default("nedeclarat"),
   cetatenie: z
@@ -147,6 +158,7 @@ export const creeazaAngajatSchema = z.object({
   tip_act_identitate: textOptional(40),
   serie_act: textOptional(10),
   numar_act: textOptional(20),
+  act_eliberat_de: textOptional(120),
   act_valabil_pana: dataOptionala,
   department_id: uuidOptional,
   job_position_id: uuidOptional,
@@ -201,63 +213,78 @@ export const actualizeazaAngajatSchema = creeazaAngajatSchema
 
 // ── Contract ──────────────────────────────────────────────────────────────────
 
-export const creeazaContractSchema = z
-  .object({
-    employee_id: z.uuid("Angajatul selectat nu este valid."),
-    parent_contract_id: uuidOptional,
-    este_act_aditional: z.coerce.boolean().default(false),
-    numar: textObligatoriu(1, 40, "Număr contract"),
-    data_contract: dataObligatorie("Data contractului"),
-    valabil_de_la: dataObligatorie("Valabil de la"),
-    valabil_pana: dataOptionala,
-    contract_duration: z.enum(DURATE_CONTRACT).default("nedeterminat"),
-    motiv_determinat: textOptional(200),
-    norma_ore_saptamana: z.coerce.number().min(0.5).max(48).default(40),
-    norma_ore_zi: z.coerce.number().min(0.5).max(12).default(8),
-    work_mode: z.enum(MODURI_LUCRU).default("sediu"),
-    special_regime: z.enum(REGIMURI_SPECIALE).nullable().default(null),
-    loc_telemunca: textOptional(200),
-    loc_munca: textOptional(200),
-    department_id: uuidOptional,
-    job_position_id: uuidOptional,
-    conditii_munca: z.enum(CONDITII_MUNCA).default("normale"),
-    salariu_baza: z.coerce.number().min(0, "Salariul de bază nu poate fi negativ."),
-    moneda: z
-      .string()
-      .trim()
-      .toUpperCase()
-      .regex(/^[A-Z]{3}$/u, "Moneda se scrie cu trei litere (ex. RON).")
-      .default("RON"),
-    zile_concediu_anual: z.coerce.number().int().min(0).max(60).default(21),
-    perioada_proba_zile: numarOptional(0, 365),
-    preaviz_zile: numarOptional(0, 365),
-  })
+const corpContractSchema = z.object({
+  employee_id: z.uuid("Angajatul selectat nu este valid."),
+  parent_contract_id: uuidOptional,
+  este_act_aditional: z.coerce.boolean().default(false),
+  numar: textObligatoriu(1, 40, "Număr contract"),
+  data_contract: dataObligatorie("Data contractului"),
+  valabil_de_la: dataObligatorie("Valabil de la"),
+  valabil_pana: dataOptionala,
+  contract_duration: z.enum(DURATE_CONTRACT).default("nedeterminat"),
+  motiv_determinat: textOptional(200),
+  norma_ore_saptamana: z.coerce.number().min(0.5).max(48).default(40),
+  norma_ore_zi: z.coerce.number().min(0.5).max(12).default(8),
+  work_mode: z.enum(MODURI_LUCRU).default("sediu"),
+  special_regime: z.enum(REGIMURI_SPECIALE).nullable().default(null),
+  loc_telemunca: textOptional(200),
+  loc_munca: textOptional(200),
+  department_id: uuidOptional,
+  job_position_id: uuidOptional,
+  conditii_munca: z.enum(CONDITII_MUNCA).default("normale"),
+  salariu_baza: z.coerce.number().min(0, "Salariul de bază nu poate fi negativ."),
+  moneda: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z]{3}$/u, "Moneda se scrie cu trei litere (ex. RON).")
+    .default("RON"),
+  zile_concediu_anual: z.coerce.number().int().min(0).max(60).default(21),
+  perioada_proba_zile: numarOptional(0, 365),
+  preaviz_zile: numarOptional(0, 365),
+});
+
+/** Comune contractului de bază și fluxului unificat de înrolare (fără employee_id fix). */
+function valideazaReguliContract(
+  valoare: Readonly<{
+    contract_duration: string;
+    valabil_pana: string | null;
+    valabil_de_la: string;
+    work_mode: string;
+    loc_telemunca: string | null;
+  }>,
+  ctx: z.core.$RefinementCtx,
+): void {
+  if (valoare.contract_duration === "determinat" && valoare.valabil_pana === null) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["valabil_pana"],
+      message: "Un contract pe durată determinată are nevoie de dată de sfârșit.",
+    });
+  }
+  if (valoare.valabil_pana !== null && valoare.valabil_pana < valoare.valabil_de_la) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["valabil_pana"],
+      message: "Data de sfârșit nu poate fi anterioară datei de început.",
+    });
+  }
+  if (
+    (valoare.work_mode === "telemunca" || valoare.work_mode === "domiciliu") &&
+    valoare.loc_telemunca === null
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["loc_telemunca"],
+      message:
+        "Pentru telemuncă sau muncă la domiciliu, locul desfășurării activității este obligatoriu.",
+    });
+  }
+}
+
+export const creeazaContractSchema = corpContractSchema
+  .superRefine(valideazaReguliContract)
   .superRefine((valoare, ctx) => {
-    if (valoare.contract_duration === "determinat" && valoare.valabil_pana === null) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["valabil_pana"],
-        message: "Un contract pe durată determinată are nevoie de dată de sfârșit.",
-      });
-    }
-    if (valoare.valabil_pana !== null && valoare.valabil_pana < valoare.valabil_de_la) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["valabil_pana"],
-        message: "Data de sfârșit nu poate fi anterioară datei de început.",
-      });
-    }
-    if (
-      (valoare.work_mode === "telemunca" || valoare.work_mode === "domiciliu") &&
-      valoare.loc_telemunca === null
-    ) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["loc_telemunca"],
-        message:
-          "Pentru telemuncă sau muncă la domiciliu, locul desfășurării activității este obligatoriu.",
-      });
-    }
     if (valoare.este_act_aditional && valoare.parent_contract_id === null) {
       ctx.addIssue({
         code: "custom",
@@ -266,6 +293,36 @@ export const creeazaContractSchema = z
       });
     }
   });
+
+// ── Înrolare unificată (angajat + primul contract + fișa postului) ────────────
+// Etapa 1 din foaia de parcurs: un singur formular pentru fișa de personal și
+// contractul inițial. `marca` nu e aici — se generează server-side
+// (`internal.urmatoarea_marca`); `employee_id`/`parent_contract_id`/
+// `este_act_aditional` nu au sens la o primă angajare.
+
+export const inroleazaAngajatSchema = creeazaAngajatSchema
+  .merge(
+    corpContractSchema.omit({
+      employee_id: true,
+      parent_contract_id: true,
+      este_act_aditional: true,
+    }),
+  )
+  .extend({
+    // Fișa postului: opțională — dacă nu se completează, nu se generează documentul.
+    subordonare: textOptional(160),
+    atributii: textOptional(4000),
+    competente: textOptional(4000),
+  })
+  .superRefine(valideazaReguliContract);
+
+/**
+ * Tipul de INTRARE, nu de ieșire: câmpurile `.optional().transform(...)` devin
+ * chei opționale doar în forma de intrare — `useForm` + `zodResolver` trebuie
+ * tipate pe forma pe care o completează utilizatorul (vezi tiparul identic din
+ * wizard-ul de înrolare a companiei, `src/schemas/membership.ts`).
+ */
+export type InroleazaAngajatInput = z.input<typeof inroleazaAngajatSchema>;
 
 export const incetareContractSchema = z.object({
   contract_id: z.uuid("Contractul selectat nu este valid."),

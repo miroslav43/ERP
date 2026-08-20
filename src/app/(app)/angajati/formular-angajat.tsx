@@ -7,7 +7,7 @@ import { useForm, type FieldErrors, type UseFormRegister } from "react-hook-form
 import { Lock } from "lucide-react";
 
 import { GENURI } from "@/schemas/employee";
-import { actualizeazaAngajat, creeazaAngajat } from "./actions";
+import { actualizeazaAngajat } from "./actions";
 
 interface Optiune {
   readonly id: string;
@@ -30,12 +30,10 @@ interface AngajatExistent {
 interface Proprietati {
   readonly departamente: readonly Optiune[];
   readonly functii: readonly Optiune[];
-  /** Prezent doar în modul editare — dacă lipsește, formularul creează o fișă nouă. */
-  readonly angajatExistent?: AngajatExistent;
+  readonly angajatExistent: AngajatExistent;
 }
 
 interface ValoriFormular {
-  marca: string;
   last_name: string;
   first_name: string;
   email_personal: string;
@@ -102,38 +100,29 @@ export function FormularAngajat({ departamente, functii, angajatExistent }: Prop
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
   const [eroare, setEroare] = useState<string | null>(null);
-  const editare = angajatExistent !== undefined;
   const { register, handleSubmit, formState } = useForm<ValoriFormular>({
-    defaultValues:
-      angajatExistent === undefined
-        ? {}
-        : {
-            last_name: angajatExistent.last_name,
-            first_name: angajatExistent.first_name,
-            email_personal: angajatExistent.email_personal ?? "",
-            telefon: angajatExistent.telefon ?? "",
-            data_nasterii: angajatExistent.data_nasterii ?? "",
-            gen: angajatExistent.gen,
-            department_id: angajatExistent.department_id ?? "",
-            job_position_id: angajatExistent.job_position_id ?? "",
-            hired_on: angajatExistent.hired_on ?? "",
-          },
+    defaultValues: {
+      last_name: angajatExistent.last_name,
+      first_name: angajatExistent.first_name,
+      email_personal: angajatExistent.email_personal ?? "",
+      telefon: angajatExistent.telefon ?? "",
+      data_nasterii: angajatExistent.data_nasterii ?? "",
+      gen: angajatExistent.gen,
+      department_id: angajatExistent.department_id ?? "",
+      job_position_id: angajatExistent.job_position_id ?? "",
+      hired_on: angajatExistent.hired_on ?? "",
+    },
   });
 
   function trimite(valori: ValoriFormular): void {
     setEroare(null);
     porneste(async () => {
-      const rezultat = editare
-        ? await actualizeazaAngajat({ ...valori, id: angajatExistent.id })
-        : await creeazaAngajat(valori);
+      const rezultat = await actualizeazaAngajat({ ...valori, id: angajatExistent.id });
       if (!rezultat.ok) {
         setEroare(rezultat.error.message);
         return;
       }
-      const id = editare
-        ? angajatExistent.id
-        : (rezultat.data as { readonly id: string }).id;
-      router.push(`/angajati/${id}`);
+      router.push(`/angajati/${angajatExistent.id}`);
       router.refresh();
     });
   }
@@ -149,15 +138,6 @@ export function FormularAngajat({ departamente, functii, angajatExistent }: Prop
       <fieldset className="border-border bg-surface rounded-lg border p-5 shadow-sm">
         <legend className="px-1 text-sm font-semibold">Identitate</legend>
         <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {!editare ? (
-            <Camp
-              nume="marca"
-              eticheta="Marcă"
-              obligatoriu
-              register={register}
-              errors={formState.errors}
-            />
-          ) : null}
           <Camp
             nume="last_name"
             eticheta="Nume"
@@ -258,13 +238,13 @@ export function FormularAngajat({ departamente, functii, angajatExistent }: Prop
         <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Camp
             nume="cnp"
-            eticheta={editare ? "CNP nou (gol = neschimbat)" : "CNP"}
+            eticheta="CNP nou (gol = neschimbat)"
             register={register}
             errors={formState.errors}
           />
           <Camp
             nume="iban"
-            eticheta={editare ? "IBAN nou (gol = neschimbat)" : "IBAN"}
+            eticheta="IBAN nou (gol = neschimbat)"
             register={register}
             errors={formState.errors}
           />

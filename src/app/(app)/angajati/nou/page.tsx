@@ -7,9 +7,11 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 
-import { FormularAngajat } from "../formular-angajat";
+import { AsistentAngajatNou } from "./_components/asistent-angajat-nou";
 
 export const metadata: Metadata = { title: "Angajat nou" };
+
+const ZILE_CONCEDIU_IMPLICIT_FALLBACK = 20;
 
 export default async function PaginaAngajatNou() {
   const { tenant } = await requireTenant();
@@ -23,7 +25,7 @@ export default async function PaginaAngajatNou() {
   }
 
   const db = await createServerSupabase();
-  const [departamente, functii] = await Promise.all([
+  const [departamente, functii, angajati, organizatie] = await Promise.all([
     db
       .from("departments")
       .select("id, denumire")
@@ -38,18 +40,40 @@ export default async function PaginaAngajatNou() {
       .eq("activ", true)
       .is("deleted_at", null)
       .order("denumire"),
+    db
+      .from("employees")
+      .select("id, full_name")
+      .eq("organization_id", tenant.organizationId)
+      .eq("status", "activ")
+      .is("deleted_at", null)
+      .order("full_name"),
+    db
+      .from("organizations")
+      .select("zile_concediu_anual_implicit")
+      .eq("id", tenant.organizationId)
+      .maybeSingle(),
   ]);
 
   return (
-    <main className="space-y-6 p-6">
+    <main className="max-w-3xl space-y-6 p-6">
       <header>
-        <h1 className="text-2xl font-semibold">Angajat nou</h1>
+        <h1 className="text-2xl font-semibold">Înrolare angajat</h1>
         <p className="text-sm text-muted-foreground">
-          Fișa se creează cu starea „Candidat”. Devine activă după înregistrarea contractului
-          individual de muncă.
+          Un singur formular pentru fișa de personal, contractul de muncă și fișa postului —
+          marca se atribuie automat, iar contractul și documentele se generează la trimitere.
         </p>
       </header>
-      <FormularAngajat departamente={departamente.data ?? []} functii={functii.data ?? []} />
+      <AsistentAngajatNou
+        departamente={departamente.data ?? []}
+        functii={functii.data ?? []}
+        angajati={(angajati.data ?? []).map((a) => ({
+          id: a.id,
+          full_name: a.full_name ?? "",
+        }))}
+        zileConcediuImplicit={
+          organizatie.data?.zile_concediu_anual_implicit ?? ZILE_CONCEDIU_IMPLICIT_FALLBACK
+        }
+      />
     </main>
   );
 }
