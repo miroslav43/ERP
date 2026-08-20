@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 import { randomBytes } from "node:crypto";
 import { businessRule, invalidInput, notFound } from "@/lib/actions/errors";
 import { createPlatformAction } from "@/lib/actions/platform";
-import { createAdminSupabase } from "@/lib/supabase/admin";
+import { createAdminSupabase, type AdminSupabase } from "@/lib/supabase/admin";
 import { requirePlatformAdmin } from "@/lib/auth/platform";
 import { cautaFirmaAnaf } from "@/lib/anaf/cauta-firma";
 import { cautaCuiAnafSchema } from "@/schemas/organization";
@@ -85,6 +85,50 @@ export type OrganizatieInrolata = Readonly<{
 function genereazaParolaTemporara(): string {
   // 18 octeți -> 24 caractere base64url; peste minimul de 12 din parolaSchema.
   return randomBytes(18).toString("base64url");
+}
+
+/**
+ * Compensare pentru o înrolare eșuată la jumătatea drumului: șterge
+ * organizația (antrenând, prin `on delete cascade`, și
+ * `organization_legal_representative`) și, dacă a apucat să fie creat,
+ * contul de autentificare al proprietarului. Erorile compensării în sine NU
+ * se pierd în tăcere — dacă delete-ul de aici eșuează, rămâne un rând orfan
+ * (organizație fără owner, sau/și un `auth.users` fără organizație) care
+ * blochează CUI-ul la o reîncercare viitoare; îl logăm ca să poată fi găsit
+ * și curățat manual. Mesajul întors apelantului rămâne generic și
+ * reîncercabil — detaliile merg doar în log, niciodată către UI.
+ */
+async function anuleazaInrolarea(
+  admin: AdminSupabase,
+  detalii: Readonly<{
+    organizationId: string;
+    cui: string;
+    userId?: string;
+    motiv: string;
+  }>,
+): Promise<never> {
+  const { error: eroareOrg } = await admin
+    .from("organizations")
+    .delete()
+    .eq("id", detalii.organizationId);
+  const eroareUser =
+    detalii.userId === undefined
+      ? null
+      : (await admin.auth.admin.deleteUser(detalii.userId)).error;
+  if (eroareOrg || eroareUser) {
+    console.error(
+      "[inroleazaOrganizatie] compensarea a eșuat — necesită curățare manuală",
+      {
+        organizationId: detalii.organizationId,
+        cui: detalii.cui,
+        userId: detalii.userId ?? null,
+        motiv: detalii.motiv,
+        eroareOrg: eroareOrg?.message ?? null,
+        eroareUser: eroareUser?.message ?? null,
+      },
+    );
+  }
+  throw businessRule(`Organizația nu a putut fi înrolată: ${detalii.motiv}. Reîncearcă.`);
 }
 
 export const inroleazaOrganizatie = createPlatformAction<
@@ -191,11 +235,19 @@ export const inroleazaOrganizatie = createPlatformAction<
     if (error) throw error;
 
     // Modulele de bază se activează automat; restul se comută din fișa organizației.
+    // De aici încolo rândul de organizație există deja — orice eșec trebuie
+    // compensat, nu doar aruncat mai departe.
     const { data: moduleDeBaza, error: eroareModule } = await admin
       .from("features")
       .select("feature_key")
       .eq("is_core", true);
-    if (eroareModule) throw eroareModule;
+    if (eroareModule) {
+      await anuleazaInrolarea(admin, {
+        organizationId: organizatie.id,
+        cui: input.cui,
+        motiv: `lista modulelor de bază nu a putut fi citită (${eroareModule.message})`,
+      });
+    }
     if (moduleDeBaza && moduleDeBaza.length > 0) {
       const { error: eroareActivare } = await admin.from("organization_features").insert(
         moduleDeBaza.map((modul) => ({
@@ -206,7 +258,13 @@ export const inroleazaOrganizatie = createPlatformAction<
           activated_by: ctx.user.id,
         })),
       );
-      if (eroareActivare) throw eroareActivare;
+      if (eroareActivare) {
+        await anuleazaInrolarea(admin, {
+          organizationId: organizatie.id,
+          cui: input.cui,
+          motiv: `modulele de bază nu au putut fi activate (${eroareActivare.message})`,
+        });
+      }
     }
 
     if (payloadCnp.cnp_ciphertext !== null || input.reprezentant_legal !== undefined) {
@@ -220,7 +278,13 @@ export const inroleazaOrganizatie = createPlatformAction<
           created_by: ctx.user.id,
           updated_by: ctx.user.id,
         });
-      if (eroareReprezentant) throw eroareReprezentant;
+      if (eroareReprezentant) {
+        await anuleazaInrolarea(admin, {
+          organizationId: organizatie.id,
+          cui: input.cui,
+          motiv: `reprezentantul legal nu a putut fi salvat (${eroareReprezentant.message})`,
+        });
+      }
     }
 
     const parolaTemporara = genereazaParolaTemporara();
@@ -234,12 +298,18 @@ export const inroleazaOrganizatie = createPlatformAction<
 
     if (eroareUser || !userNou.user) {
       // Compensare: CUI-ul/slug-ul nu rămân blocate de o înrolare eșuată pe
-      // jumătate. `organization_legal_representative` cade automat prin
-      // `on delete cascade`.
-      await admin.from("organizations").delete().eq("id", organizatie.id);
-      throw businessRule(
-        `Organizația nu a putut fi înrolată: contul proprietarului nu a putut fi creat (${eroareUser?.message ?? "motiv necunoscut"}). Reîncearcă.`,
-      );
+      // jumătate. Niciun cont de autentificare n-a fost creat încă, deci nu
+      // e nimic de șters în afară de organizație.
+      // `return` (nu doar `await`) e necesar și pentru control flow: TS nu
+      // restrânge `userNou.user` la non-null doar pe baza unei funcții
+      // async care întoarce `Promise<never>` — are nevoie de un `return`/
+      // `throw` explicit pe această ramură ca să știe că restul nu rulează
+      // decât cu `userNou.user` garantat non-null.
+      return await anuleazaInrolarea(admin, {
+        organizationId: organizatie.id,
+        cui: input.cui,
+        motiv: `contul proprietarului nu a putut fi creat (${eroareUser?.message ?? "motiv necunoscut"})`,
+      });
     }
 
     const { error: eroareMembru } = await admin.from("organization_members").insert({
@@ -250,13 +320,30 @@ export const inroleazaOrganizatie = createPlatformAction<
       created_by: ctx.user.id,
       updated_by: ctx.user.id,
     });
-    if (eroareMembru) throw eroareMembru;
+    if (eroareMembru) {
+      // Compensare: contul de autentificare deja există la acest punct —
+      // fără curățare ar rămâne un `auth.users` viu, cu parolă temporară
+      // setată, fără nicio organizație care să-l revendice.
+      await anuleazaInrolarea(admin, {
+        organizationId: organizatie.id,
+        cui: input.cui,
+        userId: userNou.user.id,
+        motiv: `contul de membru al proprietarului nu a putut fi creat (${eroareMembru.message})`,
+      });
+    }
 
     const { error: eroareProfil } = await admin
       .from("profiles")
       .update({ phone: input.owner_telefon, must_change_password: true })
       .eq("id", userNou.user.id);
-    if (eroareProfil) throw eroareProfil;
+    if (eroareProfil) {
+      await anuleazaInrolarea(admin, {
+        organizationId: organizatie.id,
+        cui: input.cui,
+        userId: userNou.user.id,
+        motiv: `profilul proprietarului nu a putut fi actualizat (${eroareProfil.message})`,
+      });
+    }
 
     // Audit separat pentru crearea membrului — allow-list exclude parola.
     const antete = await headers();
