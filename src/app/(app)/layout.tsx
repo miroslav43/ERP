@@ -8,6 +8,7 @@ import { Topbar } from "@/components/layout/topbar";
 import { getEnabledFeatures } from "@/lib/auth/features";
 import { getPermissionMap } from "@/lib/auth/permissions";
 import { buildNavigation } from "@/lib/navigation/build-navigation";
+import { createServerSupabase } from "@/lib/supabase/server";
 import { resolveTenant } from "@/lib/tenant/resolve-tenant";
 import type { AuthUser, Tenant } from "@/lib/tenant/types";
 
@@ -23,8 +24,18 @@ const COOKIE_SIDEBAR = "adm_sidebar";
 async function requireTenant(): Promise<{ user: AuthUser; tenant: Tenant }> {
   const rezolvare = await resolveTenant();
   switch (rezolvare.status) {
-    case "ok":
+    case "ok": {
+      const supabase = await createServerSupabase();
+      const { data: profil } = await supabase
+        .from("profiles")
+        .select("must_change_password")
+        .eq("id", rezolvare.user.id)
+        .maybeSingle();
+      if (profil?.must_change_password) {
+        redirect("/parola-noua");
+      }
       return { user: rezolvare.user, tenant: rezolvare.tenant };
+    }
     case "neautentificat":
       redirect("/autentificare");
     case "fara_organizatie":

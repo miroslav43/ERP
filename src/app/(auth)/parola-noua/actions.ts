@@ -28,5 +28,13 @@ export async function seteazaParolaNoua(formData: FormData): Promise<void> {
   const { error } = await supabase.auth.updateUser({ password: validat.data.parola });
   if (error) redirect("/parola-noua?eroare=refuzata");
 
+  const { error: eroareProfil } = await supabase
+    .from("profiles")
+    .update({ must_change_password: false })
+    .eq("id", sesiune.user.id);
+  if (eroareProfil) {
+    console.error("[parola-noua] nu s-a putut curăța must_change_password", eroareProfil.message);
+  }
+
   redirect(RUTA_DUPA_AUTENTIFICARE);
 }
