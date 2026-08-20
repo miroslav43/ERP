@@ -13,7 +13,8 @@ import { Pas1Identitate, CAMPURI_PAS_1 } from "./pas-1-identitate";
 import { Pas2Contact, CAMPURI_PAS_2 } from "./pas-2-contact";
 import { Pas3Contract, CAMPURI_PAS_3 } from "./pas-3-contract";
 import { Pas4FisaPostului, CAMPURI_PAS_4 } from "./pas-4-fisa-postului";
-import { Pas5Confirmare } from "./pas-5-confirmare";
+import { Pas5BunuriCertificari, CAMPURI_PAS_5 } from "./pas-5-bunuri-certificari";
+import { Pas6Confirmare } from "./pas-6-confirmare";
 
 const TOTAL_PASI = ETICHETE_PASI.length;
 
@@ -22,6 +23,7 @@ const CAMPURI_PAS: readonly (readonly (keyof InroleazaAngajatInput)[])[] = [
   CAMPURI_PAS_2,
   CAMPURI_PAS_3,
   CAMPURI_PAS_4,
+  CAMPURI_PAS_5,
 ];
 
 function pasulPentruCamp(camp: string): number {
@@ -39,11 +41,18 @@ interface OptiuneAngajat {
   readonly full_name: string;
 }
 
+interface OptiuneInventar {
+  readonly id: string;
+  readonly denumire: string;
+  readonly numar_inventar: string;
+}
+
 interface Proprietati {
   readonly departamente: readonly Optiune[];
   readonly functii: readonly Optiune[];
   readonly angajati: readonly OptiuneAngajat[];
   readonly zileConcediuImplicit: number;
+  readonly obiecteDisponibile: readonly OptiuneInventar[];
 }
 
 interface RezultatSucces {
@@ -58,6 +67,7 @@ export function AsistentAngajatNou({
   functii,
   angajati,
   zileConcediuImplicit,
+  obiecteDisponibile,
 }: Proprietati) {
   const idFormular = useId();
   const [pasCurent, setPasCurent] = useState(1);
@@ -79,6 +89,8 @@ export function AsistentAngajatNou({
       work_mode: "sediu",
       moneda: "RON",
       zile_concediu_anual: zileConcediuImplicit,
+      examen_tip: "angajare",
+      examen_rezultat: "apt",
     },
   });
   const {
@@ -189,7 +201,14 @@ export function AsistentAngajatNou({
         />
       )}
       {pasCurent === 4 && <Pas4FisaPostului formular={formular} idFormular={idFormular} />}
-      {pasCurent === 5 && <Pas5Confirmare formular={formular} />}
+      {pasCurent === 5 && (
+        <Pas5BunuriCertificari
+          formular={formular}
+          idFormular={idFormular}
+          obiecteDisponibile={obiecteDisponibile}
+        />
+      )}
+      {pasCurent === 6 && <Pas6Confirmare formular={formular} />}
 
       <div className="flex items-center gap-3">
         {pasCurent > 1 && (

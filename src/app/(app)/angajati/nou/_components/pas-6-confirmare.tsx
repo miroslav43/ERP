@@ -1,4 +1,4 @@
-// src/app/(app)/angajati/nou/_components/pas-5-confirmare.tsx
+// src/app/(app)/angajati/nou/_components/pas-6-confirmare.tsx
 "use client";
 
 import type { UseFormReturn } from "react-hook-form";
@@ -20,7 +20,7 @@ function Rand({ eticheta, valoare }: { eticheta: string; valoare: string | undef
 }
 
 /** Recapitulare read-only — nu duplică validarea, doar reflectă ce s-a completat. */
-export function Pas5Confirmare({ formular }: Proprietati) {
+export function Pas6Confirmare({ formular }: Proprietati) {
   const valori = formular.watch();
 
   return (

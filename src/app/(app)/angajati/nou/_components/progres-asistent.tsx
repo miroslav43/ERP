@@ -6,6 +6,7 @@ export const ETICHETE_PASI = [
   "Contact și adrese",
   "Angajare și contract",
   "Fișa postului",
+  "Bunuri și certificări",
   "Confirmare",
 ] as const;
 

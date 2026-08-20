@@ -2,7 +2,16 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import type { LucideIcon } from "lucide-react";
-import { Flame, FireExtinguisher, GraduationCap, ShieldAlert, Stethoscope, Thermometer } from "lucide-react";
+import {
+  BadgeCheck,
+  Flame,
+  FireExtinguisher,
+  GraduationCap,
+  HardHat,
+  ShieldAlert,
+  Stethoscope,
+  Thermometer,
+} from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
@@ -13,6 +22,8 @@ import { formatDate } from "@/lib/format/date";
 import {
   accidenteNecomunicate,
   angajatiDupaId,
+  contorAutorizatiiNominale,
+  contorEip,
   contorFiseAptitudine,
   contorInstruiri,
   contorStingatoare,
@@ -125,10 +136,12 @@ export default async function PaginaSsm() {
     );
   }
 
-  const [instruiri, stingatoare, fise] = await Promise.all([
+  const [instruiri, stingatoare, fise, autorizatii, eip] = await Promise.all([
     contorInstruiri(tenant.organizationId),
     contorStingatoare(tenant.organizationId),
     contorFiseAptitudine(tenant.organizationId),
+    contorAutorizatiiNominale(tenant.organizationId),
+    contorEip(tenant.organizationId),
   ]);
   const ssm = instruiri.find((c) => c.domeniu === "ssm")?.deAtentionat ?? 0;
   const psi = instruiri.find((c) => c.domeniu === "psi")?.deAtentionat ?? 0;
@@ -177,6 +190,8 @@ export default async function PaginaSsm() {
           titlu="Stingătoare — probă de presiune"
           numar={stingatoare.probaPresiune}
         />
+        <Card href="/ssm/autorizatii" icon={BadgeCheck} titlu="Autorizații nominale" numar={autorizatii} />
+        <Card href="/ssm/eip" icon={HardHat} titlu="Echipament de protecție (EIP)" numar={eip} />
       </div>
     </main>
   );

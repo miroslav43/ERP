@@ -25,7 +25,7 @@ export default async function PaginaAngajatNou() {
   }
 
   const db = await createServerSupabase();
-  const [departamente, functii, angajati, organizatie] = await Promise.all([
+  const [departamente, functii, angajati, organizatie, obiecteInventar] = await Promise.all([
     db
       .from("departments")
       .select("id, denumire")
@@ -52,6 +52,13 @@ export default async function PaginaAngajatNou() {
       .select("zile_concediu_anual_implicit")
       .eq("id", tenant.organizationId)
       .maybeSingle(),
+    // Golul dacă modulul Inventar nu e activat: RLS filtrează tăcut, nu aruncă.
+    db
+      .from("inventory_items")
+      .select("id, denumire, numar_inventar")
+      .eq("organization_id", tenant.organizationId)
+      .eq("status", "in_stoc")
+      .order("denumire"),
   ]);
 
   return (
@@ -73,6 +80,7 @@ export default async function PaginaAngajatNou() {
         zileConcediuImplicit={
           organizatie.data?.zile_concediu_anual_implicit ?? ZILE_CONCEDIU_IMPLICIT_FALLBACK
         }
+        obiecteDisponibile={obiecteInventar.data ?? []}
       />
     </main>
   );

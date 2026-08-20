@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { normalizeazaCnp, validateazaCnp } from "@/domain/hr/cnp";
 import { normalizeazaIban, validateazaIban } from "@/domain/hr/iban";
+import { REZULTATE_EXAMEN, TIPURI_EXAMEN } from "@/schemas/ssm";
 
 export const STATUSURI_ANGAJAT = [
   "candidat",
@@ -313,8 +314,40 @@ export const inroleazaAngajatSchema = creeazaAngajatSchema
     subordonare: textOptional(160),
     atributii: textOptional(4000),
     competente: textOptional(4000),
+
+    // Bun de inventar alocat la înrolare — opțional, unul singur (restul se
+    // alocă ulterior din /inventar, ca la mașina de serviciu, neinclusă aici:
+    // flota nu are azi o acțiune de realocare a unui vehicul EXISTENT, doar
+    // de creare cu șofer — reimplementarea ei ar depăși scopul acestei etape).
+    inventory_item_id: uuidOptional,
+
+    // Fișă de aptitudine (medicina muncii) deja existentă — opțională;
+    // completarea datei examinării declanșează înregistrarea.
+    examen_data: dataOptionala,
+    examen_tip: z.enum(TIPURI_EXAMEN).default("angajare"),
+    examen_rezultat: z.enum(REZULTATE_EXAMEN).default("apt"),
+    examen_valabil_pana: dataOptionala,
+    examen_medic: textOptional(120),
+    examen_unitate_medicala: textOptional(160),
+    examen_numar_fisa: textOptional(64),
+
+    // Autorizație nominală deja existentă (ex. ISCIR, lucru la înălțime) —
+    // opțională; completarea numărului declanșează înregistrarea.
+    autorizatie_tip: textOptional(80),
+    autorizatie_numar: textOptional(64),
+    autorizatie_emitent: textOptional(160),
+    autorizatie_valabil_pana: dataOptionala,
   })
-  .superRefine(valideazaReguliContract);
+  .superRefine(valideazaReguliContract)
+  .superRefine((valoare, ctx) => {
+    if (valoare.autorizatie_numar !== null && valoare.autorizatie_valabil_pana === null) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["autorizatie_valabil_pana"],
+        message: "O autorizație nominală are nevoie de data până la care e valabilă.",
+      });
+    }
+  });
 
 /**
  * Tipul de INTRARE, nu de ieșire: câmpurile `.optional().transform(...)` devin

@@ -9,6 +9,8 @@ import { genereazaEvenimenteRevisal } from "@/lib/revisal/genereaza-evenimente";
 import { genereazaContractDeMunca } from "@/lib/documents/contract-munca";
 import { genereazaFisaPostului } from "@/lib/documents/fisa-postului";
 import { inroleazaAngajatSchema } from "@/schemas/employee";
+import { predaObiect } from "@/app/(app)/inventar/actions";
+import { adaugaAutorizatieNominala, adaugaFisaAptitudine } from "@/app/(app)/ssm/actions";
 
 import { ETICHETE_MOD_LUCRU } from "../etichete";
 import { salveazaDateSensibile } from "../actions";
@@ -131,6 +133,18 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
       zile_concediu_anual,
       perioada_proba_zile,
       preaviz_zile,
+      inventory_item_id,
+      examen_data,
+      examen_tip,
+      examen_rezultat,
+      examen_valabil_pana,
+      examen_medic,
+      examen_unitate_medicala,
+      examen_numar_fisa,
+      autorizatie_tip,
+      autorizatie_numar,
+      autorizatie_emitent,
+      autorizatie_valabil_pana,
       ...fisa
     } = input;
 
@@ -230,6 +244,74 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
         .single();
       if (eroareFisaPost !== null) throw eroareFisaPost;
       jobDescriptionId = fisaPost.id;
+    }
+
+    // Bunuri și certificări existente — pași opționali ai formularului.
+    // `predaObiect`/`adaugaFisaAptitudine`/`adaugaAutorizatieNominala` verifică
+    // FIECARE propriul prag de permisiune (inventory:update / ssm:create),
+    // diferit de employees:create — dacă actorul nu-l are, eșecul nu trebuie
+    // să anuleze o înrolare deja reușită (același principiu ca la documente).
+    if (inventory_item_id !== null) {
+      try {
+        await predaObiect({
+          item_id: inventory_item_id,
+          employee_id: angajat.id,
+          predat_la: null,
+          stare_la_predare: "bun",
+          observatii: null,
+          pv_document_path: null,
+        });
+      } catch (eroare) {
+        console.error("[inventar] bunul nu a putut fi predat la înrolare", {
+          employeeId: angajat.id,
+          requestId: ctx.requestId,
+          eroare,
+        });
+      }
+    }
+
+    if (examen_data !== null) {
+      try {
+        await adaugaFisaAptitudine({
+          employee_id: angajat.id,
+          tip: examen_tip,
+          data_examinarii: examen_data,
+          medic: examen_medic,
+          unitate_medicala: examen_unitate_medicala,
+          rezultat: examen_rezultat,
+          valabil_pana: examen_valabil_pana,
+          numar_fisa: examen_numar_fisa,
+          cost: null,
+        });
+      } catch (eroare) {
+        console.error("[ssm] fișa de aptitudine nu a putut fi înregistrată la înrolare", {
+          employeeId: angajat.id,
+          requestId: ctx.requestId,
+          eroare,
+        });
+      }
+    }
+
+    if (autorizatie_numar !== null && autorizatie_tip !== null && autorizatie_emitent !== null) {
+      try {
+        await adaugaAutorizatieNominala({
+          employee_id: angajat.id,
+          tip: autorizatie_tip,
+          grupa: null,
+          numar: autorizatie_numar,
+          emitent: autorizatie_emitent,
+          emis_la: null,
+          valabil_pana: autorizatie_valabil_pana ?? valabil_de_la,
+          suspendata_la: null,
+          observatii: null,
+        });
+      } catch (eroare) {
+        console.error("[ssm] autorizația nominală nu a putut fi înregistrată la înrolare", {
+          employeeId: angajat.id,
+          requestId: ctx.requestId,
+          eroare,
+        });
+      }
     }
 
     // Generarea documentelor nu blochează înrolarea deja reușită — eșecul se
