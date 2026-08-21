@@ -5,6 +5,7 @@ import { useState, useTransition, type ReactNode } from "react";
 import { Save } from "lucide-react";
 
 import { maximSecundare } from "@/domain/organization/caen-reguli";
+import { SelectorTara } from "@/components/forms/selector-tara";
 import {
   SelectorCodCaenPrincipal,
   SelectorCodCaenSecundare,
@@ -64,7 +65,10 @@ const ETICHETE: Readonly<Record<CheiText, string>> = {
 };
 
 /** Randate ca `<input type="number">` — restul câmpurilor din `ORDINE` sunt text. */
-const CAMPURI_NUMERICE: ReadonlySet<CheiText> = new Set(["capital_social", "zile_concediu_anual_implicit"]);
+const CAMPURI_NUMERICE: ReadonlySet<CheiText> = new Set([
+  "capital_social",
+  "zile_concediu_anual_implicit",
+]);
 
 const ORDINE: readonly CheiText[] = [
   "name",
@@ -152,6 +156,18 @@ export function FormularOrganizatie({ initiale }: Readonly<{ initiale: ValoriOrg
         {ORDINE.map((cheie) => {
           const id = `org-${cheie}`;
           const erori = stare.erori?.[cheie];
+          if (cheie === "tara") {
+            return (
+              <Camp key={cheie} id={id} eticheta={ETICHETE[cheie]} erori={erori}>
+                <SelectorTara
+                  id={id}
+                  value={valori.tara}
+                  onChange={(cod) => setValori((precedente) => ({ ...precedente, tara: cod }))}
+                  ariaInvalid={erori !== undefined && erori.length > 0}
+                />
+              </Camp>
+            );
+          }
           return (
             <Camp key={cheie} id={id} eticheta={ETICHETE[cheie]} erori={erori}>
               <input
@@ -180,7 +196,11 @@ export function FormularOrganizatie({ initiale }: Readonly<{ initiale: ValoriOrg
           );
         })}
 
-        <Camp id="org-cod-caen" eticheta={ETICHETE.cod_caen} erori={stare.erori?.["cod_caen_secundare"]}>
+        <Camp
+          id="org-cod-caen"
+          eticheta={ETICHETE.cod_caen}
+          erori={stare.erori?.["cod_caen_secundare"]}
+        >
           <SelectorCodCaenPrincipal
             id="org-cod-caen"
             value={valori.cod_caen === "" ? undefined : valori.cod_caen}
@@ -219,7 +239,7 @@ export function FormularOrganizatie({ initiale }: Readonly<{ initiale: ValoriOrg
         <button
           type="submit"
           disabled={seSalveaza}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-medium disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-medium disabled:cursor-not-allowed"
         >
           <Save aria-hidden="true" className="h-4 w-4" />
           {seSalveaza ? "Se salvează…" : "Salvează modificările"}

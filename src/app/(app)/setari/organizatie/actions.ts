@@ -7,6 +7,7 @@ import { createAction } from "@/lib/actions/create-action";
 import { notFound } from "@/lib/actions/errors";
 import { caenClasaSchema } from "@/schemas/organization";
 import { valideazaSelectieCaen } from "@/domain/organization/caen-reguli";
+import { CODURI_TARI_VALIDE } from "@/domain/organization/tari-europene";
 
 const textOptional = (maxim: number) => z.string().trim().max(maxim).optional();
 
@@ -29,7 +30,20 @@ const schemaOrganizatie = z
     judet: textOptional(60),
     oras: textOptional(80),
     cod_postal: textOptional(12),
-    tara: textOptional(60),
+    // Cod ISO alpha-2, nu denumirea țării: coloana are
+    // `check (tara ~ '^[A-Z]{2}$')`. Ca text liber de 60 de caractere, orice
+    // „România" scris de mână ajungea în bază și pica acolo cu 23514, afișat
+    // ca „Datele nu respectă regulile de validare" — fără să spună ce câmp.
+    tara: z
+      .union([
+        z.literal(""),
+        z
+          .string()
+          .trim()
+          .toUpperCase()
+          .refine((cod) => CODURI_TARI_VALIDE.has(cod), "Alegeți o țară din listă."),
+      ])
+      .optional(),
     email_contact: z.union([z.literal(""), z.email("Adresa de e-mail nu este validă.")]).optional(),
     telefon_contact: textOptional(30),
     website: z

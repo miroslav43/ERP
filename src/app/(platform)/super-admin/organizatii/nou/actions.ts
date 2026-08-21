@@ -91,7 +91,11 @@ export const onboardeazaOrganizatie = createPlatformAction<
         oras: input.oras,
         ...(input.adresa === undefined ? {} : { adresa: input.adresa }),
         ...(input.cod_postal === undefined ? {} : { cod_postal: input.cod_postal }),
-        tara: "România",
+        // Cod ISO 3166-1 alpha-2, NU denumirea țării: coloana are
+        // `check (tara ~ '^[A-Z]{2}$')` din 0001_kernel.sql, iar „România”
+        // făcea ca fiecare înrolare să pice cu 23514 (violare de CHECK),
+        // afișat utilizatorului ca „Datele nu respectă regulile de validare”.
+        tara: "RO",
         ...(input.website === undefined ? {} : { website: input.website }),
         ...(input.reprezentant_legal === undefined
           ? {}
