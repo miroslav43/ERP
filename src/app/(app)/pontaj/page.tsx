@@ -251,7 +251,9 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
 
       <NavPontaj poateAproba={poateAproba} />
 
-      {scope === "own" ? null : <FiltrePontaj an={an} departamente={listaDepartamente} />}
+      {scope === "own" ? null : (
+        <FiltrePontaj an={an} luna={filtre.luna} departamente={listaDepartamente} />
+      )}
 
       {perioada === null ? (
         <EmptyState

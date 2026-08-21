@@ -13,6 +13,7 @@ import {
 import { formatAmount } from "@/lib/format/money";
 import { zileNelucratoare } from "@/lib/queries/leave";
 import { anuleazaCerereSchema, creeazaCerereSchema, decideCerereSchema } from "@/schemas/leave";
+import { sincronizeazaZileleDeConcediu } from "@/app/(app)/pontaj/sincronizare-concediu";
 import { traduEroare } from "./erori";
 
 function laDataUTC(valoare: string): Date {
@@ -336,6 +337,42 @@ export const decideCerere = createAction({
         .eq("id", sarcina.entity_id)
         .eq("organization_id", ctx.tenant.organizationId);
       if (eroareAprobare !== null) throw traduEroare(eroareAprobare);
+
+      // (6) Pontajul reflectă concediul de îndată ce cererea e aprobată — nu
+      // mai așteaptă butonul manual „Sincronizează” din /pontaj/aprobare.
+      // Best-effort, cu clientul admin (aprobatorul nu are neapărat
+      // `attendance:create`): un eșec aici (ex. luna nu are încă o perioadă
+      // de pontaj deschisă) nu trebuie să anuleze aprobarea concediului.
+      try {
+        const { data: cerere, error: eroareCerere } = await admin
+          .from("leave_requests")
+          .select("employee_id")
+          .eq("id", sarcina.entity_id)
+          .eq("organization_id", ctx.tenant.organizationId)
+          .single();
+        if (eroareCerere !== null) throw eroareCerere;
+
+        const { data: zileCerere, error: eroareZile } = await admin
+          .from("leave_request_days")
+          .select("data, leave_request_id")
+          .eq("organization_id", ctx.tenant.organizationId)
+          .eq("leave_request_id", sarcina.entity_id)
+          .eq("este_lucratoare", true);
+        if (eroareZile !== null) throw eroareZile;
+
+        const zile = (zileCerere ?? []).map((z) => ({
+          employee_id: cerere.employee_id,
+          data: z.data,
+          leave_request_id: z.leave_request_id,
+        }));
+        await sincronizeazaZileleDeConcediu(admin, ctx.tenant.organizationId, zile);
+      } catch (eroare) {
+        console.error("[pontaj] sincronizarea automată cu concediul aprobat a eșuat", {
+          leaveRequestId: sarcina.entity_id,
+          requestId: ctx.requestId,
+          eroare,
+        });
+      }
     }
 
     return { id: sarcina.entity_id };

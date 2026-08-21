@@ -11,6 +11,16 @@ interface Departament {
 
 interface Proprietati {
   readonly an: number;
+  /**
+   * Luna EFECTIV afișată, calculată server-side (`filtrePontajSchema`, cu
+   * implicitul ei pe luna curentă) — nu `useSearchParams()`: la o intrare
+   * proaspătă pe `/pontaj`, fără `?luna=`, query string-ul e gol, iar
+   * selectul ar cădea pe prima opțiune („ianuarie”) deși foaia afișată e a
+   * lunii curente. Primind valoarea reală ca proprietate, selectul o arată
+   * corect din primul randare, indiferent dacă a venit din URL sau din
+   * implicitul schemei.
+   */
+  readonly luna: number;
   readonly departamente: readonly Departament[];
 }
 
@@ -37,7 +47,7 @@ const LUNI_ETICHETE = [
  * randează deloc — un filtru care nu ar întoarce niciodată o alegere e mai
  * rău decât lipsa lui.
  */
-export function FiltrePontaj({ an, departamente }: Proprietati) {
+export function FiltrePontaj({ an, luna, departamente }: Proprietati) {
   const router = useRouter();
   const cale = usePathname();
   const parametri = useSearchParams();
@@ -90,7 +100,7 @@ export function FiltrePontaj({ an, departamente }: Proprietati) {
         <select
           id={idLuna}
           name="luna"
-          defaultValue={parametri.get("luna") ?? ""}
+          defaultValue={luna}
           className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
         >
           {LUNI_ETICHETE.map((eticheta, index) => (

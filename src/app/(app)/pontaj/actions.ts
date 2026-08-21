@@ -20,6 +20,7 @@ import {
 
 import { tipZiAutomat } from "./etichete";
 import { traduEroare } from "./erori";
+import { sincronizeazaZileleDeConcediu } from "./sincronizare-concediu";
 
 const CAI_REVALIDARE = ["/pontaj", "/pontaj/perioade", "/pontaj/aprobare"] as const;
 
@@ -483,18 +484,19 @@ export const sincronizeazaConcediile = createAction({
     const { inceput, sfarsit } = intervalulLunii(input.an, input.luna);
 
     // Sursa: zilele de concediu APROBAT, lucrătoare, din intervalul lunii.
-    // `.returns<T>()` e obligatoriu — generatorul emite `Relationships: []`
-    // pentru toate tabelele, deci embed-ul nu se tipează singur.
+    // `leave_request_days` NU are `employee_id` propriu (vezi 0009_leave.sql)
+    // — vine doar prin `leave_requests` îmbinată. `.returns<T>()` e obligatoriu
+    // — generatorul emite `Relationships: []` pentru toate tabelele, deci
+    // embed-ul nu se tipează singur.
     interface ZiConcediuBruta {
-      readonly employee_id: string;
       readonly data: string;
       readonly leave_request_id: string;
-      readonly cerere: Readonly<{ status: string }> | null;
+      readonly cerere: Readonly<{ employee_id: string; status: string }> | null;
     }
     const { data: zileConcediu, error: eroareConcediu } = await db
       .from("leave_request_days")
       .select(
-        "employee_id, data, leave_request_id, cerere:leave_requests!leave_request_id(status)",
+        "data, leave_request_id, cerere:leave_requests!leave_request_id(employee_id, status)",
       )
       .eq("organization_id", ctx.tenant.organizationId)
       .eq("este_lucratoare", true)
@@ -503,75 +505,17 @@ export const sincronizeazaConcediile = createAction({
       .returns<ZiConcediuBruta[]>();
     if (eroareConcediu !== null) throw eroareConcediu;
 
-    const zileAprobate = (zileConcediu ?? []).filter((z) => z.cerere?.status === "aprobata");
+    const zileAprobate = (zileConcediu ?? [])
+      .filter((z) => z.cerere?.status === "aprobata")
+      .map((z) => ({
+        employee_id: (z.cerere as { employee_id: string }).employee_id,
+        data: z.data,
+        leave_request_id: z.leave_request_id,
+      }));
     if (zileAprobate.length === 0) {
       return { create: 0, actualizate: 0, pastrate: 0 };
     }
 
-    // Rândurile deja existente, ca sincronizarea să rămână IDEMPOTENTĂ și să
-    // nu atingă niciodată o zi introdusă manual (`sursa = 'manuala'`).
-    const idAngajati = [...new Set(zileAprobate.map((z) => z.employee_id))];
-    const { data: existenteData, error: eroareExistente } = await db
-      .from("attendance_entries")
-      .select("id, employee_id, data, sursa")
-      .eq("organization_id", ctx.tenant.organizationId)
-      .in("employee_id", idAngajati)
-      .gte("data", inceput)
-      .lte("data", sfarsit)
-      .is("deleted_at", null);
-    if (eroareExistente !== null) throw eroareExistente;
-
-    const existenteHarta = new Map(
-      (existenteData ?? []).map((e) => [`${e.employee_id}/${e.data}`, e]),
-    );
-
-    let create = 0;
-    let actualizate = 0;
-    let pastrate = 0;
-
-    for (const zi of zileAprobate) {
-      const existenta = existenteHarta.get(`${zi.employee_id}/${zi.data}`);
-
-      if (existenta === undefined) {
-        const { error } = await db.from("attendance_entries").insert({
-          organization_id: ctx.tenant.organizationId,
-          // Placeholder inert — vezi comentariul din `salveazaZiPontaj`.
-          period_id: randomUUID(),
-          employee_id: zi.employee_id,
-          data: zi.data,
-          ore_lucrate: 0,
-          ore_suplimentare: 0,
-          ore_noapte: 0,
-          tip_zi: "concediu",
-          sursa: "sincronizare_concedii",
-          leave_request_id: zi.leave_request_id,
-        });
-        if (error !== null) traduEroare(error);
-        create += 1;
-        continue;
-      }
-
-      if (existenta.sursa !== "sincronizare_concedii") {
-        // Linie manuală: conflictul se consumă tăcut, fără suprascriere.
-        pastrate += 1;
-        continue;
-      }
-
-      const { error } = await db
-        .from("attendance_entries")
-        .update({
-          tip_zi: "concediu",
-          ore_lucrate: 0,
-          ore_suplimentare: 0,
-          ore_noapte: 0,
-          leave_request_id: zi.leave_request_id,
-        })
-        .eq("id", existenta.id)
-        .eq("organization_id", ctx.tenant.organizationId);
-      if (error !== null) traduEroare(error);
-      actualizate += 1;
-    }
-
-    return { create, actualizate, pastrate };
+    return sincronizeazaZileleDeConcediu(db, ctx.tenant.organizationId, zileAprobate);
   },
 });
