@@ -6047,6 +6047,7 @@ export type Database = {
           adresa: string | null
           capital_social: number | null
           cod_caen: string | null
+          cod_caen_secundare: string[]
           cod_postal: string | null
           created_at: string
           created_by: string | null
@@ -6090,6 +6091,7 @@ export type Database = {
           adresa?: string | null
           capital_social?: number | null
           cod_caen?: string | null
+          cod_caen_secundare?: string[]
           cod_postal?: string | null
           created_at?: string
           created_by?: string | null
@@ -6133,6 +6135,7 @@ export type Database = {
           adresa?: string | null
           capital_social?: number | null
           cod_caen?: string | null
+          cod_caen_secundare?: string[]
           cod_postal?: string | null
           created_at?: string
           created_by?: string | null
