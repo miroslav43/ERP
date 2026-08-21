@@ -1,4 +1,8 @@
--- supabase/migrations/0040_pontaj_saptamanal.sql
+-- supabase/migrations/0041_pontaj_saptamanal.sql
+-- Renumerotat din 0040 → 0041: o sesiune concurentă a folosit deja 0040
+-- pentru `0040_organizations_caen_secundare.sql` (coduri CAEN) — deja
+-- aplicată live sub numele ei, coliziunea era doar la nivel de fișier local.
+--
 -- Plan săptămânal de pontaj: angajatul declară, pentru săptămâna următoare,
 -- modul de prezență (birou/homeoffice/deplasare/delegație) și orele
 -- planificate pe zi; managerul direct SAU cineva cu drept de aprobare pe
