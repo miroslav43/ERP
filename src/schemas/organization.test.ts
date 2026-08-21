@@ -23,9 +23,13 @@ const BAZA = {
 };
 
 describe("onboardeazaOrganizatieSchema — cod_caen", () => {
-  it("respinge lipsa codului principal", () => {
+  it("respinge lipsa codului principal, cu mesaj în română", () => {
     const rezultat = onboardeazaOrganizatieSchema.safeParse({ ...BAZA, cod_caen_secundare: [] });
     expect(rezultat.success).toBe(false);
+    if (!rezultat.success) {
+      const mesaj = rezultat.error.issues.find((i) => i.path.includes("cod_caen"))?.message;
+      expect(mesaj).toBe("Selectați un cod CAEN.");
+    }
   });
 
   it("respinge un cod care nu există în nomenclator", () => {
