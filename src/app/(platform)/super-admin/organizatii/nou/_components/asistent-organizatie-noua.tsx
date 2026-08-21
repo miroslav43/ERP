@@ -5,8 +5,12 @@ import Link from "next/link";
 import { useId, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { LinkInvitatie } from "../../[orgId]/membri/panou-membri";
 
-import { onboardeazaOrganizatieSchema, type OnboardeazaOrganizatieInput } from "@/schemas/organization";
+import {
+  onboardeazaOrganizatieSchema,
+  type OnboardeazaOrganizatieInput,
+} from "@/schemas/organization";
 import { onboardeazaOrganizatie } from "../actions";
 import { ProgresAsistent, ETICHETE_PASI } from "./progres-asistent";
 import { Pas1Identitate, CAMPURI_PAS_1 } from "./pas-1-identitate";
@@ -30,9 +34,7 @@ const CAMPURI_PAS: readonly (readonly (keyof OnboardeazaOrganizatieInput)[])[] =
 ];
 
 function pasulPentruCamp(camp: string): number {
-  const index = CAMPURI_PAS.findIndex((campuri) =>
-    (campuri as readonly string[]).includes(camp),
-  );
+  const index = CAMPURI_PAS.findIndex((campuri) => (campuri as readonly string[]).includes(camp));
   return index === -1 ? 1 : index + 1;
 }
 
@@ -139,14 +141,19 @@ export function AsistentOrganizatieNoua({ valoriInitiale }: Proprietati = {}) {
           Organizația „{rezultat.name}” a fost creată
         </h2>
         {rezultat.invitatie.trimisa ? (
-          <p className="text-muted-foreground text-sm">
-            Invitația către proprietar a fost trimisă. Poate fi retrimisă oricând din ecranul de
-            membri al organizației.
-          </p>
+          <>
+            <p className="text-muted-foreground text-sm">
+              Invitația pentru proprietar a fost creată. Fluxul nu trimite e-mail — trimite linkul
+              de mai jos persoanei respective. Poate fi regenerat oricând din ecranul de membri al
+              organizației, dar cel de acum nu mai poate fi recuperat după ce părăsești pagina: în
+              baza de date se păstrează doar amprenta tokenului.
+            </p>
+            <LinkInvitatie link={rezultat.invitatie.linkInvitatie} />
+          </>
         ) : (
           <p className="text-danger text-sm">
-            Organizația s-a creat, dar invitația proprietarului nu a putut fi trimisă automat
-            ({rezultat.invitatie.eroare}). Trimiteți-o manual din ecranul de membri.
+            Organizația s-a creat, dar invitația proprietarului nu a putut fi trimisă automat (
+            {rezultat.invitatie.eroare}). Trimiteți-o manual din ecranul de membri.
           </p>
         )}
         <div className="flex gap-3">
@@ -212,7 +219,7 @@ export function AsistentOrganizatieNoua({ valoriInitiale }: Proprietati = {}) {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+            className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
           >
             {isSubmitting ? "Se creează…" : "Creează organizația"}
           </button>
