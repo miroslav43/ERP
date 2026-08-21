@@ -62,6 +62,10 @@ export default async function PaginaMembri({ params }: { params: Promise<{ orgId
       .select("id, email, role, expires_at, created_at")
       .eq("organization_id", orgId)
       .eq("status", "pending")
+      // Politica RLS ține `deleted_at is null` doar pe ramura de tenant;
+      // administratorul de platformă vede și rândurile șterse logic (0043),
+      // deci filtrul trebuie repetat aici, altfel ar apărea în listă.
+      .is("deleted_at", null)
       .gt("expires_at", acum)
       .order("expires_at", { ascending: true })
       .returns<RandInvitatie[]>(),
