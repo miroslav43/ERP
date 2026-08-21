@@ -61,9 +61,29 @@ const PG_ERRORS: Readonly<Record<string, Readonly<{ code: ActionErrorCode; messa
   PGRST301: { code: "NEAUTENTIFICAT", message: "Sesiunea a expirat. Autentificați-vă din nou." },
 };
 
+/**
+ * Coduri al căror mesaj fix nu-i spune utilizatorului ce anume să corecteze:
+ * „Datele nu respectă regulile de validare” e adevărat, dar neacționabil.
+ * Pentru ele atașăm codul de referință, ca omul să aibă ce cita, iar noi să
+ * putem găsi în log linia `respins de bază` cu acel `requestId` și cauza
+ * exactă. Restul codurilor (CONFLICT, INTERZIS, NEGASIT) au mesaje care spun
+ * deja ce s-a întâmplat, deci rămân curate.
+ */
+const CODURI_PG_NEACTIONABILE: ReadonlySet<string> = new Set([
+  "23514", // violare de CHECK
+  "23502", // NOT NULL
+  "22001", // valoare prea lungă
+  "22P02", // format nepermis
+]);
+
 export function mapPostgrestError(error: PostgrestError, requestId: string): ActionError {
   const hit = PG_ERRORS[error.code];
-  if (hit !== undefined) return { ...hit, fieldErrors: null, requestId };
+  if (hit !== undefined) {
+    const message = CODURI_PG_NEACTIONABILE.has(error.code)
+      ? `${hit.message} Cod de referință: ${requestId}`
+      : hit.message;
+    return { ...hit, message, fieldErrors: null, requestId };
+  }
   return {
     code: "EROARE_INTERNA",
     message: `A apărut o eroare neașteptată. Cod de referință: ${requestId}`,
