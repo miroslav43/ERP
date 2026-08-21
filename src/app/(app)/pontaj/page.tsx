@@ -18,8 +18,10 @@ import {
   intrariLuna,
   intrariProprii,
   listeazaAngajatiPontaj,
+  setariPontaj,
 } from "@/lib/queries/attendance";
 import { zileNelucratoare } from "@/lib/queries/leave";
+import { zileLucratoareLuna } from "@/lib/queries/payroll";
 import { filtrePontajSchema, type StatusPerioada } from "@/schemas/attendance";
 import type { PermissionScope } from "@/config/permissions";
 
@@ -45,6 +47,8 @@ async function Foaie({
   utilizatorEticheta,
   poateEdita,
   poateAproba,
+  orePeZi,
+  oreAsteptateLuna,
   parametri,
 }: {
   readonly organizationId: string;
@@ -58,6 +62,8 @@ async function Foaie({
   readonly utilizatorEticheta: string;
   readonly poateEdita: boolean;
   readonly poateAproba: boolean;
+  readonly orePeZi: number;
+  readonly oreAsteptateLuna: number;
   readonly parametri: Record<string, string | string[] | undefined>;
 }) {
   const { nationale, organizatie } = await zileNelucratoare(organizationId, an, an);
@@ -106,6 +112,8 @@ async function Foaie({
         liberSuplimentar={liberSuplimentar}
         poateEdita={poateEdita}
         poateAproba={poateAproba}
+        orePeZi={orePeZi}
+        oreAsteptateLuna={oreAsteptateLuna}
       />
     );
   }
@@ -177,6 +185,8 @@ async function Foaie({
         liberSuplimentar={liberSuplimentar}
         poateEdita={poateEdita}
         poateAproba={poateAproba}
+        orePeZi={orePeZi}
+        oreAsteptateLuna={oreAsteptateLuna}
       />
       <nav aria-label="Paginare" className="flex justify-end">
         {urmatorulCursor === null ? null : (
@@ -217,6 +227,18 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
 
   const perioada = await citestePerioada(tenant.organizationId, an, filtre.luna);
   const listaDepartamente = scope === "own" ? [] : await departamente(tenant.organizationId);
+  // Nu există seed pentru `attendance_settings` — 8h e implicitul deja folosit
+  // în formular înainte de această modificare (`celula-zi.tsx`).
+  const orePeZi =
+    perioada === null
+      ? 8
+      : ((await setariPontaj(tenant.organizationId, perioada.data_inceput))?.ore_pe_zi ?? 8);
+  // „Ore așteptate” pentru lună — bază de raportare, NU calculul de salariu
+  // (acela rămâne în `salarizare`, care poate citi aceleași cifre mai târziu).
+  const oreAsteptateLuna =
+    perioada === null
+      ? 0
+      : orePeZi * (await zileLucratoareLuna(tenant.organizationId, an, filtre.luna));
 
   return (
     <main className="space-y-6 p-6">
@@ -254,6 +276,8 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
             utilizatorEticheta={user.fullName ?? user.email}
             poateEdita={poateEdita}
             poateAproba={poateAproba}
+            orePeZi={orePeZi}
+            oreAsteptateLuna={oreAsteptateLuna}
             parametri={parametri}
           />
         </Suspense>

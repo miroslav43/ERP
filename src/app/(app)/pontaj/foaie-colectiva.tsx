@@ -38,6 +38,15 @@ interface Proprietati {
   readonly liberSuplimentar: readonly string[];
   readonly poateEdita: boolean;
   readonly poateAproba: boolean;
+  /** Pragul de ore/zi al organizației — trecut mai departe la `CelulaZi`. */
+  readonly orePeZi: number;
+  /**
+   * Ore așteptate ale lunii (ore_pe_zi × zile lucrătoare) — aceeași valoare
+   * pentru fiecare angajat, calculată o singură dată în pagină. Doar
+   * raportare: pagina de pontaj NU calculează salariul sau tichetele, doar
+   * arată baza pe care se sprijină acel calcul, făcut în modulul de salarizare.
+   */
+  readonly oreAsteptateLuna: number;
 }
 
 interface Selectie {
@@ -87,6 +96,8 @@ export function FoaieColectiva({
   liberSuplimentar,
   poateEdita,
   poateAproba,
+  orePeZi,
+  oreAsteptateLuna,
 }: Proprietati) {
   const [selectie, setSelectie] = useState<Selectie | null>(null);
 
@@ -181,6 +192,13 @@ export function FoaieColectiva({
                   </th>
                 );
               })}
+              <th
+                scope="col"
+                title="Ore/zi ale organizației × zile lucrătoare din lună — aceeași bază pentru toți angajații."
+                className="border-b border-border px-2 py-2 text-right font-medium"
+              >
+                Așteptate
+              </th>
               <th scope="col" className="border-b border-border px-2 py-2 text-right font-medium">
                 Ore
               </th>
@@ -269,6 +287,9 @@ export function FoaieColectiva({
                       </td>
                     );
                   })}
+                  <td className="px-2 py-2 text-right tabular-nums text-muted-foreground">
+                    {oreAsteptateLuna}
+                  </td>
                   <td className="px-2 py-2 text-right tabular-nums">{totalOre}</td>
                   <td className="px-2 py-2 text-right tabular-nums">{totalSuplimentar}</td>
                   <td className="px-2 py-2 text-right tabular-nums">{totalNoapte}</td>
@@ -291,6 +312,9 @@ export function FoaieColectiva({
                   {totaluriColoana.get(zi) ?? 0}
                 </td>
               ))}
+              <td className="px-2 py-2 text-right tabular-nums text-muted-foreground">
+                {oreAsteptateLuna * randuri.length}
+              </td>
               <td className="px-2 py-2 text-right tabular-nums">{totalGeneral}</td>
               <td />
               <td />
@@ -326,6 +350,7 @@ export function FoaieColectiva({
           data={selectie.data}
           eticheta={`${selectie.eticheta} · ${new Date(`${selectie.data}T00:00:00Z`).toLocaleDateString("ro-RO")}`}
           intrare={intrareSelectata}
+          orePeZi={orePeZi}
           poateSterge={
             intrareSelectata !== null &&
             !intrareSelectata.esteDinConcediu &&

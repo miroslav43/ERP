@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { TIPURI_ZI_ALEGERE, type TipZi } from "@/schemas/attendance";
+import { oreLucrateDinInterval, oreSuplimentareDinLucrate } from "@/domain/attendance/calcul-ore";
 import { ETICHETE_TIP_ZI } from "./etichete";
 import { salveazaZiPontaj, stergeZiPontaj } from "./actions";
 import type { IntrareZiClient } from "./foaie-colectiva";
@@ -14,6 +15,8 @@ interface Proprietati {
   readonly eticheta: string;
   readonly intrare: IntrareZiClient | null;
   readonly poateSterge: boolean;
+  /** Pragul de ore/zi al organizației (`attendance_settings.ore_pe_zi`) — peste el, orele devin suplimentare automat. */
+  readonly orePeZi: number;
   readonly onInchide: () => void;
 }
 
@@ -29,7 +32,15 @@ const CLASA_CAMP =
  * celulă selectată pornește cu o instanță NOUĂ — nu trebuie sincronizată
  * starea internă la schimbarea selecției.
  */
-export function CelulaZi({ angajatId, data, eticheta, intrare, poateSterge, onInchide }: Proprietati) {
+export function CelulaZi({
+  angajatId,
+  data,
+  eticheta,
+  intrare,
+  poateSterge,
+  orePeZi,
+  onInchide,
+}: Proprietati) {
   const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [inCurs, porneste] = useTransition();
@@ -84,6 +95,33 @@ export function CelulaZi({ angajatId, data, eticheta, intrare, poateSterge, onIn
     });
   }
 
+  /**
+   * Recalculează ore lucrate + ore suplimentare la fiecare modificare a
+   * intervalului — doar o SUGESTIE: ambele câmpuri rămân editabile manual
+   * pentru corecții (pauze neplătite, ture peste miezul nopții etc.).
+   */
+  function actualizeazaInterval(capat: "inceput" | "sfarsit", valoare: string): void {
+    const nouaInceput = capat === "inceput" ? valoare : oraInceput;
+    const nouaSfarsit = capat === "sfarsit" ? valoare : oraSfarsit;
+    if (capat === "inceput") setOraInceput(valoare);
+    else setOraSfarsit(valoare);
+
+    const calculate = oreLucrateDinInterval(nouaInceput, nouaSfarsit);
+    if (calculate !== null) {
+      setOreLucrate(String(calculate));
+      setOreSuplimentare(String(oreSuplimentareDinLucrate(calculate, orePeZi)));
+    }
+  }
+
+  /** Editare manuală a orelor lucrate — recalculează doar suplimentarul. */
+  function actualizeazaOreLucrateManual(valoare: string): void {
+    setOreLucrate(valoare);
+    const numar = Number(valoare);
+    if (valoare.trim().length > 0 && Number.isFinite(numar)) {
+      setOreSuplimentare(String(oreSuplimentareDinLucrate(numar, orePeZi)));
+    }
+  }
+
   function sterge(): void {
     if (intrare === null) return;
     setEroare(null);
@@ -118,9 +156,10 @@ export function CelulaZi({ angajatId, data, eticheta, intrare, poateSterge, onIn
             <input
               id={idOraInceput}
               type="time"
+              lang="ro-RO"
               value={oraInceput}
               onChange={(e) => {
-                setOraInceput(e.target.value);
+                actualizeazaInterval("inceput", e.target.value);
               }}
               className={CLASA_CAMP}
             />
@@ -132,9 +171,10 @@ export function CelulaZi({ angajatId, data, eticheta, intrare, poateSterge, onIn
             <input
               id={idOraSfarsit}
               type="time"
+              lang="ro-RO"
               value={oraSfarsit}
               onChange={(e) => {
-                setOraSfarsit(e.target.value);
+                actualizeazaInterval("sfarsit", e.target.value);
               }}
               className={CLASA_CAMP}
             />
@@ -151,7 +191,7 @@ export function CelulaZi({ angajatId, data, eticheta, intrare, poateSterge, onIn
               step={0.5}
               value={oreLucrate}
               onChange={(e) => {
-                setOreLucrate(e.target.value);
+                actualizeazaOreLucrateManual(e.target.value);
               }}
               className={CLASA_CAMP}
             />
