@@ -41,6 +41,35 @@ pnpm db:types         # regenerează src/types/database.ts din CLI local (proiec
 înainte de a considera un task terminat, fiindcă e singurul care prinde
 erorile de graniță server/client. Rulează-l separat.
 
+### CI (`.github/workflows/ci.yml`) — două joburi
+
+1. **`quality`** — `pnpm install --frozen-lockfile` → typecheck → lint →
+   `format:check` → `test` → `build` (cu variabile de mediu placeholder,
+   build-ul nu atinge baza reală).
+2. **`migrations`** — pornește un container Postgres 17 curat, aplică TOATE
+   migrările în ordine, rulează cele trei bariere de securitate
+   (`scripts/checks/*.sql`), apoi **`tests/rls/izolare.sql` — testul de
+   izolare între tenanți, pe FIECARE push/PR**. `PROGRESS.md` (istoric)
+   documentează o perioadă în care acest test „nu a rulat niciodată pe un
+   proiect de test" — **corecție**: verificat direct în workflow, azi
+   rulează automat, în CI, pe fiecare PR, fără să necesite un proiect
+   Supabase de test separat (folosește un Postgres efemer din job).
+
+### Variabile de mediu (`.env.example` → copiat în `.env.local`, necomis)
+
+Fiecare e validată la boot în `src/config/env.ts` — o valoare lipsă/invalidă
+oprește aplicația imediat, nu la primul request:
+
+| Variabilă | Rol |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Publice prin design (ajung în bundle-ul de client) — protecția reală e RLS |
+| `SUPABASE_SERVICE_ROLE_KEY` | ⚠️ Ocolește complet RLS — exclusiv în `src/lib/supabase/admin.ts` (`server-only`), doar super-admin |
+| `HR_ENCRYPTION_KEYS` (JSON, versionat), `HR_ENCRYPTION_ACTIVE_KEY` | AES-256-GCM pentru CNP/IBAN — pierderea cheii = pierderea definitivă a datelor (vezi `NOTES.md` §4) |
+| `HR_HASH_KEY` | HMAC pentru amprente de deduplicare CNP/IBAN — separată de criptare |
+| `TENANT_COOKIE_SECRET` | Semnătură HMAC a cookie-ului de organizație — detector de falsificare, NU stratul de securitate (acela e RLS) |
+| `EMAIL_MODE` (`test`/altă valoare), `RESEND_API_KEY`, `EMAIL_FROM`, `RESEND_WEBHOOK_SECRET` | În `test`, nimic nu se trimite real — totul se scrie în `email_log`, vizibil din Super-Admin |
+| `NEXT_PUBLIC_APP_URL` | Baza URL a aplicației |
+
 ---
 
 ## 2. Structura de foldere
@@ -169,6 +198,16 @@ prin el: `feature` (flag necesar activ), `permission` + `minScope`, `input`
 reîmprospătat), `handler`. Distinge `denied` (refuz de autorizare) de
 `failure` (eroare de execuție) în jurnalul de audit — un tipar de citit
 diferit la incident.
+
+**Regulă Next.js ușor de uitat**: un fișier marcat `"use server"` poate
+exporta EXCLUSIV funcții `async` — orice altă valoare exportată (o constantă,
+un tip) oprește build-ul cu „A 'use server' file can only export async
+functions". Motivul e intenționat: tot ce exportă un astfel de modul devine
+punct de intrare apelabil din rețea. De aceea, ori de câte ori un modul de
+acțiuni are nevoie și de tipuri/constante partajate cu componenta client, ele
+se mută într-un fișier separat (ex. `(app)/actions-types.ts` lângă
+`(app)/actions.ts`) — mirosește acest tipar dacă `tsc` nu prinde eroarea
+direct (uneori doar `pnpm build` o prinde, nu `typecheck`).
 
 ### Motorul generic de aprobare
 

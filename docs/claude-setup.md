@@ -50,7 +50,7 @@ La un cont nou, acest fișier vine automat cu `git clone` — dar Claude Code
 cere autorizare/autentificare OAuth către Supabase la prima folosire a
 serverului (dialogul apare în terminal/browser).
 
-### `.claude/settings.local.json` (proiect, dar necomis de obicei)
+### `.claude/settings.local.json` (local, NU vine cu `git clone`)
 
 ```json
 {
@@ -60,8 +60,11 @@ serverului (dialogul apare în terminal/browser).
 ```
 
 Confirmă că serverul MCP din `.mcp.json` e activat pentru acest proiect
-specific — de regulă `.claude/settings.local.json` e per-utilizator/mașină,
-nu neapărat comis; verifică `.gitignore` dacă vrei să știi sigur.
+specific. **Verificat cu `git ls-files .claude/`: acest fișier și
+`RESUME.md` NU sunt urmărite de git** — nu apar în `.gitignore` explicit, dar
+n-au fost niciodată adăugate la commit. La un `git clone` proaspăt, folderul
+`.claude/` local NU există deloc — Claude Code îl recreează singur la prima
+folosire (dialogul de autorizare MCP recreează `settings.local.json`).
 
 ### `.claude/RESUME.md`
 
@@ -78,12 +81,29 @@ Nu e ceva de întreținut manual — se rescrie singur.
 Nu sunt în repo și nu se transferă cu `git clone`. La data acestui document,
 configurația globală a contului curent are:
 
-- **Model**: `opusplan` · **Effort**: `xhigh` · **TUI**: fullscreen.
-- **Plugin-uri activate**: `superpowers`, `context7`, `claude-md-management`,
-  `clangd-lsp`, `frontend-design`, `feature-dev`, `playwright`,
-  `security-guidance`, `ralph-loop`, `chrome-devtools-mcp`,
-  `claude-code-setup`, `code-review` (toate din marketplace-ul oficial
-  `claude-plugins-official`).
+- **Model**: `opusplan` (Opus pentru planificare/Plan Mode, modelul de bază
+  pentru restul — modelul EFECTIV activ într-o sesiune poate diferi de
+  numele setării, în funcție de disponibilitate; sesiunea curentă rulează pe
+  Sonnet 5, deși setarea globală e `opusplan`) · **Effort**: `xhigh` ·
+  **TUI**: fullscreen.
+- **Plugin-uri activate** (toate din marketplace-ul oficial
+  `claude-plugins-official`, verificate direct din
+  `~/.claude/plugins/marketplaces/claude-plugins-official/plugins/*/.claude-plugin/plugin.json`):
+
+  | Plugin | Ce face |
+  |---|---|
+  | `superpowers` | Skill-uri de proces (vezi lista completă mai jos) |
+  | `feature-dev` | Workflow de dezvoltare cu agenți specializați: explorare cod, design arhitectură, review de calitate |
+  | `frontend-design` | Skill pentru implementare UI/UX |
+  | `code-review` | Review automat de PR-uri, mai mulți agenți, scor de încredere |
+  | `security-guidance` | Avertismente pe bază de tipare la editare + review de diff la Stop + reviewer agentic de commit (injecție, XSS, SSRF, secrete hardcodate, 25+ clase de vulnerabilități) |
+  | `claude-code-setup` | Analizează codul și recomandă automatizări (hook-uri, skill-uri, servere MCP, subagenți) |
+  | `claude-md-management` | Auditează/menține fișierele `CLAUDE.md` |
+  | `ralph-loop` | Bucle AI auto-referențiale — rulează Claude repetat cu același prompt până se termină task-ul |
+  | `chrome-devtools-mcp` | Server MCP pentru Chrome DevTools |
+  | `context7` | Documentație la zi pentru librării/framework-uri, la cerere |
+  | `clangd-lsp`, `playwright` | LSP pentru C/C++; framework de teste E2E |
+
 - **Auto Mode — context de mediu** (folosit de clasificatorul de siguranță
   care decide ce acțiuni cer confirmare explicită): proiect Supabase
   `nybmhorngsajoqaxjlbr`, fără remote git configurat (repo tratat ca privat),
@@ -92,11 +112,29 @@ configurația globală a contului curent are:
   `TENANT_COOKIE_SECRET`/`RESEND_API_KEY` — acesta e motivul pentru care
   aplicarea unei migrări noi pe baza live a cerut confirmare explicită în
   chat în loc să treacă automat.
+- **Fără `hooks` configurate explicit** — `~/.claude/settings.json` nu are
+  nicio cheie `hooks` (verificat direct în fișier). Comportamentul
+  asemănător unui hook pe care îl poți observa (avertismente la editare,
+  review la Stop) vine din plugin-ul `security-guidance` de mai sus, intern
+  pachetului, nu dintr-o configurare vizibilă/editabilă de utilizator.
 
 **La un cont nou**, aceste setări NU există implicit. Dacă vrei
 comportamentul identic (același model/effort, aceleași plugin-uri), trebuie
 recreate manual în `~/.claude/settings.json` al noului cont — nu e ceva ce
 poți „importa" din acest proiect.
+
+### Servere MCP dincolo de Supabase — legate de CONT, nu de proiect
+
+Pe lângă `supabase` (din `.mcp.json`, specific acestui repo), o sesiune poate
+avea acces la unelte precum Gmail, Google Calendar, Google Drive, Notion,
+Chrome DevTools, `claude-in-chrome`, `context7` — **niciuna din ele nu vine
+din configurația acestui proiect**. Verificat direct: intrarea acestui
+proiect în `~/.claude.json` (`projects["/Users/maleticimiroslav/ERP
+Adminio"].mcpServers`) e goală (`{}`). Acele unelte sunt **integrări la
+nivel de cont Claude.ai** (aplicații conectate) — apar în orice proiect
+deschis cu acel cont, nu doar în acesta, și **NU se transferă cu `git
+clone`** — un cont nou trebuie să-și reconecteze singur acele integrări din
+claude.ai, dacă le vrea.
 
 ### Regulile globale (`~/.claude/rules/`)
 
@@ -117,27 +155,62 @@ suprascrieri per limbaj:
 | `typescript/*.md` | Suprascrieri TS/JS ale fișierelor de mai sus (imutabilitate cu spread, Zod pentru validare, Playwright pentru E2E, interzicerea `console.log`) |
 | `python/*.md` | Echivalentul pentru Python — **nu se aplică acestui proiect** (100% TypeScript) |
 
-**Discrepanță de reținut**: `common/agents.md` descrie 9 agenți presupuși în
-`~/.claude/agents/`, dar **acel director nu există** pe acest cont
-(`ls ~/.claude/agents` → „No such file or directory"). Agenții numiți acolo
-(`planner`, `tdd-guide` etc.) **nu sunt disponibili** — nu invoca `Agent` cu
-`subagent_type` egal cu unul din aceste nume, ar eșua sau ar cădea pe agentul
-generic. Agenții REALI, disponibili prin unealta `Agent`, sunt cei încorporați
-în Claude Code + plugin-ul `feature-dev`: `Explore`, `Plan`, `general-purpose`,
+**De unde vin de fapt aceste reguli — descoperire importantă**: `diff` direct
+confirmă că `~/.claude/rules/` e o COPIE byte-identică a folderului `rules/`
+din pluginul comunitar **`everything-claude-code`**
+(`~/.claude/plugins/marketplaces/everything-claude-code/rules/`). Verificat
+în `~/.claude/plugins/installed_plugins.json`: acest plugin a fost instalat
+la **`scope: "project"`, în februarie 2026, pentru un proiect COMPLET
+NEÎNRUDIT** —
+`/Users/maleticimiroslav/Downloads/Test/PythonOrderFetch/powerbody_shopify`
+(un proiect Python/Shopify, nimic de-a face cu Administrativo). Regulile nu
+au fost scrise pentru acest proiect ERP — sunt un rest dintr-o instalare de
+plugin pentru alt proiect, care ajunge totuși să se aplice AICI pentru că
+`~/.claude/rules/` e citit **global**, indiferent de proiectul din care a
+provenit conținutul.
+
+**Aceeași sursă explică discrepanța agenților**: `common/agents.md` descrie 9
+agenți (`planner`, `architect`, `tdd-guide`, `code-reviewer`,
+`security-reviewer`, `build-error-resolver`, `e2e-runner`, `refactor-cleaner`,
+`doc-updater`) — toate corespund exact fișierelor din
+`everything-claude-code/agents/*.md` (plus câteva specifice Go/Python,
+`go-build-resolver.md`, `go-reviewer.md`, `python-reviewer.md`,
+`database-reviewer.md`, nemenționate în regulă). Fiindcă acel plugin e
+instalat doar la scope „project" pentru proiectul Shopify neînrudit,
+definițiile lui de agenți **nu au fost niciodată materializate** în
+`~/.claude/agents/` — director care, verificat direct, **nu există** pe acest
+cont. Agenții numiți în regulă **nu sunt disponibili** aici — nu invoca
+`Agent` cu `subagent_type` egal cu unul din aceste nume. Agenții REALI,
+disponibili prin unealta `Agent` pe acest proiect, sunt cei încorporați în
+Claude Code + plugin-ul `feature-dev`: `Explore`, `Plan`, `general-purpose`,
 `claude-code-guide`, `statusline-setup`, `feature-dev:code-architect`,
 `feature-dev:code-explorer`, `feature-dev:code-reviewer` — verifică lista
 exactă din system-reminder-ul sesiunii curente, poate varia.
 
-**La un cont nou**: dacă vrei aceleași reguli, copiază `~/.claude/rules/`
-de pe mașina/contul vechi peste cel nou (sunt fișiere simple, portabile).
+**Concluzie practică**: dacă vrei ca un cont nou să respecte EXACT aceste
+reguli, ele nu sunt un artefact intenționat al acestui proiect — decide
+explicit dacă le vrei păstrate (copiază `~/.claude/rules/`) sau dacă preferi
+să le cureți ca resturi dintr-un proiect neînrudit. Regulile de fond care
+CHIAR au fost stabilite pentru Administrativo trăiesc în memoria de proiect
+(§3) și în acest document, nu în `~/.claude/rules/`.
 
 ### Skill-urile din pachetul `superpowers`
 
 Plugin-ul `superpowers` instalează skill-ul `using-superpowers`, care
 comandă: *„dacă există fie și 1% șansă ca un skill să se aplice, invocă-l."*
-Skill-urile concrete disponibile depind de ce e instalat în pachet — pentru
-lista exactă la un moment dat, caută cu `Skill`/verifică listarea de
-skill-uri din system-reminder-ul sesiunii.
+Lista concretă de skill-uri instalate (verificată direct în
+`~/.claude/plugins/cache/claude-plugins-official/superpowers/6.3.0/skills/`,
+versiunea `6.3.0`):
+
+`using-superpowers`, `brainstorming`, `writing-plans`, `executing-plans`,
+`test-driven-development`, `systematic-debugging`,
+`dispatching-parallel-agents`, `subagent-driven-development`,
+`requesting-code-review`, `receiving-code-review`, `using-git-worktrees`,
+`finishing-a-development-branch`, `writing-skills`,
+`verification-before-completion`.
+
+Verifică versiunea curentă înainte de a presupune că lista de mai sus e încă
+exactă — plugin-urile se actualizează.
 
 ---
 
@@ -224,7 +297,10 @@ Din istoricul acestui proiect, dincolo de fișierele de memorie de mai sus:
    OAuth către Supabase când ți se cere.
 4. Dacă vrei același comportament de model/plugin-uri: copiază
    `~/.claude/settings.json` de pe contul vechi (sau recreează manual din §2).
-5. Dacă vrei aceleași reguli: copiază `~/.claude/rules/` de pe contul vechi.
+5. Regulile din `~/.claude/rules/` sunt, verificat, un rest neintenționat
+   dintr-un plugin instalat pentru alt proiect (§2) — decide EXPLICIT dacă le
+   vrei (copiază folderul) sau le lași deoparte; nu presupune că fac parte
+   din configurația „corectă" a acestui proiect doar pentru că există.
 6. Dacă memoria nu există deja la calea din §3 (cont nou pe altă mașină):
    copiază manual folderul de memorie, sau lasă-l să se reconstruiască din
    interacțiuni noi (Claude o va recrea pe măsură ce observă corecții).
