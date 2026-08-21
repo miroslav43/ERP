@@ -44,38 +44,31 @@ organizației (super-admin și Setări → Organizație).
   nomenclatorului). Lista nu e revendicată ca exhaustivă din punct de vedere
   legal — e ce a furnizat utilizatorul, extensibilă ulterior.
 
-## Nomenclatorul CAEN
+## Nomenclatorul CAEN — DEJA GENERAT ȘI COMIS
 
-Sursă: `CAEN-Rev.3_structura-completa.pdf` (furnizat de utilizator), extras cu
-`pdftotext -layout -enc UTF-8`. Conține 21 secțiuni (A–U), 86 diviziuni
-(2 cifre), 269 grupe (3 cifre), 643 clase (4 cifre). Doar clasele (nivelul de
-4 cifre) sunt coduri CAEN valide de înregistrat — astea sunt singurele
-selectabile.
+Sursă: `CAEN-Rev.3_structura-completa.pdf` (furnizat de utilizator). Conține
+21 secțiuni (A–U), 86 diviziuni (2 cifre), 269 grupe (3 cifre), **651 clase**
+(4 cifre) — nu 643, cum se estimase inițial dintr-o numărătoare brută de
+linii. Doar clasele (nivelul de 4 cifre) sunt coduri CAEN valide de
+înregistrat — astea sunt singurele selectabile.
 
-Fișier nou, static: `src/domain/organization/caen-nomenclator.ts`.
+**Notă importantă de extracție**: `pdftotext -layout` (varianta încercată
+inițial) are o eroare de aliniere cod↔denumire pe acest document specific —
+verificat pe 17 clase unde textul unei clase apărea atribuit greșit clasei
+următoare (ex. codul `1105` „Fabricarea berii” ajungea cu denumire goală, iar
+„Fabricarea berii” apărea sub codul `1106`). `pdftotext -table` (optimizat
+pentru conținut tabelar) nu are această problemă — verificat prin comparare
+directă a celor două extrageri și cross-check manual pe toate cele 19 coduri
+interzise SRL-D (potrivire exactă, cuvânt cu cuvânt, cu lista dată de
+utilizator). Comanda folosită: `pdftotext -table -enc UTF-8 <pdf> <txt>`.
 
-```ts
-export type CodCaen = Readonly<{
-  /** 4 cifre — singurul nivel selectabil. */
-  cod: string;
-  denumire: string;
-}>;
-
-export const NOMENCLATOR_CAEN: readonly CodCaen[] = [ /* 643 intrări */ ];
-
-/** Set pentru verificare O(1) că un cod există în nomenclator. */
-export const CODURI_CAEN_VALIDE: ReadonlySet<string> = new Set(
-  NOMENCLATOR_CAEN.map((c) => c.cod),
-);
-```
-
-Datele sunt generate o singură dată printr-un script one-off (nu face parte
-din build), care parsează textul extras din PDF. Scriptul nu se
-păstrează ca parte a aplicației (nu e nevoie să re-ruleze — nomenclatorul se
-schimbă foarte rar, la modificări legislative), dar rezultatul (fișierul
-`.ts`) e verificat manual: numărul de intrări trebuie să fie exact 643, iar un
-eșantion de coduri cunoscute (ex. `6201`, `4110`, `9700`) trebuie să aibă
-denumirea corectă.
+Fișierul e deja creat, testat și comis (commit `076c2a2`):
+`src/domain/organization/caen-nomenclator.ts` — 651 intrări `{ cod, denumire }`
+plus `CODURI_CAEN_VALIDE: ReadonlySet<string>`. Test însoțitor
+`caen-nomenclator.test.ts` (6 teste: număr exact de intrări, format cod pe 4
+cifre, fără duplicate, denumiri nevide, cele 3 coduri SRL-D verificate exact,
+`CODURI_CAEN_VALIDE` în sincron cu lista). **Planul de implementare de mai jos
+nu regenerează acest fișier** — pornește de la el ca dependență existentă.
 
 ## Reguli de business
 
