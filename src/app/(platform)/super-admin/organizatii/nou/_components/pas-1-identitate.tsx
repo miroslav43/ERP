@@ -9,6 +9,11 @@ import {
   SECTOARE_BUCURESTI,
   type OnboardeazaOrganizatieInput,
 } from "@/schemas/organization";
+import { maximSecundare } from "@/domain/organization/caen-reguli";
+import {
+  SelectorCodCaenPrincipal,
+  SelectorCodCaenSecundare,
+} from "@/components/forms/selector-cod-caen";
 import { claseCamp, claseLabel, Eroare } from "./campuri-comune";
 
 export const CAMPURI_PAS_1 = [
@@ -28,6 +33,7 @@ export const CAMPURI_PAS_1 = [
   "cod_postal",
   "capital_social",
   "cod_caen",
+  "cod_caen_secundare",
 ] as const satisfies readonly (keyof OnboardeazaOrganizatieInput)[];
 
 interface Proprietati {
@@ -39,9 +45,14 @@ export function Pas1Identitate({ formular, idFormular }: Proprietati) {
   const {
     register,
     watch,
+    setValue,
     formState: { errors },
   } = formular;
   const judetSelectat = watch("judet");
+  const formaJuridicaSelectata = watch("forma_juridica");
+  const codCaenPrincipal = watch("cod_caen");
+  const codCaenSecundare = watch("cod_caen_secundare") ?? [];
+  const limitaSecundare = maximSecundare(formaJuridicaSelectata);
 
   return (
     <div className="space-y-6">
@@ -166,16 +177,14 @@ export function Pas1Identitate({ formular, idFormular }: Proprietati) {
           </div>
           <div>
             <label htmlFor={`${idFormular}-caen`} className={claseLabel}>
-              Cod CAEN
+              Cod CAEN principal *
             </label>
-            <input
+            <SelectorCodCaenPrincipal
               id={`${idFormular}-caen`}
-              {...register("cod_caen")}
-              placeholder="6201"
-              inputMode="numeric"
-              aria-invalid={Boolean(errors.cod_caen)}
-              aria-describedby={`${idFormular}-caen-ajutor`}
-              className={claseCamp}
+              value={codCaenPrincipal}
+              onChange={(cod) => setValue("cod_caen", cod, { shouldValidate: true })}
+              ariaInvalid={Boolean(errors.cod_caen)}
+              ariaDescribedBy={`${idFormular}-caen-ajutor`}
             />
             <p id={`${idFormular}-caen-ajutor`} className="text-muted-foreground mt-1 text-xs">
               Anumite coduri (IT, Construcții, Agricultură, Industria Alimentară) permit scutiri
@@ -183,6 +192,33 @@ export function Pas1Identitate({ formular, idFormular }: Proprietati) {
             </p>
             <Eroare id={`${idFormular}-caen-eroare`} mesaj={errors.cod_caen?.message} />
           </div>
+        </div>
+
+        <div>
+          <label htmlFor={`${idFormular}-caen-secundare`} className={claseLabel}>
+            Coduri CAEN secundare
+          </label>
+          <SelectorCodCaenSecundare
+            id={`${idFormular}-caen-secundare`}
+            value={codCaenSecundare}
+            onChange={(coduri) =>
+              setValue("cod_caen_secundare", [...coduri], { shouldValidate: true })
+            }
+            exclude={codCaenPrincipal}
+            max={limitaSecundare}
+            ariaInvalid={Boolean(errors.cod_caen_secundare)}
+          />
+          {formaJuridicaSelectata === "SRL-D" && (
+            <p className="text-muted-foreground mt-1 text-xs">
+              SRL-D: toate codurile alese trebuie să facă parte din cel mult 5 grupe de activitate
+              (primele 3 cifre ale codului), iar anumite activități sunt excluse prin lege pentru
+              forma debutant.
+            </p>
+          )}
+          <Eroare
+            id={`${idFormular}-caen-secundare-eroare`}
+            mesaj={errors.cod_caen_secundare?.message}
+          />
         </div>
       </fieldset>
 
