@@ -1,5 +1,32 @@
 // src/app/(app)/pontaj/etichete.ts
-import type { StatusPerioada, SursaIntrare, TipZi } from "@/schemas/attendance";
+import type {
+  StareSaptamanaPontaj,
+  StatusPerioada,
+  SursaIntrare,
+  TipPrezenta,
+  TipZi,
+} from "@/schemas/attendance";
+
+export const ETICHETE_TIP_PREZENTA: Readonly<Record<TipPrezenta, string>> = {
+  birou: "La birou",
+  homeoffice: "Homeoffice",
+  deplasare: "Deplasare",
+  delegatie: "Delegație",
+};
+
+export const ETICHETE_STARE_SAPTAMANA: Readonly<Record<StareSaptamanaPontaj, string>> = {
+  ciorna: "Ciornă",
+  trimisa: "Trimisă, în așteptare",
+  aprobata: "Aprobată",
+  respinsa: "Respinsă",
+};
+
+export const CLASE_STARE_SAPTAMANA: Readonly<Record<StareSaptamanaPontaj, string>> = {
+  ciorna: "bg-zinc-200 text-zinc-800",
+  trimisa: "bg-amber-100 text-amber-900",
+  aprobata: "bg-emerald-100 text-emerald-900",
+  respinsa: "bg-danger/12 text-danger",
+};
 
 export const ETICHETE_TIP_ZI: Readonly<Record<TipZi, string>> = {
   lucratoare: "Lucrătoare",

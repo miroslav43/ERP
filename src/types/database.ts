@@ -820,6 +820,123 @@ export type Database = {
           },
         ]
       }
+      attendance_week_submission_days: {
+        Row: {
+          created_at: string
+          data: string
+          id: string
+          observatii: string | null
+          ore_planificate: number
+          organization_id: string
+          submission_id: string
+          tip_prezenta: Database["public"]["Enums"]["attendance_presence_kind"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          data: string
+          id?: string
+          observatii?: string | null
+          ore_planificate?: number
+          organization_id: string
+          submission_id: string
+          tip_prezenta?: Database["public"]["Enums"]["attendance_presence_kind"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          id?: string
+          observatii?: string | null
+          ore_planificate?: number
+          organization_id?: string
+          submission_id?: string
+          tip_prezenta?: Database["public"]["Enums"]["attendance_presence_kind"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_week_submission_days_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_week_submission_days_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_week_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_week_submissions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          decis_de: string | null
+          decis_la: string | null
+          deleted_at: string | null
+          employee_id: string
+          id: string
+          motiv_respingere: string | null
+          organization_id: string
+          saptamana_start: string
+          status: Database["public"]["Enums"]["attendance_week_status"]
+          trimisa_la: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          decis_de?: string | null
+          decis_la?: string | null
+          deleted_at?: string | null
+          employee_id: string
+          id?: string
+          motiv_respingere?: string | null
+          organization_id: string
+          saptamana_start: string
+          status?: Database["public"]["Enums"]["attendance_week_status"]
+          trimisa_la?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          decis_de?: string | null
+          decis_la?: string | null
+          deleted_at?: string | null
+          employee_id?: string
+          id?: string
+          motiv_respingere?: string | null
+          organization_id?: string
+          saptamana_start?: string
+          status?: Database["public"]["Enums"]["attendance_week_status"]
+          trimisa_la?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_week_submissions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_week_submissions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_logs: {
         Row: {
           action: Database["public"]["Enums"]["audit_action"]
@@ -6047,6 +6164,7 @@ export type Database = {
           adresa: string | null
           capital_social: number | null
           cod_caen: string | null
+          cod_caen_secundare: string[]
           cod_postal: string | null
           created_at: string
           created_by: string | null
@@ -6090,6 +6208,7 @@ export type Database = {
           adresa?: string | null
           capital_social?: number | null
           cod_caen?: string | null
+          cod_caen_secundare?: string[]
           cod_postal?: string | null
           created_at?: string
           created_by?: string | null
@@ -6133,6 +6252,7 @@ export type Database = {
           adresa?: string | null
           capital_social?: number | null
           cod_caen?: string | null
+          cod_caen_secundare?: string[]
           cod_postal?: string | null
           created_at?: string
           created_by?: string | null
@@ -9201,6 +9321,15 @@ export type Database = {
         }
         Returns: string
       }
+      trimite_saptamana_pontaj: {
+        Args: {
+          p_organization_id: string
+          p_saptamana_start: string
+          p_status: Database["public"]["Enums"]["attendance_week_status"]
+          p_zile: Json
+        }
+        Returns: string
+      }
       urmatoarea_marca: { Args: { p_organization_id: string }; Returns: string }
     }
     Enums: {
@@ -9223,6 +9352,12 @@ export type Database = {
         | "delegatie"
       attendance_entry_source: "manuala" | "import" | "sincronizare_concedii"
       attendance_period_status: "deschisa" | "in_aprobare" | "blocata"
+      attendance_presence_kind:
+        | "birou"
+        | "homeoffice"
+        | "deplasare"
+        | "delegatie"
+      attendance_week_status: "ciorna" | "trimisa" | "aprobata" | "respinsa"
       audit_action:
         | "create"
         | "update"
@@ -9619,6 +9754,13 @@ export const Constants = {
       ],
       attendance_entry_source: ["manuala", "import", "sincronizare_concedii"],
       attendance_period_status: ["deschisa", "in_aprobare", "blocata"],
+      attendance_presence_kind: [
+        "birou",
+        "homeoffice",
+        "deplasare",
+        "delegatie",
+      ],
+      attendance_week_status: ["ciorna", "trimisa", "aprobata", "respinsa"],
       audit_action: [
         "create",
         "update",

@@ -29,6 +29,7 @@ export function NavPontaj({ poateAproba }: Proprietati) {
 
   const file: readonly Fila[] = [
     { href: "/pontaj", eticheta: "Foaie" },
+    { href: "/pontaj/saptamana", eticheta: "Planul săptămânii" },
     { href: "/pontaj/perioade", eticheta: "Perioade" },
     ...(poateAproba ? [{ href: "/pontaj/aprobare", eticheta: "Aprobare" }] : []),
   ];

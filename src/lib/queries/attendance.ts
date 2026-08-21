@@ -4,7 +4,14 @@
 // handlers și scripturi). Fiecare interogare trece prin RLS.
 
 import { createServerSupabase } from "@/lib/supabase/server";
-import type { FiltrePontaj, StatusPerioada, SursaIntrare, TipZi } from "@/schemas/attendance";
+import type {
+  FiltrePontaj,
+  StareSaptamanaPontaj,
+  StatusPerioada,
+  SursaIntrare,
+  TipPrezenta,
+  TipZi,
+} from "@/schemas/attendance";
 
 // ── Perioade ─────────────────────────────────────────────────────────────────
 
@@ -379,4 +386,163 @@ export async function departamente(organizationId: string): Promise<readonly Dep
     .returns<DepartamentPontaj[]>();
   if (error !== null) throw error;
   return data ?? [];
+}
+
+// ── Plan săptămânal (prezență + ore, aprobare individuală) ──────────────────
+
+export interface ZiSaptamanaPontaj {
+  readonly data: string;
+  readonly tip_prezenta: TipPrezenta;
+  readonly ore_planificate: number;
+  readonly observatii: string | null;
+}
+
+export interface SaptamanaPontaj {
+  readonly id: string;
+  readonly status: StareSaptamanaPontaj;
+  readonly motivRespingere: string | null;
+  readonly zile: readonly ZiSaptamanaPontaj[];
+}
+
+/** Planul (dacă există) al unui angajat pentru săptămâna care începe la `saptamanaStart`. */
+export async function citesteSaptamanaPontaj(
+  organizationId: string,
+  employeeId: string,
+  saptamanaStart: string,
+): Promise<SaptamanaPontaj | null> {
+  const db = await createServerSupabase();
+  const { data: submisie, error: eroareSubmisie } = await db
+    .from("attendance_week_submissions")
+    .select("id, status, motiv_respingere")
+    .eq("organization_id", organizationId)
+    .eq("employee_id", employeeId)
+    .eq("saptamana_start", saptamanaStart)
+    .is("deleted_at", null)
+    .maybeSingle<{ id: string; status: StareSaptamanaPontaj; motiv_respingere: string | null }>();
+  if (eroareSubmisie !== null) throw eroareSubmisie;
+  if (submisie === null) return null;
+
+  const { data: zile, error: eroareZile } = await db
+    .from("attendance_week_submission_days")
+    .select("data, tip_prezenta, ore_planificate, observatii")
+    .eq("submission_id", submisie.id)
+    .order("data", { ascending: true })
+    .returns<ZiSaptamanaPontaj[]>();
+  if (eroareZile !== null) throw eroareZile;
+
+  return {
+    id: submisie.id,
+    status: submisie.status,
+    motivRespingere: submisie.motiv_respingere,
+    zile: zile ?? [],
+  };
+}
+
+export interface SarcinaSaptamanaDeAprobat {
+  readonly taskId: string;
+  readonly termenLa: string | null;
+  readonly createdAt: string;
+  readonly submisie: Readonly<{ id: string; saptamanaStart: string; status: StareSaptamanaPontaj }>;
+  readonly angajat: Readonly<{ id: string; fullName: string; marca: string }> | null;
+  readonly zile: readonly ZiSaptamanaPontaj[];
+}
+
+interface SarcinaBrutaSaptamana {
+  readonly id: string;
+  readonly entity_id: string;
+  readonly termen_la: string | null;
+  readonly created_at: string;
+}
+
+interface SubmisieBruta {
+  readonly id: string;
+  readonly employee_id: string;
+  readonly saptamana_start: string;
+  readonly status: StareSaptamanaPontaj;
+}
+
+/**
+ * `approval_tasks` nu are cheie străină către `attendance_week_submissions`
+ * (legătura e polimorfă) — trei interogări separate, împerecheate în TS,
+ * exact tiparul din `deAprobat()` (queries/leave.ts).
+ */
+export async function saptamaniDeAprobat(
+  organizationId: string,
+  userId: string,
+): Promise<readonly SarcinaSaptamanaDeAprobat[]> {
+  const db = await createServerSupabase();
+
+  const { data: sarciniData, error: eroareSarcini } = await db
+    .from("approval_tasks")
+    .select("id, entity_id, termen_la, created_at")
+    .eq("organization_id", organizationId)
+    .eq("entity_type", "attendance_week_submission")
+    .eq("approver_user_id", userId)
+    .eq("status", "in_asteptare")
+    .is("deleted_at", null)
+    .order("termen_la", { ascending: true, nullsFirst: false })
+    .limit(100)
+    .returns<SarcinaBrutaSaptamana[]>();
+  if (eroareSarcini !== null) throw eroareSarcini;
+  const sarcini = sarciniData ?? [];
+  if (sarcini.length === 0) return [];
+
+  const idSubmisii = [...new Set(sarcini.map((s) => s.entity_id))];
+  const { data: submisiiData, error: eroareSubmisii } = await db
+    .from("attendance_week_submissions")
+    .select("id, employee_id, saptamana_start, status")
+    .eq("organization_id", organizationId)
+    .in("id", idSubmisii)
+    .eq("status", "trimisa")
+    .returns<SubmisieBruta[]>();
+  if (eroareSubmisii !== null) throw eroareSubmisii;
+  const submisii = submisiiData ?? [];
+  const hartaSubmisii = new Map(submisii.map((s) => [s.id, s]));
+
+  const idAngajati = [...new Set(submisii.map((s) => s.employee_id))];
+  const [angajatiRes, ziRes] = await Promise.all([
+    db
+      .from("employees")
+      .select("id, full_name, marca")
+      .in("id", idAngajati.length === 0 ? [""] : idAngajati)
+      .returns<{ id: string; full_name: string; marca: string }[]>(),
+    db
+      .from("attendance_week_submission_days")
+      .select("submission_id, data, tip_prezenta, ore_planificate, observatii")
+      .in("submission_id", idSubmisii)
+      .order("data", { ascending: true })
+      .returns<(ZiSaptamanaPontaj & { submission_id: string })[]>(),
+  ]);
+  if (angajatiRes.error !== null) throw angajatiRes.error;
+  if (ziRes.error !== null) throw ziRes.error;
+  const hartaAngajati = new Map((angajatiRes.data ?? []).map((a) => [a.id, a]));
+  const zilePerSubmisie = new Map<string, ZiSaptamanaPontaj[]>();
+  for (const zi of ziRes.data ?? []) {
+    const lista = zilePerSubmisie.get(zi.submission_id) ?? [];
+    lista.push(zi);
+    zilePerSubmisie.set(zi.submission_id, lista);
+  }
+
+  return sarcini
+    .map((sarcina): SarcinaSaptamanaDeAprobat | null => {
+      const submisie = hartaSubmisii.get(sarcina.entity_id);
+      if (submisie === undefined) return null;
+      const angajat = hartaAngajati.get(submisie.employee_id) ?? null;
+      return {
+        taskId: sarcina.id,
+        termenLa: sarcina.termen_la,
+        createdAt: sarcina.created_at,
+        submisie: {
+          id: submisie.id,
+          saptamanaStart: submisie.saptamana_start,
+          status: submisie.status,
+        },
+        angajat:
+          angajat === null
+            ? null
+            : { id: angajat.id, fullName: angajat.full_name, marca: angajat.marca },
+        zile: zilePerSubmisie.get(submisie.id) ?? [],
+      };
+    })
+    .filter((rand): rand is SarcinaSaptamanaDeAprobat => rand !== null);
 }

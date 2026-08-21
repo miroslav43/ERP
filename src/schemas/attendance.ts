@@ -143,3 +143,55 @@ export const sincronizeazaConcediileSchema = z.object({
   luna: z.coerce.number().int().min(1).max(12),
 });
 export type SincronizeazaConcediile = z.output<typeof sincronizeazaConcediileSchema>;
+
+// ── Plan săptămânal (prezență + ore, aprobare individuală) ─────────────────
+
+export const TIPURI_PREZENTA = ["birou", "homeoffice", "deplasare", "delegatie"] as const;
+export type TipPrezenta = (typeof TIPURI_PREZENTA)[number];
+
+export const STARI_SAPTAMANA_PONTAJ = ["ciorna", "trimisa", "aprobata", "respinsa"] as const;
+export type StareSaptamanaPontaj = (typeof STARI_SAPTAMANA_PONTAJ)[number];
+
+const ziPlanificataSchema = z.object({
+  data: z.iso.date(),
+  tip_prezenta: z.enum(TIPURI_PREZENTA),
+  ore_planificate: z.coerce.number().min(0).max(24),
+  observatii: textOptional(500),
+});
+export type ZiPlanificata = z.output<typeof ziPlanificataSchema>;
+
+/**
+ * `saptamana_start` trebuie să fie luni — oglindește constrângerea din
+ * `attendance_week_submissions_luni_ck` (0040), verificată și aici ca omul
+ * să afle înainte de round-trip, nu doar din eroarea bazei.
+ */
+export const trimiteSaptamanaPontajSchema = z.object({
+  saptamana_start: z.iso.date().refine((v) => new Date(`${v}T00:00:00Z`).getUTCDay() === 1, {
+    message: "Săptămâna trebuie să înceapă luni.",
+  }),
+  status: z.enum(["ciorna", "trimisa"]),
+  zile: z.array(ziPlanificataSchema).min(1).max(7),
+});
+export type TrimiteSaptamanaPontaj = z.output<typeof trimiteSaptamanaPontajSchema>;
+
+const LUNGIME_MINIMA_MOTIV_RESPINGERE_SAPTAMANA = 5;
+
+export const decideSaptamanaPontajSchema = z
+  .object({
+    taskId: z.uuid("Sarcina de aprobare selectată nu este validă."),
+    decizie: z.enum(["aprobata", "respinsa"]),
+    comentariu: textOptional(1000),
+    motivRespingere: textOptional(500),
+  })
+  .superRefine((valoare, ctx) => {
+    if (valoare.decizie !== "respinsa") return;
+    const lungime = (valoare.motivRespingere ?? "").trim().length;
+    if (lungime < LUNGIME_MINIMA_MOTIV_RESPINGERE_SAPTAMANA) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["motivRespingere"],
+        message: `Motivul respingerii trebuie să aibă cel puțin ${String(LUNGIME_MINIMA_MOTIV_RESPINGERE_SAPTAMANA)} caractere.`,
+      });
+    }
+  });
+export type DecideSaptamanaPontaj = z.output<typeof decideSaptamanaPontajSchema>;

@@ -16,12 +16,14 @@ import {
   citestePerioada,
   departamente,
   liniiDeAprobat,
+  saptamaniDeAprobat,
 } from "@/lib/queries/attendance";
 import { filtreAprobareSchema } from "@/schemas/attendance";
 
 import { NavPontaj } from "../nav-pontaj";
 import { ActiuniPerioada } from "../perioade/actiuni-perioada";
 import { AprobareBloc } from "./aprobare-bloc";
+import { ListaSaptamaniDeAprobat } from "./lista-saptamani-de-aprobat";
 
 export const metadata: Metadata = { title: "Aprobare pontaj" };
 
@@ -141,7 +143,7 @@ async function ContinutAprobare({
 }
 
 export default async function PaginaAprobarePontaj({ searchParams }: ProprietatiPagina) {
-  const { tenant } = await requireTenant();
+  const { user, tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "attendance");
   const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
 
@@ -161,6 +163,7 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
 
   const perioada = await citestePerioada(tenant.organizationId, an, filtre.luna);
   const listaDepartamente = await departamente(tenant.organizationId);
+  const sarciniSaptamana = await saptamaniDeAprobat(tenant.organizationId, user.id);
 
   return (
     <main className="space-y-6 p-6">
@@ -172,6 +175,8 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
       </header>
 
       <NavPontaj poateAproba={true} />
+
+      <ListaSaptamaniDeAprobat sarcini={sarciniSaptamana} />
 
       {listaDepartamente.length === 0 ? null : (
         <form className="flex flex-wrap items-end gap-3 rounded-lg border border-border p-4">
