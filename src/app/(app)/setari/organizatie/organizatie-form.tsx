@@ -4,6 +4,11 @@
 import { useState, useTransition, type ReactNode } from "react";
 import { Save } from "lucide-react";
 
+import { maximSecundare } from "@/domain/organization/caen-reguli";
+import {
+  SelectorCodCaenPrincipal,
+  SelectorCodCaenSecundare,
+} from "@/components/forms/selector-cod-caen";
 import { actualizeazaOrganizatia } from "./actions";
 
 export type ValoriOrganizatie = Readonly<{
@@ -24,6 +29,7 @@ export type ValoriOrganizatie = Readonly<{
   reprezentant_legal: string;
   capital_social: string;
   cod_caen: string;
+  cod_caen_secundare: readonly string[];
   sector: string;
   functie_reprezentant_legal: string;
   ssm_furnizor_extern: string;
@@ -31,7 +37,7 @@ export type ValoriOrganizatie = Readonly<{
   zile_concediu_anual_implicit: string;
 }>;
 
-type CheiText = Exclude<keyof ValoriOrganizatie, "platitor_tva">;
+type CheiText = Exclude<keyof ValoriOrganizatie, "platitor_tva" | "cod_caen_secundare">;
 
 const ETICHETE: Readonly<Record<CheiText, string>> = {
   name: "Denumire comercială",
@@ -69,7 +75,6 @@ const ORDINE: readonly CheiText[] = [
   "reprezentant_legal",
   "functie_reprezentant_legal",
   "capital_social",
-  "cod_caen",
   "adresa",
   "oras",
   "judet",
@@ -174,6 +179,25 @@ export function FormularOrganizatie({ initiale }: Readonly<{ initiale: ValoriOrg
             </Camp>
           );
         })}
+
+        <Camp id="org-cod-caen" eticheta={ETICHETE.cod_caen} erori={stare.erori?.["cod_caen_secundare"]}>
+          <SelectorCodCaenPrincipal
+            id="org-cod-caen"
+            value={valori.cod_caen === "" ? undefined : valori.cod_caen}
+            onChange={(cod) => setValori((precedente) => ({ ...precedente, cod_caen: cod }))}
+          />
+        </Camp>
+        <Camp id="org-cod-caen-secundare" eticheta="Coduri CAEN secundare" erori={undefined}>
+          <SelectorCodCaenSecundare
+            id="org-cod-caen-secundare"
+            value={valori.cod_caen_secundare}
+            onChange={(coduri) =>
+              setValori((precedente) => ({ ...precedente, cod_caen_secundare: [...coduri] }))
+            }
+            exclude={valori.cod_caen === "" ? undefined : valori.cod_caen}
+            max={maximSecundare(valori.forma_juridica)}
+          />
+        </Camp>
 
         <div className="flex items-center gap-2">
           <input
