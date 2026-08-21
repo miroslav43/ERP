@@ -85,30 +85,51 @@ export function AsistentOrganizatieNoua({ valoriInitiale }: Proprietati = {}) {
   } = formular;
 
   const mergiInainte = async () => {
-    const campuriPas = CAMPURI_PAS[pasCurent - 1];
-    const valid = campuriPas === undefined || (await trigger(campuriPas));
-    if (valid) setPasCurent((p) => Math.min(TOTAL_PASI, p + 1));
+    try {
+      const campuriPas = CAMPURI_PAS[pasCurent - 1];
+      // `shouldFocus` mută atenția pe primul câmp invalid — fără el, o eroare
+      // pe un câmp aflat mai jos în pas trece neobservată și pare că „nu s-a
+      // întâmplat nimic” la apăsarea pe Continuă.
+      const valid = campuriPas === undefined || (await trigger(campuriPas, { shouldFocus: true }));
+      if (valid) setPasCurent((p) => Math.min(TOTAL_PASI, p + 1));
+    } catch (eroare) {
+      console.error("[asistent-organizatie-noua] mergiInainte", eroare);
+      setEroareServer(
+        `Nu am putut valida pasul curent: ${eroare instanceof Error ? eroare.message : String(eroare)}`,
+      );
+    }
   };
   const mergiInapoi = () => setPasCurent((p) => Math.max(1, p - 1));
 
   const trimite = handleSubmit(async (valori) => {
     setEroareServer(null);
-    const raspuns = await onboardeazaOrganizatie(valori);
-    if (raspuns.ok) {
-      setRezultat(raspuns.data);
-      return;
+    try {
+      const raspuns = await onboardeazaOrganizatie(valori);
+      if (raspuns.ok) {
+        setRezultat(raspuns.data);
+        return;
+      }
+      const erori = Object.entries(raspuns.error.fieldErrors ?? {});
+      let primulPas: number | null = null;
+      for (const [camp, mesaje] of erori) {
+        const primul = mesaje[0];
+        if (!primul) continue;
+        setError(camp as keyof OnboardeazaOrganizatieInput, { type: "server", message: primul });
+        const pasCamp = pasulPentruCamp(camp);
+        if (primulPas === null || pasCamp < primulPas) primulPas = pasCamp;
+      }
+      if (primulPas !== null) setPasCurent(primulPas);
+      setEroareServer(raspuns.error.message);
+    } catch (eroare) {
+      // Fără acest catch, un eșec neprevăzut al apelului server (rețea căzută,
+      // acțiunea aruncă în loc să întoarcă `ok: false`) e o excepție
+      // nepreluată: butonul iese din „Se creează…”, dar utilizatorul nu vede
+      // niciun motiv.
+      console.error("[asistent-organizatie-noua] trimite", eroare);
+      setEroareServer(
+        `Trimiterea a eșuat neașteptat: ${eroare instanceof Error ? eroare.message : String(eroare)}. Reîncercați.`,
+      );
     }
-    const erori = Object.entries(raspuns.error.fieldErrors ?? {});
-    let primulPas: number | null = null;
-    for (const [camp, mesaje] of erori) {
-      const primul = mesaje[0];
-      if (!primul) continue;
-      setError(camp as keyof OnboardeazaOrganizatieInput, { type: "server", message: primul });
-      const pasCamp = pasulPentruCamp(camp);
-      if (primulPas === null || pasCamp < primulPas) primulPas = pasCamp;
-    }
-    if (primulPas !== null) setPasCurent(primulPas);
-    setEroareServer(raspuns.error.message);
   });
 
   if (rezultat !== null) {

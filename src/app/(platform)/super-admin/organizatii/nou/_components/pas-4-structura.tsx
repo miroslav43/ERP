@@ -58,6 +58,7 @@ export function Pas4Structura({ formular, idFormular }: Proprietati) {
                 </option>
               ))}
             </select>
+            <Eroare id={`${idFormular}-pl-judet-eroare`} mesaj={errors.punct_lucru_judet?.message} />
           </div>
           <div>
             <label htmlFor={`${idFormular}-pl-oras`} className={claseLabel}>

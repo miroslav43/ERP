@@ -143,6 +143,7 @@ export function Pas3Financiar({ formular, idFormular }: Proprietati) {
           <p className="text-muted-foreground mt-1 text-xs">
             Valoarea per tichet se stabilește din setările de salarizare, după activarea modulului.
           </p>
+          <Eroare id={`${idFormular}-tichete-eroare`} mesaj={errors.tichete_furnizor?.message} />
         </div>
       </fieldset>
     </div>

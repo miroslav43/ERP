@@ -30,12 +30,14 @@ const membershipSchema = z.object({
     id: z.uuid(),
     slug: z.string().min(1),
     name: z.string().min(1),
+    legal_name: z.string().nullable(),
     timezone: z.string().nullable(),
   }),
 });
 type Membership = z.output<typeof membershipSchema>;
 
-const SELECT_APARTENENTE = "id, role, organizations!inner(id, slug, name, timezone)";
+const SELECT_APARTENENTE =
+  "id, role, organizations!inner(id, slug, name, legal_name, timezone)";
 
 const FUS_IMPLICIT = "Europe/Bucharest";
 
@@ -116,6 +118,7 @@ function construiesteTenant(m: Membership): Tenant {
     organizationId: m.organizations.id,
     slug: m.organizations.slug,
     name: m.organizations.name,
+    legalName: m.organizations.legal_name,
     role: m.role,
     memberId: m.id,
     timezone: m.organizations.timezone ?? FUS_IMPLICIT,

@@ -43,7 +43,10 @@ export async function GET(_request: Request, { params }: ProprietatiRuta): Promi
     codVerificare: document.cod_verificare ?? "",
   };
 
-  return new Response(paginaTiparibila(generat, rezolvare.tenant.name), {
+  // Document oficial: forma juridică completă dacă a fost completată, altfel
+  // denumirea uzuală.
+  const denumireOrganizatie = rezolvare.tenant.legalName ?? rezolvare.tenant.name;
+  return new Response(paginaTiparibila(generat, denumireOrganizatie), {
     status: 200,
     headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
   });

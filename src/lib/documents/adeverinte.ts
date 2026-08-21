@@ -89,7 +89,7 @@ export async function genereazaAdeverinta(
 
   const { data: organizatie } = await supabase
     .from("organizations")
-    .select("name")
+    .select("name, legal_name")
     .eq("id", organizationId)
     .maybeSingle();
   if (organizatie === null) throw notFound("Organizația nu a putut fi citită.");
@@ -100,7 +100,9 @@ export async function genereazaAdeverinta(
 
   const valori = new Map<string, string>([
     ["angajat_nume", angajat.full_name ?? ""],
-    ["organizatie_denumire", organizatie.name],
+    // Documentul e oficial: forma juridică completă dacă a fost completată,
+    // altfel denumirea uzuală — niciodată nesetat.
+    ["organizatie_denumire", organizatie.legal_name ?? organizatie.name],
     ["data_angajarii", formatDate(angajat.hired_on)],
     ["functie", functie?.denumire ?? "nespecificată"],
     [

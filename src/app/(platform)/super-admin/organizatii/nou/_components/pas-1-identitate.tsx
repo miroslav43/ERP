@@ -63,14 +63,21 @@ export function Pas1Identitate({ formular, idFormular }: Proprietati) {
 
         <div>
           <label htmlFor={`${idFormular}-legal-name`} className={claseLabel}>
-            Denumire completă (statut)
+            Denumire completă (statut) *
           </label>
           <input
             id={`${idFormular}-legal-name`}
             {...register("legal_name")}
             placeholder="SC Compania Mea SRL"
+            aria-invalid={Boolean(errors.legal_name)}
+            aria-describedby={`${idFormular}-legal-name-ajutor`}
             className={claseCamp}
           />
+          <p id={`${idFormular}-legal-name-ajutor`} className="text-muted-foreground mt-1 text-xs">
+            Forma juridică completă, exact ca în actul constitutiv — apare pe contracte, adeverințe
+            și orice alt document oficial. Denumirea de mai sus rămâne cea afișată în aplicație.
+          </p>
+          <Eroare id={`${idFormular}-legal-name-eroare`} mesaj={errors.legal_name?.message} />
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -85,6 +92,7 @@ export function Pas1Identitate({ formular, idFormular }: Proprietati) {
                 </option>
               ))}
             </select>
+            <Eroare id={`${idFormular}-forma-eroare`} mesaj={errors.forma_juridica?.message} />
           </div>
           <div>
             <label htmlFor={`${idFormular}-cui`} className={claseLabel}>
@@ -219,6 +227,7 @@ export function Pas1Identitate({ formular, idFormular }: Proprietati) {
                 </option>
               ))}
             </select>
+            <Eroare id={`${idFormular}-judet-eroare`} mesaj={errors.judet?.message} />
           </div>
           {judetSelectat === "București" && (
             <div>

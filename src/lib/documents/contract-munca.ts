@@ -36,7 +36,7 @@ export async function genereazaContractDeMunca(
 ): Promise<DocumentGenerat> {
   const { data: organizatie } = await supabase
     .from("organizations")
-    .select("name")
+    .select("name, legal_name")
     .eq("id", parametri.organizationId)
     .maybeSingle();
   if (organizatie === null) throw notFound("Organizația nu a putut fi citită.");
@@ -62,7 +62,9 @@ export async function genereazaContractDeMunca(
   const valori = new Map<string, string>([
     ["numar_contract", parametri.numarContract],
     ["data_contract", formatDate(parametri.dataContract)],
-    ["organizatie_denumire", organizatie.name],
+    // Documentul e oficial: forma juridică completă dacă a fost completată,
+    // altfel denumirea uzuală — niciodată nesetat.
+    ["organizatie_denumire", organizatie.legal_name ?? organizatie.name],
     ["angajat_nume", parametri.angajatNume],
     ["cnp_complet", cnpComplet],
     ["angajat_adresa", parametri.angajatAdresa ?? "nespecificată"],

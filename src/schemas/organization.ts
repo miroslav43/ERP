@@ -266,6 +266,14 @@ export type CreeazaOrganizatieOutput = z.output<typeof creeazaOrganizatieSchema>
  * câmpurile lui — decizia se ia în acțiune, nu în schemă.
  */
 export const onboardeazaOrganizatieSchema = creeazaOrganizatieSchema.extend({
+  // Obligatoriu doar la înrolare (spre deosebire de `creeazaOrganizatieSchema`,
+  // unde e opțional): documentele oficiale (contracte, adeverințe, viitoarele
+  // exporturi ANAF) folosesc forma juridică completă, nu denumirea uzuală.
+  legal_name: z
+    .string()
+    .trim()
+    .min(2, "Denumirea completă (statutul) trebuie să aibă cel puțin 2 caractere.")
+    .max(160, "Denumirea completă este prea lungă."),
   capital_social: capitalSocialSchema,
   cod_caen: codCaenSchema,
   sector: sectorSchema,

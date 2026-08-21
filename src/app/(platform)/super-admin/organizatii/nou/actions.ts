@@ -78,7 +78,7 @@ export const onboardeazaOrganizatie = createPlatformAction<
       // Câmpurile opționale se omit complet când lipsesc (exactOptionalPropertyTypes).
       .insert({
         name: input.name,
-        ...(input.legal_name === undefined ? {} : { legal_name: input.legal_name }),
+        legal_name: input.legal_name,
         forma_juridica: input.forma_juridica,
         cui: input.cui,
         platitor_tva: input.platitor_tva,

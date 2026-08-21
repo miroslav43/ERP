@@ -12,7 +12,7 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { ActionDenied } from "@/lib/actions/errors";
+import { ActionDenied, isPostgrestError, mapPostgrestError } from "@/lib/actions/errors";
 import type {
   ActionError,
   ActionErrorCode,
@@ -253,11 +253,18 @@ export function createPlatformAction<TSchema extends z.ZodType, TData>(
           ? eroare(exceptie.code, exceptie.message, requestId, exceptie.fieldErrors ?? null)
           : estePostgres(exceptie) && exceptie.code === "23505"
             ? eroare("CONFLICT", mesajConflict(exceptie), requestId)
-            : eroare(
-                "EROARE_INTERNA",
-                "A apărut o eroare neașteptată. Am notificat echipa tehnică.",
-                requestId,
-              );
+            : // Restul codurilor Postgres (constrângeri CHECK/NOT NULL/FK, chei
+              // străine, timeout etc.) foloseau înainte mesajul generic de mai
+              // jos, indiferent de cauză. `mapPostgrestError` e deja folosit de
+              // `createAction` pentru acțiunile de tenant — îl refolosim aici ca
+              // să nu ascundem cauze diagnosticabile în spatele „eroare internă”.
+              isPostgrestError(exceptie)
+              ? mapPostgrestError(exceptie, requestId)
+              : eroare(
+                  "EROARE_INTERNA",
+                  "A apărut o eroare neașteptată. Am notificat echipa tehnică.",
+                  requestId,
+                );
 
       if (eroareActiune.code === "EROARE_INTERNA") {
         console.error("[platform-action]", definitie.name, requestId, exceptie);

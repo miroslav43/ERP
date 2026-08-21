@@ -27,6 +27,10 @@ export type Tenant = Readonly<{
   organizationId: string;
   slug: string;
   name: string;
+  /** Forma juridică completă (ex. „SC Compania Mea SRL”) — de folosit pe orice
+   *  document oficial (contracte, adeverințe, exporturi ANAF). `null` dacă nu
+   *  a fost completată încă la înrolare/editare; apelantul cade pe `name`. */
+  legalName: string | null;
   role: AppRole;
   /** id-ul rândului din `organization_members` — util pentru audit și pentru FK. */
   memberId: string;

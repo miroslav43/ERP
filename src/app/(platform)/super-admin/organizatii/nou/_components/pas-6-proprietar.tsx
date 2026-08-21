@@ -117,6 +117,7 @@ export function Pas6Proprietar({ formular, idFormular }: Proprietati) {
                 </option>
               ))}
             </select>
+            <Eroare id={`${idFormular}-plan-eroare`} mesaj={errors.plan?.message} />
           </div>
           <div>
             <label htmlFor={`${idFormular}-locuri`} className={claseLabel}>
