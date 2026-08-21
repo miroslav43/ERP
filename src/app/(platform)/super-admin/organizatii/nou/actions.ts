@@ -52,6 +52,7 @@ export const onboardeazaOrganizatie = createPlatformAction<
       "oras",
       "forma_juridica",
       "cod_caen",
+      "cod_caen_secundare",
     ],
   },
   revalidate: CAI_REVALIDATE,
@@ -97,6 +98,7 @@ export const onboardeazaOrganizatie = createPlatformAction<
           : { reprezentant_legal: input.reprezentant_legal }),
         ...(input.capital_social === undefined ? {} : { capital_social: input.capital_social }),
         ...(input.cod_caen === undefined ? {} : { cod_caen: input.cod_caen }),
+        cod_caen_secundare: input.cod_caen_secundare,
         ...(input.sector === undefined ? {} : { sector: input.sector }),
         ...(input.functie_reprezentant_legal === undefined
           ? {}
