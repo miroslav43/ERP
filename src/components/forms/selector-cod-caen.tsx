@@ -100,18 +100,30 @@ export function SelectorCodCaenPrincipal({
   ariaInvalid,
   ariaDescribedBy,
 }: ProprietatiPrincipal) {
-  const [interogare, setInterogare] = useState("");
+  const selectat = value !== undefined ? NOMENCLATOR_CAEN.find((c) => c.cod === value) : undefined;
+  const etichetaSelectat = selectat !== undefined ? `${selectat.cod} — ${selectat.denumire}` : "";
+
+  const [interogare, setInterogare] = useState(etichetaSelectat);
   const [deschis, setDeschis] = useState(false);
   const [indiceActiv, setIndiceActiv] = useState(0);
+  // Reține ultima etichetă „văzută” ca să detecteze o schimbare de `value`
+  // venită din afara componentei (selecție, încărcare organizație existentă)
+  // și să resincronizeze textul afișat — ajustare de stare în timpul
+  // randării (tiparul recomandat de React pentru asta), nu într-un efect:
+  // sursa bugului era exact că sincronizarea depindea de ordinea în care se
+  // propagau `setState`-urile locale față de `onChange` al părintelui.
+  const [etichetaAnterioara, setEtichetaAnterioara] = useState(etichetaSelectat);
+  if (etichetaSelectat !== etichetaAnterioara) {
+    setEtichetaAnterioara(etichetaSelectat);
+    if (!deschis) setInterogare(etichetaSelectat);
+  }
   const idListbox = useId();
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const selectat = value !== undefined ? NOMENCLATOR_CAEN.find((c) => c.cod === value) : undefined;
   const rezultate = filtreazaCaen(interogare, new Set());
 
   function alege(c: CodCaen): void {
     onChange(c.cod);
-    setInterogare("");
     setDeschis(false);
   }
 
@@ -131,7 +143,7 @@ export function SelectorCodCaenPrincipal({
         aria-autocomplete="list"
         aria-invalid={ariaInvalid}
         aria-describedby={ariaDescribedBy}
-        value={deschis ? interogare : selectat ? `${selectat.cod} — ${selectat.denumire}` : ""}
+        value={interogare}
         placeholder="Scrie codul sau denumirea (ex. 6210, agricultură)"
         onFocus={() => {
           setDeschis(true);
