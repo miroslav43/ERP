@@ -5,6 +5,11 @@ import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { JUDETE, PLANURI } from "@/schemas/organization";
+import { maximSecundare } from "@/domain/organization/caen-reguli";
+import {
+  SelectorCodCaenPrincipal,
+  SelectorCodCaenSecundare,
+} from "@/components/forms/selector-cod-caen";
 import { actualizeazaOrganizatie } from "../../actions";
 
 const ETICHETE_PLAN: Record<(typeof PLANURI)[number], string> = {
@@ -29,6 +34,9 @@ interface OrganizatieExistenta {
   readonly plan: string;
   readonly seats_limit: number;
   readonly zile_concediu_anual_implicit: number;
+  readonly forma_juridica: string | null;
+  readonly cod_caen: string | null;
+  readonly cod_caen_secundare: readonly string[];
 }
 
 const CLASA_CAMP = "mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm";
@@ -43,6 +51,14 @@ export function FormularEditeazaOrganizatie({
   const [inCurs, porneste] = useTransition();
   const [eroare, setEroare] = useState<string | null>(null);
   const idFormular = useId();
+  // Nu e react-hook-form — e `<form action={fn}>` cu FormData, care nu poate
+  // duce natural un array. Cele două câmpuri CAEN se citesc din closure, nu
+  // din `fd`, în `trimite`.
+  const [codCaen, setCodCaen] = useState<string | undefined>(organizatie.cod_caen ?? undefined);
+  const [codCaenSecundare, setCodCaenSecundare] = useState<readonly string[]>(
+    organizatie.cod_caen_secundare,
+  );
+  const limitaSecundare = maximSecundare(organizatie.forma_juridica ?? "SRL");
 
   function trimite(fd: FormData): void {
     setEroare(null);
@@ -66,6 +82,9 @@ export function FormularEditeazaOrganizatie({
         plan: String(fd.get("plan") ?? ""),
         seats_limit: Number(fd.get("seats_limit")),
         zile_concediu_anual_implicit: Number(fd.get("zile_concediu_anual_implicit")),
+        forma_juridica: organizatie.forma_juridica ?? undefined,
+        cod_caen: codCaen,
+        cod_caen_secundare: [...codCaenSecundare],
       });
       if (!rezultat.ok) {
         setEroare(rezultat.error.message);
@@ -221,6 +240,24 @@ export function FormularEditeazaOrganizatie({
           maxLength={120}
           defaultValue={organizatie.reprezentant_legal ?? ""}
           className={CLASA_CAMP}
+        />
+      </div>
+      <div className="flex flex-col gap-1">
+        <label htmlFor={`${idFormular}-caen`} className="text-sm font-medium">
+          Cod CAEN principal
+        </label>
+        <SelectorCodCaenPrincipal id={`${idFormular}-caen`} value={codCaen} onChange={setCodCaen} />
+      </div>
+      <div className="flex flex-col gap-1 sm:col-span-2">
+        <label htmlFor={`${idFormular}-caen-secundare`} className="text-sm font-medium">
+          Coduri CAEN secundare
+        </label>
+        <SelectorCodCaenSecundare
+          id={`${idFormular}-caen-secundare`}
+          value={codCaenSecundare}
+          onChange={setCodCaenSecundare}
+          exclude={codCaen}
+          max={limitaSecundare}
         />
       </div>
       <div className="flex flex-col gap-1">

@@ -136,6 +136,9 @@ export default async function PaginaFisaOrganizatie({
                 plan: organizatie.plan,
                 seats_limit: organizatie.seats_limit,
                 zile_concediu_anual_implicit: organizatie.zile_concediu_anual_implicit,
+                forma_juridica: organizatie.forma_juridica,
+                cod_caen: organizatie.cod_caen,
+                cod_caen_secundare: organizatie.cod_caen_secundare,
               }}
             />
           </div>

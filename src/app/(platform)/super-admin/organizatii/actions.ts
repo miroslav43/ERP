@@ -129,7 +129,17 @@ export const actualizeazaOrganizatie = createPlatformAction({
     entityType: "organizations",
     entityId: (input) => input.orgId,
     organizationId: (input) => input.orgId,
-    allow: ["orgId", "name", "plan", "seats_limit", "judet", "oras", "email_contact"],
+    allow: [
+      "orgId",
+      "name",
+      "plan",
+      "seats_limit",
+      "judet",
+      "oras",
+      "email_contact",
+      "cod_caen",
+      "cod_caen_secundare",
+    ],
   },
   revalidate: (input) => caiFisa(input.orgId),
   handler: async (ctx, input) => {
@@ -154,6 +164,7 @@ export const actualizeazaOrganizatie = createPlatformAction({
         seats_limit: input.seats_limit,
         ...(input.capital_social === undefined ? {} : { capital_social: input.capital_social }),
         ...(input.cod_caen === undefined ? {} : { cod_caen: input.cod_caen }),
+        cod_caen_secundare: input.cod_caen_secundare,
         ...(input.sector === undefined ? {} : { sector: input.sector }),
         ...(input.functie_reprezentant_legal === undefined
           ? {}
@@ -348,7 +359,7 @@ export async function fisaOrganizatiei(orgId: string) {
   const { data: organizatie, error } = await admin
     .from("organizations")
     .select(
-      "id, name, legal_name, forma_juridica, cui, platitor_tva, reg_com, slug, status, plan, seats_limit, subscription_status, trial_ends_at, email_contact, telefon_contact, adresa, judet, oras, cod_postal, website, reprezentant_legal, timezone, created_at, activated_at, suspended_at, suspended_reason, deleted_at, capital_social, cod_caen, sector, functie_reprezentant_legal, ssm_furnizor_extern, ssm_persoana_responsabila, zile_concediu_anual_implicit",
+      "id, name, legal_name, forma_juridica, cui, platitor_tva, reg_com, slug, status, plan, seats_limit, subscription_status, trial_ends_at, email_contact, telefon_contact, adresa, judet, oras, cod_postal, website, reprezentant_legal, timezone, created_at, activated_at, suspended_at, suspended_reason, deleted_at, capital_social, cod_caen, cod_caen_secundare, sector, functie_reprezentant_legal, ssm_furnizor_extern, ssm_persoana_responsabila, zile_concediu_anual_implicit",
     )
     .eq("id", id)
     .maybeSingle();
