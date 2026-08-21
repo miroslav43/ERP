@@ -158,13 +158,6 @@ export const capitalSocialSchema = opțional(
     .min(0, "Capitalul social nu poate fi negativ."),
 );
 
-export const codCaenSchema = opțional(
-  z
-    .string()
-    .trim()
-    .regex(/^[0-9]{4}$/, "Codul CAEN are 4 cifre (ex. 6201)."),
-);
-
 /**
  * Cod CAEN care trebuie să existe efectiv în nomenclator — nu doar 4 cifre.
  * Folosit pentru câmpul principal (obligatoriu la înrolare) și pentru fiecare
@@ -335,31 +328,47 @@ export const onboardeazaOrganizatieSchema = creeazaOrganizatieSchema
 export type OnboardeazaOrganizatieInput = z.input<typeof onboardeazaOrganizatieSchema>;
 export type OnboardeazaOrganizatieOutput = z.output<typeof onboardeazaOrganizatieSchema>;
 
-export const actualizeazaOrganizatieSchema = z.object({
-  orgId: z.uuid("Organizație invalidă."),
-  name: z.string().trim().min(2, "Denumirea trebuie să aibă cel puțin 2 caractere.").max(120),
-  legal_name: textOptional(160),
-  email_contact: emailSchema,
-  telefon_contact: telefonSchema,
-  judet: judetSchema,
-  oras: z.string().trim().min(2, "Introduceți localitatea.").max(80),
-  adresa: textOptional(240),
-  cod_postal: textOptional(10),
-  website: z
-    .url("Introduceți o adresă web validă.")
-    .optional()
-    .or(z.literal("").transform(() => undefined)),
-  reprezentant_legal: textOptional(120),
-  plan: planSchema,
-  seats_limit: seatsLimitSchema,
-  capital_social: capitalSocialSchema,
-  cod_caen: codCaenSchema,
-  sector: sectorSchema,
-  functie_reprezentant_legal: functieReprezentantSchema,
-  ssm_furnizor_extern: textOptional(200),
-  ssm_persoana_responsabila: textOptional(160),
-  zile_concediu_anual_implicit: opțional(zileConcediuImplicitBaza),
-});
+export const actualizeazaOrganizatieSchema = z
+  .object({
+    orgId: z.uuid("Organizație invalidă."),
+    name: z.string().trim().min(2, "Denumirea trebuie să aibă cel puțin 2 caractere.").max(120),
+    legal_name: textOptional(160),
+    email_contact: emailSchema,
+    telefon_contact: telefonSchema,
+    judet: judetSchema,
+    oras: z.string().trim().min(2, "Introduceți localitatea.").max(80),
+    adresa: textOptional(240),
+    cod_postal: textOptional(10),
+    website: z
+      .url("Introduceți o adresă web validă.")
+      .optional()
+      .or(z.literal("").transform(() => undefined)),
+    reprezentant_legal: textOptional(120),
+    plan: planSchema,
+    seats_limit: seatsLimitSchema,
+    capital_social: capitalSocialSchema,
+    // Formă juridică opțională DOAR ca sursă pentru regula de mai jos — NU se
+    // salvează separat (organizația nu-și schimbă forma juridică din acest
+    // formular). Lipsă ⇒ doar regulile generale (fără duplicate) se aplică.
+    forma_juridica: z.enum(FORME_JURIDICE).optional(),
+    cod_caen: opțional(caenClasaSchema),
+    cod_caen_secundare: z.array(caenClasaSchema).max(50).default([]),
+    sector: sectorSchema,
+    functie_reprezentant_legal: functieReprezentantSchema,
+    ssm_furnizor_extern: textOptional(200),
+    ssm_persoana_responsabila: textOptional(160),
+    zile_concediu_anual_implicit: opțional(zileConcediuImplicitBaza),
+  })
+  .superRefine((valori, ctx) => {
+    const rezultat = valideazaSelectieCaen(
+      valori.forma_juridica ?? "SRL",
+      valori.cod_caen,
+      valori.cod_caen_secundare,
+    );
+    if (!rezultat.valid) {
+      ctx.addIssue({ code: "custom", message: rezultat.eroare, path: ["cod_caen_secundare"] });
+    }
+  });
 
 export const idOrganizatieSchema = z.object({ orgId: z.uuid("Organizație invalidă.") });
 
