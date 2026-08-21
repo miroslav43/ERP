@@ -1,7 +1,7 @@
 // src/app/(platform)/super-admin/organizatii/nou/_components/pas-7-confirmare.tsx
 "use client";
 
-import type { UseFormReturn } from "react-hook-form";
+import { useWatch, type UseFormReturn } from "react-hook-form";
 
 import type { OnboardeazaOrganizatieInput } from "@/schemas/organization";
 
@@ -21,7 +21,12 @@ function Rand({ eticheta, valoare }: { eticheta: string; valoare: string | undef
 
 /** Recapitulare read-only — nu duplică validarea, doar reflectă ce s-a completat. */
 export function Pas7Confirmare({ formular }: Proprietati) {
-  const valori = formular.watch();
+  // `useWatch`, nu `formular.watch()` — vezi nota din pasul de identitate.
+  // Ecranul se montează la intrarea în pas, deci astăzi citește valorile
+  // corecte chiar și fără abonament; dar componenta primește props cu
+  // identitate stabilă și e memoizată de React Compiler, așa că orice
+  // schimbare care ar ține-o montată ar îngheța recapitularea, tăcut.
+  const valori = useWatch({ control: formular.control });
 
   return (
     <div className="space-y-6">

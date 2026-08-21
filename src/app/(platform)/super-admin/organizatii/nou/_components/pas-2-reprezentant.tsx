@@ -1,9 +1,10 @@
 // src/app/(platform)/super-admin/organizatii/nou/_components/pas-2-reprezentant.tsx
 "use client";
 
-import type { UseFormReturn } from "react-hook-form";
+import { useWatch, type UseFormReturn } from "react-hook-form";
 
 import type { OnboardeazaOrganizatieInput } from "@/schemas/organization";
+import { CampCuSugestii } from "@/components/forms/camp-cu-sugestii";
 import { claseCamp, claseLabel, Eroare } from "./campuri-comune";
 
 export const CAMPURI_PAS_2 = [
@@ -22,8 +23,15 @@ interface Proprietati {
 export function Pas2Reprezentant({ formular, idFormular }: Proprietati) {
   const {
     register,
+    control,
+    setValue,
     formState: { errors },
   } = formular;
+  // `useWatch`, NU `formular.watch(…)` — vezi nota din `pas-1-identitate.tsx`:
+  // `watch` abonează doar componenta care apelează `useForm` (asistentul), iar
+  // cu React Compiler pasul e memoizat și nu se mai re-randează după montare,
+  // deci caseta ar rămâne goală la orice sugestie aleasă.
+  const functie = useWatch({ control, name: "functie_reprezentant_legal" }) ?? "";
 
   return (
     <fieldset className="border-border space-y-4 rounded-lg border p-4">
@@ -48,18 +56,21 @@ export function Pas2Reprezentant({ formular, idFormular }: Proprietati) {
         <label htmlFor={`${idFormular}-repr-functie`} className={claseLabel}>
           Funcția
         </label>
-        <input
+        <CampCuSugestii
           id={`${idFormular}-repr-functie`}
-          {...register("functie_reprezentant_legal")}
-          list={`${idFormular}-repr-functie-sugestii`}
+          value={functie}
+          onChange={(valoare) =>
+            setValue("functie_reprezentant_legal", valoare, { shouldValidate: true })
+          }
+          sugestii={FUNCTII_UZUALE}
           placeholder="Administrator"
-          className={claseCamp}
+          maxLength={120}
+          ariaInvalid={Boolean(errors.functie_reprezentant_legal)}
         />
-        <datalist id={`${idFormular}-repr-functie-sugestii`}>
-          {FUNCTII_UZUALE.map((functie) => (
-            <option key={functie} value={functie} />
-          ))}
-        </datalist>
+        <Eroare
+          id={`${idFormular}-repr-functie-eroare`}
+          mesaj={errors.functie_reprezentant_legal?.message}
+        />
       </div>
 
       <div>
@@ -76,8 +87,8 @@ export function Pas2Reprezentant({ formular, idFormular }: Proprietati) {
           className={claseCamp}
         />
         <p id={`${idFormular}-repr-cnp-ajutor`} className="text-muted-foreground mt-1 text-xs">
-          Necesar uneori în relația cu instituțiile sau pentru semnături electronice. Se
-          păstrează criptat.
+          Necesar uneori în relația cu instituțiile sau pentru semnături electronice. Se păstrează
+          criptat.
         </p>
         <Eroare id={`${idFormular}-repr-cnp-eroare`} mesaj={errors.reprezentant_cnp?.message} />
       </div>

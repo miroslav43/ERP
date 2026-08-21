@@ -1,7 +1,7 @@
 // src/app/(platform)/super-admin/organizatii/nou/_components/pas-1-identitate.tsx
 "use client";
 
-import type { UseFormReturn } from "react-hook-form";
+import { useWatch, type UseFormReturn } from "react-hook-form";
 
 import {
   FORME_JURIDICE,
@@ -44,14 +44,22 @@ interface Proprietati {
 export function Pas1Identitate({ formular, idFormular }: Proprietati) {
   const {
     register,
-    watch,
+    control,
     setValue,
     formState: { errors },
   } = formular;
-  const judetSelectat = watch("judet");
-  const formaJuridicaSelectata = watch("forma_juridica");
-  const codCaenPrincipal = watch("cod_caen");
-  const codCaenSecundare = watch("cod_caen_secundare") ?? [];
+  // `useWatch`, NU `formular.watch(…)`. `watch` abonează doar componenta care
+  // apelează `useForm` (asistentul), nu și pașii lui. În plus, cu React
+  // Compiler activ (`reactCompiler: true`), `<Pas1Identitate formular={…}
+  // idFormular={…} />` are props cu identitate stabilă, deci elementul e
+  // memoizat și pasul nu se mai re-randează deloc după montare: selectorul de
+  // cod CAEN primea la nesfârșit `value={undefined}` și caseta rămânea goală
+  // deși valoarea era în formular. `useWatch` creează abonamentul aici, în
+  // componenta care are nevoie de valoare.
+  const judetSelectat = useWatch({ control, name: "judet" });
+  const formaJuridicaSelectata = useWatch({ control, name: "forma_juridica" });
+  const codCaenPrincipal = useWatch({ control, name: "cod_caen" });
+  const codCaenSecundare = useWatch({ control, name: "cod_caen_secundare" }) ?? [];
   const limitaSecundare = maximSecundare(formaJuridicaSelectata);
 
   return (
@@ -96,7 +104,11 @@ export function Pas1Identitate({ formular, idFormular }: Proprietati) {
             <label htmlFor={`${idFormular}-forma`} className={claseLabel}>
               Formă de organizare *
             </label>
-            <select id={`${idFormular}-forma`} {...register("forma_juridica")} className={claseCamp}>
+            <select
+              id={`${idFormular}-forma`}
+              {...register("forma_juridica")}
+              className={claseCamp}
+            >
               {FORME_JURIDICE.map((forma) => (
                 <option key={forma} value={forma}>
                   {forma}
@@ -223,7 +235,9 @@ export function Pas1Identitate({ formular, idFormular }: Proprietati) {
       </fieldset>
 
       <fieldset className="border-border space-y-4 rounded-lg border p-4">
-        <legend className="text-foreground px-1 text-sm font-medium">Contact și sediu social</legend>
+        <legend className="text-foreground px-1 text-sm font-medium">
+          Contact și sediu social
+        </legend>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor={`${idFormular}-email`} className={claseLabel}>
@@ -297,7 +311,11 @@ export function Pas1Identitate({ formular, idFormular }: Proprietati) {
             <label htmlFor={`${idFormular}-cod-postal`} className={claseLabel}>
               Cod poștal
             </label>
-            <input id={`${idFormular}-cod-postal`} {...register("cod_postal")} className={claseCamp} />
+            <input
+              id={`${idFormular}-cod-postal`}
+              {...register("cod_postal")}
+              className={claseCamp}
+            />
           </div>
         </div>
         <div>
