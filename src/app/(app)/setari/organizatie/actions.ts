@@ -5,50 +5,63 @@ import { z } from "zod";
 
 import { createAction } from "@/lib/actions/create-action";
 import { notFound } from "@/lib/actions/errors";
+import { caenClasaSchema } from "@/schemas/organization";
+import { valideazaSelectieCaen } from "@/domain/organization/caen-reguli";
 
 const textOptional = (maxim: number) => z.string().trim().max(maxim).optional();
 
-const schemaOrganizatie = z.object({
-  name: z.string().trim().min(2, "Denumirea trebuie să aibă cel puțin 2 caractere.").max(160),
-  legal_name: textOptional(200),
-  forma_juridica: textOptional(40),
-  cui: z
-    .string()
-    .trim()
-    .regex(
-      /^(RO)?\s?\d{2,10}$/i,
-      "CUI-ul trebuie să conțină între 2 și 10 cifre, opțional prefixat cu RO.",
-    )
-    .optional(),
-  platitor_tva: z.boolean(),
-  reg_com: textOptional(40),
-  adresa: textOptional(240),
-  judet: textOptional(60),
-  oras: textOptional(80),
-  cod_postal: textOptional(12),
-  tara: textOptional(60),
-  email_contact: z.union([z.literal(""), z.email("Adresa de e-mail nu este validă.")]).optional(),
-  telefon_contact: textOptional(30),
-  website: z
-    .union([z.literal(""), z.url("Adresa de web trebuie să înceapă cu https://")])
-    .optional(),
-  reprezentant_legal: textOptional(160),
-  functie_reprezentant_legal: textOptional(120),
-  capital_social: z
-    .union([z.literal(""), z.coerce.number().min(0, "Capitalul social nu poate fi negativ.")])
-    .optional(),
-  cod_caen: z
-    .union([z.literal(""), z.string().trim().regex(/^[0-9]{4}$/, "Codul CAEN are 4 cifre (ex. 6201).")])
-    .optional(),
-  sector: textOptional(4),
-  ssm_furnizor_extern: textOptional(200),
-  ssm_persoana_responsabila: textOptional(160),
-  zile_concediu_anual_implicit: z.coerce
-    .number("Numărul de zile trebuie să fie o cifră.")
-    .int()
-    .min(0)
-    .max(60),
-});
+const schemaOrganizatie = z
+  .object({
+    name: z.string().trim().min(2, "Denumirea trebuie să aibă cel puțin 2 caractere.").max(160),
+    legal_name: textOptional(200),
+    forma_juridica: textOptional(40),
+    cui: z
+      .string()
+      .trim()
+      .regex(
+        /^(RO)?\s?\d{2,10}$/i,
+        "CUI-ul trebuie să conțină între 2 și 10 cifre, opțional prefixat cu RO.",
+      )
+      .optional(),
+    platitor_tva: z.boolean(),
+    reg_com: textOptional(40),
+    adresa: textOptional(240),
+    judet: textOptional(60),
+    oras: textOptional(80),
+    cod_postal: textOptional(12),
+    tara: textOptional(60),
+    email_contact: z.union([z.literal(""), z.email("Adresa de e-mail nu este validă.")]).optional(),
+    telefon_contact: textOptional(30),
+    website: z
+      .union([z.literal(""), z.url("Adresa de web trebuie să înceapă cu https://")])
+      .optional(),
+    reprezentant_legal: textOptional(160),
+    functie_reprezentant_legal: textOptional(120),
+    capital_social: z
+      .union([z.literal(""), z.coerce.number().min(0, "Capitalul social nu poate fi negativ.")])
+      .optional(),
+    cod_caen: z.union([z.literal(""), caenClasaSchema]).optional(),
+    cod_caen_secundare: z.array(caenClasaSchema).max(50).default([]),
+    sector: textOptional(4),
+    ssm_furnizor_extern: textOptional(200),
+    ssm_persoana_responsabila: textOptional(160),
+    zile_concediu_anual_implicit: z.coerce
+      .number("Numărul de zile trebuie să fie o cifră.")
+      .int()
+      .min(0)
+      .max(60),
+  })
+  .superRefine((valori, ctx) => {
+    const principal = valori.cod_caen === "" ? undefined : valori.cod_caen;
+    const rezultat = valideazaSelectieCaen(
+      valori.forma_juridica ?? "SRL",
+      principal,
+      valori.cod_caen_secundare,
+    );
+    if (!rezultat.valid) {
+      ctx.addIssue({ code: "custom", message: rezultat.eroare, path: ["cod_caen_secundare"] });
+    }
+  });
 
 const CAMPURI_AUDITATE = [
   "name",
@@ -69,6 +82,7 @@ const CAMPURI_AUDITATE = [
   "functie_reprezentant_legal",
   "capital_social",
   "cod_caen",
+  "cod_caen_secundare",
   "sector",
   "ssm_furnizor_extern",
   "ssm_persoana_responsabila",
@@ -110,7 +124,10 @@ export const actualizeazaOrganizatia = createAction<
     // în loc să fie trimis `null`.
     const cui = golSauNull(input.cui)?.toUpperCase().replace(/\s+/g, "");
     const tara = golSauNull(input.tara);
-    const capitalSocial = input.capital_social === undefined || input.capital_social === "" ? null : input.capital_social;
+    const capitalSocial =
+      input.capital_social === undefined || input.capital_social === ""
+        ? null
+        : input.capital_social;
     const codCaen = golSauNull(input.cod_caen);
 
     // S1: organizația vine din tenant, nu din payload-ul clientului.
@@ -135,6 +152,7 @@ export const actualizeazaOrganizatia = createAction<
         functie_reprezentant_legal: golSauNull(input.functie_reprezentant_legal),
         capital_social: capitalSocial,
         cod_caen: codCaen,
+        cod_caen_secundare: input.cod_caen_secundare,
         sector: golSauNull(input.sector),
         ssm_furnizor_extern: golSauNull(input.ssm_furnizor_extern),
         ssm_persoana_responsabila: golSauNull(input.ssm_persoana_responsabila),
