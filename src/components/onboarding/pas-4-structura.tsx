@@ -1,4 +1,4 @@
-// src/app/(platform)/super-admin/organizatii/nou/_components/pas-4-structura.tsx
+// src/components/onboarding/pas-4-structura.tsx
 "use client";
 
 import type { UseFormReturn } from "react-hook-form";

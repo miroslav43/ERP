@@ -1,4 +1,4 @@
-// src/app/(platform)/super-admin/organizatii/nou/_components/campuri-comune.tsx
+// src/components/onboarding/campuri-comune.tsx
 "use client";
 
 /**

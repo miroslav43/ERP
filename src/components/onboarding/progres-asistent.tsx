@@ -1,4 +1,4 @@
-// src/app/(platform)/super-admin/organizatii/nou/_components/progres-asistent.tsx
+// src/components/onboarding/progres-asistent.tsx
 "use client";
 
 export const ETICHETE_PASI = [

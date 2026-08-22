@@ -5,16 +5,25 @@
 // intră toate ca date. Consecința: aceeași funcție rulează în Server Action, în
 // simularea din UI și în teste, garantat cu același rezultat.
 //
-// Scop DELIBERAT restrâns față de un motor de salarizare complet:
-//   - o singură treaptă de spor pentru orele suplimentare (nu „primele 8h" vs
-//     „restul" — nuanța există legal, dar procentul rămâne configurabil);
-//   - concediul medical NU intră în calcul (indemnizația CNAS/FNUASS e un
-//     proces de decontare separat, cu cod de indemnizație și bază de calcul
-//     proprii — vezi `medical_leave_codes`); zilele medicale ies din baza de
-//     zile plătite și apar ca avertisment, nu ca linie calculată.
+// CE ACOPERĂ AZI:
+//   - trei axe de spor — zi lucrătoare, repaus săptămânal, sărbătoare legală —
+//     cu regula „maxim, nu sumă" preluată din `app.sporuri_pontaj`;
+//   - norma din CONTRACTUL angajatului, nu cea a organizației (part-time);
+//   - baze separate pentru CAS și CASS, cu regimul tichetelor configurabil;
+//   - plafonul minim al bazei de contribuții, cu avertisment pentru excepții;
+//   - avantajele în natură: intră în brut, se scad din restul de plată.
+//
+// CE RĂMÂNE SIMPLIFICAT, deliberat și marcat prin avertismente:
+//   - concediul medical NU intră în calcul (indemnizația CNAS/FNUASS are cod
+//     de indemnizație, bază pe mai multe luni și plătitor împărțit între firmă
+//     și fond — vezi `medical_leave_codes`); zilele medicale ies din baza de
+//     zile plătite și apar ca avertisment, nu ca linie calculată;
 //   - indemnizația de concediu de odihnă se plătește la rata zilnică a
-//     salariului de bază, NU la media ultimelor 3 luni (simplificare marcată
-//     explicit — vezi avertismentul `INDEMNIZATIE_CO_SIMPLIFICATA`).
+//     salariului de bază, NU la media ultimelor 3 luni;
+//   - un singur procent per axă de spor, fără trepte în interiorul zilei
+//     („primele 8 ore" vs restul);
+//   - diurna nu intră încă în calcul, deși modulul ei calculează deja partea
+//     impozabilă și pe cea neimpozabilă.
 //
 // NIMIC din modulul ăsta nu e certificat. Fiecare cotă vine din
 // `PayrollSettingsSnapshot`, niciodată hardcodată — vezi banner-ul din UI.
@@ -344,9 +353,13 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     bazaSalariu + sumaOreSuplimentare + sporNoapte + sporRepaus + sporSarbatoare + primeTotal,
   );
 
-  // Tichetele de masă nu intră niciodată în baza CAS/CASS — regulă legală, nu
-  // opțiune de configurare. Zilele plătite (lucrate, nu și CO) sunt baza de
-  // acordare, cea mai răspândită convenție.
+  // Numărul de tichete se acordă pe zilele efectiv LUCRATE, nu pe cele plătite
+  // (concediul de odihnă nu dă tichete) — convenția cea mai răspândită.
+  //
+  // Regimul lor fiscal e mai jos, la baze: NU intră în baza de pensie, iar în
+  // cea de sănătate intră sau nu, după setare. Comentariul de aici susținea
+  // până la 0054 că „nu intră niciodată în baza CAS/CASS — regulă legală, nu
+  // opțiune de configurare"; jumătatea despre CASS era greșită.
   const nrTichete = attendance.zileLucrate;
   const valoareTichete = inregistreaza("valoareTichete", nrTichete * settings.valoareTichetMasa);
 

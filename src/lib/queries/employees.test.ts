@@ -57,8 +57,8 @@ describe("decodificarea refuză intrarea stricată în loc să arunce", () => {
     ["gol", ""],
     ["text oarecare", "nu-e-base64!!"],
     ["base64 fără separator", Buffer.from("doar-nume", "utf8").toString("base64url")],
-    ["id gol", Buffer.from("nume\x00", "utf8").toString("base64url")],
-    ["doar separator", Buffer.from("\x00", "utf8").toString("base64url")],
+    ["id gol", Buffer.from("nume\u0000", "utf8").toString("base64url")],
+    ["doar separator", Buffer.from("\u0000", "utf8").toString("base64url")],
   ];
 
   it.each(invalide)("%s → null", (_eticheta, valoare) => {
@@ -68,7 +68,7 @@ describe("decodificarea refuză intrarea stricată în loc să arunce", () => {
   it("un nume gol cu id valid rămâne acceptat", () => {
     // Numele poate fi legitim gol la prima pagină a unei sortări; doar id-ul
     // gol invalidează cursorul.
-    const valoare = Buffer.from("\x003f8c1d2e", "utf8").toString("base64url");
+    const valoare = Buffer.from("\u00003f8c1d2e", "utf8").toString("base64url");
     expect(decodificaCursor(valoare)).toEqual({ nume: "", id: "3f8c1d2e" });
   });
 });

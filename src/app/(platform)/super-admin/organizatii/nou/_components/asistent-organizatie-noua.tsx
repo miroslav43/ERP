@@ -12,14 +12,14 @@ import {
   type OnboardeazaOrganizatieInput,
 } from "@/schemas/organization";
 import { onboardeazaOrganizatie } from "../actions";
-import { ProgresAsistent, ETICHETE_PASI } from "./progres-asistent";
-import { Pas1Identitate, CAMPURI_PAS_1 } from "./pas-1-identitate";
-import { Pas2Reprezentant, CAMPURI_PAS_2 } from "./pas-2-reprezentant";
-import { Pas3Financiar, CAMPURI_PAS_3 } from "./pas-3-financiar";
-import { Pas4Structura, CAMPURI_PAS_4 } from "./pas-4-structura";
-import { Pas5Ssm, CAMPURI_PAS_5 } from "./pas-5-ssm";
-import { Pas6Proprietar, CAMPURI_PAS_6 } from "./pas-6-proprietar";
-import { Pas7Confirmare } from "./pas-7-confirmare";
+import { ProgresAsistent, ETICHETE_PASI } from "@/components/onboarding/progres-asistent";
+import { Pas1Identitate, CAMPURI_PAS_1 } from "@/components/onboarding/pas-1-identitate";
+import { Pas2Reprezentant, CAMPURI_PAS_2 } from "@/components/onboarding/pas-2-reprezentant";
+import { Pas3Financiar, CAMPURI_PAS_3 } from "@/components/onboarding/pas-3-financiar";
+import { Pas4Structura, CAMPURI_PAS_4 } from "@/components/onboarding/pas-4-structura";
+import { Pas5Ssm, CAMPURI_PAS_5 } from "@/components/onboarding/pas-5-ssm";
+import { Pas6Proprietar, CAMPURI_PAS_6 } from "@/components/onboarding/pas-6-proprietar";
+import { Pas7Confirmare } from "@/components/onboarding/pas-7-confirmare";
 
 const TOTAL_PASI = ETICHETE_PASI.length;
 
