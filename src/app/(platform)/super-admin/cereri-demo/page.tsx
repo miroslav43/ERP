@@ -66,7 +66,7 @@ export default async function PaginaCereriDemo({
                 <Link
                   href={RUTA}
                   aria-current={statusActiv === null ? "page" : undefined}
-                  className={` inline-flex rounded-full border px-3 py-1.5 text-sm transition-colors   ${
+                  className={`inline-flex rounded-full border px-3 py-1.5 text-sm transition-colors ${
                     statusActiv === null
                       ? "border-primary bg-primary text-primary-foreground"
                       : "border-border text-muted-foreground hover:text-foreground"
@@ -80,7 +80,7 @@ export default async function PaginaCereriDemo({
                   <Link
                     href={`${RUTA}?status=${status}`}
                     aria-current={statusActiv === status ? "page" : undefined}
-                    className={` inline-flex rounded-full border px-3 py-1.5 text-sm transition-colors   ${
+                    className={`inline-flex rounded-full border px-3 py-1.5 text-sm transition-colors ${
                       statusActiv === status
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-border text-muted-foreground hover:text-foreground"

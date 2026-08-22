@@ -3,3 +3,7 @@ node_modules
 pnpm-lock.yaml
 docs/design
 src/types/database.ts
+
+# Director de lucru al plugin-ului remember — ignorat de git prin
+# .remember/.gitignore, deci n-are ce căuta în verificarea de formatare.
+.remember

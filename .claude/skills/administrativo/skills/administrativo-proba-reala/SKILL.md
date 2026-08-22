@@ -15,9 +15,9 @@ insert into public.employees (...) as authenticated
 ```
 
 Treceau typecheck, lint, 175 de teste, cele trei bariere din `scripts/checks/`
-și izolarea 11/11 — pe Postgres local **și** pe Supabase real. *„Niciuna nu
+și izolarea 11/11 — pe Postgres local **și** pe Supabase real. _„Niciuna nu
 execută o scriere reală ca utilizator obișnuit. Verificam că nimeni nu vede ce
-nu are voie, dar nu și că cine are voie poate lucra.”*
+nu are voie, dar nu și că cine are voie poate lucra.”_
 
 Porțile existente sunt toate **negative**: izolarea demonstrează refuzuri,
 barierele demonstrează absențe. Aceasta e singura **pozitivă**.
@@ -44,12 +44,12 @@ Un caz adăugat acolo rulează în CI la fiecare PR; o bancă opt-in rulează c�
 
 ## Cele patru verdicte
 
-| Verdict | Ce înseamnă | Gravitate |
-|---|---|---|
-| `OK` | rezultatul real coincide cu matricea de permisiuni | — |
-| `⛔ FALS-NEGATIV` | rolul ar trebui să poată, dar baza refuză | **blochează livrarea** — bug-ul Fazei 2 |
-| `⛔ FALS-POZITIV` | rolul nu ar trebui să poată, dar baza acceptă | **blochează livrarea** — scurgere |
-| `⚠ REFUZ TĂCUT` | UPDATE fără eroare, dar zero rânduri afectate | utilizatorul vede „salvat”; nimic nu s-a schimbat |
+| Verdict           | Ce înseamnă                                        | Gravitate                                         |
+| ----------------- | -------------------------------------------------- | ------------------------------------------------- |
+| `OK`              | rezultatul real coincide cu matricea de permisiuni | —                                                 |
+| `⛔ FALS-NEGATIV` | rolul ar trebui să poată, dar baza refuză          | **blochează livrarea** — bug-ul Fazei 2           |
+| `⛔ FALS-POZITIV` | rolul nu ar trebui să poată, dar baza acceptă      | **blochează livrarea** — scurgere                 |
+| `⚠ REFUZ TĂCUT`   | UPDATE fără eroare, dar zero rânduri afectate      | utilizatorul vede „salvat”; nimic nu s-a schimbat |
 
 `REFUZ TĂCUT` e motivul pentru care proba numără **rândurile afectate**, nu doar
 prinde excepții (capcana 17).

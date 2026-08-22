@@ -11,7 +11,11 @@ interface AngajatOptiune {
   readonly marca: string;
 }
 
-export function FormularAutorizatie({ angajati }: { readonly angajati: readonly AngajatOptiune[] }) {
+export function FormularAutorizatie({
+  angajati,
+}: {
+  readonly angajati: readonly AngajatOptiune[];
+}) {
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
   const [eroare, setEroare] = useState<string | null>(null);
@@ -55,7 +59,7 @@ export function FormularAutorizatie({ angajati }: { readonly angajati: readonly 
   return (
     <form
       action={trimite}
-      className="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-3"
+      className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-3"
     >
       <p className="text-sm font-medium sm:col-span-3">Adaugă o autorizație nominală</p>
 
@@ -67,7 +71,7 @@ export function FormularAutorizatie({ angajati }: { readonly angajati: readonly 
           id={id.angajat}
           name="employee_id"
           required
-          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
         >
           {angajati.map((a) => (
             <option key={a.id} value={a.id}>
@@ -87,7 +91,7 @@ export function FormularAutorizatie({ angajati }: { readonly angajati: readonly 
           required
           maxLength={80}
           placeholder="stivuitorist, macaragiu, fochist…"
-          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
         />
       </div>
 
@@ -99,7 +103,7 @@ export function FormularAutorizatie({ angajati }: { readonly angajati: readonly 
           id={id.grupa}
           name="grupa"
           maxLength={40}
-          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
         />
       </div>
 
@@ -112,7 +116,7 @@ export function FormularAutorizatie({ angajati }: { readonly angajati: readonly 
           name="numar"
           required
           maxLength={64}
-          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
         />
       </div>
 
@@ -125,7 +129,7 @@ export function FormularAutorizatie({ angajati }: { readonly angajati: readonly 
           name="emitent"
           required
           maxLength={160}
-          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
         />
       </div>
 
@@ -137,7 +141,7 @@ export function FormularAutorizatie({ angajati }: { readonly angajati: readonly 
           id={id.emis}
           name="emis_la"
           type="date"
-          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
         />
       </div>
 
@@ -150,20 +154,20 @@ export function FormularAutorizatie({ angajati }: { readonly angajati: readonly 
           name="valabil_pana"
           type="date"
           required
-          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
         />
       </div>
 
-      <div className="sm:col-span-3 flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3 sm:col-span-3">
         <button
           type="submit"
           disabled={inCurs}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
         >
           {inCurs ? "Se salvează…" : "Adaugă autorizația"}
         </button>
         {eroare === null ? null : (
-          <p role="alert" className="text-sm text-danger">
+          <p role="alert" className="text-danger text-sm">
             {eroare}
           </p>
         )}

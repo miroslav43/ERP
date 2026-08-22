@@ -46,6 +46,7 @@ src/config/{permissions,navigation,features,routes}.ts
 4. Raportează doar când găsești un consumator concret care s-a rupt sau devine incoerent.
 
 Comenzi utile:
+
 ```bash
 git diff <interval> -- supabase/migrations/ | grep -E '^\+.*(create|alter).*(function|column|type)'
 grep -rn "nume_simbol" src/ --include=*.ts --include=*.tsx

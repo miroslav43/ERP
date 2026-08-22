@@ -112,15 +112,24 @@ async function TabelDeplasari({
   }
 
   const idDeplasari = randuri.map((r) => r.id);
-  const idTari = [...new Set(randuri.map((r) => r.country_id).filter((id): id is string => id !== null))];
+  const idTari = [
+    ...new Set(randuri.map((r) => r.country_id).filter((id): id is string => id !== null)),
+  ];
   const dateDistincte = [...new Set(randuri.map((r) => r.plecare_la.slice(0, 10)))];
 
   const [salvate, baremuri, politiciListe, angajati] = await Promise.all([
     calculeSalvate(idDeplasari),
     baremeleTarilor(idTari),
-    Promise.all(dateDistincte.map(async (data) => [data, await politicaLaData(organizationId, data)] as const)),
+    Promise.all(
+      dateDistincte.map(
+        async (data) => [data, await politicaLaData(organizationId, data)] as const,
+      ),
+    ),
     arataAngajat
-      ? angajatiDupaId(organizationId, randuri.map((r) => r.employee_id))
+      ? angajatiDupaId(
+          organizationId,
+          randuri.map((r) => r.employee_id),
+        )
       : Promise.resolve(new Map<string, never>()),
   ]);
   const politiciDupaData = new Map(politiciListe);
@@ -133,30 +142,39 @@ async function TabelDeplasari({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div className="border-border overflow-x-auto rounded-lg border">
         <table className="w-full text-sm">
-          <caption className="sr-only">Deplasările în interes de serviciu, cu diurna estimată.</caption>
+          <caption className="sr-only">
+            Deplasările în interes de serviciu, cu diurna estimată.
+          </caption>
           <thead className="bg-surface text-left">
             <tr>
-              <th scope="col" className="px-4 py-3 font-medium">Scop</th>
+              <th scope="col" className="px-4 py-3 font-medium">
+                Scop
+              </th>
               {arataAngajat ? (
-                <th scope="col" className="px-4 py-3 font-medium">Angajat</th>
+                <th scope="col" className="px-4 py-3 font-medium">
+                  Angajat
+                </th>
               ) : null}
-              <th scope="col" className="px-4 py-3 font-medium">Perioada</th>
-              <th scope="col" className="px-4 py-3 font-medium">Stare</th>
-              <th scope="col" className="px-4 py-3 font-medium">Diurnă</th>
+              <th scope="col" className="px-4 py-3 font-medium">
+                Perioada
+              </th>
+              <th scope="col" className="px-4 py-3 font-medium">
+                Stare
+              </th>
+              <th scope="col" className="px-4 py-3 font-medium">
+                Diurnă
+              </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className="divide-border divide-y">
             {randuri.map((r) => {
               const angajat = angajati.get(r.employee_id);
               return (
                 <RandTabel key={r.id} href={`/diurna/${r.id}`}>
                   <td className="px-4 py-3 font-medium">
-                    <Link
-                      href={`/diurna/${r.id}`}
-                      className="underline-offset-2 hover:underline"
-                    >
+                    <Link href={`/diurna/${r.id}`} className="underline-offset-2 hover:underline">
                       {r.scop}
                     </Link>
                     {r.localitate === null ? null : (
@@ -165,27 +183,35 @@ async function TabelDeplasari({
                   </td>
                   {arataAngajat ? (
                     <td className="px-4 py-3">
-                      {angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`}
+                      {angajat === undefined
+                        ? "—"
+                        : `${angajat.full_name ?? "—"} (${angajat.marca})`}
                     </td>
                   ) : null}
                   <td className="px-4 py-3">
-                    {formatDateTime(new Date(r.plecare_la))} – {formatDateTime(new Date(r.sosire_la))}
+                    {formatDateTime(new Date(r.plecare_la))} –{" "}
+                    {formatDateTime(new Date(r.sosire_la))}
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_STATUS_DEPLASARE[r.status]}`}>
+                    <span
+                      className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_STATUS_DEPLASARE[r.status]}`}
+                    >
                       {ETICHETE_STATUS_DEPLASARE[r.status]}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm">
                     {(() => {
-                      const sumar = sumarDeplasare(r, politiciDupaData, baremuri, salvate.get(r.id));
+                      const sumar = sumarDeplasare(
+                        r,
+                        politiciDupaData,
+                        baremuri,
+                        salvate.get(r.id),
+                      );
                       return (
                         <>
                           {sumar.text}
                           {sumar.estimare ? (
-                            <span className="ml-1 text-xs text-muted-foreground">
-                              (estimare)
-                            </span>
+                            <span className="text-muted-foreground ml-1 text-xs">(estimare)</span>
                           ) : null}
                         </>
                       );
@@ -202,7 +228,7 @@ async function TabelDeplasari({
         {urmatorulCursor === null ? null : (
           <Link
             href={`/diurna?${cautare.toString()}`}
-            className="rounded-md border border-foreground/60 px-4 py-2 text-sm hover:bg-surface"
+            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
           >
             Pagina următoare
           </Link>
@@ -261,7 +287,7 @@ export default async function PaginaDiurna({ searchParams }: ProprietatiPagina) 
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Deplasări</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             {scope === "own"
               ? "Deplasările dumneavoastră în interes de serviciu, cu diurna estimată."
               : "Deplasările la care aveți acces, cu diurna estimată."}
@@ -270,7 +296,7 @@ export default async function PaginaDiurna({ searchParams }: ProprietatiPagina) 
         {poateAdauga ? (
           <Link
             href="/diurna/noua"
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+            className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
           >
             <PlaneTakeoff aria-hidden="true" className="size-4" />
             Deplasare nouă

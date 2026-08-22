@@ -11,19 +11,19 @@ Claude Code însuși (setări, reguli, memorie), vezi
 
 ## 1. Stack tehnic
 
-| Strat | Alegere | Notă |
-|---|---|---|
-| Framework | Next.js 16.3 (App Router) | „NU e cel din datele de antrenament" — vezi `AGENTS.md` |
-| UI | React 19.2, React Compiler activ implicit | |
-| Limbaj | TypeScript 5.9, `strict` + 7 verificări suplimentare | `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, ş.a. |
-| Validare | Zod 4 | API de erori diferit de Zod 3 (`z.prettifyError()`) |
-| Formulare | react-hook-form + `@hookform/resolvers` | |
-| Stil | Tailwind v4 | paletă navy/crem, font Inter (subset `latin-ext`, obligatoriu pentru ș/ț cu virgulă) |
-| Bază de date | Supabase (Postgres 17), proiect `nybmhorngsajoqaxjlbr` | fără Supabase local/Docker — decizie a clientului, vezi `NOTES.md` |
-| Pachete | pnpm | |
-| Teste unitare | Vitest | funcții pure din `domain/`, `format/`, `config/` |
-| Teste RLS | Vitest + `psql` | necesită un proiect Postgres/Supabase SEPARAT, resetabil |
-| Teste E2E | Playwright | |
+| Strat         | Alegere                                                | Notă                                                                                 |
+| ------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| Framework     | Next.js 16.3 (App Router)                              | „NU e cel din datele de antrenament" — vezi `AGENTS.md`                              |
+| UI            | React 19.2, React Compiler activ implicit              |                                                                                      |
+| Limbaj        | TypeScript 5.9, `strict` + 7 verificări suplimentare   | `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, ş.a.                       |
+| Validare      | Zod 4                                                  | API de erori diferit de Zod 3 (`z.prettifyError()`)                                  |
+| Formulare     | react-hook-form + `@hookform/resolvers`                |                                                                                      |
+| Stil          | Tailwind v4                                            | paletă navy/crem, font Inter (subset `latin-ext`, obligatoriu pentru ș/ț cu virgulă) |
+| Bază de date  | Supabase (Postgres 17), proiect `nybmhorngsajoqaxjlbr` | fără Supabase local/Docker — decizie a clientului, vezi `NOTES.md`                   |
+| Pachete       | pnpm                                                   |                                                                                      |
+| Teste unitare | Vitest                                                 | funcții pure din `domain/`, `format/`, `config/`                                     |
+| Teste RLS     | Vitest + `psql`                                        | necesită un proiect Postgres/Supabase SEPARAT, resetabil                             |
+| Teste E2E     | Playwright                                             |                                                                                      |
 
 Comenzi esențiale (`package.json`):
 
@@ -60,15 +60,15 @@ erorile de graniță server/client. Rulează-l separat.
 Fiecare e validată la boot în `src/config/env.ts` — o valoare lipsă/invalidă
 oprește aplicația imediat, nu la primul request:
 
-| Variabilă | Rol |
-|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Publice prin design (ajung în bundle-ul de client) — protecția reală e RLS |
-| `SUPABASE_SERVICE_ROLE_KEY` | ⚠️ Ocolește complet RLS — exclusiv în `src/lib/supabase/admin.ts` (`server-only`), doar super-admin |
-| `HR_ENCRYPTION_KEYS` (JSON, versionat), `HR_ENCRYPTION_ACTIVE_KEY` | AES-256-GCM pentru CNP/IBAN — pierderea cheii = pierderea definitivă a datelor (vezi `NOTES.md` §4) |
-| `HR_HASH_KEY` | HMAC pentru amprente de deduplicare CNP/IBAN — separată de criptare |
-| `TENANT_COOKIE_SECRET` | Semnătură HMAC a cookie-ului de organizație — detector de falsificare, NU stratul de securitate (acela e RLS) |
-| `EMAIL_MODE` (`test`/altă valoare), `RESEND_API_KEY`, `EMAIL_FROM`, `RESEND_WEBHOOK_SECRET` | În `test`, nimic nu se trimite real — totul se scrie în `email_log`, vizibil din Super-Admin |
-| `NEXT_PUBLIC_APP_URL` | Baza URL a aplicației |
+| Variabilă                                                                                   | Rol                                                                                                           |
+| ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`                                 | Publice prin design (ajung în bundle-ul de client) — protecția reală e RLS                                    |
+| `SUPABASE_SERVICE_ROLE_KEY`                                                                 | ⚠️ Ocolește complet RLS — exclusiv în `src/lib/supabase/admin.ts` (`server-only`), doar super-admin           |
+| `HR_ENCRYPTION_KEYS` (JSON, versionat), `HR_ENCRYPTION_ACTIVE_KEY`                          | AES-256-GCM pentru CNP/IBAN — pierderea cheii = pierderea definitivă a datelor (vezi `NOTES.md` §4)           |
+| `HR_HASH_KEY`                                                                               | HMAC pentru amprente de deduplicare CNP/IBAN — separată de criptare                                           |
+| `TENANT_COOKIE_SECRET`                                                                      | Semnătură HMAC a cookie-ului de organizație — detector de falsificare, NU stratul de securitate (acela e RLS) |
+| `EMAIL_MODE` (`test`/altă valoare), `RESEND_API_KEY`, `EMAIL_FROM`, `RESEND_WEBHOOK_SECRET` | În `test`, nimic nu se trimite real — totul se scrie în `email_log`, vizibil din Super-Admin                  |
+| `NEXT_PUBLIC_APP_URL`                                                                       | Baza URL a aplicației                                                                                         |
 
 ---
 
@@ -118,30 +118,30 @@ PROGRESS.md             # istoric de livrare pe fază — PARȚIAL ÎNVECHIT, ve
 Toate au bază de date ȘI ecran (spre deosebire de o etapă istorică
 documentată în `PROGRESS.md`, unde 8 din 11 module aveau doar schemă).
 
-| Modul | Rută | Esență |
-|---|---|---|
-| Angajați | `/angajati` | fișă completă, date sensibile criptate (CNP/IBAN), contracte, wizard de înrolare unificat |
-| Funcții | `/functii` | nomenclator de posturi, cod COR liber (fără import de catalog oficial) |
-| Departamente / Puncte de lucru | `/departamente`, `/puncte-lucru` | CRUD simplu |
-| Organigramă | `/organigrama` | arbore managerial, vizibil și pentru scope „own" (propria ramură) |
-| Concedii | `/concedii` | 11 tipuri statutare, sold per angajat/an, flux de aprobare generic (vezi §4) |
-| Pontaj | `/pontaj` | foaie colectivă, calcul automat ore/suplimentare, plan săptămânal cu aprobare individuală (vezi §4) |
-| Salarizare | `/salarizare` | motor de calcul (`domain/payroll/calc.ts`), componente salariale reutilizabile, scutiri fiscale |
-| SSM și PSI | `/ssm` | instruiri, fișe de aptitudine, autorizații nominale, EIP, stingătoare |
-| Parc auto | `/flota` | vehicule, foi de parcurs, verificat kilometraj |
-| Mentenanță | `/mentenanta` | echipamente, inclusiv ISCIR |
-| Inventar | `/inventar` | alocare obiecte, predare-primire, „ce am în primire" |
-| Diurne și deplasări | `/diurna` | calcul diurnă intern/extern |
-| Evaluări | `/evaluari` | șabloane pe criterii, evaluări create de manageri SAU administratori |
-| Anunțuri | `/anunturi` | fanout automat spre `notifications`, confirmare de citire |
-| Integrare angajați | `/onboarding` | checklist-uri de onboarding |
-| Rapoarte | `/rapoarte` | analitice pentru proprietar — venit, tichete, ore suplimentare, concediu, per angajat + agregat |
-| REVISAL | `/revisal` | evenimente generate automat la contract/încetare |
-| Documente | `/documente` | motor generalizat de generare (contract, fișa postului, adeverințe) |
-| Notificări | `/notificari` | centru de notificări in-app |
-| Setări | `/setari` | organizație, membri, roluri (matrice read-only) |
-| Super-Admin | `/super-admin` | CRUD organizații, module per organizație, wizard de înrolare companie pe 6 pași |
-| Portal angajat | `/portal` | UI redus pentru angajatul obișnuit — concediile mele, pontajul meu, salariul meu, documentele mele |
+| Modul                          | Rută                             | Esență                                                                                              |
+| ------------------------------ | -------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Angajați                       | `/angajati`                      | fișă completă, date sensibile criptate (CNP/IBAN), contracte, wizard de înrolare unificat           |
+| Funcții                        | `/functii`                       | nomenclator de posturi, cod COR liber (fără import de catalog oficial)                              |
+| Departamente / Puncte de lucru | `/departamente`, `/puncte-lucru` | CRUD simplu                                                                                         |
+| Organigramă                    | `/organigrama`                   | arbore managerial, vizibil și pentru scope „own" (propria ramură)                                   |
+| Concedii                       | `/concedii`                      | 11 tipuri statutare, sold per angajat/an, flux de aprobare generic (vezi §4)                        |
+| Pontaj                         | `/pontaj`                        | foaie colectivă, calcul automat ore/suplimentare, plan săptămânal cu aprobare individuală (vezi §4) |
+| Salarizare                     | `/salarizare`                    | motor de calcul (`domain/payroll/calc.ts`), componente salariale reutilizabile, scutiri fiscale     |
+| SSM și PSI                     | `/ssm`                           | instruiri, fișe de aptitudine, autorizații nominale, EIP, stingătoare                               |
+| Parc auto                      | `/flota`                         | vehicule, foi de parcurs, verificat kilometraj                                                      |
+| Mentenanță                     | `/mentenanta`                    | echipamente, inclusiv ISCIR                                                                         |
+| Inventar                       | `/inventar`                      | alocare obiecte, predare-primire, „ce am în primire"                                                |
+| Diurne și deplasări            | `/diurna`                        | calcul diurnă intern/extern                                                                         |
+| Evaluări                       | `/evaluari`                      | șabloane pe criterii, evaluări create de manageri SAU administratori                                |
+| Anunțuri                       | `/anunturi`                      | fanout automat spre `notifications`, confirmare de citire                                           |
+| Integrare angajați             | `/onboarding`                    | checklist-uri de onboarding                                                                         |
+| Rapoarte                       | `/rapoarte`                      | analitice pentru proprietar — venit, tichete, ore suplimentare, concediu, per angajat + agregat     |
+| REVISAL                        | `/revisal`                       | evenimente generate automat la contract/încetare                                                    |
+| Documente                      | `/documente`                     | motor generalizat de generare (contract, fișa postului, adeverințe)                                 |
+| Notificări                     | `/notificari`                    | centru de notificări in-app                                                                         |
+| Setări                         | `/setari`                        | organizație, membri, roluri (matrice read-only)                                                     |
+| Super-Admin                    | `/super-admin`                   | CRUD organizații, module per organizație, wizard de înrolare companie pe 6 pași                     |
+| Portal angajat                 | `/portal`                        | UI redus pentru angajatul obișnuit — concediile mele, pontajul meu, salariul meu, documentele mele  |
 
 Fiecare modul e activabil/dezactivabil per organizație prin **feature flags**
 (`src/config/features.ts`, tabelele `features`/`organization_features`) —
@@ -168,7 +168,7 @@ fiindcă politicile RLS verifică apartenența direct în `organization_members`
   (`app.has_permission`, `app.can`, `app.current_employee_id`,
   `app.feature_on`, `app.is_manager_of`, `app.write_audit`, ...). **NU sunt
   expuși prin PostgREST** (`supabase/config.toml`: `schemas =
-  ["public","graphql_public"]`) — orice `.rpc('nume_din_schema_app')` din
+["public","graphql_public"]`) — orice `.rpc('nume_din_schema_app')` din
   cod client eșuează silențios; logica se portează în TypeScript sau se apelează
   DIN interiorul altei funcții SQL. Vezi capcana #1 din `capcane.md`.
 - **`internal`** — funcții interne, apelabile DOAR din alte funcții SQL
@@ -183,7 +183,7 @@ Scope-urile sunt `none < own < team < all` (`src/config/permissions.ts`,
 permisiunile fără deploy. Verificare dublă:
 
 - **DB**: `app.has_permission(org, resursă, acțiune)` / `app.can(org, resursă,
-  acțiune, prag_minim)` — folosite în politicile RLS.
+acțiune, prag_minim)` — folosite în politicile RLS.
 - **TS**: `can()`/`scopeFor()` din `src/lib/auth/permissions.ts` — folosite
   în UI (ascunderea unui buton) și în `createAction()` (refuz explicit).
 
@@ -263,6 +263,7 @@ simultan), fișiere aflate temporar în stare stricată de o altă sesiune înc�
 scrierii acestui document).
 
 Protocol verificat, de urmat:
+
 1. `git status --short` înainte de orice `git add` — niciodată `-A`/`.` orb.
 2. `git fetch origin main` + `git log --oneline HEAD..origin/main` înainte de
    push, ca să vezi ce a apărut concurent.
@@ -343,7 +344,7 @@ exact afectat. Cele mai relevante pentru orice modul nou:
 - `max_rows = 1000` în PostgREST — paginează DUPĂ entitatea logică (angajat),
   nu după rândul brut, dacă un rând reprezintă „o zi" sau ceva similar.
 - Indexurile unice sunt aproape mereu **parțiale** (`WHERE deleted_at IS
-  NULL`) — PostgREST nu emite predicatul în `ON CONFLICT`, deci
+NULL`) — PostgREST nu emite predicatul în `ON CONFLICT`, deci
   `.upsert({onConflict: ...})` cade cu `42P10`; scrie citire-apoi-insert-sau-update.
 - Coloane calculate de trigger `BEFORE` nu trebuie trimise de client — dar
   politica `WITH CHECK` vede valoarea DEJA scrisă de trigger, nu ce a trimis
@@ -353,13 +354,13 @@ exact afectat. Cele mai relevante pentru orice modul nou:
 
 ## 9. Documente istorice — ce e încă valabil, ce e învechit
 
-| Document | Stare |
-|---|---|
-| `NOTES.md` | **Valabil** — decizii de arhitectură (de ce Next 16 nu 15, de ce `search_path=''`, de ce fără Supabase local) + lista valorilor legale ⚠️ de confirmat de contabil/jurist înainte de calcul real în producție. |
-| `PROGRESS.md` | **PARȚIAL ÎNVECHIT** — se oprește la narațiunea „Faza 11 livrată" (concedii, pontaj, salarizare, flotă, SSM etc. cu ecrane complete) și NU menționează munca de după: wizard-ul de înrolare companie, funcții/COR, organigramă pe scope „own", componente salariale reutilizabile, bunuri/certificări la înrolare, evaluări de angajați, `/rapoarte`, coduri CAEN, planul săptămânal de pontaj cu aprobare individuală. Folosește-l pentru istoricul deciziilor și al defectelor găsite (secțiune cu valoare — fiecare defect e documentat cu cauză și verificare), NU ca sursă a stării curente. |
-| `docs/design/*` | Planuri de fază, scrise ÎNAINTE de implementare — utile ca istoric de intenție, dar codul efectiv poate diferi (unele planuri au fost respinse sau simplificate la implementare — vezi `docs/design/resolutions.md` și `docs/design/critique.md`). |
-| `docs/design/ecrane/capcane.md` | **Valabil și critic** — vezi §8. |
-| `docs/superpowers/` | Planuri/specificații scrise prin skill-ul `superpowers` de o sesiune concurentă (feature CAEN) — la fel, istoric de intenție, nu neapărat stare finală. |
+| Document                        | Stare                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NOTES.md`                      | **Valabil** — decizii de arhitectură (de ce Next 16 nu 15, de ce `search_path=''`, de ce fără Supabase local) + lista valorilor legale ⚠️ de confirmat de contabil/jurist înainte de calcul real în producție.                                                                                                                                                                                                                                                                                                                                                                                    |
+| `PROGRESS.md`                   | **PARȚIAL ÎNVECHIT** — se oprește la narațiunea „Faza 11 livrată" (concedii, pontaj, salarizare, flotă, SSM etc. cu ecrane complete) și NU menționează munca de după: wizard-ul de înrolare companie, funcții/COR, organigramă pe scope „own", componente salariale reutilizabile, bunuri/certificări la înrolare, evaluări de angajați, `/rapoarte`, coduri CAEN, planul săptămânal de pontaj cu aprobare individuală. Folosește-l pentru istoricul deciziilor și al defectelor găsite (secțiune cu valoare — fiecare defect e documentat cu cauză și verificare), NU ca sursă a stării curente. |
+| `docs/design/*`                 | Planuri de fază, scrise ÎNAINTE de implementare — utile ca istoric de intenție, dar codul efectiv poate diferi (unele planuri au fost respinse sau simplificate la implementare — vezi `docs/design/resolutions.md` și `docs/design/critique.md`).                                                                                                                                                                                                                                                                                                                                                |
+| `docs/design/ecrane/capcane.md` | **Valabil și critic** — vezi §8.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `docs/superpowers/`             | Planuri/specificații scrise prin skill-ul `superpowers` de o sesiune concurentă (feature CAEN) — la fel, istoric de intenție, nu neapărat stare finală.                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 
 **Recomandare**: dacă acest document (`project-overview.md`) ajunge la rândul
 lui învechit, actualizează-l direct — nu adăuga un al treilea document

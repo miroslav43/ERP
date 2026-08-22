@@ -78,16 +78,18 @@ export default async function PaginaSablon({ params }: ProprietatiPagina) {
   return (
     <main className="mx-auto w-full max-w-3xl space-y-6 p-6">
       <header>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           <Link href="/onboarding/sabloane" className="underline-offset-2 hover:underline">
             Șabloane
           </Link>
         </p>
         <h1 className="text-2xl font-semibold">{sablon.denumire}</h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           {ETICHETE_TIP[sablon.tip]} · Valabil de la {formatDate(sablon.valabil_de_la)}
-          {sablon.valabil_pana_la === null ? "" : ` până la ${formatDate(sablon.valabil_pana_la)}`} ·{" "}
-          {sablon.activ ? "Activ" : "Dezactivat"}
+          {sablon.valabil_pana_la === null
+            ? ""
+            : ` până la ${formatDate(sablon.valabil_pana_la)}`}{" "}
+          · {sablon.activ ? "Activ" : "Dezactivat"}
         </p>
       </header>
 

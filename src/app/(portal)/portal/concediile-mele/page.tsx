@@ -38,7 +38,9 @@ export default async function PaginaConcediileMele({ searchParams }: Proprietati
     return (
       <div className="p-4">
         <div className="bg-surface border-border rounded-lg border p-6 text-center">
-          <h1 className="text-foreground text-lg font-semibold">Nu aveți încă o fișă de personal</h1>
+          <h1 className="text-foreground text-lg font-semibold">
+            Nu aveți încă o fișă de personal
+          </h1>
           <p className="text-muted-foreground mt-2 text-sm">
             Concediile se leagă de un angajat. Cereți resurselor umane să vă completeze fișa.
           </p>
@@ -66,16 +68,13 @@ export default async function PaginaConcediileMele({ searchParams }: Proprietati
         </h2>
         {solduri.length === 0 ? (
           <p className="bg-surface border-border text-muted-foreground rounded-lg border p-4 text-sm">
-            Nu aveți încă niciun sold înregistrat pentru {an}. Apare după prima cerere sau după
-            ce resursele umane vă stabilesc dreptul anual.
+            Nu aveți încă niciun sold înregistrat pentru {an}. Apare după prima cerere sau după ce
+            resursele umane vă stabilesc dreptul anual.
           </p>
         ) : (
           <ul className="space-y-2">
             {solduri.map((s) => (
-              <li
-                key={s.leave_type_id}
-                className="bg-surface border-border rounded-lg border p-4"
-              >
+              <li key={s.leave_type_id} className="bg-surface border-border rounded-lg border p-4">
                 <p className="text-foreground text-sm font-medium">
                   {tipuri.get(s.leave_type_id)?.denumire ?? "Concediu"}
                 </p>
@@ -86,9 +85,7 @@ export default async function PaginaConcediileMele({ searchParams }: Proprietati
                   {s.in_asteptare > 0 ? (
                     <Valoare eticheta="În așteptare" valoare={s.in_asteptare} />
                   ) : null}
-                  {s.reportate > 0 ? (
-                    <Valoare eticheta="Reportate" valoare={s.reportate} />
-                  ) : null}
+                  {s.reportate > 0 ? <Valoare eticheta="Reportate" valoare={s.reportate} /> : null}
                 </div>
               </li>
             ))}

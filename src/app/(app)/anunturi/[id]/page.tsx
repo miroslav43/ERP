@@ -10,11 +10,7 @@ import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime } from "@/lib/format/date";
 import { idDinRuta } from "@/lib/rute/parametri";
 import { idFisaProprie } from "@/lib/queries/employees";
-import {
-  citesteAnunt,
-  cititoriAnunt,
-  numarAngajatiActivi,
-} from "@/lib/queries/announcements";
+import { citesteAnunt, cititoriAnunt, numarAngajatiActivi } from "@/lib/queries/announcements";
 
 import { MarcheazaCitit } from "./marcheaza-citit";
 import { PublicaButon } from "./publica-buton";

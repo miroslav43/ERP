@@ -28,13 +28,7 @@ export type RezultatInterventie = (typeof REZULTATE_INTERVENTIE)[number];
 export const URGENTE_SESIZARE = ["scazuta", "medie", "ridicata", "critica"] as const;
 export type UrgentaSesizare = (typeof URGENTE_SESIZARE)[number];
 
-export const STATUSURI_SESIZARE = [
-  "nou",
-  "in_analiza",
-  "in_lucru",
-  "rezolvat",
-  "respins",
-] as const;
+export const STATUSURI_SESIZARE = ["nou", "in_analiza", "in_lucru", "rezolvat", "respins"] as const;
 export type StatusSesizare = (typeof STATUSURI_SESIZARE)[number];
 
 /** Statusurile pe care le poate atribui triajul — nu „nou” (stare inițială) și nu „rezolvat” (are flux propriu). */

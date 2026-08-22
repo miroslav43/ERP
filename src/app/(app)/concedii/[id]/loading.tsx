@@ -6,10 +6,10 @@ export default function IncarcareDetaliuCerere() {
       aria-busy="true"
       aria-label="Se încarcă detaliile cererii de concediu"
     >
-      <div className="h-8 w-64 animate-pulse rounded bg-surface" />
-      <div className="h-40 animate-pulse rounded-lg bg-surface" />
-      <div className="h-32 animate-pulse rounded-lg bg-surface" />
-      <div className="h-32 animate-pulse rounded-lg bg-surface" />
+      <div className="bg-surface h-8 w-64 animate-pulse rounded" />
+      <div className="bg-surface h-40 animate-pulse rounded-lg" />
+      <div className="bg-surface h-32 animate-pulse rounded-lg" />
+      <div className="bg-surface h-32 animate-pulse rounded-lg" />
       <span className="sr-only">Se încarcă…</span>
     </main>
   );

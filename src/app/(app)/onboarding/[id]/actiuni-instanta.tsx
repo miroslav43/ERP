@@ -52,7 +52,7 @@ export function ActiuniInstanta({ instantaId }: { readonly instantaId: string })
           type="button"
           onClick={finalizeaza}
           disabled={inCurs}
-          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium disabled:cursor-not-allowed"
         >
           <Check aria-hidden="true" className="size-4" />
           {inCurs ? "Se finalizează…" : "Finalizează checklistul"}
@@ -63,7 +63,7 @@ export function ActiuniInstanta({ instantaId }: { readonly instantaId: string })
             onClick={() => {
               setPanou("anulare");
             }}
-            className="inline-flex items-center gap-1.5 rounded-md border border-danger px-3 py-2 text-sm font-medium text-danger hover:bg-danger hover:text-danger-foreground"
+            className="border-danger text-danger hover:bg-danger hover:text-danger-foreground inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium"
           >
             <Ban aria-hidden="true" className="size-4" />
             Anulează checklistul
@@ -72,7 +72,7 @@ export function ActiuniInstanta({ instantaId }: { readonly instantaId: string })
       </div>
 
       {panou === "anulare" ? (
-        <div className="space-y-2 rounded-md border border-border p-3">
+        <div className="border-border space-y-2 rounded-md border p-3">
           <label htmlFor={idMotiv} className="block text-xs font-medium">
             Motivul anulării *
           </label>
@@ -82,14 +82,14 @@ export function ActiuniInstanta({ instantaId }: { readonly instantaId: string })
             onChange={(e) => {
               setMotiv(e.target.value);
             }}
-            className="w-full rounded-md border border-foreground/60 px-2 py-1.5 text-sm"
+            className="border-foreground/60 w-full rounded-md border px-2 py-1.5 text-sm"
           />
           <div className="flex gap-2">
             <button
               type="button"
               onClick={anuleaza}
               disabled={inCurs}
-              className="rounded-md bg-danger px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-danger disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+              className="bg-danger text-primary-foreground hover:bg-danger disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed"
             >
               {inCurs ? "Se anulează…" : "Confirmă anularea"}
             </button>
@@ -99,7 +99,7 @@ export function ActiuniInstanta({ instantaId }: { readonly instantaId: string })
                 setPanou("inchis");
                 setEroare(null);
               }}
-              className="rounded-md border border-foreground/60 px-3 py-1.5 text-sm font-medium hover:bg-surface"
+              className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-1.5 text-sm font-medium"
             >
               Renunță
             </button>
@@ -113,7 +113,7 @@ export function ActiuniInstanta({ instantaId }: { readonly instantaId: string })
       {eroare === null ? null : (
         <p
           role="alert"
-          className="rounded-lg border border-danger/40 bg-danger/8 p-3 text-sm text-danger"
+          className="border-danger/40 bg-danger/8 text-danger rounded-lg border p-3 text-sm"
         >
           {eroare}
         </p>

@@ -53,7 +53,7 @@ export function ComutatorModul({
         aria-label={`${activ ? "Dezactivează" : "Activează"} modulul ${denumire}`}
         disabled={inCurs}
         onClick={comuta}
-        className={`border-border  relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition-colors  focus-visible:ring-offset-2  disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground ${
+        className={`border-border disabled:border-border disabled:bg-surface disabled:text-muted-foreground relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition-colors focus-visible:ring-offset-2 disabled:cursor-not-allowed ${
           activ ? "bg-primary" : "bg-background"
         }`}
       >

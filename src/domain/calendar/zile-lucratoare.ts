@@ -17,7 +17,9 @@ export function calculeazaZileLucratoare(
   zileFirmei: readonly Date[] = [],
 ): number {
   if (sfarsit.getTime() < start.getTime()) {
-    throw new RangeError('Intervalul este invalid: data de sfârșit este anterioară datei de început.');
+    throw new RangeError(
+      "Intervalul este invalid: data de sfârșit este anterioară datei de început.",
+    );
   }
 
   let curent = normalizeazaZi(start);
@@ -33,7 +35,11 @@ export function calculeazaZileLucratoare(
   return numarZile;
 }
 
-function esteZiLucratoare(zi: Date, sarbatori: readonly Date[], zileFirmei: readonly Date[]): boolean {
+function esteZiLucratoare(
+  zi: Date,
+  sarbatori: readonly Date[],
+  zileFirmei: readonly Date[],
+): boolean {
   if (esteWeekend(zi)) {
     return false;
   }

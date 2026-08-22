@@ -61,7 +61,7 @@ async function TabelAngajati({ organizationId, scope, userId, parametri }: Propr
 
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div className="border-border overflow-x-auto rounded-lg border">
         <table className="w-full text-left text-sm">
           <caption className="sr-only">Lista angajaților din organizație</caption>
           <thead className="bg-surface text-foreground">
@@ -89,7 +89,7 @@ async function TabelAngajati({ organizationId, scope, userId, parametri }: Propr
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className="divide-border divide-y">
             {randuri.map((rand) => (
               <RandTabel key={rand.id} href={`/angajati/${rand.id}`}>
                 <td className="px-4 py-3">
@@ -99,12 +99,12 @@ async function TabelAngajati({ organizationId, scope, userId, parametri }: Propr
                 <td className="px-4 py-3">
                   <Link
                     href={`/angajati/${rand.id}`}
-                    className="font-medium text-primary underline-offset-2 hover:underline"
+                    className="text-primary font-medium underline-offset-2 hover:underline"
                   >
                     {rand.full_name}
                   </Link>
                   {!rand.is_primary ? (
-                    <span className="ml-2 text-xs text-muted-foreground">(cumul de funcții)</span>
+                    <span className="text-muted-foreground ml-2 text-xs">(cumul de funcții)</span>
                   ) : null}
                 </td>
                 <td className="px-4 py-3">{rand.department?.denumire ?? "—"}</td>
@@ -127,11 +127,11 @@ async function TabelAngajati({ organizationId, scope, userId, parametri }: Propr
 
       <nav aria-label="Paginare" className="mt-4 flex justify-end">
         {urmatorulCursor === null ? (
-          <p className="text-sm text-muted-foreground">Aceasta este ultima pagină.</p>
+          <p className="text-muted-foreground text-sm">Aceasta este ultima pagină.</p>
         ) : (
           <Link
             href={`/angajati?${cautare.toString()}`}
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm font-medium hover:bg-surface"
+            className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-2 text-sm font-medium"
           >
             Pagina următoare
           </Link>
@@ -162,7 +162,7 @@ export default async function PaginaAngajati({ searchParams }: ProprietatiPagina
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Angajați</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             {scope === "own"
               ? "Vedeți propria fișă de personal."
               : scope === "team"
@@ -173,7 +173,7 @@ export default async function PaginaAngajati({ searchParams }: ProprietatiPagina
         {poateCrea ? (
           <Link
             href="/angajati/nou"
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+            className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
           >
             <UserPlus aria-hidden="true" className="size-4" />
             Angajat nou

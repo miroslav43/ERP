@@ -63,7 +63,7 @@ export function ActiuniOrganizatie({
                   : "Organizația a fost activată.",
               )
             }
-            className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+            className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-3 py-2 text-sm font-medium disabled:cursor-not-allowed"
           >
             {status === "suspended" ? "Reactivează" : "Activează"}
           </button>
@@ -132,7 +132,7 @@ export function ActiuniOrganizatie({
             <button
               type="submit"
               disabled={inCurs}
-              className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+              className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-3 py-2 text-sm font-medium disabled:cursor-not-allowed"
             >
               {inCurs ? "Se procesează…" : "Confirmă"}
             </button>

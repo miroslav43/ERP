@@ -206,7 +206,9 @@ export const numeleEchipamentelorMele = createAction({
         .eq("organization_id", ctx.tenant.organizationId)
         .in("id", idUnice);
       if (eroareEchip !== null) throw eroareEchip;
-      denumiri = new Map((echipamente ?? []).map((e) => [e.id, { cod: e.cod, denumire: e.denumire }]));
+      denumiri = new Map(
+        (echipamente ?? []).map((e) => [e.id, { cod: e.cod, denumire: e.denumire }]),
+      );
     }
 
     return randuri.map((r) => ({
@@ -549,7 +551,11 @@ export const trieazaSesizare = createAction({
     entityId: (input) => input.id,
     allow: ["id", "status", "motiv_respingere"],
   },
-  revalidate: (input) => ["/mentenanta/sesizari", `/mentenanta/sesizari/${input.id}`, "/mentenanta"],
+  revalidate: (input) => [
+    "/mentenanta/sesizari",
+    `/mentenanta/sesizari/${input.id}`,
+    "/mentenanta",
+  ],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const db = await createServerSupabase();
     const { data, error } = await db

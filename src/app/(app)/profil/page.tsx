@@ -19,9 +19,7 @@ export default async function PaginaProfil() {
         <h1 className="text-2xl font-semibold">Profilul meu</h1>
         <p className="text-muted-foreground text-sm">
           {profil?.email ?? user.email}
-          {profil === null
-            ? null
-            : ` · cont din ${formatDateTime(profil.created_at)}`}
+          {profil === null ? null : ` · cont din ${formatDateTime(profil.created_at)}`}
         </p>
       </header>
 

@@ -25,7 +25,10 @@ import { sincronizeazaZileleDeConcediu } from "./sincronizare-concediu";
 const CAI_REVALIDARE = ["/pontaj", "/pontaj/perioade", "/pontaj/aprobare"] as const;
 
 /** Prima și ultima zi calendaristică a unei luni, ca șiruri ISO. */
-function intervalulLunii(an: number, luna: number): { readonly inceput: string; readonly sfarsit: string } {
+function intervalulLunii(
+  an: number,
+  luna: number,
+): { readonly inceput: string; readonly sfarsit: string } {
   const ultimaZi = new Date(Date.UTC(an, luna, 0)).getUTCDate();
   const doiCifre = (n: number) => String(n).padStart(2, "0");
   return {
@@ -297,10 +300,7 @@ export const aprobaPontajBloc = createAction({
     allow: ["period_id", "department_id"],
   },
   revalidate: [...CAI_REVALIDARE],
-  handler: async (
-    ctx,
-    input,
-  ): Promise<Readonly<{ id: string; liniiAprobate: number }>> => {
+  handler: async (ctx, input): Promise<Readonly<{ id: string; liniiAprobate: number }>> => {
     // (1) Perioada, cu clientul utilizatorului.
     const { data: perioada, error: eroarePerioada } = await ctx.supabase
       .from("attendance_periods")
@@ -406,7 +406,12 @@ export const blocheazaPerioada = createAction({
   permission: "attendance:approve",
   minScope: "all",
   input: idPerioadaSchema,
-  audit: { action: "update", entityType: "attendance_period", entityId: (input) => input.id, allow: ["id"] },
+  audit: {
+    action: "update",
+    entityType: "attendance_period",
+    entityId: (input) => input.id,
+    allow: ["id"],
+  },
   revalidate: [...CAI_REVALIDARE],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const db = await createServerSupabase();
@@ -433,7 +438,12 @@ export const redeschidePerioada = createAction({
   permission: "attendance:approve",
   minScope: "all",
   input: idPerioadaSchema,
-  audit: { action: "update", entityType: "attendance_period", entityId: (input) => input.id, allow: ["id"] },
+  audit: {
+    action: "update",
+    entityType: "attendance_period",
+    entityId: (input) => input.id,
+    allow: ["id"],
+  },
   revalidate: [...CAI_REVALIDARE],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const db = await createServerSupabase();
@@ -495,9 +505,7 @@ export const sincronizeazaConcediile = createAction({
     }
     const { data: zileConcediu, error: eroareConcediu } = await db
       .from("leave_request_days")
-      .select(
-        "data, leave_request_id, cerere:leave_requests!leave_request_id(employee_id, status)",
-      )
+      .select("data, leave_request_id, cerere:leave_requests!leave_request_id(employee_id, status)")
       .eq("organization_id", ctx.tenant.organizationId)
       .eq("este_lucratoare", true)
       .gte("data", inceput)

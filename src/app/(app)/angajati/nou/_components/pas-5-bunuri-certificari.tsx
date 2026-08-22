@@ -57,8 +57,8 @@ export function Pas5BunuriCertificari({ formular, idFormular, obiecteDisponibile
   return (
     <div className="space-y-6">
       <p className="text-muted-foreground text-sm">
-        Toți acești pași sunt opționali — se pot completa oricând ulterior, din ecranele
-        dedicate (Inventar, SSM).
+        Toți acești pași sunt opționali — se pot completa oricând ulterior, din ecranele dedicate
+        (Inventar, SSM).
       </p>
 
       <fieldset className="border-border space-y-4 rounded-lg border p-4">
@@ -67,7 +67,11 @@ export function Pas5BunuriCertificari({ formular, idFormular, obiecteDisponibile
           <label htmlFor={`${idFormular}-inventar`} className={claseLabel}>
             Obiect de inventar
           </label>
-          <select id={`${idFormular}-inventar`} {...register("inventory_item_id")} className={claseCamp}>
+          <select
+            id={`${idFormular}-inventar`}
+            {...register("inventory_item_id")}
+            className={claseCamp}
+          >
             <option value="">— Niciunul —</option>
             {obiecteDisponibile.map((obiect) => (
               <option key={obiect.id} value={obiect.id}>
@@ -101,7 +105,11 @@ export function Pas5BunuriCertificari({ formular, idFormular, obiecteDisponibile
             <label htmlFor={`${idFormular}-examen-tip`} className={claseLabel}>
               Tip examen
             </label>
-            <select id={`${idFormular}-examen-tip`} {...register("examen_tip")} className={claseCamp}>
+            <select
+              id={`${idFormular}-examen-tip`}
+              {...register("examen_tip")}
+              className={claseCamp}
+            >
               {TIPURI_EXAMEN.map((tip) => (
                 <option key={tip} value={tip}>
                   {ETICHETE_TIP_EXAMEN[tip]}
@@ -140,7 +148,11 @@ export function Pas5BunuriCertificari({ formular, idFormular, obiecteDisponibile
             <label htmlFor={`${idFormular}-examen-medic`} className={claseLabel}>
               Medic
             </label>
-            <input id={`${idFormular}-examen-medic`} {...register("examen_medic")} className={claseCamp} />
+            <input
+              id={`${idFormular}-examen-medic`}
+              {...register("examen_medic")}
+              className={claseCamp}
+            />
           </div>
           <div>
             <label htmlFor={`${idFormular}-examen-unitate`} className={claseLabel}>

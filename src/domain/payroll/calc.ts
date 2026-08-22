@@ -173,7 +173,8 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
   if (attendance.zileConcediuOdihna > 0) {
     warnings.push({
       cod: "INDEMNIZATIE_CO_SIMPLIFICATA",
-      mesaj: "Indemnizația de concediu de odihnă e plătită la rata zilnică a salariului de bază, nu la media ultimelor 3 luni.",
+      mesaj:
+        "Indemnizația de concediu de odihnă e plătită la rata zilnică a salariului de bază, nu la media ultimelor 3 luni.",
     });
   }
 
@@ -232,13 +233,15 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
   if (exemptii.some((e) => e.procentScutire === null)) {
     warnings.push({
       cod: "SCUTIRE_FARA_PROCENT",
-      mesaj: "Există o scutire fiscală activă fără procent configurat — nu a fost aplicată automat la calcul.",
+      mesaj:
+        "Există o scutire fiscală activă fără procent configurat — nu a fost aplicată automat la calcul.",
     });
   }
   if (exemptiiAplicabile.length > 1) {
     warnings.push({
       cod: "SCUTIRI_FISCALE_MULTIPLE",
-      mesaj: "Angajatul are mai multe scutiri fiscale active simultan — verificați manual dacă se pot cumula legal.",
+      mesaj:
+        "Angajatul are mai multe scutiri fiscale active simultan — verificați manual dacă se pot cumula legal.",
     });
   }
   // Scutirile reduc baza de impozit pe venit (uz cel mai răspândit — ex. IT),

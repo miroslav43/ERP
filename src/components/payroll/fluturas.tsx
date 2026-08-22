@@ -6,7 +6,11 @@
 
 import { formatLei } from "@/lib/format/money";
 import { ETICHETE_TIP_PRIMA, ETICHETE_TIP_RETINERE } from "@/domain/payroll/etichete";
-import type { DetaliuInregistrare, RandPrimaPerioada, RandRetinerePerioada } from "@/lib/queries/payroll";
+import type {
+  DetaliuInregistrare,
+  RandPrimaPerioada,
+  RandRetinerePerioada,
+} from "@/lib/queries/payroll";
 import { TaxePieChart } from "./taxe-pie-chart";
 
 const ETICHETE_PAS: Record<string, string> = {
@@ -38,10 +42,18 @@ interface Proprietati {
 
 export function Fluturas({ inregistrare, bonusuri, retineri }: Proprietati) {
   const felii = [
-    { eticheta: "Net (rămas angajatului)", valoare: inregistrare.net, culoareVar: "var(--color-success)" },
+    {
+      eticheta: "Net (rămas angajatului)",
+      valoare: inregistrare.net,
+      culoareVar: "var(--color-success)",
+    },
     { eticheta: "CAS (pensie)", valoare: inregistrare.cas, culoareVar: "var(--color-warning)" },
     { eticheta: "CASS (sănătate)", valoare: inregistrare.cass, culoareVar: "var(--color-accent)" },
-    { eticheta: "Impozit pe venit", valoare: inregistrare.impozit, culoareVar: "var(--color-danger)" },
+    {
+      eticheta: "Impozit pe venit",
+      valoare: inregistrare.impozit,
+      culoareVar: "var(--color-danger)",
+    },
   ];
 
   return (
@@ -55,7 +67,10 @@ export function Fluturas({ inregistrare, bonusuri, retineri }: Proprietati) {
         <Camp eticheta="Zile CO" valoare={String(inregistrare.zile_concediu_odihna)} />
         <Camp eticheta="Ore suplimentare" valoare={String(inregistrare.ore_suplimentare)} />
         {inregistrare.zile_concediu_medical > 0 ? (
-          <Camp eticheta="Zile concediu medical" valoare={String(inregistrare.zile_concediu_medical)} />
+          <Camp
+            eticheta="Zile concediu medical"
+            valoare={String(inregistrare.zile_concediu_medical)}
+          />
         ) : null}
         {inregistrare.zile_absenta_nemotivata > 0 ? (
           <Camp
@@ -79,7 +94,10 @@ export function Fluturas({ inregistrare, bonusuri, retineri }: Proprietati) {
         </ul>
       )}
 
-      <section aria-label="Împărțirea salariului brut" className="border-border rounded-lg border p-4">
+      <section
+        aria-label="Împărțirea salariului brut"
+        className="border-border rounded-lg border p-4"
+      >
         <TaxePieChart felii={felii} />
         {inregistrare.retineri_total > 0 ? (
           <p className="text-muted-foreground mt-3 text-sm">
@@ -89,13 +107,16 @@ export function Fluturas({ inregistrare, bonusuri, retineri }: Proprietati) {
         ) : null}
         <p className="text-muted-foreground mt-1 text-xs">
           Cost total angajator: {formatLei(inregistrare.cost_total_angajator)} (din care CAM
-          angajator: {formatLei(inregistrare.cam_angajator)} — cost suplimentar al angajatorului,
-          nu se scade din salariul dvs.).
+          angajator: {formatLei(inregistrare.cam_angajator)} — cost suplimentar al angajatorului, nu
+          se scade din salariul dvs.).
         </p>
       </section>
 
       {bonusuri.length === 0 && retineri.length === 0 ? null : (
-        <section aria-label="Prime și rețineri individuale" className="border-border rounded-lg border">
+        <section
+          aria-label="Prime și rețineri individuale"
+          className="border-border rounded-lg border"
+        >
           <ul className="divide-border divide-y text-sm">
             {bonusuri.map((b) => (
               <li key={b.id} className="text-success flex items-center gap-2 px-4 py-2">
@@ -121,7 +142,10 @@ export function Fluturas({ inregistrare, bonusuri, retineri }: Proprietati) {
         <table className="w-full text-sm">
           <tbody className="divide-border divide-y">
             {inregistrare.calc_breakdown.map((pas) => (
-              <tr key={pas.pas} className={pas.pas === "netDePlata" ? "bg-surface font-medium" : ""}>
+              <tr
+                key={pas.pas}
+                className={pas.pas === "netDePlata" ? "bg-surface font-medium" : ""}
+              >
                 <td className="px-4 py-2">{ETICHETE_PAS[pas.pas] ?? pas.pas}</td>
                 <td className="px-4 py-2 text-right tabular-nums">{formatLei(pas.valoare)}</td>
               </tr>

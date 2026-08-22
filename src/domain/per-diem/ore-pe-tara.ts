@@ -79,10 +79,7 @@ export function orePeTara(
   taraImplicita: string,
 ): readonly OrePeTara[] {
   const intervale = construiesteIntervale(etape, plecare, sosire, taraImplicita);
-  const acumulator = new Map<
-    string,
-    { ore: number; primulMoment: Date; ultimulMoment: Date }
-  >();
+  const acumulator = new Map<string, { ore: number; primulMoment: Date; ultimulMoment: Date }>();
 
   for (const interval of intervale) {
     const start = interval.deLa.getTime() > deLa.getTime() ? interval.deLa : deLa;

@@ -143,7 +143,11 @@ export async function citesteCerereDemo(id: string): Promise<CerereDemo | null> 
   await requirePlatformAdmin();
   if (!z.uuid().safeParse(id).success) return null;
   const supabase = createAdminSupabase();
-  const { data, error } = await supabase.from("demo_requests").select(CAMPURI).eq("id", id).maybeSingle();
+  const { data, error } = await supabase
+    .from("demo_requests")
+    .select(CAMPURI)
+    .eq("id", id)
+    .maybeSingle();
   if (error !== null || data === null) return null;
   return mapeaza(data);
 }

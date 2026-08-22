@@ -139,7 +139,10 @@ export function FormularEvaluareNoua({ employeeId, sabloane }: Proprietati) {
       {sablonAles !== null ? (
         <div className="border-border space-y-3 rounded-md border p-3">
           {sablonAles.criterii.map((criteriu) => (
-            <div key={criteriu.cod} className="grid gap-2 sm:grid-cols-[1fr_auto_2fr] sm:items-center">
+            <div
+              key={criteriu.cod}
+              className="grid gap-2 sm:grid-cols-[1fr_auto_2fr] sm:items-center"
+            >
               <span className="text-sm font-medium">{criteriu.denumire}</span>
               <input
                 type="number"

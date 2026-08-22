@@ -82,7 +82,8 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
   const editabila = deplasare.status === "ciorna" || deplasare.status === "respinsa";
   const poateTrimite = can(permisiuni, "per_diem:update", "own") && editabila;
   const poateSterge = can(permisiuni, "per_diem:delete", "own") && deplasare.status === "ciorna";
-  const poateDeconta = can(permisiuni, "per_diem:approve", "team") && deplasare.status === "aprobata";
+  const poateDeconta =
+    can(permisiuni, "per_diem:approve", "team") && deplasare.status === "aprobata";
   const poateAdaugaEtapa = can(permisiuni, "per_diem:update", "own") && editabila;
   const poateAdaugaCheltuiala = can(permisiuni, "per_diem:update", "own");
 
@@ -90,13 +91,13 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
     <main className="space-y-6 p-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             <Link href="/diurna" className="underline-offset-2 hover:underline">
               Deplasări
             </Link>
           </p>
           <h1 className="text-2xl font-semibold">{deplasare.scop}</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             {angajat === undefined ? "" : `${angajat.full_name ?? "—"} (${angajat.marca}) · `}
             {formatDateTime(new Date(deplasare.plecare_la))} –{" "}
             {formatDateTime(new Date(deplasare.sosire_la))}
@@ -110,15 +111,15 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
         </span>
       </header>
 
-      <section
-        aria-labelledby="titlu-rezumat"
-        className="rounded-lg border border-border p-4"
-      >
+      <section aria-labelledby="titlu-rezumat" className="border-border rounded-lg border p-4">
         <h2 id="titlu-rezumat" className="mb-4 text-lg font-medium">
           Rezumat
         </h2>
         <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Camp eticheta="Mijloc de transport" valoare={ETICHETE_MIJLOC_TRANSPORT[deplasare.mijloc_transport]} />
+          <Camp
+            eticheta="Mijloc de transport"
+            valoare={ETICHETE_MIJLOC_TRANSPORT[deplasare.mijloc_transport]}
+          />
           <Camp
             eticheta="Avans acordat"
             valoare={
@@ -127,13 +128,29 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
                 : "—"
             }
           />
-          <Camp eticheta="Curs diurnă" valoare={deplasare.curs_diurna === null ? "—" : String(deplasare.curs_diurna)} />
-          <Camp eticheta="Kilometri parcurși" valoare={deplasare.km_parcursi === null ? "—" : `${deplasare.km_parcursi.toLocaleString("ro-RO")} km`} />
+          <Camp
+            eticheta="Curs diurnă"
+            valoare={deplasare.curs_diurna === null ? "—" : String(deplasare.curs_diurna)}
+          />
+          <Camp
+            eticheta="Kilometri parcurși"
+            valoare={
+              deplasare.km_parcursi === null
+                ? "—"
+                : `${deplasare.km_parcursi.toLocaleString("ro-RO")} km`
+            }
+          />
           {deplasare.detasare_transnationala ? (
             <div className="col-span-2 sm:col-span-4">
-              <dt className="text-xs tracking-wide text-muted-foreground uppercase">Detașare transnațională</dt>
+              <dt className="text-muted-foreground text-xs tracking-wide uppercase">
+                Detașare transnațională
+              </dt>
               <dd className="mt-0.5 text-sm">
-                Stat gazdă: {deplasare.stat_gazda_country_id === null ? "—" : hartaTari.get(deplasare.stat_gazda_country_id)?.denumire ?? deplasare.stat_gazda_country_id}
+                Stat gazdă:{" "}
+                {deplasare.stat_gazda_country_id === null
+                  ? "—"
+                  : (hartaTari.get(deplasare.stat_gazda_country_id)?.denumire ??
+                    deplasare.stat_gazda_country_id)}
                 {deplasare.salariu_minim_stat_gazda === null
                   ? ""
                   : ` · Salariu minim: ${String(deplasare.salariu_minim_stat_gazda)} ${deplasare.moneda_salariu_minim ?? ""}`}
@@ -142,24 +159,35 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
           ) : null}
           {deplasare.observatii === null ? null : (
             <div className="col-span-2 sm:col-span-4">
-              <dt className="text-xs tracking-wide text-muted-foreground uppercase">Observații</dt>
+              <dt className="text-muted-foreground text-xs tracking-wide uppercase">Observații</dt>
               <dd className="mt-0.5 text-sm">{deplasare.observatii}</dd>
             </div>
           )}
         </dl>
       </section>
 
-      <ActiuniDeplasare id={deplasare.id} poateTrimite={poateTrimite} poateSterge={poateSterge} poateDeconta={poateDeconta} />
+      <ActiuniDeplasare
+        id={deplasare.id}
+        poateTrimite={poateTrimite}
+        poateSterge={poateSterge}
+        poateDeconta={poateDeconta}
+      />
 
       <section aria-labelledby="titlu-traseu" className="space-y-3">
         <h2 id="titlu-traseu" className="text-lg font-medium">
           Traseu și calculul diurnei
         </h2>
-        <Etape deplasare={deplasare} etape={etapeTrip} politica={politica} baremuri={baremuri} tari={hartaTari} />
+        <Etape
+          deplasare={deplasare}
+          etape={etapeTrip}
+          politica={politica}
+          baremuri={baremuri}
+          tari={hartaTari}
+        />
         {poateAdaugaEtapa ? (
           <FormularEtapa tripId={deplasare.id} tari={listaTari} />
         ) : (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             {editabila
               ? ""
               : "Traseul nu mai poate fi modificat — deplasarea a ieșit din starea editabilă."}
@@ -172,20 +200,30 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
           Cheltuieli
         </h2>
         {cheltuieliTrip.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nicio cheltuială înregistrată încă.</p>
+          <p className="text-muted-foreground text-sm">Nicio cheltuială înregistrată încă.</p>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-border">
+          <div className="border-border overflow-x-auto rounded-lg border">
             <table className="w-full text-sm">
               <thead className="bg-surface text-left">
                 <tr>
-                  <th scope="col" className="px-3 py-2 font-medium">Tip</th>
-                  <th scope="col" className="px-3 py-2 font-medium">Data</th>
-                  <th scope="col" className="px-3 py-2 text-right font-medium">Sumă</th>
-                  <th scope="col" className="px-3 py-2 text-right font-medium">Lei</th>
-                  <th scope="col" className="px-3 py-2 font-medium">Stare</th>
+                  <th scope="col" className="px-3 py-2 font-medium">
+                    Tip
+                  </th>
+                  <th scope="col" className="px-3 py-2 font-medium">
+                    Data
+                  </th>
+                  <th scope="col" className="px-3 py-2 text-right font-medium">
+                    Sumă
+                  </th>
+                  <th scope="col" className="px-3 py-2 text-right font-medium">
+                    Lei
+                  </th>
+                  <th scope="col" className="px-3 py-2 font-medium">
+                    Stare
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody className="divide-border divide-y">
                 {cheltuieliTrip.map((c) => (
                   <tr key={c.id}>
                     <td className="px-3 py-2">
@@ -199,15 +237,15 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
                     <td className="px-3 py-2 text-right tabular-nums">{formatLei(c.suma_lei)}</td>
                     <td className="px-3 py-2">
                       {c.aprobata ? (
-                        <span className="rounded bg-surface px-2 py-0.5 text-xs font-medium text-foreground">
+                        <span className="bg-surface text-foreground rounded px-2 py-0.5 text-xs font-medium">
                           Aprobată
                         </span>
                       ) : c.motiv_respingere !== null ? (
-                        <span className="rounded bg-danger/8 px-2 py-0.5 text-xs font-medium text-danger">
+                        <span className="bg-danger/8 text-danger rounded px-2 py-0.5 text-xs font-medium">
                           Respinsă
                         </span>
                       ) : (
-                        <span className="rounded bg-surface px-2 py-0.5 text-xs font-medium text-foreground">
+                        <span className="bg-surface text-foreground rounded px-2 py-0.5 text-xs font-medium">
                           În așteptare
                         </span>
                       )}
@@ -233,7 +271,7 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
 function Camp({ eticheta, valoare }: { readonly eticheta: string; readonly valoare: string }) {
   return (
     <div>
-      <dt className="text-xs tracking-wide text-muted-foreground uppercase">{eticheta}</dt>
+      <dt className="text-muted-foreground text-xs tracking-wide uppercase">{eticheta}</dt>
       <dd className="mt-0.5 text-sm">{valoare}</dd>
     </div>
   );

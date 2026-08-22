@@ -62,7 +62,12 @@ export const salveazaAvatarAngajat = createAction({
   minScope: "all",
   audit: { entityType: "profiles", action: "update", allow: ["employeeId"] },
   input: idAngajat.extend({ cale: z.string().min(1).max(400) }),
-  revalidate: (input) => [`/angajati/${input.employeeId}`, "/organigrama", "/departamente", "/angajati"],
+  revalidate: (input) => [
+    `/angajati/${input.employeeId}`,
+    "/organigrama",
+    "/departamente",
+    "/angajati",
+  ],
   handler: async (ctx: ActionContext, input) => {
     const userId = await userIdAngajat(ctx, input.employeeId);
     if (!input.cale.startsWith(`${userId}/`)) {

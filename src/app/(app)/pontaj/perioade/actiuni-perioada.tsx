@@ -22,7 +22,14 @@ interface Proprietati {
  * o lună deja deschisă. „Blocarea perioadei ESTE aprobarea ei" — nu există o
  * stare separată „aprobată".
  */
-export function ActiuniPerioada({ an, luna, periodId, status, poateDeschide, poateBloca }: Proprietati) {
+export function ActiuniPerioada({
+  an,
+  luna,
+  periodId,
+  status,
+  poateDeschide,
+  poateBloca,
+}: Proprietati) {
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
   const [eroare, setEroare] = useState<string | null>(null);
@@ -66,20 +73,20 @@ export function ActiuniPerioada({ an, luna, periodId, status, poateDeschide, poa
   }
 
   if (periodId === null) {
-    if (!poateDeschide) return <span className="text-xs text-muted-foreground">—</span>;
+    if (!poateDeschide) return <span className="text-muted-foreground text-xs">—</span>;
     return (
       <div className="space-y-1">
         <button
           type="button"
           onClick={deschide}
           disabled={inCurs}
-          className="inline-flex items-center gap-1.5 rounded-md border border-foreground/60 px-3 py-1.5 text-sm hover:bg-surface disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+          className="border-foreground/60 hover:bg-surface disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm disabled:cursor-not-allowed"
         >
           <PlusCircle aria-hidden="true" className="size-4" />
           {inCurs ? "Se deschide…" : "Deschide luna"}
         </button>
         {eroare === null ? null : (
-          <p role="alert" className="max-w-xs text-xs text-danger">
+          <p role="alert" className="text-danger max-w-xs text-xs">
             {eroare}
           </p>
         )}
@@ -100,7 +107,7 @@ export function ActiuniPerioada({ an, luna, periodId, status, poateDeschide, poa
           type="button"
           onClick={blocheaza}
           disabled={inCurs}
-          className="inline-flex items-center gap-1.5 rounded-md border border-foreground/60 px-3 py-1.5 text-sm hover:bg-surface disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+          className="border-foreground/60 hover:bg-surface disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm disabled:cursor-not-allowed"
         >
           <Lock aria-hidden="true" className="size-4" />
           {inCurs ? "Se blochează…" : "Blochează"}
@@ -111,14 +118,14 @@ export function ActiuniPerioada({ an, luna, periodId, status, poateDeschide, poa
           type="button"
           onClick={redeschide}
           disabled={inCurs}
-          className="inline-flex items-center gap-1.5 rounded-md border border-foreground/60 px-3 py-1.5 text-sm hover:bg-surface disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+          className="border-foreground/60 hover:bg-surface disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm disabled:cursor-not-allowed"
         >
           <LockOpen aria-hidden="true" className="size-4" />
           {inCurs ? "Se redeschide…" : "Redeschide"}
         </button>
       ) : null}
       {eroare === null ? null : (
-        <p role="alert" className="w-full text-xs text-danger">
+        <p role="alert" className="text-danger w-full text-xs">
           {eroare}
         </p>
       )}

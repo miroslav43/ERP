@@ -87,7 +87,7 @@ export function ActiuniFoaie({
       {eroare === null ? null : (
         <p
           role="alert"
-          className="rounded-lg border border-danger/40 bg-danger/8 p-3 text-sm text-danger"
+          className="border-danger/40 bg-danger/8 text-danger rounded-lg border p-3 text-sm"
         >
           {eroare}
         </p>
@@ -95,7 +95,7 @@ export function ActiuniFoaie({
       {avertisment === null ? null : (
         <p
           role="status"
-          className="rounded-lg border border-warning/40 bg-warning/12 p-3 text-sm text-foreground"
+          className="border-warning/40 bg-warning/12 text-foreground rounded-lg border p-3 text-sm"
         >
           {avertisment}
         </p>
@@ -104,9 +104,11 @@ export function ActiuniFoaie({
       {sePoateModifica ? (
         <form
           action={inchide}
-          className="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-3"
+          className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-3"
         >
-          <p className="text-sm font-medium sm:col-span-3">Închide cursa și trimite spre aprobare</p>
+          <p className="text-sm font-medium sm:col-span-3">
+            Închide cursa și trimite spre aprobare
+          </p>
           <div className="flex flex-col gap-1">
             <label htmlFor={idSosire} className="text-sm">
               Sosire
@@ -118,7 +120,7 @@ export function ActiuniFoaie({
               required
               min={plecareLa.slice(0, 16)}
               defaultValue={sosireLa?.slice(0, 16)}
-              className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
             />
           </div>
           <div className="flex flex-col gap-1">
@@ -131,14 +133,14 @@ export function ActiuniFoaie({
               type="number"
               min={kmPlecare}
               required
-              className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
             />
           </div>
           <div className="flex items-end">
             <button
               type="submit"
               disabled={inCurs}
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+              className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
             >
               {inCurs ? "Se trimite…" : "Trimite spre aprobare"}
             </button>
@@ -149,7 +151,7 @@ export function ActiuniFoaie({
       {status === "aprobat" ? null : (
         <form
           action={alimenteaza}
-          className="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-4"
+          className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-4"
         >
           <p className="text-sm font-medium sm:col-span-4">Adaugă o alimentare</p>
           <div className="flex flex-col gap-1">
@@ -161,7 +163,7 @@ export function ActiuniFoaie({
               name="alimentat_la"
               type="datetime-local"
               required
-              className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
             />
           </div>
           <div className="flex flex-col gap-1">
@@ -175,7 +177,7 @@ export function ActiuniFoaie({
               min="0.01"
               step="0.01"
               required
-              className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
             />
           </div>
           <div className="flex flex-col gap-1">
@@ -189,7 +191,7 @@ export function ActiuniFoaie({
               min="0"
               step="0.01"
               required
-              className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
             />
           </div>
           <div className="flex flex-col gap-1">
@@ -200,14 +202,14 @@ export function ActiuniFoaie({
               id={idStatie}
               name="statie"
               maxLength={120}
-              className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
             />
           </div>
           <div className="sm:col-span-4">
             <button
               type="submit"
               disabled={inCurs}
-              className="rounded-md border border-foreground/60 px-4 py-2 text-sm font-medium hover:bg-surface disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+              className="border-foreground/60 hover:bg-surface disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
             >
               {inCurs ? "Se salvează…" : "Adaugă alimentarea"}
             </button>

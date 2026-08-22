@@ -24,13 +24,14 @@ Citește contractele — sunt scrise în cod, nu le presupune:
 ### 1. `createAdminSupabase()` — ocolirea completă a RLS
 
 Fiecare apel nou sau modificat trebuie să aibă, cumulativ:
+
 - un comentariu care explică **de ce RLS nu poate face treaba** (nu „e mai simplu");
 - **filtru explicit pe `organization_id`** la fiecare interogare — `.eq("organization_id", …)`. Un `.from("employees").select("*")` fără el întoarce angajații tuturor firmelor;
 - o intrare în `audit_logs` cu `actor_id` real, nu `null`.
 
 Lipsa oricăreia e finding. Lipsa filtrului pe `organization_id` e **critical**, fără excepție.
 
-Verifică și *unde* apare: e într-o cale pe care ajunge un request de utilizator obișnuit? `actions.ts` e permis de ESLint, dar permis ≠ corect — un `actions.ts` dintr-un modul obișnuit (`(app)/**`) care folosește `service_role` e aproape sigur o greșeală; locul legitim e `(platform)/super-admin/**`.
+Verifică și _unde_ apare: e într-o cale pe care ajunge un request de utilizator obișnuit? `actions.ts` e permis de ESLint, dar permis ≠ corect — un `actions.ts` dintr-un modul obișnuit (`(app)/**`) care folosește `service_role` e aproape sigur o greșeală; locul legitim e `(platform)/super-admin/**`.
 
 ### 2. Server Actions — autorizarea
 
@@ -60,6 +61,7 @@ CNP și IBAN sunt criptate AES-256-GCM cu chei versionate (`HR_ENCRYPTION_KEYS`,
 ### 5. Route Handlers și margini publice
 
 `src/app/api/**/route.ts` (sunt doar 5, deci orice modificare acolo contează) și `src/proxy.ts`:
+
 - verificare de autentificare/semnătură explicită — un route handler nu e protejat de niciun layout;
 - webhook-uri: validarea semnăturii înainte de a citi payload-ul;
 - rute noi excluse din matcher-ul de autentificare din `src/proxy.ts` — fiecare excludere trebuie justificată (`/healthz` e legitim; altele, verifică);

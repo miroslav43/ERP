@@ -1,10 +1,5 @@
 // src/app/(app)/flota/etichete.ts
-import type {
-  CategorieVehicul,
-  Combustibil,
-  StatusFoaie,
-  StatusVehicul,
-} from "@/schemas/fleet";
+import type { CategorieVehicul, Combustibil, StatusFoaie, StatusVehicul } from "@/schemas/fleet";
 
 export const ETICHETE_STATUS_VEHICUL: Readonly<Record<StatusVehicul, string>> = {
   activ: "În parc",

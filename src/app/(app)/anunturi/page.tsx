@@ -63,9 +63,7 @@ export default async function PaginaAnunturi() {
                   href={`/anunturi/${a.id}`}
                   className="flex flex-wrap items-center gap-2 underline-offset-2 hover:underline"
                 >
-                  {a.fixat ? (
-                    <Pin className="text-primary size-4 shrink-0" aria-hidden />
-                  ) : null}
+                  {a.fixat ? <Pin className="text-primary size-4 shrink-0" aria-hidden /> : null}
                   <span className="font-medium">{a.titlu}</span>
                   {ciorna ? (
                     <span className="bg-surface text-muted-foreground rounded px-2 py-0.5 text-xs">

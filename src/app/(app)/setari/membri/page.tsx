@@ -63,7 +63,9 @@ export default async function SetariMembriPage() {
   if (membriRezultat.error !== null || invitatiiRezultat.error !== null) {
     const cauza = membriRezultat.error ?? invitatiiRezultat.error;
     // Mesajul intern păstrează cauza reală; utilizatorul vede ecranul de eroare.
-    throw new Error(`Lista de membri nu a putut fi încărcată: ${cauza?.message ?? "cauză necunoscută"}`);
+    throw new Error(
+      `Lista de membri nu a putut fi încărcată: ${cauza?.message ?? "cauză necunoscută"}`,
+    );
   }
 
   const idUtilizatori = (membriRezultat.data ?? [])
@@ -81,9 +83,7 @@ export default async function SetariMembriPage() {
     );
   }
 
-  const emailDupaId = new Map(
-    (profiluriRezultat.data ?? []).map((p) => [p.id, p.email] as const),
-  );
+  const emailDupaId = new Map((profiluriRezultat.data ?? []).map((p) => [p.id, p.email] as const));
 
   const membri: readonly RandMembru[] = (membriRezultat.data ?? []).map((rand) => ({
     id: rand.id,

@@ -9,12 +9,12 @@ Astăzi `organizations.cod_caen` e o singură coloană text opțională, cu un s
 cod CAEN pe 4 cifre. Realitatea legală (Legea 31/1990, OUG 44/2008, Legea
 182/2016) impune reguli diferite pe formă juridică:
 
-| Formă juridică | Principal | Secundare (maxim) |
-|---|---|---|
-| SRL, SA, SNC, SCS, RA, IF, ONG | exact 1 | nelimitat |
-| PFA | exact 1 | 4 (total ≤ 5) |
-| II | exact 1 | 9 (total ≤ 10) |
-| SRL-D | exact 1 | nelimitat ca număr, dar principal+secundare împreună trebuie să facă parte din **cel mult 5 grupe** distincte (cod pe 3 cifre); anumite coduri sunt complet interzise (listă mai jos) |
+| Formă juridică                 | Principal | Secundare (maxim)                                                                                                                                                                     |
+| ------------------------------ | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SRL, SA, SNC, SCS, RA, IF, ONG | exact 1   | nelimitat                                                                                                                                                                             |
+| PFA                            | exact 1   | 4 (total ≤ 5)                                                                                                                                                                         |
+| II                             | exact 1   | 9 (total ≤ 10)                                                                                                                                                                        |
+| SRL-D                          | exact 1   | nelimitat ca număr, dar principal+secundare împreună trebuie să facă parte din **cel mult 5 grupe** distincte (cod pe 3 cifre); anumite coduri sunt complet interzise (listă mai jos) |
 
 Aplicația va transmite date către ANAF și va genera documente oficiale —
 denumirea juridică completă a fost deja rezolvată (`legal_name`, obligatoriu la
@@ -29,6 +29,7 @@ juridică selectată. Se aplică la înrolare **și** la editarea ulterioară a
 organizației (super-admin și Setări → Organizație).
 
 **Decizii confirmate cu utilizatorul** (nu se redeschid fără discuție explicită):
+
 - Se aplică peste tot (înrolare + ambele ecrane de editare), nu doar la înrolare.
 - Codurile secundare se stochează într-o coloană `text[]`, nu un tabel separat.
 - Zona de coduri secundare e mereu vizibilă; doar limita maximă variază pe formă
@@ -84,9 +85,12 @@ type FormaJuridica = (typeof FORME_JURIDICE)[number];
 /** `null` = nelimitat. */
 export function maximSecundare(forma: FormaJuridica): number | null {
   switch (forma) {
-    case "PFA": return 4;
-    case "II": return 9;
-    default: return null; // SRL, SRL-D, SA, SNC, SCS, RA, IF, ONG
+    case "PFA":
+      return 4;
+    case "II":
+      return 9;
+    default:
+      return null; // SRL, SRL-D, SA, SNC, SCS, RA, IF, ONG
   }
 }
 
@@ -98,17 +102,29 @@ export function maximSecundare(forma: FormaJuridica): number | null {
 export const CODURI_INTERZISE_SRLD: ReadonlySet<string> = new Set([
   "9200", // jocuri de noroc și pariuri
   "2530", // fabricarea armamentului și muniției
-  "1200", "4635", "4726", // tutun: producție, comerț cu ridicata, comerț cu amănuntul
-  "1101", "1102", "1105", "4634", "4725", // alcool: distilare, vin, bere, comerț ridicata/amănuntul
-  "6811", "6812", "6820", "6831", "6832", // tranzacții imobiliare (toată secțiunea M)
-  "6419", "6492", "6511", "6512", // intermedieri financiare/asigurări — selecție de bază, NU toată secțiunea L
+  "1200",
+  "4635",
+  "4726", // tutun: producție, comerț cu ridicata, comerț cu amănuntul
+  "1101",
+  "1102",
+  "1105",
+  "4634",
+  "4725", // alcool: distilare, vin, bere, comerț ridicata/amănuntul
+  "6811",
+  "6812",
+  "6820",
+  "6831",
+  "6832", // tranzacții imobiliare (toată secțiunea M)
+  "6419",
+  "6492",
+  "6511",
+  "6512", // intermedieri financiare/asigurări — selecție de bază, NU toată secțiunea L
 ]);
 
 const NUMAR_MAXIM_GRUPE_SRLD = 5;
 
 export type RezultatValidareCaen =
-  | Readonly<{ valid: true }>
-  | Readonly<{ valid: false; eroare: string }>;
+  Readonly<{ valid: true }> | Readonly<{ valid: false; eroare: string }>;
 
 /**
  * `principal` poate lipsi (ecranele de editare îl permit opțional) — în acest
@@ -170,11 +186,13 @@ export const caenClasaSchema = z
 ```
 
 `onboardeazaOrganizatieSchema`:
+
 - `cod_caen`: `caenClasaSchema` (înlocuiește `codCaenSchema` opțional de azi — devine obligatoriu, ca `legal_name`).
 - `cod_caen_secundare: z.array(caenClasaSchema).max(50).default([])` (plafonul de 50 e doar o gardă de sanitate împotriva unui payload absurd, nu o regulă de business — niciuna dintre formele juridice nu are un maxim sub 10 în practică, dar SRL/SA/IF/ONG sunt „nelimitat”, deci tot trebuie un plafon tehnic undeva).
 - `.superRefine((valori, ctx) => { const r = valideazaSelectieCaen(valori.forma_juridica, valori.cod_caen, valori.cod_caen_secundare); if (!r.valid) ctx.addIssue({ code: "custom", message: r.eroare, path: ["cod_caen_secundare"] }); })` — același tipar folosit deja de `cuiSchema`/`ibanOrganizatieSchema` (nu `.check()`, ca să rămână consistent cu restul fișierului).
 
 `actualizeazaOrganizatieSchema`:
+
 - `cod_caen: opțional(caenClasaSchema)` (rămâne opțional).
 - `cod_caen_secundare: z.array(caenClasaSchema).max(50).default([])`.
 - Același `.check(...)`, care cu `principal === undefined` întoarce mereu `valid: true` (regula de mai sus).
@@ -205,11 +223,12 @@ Filtrare comună (extrasă ca funcție, nu duplicată în cele două variante):
 ```ts
 function filtreazaCaen(interogare: string, exclude: ReadonlySet<string>): readonly CodCaen[] {
   const termen = normalizeaza(interogare.trim()); // reia normalizarea din command-palette.tsx
-  const rezultate = termen.length === 0
-    ? NOMENCLATOR_CAEN
-    : NOMENCLATOR_CAEN.filter(
-        (c) => c.cod.startsWith(termen) || normalizeaza(c.denumire).includes(termen),
-      );
+  const rezultate =
+    termen.length === 0
+      ? NOMENCLATOR_CAEN
+      : NOMENCLATOR_CAEN.filter(
+          (c) => c.cod.startsWith(termen) || normalizeaza(c.denumire).includes(termen),
+        );
   return rezultate.filter((c) => !exclude.has(c.cod)).slice(0, 20);
 }
 ```

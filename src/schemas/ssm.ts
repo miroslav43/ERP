@@ -235,7 +235,14 @@ export const eipSchema = z.object({
   cantitate: z.coerce.number().positive().max(1000).default(1),
   unitate: z.string().trim().min(1).max(20).default("buc"),
   data_predarii: z.iso.date(),
-  durata_utilizare_luni: z.coerce.number().int().positive().max(240).nullable().default(null).or(z.literal("").transform(() => null)),
+  durata_utilizare_luni: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(240)
+    .nullable()
+    .default(null)
+    .or(z.literal("").transform(() => null)),
   valoare: numarOptional(0, 100_000),
   semnatura_confirmata: z.coerce.boolean().default(false),
 });

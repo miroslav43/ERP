@@ -69,7 +69,8 @@ export function FormularModificaSalariu({ contractId, salariuActual }: Proprieta
           className="border-foreground/60 w-40 rounded-md border px-3 py-2 text-sm"
         />
         <p className="text-muted-foreground text-xs">
-          Actual: {formatLei(salariuActual)}. Se aplică din următoarea perioadă calculată — fluturașii deja calculați rămân neschimbați.
+          Actual: {formatLei(salariuActual)}. Se aplică din următoarea perioadă calculată —
+          fluturașii deja calculați rămân neschimbați.
         </p>
       </div>
       <div className="flex items-center gap-3">

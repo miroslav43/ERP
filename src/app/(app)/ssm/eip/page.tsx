@@ -59,7 +59,7 @@ async function TabelEip({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div className="border-border overflow-x-auto rounded-lg border">
         <table className="w-full text-sm">
           <caption className="sr-only">Echipamentul individual de protecție predat.</caption>
           <thead className="bg-surface text-left">
@@ -84,7 +84,7 @@ async function TabelEip({
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className="divide-border divide-y">
             {randuri.map((e) => {
               const angajat = angajati.get(e.employee_id);
               return (
@@ -94,14 +94,20 @@ async function TabelEip({
                   </td>
                   <td className="px-4 py-3">
                     {e.articol}
-                    {e.cod_articol === null ? null : <span className="text-muted-foreground"> · {e.cod_articol}</span>}
+                    {e.cod_articol === null ? null : (
+                      <span className="text-muted-foreground"> · {e.cod_articol}</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums">
                     {e.cantitate} {e.unitate}
                   </td>
                   <td className="px-4 py-3">{formatDate(e.data_predarii)}</td>
-                  <td className="px-4 py-3">{e.data_inlocuirii === null ? "—" : formatDate(e.data_inlocuirii)}</td>
-                  <td className="px-4 py-3">{e.returnat_la === null ? "—" : formatDate(e.returnat_la)}</td>
+                  <td className="px-4 py-3">
+                    {e.data_inlocuirii === null ? "—" : formatDate(e.data_inlocuirii)}
+                  </td>
+                  <td className="px-4 py-3">
+                    {e.returnat_la === null ? "—" : formatDate(e.returnat_la)}
+                  </td>
                 </tr>
               );
             })}
@@ -113,7 +119,7 @@ async function TabelEip({
         {urmatorulCursor === null ? null : (
           <Link
             href={`/ssm/eip?${cautare.toString()}`}
-            className="rounded-md border border-foreground/60 px-4 py-2 text-sm hover:bg-surface"
+            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
           >
             Pagina următoare
           </Link>
@@ -138,7 +144,11 @@ export default async function PaginaEip({ searchParams }: ProprietatiPagina) {
   const parametri = await searchParams;
   const poateCrea = can(permisiuni, "ssm:create", "team");
 
-  let angajati: readonly { readonly id: string; readonly full_name: string | null; readonly marca: string }[] = [];
+  let angajati: readonly {
+    readonly id: string;
+    readonly full_name: string | null;
+    readonly marca: string;
+  }[] = [];
   if (poateCrea) {
     const db = await createServerSupabase();
     const { data } = await db
@@ -156,13 +166,15 @@ export default async function PaginaEip({ searchParams }: ProprietatiPagina) {
     <main className="space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">Echipament individual de protecție</h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Predările de EIP, cu data de înlocuire calculată automat.
         </p>
       </header>
 
       <NavSsm
-        poateVedeaInstruiri={can(permisiuni, "ssm:read", "team") && can(permisiuni, "employees:read", "team")}
+        poateVedeaInstruiri={
+          can(permisiuni, "ssm:read", "team") && can(permisiuni, "employees:read", "team")
+        }
         poateVedeaMedicina={can(permisiuni, "ssm:read", "team")}
         poateVedeaAccidente={can(permisiuni, "ssm:read", "team")}
         poateVedeaStingatoare={can(permisiuni, "ssm:read", "team")}

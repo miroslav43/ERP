@@ -232,7 +232,7 @@ export function AsistentAngajatNou({
           <button
             type="submit"
             disabled={isSubmitting}
-            className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+            className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
           >
             {isSubmitting ? "Se înrolează…" : "Înrolează angajatul"}
           </button>

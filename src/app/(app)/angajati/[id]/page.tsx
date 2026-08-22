@@ -142,9 +142,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
           .eq("activ", true)
           .is("deleted_at", null)
           .order("denumire")
-          .returns<
-            { id: string; denumire: string; criterii: CriteriuSablonEvaluare[] }[]
-          >();
+          .returns<{ id: string; denumire: string; criterii: CriteriuSablonEvaluare[] }[]>();
         return data ?? [];
       })()
     : [];
@@ -587,7 +585,10 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                     {evaluare.raspunsuri.map((raspuns) => {
                       const criteriu = criteriiDupaCod.get(raspuns.criteriu_cod);
                       return (
-                        <li key={raspuns.criteriu_cod} className="bg-background rounded-full px-2 py-1">
+                        <li
+                          key={raspuns.criteriu_cod}
+                          className="bg-background rounded-full px-2 py-1"
+                        >
                           {criteriu?.denumire ?? raspuns.criteriu_cod}: {raspuns.scor}
                           {criteriu !== undefined ? `/${String(criteriu.scala_max)}` : ""}
                         </li>

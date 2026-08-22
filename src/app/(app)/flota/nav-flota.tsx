@@ -42,10 +42,7 @@ export function NavFlota({ poateVedeaFoi, poateAproba, poateVedeaAnomalii }: Pro
   ];
 
   return (
-    <nav
-      aria-label="Navigare parc auto"
-      className="flex flex-wrap gap-1 border-b border-border"
-    >
+    <nav aria-label="Navigare parc auto" className="border-border flex flex-wrap gap-1 border-b">
       {file.map((fila) => {
         const activ = cale === fila.href;
         return (
@@ -55,8 +52,8 @@ export function NavFlota({ poateVedeaFoi, poateAproba, poateVedeaAnomalii }: Pro
             aria-current={activ ? "page" : undefined}
             className={
               activ
-                ? "border-b-2 border-primary px-4 py-2 text-sm font-medium text-primary"
-                : "border-b-2 border-transparent px-4 py-2 text-sm text-muted-foreground hover:text-foreground"
+                ? "border-primary text-primary border-b-2 px-4 py-2 text-sm font-medium"
+                : "text-muted-foreground hover:text-foreground border-b-2 border-transparent px-4 py-2 text-sm"
             }
           >
             {fila.eticheta}

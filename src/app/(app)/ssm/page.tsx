@@ -47,18 +47,18 @@ function Card({ href, icon: Icon, titlu, numar }: CardPanou) {
   return (
     <Link
       href={href}
-      className="flex flex-col gap-3 rounded-lg border border-border p-4 hover:bg-surface"
+      className="border-border hover:bg-surface flex flex-col gap-3 rounded-lg border p-4"
     >
       <div className="flex items-center justify-between">
-        <Icon aria-hidden="true" className="size-5 text-muted-foreground" />
+        <Icon aria-hidden="true" className="text-muted-foreground size-5" />
         {numar > 0 ? (
-          <span className="rounded-full bg-warning/12 px-2 py-0.5 text-xs font-semibold text-foreground">
+          <span className="bg-warning/12 text-foreground rounded-full px-2 py-0.5 text-xs font-semibold">
             {numar}
           </span>
         ) : null}
       </div>
       <p className="text-sm font-medium">{titlu}</p>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-muted-foreground text-xs">
         {numar === 0 ? "Nimic de atenționat" : `${numar} de atenționat`}
       </p>
     </Link>
@@ -79,9 +79,12 @@ async function BandaAccidente({ organizationId }: { readonly organizationId: str
     <section
       aria-labelledby="accidente-necomunicate"
       role="alert"
-      className="space-y-3 rounded-lg border border-danger/40 bg-danger/8 p-4"
+      className="border-danger/40 bg-danger/8 space-y-3 rounded-lg border p-4"
     >
-      <h2 id="accidente-necomunicate" className="flex items-center gap-2 text-sm font-semibold text-danger">
+      <h2
+        id="accidente-necomunicate"
+        className="text-danger flex items-center gap-2 text-sm font-semibold"
+      >
         <ShieldAlert aria-hidden="true" className="size-4" />
         Accidente necomunicate la ITM
       </h2>
@@ -94,14 +97,16 @@ async function BandaAccidente({ organizationId }: { readonly organizationId: str
           return (
             <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
               <span>
-                <span className={`mr-2 rounded px-2 py-0.5 text-xs font-medium ${CLASE_TIP_ACCIDENT[a.tip]}`}>
+                <span
+                  className={`mr-2 rounded px-2 py-0.5 text-xs font-medium ${CLASE_TIP_ACCIDENT[a.tip]}`}
+                >
                   {ETICHETE_TIP_ACCIDENT[a.tip]}
                 </span>
                 {angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`}
                 {" · "}
                 {formatDate(a.data_producerii)}
               </span>
-              <span className="font-medium text-danger">
+              <span className="text-danger font-medium">
                 {raman >= 0
                   ? `mai sunt ${raman.toFixed(1)} ore`
                   : `termen depășit cu ${Math.abs(raman).toFixed(1)} ore`}
@@ -150,13 +155,15 @@ export default async function PaginaSsm() {
     <main className="space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">SSM și PSI</h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Situația la zi a instruirilor, medicinei muncii și apărării împotriva incendiilor.
         </p>
       </header>
 
       <NavSsm
-        poateVedeaInstruiri={can(permisiuni, "ssm:read", "team") && can(permisiuni, "employees:read", "team")}
+        poateVedeaInstruiri={
+          can(permisiuni, "ssm:read", "team") && can(permisiuni, "employees:read", "team")
+        }
         poateVedeaMedicina={can(permisiuni, "ssm:read", "team")}
         poateVedeaAccidente={can(permisiuni, "ssm:read", "team")}
         poateVedeaStingatoare={can(permisiuni, "ssm:read", "team")}
@@ -169,9 +176,19 @@ export default async function PaginaSsm() {
       {/* Șase carduri SEPARATE: instruirile SSM și PSI sunt obligații legale
           distincte, cu periodicități proprii — NICIODATĂ însumate. */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Card href="/ssm/instruiri?domeniu=ssm" icon={GraduationCap} titlu="Instruiri SSM" numar={ssm} />
+        <Card
+          href="/ssm/instruiri?domeniu=ssm"
+          icon={GraduationCap}
+          titlu="Instruiri SSM"
+          numar={ssm}
+        />
         <Card href="/ssm/instruiri?domeniu=psi" icon={Flame} titlu="Instruiri PSI" numar={psi} />
-        <Card href="/ssm/medicina-muncii" icon={Stethoscope} titlu="Fișe de aptitudine" numar={fise} />
+        <Card
+          href="/ssm/medicina-muncii"
+          icon={Stethoscope}
+          titlu="Fișe de aptitudine"
+          numar={fise}
+        />
         <Card
           href="/ssm/stingatoare"
           icon={FireExtinguisher}
@@ -190,7 +207,12 @@ export default async function PaginaSsm() {
           titlu="Stingătoare — probă de presiune"
           numar={stingatoare.probaPresiune}
         />
-        <Card href="/ssm/autorizatii" icon={BadgeCheck} titlu="Autorizații nominale" numar={autorizatii} />
+        <Card
+          href="/ssm/autorizatii"
+          icon={BadgeCheck}
+          titlu="Autorizații nominale"
+          numar={autorizatii}
+        />
         <Card href="/ssm/eip" icon={HardHat} titlu="Echipament de protecție (EIP)" numar={eip} />
       </div>
     </main>

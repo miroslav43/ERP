@@ -81,10 +81,7 @@ export function filtreDinUrl<TSchema extends z.ZodType>(
  * seed-ul de sărbători legale acoperă 2024–2040, iar `internal.paste_ortodox`
  * refuză explicit în afara lui 1900–2199.
  */
-export function anDinUrl(
-  valoare: string | string[] | undefined,
-  implicit: number,
-): number {
+export function anDinUrl(valoare: string | string[] | undefined, implicit: number): number {
   const brut = Array.isArray(valoare) ? valoare[0] : valoare;
   if (brut === undefined) return implicit;
 

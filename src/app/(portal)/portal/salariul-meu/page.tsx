@@ -33,7 +33,9 @@ export default async function PaginaSalariulMeu() {
     return (
       <div className="p-4">
         <div className="bg-surface border-border rounded-lg border p-6 text-center">
-          <h1 className="text-foreground text-lg font-semibold">Nu aveți încă o fișă de personal</h1>
+          <h1 className="text-foreground text-lg font-semibold">
+            Nu aveți încă o fișă de personal
+          </h1>
           <p className="text-muted-foreground mt-2 text-sm">
             Salariul se leagă de un angajat. Cereți resurselor umane să vă completeze fișa.
           </p>

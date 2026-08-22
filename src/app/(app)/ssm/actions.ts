@@ -122,7 +122,14 @@ export const inregistreazaAccident = createAction({
     action: "create",
     entityType: "work_accident",
     entityId: (_input, data: Readonly<{ id: string }>) => data.id,
-    allow: ["numar_intern", "employee_id", "data_producerii", "ora_producerii", "tip", "zile_incapacitate"],
+    allow: [
+      "numar_intern",
+      "employee_id",
+      "data_producerii",
+      "ora_producerii",
+      "tip",
+      "zile_incapacitate",
+    ],
   },
   revalidate: ["/ssm", "/ssm/accidente"],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {

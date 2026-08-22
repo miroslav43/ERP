@@ -32,7 +32,7 @@ docs/**
 public/**
 ```
 
-`src/types/database.ts` se exclude din *citire*, dar **prezența sau absența lui din diff e un semnal** pe care îl transmiți lui `revizor-baza-date` și lui `revizor-contracte`: o migrare fără regenerarea tipurilor e exact tiparul de drift.
+`src/types/database.ts` se exclude din _citire_, dar **prezența sau absența lui din diff e un semnal** pe care îl transmiți lui `revizor-baza-date` și lui `revizor-contracte`: o migrare fără regenerarea tipurilor e exact tiparul de drift.
 
 **Dacă după excluderi nu rămâne niciun fișier:** scrie un `findings.json` gol valid (vezi §5), un `raport.md` de o linie, și oprește-te. Nu dispecerizezi agenți degeaba.
 
@@ -44,13 +44,13 @@ public/**
 
 **Un singur mesaj cu cinci apeluri de agent.** Fiecare primește: intervalul, lista fișierelor schimbate relevante ariei lui, și instrucțiunea de a-și citi singur contextul din repo.
 
-| Agent | Aria | Se sare când… |
-|---|---|---|
+| Agent                | Aria                                                                                                                                     | Se sare când…          |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
 | `revizor-securitate` | `src/lib/supabase/`, `src/lib/actions/`, `src/lib/crypto/`, `**/actions.ts`, `src/app/api/`, `src/proxy.ts`, `src/config/permissions.ts` | niciun fișier din arie |
-| `revizor-baza-date` | `supabase/migrations/`, `scripts/checks/`, `tests/rls/`, `src/types/database.ts` | niciun fișier din arie |
-| `revizor-domeniu` | `src/domain/`, `src/schemas/`, orice calcul pe bani/zile/ore | niciun fișier din arie |
-| `revizor-nextjs` | `src/app/`, `src/components/`, `src/lib/queries/`, `next.config.ts` | niciun fișier din arie |
-| `revizor-contracte` | diff-ul complet, oriunde | **niciodată** |
+| `revizor-baza-date`  | `supabase/migrations/`, `scripts/checks/`, `tests/rls/`, `src/types/database.ts`                                                         | niciun fișier din arie |
+| `revizor-domeniu`    | `src/domain/`, `src/schemas/`, orice calcul pe bani/zile/ore                                                                             | niciun fișier din arie |
+| `revizor-nextjs`     | `src/app/`, `src/components/`, `src/lib/queries/`, `next.config.ts`                                                                      | niciun fișier din arie |
+| `revizor-contracte`  | diff-ul complet, oriunde                                                                                                                 | **niciodată**          |
 
 `revizor-contracte` nu se sare **niciodată**, nici măcar când diff-ul atinge un singur fișier — atunci e cel mai valoros, fiindcă driftul e prin definiție în straturile pe care nimeni nu s-a uitat.
 
@@ -65,6 +65,7 @@ Un singur mesaj cu câte un apel `verificator-finding` **per finding**, dându-i
 Peste ~10 findings, împarte în loturi de 10 (mesaje secvențiale), ca să nu trimiți zeci de apeluri deodată.
 
 Reguli:
+
 - păstrezi doar findings-urile cu verdict `CONFIRMAT`;
 - aplici severitatea corectată și corecturile pe care le întoarce verificatorul;
 - numeri cele `RESPINSE` și scrii numărul în raport — transparența e ce face pragul credibil;
@@ -79,6 +80,7 @@ Două findings pe același `fișier:linie` cu aceeași cauză sunt unul singur �
 Atribuie ID-uri stabile, pe severitate: `C-1, C-2…` pentru critical, `H-1…` high, `M-1…` medium, `L-1…` low.
 
 Setează `reparabil_automat: false` — indiferent ce a spus agentul care l-a găsit — pentru orice finding care:
+
 - cere aplicarea unei migrări pe baza reală, sau modificarea uneia deja aplicate;
 - schimbă un contract public (semnătură exportată, formă de RPC, coloană);
 - are `incredere: "low"`;
@@ -137,25 +139,31 @@ Respinse la verificarea adversarială: R
 ### 🔴 Critical
 
 #### C-1 · [SECURITATE] `src/lib/queries/leave.ts:727`
+
 **Bug:** …
 **De ce:** …
 **Fix:** …
 **Încredere:** high · **Reparabil automat:** da
 
 ### 🟠 High
+
 ### 🟡 Medium
+
 ### 🟢 Low
 
 ### ✅ Arii verificate fără probleme
+
 - …
 
 ---
+
 <sub>Revizuire multi-agent · 5 revizori + verificare adversarială per finding · `.claude/skills/revizuire-erp/`</sub>
 ```
 
 Secțiunile de severitate fără findings se omit complet. **„Arii verificate fără probleme" se include întotdeauna** — altfel un raport gol e ambiguu între „nu s-a găsit nimic" și „nu s-a uitat nimeni".
 
 Dacă `barierele_sql_ruleaza` e `false`, pune imediat sub antet:
+
 > ⚠️ Barierele SQL din CI nu rulează (jobul `migrations` e roșu). Verificările de RLS, `SECURITY DEFINER` și politici au fost făcute manual de agent, nu de Postgres.
 
 **Limită dură: 60.000 de caractere.** Peste, taie de la `Low` în sus și adaugă o linie cu ce a fost tăiat — comentariile GitHub se resping peste 65.536.

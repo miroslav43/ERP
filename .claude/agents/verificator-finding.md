@@ -20,7 +20,7 @@ Un finding respins pe nedrept costă o problemă rămasă în cod. Un finding co
 1. **Citește codul real.** Deschide fișierul la linia indicată și citește contextul din jur — nu te baza pe fragmentul din finding. Descrierea poate fi corectă și concluzia greșită.
 
 2. **Caută mecanismul care ar face problema imposibilă.** Aproape fiecare fals pozitiv din acest proiect moare aici:
-   - **RLS.** Interogarea pare să nu filtreze pe `organization_id`, dar merge prin `ctx.supabase` (clientul cu sesiune) — politica din bază filtrează. Verifică *ce client* se folosește: `createServerSupabase()` e sub RLS, `createAdminSupabase()` nu.
+   - **RLS.** Interogarea pare să nu filtreze pe `organization_id`, dar merge prin `ctx.supabase` (clientul cu sesiune) — politica din bază filtrează. Verifică _ce client_ se folosește: `createServerSupabase()` e sub RLS, `createAdminSupabase()` nu.
    - **Wrapperul `createAction`.** Autentificarea, organizația, modulul, permisiunea și validarea Zod se fac în `src/lib/actions/create-action.ts`, în ordine fixă, **înainte** de handler. Un finding de tipul „handlerul nu verifică autentificarea" e aproape sigur fals.
    - **ESLint.** `eslint.config.mjs` blochează `no-explicit-any` și importul lui `lib/supabase/admin` în afara allowlist-ului. Ce e deja blocat nu e finding.
    - **`import "server-only"`.** Sparge build-ul dacă modulul ajunge într-un bundle de client.

@@ -72,7 +72,12 @@ export function TaxePieChart({ felii, titluCentral = "din brut" }: Proprietati) 
             </circle>
           ))}
         </g>
-        <text x={100} y={96} textAnchor="middle" className="fill-foreground text-[15px] font-medium">
+        <text
+          x={100}
+          y={96}
+          textAnchor="middle"
+          className="fill-foreground text-[15px] font-medium"
+        >
           {formatLei(total)}
         </text>
         <text x={100} y={114} textAnchor="middle" className="fill-muted-foreground text-[10px]">
@@ -88,7 +93,7 @@ export function TaxePieChart({ felii, titluCentral = "din brut" }: Proprietati) 
               className="size-2.5 shrink-0 rounded-full"
             />
             <span className="flex-1">{f.eticheta}</span>
-            <span className="tabular-nums font-medium">{formatLei(f.valoare)}</span>
+            <span className="font-medium tabular-nums">{formatLei(f.valoare)}</span>
             <span className="text-muted-foreground text-xs">
               ({total > 0 ? ((f.valoare / total) * 100).toFixed(1) : "0"}%)
             </span>

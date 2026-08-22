@@ -8,7 +8,7 @@ export function ButonTipar() {
       onClick={() => {
         window.print();
       }}
-      className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+      className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium"
     >
       Tipărește
     </button>

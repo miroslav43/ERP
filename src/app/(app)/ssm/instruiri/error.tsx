@@ -25,8 +25,8 @@ export default function EroareInstruiri({
         <p className="text-muted-foreground mt-2 text-sm">
           A apărut o eroare neașteptată. Reîncercați — dacă problema persistă, notați codul de
           referință{" "}
-          {error.digest !== undefined ? <span className="font-mono">{error.digest}</span> : null}{" "}
-          și contactați administratorul.
+          {error.digest !== undefined ? <span className="font-mono">{error.digest}</span> : null} și
+          contactați administratorul.
         </p>
         <button
           type="button"

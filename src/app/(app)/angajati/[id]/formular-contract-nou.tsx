@@ -110,8 +110,8 @@ export function FormularContractNou({ employeeId }: Proprietati) {
         />
       </div>
       <p className="text-muted-foreground text-xs sm:col-span-2">
-        Restul clauzelor (durată nedeterminată, normă 40 ore/săptămână, loc de muncă sediu, 21 zile de
-        concediu anual) se completează cu valorile implicite — le puteți schimba ulterior.
+        Restul clauzelor (durată nedeterminată, normă 40 ore/săptămână, loc de muncă sediu, 21 zile
+        de concediu anual) se completează cu valorile implicite — le puteți schimba ulterior.
       </p>
       <div className="flex items-center gap-3 sm:col-span-2">
         <button

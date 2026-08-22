@@ -93,42 +93,41 @@ export const dezactiveazaSablonEvaluare = createAction<
   },
 });
 
-export const creeazaEvaluare = createAction<
-  typeof creeazaEvaluareSchema,
-  Readonly<{ id: string }>
->({
-  name: "employee_evaluations.create",
-  feature: "evaluations",
-  permission: "employees:update",
-  minScope: "team",
-  input: creeazaEvaluareSchema,
-  audit: {
-    action: "create",
-    entityType: "employee_evaluations",
-    entityId: (_input, data) => data.id,
-    // `raspunsuri`/`concluzie` rămân în afara jurnalului — conținut de evaluare,
-    // nu doar metadate, la fel ca la CNP/salariu în alte tabele.
-    allow: ["employee_id", "template_id", "data_evaluarii", "status"],
+export const creeazaEvaluare = createAction<typeof creeazaEvaluareSchema, Readonly<{ id: string }>>(
+  {
+    name: "employee_evaluations.create",
+    feature: "evaluations",
+    permission: "employees:update",
+    minScope: "team",
+    input: creeazaEvaluareSchema,
+    audit: {
+      action: "create",
+      entityType: "employee_evaluations",
+      entityId: (_input, data) => data.id,
+      // `raspunsuri`/`concluzie` rămân în afara jurnalului — conținut de evaluare,
+      // nu doar metadate, la fel ca la CNP/salariu în alte tabele.
+      allow: ["employee_id", "template_id", "data_evaluarii", "status"],
+    },
+    handler: async (ctx, input) => {
+      const { data, error } = await ctx.supabase
+        .from("employee_evaluations")
+        .insert({
+          organization_id: ctx.tenant.organizationId,
+          employee_id: input.employee_id,
+          template_id: input.template_id,
+          evaluator_id: ctx.user.id,
+          data_evaluarii: input.data_evaluarii,
+          raspunsuri: input.raspunsuri,
+          concluzie: input.concluzie,
+          status: input.status,
+          created_by: ctx.user.id,
+          updated_by: ctx.user.id,
+        })
+        .select("id")
+        .single();
+      if (error !== null) throw mapPostgrestError(error, ctx.requestId);
+      revalidatePath(`/angajati/${input.employee_id}`);
+      return { id: data.id };
+    },
   },
-  handler: async (ctx, input) => {
-    const { data, error } = await ctx.supabase
-      .from("employee_evaluations")
-      .insert({
-        organization_id: ctx.tenant.organizationId,
-        employee_id: input.employee_id,
-        template_id: input.template_id,
-        evaluator_id: ctx.user.id,
-        data_evaluarii: input.data_evaluarii,
-        raspunsuri: input.raspunsuri,
-        concluzie: input.concluzie,
-        status: input.status,
-        created_by: ctx.user.id,
-        updated_by: ctx.user.id,
-      })
-      .select("id")
-      .single();
-    if (error !== null) throw mapPostgrestError(error, ctx.requestId);
-    revalidatePath(`/angajati/${input.employee_id}`);
-    return { id: data.id };
-  },
-});
+);

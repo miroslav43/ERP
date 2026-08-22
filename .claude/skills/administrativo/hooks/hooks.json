@@ -5,7 +5,11 @@
       {
         "matcher": "startup|resume|clear|compact",
         "hooks": [
-          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/digest.mjs\"", "timeout": 10 }
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/digest.mjs\"",
+            "timeout": 10
+          }
         ]
       }
     ],
@@ -13,8 +17,17 @@
       {
         "matcher": "Edit|Write|MultiEdit",
         "hooks": [
-          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/paza-editare.mjs\"", "timeout": 15, "statusMessage": "Verific capcanele cunoscute..." },
-          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/migrare.mjs\"", "timeout": 10 }
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/paza-editare.mjs\"",
+            "timeout": 15,
+            "statusMessage": "Verific capcanele cunoscute..."
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/migrare.mjs\"",
+            "timeout": 10
+          }
         ]
       }
     ],
@@ -22,7 +35,11 @@
       {
         "matcher": "Edit|Write|MultiEdit",
         "hooks": [
-          { "type": "command", "command": "f=$(jq -r '.tool_input.file_path // empty'); case \"$f\" in *.ts|*.tsx|*.json|*.css) (cd \"${CLAUDE_PROJECT_DIR:-.}\" && pnpm exec prettier --write \"$f\" >/dev/null 2>&1) ;; esac; exit 0", "statusMessage": "Formatare Prettier..." }
+          {
+            "type": "command",
+            "command": "f=$(jq -r '.tool_input.file_path // empty'); case \"$f\" in *.ts|*.tsx|*.json|*.css) (cd \"${CLAUDE_PROJECT_DIR:-.}\" && pnpm exec prettier --write \"$f\" >/dev/null 2>&1) ;; esac; exit 0",
+            "statusMessage": "Formatare Prettier..."
+          }
         ]
       }
     ],
@@ -30,7 +47,10 @@
       {
         "matcher": "",
         "hooks": [
-          { "type": "command", "command": "cd \"${CLAUDE_PROJECT_DIR:-.}\" 2>/dev/null || exit 0; [ -f supabase/migrations/0002_authz.sql ] || exit 0; git status --porcelain -- src supabase 2>/dev/null | grep -q . || exit 0; printf '%s' '{\"systemMessage\":\"pnpm verify = typecheck + lint + format:check + test. NU include build. Singurul care prinde granita server/client (un fisier \\\"use server\\\" care exporta o constanta) este pnpm build. Ruleaza: pnpm typecheck && pnpm lint && pnpm test && pnpm build\"}'; exit 0" }
+          {
+            "type": "command",
+            "command": "cd \"${CLAUDE_PROJECT_DIR:-.}\" 2>/dev/null || exit 0; [ -f supabase/migrations/0002_authz.sql ] || exit 0; git status --porcelain -- src supabase 2>/dev/null | grep -q . || exit 0; printf '%s' '{\"systemMessage\":\"pnpm verify = typecheck + lint + format:check + test. NU include build. Singurul care prinde granita server/client (un fisier \\\"use server\\\" care exporta o constanta) este pnpm build. Ruleaza: pnpm typecheck && pnpm lint && pnpm test && pnpm build\"}'; exit 0"
+          }
         ]
       }
     ]

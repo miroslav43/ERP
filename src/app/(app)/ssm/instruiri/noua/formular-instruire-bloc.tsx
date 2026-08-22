@@ -52,7 +52,8 @@ export function FormularInstruireBloc({
     const text = cauta.trim().toLowerCase();
     if (text.length === 0) return angajati;
     return angajati.filter(
-      (a) => (a.full_name ?? "").toLowerCase().includes(text) || a.marca.toLowerCase().includes(text),
+      (a) =>
+        (a.full_name ?? "").toLowerCase().includes(text) || a.marca.toLowerCase().includes(text),
     );
   }, [angajati, cauta]);
 
@@ -117,7 +118,7 @@ export function FormularInstruireBloc({
             id={id.tip}
             name="training_type_id"
             required
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           >
             {tipuri.map((t) => (
               <option key={t.id} value={t.id}>
@@ -136,7 +137,7 @@ export function FormularInstruireBloc({
             name="data_instruirii"
             type="date"
             required
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           />
         </div>
 
@@ -151,7 +152,7 @@ export function FormularInstruireBloc({
             min={0}
             step="0.5"
             defaultValue={2}
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           />
         </div>
 
@@ -165,7 +166,7 @@ export function FormularInstruireBloc({
             type="number"
             min={0}
             max={100}
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           />
         </div>
 
@@ -177,7 +178,7 @@ export function FormularInstruireBloc({
             id={id.lectorAngajat}
             name="lector_employee_id"
             defaultValue=""
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           >
             <option value="">—</option>
             {angajati.map((a) => (
@@ -196,7 +197,7 @@ export function FormularInstruireBloc({
             id={id.lectorExtern}
             name="lector_extern"
             maxLength={120}
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           />
         </div>
 
@@ -209,7 +210,7 @@ export function FormularInstruireBloc({
             name="tematica"
             rows={2}
             maxLength={2000}
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           />
         </div>
 
@@ -221,7 +222,7 @@ export function FormularInstruireBloc({
             id={id.materiale}
             name="materiale"
             maxLength={500}
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           />
         </div>
 
@@ -233,12 +234,12 @@ export function FormularInstruireBloc({
             id={id.observatii}
             name="observatii"
             maxLength={1000}
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           />
         </div>
       </div>
 
-      <fieldset className="space-y-3 rounded-lg border border-border p-4">
+      <fieldset className="border-border space-y-3 rounded-lg border p-4">
         <legend className="px-1 text-sm font-medium">
           Angajați ({selectati.size} selectați din {angajati.length})
         </legend>
@@ -255,12 +256,12 @@ export function FormularInstruireBloc({
             onChange={(e) => {
               setCauta(e.target.value);
             }}
-            className="min-w-56 flex-1 rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 min-w-56 flex-1 rounded-md border px-3 py-2 text-sm"
           />
           <button
             type="button"
             onClick={selecteazaToti}
-            className="rounded-md border border-foreground/60 px-3 py-1.5 text-sm hover:bg-surface"
+            className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-1.5 text-sm"
           >
             Selectează toți cei afișați
           </button>
@@ -269,20 +270,22 @@ export function FormularInstruireBloc({
             onClick={() => {
               setSelectati(new Set());
             }}
-            className="rounded-md border border-foreground/60 px-3 py-1.5 text-sm hover:bg-surface"
+            className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-1.5 text-sm"
           >
             Golește selecția
           </button>
         </div>
 
-        <div className="max-h-72 space-y-1 overflow-y-auto rounded-md border border-border p-2">
+        <div className="border-border max-h-72 space-y-1 overflow-y-auto rounded-md border p-2">
           {angajatiFiltrati.length === 0 ? (
-            <p className="p-2 text-sm text-muted-foreground">Niciun angajat nu se potrivește căutării.</p>
+            <p className="text-muted-foreground p-2 text-sm">
+              Niciun angajat nu se potrivește căutării.
+            </p>
           ) : (
             angajatiFiltrati.map((a) => (
               <label
                 key={a.id}
-                className="flex items-center gap-2 rounded px-2 py-1 text-sm hover:bg-surface"
+                className="hover:bg-surface flex items-center gap-2 rounded px-2 py-1 text-sm"
               >
                 <input
                   type="checkbox"
@@ -302,12 +305,12 @@ export function FormularInstruireBloc({
         <button
           type="submit"
           disabled={inCurs}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
         >
           {inCurs ? "Se salvează…" : "Înregistrează instruirea"}
         </button>
         {eroare === null ? null : (
-          <p role="alert" className="text-sm text-danger">
+          <p role="alert" className="text-danger text-sm">
             {eroare}
           </p>
         )}

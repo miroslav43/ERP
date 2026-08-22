@@ -59,7 +59,7 @@ async function TabelFise({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div className="border-border overflow-x-auto rounded-lg border">
         <table className="w-full text-sm">
           <caption className="sr-only">Fișele de aptitudine la care aveți acces.</caption>
           <thead className="bg-surface text-left">
@@ -81,7 +81,7 @@ async function TabelFise({
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className="divide-border divide-y">
             {randuri.map((f) => {
               const angajat = angajati.get(f.employee_id);
               return (
@@ -91,7 +91,9 @@ async function TabelFise({
                   </td>
                   <td className="px-4 py-3">{ETICHETE_TIP_EXAMEN[f.tip]}</td>
                   <td className="px-4 py-3">{formatDate(f.data_examinarii)}</td>
-                  <td className="px-4 py-3">{f.valabil_pana === null ? "—" : formatDate(f.valabil_pana)}</td>
+                  <td className="px-4 py-3">
+                    {f.valabil_pana === null ? "—" : formatDate(f.valabil_pana)}
+                  </td>
                   <td className="px-4 py-3">
                     <span
                       className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_REZULTAT_EXAMEN[f.rezultat]}`}
@@ -110,7 +112,7 @@ async function TabelFise({
         {urmatorulCursor === null ? null : (
           <Link
             href={`/ssm/medicina-muncii?${cautare.toString()}`}
-            className="rounded-md border border-foreground/60 px-4 py-2 text-sm hover:bg-surface"
+            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
           >
             Pagina următoare
           </Link>
@@ -140,14 +142,14 @@ export default async function PaginaMedicinaMuncii({ searchParams }: Proprietati
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Medicina muncii</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Fișele de aptitudine. Diagnosticul nu se stochează — doar rezultatul.
           </p>
         </div>
         {poateCrea ? (
           <Link
             href="/ssm/medicina-muncii/noua"
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+            className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
           >
             <Plus aria-hidden="true" className="size-4" />
             Fișă nouă
@@ -156,7 +158,9 @@ export default async function PaginaMedicinaMuncii({ searchParams }: Proprietati
       </header>
 
       <NavSsm
-        poateVedeaInstruiri={can(permisiuni, "ssm:read", "team") && can(permisiuni, "employees:read", "team")}
+        poateVedeaInstruiri={
+          can(permisiuni, "ssm:read", "team") && can(permisiuni, "employees:read", "team")
+        }
         poateVedeaMedicina
         poateVedeaAccidente={can(permisiuni, "ssm:read", "team")}
         poateVedeaStingatoare={can(permisiuni, "ssm:read", "team")}

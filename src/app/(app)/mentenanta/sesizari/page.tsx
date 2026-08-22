@@ -42,7 +42,8 @@ async function TabelSesizari({
   const { randuri, urmatorulCursor } = await sesizari(organizationId, filtre);
 
   if (randuri.length === 0) {
-    const areFiltre = filtre.status !== null || filtre.urgenta !== null || filtre.echipament !== null;
+    const areFiltre =
+      filtre.status !== null || filtre.urgenta !== null || filtre.echipament !== null;
     return (
       <EmptyState
         icon={Wrench}
@@ -69,7 +70,7 @@ async function TabelSesizari({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div className="border-border overflow-x-auto rounded-lg border">
         <table className="w-full text-sm">
           <caption className="sr-only">Sesizările de defecțiune ale organizației.</caption>
           <thead className="bg-surface text-left">
@@ -91,13 +92,15 @@ async function TabelSesizari({
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className="divide-border divide-y">
             {randuri.map((sesizare) => {
               const echipament = echipamente.get(sesizare.equipment_id);
               return (
                 <RandTabel key={sesizare.id} href={`/mentenanta/sesizari/${sesizare.id}`}>
                   <td className="px-4 py-3 font-medium">
-                    {echipament === undefined ? "Echipament necunoscut" : `${echipament.cod} — ${echipament.denumire}`}
+                    {echipament === undefined
+                      ? "Echipament necunoscut"
+                      : `${echipament.cod} — ${echipament.denumire}`}
                   </td>
                   <td className="px-4 py-3">
                     <Link
@@ -133,7 +136,7 @@ async function TabelSesizari({
         {urmatorulCursor === null ? null : (
           <Link
             href={`/mentenanta/sesizari?${cautare.toString()}`}
-            className="rounded-md border border-foreground/60 px-4 py-2 text-sm hover:bg-surface"
+            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
           >
             Pagina următoare
           </Link>
@@ -161,13 +164,13 @@ export default async function PaginaSesizari({ searchParams }: ProprietatiPagina
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Sesizări de defecțiune</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Defecțiunile raportate, cu starea lor de triaj și rezolvare.
           </p>
         </div>
         <Link
           href="/mentenanta/sesizari/noua"
-          className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+          className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
         >
           Sesizare nouă
         </Link>

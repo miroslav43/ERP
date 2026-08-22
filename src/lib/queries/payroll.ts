@@ -176,9 +176,7 @@ export interface RandInregistrare {
   readonly cost_total_angajator: number;
 }
 
-export async function listeazaInregistrari(
-  periodId: string,
-): Promise<readonly RandInregistrare[]> {
+export async function listeazaInregistrari(periodId: string): Promise<readonly RandInregistrare[]> {
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("payroll_entries")
@@ -287,7 +285,9 @@ export async function zileLucratoareLuna(
   luna: number,
 ): Promise<number> {
   const { nationale, organizatie } = await zileNelucratoare(organizationId, an, an);
-  const liberSuplimentar = organizatie.filter((z) => z.tip === "liber_suplimentar").map((z) => z.data);
+  const liberSuplimentar = organizatie
+    .filter((z) => z.tip === "liber_suplimentar")
+    .map((z) => z.data);
   const zileRecuperare = organizatie.filter((z) => z.tip === "zi_recuperare").map((z) => z.data);
   const sarbatoriRo = nationale.map((z) => z.data);
 

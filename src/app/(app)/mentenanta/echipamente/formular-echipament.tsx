@@ -60,8 +60,7 @@ interface ValoriFormular {
   derogare_motiv: string;
 }
 
-const CLASA_CAMP =
-  "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
+const CLASA_CAMP = "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
 
 function laText(valoare: string | null): string {
   return valoare ?? "";
@@ -91,7 +90,10 @@ export function FormularEchipament({
       serie: laText(echipament?.serie ?? null),
       producator: laText(echipament?.producator ?? null),
       model: laText(echipament?.model ?? null),
-      an_fabricatie: echipament?.an_fabricatie === null || echipament?.an_fabricatie === undefined ? "" : String(echipament.an_fabricatie),
+      an_fabricatie:
+        echipament?.an_fabricatie === null || echipament?.an_fabricatie === undefined
+          ? ""
+          : String(echipament.an_fabricatie),
       locatie: laText(echipament?.locatie ?? null),
       department_id: echipament?.department_id ?? "",
       responsabil_employee_id: echipament?.responsabil_employee_id ?? "",
@@ -259,7 +261,7 @@ export function FormularEchipament({
         </div>
       </div>
 
-      <div className="rounded-lg border border-border p-4">
+      <div className="border-border rounded-lg border p-4">
         <label className="flex items-center gap-2 text-sm font-medium">
           <input type="checkbox" className="size-4" {...register("este_iscir")} />
           Echipament sub incidența ISCIR
@@ -297,7 +299,7 @@ export function FormularEchipament({
               </select>
             </div>
 
-            <p className="text-xs text-foreground sm:col-span-2">
+            <p className="text-foreground text-xs sm:col-span-2">
               {ssmActiv
                 ? "Responsabilul trebuie să aibă o autorizație nominală valabilă pe acest tip, altfel baza va respinge salvarea — verificați-o în modulul SSM."
                 : "Autorizațiile nominale se administrează în modulul SSM; fără el, un responsabil pe echipament ISCIR se poate desemna doar prin derogare motivată."}
@@ -341,7 +343,7 @@ export function FormularEchipament({
 
       <div aria-live="polite">
         {eroare !== null ? (
-          <p className="rounded-md border border-danger bg-danger/8 p-3 text-sm text-danger">
+          <p className="border-danger bg-danger/8 text-danger rounded-md border p-3 text-sm">
             {eroare}
           </p>
         ) : null}
@@ -350,7 +352,7 @@ export function FormularEchipament({
       <button
         type="submit"
         disabled={inCurs}
-        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+        className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
       >
         {inCurs ? "Se salvează…" : modEditare ? "Salvează modificările" : "Adaugă echipamentul"}
       </button>

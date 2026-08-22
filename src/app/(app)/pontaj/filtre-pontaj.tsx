@@ -76,7 +76,7 @@ export function FiltrePontaj({ an, luna, departamente }: Proprietati) {
   return (
     <form
       action={aplica}
-      className="flex flex-wrap items-end gap-3 rounded-lg border border-border p-4"
+      className="border-border flex flex-wrap items-end gap-3 rounded-lg border p-4"
     >
       <div className="flex flex-col gap-1">
         <label htmlFor={idAn} className="text-sm font-medium">
@@ -89,7 +89,7 @@ export function FiltrePontaj({ an, luna, departamente }: Proprietati) {
           min={2000}
           max={2100}
           defaultValue={an}
-          className="w-24 rounded-md border border-foreground/60 px-3 py-2 text-sm"
+          className="border-foreground/60 w-24 rounded-md border px-3 py-2 text-sm"
         />
       </div>
 
@@ -101,7 +101,7 @@ export function FiltrePontaj({ an, luna, departamente }: Proprietati) {
           id={idLuna}
           name="luna"
           defaultValue={luna}
-          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
         >
           {LUNI_ETICHETE.map((eticheta, index) => (
             <option key={eticheta} value={index + 1}>
@@ -120,7 +120,7 @@ export function FiltrePontaj({ an, luna, departamente }: Proprietati) {
             id={idDepartament}
             name="departament"
             defaultValue={parametri.get("departament") ?? ""}
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           >
             <option value="">Toate</option>
             {departamente.map((d) => (
@@ -142,14 +142,14 @@ export function FiltrePontaj({ an, luna, departamente }: Proprietati) {
           type="search"
           defaultValue={parametri.get("cauta") ?? ""}
           placeholder="Nume angajat"
-          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
         />
       </div>
 
       <button
         type="submit"
         disabled={inCurs}
-        className="inline-flex items-center gap-2 rounded-md border border-foreground/60 px-4 py-2 text-sm font-medium hover:bg-surface disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+        className="border-foreground/60 hover:bg-surface disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
       >
         <Search aria-hidden="true" className="size-4" />
         {inCurs ? "Se filtrează…" : "Filtrează"}

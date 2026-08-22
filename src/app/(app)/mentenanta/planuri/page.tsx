@@ -38,7 +38,10 @@ export default async function PaginaPlanuri() {
   const planuri = await planuriScadente(tenant.organizationId);
 
   const [echipamente, responsabili] = await Promise.all([
-    echipamenteDupaId(tenant.organizationId, planuri.map((p) => p.equipment_id)),
+    echipamenteDupaId(
+      tenant.organizationId,
+      planuri.map((p) => p.equipment_id),
+    ),
     angajatiDupaId(
       tenant.organizationId,
       planuri.map((p) => p.responsabil_employee_id).filter((v): v is string => v !== null),
@@ -49,9 +52,9 @@ export default async function PaginaPlanuri() {
     <main className="space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">Planuri de mentenanță</h1>
-        <p className="text-sm text-muted-foreground">
-          Planurile ACTIVE ale organizației, cu cea mai apropiată scadență prima. Scadența pe
-          contor se vede exact pe fișa fiecărui echipament, unde intră și ultima citire.
+        <p className="text-muted-foreground text-sm">
+          Planurile ACTIVE ale organizației, cu cea mai apropiată scadență prima. Scadența pe contor
+          se vede exact pe fișa fiecărui echipament, unde intră și ultima citire.
         </p>
       </header>
 
@@ -64,7 +67,7 @@ export default async function PaginaPlanuri() {
           description="Planurile se adaugă din fișa fiecărui echipament."
         />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border">
+        <div className="border-border overflow-x-auto rounded-lg border">
           <table className="w-full text-sm">
             <caption className="sr-only">Planurile de mentenanță active, cu scadența lor.</caption>
             <thead className="bg-surface text-left">
@@ -86,7 +89,7 @@ export default async function PaginaPlanuri() {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-border divide-y">
               {planuri.map((plan) => {
                 const echipament = echipamente.get(plan.equipment_id);
                 const stare = stareScadentaData(plan.urmatoarea_scadenta, azi);
@@ -101,7 +104,7 @@ export default async function PaginaPlanuri() {
                   >
                     <td className="px-4 py-3 font-medium">
                       {plan.denumire}
-                      <span className="ml-1 text-xs text-muted-foreground">
+                      <span className="text-muted-foreground ml-1 text-xs">
                         ({ETICHETE_TIP_MENTENANTA[plan.tip]})
                       </span>
                     </td>
@@ -117,9 +120,11 @@ export default async function PaginaPlanuri() {
                         </Link>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground">
+                    <td className="text-muted-foreground px-4 py-3 text-xs">
                       {plan.periodicitate_zile !== null ? `${plan.periodicitate_zile} zile` : ""}
-                      {plan.periodicitate_zile !== null && plan.periodicitate_contor !== null ? " · " : ""}
+                      {plan.periodicitate_zile !== null && plan.periodicitate_contor !== null
+                        ? " · "
+                        : ""}
                       {plan.periodicitate_contor !== null && plan.tip_contor !== null
                         ? `${plan.periodicitate_contor} ${ETICHETE_TIP_CONTOR[plan.tip_contor]}`
                         : ""}
@@ -136,7 +141,7 @@ export default async function PaginaPlanuri() {
                         {ETICHETE_STARE_SCADENTA[stare]}
                       </span>
                       {plan.urmatoarea_scadenta !== null ? (
-                        <span className="ml-2 text-xs text-muted-foreground">
+                        <span className="text-muted-foreground ml-2 text-xs">
                           {formatDate(plan.urmatoarea_scadenta)}
                         </span>
                       ) : null}

@@ -40,8 +40,8 @@ export function Pas6Proprietar({ formular, idFormular }: Proprietati) {
           Contul de proprietar (primul utilizator)
         </legend>
         <p className="text-muted-foreground text-sm">
-          La finalul înrolării se trimite automat o invitație pe acest email — link de acces
-          fără parolă, ca la orice membru invitat.
+          La finalul înrolării se trimite automat o invitație pe acest email — link de acces fără
+          parolă, ca la orice membru invitat.
         </p>
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -55,7 +55,10 @@ export function Pas6Proprietar({ formular, idFormular }: Proprietati) {
               aria-invalid={Boolean(errors.owner_prenume)}
               className={claseCamp}
             />
-            <Eroare id={`${idFormular}-owner-prenume-eroare`} mesaj={errors.owner_prenume?.message} />
+            <Eroare
+              id={`${idFormular}-owner-prenume-eroare`}
+              mesaj={errors.owner_prenume?.message}
+            />
           </div>
           <div>
             <label htmlFor={`${idFormular}-owner-nume`} className={claseLabel}>
@@ -81,7 +84,10 @@ export function Pas6Proprietar({ formular, idFormular }: Proprietati) {
               aria-describedby={`${idFormular}-owner-email-ajutor`}
               className={claseCamp}
             />
-            <p id={`${idFormular}-owner-email-ajutor`} className="text-muted-foreground mt-1 text-xs">
+            <p
+              id={`${idFormular}-owner-email-ajutor`}
+              className="text-muted-foreground mt-1 text-xs"
+            >
               Devine username-ul de autentificare.
             </p>
             <Eroare id={`${idFormular}-owner-email-eroare`} mesaj={errors.owner_email?.message} />
@@ -98,7 +104,10 @@ export function Pas6Proprietar({ formular, idFormular }: Proprietati) {
               aria-invalid={Boolean(errors.owner_telefon)}
               className={claseCamp}
             />
-            <Eroare id={`${idFormular}-owner-telefon-eroare`} mesaj={errors.owner_telefon?.message} />
+            <Eroare
+              id={`${idFormular}-owner-telefon-eroare`}
+              mesaj={errors.owner_telefon?.message}
+            />
           </div>
         </div>
       </fieldset>

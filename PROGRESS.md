@@ -250,13 +250,13 @@ local și trimitea pe piste false.
 
 ### ✅ Cele cinci defecte din vânătoare — închise
 
-| Defect | Corecție |
-|---|---|
+| Defect                                                                                        | Corecție                                                                                                 |
+| --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | Două module de criptare; cel folosit de calea principală citea variabile de mediu inexistente | `src/lib/hr/` eliminat; totul trece prin `crypto/aes-gcm.ts`, unde au fost mutate și conversiile `bytea` |
-| **Importul Excel scria CNP și IBAN în CLAR** într-un fișier din Storage | Criptare la parsare; schema lotului nici nu mai acceptă câmpurile în clar |
-| Bucket-ul `documente` nu există | `org-documents`, numele real din `0002` |
-| REVISAL era cod mort, fără apelanți | Evenimentul de angajare se generează în aceeași acțiune care creează contractul |
-| Excel parsa tot registrul înainte de limita de rânduri | Limită separată pe conținutul **decomprimat**, citită din antetele zip fără a decomprima |
+| **Importul Excel scria CNP și IBAN în CLAR** într-un fișier din Storage                       | Criptare la parsare; schema lotului nici nu mai acceptă câmpurile în clar                                |
+| Bucket-ul `documente` nu există                                                               | `org-documents`, numele real din `0002`                                                                  |
+| REVISAL era cod mort, fără apelanți                                                           | Evenimentul de angajare se generează în aceeași acțiune care creează contractul                          |
+| Excel parsa tot registrul înainte de limita de rânduri                                        | Limită separată pe conținutul **decomprimat**, citită din antetele zip fără a decomprima                 |
 
 Scurgerea de CNP a fost cea mai gravă: lotul de import ajungea în Storage în text
 simplu, deci un fișier uitat acolo era o breșă completă — fără să atingă nicio

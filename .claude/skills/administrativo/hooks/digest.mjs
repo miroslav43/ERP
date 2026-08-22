@@ -13,6 +13,11 @@ const aici = dirname(fileURLToPath(import.meta.url));
 const f = join(aici, "digest.md");
 if (!existsSync(f)) process.exit(0);
 
-process.stdout.write(JSON.stringify({
-  hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: readFileSync(f, "utf8") },
-}));
+process.stdout.write(
+  JSON.stringify({
+    hookSpecificOutput: {
+      hookEventName: "SessionStart",
+      additionalContext: readFileSync(f, "utf8"),
+    },
+  }),
+);

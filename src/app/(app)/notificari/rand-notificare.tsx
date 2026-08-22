@@ -58,7 +58,10 @@ export function RandNotificare({ notificare }: { readonly notificare: Notificare
         <span className="flex items-center gap-2">
           <span className="text-foreground truncate font-medium">{notificare.title}</span>
           {necitita ? (
-            <span className="bg-primary inline-block h-2 w-2 shrink-0 rounded-full" aria-hidden="true" />
+            <span
+              className="bg-primary inline-block h-2 w-2 shrink-0 rounded-full"
+              aria-hidden="true"
+            />
           ) : null}
         </span>
         {notificare.body !== null && notificare.body.length > 0 ? (

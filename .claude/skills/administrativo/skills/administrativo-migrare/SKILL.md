@@ -22,8 +22,8 @@ intern. Proiectul a avut deja două coliziuni reale (`0035`, `0040`).
 Secțiuni numerotate, cu bannere de 75 de liniuțe, în această ordine:
 
 1. Tipuri (enum-uri) · 2–7. Tabele · 8. Helperi de vizibilitate în schema `app` ·
-9. Triggere de integritate · 10–13. Funcții RPC în `public` · 14. RLS ·
-15. Actor + audit + granturi · 16. **Note de proiectare**.
+2. Triggere de integritate · 10–13. Funcții RPC în `public` · 14. RLS ·
+3. Actor + audit + granturi · 16. **Note de proiectare**.
 
 Antetul: calea fișierului, apoi 3–25 de rânduri de motivație în română — ce
 construiește, pe ce se bazează, ce NU atinge deliberat.

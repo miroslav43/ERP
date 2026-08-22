@@ -30,7 +30,7 @@ export function FiltreEchipamenteForm() {
   return (
     <form
       action={aplica}
-      className="flex flex-wrap items-end gap-3 rounded-lg border border-border p-4"
+      className="border-border flex flex-wrap items-end gap-3 rounded-lg border p-4"
     >
       <div className="flex flex-col gap-1">
         <label htmlFor={idCauta} className="text-sm font-medium">
@@ -42,7 +42,7 @@ export function FiltreEchipamenteForm() {
           type="search"
           defaultValue={parametri.get("cauta") ?? ""}
           placeholder="Ex. CMP-014"
-          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
         />
       </div>
 
@@ -54,7 +54,7 @@ export function FiltreEchipamenteForm() {
           id={idStatus}
           name="status"
           defaultValue={parametri.get("status") ?? ""}
-          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
         >
           <option value="">Toate</option>
           {STATUS_ECHIPAMENT.map((s) => (
@@ -68,7 +68,7 @@ export function FiltreEchipamenteForm() {
       <button
         type="submit"
         disabled={inCurs}
-        className="inline-flex items-center gap-2 rounded-md border border-foreground/60 px-4 py-2 text-sm font-medium hover:bg-surface disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+        className="border-foreground/60 hover:bg-surface disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
       >
         <Search aria-hidden="true" className="size-4" />
         {inCurs ? "Se filtrează…" : "Filtrează"}

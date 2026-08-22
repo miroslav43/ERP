@@ -36,7 +36,11 @@ interface ProprietatiTabel {
   readonly categorii: readonly OptiuneCategorie[];
 }
 
-async function TabelInventar({ organizationId, parametri, categorii: listaCategorii }: ProprietatiTabel) {
+async function TabelInventar({
+  organizationId,
+  parametri,
+  categorii: listaCategorii,
+}: ProprietatiTabel) {
   const filtre = filtreDinUrl(filtreInventarSchema, parametri);
   const { randuri, urmatorulCursor } = await listeazaObiecte(organizationId, filtre);
 
@@ -62,7 +66,7 @@ async function TabelInventar({ organizationId, parametri, categorii: listaCatego
 
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div className="border-border overflow-x-auto rounded-lg border">
         <table className="w-full text-left text-sm">
           <caption className="sr-only">Lista obiectelor de inventar</caption>
           <thead className="bg-surface text-foreground">
@@ -90,7 +94,7 @@ async function TabelInventar({ organizationId, parametri, categorii: listaCatego
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className="divide-border divide-y">
             {randuri.map((rand) => {
               const detinator = detinatori.get(rand.id);
               return (
@@ -98,12 +102,12 @@ async function TabelInventar({ organizationId, parametri, categorii: listaCatego
                   <td className="px-4 py-3">
                     <Link
                       href={`/inventar/${rand.id}`}
-                      className="font-medium text-primary underline-offset-2 hover:underline"
+                      className="text-primary font-medium underline-offset-2 hover:underline"
                     >
                       {rand.denumire}
                     </Link>
                     {rand.model !== null ? (
-                      <span className="ml-2 text-xs text-muted-foreground">({rand.model})</span>
+                      <span className="text-muted-foreground ml-2 text-xs">({rand.model})</span>
                     ) : null}
                   </td>
                   <td className="px-4 py-3 font-mono text-xs">{rand.numar_inventar}</td>
@@ -127,7 +131,9 @@ async function TabelInventar({ organizationId, parametri, categorii: listaCatego
                   <td className="px-4 py-3">
                     {detinator === undefined ? "—" : (detinator.angajatNume ?? "—")}
                   </td>
-                  <td className="px-4 py-3">{rand.valoare === null ? "—" : formatLei(rand.valoare)}</td>
+                  <td className="px-4 py-3">
+                    {rand.valoare === null ? "—" : formatLei(rand.valoare)}
+                  </td>
                 </RandTabel>
               );
             })}
@@ -137,11 +143,11 @@ async function TabelInventar({ organizationId, parametri, categorii: listaCatego
 
       <nav aria-label="Paginare" className="mt-4 flex justify-end">
         {urmatorulCursor === null ? (
-          <p className="text-sm text-muted-foreground">Aceasta este ultima pagină.</p>
+          <p className="text-muted-foreground text-sm">Aceasta este ultima pagină.</p>
         ) : (
           <Link
             href={`/inventar?${cautare.toString()}`}
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm font-medium hover:bg-surface"
+            className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-2 text-sm font-medium"
           >
             Pagina următoare
           </Link>
@@ -172,7 +178,7 @@ export default async function PaginaInventar({ searchParams }: ProprietatiPagina
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Inventar</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             {scope === "own"
               ? "Vedeți obiectele aflate acum în primirea dumneavoastră."
               : scope === "team"
@@ -183,7 +189,7 @@ export default async function PaginaInventar({ searchParams }: ProprietatiPagina
         {poateScrie ? (
           <Link
             href="/inventar/nou"
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+            className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
           >
             <PackagePlus aria-hidden="true" className="size-4" />
             Obiect nou

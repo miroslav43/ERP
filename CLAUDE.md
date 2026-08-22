@@ -22,8 +22,8 @@ Sunt 42 de fișiere `"use server"` în `src/`.
 Nu declara nimic „gata” fără ieșirea comenzilor. În Faza 2, proiectul a fost
 comis ca livrat în timp ce un `org_admin` nu putea insera un angajat: treceau
 typecheck, lint, 175 de teste, cele trei bariere SQL și izolarea 11/11.
-*„Verificam că nimeni nu vede ce nu are voie, dar nu și că cine are voie poate
-lucra.”*
+_„Verificam că nimeni nu vede ce nu are voie, dar nu și că cine are voie poate
+lucra.”_
 
 ## Agenți
 
@@ -54,14 +54,14 @@ Banca locală: `bash .claude/skills/administrativo/scripts/banc-migrare.sh`
 
 ## Cele 6 tipare mecanice — citește referința, nu reproduce din memorie
 
-| Strat | Referință canonică |
-|---|---|
-| Server Action | `src/lib/actions/create-action.ts` — 8 straturi, Zod **după** authz; `revalidate:` se DECLARĂ, nu se cheamă `revalidatePath()` din handler |
-| Migrare + RLS | `supabase/migrations/0013_attendance.sql` — 16 secțiuni, indexuri **parțiale** `where deleted_at is null`, trio `_select/_insert/_update`, **nicio politică DELETE**, `search_path = ''`, granturi în bucla `do $$` |
-| Citiri | `src/lib/queries/employees.ts` — funcții libere, `organizationId` primul argument, cursor keyset (nu `.range()`); `max_rows = 1000` TRUNCHIAZĂ TĂCUT |
-| Pagină | `src/app/(app)/anunturi/page.tsx` — `requireTenant` → `requireFeature` → `getPermissionMap` → `can()` → `AccesRestrictionat` |
-| Formular client | `useTransition` + `FormData` + `useId`. **react-hook-form apare în 4 fișiere din 118** — nu e implicitul |
-| Permisiuni | `src/config/permissions.ts` (uniune literală) + seed-ul din `0002_authz.sql` (sursa de adevăr) |
+| Strat           | Referință canonică                                                                                                                                                                                                  |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Server Action   | `src/lib/actions/create-action.ts` — 8 straturi, Zod **după** authz; `revalidate:` se DECLARĂ, nu se cheamă `revalidatePath()` din handler                                                                          |
+| Migrare + RLS   | `supabase/migrations/0013_attendance.sql` — 16 secțiuni, indexuri **parțiale** `where deleted_at is null`, trio `_select/_insert/_update`, **nicio politică DELETE**, `search_path = ''`, granturi în bucla `do $$` |
+| Citiri          | `src/lib/queries/employees.ts` — funcții libere, `organizationId` primul argument, cursor keyset (nu `.range()`); `max_rows = 1000` TRUNCHIAZĂ TĂCUT                                                                |
+| Pagină          | `src/app/(app)/anunturi/page.tsx` — `requireTenant` → `requireFeature` → `getPermissionMap` → `can()` → `AccesRestrictionat`                                                                                        |
+| Formular client | `useTransition` + `FormData` + `useId`. **react-hook-form apare în 4 fișiere din 118** — nu e implicitul                                                                                                            |
+| Permisiuni      | `src/config/permissions.ts` (uniune literală) + seed-ul din `0002_authz.sql` (sursa de adevăr)                                                                                                                      |
 
 `createAdminSupabase()` e permis de ESLint doar în `actions.ts`,
 `api/**/route.ts`, `rate-limit.ts`, `scripts/**`, `tests/**` — cu comentariu

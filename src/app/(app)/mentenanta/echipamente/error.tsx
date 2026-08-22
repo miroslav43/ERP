@@ -23,10 +23,10 @@ export default function EroareEchipamente({
           Echipamentele nu au putut fi afișate
         </h1>
         <p className="text-muted-foreground mt-2 text-sm">
-          A apărut o eroare neașteptată la încărcarea paginii. Reîncercați — dacă problema
-          persistă, notați codul de referință{" "}
-          {error.digest !== undefined ? <span className="font-mono">{error.digest}</span> : null}{" "}
-          și contactați administratorul.
+          A apărut o eroare neașteptată la încărcarea paginii. Reîncercați — dacă problema persistă,
+          notați codul de referință{" "}
+          {error.digest !== undefined ? <span className="font-mono">{error.digest}</span> : null} și
+          contactați administratorul.
         </p>
         <button
           type="button"

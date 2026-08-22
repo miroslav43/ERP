@@ -42,7 +42,11 @@ export function FiltreInstruiri() {
 
   return (
     <div className="space-y-3">
-      <div role="tablist" aria-label="Domeniu" className="inline-flex rounded-md border border-foreground/60">
+      <div
+        role="tablist"
+        aria-label="Domeniu"
+        className="border-foreground/60 inline-flex rounded-md border"
+      >
         {DOMENII_SSM.map((d) => (
           <button
             key={d}
@@ -54,8 +58,8 @@ export function FiltreInstruiri() {
             }}
             className={
               domeniuCurent === d
-                ? "rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
-                : "px-4 py-2 text-sm text-muted-foreground hover:text-foreground"
+                ? "bg-primary text-primary-foreground rounded-md px-4 py-2 text-sm font-medium"
+                : "text-muted-foreground hover:text-foreground px-4 py-2 text-sm"
             }
           >
             {ETICHETE_DOMENIU[d]}
@@ -65,7 +69,7 @@ export function FiltreInstruiri() {
 
       <form
         action={aplica}
-        className="flex flex-wrap items-end gap-3 rounded-lg border border-border p-4"
+        className="border-border flex flex-wrap items-end gap-3 rounded-lg border p-4"
       >
         <div className="flex flex-col gap-1">
           <label htmlFor={idCauta} className="text-sm font-medium">
@@ -77,13 +81,13 @@ export function FiltreInstruiri() {
             type="search"
             defaultValue={parametri.get("q") ?? ""}
             placeholder="Nume angajat"
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           />
         </div>
         <button
           type="submit"
           disabled={inCurs}
-          className="rounded-md border border-foreground/60 px-4 py-2 text-sm font-medium hover:bg-surface disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+          className="border-foreground/60 hover:bg-surface disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
         >
           {inCurs ? "Se filtrează…" : "Filtrează"}
         </button>

@@ -68,10 +68,7 @@ export function Breadcrumb() {
                   {tradu(segment)}
                 </span>
               ) : (
-                <Link
-                  href={href}
-                  className="text-muted-foreground hover:text-foreground truncate"
-                >
+                <Link href={href} className="text-muted-foreground hover:text-foreground truncate">
                   {tradu(segment)}
                 </Link>
               )}

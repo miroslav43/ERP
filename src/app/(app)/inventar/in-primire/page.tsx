@@ -46,9 +46,9 @@ export default async function PaginaInPrimire() {
     <main className="space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">În primirea mea</h1>
-        <p className="text-sm text-muted-foreground">
-          Obiectele pe care le aveți acum în primire. Un obiect returnat dispare din această
-          listă — istoricul complet rămâne pe fișa fiecărui obiect.
+        <p className="text-muted-foreground text-sm">
+          Obiectele pe care le aveți acum în primire. Un obiect returnat dispare din această listă —
+          istoricul complet rămâne pe fișa fiecărui obiect.
         </p>
       </header>
 
@@ -61,23 +61,20 @@ export default async function PaginaInPrimire() {
       ) : (
         <ul className="space-y-3">
           {randuri.map((rand) => (
-            <li
-              key={rand.id}
-              className="rounded-lg border border-border p-4"
-            >
+            <li key={rand.id} className="border-border rounded-lg border p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="font-medium">{rand.obiect.denumire}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-muted-foreground text-xs">
                     Nr. inventar <span className="font-mono">{rand.obiect.numar_inventar}</span>
                     {rand.obiect.serie !== null ? ` · Serie ${rand.obiect.serie}` : ""}
                   </p>
-                  <p className="mt-1 text-sm text-muted-foreground">
+                  <p className="text-muted-foreground mt-1 text-sm">
                     Predat la {formatDateTime(rand.predat_la)} · Stare la predare:{" "}
                     {ETICHETE_STARE[rand.stare_la_predare]}
                   </p>
                   {rand.observatii !== null ? (
-                    <p className="mt-1 text-sm text-muted-foreground">
+                    <p className="text-muted-foreground mt-1 text-sm">
                       Observații: {rand.observatii}
                     </p>
                   ) : null}
@@ -85,7 +82,7 @@ export default async function PaginaInPrimire() {
                 {rand.confirmat_de_angajat_la === null ? (
                   <ButonConfirmare alocareId={rand.id} />
                 ) : (
-                  <span className="rounded-full bg-surface px-3 py-1 text-xs font-medium text-foreground">
+                  <span className="bg-surface text-foreground rounded-full px-3 py-1 text-xs font-medium">
                     Confirmat la {formatDateTime(rand.confirmat_de_angajat_la)}
                   </span>
                 )}

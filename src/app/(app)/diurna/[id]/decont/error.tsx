@@ -19,12 +19,14 @@ export default function EroareDecont({
     <main className="mx-auto w-full max-w-3xl p-4 sm:p-6">
       <div className="border-border bg-surface rounded-lg border p-8 text-center">
         <TriangleAlert aria-hidden="true" className="text-warning mx-auto size-6" />
-        <h1 className="text-foreground mt-3 text-lg font-semibold">Decontul nu a putut fi afișat</h1>
+        <h1 className="text-foreground mt-3 text-lg font-semibold">
+          Decontul nu a putut fi afișat
+        </h1>
         <p className="text-muted-foreground mt-2 text-sm">
           A apărut o eroare neașteptată. Reîncercați — dacă problema persistă, notați codul de
           referință{" "}
-          {error.digest !== undefined ? <span className="font-mono">{error.digest}</span> : null}{" "}
-          și contactați administratorul.
+          {error.digest !== undefined ? <span className="font-mono">{error.digest}</span> : null} și
+          contactați administratorul.
         </p>
         <button
           type="button"

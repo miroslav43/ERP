@@ -23,8 +23,7 @@ const LINKURI_LEGALE = [
   { href: "/legal/confidentialitate", eticheta: "Politica de confidențialitate" },
 ] as const;
 
-const FOCUS =
-  "   focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+const FOCUS = "   focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 
 export default function LayoutMarketing({ children }: { children: ReactNode }) {
   const anCurent = new Date().getFullYear();

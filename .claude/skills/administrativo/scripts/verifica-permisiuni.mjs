@@ -33,7 +33,9 @@ const STRICT = process.argv.includes("--strict");
 const CA_JSON = process.argv.includes("--json");
 
 if (!existsSync(F_SEED)) {
-  console.error("verifica-permisiuni: nu sunt în repo-ul Administrativo (lipsește 0002_authz.sql).");
+  console.error(
+    "verifica-permisiuni: nu sunt în repo-ul Administrativo (lipsește 0002_authz.sql).",
+  );
   process.exit(3);
 }
 
@@ -75,24 +77,30 @@ function cheiDinCod() {
 
 function cheiDinNavigatie() {
   const gasite = new Map();
-  readFileSync(F_NAVIGATIE, "utf8").split("\n").forEach((linie, i) => {
-    const m = /permission:\s*"([a-z_]+:[a-z_]+)"/.exec(linie);
-    if (m && !gasite.has(m[1])) gasite.set(m[1], `src/config/navigation.ts:${i + 1}`);
-  });
+  readFileSync(F_NAVIGATIE, "utf8")
+    .split("\n")
+    .forEach((linie, i) => {
+      const m = /permission:\s*"([a-z_]+:[a-z_]+)"/.exec(linie);
+      if (m && !gasite.has(m[1])) gasite.set(m[1], `src/config/navigation.ts:${i + 1}`);
+    });
   return gasite;
 }
 
 function cheiDinPolitici() {
   const gasite = new Map();
-  for (const f of readdirSync(DIR_MIGRARI).filter((f) => f.endsWith(".sql")).sort()) {
-    readFileSync(join(DIR_MIGRARI, f), "utf8").split("\n").forEach((linie, i) => {
-      for (const m of linie.matchAll(
-        /app\.(?:can|has_permission|ssm_acces)\s*\(\s*[^,]+,\s*'([a-z_]+)'\s*,\s*'([a-z_]+)'/g,
-      )) {
-        const cheie = `${m[1]}:${m[2]}`;
-        if (!gasite.has(cheie)) gasite.set(cheie, `supabase/migrations/${f}:${i + 1}`);
-      }
-    });
+  for (const f of readdirSync(DIR_MIGRARI)
+    .filter((f) => f.endsWith(".sql"))
+    .sort()) {
+    readFileSync(join(DIR_MIGRARI, f), "utf8")
+      .split("\n")
+      .forEach((linie, i) => {
+        for (const m of linie.matchAll(
+          /app\.(?:can|has_permission|ssm_acces)\s*\(\s*[^,]+,\s*'([a-z_]+)'\s*,\s*'([a-z_]+)'/g,
+        )) {
+          const cheie = `${m[1]}:${m[2]}`;
+          if (!gasite.has(cheie)) gasite.set(cheie, `supabase/migrations/${f}:${i + 1}`);
+        }
+      });
   }
   return gasite;
 }
@@ -109,21 +117,26 @@ function* fisiereTs(dir) {
 function cheiDinCan() {
   const gasite = new Map();
   for (const cale of fisiereTs(DIR_SRC)) {
-    readFileSync(cale, "utf8").split("\n").forEach((linie, i) => {
-      for (const m of linie.matchAll(
-        /\b(?:can|scopeFor)\s*\(\s*[A-Za-z_$][\w.$]*\s*,\s*"([a-z_]+:[a-z_]+)"/g,
-      )) {
-        if (!gasite.has(m[1])) gasite.set(m[1], `${relative(RADACINA, cale)}:${i + 1}`);
-      }
-    });
+    readFileSync(cale, "utf8")
+      .split("\n")
+      .forEach((linie, i) => {
+        for (const m of linie.matchAll(
+          /\b(?:can|scopeFor)\s*\(\s*[A-Za-z_$][\w.$]*\s*,\s*"([a-z_]+:[a-z_]+)"/g,
+        )) {
+          if (!gasite.has(m[1])) gasite.set(m[1], `${relative(RADACINA, cale)}:${i + 1}`);
+        }
+      });
   }
   return gasite;
 }
 
 let seed, cod, nav, politici, canuri;
 try {
-  seed = cheiDinSeed(); cod = cheiDinCod(); nav = cheiDinNavigatie();
-  politici = cheiDinPolitici(); canuri = cheiDinCan();
+  seed = cheiDinSeed();
+  cod = cheiDinCod();
+  nav = cheiDinNavigatie();
+  politici = cheiDinPolitici();
+  canuri = cheiDinCan();
 } catch (e) {
   console.error(`verifica-permisiuni: nu am putut citi sursele — ${e.message}`);
   process.exit(3);
@@ -142,22 +155,67 @@ if (seed.size < 60 || cod.size < 40 || politici.size < 20) {
 for (const [k, unde] of nav)
   if (!cod.has(k)) adauga("EROARE", "R1", unde, `meniul cere "${k}", absentă din PERMISSION_KEYS`);
 for (const k of cod)
-  if (!seed.has(k)) adauga("EROARE", "R2", "src/config/permissions.ts", `"${k}" nu are rând în seed ⇒ has_permission întoarce 'none' (refuz tăcut)`);
+  if (!seed.has(k))
+    adauga(
+      "EROARE",
+      "R2",
+      "src/config/permissions.ts",
+      `"${k}" nu are rând în seed ⇒ has_permission întoarce 'none' (refuz tăcut)`,
+    );
 for (const [k, unde] of canuri)
-  if (!seed.has(k)) adauga("EROARE", "R3", unde, `can("${k}") — cheia nu există în seed; can() acceptă string, deci compilează și întoarce MEREU false`);
+  if (!seed.has(k))
+    adauga(
+      "EROARE",
+      "R3",
+      unde,
+      `can("${k}") — cheia nu există în seed; can() acceptă string, deci compilează și întoarce MEREU false`,
+    );
 for (const [k, unde] of politici)
-  if (!seed.has(k)) adauga("EROARE", "R4", unde, `politica cere "${k}", pereche absentă din seed ⇒ politică moartă`);
+  if (!seed.has(k))
+    adauga(
+      "EROARE",
+      "R4",
+      unde,
+      `politica cere "${k}", pereche absentă din seed ⇒ politică moartă`,
+    );
 for (const [k, unde] of politici)
-  if (seed.has(k) && !cod.has(k)) adauga("AVERT", "R5", unde, `baza păzește "${k}" dar cheia lipsește din PERMISSION_KEYS ⇒ interfața nu o poate exprima`);
+  if (seed.has(k) && !cod.has(k))
+    adauga(
+      "AVERT",
+      "R5",
+      unde,
+      `baza păzește "${k}" dar cheia lipsește din PERMISSION_KEYS ⇒ interfața nu o poate exprima`,
+    );
 for (const k of cod)
-  if (!politici.has(k) && !nav.has(k) && !canuri.has(k)) adauga("INFO", "R6", "src/config/permissions.ts", `"${k}" nu e folosită de nicio politică, intrare de meniu sau can()`);
+  if (!politici.has(k) && !nav.has(k) && !canuri.has(k))
+    adauga(
+      "INFO",
+      "R6",
+      "src/config/permissions.ts",
+      `"${k}" nu e folosită de nicio politică, intrare de meniu sau can()`,
+    );
 
 const erori = constatari.filter((c) => c.nivel === "EROARE");
 const averturi = constatari.filter((c) => c.nivel === "AVERT");
 const infos = constatari.filter((c) => c.nivel === "INFO");
 
 if (CA_JSON) {
-  console.log(JSON.stringify({ surse: { seed: seed.size, cod: cod.size, politici: politici.size, can: canuri.size, nav: nav.size }, constatari }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        surse: {
+          seed: seed.size,
+          cod: cod.size,
+          politici: politici.size,
+          can: canuri.size,
+          nav: nav.size,
+        },
+        constatari,
+      },
+      null,
+      2,
+    ),
+  );
 } else {
   console.log("verifica-permisiuni — vocabularul de permisiuni\n");
   console.log(`  seed 0002_authz.sql ........... ${String(seed.size).padStart(4)} perechi`);
@@ -167,7 +225,9 @@ if (CA_JSON) {
   console.log(`  navigation.ts ................. ${String(nav.size).padStart(4)} chei\n`);
   for (const c of [...erori, ...averturi, ...infos])
     console.log(`${c.nivel.padEnd(6)} ${c.regula}  ${c.unde}\n         ${c.mesaj}`);
-  console.log(`\nRezumat: ${erori.length} erori, ${averturi.length} avertismente, ${infos.length} informative.`);
+  console.log(
+    `\nRezumat: ${erori.length} erori, ${averturi.length} avertismente, ${infos.length} informative.`,
+  );
 }
 
 if (erori.length > 0) process.exit(1);

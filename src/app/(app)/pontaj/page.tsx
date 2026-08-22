@@ -69,7 +69,9 @@ async function Foaie({
   const { nationale, organizatie } = await zileNelucratoare(organizationId, an, an);
   const sarbatoriNationale = Object.fromEntries(nationale.map((z) => [z.data, z.denumire]));
   const zileRecuperare = organizatie.filter((z) => z.tip === "zi_recuperare").map((z) => z.data);
-  const liberSuplimentar = organizatie.filter((z) => z.tip === "liber_suplimentar").map((z) => z.data);
+  const liberSuplimentar = organizatie
+    .filter((z) => z.tip === "liber_suplimentar")
+    .map((z) => z.data);
 
   // Scope „own”: fără citirea tabelei `employees` (RLS o interzice rolului
   // `employee` — vezi `intrariProprii`). Un singur „rând”, identificat prin
@@ -118,7 +120,10 @@ async function Foaie({
     );
   }
 
-  const { randuri: angajati, urmatorulCursor } = await listeazaAngajatiPontaj(organizationId, filtre);
+  const { randuri: angajati, urmatorulCursor } = await listeazaAngajatiPontaj(
+    organizationId,
+    filtre,
+  );
 
   if (angajati.length === 0) {
     const areFiltre = filtre.departament !== null || filtre.cauta !== null;
@@ -192,7 +197,7 @@ async function Foaie({
         {urmatorulCursor === null ? null : (
           <Link
             href={`/pontaj?${cautare.toString()}`}
-            className="rounded-md border border-foreground/60 px-4 py-2 text-sm hover:bg-surface"
+            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
           >
             Pagina următoare
           </Link>
@@ -244,7 +249,7 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
     <main className="space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">Pontaj</h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Foaia colectivă pentru {formatMonthYear(an, filtre.luna)}.
         </p>
       </header>

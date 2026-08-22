@@ -87,7 +87,7 @@ export function FormularFoaie({
             onChange={(e) => {
               setVehiculId(e.target.value);
             }}
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           >
             {vehicule.map((v) => (
               <option key={v.id} value={v.id}>
@@ -105,7 +105,7 @@ export function FormularFoaie({
             id={id.sofer}
             name="employee_id"
             required
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           >
             {angajati.map((a) => (
               <option key={a.id} value={a.id}>
@@ -124,7 +124,7 @@ export function FormularFoaie({
             name="plecare_la"
             type="datetime-local"
             required
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           />
         </div>
 
@@ -143,9 +143,9 @@ export function FormularFoaie({
             required
             defaultValue={kmSugerat}
             aria-describedby={`${id.km}-ajutor`}
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           />
-          <p id={`${id.km}-ajutor`} className="text-xs text-muted-foreground">
+          <p id={`${id.km}-ajutor`} className="text-muted-foreground text-xs">
             Ultimul kilometraj cunoscut: {kmSugerat.toLocaleString("ro-RO")} km.
           </p>
         </div>
@@ -159,7 +159,7 @@ export function FormularFoaie({
             name="traseu"
             maxLength={500}
             placeholder="Cluj-Napoca – Turda – Cluj-Napoca"
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           />
         </div>
 
@@ -171,7 +171,7 @@ export function FormularFoaie({
             id={id.scop}
             name="scop"
             maxLength={500}
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           />
         </div>
       </div>
@@ -180,12 +180,12 @@ export function FormularFoaie({
         <button
           type="submit"
           disabled={inCurs}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
         >
           {inCurs ? "Se salvează…" : "Salvează ciorna"}
         </button>
         {eroare === null ? null : (
-          <p role="alert" className="text-sm text-danger">
+          <p role="alert" className="text-danger text-sm">
             {eroare}
           </p>
         )}

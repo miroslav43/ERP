@@ -62,7 +62,8 @@ async function ContinutAprobare({
   const perAngajat = new Map<string, { readonly nume: string; zile: number; ore: number }>();
   for (const linie of liniiFiltrate) {
     const angajat = angajati.get(linie.employee_id);
-    const nume = angajat === undefined ? "Angajat necunoscut" : `${angajat.full_name} (${angajat.marca})`;
+    const nume =
+      angajat === undefined ? "Angajat necunoscut" : `${angajat.full_name} (${angajat.marca})`;
     const existent = perAngajat.get(linie.employee_id);
     if (existent === undefined) {
       perAngajat.set(linie.employee_id, { nume, zile: 1, ore: linie.ore_lucrate });
@@ -87,10 +88,10 @@ async function ContinutAprobare({
       />
 
       {poateBloca ? (
-        <div className="rounded-lg border border-border p-4">
-          <p className="mb-2 text-sm text-muted-foreground">
-            Blocarea perioadei este aprobarea finală: oprește orice scriere ulterioară asupra
-            lunii, inclusiv corecțiile manuale.
+        <div className="border-border rounded-lg border p-4">
+          <p className="text-muted-foreground mb-2 text-sm">
+            Blocarea perioadei este aprobarea finală: oprește orice scriere ulterioară asupra lunii,
+            inclusiv corecțiile manuale.
           </p>
           <ActiuniPerioada
             an={an}
@@ -110,7 +111,7 @@ async function ContinutAprobare({
           description="Toate liniile de pontaj ale acestei luni au fost deja aprobate."
         />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border">
+        <div className="border-border overflow-x-auto rounded-lg border">
           <table className="w-full text-sm">
             <caption className="sr-only">Angajații cu linii de pontaj neaprobate.</caption>
             <thead className="bg-surface text-left">
@@ -126,7 +127,7 @@ async function ContinutAprobare({
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-border divide-y">
               {[...perAngajat.entries()].map(([id, rand]) => (
                 <tr key={id}>
                   <td className="px-4 py-3">{rand.nume}</td>
@@ -155,7 +156,8 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
 
   const poateBloca = can(permisiuni, "attendance:approve", "all");
   const enabledFeatures = await getEnabledFeatures(tenant.organizationId);
-  const poateSincroniza = can(permisiuni, "attendance:create", "all") && enabledFeatures.has("leave");
+  const poateSincroniza =
+    can(permisiuni, "attendance:create", "all") && enabledFeatures.has("leave");
 
   const parametri = await searchParams;
   const an = anDinUrl(parametri["an"], Number(todayInBucharest().slice(0, 4)));
@@ -169,7 +171,7 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
     <main className="space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">Aprobare pontaj</h1>
-        <p className="max-w-3xl text-sm text-muted-foreground">
+        <p className="text-muted-foreground max-w-3xl text-sm">
           Aprobarea în bloc pentru {formatMonthYear(an, filtre.luna)}.
         </p>
       </header>
@@ -179,7 +181,7 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
       <ListaSaptamaniDeAprobat sarcini={sarciniSaptamana} />
 
       {listaDepartamente.length === 0 ? null : (
-        <form className="flex flex-wrap items-end gap-3 rounded-lg border border-border p-4">
+        <form className="border-border flex flex-wrap items-end gap-3 rounded-lg border p-4">
           {/* Formular GET simplu, fără JavaScript: fără câmp explicit, `an` s-ar
               pierde din query string la reîncărcare. */}
           <input type="hidden" name="an" value={an} />
@@ -194,7 +196,7 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
               min={1}
               max={12}
               defaultValue={filtre.luna}
-              className="w-20 rounded-md border border-foreground/60 px-3 py-2 text-sm"
+              className="border-foreground/60 w-20 rounded-md border px-3 py-2 text-sm"
             />
           </div>
           <div className="flex flex-col gap-1">
@@ -205,7 +207,7 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
               id="departament"
               name="departament"
               defaultValue={filtre.departament ?? ""}
-              className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
             >
               <option value="">Toate</option>
               {listaDepartamente.map((d) => (
@@ -217,7 +219,7 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
           </div>
           <button
             type="submit"
-            className="rounded-md border border-foreground/60 px-4 py-2 text-sm font-medium hover:bg-surface"
+            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm font-medium"
           >
             Filtrează
           </button>

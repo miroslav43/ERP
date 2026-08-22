@@ -62,7 +62,7 @@ export function PreviewEmail({ subiect, sablon, html }: Props) {
             title={`Previzualizare email: ${subiect}`}
             sandbox=""
             srcDoc={html}
-            className="h-[60vh] w-full border-0 bg-background"
+            className="bg-background h-[60vh] w-full border-0"
           />
         ) : null}
       </dialog>

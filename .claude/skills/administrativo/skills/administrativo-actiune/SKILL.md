@@ -7,10 +7,10 @@ description: Scrie sau modifică o Server Action Administrativo prin `createActi
 
 ## 1. Unde intră codul
 
-| Ce faci | Unde |
-|---|---|
-| citire pură | `src/lib/queries/<modul>.ts` — doar `createServerSupabase()` |
-| scriere | `src/app/**/actions.ts` — obligatoriu prin `createAction()` |
+| Ce faci        | Unde                                                                                                                 |
+| -------------- | -------------------------------------------------------------------------------------------------------------------- |
+| citire pură    | `src/lib/queries/<modul>.ts` — doar `createServerSupabase()`                                                         |
+| scriere        | `src/app/**/actions.ts` — obligatoriu prin `createAction()`                                                          |
 | ocolire de RLS | **doar** `actions.ts`, `api/**/route.ts`, `rate-limit.ts`, `scripts/**`, `tests/**` (ESLint `no-restricted-imports`) |
 
 ## 2. Cele opt straturi
@@ -18,9 +18,9 @@ description: Scrie sau modifică o Server Action Administrativo prin `createActi
 `src/lib/actions/create-action.ts` le rulează în ordine FIXĂ:
 
 1. autentificare (`resolveTenant()`) · 2. organizația activă, rezolvată
-**pe server** (clientul nu trimite niciodată `organization_id`) · 3. modulul
-activ (`feature`) · 4. permisiunea cu prag (`permission` + `minScope`) ·
-5. **validarea Zod** · 6. handler · 7. audit · 8. `revalidatePath()` per cale.
+   **pe server** (clientul nu trimite niciodată `organization_id`) · 3. modulul
+   activ (`feature`) · 4. permisiunea cu prag (`permission` + `minScope`) ·
+2. **validarea Zod** · 6. handler · 7. audit · 8. `revalidatePath()` per cale.
 
 Zod rulează **după** autorizare, deliberat: unui apelant fără drept nu i se
 spune ce câmpuri așteaptă acțiunea. Nu reordona.

@@ -24,10 +24,12 @@
 ### Task 1: Reguli de business pe formă juridică
 
 **Files:**
+
 - Create: `src/domain/organization/caen-reguli.ts`
 - Test: `src/domain/organization/caen-reguli.test.ts`
 
 **Interfaces:**
+
 - Consumes: nimic (funcții pure, fără dependențe de alte task-uri).
 - Produces: `maximSecundare(forma: string): number | null`, `CODURI_INTERZISE_SRLD: ReadonlySet<string>`, `valideazaSelectieCaen(forma: string, principal: string | undefined, secundare: readonly string[]): { valid: true } | { valid: false; eroare: string }` — folosite de Task 2 și Task 3.
 
@@ -75,13 +77,7 @@ describe("valideazaSelectieCaen", () => {
   });
 
   it("PFA: respinge al 5-lea cod secundar (6 total)", () => {
-    const rezultat = valideazaSelectieCaen("PFA", "0111", [
-      "0112",
-      "0113",
-      "0114",
-      "0115",
-      "0116",
-    ]);
+    const rezultat = valideazaSelectieCaen("PFA", "0111", ["0112", "0113", "0114", "0115", "0116"]);
     expect(rezultat.valid).toBe(false);
   });
 
@@ -184,8 +180,7 @@ export const CODURI_INTERZISE_SRLD: ReadonlySet<string> = new Set([
 const NUMAR_MAXIM_GRUPE_SRLD = 5;
 
 export type RezultatValidareCaen =
-  | Readonly<{ valid: true }>
-  | Readonly<{ valid: false; eroare: string }>;
+  Readonly<{ valid: true }> | Readonly<{ valid: false; eroare: string }>;
 
 /**
  * `principal` poate lipsi (ecranele de editare îl permit opțional) — atunci
@@ -253,10 +248,12 @@ git commit -m "feat: reguli de compoziție CAEN pe formă juridică (PFA/II/SRL-
 ### Task 2: Schema Zod — `caenClasaSchema` și `onboardeazaOrganizatieSchema`
 
 **Files:**
+
 - Modify: `src/schemas/organization.ts`
 - Test: `src/schemas/organization.test.ts` (nou — nu există încă un fișier de test pentru acest modul)
 
 **Interfaces:**
+
 - Consumes: `NOMENCLATOR_CAEN`, `CODURI_CAEN_VALIDE` din `src/domain/organization/caen-nomenclator.ts` (Task deja finalizat); `valideazaSelectieCaen` din Task 1.
 - Produces: `caenClasaSchema` (export), câmpurile `cod_caen: string` (obligatoriu) și `cod_caen_secundare: readonly string[]` pe `OnboardeazaOrganizatieInput`/`Output` — consumate de Task 6/7 (wizard).
 
@@ -425,10 +422,12 @@ git commit -m "feat: cod_caen obligatoriu + cod_caen_secundare cu validare pe fo
 ### Task 3: Schema Zod — `actualizeazaOrganizatieSchema` (editare)
 
 **Files:**
+
 - Modify: `src/schemas/organization.ts`
 - Modify: `src/schemas/organization.test.ts`
 
 **Interfaces:**
+
 - Consumes: `caenClasaSchema` (Task 2), `valideazaSelectieCaen` (Task 1).
 - Produces: `actualizeazaOrganizatieSchema` cu `cod_caen: string | undefined` (opțional) + `cod_caen_secundare: readonly string[]` — consumate de Task 8 (super-admin edit).
 
@@ -551,9 +550,11 @@ git commit -m "feat: cod_caen_secundare pe schema de editare a organizației"
 ### Task 4: Migrație DB
 
 **Files:**
+
 - Create: `supabase/migrations/0040_organizations_caen_secundare.sql`
 
 **Interfaces:**
+
 - Consumes: nimic.
 - Produces: coloana `organizations.cod_caen_secundare text[]` — necesară pentru ca Task 7/8/9 să poată scrie/citi valoarea.
 
@@ -592,10 +593,12 @@ git commit -m "feat: migrație — organizations.cod_caen_secundare (text[])"
 ### Task 5: Componenta UI partajată — selector CAEN
 
 **Files:**
+
 - Create: `src/components/forms/selector-cod-caen.tsx`
 - Test: `src/components/forms/filtreaza-caen.test.ts`
 
 **Interfaces:**
+
 - Consumes: `NOMENCLATOR_CAEN`, `CodCaen` din `src/domain/organization/caen-nomenclator.ts`.
 - Produces: `filtreazaCaen(interogare: string, exclude: ReadonlySet<string>): readonly CodCaen[]` (exportată, testată separat de UI); componentele `SelectorCodCaenPrincipal` și `SelectorCodCaenSecundare` — consumate de Task 6 (wizard), Task 8 (super-admin edit), Task 9 (Setări → Organizație).
 
@@ -653,10 +656,7 @@ import { useId, useRef, useState } from "react";
 import { NOMENCLATOR_CAEN, type CodCaen } from "@/domain/organization/caen-nomenclator";
 
 function normalizeaza(text: string): string {
-  return text
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase();
+  return text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 }
 
 const LIMITA_REZULTATE = 20;
@@ -698,7 +698,7 @@ function ListaRezultate({
 }>) {
   if (rezultate.length === 0) {
     return (
-      <div className="border-border bg-surface absolute z-10 mt-1 w-full rounded-md border p-2 text-sm text-muted-foreground shadow-md">
+      <div className="border-border bg-surface text-muted-foreground absolute z-10 mt-1 w-full rounded-md border p-2 text-sm shadow-md">
         Niciun cod CAEN găsit.
       </div>
     );
@@ -754,9 +754,7 @@ export function SelectorCodCaenPrincipal({
   const idListbox = useId();
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const selectat = value !== undefined
-    ? NOMENCLATOR_CAEN.find((c) => c.cod === value)
-    : undefined;
+  const selectat = value !== undefined ? NOMENCLATOR_CAEN.find((c) => c.cod === value) : undefined;
   const rezultate = filtreazaCaen(interogare, new Set());
 
   function alege(c: CodCaen): void {
@@ -781,7 +779,7 @@ export function SelectorCodCaenPrincipal({
         aria-autocomplete="list"
         aria-invalid={ariaInvalid}
         aria-describedby={ariaDescribedBy}
-        value={deschis ? interogare : (selectat ? `${selectat.cod} — ${selectat.denumire}` : "")}
+        value={deschis ? interogare : selectat ? `${selectat.cod} — ${selectat.denumire}` : ""}
         placeholder="Scrie codul sau denumirea (ex. 6210, agricultură)"
         onFocus={() => {
           setDeschis(true);
@@ -923,7 +921,9 @@ export function SelectorCodCaenSecundare({
                 className="bg-primary/10 text-foreground flex items-center gap-2 rounded-full px-3 py-1 text-xs"
               >
                 <span className="font-mono font-medium">{cod}</span>
-                {info !== undefined && <span className="text-muted-foreground">{info.denumire}</span>}
+                {info !== undefined && (
+                  <span className="text-muted-foreground">{info.denumire}</span>
+                )}
                 <button
                   type="button"
                   onClick={() => elimina(cod)}
@@ -961,9 +961,11 @@ git commit -m "feat: componentă partajată de selecție cod CAEN (principal + s
 ### Task 6: Integrare în wizard — pas 1 „Date fiscale”
 
 **Files:**
+
 - Modify: `src/app/(platform)/super-admin/organizatii/nou/_components/pas-1-identitate.tsx`
 
 **Interfaces:**
+
 - Consumes: `SelectorCodCaenPrincipal`, `SelectorCodCaenSecundare` (Task 5); `maximSecundare` (Task 1); `onboardeazaOrganizatieSchema` cu `cod_caen`/`cod_caen_secundare` (Task 2).
 - Produces: nimic consumat de alte task-uri — capăt de lanț UI.
 
@@ -973,7 +975,10 @@ git commit -m "feat: componentă partajată de selecție cod CAEN (principal + s
 
 ```ts
 import { maximSecundare } from "@/domain/organization/caen-reguli";
-import { SelectorCodCaenPrincipal, SelectorCodCaenSecundare } from "@/components/forms/selector-cod-caen";
+import {
+  SelectorCodCaenPrincipal,
+  SelectorCodCaenSecundare,
+} from "@/components/forms/selector-cod-caen";
 ```
 
 Extinde destructurarea din `formular` (linia `const { register, watch, formState: { errors } } = formular;`) cu `setValue`:
@@ -1006,8 +1011,8 @@ const limitaSecundare = maximSecundare(formaJuridicaSelectata);
     ariaDescribedBy={`${idFormular}-caen-ajutor`}
   />
   <p id={`${idFormular}-caen-ajutor`} className="text-muted-foreground mt-1 text-xs">
-    Anumite coduri (IT, Construcții, Agricultură, Industria Alimentară) permit scutiri
-    fiscale per-angajat în modulul de Salarizare.
+    Anumite coduri (IT, Construcții, Agricultură, Industria Alimentară) permit scutiri fiscale
+    per-angajat în modulul de Salarizare.
   </p>
   <Eroare id={`${idFormular}-caen-eroare`} mesaj={errors.cod_caen?.message} />
 </div>
@@ -1030,15 +1035,11 @@ Adaugă imediat după (înainte de `</div>` de închidere a grid-ului `sm:grid-c
   />
   {formaJuridicaSelectata === "SRL-D" && (
     <p className="text-muted-foreground mt-1 text-xs">
-      SRL-D: toate codurile alese trebuie să facă parte din cel mult 5 grupe de activitate
-      (primele 3 cifre ale codului), iar anumite activități sunt excluse prin lege pentru
-      forma debutant.
+      SRL-D: toate codurile alese trebuie să facă parte din cel mult 5 grupe de activitate (primele
+      3 cifre ale codului), iar anumite activități sunt excluse prin lege pentru forma debutant.
     </p>
   )}
-  <Eroare
-    id={`${idFormular}-caen-secundare-eroare`}
-    mesaj={errors.cod_caen_secundare?.message}
-  />
+  <Eroare id={`${idFormular}-caen-secundare-eroare`} mesaj={errors.cod_caen_secundare?.message} />
 </div>
 ```
 
@@ -1060,9 +1061,11 @@ git commit -m "feat: selecție asistată de coduri CAEN în pasul Date fiscale a
 ### Task 7: Acțiunea de înrolare — salvează `cod_caen_secundare`
 
 **Files:**
+
 - Modify: `src/app/(platform)/super-admin/organizatii/nou/actions.ts`
 
 **Interfaces:**
+
 - Consumes: `input.cod_caen_secundare` (din `onboardeazaOrganizatieSchema`, Task 2).
 - Produces: nimic — capăt de lanț server.
 
@@ -1095,11 +1098,13 @@ git commit -m "feat: salvează cod_caen_secundare la înrolarea organizației"
 ### Task 8: Editare — super-admin (`formular-editeaza-organizatie.tsx`)
 
 **Files:**
+
 - Modify: `src/app/(platform)/super-admin/organizatii/actions.ts` (select de coloane + update handler)
 - Modify: `src/app/(platform)/super-admin/organizatii/[orgId]/page.tsx` (props către formular)
 - Modify: `src/app/(platform)/super-admin/organizatii/[orgId]/_components/formular-editeaza-organizatie.tsx`
 
 **Interfaces:**
+
 - Consumes: `actualizeazaOrganizatieSchema` cu `cod_caen`/`cod_caen_secundare`/`forma_juridica` opțional (Task 3); `SelectorCodCaenPrincipal`/`SelectorCodCaenSecundare` (Task 5); `maximSecundare` (Task 1).
 - Produces: nimic — capăt de lanț UI.
 
@@ -1164,7 +1169,10 @@ Adaugă import:
 
 ```ts
 import { useState } from "react"; // deja importat — doar confirmă că e prezent
-import { SelectorCodCaenPrincipal, SelectorCodCaenSecundare } from "@/components/forms/selector-cod-caen";
+import {
+  SelectorCodCaenPrincipal,
+  SelectorCodCaenSecundare,
+} from "@/components/forms/selector-cod-caen";
 import { maximSecundare } from "@/domain/organization/caen-reguli";
 ```
 
@@ -1231,11 +1239,13 @@ git commit -m "feat: editare coduri CAEN (principal + secundare) din fișa organ
 ### Task 9: Editare — Setări → Organizație
 
 **Files:**
+
 - Modify: `src/app/(app)/setari/organizatie/actions.ts`
 - Modify: `src/app/(app)/setari/organizatie/page.tsx`
 - Modify: `src/app/(app)/setari/organizatie/organizatie-form.tsx`
 
 **Interfaces:**
+
 - Consumes: `caenClasaSchema` (Task 2, reexportat din `@/schemas/organization` — verifică export la Task 2, altfel importă direct), `valideazaSelectieCaen` (Task 1), `SelectorCodCaenPrincipal`/`SelectorCodCaenSecundare` (Task 5), `maximSecundare` (Task 1).
 - Produces: nimic — capăt de lanț UI.
 
@@ -1336,7 +1346,10 @@ Scoate `"cod_caen"` din array-ul `ORDINE` (nu se mai randează generic ca text s
 Adaugă import:
 
 ```ts
-import { SelectorCodCaenPrincipal, SelectorCodCaenSecundare } from "@/components/forms/selector-cod-caen";
+import {
+  SelectorCodCaenPrincipal,
+  SelectorCodCaenSecundare,
+} from "@/components/forms/selector-cod-caen";
 import { maximSecundare } from "@/domain/organization/caen-reguli";
 ```
 
@@ -1399,6 +1412,7 @@ Expected: toate trec, zero erori noi față de starea de dinainte de acest plan 
 - [ ] **Step 2: Verificare manuală în browser**
 
 Pornește `pnpm dev`, apoi:
+
 1. Deschide wizardul de înrolare (`/super-admin/organizatii/nou`), pasul „Date fiscale”.
 2. Alege forma juridică „PFA” — completează codul principal, apoi adaugă 4 coduri secundare (trebuie acceptate), încearcă un al 5-lea (trebuie blocat cu mesaj).
 3. Schimbă forma juridică la „SRL-D” — încearcă să adaugi codul `9200` (trebuie respins la trimiterea pasului, cu mesaj despre activitate exclusă); adaugă coduri din 6 grupe diferite (trebuie respins cu mesaj despre limita de 5 grupe).

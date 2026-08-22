@@ -24,10 +24,12 @@ export default async function PaginaPortal() {
     return (
       <div className="p-4">
         <div className="bg-surface border-border rounded-lg border p-6 text-center">
-          <h1 className="text-foreground text-lg font-semibold">Nu aveți încă o fișă de personal</h1>
+          <h1 className="text-foreground text-lg font-semibold">
+            Nu aveți încă o fișă de personal
+          </h1>
           <p className="text-muted-foreground mt-2 text-sm">
-            Contul dumneavoastră are acces la {tenant.name}, dar nu este legat de un angajat.
-            Cereți departamentului de resurse umane să vă completeze fișa.
+            Contul dumneavoastră are acces la {tenant.name}, dar nu este legat de un angajat. Cereți
+            departamentului de resurse umane să vă completeze fișa.
           </p>
         </div>
       </div>
@@ -44,7 +46,9 @@ export default async function PaginaPortal() {
       : Promise.resolve([]),
     moduleActive.has("leave")
       ? tipuriConcediu(tenant.organizationId)
-      : Promise.resolve(new Map<string, { id: string; denumire: string; culoare: string | null }>()),
+      : Promise.resolve(
+          new Map<string, { id: string; denumire: string; culoare: string | null }>(),
+        ),
     moduleActive.has("announcements")
       ? listeazaAnunturi(tenant.organizationId)
       : Promise.resolve([]),

@@ -19,10 +19,10 @@ doar 2 route handlers. **Nu există proces de backend separat** — rolul lui î
 
 VM-ul e organizat pe două niveluri, model preluat de la StrawBoss:
 
-| Nivel | Orchestrator | Unde trăiește | Ce conține |
-|---|---|---|---|
-| **Edge** — partajat de ~9 site-uri | Compose | `/srv/apps/Strawboss` | `strawboss-nginx-1` + `certbot` — singurele legate pe 80/443 |
-| **App** — doar ERP | **Swarm** | `/srv/apps/ERP` | stack `administrativo` → `administrativo-web` ×2 |
+| Nivel                              | Orchestrator | Unde trăiește         | Ce conține                                                   |
+| ---------------------------------- | ------------ | --------------------- | ------------------------------------------------------------ |
+| **Edge** — partajat de ~9 site-uri | Compose      | `/srv/apps/Strawboss` | `strawboss-nginx-1` + `certbot` — singurele legate pe 80/443 |
+| **App** — doar ERP                 | **Swarm**    | `/srv/apps/ERP`       | stack `administrativo` → `administrativo-web` ×2             |
 
 ```
 Cloudflare → 62.171.154.194:443 → strawboss-nginx-1
@@ -43,6 +43,7 @@ trafic abia după ce trece healthcheck-ul, apoi se retrage cea veche — deci de
 ```
 
 Lanțul complet:
+
 1. încarcă `.env.production` și verifică cele 8 variabile obligatorii;
 2. confirmă că nodul e manager Swarm și că overlay-ul `strawboss-net` există;
 3. construiește imaginea, taguită cu **git short-sha** + `:latest`;
@@ -109,7 +110,7 @@ Se citește la deploy și se injectează ca mediu de runtime prin `docker-stack.
 
 Build-ul primește **doar** cele trei `NEXT_PUBLIC_*` reale, ca build args. Variabilele de server
 primesc placeholdere (aceleași ca în `.github/workflows/ci.yml`), suficiente cât să treacă validarea
-Zod din `src/config/env.ts` — care rulează la *import de modul*, iar `next build` importă fiecare
+Zod din `src/config/env.ts` — care rulează la _import de modul_, iar `next build` importă fiecare
 rută. În timpul build-ului nu se execută nicio interogare și nicio decriptare, deci **niciun secret
 real nu intră în vreun layer**, nici măcar în cel aruncat.
 
@@ -153,15 +154,17 @@ la Eduvora — același domeniu, aceeași filiație; nu s-a rulat certbot la mig
 `leave_entitlement_rules` (`tip_criteriu`, `vechime_ani_min`, `valoare_text`, `department_id`,
 `job_position_id`, `activ`). Codul de la HEAD le folosește.
 
-*Efect:* ecranul **Concedii → Setări** (grile de drepturi) dă eroare la rulare. Restul aplicației
+_Efect:_ ecranul **Concedii → Setări** (grile de drepturi) dă eroare la rulare. Restul aplicației
 funcționează. Tot de aici vin cele 9 erori de tip care au impus `DOCKER_BUILD=1` în `next.config.ts`.
 
-*Reparație* (necesită `DATABASE_URL` în `.env.production`):
+_Reparație_ (necesită `DATABASE_URL` în `.env.production`):
+
 ```bash
 ./administrativo.sh db:migrate     # aplică 0035 + 0037
 pnpm db:types                      # regenerează src/types/database.ts
 ./administrativo.sh prod           # rebuild + redeploy, fără downtime
 ```
+
 După asta, `typescript.ignoreBuildErrors` din `next.config.ts` poate dispărea complet.
 
 **Modulul `ticketing` există în bază, dar nu în cod.**

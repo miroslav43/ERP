@@ -58,7 +58,7 @@ async function TabelSabloane({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div className="border-border overflow-x-auto rounded-lg border">
         <table className="w-full text-sm">
           <caption className="sr-only">Șabloanele de checklist ale organizației.</caption>
           <thead className="bg-surface text-left">
@@ -77,7 +77,7 @@ async function TabelSabloane({
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className="divide-border divide-y">
             {randuri.map((s) => (
               <RandTabel key={s.id} href={`/onboarding/sabloane/${s.id}`}>
                 <td className="px-4 py-3 font-medium">
@@ -93,9 +93,7 @@ async function TabelSabloane({
                 <td className="px-4 py-3">
                   <span
                     className={`rounded px-2 py-0.5 text-xs font-medium ${
-                      s.activ
-                        ? "bg-surface text-foreground"
-                        : "bg-surface text-foreground"
+                      s.activ ? "bg-surface text-foreground" : "bg-surface text-foreground"
                     }`}
                   >
                     {s.activ ? "Activ" : "Dezactivat"}
@@ -111,7 +109,7 @@ async function TabelSabloane({
         {urmatorulCursor === null ? null : (
           <Link
             href={`/onboarding/sabloane?${cautare.toString()}`}
-            className="rounded-md border border-foreground/60 px-4 py-2 text-sm hover:bg-surface"
+            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
           >
             Pagina următoare
           </Link>
@@ -142,14 +140,14 @@ export default async function PaginaSabloane({ searchParams }: ProprietatiPagina
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Șabloane de checklist</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Structura pașilor pentru integrare, ieșire sau transfer.
           </p>
         </div>
         {poateCrea ? (
           <Link
             href="/onboarding/sabloane/nou"
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+            className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
           >
             <FilePlus2 aria-hidden="true" className="size-4" />
             Șablon nou
@@ -162,7 +160,7 @@ export default async function PaginaSabloane({ searchParams }: ProprietatiPagina
       {/* Formular simplu, fără JavaScript: GET direct pe query string. */}
       <form
         method="get"
-        className="flex flex-wrap items-end gap-3 rounded-lg border border-border p-4"
+        className="border-border flex flex-wrap items-end gap-3 rounded-lg border p-4"
       >
         <div className="flex flex-col gap-1">
           <label htmlFor="cauta" className="text-sm font-medium">
@@ -173,7 +171,7 @@ export default async function PaginaSabloane({ searchParams }: ProprietatiPagina
             name="cauta"
             type="search"
             defaultValue={cautaCurent}
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           />
         </div>
         <div className="flex flex-col gap-1">
@@ -184,7 +182,7 @@ export default async function PaginaSabloane({ searchParams }: ProprietatiPagina
             id="tip"
             name="tip"
             defaultValue={tipCurent}
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           >
             <option value="">Toate</option>
             {CHECKLIST_TIP.map((t) => (
@@ -196,7 +194,7 @@ export default async function PaginaSabloane({ searchParams }: ProprietatiPagina
         </div>
         <button
           type="submit"
-          className="rounded-md border border-foreground/60 px-4 py-2 text-sm font-medium hover:bg-surface"
+          className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm font-medium"
         >
           Filtrează
         </button>

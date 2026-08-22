@@ -24,17 +24,17 @@ nu poate rugini: dacă documentul crește la 40 de capcane, căutarea le vede im
 
 ## 2. Cele nouă coduri și ce înseamnă AICI
 
-| Cod | Sensul în acest repo |
-|---|---|
-| `42501` | RLS a respins o **scriere** (`WITH CHECK` sau `USING`). La SELECT, RLS nu aruncă — filtrează. |
-| `42P10` | `ON CONFLICT` nu găsește constrângere — indexul unic e **parțial**. Pică la PLANIFICARE, deci la fiecare apel. |
-| `23505` | Violare de unicitate — de regulă reordonare fără slot de parcare. |
-| `42703` | Coloană inexistentă — de regulă `deleted_at` pe o tabelă care n-o are. |
-| `428C9` | Coloană `GENERATED ALWAYS` trimisă din client. |
-| `22P02` | Format nepermis — șir gol dintr-un filtru URL ajuns la `uuid`/`date`/`enum`. Corecția e `.default()` pe fiecare câmp al schemei Zod de filtru. |
-| `P0001` | `raise exception` dintr-un trigger — regulă de business. `mapPostgrestError` o înlocuiește cu un mesaj generic dacă modulul n-are `erori.ts`. |
-| `PGRST116` | `.single()` pe un rând ascuns de politica SELECT. Mapat la NEGĂSIT, nu INTERZIS. |
-| `PGRST202` | Funcția RPC nu e vizibilă — aproape sigur e în schema `app`. |
+| Cod        | Sensul în acest repo                                                                                                                           |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `42501`    | RLS a respins o **scriere** (`WITH CHECK` sau `USING`). La SELECT, RLS nu aruncă — filtrează.                                                  |
+| `42P10`    | `ON CONFLICT` nu găsește constrângere — indexul unic e **parțial**. Pică la PLANIFICARE, deci la fiecare apel.                                 |
+| `23505`    | Violare de unicitate — de regulă reordonare fără slot de parcare.                                                                              |
+| `42703`    | Coloană inexistentă — de regulă `deleted_at` pe o tabelă care n-o are.                                                                         |
+| `428C9`    | Coloană `GENERATED ALWAYS` trimisă din client.                                                                                                 |
+| `22P02`    | Format nepermis — șir gol dintr-un filtru URL ajuns la `uuid`/`date`/`enum`. Corecția e `.default()` pe fiecare câmp al schemei Zod de filtru. |
+| `P0001`    | `raise exception` dintr-un trigger — regulă de business. `mapPostgrestError` o înlocuiește cu un mesaj generic dacă modulul n-are `erori.ts`.  |
+| `PGRST116` | `.single()` pe un rând ascuns de politica SELECT. Mapat la NEGĂSIT, nu INTERZIS.                                                               |
+| `PGRST202` | Funcția RPC nu e vizibilă — aproape sigur e în schema `app`.                                                                                   |
 
 ## 3. Capcanele tăcute — cele mai scumpe
 

@@ -10,11 +10,7 @@ import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import {
-  arboreleManagerial,
-  idFisaProprie,
-  type NodManagerial,
-} from "@/lib/queries/employees";
+import { arboreleManagerial, idFisaProprie, type NodManagerial } from "@/lib/queries/employees";
 
 export const metadata: Metadata = { title: "Organigramă" };
 
@@ -28,7 +24,8 @@ function grupeaza(noduri: readonly NodManagerial[]): ReadonlyMap<string, readonl
   const idVizibile = new Set(noduri.map((n) => n.id));
   const harta = new Map<string, readonly NodManagerial[]>();
   for (const nod of noduri) {
-    const areManagerVizibil = nod.manager_employee_id !== null && idVizibile.has(nod.manager_employee_id);
+    const areManagerVizibil =
+      nod.manager_employee_id !== null && idVizibile.has(nod.manager_employee_id);
     const cheie = areManagerVizibil ? (nod.manager_employee_id as string) : RADACINA;
     harta.set(cheie, [...(harta.get(cheie) ?? []), nod]);
   }
@@ -45,7 +42,13 @@ function construieste(
   }));
 }
 
-function Arbore({ noduri, nivel }: { readonly noduri: readonly NodArbore[]; readonly nivel: number }) {
+function Arbore({
+  noduri,
+  nivel,
+}: {
+  readonly noduri: readonly NodArbore[];
+  readonly nivel: number;
+}) {
   return (
     <ul role={nivel === 1 ? "tree" : "group"} className={nivel === 1 ? "og-radacina" : "og-ramura"}>
       {noduri.map((nod) => (
@@ -91,7 +94,8 @@ export default async function PaginaOrganigrama() {
     );
   }
 
-  const propriaFisaId = scope === "all" ? null : await idFisaProprie(tenant.organizationId, utilizator.id);
+  const propriaFisaId =
+    scope === "all" ? null : await idFisaProprie(tenant.organizationId, utilizator.id);
   const noduri = await arboreleManagerial(tenant.organizationId, scope, propriaFisaId);
   const arbore = construieste(RADACINA, grupeaza(noduri));
 

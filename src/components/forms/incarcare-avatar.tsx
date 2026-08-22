@@ -28,7 +28,12 @@ interface ProprietatiIncarcareAvatar {
  * colegului). Fluxul e identic — doar cine are voie diferă, iar asta se
  * decide server-side, în acțiunile primite ca props.
  */
-export function IncarcareAvatar({ urlInitial, nume, pregateste, salveaza }: ProprietatiIncarcareAvatar) {
+export function IncarcareAvatar({
+  urlInitial,
+  nume,
+  pregateste,
+  salveaza,
+}: ProprietatiIncarcareAvatar) {
   const router = useRouter();
   const idFisier = useId();
   const referinta = useRef<HTMLInputElement>(null);

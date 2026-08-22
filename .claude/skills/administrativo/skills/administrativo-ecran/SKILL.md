@@ -49,13 +49,13 @@ apelează per funcție, **niciodată memoizat**.
 
 Capcanele care golesc ecrane fără nicio eroare:
 
-| Simptom | Cauză | Ce faci |
-|---|---|---|
-| lipsesc rânduri peste 1000 | `max_rows` din PostgREST **trunchiază tăcut** | paginează după entitatea logică (angajat), nu după rândul brut |
-| listă cu rânduri șterse | politicile din `0011` n-au `deleted_at is null` | adaugă `.is("deleted_at", null)` explicit |
-| embed `null` fără eroare | rolul n-are permisiunea pe tabela embed-ată | tipează `| null`, afișează „—”; NU compensa cu clientul admin |
-| semafor de scadențe gol | `expirables` cere ȘI `compliance:read` | calculează din tabelele sursă |
-| listă de tipuri de document goală | 11 rânduri de platformă au `organization_id IS NULL` | filtrează doar `activ` + `deleted_at` |
+| Simptom                           | Cauză                                                | Ce faci                                                        |
+| --------------------------------- | ---------------------------------------------------- | -------------------------------------------------------------- |
+| lipsesc rânduri peste 1000        | `max_rows` din PostgREST **trunchiază tăcut**        | paginează după entitatea logică (angajat), nu după rândul brut |
+| listă cu rânduri șterse           | politicile din `0011` n-au `deleted_at is null`      | adaugă `.is("deleted_at", null)` explicit                      |
+| embed `null` fără eroare          | rolul n-are permisiunea pe tabela embed-ată          | tipează `                                                      | null`, afișează „—”; NU compensa cu clientul admin |
+| semafor de scadențe gol           | `expirables` cere ȘI `compliance:read`               | calculează din tabelele sursă                                  |
+| listă de tipuri de document goală | 11 rânduri de platformă au `organization_id IS NULL` | filtrează doar `activ` + `deleted_at`                          |
 
 Rulează `node .claude/skills/administrativo/scripts/capcana.mjs --rol <rol>`
 înainte de a construi un ecran pentru un rol anume.
@@ -80,13 +80,16 @@ e implicitul, copiază-l doar dacă editezi unul dintre acelea.
 "use client";
 const [inCurs, porneste] = useTransition();
 const [eroare, setEroare] = useState<string | null>(null);
-const idCamp = useId();                       // un useId per câmp, legat cu htmlFor
+const idCamp = useId(); // un useId per câmp, legat cu htmlFor
 
 function trimite(formular: FormData): void {
   setEroare(null);
   porneste(async () => {
     const rezultat = await actiune({ camp: String(formular.get("camp") ?? "") });
-    if (!rezultat.ok) { setEroare(rezultat.error.message); return; }
+    if (!rezultat.ok) {
+      setEroare(rezultat.error.message);
+      return;
+    }
     router.push(`/…/${rezultat.data.id}`);
   });
 }

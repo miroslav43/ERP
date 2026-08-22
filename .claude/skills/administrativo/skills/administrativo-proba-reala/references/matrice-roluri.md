@@ -23,10 +23,10 @@ CHECK care îl interzice) — sursa e `platform_admins`, iar accesul trece prin
 
 `all` pe majoritatea resurselor. Excepții care contează:
 
-| Resursă | Scope | Notă |
-|---|---|---|
-| `organizations` | `all` pe `{read, update, export}` | `create`, `delete`, `approve` = **`none` explicit** |
-| `features` | `all` pe `{read}` | restul `none` ⇒ **nu poate activa un modul** din interfață |
+| Resursă         | Scope                             | Notă                                                       |
+| --------------- | --------------------------------- | ---------------------------------------------------------- |
+| `organizations` | `all` pe `{read, update, export}` | `create`, `delete`, `approve` = **`none` explicit**        |
+| `features`      | `all` pe `{read}`                 | restul `none` ⇒ **nu poate activa un modul** din interfață |
 
 ## `manager` — cel mai dens grup de capcane
 
@@ -92,7 +92,7 @@ audit      none {read, export}
 - **capcana 10** — `employees:read = none`, iar `employees_select` cade pe
   `ELSE false`. Rezolvarea fișei proprii e legală **doar** în `actions.ts`, cu
   `createAdminSupabase()` filtrat pe `organization_id + user_id + is_primary +
-  deleted_at is null`.
+deleted_at is null`.
 - **capcana 27** — cu `ssm:read=own` / `maintenance:read=own` nu poate citi
   `ssm_training_types` sau `equipment` (politicile cu `col = null` cer ≥ `team`).
 - **capcana 28** — `INSERT … RETURNING` sub o politică SELECT care ascunde

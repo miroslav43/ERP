@@ -61,7 +61,7 @@ export default async function PaginaSesizare({ params }: ProprietatiPagina) {
   return (
     <main className="mx-auto w-full max-w-3xl space-y-6 p-6">
       <div>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           <Link href="/mentenanta/sesizari" className="underline-offset-2 hover:underline">
             Sesizări
           </Link>
@@ -87,10 +87,10 @@ export default async function PaginaSesizare({ params }: ProprietatiPagina) {
         </div>
       </div>
 
-      <section className="space-y-3 rounded-lg border border-border p-4">
+      <section className="border-border space-y-3 rounded-lg border p-4">
         <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <dt className="text-xs tracking-wide text-muted-foreground uppercase">Raportată de</dt>
+            <dt className="text-muted-foreground text-xs tracking-wide uppercase">Raportată de</dt>
             <dd className="mt-0.5 text-sm">
               {sesizare.raportat_de_employee_id === null
                 ? "—"
@@ -98,31 +98,31 @@ export default async function PaginaSesizare({ params }: ProprietatiPagina) {
             </dd>
           </div>
           <div>
-            <dt className="text-xs tracking-wide text-muted-foreground uppercase">Raportată la</dt>
+            <dt className="text-muted-foreground text-xs tracking-wide uppercase">Raportată la</dt>
             <dd className="mt-0.5 text-sm">{formatDateTime(sesizare.raportat_la)}</dd>
           </div>
           <div className="sm:col-span-2">
-            <dt className="text-xs tracking-wide text-muted-foreground uppercase">Descriere</dt>
+            <dt className="text-muted-foreground text-xs tracking-wide uppercase">Descriere</dt>
             <dd className="mt-0.5 text-sm">{sesizare.descriere}</dd>
           </div>
           {sesizare.opreste_functionarea ? (
             <div className="sm:col-span-2">
-              <p className="text-sm font-medium text-danger">
+              <p className="text-danger text-sm font-medium">
                 Defecțiunea oprește funcționarea echipamentului.
               </p>
             </div>
           ) : null}
           {sesizare.motiv_respingere !== null ? (
             <div className="sm:col-span-2">
-              <dt className="text-xs tracking-wide text-danger uppercase">
-                Motivul respingerii
-              </dt>
+              <dt className="text-danger text-xs tracking-wide uppercase">Motivul respingerii</dt>
               <dd className="mt-0.5 text-sm">{sesizare.motiv_respingere}</dd>
             </div>
           ) : null}
           {sesizare.rezolvat_la !== null ? (
             <div className="sm:col-span-2">
-              <dt className="text-xs tracking-wide text-muted-foreground uppercase">Rezolvată la</dt>
+              <dt className="text-muted-foreground text-xs tracking-wide uppercase">
+                Rezolvată la
+              </dt>
               <dd className="mt-0.5 text-sm">{formatDateTime(sesizare.rezolvat_la)}</dd>
             </div>
           ) : null}

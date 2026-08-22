@@ -22,11 +22,7 @@ describe("imparteCheiDeModul", () => {
   });
 
   it("taie o cheie pe care codul nu o cunoaște, fără să arunce", () => {
-    const { cunoscute, necunoscute } = imparteCheiDeModul([
-      "nucleu",
-      "ticketing",
-      "leave",
-    ]);
+    const { cunoscute, necunoscute } = imparteCheiDeModul(["nucleu", "ticketing", "leave"]);
     expect(cunoscute).toEqual(["nucleu", "leave"]);
     expect(necunoscute).toEqual(["ticketing"]);
   });

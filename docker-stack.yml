@@ -65,7 +65,7 @@ services:
       # Ruta e `force-static` și exclusă din matcher-ul proxy-ului, deci nu
       # atinge nici React, nici GoTrue: o pană la Supabase nu trebuie să facă
       # Swarm-ul să omoare replici sănătoase.
-      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:3000/healthz']
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/healthz"]
       interval: 10s
       timeout: 5s
       retries: 6

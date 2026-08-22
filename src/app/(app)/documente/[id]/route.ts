@@ -33,7 +33,8 @@ export async function GET(_request: Request, { params }: ProprietatiRuta): Promi
     .is("deleted_at", null)
     .maybeSingle();
   if (error !== null) return raspunsText("Documentul nu a putut fi citit.", 500);
-  if (document === null) return raspunsText("Documentul nu a fost găsit sau nu îți este accesibil.", 404);
+  if (document === null)
+    return raspunsText("Documentul nu a fost găsit sau nu îți este accesibil.", 404);
 
   const generat: DocumentGenerat = {
     id,

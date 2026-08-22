@@ -52,7 +52,7 @@ export function DecizieAprobare({ taskId }: { readonly taskId: string }) {
           onClick={() => {
             setPanou("aprobare");
           }}
-          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+          className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium"
         >
           <Check aria-hidden="true" className="size-4" />
           Aprobă
@@ -62,7 +62,7 @@ export function DecizieAprobare({ taskId }: { readonly taskId: string }) {
           onClick={() => {
             setPanou("respingere");
           }}
-          className="inline-flex items-center gap-1.5 rounded-md border border-danger px-3 py-1.5 text-sm font-medium text-danger hover:bg-danger hover:text-danger-foreground"
+          className="border-danger text-danger hover:bg-danger hover:text-danger-foreground inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium"
         >
           <X aria-hidden="true" className="size-4" />
           Respinge
@@ -72,7 +72,7 @@ export function DecizieAprobare({ taskId }: { readonly taskId: string }) {
   }
 
   return (
-    <div className="space-y-2 rounded-md border border-border p-3">
+    <div className="border-border space-y-2 rounded-md border p-3">
       <div>
         <label htmlFor={idComentariu} className="block text-xs font-medium">
           Comentariu (opțional)
@@ -83,7 +83,7 @@ export function DecizieAprobare({ taskId }: { readonly taskId: string }) {
           onChange={(eveniment) => {
             setComentariu(eveniment.target.value);
           }}
-          className="mt-1 w-full rounded-md border border-foreground/60 px-2 py-1.5 text-sm"
+          className="border-foreground/60 mt-1 w-full rounded-md border px-2 py-1.5 text-sm"
         />
       </div>
 
@@ -98,15 +98,13 @@ export function DecizieAprobare({ taskId }: { readonly taskId: string }) {
             onChange={(eveniment) => {
               setMotivRespingere(eveniment.target.value);
             }}
-            className="mt-1 w-full rounded-md border border-foreground/60 px-2 py-1.5 text-sm"
+            className="border-foreground/60 mt-1 w-full rounded-md border px-2 py-1.5 text-sm"
           />
         </div>
       ) : null}
 
       <div aria-live="polite">
-        {eroare !== null ? (
-          <p className="text-xs text-danger">{eroare}</p>
-        ) : null}
+        {eroare !== null ? <p className="text-danger text-xs">{eroare}</p> : null}
       </div>
 
       <div className="flex gap-2">
@@ -116,7 +114,7 @@ export function DecizieAprobare({ taskId }: { readonly taskId: string }) {
           onClick={() => {
             decide(panou === "respingere" ? "respinsa" : "aprobata");
           }}
-          className={`rounded-md px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground ${
+          className={`text-primary-foreground disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed ${
             panou === "respingere"
               ? "bg-danger hover:bg-danger"
               : "bg-primary hover:bg-primary-hover"
@@ -134,7 +132,7 @@ export function DecizieAprobare({ taskId }: { readonly taskId: string }) {
             setPanou("inchis");
             setEroare(null);
           }}
-          className="rounded-md border border-foreground/60 px-3 py-1.5 text-sm font-medium hover:bg-surface"
+          className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-1.5 text-sm font-medium"
         >
           Renunță
         </button>

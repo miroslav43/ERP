@@ -10,12 +10,12 @@
  * fracțiile. De aceea modul e parametru, niciodată o constantă în cod.
  */
 export type ModRotunjire =
-  | 'fara_rotunjire'
-  | 'jumatate_in_sus'
-  | 'jumatate_in_jos'
-  | 'zi_in_sus'
-  | 'zi_in_jos'
-  | 'matematic';
+  | "fara_rotunjire"
+  | "jumatate_in_sus"
+  | "jumatate_in_jos"
+  | "zi_in_sus"
+  | "zi_in_jos"
+  | "matematic";
 
 /**
  * Rotunjește un număr de zile de concediu conform modului configurat.
@@ -26,17 +26,17 @@ export type ModRotunjire =
 export function rotunjesteZileConcediu(valoare: number, mod: ModRotunjire): number {
   const laDouaZecimale = Math.round(valoare * 100) / 100;
   switch (mod) {
-    case 'fara_rotunjire':
+    case "fara_rotunjire":
       return laDouaZecimale;
-    case 'jumatate_in_sus':
+    case "jumatate_in_sus":
       return Math.ceil(laDouaZecimale * 2) / 2;
-    case 'jumatate_in_jos':
+    case "jumatate_in_jos":
       return Math.floor(laDouaZecimale * 2) / 2;
-    case 'zi_in_sus':
+    case "zi_in_sus":
       return Math.ceil(laDouaZecimale);
-    case 'zi_in_jos':
+    case "zi_in_jos":
       return Math.floor(laDouaZecimale);
-    case 'matematic':
+    case "matematic":
       return Math.round(laDouaZecimale);
     default: {
       const modNerecunoscut: never = mod;
@@ -73,13 +73,15 @@ export function calculeazaAcumulareProportionala(
   astazi: Date,
 ): number {
   if (!Number.isInteger(an) || an < 2000 || an > 2199) {
-    throw new RangeError('Anul de calcul al soldului trebuie să fie un număr întreg între 2000 și 2199.');
+    throw new RangeError(
+      "Anul de calcul al soldului trebuie să fie un număr întreg între 2000 și 2199.",
+    );
   }
   if (!Number.isFinite(dreptAnual) || dreptAnual < 0) {
-    throw new RangeError('Dreptul anual de concediu nu poate fi negativ.');
+    throw new RangeError("Dreptul anual de concediu nu poate fi negativ.");
   }
   if (Number.isNaN(dataAngajarii.getTime()) || Number.isNaN(astazi.getTime())) {
-    throw new RangeError('Data angajării sau data de referință este invalidă.');
+    throw new RangeError("Data angajării sau data de referință este invalidă.");
   }
 
   const anAngajarii = dataAngajarii.getUTCFullYear();

@@ -227,7 +227,7 @@ export function FormularDemo() {
       <button
         type="submit"
         disabled={inCurs}
-        className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex w-full items-center justify-center gap-2 rounded-md px-6 py-3 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground sm:w-auto"
+        className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex w-full items-center justify-center gap-2 rounded-md px-6 py-3 text-sm font-medium transition-colors disabled:cursor-not-allowed sm:w-auto"
       >
         {inCurs ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
         {inCurs ? "Se trimite…" : "Trimite cererea"}
