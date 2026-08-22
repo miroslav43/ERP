@@ -166,6 +166,7 @@ export const capitalSocialSchema = opțional(
  */
 export const caenClasaSchema = z
   .string("Selectați un cod CAEN.")
+  .min(1, "Selectați un cod CAEN.")
   .regex(/^[0-9]{4}$/, "Codul CAEN are 4 cifre.")
   .refine((cod) => CODURI_CAEN_VALIDE.has(cod), "Acest cod CAEN nu există în nomenclator.");
 

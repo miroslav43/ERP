@@ -51,6 +51,8 @@ supabase/.branches
 /playwright-report
 /blob-report
 /playwright/.cache
+# Capturi, snapshot-uri și log-uri lăsate de serverul MCP Playwright.
+/.playwright-mcp
 
 # Capturi de ecran lăsate la rădăcină în timpul lucrului.
 /image*.png

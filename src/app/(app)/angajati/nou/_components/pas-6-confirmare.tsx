@@ -1,7 +1,7 @@
 // src/app/(app)/angajati/nou/_components/pas-6-confirmare.tsx
 "use client";
 
-import type { UseFormReturn } from "react-hook-form";
+import { useWatch, type UseFormReturn } from "react-hook-form";
 
 import type { InroleazaAngajatInput } from "@/schemas/employee";
 
@@ -21,7 +21,12 @@ function Rand({ eticheta, valoare }: { eticheta: string; valoare: string | undef
 
 /** Recapitulare read-only — nu duplică validarea, doar reflectă ce s-a completat. */
 export function Pas6Confirmare({ formular }: Proprietati) {
-  const valori = formular.watch();
+  // `useWatch`, nu `formular.watch()` — vezi nota din pasul de identitate.
+  // Ecranul se montează la intrarea în pas, deci astăzi citește valorile
+  // corecte chiar și fără abonament; dar componenta primește props cu
+  // identitate stabilă și e memoizată de React Compiler, așa că orice
+  // schimbare care ar ține-o montată ar îngheța recapitularea, tăcut.
+  const valori = useWatch({ control: formular.control });
 
   return (
     <div className="space-y-6">
@@ -47,12 +52,18 @@ export function Pas6Confirmare({ formular }: Proprietati) {
         <Rand
           eticheta="Salariu de bază"
           valoare={
-            valori.salariu_baza === undefined ? undefined : `${String(valori.salariu_baza)} ${valori.moneda ?? "RON"}`
+            valori.salariu_baza === undefined
+              ? undefined
+              : `${String(valori.salariu_baza)} ${valori.moneda ?? "RON"}`
           }
         />
         <Rand
           eticheta="Zile concediu anual"
-          valoare={valori.zile_concediu_anual === undefined ? undefined : String(valori.zile_concediu_anual)}
+          valoare={
+            valori.zile_concediu_anual === undefined
+              ? undefined
+              : String(valori.zile_concediu_anual)
+          }
         />
       </dl>
 
@@ -60,7 +71,8 @@ export function Pas6Confirmare({ formular }: Proprietati) {
         <Rand
           eticheta="Fișa postului"
           valoare={
-            (valori.atributii ?? "").trim().length > 0 || (valori.competente ?? "").trim().length > 0
+            (valori.atributii ?? "").trim().length > 0 ||
+            (valori.competente ?? "").trim().length > 0
               ? "Se generează la trimitere"
               : "Necompletată — poate fi adăugată ulterior"
           }

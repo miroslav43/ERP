@@ -268,6 +268,22 @@ export function createPlatformAction<TSchema extends z.ZodType, TData>(
 
       if (eroareActiune.code === "EROARE_INTERNA") {
         console.error("[platform-action]", definitie.name, requestId, exceptie);
+      } else if (isPostgrestError(exceptie)) {
+        // Mesajul livrat utilizatorului rămâne fix (textul bazei poate conține
+        // nume de constrângeri și fragmente de SQL), dar cauza trebuie să
+        // rămână undeva. Fără asta, un `23514` ajungea în interfață ca „Datele
+        // nu respectă regulile de validare” fără NICIO urmă pe server — exact
+        // situația în care o constrângere CHECK încălcată de o constantă din
+        // cod era imposibil de diagnosticat. `createAction` face deja asta
+        // pentru acțiunile de tenant; aici lipsea.
+        console.warn("[platform-action] respins de bază", {
+          name: definitie.name,
+          requestId,
+          pg: exceptie.code,
+          detaliu: exceptie.message,
+          detalii: exceptie.details,
+          hint: exceptie.hint,
+        });
       }
       await scrieAudit(supabase, {
         action: definitie.audit.action,

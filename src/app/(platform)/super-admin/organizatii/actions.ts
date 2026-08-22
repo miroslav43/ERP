@@ -79,7 +79,9 @@ export const creeazaOrganizatie = createPlatformAction<
         oras: input.oras,
         ...(input.adresa === undefined ? {} : { adresa: input.adresa }),
         ...(input.cod_postal === undefined ? {} : { cod_postal: input.cod_postal }),
-        tara: "România",
+        // Cod ISO 3166-1 alpha-2 — vezi nota din `nou/actions.ts`: coloana are
+        // `check (tara ~ '^[A-Z]{2}$')`, iar „România” pica cu 23514.
+        tara: "RO",
         ...(input.website === undefined ? {} : { website: input.website }),
         ...(input.reprezentant_legal === undefined
           ? {}

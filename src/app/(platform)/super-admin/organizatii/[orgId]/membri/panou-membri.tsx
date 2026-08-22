@@ -90,7 +90,8 @@ function ButonConfirmare({
   );
 }
 
-function LinkInvitatie({ link }: Readonly<{ link: string }>) {
+/** Exportat: asistentul de înrolare afișează același link pe ecranul de succes. */
+export function LinkInvitatie({ link }: Readonly<{ link: string }>) {
   const [copiat, setCopiat] = useState(false);
   const [eroare, setEroare] = useState<string | null>(null);
 
@@ -238,7 +239,7 @@ export function FormularInvitatie({ organizationId }: Readonly<{ organizationId:
       <button
         type="submit"
         disabled={isSubmitting}
-        className="bg-primary text-primary-foreground hover:bg-primary-hover mt-4 inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+        className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground mt-4 inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium disabled:cursor-not-allowed"
       >
         {isSubmitting ? (
           <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
@@ -303,7 +304,7 @@ export function ActiuniMembru({
           id={`rol-${memberId}`}
           defaultValue={rol}
           disabled={inCurs}
-          className="border-border bg-background text-foreground rounded-md border px-2 py-1 text-xs disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+          className="border-border bg-background text-foreground disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md border px-2 py-1 text-xs disabled:cursor-not-allowed"
           onChange={(eveniment) => {
             const rolNou = eveniment.target.value;
             ruleaza(async () => {

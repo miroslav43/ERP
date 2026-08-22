@@ -1,7 +1,7 @@
 // src/app/(app)/angajati/nou/_components/pas-3-contract.tsx
 "use client";
 
-import type { UseFormReturn } from "react-hook-form";
+import { useWatch, type UseFormReturn } from "react-hook-form";
 
 import {
   CONDITII_MUNCA,
@@ -57,14 +57,27 @@ interface Proprietati {
   readonly angajati: readonly OptiuneAngajat[];
 }
 
-export function Pas3Contract({ formular, idFormular, departamente, functii, angajati }: Proprietati) {
+export function Pas3Contract({
+  formular,
+  idFormular,
+  departamente,
+  functii,
+  angajati,
+}: Proprietati) {
   const {
     register,
-    watch,
+    control,
     formState: { errors },
   } = formular;
-  const modLucru = watch("work_mode");
-  const durataContract = watch("contract_duration");
+  // `useWatch`, NU `formular.watch(…)`. `watch` abonează doar componenta care
+  // apelează `useForm` (asistentul), nu și pașii lui, iar cu React Compiler
+  // activ pasul primește props cu identitate stabilă, e memoizat și nu se mai
+  // re-randează după montare. Cele două câmpuri condiționate de mai jos —
+  // „Până la” pentru contractul pe durată determinată și „Locul desfășurării
+  // activității” pentru telemuncă — sunt AMBELE obligatorii: nu apăreau
+  // niciodată, iar validarea pica apoi pe un câmp invizibil.
+  const modLucru = useWatch({ control, name: "work_mode" });
+  const durataContract = useWatch({ control, name: "contract_duration" });
 
   return (
     <div className="space-y-6">
@@ -75,7 +88,11 @@ export function Pas3Contract({ formular, idFormular, departamente, functii, anga
             <label htmlFor={`${idFormular}-departament`} className={claseLabel}>
               Departament
             </label>
-            <select id={`${idFormular}-departament`} {...register("department_id")} className={claseCamp}>
+            <select
+              id={`${idFormular}-departament`}
+              {...register("department_id")}
+              className={claseCamp}
+            >
               <option value="">— Nealocat —</option>
               {departamente.map((d) => (
                 <option key={d.id} value={d.id}>
@@ -88,7 +105,11 @@ export function Pas3Contract({ formular, idFormular, departamente, functii, anga
             <label htmlFor={`${idFormular}-functie`} className={claseLabel}>
               Funcție
             </label>
-            <select id={`${idFormular}-functie`} {...register("job_position_id")} className={claseCamp}>
+            <select
+              id={`${idFormular}-functie`}
+              {...register("job_position_id")}
+              className={claseCamp}
+            >
               <option value="">— Nealocată —</option>
               {functii.map((f) => (
                 <option key={f.id} value={f.id}>
@@ -101,7 +122,11 @@ export function Pas3Contract({ formular, idFormular, departamente, functii, anga
             <label htmlFor={`${idFormular}-manager`} className={claseLabel}>
               Manager direct
             </label>
-            <select id={`${idFormular}-manager`} {...register("manager_employee_id")} className={claseCamp}>
+            <select
+              id={`${idFormular}-manager`}
+              {...register("manager_employee_id")}
+              className={claseCamp}
+            >
               <option value="">— Fără —</option>
               {angajati.map((a) => (
                 <option key={a.id} value={a.id}>
@@ -114,7 +139,11 @@ export function Pas3Contract({ formular, idFormular, departamente, functii, anga
             <label htmlFor={`${idFormular}-conditii`} className={claseLabel}>
               Condiții de muncă
             </label>
-            <select id={`${idFormular}-conditii`} {...register("conditii_munca")} className={claseCamp}>
+            <select
+              id={`${idFormular}-conditii`}
+              {...register("conditii_munca")}
+              className={claseCamp}
+            >
               {CONDITII_MUNCA.map((c) => (
                 <option key={c} value={c}>
                   {c}
@@ -151,7 +180,10 @@ export function Pas3Contract({ formular, idFormular, departamente, functii, anga
               aria-invalid={Boolean(errors.data_contract)}
               className={claseCamp}
             />
-            <Eroare id={`${idFormular}-data-contract-eroare`} mesaj={errors.data_contract?.message} />
+            <Eroare
+              id={`${idFormular}-data-contract-eroare`}
+              mesaj={errors.data_contract?.message}
+            />
           </div>
           <div>
             <label htmlFor={`${idFormular}-valabil-de-la`} className={claseLabel}>
@@ -164,19 +196,31 @@ export function Pas3Contract({ formular, idFormular, departamente, functii, anga
               aria-invalid={Boolean(errors.valabil_de_la)}
               className={claseCamp}
             />
-            <Eroare id={`${idFormular}-valabil-de-la-eroare`} mesaj={errors.valabil_de_la?.message} />
+            <Eroare
+              id={`${idFormular}-valabil-de-la-eroare`}
+              mesaj={errors.valabil_de_la?.message}
+            />
           </div>
           <div>
             <label htmlFor={`${idFormular}-hired-on`} className={claseLabel}>
               Data angajării (fișă)
             </label>
-            <input id={`${idFormular}-hired-on`} type="date" {...register("hired_on")} className={claseCamp} />
+            <input
+              id={`${idFormular}-hired-on`}
+              type="date"
+              {...register("hired_on")}
+              className={claseCamp}
+            />
           </div>
           <div>
             <label htmlFor={`${idFormular}-durata`} className={claseLabel}>
               Durata contractului
             </label>
-            <select id={`${idFormular}-durata`} {...register("contract_duration")} className={claseCamp}>
+            <select
+              id={`${idFormular}-durata`}
+              {...register("contract_duration")}
+              className={claseCamp}
+            >
               {DURATE_CONTRACT.map((d) => (
                 <option key={d} value={d}>
                   {d === "nedeterminat" ? "Nedeterminată" : "Determinată"}
@@ -197,13 +241,20 @@ export function Pas3Contract({ formular, idFormular, departamente, functii, anga
                   aria-invalid={Boolean(errors.valabil_pana)}
                   className={claseCamp}
                 />
-                <Eroare id={`${idFormular}-valabil-pana-eroare`} mesaj={errors.valabil_pana?.message} />
+                <Eroare
+                  id={`${idFormular}-valabil-pana-eroare`}
+                  mesaj={errors.valabil_pana?.message}
+                />
               </div>
               <div>
                 <label htmlFor={`${idFormular}-motiv-determinat`} className={claseLabel}>
                   Motivul duratei determinate
                 </label>
-                <input id={`${idFormular}-motiv-determinat`} {...register("motiv_determinat")} className={claseCamp} />
+                <input
+                  id={`${idFormular}-motiv-determinat`}
+                  {...register("motiv_determinat")}
+                  className={claseCamp}
+                />
               </div>
             </>
           ) : null}
@@ -258,21 +309,32 @@ export function Pas3Contract({ formular, idFormular, departamente, functii, anga
                 aria-invalid={Boolean(errors.loc_telemunca)}
                 className={claseCamp}
               />
-              <Eroare id={`${idFormular}-loc-telemunca-eroare`} mesaj={errors.loc_telemunca?.message} />
+              <Eroare
+                id={`${idFormular}-loc-telemunca-eroare`}
+                mesaj={errors.loc_telemunca?.message}
+              />
             </div>
           ) : (
             <div>
               <label htmlFor={`${idFormular}-loc-munca`} className={claseLabel}>
                 Locul de muncă
               </label>
-              <input id={`${idFormular}-loc-munca`} {...register("loc_munca")} className={claseCamp} />
+              <input
+                id={`${idFormular}-loc-munca`}
+                {...register("loc_munca")}
+                className={claseCamp}
+              />
             </div>
           )}
           <div>
             <label htmlFor={`${idFormular}-regim-special`} className={claseLabel}>
               Regim special
             </label>
-            <select id={`${idFormular}-regim-special`} {...register("special_regime")} className={claseCamp}>
+            <select
+              id={`${idFormular}-regim-special`}
+              {...register("special_regime")}
+              className={claseCamp}
+            >
               <option value="">— Niciunul —</option>
               {REGIMURI_SPECIALE.map((r) => (
                 <option key={r} value={r}>
@@ -332,7 +394,12 @@ export function Pas3Contract({ formular, idFormular, departamente, functii, anga
             <label htmlFor={`${idFormular}-moneda`} className={claseLabel}>
               Monedă
             </label>
-            <input id={`${idFormular}-moneda`} {...register("moneda")} maxLength={3} className={claseCamp} />
+            <input
+              id={`${idFormular}-moneda`}
+              {...register("moneda")}
+              maxLength={3}
+              className={claseCamp}
+            />
           </div>
           <div>
             <label htmlFor={`${idFormular}-zile-concediu`} className={claseLabel}>

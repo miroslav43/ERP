@@ -1,7 +1,7 @@
 // src/app/(platform)/super-admin/organizatii/nou/_components/pas-3-financiar.tsx
 "use client";
 
-import type { UseFormReturn } from "react-hook-form";
+import { useWatch, type UseFormReturn } from "react-hook-form";
 
 import { FURNIZORI_TICHETE, type OnboardeazaOrganizatieInput } from "@/schemas/organization";
 import { claseCamp, claseLabel, Eroare } from "./campuri-comune";
@@ -31,10 +31,13 @@ interface Proprietati {
 export function Pas3Financiar({ formular, idFormular }: Proprietati) {
   const {
     register,
-    watch,
+    control,
     formState: { errors },
   } = formular;
-  const seDaAvans = watch("plata_avans");
+  // `useWatch`, nu `formular.watch(…)` — vezi nota din `pas-1-identitate.tsx`:
+  // pașii primesc props stabile, sunt memoizați de React Compiler și nu se
+  // re-randează la schimbarea valorii, deci câmpul condiționat nu apărea.
+  const seDaAvans = useWatch({ control, name: "plata_avans" });
 
   return (
     <div className="space-y-6">
@@ -72,7 +75,9 @@ export function Pas3Financiar({ formular, idFormular }: Proprietati) {
       </fieldset>
 
       <fieldset className="border-border space-y-4 rounded-lg border p-4">
-        <legend className="text-foreground px-1 text-sm font-medium">Program de plată a salariilor</legend>
+        <legend className="text-foreground px-1 text-sm font-medium">
+          Program de plată a salariilor
+        </legend>
         <div className="flex items-center gap-2">
           <input
             id={`${idFormular}-avans`}
@@ -132,7 +137,11 @@ export function Pas3Financiar({ formular, idFormular }: Proprietati) {
           <label htmlFor={`${idFormular}-tichete`} className={claseLabel}>
             Furnizor
           </label>
-          <select id={`${idFormular}-tichete`} {...register("tichete_furnizor")} className={claseCamp}>
+          <select
+            id={`${idFormular}-tichete`}
+            {...register("tichete_furnizor")}
+            className={claseCamp}
+          >
             <option value="">— Fără tichete de masă —</option>
             {FURNIZORI_TICHETE.map((furnizor) => (
               <option key={furnizor} value={furnizor}>
