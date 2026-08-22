@@ -740,6 +740,13 @@ begin
          (v_beta, (select val from t_ids where cheie='ang_beta'),
           (select val from t_ids where cheie='pper_beta'), 'avans', 50.00, 'fixture');
 
+  insert into public.payroll_prior_income (organization_id, employee_id, an, luna,
+    venit_brut, drepturi_salariale, zile_lucrate, sursa)
+  values (v_alfa, (select val from t_ids where cheie='ang_alfa'),
+          extract(year from current_date)::smallint, 1, 5000.00, 5000.00, 21, 'fixture'),
+         (v_beta, (select val from t_ids where cheie='ang_beta'),
+          extract(year from current_date)::smallint, 1, 4000.00, 4000.00, 21, 'fixture');
+
   insert into public.announcements (id, organization_id, titlu, continut)
   values ((select val from t_ids where cheie='anunt_alfa'), v_alfa, 'Anunț Alfa', 'Conținut de fixture.'),
          ((select val from t_ids where cheie='anunt_beta'), v_beta, 'Anunț Beta', 'Conținut de fixture.');
