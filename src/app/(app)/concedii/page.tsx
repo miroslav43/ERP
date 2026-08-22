@@ -17,6 +17,7 @@ import { formatAmount } from "@/lib/format/money";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
 import { listeazaCereri, soldAnual, type RandCerere } from "@/lib/queries/leave";
 import { filtreCereriSchema } from "@/schemas/leave";
+import { fisaProprie } from "@/lib/queries/portal";
 
 import { CLASE_STATUS_CERERE, ETICHETE_STATUS_CERERE } from "./etichete";
 import { FiltreCereri } from "./filtre-cereri";
@@ -47,17 +48,19 @@ interface ProprietatiTabel {
   readonly tipuri: readonly OptiuneTip[];
   readonly parametri: Record<string, string | string[] | undefined>;
   readonly scope: "own" | "team" | "all";
+  readonly fisaMea: string | null;
 }
 
 async function TabelCereri({
   organizationId,
   aratăAngajat,
+  fisaMea,
   tipuri,
   parametri,
   scope,
 }: ProprietatiTabel) {
   const filtre = filtreDinUrl(filtreCereriSchema, parametri);
-  const { randuri, urmatorulCursor } = await listeazaCereri(organizationId, scope, filtre);
+  const { randuri, urmatorulCursor } = await listeazaCereri(organizationId, scope, filtre, fisaMea);
 
   if (randuri.length === 0) {
     return (
@@ -197,7 +200,7 @@ async function RezumatSoldPropriu({ organizationId }: { readonly organizationId:
 
 export default async function PaginaConcedii({ searchParams }: ProprietatiPagina) {
   await requireUser();
-  const { tenant } = await requireTenant();
+  const { tenant, user } = await requireTenant();
   await requireFeature(tenant.organizationId, "leave");
   const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
 
@@ -206,6 +209,10 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
       <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta cererile de concediu. Solicitați administratorului organizației rolul potrivit." />
     );
   }
+
+  // Fișa proprie, ca să putem separa „ale mele” de „ale echipei”. Poate lipsi:
+  // un administrator invitat e membru fără să fie angajat.
+  const fisaMea = await fisaProprie(tenant.organizationId, user.id);
 
   const scope: "own" | "team" | "all" = can(permisiuni, "leave:read", "all")
     ? "all"
@@ -260,7 +267,10 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
 
       {scope === "own" ? <RezumatSoldPropriu organizationId={tenant.organizationId} /> : null}
 
-      <FiltreCereri tipuri={tipuri ?? []} />
+      {/* Comutatorul apare doar cui chiar are două feluri de cereri: un
+          angajat cu scope „own” vede numai ale lui, iar un al doilea filtru
+          i-ar sugera că există și altceva. */}
+      <FiltreCereri tipuri={tipuri ?? []} aratăVizualizarea={scope !== "own" && fisaMea !== null} />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<SkeletonTable />}>
         <TabelCereri
@@ -269,6 +279,7 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
           tipuri={tipuri ?? []}
           parametri={parametri}
           scope={scope}
+          fisaMea={fisaMea?.id ?? null}
         />
       </Suspense>
     </main>

@@ -131,7 +131,20 @@ const listaStatusuriOptionala = z
 
 // ── Filtre de listare (paginare keyset) ───────────────────────────────────────
 
+/**
+ * Un manager are DOUĂ feluri de cereri pe același ecran: ale lui și ale
+ * subalternilor. Amestecate, lista nu răspunde la niciuna dintre întrebările
+ * pe care le pune de fapt — „unde e cererea mea?” și „ce am de aprobat?”.
+ *
+ * `mele` / `echipa` se traduc într-un filtru pe `employee_id`, nu într-o a doua
+ * interogare: RLS-ul decide oricum ce rânduri există, iar filtrul doar alege
+ * dintre ele.
+ */
+export const VIZUALIZARI_CERERI = ["toate", "mele", "echipa"] as const;
+export type VizualizareCereri = (typeof VIZUALIZARI_CERERI)[number];
+
 export const filtreCereriSchema = z.object({
+  vizualizare: z.enum(VIZUALIZARI_CERERI).default("toate"),
   status: listaStatusuriOptionala,
   leave_type_id: uuidOptional,
   employee_id: uuidOptional,
