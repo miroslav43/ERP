@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { Sidebar, SidebarProvider } from "@/components/layout/sidebar";
 import { SidebarNav, type NavGroupView } from "@/components/layout/sidebar-nav";
 import { Topbar } from "@/components/layout/topbar";
+import { RaporteazaProblema } from "@/components/layout/raporteaza-problema";
 import { getEnabledFeatures } from "@/lib/auth/features";
 import { getPermissionMap } from "@/lib/auth/permissions";
 import { buildNavigation } from "@/lib/navigation/build-navigation";
@@ -95,6 +96,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           <main id="continut" className="min-w-0 flex-1 p-4 md:p-6">
             {children}
           </main>
+          {/* Prezent pe fiecare pagină, deliberat discret: e o ieșire de
+              siguranță, nu o acțiune pe care o cauți. Modulul se deduce din
+              calea curentă și ajunge precompletat în formular. */}
+          {features.has("ticketing") ? <RaporteazaProblema /> : null}
         </div>
       </SidebarProvider>
     </>

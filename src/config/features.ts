@@ -13,6 +13,7 @@ import {
   ClipboardCheck,
   Clock,
   LayoutDashboard,
+  LifeBuoy,
   Megaphone,
   Package,
   Plane,
@@ -48,6 +49,7 @@ export const FEATURE_KEYS = [
   "announcements",
   "employee_portal",
   "evaluations",
+  "ticketing",
 ] as const;
 
 export type FeatureKey = (typeof FEATURE_KEYS)[number];
@@ -122,6 +124,13 @@ export const FEATURES: Readonly<Record<FeatureKey, FeatureMeta>> = {
     grup: "hr",
     isCore: false,
     sortOrder: 130,
+  },
+  ticketing: {
+    denumire: "Ticketing IT",
+    icon: LifeBuoy,
+    grup: "operations",
+    isCore: false,
+    sortOrder: 140,
   },
 };
 

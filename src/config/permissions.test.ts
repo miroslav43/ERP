@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -19,7 +19,23 @@ import { PERMISSION_KEYS, RANK, meetsScope, type PermissionKey } from "./permiss
  * amintește să pornească un Postgres.
  */
 
-const MIGRARE = join(process.cwd(), "supabase/migrations/0002_authz.sql");
+const DIRECTOR_MIGRARI = join(process.cwd(), "supabase/migrations");
+
+/**
+ * Se citesc TOATE migrațiile, nu doar 0002.
+ *
+ * Inițial se citea doar `0002_authz.sql`, unde trăiau toate permisiunile. Un
+ * modul nou care își aduce propriul seed — `tickets` în 0046 — pica testul
+ * degeaba: cheile existau în bază, dar nu în fișierul citit. Cu tot directorul,
+ * garanția rămâne aceeași și se aplică și modulelor viitoare.
+ */
+function sqlulTuturorMigrarilor(): string {
+  return readdirSync(DIRECTOR_MIGRARI)
+    .filter((nume) => nume.endsWith(".sql"))
+    .sort()
+    .map((nume) => readFileSync(join(DIRECTOR_MIGRARI, nume), "utf8"))
+    .join("\n");
+}
 
 /** Toate literalele `'...'` dintr-o listă SQL. */
 function literale(bloc: string): readonly string[] {
@@ -36,7 +52,7 @@ function literale(bloc: string): readonly string[] {
  *   3. `values (null, 'rol', 'resursă', 'acțiune', 'scope')`
  */
 function cheiDinSeed(): ReadonlySet<string> {
-  const sql = readFileSync(MIGRARE, "utf8");
+  const sql = sqlulTuturorMigrarilor();
   const chei = new Set<string>();
 
   // Forma 1 — produs cartezian resurse × acțiuni.
@@ -83,7 +99,7 @@ describe("vocabularul de permisiuni", () => {
   it("fiecare cheie declarată în cod există în seed-ul SQL", () => {
     const seed = cheiDinSeed();
     // Dacă parsarea nu găsește nimic, testul ar trece fals-pozitiv.
-    expect(seed.size, "Nu s-a putut citi nicio cheie din 0002_authz.sql").toBeGreaterThan(20);
+    expect(seed.size, "Nu s-a putut citi nicio cheie din migrări").toBeGreaterThan(20);
 
     const lipsa = PERMISSION_KEYS.filter((cheie) => !seed.has(cheie));
     expect(
