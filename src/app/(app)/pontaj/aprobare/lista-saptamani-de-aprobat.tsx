@@ -40,11 +40,11 @@ function RandSarcina({ sarcina }: { readonly sarcina: SarcinaSaptamanaDeAprobat 
   }
 
   return (
-    <li className="space-y-3 rounded-lg border border-border p-4">
+    <li className="border-border space-y-3 rounded-lg border p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="font-medium">{sarcina.angajat?.fullName ?? "Angajat necunoscut"}</p>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-muted-foreground text-xs">
             Săptămâna din{" "}
             {new Date(`${sarcina.submisie.saptamanaStart}T00:00:00Z`).toLocaleDateString("ro-RO")}
           </p>
@@ -53,7 +53,7 @@ function RandSarcina({ sarcina }: { readonly sarcina: SarcinaSaptamanaDeAprobat 
 
       <ul className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-4">
         {sarcina.zile.map((zi, index) => (
-          <li key={zi.data} className="flex justify-between gap-2 text-muted-foreground">
+          <li key={zi.data} className="text-muted-foreground flex justify-between gap-2">
             <span>{ETICHETE_ZI[index]}</span>
             <span className="text-foreground">
               {ETICHETE_TIP_PREZENTA[zi.tip_prezenta]} · {zi.ore_planificate}h
@@ -63,7 +63,7 @@ function RandSarcina({ sarcina }: { readonly sarcina: SarcinaSaptamanaDeAprobat 
       </ul>
 
       <div aria-live="polite">
-        {eroare === null ? null : <p className="text-sm text-danger">{eroare}</p>}
+        {eroare === null ? null : <p className="text-danger text-sm">{eroare}</p>}
       </div>
 
       {respingere ? (
@@ -79,7 +79,7 @@ function RandSarcina({ sarcina }: { readonly sarcina: SarcinaSaptamanaDeAprobat 
             onChange={(e) => {
               setMotiv(e.target.value);
             }}
-            className="w-full rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 w-full rounded-md border px-3 py-2 text-sm"
           />
           <div className="flex gap-2">
             <button
@@ -88,7 +88,7 @@ function RandSarcina({ sarcina }: { readonly sarcina: SarcinaSaptamanaDeAprobat 
               onClick={() => {
                 decide("respinsa");
               }}
-              className="rounded-md border border-danger px-3 py-1.5 text-sm text-danger hover:bg-danger hover:text-danger-foreground disabled:cursor-not-allowed disabled:border-border disabled:text-muted-foreground"
+              className="border-danger text-danger hover:bg-danger hover:text-danger-foreground disabled:border-border disabled:text-muted-foreground rounded-md border px-3 py-1.5 text-sm disabled:cursor-not-allowed"
             >
               Confirmă respingerea
             </button>
@@ -97,7 +97,7 @@ function RandSarcina({ sarcina }: { readonly sarcina: SarcinaSaptamanaDeAprobat 
               onClick={() => {
                 setRespingere(false);
               }}
-              className="rounded-md border border-foreground/60 px-3 py-1.5 text-sm"
+              className="border-foreground/60 rounded-md border px-3 py-1.5 text-sm"
             >
               Renunță
             </button>
@@ -111,7 +111,7 @@ function RandSarcina({ sarcina }: { readonly sarcina: SarcinaSaptamanaDeAprobat 
             onClick={() => {
               decide("aprobata");
             }}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-surface disabled:text-muted-foreground"
+            className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
           >
             Aprobă săptămâna
           </button>
@@ -121,7 +121,7 @@ function RandSarcina({ sarcina }: { readonly sarcina: SarcinaSaptamanaDeAprobat 
             onClick={() => {
               setRespingere(true);
             }}
-            className="rounded-md border border-danger px-4 py-2 text-sm text-danger hover:bg-danger hover:text-danger-foreground disabled:cursor-not-allowed disabled:border-border disabled:text-muted-foreground"
+            className="border-danger text-danger hover:bg-danger hover:text-danger-foreground disabled:border-border disabled:text-muted-foreground rounded-md border px-4 py-2 text-sm disabled:cursor-not-allowed"
           >
             Respinge
           </button>

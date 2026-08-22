@@ -55,13 +55,13 @@ export function DecizieFoaie({ id }: { readonly id: string }) {
           rows={2}
           maxLength={500}
           required
-          className="w-full rounded-md border border-foreground/60 px-3 py-2 text-sm"
+          className="border-foreground/60 w-full rounded-md border px-3 py-2 text-sm"
         />
         <div className="flex gap-2">
           <button
             type="submit"
             disabled={inCurs}
-            className="rounded-md bg-danger px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-danger disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+            className="bg-danger text-primary-foreground hover:bg-danger disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed"
           >
             {inCurs ? "Se trimite…" : "Respinge"}
           </button>
@@ -71,13 +71,13 @@ export function DecizieFoaie({ id }: { readonly id: string }) {
               setCereMotiv(false);
               setEroare(null);
             }}
-            className="rounded-md border border-foreground/60 px-3 py-1.5 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-1.5 text-sm"
           >
             Renunță
           </button>
         </div>
         {eroare === null ? null : (
-          <p role="alert" className="text-xs text-danger">
+          <p role="alert" className="text-danger text-xs">
             {eroare}
           </p>
         )}
@@ -94,7 +94,7 @@ export function DecizieFoaie({ id }: { readonly id: string }) {
           onClick={() => {
             decide("aprobat", null);
           }}
-          className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed"
         >
           {inCurs ? "Se trimite…" : "Aprobă"}
         </button>
@@ -104,13 +104,13 @@ export function DecizieFoaie({ id }: { readonly id: string }) {
           onClick={() => {
             setCereMotiv(true);
           }}
-          className="rounded-md border border-foreground/60 px-3 py-1.5 text-sm hover:bg-surface disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+          className="border-foreground/60 hover:bg-surface disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md border px-3 py-1.5 text-sm disabled:cursor-not-allowed"
         >
           Respinge
         </button>
       </div>
       {eroare === null ? null : (
-        <p role="alert" className="max-w-sm text-xs text-danger">
+        <p role="alert" className="text-danger max-w-sm text-xs">
           {eroare}
         </p>
       )}

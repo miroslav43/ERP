@@ -2,12 +2,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Building2, LifeBuoy, LogOut } from "lucide-react";
+import { Building2, LifeBuoy, LogOut, ShieldCheck } from "lucide-react";
 
 import { comutaOrganizatiaDirect, deconecteaza } from "@/app/(app)/actions";
 import { listUserOrganizations } from "@/lib/queries/organizations";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { RUTA_AUTENTIFICARE } from "@/config/routes";
+import { RUTA_AUTENTIFICARE, RUTA_SUPER_ADMIN } from "@/config/routes";
+import { isPlatformAdmin } from "@/lib/auth/platform";
 export const metadata: Metadata = {
   title: "Alegeți organizația",
   description: "Selectați organizația în care doriți să lucrați.",
@@ -39,6 +40,13 @@ export default async function AlegeOrganizatiaPage({ searchParams }: Props) {
   const areEroareAcces = parametri["eroare"] === "acces";
   const organizatii = await listUserOrganizations();
 
+  // Un administrator de platformă poate să nu aibă nicio firmă — e chiar forma
+  // corectă a contului. Fără ieșirea de mai jos, ecranul ăsta i-ar fi fundătură:
+  // resolveTenant() îl trimite aici, iar de aici n-ar avea unde merge.
+  // Verificarea se face doar când lista e goală, ca să nu coste un drum la bază
+  // pentru utilizatorii obișnuiți.
+  const estePlatformAdmin = organizatii.length === 0 ? await isPlatformAdmin() : false;
+
   return (
     <main className="mx-auto flex w-full max-w-lg flex-col gap-6 px-4 py-12">
       <header className="flex flex-col gap-2">
@@ -51,6 +59,23 @@ export default async function AlegeOrganizatiaPage({ searchParams }: Props) {
             : "Contul dumneavoastră nu este asociat niciunei organizații."}
         </p>
       </header>
+
+      {estePlatformAdmin ? (
+        <Link
+          href={RUTA_SUPER_ADMIN}
+          className="border-border bg-surface hover:border-primary flex items-center gap-3 rounded-md border px-4 py-3 transition"
+        >
+          <ShieldCheck aria-hidden="true" className="text-primary size-5 shrink-0" />
+          <span className="flex flex-col">
+            <span className="text-foreground text-sm font-medium">
+              Intrați în consola de platformă
+            </span>
+            <span className="text-muted-foreground text-sm">
+              Contul dumneavoastră administrează platforma, nu o firmă anume.
+            </span>
+          </span>
+        </Link>
+      ) : null}
 
       {areEroareAcces ? (
         <p

@@ -43,7 +43,7 @@ export function FiltreCereri({ tipuri }: { readonly tipuri: readonly OptiuneTip[
       action={aplica}
       role="search"
       aria-label="Filtrare cereri de concediu"
-      className="flex flex-wrap items-end gap-4 rounded-lg border border-border p-4"
+      className="border-border flex flex-wrap items-end gap-4 rounded-lg border p-4"
     >
       <div>
         <label htmlFor={idStatus} className="block text-sm font-medium">
@@ -53,7 +53,7 @@ export function FiltreCereri({ tipuri }: { readonly tipuri: readonly OptiuneTip[
           id={idStatus}
           name="status"
           defaultValue={parametri.get("status") ?? ""}
-          className="mt-1 rounded-md border border-foreground/60 px-2 py-2 text-sm"
+          className="border-foreground/60 mt-1 rounded-md border px-2 py-2 text-sm"
         >
           <option value="">Toate</option>
           {STATUSURI_CERERE.map((status) => (
@@ -72,7 +72,7 @@ export function FiltreCereri({ tipuri }: { readonly tipuri: readonly OptiuneTip[
           id={idTip}
           name="leave_type_id"
           defaultValue={parametri.get("leave_type_id") ?? ""}
-          className="mt-1 w-full rounded-md border border-foreground/60 px-2 py-2 text-sm"
+          className="border-foreground/60 mt-1 w-full rounded-md border px-2 py-2 text-sm"
         >
           <option value="">Toate</option>
           {tipuri.map((tip) => (
@@ -92,7 +92,7 @@ export function FiltreCereri({ tipuri }: { readonly tipuri: readonly OptiuneTip[
           name="de_la"
           type="date"
           defaultValue={parametri.get("de_la") ?? ""}
-          className="mt-1 rounded-md border border-foreground/60 px-2 py-2 text-sm"
+          className="border-foreground/60 mt-1 rounded-md border px-2 py-2 text-sm"
         />
       </div>
 
@@ -105,14 +105,14 @@ export function FiltreCereri({ tipuri }: { readonly tipuri: readonly OptiuneTip[
           name="pana_la"
           type="date"
           defaultValue={parametri.get("pana_la") ?? ""}
-          className="mt-1 rounded-md border border-foreground/60 px-2 py-2 text-sm"
+          className="border-foreground/60 mt-1 rounded-md border px-2 py-2 text-sm"
         />
       </div>
 
       <button
         type="submit"
         disabled={inCurs}
-        className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+        className="bg-primary text-primary-foreground disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
       >
         <Search aria-hidden="true" className="size-4" />
         {inCurs ? "Se filtrează…" : "Aplică filtrele"}

@@ -97,7 +97,7 @@ export function FormularStingator({
             required
             maxLength={40}
             defaultValue={stingatorExistent?.cod}
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           />
         </div>
 
@@ -112,7 +112,7 @@ export function FormularStingator({
             maxLength={60}
             placeholder="pulbere, CO2, spumă…"
             defaultValue={stingatorExistent?.tip}
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           />
         </div>
 
@@ -127,7 +127,7 @@ export function FormularStingator({
             min="0.1"
             step="0.1"
             defaultValue={stingatorExistent?.masa_kg ?? undefined}
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           />
         </div>
 
@@ -139,7 +139,7 @@ export function FormularStingator({
             id={id.status}
             name="status"
             defaultValue={stingatorExistent?.status ?? "activ"}
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           >
             {STATUS_STINGATOR.map((s) => (
               <option key={s} value={s}>
@@ -159,7 +159,7 @@ export function FormularStingator({
             required
             maxLength={200}
             defaultValue={stingatorExistent?.locatie}
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           />
         </div>
 
@@ -172,7 +172,7 @@ export function FormularStingator({
             name="cladire"
             maxLength={120}
             defaultValue={stingatorExistent?.cladire ?? undefined}
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           />
         </div>
 
@@ -185,7 +185,7 @@ export function FormularStingator({
             name="producator"
             maxLength={120}
             defaultValue={stingatorExistent?.producator ?? undefined}
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           />
         </div>
 
@@ -198,7 +198,7 @@ export function FormularStingator({
             name="serie"
             maxLength={64}
             defaultValue={stingatorExistent?.serie ?? undefined}
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           />
         </div>
 
@@ -211,7 +211,7 @@ export function FormularStingator({
             name="data_punerii_in_functiune"
             type="date"
             defaultValue={stingatorExistent?.data_punerii_in_functiune ?? undefined}
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           />
         </div>
 
@@ -224,7 +224,7 @@ export function FormularStingator({
             name="ultima_verificare"
             type="date"
             defaultValue={stingatorExistent?.ultima_verificare ?? undefined}
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           />
         </div>
 
@@ -237,7 +237,7 @@ export function FormularStingator({
             name="ultima_reincarcare"
             type="date"
             defaultValue={stingatorExistent?.ultima_reincarcare ?? undefined}
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           />
         </div>
 
@@ -250,7 +250,7 @@ export function FormularStingator({
             name="ultima_proba_presiune"
             type="date"
             defaultValue={stingatorExistent?.ultima_proba_presiune ?? undefined}
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           />
         </div>
       </div>
@@ -259,12 +259,12 @@ export function FormularStingator({
         <button
           type="submit"
           disabled={inCurs}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
         >
           {inCurs ? "Se salvează…" : editare ? "Salvează modificările" : "Adaugă stingătorul"}
         </button>
         {eroare === null ? null : (
-          <p role="alert" className="text-sm text-danger">
+          <p role="alert" className="text-danger text-sm">
             {eroare}
           </p>
         )}

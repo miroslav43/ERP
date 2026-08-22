@@ -36,8 +36,7 @@ const membershipSchema = z.object({
 });
 type Membership = z.output<typeof membershipSchema>;
 
-const SELECT_APARTENENTE =
-  "id, role, organizations!inner(id, slug, name, legal_name, timezone)";
+const SELECT_APARTENENTE = "id, role, organizations!inner(id, slug, name, legal_name, timezone)";
 
 const FUS_IMPLICIT = "Europe/Bucharest";
 

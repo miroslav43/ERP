@@ -119,8 +119,7 @@ const PASI = [
   },
 ] as const;
 
-const FOCUS =
-  "   focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+const FOCUS = "   focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 
 function EtichetaStare({ stare }: { stare: StareModul }) {
   const esteDisponibil = stare === "disponibil";

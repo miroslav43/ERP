@@ -105,7 +105,11 @@ export function FormularDepartamentNou({ departamente, angajati }: Proprietati) 
         <label htmlFor={idParinte} className="text-sm font-medium">
           Departament superior
         </label>
-        <select id={idParinte} name="parent_id" className="border-foreground/60 rounded-md border px-3 py-2 text-sm">
+        <select
+          id={idParinte}
+          name="parent_id"
+          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+        >
           <option value="">— rădăcină —</option>
           {departamente.map((d) => (
             <option key={d.id} value={d.id}>
@@ -118,7 +122,11 @@ export function FormularDepartamentNou({ departamente, angajati }: Proprietati) 
         <label htmlFor={idManager} className="text-sm font-medium">
           Manager
         </label>
-        <select id={idManager} name="manager_employee_id" className="border-foreground/60 rounded-md border px-3 py-2 text-sm">
+        <select
+          id={idManager}
+          name="manager_employee_id"
+          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+        >
           <option value="">— nedesemnat —</option>
           {angajati.map((a) => (
             <option key={a.id} value={a.id}>

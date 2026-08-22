@@ -43,16 +43,16 @@ export function ActiuniEveniment(props: {
         type="button"
         onClick={() => setDeschis((valoare) => !valoare)}
         aria-expanded={deschis}
-        className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground focus-visible:outline"
+        className="bg-primary text-primary-foreground rounded-md px-3 py-1.5 text-xs font-medium focus-visible:outline"
       >
         Marchează transmis
       </button>
 
       {deschis ? (
-        <form action={trimite} className="space-y-2 rounded-md bg-surface p-3">
-          <p className="text-xs text-muted-foreground">Transmitere pentru {props.numeAngajat}</p>
+        <form action={trimite} className="bg-surface space-y-2 rounded-md p-3">
+          <p className="text-muted-foreground text-xs">Transmitere pentru {props.numeAngajat}</p>
           <div>
-            <label htmlFor={idData} className="block text-xs font-medium text-foreground">
+            <label htmlFor={idData} className="text-foreground block text-xs font-medium">
               Data transmiterii
             </label>
             <input
@@ -62,11 +62,11 @@ export function ActiuniEveniment(props: {
               required
               max={props.azi}
               defaultValue={props.azi}
-              className="mt-1 w-full rounded border border-foreground/60 px-2 py-1 text-sm"
+              className="border-foreground/60 mt-1 w-full rounded border px-2 py-1 text-sm"
             />
           </div>
           <div>
-            <label htmlFor={idNumar} className="block text-xs font-medium text-foreground">
+            <label htmlFor={idNumar} className="text-foreground block text-xs font-medium">
               Număr de înregistrare ITM
             </label>
             <input
@@ -75,13 +75,13 @@ export function ActiuniEveniment(props: {
               type="text"
               required
               maxLength={60}
-              className="mt-1 w-full rounded border border-foreground/60 px-2 py-1 text-sm"
+              className="border-foreground/60 mt-1 w-full rounded border px-2 py-1 text-sm"
             />
           </div>
           <button
             type="submit"
             disabled={inCurs}
-            className="rounded bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+            className="bg-primary text-primary-foreground disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded px-3 py-1.5 text-xs font-medium disabled:cursor-not-allowed"
           >
             {inCurs ? "Se salvează…" : "Confirmă transmiterea"}
           </button>
@@ -130,11 +130,11 @@ export function ButonExport() {
         type="button"
         onClick={descarca}
         disabled={inCurs}
-        className="rounded-md bg-background px-3 py-1.5 text-sm text-foreground ring-1 ring-border disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+        className="bg-background text-foreground ring-border disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-3 py-1.5 text-sm ring-1 disabled:cursor-not-allowed"
       >
         {inCurs ? "Se pregătește…" : "Descarcă listing (CSV)"}
       </button>
-      <span aria-live="polite" className="text-xs text-muted-foreground">
+      <span aria-live="polite" className="text-muted-foreground text-xs">
         {mesaj}
       </span>
     </span>

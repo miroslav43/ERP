@@ -39,13 +39,7 @@ describe("valideazaSelectieCaen", () => {
   });
 
   it("PFA: respinge al 5-lea cod secundar (6 total)", () => {
-    const rezultat = valideazaSelectieCaen("PFA", "0111", [
-      "0112",
-      "0113",
-      "0114",
-      "0115",
-      "0116",
-    ]);
+    const rezultat = valideazaSelectieCaen("PFA", "0111", ["0112", "0113", "0114", "0115", "0116"]);
     expect(rezultat.valid).toBe(false);
   });
 

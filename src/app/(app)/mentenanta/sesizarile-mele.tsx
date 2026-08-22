@@ -27,13 +27,13 @@ export async function SesizarileMele() {
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Sesizările mele</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Defecțiunile pe care le-ați raportat, cu starea lor curentă.
           </p>
         </div>
         <Link
           href="/mentenanta/sesizari/noua"
-          className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+          className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
         >
           Sesizare nouă
         </Link>
@@ -42,7 +42,7 @@ export async function SesizarileMele() {
       {!rezultat.ok ? (
         <p
           role="alert"
-          className="rounded-md border border-danger bg-danger/8 p-4 text-sm text-danger"
+          className="border-danger bg-danger/8 text-danger rounded-md border p-4 text-sm"
         >
           {rezultat.error.message}
         </p>
@@ -56,10 +56,7 @@ export async function SesizarileMele() {
       ) : (
         <ul className="space-y-3">
           {sesizari.map((sesizare) => (
-            <li
-              key={sesizare.id}
-              className="rounded-lg border border-border p-4"
-            >
+            <li key={sesizare.id} className="border-border rounded-lg border p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="font-medium">
@@ -67,15 +64,13 @@ export async function SesizarileMele() {
                       ? "Echipament necunoscut"
                       : `${sesizare.echipament.cod} — ${sesizare.echipament.denumire}`}
                   </p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {sesizare.descriere}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p className="text-muted-foreground mt-1 text-sm">{sesizare.descriere}</p>
+                  <p className="text-muted-foreground mt-1 text-xs">
                     Raportată la {formatDateTime(sesizare.raportat_la)}
                     {sesizare.opreste_functionarea ? " · Oprește funcționarea" : ""}
                   </p>
                   {sesizare.motiv_respingere !== null ? (
-                    <p className="mt-1 text-xs text-danger">
+                    <p className="text-danger mt-1 text-xs">
                       Motivul respingerii: {sesizare.motiv_respingere}
                     </p>
                   ) : null}

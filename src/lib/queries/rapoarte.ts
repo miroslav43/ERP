@@ -94,26 +94,26 @@ export async function statisticiAnuale(
   if (eroareIntrari !== null) throw eroareIntrari;
   if (eroareAngajati !== null) throw eroareAngajati;
 
-  const numeDupaId = new Map((angajati ?? []).map((a) => [a.id, { full_name: a.full_name, marca: a.marca }]));
+  const numeDupaId = new Map(
+    (angajati ?? []).map((a) => [a.id, { full_name: a.full_name, marca: a.marca }]),
+  );
 
   const perAngajatMap = new Map<string, StatisticaAngajat>();
   for (const rand of intrari ?? []) {
     const existent = perAngajatMap.get(rand.employee_id);
     const nume = numeDupaId.get(rand.employee_id);
-    const baza: StatisticaAngajat =
-      existent ??
-      {
-        employeeId: rand.employee_id,
-        fullName: nume?.full_name ?? "Angajat șters",
-        marca: nume?.marca ?? "—",
-        zileConcediuOdihna: 0,
-        zileConcediuMedical: 0,
-        venitBrutAnual: 0,
-        venitNetAnual: 0,
-        ticheteNumar: 0,
-        ticheteValoare: 0,
-        oreSuplimentare: 0,
-      };
+    const baza: StatisticaAngajat = existent ?? {
+      employeeId: rand.employee_id,
+      fullName: nume?.full_name ?? "Angajat șters",
+      marca: nume?.marca ?? "—",
+      zileConcediuOdihna: 0,
+      zileConcediuMedical: 0,
+      venitBrutAnual: 0,
+      venitNetAnual: 0,
+      ticheteNumar: 0,
+      ticheteValoare: 0,
+      oreSuplimentare: 0,
+    };
     perAngajatMap.set(rand.employee_id, {
       ...baza,
       zileConcediuOdihna: baza.zileConcediuOdihna + rand.zile_concediu_odihna,
@@ -126,7 +126,9 @@ export async function statisticiAnuale(
     });
   }
 
-  const perAngajat = [...perAngajatMap.values()].sort((a, b) => a.fullName.localeCompare(b.fullName));
+  const perAngajat = [...perAngajatMap.values()].sort((a, b) =>
+    a.fullName.localeCompare(b.fullName),
+  );
 
   const totaluri = perAngajat.reduce(
     (acc, a) => ({

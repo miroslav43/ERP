@@ -47,8 +47,7 @@ export const CODURI_INTERZISE_SRLD: ReadonlySet<string> = new Set([
 const NUMAR_MAXIM_GRUPE_SRLD = 5;
 
 export type RezultatValidareCaen =
-  | Readonly<{ valid: true }>
-  | Readonly<{ valid: false; eroare: string }>;
+  Readonly<{ valid: true }> | Readonly<{ valid: false; eroare: string }>;
 
 /**
  * `principal` poate lipsi (ecranele de editare îl permit opțional) — atunci

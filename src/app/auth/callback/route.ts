@@ -1,6 +1,8 @@
 // src/app/auth/callback/route.ts
 import { NextResponse, type NextRequest } from "next/server";
 import { clientEnv } from "@/config/env";
+import { rutaDupaAutentificare } from "@/config/routes";
+import { isPlatformAdmin } from "@/lib/auth/platform";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { caleInterna } from "@/schemas/auth";
 
@@ -33,5 +35,28 @@ export async function GET(request: NextRequest): Promise<Response> {
     return NextResponse.redirect(new URL("/autentificare?eroare=link", baza));
   }
 
-  return NextResponse.redirect(new URL(next, baza));
+  // `next` explicit înseamnă link profund (invitație, resetare de parolă) și se
+  // respectă. `caleInterna` întoarce "/" când parametrul lipsește — exact cazul
+  // în care avem voie să decidem noi destinația.
+  if (next !== "/") {
+    return NextResponse.redirect(new URL(next, baza));
+  }
+
+  // Clientul de sesiune, nu service_role: RLS filtrează singură rândurile
+  // utilizatorului curent, deci nu e nevoie de `.eq("user_id", ...)` și nu
+  // ocolim nimic.
+  const [estePlatformAdmin, apartenente] = await Promise.all([
+    isPlatformAdmin(),
+    supabase
+      .from("organization_members")
+      .select("organization_id", { count: "exact", head: true })
+      .eq("status", "active"),
+  ]);
+
+  const destinatie = rutaDupaAutentificare({
+    estePlatformAdmin,
+    areOrganizatii: (apartenente.count ?? 0) > 0,
+  });
+
+  return NextResponse.redirect(new URL(destinatie, baza));
 }

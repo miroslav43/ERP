@@ -116,7 +116,12 @@ export const trimiteDeplasare = createAction({
   permission: "per_diem:update",
   minScope: "own",
   input: trimiteDeplasareSchema,
-  audit: { action: "update", entityType: "business_trip", entityId: (input) => input.id, allow: ["id"] },
+  audit: {
+    action: "update",
+    entityType: "business_trip",
+    entityId: (input) => input.id,
+    allow: ["id"],
+  },
   revalidate: ["/diurna", "/diurna/aprobari"],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const { data, error } = await ctx.supabase
@@ -146,7 +151,12 @@ export const stergeCiornaDeplasare = createAction({
   permission: "per_diem:delete",
   minScope: "own",
   input: stergeCiornaDeplasareSchema,
-  audit: { action: "delete", entityType: "business_trip", entityId: (input) => input.id, allow: ["id"] },
+  audit: {
+    action: "delete",
+    entityType: "business_trip",
+    entityId: (input) => input.id,
+    allow: ["id"],
+  },
   revalidate: ["/diurna"],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const { data, error } = await ctx.supabase
@@ -206,7 +216,12 @@ export const deconteazaDeplasare = createAction({
   permission: "per_diem:approve",
   minScope: "team",
   input: deconteazaDeplasareSchema,
-  audit: { action: "update", entityType: "business_trip", entityId: (input) => input.id, allow: ["id"] },
+  audit: {
+    action: "update",
+    entityType: "business_trip",
+    entityId: (input) => input.id,
+    allow: ["id"],
+  },
   revalidate: ["/diurna", "/diurna/aprobari"],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const { data, error } = await ctx.supabase

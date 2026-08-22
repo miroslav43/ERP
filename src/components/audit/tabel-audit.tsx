@@ -28,7 +28,7 @@ function Detaliu({ rand }: Readonly<{ rand: RandJurnal }>) {
   const modificari = comparaPayload(rand.before, rand.after);
   return (
     <details className="group">
-      <summary className="text-primary cursor-pointer list-none rounded-md px-2 py-1 text-xs font-medium underline underline-offset-4 focus:">
+      <summary className="text-primary focus: cursor-pointer list-none rounded-md px-2 py-1 text-xs font-medium underline underline-offset-4">
         Vezi detaliile evenimentului
       </summary>
       <div className="border-border bg-background mt-3 space-y-3 rounded-md border p-3">

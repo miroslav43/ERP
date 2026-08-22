@@ -80,14 +80,18 @@ export default async function PaginaDeplasareNoua() {
     <main className="mx-auto w-full max-w-4xl space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">Deplasare nouă</h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Zilele și suma diurnei se calculează pe măsură ce completați formularul; suma finală se
-          verifică din nou, exact, pe fișa deplasării, după ce adăugați etapele reale ale
-          traseului.
+          verifică din nou, exact, pe fișa deplasării, după ce adăugați etapele reale ale traseului.
         </p>
       </header>
 
-      <FormularDeplasare tari={listaTari} politica={politica} baremuri={baremuri} angajati={angajati} />
+      <FormularDeplasare
+        tari={listaTari}
+        politica={politica}
+        baremuri={baremuri}
+        angajati={angajati}
+      />
     </main>
   );
 }

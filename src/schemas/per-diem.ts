@@ -65,13 +65,19 @@ const uuidOptional = z
   .nullable()
   .default(null)
   .transform((v) => (v === null || v.length === 0 ? null : v))
-  .refine((v) => v === null || z.uuid().safeParse(v).success, "Identificatorul selectat nu este valid.");
+  .refine(
+    (v) => v === null || z.uuid().safeParse(v).success,
+    "Identificatorul selectat nu este valid.",
+  );
 
 const numarOptional = (min: number, max: number) =>
   z.coerce
     .number()
     .refine((v) => Number.isFinite(v), "Valoarea trebuie să fie un număr.")
-    .refine((v) => v >= min && v <= max, `Valoarea trebuie să fie între ${String(min)} și ${String(max)}.`)
+    .refine(
+      (v) => v >= min && v <= max,
+      `Valoarea trebuie să fie între ${String(min)} și ${String(max)}.`,
+    )
     .nullable()
     .default(null);
 
@@ -145,7 +151,11 @@ export const deplasareNouaSchema = z
   })
   .superRefine((valoare, ctx) => {
     if (!anInInterval(valoare.plecare_la)) {
-      ctx.addIssue({ code: "custom", path: ["plecare_la"], message: "Anul plecării este în afara intervalului acceptat." });
+      ctx.addIssue({
+        code: "custom",
+        path: ["plecare_la"],
+        message: "Anul plecării este în afara intervalului acceptat.",
+      });
       return;
     }
     if (valoare.sosire_la <= valoare.plecare_la) {
@@ -178,8 +188,12 @@ export const deplasareNouaSchema = z
   });
 export type DeplasareNoua = z.output<typeof deplasareNouaSchema>;
 
-export const trimiteDeplasareSchema = z.object({ id: z.uuid("Deplasarea selectată nu este validă.") });
-export const stergeCiornaDeplasareSchema = z.object({ id: z.uuid("Deplasarea selectată nu este validă.") });
+export const trimiteDeplasareSchema = z.object({
+  id: z.uuid("Deplasarea selectată nu este validă."),
+});
+export const stergeCiornaDeplasareSchema = z.object({
+  id: z.uuid("Deplasarea selectată nu este validă."),
+});
 
 export const decizieDeplasareSchema = z.object({
   id: z.uuid("Deplasarea selectată nu este validă."),
@@ -187,7 +201,9 @@ export const decizieDeplasareSchema = z.object({
 });
 export type DecizieDeplasare = z.output<typeof decizieDeplasareSchema>;
 
-export const deconteazaDeplasareSchema = z.object({ id: z.uuid("Deplasarea selectată nu este validă.") });
+export const deconteazaDeplasareSchema = z.object({
+  id: z.uuid("Deplasarea selectată nu este validă."),
+});
 
 // ── Etapă (business_trip_legs) ────────────────────────────────────────────
 
@@ -225,7 +241,10 @@ export const cheltuialaNouaSchema = z.object({
   business_trip_id: z.uuid(),
   tip: z.enum(TIPURI_CHELTUIALA),
   descriere: textOptional(500),
-  data_cheltuielii: z.string().trim().regex(RE_DATA, "Data cheltuielii trebuie scrisă în formatul AAAA-LL-ZZ."),
+  data_cheltuielii: z
+    .string()
+    .trim()
+    .regex(RE_DATA, "Data cheltuielii trebuie scrisă în formatul AAAA-LL-ZZ."),
   suma: z.coerce.number().positive("Suma trebuie să fie mai mare decât zero."),
   moneda: z
     .string()

@@ -84,9 +84,7 @@ describe("meniul nu conține intrări moarte", () => {
     // Altfel datoria rămâne scrisă după ce a fost plătită, iar lista își pierde
     // înțelesul: nimeni nu mai știe ce e restanță reală.
     const platite = MODULE_NECONSTRUITE.filter((href) => arePagina(href));
-    expect(platite, "Rute livrate, dar rămase în MODULE_NECONSTRUITE — scoate-le.").toEqual(
-      [],
-    );
+    expect(platite, "Rute livrate, dar rămase în MODULE_NECONSTRUITE — scoate-le.").toEqual([]);
   });
 
   it("nu există două intrări cu același id", () => {

@@ -82,8 +82,14 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
       ) : (
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <CardTotal eticheta="Venit brut anual" valoare={formatLei(statistici.totalVenitBrutAnual)} />
-            <CardTotal eticheta="Venit net anual" valoare={formatLei(statistici.totalVenitNetAnual)} />
+            <CardTotal
+              eticheta="Venit brut anual"
+              valoare={formatLei(statistici.totalVenitBrutAnual)}
+            />
+            <CardTotal
+              eticheta="Venit net anual"
+              valoare={formatLei(statistici.totalVenitNetAnual)}
+            />
             <CardTotal
               eticheta="Tichete de masă"
               valoare={`${String(statistici.totalTicheteNumar)} buc · ${formatLei(statistici.totalTicheteValoare)}`}
@@ -102,7 +108,7 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
             />
           </div>
 
-          <div className="overflow-x-auto rounded-lg border border-border">
+          <div className="border-border overflow-x-auto rounded-lg border">
             <table className="w-full text-sm">
               <caption className="sr-only">Statistici anuale per angajat, {an}.</caption>
               <thead className="bg-surface text-left">
@@ -144,8 +150,12 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
                         {angajat.marca}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right tabular-nums">{formatLei(angajat.venitBrutAnual)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{formatLei(angajat.venitNetAnual)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">
+                      {formatLei(angajat.venitBrutAnual)}
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums">
+                      {formatLei(angajat.venitNetAnual)}
+                    </td>
                     <td className="px-4 py-3 text-right tabular-nums">
                       {angajat.ticheteNumar} · {formatLei(angajat.ticheteValoare)}
                     </td>

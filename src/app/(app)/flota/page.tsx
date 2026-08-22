@@ -47,8 +47,7 @@ async function TabelVehicule({
     // Mesajul diferă după cauză: „niciun vehicul" cere o acțiune, „niciun
     // rezultat" cere doar ștergerea filtrelor. Un singur text pentru amândouă
     // l-ar trimite pe om să adauge un vehicul care există deja.
-    const areFiltre =
-      filtre.status !== null || filtre.categorie !== null || filtre.cauta !== null;
+    const areFiltre = filtre.status !== null || filtre.categorie !== null || filtre.cauta !== null;
     return (
       <EmptyState
         icon={Car}
@@ -85,7 +84,7 @@ async function TabelVehicule({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div className="border-border overflow-x-auto rounded-lg border">
         <table className="w-full text-sm">
           <caption className="sr-only">
             Vehiculele organizației, cu starea documentului care expiră primul.
@@ -112,17 +111,14 @@ async function TabelVehicule({
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className="divide-border divide-y">
             {randuri.map((v) => {
               const scadenta = celMaiApropiat(v.id);
               const stare = stareScadenta(scadenta?.expira_la ?? null, azi);
               return (
                 <RandTabel key={v.id} href={`/flota/${v.id}`}>
                   <td className="px-4 py-3 font-medium">
-                    <Link
-                      href={`/flota/${v.id}`}
-                      className="underline-offset-2 hover:underline"
-                    >
+                    <Link href={`/flota/${v.id}`} className="underline-offset-2 hover:underline">
                       {v.nr_inmatriculare}
                     </Link>
                   </td>
@@ -150,7 +146,7 @@ async function TabelVehicule({
                       {ETICHETE_SCADENTA[stare]}
                     </span>
                     {scadenta === null ? null : (
-                      <span className="ml-2 text-xs text-muted-foreground">
+                      <span className="text-muted-foreground ml-2 text-xs">
                         {denumireTip.get(scadenta.document_type_id) ?? "document"} ·{" "}
                         {scadenta.expira_la}
                       </span>
@@ -167,7 +163,7 @@ async function TabelVehicule({
         {urmatorulCursor === null ? null : (
           <Link
             href={`/flota?${cautare.toString()}`}
-            className="rounded-md border border-foreground/60 px-4 py-2 text-sm hover:bg-surface"
+            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
           >
             Pagina următoare
           </Link>
@@ -199,7 +195,7 @@ export default async function PaginaFlota({ searchParams }: ProprietatiPagina) {
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Parc auto</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             {scope === "all"
               ? "Toate vehiculele organizației, cu documentul care expiră primul."
               : "Vehiculele la care aveți acces, cu documentul care expiră primul."}
@@ -208,7 +204,7 @@ export default async function PaginaFlota({ searchParams }: ProprietatiPagina) {
         {poateAdauga ? (
           <Link
             href="/flota/nou"
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+            className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
           >
             <CarFront aria-hidden="true" className="size-4" />
             Vehicul nou

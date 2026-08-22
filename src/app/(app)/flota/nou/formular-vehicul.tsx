@@ -80,7 +80,7 @@ export function FormularVehicul() {
             id={id.categorie}
             name="categorie"
             defaultValue="autoturism"
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           >
             {CATEGORII_VEHICUL.map((c) => (
               <option key={c} value={c}>
@@ -98,7 +98,7 @@ export function FormularVehicul() {
             id={id.combustibil}
             name="tip_combustibil"
             defaultValue="motorina"
-            className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           >
             {COMBUSTIBILI.map((c) => (
               <option key={c} value={c}>
@@ -129,12 +129,12 @@ export function FormularVehicul() {
         <button
           type="submit"
           disabled={inCurs}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
         >
           {inCurs ? "Se salvează…" : "Adaugă vehiculul"}
         </button>
         {eroare === null ? null : (
-          <p role="alert" className="text-sm text-danger">
+          <p role="alert" className="text-danger text-sm">
             {eroare}
           </p>
         )}
@@ -179,10 +179,10 @@ function Camp({
         step={pas}
         required={obligatoriu}
         aria-describedby={ajutor === undefined ? undefined : idAjutor}
-        className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+        className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
       />
       {ajutor === undefined ? null : (
-        <p id={idAjutor} className="text-xs text-muted-foreground">
+        <p id={idAjutor} className="text-muted-foreground text-xs">
           {ajutor}
         </p>
       )}

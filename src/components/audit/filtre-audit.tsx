@@ -152,14 +152,14 @@ export function FiltreAuditForm({ cale, filtre, organizatii }: Props) {
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <button
           type="submit"
-          className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium focus:"
+          className="bg-primary text-primary-foreground hover:bg-primary-hover focus: inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
         >
           <Search aria-hidden="true" className="size-4" />
           Filtrează
         </button>
         <a
           href={cale}
-          className="text-muted-foreground hover:text-foreground rounded-md px-2 py-2 text-sm underline underline-offset-4 focus:"
+          className="text-muted-foreground hover:text-foreground focus: rounded-md px-2 py-2 text-sm underline underline-offset-4"
         >
           Golește filtrele
         </a>

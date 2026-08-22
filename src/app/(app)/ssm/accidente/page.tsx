@@ -47,7 +47,9 @@ async function TabelAccidente({
             ? "Ștergeți filtrele ca să vedeți toate accidentele."
             : "Registrul de accidente e gol — sperăm să rămână așa."
         }
-        {...(areFiltre ? {} : { action: { label: "Înregistrează un accident", href: "/ssm/accidente/nou" } })}
+        {...(areFiltre
+          ? {}
+          : { action: { label: "Înregistrează un accident", href: "/ssm/accidente/nou" } })}
       />
     );
   }
@@ -65,7 +67,7 @@ async function TabelAccidente({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div className="border-border overflow-x-auto rounded-lg border">
         <table className="w-full text-sm">
           <caption className="sr-only">Accidentele de muncă la care aveți acces.</caption>
           <thead className="bg-surface text-left">
@@ -87,7 +89,7 @@ async function TabelAccidente({
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className="divide-border divide-y">
             {randuri.map((a) => {
               const angajat = a.employee_id === null ? undefined : angajati.get(a.employee_id);
               return (
@@ -104,7 +106,9 @@ async function TabelAccidente({
                     {angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`}
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_TIP_ACCIDENT[a.tip]}`}>
+                    <span
+                      className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_TIP_ACCIDENT[a.tip]}`}
+                    >
                       {ETICHETE_TIP_ACCIDENT[a.tip]}
                     </span>
                   </td>
@@ -116,7 +120,9 @@ async function TabelAccidente({
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    {a.cercetare_finalizata_la === null ? "În curs" : formatDate(a.cercetare_finalizata_la)}
+                    {a.cercetare_finalizata_la === null
+                      ? "În curs"
+                      : formatDate(a.cercetare_finalizata_la)}
                   </td>
                 </RandTabel>
               );
@@ -129,7 +135,7 @@ async function TabelAccidente({
         {urmatorulCursor === null ? null : (
           <Link
             href={`/ssm/accidente?${cautare.toString()}`}
-            className="rounded-md border border-foreground/60 px-4 py-2 text-sm hover:bg-surface"
+            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
           >
             Pagina următoare
           </Link>
@@ -159,14 +165,14 @@ export default async function PaginaAccidente({ searchParams }: ProprietatiPagin
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Accidente de muncă</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Registrul de accidente, cu termenul de comunicare la ITM și stadiul cercetării.
           </p>
         </div>
         {poateCrea ? (
           <Link
             href="/ssm/accidente/nou"
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+            className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
           >
             <Plus aria-hidden="true" className="size-4" />
             Accident nou
@@ -175,7 +181,9 @@ export default async function PaginaAccidente({ searchParams }: ProprietatiPagin
       </header>
 
       <NavSsm
-        poateVedeaInstruiri={can(permisiuni, "ssm:read", "team") && can(permisiuni, "employees:read", "team")}
+        poateVedeaInstruiri={
+          can(permisiuni, "ssm:read", "team") && can(permisiuni, "employees:read", "team")
+        }
         poateVedeaMedicina={can(permisiuni, "ssm:read", "team")}
         poateVedeaAccidente
         poateVedeaStingatoare={can(permisiuni, "ssm:read", "team")}

@@ -14,13 +14,7 @@ export interface PasSablonAfisat {
   readonly titlu: string;
   readonly descriere: string | null;
   readonly responsabil_tip: "rol" | "angajat" | "manager_direct";
-  readonly responsabil_rol:
-    | "super_admin"
-    | "org_admin"
-    | "manager"
-    | "hr"
-    | "employee"
-    | null;
+  readonly responsabil_rol: "super_admin" | "org_admin" | "manager" | "hr" | "employee" | null;
   readonly responsabil_employee_id: string | null;
   readonly termen_zile_relativ: number;
   readonly obligatoriu: boolean;
@@ -60,7 +54,9 @@ export function ListaPasi({ templateId, pasi, poateEditare, poateAdauga }: Propr
         return;
       }
       const pozitieNoua = directie === "sus" ? pozitie : pozitie + 2;
-      setAnunt(`Pasul „${pas.titlu}” este acum poziția ${String(pozitieNoua)} din ${String(pasi.length)}.`);
+      setAnunt(
+        `Pasul „${pas.titlu}” este acum poziția ${String(pozitieNoua)} din ${String(pasi.length)}.`,
+      );
       router.refresh();
     });
   }
@@ -86,14 +82,14 @@ export function ListaPasi({ templateId, pasi, poateEditare, poateAdauga }: Propr
       {eroare === null ? null : (
         <p
           role="alert"
-          className="rounded-lg border border-danger/40 bg-danger/8 p-3 text-sm text-danger"
+          className="border-danger/40 bg-danger/8 text-danger rounded-lg border p-3 text-sm"
         >
           {eroare}
         </p>
       )}
 
       {pasi.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Acest șablon nu are încă niciun pas.</p>
+        <p className="text-muted-foreground text-sm">Acest șablon nu are încă niciun pas.</p>
       ) : (
         <ol className="space-y-2">
           {pasi.map((pas, index) =>
@@ -108,22 +104,24 @@ export function ListaPasi({ templateId, pasi, poateEditare, poateAdauga }: Propr
                 />
               </li>
             ) : (
-              <li key={pas.id} className="rounded-lg border border-border p-4">
+              <li key={pas.id} className="border-border rounded-lg border p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="font-medium">
                       {pas.ordine}. {pas.titlu}
                       {pas.obligatoriu ? (
-                        <span className="ml-1 text-xs text-muted-foreground">(obligatoriu)</span>
+                        <span className="text-muted-foreground ml-1 text-xs">(obligatoriu)</span>
                       ) : null}
                     </p>
                     {pas.descriere === null ? null : (
-                      <p className="mt-0.5 text-sm text-muted-foreground">{pas.descriere}</p>
+                      <p className="text-muted-foreground mt-0.5 text-sm">{pas.descriere}</p>
                     )}
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Responsabil: {responsabilText(pas)} · Dovadă: {ETICHETE_TIP_DOVADA[pas.tip_dovada]} ·
-                      Termen: {pas.termen_zile_relativ} zile
-                      {pas.verificare_automata === null ? "" : ` · Verificare automată: ${pas.verificare_automata}`}
+                    <p className="text-muted-foreground mt-1 text-xs">
+                      Responsabil: {responsabilText(pas)} · Dovadă:{" "}
+                      {ETICHETE_TIP_DOVADA[pas.tip_dovada]} · Termen: {pas.termen_zile_relativ} zile
+                      {pas.verificare_automata === null
+                        ? ""
+                        : ` · Verificare automată: ${pas.verificare_automata}`}
                     </p>
                   </div>
 
@@ -136,7 +134,7 @@ export function ListaPasi({ templateId, pasi, poateEditare, poateAdauga }: Propr
                         onClick={() => {
                           muta(pas, "sus", index);
                         }}
-                        className="rounded-md border border-foreground/60 p-1.5 hover:bg-surface disabled:opacity-40"
+                        className="border-foreground/60 hover:bg-surface rounded-md border p-1.5 disabled:opacity-40"
                       >
                         <ArrowUp aria-hidden="true" className="size-4" />
                       </button>
@@ -147,7 +145,7 @@ export function ListaPasi({ templateId, pasi, poateEditare, poateAdauga }: Propr
                         onClick={() => {
                           muta(pas, "jos", index);
                         }}
-                        className="rounded-md border border-foreground/60 p-1.5 hover:bg-surface disabled:opacity-40"
+                        className="border-foreground/60 hover:bg-surface rounded-md border p-1.5 disabled:opacity-40"
                       >
                         <ArrowDown aria-hidden="true" className="size-4" />
                       </button>
@@ -158,7 +156,7 @@ export function ListaPasi({ templateId, pasi, poateEditare, poateAdauga }: Propr
                         onClick={() => {
                           setIdInEditare(pas.id);
                         }}
-                        className="rounded-md border border-foreground/60 p-1.5 hover:bg-surface disabled:opacity-40"
+                        className="border-foreground/60 hover:bg-surface rounded-md border p-1.5 disabled:opacity-40"
                       >
                         <Pencil aria-hidden="true" className="size-4" />
                       </button>
@@ -169,7 +167,7 @@ export function ListaPasi({ templateId, pasi, poateEditare, poateAdauga }: Propr
                         onClick={() => {
                           sterge(pas);
                         }}
-                        className="rounded-md border border-danger p-1.5 text-danger hover:bg-danger hover:text-danger-foreground disabled:opacity-40"
+                        className="border-danger text-danger hover:bg-danger hover:text-danger-foreground rounded-md border p-1.5 disabled:opacity-40"
                       >
                         <Trash2 aria-hidden="true" className="size-4" />
                       </button>

@@ -33,7 +33,12 @@ interface Proprietati {
   readonly poateEdita: boolean;
 }
 
-export function ActiuniDepartament({ departament, departamente, angajati, poateEdita }: Proprietati) {
+export function ActiuniDepartament({
+  departament,
+  departamente,
+  angajati,
+  poateEdita,
+}: Proprietati) {
   const router = useRouter();
   const [panou, setPanou] = useState<"editeaza" | "muta" | null>(null);
   const [inCurs, porneste] = useTransition();
@@ -214,7 +219,10 @@ export function ActiuniDepartament({ departament, departamente, angajati, poateE
       ) : null}
 
       {panou === "muta" ? (
-        <form action={trimiteMutare} className="border-border flex flex-wrap items-end gap-2 rounded-md border p-3">
+        <form
+          action={trimiteMutare}
+          className="border-border flex flex-wrap items-end gap-2 rounded-md border p-3"
+        >
           <div className="flex flex-col gap-1">
             <label htmlFor={idParinte} className="text-xs font-medium">
               Mută sub

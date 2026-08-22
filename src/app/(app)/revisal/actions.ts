@@ -62,7 +62,7 @@ const actiuneMarcheazaTransmis = createAction<typeof marcheazaTransmisSchema, { 
 
     // Coloana e timestamptz; păstrăm ora 00:00 UTC pentru ca ziua afișată la București
     // să rămână ziua aleasă de operator.
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("revisal_events")
       .update({
         status: "transmis",
@@ -74,9 +74,18 @@ const actiuneMarcheazaTransmis = createAction<typeof marcheazaTransmisSchema, { 
         updated_by: ctx.user.id,
       })
       .eq("id", input.evenimentId)
-      .eq("organization_id", organizationId);
+      .eq("organization_id", organizationId)
+      .select("id")
+      .maybeSingle();
 
     if (error) throw mapPostgrestError(error, ctx.requestId);
+    // Netransmiterea în termen la Inspecția Muncii e contravenție PER SALARIAT.
+    // Un UPDATE respins de `USING` afectează zero rânduri fără eroare (capcana
+    // 17): ecranul ar arăta evenimentul ca transmis, evidența ar rămâne
+    // netransmisă, iar nimeni n-ar afla până la control.
+    if (data === null) {
+      throw businessRule("Marcarea ca transmis a fost respinsă. Evenimentul a rămas netransmis.");
+    }
 
     revalidatePath("/revisal");
     return { id: input.evenimentId };

@@ -1,8 +1,44 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  /**
+   * Build de producție containerizat: `standalone` scrie în `.next/standalone`
+   * un server Node cu DOAR dependențele atinse efectiv de cod, urmărite prin
+   * trasarea importurilor. Imaginea finală copiază acel director în loc să care
+   * `node_modules` întreg, iar `Dockerfile` pornește `node server.js`.
+   */
+  output: "standalone",
+
+  /**
+   * Trasarea importurilor ratează `@swc/helpers`: copiază `cjs/` și
+   * package.json, dar NU și `esm/`. Nimic nu îl importă static — Next îl
+   * rezolvă la RULARE, prin `require-hook.js`, urmând câmpul `"module":
+   * "esm/index.js"` din exports map. Rezultatul e un container care pornește și
+   * moare imediat cu MODULE_NOT_FOUND pe `esm/_interop_require_default.js`.
+   *
+   * Cheia `'/*'` aplică regula tuturor rutelor, iar versiunea e lăsată wildcard
+   * ca un bump de `@swc/helpers` să nu reintroducă tăcut aceeași cădere.
+   * Vezi node_modules/next/dist/docs/01-app/03-api-reference/05-config/
+   * 01-next-config-js/output.md
+   */
+  outputFileTracingIncludes: {
+    "/*": ["./node_modules/.pnpm/@swc+helpers@*/node_modules/@swc/helpers/**/*"],
+  },
+
   reactCompiler: true,
+
+  // Fără cheie `typescript`: build-ul de imagine relaxa verificarea
+  // (`ignoreBuildErrors` când `DOCKER_BUILD=1`), ca ocol pentru cele 9 erori
+  // `tsc` din ecranul Concedii → Setări. Cauza reală era `src/types/database.ts`
+  // rămas în urma bazei, nu invers; regenerarea l-a rezolvat. Ocolul a fost
+  // scos: `next build` e singura poartă care prinde granița server/client, iar
+  // în container ea era exact cea dezactivată.
+  //
+  // Fără cheie `eslint`: în Next 16 opțiunea a fost ELIMINATĂ din NextConfig
+  // (`node_modules/next/dist/docs/01-app/03-api-reference/05-config/03-eslint.md`,
+  // tabelul de versiuni: „v16.0.0 — `next lint` and the `eslint` next.config.js
+  // option were removed"), iar `next build` nu mai rulează deloc linting. O
+  // lăsam acolo doar ca `tsc` să pice cu TS2353, fără niciun efect real.
 };
 
 export default nextConfig;

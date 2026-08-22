@@ -40,7 +40,9 @@ async function TabelEchipamente({
     return (
       <EmptyState
         icon={Wrench}
-        title={areFiltre ? "Niciun rezultat pentru filtrele alese" : "Niciun echipament înregistrat"}
+        title={
+          areFiltre ? "Niciun rezultat pentru filtrele alese" : "Niciun echipament înregistrat"
+        }
         description={
           areFiltre
             ? "Ștergeți filtrele ca să vedeți tot parcul de echipamente."
@@ -58,7 +60,7 @@ async function TabelEchipamente({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div className="border-border overflow-x-auto rounded-lg border">
         <table className="w-full text-sm">
           <caption className="sr-only">Echipamentele organizației.</caption>
           <thead className="bg-surface text-left">
@@ -80,7 +82,7 @@ async function TabelEchipamente({
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className="divide-border divide-y">
             {randuri.map((echipament) => (
               <RandTabel key={echipament.id} href={`/mentenanta/echipamente/${echipament.id}`}>
                 <td className="px-4 py-3 font-medium">
@@ -95,7 +97,10 @@ async function TabelEchipamente({
                 <td className="px-4 py-3">{echipament.locatie ?? "—"}</td>
                 <td className="px-4 py-3">
                   {echipament.este_iscir ? (
-                    <WrenchIcon aria-label="Sub incidența ISCIR" className="size-4 text-foreground" />
+                    <WrenchIcon
+                      aria-label="Sub incidența ISCIR"
+                      className="text-foreground size-4"
+                    />
                   ) : (
                     "—"
                   )}
@@ -117,7 +122,7 @@ async function TabelEchipamente({
         {urmatorulCursor === null ? null : (
           <Link
             href={`/mentenanta/echipamente?${cautare.toString()}`}
-            className="rounded-md border border-foreground/60 px-4 py-2 text-sm hover:bg-surface"
+            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
           >
             Pagina următoare
           </Link>
@@ -146,14 +151,14 @@ export default async function PaginaEchipamente({ searchParams }: ProprietatiPag
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Echipamente</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Parcul de echipamente al organizației, cu starea și acoperirea ISCIR.
           </p>
         </div>
         {poateAdauga ? (
           <Link
             href="/mentenanta/echipamente/nou"
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+            className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
           >
             Echipament nou
           </Link>

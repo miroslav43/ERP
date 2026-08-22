@@ -63,7 +63,11 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
     );
   }
 
-  const submisie = await citesteSaptamanaPontaj(tenant.organizationId, propriaFisaId, saptamanaStart);
+  const submisie = await citesteSaptamanaPontaj(
+    tenant.organizationId,
+    propriaFisaId,
+    saptamanaStart,
+  );
 
   const zileInitiale = Array.from({ length: 7 }, (_, i) => {
     const data = adaugaZile(saptamanaStart, i);
@@ -82,9 +86,10 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
     <main className="space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">Planul săptămânii</h1>
-        <p className="text-sm text-muted-foreground">
-          Declarați, pentru săptămâna care începe {new Date(`${saptamanaStart}T00:00:00Z`).toLocaleDateString("ro-RO")},
-          cum veniți la lucru și câte ore planificați — editabil oricând, până la decizia managerului.
+        <p className="text-muted-foreground text-sm">
+          Declarați, pentru săptămâna care începe{" "}
+          {new Date(`${saptamanaStart}T00:00:00Z`).toLocaleDateString("ro-RO")}, cum veniți la lucru
+          și câte ore planificați — editabil oricând, până la decizia managerului.
         </p>
       </header>
 
@@ -93,13 +98,13 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
       <nav aria-label="Alege săptămâna" className="flex flex-wrap items-center gap-3">
         <Link
           href={`/pontaj/saptamana?saptamana=${adaugaZile(saptamanaStart, -7)}`}
-          className="rounded-md border border-foreground/60 px-3 py-1.5 text-sm hover:bg-surface"
+          className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-1.5 text-sm"
         >
           ← Săptămâna anterioară
         </Link>
         <Link
           href={`/pontaj/saptamana?saptamana=${adaugaZile(saptamanaStart, 7)}`}
-          className="rounded-md border border-foreground/60 px-3 py-1.5 text-sm hover:bg-surface"
+          className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-1.5 text-sm"
         >
           Săptămâna următoare →
         </Link>
@@ -113,7 +118,7 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
       </nav>
 
       {submisie?.status === "respinsa" && submisie.motivRespingere !== null ? (
-        <p className="rounded-lg border border-danger/40 bg-danger/8 p-3 text-sm text-danger">
+        <p className="border-danger/40 bg-danger/8 text-danger rounded-lg border p-3 text-sm">
           <strong>Motivul respingerii:</strong> {submisie.motivRespingere}
         </p>
       ) : null}

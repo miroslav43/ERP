@@ -17,8 +17,7 @@ interface ValoriFormular {
   observatii: string;
 }
 
-const CLASA_CAMP =
-  "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
+const CLASA_CAMP = "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
 
 export function FormularReturnare({ alocareId }: Proprietati) {
   const router = useRouter();
@@ -85,12 +84,12 @@ export function FormularReturnare({ alocareId }: Proprietati) {
 
       <div aria-live="polite">
         {eroare !== null ? (
-          <p className="rounded-md border border-danger bg-danger/8 p-3 text-sm text-danger">
+          <p className="border-danger bg-danger/8 text-danger rounded-md border p-3 text-sm">
             {eroare}
           </p>
         ) : null}
         {mesajSucces !== null ? (
-          <p className="rounded-md border border-success/40 bg-surface p-3 text-sm text-foreground">
+          <p className="border-success/40 bg-surface text-foreground rounded-md border p-3 text-sm">
             {mesajSucces}
           </p>
         ) : null}
@@ -99,7 +98,7 @@ export function FormularReturnare({ alocareId }: Proprietati) {
       <button
         type="submit"
         disabled={inCurs || mesajSucces !== null}
-        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+        className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
       >
         {inCurs ? "Se înregistrează…" : "Înregistrează returnarea"}
       </button>

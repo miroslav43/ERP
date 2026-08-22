@@ -16,7 +16,6 @@ import {
   istoricAlocari,
   numeleAngajatilor,
 } from "@/lib/queries/inventory";
-
 import { listeazaTicheteleObiectului } from "@/lib/queries/ticketing";
 
 import { CLASE_STARE, CLASE_STATUS, ETICHETE_STARE, ETICHETE_STATUS } from "../etichete";

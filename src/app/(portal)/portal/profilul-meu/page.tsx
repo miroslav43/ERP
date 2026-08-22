@@ -30,7 +30,7 @@ export default async function PaginaProfilulMeu() {
       <form action={deconecteaza}>
         <button
           type="submit"
-          className="border-border hover:bg-surface flex w-full min-h-11 items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm font-medium"
+          className="border-border hover:bg-surface flex min-h-11 w-full items-center justify-center gap-2 rounded-md border px-4 py-2 text-sm font-medium"
         >
           <LogOut className="size-4 shrink-0" aria-hidden />
           Deconectare

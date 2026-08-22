@@ -30,12 +30,12 @@ export function ActiuniCerere({ cerereId }: { readonly cerereId: string }) {
         type="button"
         onClick={anuleaza}
         disabled={inCurs}
-        className="inline-flex items-center gap-2 rounded-md border border-danger px-3 py-2 text-sm font-medium text-danger hover:bg-danger hover:text-danger-foreground disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+        className="border-danger text-danger hover:bg-danger hover:text-danger-foreground disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium disabled:cursor-not-allowed"
       >
         <Ban aria-hidden="true" className="size-4" />
         {inCurs ? "Se anulează…" : "Anulează cererea"}
       </button>
-      <p aria-live="polite" className="text-sm text-danger">
+      <p aria-live="polite" className="text-danger text-sm">
         {eroare ?? ""}
       </p>
     </div>

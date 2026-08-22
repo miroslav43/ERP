@@ -54,7 +54,7 @@ export default async function PaginaEditeazaAngajat({ params }: ProprietatiPagin
     <main className="space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">Editează fișa — {angajat.full_name}</h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           CNP-ul și IBAN-ul rămân neschimbate dacă lăsați câmpurile goale.
         </p>
       </header>

@@ -76,13 +76,13 @@ export default async function PaginaStingator({ params }: ProprietatiPagina) {
     <main className="mx-auto w-full max-w-3xl space-y-6 p-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             <Link href="/ssm/stingatoare" className="underline-offset-2 hover:underline">
               Stingătoare
             </Link>
           </p>
           <h1 className="text-2xl font-semibold">{stingator.cod}</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             {stingator.tip} · {stingator.locatie}
             {stingator.cladire === null ? null : ` · ${stingator.cladire}`}
           </p>
@@ -91,12 +91,14 @@ export default async function PaginaStingator({ params }: ProprietatiPagina) {
           {can(permisiuni, "ssm:update", "team") ? (
             <Link
               href={`/ssm/stingatoare/${stingator.id}/editeaza`}
-              className="rounded-md border border-foreground/60 px-3 py-1.5 text-sm font-medium hover:bg-surface"
+              className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-1.5 text-sm font-medium"
             >
               Editează
             </Link>
           ) : null}
-          <span className={`rounded px-2 py-1 text-xs font-medium ${CLASE_STATUS_STINGATOR[stingator.status]}`}>
+          <span
+            className={`rounded px-2 py-1 text-xs font-medium ${CLASE_STATUS_STINGATOR[stingator.status]}`}
+          >
             {ETICHETE_STATUS_STINGATOR[stingator.status]}
           </span>
         </div>
@@ -104,21 +106,27 @@ export default async function PaginaStingator({ params }: ProprietatiPagina) {
 
       <section
         aria-label="Cele trei obligații de întreținere"
-        className="grid gap-4 rounded-lg border border-border p-4 sm:grid-cols-3"
+        className="border-border grid gap-4 rounded-lg border p-4 sm:grid-cols-3"
       >
         {obligatii.map((o) => {
           const stare = stareScadentaSsm(o.data !== null, o.scadenta, azi);
           return (
             <div key={o.cheie}>
-              <dt className="text-xs text-muted-foreground">{o.titlu}</dt>
+              <dt className="text-muted-foreground text-xs">{o.titlu}</dt>
               <dd className="mt-1 space-y-1">
-                <span className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${CLASE_SCADENTA[stare]}`}>
+                <span
+                  className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${CLASE_SCADENTA[stare]}`}
+                >
                   {ETICHETE_SCADENTA[stare]}
                 </span>
                 <p className="text-sm">
                   {o.data === null ? "niciodată" : `ultima: ${formatDate(o.data)}`}
                 </p>
-                {o.scadenta === null ? null : <p className="text-xs text-muted-foreground">scadență: {formatDate(o.scadenta)}</p>}
+                {o.scadenta === null ? null : (
+                  <p className="text-muted-foreground text-xs">
+                    scadență: {formatDate(o.scadenta)}
+                  </p>
+                )}
               </dd>
             </div>
           );
@@ -130,9 +138,9 @@ export default async function PaginaStingator({ params }: ProprietatiPagina) {
           Istoric verificări
         </h2>
         {verificari.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nicio verificare înregistrată.</p>
+          <p className="text-muted-foreground text-sm">Nicio verificare înregistrată.</p>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-border">
+          <div className="border-border overflow-x-auto rounded-lg border">
             <table className="w-full text-sm">
               <thead className="bg-surface text-left">
                 <tr>
@@ -153,11 +161,13 @@ export default async function PaginaStingator({ params }: ProprietatiPagina) {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody className="divide-border divide-y">
                 {verificari.map((v) => (
                   <tr key={v.id}>
                     <td className="px-4 py-3 whitespace-nowrap">{formatDate(v.data)}</td>
-                    <td className="px-4 py-3">{ETICHETE_TIP_VERIFICARE_STINGATOR[v.tip_verificare]}</td>
+                    <td className="px-4 py-3">
+                      {ETICHETE_TIP_VERIFICARE_STINGATOR[v.tip_verificare]}
+                    </td>
                     <td className="px-4 py-3">{v.firma_autorizata ?? v.executant ?? "—"}</td>
                     <td className="px-4 py-3">{ETICHETE_REZULTAT_VERIFICARE[v.rezultat]}</td>
                     <td className="px-4 py-3 text-right tabular-nums">

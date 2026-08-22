@@ -125,7 +125,9 @@ export async function genereazaDocument(
     }
     // 23505 = alt utilizator a luat între timp același număr: reluăm alocarea.
   }
-  throw businessRule("Numerotarea documentelor este ocupată. Încearcă din nou peste câteva secunde.");
+  throw businessRule(
+    "Numerotarea documentelor este ocupată. Încearcă din nou peste câteva secunde.",
+  );
 }
 
 /** HTML complet, pregătit pentru tipărire din browser (Ctrl+P). Fără resurse externe. */

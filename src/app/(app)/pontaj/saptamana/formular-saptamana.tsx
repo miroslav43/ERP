@@ -57,7 +57,7 @@ export function FormularSaptamana({ saptamanaStart, zileInitiale, poateEdita }: 
 
   return (
     <div className="space-y-4">
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div className="border-border overflow-x-auto rounded-lg border">
         <table className="w-full text-sm">
           <caption className="sr-only">Planul de prezență pentru săptămâna selectată.</caption>
           <thead className="bg-surface text-left">
@@ -76,12 +76,12 @@ export function FormularSaptamana({ saptamanaStart, zileInitiale, poateEdita }: 
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className="divide-border divide-y">
             {zile.map((zi, index) => (
               <tr key={zi.data}>
                 <td className="px-3 py-2 font-medium whitespace-nowrap">
                   {ETICHETE_ZI[index]}
-                  <span className="ml-1.5 font-normal text-muted-foreground">
+                  <span className="text-muted-foreground ml-1.5 font-normal">
                     {new Date(`${zi.data}T00:00:00Z`).toLocaleDateString("ro-RO", {
                       day: "2-digit",
                       month: "2-digit",
@@ -96,7 +96,7 @@ export function FormularSaptamana({ saptamanaStart, zileInitiale, poateEdita }: 
                     onChange={(e) => {
                       actualizeazaZi(index, { tip_prezenta: e.target.value as TipPrezenta });
                     }}
-                    className="rounded-md border border-foreground/60 px-2 py-1.5 text-sm disabled:cursor-not-allowed disabled:bg-surface"
+                    className="border-foreground/60 disabled:bg-surface rounded-md border px-2 py-1.5 text-sm disabled:cursor-not-allowed"
                   >
                     {TIPURI_PREZENTA.map((t) => (
                       <option key={t} value={t}>
@@ -117,7 +117,7 @@ export function FormularSaptamana({ saptamanaStart, zileInitiale, poateEdita }: 
                     onChange={(e) => {
                       actualizeazaZi(index, { ore_planificate: e.target.value });
                     }}
-                    className="w-20 rounded-md border border-foreground/60 px-2 py-1.5 text-sm disabled:cursor-not-allowed disabled:bg-surface"
+                    className="border-foreground/60 disabled:bg-surface w-20 rounded-md border px-2 py-1.5 text-sm disabled:cursor-not-allowed"
                   />
                 </td>
                 <td className="px-3 py-2">
@@ -130,7 +130,7 @@ export function FormularSaptamana({ saptamanaStart, zileInitiale, poateEdita }: 
                     onChange={(e) => {
                       actualizeazaZi(index, { observatii: e.target.value });
                     }}
-                    className="w-full min-w-32 rounded-md border border-foreground/60 px-2 py-1.5 text-sm disabled:cursor-not-allowed disabled:bg-surface"
+                    className="border-foreground/60 disabled:bg-surface w-full min-w-32 rounded-md border px-2 py-1.5 text-sm disabled:cursor-not-allowed"
                   />
                 </td>
               </tr>
@@ -140,7 +140,7 @@ export function FormularSaptamana({ saptamanaStart, zileInitiale, poateEdita }: 
       </div>
 
       <div aria-live="polite">
-        {eroare === null ? null : <p className="text-sm text-danger">{eroare}</p>}
+        {eroare === null ? null : <p className="text-danger text-sm">{eroare}</p>}
       </div>
 
       {poateEdita ? (
@@ -151,7 +151,7 @@ export function FormularSaptamana({ saptamanaStart, zileInitiale, poateEdita }: 
             onClick={() => {
               trimite("ciorna");
             }}
-            className="rounded-md border border-foreground/60 px-4 py-2 text-sm font-medium hover:bg-surface disabled:cursor-not-allowed disabled:text-muted-foreground"
+            className="border-foreground/60 hover:bg-surface disabled:text-muted-foreground rounded-md border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
             id={idBaza}
           >
             Salvează ciornă
@@ -162,7 +162,7 @@ export function FormularSaptamana({ saptamanaStart, zileInitiale, poateEdita }: 
             onClick={() => {
               trimite("trimisa");
             }}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:bg-surface disabled:text-muted-foreground"
+            className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
           >
             {inCurs ? "Se trimite…" : "Trimite spre aprobare"}
           </button>

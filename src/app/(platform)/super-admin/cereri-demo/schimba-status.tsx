@@ -60,7 +60,7 @@ export function SchimbaStatus({
         type="button"
         onClick={salveaza}
         disabled={inCurs || selectat === statusCurent}
-        className="border-border hover:border-primary inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+        className="border-border hover:border-primary disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed"
       >
         {inCurs ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
         {inCurs ? "Se salvează…" : "Salvează statusul"}

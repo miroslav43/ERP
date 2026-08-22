@@ -54,7 +54,12 @@ export function Pas2Contact({ formular, idFormular }: Proprietati) {
             <label htmlFor={`${idFormular}-telefon`} className={claseLabel}>
               Telefon personal
             </label>
-            <input id={`${idFormular}-telefon`} type="tel" {...register("telefon")} className={claseCamp} />
+            <input
+              id={`${idFormular}-telefon`}
+              type="tel"
+              {...register("telefon")}
+              className={claseCamp}
+            />
           </div>
         </div>
       </fieldset>
@@ -94,7 +99,11 @@ export function Pas2Contact({ formular, idFormular }: Proprietati) {
             <label htmlFor={`${idFormular}-adresa`} className={claseLabel}>
               Stradă și număr
             </label>
-            <input id={`${idFormular}-adresa`} {...register("adresa_strada")} className={claseCamp} />
+            <input
+              id={`${idFormular}-adresa`}
+              {...register("adresa_strada")}
+              className={claseCamp}
+            />
           </div>
           <div>
             <label htmlFor={`${idFormular}-oras`} className={claseLabel}>
@@ -112,7 +121,11 @@ export function Pas2Contact({ formular, idFormular }: Proprietati) {
             <label htmlFor={`${idFormular}-cod-postal`} className={claseLabel}>
               Cod poștal
             </label>
-            <input id={`${idFormular}-cod-postal`} {...register("adresa_cod_postal")} className={claseCamp} />
+            <input
+              id={`${idFormular}-cod-postal`}
+              {...register("adresa_cod_postal")}
+              className={claseCamp}
+            />
           </div>
         </div>
       </fieldset>
@@ -186,7 +199,11 @@ export function Pas2Contact({ formular, idFormular }: Proprietati) {
             <label htmlFor={`${idFormular}-urgenta-nume`} className={claseLabel}>
               Nume
             </label>
-            <input id={`${idFormular}-urgenta-nume`} {...register("contact_urgenta_nume")} className={claseCamp} />
+            <input
+              id={`${idFormular}-urgenta-nume`}
+              {...register("contact_urgenta_nume")}
+              className={claseCamp}
+            />
           </div>
           <div>
             <label htmlFor={`${idFormular}-urgenta-telefon`} className={claseLabel}>

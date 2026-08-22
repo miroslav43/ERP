@@ -154,7 +154,11 @@ export const trimiteFoaie = createAction({
   revalidate: ["/flota/foi", "/flota/aprobari"],
   handler: async (ctx, input): Promise<Readonly<{ id: string; anomalie: string | null }>> => {
     const db = await createServerSupabase();
-    const { error } = await db
+    // `.select()` obligatoriu: `foi_update` cere `poate_scrie_foaie` SAU
+    // aprobare pe echipă. Un șofer care încearcă să închidă foaia altcuiva e
+    // respins de `USING` — ZERO rânduri, FĂRĂ eroare (capcana 17), iar ecranul
+    // ar raporta cursa închisă.
+    const { data: foaieInchisa, error } = await db
       .from("trip_sheets")
       .update({
         status: "trimis",
@@ -163,8 +167,13 @@ export const trimiteFoaie = createAction({
         updated_by: ctx.user.id,
       })
       .eq("id", input.id)
-      .eq("organization_id", ctx.tenant.organizationId);
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle();
     if (error !== null) traduEroare(error);
+    if (foaieInchisa === null) {
+      throw businessRule("Foaia de parcurs nu a putut fi închisă. Verificați dreptul de acces.");
+    }
 
     // Un REGRES de kilometraj a fost deja refuzat de trigger, cu P0001 — nu
     // ajungem aici. Un SALT însă trece, și e corect că trece: cea mai frecventă
@@ -216,7 +225,7 @@ export const decideFoaie = createAction({
     // Autoaprobarea e refuzată tot acolo, indiferent de scope: într-o firmă mică
     // administratorul chiar e și șofer, iar foaia e document justificativ pentru
     // consumul de combustibil dedus fiscal.
-    const { error } = await db
+    const { data: foaieDecisa, error } = await db
       .from("trip_sheets")
       .update({
         status: input.decizie,
@@ -224,8 +233,18 @@ export const decideFoaie = createAction({
         updated_by: ctx.user.id,
       })
       .eq("id", input.id)
-      .eq("organization_id", ctx.tenant.organizationId);
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle();
     if (error !== null) traduEroare(error);
+    // Managerul are `trip_sheets:approve = team`: foaia unui angajat din afara
+    // echipei lui trece de `WITH CHECK`, dar cade pe `USING` — zero rânduri,
+    // fără eroare. Fără verificarea asta, aprobarea ar părea făcută.
+    if (foaieDecisa === null) {
+      throw businessRule(
+        "Decizia nu a fost înregistrată. Foaia nu vă aparține sau a fost deja decisă.",
+      );
+    }
 
     return { id: input.id };
   },

@@ -46,7 +46,9 @@ async function TabelInterventii({
     return (
       <EmptyState
         icon={Wrench}
-        title={areFiltre ? "Niciun rezultat pentru filtrele alese" : "Nicio intervenție înregistrată"}
+        title={
+          areFiltre ? "Niciun rezultat pentru filtrele alese" : "Nicio intervenție înregistrată"
+        }
         description={
           areFiltre
             ? "Ștergeți filtrele ca să vedeți toate intervențiile."
@@ -69,7 +71,7 @@ async function TabelInterventii({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div className="border-border overflow-x-auto rounded-lg border">
         <table className="w-full text-sm">
           <caption className="sr-only">Intervențiile de mentenanță ale organizației.</caption>
           <thead className="bg-surface text-left">
@@ -94,7 +96,7 @@ async function TabelInterventii({
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className="divide-border divide-y">
             {randuri.map((interventie) => {
               const echipament = echipamente.get(interventie.equipment_id);
               return (
@@ -122,7 +124,9 @@ async function TabelInterventii({
                   <td className="px-4 py-3">{ETICHETE_TIP_MENTENANTA[interventie.tip]}</td>
                   <td className="px-4 py-3">{interventie.descriere}</td>
                   <td className="px-4 py-3 text-right tabular-nums">
-                    {formatLei(interventie.cost_total ?? interventie.cost_piese + interventie.cost_manopera)}
+                    {formatLei(
+                      interventie.cost_total ?? interventie.cost_piese + interventie.cost_manopera,
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <span
@@ -142,7 +146,7 @@ async function TabelInterventii({
         {urmatorulCursor === null ? null : (
           <Link
             href={`/mentenanta/interventii?${cautare.toString()}`}
-            className="rounded-md border border-foreground/60 px-4 py-2 text-sm hover:bg-surface"
+            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
           >
             Pagina următoare
           </Link>
@@ -169,7 +173,7 @@ export default async function PaginaInterventii({ searchParams }: ProprietatiPag
     <main className="space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">Intervenții de mentenanță</h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Istoricul intervențiilor, cu costurile lor. Se adaugă din fișa fiecărui echipament.
         </p>
       </header>

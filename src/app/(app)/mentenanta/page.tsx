@@ -44,7 +44,9 @@ interface EchipamentProblema {
 }
 
 /** Echipamentele care nu sunt „în funcțiune” — inline, doar pentru panoul de organizație. */
-async function echipamenteCuProbleme(organizationId: string): Promise<readonly EchipamentProblema[]> {
+async function echipamenteCuProbleme(
+  organizationId: string,
+): Promise<readonly EchipamentProblema[]> {
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("equipment")
@@ -65,7 +67,13 @@ async function PanouOrganizatie({ organizationId }: { readonly organizationId: s
   const [planuri, sesizariBrute, iscirBrute, echipamenteProblema, numarScadente] =
     await Promise.all([
       planuriScadente(organizationId),
-      sesizari(organizationId, { status: null, urgenta: null, echipament: null, cursor: null, limita: 50 }),
+      sesizari(organizationId, {
+        status: null,
+        urgenta: null,
+        echipament: null,
+        cursor: null,
+        limita: 50,
+      }),
       autorizatiiIscir(organizationId),
       echipamenteCuProbleme(organizationId),
       numarScadenteMentenanta(organizationId, PRAG_AVERTIZARE_ZILE),
@@ -81,7 +89,8 @@ async function PanouOrganizatie({ organizationId }: { readonly organizationId: s
   const sesizariDeschise = sesizariBrute.randuri
     .filter((s) => s.status !== "rezolvat" && s.status !== "respins")
     .sort((a, b) => {
-      const diferentaUrgenta = (RANG_URGENTA.get(b.urgenta) ?? 0) - (RANG_URGENTA.get(a.urgenta) ?? 0);
+      const diferentaUrgenta =
+        (RANG_URGENTA.get(b.urgenta) ?? 0) - (RANG_URGENTA.get(a.urgenta) ?? 0);
       return diferentaUrgenta !== 0 ? diferentaUrgenta : a.raportat_la.localeCompare(b.raportat_la);
     })
     .slice(0, 8);
@@ -116,11 +125,12 @@ async function PanouOrganizatie({ organizationId }: { readonly organizationId: s
 
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border border-border p-4">
-        <p className="text-sm text-muted-foreground">Scadențe în următoarele</p>
+      <div className="border-border rounded-lg border p-4">
+        <p className="text-muted-foreground text-sm">Scadențe în următoarele</p>
         <p className="text-3xl font-semibold tabular-nums">{numarScadente}</p>
-        <p className="text-xs text-muted-foreground">
-          Planuri de mentenanță și autorizații ISCIR scadente sau în întârziere, în {PRAG_AVERTIZARE_ZILE} zile.
+        <p className="text-muted-foreground text-xs">
+          Planuri de mentenanță și autorizații ISCIR scadente sau în întârziere, în{" "}
+          {PRAG_AVERTIZARE_ZILE} zile.
         </p>
       </div>
 
@@ -141,7 +151,7 @@ async function PanouOrganizatie({ organizationId }: { readonly organizationId: s
                   >
                     {plan.denumire}
                   </Link>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-muted-foreground text-xs">
                     {numeEchipament(plan.equipment_id)}
                     {plan.responsabil_employee_id !== null
                       ? ` · ${responsabili.get(plan.responsabil_employee_id)?.full_name ?? "—"}`
@@ -149,11 +159,15 @@ async function PanouOrganizatie({ organizationId }: { readonly organizationId: s
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-1 text-right">
-                  <span className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_STARE_SCADENTA[stare]}`}>
+                  <span
+                    className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_STARE_SCADENTA[stare]}`}
+                  >
                     {ETICHETE_STARE_SCADENTA[stare]}
                   </span>
                   {plan.urmatoarea_scadenta !== null ? (
-                    <span className="text-xs text-muted-foreground">{formatDate(plan.urmatoarea_scadenta)}</span>
+                    <span className="text-muted-foreground text-xs">
+                      {formatDate(plan.urmatoarea_scadenta)}
+                    </span>
                   ) : null}
                 </div>
               </li>
@@ -175,7 +189,7 @@ async function PanouOrganizatie({ organizationId }: { readonly organizationId: s
                 >
                   {numeEchipament(sesizare.equipment_id)}
                 </Link>
-                <p className="text-xs text-muted-foreground">{sesizare.descriere}</p>
+                <p className="text-muted-foreground text-xs">{sesizare.descriere}</p>
               </div>
               <span
                 className={`shrink-0 rounded px-2 py-0.5 text-xs font-medium ${CLASE_URGENTA_SESIZARE[sesizare.urgenta]}`}
@@ -224,15 +238,19 @@ async function PanouOrganizatie({ organizationId }: { readonly organizationId: s
                   >
                     {numeEchipament(autorizatie.equipment_id)}
                   </Link>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-muted-foreground text-xs">
                     {autorizatie.tip} · {autorizatie.numar}
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-1 text-right">
-                  <span className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_STARE_SCADENTA[stare]}`}>
+                  <span
+                    className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_STARE_SCADENTA[stare]}`}
+                  >
                     {ETICHETE_STARE_SCADENTA[stare]}
                   </span>
-                  <span className="text-xs text-muted-foreground">{formatDate(autorizatie.valabil_pana)}</span>
+                  <span className="text-muted-foreground text-xs">
+                    {formatDate(autorizatie.valabil_pana)}
+                  </span>
                 </div>
               </li>
             );
@@ -256,15 +274,15 @@ function Panou({
 }) {
   const areConținut = Array.isArray(children) ? children.length > 0 : children !== null;
   return (
-    <section className="rounded-lg border border-border p-4">
+    <section className="border-border rounded-lg border p-4">
       <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
-        <Icon aria-hidden="true" className="size-4 text-muted-foreground" />
+        <Icon aria-hidden="true" className="text-muted-foreground size-4" />
         {titlu}
       </h2>
       {areConținut ? (
-        <ul className="divide-y divide-border">{children}</ul>
+        <ul className="divide-border divide-y">{children}</ul>
       ) : (
-        <p className="py-4 text-sm text-muted-foreground">{gol}</p>
+        <p className="text-muted-foreground py-4 text-sm">{gol}</p>
       )}
     </section>
   );
@@ -297,21 +315,21 @@ export default async function PaginaMentenanta() {
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Mentenanță</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Echipamente, planuri de mentenanță, intervenții și sesizări de defecțiune.
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
           <Link
             href="/mentenanta/sesizari/noua"
-            className="inline-flex items-center gap-2 rounded-md border border-foreground/60 px-4 py-2 text-sm font-medium hover:bg-surface"
+            className="border-foreground/60 hover:bg-surface inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium"
           >
             Sesizare nouă
           </Link>
           {poateAdaugaEchipament ? (
             <Link
               href="/mentenanta/echipamente/nou"
-              className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+              className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
             >
               Echipament nou
             </Link>

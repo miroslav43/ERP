@@ -12,7 +12,12 @@ import { formatLei } from "@/lib/format/money";
 import { listeazaPerioade } from "@/lib/queries/payroll";
 import { Wallet } from "lucide-react";
 
-import { AVERTISMENT_SALARIZARE, CLASE_STATUS_PERIOADA, ETICHETE_STATUS_PERIOADA, numeLuna } from "./etichete";
+import {
+  AVERTISMENT_SALARIZARE,
+  CLASE_STATUS_PERIOADA,
+  ETICHETE_STATUS_PERIOADA,
+  numeLuna,
+} from "./etichete";
 import { FormularPerioadaNoua } from "./formular-perioada-noua";
 
 export const metadata: Metadata = { title: "Salarizare" };
@@ -38,7 +43,9 @@ export default async function PaginaSalarizare() {
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Salarizare</h1>
-          <p className="text-muted-foreground text-sm">Perioadele de salarizare ale organizației.</p>
+          <p className="text-muted-foreground text-sm">
+            Perioadele de salarizare ale organizației.
+          </p>
         </div>
         <Link
           href="/salarizare/setari"
@@ -86,7 +93,10 @@ export default async function PaginaSalarizare() {
               {perioade.map((p) => (
                 <RandTabel key={p.id} href={`/salarizare/${p.id}`}>
                   <td className="px-4 py-3">
-                    <Link href={`/salarizare/${p.id}`} className="underline-offset-2 hover:underline">
+                    <Link
+                      href={`/salarizare/${p.id}`}
+                      className="underline-offset-2 hover:underline"
+                    >
                       {numeLuna(p.luna)} {p.an}
                     </Link>
                   </td>
@@ -99,7 +109,9 @@ export default async function PaginaSalarizare() {
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums">{formatLei(p.total_brut)}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{formatLei(p.total_net)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{formatLei(p.total_cost_angajator)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {formatLei(p.total_cost_angajator)}
+                  </td>
                 </RandTabel>
               ))}
             </tbody>

@@ -25,7 +25,10 @@ import { sincronizeazaZileleDeConcediu } from "./sincronizare-concediu";
 const CAI_REVALIDARE = ["/pontaj", "/pontaj/perioade", "/pontaj/aprobare"] as const;
 
 /** Prima și ultima zi calendaristică a unei luni, ca șiruri ISO. */
-function intervalulLunii(an: number, luna: number): { readonly inceput: string; readonly sfarsit: string } {
+function intervalulLunii(
+  an: number,
+  luna: number,
+): { readonly inceput: string; readonly sfarsit: string } {
   const ultimaZi = new Date(Date.UTC(an, luna, 0)).getUTCDate();
   const doiCifre = (n: number) => String(n).padStart(2, "0");
   return {
@@ -297,10 +300,7 @@ export const aprobaPontajBloc = createAction({
     allow: ["period_id", "department_id"],
   },
   revalidate: [...CAI_REVALIDARE],
-  handler: async (
-    ctx,
-    input,
-  ): Promise<Readonly<{ id: string; liniiAprobate: number }>> => {
+  handler: async (ctx, input): Promise<Readonly<{ id: string; liniiAprobate: number }>> => {
     // (1) Perioada, cu clientul utilizatorului.
     const { data: perioada, error: eroarePerioada } = await ctx.supabase
       .from("attendance_periods")
@@ -388,12 +388,22 @@ export const aprobaPontajBloc = createAction({
     if (eroareActualizareLot !== null) throw eroareActualizareLot;
 
     if (perioada.status === "deschisa") {
-      const { error: eroareStatus } = await ctx.supabase
+      // Tranziția `deschisa -> in_aprobare` trece prin `attendance_periods_update`.
+      // Un manager cu `attendance:approve = team` NU o poate face — politica cere
+      // scope `all` (capcana 9). Respins de `USING`, UPDATE-ul afectează zero
+      // rânduri fără eroare (capcana 17): lotul s-ar aproba, dar luna ar rămâne
+      // „deschisă", iar blocarea ulterioară ar eșua fără explicație.
+      const { data: perioadaTrecuta, error: eroareStatus } = await ctx.supabase
         .from("attendance_periods")
         .update({ status: "in_aprobare" })
         .eq("id", perioada.id)
-        .eq("organization_id", ctx.tenant.organizationId);
+        .eq("organization_id", ctx.tenant.organizationId)
+        .select("id")
+        .maybeSingle();
       if (eroareStatus !== null) throw eroareStatus;
+      if (perioadaTrecuta === null) {
+        throw businessRule("Liniile au fost aprobate, dar luna nu a putut trece în „în aprobare”.");
+      }
     }
 
     return { id: lot.id, liniiAprobate: idDeAprobat.length };
@@ -406,7 +416,12 @@ export const blocheazaPerioada = createAction({
   permission: "attendance:approve",
   minScope: "all",
   input: idPerioadaSchema,
-  audit: { action: "update", entityType: "attendance_period", entityId: (input) => input.id, allow: ["id"] },
+  audit: {
+    action: "update",
+    entityType: "attendance_period",
+    entityId: (input) => input.id,
+    allow: ["id"],
+  },
   revalidate: [...CAI_REVALIDARE],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const db = await createServerSupabase();
@@ -433,7 +448,12 @@ export const redeschidePerioada = createAction({
   permission: "attendance:approve",
   minScope: "all",
   input: idPerioadaSchema,
-  audit: { action: "update", entityType: "attendance_period", entityId: (input) => input.id, allow: ["id"] },
+  audit: {
+    action: "update",
+    entityType: "attendance_period",
+    entityId: (input) => input.id,
+    allow: ["id"],
+  },
   revalidate: [...CAI_REVALIDARE],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const db = await createServerSupabase();
@@ -495,9 +515,7 @@ export const sincronizeazaConcediile = createAction({
     }
     const { data: zileConcediu, error: eroareConcediu } = await db
       .from("leave_request_days")
-      .select(
-        "data, leave_request_id, cerere:leave_requests!leave_request_id(employee_id, status)",
-      )
+      .select("data, leave_request_id, cerere:leave_requests!leave_request_id(employee_id, status)")
       .eq("organization_id", ctx.tenant.organizationId)
       .eq("este_lucratoare", true)
       .gte("data", inceput)

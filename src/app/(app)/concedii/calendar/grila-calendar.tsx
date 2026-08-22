@@ -74,20 +74,20 @@ export function GrilaCalendar({ an, luna, zileHarta, lunaAnterioara, lunaUrmatoa
       <nav aria-label="Navigare lunară" className="flex items-center justify-between text-sm">
         <Link
           href={`/concedii/calendar?an=${String(lunaAnterioara.an)}&luna=${String(lunaAnterioara.luna)}`}
-          className="rounded-md border border-foreground/60 px-3 py-1.5 hover:bg-surface"
+          className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-1.5"
         >
           ← Luna anterioară
         </Link>
         <Link
           href={`/concedii/calendar?an=${String(lunaUrmatoare.an)}&luna=${String(lunaUrmatoare.luna)}`}
-          className="rounded-md border border-foreground/60 px-3 py-1.5 hover:bg-surface"
+          className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-1.5"
         >
           Luna următoare →
         </Link>
       </nav>
 
       {!areEvenimente ? (
-        <p className="rounded-lg border border-dashed border-foreground/60 p-4 text-center text-sm text-muted-foreground">
+        <p className="border-foreground/60 text-muted-foreground rounded-lg border border-dashed p-4 text-center text-sm">
           Nicio absență de echipă înregistrată în această lună.
         </p>
       ) : null}
@@ -101,7 +101,7 @@ export function GrilaCalendar({ an, luna, zileHarta, lunaAnterioara, lunaUrmatoa
                 <th
                   key={zi}
                   scope="col"
-                  className="border border-border bg-surface px-2 py-1.5 text-xs font-medium text-muted-foreground"
+                  className="border-border bg-surface text-muted-foreground border px-2 py-1.5 text-xs font-medium"
                 >
                   {zi}
                 </th>
@@ -116,19 +116,16 @@ export function GrilaCalendar({ an, luna, zileHarta, lunaAnterioara, lunaUrmatoa
                     return (
                       <td
                         key={indexZi}
-                        className="h-24 border border-border bg-surface align-top"
+                        className="border-border bg-surface h-24 border align-top"
                       />
                     );
                   }
                   const iso = ziIso(an, luna, zi);
                   const evenimente = zileHarta[iso] ?? [];
                   return (
-                    <td
-                      key={iso}
-                      className="h-24 border border-border align-top"
-                    >
+                    <td key={iso} className="border-border h-24 border align-top">
                       <div className="p-1.5">
-                        <span className="text-xs font-medium text-muted-foreground">{zi}</span>
+                        <span className="text-muted-foreground text-xs font-medium">{zi}</span>
                         <ul className="mt-1 space-y-0.5">
                           {evenimente.slice(0, 3).map((eveniment, indexEveniment) => (
                             <li
@@ -136,7 +133,7 @@ export function GrilaCalendar({ an, luna, zileHarta, lunaAnterioara, lunaUrmatoa
                               title={`${eveniment.employeeLabel} · ${eveniment.tipDenumire} (${
                                 eveniment.status === "aprobata" ? "aprobată" : "în aprobare"
                               })`}
-                              className={`truncate rounded px-1 py-0.5 text-xs text-primary-foreground ${
+                              className={`text-primary-foreground truncate rounded px-1 py-0.5 text-xs ${
                                 eveniment.status === "aprobata" ? "" : "opacity-60"
                               }`}
                               style={{ backgroundColor: eveniment.tipCuloare }}
@@ -145,7 +142,7 @@ export function GrilaCalendar({ an, luna, zileHarta, lunaAnterioara, lunaUrmatoa
                             </li>
                           ))}
                           {evenimente.length > 3 ? (
-                            <li className="text-xs text-muted-foreground">
+                            <li className="text-muted-foreground text-xs">
                               +{evenimente.length - 3} altele
                             </li>
                           ) : null}

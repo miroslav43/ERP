@@ -53,7 +53,7 @@ async function TabelPerioade({
   const dupaLuna = new Map(perioade.map((p) => [p.luna, p]));
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border">
+    <div className="border-border overflow-x-auto rounded-lg border">
       <table className="w-full text-sm">
         <caption className="sr-only">Perioadele de pontaj ale anului {an}.</caption>
         <thead className="bg-surface text-left">
@@ -72,7 +72,7 @@ async function TabelPerioade({
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-border">
+        <tbody className="divide-border divide-y">
           {LUNI_ETICHETE.map((eticheta, index) => {
             const luna = index + 1;
             const perioada = dupaLuna.get(luna) ?? null;
@@ -82,14 +82,14 @@ async function TabelPerioade({
                 href={perioada === null ? null : `/pontaj/perioade/${perioada.id}`}
               >
                 <td className="px-4 py-3 font-medium">{eticheta}</td>
-                <td className="px-4 py-3 text-muted-foreground">
+                <td className="text-muted-foreground px-4 py-3">
                   {perioada === null
                     ? "—"
                     : `${formatDate(perioada.data_inceput)} – ${formatDate(perioada.data_sfarsit)}`}
                 </td>
                 <td className="px-4 py-3">
                   {perioada === null ? (
-                    <span className="text-xs text-muted-foreground">Neschisă</span>
+                    <span className="text-muted-foreground text-xs">Neschisă</span>
                   ) : (
                     <span
                       className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_STATUS_PERIOADA[perioada.status]}`}
@@ -140,16 +140,22 @@ export default async function PaginaPerioadePontaj({ searchParams }: Proprietati
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Perioade de pontaj</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Deschiderea și blocarea lunilor de pontaj ale anului {String(an)}.
           </p>
         </div>
         <nav aria-label="Anul perioadelor" className="flex items-center gap-3 text-sm">
-          <Link href={`/pontaj/perioade?an=${String(an - 1)}`} className="underline underline-offset-2">
+          <Link
+            href={`/pontaj/perioade?an=${String(an - 1)}`}
+            className="underline underline-offset-2"
+          >
             {an - 1}
           </Link>
           <span className="font-semibold">{an}</span>
-          <Link href={`/pontaj/perioade?an=${String(an + 1)}`} className="underline underline-offset-2">
+          <Link
+            href={`/pontaj/perioade?an=${String(an + 1)}`}
+            className="underline underline-offset-2"
+          >
             {an + 1}
           </Link>
         </nav>

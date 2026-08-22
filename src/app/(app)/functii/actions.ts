@@ -14,7 +14,13 @@ import {
 
 type FunctieIdentificata = Readonly<{ id: string }>;
 
-const CAMPURI_AUDITATE_CREARE = ["cod", "denumire", "cod_cor", "nivel_studii", "descriere"] as const;
+const CAMPURI_AUDITATE_CREARE = [
+  "cod",
+  "denumire",
+  "cod_cor",
+  "nivel_studii",
+  "descriere",
+] as const;
 const CAMPURI_AUDITATE_ACTUALIZARE = ["denumire", "cod_cor", "nivel_studii", "descriere"] as const;
 
 // RLS pe job_positions (0005_hr_rls.sql) verifică resursa 'departments', nu
@@ -50,7 +56,10 @@ export const creeazaFunctie = createAction<typeof creeazaFunctieSchema, FunctieI
   },
 });
 
-export const actualizeazaFunctie = createAction<typeof actualizeazaFunctieSchema, FunctieIdentificata>({
+export const actualizeazaFunctie = createAction<
+  typeof actualizeazaFunctieSchema,
+  FunctieIdentificata
+>({
   name: "job_positions.update",
   permission: "departments:update",
   minScope: "all",
@@ -79,7 +88,10 @@ export const actualizeazaFunctie = createAction<typeof actualizeazaFunctieSchema
   },
 });
 
-export const dezactiveazaFunctie = createAction<typeof dezactiveazaFunctieSchema, FunctieIdentificata>({
+export const dezactiveazaFunctie = createAction<
+  typeof dezactiveazaFunctieSchema,
+  FunctieIdentificata
+>({
   name: "job_positions.deactivate",
   permission: "departments:update",
   minScope: "all",

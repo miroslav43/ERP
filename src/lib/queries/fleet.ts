@@ -5,12 +5,7 @@
 // care poate diverge tăcut de regula reală.
 
 import type { FiltreFoi, FiltreVehicule } from "@/schemas/fleet";
-import type {
-  CategorieVehicul,
-  Combustibil,
-  StatusFoaie,
-  StatusVehicul,
-} from "@/schemas/fleet";
+import type { CategorieVehicul, Combustibil, StatusFoaie, StatusVehicul } from "@/schemas/fleet";
 import { createServerSupabase } from "@/lib/supabase/server";
 
 export interface RandVehicul {
@@ -227,10 +222,7 @@ export async function listeazaVehicule(
   };
 }
 
-export async function citesteVehicul(
-  organizationId: string,
-  id: string,
-): Promise<Vehicul | null> {
+export async function citesteVehicul(organizationId: string, id: string): Promise<Vehicul | null> {
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("vehicles")
@@ -318,10 +310,7 @@ export async function tipuriDocument(): Promise<readonly TipDocument[]> {
 
 // ── Foi de parcurs ──────────────────────────────────────────────────────────
 
-export async function listeazaFoi(
-  organizationId: string,
-  filtre: FiltreFoi,
-): Promise<RezultatFoi> {
+export async function listeazaFoi(organizationId: string, filtre: FiltreFoi): Promise<RezultatFoi> {
   const db = await createServerSupabase();
 
   let interogare = db
@@ -363,10 +352,7 @@ export async function listeazaFoi(
   };
 }
 
-export async function citesteFoaie(
-  organizationId: string,
-  id: string,
-): Promise<RandFoaie | null> {
+export async function citesteFoaie(organizationId: string, id: string): Promise<RandFoaie | null> {
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("trip_sheets")
@@ -427,9 +413,7 @@ export async function alimentarileFoii(foaieId: string): Promise<readonly Alimen
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("fuel_entries")
-    .select(
-      "id, litri, cost, pret_litru, statie, numar_bon, alimentat_la, plin, observatii",
-    )
+    .select("id, litri, cost, pret_litru, statie, numar_bon, alimentat_la, plin, observatii")
     .eq("trip_sheet_id", foaieId)
     .is("deleted_at", null)
     .order("alimentat_la", { ascending: true })
@@ -439,9 +423,7 @@ export async function alimentarileFoii(foaieId: string): Promise<readonly Alimen
   return data ?? [];
 }
 
-export async function anomaliiNeconfirmate(
-  organizationId: string,
-): Promise<readonly Anomalie[]> {
+export async function anomaliiNeconfirmate(organizationId: string): Promise<readonly Anomalie[]> {
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("odometer_anomalies")

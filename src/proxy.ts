@@ -102,7 +102,11 @@ export const config = {
      * Tot, minus bundle-urile Next, fișierele statice din /public și
      * favicon-ul. Fără excluderi, fiecare imagine ar declanșa un apel de
      * refresh către GoTrue.
+     *
+     * `healthz` e exclusă separat: e sonda de liveness a containerului, iar
+     * trecerea ei prin `updateSession()` ar declara containerul mort ori de
+     * câte ori GoTrue are o sughițare.
      */
-    "/((?!_next/static|_next/image|favicon\\.ico|robots\\.txt|sitemap\\.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|css|js|woff|woff2|ttf|otf|map)$).*)",
+    "/((?!_next/static|_next/image|healthz|favicon\\.ico|robots\\.txt|sitemap\\.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|css|js|woff|woff2|ttf|otf|map)$).*)",
   ],
 };

@@ -11,7 +11,11 @@ interface ProprietatiIncarcareAvatarAdmin {
 }
 
 /** Adaptor subțire: leagă `employeeId` de acțiunile generice pe care le cere `IncarcareAvatar`. */
-export function IncarcareAvatarAdmin({ employeeId, urlInitial, nume }: ProprietatiIncarcareAvatarAdmin) {
+export function IncarcareAvatarAdmin({
+  employeeId,
+  urlInitial,
+  nume,
+}: ProprietatiIncarcareAvatarAdmin) {
   return (
     <IncarcareAvatar
       urlInitial={urlInitial}

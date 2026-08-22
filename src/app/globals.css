@@ -19,6 +19,14 @@
   --color-primary-active: #2a3d66;
   --color-primary-foreground: #faf7f0;
 
+  /*
+   * Fundalul consolei de platformă — mai adânc decât primarul, folosit DOAR în
+   * `(platform)/super-admin`. Raportul se inversează acolo intenționat: navy
+   * devine fundal, cremul rămâne pentru conținut. Culoarea spune singură în ce
+   * plan ești, fără să fie nevoie de banner.
+   */
+  --color-navy-abis: #0a1428;
+
   /* Crem — fundal */
   --color-background: #faf7f0;
   --color-surface: #f2ede1;
@@ -71,6 +79,7 @@
   --color-primary-hover: var(--color-primary-hover);
   --color-primary-active: var(--color-primary-active);
   --color-primary-foreground: var(--color-primary-foreground);
+  --color-navy-abis: var(--color-navy-abis);
 
   --color-background: var(--color-background);
   --color-surface: var(--color-surface);

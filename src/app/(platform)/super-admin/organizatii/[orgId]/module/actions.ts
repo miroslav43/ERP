@@ -97,11 +97,15 @@ export async function comutaModul(raw: unknown): Promise<ActionResult<RezultatCo
     );
   }
 
+  // `id` și `.is("deleted_at", null)` sunt necesare pentru scrierea de mai jos:
+  // unicitatea (organization_id, feature_key) e pe un index PARȚIAL, deci
+  // actualizarea se face după cheia primară, nu prin ON CONFLICT.
   const { data: existent, error: erExistent } = await admin
     .from("organization_features")
-    .select("enabled")
+    .select("id, enabled")
     .eq("organization_id", org.id)
     .eq("feature_key", modul.feature_key)
+    .is("deleted_at", null)
     .maybeSingle();
 
   if (erExistent) {
@@ -129,9 +133,16 @@ export async function comutaModul(raw: unknown): Promise<ActionResult<RezultatCo
   };
 
   const server = await createServerSupabase();
-  const { error: erScriere } = await admin
-    .from("organization_features")
-    .upsert(rand, { onConflict: "organization_id,feature_key" });
+  // NU `.upsert(..., { onConflict: "organization_id,feature_key" })`: singura
+  // unicitate pe aceste coloane e `organization_features_org_key_uq`, un index
+  // PARȚIAL (`where deleted_at is null`). PostgREST nu emite predicatul în
+  // `ON CONFLICT`, iar Postgres respinge inferența cu 42P10 la PLANIFICARE —
+  // deci pica la fiecare apel, nu doar la conflict. Vezi capcana #7 din
+  // docs/design/ecrane/capcane.md.
+  const { error: erScriere } =
+    existent === null
+      ? await admin.from("organization_features").insert(rand)
+      : await admin.from("organization_features").update(rand).eq("id", existent.id);
 
   if (erScriere) {
     const tradus = traduEroareBd(erScriere.message);

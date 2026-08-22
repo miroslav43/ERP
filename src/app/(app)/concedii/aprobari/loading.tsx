@@ -2,10 +2,10 @@
 export default function IncarcareAprobariConcedii() {
   return (
     <main className="space-y-6 p-6" aria-busy="true" aria-label="Se încarcă sarcinile de aprobat">
-      <div className="h-8 w-48 animate-pulse rounded bg-surface" />
+      <div className="bg-surface h-8 w-48 animate-pulse rounded" />
       <div className="space-y-3">
         {Array.from({ length: 4 }, (_, index) => (
-          <div key={index} className="h-24 animate-pulse rounded-lg bg-surface" />
+          <div key={index} className="bg-surface h-24 animate-pulse rounded-lg" />
         ))}
       </div>
       <span className="sr-only">Se încarcă…</span>

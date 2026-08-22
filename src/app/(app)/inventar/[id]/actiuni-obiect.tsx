@@ -51,8 +51,7 @@ interface ValoriEditare {
   observatii: string;
 }
 
-const CLASA_CAMP =
-  "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
+const CLASA_CAMP = "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
 
 function laText(valoare: string | null): string {
   return valoare ?? "";
@@ -221,12 +220,7 @@ export function ActiuniObiect({ obiect, categorii, poateCasa }: Proprietati) {
             <label htmlFor="edit-locatie" className="block text-sm font-medium">
               Locație
             </label>
-            <input
-              id="edit-locatie"
-              type="text"
-              className={CLASA_CAMP}
-              {...register("locatie")}
-            />
+            <input id="edit-locatie" type="text" className={CLASA_CAMP} {...register("locatie")} />
           </div>
         </div>
 
@@ -244,7 +238,7 @@ export function ActiuniObiect({ obiect, categorii, poateCasa }: Proprietati) {
 
         <div aria-live="polite">
           {eroare !== null ? (
-            <p className="rounded-md border border-danger bg-danger/8 p-3 text-sm text-danger">
+            <p className="border-danger bg-danger/8 text-danger rounded-md border p-3 text-sm">
               {eroare}
             </p>
           ) : null}
@@ -254,7 +248,7 @@ export function ActiuniObiect({ obiect, categorii, poateCasa }: Proprietati) {
           <button
             type="submit"
             disabled={inCurs}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+            className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
           >
             {inCurs ? "Se salvează…" : "Salvează modificările"}
           </button>
@@ -264,7 +258,7 @@ export function ActiuniObiect({ obiect, categorii, poateCasa }: Proprietati) {
               setModEditare(false);
             }}
             disabled={inCurs}
-            className="rounded-md border border-foreground/60 px-4 py-2 text-sm font-medium hover:bg-surface disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+            className="border-foreground/60 hover:bg-surface disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
           >
             Renunță
           </button>
@@ -277,7 +271,7 @@ export function ActiuniObiect({ obiect, categorii, poateCasa }: Proprietati) {
     <div className="space-y-3">
       <div aria-live="polite">
         {eroare !== null ? (
-          <p className="rounded-md border border-danger bg-danger/8 p-3 text-sm text-danger">
+          <p className="border-danger bg-danger/8 text-danger rounded-md border p-3 text-sm">
             {eroare}
           </p>
         ) : null}
@@ -289,7 +283,7 @@ export function ActiuniObiect({ obiect, categorii, poateCasa }: Proprietati) {
           onClick={() => {
             setModEditare(true);
           }}
-          className="rounded-md border border-foreground/60 px-4 py-2 text-sm font-medium hover:bg-surface"
+          className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm font-medium"
         >
           Editează datele obiectului
         </button>
@@ -299,7 +293,7 @@ export function ActiuniObiect({ obiect, categorii, poateCasa }: Proprietati) {
             onClick={() => {
               setConfirmaCasare(true);
             }}
-            className="rounded-md border border-danger px-4 py-2 text-sm font-medium text-danger hover:bg-danger hover:text-danger-foreground"
+            className="border-danger text-danger hover:bg-danger hover:text-danger-foreground rounded-md border px-4 py-2 text-sm font-medium"
           >
             Casează obiectul
           </button>
@@ -307,8 +301,8 @@ export function ActiuniObiect({ obiect, categorii, poateCasa }: Proprietati) {
       </div>
 
       {confirmaCasare ? (
-        <div className="rounded-md border border-danger bg-danger/8 p-4">
-          <p className="text-sm text-danger">
+        <div className="border-danger bg-danger/8 rounded-md border p-4">
+          <p className="text-danger text-sm">
             Obiectul trece definitiv în starea „Casat” și nu mai poate fi predat unui angajat.
             Rămâne în evidența organizației permanent — istoricul de predări-primiri nu se poate
             șterge.
@@ -318,7 +312,7 @@ export function ActiuniObiect({ obiect, categorii, poateCasa }: Proprietati) {
               type="button"
               onClick={caseaza}
               disabled={inCurs}
-              className="rounded-md bg-danger px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-danger disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+              className="bg-danger text-primary-foreground hover:bg-danger disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
             >
               {inCurs ? "Se casează…" : "Confirmă casarea"}
             </button>
@@ -328,7 +322,7 @@ export function ActiuniObiect({ obiect, categorii, poateCasa }: Proprietati) {
                 setConfirmaCasare(false);
               }}
               disabled={inCurs}
-              className="rounded-md border border-foreground/60 px-4 py-2 text-sm font-medium hover:bg-surface disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+              className="border-foreground/60 hover:bg-surface disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
             >
               Renunță
             </button>

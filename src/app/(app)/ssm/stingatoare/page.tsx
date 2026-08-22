@@ -18,7 +18,12 @@ import { stingatoare } from "@/lib/queries/ssm";
 import { filtreStingatoareSchema } from "@/schemas/ssm";
 import { stareScadentaSsm } from "@/domain/ssm/scadente";
 
-import { CLASE_SCADENTA, CLASE_STATUS_STINGATOR, ETICHETE_SCADENTA, ETICHETE_STATUS_STINGATOR } from "../etichete";
+import {
+  CLASE_SCADENTA,
+  CLASE_STATUS_STINGATOR,
+  ETICHETE_SCADENTA,
+  ETICHETE_STATUS_STINGATOR,
+} from "../etichete";
 import { NavSsm } from "../nav-ssm";
 import { FiltreStingatoare } from "./filtre-stingatoare";
 
@@ -45,7 +50,9 @@ function CelulaScadenta({
       <span className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_SCADENTA[stare]}`}>
         {ETICHETE_SCADENTA[stare]}
       </span>
-      {data === null ? null : <span className="ml-2 text-xs text-muted-foreground">{formatDate(data)}</span>}
+      {data === null ? null : (
+        <span className="text-muted-foreground ml-2 text-xs">{formatDate(data)}</span>
+      )}
     </td>
   );
 }
@@ -71,7 +78,9 @@ async function TabelStingatoare({
             ? "Ștergeți filtrele ca să vedeți toate stingătoarele."
             : "Adăugați primul stingător ca să puteți urmări verificările, reîncărcările și probele de presiune."
         }
-        {...(areFiltre ? {} : { action: { label: "Adaugă stingător", href: "/ssm/stingatoare/nou" } })}
+        {...(areFiltre
+          ? {}
+          : { action: { label: "Adaugă stingător", href: "/ssm/stingatoare/nou" } })}
       />
     );
   }
@@ -86,7 +95,7 @@ async function TabelStingatoare({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div className="border-border overflow-x-auto rounded-lg border">
         <table className="w-full text-sm">
           <caption className="sr-only">
             Stingătoarele organizației, cu cele trei obligații de întreținere pe coloane distincte.
@@ -113,7 +122,7 @@ async function TabelStingatoare({
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className="divide-border divide-y">
             {randuri.map((s) => (
               <RandTabel key={s.id} href={`/ssm/stingatoare/${s.id}`}>
                 <td className="px-4 py-3 font-medium">
@@ -126,7 +135,9 @@ async function TabelStingatoare({
                 </td>
                 <td className="px-4 py-3">
                   {s.locatie}
-                  {s.cladire === null ? null : <span className="text-muted-foreground"> · {s.cladire}</span>}
+                  {s.cladire === null ? null : (
+                    <span className="text-muted-foreground"> · {s.cladire}</span>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <span
@@ -163,7 +174,7 @@ async function TabelStingatoare({
         {urmatorulCursor === null ? null : (
           <Link
             href={`/ssm/stingatoare?${cautare.toString()}`}
-            className="rounded-md border border-foreground/60 px-4 py-2 text-sm hover:bg-surface"
+            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
           >
             Pagina următoare
           </Link>
@@ -193,15 +204,15 @@ export default async function PaginaStingatoare({ searchParams }: ProprietatiPag
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Stingătoare</h1>
-          <p className="text-sm text-muted-foreground">
-            Verificarea tehnică, reîncărcarea și proba de presiune — trei obligații cu
-            periodicități diferite.
+          <p className="text-muted-foreground text-sm">
+            Verificarea tehnică, reîncărcarea și proba de presiune — trei obligații cu periodicități
+            diferite.
           </p>
         </div>
         {poateCrea ? (
           <Link
             href="/ssm/stingatoare/nou"
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+            className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
           >
             <Plus aria-hidden="true" className="size-4" />
             Stingător nou
@@ -210,7 +221,9 @@ export default async function PaginaStingatoare({ searchParams }: ProprietatiPag
       </header>
 
       <NavSsm
-        poateVedeaInstruiri={can(permisiuni, "ssm:read", "team") && can(permisiuni, "employees:read", "team")}
+        poateVedeaInstruiri={
+          can(permisiuni, "ssm:read", "team") && can(permisiuni, "employees:read", "team")
+        }
         poateVedeaMedicina={can(permisiuni, "ssm:read", "team")}
         poateVedeaAccidente={can(permisiuni, "ssm:read", "team")}
         poateVedeaStingatoare

@@ -4,6 +4,7 @@
 import { revalidatePath } from "next/cache";
 
 import { createAction } from "@/lib/actions/create-action";
+import { businessRule } from "@/lib/actions/errors";
 import { formatDate } from "@/lib/format/date";
 import { genereazaEvenimenteRevisal } from "@/lib/revisal/genereaza-evenimente";
 import { genereazaContractDeMunca } from "@/lib/documents/contract-munca";
@@ -206,12 +207,20 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
       .single();
     if (eroareContract !== null) throw eroareContract;
 
-    const { error: eroareActivare } = await db
+    // `.select()` obligatoriu: un UPDATE respins de clauza `USING` afectează
+    // zero rânduri FĂRĂ eroare (capcana 17). Contractul ar rămâne „proiect",
+    // iar înrolarea ar raporta succes cu un angajat care nu e angajat.
+    const { data: contractActivat, error: eroareActivare } = await db
       .from("employment_contracts")
       .update({ status: "activ", updated_by: ctx.user.id })
       .eq("id", contract.id)
-      .eq("organization_id", ctx.tenant.organizationId);
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle();
     if (eroareActivare !== null) throw eroareActivare;
+    if (contractActivat === null) {
+      throw businessRule("Contractul a fost creat, dar activarea lui a fost respinsă.");
+    }
 
     const anulAngajarii = Number(valabil_de_la.slice(0, 4));
     const { error: eroareSold } = await db.rpc("seed_leave_balances", {

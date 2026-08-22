@@ -59,8 +59,8 @@ export default async function PaginaSabloaneEvaluare() {
         <div>
           <h1 className="text-2xl font-semibold">Șabloane de evaluare</h1>
           <p className="text-muted-foreground text-sm">
-            Un set de criterii reutilizabil, aplicat apoi angajaților de pe fișa fiecăruia.
-            Poate fi creat de manageri, nu doar de administratori.
+            Un set de criterii reutilizabil, aplicat apoi angajaților de pe fișa fiecăruia. Poate fi
+            creat de manageri, nu doar de administratori.
           </p>
         </div>
         {poateCrea ? <FormularSablonEvaluareNou /> : null}

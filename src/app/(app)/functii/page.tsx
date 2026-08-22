@@ -54,8 +54,8 @@ export default async function PaginaFunctii() {
         <div>
           <h1 className="text-2xl font-semibold">Funcții</h1>
           <p className="text-muted-foreground text-sm">
-            Nomenclatorul de funcții al companiei. Codul COR (Clasificarea Ocupațiilor din
-            România) e necesar pentru contract și REVISAL.
+            Nomenclatorul de funcții al companiei. Codul COR (Clasificarea Ocupațiilor din România)
+            e necesar pentru contract și REVISAL.
           </p>
         </div>
         {poateCrea ? <FormularFunctieNoua /> : null}

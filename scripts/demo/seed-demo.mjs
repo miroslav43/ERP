@@ -46,9 +46,7 @@ const URL_SUPABASE = env.NEXT_PUBLIC_SUPABASE_URL;
 const CHEIE_SERVICE = env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!URL_SUPABASE || !CHEIE_SERVICE) {
-  throw new Error(
-    "Lipsesc NEXT_PUBLIC_SUPABASE_URL sau SUPABASE_SERVICE_ROLE_KEY din .env.local.",
-  );
+  throw new Error("Lipsesc NEXT_PUBLIC_SUPABASE_URL sau SUPABASE_SERVICE_ROLE_KEY din .env.local.");
 }
 
 const db = createClient(URL_SUPABASE, CHEIE_SERVICE, {
@@ -102,7 +100,13 @@ const CONTURI = [
     nume: "Ana Ionescu",
     platforma: false,
     membru: [{ org: "demo", rol: "org_admin" }],
-    angajat: { marca: "DEMO-001", first_name: "Ana", last_name: "Ionescu", dep: "ADM", post: "DIR" },
+    angajat: {
+      marca: "DEMO-001",
+      first_name: "Ana",
+      last_name: "Ionescu",
+      dep: "ADM",
+      post: "DIR",
+    },
   },
   {
     email: "demo_hr@gmail.com",
@@ -168,10 +172,38 @@ const SALARIU_DUPA_POST = { DIR: 12000, HR: 6500, SEF: 5500, OPR: 4200, AGV: 460
 
 /** Colegi fără cont de autentificare, ca listele să nu arate a bază goală. */
 const COLEGI = [
-  { marca: "DEMO-005", first_name: "Andrei", last_name: "Dumitrescu", dep: "PROD", post: "OPR", seful: "DEMO-003" },
-  { marca: "DEMO-006", first_name: "Cristina", last_name: "Stan", dep: "PROD", post: "OPR", seful: "DEMO-003" },
-  { marca: "DEMO-007", first_name: "Vlad", last_name: "Nistor", dep: "VNZ", post: "AGV", seful: "DEMO-001" },
-  { marca: "DEMO-008", first_name: "Alexandra", last_name: "Barbu", dep: "VNZ", post: "AGV", seful: "DEMO-001" },
+  {
+    marca: "DEMO-005",
+    first_name: "Andrei",
+    last_name: "Dumitrescu",
+    dep: "PROD",
+    post: "OPR",
+    seful: "DEMO-003",
+  },
+  {
+    marca: "DEMO-006",
+    first_name: "Cristina",
+    last_name: "Stan",
+    dep: "PROD",
+    post: "OPR",
+    seful: "DEMO-003",
+  },
+  {
+    marca: "DEMO-007",
+    first_name: "Vlad",
+    last_name: "Nistor",
+    dep: "VNZ",
+    post: "AGV",
+    seful: "DEMO-001",
+  },
+  {
+    marca: "DEMO-008",
+    first_name: "Alexandra",
+    last_name: "Barbu",
+    dep: "VNZ",
+    post: "AGV",
+    seful: "DEMO-001",
+  },
 ];
 
 /**
@@ -529,13 +561,12 @@ async function creeaza() {
         // `blocata_la`/`blocata_de` nu se trimit: triggerul le rescrie, exact
         // ca în `blocheazaPerioada` din `pontaj/actions.ts`.
         `update attendance_periods ${perioada.id}`,
-        await db
-          .from("attendance_periods")
-          .update({ status: "blocata" })
-          .eq("id", perioada.id),
+        await db.from("attendance_periods").update({ status: "blocata" }).eq("id", perioada.id),
       );
     }
-    console.log(`  · pontaj ${perioada.data_inceput.slice(0, 7)}: ${zileLucratoare} zile lucrătoare pontate și blocate`);
+    console.log(
+      `  · pontaj ${perioada.data_inceput.slice(0, 7)}: ${zileLucratoare} zile lucrătoare pontate și blocate`,
+    );
   }
 }
 
@@ -554,7 +585,9 @@ function afiseazaCredentiale() {
     console.log(`│ ${c.email.padEnd(lat)} ${roluri.join(", ")}`.padEnd(64) + " │");
   }
   console.log("└" + "─".repeat(63) + "┘");
-  console.log(`\n${ORG_DEMO.name} are toate cele unsprezece module activate — vezi lista de mai sus.`);
+  console.log(
+    `\n${ORG_DEMO.name} are toate cele unsprezece module activate — vezi lista de mai sus.`,
+  );
 }
 
 // ── ─────────────────────────────────────────────────────────────────────────

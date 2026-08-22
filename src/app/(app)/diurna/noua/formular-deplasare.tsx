@@ -17,8 +17,7 @@ interface Angajat {
   readonly marca: string;
 }
 
-const CLASA_CAMP =
-  "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
+const CLASA_CAMP = "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
 
 export function FormularDeplasare({
   tari,
@@ -41,9 +40,8 @@ export function FormularDeplasare({
   const [localitate, setLocalitate] = useState("");
   const [plecareLa, setPlecareLa] = useState("");
   const [sosireLa, setSosireLa] = useState("");
-  const [mijlocTransport, setMijlocTransport] = useState<(typeof MIJLOACE_TRANSPORT)[number]>(
-    "auto_serviciu",
-  );
+  const [mijlocTransport, setMijlocTransport] =
+    useState<(typeof MIJLOACE_TRANSPORT)[number]>("auto_serviciu");
   const [avansAcordat, setAvansAcordat] = useState("0");
   const [monedaAvans, setMonedaAvans] = useState("");
   const [cursDiurna, setCursDiurna] = useState("");
@@ -264,7 +262,7 @@ export function FormularDeplasare({
                 }}
                 className={CLASA_CAMP}
               />
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="text-muted-foreground mt-1 text-xs">
                 Fără curs, zilele se văd, dar suma în lei rămâne necunoscută.
               </p>
             </div>
@@ -322,7 +320,7 @@ export function FormularDeplasare({
             />
           </div>
 
-          <div className="sm:col-span-2 flex items-center gap-2">
+          <div className="flex items-center gap-2 sm:col-span-2">
             <input
               id={id.detasare}
               type="checkbox"
@@ -395,7 +393,7 @@ export function FormularDeplasare({
 
         <div aria-live="polite">
           {eroare !== null ? (
-            <p className="rounded-md border border-danger bg-danger/8 p-3 text-sm text-danger">
+            <p className="border-danger bg-danger/8 text-danger rounded-md border p-3 text-sm">
               {eroare}
             </p>
           ) : null}
@@ -405,20 +403,17 @@ export function FormularDeplasare({
           type="button"
           disabled={inCurs}
           onClick={trimite}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
         >
           {inCurs ? "Se salvează…" : "Salvează ciorna"}
         </button>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-muted-foreground text-xs">
           Deplasarea se salvează ca ciornă; traseul pe etape și trimiterea spre aprobare se fac pe
           fișa deplasării, după salvare.
         </p>
       </form>
 
-      <aside
-        aria-live="polite"
-        className="h-fit rounded-lg border border-border bg-surface p-4"
-      >
+      <aside aria-live="polite" className="border-border bg-surface h-fit rounded-lg border p-4">
         <h2 className="mb-2 text-sm font-semibold">Previzualizare diurnă</h2>
         <PrevizualizareDiurna
           plecareLa={plecareLa}

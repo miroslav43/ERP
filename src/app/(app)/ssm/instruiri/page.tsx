@@ -98,14 +98,14 @@ async function Matrice({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div className="border-border overflow-x-auto rounded-lg border">
         <table className="w-full text-sm">
           <caption className="sr-only">
             Matricea de instruiri {ETICHETE_DOMENIU[filtre.domeniu]}, angajați × tipuri.
           </caption>
           <thead className="bg-surface text-left">
             <tr>
-              <th scope="col" className="sticky left-0 bg-surface px-4 py-3 font-medium">
+              <th scope="col" className="bg-surface sticky left-0 px-4 py-3 font-medium">
                 Angajat
               </th>
               {tipuri.map((tip) => {
@@ -113,7 +113,8 @@ async function Matrice({
                 return (
                   <th key={tip.id} scope="col" className="px-4 py-3 font-medium whitespace-nowrap">
                     {tip.denumire}
-                    {perioada?.periodicitate_luni === null || perioada?.periodicitate_luni === undefined
+                    {perioada?.periodicitate_luni === null ||
+                    perioada?.periodicitate_luni === undefined
                       ? null
                       : ` (${String(perioada.periodicitate_luni)} luni)`}
                   </th>
@@ -121,22 +122,30 @@ async function Matrice({
               })}
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className="divide-border divide-y">
             {angajati.map((angajat) => (
               <tr key={angajat.id} className="hover:bg-surface">
-                <td className="sticky left-0 bg-background px-4 py-3 font-medium whitespace-nowrap">
+                <td className="bg-background sticky left-0 px-4 py-3 font-medium whitespace-nowrap">
                   {angajat.full_name}
                 </td>
                 {tipuri.map((tip) => {
                   const rand = celeMaiRecente.get(cheieMatrice(angajat.id, tip.id));
-                  const stare = stareScadentaSsm(rand !== undefined, rand?.urmatoarea_scadenta ?? null, azi);
+                  const stare = stareScadentaSsm(
+                    rand !== undefined,
+                    rand?.urmatoarea_scadenta ?? null,
+                    azi,
+                  );
                   return (
                     <td key={tip.id} className="px-4 py-3 whitespace-nowrap">
-                      <span className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_SCADENTA[stare]}`}>
+                      <span
+                        className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_SCADENTA[stare]}`}
+                      >
                         {ETICHETE_SCADENTA[stare]}
                       </span>
                       {rand === undefined ? null : (
-                        <span className="ml-2 text-xs text-muted-foreground">{formatDate(rand.data_instruirii)}</span>
+                        <span className="text-muted-foreground ml-2 text-xs">
+                          {formatDate(rand.data_instruirii)}
+                        </span>
                       )}
                     </td>
                   );
@@ -151,7 +160,7 @@ async function Matrice({
         {urmatorulCursor === null ? null : (
           <Link
             href={`/ssm/instruiri?${cautare.toString()}`}
-            className="rounded-md border border-foreground/60 px-4 py-2 text-sm hover:bg-surface"
+            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
           >
             Pagina următoare
           </Link>
@@ -178,7 +187,8 @@ export default async function PaginaInstruiri({ searchParams }: ProprietatiPagin
 
   const parametri = await searchParams;
   // Gata garantat prin poarta de mai sus: scope-ul e mereu „team" sau „all".
-  const scopeAngajati: "team" | "all" = scopeFor(permisiuni, "employees:read") === "all" ? "all" : "team";
+  const scopeAngajati: "team" | "all" =
+    scopeFor(permisiuni, "employees:read") === "all" ? "all" : "team";
   const poateCrea = can(permisiuni, "ssm:create", "team");
 
   return (
@@ -186,14 +196,14 @@ export default async function PaginaInstruiri({ searchParams }: ProprietatiPagin
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Instruiri</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Matricea angajați × tipuri de instruire, cu cea mai recentă efectuare.
           </p>
         </div>
         {poateCrea ? (
           <Link
             href="/ssm/instruiri/noua"
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+            className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
           >
             <Plus aria-hidden="true" className="size-4" />
             Instruire nouă

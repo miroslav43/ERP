@@ -31,14 +31,17 @@ export default async function PaginaPolitica() {
   const poateAproba = can(permisiuni, "per_diem:approve", "team");
   const poateEdita = can(permisiuni, "per_diem:update", "all");
 
-  const [politici, listaTari] = await Promise.all([politiciOrganizatie(tenant.organizationId), tari()]);
+  const [politici, listaTari] = await Promise.all([
+    politiciOrganizatie(tenant.organizationId),
+    tari(),
+  ]);
   const hartaTari = new Map(listaTari.map((t) => [t.id, t.denumire]));
 
   return (
     <main className="space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">Politica de diurnă</h1>
-        <p className="max-w-3xl text-sm text-muted-foreground">
+        <p className="text-muted-foreground max-w-3xl text-sm">
           Politica e versionată: fiecare deplasare se calculează cu versiunea valabilă la data
           plecării, nu cu cea curentă. Adăugarea unei versiuni noi nu schimbă istoricul.
         </p>
@@ -57,19 +60,31 @@ export default async function PaginaPolitica() {
           }
         />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border">
+        <div className="border-border overflow-x-auto rounded-lg border">
           <table className="w-full text-sm">
-            <caption className="sr-only">Versiunile politicii de diurnă, cea mai recentă primă.</caption>
+            <caption className="sr-only">
+              Versiunile politicii de diurnă, cea mai recentă primă.
+            </caption>
             <thead className="bg-surface text-left">
               <tr>
-                <th scope="col" className="px-4 py-3 font-medium">Denumire</th>
-                <th scope="col" className="px-4 py-3 font-medium">Valabilă</th>
-                <th scope="col" className="px-4 py-3 font-medium">Țara internă</th>
-                <th scope="col" className="px-4 py-3 text-right font-medium">Diurnă internă</th>
-                <th scope="col" className="px-4 py-3 font-medium">Trecere frontieră</th>
+                <th scope="col" className="px-4 py-3 font-medium">
+                  Denumire
+                </th>
+                <th scope="col" className="px-4 py-3 font-medium">
+                  Valabilă
+                </th>
+                <th scope="col" className="px-4 py-3 font-medium">
+                  Țara internă
+                </th>
+                <th scope="col" className="px-4 py-3 text-right font-medium">
+                  Diurnă internă
+                </th>
+                <th scope="col" className="px-4 py-3 font-medium">
+                  Trecere frontieră
+                </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-border divide-y">
               {politici.map((p) => (
                 <tr key={p.id}>
                   <td className="px-4 py-3 font-medium">{p.denumire}</td>
@@ -77,8 +92,12 @@ export default async function PaginaPolitica() {
                     {formatDate(p.valabil_de_la)}
                     {p.valabil_pana === null ? " – prezent" : ` – ${formatDate(p.valabil_pana)}`}
                   </td>
-                  <td className="px-4 py-3">{hartaTari.get(p.country_id_intern) ?? p.country_id_intern}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{formatLei(p.diurna_interna_zi)}</td>
+                  <td className="px-4 py-3">
+                    {hartaTari.get(p.country_id_intern) ?? p.country_id_intern}
+                  </td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {formatLei(p.diurna_interna_zi)}
+                  </td>
                   <td className="px-4 py-3">{ETICHETE_REGULA_TRECERE[p.regula_tara_trecere]}</td>
                 </tr>
               ))}
@@ -90,7 +109,7 @@ export default async function PaginaPolitica() {
       {poateEdita ? (
         <FormularPolitica tari={listaTari} />
       ) : (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Politica se configurează de administratorii organizației.
         </p>
       )}

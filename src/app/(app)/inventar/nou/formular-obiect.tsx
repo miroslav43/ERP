@@ -32,8 +32,7 @@ interface ValoriFormular {
   observatii: string;
 }
 
-const CLASA_CAMP =
-  "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
+const CLASA_CAMP = "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
 
 export function FormularObiect({ categorii }: Proprietati) {
   const router = useRouter();
@@ -89,9 +88,7 @@ export function FormularObiect({ categorii }: Proprietati) {
               )}
             />
             {formState.errors[nume] !== undefined ? (
-              <p className="mt-1 text-xs text-danger">
-                {formState.errors[nume]?.message}
-              </p>
+              <p className="text-danger mt-1 text-xs">{formState.errors[nume]?.message}</p>
             ) : null}
           </div>
         ))}
@@ -128,17 +125,12 @@ export function FormularObiect({ categorii }: Proprietati) {
         <label htmlFor="observatii" className="block text-sm font-medium">
           Observații
         </label>
-        <textarea
-          id="observatii"
-          rows={3}
-          className={CLASA_CAMP}
-          {...register("observatii")}
-        />
+        <textarea id="observatii" rows={3} className={CLASA_CAMP} {...register("observatii")} />
       </div>
 
       <div aria-live="polite">
         {eroare !== null ? (
-          <p className="rounded-md border border-danger bg-danger/8 p-3 text-sm text-danger">
+          <p className="border-danger bg-danger/8 text-danger rounded-md border p-3 text-sm">
             {eroare}
           </p>
         ) : null}
@@ -147,7 +139,7 @@ export function FormularObiect({ categorii }: Proprietati) {
       <button
         type="submit"
         disabled={inCurs}
-        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+        className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
       >
         {inCurs ? "Se salvează…" : "Salvează obiectul"}
       </button>

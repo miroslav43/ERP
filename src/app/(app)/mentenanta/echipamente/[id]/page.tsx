@@ -167,13 +167,13 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
     <main className="space-y-8 p-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             <Link href="/mentenanta/echipamente" className="underline-offset-2 hover:underline">
               Echipamente
             </Link>
           </p>
           <h1 className="text-2xl font-semibold">{echipament.cod}</h1>
-          <p className="text-sm text-muted-foreground">{echipament.denumire}</p>
+          <p className="text-muted-foreground text-sm">{echipament.denumire}</p>
         </div>
         <span
           className={`rounded px-2 py-1 text-xs font-medium ${CLASE_STATUS_ECHIPAMENT[echipament.status]}`}
@@ -186,14 +186,17 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
         <h2 id="identificare" className="text-lg font-semibold">
           Identificare
         </h2>
-        <dl className="grid gap-4 rounded-lg border border-border p-4 sm:grid-cols-2 lg:grid-cols-4">
+        <dl className="border-border grid gap-4 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-4">
           <Camp eticheta="Serie" valoare={echipament.serie ?? "—"} />
           <Camp eticheta="Producător" valoare={echipament.producator ?? "—"} />
           <Camp eticheta="Model" valoare={echipament.model ?? "—"} />
           <Camp eticheta="An fabricație" valoare={echipament.an_fabricatie?.toString() ?? "—"} />
           <Camp eticheta="Locație" valoare={echipament.locatie ?? "—"} />
           <Camp eticheta="Departament" valoare={departament?.nume ?? "—"} />
-          <Camp eticheta="Responsabil" valoare={numeleAngajatului(echipament.responsabil_employee_id)} />
+          <Camp
+            eticheta="Responsabil"
+            valoare={numeleAngajatului(echipament.responsabil_employee_id)}
+          />
           <Camp
             eticheta="Data punerii în funcțiune"
             valoare={
@@ -204,17 +207,22 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
           />
           <Camp
             eticheta="Valoare achiziție"
-            valoare={echipament.valoare_achizitie === null ? "—" : formatLei(echipament.valoare_achizitie)}
+            valoare={
+              echipament.valoare_achizitie === null ? "—" : formatLei(echipament.valoare_achizitie)
+            }
           />
           <Camp eticheta="Sub incidența ISCIR" valoare={echipament.este_iscir ? "Da" : "Nu"} />
           {echipament.este_iscir ? (
-            <Camp eticheta="Tip autorizare necesară" valoare={echipament.tip_autorizare_necesara ?? "—"} />
+            <Camp
+              eticheta="Tip autorizare necesară"
+              valoare={echipament.tip_autorizare_necesara ?? "—"}
+            />
           ) : null}
           {echipament.derogare_motiv !== null ? (
             <div className="sm:col-span-2 lg:col-span-4">
-              <dt className="text-xs text-muted-foreground">Derogare ISCIR acordată</dt>
+              <dt className="text-muted-foreground text-xs">Derogare ISCIR acordată</dt>
               <dd className="text-sm font-medium">{echipament.derogare_motiv}</dd>
-              <dd className="text-xs text-muted-foreground">
+              <dd className="text-muted-foreground text-xs">
                 {echipament.derogare_acordata_la === null
                   ? ""
                   : `la ${formatDateTime(echipament.derogare_acordata_la)}`}
@@ -224,7 +232,7 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
         </dl>
 
         {poateScrie ? (
-          <details className="rounded-lg border border-border p-4">
+          <details className="border-border rounded-lg border p-4">
             <summary className="cursor-pointer text-sm font-medium">
               Editează datele echipamentului
             </summary>
@@ -263,12 +271,12 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
           Contoare
         </h2>
         {contoare.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Nicio citire de contor. Prima citire fixează punctul de pornire pentru planurile pe
             contor.
           </p>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-border">
+          <div className="border-border overflow-x-auto rounded-lg border">
             <table className="w-full text-sm">
               <thead className="bg-surface text-left">
                 <tr>
@@ -289,13 +297,13 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody className="divide-border divide-y">
                 {contoare.map((citire) => (
                   <tr key={citire.id}>
                     <td className="px-4 py-3">
                       {ETICHETE_TIP_CONTOR[citire.tip]}
                       {citire.resetare_contor ? (
-                        <span className="ml-1 text-xs text-foreground">(resetare)</span>
+                        <span className="text-foreground ml-1 text-xs">(resetare)</span>
                       ) : null}
                     </td>
                     <td className="px-4 py-3 text-right tabular-nums">{citire.citire}</td>
@@ -308,7 +316,9 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
             </table>
           </div>
         )}
-        {poateScrie ? <FormularContor equipmentId={echipament.id} angajati={angajatiGenerali} /> : null}
+        {poateScrie ? (
+          <FormularContor equipmentId={echipament.id} angajati={angajatiGenerali} />
+        ) : null}
       </section>
 
       <section aria-labelledby="planuri" className="space-y-3">
@@ -316,7 +326,7 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
           Planuri de mentenanță
         </h2>
         {planuri.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Niciun plan de mentenanță definit pentru acest echipament.
           </p>
         ) : (
@@ -328,26 +338,33 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
                   urmatoareaScadentaContor: plan.urmatoarea_scadenta_contor,
                   periodicitateContor: plan.periodicitate_contor,
                   ultimaCitireContor:
-                    plan.tip_contor === null ? null : (ultimaCitirePeTip.get(plan.tip_contor) ?? null),
+                    plan.tip_contor === null
+                      ? null
+                      : (ultimaCitirePeTip.get(plan.tip_contor) ?? null),
                 },
                 azi,
               );
               return (
                 <li
                   key={plan.id}
-                  className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-border p-3"
+                  className="border-border flex flex-wrap items-start justify-between gap-3 rounded-lg border p-3"
                 >
                   <div>
                     <p className="font-medium">
                       {plan.denumire}
-                      {!plan.activ ? <span className="ml-2 text-xs text-muted-foreground">(inactiv)</span> : null}
+                      {!plan.activ ? (
+                        <span className="text-muted-foreground ml-2 text-xs">(inactiv)</span>
+                      ) : null}
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      {ETICHETE_TIP_MENTENANTA[plan.tip]} · Responsabil: {numeleAngajatului(plan.responsabil_employee_id)}
+                    <p className="text-muted-foreground text-xs">
+                      {ETICHETE_TIP_MENTENANTA[plan.tip]} · Responsabil:{" "}
+                      {numeleAngajatului(plan.responsabil_employee_id)}
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-muted-foreground text-xs">
                       {plan.periodicitate_zile !== null ? `La ${plan.periodicitate_zile} zile` : ""}
-                      {plan.periodicitate_zile !== null && plan.periodicitate_contor !== null ? " · " : ""}
+                      {plan.periodicitate_zile !== null && plan.periodicitate_contor !== null
+                        ? " · "
+                        : ""}
                       {plan.periodicitate_contor !== null && plan.tip_contor !== null
                         ? `La ${plan.periodicitate_contor} ${ETICHETE_TIP_CONTOR[plan.tip_contor]}`
                         : ""}
@@ -363,11 +380,15 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
                     ) : null}
                   </div>
                   <div className="flex flex-col items-end gap-1 text-right">
-                    <span className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_STARE_SCADENTA[stare]}`}>
+                    <span
+                      className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_STARE_SCADENTA[stare]}`}
+                    >
                       {ETICHETE_STARE_SCADENTA[stare]}
                     </span>
                     {plan.urmatoarea_scadenta !== null ? (
-                      <span className="text-xs text-muted-foreground">{formatDate(plan.urmatoarea_scadenta)}</span>
+                      <span className="text-muted-foreground text-xs">
+                        {formatDate(plan.urmatoarea_scadenta)}
+                      </span>
                     ) : null}
                   </div>
                 </li>
@@ -375,7 +396,9 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
             })}
           </ul>
         )}
-        {poateScrie ? <FormularPlan equipmentId={echipament.id} angajati={angajatiGenerali} /> : null}
+        {poateScrie ? (
+          <FormularPlan equipmentId={echipament.id} angajati={angajatiGenerali} />
+        ) : null}
       </section>
 
       <section aria-labelledby="interventii" className="space-y-3">
@@ -383,11 +406,11 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
           Istoricul intervențiilor
         </h2>
         {interventiiEchipament.randuri.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Nicio intervenție înregistrată pentru acest echipament.
           </p>
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-border">
+          <div className="border-border overflow-x-auto rounded-lg border">
             <table className="w-full text-sm">
               <thead className="bg-surface text-left">
                 <tr>
@@ -411,17 +434,21 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody className="divide-border divide-y">
                 {interventiiEchipament.randuri.map((interventie) => (
                   <tr key={interventie.id}>
                     <td className="px-4 py-3">{formatDate(interventie.data)}</td>
                     <td className="px-4 py-3">{ETICHETE_TIP_MENTENANTA[interventie.tip]}</td>
                     <td className="px-4 py-3">{interventie.descriere}</td>
                     <td className="px-4 py-3">
-                      {interventie.executant_extern ?? numeleAngajatului(interventie.executant_employee_id)}
+                      {interventie.executant_extern ??
+                        numeleAngajatului(interventie.executant_employee_id)}
                     </td>
                     <td className="px-4 py-3 text-right tabular-nums">
-                      {formatLei(interventie.cost_total ?? interventie.cost_piese + interventie.cost_manopera)}
+                      {formatLei(
+                        interventie.cost_total ??
+                          interventie.cost_piese + interventie.cost_manopera,
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <span
@@ -450,7 +477,7 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
           Autorizații ISCIR
         </h2>
         {autorizatii.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Nicio autorizație ISCIR înregistrată pentru acest echipament.
           </p>
         ) : (
@@ -460,22 +487,26 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
               return (
                 <li
                   key={autorizatie.id}
-                  className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-border p-3"
+                  className="border-border flex flex-wrap items-start justify-between gap-3 rounded-lg border p-3"
                 >
                   <div>
                     <p className="font-medium">
                       {autorizatie.tip} · {autorizatie.numar}
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-muted-foreground text-xs">
                       Emitent: {autorizatie.emitent}
                       {autorizatie.suspendata_la !== null ? " · Suspendată" : ""}
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1 text-right">
-                    <span className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_STARE_SCADENTA[stare]}`}>
+                    <span
+                      className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_STARE_SCADENTA[stare]}`}
+                    >
                       {ETICHETE_STARE_SCADENTA[stare]}
                     </span>
-                    <span className="text-xs text-muted-foreground">{formatDate(autorizatie.valabil_pana)}</span>
+                    <span className="text-muted-foreground text-xs">
+                      {formatDate(autorizatie.valabil_pana)}
+                    </span>
                   </div>
                 </li>
               );
@@ -490,7 +521,7 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
           Sesizări legate
         </h2>
         {sesizariEchipament.randuri.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Nicio sesizare înregistrată pentru acest echipament.
           </p>
         ) : (
@@ -498,7 +529,7 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
             {sesizariEchipament.randuri.map((sesizare) => (
               <li
                 key={sesizare.id}
-                className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-border p-3"
+                className="border-border flex flex-wrap items-start justify-between gap-3 rounded-lg border p-3"
               >
                 <div>
                   <Link
@@ -507,7 +538,7 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
                   >
                     {sesizare.descriere}
                   </Link>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-muted-foreground text-xs">
                     Raportată de {numeleAngajatului(sesizare.raportat_de_employee_id)} la{" "}
                     {formatDateTime(sesizare.raportat_la)}
                   </p>
@@ -536,7 +567,7 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
 function Camp({ eticheta, valoare }: { readonly eticheta: string; readonly valoare: string }) {
   return (
     <div>
-      <dt className="text-xs text-muted-foreground">{eticheta}</dt>
+      <dt className="text-muted-foreground text-xs">{eticheta}</dt>
       <dd className="text-sm font-medium">{valoare}</dd>
     </div>
   );

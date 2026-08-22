@@ -41,7 +41,7 @@ async function TabelAutorizatii({ organizationId }: { readonly organizationId: s
   const azi = todayInBucharest();
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border">
+    <div className="border-border overflow-x-auto rounded-lg border">
       <table className="w-full text-sm">
         <caption className="sr-only">Autorizațiile nominale ale angajaților.</caption>
         <thead className="bg-surface text-left">
@@ -66,10 +66,11 @@ async function TabelAutorizatii({ organizationId }: { readonly organizationId: s
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-border">
+        <tbody className="divide-border divide-y">
           {autorizatii.map((a) => {
             const angajat = angajati.get(a.employee_id);
-            const stare = a.suspendata_la !== null ? null : stareScadentaSsm(true, a.valabil_pana, azi);
+            const stare =
+              a.suspendata_la !== null ? null : stareScadentaSsm(true, a.valabil_pana, azi);
             return (
               <tr key={a.id} className="hover:bg-surface">
                 <td className="px-4 py-3">
@@ -77,18 +78,22 @@ async function TabelAutorizatii({ organizationId }: { readonly organizationId: s
                 </td>
                 <td className="px-4 py-3">
                   {a.tip}
-                  {a.grupa === null ? null : <span className="text-muted-foreground"> · grupa {a.grupa}</span>}
+                  {a.grupa === null ? null : (
+                    <span className="text-muted-foreground"> · grupa {a.grupa}</span>
+                  )}
                 </td>
                 <td className="px-4 py-3">{a.numar}</td>
                 <td className="px-4 py-3">{a.emitent}</td>
                 <td className="px-4 py-3">{formatDate(a.valabil_pana)}</td>
                 <td className="px-4 py-3">
                   {a.suspendata_la !== null ? (
-                    <span className="rounded bg-surface px-2 py-0.5 text-xs font-medium text-foreground">
+                    <span className="bg-surface text-foreground rounded px-2 py-0.5 text-xs font-medium">
                       Suspendată {formatDate(a.suspendata_la)}
                     </span>
                   ) : stare === null ? null : (
-                    <span className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_SCADENTA[stare]}`}>
+                    <span
+                      className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_SCADENTA[stare]}`}
+                    >
                       {ETICHETE_SCADENTA[stare]}
                     </span>
                   )}
@@ -116,7 +121,11 @@ export default async function PaginaAutorizatii() {
 
   const poateCrea = can(permisiuni, "ssm:create", "team");
 
-  let angajati: readonly { readonly id: string; readonly full_name: string | null; readonly marca: string }[] = [];
+  let angajati: readonly {
+    readonly id: string;
+    readonly full_name: string | null;
+    readonly marca: string;
+  }[] = [];
   if (poateCrea) {
     const db = await createServerSupabase();
     const { data } = await db
@@ -134,14 +143,16 @@ export default async function PaginaAutorizatii() {
     <main className="space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">Autorizații nominale</h1>
-        <p className="max-w-3xl text-sm text-muted-foreground">
+        <p className="text-muted-foreground max-w-3xl text-sm">
           Stivuitorist, macaragiu, fochist, electrician autorizat și altele — condiționează
           desemnarea unui angajat ca responsabil pe echipamente ISCIR.
         </p>
       </header>
 
       <NavSsm
-        poateVedeaInstruiri={can(permisiuni, "ssm:read", "team") && can(permisiuni, "employees:read", "team")}
+        poateVedeaInstruiri={
+          can(permisiuni, "ssm:read", "team") && can(permisiuni, "employees:read", "team")
+        }
         poateVedeaMedicina={can(permisiuni, "ssm:read", "team")}
         poateVedeaAccidente={can(permisiuni, "ssm:read", "team")}
         poateVedeaStingatoare={can(permisiuni, "ssm:read", "team")}

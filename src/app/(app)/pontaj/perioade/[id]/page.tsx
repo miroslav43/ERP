@@ -60,13 +60,13 @@ export default async function PaginaPerioadaDetaliu({ params }: ProprietatiPagin
   return (
     <main className="space-y-6 p-6">
       <header>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           <Link href="/pontaj/perioade" className="underline-offset-2 hover:underline">
             Perioade de pontaj
           </Link>
         </p>
         <h1 className="text-2xl font-semibold">{formatMonthYear(perioada.an, perioada.luna)}</h1>
-        <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+        <p className="text-muted-foreground mt-1 flex flex-wrap items-center gap-2 text-sm">
           <span>
             {formatDate(perioada.data_inceput)} – {formatDate(perioada.data_sfarsit)}
           </span>
@@ -81,12 +81,12 @@ export default async function PaginaPerioadaDetaliu({ params }: ProprietatiPagin
         </p>
       </header>
 
-      <section aria-labelledby="titlu-neaprobate" className="rounded-lg border border-border p-4">
+      <section aria-labelledby="titlu-neaprobate" className="border-border rounded-lg border p-4">
         <h2 id="titlu-neaprobate" className="text-sm font-medium">
           Linii încă neaprobate
         </h2>
         <p className="mt-1 text-2xl font-semibold tabular-nums">{liniiNeaprobate.length}</p>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <p className="text-muted-foreground mt-1 text-sm">
           Aprobarea în bloc se face din{" "}
           <Link href="/pontaj/aprobare" className="underline-offset-2 hover:underline">
             ecranul de aprobare
@@ -110,9 +110,11 @@ export default async function PaginaPerioadaDetaliu({ params }: ProprietatiPagin
           <ul className="space-y-3">
             {loturi.map((lot) => {
               const manager =
-                lot.manager_employee_id === null ? undefined : manageri.get(lot.manager_employee_id);
+                lot.manager_employee_id === null
+                  ? undefined
+                  : manageri.get(lot.manager_employee_id);
               return (
-                <li key={lot.id} className="rounded-lg border border-border p-4">
+                <li key={lot.id} className="border-border rounded-lg border p-4">
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="space-y-1">
                       <p className="font-medium">
@@ -120,19 +122,21 @@ export default async function PaginaPerioadaDetaliu({ params }: ProprietatiPagin
                           ? "Toată organizația"
                           : (hartaDepartamente.get(lot.department_id) ?? "Departament necunoscut")}
                       </p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-muted-foreground text-sm">
                         Aprobat la {formatDateTime(lot.aprobat_la)}
-                        {manager === undefined ? null : ` · ${manager.full_name} (${manager.marca})`}
+                        {manager === undefined
+                          ? null
+                          : ` · ${manager.full_name} (${manager.marca})`}
                       </p>
                       {lot.observatii === null ? null : (
-                        <p className="text-sm text-muted-foreground">{lot.observatii}</p>
+                        <p className="text-muted-foreground text-sm">{lot.observatii}</p>
                       )}
                     </div>
                     <p className="text-right text-sm">
                       <span className="block text-2xl font-semibold tabular-nums">
                         {lot.linii_aprobate}
                       </span>
-                      <span className="text-xs text-muted-foreground">linii aprobate</span>
+                      <span className="text-muted-foreground text-xs">linii aprobate</span>
                     </p>
                   </div>
                 </li>

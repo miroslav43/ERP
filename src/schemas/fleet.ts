@@ -86,7 +86,13 @@ export const vehiculNouSchema = z.object({
   // VIN-ul nu conține I, O sau Q — au fost scoase din standard tocmai ca să nu
   // se confunde cu 1 și 0.
   vin: z
-    .union([z.string().trim().regex(/^[A-HJ-NPR-Z0-9]{11,17}$/iu), z.literal("")])
+    .union([
+      z
+        .string()
+        .trim()
+        .regex(/^[A-HJ-NPR-Z0-9]{11,17}$/iu),
+      z.literal(""),
+    ])
     .transform((v) => (v === "" ? null : v.toUpperCase()))
     .nullable()
     .default(null),

@@ -27,7 +27,8 @@ export default async function PaginaSesizareNoua({ searchParams }: ProprietatiPa
   }
 
   const parametri = await searchParams;
-  const echipamentBrut = typeof parametri.echipament === "string" ? parametri.echipament : undefined;
+  const echipamentBrut =
+    typeof parametri.echipament === "string" ? parametri.echipament : undefined;
   // QR-ul de pe echipament codează un id direct, nu un termen de căutat: o
   // valoare stricată e mai probabil un autocolant deteriorat sau tastare
   // greșită decât o intenție legitimă — 404 e răspunsul corect, ca la orice
@@ -38,7 +39,7 @@ export default async function PaginaSesizareNoua({ searchParams }: ProprietatiPa
     <main className="mx-auto w-full max-w-2xl space-y-6 p-6">
       <div>
         <h1 className="text-2xl font-semibold">Sesizare nouă</h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Raportați o defecțiune. Căutați echipamentul după cod sau denumire — durează un minut.
         </p>
       </div>

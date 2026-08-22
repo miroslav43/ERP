@@ -84,7 +84,7 @@ export function FormularPlan({
   return (
     <form
       action={trimite}
-      className="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-2 lg:grid-cols-3"
+      className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-3"
     >
       <p className="text-sm font-medium sm:col-span-2 lg:col-span-3">
         {editare ? "Editează planul" : "Plan de mentenanță nou"}
@@ -100,7 +100,7 @@ export function FormularPlan({
           required
           maxLength={200}
           defaultValue={planExistent?.denumire}
-          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
         />
       </div>
 
@@ -112,7 +112,7 @@ export function FormularPlan({
           id={idTip}
           name="tip"
           defaultValue={planExistent?.tip ?? "preventiva"}
-          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
         >
           {TIPURI_MENTENANTA.map((t) => (
             <option key={t} value={t}>
@@ -145,7 +145,7 @@ export function FormularPlan({
           type="number"
           min="1"
           defaultValue={planExistent?.periodicitate_zile ?? undefined}
-          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
         />
       </div>
 
@@ -160,7 +160,7 @@ export function FormularPlan({
           min="0.01"
           step="0.01"
           defaultValue={planExistent?.periodicitate_contor ?? undefined}
-          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
         />
       </div>
 
@@ -172,7 +172,7 @@ export function FormularPlan({
           id={idTipContor}
           name="tip_contor"
           defaultValue={planExistent?.tip_contor ?? ""}
-          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
         >
           <option value="">— (doar dacă e periodicitate pe contor)</option>
           {TIPURI_CONTOR.map((t) => (
@@ -192,7 +192,7 @@ export function FormularPlan({
           name="ultima_executie"
           type="date"
           defaultValue={planExistent?.ultima_executie ?? undefined}
-          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
         />
       </div>
 
@@ -204,7 +204,7 @@ export function FormularPlan({
           id={idResponsabil}
           name="responsabil_employee_id"
           defaultValue={planExistent?.responsabil_employee_id ?? ""}
-          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
         >
           <option value="">Nespecificat</option>
           {angajati.map((a) => (
@@ -225,7 +225,7 @@ export function FormularPlan({
           rows={2}
           maxLength={2000}
           defaultValue={planExistent?.instructiuni ?? undefined}
-          className="rounded-md border border-foreground/60 px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
         />
       </div>
 
@@ -233,12 +233,12 @@ export function FormularPlan({
         <button
           type="submit"
           disabled={inCurs}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
         >
           {inCurs ? "Se salvează…" : editare ? "Salvează modificările" : "Salvează planul"}
         </button>
         {eroare === null ? null : (
-          <p role="alert" className="text-sm text-danger">
+          <p role="alert" className="text-danger text-sm">
             {eroare}
           </p>
         )}

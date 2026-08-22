@@ -141,7 +141,12 @@ export function RandAngajatDraft({
             <label htmlFor={idTip} className="text-sm">
               Tip primă
             </label>
-            <select id={idTip} name="tip" required className="border-foreground/60 rounded-md border px-3 py-2 text-sm">
+            <select
+              id={idTip}
+              name="tip"
+              required
+              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            >
               {TIPURI_PRIMA.map((tip) => (
                 <option key={tip} value={tip}>
                   {ETICHETE_TIP_PRIMA[tip]}
@@ -212,7 +217,12 @@ export function RandAngajatDraft({
             <label htmlFor={idTip} className="text-sm">
               Tip reținere
             </label>
-            <select id={idTip} name="tip" required className="border-foreground/60 rounded-md border px-3 py-2 text-sm">
+            <select
+              id={idTip}
+              name="tip"
+              required
+              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            >
               {TIPURI_RETINERE.map((tip) => (
                 <option key={tip} value={tip}>
                   {ETICHETE_TIP_RETINERE[tip]}

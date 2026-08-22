@@ -17,7 +17,8 @@ function valideazaInterval(interval: IntervalConcediu, etichetaEroare: string): 
 
 function seSuprapun(a: IntervalConcediu, b: IntervalConcediu): boolean {
   return (
-    a.dataInceput.getTime() <= b.dataSfarsit.getTime() && b.dataInceput.getTime() <= a.dataSfarsit.getTime()
+    a.dataInceput.getTime() <= b.dataSfarsit.getTime() &&
+    b.dataInceput.getTime() <= a.dataSfarsit.getTime()
   );
 }
 
@@ -36,7 +37,7 @@ export function verificaSuprapunere(
   cerereNoua: IntervalConcediu,
   cereriExistente: readonly IntervalConcediu[],
 ): boolean {
-  valideazaInterval(cerereNoua, 'Intervalul cererii noi este invalid');
+  valideazaInterval(cerereNoua, "Intervalul cererii noi este invalid");
   return cereriExistente.some((existenta) => seSuprapun(cerereNoua, existenta));
 }
 
@@ -52,9 +53,12 @@ export interface RezultatVerificareSold {
  * Nu decide DACĂ tipul de concediu scade din sold — asta ține de
  * `leave_types.scade_din_sold` și e responsabilitatea apelantului.
  */
-export function verificaSold(zileSolicitate: number, zileDisponibile: number): RezultatVerificareSold {
+export function verificaSold(
+  zileSolicitate: number,
+  zileDisponibile: number,
+): RezultatVerificareSold {
   if (!Number.isFinite(zileSolicitate) || zileSolicitate < 0) {
-    throw new RangeError('Numărul de zile solicitate nu poate fi negativ.');
+    throw new RangeError("Numărul de zile solicitate nu poate fi negativ.");
   }
   const diferenta = Math.round((zileSolicitate - zileDisponibile) * 100) / 100;
   const zileLipsa = diferenta > 0 ? diferenta : 0;
@@ -66,7 +70,10 @@ export interface CerereEchipa extends IntervalConcediu {
 }
 
 function acopera(interval: IntervalConcediu, ziua: Date): boolean {
-  return interval.dataInceput.getTime() <= ziua.getTime() && ziua.getTime() <= interval.dataSfarsit.getTime();
+  return (
+    interval.dataInceput.getTime() <= ziua.getTime() &&
+    ziua.getTime() <= interval.dataSfarsit.getTime()
+  );
 }
 
 function normalizeazaZi(data: Date): Date {
@@ -92,9 +99,11 @@ export function conflictDeEchipa(
   cereriEchipa: readonly CerereEchipa[],
   pragMaximSimultan: number,
 ): boolean {
-  valideazaInterval(cerereNoua, 'Intervalul cererii noi este invalid');
+  valideazaInterval(cerereNoua, "Intervalul cererii noi este invalid");
   if (!Number.isInteger(pragMaximSimultan) || pragMaximSimultan < 1) {
-    throw new RangeError('Pragul maxim de absențe simultane trebuie să fie un număr întreg de cel puțin 1.');
+    throw new RangeError(
+      "Pragul maxim de absențe simultane trebuie să fie un număr întreg de cel puțin 1.",
+    );
   }
 
   let ziua = normalizeazaZi(cerereNoua.dataInceput);

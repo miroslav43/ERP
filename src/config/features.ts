@@ -136,3 +136,37 @@ export const FEATURES: Readonly<Record<FeatureKey, FeatureMeta>> = {
 
 export const isFeatureKey = (value: string): value is FeatureKey =>
   (FEATURE_KEYS as readonly string[]).includes(value);
+
+/**
+ * Împarte cheile citite din bază în cunoscute și necunoscute.
+ *
+ * Baza și codul se mișcă separat, iar asta e normal: un modul se seedează în
+ * `public.features` înainte să existe paginile lui. Întrebarea e ce face
+ * cititorul cu o cheie pe care încă nu o cunoaște.
+ *
+ * Răspunsul e „o taie", nu „aruncă". `organization_features` se citește pe
+ * FIECARE pagină din spatele autentificării, deci o excepție acolo nu strică
+ * modulul necunoscut — face 500 pe toată aplicația. Exact asta s-a întâmplat
+ * pe 2026-08-21, când `ticketing` a apărut în bază înaintea codului.
+ *
+ * Necunoscutele se întorc separat tocmai ca driftul să nu treacă TĂCUT:
+ * apelantul le scrie în log. Un modul care nu apare în meniu fără nicio urmă
+ * în jurnal e la fel de greu de diagnosticat ca o cădere.
+ */
+export function imparteCheiDeModul(chei: readonly string[]): Readonly<{
+  cunoscute: readonly FeatureKey[];
+  necunoscute: readonly string[];
+}> {
+  const cunoscute: FeatureKey[] = [];
+  const necunoscute: string[] = [];
+  for (const cheie of chei) {
+    if (isFeatureKey(cheie)) {
+      cunoscute.push(cheie);
+    } else if (!necunoscute.includes(cheie)) {
+      // Deduplicat: un log care repetă aceeași cheie de zeci de ori pe request
+      // ascunde restul jurnalului în loc să ajute.
+      necunoscute.push(cheie);
+    }
+  }
+  return { cunoscute, necunoscute };
+}

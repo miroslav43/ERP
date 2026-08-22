@@ -120,7 +120,11 @@ function Arbore({
   readonly poateEdita: boolean;
 }) {
   return (
-    <ul className={nivel === 1 ? "space-y-3" : "border-primary/15 mt-3 ml-6 space-y-3 border-l-2 pl-5"}>
+    <ul
+      className={
+        nivel === 1 ? "space-y-3" : "border-primary/15 mt-3 ml-6 space-y-3 border-l-2 pl-5"
+      }
+    >
       {noduri.map((nod) => (
         <li key={nod.id}>
           <div className="border-border bg-surface overflow-hidden rounded-lg border shadow-sm">
@@ -145,7 +149,11 @@ function Arbore({
                         href={`/angajati/${nod.manager_employee_id}`}
                         className="text-muted-foreground hover:text-primary inline-flex items-center gap-1.5"
                       >
-                        <AvatarAngajat url={nod.manager.avatar_url} nume={nod.manager.full_name} marime="sm" />
+                        <AvatarAngajat
+                          url={nod.manager.avatar_url}
+                          nume={nod.manager.full_name}
+                          marime="sm"
+                        />
                         {nod.manager.full_name}
                       </Link>
                     ) : (
@@ -173,11 +181,19 @@ function Arbore({
                           href={`/angajati/${angajat.id}`}
                           className="border-border bg-background hover:border-primary/30 hover:bg-primary/5 inline-flex items-center gap-1.5 rounded-full border py-1 pr-3 pl-1 text-sm transition-colors"
                         >
-                          <AvatarAngajat url={angajat.avatar_url} nume={angajat.full_name} marime="sm" />
+                          <AvatarAngajat
+                            url={angajat.avatar_url}
+                            nume={angajat.full_name}
+                            marime="sm"
+                          />
                           <span className="font-medium">{angajat.full_name}</span>
-                          <span className="text-muted-foreground font-mono text-xs">{angajat.marca}</span>
+                          <span className="text-muted-foreground font-mono text-xs">
+                            {angajat.marca}
+                          </span>
                           {angajat.job_position !== null ? (
-                            <span className="text-muted-foreground">· {angajat.job_position.denumire}</span>
+                            <span className="text-muted-foreground">
+                              · {angajat.job_position.denumire}
+                            </span>
                           ) : null}
                         </Link>
                       </li>
@@ -279,7 +295,9 @@ export default async function PaginaDepartamente() {
           },
   }));
 
-  const angajatiPeDepartament = listaAngajatiActivi.reduce<Map<string, readonly AngajatDepartament[]>>(
+  const angajatiPeDepartament = listaAngajatiActivi.reduce<
+    Map<string, readonly AngajatDepartament[]>
+  >(
     (acumulat, angajat) =>
       angajat.department_id === null
         ? acumulat
@@ -305,7 +323,7 @@ export default async function PaginaDepartamente() {
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Departamente</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Structura organizatorică, cu managerul și numărul de angajați pe fiecare nivel.
           </p>
         </div>

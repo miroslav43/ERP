@@ -230,7 +230,11 @@ export async function progresInstante(
   return new Map(
     [...acumulator].map(([id, v]) => [
       id,
-      { total: v.total, gata: v.gata, procent: v.total === 0 ? 0 : Math.round((100 * v.gata) / v.total) },
+      {
+        total: v.total,
+        gata: v.gata,
+        procent: v.total === 0 ? 0 : Math.round((100 * v.gata) / v.total),
+      },
     ]),
   );
 }
@@ -538,9 +542,7 @@ export async function angajatiDupaId(
   return new Map((data ?? []).map((a) => [a.id, a]));
 }
 
-export async function angajatiActivi(
-  organizationId: string,
-): Promise<readonly AngajatRezumat[]> {
+export async function angajatiActivi(organizationId: string): Promise<readonly AngajatRezumat[]> {
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("employees")

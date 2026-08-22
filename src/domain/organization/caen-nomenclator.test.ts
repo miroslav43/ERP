@@ -20,8 +20,7 @@ describe("NOMENCLATOR_CAEN", () => {
   });
 
   it("conține codurile interzise pentru SRL-D cu denumirea corectă", () => {
-    const gasesteDenumire = (cod: string) =>
-      NOMENCLATOR_CAEN.find((c) => c.cod === cod)?.denumire;
+    const gasesteDenumire = (cod: string) => NOMENCLATOR_CAEN.find((c) => c.cod === cod)?.denumire;
 
     expect(gasesteDenumire("9200")).toBe("Activităţi de jocuri de noroc şi pariuri");
     expect(gasesteDenumire("1105")).toBe("Fabricarea berii");

@@ -232,7 +232,8 @@ function validareResponsabilSiAutomat(
     ctx.addIssue({
       code: "custom",
       path: ["verificare_automata"],
-      message: "Un pas cu verificare automată trebuie să fie obligatoriu și cu dovadă de tip «bifă».",
+      message:
+        "Un pas cu verificare automată trebuie să fie obligatoriu și cu dovadă de tip «bifă».",
     });
   }
 }

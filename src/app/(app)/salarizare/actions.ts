@@ -273,7 +273,10 @@ export const calculeazaPerioada = createAction({
           // Sporuri/prime reutilizabile asociate pe fișă (etapa 3) — nu mai
           // trebuie re-introduse manual în fiecare perioadă.
           ...(componenteSalariale.get(angajat.employee_id) ?? []).map((c) => ({
-            suma: c.kind === "spor_procent" ? angajat.salariu_baza * ((c.procent ?? 0) / 100) : (c.suma ?? 0),
+            suma:
+              c.kind === "spor_procent"
+                ? angajat.salariu_baza * ((c.procent ?? 0) / 100)
+                : (c.suma ?? 0),
             impozabil: c.impozabil,
             supusContributii: c.supusContributii,
           })),

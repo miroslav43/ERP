@@ -29,7 +29,9 @@ export function Pas4Structura({ formular, idFormular }: Proprietati) {
   return (
     <div className="space-y-6">
       <fieldset className="border-border space-y-4 rounded-lg border p-4">
-        <legend className="text-foreground px-1 text-sm font-medium">Punct de lucru principal</legend>
+        <legend className="text-foreground px-1 text-sm font-medium">
+          Punct de lucru principal
+        </legend>
         <p className="text-muted-foreground text-sm">
           Relevant pentru pontaj (geofencing/terminale per locație) și parc auto. Alte puncte de
           lucru se adaugă ulterior.
@@ -50,7 +52,11 @@ export function Pas4Structura({ formular, idFormular }: Proprietati) {
             <label htmlFor={`${idFormular}-pl-judet`} className={claseLabel}>
               Județ
             </label>
-            <select id={`${idFormular}-pl-judet`} {...register("punct_lucru_judet")} className={claseCamp}>
+            <select
+              id={`${idFormular}-pl-judet`}
+              {...register("punct_lucru_judet")}
+              className={claseCamp}
+            >
               <option value="">— Alegeți —</option>
               {JUDETE.map((judet) => (
                 <option key={judet} value={judet}>
@@ -58,13 +64,20 @@ export function Pas4Structura({ formular, idFormular }: Proprietati) {
                 </option>
               ))}
             </select>
-            <Eroare id={`${idFormular}-pl-judet-eroare`} mesaj={errors.punct_lucru_judet?.message} />
+            <Eroare
+              id={`${idFormular}-pl-judet-eroare`}
+              mesaj={errors.punct_lucru_judet?.message}
+            />
           </div>
           <div>
             <label htmlFor={`${idFormular}-pl-oras`} className={claseLabel}>
               Localitate
             </label>
-            <input id={`${idFormular}-pl-oras`} {...register("punct_lucru_oras")} className={claseCamp} />
+            <input
+              id={`${idFormular}-pl-oras`}
+              {...register("punct_lucru_oras")}
+              className={claseCamp}
+            />
           </div>
           <div>
             <label htmlFor={`${idFormular}-pl-adresa`} className={claseLabel}>

@@ -50,10 +50,7 @@ export default async function PaginaDocumenteleMele() {
           {documente.map((d) => {
             const anulat = d.anulat_la !== null;
             return (
-              <li
-                key={d.id}
-                className="bg-surface border-border rounded-lg border p-4"
-              >
+              <li key={d.id} className="bg-surface border-border rounded-lg border p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p

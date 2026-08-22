@@ -40,14 +40,11 @@ function ListaGrup({
         {randuri.map((r) => {
           const angajat = angajati.get(r.employee_id);
           return (
-            <li key={r.id} className="rounded-lg border border-border p-4">
+            <li key={r.id} className="border-border rounded-lg border p-4">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="space-y-1">
                   <p className="font-medium">
-                    <Link
-                      href={`/diurna/${r.id}`}
-                      className="underline-offset-2 hover:underline"
-                    >
+                    <Link href={`/diurna/${r.id}`} className="underline-offset-2 hover:underline">
                       {r.scop}
                     </Link>
                     {angajat === undefined ? null : (
@@ -57,8 +54,9 @@ function ListaGrup({
                       </span>
                     )}
                   </p>
-                  <p className="text-sm text-muted-foreground">
-                    {formatDateTime(new Date(r.plecare_la))} – {formatDateTime(new Date(r.sosire_la))}
+                  <p className="text-muted-foreground text-sm">
+                    {formatDateTime(new Date(r.plecare_la))} –{" "}
+                    {formatDateTime(new Date(r.sosire_la))}
                     {r.localitate === null ? "" : ` · ${r.localitate}`}
                   </p>
                 </div>
@@ -93,8 +91,18 @@ async function ListaDeAprobat({ organizationId }: { readonly organizationId: str
 
   return (
     <div className="space-y-8">
-      <ListaGrup titlu="În aprobare" randuri={inAprobare.randuri} angajati={angajati} status="in_aprobare" />
-      <ListaGrup titlu="Aprobate — de decontat" randuri={aprobate.randuri} angajati={angajati} status="aprobata" />
+      <ListaGrup
+        titlu="În aprobare"
+        randuri={inAprobare.randuri}
+        angajati={angajati}
+        status="in_aprobare"
+      />
+      <ListaGrup
+        titlu="Aprobate — de decontat"
+        randuri={aprobate.randuri}
+        angajati={angajati}
+        status="aprobata"
+      />
     </div>
   );
 }
@@ -114,9 +122,9 @@ export default async function PaginaAprobari() {
     <main className="space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">Deplasări de aprobat</h1>
-        <p className="max-w-3xl text-sm text-muted-foreground">
-          Nu vă puteți aproba propria deplasare — regula e verificată de baza de date, indiferent
-          de rol.
+        <p className="text-muted-foreground max-w-3xl text-sm">
+          Nu vă puteți aproba propria deplasare — regula e verificată de baza de date, indiferent de
+          rol.
         </p>
       </header>
 

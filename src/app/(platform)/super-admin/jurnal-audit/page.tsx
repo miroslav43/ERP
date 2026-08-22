@@ -1,4 +1,4 @@
-// src/app/(platform)/super-admin/audit/page.tsx
+// src/app/(platform)/super-admin/jurnal-audit/page.tsx
 import type { Metadata } from "next";
 import { Suspense } from "react";
 
@@ -14,7 +14,12 @@ export const metadata: Metadata = {
   description: "Evenimentele înregistrate pe toate organizațiile din platformă.",
 };
 
-const CALE = "/super-admin/audit";
+/**
+ * Calea proprie a paginii, transmisă mai jos ca să-și construiască linkurile de
+ * filtrare și paginare. Trebuie să rămână identică cu directorul rutei — au
+ * divergat o dată și pagina a devenit de negăsit din meniu.
+ */
+const CALE = "/super-admin/jurnal-audit";
 
 type Props = Readonly<{
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -28,9 +33,9 @@ export default async function PaginaAuditPlatforma({ searchParams }: Props) {
   const filtre = parseazaFiltre(brute);
 
   return (
-    <main className="mx-auto w-full max-w-7xl space-y-6 p-4 sm:p-6">
-      <header className="space-y-1">
-        <h1 className="text-foreground text-xl font-semibold">Jurnal de audit</h1>
+    <div className="flex flex-col gap-6">
+      <header className="flex flex-col gap-1">
+        <h1 className="text-foreground text-2xl font-semibold">Jurnal de audit</h1>
         <p className="text-muted-foreground text-sm">
           Toate evenimentele înregistrate în platformă, pe toate organizațiile. Înregistrările nu
           pot fi modificate sau șterse.
@@ -40,6 +45,6 @@ export default async function PaginaAuditPlatforma({ searchParams }: Props) {
       <Suspense key={cheieFiltre(filtre)} fallback={<ScheletAudit />}>
         <JurnalAudit cale={CALE} filtre={filtre} mod="platforma" />
       </Suspense>
-    </main>
+    </div>
   );
 }

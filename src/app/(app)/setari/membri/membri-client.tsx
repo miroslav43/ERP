@@ -154,7 +154,7 @@ export function PanouMembri({
           <button
             type="submit"
             disabled={inCurs}
-            className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-medium disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+            className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-medium disabled:cursor-not-allowed"
           >
             <MailPlus aria-hidden="true" className="h-4 w-4" />
             {inCurs ? "Se trimite…" : "Trimite invitația"}
@@ -273,7 +273,7 @@ export function PanouMembri({
                               : "Membrul a fost reactivat.",
                           )
                         }
-                        className="border-border text-foreground hover:bg-surface rounded-md border px-2 py-1 text-xs disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+                        className="border-border text-foreground hover:bg-surface disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md border px-2 py-1 text-xs disabled:cursor-not-allowed"
                       >
                         {membru.status === "active" ? "Dezactivează" : "Reactivează"}
                       </button>
@@ -314,7 +314,7 @@ export function PanouMembri({
                       "Invitația a fost revocată.",
                     )
                   }
-                  className="border-border text-danger ml-auto rounded-md border px-2 py-1 text-xs disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+                  className="border-border text-danger disabled:border-border disabled:bg-surface disabled:text-muted-foreground ml-auto rounded-md border px-2 py-1 text-xs disabled:cursor-not-allowed"
                 >
                   Revocă
                 </button>

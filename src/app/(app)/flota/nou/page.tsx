@@ -25,15 +25,15 @@ export default async function PaginaVehiculNou() {
   return (
     <main className="mx-auto w-full max-w-3xl space-y-6 p-6">
       <header>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           <Link href="/flota" className="underline-offset-2 hover:underline">
             Parc auto
           </Link>
         </p>
         <h1 className="text-2xl font-semibold">Vehicul nou</h1>
-        <p className="text-sm text-muted-foreground">
-          Numărul de înmatriculare și VIN-ul se normalizează automat la salvare — scrieți-le
-          cum vă e comod.
+        <p className="text-muted-foreground text-sm">
+          Numărul de înmatriculare și VIN-ul se normalizează automat la salvare — scrieți-le cum vă
+          e comod.
         </p>
       </header>
 

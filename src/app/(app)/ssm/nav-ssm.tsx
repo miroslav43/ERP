@@ -46,14 +46,13 @@ export function NavSsm({
     ...(poateVedeaAccidente ? [{ href: "/ssm/accidente", eticheta: "Accidente" }] : []),
     ...(poateVedeaStingatoare ? [{ href: "/ssm/stingatoare", eticheta: "Stingătoare" }] : []),
     ...(poateVedeaEip ? [{ href: "/ssm/eip", eticheta: "EIP" }] : []),
-    ...(poateVedeaAutorizatii ? [{ href: "/ssm/autorizatii", eticheta: "Autorizații nominale" }] : []),
+    ...(poateVedeaAutorizatii
+      ? [{ href: "/ssm/autorizatii", eticheta: "Autorizații nominale" }]
+      : []),
   ];
 
   return (
-    <nav
-      aria-label="Navigare SSM și PSI"
-      className="flex flex-wrap gap-1 border-b border-border"
-    >
+    <nav aria-label="Navigare SSM și PSI" className="border-border flex flex-wrap gap-1 border-b">
       {file.map((fila) => {
         const activ = fila.href === "/ssm" ? cale === "/ssm" : cale.startsWith(fila.href);
         return (
@@ -63,8 +62,8 @@ export function NavSsm({
             aria-current={activ ? "page" : undefined}
             className={
               activ
-                ? "border-b-2 border-primary px-4 py-2 text-sm font-medium text-primary"
-                : "border-b-2 border-transparent px-4 py-2 text-sm text-muted-foreground hover:text-foreground"
+                ? "border-primary text-primary border-b-2 px-4 py-2 text-sm font-medium"
+                : "text-muted-foreground hover:text-foreground border-b-2 border-transparent px-4 py-2 text-sm"
             }
           >
             {fila.eticheta}

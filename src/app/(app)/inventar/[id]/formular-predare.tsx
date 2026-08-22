@@ -25,8 +25,7 @@ interface ValoriFormular {
   observatii: string;
 }
 
-const CLASA_CAMP =
-  "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
+const CLASA_CAMP = "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
 
 export function FormularPredare({ itemId, angajati }: Proprietati) {
   const router = useRouter();
@@ -48,7 +47,7 @@ export function FormularPredare({ itemId, angajati }: Proprietati) {
 
   if (angajati.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground">
+      <p className="text-muted-foreground text-sm">
         Nu există angajați activi cărora să le puteți preda acest obiect.
       </p>
     );
@@ -75,9 +74,7 @@ export function FormularPredare({ itemId, angajati }: Proprietati) {
             ))}
           </select>
           {formState.errors.employee_id !== undefined ? (
-            <p className="mt-1 text-xs text-danger">
-              {formState.errors.employee_id.message}
-            </p>
+            <p className="text-danger mt-1 text-xs">{formState.errors.employee_id.message}</p>
           ) : null}
         </div>
 
@@ -109,7 +106,7 @@ export function FormularPredare({ itemId, angajati }: Proprietati) {
 
       <div aria-live="polite">
         {eroare !== null ? (
-          <p className="rounded-md border border-danger bg-danger/8 p-3 text-sm text-danger">
+          <p className="border-danger bg-danger/8 text-danger rounded-md border p-3 text-sm">
             {eroare}
           </p>
         ) : null}
@@ -118,7 +115,7 @@ export function FormularPredare({ itemId, angajati }: Proprietati) {
       <button
         type="submit"
         disabled={inCurs}
-        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+        className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
       >
         {inCurs ? "Se înregistrează…" : "Înregistrează predarea"}
       </button>

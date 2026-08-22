@@ -21,10 +21,7 @@ export type StatusEvaluare = (typeof STATUSURI_EVALUARE)[number];
 export const creeazaSablonEvaluareSchema = z.object({
   denumire: z.string().trim().min(2, "Denumirea trebuie să aibă cel puțin 2 caractere.").max(160),
   descriere: textOptional(500),
-  criterii_text: z
-    .string()
-    .trim()
-    .min(1, "Adăugați cel puțin un criteriu, câte unul pe linie."),
+  criterii_text: z.string().trim().min(1, "Adăugați cel puțin un criteriu, câte unul pe linie."),
 });
 
 export const dezactiveazaSablonEvaluareSchema = z.object({

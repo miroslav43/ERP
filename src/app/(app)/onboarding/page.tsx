@@ -69,7 +69,10 @@ async function TabelInstante({
   const [progres, angajati] = await Promise.all([
     progresInstante(randuri.map((r) => r.id)),
     poateVedeaAngajati
-      ? angajatiDupaId(organizationId, randuri.map((r) => r.employee_id))
+      ? angajatiDupaId(
+          organizationId,
+          randuri.map((r) => r.employee_id),
+        )
       : Promise.resolve(new Map<string, AngajatRezumat>()),
   ]);
 
@@ -81,7 +84,7 @@ async function TabelInstante({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div className="border-border overflow-x-auto rounded-lg border">
         <table className="w-full text-sm">
           <caption className="sr-only">Instanțele de checklist la care aveți acces.</caption>
           <thead className="bg-surface text-left">
@@ -103,7 +106,7 @@ async function TabelInstante({
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className="divide-border divide-y">
             {randuri.map((r) => {
               const angajat = angajati.get(r.employee_id);
               const p = progres.get(r.id) ?? { total: 0, gata: 0, procent: 0 };
@@ -114,7 +117,9 @@ async function TabelInstante({
                       href={`/onboarding/${r.id}`}
                       className="underline-offset-2 hover:underline"
                     >
-                      {angajat === undefined ? "—" : `${angajat.full_name ?? angajat.marca} (${angajat.marca})`}
+                      {angajat === undefined
+                        ? "—"
+                        : `${angajat.full_name ?? angajat.marca} (${angajat.marca})`}
                     </Link>
                   </td>
                   <td className="px-4 py-3">{ETICHETE_TIP[r.tip]}</td>
@@ -134,7 +139,7 @@ async function TabelInstante({
                         aria-label={`${String(p.gata)} din ${String(p.total)} pași finalizați`}
                         className="h-2 w-24 accent-blue-700"
                       />
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-muted-foreground text-xs">
                         {p.gata} din {p.total} pași
                       </span>
                     </div>
@@ -150,7 +155,7 @@ async function TabelInstante({
         {urmatorulCursor === null ? null : (
           <Link
             href={`/onboarding?${cautare.toString()}`}
-            className="rounded-md border border-foreground/60 px-4 py-2 text-sm hover:bg-surface"
+            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
           >
             Pagina următoare
           </Link>
@@ -187,7 +192,7 @@ export default async function PaginaOnboarding({ searchParams }: ProprietatiPagi
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Onboarding</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             {scope === "all" || scope === "team"
               ? "Checklisturile de integrare și de ieșire ale organizației, cu progresul lor."
               : "Checklistul dvs. de integrare, cu progresul lui."}
@@ -196,7 +201,7 @@ export default async function PaginaOnboarding({ searchParams }: ProprietatiPagi
         {poatePorni ? (
           <Link
             href="/onboarding/noua"
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+            className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
           >
             <ListChecks aria-hidden="true" className="size-4" />
             Instanță nouă

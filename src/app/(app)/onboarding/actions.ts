@@ -474,7 +474,9 @@ export const mutaPas = createAction({
     if (eroareVecin !== null) traduEroare(eroareVecin);
     if (vecin === null) {
       throw businessRule(
-        input.directie === "sus" ? "Pasul este deja primul din listă." : "Pasul este deja ultimul din listă.",
+        input.directie === "sus"
+          ? "Pasul este deja primul din listă."
+          : "Pasul este deja ultimul din listă.",
       );
     }
 

@@ -47,6 +47,16 @@ declare
                                -- hr_read_sensitive / hr_write_sensitive, care
                                -- auditează fiecare apel. O politică de SELECT ar
                                -- deschide o cale directă care ocolește auditul.
+    ,
+    'organization_sensitive_data', -- datele fiscale/bancare ale firmei-client:
+                                   -- exclusiv prin org_read_sensitive /
+                                   -- org_write_sensitive (SECURITY DEFINER).
+                                   -- Închis deliberat în 0031 și 0032.
+    'employee_marca_counters'      -- contorul de mărci per organizație: se
+                                   -- incrementează atomic doar prin
+                                   -- urmatoarea_marca (SECURITY DEFINER).
+                                   -- O politică de UPDATE ar permite unui client
+                                   -- să sară peste numerotare. Închis în 0033.
   ];
 
   -- Tabele pentru care ABSENȚA privilegiilor este intenționată: accesul trece

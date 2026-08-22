@@ -175,7 +175,9 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
                   <td className="px-4 py-3 text-right tabular-nums">{formatLei(r.brut)}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{formatLei(r.net)}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{formatLei(r.net_de_plata)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{formatLei(r.cost_total_angajator)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums">
+                    {formatLei(r.cost_total_angajator)}
+                  </td>
                 </tr>
               ))}
             </tbody>

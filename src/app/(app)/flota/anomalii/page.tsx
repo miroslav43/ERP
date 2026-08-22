@@ -38,7 +38,7 @@ async function TabelAnomalii({ organizationId }: { readonly organizationId: stri
   );
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border">
+    <div className="border-border overflow-x-auto rounded-lg border">
       <table className="w-full text-sm">
         <caption className="sr-only">
           Discontinuități de kilometraj constatate automat, în așteptarea unei explicații.
@@ -62,21 +62,19 @@ async function TabelAnomalii({ organizationId }: { readonly organizationId: stri
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-border">
+        <tbody className="divide-border divide-y">
           {anomalii.map((a) => (
             <tr key={a.id} className="hover:bg-surface">
               <td className="px-4 py-3 whitespace-nowrap">
                 {formatDateTime(new Date(a.created_at))}
               </td>
-              <td className="px-4 py-3">
-                {vehicule.get(a.vehicle_id)?.nr_inmatriculare ?? "—"}
-              </td>
+              <td className="px-4 py-3">{vehicule.get(a.vehicle_id)?.nr_inmatriculare ?? "—"}</td>
               <td className="px-4 py-3 text-right tabular-nums">
                 {a.km_asteptat.toLocaleString("ro-RO")} km
               </td>
               <td className="px-4 py-3 text-right tabular-nums">
                 {a.km_declarat.toLocaleString("ro-RO")} km
-                <span className="ml-2 text-xs text-foreground">
+                <span className="text-foreground ml-2 text-xs">
                   +{(a.km_declarat - a.km_asteptat).toLocaleString("ro-RO")}
                 </span>
               </td>
@@ -106,13 +104,13 @@ export default async function PaginaAnomalii() {
     <main className="space-y-6 p-6">
       <header>
         <h1 className="text-2xl font-semibold">Anomalii de kilometraj</h1>
-        <p className="max-w-3xl text-sm text-muted-foreground">
-          Un kilometraj care sare peste o diferență neobișnuită nu blochează salvarea foii —
-          cea mai frecventă explicație e o cursă necompletată, iar un refuz l-ar împinge pe
-          șofer să potrivească cifra. Diferența ajunge aici, ca cineva să o explice.
+        <p className="text-muted-foreground max-w-3xl text-sm">
+          Un kilometraj care sare peste o diferență neobișnuită nu blochează salvarea foii — cea mai
+          frecventă explicație e o cursă necompletată, iar un refuz l-ar împinge pe șofer să
+          potrivească cifra. Diferența ajunge aici, ca cineva să o explice.
           <span className="mt-1 block">
-            Un <strong>regres</strong> de kilometraj, în schimb, e refuzat din start: un
-            odometru nu poate da înapoi.
+            Un <strong>regres</strong> de kilometraj, în schimb, e refuzat din start: un odometru nu
+            poate da înapoi.
           </span>
         </p>
       </header>

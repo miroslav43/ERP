@@ -11,10 +11,7 @@
  */
 
 export type StareScadentaMentenanta =
-  | "in_intarziere"
-  | "scadenta_apropiata"
-  | "in_regula"
-  | "fara_scadenta";
+  "in_intarziere" | "scadenta_apropiata" | "in_regula" | "fara_scadenta";
 
 /** Câte zile înainte de scadență starea devine „apropiată”. */
 export const PRAG_AVERTIZARE_ZILE = 15;

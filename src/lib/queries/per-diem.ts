@@ -287,7 +287,9 @@ export async function politicaLaData(
 }
 
 /** Toate versiunile politicii organizației, pentru ecranul de administrare. */
-export async function politiciOrganizatie(organizationId: string): Promise<readonly PoliticaRand[]> {
+export async function politiciOrganizatie(
+  organizationId: string,
+): Promise<readonly PoliticaRand[]> {
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("per_diem_policies")

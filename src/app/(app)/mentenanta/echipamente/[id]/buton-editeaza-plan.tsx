@@ -34,11 +34,7 @@ export function ButonEditeazaPlan({
       </button>
       {deschis ? (
         <div className="mt-2">
-          <FormularPlan
-            equipmentId={equipmentId}
-            angajati={angajati}
-            planExistent={planExistent}
-          />
+          <FormularPlan equipmentId={equipmentId} angajati={angajati} planExistent={planExistent} />
         </div>
       ) : null}
     </div>

@@ -3,7 +3,7 @@
 Acest document răspunde la o singură întrebare: **dacă mâine deschizi acest
 proiect cu un cont nou de Claude, ce trebuie să știi/recreezi ca să lucrezi la
 fel ca până acum?** E complementar cu [`project-overview.md`](project-overview.md)
-(ce conține proiectul) — acesta e despre cum e configurat *Claude însuși*.
+(ce conține proiectul) — acesta e despre cum e configurat _Claude însuși_.
 
 Trei straturi de configurare se ating unul pe altul: **contul** (global, pe
 mașină — nu vine cu proiectul), **proiectul** (fișiere din repo, vin cu `git
@@ -42,9 +42,9 @@ scoaterea lui din diff doar îl recreează la următorul `next dev`.
 
 Conectează Claude Code direct la proiectul Supabase real
 (`nybmhorngsajoqaxjlbr`, regiunea **aws-1-eu-west-1** — vezi `NOTES.md` §1).
-Prin el rulează `apply_migration`, `execute_sql`, `generate_typescript_types`,
-`get_advisors`, `list_migrations` etc. — folosite masiv în acest proiect
-pentru migrări și verificări directe pe baza vie.
+Prin el rulează `execute_sql`, `generate_typescript_types`, `get_advisors`,
+`list_migrations` etc. — folosite masiv pentru inspecție și verificări directe
+pe baza vie. **Aplicarea migrărilor NU trece prin MCP** — vezi §4 pct. 3.
 
 La un cont nou, acest fișier vine automat cu `git clone` — dar Claude Code
 cere autorizare/autentificare OAuth către Supabase la prima folosire a
@@ -90,19 +90,19 @@ configurația globală a contului curent are:
   `claude-plugins-official`, verificate direct din
   `~/.claude/plugins/marketplaces/claude-plugins-official/plugins/*/.claude-plugin/plugin.json`):
 
-  | Plugin | Ce face |
-  |---|---|
-  | `superpowers` | Skill-uri de proces (vezi lista completă mai jos) |
-  | `feature-dev` | Workflow de dezvoltare cu agenți specializați: explorare cod, design arhitectură, review de calitate |
-  | `frontend-design` | Skill pentru implementare UI/UX |
-  | `code-review` | Review automat de PR-uri, mai mulți agenți, scor de încredere |
-  | `security-guidance` | Avertismente pe bază de tipare la editare + review de diff la Stop + reviewer agentic de commit (injecție, XSS, SSRF, secrete hardcodate, 25+ clase de vulnerabilități) |
-  | `claude-code-setup` | Analizează codul și recomandă automatizări (hook-uri, skill-uri, servere MCP, subagenți) |
-  | `claude-md-management` | Auditează/menține fișierele `CLAUDE.md` |
-  | `ralph-loop` | Bucle AI auto-referențiale — rulează Claude repetat cu același prompt până se termină task-ul |
-  | `chrome-devtools-mcp` | Server MCP pentru Chrome DevTools |
-  | `context7` | Documentație la zi pentru librării/framework-uri, la cerere |
-  | `clangd-lsp`, `playwright` | LSP pentru C/C++; framework de teste E2E |
+  | Plugin                     | Ce face                                                                                                                                                                 |
+  | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | `superpowers`              | Skill-uri de proces (vezi lista completă mai jos)                                                                                                                       |
+  | `feature-dev`              | Workflow de dezvoltare cu agenți specializați: explorare cod, design arhitectură, review de calitate                                                                    |
+  | `frontend-design`          | Skill pentru implementare UI/UX                                                                                                                                         |
+  | `code-review`              | Review automat de PR-uri, mai mulți agenți, scor de încredere                                                                                                           |
+  | `security-guidance`        | Avertismente pe bază de tipare la editare + review de diff la Stop + reviewer agentic de commit (injecție, XSS, SSRF, secrete hardcodate, 25+ clase de vulnerabilități) |
+  | `claude-code-setup`        | Analizează codul și recomandă automatizări (hook-uri, skill-uri, servere MCP, subagenți)                                                                                |
+  | `claude-md-management`     | Auditează/menține fișierele `CLAUDE.md`                                                                                                                                 |
+  | `ralph-loop`               | Bucle AI auto-referențiale — rulează Claude repetat cu același prompt până se termină task-ul                                                                           |
+  | `chrome-devtools-mcp`      | Server MCP pentru Chrome DevTools                                                                                                                                       |
+  | `context7`                 | Documentație la zi pentru librării/framework-uri, la cerere                                                                                                             |
+  | `clangd-lsp`, `playwright` | LSP pentru C/C++; framework de teste E2E                                                                                                                                |
 
 - **Auto Mode — context de mediu** (folosit de clasificatorul de siguranță
   care decide ce acțiuni cer confirmare explicită): proiect Supabase
@@ -142,18 +142,18 @@ Fișiere Markdown citite automat de Claude Code la fiecare sesiune, indiferent
 de proiect (nu doar acesta). Structură pe trei limbaje, `common/` +
 suprascrieri per limbaj:
 
-| Fișier | Conține |
-|---|---|
-| `common/coding-style.md` | Imutabilitate (nu muta obiecte, întoarce copii noi), „many small files" (200-400 rânduri tipic, 800 maxim), gestionare explicită a erorilor, validare la graniță |
-| `common/git-workflow.md` | Format de mesaj de commit (`tip: descriere`), workflow de PR, „Plan First → TDD → Code Review → Commit" |
-| `common/testing.md` | Acoperire minimă 80%, unit+integrare+E2E, TDD obligatoriu |
-| `common/performance.md` | Strategie de alegere a modelului (Haiku pt. agenți ușori, Sonnet pt. dezvoltare, Opus pt. decizii arhitecturale), gestionarea ferestrei de context |
-| `common/patterns.md` | Repository pattern, format standard de răspuns API |
-| `common/hooks.md` | PreToolUse/PostToolUse/Stop — ce pot face hook-urile |
-| `common/agents.md` | Descrie un tabel de agenți (`planner`, `architect`, `tdd-guide`, `code-reviewer`, `security-reviewer`, `build-error-resolver`, `e2e-runner`, `refactor-cleaner`, `doc-updater`) presupuși a trăi în `~/.claude/agents/` |
-| `common/security.md` | Listă de verificări obligatorii înainte de commit, protocol de răspuns la o problemă de securitate |
-| `typescript/*.md` | Suprascrieri TS/JS ale fișierelor de mai sus (imutabilitate cu spread, Zod pentru validare, Playwright pentru E2E, interzicerea `console.log`) |
-| `python/*.md` | Echivalentul pentru Python — **nu se aplică acestui proiect** (100% TypeScript) |
+| Fișier                   | Conține                                                                                                                                                                                                                 |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `common/coding-style.md` | Imutabilitate (nu muta obiecte, întoarce copii noi), „many small files" (200-400 rânduri tipic, 800 maxim), gestionare explicită a erorilor, validare la graniță                                                        |
+| `common/git-workflow.md` | Format de mesaj de commit (`tip: descriere`), workflow de PR, „Plan First → TDD → Code Review → Commit"                                                                                                                 |
+| `common/testing.md`      | Acoperire minimă 80%, unit+integrare+E2E, TDD obligatoriu                                                                                                                                                               |
+| `common/performance.md`  | Strategie de alegere a modelului (Haiku pt. agenți ușori, Sonnet pt. dezvoltare, Opus pt. decizii arhitecturale), gestionarea ferestrei de context                                                                      |
+| `common/patterns.md`     | Repository pattern, format standard de răspuns API                                                                                                                                                                      |
+| `common/hooks.md`        | PreToolUse/PostToolUse/Stop — ce pot face hook-urile                                                                                                                                                                    |
+| `common/agents.md`       | Descrie un tabel de agenți (`planner`, `architect`, `tdd-guide`, `code-reviewer`, `security-reviewer`, `build-error-resolver`, `e2e-runner`, `refactor-cleaner`, `doc-updater`) presupuși a trăi în `~/.claude/agents/` |
+| `common/security.md`     | Listă de verificări obligatorii înainte de commit, protocol de răspuns la o problemă de securitate                                                                                                                      |
+| `typescript/*.md`        | Suprascrieri TS/JS ale fișierelor de mai sus (imutabilitate cu spread, Zod pentru validare, Playwright pentru E2E, interzicerea `console.log`)                                                                          |
+| `python/*.md`            | Echivalentul pentru Python — **nu se aplică acestui proiect** (100% TypeScript)                                                                                                                                         |
 
 **De unde vin de fapt aceste reguli — descoperire importantă**: `diff` direct
 confirmă că `~/.claude/rules/` e o COPIE byte-identică a folderului `rules/`
@@ -197,7 +197,7 @@ CHIAR au fost stabilite pentru Administrativo trăiesc în memoria de proiect
 ### Skill-urile din pachetul `superpowers`
 
 Plugin-ul `superpowers` instalează skill-ul `using-superpowers`, care
-comandă: *„dacă există fie și 1% șansă ca un skill să se aplice, invocă-l."*
+comandă: _„dacă există fie și 1% șansă ca un skill să se aplice, invocă-l."_
 Lista concretă de skill-uri instalate (verificată direct în
 `~/.claude/plugins/cache/claude-plugins-official/superpowers/6.3.0/skills/`,
 versiunea `6.3.0`):
@@ -235,17 +235,17 @@ folderul de memorie trăiește în afara acestui repo (în directorul intern al
 Claude Code), deci nu poate fi referit portabil dintr-un document din git;
 calea de mai sus e absolută, pentru mașina/contul curent.
 
-| Fișier | Tip | Esență |
-|---|---|---|
+| Fișier                                | Tip      | Esență                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `fara-agenti-implementare-directa.md` | feedback | Fără `Agent`/`Workflow` pe acest proiect — implementare directă, cu `Write`/`Edit`, verificată obligatoriu cu `pnpm typecheck && pnpm lint && pnpm test && pnpm build`. Motiv: rundele cu agenți consumau 1,1–1,8M tokeni/rundă, mureau la limita de sesiune, livrau cod cu erori grosolane (chei cu caractere greșite, octeți NUL brut, coloane inventate). Excepție: dacă utilizatorul cere explicit agenți sau spune „ultracode". |
-| `commit-push-dupa-feature.md` | feedback | Commit + push automat după orice feature finalizat și verificat, fără să mai ceară voie de fiecare dată. Rămân excepție acțiunile cu adevărat riscante (force-push, ștergere de branch). |
-| `plan-mode-focus-ingust.md` | feedback | În Plan Mode, fișierul de plan trebuie să conțină STRICT cererea curentă — dacă exista deja un plan vechi în fișier, se suprascrie complet, nu se adaugă la final. |
-| `bug_scriere_cnp_iban_angajat.md` | project | Bug cunoscut, NEREZOLVAT: formularul de angajat scrie CNP/IBAN prin `.upsert()` direct pe `employee_sensitive_data`, tabelă fără GRANT pentru `authenticated` — eșuează cu 42501, mesaj generic care induce în eroare. Reparația corectă: rescrie `salveazaDateSensibile` (`angajati/actions.ts`) să apeleze RPC-ul `hr_write_sensitive`, exact ca la citire. |
-| `onboarding_companie_wizard.md` | project | Wizard-ul de înrolare companie (super-admin, 6 pași) + activarea `employee_tax_exemptions` în motorul de salarizare — sursa de adevăr, nu reconstrui din memorie, citește `nou/actions.ts` (`onboardeazaOrganizatie`). |
+| `commit-push-dupa-feature.md`         | feedback | Commit + push automat după orice feature finalizat și verificat, fără să mai ceară voie de fiecare dată. Rămân excepție acțiunile cu adevărat riscante (force-push, ștergere de branch).                                                                                                                                                                                                                                             |
+| `plan-mode-focus-ingust.md`           | feedback | În Plan Mode, fișierul de plan trebuie să conțină STRICT cererea curentă — dacă exista deja un plan vechi în fișier, se suprascrie complet, nu se adaugă la final.                                                                                                                                                                                                                                                                   |
+| `bug_scriere_cnp_iban_angajat.md`     | project  | Bug cunoscut, NEREZOLVAT: formularul de angajat scrie CNP/IBAN prin `.upsert()` direct pe `employee_sensitive_data`, tabelă fără GRANT pentru `authenticated` — eșuează cu 42501, mesaj generic care induce în eroare. Reparația corectă: rescrie `salveazaDateSensibile` (`angajati/actions.ts`) să apeleze RPC-ul `hr_write_sensitive`, exact ca la citire.                                                                        |
+| `onboarding_companie_wizard.md`       | project  | Wizard-ul de înrolare companie (super-admin, 6 pași) + activarea `employee_tax_exemptions` în motorul de salarizare — sursa de adevăr, nu reconstrui din memorie, citește `nou/actions.ts` (`onboardeazaOrganizatie`).                                                                                                                                                                                                               |
 
 **Cum se actualizează**: Claude scrie/actualizează aceste fișiere automat pe
 parcursul conversațiilor, când observă corecții sau confirmări explicite ale
-utilizatorului. Nu necesită întreținere manuală — dar dacă vrei să *ștergi*
+utilizatorului. Nu necesită întreținere manuală — dar dacă vrei să _ștergi_
 o memorie greșită, cere explicit („uită faptul că...").
 
 ---
@@ -268,9 +268,13 @@ Din istoricul acestui proiect, dincolo de fișierele de memorie de mai sus:
    push, niciodată `git add -A`/`.` orb, redenumirea propriilor migrări la o
    coliziune de nume (niciodată a fișierului altcuiva), `git merge` normal
    (nu rebase) când upstream-ul are commit-uri noi.
-3. **Migrări pe baza de date live**: aplicate prin MCP (`apply_migration`),
-   nu prin `supabase db push` din CLI local (`NOTES.md` explică de ce —
-   fidelitate byte-exactă). Schimbările de schemă live pot cere confirmare
+3. **Migrări pe baza de date live**: aplicate prin `psql`, cu fișierul trimis
+   byte-exact (`NOTES.md` §1 dă comanda completă, prin pooler). NICI prin
+   `supabase db push` din CLI, NICI prin `apply_migration` din MCP: ambele cer
+   ca SQL-ul să treacă prin model ca text, iar 104 KB de DDL retranscris e
+   exact locul în care apare o eroare subtilă imposibil de observat. MCP-ul
+   rămâne pentru inspecție: `execute_sql`, `list_migrations`, `get_advisors`,
+   `generate_typescript_types`. Schimbările de schemă live pot cere confirmare
    explicită a utilizatorului în chat (clasificatorul Auto Mode le tratează
    ca acțiuni ireversibile pe un sistem distribuit) — nu presupune că un
    „da" anterior acoperă o migrare nouă, cere din nou dacă apare blocajul.

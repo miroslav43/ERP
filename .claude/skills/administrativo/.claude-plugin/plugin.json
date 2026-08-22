@@ -1,0 +1,7 @@
+{
+  "name": "administrativo",
+  "version": "0.1.0",
+  "description": "Pachet de dezvoltare pentru ERP-ul Administrativo: agenți pe straturi (migrare/RLS, acțiuni, citiri, UI) plus un santinelă de izolare multi-tenant, skill-uri pentru cele 36 de capcane cunoscute ale schemei și proba de scriere reală per rol.",
+  "author": { "name": "Administrativo" },
+  "keywords": ["administrativo", "erp", "supabase", "rls", "multi-tenant", "romania", "nextjs"]
+}

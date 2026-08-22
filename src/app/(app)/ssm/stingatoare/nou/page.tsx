@@ -27,13 +27,13 @@ export default async function PaginaStingatorNou() {
   return (
     <main className="mx-auto w-full max-w-2xl space-y-6 p-6">
       <header>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           <Link href="/ssm/stingatoare" className="underline-offset-2 hover:underline">
             Stingătoare
           </Link>
         </p>
         <h1 className="text-2xl font-semibold">Stingător nou</h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Scadențele de verificare, reîncărcare și probă de presiune se calculează automat, din
           datele ultimelor operațiuni și periodicitățile legale ale organizației.
         </p>

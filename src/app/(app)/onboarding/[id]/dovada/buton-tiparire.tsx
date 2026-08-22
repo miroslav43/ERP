@@ -9,7 +9,7 @@ export function ButonTiparire() {
       onClick={() => {
         window.print();
       }}
-      className="print:hidden inline-flex items-center gap-2 rounded-md border border-foreground/60 px-4 py-2 text-sm font-medium hover:bg-surface"
+      className="border-foreground/60 hover:bg-surface inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium print:hidden"
     >
       <Printer aria-hidden="true" className="size-4" />
       Tipărește

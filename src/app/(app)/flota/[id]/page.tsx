@@ -10,11 +10,7 @@ import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
 import { formatLei } from "@/lib/format/money";
 import { idDinRuta } from "@/lib/rute/parametri";
-import {
-  citesteVehicul,
-  documenteleVehiculului,
-  tipuriDocument,
-} from "@/lib/queries/fleet";
+import { citesteVehicul, documenteleVehiculului, tipuriDocument } from "@/lib/queries/fleet";
 
 import {
   CLASE_SCADENTA,
@@ -64,13 +60,13 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
     <main className="space-y-6 p-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             <Link href="/flota" className="underline-offset-2 hover:underline">
               Parc auto
             </Link>
           </p>
           <h1 className="text-2xl font-semibold">{vehicul.nr_inmatriculare}</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             {vehicul.marca} {vehicul.model} · {ETICHETE_CATEGORIE[vehicul.categorie]} ·{" "}
             {ETICHETE_COMBUSTIBIL[vehicul.tip_combustibil]}
           </p>
@@ -84,7 +80,7 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
 
       <section
         aria-label="Date de identificare"
-        className="grid gap-4 rounded-lg border border-border p-4 sm:grid-cols-2 lg:grid-cols-4"
+        className="border-border grid gap-4 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-4"
       >
         <Camp eticheta="Kilometraj" valoare={`${vehicul.km_curent.toLocaleString("ro-RO")} km`} />
         <Camp eticheta="VIN" valoare={vehicul.vin ?? "—"} />
@@ -103,9 +99,7 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
         />
         <Camp
           eticheta="Valoare"
-          valoare={
-            vehicul.valoare_achizitie === null ? "—" : formatLei(vehicul.valoare_achizitie)
-          }
+          valoare={vehicul.valoare_achizitie === null ? "—" : formatLei(vehicul.valoare_achizitie)}
         />
         <Camp eticheta="Culoare" valoare={vehicul.culoare ?? "—"} />
         <Camp
@@ -122,7 +116,7 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
         <h2 id="documente" className="text-lg font-semibold">
           Documente
         </h2>
-        <div className="overflow-x-auto rounded-lg border border-border">
+        <div className="border-border overflow-x-auto rounded-lg border">
           <table className="w-full text-sm">
             <thead className="bg-surface text-left">
               <tr>
@@ -140,7 +134,7 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-border divide-y">
               {/* Se listează TIPURILE, nu documentele: un tip obligatoriu fără
                   document trebuie să apară ca „Lipsește", roșu. Altfel absența
                   unui RCA arată identic cu absența unei rubrici. */}
@@ -153,7 +147,7 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
                     <td className="px-4 py-3">
                       {tip.denumire}
                       {tip.obligatoriu ? (
-                        <span className="ml-1 text-xs text-muted-foreground">(obligatoriu)</span>
+                        <span className="text-muted-foreground ml-1 text-xs">(obligatoriu)</span>
                       ) : null}
                     </td>
                     <td className="px-4 py-3">{doc?.numar ?? "—"}</td>
@@ -179,7 +173,7 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
         {poateScrie ? (
           <FormularDocument vehiculId={vehicul.id} tipuri={tipuri} />
         ) : (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Documentele se adaugă de către cei care administrează parcul auto.
           </p>
         )}
@@ -191,7 +185,7 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
 function Camp({ eticheta, valoare }: { readonly eticheta: string; readonly valoare: string }) {
   return (
     <div>
-      <dt className="text-xs text-muted-foreground">{eticheta}</dt>
+      <dt className="text-muted-foreground text-xs">{eticheta}</dt>
       <dd className="text-sm font-medium">{valoare}</dd>
     </div>
   );

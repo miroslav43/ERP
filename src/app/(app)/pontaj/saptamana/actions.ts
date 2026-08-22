@@ -3,10 +3,7 @@
 
 import { createAction } from "@/lib/actions/create-action";
 import { notFound } from "@/lib/actions/errors";
-import {
-  decideSaptamanaPontajSchema,
-  trimiteSaptamanaPontajSchema,
-} from "@/schemas/attendance";
+import { decideSaptamanaPontajSchema, trimiteSaptamanaPontajSchema } from "@/schemas/attendance";
 import { traduEroare } from "../erori";
 
 const CAI_REVALIDARE = ["/pontaj/saptamana", "/pontaj/aprobare"] as const;

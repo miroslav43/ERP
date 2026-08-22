@@ -440,7 +440,9 @@ export async function citesteScutiriFiscale(
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("employee_tax_exemptions")
-    .select("id, exemption_type, valabil_de_la, valabil_pana, procent_scutire, plafon_lunar, temei_legal")
+    .select(
+      "id, exemption_type, valabil_de_la, valabil_pana, procent_scutire, plafon_lunar, temei_legal",
+    )
     .eq("organization_id", organizationId)
     .eq("employee_id", employeeId)
     .is("deleted_at", null)

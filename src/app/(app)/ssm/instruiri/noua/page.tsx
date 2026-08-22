@@ -54,20 +54,24 @@ export default async function PaginaInstruireNoua() {
   return (
     <main className="mx-auto w-full max-w-3xl space-y-6 p-6">
       <header>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           <Link href="/ssm/instruiri" className="underline-offset-2 hover:underline">
             Instruiri
           </Link>
         </p>
         <h1 className="text-2xl font-semibold">Instruire nouă</h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm">
           Un tip, o dată, câți angajați aveți nevoie — toți intră într-o singură înregistrare.
         </p>
       </header>
 
       <FormularInstruireBloc
         tipuri={tipuri.map((t) => ({ id: t.id, denumire: t.denumire, domeniu: t.domeniu }))}
-        angajati={(angajati ?? []).map((a) => ({ id: a.id, full_name: a.full_name, marca: a.marca }))}
+        angajati={(angajati ?? []).map((a) => ({
+          id: a.id,
+          full_name: a.full_name,
+          marca: a.marca,
+        }))}
       />
     </main>
   );

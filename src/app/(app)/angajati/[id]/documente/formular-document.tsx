@@ -89,7 +89,7 @@ export function FormularDocument({
   return (
     <form
       action={(formular) => void trimite(formular)}
-      className="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-3"
+      className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-3"
     >
       <div className="flex flex-col gap-1">
         <label htmlFor={idTip} className="text-sm font-medium">
@@ -99,7 +99,7 @@ export function FormularDocument({
           id={idTip}
           name="tip"
           required
-          className="rounded-md border border-foreground/60 p-2"
+          className="border-foreground/60 rounded-md border p-2"
         >
           {tipuri.map((tip) => (
             <option key={tip.id} value={tip.id}>
@@ -117,7 +117,7 @@ export function FormularDocument({
           name="titlu"
           required
           maxLength={200}
-          className="rounded-md border border-foreground/60 p-2"
+          className="border-foreground/60 rounded-md border p-2"
         />
       </div>
       <div className="flex flex-col gap-1">
@@ -130,14 +130,14 @@ export function FormularDocument({
         <button
           type="submit"
           disabled={stare.tip === "lucru"}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+          className="bg-primary text-primary-foreground disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
         >
           {stare.tip === "lucru" ? "Se încarcă…" : "Adaugă documentul"}
         </button>
         <p
           role="status"
           aria-live="polite"
-          className={stare.tip === "eroare" ? "text-sm text-danger" : "text-sm text-foreground"}
+          className={stare.tip === "eroare" ? "text-danger text-sm" : "text-foreground text-sm"}
         >
           {stare.mesaj}
         </p>
@@ -165,14 +165,14 @@ export function ListaDescarcare({
   return (
     <span className="flex items-center gap-2">
       {eroare !== null && (
-        <span role="alert" className="text-sm text-danger">
+        <span role="alert" className="text-danger text-sm">
           {eroare}
         </span>
       )}
       <button
         type="button"
         onClick={() => void descarca()}
-        className="rounded-md border border-foreground/60 px-3 py-1.5 text-sm"
+        className="border-foreground/60 rounded-md border px-3 py-1.5 text-sm"
       >
         Descarcă <span className="sr-only">{numeFisier}</span>
       </button>
@@ -216,7 +216,7 @@ export function ButonStergeDocument({
         onClick={() => {
           setDeschis(true);
         }}
-        className="rounded-md border border-danger/40 px-3 py-1.5 text-sm text-danger hover:bg-danger/8"
+        className="border-danger/40 text-danger hover:bg-danger/8 rounded-md border px-3 py-1.5 text-sm"
       >
         Retrage din dosar
       </button>
@@ -235,13 +235,13 @@ export function ButonStergeDocument({
           setMotiv(eveniment.target.value);
         }}
         placeholder="Motivul retragerii (min. 3 caractere)"
-        className="rounded-md border border-foreground/60 px-2 py-1.5 text-sm"
+        className="border-foreground/60 rounded-md border px-2 py-1.5 text-sm"
       />
       <button
         type="button"
         onClick={() => void confirma()}
         disabled={inCurs || motiv.trim().length < 3}
-        className="rounded-md bg-danger px-3 py-1.5 text-sm font-medium text-danger-foreground disabled:cursor-not-allowed disabled:opacity-50"
+        className="bg-danger text-danger-foreground rounded-md px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
       >
         {inCurs ? "Se retrage…" : "Confirmă"}
       </button>
@@ -251,12 +251,12 @@ export function ButonStergeDocument({
           setDeschis(false);
           setEroare(null);
         }}
-        className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
+        className="text-muted-foreground hover:text-foreground text-sm underline underline-offset-4"
       >
         Renunță
       </button>
       {eroare !== null && (
-        <span role="alert" className="text-sm text-danger">
+        <span role="alert" className="text-danger text-sm">
           {eroare}
         </span>
       )}

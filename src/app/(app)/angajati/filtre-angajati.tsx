@@ -32,14 +32,14 @@ export function FiltreAngajati() {
       action={aplica}
       role="search"
       aria-label="Filtrare angajați"
-      className="flex flex-wrap items-end gap-4 rounded-lg border border-border p-4"
+      className="border-border flex flex-wrap items-end gap-4 rounded-lg border p-4"
     >
       <div className="min-w-56 flex-1">
         <label htmlFor={idCautare} className="block text-sm font-medium">
           Caută după nume
         </label>
-        <div className="mt-1 flex items-center gap-2 rounded-md border border-foreground/60 px-2 focus-within:outline-2">
-          <Search aria-hidden="true" className="size-4 text-muted-foreground" />
+        <div className="border-foreground/60 mt-1 flex items-center gap-2 rounded-md border px-2 focus-within:outline-2">
+          <Search aria-hidden="true" className="text-muted-foreground size-4" />
           <input
             id={idCautare}
             name="q"
@@ -59,7 +59,7 @@ export function FiltreAngajati() {
           id={idStatus}
           name="status"
           defaultValue={parametri.get("status") ?? ""}
-          className="mt-1 rounded-md border border-foreground/60 px-2 py-2 text-sm"
+          className="border-foreground/60 mt-1 rounded-md border px-2 py-2 text-sm"
         >
           <option value="">Toate</option>
           {STATUSURI_ANGAJAT.map((status) => (
@@ -73,7 +73,7 @@ export function FiltreAngajati() {
       <button
         type="submit"
         disabled={inCurs}
-        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+        className="bg-primary text-primary-foreground disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
       >
         {inCurs ? "Se filtrează…" : "Aplică filtrele"}
       </button>

@@ -1,0 +1,657 @@
+name: Revizuire
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Revizuire multi-agent la FIECARE push pe main. Fără PR, fără merge.
+#
+# DE CE NU `anthropics/claude-code-action`: acțiunea NU suportă evenimentul
+# `push`. Nu e o scăpare de documentație, e o listă albă în cod —
+# `src/github/context.ts` acceptă doar issues, issue_comment, pull_request,
+# pull_request_review, pull_request_review_comment, workflow_dispatch,
+# repository_dispatch, schedule, workflow_run; orice altceva cade pe
+# `default: throw new Error("Unsupported event type")` înainte ca promptul să
+# fie măcar citit. Rulăm deci CLI-ul Claude Code direct, care nu are nicio
+# restricție de eveniment.
+#
+# BONUS al rulării directe: acțiunea își înlocuiește propriul credențial git
+# peste cel pus de actions/checkout, cu un token de GitHub App — iar push-urile
+# cu token de App RE-DECLANȘEAZĂ workflow-urile. CLI-ul nu atinge credențialul,
+# deci push-ul din jobul de reparare rămâne pe GITHUB_TOKEN, care prin
+# construcție nu re-declanșează nimic. Bucla e ruptă la sursă.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "public/**"
+      - "ops/**"
+      - "deploy/**"
+      - ".claude/**"
+      - "Dockerfile"
+      - ".dockerignore"
+      - "docker-stack.yml"
+      - "*.sh"
+      - ".gitignore"
+  workflow_dispatch:
+    inputs:
+      interval:
+        description: "Interval de commit-uri (ex. HEAD~3..HEAD). Gol = ultimul commit."
+        required: false
+        default: ""
+      repara:
+        description: "Repară automat findings-urile critical/high"
+        type: boolean
+        default: false
+
+concurrency:
+  # Grup pe SHA, nu pe branch. Cu grup pe branch și `cancel-in-progress: true`
+  # (ca în ci.yml), un push venit la 90 de secunde după altul ar anula
+  # revizuirea commit-ului precedent — iar acel commit n-ar mai fi revizuit
+  # NICIODATĂ, fiindcă spre deosebire de un PR nu există o rulare ulterioară
+  # care să-l reacopere. Aici fiecare commit e propriul grup: nimic nu se anulează.
+  group: revizuire-${{ github.sha }}
+  cancel-in-progress: false
+
+permissions: {}
+
+env:
+  VERSIUNE_CLAUDE: "2.1.238"
+  VERSIUNE_NODE: "22"
+
+jobs:
+  # ───────────────────────────────────────────────────────────────────────────
+  # 1. TRIAJ — ieftin, decide dacă merită să pornim Opus.
+  # ───────────────────────────────────────────────────────────────────────────
+  triaj:
+    name: Triaj — merită revizuit?
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    # Patru bariere independente împotriva buclelor. `github.event.commits.*`
+    # acoperă TOATE commit-urile din push, nu doar ultimul ca head_commit.
+    if: >-
+      github.event_name == 'workflow_dispatch' || (
+        github.actor != 'github-actions[bot]' &&
+        github.event.head_commit.author.name != 'claude-revizuire[bot]' &&
+        !contains(join(github.event.commits.*.message, ' '), '[skip review]') &&
+        !contains(join(github.event.commits.*.message, ' '), '[fara revizuire]') &&
+        !contains(join(github.event.commits.*.message, ' '), '[revizuire automata]')
+      )
+    outputs:
+      rulam: ${{ steps.decizie.outputs.rulam }}
+      interval: ${{ steps.decizie.outputs.interval }}
+      motiv: ${{ steps.decizie.outputs.motiv }}
+      bariere_sql: ${{ steps.ci.outputs.bariere_sql }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Calculează intervalul de diff
+        id: interval
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+          FORCED: ${{ github.event.forced }}
+          CREATED: ${{ github.event.created }}
+          DELETED: ${{ github.event.deleted }}
+          MANUAL: ${{ inputs.interval }}
+        run: |
+          set -uo pipefail
+          ZERO=0000000000000000000000000000000000000000
+
+          # Rulare manuală cu interval explicit — are prioritate.
+          if [ -n "${MANUAL:-}" ]; then
+            echo "interval=${MANUAL}" >> "$GITHUB_OUTPUT"
+            echo "valid=true" >> "$GITHUB_OUTPUT"
+            echo "Interval manual: ${MANUAL}"
+            exit 0
+          fi
+
+          if [ "${DELETED:-false}" = "true" ] || [ "$AFTER" = "$ZERO" ]; then
+            { echo "interval="; echo "valid=false"; } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          baza=""
+          if [ "${CREATED:-false}" = "true" ] || [ "${BEFORE:-$ZERO}" = "$ZERO" ]; then
+            echo "Ref nou creat — se revizuiește doar vârful."
+          elif [ "${FORCED:-false}" = "true" ]; then
+            echo "Force-push — 'before' poate fi inaccesibil."
+          elif ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+            echo "'before' ($BEFORE) nu există local (istoric rescris sau curățat)."
+          elif ! git merge-base --is-ancestor "$BEFORE" "$AFTER" 2>/dev/null; then
+            echo "'before' nu e strămoș al lui 'after' — istoric divergent."
+          else
+            baza="$BEFORE"
+          fi
+
+          # Rezervă: primul părinte. Pe un merge commit (istoricul are câteva),
+          # ^1 e linia lui main, deci intervalul acoperă exact ce a adus merge-ul.
+          if [ -z "$baza" ]; then
+            if git rev-parse --verify -q "${AFTER}^1" >/dev/null; then
+              baza=$(git rev-parse "${AFTER}^1")
+            else
+              baza=4b825dc642cb6eb9a060e54bf8d69288fbee4904   # arborele vid
+            fi
+          fi
+
+          echo "interval=${baza}..${AFTER}" >> "$GITHUB_OUTPUT"
+          echo "valid=true" >> "$GITHUB_OUTPUT"
+          echo "Interval: ${baza}..${AFTER}"
+
+      - name: Barierele SQL din CI rulează?
+        id: ci
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          # Dacă jobul `migrations` din ci.yml e roșu, cele trei bariere SQL și
+          # testul de izolare între tenanți NU s-au executat — iar revizorul de
+          # bază de date trebuie să le acopere manual.
+          concluzie=$(gh run list --workflow=ci.yml --branch=main --limit=1 \
+                        --json conclusion --jq '.[0].conclusion // "necunoscut"' 2>/dev/null || echo "necunoscut")
+          if [ "$concluzie" = "success" ]; then
+            echo "bariere_sql=da" >> "$GITHUB_OUTPUT"
+          else
+            echo "bariere_sql=nu" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Ultima rulare CI: $concluzie → bariere SQL active: $([ "$concluzie" = success ] && echo da || echo nu)"
+
+      - name: Decide
+        id: decizie
+        env:
+          INTERVAL: ${{ steps.interval.outputs.interval }}
+          VALID: ${{ steps.interval.outputs.valid }}
+          # Doar prezența, niciodată valoarea — expresia se evaluează la
+          # "true"/"false", secretul nu ajunge în mediu.
+          ARE_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+        run: |
+          set -uo pipefail
+          MAX_FISIERE=120
+          MAX_LINII=6000
+
+          echo "interval=${INTERVAL}" >> "$GITHUB_OUTPUT"
+
+          # Fără token, `analiza` ar porni și ar pica la primul apel de CLI, la
+          # fiecare push. Mai bine trece în gol, cu motivul scris explicit.
+          if [ "$ARE_TOKEN" != "true" ]; then
+            { echo "rulam=false"
+              echo "motiv=CLAUDE_CODE_OAUTH_TOKEN nu e configurat în secretele repo-ului"
+            } >> "$GITHUB_OUTPUT"
+            echo "::notice::Revizuirea e sărită: adaugă secretul CLAUDE_CODE_OAUTH_TOKEN (gh secret set CLAUDE_CODE_OAUTH_TOKEN) ca să o activezi."
+            exit 0
+          fi
+
+          if [ "$VALID" != "true" ]; then
+            { echo "rulam=false"; echo "motiv=interval invalid"; } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          baza="${INTERVAL%%..*}"; varf="${INTERVAL##*..}"
+          mapfile -t fisiere < <(git diff --name-only --diff-filter=ACMR "$baza" "$varf" -- \
+            'src/**' 'supabase/migrations/**' 'tests/**' 'scripts/**' \
+            '*.ts' '*.tsx' '*.mjs' '*.mts' '*.json' 2>/dev/null | grep -v '^src/types/database.ts$' || true)
+          nf=${#fisiere[@]}
+
+          if [ "$nf" -eq 0 ]; then
+            { echo "rulam=false"; echo "motiv=niciun fișier relevant în diff"; } >> "$GITHUB_OUTPUT"
+            echo "::notice title=Revizuire sărită::Niciun fișier relevant."
+            exit 0
+          fi
+
+          nl=$(git diff --numstat "$baza" "$varf" -- "${fisiere[@]}" 2>/dev/null \
+               | awk '{a+=$1; d+=$2} END {print (a+d)+0}')
+
+          if [ "$nf" -gt "$MAX_FISIERE" ] || [ "$nl" -gt "$MAX_LINII" ]; then
+            { echo "rulam=false"; echo "motiv=diff prea mare ($nf fișiere, $nl linii)"; } >> "$GITHUB_OUTPUT"
+            echo "::warning title=Revizuire sărită::Diff prea mare ($nf fișiere, $nl linii). Rulează manual din Actions → Revizuire → Run workflow."
+            exit 0
+          fi
+
+          { echo "rulam=true"; echo "motiv=$nf fișiere, $nl linii"; } >> "$GITHUB_OUTPUT"
+          echo "Se revizuiește: $nf fișiere, $nl linii."
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # 2. ANALIZA — Opus orchestrează 5 revizori Sonnet + verificare adversarială.
+  # ───────────────────────────────────────────────────────────────────────────
+  analiza:
+    name: Analiză multi-agent
+    needs: triaj
+    if: needs.triaj.outputs.rulam == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: write # comentariul pe commit trăiește sub scope-ul Contents
+      issues: write
+    outputs:
+      critice: ${{ steps.numara.outputs.critice }}
+      majore: ${{ steps.numara.outputs.majore }}
+      total: ${{ steps.numara.outputs.total }}
+      are_de_reparat: ${{ steps.numara.outputs.are_de_reparat }}
+      valida: ${{ steps.numara.outputs.valida }}
+    steps:
+      # `runner.temp` NU e disponibil în `env:` la nivel de job — contextul
+      # `runner` există doar la nivel de pas. Variabila de mediu `$RUNNER_TEMP`
+      # e însă mereu în shell, deci o propagăm prin $GITHUB_ENV către pașii
+      # următori. Un `env:` de job cu ${{ runner.temp }} face workflow-ul
+      # invalid și GitHub îl respinge înainte să pornească vreun job.
+      - name: Pregătește directorul de raport
+        run: echo "DIR_RAPORT=$RUNNER_TEMP/revizuire" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Instalează Claude Code
+        run: |
+          set -euo pipefail
+          curl -fsSL https://claude.ai/install.sh | bash -s -- "$VERSIUNE_CLAUDE"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Analiză
+        id: claude
+        continue-on-error: true # pasul de numărare trebuie să ruleze oricum
+        timeout-minutes: 28
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          INTERVAL: ${{ needs.triaj.outputs.interval }}
+          BARIERE_SQL: ${{ needs.triaj.outputs.bariere_sql }}
+        run: |
+          set -uo pipefail
+          mkdir -p "$DIR_RAPORT"
+
+          # Promptul interpolează DOAR valori controlate de noi (SHA-uri, nume de
+          # repo). Mesajele de commit nu ajung niciodată în prompt — ar fi o cale
+          # de injecție într-un repo public.
+          PROMPT=$(cat <<PROMPT_EOF
+          Repo: ${GITHUB_REPOSITORY}
+          Commit: ${GITHUB_SHA}
+          INTERVAL: ${INTERVAL}
+          RAPORT_DIR: ${DIR_RAPORT}
+          BARIERELE_SQL_RULEAZA: ${BARIERE_SQL}
+
+          Invocă skill-ul \`revizuire-erp\` din .claude/skills/ și urmează-l exact.
+
+          Scrie rezultatele în ${DIR_RAPORT}/raport.md și ${DIR_RAPORT}/findings.json.
+          Nu modifica niciun fișier din arborele repo-ului. Nu comite, nu da push.
+          PROMPT_EOF
+          )
+
+          # --strict-mcp-config cu o configurație goală ignoră .mcp.json din repo:
+          # MCP-ul Supabase de acolo cere autentificare interactivă, care în CI
+          # ar bloca rularea.
+          claude -p "$PROMPT" \
+            --model claude-opus-5 \
+            --effort xhigh \
+            --allowedTools "Read,Grep,Glob,Task,Write,Bash" \
+            --disallowedTools "Bash(git push:*),Bash(git commit:*),Bash(git config:*),Bash(gh:*)" \
+            --add-dir "$DIR_RAPORT" \
+            --max-turns 75 \
+            --mcp-config '{"mcpServers":{}}' \
+            --strict-mcp-config \
+            --permission-mode acceptEdits \
+            --output-format json \
+            > "${RUNNER_TEMP}/sesiune.json" 2> "${RUNNER_TEMP}/claude-stderr.log"
+          cod=$?
+          echo "claude exit: $cod"
+          tail -20 "${RUNNER_TEMP}/claude-stderr.log" || true
+          exit 0
+
+      - name: Numără constatările
+        id: numara
+        if: always()
+        run: |
+          set -uo pipefail
+          F="$DIR_RAPORT/findings.json"
+          critice=0; majore=0; total=0; valida=false
+
+          if [ -s "$F" ] && jq -e 'type=="object" and (.findings|type=="array")' "$F" >/dev/null 2>&1; then
+            valida=true
+            critice=$(jq '[.findings[]|select((.severitate//""|ascii_downcase)=="critical")]|length' "$F")
+            majore=$(jq  '[.findings[]|select((.severitate//""|ascii_downcase)=="high")]|length' "$F")
+            total=$(jq '.findings|length' "$F")
+          else
+            echo "::warning title=Raport lipsă::findings.json absent sau invalid — analiza a eșuat."
+          fi
+
+          if [ "$valida" = true ] && [ $((critice + majore)) -gt 0 ]; then are=true; else are=false; fi
+
+          {
+            echo "critice=$critice"; echo "majore=$majore"; echo "total=$total"
+            echo "are_de_reparat=$are"; echo "valida=$valida"
+          } >> "$GITHUB_OUTPUT"
+          echo "critice=$critice majore=$majore total=$total valida=$valida"
+
+      - name: Rezumat în pagina rulării
+        if: always()
+        run: |
+          set -uo pipefail
+          if [ -s "$DIR_RAPORT/raport.md" ]; then
+            cat "$DIR_RAPORT/raport.md" >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "## ⚠️ Revizuirea nu a produs raport"
+              echo
+              echo "Interval: \`${{ needs.triaj.outputs.interval }}\`"
+              echo
+              echo '```'
+              tail -40 "${RUNNER_TEMP}/claude-stderr.log" 2>/dev/null || echo "(fără stderr)"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Pregătește corpul comentariului
+        if: steps.numara.outputs.valida == 'true'
+        run: |
+          set -euo pipefail
+          PRAG=60000   # în OCTEȚI. În UTF-8 octeți >= caractere, deci 60k octeți
+                       # sunt garantat sub limita GitHub de 65.536 CARACTERE,
+                       # fără să numărăm diacriticele (ă î ș ț = 2 octeți).
+          octeti=$(wc -c < "$DIR_RAPORT/raport.md")
+          if [ "$octeti" -gt "$PRAG" ]; then
+            head -c "$PRAG" "$DIR_RAPORT/raport.md" | iconv -c -f UTF-8 -t UTF-8 > "$DIR_RAPORT/corp.md"
+            # Închide un eventual bloc de cod tăiat la jumătate, altfel nota de
+            # trunchiere ar fi înghițită de el.
+            printf '\n```\n\n---\n\n> **Raport trunchiat** (%s din %s octeți). Integral: artefactul `raport-revizuire` din [rularea #%s](%s/%s/actions/runs/%s).\n' \
+              "$PRAG" "$octeti" "$GITHUB_RUN_NUMBER" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" \
+              >> "$DIR_RAPORT/corp.md"
+          else
+            cp "$DIR_RAPORT/raport.md" "$DIR_RAPORT/corp.md"
+          fi
+
+      - name: Comentariu pe commit
+        if: steps.numara.outputs.valida == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # `jq -Rs` înghite stdin ca un singur string brut și îl escapează
+          # corect. `-f body=@fisier` ar posta literal textul "@fisier", iar
+          # `-F body=@fisier` ar converti un corp care arată a număr sau a
+          # `null` într-un literal JSON.
+          jq -Rs '{body: .}' "$DIR_RAPORT/corp.md" \
+            | gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/comments" \
+                --method POST --input - --jq '.html_url'
+
+      - name: Issue pentru critical/high
+        if: steps.numara.outputs.valida == 'true' && steps.numara.outputs.are_de_reparat == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh label create revizuire --color B60205 --description "Constatări ale revizuirii automate" 2>/dev/null || true
+          gh issue create \
+            --label revizuire \
+            --title "Revizuire: ${{ steps.numara.outputs.critice }} critice, ${{ steps.numara.outputs.majore }} majore — $(git rev-parse --short "$GITHUB_SHA")" \
+            --body-file "$DIR_RAPORT/corp.md"
+
+      - name: Notificare WhatsApp
+        if: always()
+        env:
+          CALLMEBOT_PHONE: ${{ secrets.CALLMEBOT_PHONE }}
+          CALLMEBOT_APIKEY: ${{ secrets.CALLMEBOT_APIKEY }}
+        run: |
+          set -uo pipefail
+          # Secretele nu au voie în `if:`, deci verificarea se face aici.
+          [ -n "${CALLMEBOT_PHONE:-}" ] && [ -n "${CALLMEBOT_APIKEY:-}" ] || exit 0
+          F="$DIR_RAPORT/findings.json"
+          [ -s "$F" ] || exit 0
+          # Mesajul se construiește din JSON, nu prin parsarea markdown-ului.
+          MSG=$(jq -r --arg sha "$(git rev-parse --short "$GITHUB_SHA")" '
+            def sev(s): [.findings[]|select((.severitate//""|ascii_downcase)==s)];
+            (sev("critical")) as $c | (sev("high")) as $h |
+            (["🔍 Revizuire — Administrativo", "commit \($sha)", ""]
+             + (if ($c|length)>0 then ["🔴 Critical (\($c|length)):"] + ([$c[]|"• \(.titlu)"][0:3]) + [""] else [] end)
+             + (if ($h|length)>0 then ["🟠 High (\($h|length)):"]     + ([$h[]|"• \(.titlu)"][0:3]) + [""] else [] end)
+             + (if ($c|length)==0 and ($h|length)==0 then ["✅ Fără constatări critice sau majore."] else [] end)
+            ) | join("\n")' "$F")
+          curl -G -s --max-time 20 "https://api.callmebot.com/whatsapp.php" \
+            --data-urlencode "phone=${CALLMEBOT_PHONE}" \
+            --data-urlencode "text=${MSG}" \
+            --data-urlencode "apikey=${CALLMEBOT_APIKEY}" >/dev/null || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: raport-revizuire-${{ github.sha }}
+          path: ${{ runner.temp }}/revizuire/
+          retention-days: 30
+          if-no-files-found: warn
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # 3. REPARARE — Opus repară critical/high și comite DIRECT pe main.
+  # ───────────────────────────────────────────────────────────────────────────
+  reparare:
+    name: Reparare automată
+    needs: [triaj, analiza]
+    if: >-
+      needs.analiza.outputs.are_de_reparat == 'true' &&
+      (github.event_name == 'push' || inputs.repara)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    outputs:
+      reparate: ${{ steps.rezultat.outputs.reparate }}
+      sarite: ${{ steps.rezultat.outputs.sarite }}
+    steps:
+      # Vezi nota din jobul `analiza`: `runner.temp` nu e permis în `env:` de job.
+      - name: Pregătește directorul de raport
+        run: echo "DIR_RAPORT=$RUNNER_TEMP/revizuire" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+          # Credențialul rămas în config e GITHUB_TOKEN. Spre deosebire de
+          # claude-code-action, CLI-ul nu îl înlocuiește — deci push-ul de mai
+          # jos NU re-declanșează workflow-ul.
+
+      - name: Verifică dacă main s-a mișcat între timp
+        run: |
+          set -euo pipefail
+          actual=$(git rev-parse HEAD)
+          if [ "$actual" != "$GITHUB_SHA" ]; then
+            echo "::warning title=Reparare anulată::main a avansat de la ${GITHUB_SHA} la ${actual}. Constatările se referă la alt cod."
+            exit 1
+          fi
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: raport-revizuire-${{ github.sha }}
+          path: ${{ runner.temp }}/revizuire # NU în workspace: altfel raportul ar fi comis
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.VERSIUNE_NODE }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Amprenta de tipuri, ÎNAINTE de orice modificare
+        run: |
+          set -uo pipefail
+          bash scripts/ci/tipuri-amprenta.sh > "${RUNNER_TEMP}/tipuri-baza.txt"
+          echo "Linie de bază: $(wc -l < "${RUNNER_TEMP}/tipuri-baza.txt") erori de tip preexistente."
+
+      - name: Instalează Claude Code
+        run: |
+          set -euo pipefail
+          curl -fsSL https://claude.ai/install.sh | bash -s -- "$VERSIUNE_CLAUDE"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Identitate git
+        run: |
+          git config user.name  "claude-revizuire[bot]"
+          git config user.email "claude-revizuire[bot]@users.noreply.github.com"
+
+      - name: Repară
+        id: claude
+        continue-on-error: true
+        timeout-minutes: 35
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          set -uo pipefail
+          PROMPT=$(cat <<PROMPT_EOF
+          Ai de reparat constatările dintr-un review automat.
+
+          Raportul: ${DIR_RAPORT}/raport.md
+          Datele structurate: ${DIR_RAPORT}/findings.json
+          Amprenta de tipuri de referință: ${RUNNER_TEMP}/tipuri-baza.txt
+
+          ## Ce repari
+          DOAR constatările cu \`severitate\` \`critical\` sau \`high\` ȘI
+          \`reparabil_automat: true\`. Restul le ignori complet.
+
+          ## Cum
+          Pentru fiecare, în ordine — întâi critical, apoi high:
+          1. Citește fișierul și contextul. Dacă nu înțelegi problema, SARI peste.
+          2. Fă modificarea MINIMĂ care rezolvă exact acea constatare. Fără
+             refactorizare, fără îmbunătățiri, fără funcționalități noi.
+          3. Rulează \`pnpm prettier --write <fișierele atinse>\`.
+          4. Adaugă explicit fișierele: \`git add -- <cale> <cale>\`.
+             NICIODATĂ \`git add -A\` sau \`git add .\`.
+          5. Un commit ATOMIC per constatare, cu mesajul:
+
+             tip(scop): descriere scurtă (ID-ul constatării) [revizuire automata]
+
+             Marcatorul \`[revizuire automata]\` e obligatoriu: el împiedică
+             push-ul rezultat să declanșeze o nouă revizuire.
+
+          ## Verificarea finală, obligatorie
+          După TOATE reparațiile, o singură dată:
+            bash scripts/ci/tipuri-amprenta.sh > "${RUNNER_TEMP}/tipuri-dupa.txt"
+            bash scripts/ci/tipuri-compara.sh "${RUNNER_TEMP}/tipuri-baza.txt" "${RUNNER_TEMP}/tipuri-dupa.txt"
+
+          \`pnpm typecheck\` e DEJA roșu pe main, cu erori preexistente cunoscute.
+          Gate-ul nu e „zero erori", ci „nicio eroare în plus". Dacă scriptul de
+          comparație iese cu 1, ai introdus erori noi: revino commit cu commit
+          (\`git reset --hard HEAD~1\`, apoi re-verifică) până amprenta redevine
+          curată. Commit-urile sunt atomice tocmai ca asta să fie posibil.
+
+          Rulează și \`pnpm test\` la final. Dacă pică un test care trecea, revino
+          la commit-ul vinovat.
+
+          ## Ce NU faci
+          - NU dai \`git push\` — o face un pas separat al workflow-ului.
+          - NU modifici fișiere din supabase/migrations/ — nici măcar ca să repari.
+          - NU modifici .env, secrete, sau src/types/database.ts (e generat).
+          - NU atingi fișierele din ${DIR_RAPORT}.
+          - Dacă TOATE constatările sunt sărite, nu comite nimic și spune asta clar.
+
+          La final scrie în ${DIR_RAPORT}/reparate.json:
+          {"reparate": ["C-1","H-2"], "sarite": [{"id":"H-1","motiv":"..."}]}
+          PROMPT_EOF
+          )
+
+          claude -p "$PROMPT" \
+            --model claude-opus-5 \
+            --effort high \
+            --allowedTools "Read,Grep,Glob,Edit,Write,Bash" \
+            --disallowedTools "Bash(git push:*),Bash(git remote:*),Bash(gh:*)" \
+            --add-dir "$DIR_RAPORT" --add-dir "$RUNNER_TEMP" \
+            --max-turns 120 \
+            --mcp-config '{"mcpServers":{}}' \
+            --strict-mcp-config \
+            --permission-mode acceptEdits \
+            --output-format json \
+            > "${RUNNER_TEMP}/sesiune-fix.json" 2>&1 || true
+          exit 0
+
+      - name: Verificare independentă a tipurilor
+        id: verificare
+        run: |
+          set -uo pipefail
+          bash scripts/ci/tipuri-amprenta.sh > "${RUNNER_TEMP}/tipuri-dupa.txt"
+          if bash scripts/ci/tipuri-compara.sh "${RUNNER_TEMP}/tipuri-baza.txt" "${RUNNER_TEMP}/tipuri-dupa.txt"; then
+            echo "curat=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "curat=false" >> "$GITHUB_OUTPUT"
+            echo "::error title=Reparările au introdus erori de tip::Nu se publică nimic."
+          fi
+
+      - name: Publică reparările
+        id: publica
+        if: steps.verificare.outputs.curat == 'true'
+        run: |
+          set -euo pipefail
+          if [ -z "$(git log --oneline "${GITHUB_SHA}..HEAD")" ]; then
+            echo "Niciun commit de publicat."
+            exit 0
+          fi
+          echo "Se publică:"
+          git log --oneline "${GITHUB_SHA}..HEAD"
+          git push origin HEAD:main
+
+      - name: Renunță la reparări
+        if: steps.verificare.outputs.curat != 'true'
+        run: |
+          git reset --hard "$GITHUB_SHA"
+          echo "S-a revenit la ${GITHUB_SHA}. Nimic nu a fost publicat."
+
+      - name: Rezultat
+        id: rezultat
+        if: always()
+        run: |
+          set -uo pipefail
+          R="$DIR_RAPORT/reparate.json"
+          if [ -s "$R" ] && [ "${{ steps.verificare.outputs.curat }}" = "true" ]; then
+            echo "reparate=$(jq -r '.reparate|length' "$R" 2>/dev/null || echo 0)" >> "$GITHUB_OUTPUT"
+            echo "sarite=$(jq -r '.sarite|length' "$R" 2>/dev/null || echo 0)" >> "$GITHUB_OUTPUT"
+          else
+            { echo "reparate=0"; echo "sarite=0"; } >> "$GITHUB_OUTPUT"
+          fi
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # 4. VERDICT — stare distinctă pe commit + ✗ roșu la critical/high.
+  # ───────────────────────────────────────────────────────────────────────────
+  verdict:
+    name: Verdict
+    needs: [triaj, analiza, reparare]
+    if: always() && needs.triaj.outputs.rulam == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      statuses: write
+    steps:
+      - name: Publică starea și decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CRITICE: ${{ needs.analiza.outputs.critice }}
+          MAJORE: ${{ needs.analiza.outputs.majore }}
+          VALIDA: ${{ needs.analiza.outputs.valida }}
+          REPARATE: ${{ needs.reparare.outputs.reparate }}
+        run: |
+          set -uo pipefail
+          c=${CRITICE:-0}; m=${MAJORE:-0}; r=${REPARATE:-0}
+          ramase=$(( c + m - r )); [ "$ramase" -lt 0 ] && ramase=0
+
+          if [ "${VALIDA:-false}" != "true" ]; then
+            stare=error; desc="Revizuirea nu a putut rula"
+          elif [ "$ramase" -gt 0 ]; then
+            stare=failure; desc="$ramase constatări critice/majore nereparate (din $((c+m)), reparate automat: $r)"
+          else
+            stare=success; desc="Fără constatări critice sau majore nereparate"
+          fi
+
+          # Stare cu NUME PROPRIU pe commit — distinctă de „CI", ca cele două
+          # semnale să rămână citibile separat în lista de commit-uri.
+          gh api "repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" --method POST \
+            -f state="$stare" -f context="revizuire/opus" -f description="$desc" \
+            -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            --silent
+
+          echo "### Verdict revizuire" >> "$GITHUB_STEP_SUMMARY"
+          echo "$desc" >> "$GITHUB_STEP_SUMMARY"
+
+          # Job roșu la critical sau high rămase — alegere deliberată: ✗ pe
+          # commit plus email de la GitHub. Vezi nota din documentație despre
+          # riscul de obișnuință cu roșul.
+          [ "$stare" = "failure" ] && exit 1
+          exit 0

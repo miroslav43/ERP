@@ -15,7 +15,7 @@
 export function pasteOrtodox(an: number): Date {
   if (!Number.isInteger(an) || an < 1900 || an > 2199) {
     throw new RangeError(
-      'Anul pentru calculul Paștelui ortodox trebuie să fie un număr întreg între 1900 și 2199.',
+      "Anul pentru calculul Paștelui ortodox trebuie să fie un număr întreg între 1900 și 2199.",
     );
   }
 

@@ -73,7 +73,7 @@ async function TabelFoi({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div className="border-border overflow-x-auto rounded-lg border">
         <table className="w-full text-sm">
           <caption className="sr-only">Foile de parcurs la care aveți acces.</caption>
           <thead className="bg-surface text-left">
@@ -98,7 +98,7 @@ async function TabelFoi({
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className="divide-border divide-y">
             {randuri.map((f) => {
               const vehicul = vehicule.get(f.vehicle_id);
               const sofer = f.employee_id === null ? undefined : soferi.get(f.employee_id);
@@ -147,7 +147,7 @@ async function TabelFoi({
         {urmatorulCursor === null ? null : (
           <Link
             href={`/flota/foi?${cautare.toString()}`}
-            className="rounded-md border border-foreground/60 px-4 py-2 text-sm hover:bg-surface"
+            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
           >
             Pagina următoare
           </Link>
@@ -176,14 +176,14 @@ export default async function PaginaFoi({ searchParams }: ProprietatiPagina) {
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Foi de parcurs</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Cursele înregistrate, cu kilometrii și starea aprobării.
           </p>
         </div>
         {poateCrea ? (
           <Link
             href="/flota/foi/noua"
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover"
+            className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
           >
             <FilePlus2 aria-hidden="true" className="size-4" />
             Foaie nouă

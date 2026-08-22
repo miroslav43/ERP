@@ -14,32 +14,32 @@
 
 export const PRAG_SALT_KM_IMPLICIT = 1500;
 
-export type RezultatContinuitateKm = 'ok' | 'regres' | 'salt';
+export type RezultatContinuitateKm = "ok" | "regres" | "salt";
 
 export function verificaContinuitate(
   kmUltim: number,
   kmPlecare: number,
   kmSosire: number | null | undefined,
-  pragSalt: number = PRAG_SALT_KM_IMPLICIT
+  pragSalt: number = PRAG_SALT_KM_IMPLICIT,
 ): RezultatContinuitateKm {
   if (kmUltim < 0 || kmPlecare < 0) {
-    throw new Error('Kilometrajul nu poate fi negativ.');
+    throw new Error("Kilometrajul nu poate fi negativ.");
   }
   if (kmSosire !== null && kmSosire !== undefined && kmSosire < 0) {
-    throw new Error('Kilometrajul nu poate fi negativ.');
+    throw new Error("Kilometrajul nu poate fi negativ.");
   }
   if (pragSalt <= 0) {
-    throw new Error('Pragul de salt trebuie să fie un număr pozitiv de kilometri.');
+    throw new Error("Pragul de salt trebuie să fie un număr pozitiv de kilometri.");
   }
 
   if (kmPlecare < kmUltim) {
-    return 'regres';
+    return "regres";
   }
   if (kmSosire !== null && kmSosire !== undefined && kmSosire < kmPlecare) {
-    return 'regres';
+    return "regres";
   }
   if (kmPlecare - kmUltim > pragSalt) {
-    return 'salt';
+    return "salt";
   }
-  return 'ok';
+  return "ok";
 }

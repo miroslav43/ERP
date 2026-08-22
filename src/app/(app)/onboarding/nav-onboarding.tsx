@@ -20,10 +20,7 @@ export function NavOnboarding() {
   ] as const;
 
   return (
-    <nav
-      aria-label="Navigare onboarding"
-      className="flex flex-wrap gap-1 border-b border-border"
-    >
+    <nav aria-label="Navigare onboarding" className="border-border flex flex-wrap gap-1 border-b">
       {file.map((fila) => {
         const activ = fila.href === "/onboarding" ? cale === fila.href : cale.startsWith(fila.href);
         return (
@@ -33,8 +30,8 @@ export function NavOnboarding() {
             aria-current={activ ? "page" : undefined}
             className={
               activ
-                ? "border-b-2 border-primary px-4 py-2 text-sm font-medium text-primary"
-                : "border-b-2 border-transparent px-4 py-2 text-sm text-muted-foreground hover:text-foreground"
+                ? "border-primary text-primary border-b-2 px-4 py-2 text-sm font-medium"
+                : "text-muted-foreground hover:text-foreground border-b-2 border-transparent px-4 py-2 text-sm"
             }
           >
             {fila.eticheta}

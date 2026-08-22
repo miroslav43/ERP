@@ -48,7 +48,9 @@ export default async function PaginaPontajulMeu({ searchParams }: ProprietatiPag
     return (
       <div className="p-4">
         <div className="bg-surface border-border rounded-lg border p-6 text-center">
-          <h1 className="text-foreground text-lg font-semibold">Nu aveți încă o fișă de personal</h1>
+          <h1 className="text-foreground text-lg font-semibold">
+            Nu aveți încă o fișă de personal
+          </h1>
           <p className="text-muted-foreground mt-2 text-sm">
             Pontajul se leagă de un angajat. Cereți resurselor umane să vă completeze fișa.
           </p>
@@ -91,9 +93,7 @@ export default async function PaginaPontajulMeu({ searchParams }: ProprietatiPag
         >
           ← Luna anterioară
         </Link>
-        <p className="text-foreground text-sm font-medium">
-          {formatMonthYear(an, luna)}
-        </p>
+        <p className="text-foreground text-sm font-medium">{formatMonthYear(an, luna)}</p>
         <Link
           href={`/portal/pontajul-meu?an=${lunaUrmatoare.an}&luna=${lunaUrmatoare.luna}`}
           className="border-border text-foreground hover:border-ring min-h-11 rounded-md border px-4 py-2 text-sm"

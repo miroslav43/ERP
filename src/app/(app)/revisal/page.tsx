@@ -64,8 +64,8 @@ export default async function PaginaRevisal(props: {
   return (
     <main className="space-y-6 p-6">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold text-foreground">REVISAL</h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="text-foreground text-2xl font-semibold">REVISAL</h1>
+        <p className="text-muted-foreground text-sm">
           Registrul general de evidență a salariaților. Netransmiterea în termen a unui eveniment
           este contravenție, separat pentru fiecare salariat. Situația la {formatDate(azi)}.
         </p>
@@ -97,8 +97,10 @@ export default async function PaginaRevisal(props: {
               key={optiune.valoare}
               href={`/revisal?stare=${optiune.valoare}`}
               aria-current={activ ? "page" : undefined}
-              className={`rounded-md px-3 py-1.5 text-sm focus-visible:outline    ${
-                activ ? "bg-primary text-primary-foreground" : "bg-background text-foreground ring-1 ring-border"
+              className={`rounded-md px-3 py-1.5 text-sm focus-visible:outline ${
+                activ
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-background text-foreground ring-border ring-1"
               }`}
             >
               {optiune.eticheta}
@@ -116,7 +118,7 @@ export default async function PaginaRevisal(props: {
           action={{ label: "Vezi angajații", href: "/angajati" }}
         />
       ) : (
-        <div className="overflow-x-auto rounded-lg ring-1 ring-border">
+        <div className="ring-border overflow-x-auto rounded-lg ring-1">
           <table className="w-full min-w-[64rem] text-left text-sm">
             <caption className="sr-only">
               Evenimente REVISAL, ordonate după termenul de transmitere
@@ -146,7 +148,7 @@ export default async function PaginaRevisal(props: {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border bg-background">
+            <tbody className="divide-border bg-background divide-y">
               {randuri.map((rand) => (
                 <RandTabel
                   key={rand.id}
@@ -154,8 +156,8 @@ export default async function PaginaRevisal(props: {
                   className={rand.stare === "intarziat" ? "bg-danger/8" : ""}
                 >
                   <td className="px-4 py-3">
-                    <span className="font-medium text-foreground">{rand.angajatNume}</span>
-                    <span className="block text-xs text-muted-foreground">
+                    <span className="text-foreground font-medium">{rand.angajatNume}</span>
+                    <span className="text-muted-foreground block text-xs">
                       Marca {rand.angajatMarca}
                       {rand.contractNumar === null ? "" : ` · CIM ${rand.contractNumar}`}
                     </span>
@@ -176,13 +178,13 @@ export default async function PaginaRevisal(props: {
                             : ETICHETE_STATUS[rand.status]}
                     </span>
                     {rand.eroare === null ? null : (
-                      <span className="mt-1 block text-xs text-danger">{rand.eroare}</span>
+                      <span className="text-danger mt-1 block text-xs">{rand.eroare}</span>
                     )}
                   </td>
                   <td className="px-4 py-3">{rand.numarInregistrare ?? "—"}</td>
                   <td className="px-4 py-3">
                     {rand.stare === "transmis" || rand.stare === "anulat" ? (
-                      <span className="text-xs text-muted-foreground">Nimic de făcut</span>
+                      <span className="text-muted-foreground text-xs">Nimic de făcut</span>
                     ) : poateActualiza ? (
                       <ActiuniEveniment
                         evenimentId={rand.id}
@@ -190,7 +192,7 @@ export default async function PaginaRevisal(props: {
                         azi={azi}
                       />
                     ) : (
-                      <span className="text-xs text-muted-foreground">Fără drept de marcare</span>
+                      <span className="text-muted-foreground text-xs">Fără drept de marcare</span>
                     )}
                   </td>
                 </RandTabel>

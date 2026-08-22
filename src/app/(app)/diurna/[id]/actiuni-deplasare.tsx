@@ -77,7 +77,7 @@ export function ActiuniDeplasare({
             type="button"
             disabled={inCurs}
             onClick={trimite}
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+            className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
           >
             <Send aria-hidden="true" className="size-4" />
             {inCurs ? "Se trimite…" : "Trimite spre aprobare"}
@@ -88,7 +88,7 @@ export function ActiuniDeplasare({
             type="button"
             disabled={inCurs}
             onClick={deconteaza}
-            className="inline-flex items-center gap-2 rounded-md bg-violet-700 px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-violet-800 disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+            className="text-primary-foreground disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-2 rounded-md bg-violet-700 px-4 py-2 text-sm font-medium hover:bg-violet-800 disabled:cursor-not-allowed"
           >
             <BadgeCheck aria-hidden="true" className="size-4" />
             {inCurs ? "Se marchează…" : "Marchează decontată"}
@@ -99,7 +99,7 @@ export function ActiuniDeplasare({
             type="button"
             disabled={inCurs}
             onClick={sterge}
-            className="inline-flex items-center gap-2 rounded-md border border-danger px-4 py-2 text-sm font-medium text-danger hover:bg-danger hover:text-danger-foreground disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+            className="border-danger text-danger hover:bg-danger hover:text-danger-foreground disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
           >
             <Trash2 aria-hidden="true" className="size-4" />
             {inCurs ? "Se șterge…" : "Șterge ciorna"}
@@ -107,7 +107,7 @@ export function ActiuniDeplasare({
         ) : null}
       </div>
       {eroare === null ? null : (
-        <p role="alert" className="text-sm text-danger">
+        <p role="alert" className="text-danger text-sm">
           {eroare}
         </p>
       )}

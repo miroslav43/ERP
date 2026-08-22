@@ -9,15 +9,20 @@ import { MIJLOACE_TRANSPORT } from "@/schemas/per-diem";
 import { adaugaEtapa } from "../actions";
 import { ETICHETE_MIJLOC_TRANSPORT } from "../etichete";
 
-const CLASA_CAMP =
-  "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
+const CLASA_CAMP = "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
 
 /**
  * Adaugă o etapă a traseului (`business_trip_legs`). Doar cât deplasarea e
  * editabilă (ciornă/respinsă) — dincolo de asta, RLS respinge inserarea, iar
  * mesajul triggerului ajunge la om prin `traduEroare`.
  */
-export function FormularEtapa({ tripId, tari }: { readonly tripId: string; readonly tari: readonly Tara[] }) {
+export function FormularEtapa({
+  tripId,
+  tari,
+}: {
+  readonly tripId: string;
+  readonly tari: readonly Tara[];
+}) {
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
   const [eroare, setEroare] = useState<string | null>(null);
@@ -72,7 +77,7 @@ export function FormularEtapa({ tripId, tari }: { readonly tripId: string; reado
   }
 
   return (
-    <div className="grid gap-3 rounded-lg border border-border p-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-3">
       <p className="text-sm font-medium sm:col-span-2 lg:col-span-3">Adaugă o etapă a traseului</p>
 
       <div className="flex flex-col gap-1">
@@ -189,12 +194,12 @@ export function FormularEtapa({ tripId, tari }: { readonly tripId: string; reado
           type="button"
           disabled={inCurs}
           onClick={trimite}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
         >
           {inCurs ? "Se salvează…" : "Adaugă etapa"}
         </button>
         {eroare === null ? null : (
-          <p role="alert" className="text-sm text-danger">
+          <p role="alert" className="text-danger text-sm">
             {eroare}
           </p>
         )}

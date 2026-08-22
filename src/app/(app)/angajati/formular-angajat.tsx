@@ -130,7 +130,10 @@ export function FormularAngajat({ departamente, functii, angajatExistent }: Prop
   return (
     <form onSubmit={handleSubmit(trimite)} className="space-y-6" noValidate>
       {eroare !== null ? (
-        <p role="alert" className="border-danger bg-danger/8 text-danger rounded-md border p-3 text-sm">
+        <p
+          role="alert"
+          className="border-danger bg-danger/8 text-danger rounded-md border p-3 text-sm"
+        >
           {eroare}
         </p>
       ) : null}
@@ -184,7 +187,13 @@ export function FormularAngajat({ departamente, functii, angajatExistent }: Prop
             register={register}
             errors={formState.errors}
           />
-          <Camp nume="telefon" eticheta="Telefon" tip="tel" register={register} errors={formState.errors} />
+          <Camp
+            nume="telefon"
+            eticheta="Telefon"
+            tip="tel"
+            register={register}
+            errors={formState.errors}
+          />
         </div>
       </fieldset>
 
@@ -256,7 +265,7 @@ export function FormularAngajat({ departamente, functii, angajatExistent }: Prop
         <button
           type="submit"
           disabled={inCurs}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-5 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-5 py-2 text-sm font-medium disabled:cursor-not-allowed"
         >
           {inCurs ? "Se salvează…" : "Salvează fișa"}
         </button>

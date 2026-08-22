@@ -1,12 +1,20 @@
 // src/domain/per-diem/sume.test.ts
 import { describe, expect, it } from "vitest";
-import { baremLaData, calculeazaSume, gasesteRandValabil, type BaremTara, type PoliticaDiurna } from "./sume";
+import {
+  baremLaData,
+  calculeazaSume,
+  gasesteRandValabil,
+  type BaremTara,
+  type PoliticaDiurna,
+} from "./sume";
 import type { FereastraDiurna } from "./ferestre";
 
 const RO = "11111111-1111-1111-1111-111111111111";
 const DE = "22222222-2222-2222-2222-222222222222";
 
-function fereastra(partial: Partial<FereastraDiurna> & { taraId: string; fractiune: number }): FereastraDiurna {
+function fereastra(
+  partial: Partial<FereastraDiurna> & { taraId: string; fractiune: number },
+): FereastraDiurna {
   return {
     numarFereastra: 1,
     deLa: new Date("2026-03-10T00:00:00Z"),
@@ -49,8 +57,22 @@ describe("gasesteRandValabil", () => {
 
 describe("baremLaData", () => {
   const baremuri: readonly BaremTara[] = [
-    { countryId: DE, categorie: "II", valoare: 35, moneda: "EUR", valabilDeLa: "2026-01-01", valabilPana: null },
-    { countryId: DE, categorie: "I", valoare: 45, moneda: "EUR", valabilDeLa: "2026-01-01", valabilPana: null },
+    {
+      countryId: DE,
+      categorie: "II",
+      valoare: 35,
+      moneda: "EUR",
+      valabilDeLa: "2026-01-01",
+      valabilPana: null,
+    },
+    {
+      countryId: DE,
+      categorie: "I",
+      valoare: 45,
+      moneda: "EUR",
+      valabilDeLa: "2026-01-01",
+      valabilPana: null,
+    },
   ];
 
   it("filtrează pe țară ȘI categorie", () => {
@@ -83,9 +105,21 @@ describe("calculeazaSume", () => {
 
   it("aplică baremul extern și cursul valutar pentru o țară străină", () => {
     const baremuri: readonly BaremTara[] = [
-      { countryId: DE, categorie: "II", valoare: 35, moneda: "EUR", valabilDeLa: "2026-01-01", valabilPana: null },
+      {
+        countryId: DE,
+        categorie: "II",
+        valoare: 35,
+        moneda: "EUR",
+        valabilDeLa: "2026-01-01",
+        valabilPana: null,
+      },
     ];
-    const rezultat = calculeazaSume([fereastra({ taraId: DE, fractiune: 1 })], POLITICA, baremuri, 5);
+    const rezultat = calculeazaSume(
+      [fereastra({ taraId: DE, fractiune: 1 })],
+      POLITICA,
+      baremuri,
+      5,
+    );
     // valoare_zi = 35 EUR, curs 5 ⇒ 175 lei.
     expect(rezultat.valoareLei).toBe(175);
     // plafon_zi = 2.5 * 35 = 87.5 EUR ⇒ 437.5 lei, deci partea de 175 e integral neimpozabilă.
@@ -95,9 +129,21 @@ describe("calculeazaSume", () => {
 
   it("marchează cursIncomplet și NU inventează curs când lipsește pentru o monedă străină", () => {
     const baremuri: readonly BaremTara[] = [
-      { countryId: DE, categorie: "II", valoare: 35, moneda: "EUR", valabilDeLa: "2026-01-01", valabilPana: null },
+      {
+        countryId: DE,
+        categorie: "II",
+        valoare: 35,
+        moneda: "EUR",
+        valabilDeLa: "2026-01-01",
+        valabilPana: null,
+      },
     ];
-    const rezultat = calculeazaSume([fereastra({ taraId: DE, fractiune: 1 })], POLITICA, baremuri, null);
+    const rezultat = calculeazaSume(
+      [fereastra({ taraId: DE, fractiune: 1 })],
+      POLITICA,
+      baremuri,
+      null,
+    );
     expect(rezultat.cursIncomplet).toBe(true);
     expect(rezultat.valoareLei).toBeNull();
     expect(rezultat.parteNeimpozabilaLei).toBeNull();
@@ -118,7 +164,12 @@ describe("calculeazaSume", () => {
       multiploPlafonNeimpozabil: 1,
       diurnaBazaLegalaInterna: 10, // plafon_zi = 1 * 10 = 10 lei, sub valoarea de 50.
     };
-    const rezultat = calculeazaSume([fereastra({ taraId: RO, fractiune: 1 })], politicaCuPlafonMic, [], null);
+    const rezultat = calculeazaSume(
+      [fereastra({ taraId: RO, fractiune: 1 })],
+      politicaCuPlafonMic,
+      [],
+      null,
+    );
     expect(rezultat.valoareLei).toBe(50);
     expect(rezultat.plafonNeimpozabilLei).toBe(10);
     expect(rezultat.parteNeimpozabilaLei).toBe(10);
@@ -127,7 +178,12 @@ describe("calculeazaSume", () => {
 
   it("rotunjește la doi zecimali, aritmetic", () => {
     const politicaFractie: PoliticaDiurna = { ...POLITICA, diurnaInternaZi: 33.335 };
-    const rezultat = calculeazaSume([fereastra({ taraId: RO, fractiune: 1 })], politicaFractie, [], null);
+    const rezultat = calculeazaSume(
+      [fereastra({ taraId: RO, fractiune: 1 })],
+      politicaFractie,
+      [],
+      null,
+    );
     expect(rezultat.valoareLei).toBe(33.34);
   });
 

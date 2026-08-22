@@ -75,7 +75,12 @@ export function Pas1Identitate({ formular, idFormular }: Proprietati) {
             <label htmlFor={`${idFormular}-nastere`} className={claseLabel}>
               Data nașterii
             </label>
-            <input id={`${idFormular}-nastere`} type="date" {...register("data_nasterii")} className={claseCamp} />
+            <input
+              id={`${idFormular}-nastere`}
+              type="date"
+              {...register("data_nasterii")}
+              className={claseCamp}
+            />
           </div>
           <div>
             <label htmlFor={`${idFormular}-gen`} className={claseLabel}>
@@ -105,7 +110,11 @@ export function Pas1Identitate({ formular, idFormular }: Proprietati) {
             <label htmlFor={`${idFormular}-stare-civila`} className={claseLabel}>
               Stare civilă
             </label>
-            <select id={`${idFormular}-stare-civila`} {...register("stare_civila")} className={claseCamp}>
+            <select
+              id={`${idFormular}-stare-civila`}
+              {...register("stare_civila")}
+              className={claseCamp}
+            >
               <option value="">— Nespecificată —</option>
               {STARI_CIVILE.map((stare) => (
                 <option key={stare} value={stare}>
@@ -135,19 +144,31 @@ export function Pas1Identitate({ formular, idFormular }: Proprietati) {
             <label htmlFor={`${idFormular}-serie-act`} className={claseLabel}>
               Serie
             </label>
-            <input id={`${idFormular}-serie-act`} {...register("serie_act")} className={claseCamp} />
+            <input
+              id={`${idFormular}-serie-act`}
+              {...register("serie_act")}
+              className={claseCamp}
+            />
           </div>
           <div>
             <label htmlFor={`${idFormular}-numar-act`} className={claseLabel}>
               Număr
             </label>
-            <input id={`${idFormular}-numar-act`} {...register("numar_act")} className={claseCamp} />
+            <input
+              id={`${idFormular}-numar-act`}
+              {...register("numar_act")}
+              className={claseCamp}
+            />
           </div>
           <div>
             <label htmlFor={`${idFormular}-eliberat-de`} className={claseLabel}>
               Eliberat de
             </label>
-            <input id={`${idFormular}-eliberat-de`} {...register("act_eliberat_de")} className={claseCamp} />
+            <input
+              id={`${idFormular}-eliberat-de`}
+              {...register("act_eliberat_de")}
+              className={claseCamp}
+            />
           </div>
           <div>
             <label htmlFor={`${idFormular}-act-valabil`} className={claseLabel}>

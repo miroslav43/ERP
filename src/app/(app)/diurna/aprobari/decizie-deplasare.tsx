@@ -12,7 +12,13 @@ import { decideDeplasare, deconteazaDeplasare } from "../actions";
  * deosebire de `leave_requests`/`trip_sheets`) — respingerea e o simplă
  * tranziție de stare, fără text de motivare persistat.
  */
-export function DecizieDeplasare({ id, status }: { readonly id: string; readonly status: "in_aprobare" | "aprobata" }) {
+export function DecizieDeplasare({
+  id,
+  status,
+}: {
+  readonly id: string;
+  readonly status: "in_aprobare" | "aprobata";
+}) {
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
   const [eroare, setEroare] = useState<string | null>(null);
@@ -52,7 +58,7 @@ export function DecizieDeplasare({ id, status }: { readonly id: string; readonly
               onClick={() => {
                 decide("aprobata");
               }}
-              className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+              className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed"
             >
               {inCurs ? "Se trimite…" : "Aprobă"}
             </button>
@@ -62,7 +68,7 @@ export function DecizieDeplasare({ id, status }: { readonly id: string; readonly
               onClick={() => {
                 decide("respinsa");
               }}
-              className="rounded-md border border-foreground/60 px-3 py-1.5 text-sm hover:bg-surface disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+              className="border-foreground/60 hover:bg-surface disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md border px-3 py-1.5 text-sm disabled:cursor-not-allowed"
             >
               Respinge
             </button>
@@ -72,14 +78,14 @@ export function DecizieDeplasare({ id, status }: { readonly id: string; readonly
             type="button"
             disabled={inCurs}
             onClick={deconteaza}
-            className="rounded-md bg-violet-700 px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-violet-800 disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground"
+            className="text-primary-foreground disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md bg-violet-700 px-3 py-1.5 text-sm font-medium hover:bg-violet-800 disabled:cursor-not-allowed"
           >
             {inCurs ? "Se marchează…" : "Marchează decontată"}
           </button>
         )}
       </div>
       {eroare === null ? null : (
-        <p role="alert" className="max-w-sm text-xs text-danger">
+        <p role="alert" className="text-danger max-w-sm text-xs">
           {eroare}
         </p>
       )}

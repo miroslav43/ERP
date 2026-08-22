@@ -285,12 +285,22 @@ export const decideCerere = createAction({
     // `trg_approval_tasks_anuleaza_surori` anulează singur, în bază, sarcinile
     // de la ACEEAȘI ordine (aprobatori în paralel pe același pas).
     const acum = ctx.now.toISOString();
-    const { error: eroareUpdateSarcina } = await ctx.supabase
+    // `.select()` obligatoriu pe tranziție: politica `approval_tasks_update`
+    // cere ca aprobatorul să fie chiar destinatarul sarcinii. Respinsă de
+    // `USING`, operația afectează ZERO rânduri FĂRĂ eroare (capcana 17) —
+    // aprobatorul ar vedea „decizie înregistrată", iar cererea ar rămâne în
+    // așteptare la nesfârșit.
+    const { data: sarcinaDecisa, error: eroareUpdateSarcina } = await ctx.supabase
       .from("approval_tasks")
       .update({ status: input.decizie, comentariu: input.comentariu, decis_la: acum })
       .eq("id", sarcina.id)
-      .eq("organization_id", ctx.tenant.organizationId);
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle();
     if (eroareUpdateSarcina !== null) throw traduEroare(eroareUpdateSarcina);
+    if (sarcinaDecisa === null) {
+      throw businessRule("Sarcina de aprobare nu v-a putut fi atribuită. Reîncărcați lista.");
+    }
 
     // (4) Un manager cu `leave:approve = team` nu vede, prin RLS, sarcinile
     // colegilor din pașii următori — numărătoarea se face cu clientul admin,
@@ -310,7 +320,7 @@ export const decideCerere = createAction({
     // cererea NU se atinge: rămâne „trimisă”, angajatul păstrează dreptul de
     // anulare, iar `recalc_sold` numără la fel `trimisa` și `in_aprobare`.
     if (input.decizie === "respinsa") {
-      const { error: eroareRespingere } = await ctx.supabase
+      const { data: cerereRespinsa, error: eroareRespingere } = await ctx.supabase
         .from("leave_requests")
         .update({
           status: "respinsa",
@@ -318,8 +328,15 @@ export const decideCerere = createAction({
           decis_de: ctx.user.id,
         })
         .eq("id", sarcina.entity_id)
-        .eq("organization_id", ctx.tenant.organizationId);
+        .eq("organization_id", ctx.tenant.organizationId)
+        .select("id")
+        .maybeSingle();
       if (eroareRespingere !== null) throw traduEroare(eroareRespingere);
+      if (cerereRespinsa === null) {
+        throw businessRule(
+          "Sarcina a fost decisă, dar cererea de concediu nu a trecut pe „respinsă”.",
+        );
+      }
 
       const { error: eroareAnulare } = await admin
         .from("approval_tasks")
@@ -331,12 +348,22 @@ export const decideCerere = createAction({
         .is("deleted_at", null);
       if (eroareAnulare !== null) throw eroareAnulare;
     } else if ((count ?? 0) === 0) {
-      const { error: eroareAprobare } = await ctx.supabase
+      // Cea mai scumpă dintre cele trei: fără verificare, cererea rămâne
+      // „trimisă", soldul nu se scade, sincronizarea cu pontajul de mai jos
+      // rulează pentru un concediu neaprobat, iar angajatul pleacă.
+      const { data: cerereAprobata, error: eroareAprobare } = await ctx.supabase
         .from("leave_requests")
         .update({ status: "aprobata", decis_de: ctx.user.id })
         .eq("id", sarcina.entity_id)
-        .eq("organization_id", ctx.tenant.organizationId);
+        .eq("organization_id", ctx.tenant.organizationId)
+        .select("id")
+        .maybeSingle();
       if (eroareAprobare !== null) throw traduEroare(eroareAprobare);
+      if (cerereAprobata === null) {
+        throw businessRule(
+          "Sarcina a fost decisă, dar cererea de concediu nu a trecut pe „aprobată”.",
+        );
+      }
 
       // (6) Pontajul reflectă concediul de îndată ce cererea e aprobată — nu
       // mai așteaptă butonul manual „Sincronizează” din /pontaj/aprobare.

@@ -139,26 +139,29 @@ export function FoaieColectiva({
   const randSelectat =
     selectie === null ? undefined : randuri.find((r) => r.angajatId === selectie.angajatId);
   const intrareSelectata =
-    selectie === null || randSelectat === undefined ? null : (randSelectat.intrari[selectie.data] ?? null);
+    selectie === null || randSelectat === undefined
+      ? null
+      : (randSelectat.intrari[selectie.data] ?? null);
 
   return (
     <div className="space-y-3">
       {perioadaBlocata ? (
-        <p className="rounded-lg border border-foreground/60 bg-surface p-3 text-sm text-foreground">
+        <p className="border-foreground/60 bg-surface text-foreground rounded-lg border p-3 text-sm">
           Perioada este <strong>blocată</strong>
-          {blocataLa === null ? "" : ` din ${new Date(blocataLa).toLocaleDateString("ro-RO")}`} — foaia
-          nu mai poate fi modificată. Redeschideți luna din „Perioade” dacă aveți nevoie de corecții.
+          {blocataLa === null ? "" : ` din ${new Date(blocataLa).toLocaleDateString("ro-RO")}`} —
+          foaia nu mai poate fi modificată. Redeschideți luna din „Perioade” dacă aveți nevoie de
+          corecții.
         </p>
       ) : null}
 
-      <div className="overflow-x-auto rounded-lg border border-border">
+      <div className="border-border overflow-x-auto rounded-lg border">
         <table className="w-full border-collapse text-sm">
           <caption className="sr-only">Pontajul angajaților pentru zilele lunii selectate.</caption>
-          <thead className="sticky top-0 z-20 bg-surface">
+          <thead className="bg-surface sticky top-0 z-20">
             <tr>
               <th
                 scope="col"
-                className="sticky left-0 z-30 min-w-40 border-b border-border bg-surface px-3 py-2 text-left font-medium"
+                className="border-border bg-surface sticky left-0 z-30 min-w-40 border-b px-3 py-2 text-left font-medium"
               >
                 Angajat
               </th>
@@ -176,17 +179,17 @@ export function FoaieColectiva({
                         ? `${ziuaDinIso(zi)} — ${info.denumireSarbatoare}`
                         : undefined
                     }
-                    className={`min-w-11 border-b border-border px-1 py-2 text-center text-xs font-medium ${
-                      esteWeekend
-                        ? "bg-surface"
-                        : esteSarbatoare
-                          ? "bg-warning/12"
-                          : ""
+                    className={`border-border min-w-11 border-b px-1 py-2 text-center text-xs font-medium ${
+                      esteWeekend ? "bg-surface" : esteSarbatoare ? "bg-warning/12" : ""
                     }`}
                   >
                     <div>{ziuaDinIso(zi)}</div>
-                    <div className="text-[10px] text-muted-foreground">
-                      {esteWeekend ? (new Date(`${zi}T00:00:00Z`).getUTCDay() === 6 ? "S" : "D") : null}
+                    <div className="text-muted-foreground text-[10px]">
+                      {esteWeekend
+                        ? new Date(`${zi}T00:00:00Z`).getUTCDay() === 6
+                          ? "S"
+                          : "D"
+                        : null}
                       {esteSarbatoare ? "*" : null}
                     </div>
                   </th>
@@ -195,25 +198,25 @@ export function FoaieColectiva({
               <th
                 scope="col"
                 title="Ore/zi ale organizației × zile lucrătoare din lună — aceeași bază pentru toți angajații."
-                className="border-b border-border px-2 py-2 text-right font-medium"
+                className="border-border border-b px-2 py-2 text-right font-medium"
               >
                 Așteptate
               </th>
-              <th scope="col" className="border-b border-border px-2 py-2 text-right font-medium">
+              <th scope="col" className="border-border border-b px-2 py-2 text-right font-medium">
                 Ore
               </th>
-              <th scope="col" className="border-b border-border px-2 py-2 text-right font-medium">
+              <th scope="col" className="border-border border-b px-2 py-2 text-right font-medium">
                 Supl.
               </th>
-              <th scope="col" className="border-b border-border px-2 py-2 text-right font-medium">
+              <th scope="col" className="border-border border-b px-2 py-2 text-right font-medium">
                 Noapte
               </th>
-              <th scope="col" className="border-b border-border px-2 py-2 text-left font-medium">
+              <th scope="col" className="border-border border-b px-2 py-2 text-left font-medium">
                 Zile speciale
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className="divide-border divide-y">
             {randuri.map((rand) => {
               const intrari = Object.values(rand.intrari);
               const totalOre = intrari.reduce((s, i) => s + i.oreLucrate, 0);
@@ -228,7 +231,7 @@ export function FoaieColectiva({
                 <tr key={rand.angajatId ?? "own"}>
                   <th
                     scope="row"
-                    className="sticky left-0 z-10 border-r border-border bg-background px-3 py-2 text-left font-normal whitespace-nowrap"
+                    className="border-border bg-background sticky left-0 z-10 border-r px-3 py-2 text-left font-normal whitespace-nowrap"
                   >
                     {rand.eticheta}
                   </th>
@@ -239,7 +242,10 @@ export function FoaieColectiva({
                     const needitabilaDinConcediu = intrare?.esteDinConcediu === true;
                     const needitabilaAprobata = intrare?.aprobat === true && !poateAproba;
                     const needitabila =
-                      !poateEdita || perioadaBlocata || needitabilaDinConcediu || needitabilaAprobata;
+                      !poateEdita ||
+                      perioadaBlocata ||
+                      needitabilaDinConcediu ||
+                      needitabilaAprobata;
 
                     const titlu = needitabilaDinConcediu
                       ? "Completat din concediul aprobat — se modifică din modulul Concedii"
@@ -254,7 +260,9 @@ export function FoaieColectiva({
                         <span className="text-muted-foreground">—</span>
                       ) : (
                         <span className="tabular-nums">
-                          {intrare.oreLucrate > 0 ? intrare.oreLucrate : ETICHETE_TIP_ZI[intrare.tipZi].slice(0, 3)}
+                          {intrare.oreLucrate > 0
+                            ? intrare.oreLucrate
+                            : ETICHETE_TIP_ZI[intrare.tipZi].slice(0, 3)}
                         </span>
                       );
 
@@ -266,7 +274,7 @@ export function FoaieColectiva({
                           key={zi}
                           aria-disabled="true"
                           title={titlu}
-                          className={`border-r border-border px-1 py-2 text-center text-xs ${clasaFundal}`}
+                          className={`border-border border-r px-1 py-2 text-center text-xs ${clasaFundal}`}
                         >
                           {continut}
                         </td>
@@ -274,26 +282,33 @@ export function FoaieColectiva({
                     }
 
                     return (
-                      <td key={zi} className={`border-r border-border p-0 text-center text-xs ${clasaFundal}`}>
+                      <td
+                        key={zi}
+                        className={`border-border border-r p-0 text-center text-xs ${clasaFundal}`}
+                      >
                         <button
                           type="button"
                           onClick={() => {
-                            setSelectie({ angajatId: rand.angajatId, eticheta: rand.eticheta, data: zi });
+                            setSelectie({
+                              angajatId: rand.angajatId,
+                              eticheta: rand.eticheta,
+                              data: zi,
+                            });
                           }}
-                          className="w-full px-1 py-2 hover:outline-2 hover:-outline-offset-2 hover:outline-ring"
+                          className="hover:outline-ring w-full px-1 py-2 hover:outline-2 hover:-outline-offset-2"
                         >
                           {continut}
                         </button>
                       </td>
                     );
                   })}
-                  <td className="px-2 py-2 text-right tabular-nums text-muted-foreground">
+                  <td className="text-muted-foreground px-2 py-2 text-right tabular-nums">
                     {oreAsteptateLuna}
                   </td>
                   <td className="px-2 py-2 text-right tabular-nums">{totalOre}</td>
                   <td className="px-2 py-2 text-right tabular-nums">{totalSuplimentar}</td>
                   <td className="px-2 py-2 text-right tabular-nums">{totalNoapte}</td>
-                  <td className="px-2 py-2 text-left text-xs text-muted-foreground">
+                  <td className="text-muted-foreground px-2 py-2 text-left text-xs">
                     {speciale.length === 0
                       ? "—"
                       : speciale.map((s) => `${ETICHETE_TIP_ZI[s.tip]}: ${s.numar}`).join(", ")}
@@ -304,7 +319,7 @@ export function FoaieColectiva({
           </tbody>
           <tfoot className="bg-surface font-medium">
             <tr>
-              <th scope="row" className="sticky left-0 z-10 bg-surface px-3 py-2 text-left">
+              <th scope="row" className="bg-surface sticky left-0 z-10 px-3 py-2 text-left">
                 Total pe pagina curentă ({randuri.length} angajați)
               </th>
               {zile.map((zi) => (
@@ -312,7 +327,7 @@ export function FoaieColectiva({
                   {totaluriColoana.get(zi) ?? 0}
                 </td>
               ))}
-              <td className="px-2 py-2 text-right tabular-nums text-muted-foreground">
+              <td className="text-muted-foreground px-2 py-2 text-right tabular-nums">
                 {oreAsteptateLuna * randuri.length}
               </td>
               <td className="px-2 py-2 text-right tabular-nums">{totalGeneral}</td>
@@ -324,21 +339,33 @@ export function FoaieColectiva({
         </table>
       </div>
 
-      <p className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+      <p className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs">
         <span>
-          <span aria-hidden="true" className="mr-1 inline-block size-3 rounded bg-surface align-middle" />
+          <span
+            aria-hidden="true"
+            className="bg-surface mr-1 inline-block size-3 rounded align-middle"
+          />
           Weekend (S/D)
         </span>
         <span>
-          <span aria-hidden="true" className="mr-1 inline-block size-3 rounded bg-warning/12 align-middle" />
+          <span
+            aria-hidden="true"
+            className="bg-warning/12 mr-1 inline-block size-3 rounded align-middle"
+          />
           Sărbătoare legală (*)
         </span>
         <span>
-          <span aria-hidden="true" className="mr-1 inline-block size-3 rounded bg-surface align-middle" />
+          <span
+            aria-hidden="true"
+            className="bg-surface mr-1 inline-block size-3 rounded align-middle"
+          />
           Concediu
         </span>
         <span>
-          <span aria-hidden="true" className="mr-1 inline-block size-3 rounded bg-purple-50 align-middle" />
+          <span
+            aria-hidden="true"
+            className="mr-1 inline-block size-3 rounded bg-purple-50 align-middle"
+          />
           Medical
         </span>
       </p>

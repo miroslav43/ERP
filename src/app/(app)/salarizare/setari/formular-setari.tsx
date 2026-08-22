@@ -26,7 +26,11 @@ function pragGol(): RandPrag {
   };
 }
 
-export function FormularSetari({ setariCurente }: { readonly setariCurente: SetariSalarizare | null }) {
+export function FormularSetari({
+  setariCurente,
+}: {
+  readonly setariCurente: SetariSalarizare | null;
+}) {
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
   const [eroare, setEroare] = useState<string | null>(null);
@@ -36,7 +40,8 @@ export function FormularSetari({ setariCurente }: { readonly setariCurente: Seta
       ? setariCurente.praguri.map((p) => ({
           cheie: (urmatoareaCheie += 1),
           nr_persoane_intretinere_min: String(p.nr_persoane_intretinere_min),
-          nr_persoane_intretinere_max: p.nr_persoane_intretinere_max === null ? "" : String(p.nr_persoane_intretinere_max),
+          nr_persoane_intretinere_max:
+            p.nr_persoane_intretinere_max === null ? "" : String(p.nr_persoane_intretinere_max),
           venit_brut_max: String(p.venit_brut_max),
           valoare: String(p.valoare),
         }))
@@ -54,7 +59,9 @@ export function FormularSetari({ setariCurente }: { readonly setariCurente: Seta
   const idTichet = useId();
 
   function actualizeazaPrag(cheie: number, camp: keyof RandPrag, valoare: string): void {
-    setPraguri((anterior) => anterior.map((p) => (p.cheie === cheie ? { ...p, [camp]: valoare } : p)));
+    setPraguri((anterior) =>
+      anterior.map((p) => (p.cheie === cheie ? { ...p, [camp]: valoare } : p)),
+    );
   }
 
   function trimite(formular: FormData): void {
@@ -76,7 +83,10 @@ export function FormularSetari({ setariCurente }: { readonly setariCurente: Seta
         rotunjire_lei: formular.get("rotunjire_lei") === "on",
         praguri: praguri.map((p) => ({
           nr_persoane_intretinere_min: Number(p.nr_persoane_intretinere_min),
-          nr_persoane_intretinere_max: p.nr_persoane_intretinere_max.trim() === "" ? null : Number(p.nr_persoane_intretinere_max),
+          nr_persoane_intretinere_max:
+            p.nr_persoane_intretinere_max.trim() === ""
+              ? null
+              : Number(p.nr_persoane_intretinere_max),
           venit_brut_max: Number(p.venit_brut_max),
           valoare: Number(p.valoare),
         })),
@@ -238,7 +248,11 @@ export function FormularSetari({ setariCurente }: { readonly setariCurente: Seta
           Tichetele intră în baza de impozit
         </label>
         <label className="flex items-center gap-2">
-          <input type="checkbox" name="rotunjire_lei" defaultChecked={setariCurente?.rotunjire_lei ?? false} />
+          <input
+            type="checkbox"
+            name="rotunjire_lei"
+            defaultChecked={setariCurente?.rotunjire_lei ?? false}
+          />
           Rotunjire la leu întreg
         </label>
       </div>

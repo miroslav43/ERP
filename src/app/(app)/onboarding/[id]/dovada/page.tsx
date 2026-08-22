@@ -14,11 +14,7 @@ import { idDinRuta } from "@/lib/rute/parametri";
 import { angajatiDupaId, citesteInstanta, dovadaParcurgerii } from "@/lib/queries/checklist";
 import { continutDovadaSchema } from "@/schemas/checklist";
 
-import {
-  ETICHETE_STATUS_ITEM,
-  ETICHETE_TIP,
-  ETICHETE_TIP_DOVADA,
-} from "../../etichete";
+import { ETICHETE_STATUS_ITEM, ETICHETE_TIP, ETICHETE_TIP_DOVADA } from "../../etichete";
 import { ButonTiparire } from "./buton-tiparire";
 
 export const metadata: Metadata = { title: "Dovada de parcurgere" };
@@ -51,7 +47,7 @@ export default async function PaginaDovada({ params }: ProprietatiPagina) {
   if (dovada === null) {
     return (
       <main className="mx-auto w-full max-w-3xl space-y-6 p-6">
-        <p className="print:hidden text-sm text-muted-foreground">
+        <p className="text-muted-foreground text-sm print:hidden">
           <Link href={`/onboarding/${id}`} className="underline-offset-2 hover:underline">
             Înapoi la checklist
           </Link>
@@ -76,18 +72,20 @@ export default async function PaginaDovada({ params }: ProprietatiPagina) {
     : undefined;
 
   return (
-    <main className="mx-auto w-full max-w-3xl space-y-6 bg-background p-6 text-black print:p-0">
-      <div className="print:hidden flex items-center justify-between">
+    <main className="bg-background mx-auto w-full max-w-3xl space-y-6 p-6 text-black print:p-0">
+      <div className="flex items-center justify-between print:hidden">
         <Link href={`/onboarding/${id}`} className="text-sm underline-offset-2 hover:underline">
           Înapoi la checklist
         </Link>
         <ButonTiparire />
       </div>
 
-      <header className="space-y-1 border-b border-foreground/60 pb-4 print:break-inside-avoid">
+      <header className="border-foreground/60 space-y-1 border-b pb-4 print:break-inside-avoid">
         <h1 className="text-xl font-semibold">Dovadă de parcurgere a checklistului</h1>
         <p className="text-sm">
-          {angajat === undefined ? "Angajat" : `${angajat.full_name ?? angajat.marca} (${angajat.marca})`}{" "}
+          {angajat === undefined
+            ? "Angajat"
+            : `${angajat.full_name ?? angajat.marca} (${angajat.marca})`}{" "}
           · {ETICHETE_TIP[dovada.tip]} · Ciclul {dovada.ciclu}
         </p>
         <p className="text-sm">Finalizată la {formatDateTime(dovada.finalizata_la)}</p>
@@ -95,7 +93,7 @@ export default async function PaginaDovada({ params }: ProprietatiPagina) {
           {dovada.pasi_bifati} din {dovada.total_pasi} pași bifați, {dovada.pasi_obligatorii}{" "}
           obligatorii
         </p>
-        <p className="font-mono text-xs text-muted-foreground">
+        <p className="text-muted-foreground font-mono text-xs">
           Amprenta documentului: {dovada.continut_checksum}
         </p>
       </header>
@@ -103,7 +101,7 @@ export default async function PaginaDovada({ params }: ProprietatiPagina) {
       <table className="w-full border-collapse text-sm">
         <caption className="sr-only">Pașii checklistului, așa cum erau la finalizare.</caption>
         <thead>
-          <tr className="border-b border-foreground/60 text-left">
+          <tr className="border-foreground/60 border-b text-left">
             <th scope="col" className="py-2 pr-2 font-medium">
               #
             </th>
@@ -123,13 +121,13 @@ export default async function PaginaDovada({ params }: ProprietatiPagina) {
         </thead>
         <tbody>
           {continut.map((pas) => (
-            <tr key={pas.ordine} className="border-b border-border print:break-inside-avoid">
+            <tr key={pas.ordine} className="border-border border-b print:break-inside-avoid">
               <td className="py-2 pr-2 align-top">{pas.ordine}</td>
               <td className="py-2 pr-2 align-top">
                 {pas.titlu}
                 {pas.obligatoriu ? <span className="ml-1 text-xs">(obligatoriu)</span> : null}
                 {pas.observatii === null ? null : (
-                  <p className="text-xs text-muted-foreground">{pas.observatii}</p>
+                  <p className="text-muted-foreground text-xs">{pas.observatii}</p>
                 )}
               </td>
               <td className="py-2 pr-2 align-top">{ETICHETE_TIP_DOVADA[pas.tip_dovada]}</td>
