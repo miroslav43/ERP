@@ -8618,6 +8618,403 @@ export type Database = {
           },
         ]
       }
+      ticket_attachments: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          denumire: string
+          id: string
+          marime_bytes: number | null
+          mime: string | null
+          organization_id: string
+          storage_path: string
+          ticket_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire: string
+          id?: string
+          marime_bytes?: number | null
+          mime?: string | null
+          organization_id: string
+          storage_path: string
+          ticket_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire?: string
+          id?: string
+          marime_bytes?: number | null
+          mime?: string | null
+          organization_id?: string
+          storage_path?: string
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_attachments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_attachments_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ticket_comments: {
+        Row: {
+          autor_employee_id: string | null
+          continut: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          intern: boolean
+          organization_id: string
+          ticket_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          autor_employee_id?: string | null
+          continut: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          intern?: boolean
+          organization_id: string
+          ticket_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          autor_employee_id?: string | null
+          continut?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          intern?: boolean
+          organization_id?: string
+          ticket_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_comments_autor_employee_id_fkey"
+            columns: ["autor_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_comments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_comments_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ticket_history: {
+        Row: {
+          actor_user_id: string | null
+          camp: string
+          created_at: string
+          id: string
+          motiv: string | null
+          organization_id: string
+          ticket_id: string
+          valoare_noua: string | null
+          valoare_veche: string | null
+        }
+        Insert: {
+          actor_user_id?: string | null
+          camp: string
+          created_at?: string
+          id?: string
+          motiv?: string | null
+          organization_id: string
+          ticket_id: string
+          valoare_noua?: string | null
+          valoare_veche?: string | null
+        }
+        Update: {
+          actor_user_id?: string | null
+          camp?: string
+          created_at?: string
+          id?: string
+          motiv?: string | null
+          organization_id?: string
+          ticket_id?: string
+          valoare_noua?: string | null
+          valoare_veche?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_history_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_history_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ticket_watchers: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          employee_id: string
+          id: string
+          organization_id: string
+          ticket_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          employee_id: string
+          id?: string
+          organization_id: string
+          ticket_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string
+          id?: string
+          organization_id?: string
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_watchers_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_watchers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_watchers_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tickets: {
+        Row: {
+          adresa_livrare: string | null
+          aplicatie: string | null
+          aprobare_ceruta: boolean
+          aprobat_de_employee_id: string | null
+          asignat_employee_id: string | null
+          blocheaza_activitatea: boolean | null
+          closed_at: string | null
+          context: Json | null
+          cost_estimat: number | null
+          created_at: string
+          created_by: string | null
+          decizie_la: string | null
+          deleted_at: string | null
+          denumire_hardware: string | null
+          department_id: string | null
+          descriere: string
+          id: string
+          inventory_item_id: string | null
+          loc_livrare: Database["public"]["Enums"]["ticket_delivery"] | null
+          locatie: string | null
+          modul: string | null
+          motiv_necesitate: string | null
+          motiv_respingere: string | null
+          numar_afisat: string
+          numar_licente: number | null
+          organization_id: string
+          parent_ticket_id: string | null
+          pasi_efectuati: string | null
+          prioritate: Database["public"]["Enums"]["ticket_priority"]
+          prioritate_manuala: boolean
+          prioritate_motiv: string | null
+          rezultat_asteptat: string | null
+          rezultat_obtinut: string | null
+          sla_policy_id: string | null
+          solicitant_employee_id: string
+          status: Database["public"]["Enums"]["ticket_status"]
+          tip: Database["public"]["Enums"]["ticket_type"]
+          titlu: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          adresa_livrare?: string | null
+          aplicatie?: string | null
+          aprobare_ceruta?: boolean
+          aprobat_de_employee_id?: string | null
+          asignat_employee_id?: string | null
+          blocheaza_activitatea?: boolean | null
+          closed_at?: string | null
+          context?: Json | null
+          cost_estimat?: number | null
+          created_at?: string
+          created_by?: string | null
+          decizie_la?: string | null
+          deleted_at?: string | null
+          denumire_hardware?: string | null
+          department_id?: string | null
+          descriere: string
+          id?: string
+          inventory_item_id?: string | null
+          loc_livrare?: Database["public"]["Enums"]["ticket_delivery"] | null
+          locatie?: string | null
+          modul?: string | null
+          motiv_necesitate?: string | null
+          motiv_respingere?: string | null
+          numar_afisat: string
+          numar_licente?: number | null
+          organization_id: string
+          parent_ticket_id?: string | null
+          pasi_efectuati?: string | null
+          prioritate?: Database["public"]["Enums"]["ticket_priority"]
+          prioritate_manuala?: boolean
+          prioritate_motiv?: string | null
+          rezultat_asteptat?: string | null
+          rezultat_obtinut?: string | null
+          sla_policy_id?: string | null
+          solicitant_employee_id: string
+          status?: Database["public"]["Enums"]["ticket_status"]
+          tip: Database["public"]["Enums"]["ticket_type"]
+          titlu: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          adresa_livrare?: string | null
+          aplicatie?: string | null
+          aprobare_ceruta?: boolean
+          aprobat_de_employee_id?: string | null
+          asignat_employee_id?: string | null
+          blocheaza_activitatea?: boolean | null
+          closed_at?: string | null
+          context?: Json | null
+          cost_estimat?: number | null
+          created_at?: string
+          created_by?: string | null
+          decizie_la?: string | null
+          deleted_at?: string | null
+          denumire_hardware?: string | null
+          department_id?: string | null
+          descriere?: string
+          id?: string
+          inventory_item_id?: string | null
+          loc_livrare?: Database["public"]["Enums"]["ticket_delivery"] | null
+          locatie?: string | null
+          modul?: string | null
+          motiv_necesitate?: string | null
+          motiv_respingere?: string | null
+          numar_afisat?: string
+          numar_licente?: number | null
+          organization_id?: string
+          parent_ticket_id?: string | null
+          pasi_efectuati?: string | null
+          prioritate?: Database["public"]["Enums"]["ticket_priority"]
+          prioritate_manuala?: boolean
+          prioritate_motiv?: string | null
+          rezultat_asteptat?: string | null
+          rezultat_obtinut?: string | null
+          sla_policy_id?: string | null
+          solicitant_employee_id?: string
+          status?: Database["public"]["Enums"]["ticket_status"]
+          tip?: Database["public"]["Enums"]["ticket_type"]
+          titlu?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tickets_aprobat_de_employee_id_fkey"
+            columns: ["aprobat_de_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_asignat_employee_id_fkey"
+            columns: ["asignat_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_parent_ticket_id_fkey"
+            columns: ["parent_ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_solicitant_employee_id_fkey"
+            columns: ["solicitant_employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trip_expenses: {
         Row: {
           aprobata: boolean
@@ -9251,6 +9648,10 @@ export type Database = {
     }
     Functions: {
       accept_invitation: { Args: { p_token: string }; Returns: string }
+      aloca_numar_tichet: {
+        Args: { p_organization_id: string }
+        Returns: string
+      }
       aplica_drepturi_concediu: {
         Args: { p_an: number; p_organization_id: string; p_simulare?: boolean }
         Returns: {
@@ -9644,6 +10045,19 @@ export type Database = {
         | "past_due"
         | "canceled"
         | "expired"
+      ticket_delivery: "birou" | "domiciliu"
+      ticket_priority: "scazuta" | "normala" | "ridicata" | "critica"
+      ticket_status:
+        | "nou"
+        | "in_aprobare"
+        | "respins"
+        | "in_lucru"
+        | "in_asteptare"
+        | "rezolvat"
+        | "inchis"
+        | "anulat"
+        | "redeschis"
+      ticket_type: "software" | "hardware" | "defectiune" | "bug_erp"
       trip_expense_type:
         | "cazare"
         | "transport"
@@ -10078,6 +10492,20 @@ export const Constants = {
         "canceled",
         "expired",
       ],
+      ticket_delivery: ["birou", "domiciliu"],
+      ticket_priority: ["scazuta", "normala", "ridicata", "critica"],
+      ticket_status: [
+        "nou",
+        "in_aprobare",
+        "respins",
+        "in_lucru",
+        "in_asteptare",
+        "rezolvat",
+        "inchis",
+        "anulat",
+        "redeschis",
+      ],
+      ticket_type: ["software", "hardware", "defectiune", "bug_erp"],
       trip_expense_type: [
         "cazare",
         "transport",
