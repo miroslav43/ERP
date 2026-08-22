@@ -71,6 +71,15 @@ const TRADUCERI: readonly Readonly<{ tipar: RegExp; code: ActionErrorCode; messa
       "Organizația trebuie să rămână cu cel puțin un administrator activ. Promovează pe altcineva înainte de această modificare.",
   },
   {
+    // ÎNAINTEA regulii de duplicat: 42P10 („there is no unique or exclusion
+    // constraint matching the ON CONFLICT specification”) conține cuvântul
+    // „unique”, deci era raportat drept duplicat și trimitea diagnosticul pe o
+    // pistă greșită. Nu e un conflict de date, ci o interogare greșită.
+    tipar: /no unique or exclusion constraint/i,
+    code: "EROARE_INTERNA",
+    message: "Operațiunea nu a putut fi finalizată din cauza unei erori interne.",
+  },
+  {
     tipar: /duplicate key|already exists|unique/i,
     code: "CONFLICT",
     message: "Există deja o înregistrare cu aceste date.",

@@ -1,3 +1,5 @@
+import { fileURLToPath } from "node:url";
+
 import { defineConfig } from "vitest/config";
 
 /**
@@ -23,8 +25,12 @@ export default defineConfig({
           // ceea ce ar face netestabile funcțiile pure din fișierele marcate
           // `server-only`. Aliasul e strict pentru teste; build-ul folosește
           // pachetul adevărat.
+          // `fileURLToPath`, NU `.pathname`: pe Windows acesta din urmă întoarce
+          // `/C:/Users/...`, cu bară în față, iar Vite nu rezolvă calea — toate
+          // testele care ating un fișier `server-only` cădeau local cu „Cannot
+          // find package 'server-only'”. Pe Linux, în CI, trecea.
           alias: {
-            "server-only": new URL("./tests/stub/server-only.ts", import.meta.url).pathname,
+            "server-only": fileURLToPath(new URL("./tests/stub/server-only.ts", import.meta.url)),
           },
         },
         test: {
