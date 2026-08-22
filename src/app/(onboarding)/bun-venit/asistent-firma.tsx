@@ -112,6 +112,29 @@ export function AsistentFirma({ numeFirma, valoriInitiale }: Props) {
         `Salvarea a eșuat neașteptat: ${eroare instanceof Error ? eroare.message : String(eroare)}. Reîncearcă.`,
       );
     }
+  },
+  // A DOUA funcție a lui `handleSubmit`: ce se întâmplă când validarea pică.
+  // Fără ea, apăsarea pe „Finalizează" cu un câmp invalid pe un pas pe care
+  // nu-l vezi nu face NIMIC — niciun mesaj, niciun apel, niciun indiciu. Cu
+  // navigarea liberă între pași, situația a devenit ușor de nimerit.
+  (erori) => {
+    const campuriGresite = Object.keys(erori);
+    const pasi = campuriGresite
+      .map((camp) =>
+        Number(
+          Object.entries(CAMPURI_PAS).find(([, campuri]) =>
+            (campuri as readonly string[]).includes(camp),
+          )?.[0] ?? 0,
+        ),
+      )
+      .filter((pas) => pas > 0);
+    const primul = pasi.length > 0 ? Math.min(...pasi) : 1;
+    setPasCurent(primul);
+    setEroareServer(
+      campuriGresite.length === 1
+        ? "Un câmp obligatoriu lipsește sau e greșit. L-am deschis mai jos."
+        : `${campuriGresite.length} câmpuri obligatorii lipsesc sau sunt greșite. Am deschis primul pas cu probleme.`,
+    );
   });
 
   return (

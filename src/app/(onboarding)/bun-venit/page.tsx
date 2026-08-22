@@ -39,6 +39,26 @@ export default async function PaginaBunVenit() {
   if (stare !== "pending") redirect(RUTA_DUPA_AUTENTIFICARE);
 
   const supabase = await createServerSupabase();
+
+  // Datele proprietarului: administratorul E proprietarul, deci pasul 6 îi e
+  // ascuns — dar schema le cere, fiindcă e aceeași cu cea de la înrolare. Fără
+  // pre-completarea de aici, `handleSubmit` ar pica tăcut pe validare și butonul
+  // „Finalizează" n-ar face NIMIC: nicio eroare vizibilă, niciun apel la server.
+  const { data: profil } = await supabase
+    .from("profiles")
+    .select("full_name, email")
+    .eq("id", rezolvare.user.id)
+    .maybeSingle();
+
+  const numeIntreg = (profil?.full_name ?? "").trim();
+  const spatiu = numeIntreg.lastIndexOf(" ");
+  // „Popescu Ion" -> nume „Popescu", prenume „Ion". Când nu există spațiu,
+  // punem același text în ambele: sunt obligatorii, iar administratorul le
+  // poate corecta oricând din Setări → Organizație.
+  const numeProprietar = spatiu === -1 ? numeIntreg : numeIntreg.slice(0, spatiu);
+  const prenumeProprietar = spatiu === -1 ? numeIntreg : numeIntreg.slice(spatiu + 1);
+  const emailProprietar = profil?.email ?? rezolvare.user.email;
+
   const { data: firma } = await supabase
     .from("organizations")
     .select(
@@ -66,6 +86,15 @@ export default async function PaginaBunVenit() {
     ...(firma?.judet ? { judet: firma.judet } : {}),
     ...(firma?.oras ? { oras: firma.oras } : {}),
     ...(firma?.sector ? { sector: firma.sector } : {}),
+
+    // Obligatorii în schemă, invizibile în interfață.
+    owner_nume: numeProprietar || emailProprietar,
+    owner_prenume: prenumeProprietar || emailProprietar,
+    owner_email: emailProprietar,
+    // `plan` și `seats_limit` vin din firma deja creată; acțiunea le ignoră,
+    // dar schema le cere ca să treacă validarea.
+    plan: "trial" as const,
+    seats_limit: 10,
   } as Partial<OnboardeazaOrganizatieInput>;
 
   return (

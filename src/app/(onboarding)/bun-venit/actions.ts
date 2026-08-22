@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { createAction } from "@/lib/actions/create-action";
+import { createAdminSupabase } from "@/lib/supabase/admin";
 import { businessRule } from "@/lib/actions/errors";
 import { amprentaSensibila, catreBytea, encrypt, versiuneCaNumar } from "@/lib/crypto/aes-gcm";
 import { completeazaFirmaSchema } from "@/schemas/organization";
@@ -147,6 +148,39 @@ export const completeazaDateleFirmei = createAction({
       });
       if (eroarePunct) throw eroarePunct;
     }
+
+    // Setările de salarizare pornesc cu cotele statutare curente — editabile
+    // ulterior din /salarizare/setari, unde stă și avertismentul „neverificat
+    // de contabil". Oglindă a ceea ce face `onboardeazaOrganizatie` la crearea
+    // completă; fără ele, prima încercare de stat de plată n-are pe ce se baza.
+    //
+    // `createAdminSupabase()` ocolește RLS DELIBERAT, și e singura cale care
+    // funcționează: politica `payroll_settings_insert` cere
+    // `app.feature_on(organization_id, 'payroll')`, iar la crearea minimă se
+    // activează doar modulele `is_core` — `payroll` nu e printre ele. Cu
+    // clientul de sesiune, inserarea ar fi refuzată TĂCUT: zero rânduri, nicio
+    // eroare, iar lipsa s-ar afla abia la prima salarizare.
+    //
+    // Filtrul pe organizație e explicit prin `organization_id` de mai jos, iar
+    // dreptul de a ajunge aici a fost deja verificat de `createAction`.
+    const admin = createAdminSupabase();
+    const { error: eroareSetari } = await admin.from("payroll_settings").insert({
+      organization_id: organizatie.id,
+      valabil_de_la: ctx.now.toISOString().slice(0, 10),
+      cota_cas: 0.25,
+      cota_cass: 0.1,
+      cota_impozit: 0.1,
+      cota_cam_angajator: 0.0225,
+      plata_avans: input.plata_avans,
+      ...(input.ziua_plata_avans === undefined ? {} : { ziua_plata_avans: input.ziua_plata_avans }),
+      ...(input.ziua_plata_lichidare === undefined
+        ? {}
+        : { ziua_plata_lichidare: input.ziua_plata_lichidare }),
+      ...(input.tichete_furnizor === undefined ? {} : { tichete_furnizor: input.tichete_furnizor }),
+      created_by: ctx.user.id,
+      updated_by: ctx.user.id,
+    });
+    if (eroareSetari) throw eroareSetari;
 
     // Layout-ul aplicației citește starea firmei memoizat, per request; după
     // activare, următoarea navigare trebuie să vadă `active`, nu cache-ul.
