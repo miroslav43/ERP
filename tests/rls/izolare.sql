@@ -1172,6 +1172,15 @@ declare
   v_sub_alfa   uuid := pg_temp.id('sub_alfa');
   v_dep_alfa   uuid := pg_temp.id('dep_alfa');
   v_equip      uuid := pg_temp.id('equip_alfa');
+  -- `super_admin` NU e niciodată în `organization_members` — un CHECK din
+  -- 0001_kernel.sql îl interzice. Sursa lui e `platform_admins`, iar accesul
+  -- trece prin `app.is_platform_admin()`, prima ramură OR a aproape fiecărei
+  -- politici SELECT. Fixture-ul n-avea niciun rând acolo, deci al cincilea rol
+  -- nu era dovedit capabil de nimic.
+  v_sa_user    uuid := gen_random_uuid();
+  v_veh_sub    uuid;
+  v_foaie_sub  uuid;
+  v_randuri    integer;
   v_scapate    text := '';
   v_caz        record;
   v_leave_type uuid;
@@ -1402,6 +1411,75 @@ begin
     reset role;
   end loop;
 
+  -- ───────────────────────────────────────────────────────────────────────
+  -- Rolul `super_admin` și aprobarea pe echipă a managerului.
+  -- ───────────────────────────────────────────────────────────────────────
+  insert into auth.users (id, email) values (v_sa_user, 'platforma-' || left(v_rand, 8) || '@test.test');
+  insert into public.profiles (id, email, full_name)
+  values (v_sa_user, 'platforma-' || left(v_rand, 8) || '@test.test', 'Administrator de platformă')
+  on conflict (id) do nothing;
+  insert into public.platform_admins (user_id) values (v_sa_user);
+
+  -- Foaia de parcurs a subordonatului, COMPLETĂ: triggerul de flotă cere ora și
+  -- kilometrajul de sosire înainte de aprobare (P0001). Fără ele, proba ar fi
+  -- picat pe o regulă de business și ar fi părut un refuz de permisiune.
+  select id into v_veh_sub from public.vehicles
+   where organization_id = v_alfa and deleted_at is null limit 1;
+  insert into public.trip_sheets (organization_id, vehicle_id, employee_id,
+                                  plecare_la, km_plecare, sosire_la, km_sosire, status)
+  values (v_alfa, v_veh_sub, v_sub_alfa, now() - interval '2 hours', 1000,
+          now() - interval '1 hour', 1120, 'trimis')
+  returning id into v_foaie_sub;
+
+  -- 1) `super_admin` comută un modul. `org_admin` are doar `features:read`,
+  --    deci ecranul de module e exclusiv al platformei.
+  perform set_config('request.jwt.claim.sub', v_sa_user::text, true);
+  set local role authenticated;
+  begin
+    insert into public.organization_features (organization_id, feature_key, enabled)
+    values (v_alfa, 'evaluations', true);
+    v_reusite := v_reusite || E'\n  super_admin -> organization_features (comută un modul)';
+  exception when others then
+    v_esuate := v_esuate || format(E'\n  super_admin -> organization_features: %s (%s)', sqlerrm, sqlstate);
+  end;
+  reset role;
+
+  -- 2) `super_admin` scrie o coloană rezervată platformei. Verificarea (k)
+  --    demonstrează că `org_admin` NU poate; asta demonstrează reversul —
+  --    altfel garda ar putea fi închisă pentru toată lumea, iar (k) ar trece
+  --    exact la fel.
+  perform set_config('request.jwt.claim.sub', v_sa_user::text, true);
+  set local role authenticated;
+  begin
+    update public.organizations set seats_limit = 99 where id = v_alfa;
+    get diagnostics v_randuri = row_count;
+    if v_randuri = 0 then
+      raise exception using errcode = 'P0001', message = 'zero rânduri afectate';
+    end if;
+    v_reusite := v_reusite || E'\n  super_admin -> organizations.seats_limit (coloană de platformă)';
+  exception when others then
+    v_esuate := v_esuate || format(E'\n  super_admin -> organizations.seats_limit: %s (%s)', sqlerrm, sqlstate);
+  end;
+  reset role;
+
+  -- 3) Managerul aprobă foaia de parcurs a subordonatului SĂU. Cu
+  --    `trip_sheets:approve = team`, ramura a doua din `foi_update` se închide
+  --    prin `app.is_manager_of` — deci exact lanțul manager → subordonat.
+  perform set_config('request.jwt.claim.sub', v_mgr_user::text, true);
+  set local role authenticated;
+  begin
+    update public.trip_sheets set status = 'aprobat' where id = v_foaie_sub;
+    get diagnostics v_randuri = row_count;
+    if v_randuri = 0 then
+      raise exception using errcode = 'P0001',
+        message = 'zero rânduri — refuz TĂCUT al politicii, exact capcana 17';
+    end if;
+    v_reusite := v_reusite || E'\n  manager -> trip_sheets (aprobă foaia subordonatului)';
+  exception when others then
+    v_esuate := v_esuate || format(E'\n  manager -> trip_sheets (foaia subordonatului): %s (%s)', sqlerrm, sqlstate);
+  end;
+  reset role;
+
   if v_scapate <> '' then
     perform pg_temp.esueaza(format(
       E'(l) SCRIERI CARE TREBUIAU REFUZATE AU TRECUT — gaură de permisiuni:%s', v_scapate));
@@ -1416,7 +1494,7 @@ begin
       E'(l) SCRIERI LEGITIME RESPINSE — defect real în politică sau trigger, nu în test:%s', v_esuate));
   end if;
 
-  raise notice '(l) toate cele patru roluri de organizație (org_admin, hr, manager, employee) pot scrie ce au voie și SUNT refuzate unde nu au ✓';
+  raise notice '(l) toate cele CINCI roluri (super_admin, org_admin, hr, manager, employee) pot scrie ce au voie și SUNT refuzate unde nu au ✓';
 end $$;
 
 rollback;

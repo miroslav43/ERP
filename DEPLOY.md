@@ -117,6 +117,25 @@ real nu intră în vreun layer**, nici măcar în cel aruncat.
 > **Fă o copie a `HR_ENCRYPTION_KEYS` în afara acestui VM.** Pierderea ei înseamnă pierderea
 > definitivă a tuturor CNP-urilor și IBAN-urilor din bază.
 
+### Ce vede `docker inspect`
+
+Injectarea prin `environment:` face secretele vizibile în `docker inspect <container>` →
+`.Config.Env`, pentru oricine e în grupul `docker` pe VM. E comportamentul normal al variabilelor
+de mediu, nu o scurgere — dar înseamnă că **accesul la Docker pe acest VM echivalează cu accesul la
+cheia de criptare a CNP-urilor**. Grupul `docker` are azi un singur membru (`miro`); dacă mai apare
+unul, ăsta e pragul care trebuie recitit.
+
+Întărirea, când merită efortul: `docker secret create` + `secrets:` în `docker-stack.yml` montează
+valorile ca fișiere în `/run/secrets/`, nu în mediu. `docker-stack.yml` n-are azi niciun bloc
+`secrets:`.
+
+**Regula care nu se încalcă niciodată**: un secret NU se pasează ca argument de linie de comandă.
+S-a întâmplat o dată — un container de diagnostic pornit manual în timpul deploy-ului căuta prin
+sistemul de fișiere după valoarea literală a `HR_ENCRYPTION_KEYS`, ca să verifice că nu s-a scurs
+în straturile imaginii. Verificarea era corectă; metoda a lăsat cheia în `.Config.Cmd`, unde a stat
+25 de ore. Pentru astfel de scanări, pasează valoarea prin `--env-file` sau prin stdin, niciodată
+în `Cmd`.
+
 ---
 
 ## Configurări din afara repo-ului
