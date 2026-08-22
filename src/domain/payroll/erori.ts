@@ -29,6 +29,8 @@ export const CODURI_PROBLEMA = [
   "SAL_SPOR_SARBATOARE_NECONFIGURAT",
   "SAL_SPOR_REPAUS_NECONFIGURAT",
   "SAL_TICHETE_REGIM_NECONFIRMAT",
+  "SAL_CAS_LA_MINIM",
+  "SAL_AVANTAJ_NATURA_PESTE_NET",
   "SAL_CM_NECALCULAT",
   "SAL_CO_BAZA_SIMPLIFICATA",
   "SAL_SCUTIRE_FARA_PROCENT",
@@ -132,6 +134,24 @@ const CATALOG: Readonly<Record<CodProblema, IntrareCatalog>> = {
     cumSeRepara:
       "Confirmați cu contabilul dacă tichetele se supun CASS, potriviți comutatorul din setările de salarizare și bifați setările ca verificate.",
     unde: "/salarizare/setari",
+  },
+  SAL_CAS_LA_MINIM: {
+    severitate: "informativ",
+    mesaj: "Baza de contribuții a fost ridicată la salariul minim.",
+    cauza:
+      "Venitul brut al lunii e sub salariul minim, iar contribuțiile se calculează cel puțin la acesta.",
+    cumSeRepara:
+      "Verificați dacă angajatul se încadrează într-o excepție legală (elev sau student sub 26 de ani, pensionar, persoană cu handicap, cumul de contracte). Excepțiile nu sunt încă înregistrate în aplicație, deci motorul nu le poate aplica singur.",
+    unde: "/angajati",
+  },
+  SAL_AVANTAJ_NATURA_PESTE_NET: {
+    severitate: "avertisment",
+    mesaj: "Avantajele primite în natură depășesc netul rămas de virat.",
+    cauza:
+      "Valoarea avantajelor intră în brut și se impozitează, apoi se scade din suma virată. Când depășește netul, nu mai rămâne nimic de plătit și diferența nu poate fi reținută dintr-o sumă inexistentă.",
+    cumSeRepara:
+      "Verificați evaluarea avantajelor pe fișa angajatului. Diferența trebuie recuperată separat, nu prin restul de plată.",
+    unde: "/angajati",
   },
   SAL_CM_NECALCULAT: {
     severitate: "avertisment",

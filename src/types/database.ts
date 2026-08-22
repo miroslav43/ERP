@@ -6562,6 +6562,7 @@ export type Database = {
       }
       payroll_entries: {
         Row: {
+          avantaje_natura: number
           baza_cas: number
           baza_cas_cass: number
           baza_cass: number
@@ -6594,6 +6595,7 @@ export type Database = {
           organization_id: string
           period_id: string
           prime_total: number
+          rest_de_plata: number
           retineri_total: number
           scutire_fiscala: number
           settings_snapshot: Json
@@ -6614,6 +6616,7 @@ export type Database = {
           zile_sarbatoare_lucrate: number
         }
         Insert: {
+          avantaje_natura?: number
           baza_cas?: number
           baza_cas_cass?: number
           baza_cass?: number
@@ -6646,6 +6649,7 @@ export type Database = {
           organization_id: string
           period_id: string
           prime_total?: number
+          rest_de_plata?: number
           retineri_total?: number
           scutire_fiscala?: number
           settings_snapshot: Json
@@ -6666,6 +6670,7 @@ export type Database = {
           zile_sarbatoare_lucrate?: number
         }
         Update: {
+          avantaje_natura?: number
           baza_cas?: number
           baza_cas_cass?: number
           baza_cass?: number
@@ -6698,6 +6703,7 @@ export type Database = {
           organization_id?: string
           period_id?: string
           prime_total?: number
+          rest_de_plata?: number
           retineri_total?: number
           scutire_fiscala?: number
           settings_snapshot?: Json
@@ -6913,6 +6919,7 @@ export type Database = {
       }
       payroll_settings: {
         Row: {
+          aplica_minim_contributii: boolean
           cota_cam_angajator: number
           cota_cas: number
           cota_cass: number
@@ -6929,6 +6936,7 @@ export type Database = {
           procent_spor_noapte: number
           procent_spor_weekend: number
           rotunjire_lei: boolean
+          salariu_minim_brut: number
           tichete_furnizor: string | null
           tichete_impozabile: boolean
           tichete_supuse_cass: boolean
@@ -6942,6 +6950,7 @@ export type Database = {
           ziua_plata_lichidare: number | null
         }
         Insert: {
+          aplica_minim_contributii?: boolean
           cota_cam_angajator: number
           cota_cas: number
           cota_cass: number
@@ -6958,6 +6967,7 @@ export type Database = {
           procent_spor_noapte?: number
           procent_spor_weekend?: number
           rotunjire_lei?: boolean
+          salariu_minim_brut?: number
           tichete_furnizor?: string | null
           tichete_impozabile?: boolean
           tichete_supuse_cass?: boolean
@@ -6971,6 +6981,7 @@ export type Database = {
           ziua_plata_lichidare?: number | null
         }
         Update: {
+          aplica_minim_contributii?: boolean
           cota_cam_angajator?: number
           cota_cas?: number
           cota_cass?: number
@@ -6987,6 +6998,7 @@ export type Database = {
           procent_spor_noapte?: number
           procent_spor_weekend?: number
           rotunjire_lei?: boolean
+          salariu_minim_brut?: number
           tichete_furnizor?: string | null
           tichete_impozabile?: boolean
           tichete_supuse_cass?: boolean

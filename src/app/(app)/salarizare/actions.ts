@@ -50,6 +50,8 @@ export const salveazaSetari = createAction({
         valoare_tichet_masa: input.valoare_tichet_masa,
         tichete_impozabile: input.tichete_impozabile,
         tichete_supuse_cass: input.tichete_supuse_cass,
+        salariu_minim_brut: input.salariu_minim_brut,
+        aplica_minim_contributii: input.aplica_minim_contributii,
         rotunjire_lei: input.rotunjire_lei,
       })
       .select("id")
@@ -156,6 +158,8 @@ function laSetariSnapshot(
       valoare: p.valoare,
     })),
     rotunjireLei: setari.rotunjire_lei,
+    salariuMinimBrut: setari.salariu_minim_brut,
+    aplicaMinimContributii: setari.aplica_minim_contributii,
   };
 }
 
@@ -305,6 +309,9 @@ export const calculeazaPerioada = createAction({
             supusContributii: c.supusContributii,
             intraInBazaCas: c.intraInBazaCas,
             intraInBazaCass: c.intraInBazaCass,
+            // Mașina de serviciu, cazarea, abonamentul: intră în brut și se
+            // impozitează, dar nu se plătesc a doua oară în bani.
+            esteAvantajInNatura: c.kind === "beneficiu_natura",
           })),
         ],
         deductions: (retineriPeAngajat.get(angajat.employee_id) ?? []).map((r) => ({
@@ -353,6 +360,8 @@ export const calculeazaPerioada = createAction({
         net: rezultat.net,
         retineri_total: rezultat.retineriTotal,
         net_de_plata: rezultat.netDePlata,
+        avantaje_natura: rezultat.avantajeNatura,
+        rest_de_plata: rezultat.restDePlata,
         cost_total_angajator: rezultat.costTotalAngajator,
         // JSON.parse(JSON.stringify(...)) scapă de `readonly` pe array-uri și
         // obiecte imbricate — `Json` din tipurile generate cere structuri

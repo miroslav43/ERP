@@ -30,6 +30,8 @@ export const setariSalarizareSchema = z.object({
   valoare_tichet_masa: z.coerce.number().min(0),
   tichete_impozabile: z.coerce.boolean(),
   tichete_supuse_cass: z.coerce.boolean(),
+  salariu_minim_brut: z.coerce.number().min(0, "Salariul minim nu poate fi negativ."),
+  aplica_minim_contributii: z.coerce.boolean(),
   rotunjire_lei: z.coerce.boolean(),
   praguri: z.array(pragDeducereSchema).min(1, "Adăugați cel puțin un prag de deducere personală."),
 });

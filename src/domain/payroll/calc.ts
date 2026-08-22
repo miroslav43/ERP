@@ -59,6 +59,10 @@ export interface PayrollSettingsSnapshot {
   readonly verificatDeContabil?: boolean;
   readonly deducerePersonala: readonly PragDeducerePersonala[];
   readonly rotunjireLei: boolean;
+  /** ⚠️ De confirmat de contabil. Pragul minim al bazei de contribuții. */
+  readonly salariuMinimBrut?: number;
+  /** Ridică baza CAS/CASS la salariul minim. Implicit stins — vezi 0055. */
+  readonly aplicaMinimContributii?: boolean;
 }
 
 /**
@@ -126,6 +130,12 @@ export interface BonusInput {
    */
   readonly intraInBazaCas?: boolean;
   readonly intraInBazaCass?: boolean;
+  /**
+   * Avantaj primit ÎN NATURĂ (mașină de serviciu folosită personal, cazare,
+   * abonament). Intră în brut și se impozitează ca orice venit, dar NU se
+   * plătește în bani: angajatul l-a primit deja. Se scade la restul de plată.
+   */
+  readonly esteAvantajInNatura?: boolean;
 }
 
 export interface DeductionInput {
@@ -172,6 +182,8 @@ export interface PayrollCalcResult {
   readonly net: number;
   readonly retineriTotal: number;
   readonly netDePlata: number;
+  readonly avantajeNatura: number;
+  readonly restDePlata: number;
   readonly costTotalAngajator: number;
   readonly breakdown: readonly Readonly<{ pas: string; valoare: number }>[];
   readonly warnings: readonly PayrollCalcWarning[];
@@ -353,9 +365,24 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
 
   const bazaCas = inregistreaza("bazaCas", bazaComuna + primeInBazaCas);
   const bazaCass = inregistreaza("bazaCass", bazaComuna + primeInBazaCass + ticheteInCass);
-  const cas = inregistreaza("cas", bazaCas * settings.cotaCas);
-  const cass = inregistreaza("cass", bazaCass * settings.cotaCass);
-  const bazaCasCass = bazaCas;
+  // Plafonul minim al bazei de contribuții. Legea prevede EXCEPȚII (elevi și
+  // studenți sub 26 de ani, pensionari, persoane cu handicap, cumul de
+  // contracte) pentru care schema nu are încă niciun câmp — de aceea motorul
+  // ridică baza și AVERTIZEAZĂ, în loc să decidă singur.
+  const minim = settings.salariuMinimBrut ?? 0;
+  const aplicaMinim = (settings.aplicaMinimContributii ?? false) && minim > 0;
+  const bazaCasFinala = aplicaMinim ? Math.max(bazaCas, minim) : bazaCas;
+  const bazaCassFinala = aplicaMinim ? Math.max(bazaCass, minim) : bazaCass;
+  if (aplicaMinim && (bazaCasFinala > bazaCas || bazaCassFinala > bazaCass)) {
+    avertizeaza(
+      "SAL_CAS_LA_MINIM",
+      `Baza a fost ridicată de la ${bazaCas.toFixed(2)} la ${minim.toFixed(2)} lei.`,
+    );
+  }
+
+  const cas = inregistreaza("cas", bazaCasFinala * settings.cotaCas);
+  const cass = inregistreaza("cass", bazaCassFinala * settings.cotaCass);
+  const bazaCasCass = bazaCasFinala;
 
   const deducerePersonala = inregistreaza(
     "deducerePersonala",
@@ -394,7 +421,7 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     "bazaImpozit",
     Math.max(
       0,
-      bazaCas -
+      bazaCasFinala -
         cas -
         cass -
         deducerePersonala +
@@ -427,6 +454,23 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
   inregistreaza("retineriTotal", retineriTotal);
 
   const netDePlata = inregistreaza("netDePlata", net - retineriTotal);
+
+  // Avantajele în natură au fost deja adunate în brut și impozitate; aici se
+  // scad din suma VIRATĂ, fiindcă angajatul le-a primit în natură, nu în bani.
+  const avantajeNatura = inregistreaza(
+    "avantajeNatura",
+    bonuses.filter((b) => b.esteAvantajInNatura === true).reduce((s, b) => s + b.suma, 0),
+  );
+  const restBrut = netDePlata - avantajeNatura;
+  if (restBrut < -0.005) {
+    avertizeaza(
+      "SAL_AVANTAJ_NATURA_PESTE_NET",
+      `Lipsesc ${Math.abs(restBrut).toFixed(2)} lei: avantajele depășesc netul rămas.`,
+    );
+  }
+  // Nu se poate vira o sumă negativă. Diferența rămâne de recuperat altfel, iar
+  // avertismentul de mai sus o numește în cifre.
+  const restDePlata = inregistreaza("restDePlata", Math.max(0, restBrut));
   const costTotalAngajator = inregistreaza(
     "costTotalAngajator",
     brut + camAngajator + valoareTichete,
@@ -446,8 +490,8 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     nrTichete,
     valoareTichete: rotundLeu(valoareTichete, r),
     bazaCasCass: rotundLeu(bazaCasCass, r),
-    bazaCas: rotundLeu(bazaCas, r),
-    bazaCass: rotundLeu(bazaCass, r),
+    bazaCas: rotundLeu(bazaCasFinala, r),
+    bazaCass: rotundLeu(bazaCassFinala, r),
     cas: rotundLeu(cas, r),
     cass: rotundLeu(cass, r),
     deducerePersonala: rotundLeu(deducerePersonala, r),
@@ -458,6 +502,8 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     net: rotundLeu(net, r),
     retineriTotal: rotundLeu(retineriTotal, r),
     netDePlata: rotundLeu(netDePlata, r),
+    avantajeNatura: rotundLeu(avantajeNatura, r),
+    restDePlata: rotundLeu(restDePlata, r),
     costTotalAngajator: rotundLeu(costTotalAngajator, r),
     breakdown,
     warnings,

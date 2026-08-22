@@ -30,6 +30,8 @@ export interface SetariSalarizare {
   readonly tichete_impozabile: boolean;
   readonly tichete_supuse_cass: boolean;
   readonly rotunjire_lei: boolean;
+  readonly salariu_minim_brut: number;
+  readonly aplica_minim_contributii: boolean;
   readonly verificat_de_contabil: boolean;
   readonly verificat_la: string | null;
   readonly note: string | null;
@@ -60,7 +62,7 @@ export async function citesteSetariPeId(
   const { data, error } = await db
     .from("payroll_settings")
     .select(
-      "id, valabil_de_la, cota_cas, cota_cass, cota_impozit, cota_cam_angajator, norma_zilnica_ore, procent_spor_noapte, procent_spor_weekend, procent_ore_suplimentare, valoare_tichet_masa, tichete_impozabile, tichete_supuse_cass, rotunjire_lei, verificat_de_contabil, verificat_la, note",
+      "id, valabil_de_la, cota_cas, cota_cass, cota_impozit, cota_cam_angajator, norma_zilnica_ore, procent_spor_noapte, procent_spor_weekend, procent_ore_suplimentare, valoare_tichet_masa, tichete_impozabile, tichete_supuse_cass, rotunjire_lei, salariu_minim_brut, aplica_minim_contributii, verificat_de_contabil, verificat_la, note",
     )
     .eq("organization_id", organizationId)
     .eq("id", id)
@@ -80,7 +82,7 @@ export async function citesteSetariValabile(
   const { data: randuri, error } = await db
     .from("payroll_settings")
     .select(
-      "id, valabil_de_la, cota_cas, cota_cass, cota_impozit, cota_cam_angajator, norma_zilnica_ore, procent_spor_noapte, procent_spor_weekend, procent_ore_suplimentare, valoare_tichet_masa, tichete_impozabile, tichete_supuse_cass, rotunjire_lei, verificat_de_contabil, verificat_la, note",
+      "id, valabil_de_la, cota_cas, cota_cass, cota_impozit, cota_cam_angajator, norma_zilnica_ore, procent_spor_noapte, procent_spor_weekend, procent_ore_suplimentare, valoare_tichet_masa, tichete_impozabile, tichete_supuse_cass, rotunjire_lei, salariu_minim_brut, aplica_minim_contributii, verificat_de_contabil, verificat_la, note",
     )
     .eq("organization_id", organizationId)
     .lte("valabil_de_la", data)
