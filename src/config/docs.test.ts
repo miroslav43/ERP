@@ -5,7 +5,7 @@
 // niciodată — exact clasa de eșec tăcut pe care o previne. Aici merge automat
 // pe `pnpm test` → `pnpm verify` → jobul `quality` din CI.
 
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync, statSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -50,8 +50,26 @@ describe("niciun fișier text urmărit nu conține octeți NUL", () => {
   // Verificarea per-fișier din `capcane.md` de mai sus nu era suficientă
   // tocmai fiindcă problema nu era localizată acolo.
   it("verifică toate fișierele text din src, tests, scripts, docs și .claude", () => {
-    const brute = execSync(
-      "git ls-files -z -- src tests scripts docs .claude ':!:*.ico' ':!:*.png' ':!:*.woff*'",
+    // `execFileSync`, nu `execSync`: acesta din urmă trece comanda printr-un
+    // shell, iar pe Windows acela e `cmd.exe`, care NU curăță ghilimelele
+    // simple. Pathspec-urile ajungeau la git ca `':!:*.ico'`, cu ghilimele cu
+    // tot, iar testul pica local cu „is outside repository” — pe Linux, în CI,
+    // trecea. Cu argumentele date ca listă nu mai există shell deloc.
+    const brute = execFileSync(
+      "git",
+      [
+        "ls-files",
+        "-z",
+        "--",
+        "src",
+        "tests",
+        "scripts",
+        "docs",
+        ".claude",
+        ":!:*.ico",
+        ":!:*.png",
+        ":!:*.woff*",
+      ],
       { cwd: RADACINA, encoding: "buffer", maxBuffer: 8 * 1024 * 1024 },
     );
     const cai = brute

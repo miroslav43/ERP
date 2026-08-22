@@ -1,10 +1,11 @@
 // src/app/(app)/inventar/[id]/page.tsx
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { formatDate, formatDateTime } from "@/lib/format/date";
@@ -15,8 +16,13 @@ import {
   istoricAlocari,
   numeleAngajatilor,
 } from "@/lib/queries/inventory";
+import { listeazaTicheteleObiectului } from "@/lib/queries/ticketing";
 
 import { CLASE_STARE, CLASE_STATUS, ETICHETE_STARE, ETICHETE_STATUS } from "../etichete";
+import {
+  CLASE_STATUS as CLASE_STATUS_TICHET,
+  ETICHETE_STATUS as ETICHETE_STATUS_TICHET,
+} from "../../ticketing/etichete";
 import { ActiuniObiect } from "./actiuni-obiect";
 import { FormularPredare } from "./formular-predare";
 import { FormularReturnare } from "./formular-returnare";
@@ -57,10 +63,14 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
   const obiect = await citesteObiect(tenant.organizationId, id);
   if (obiect === null) notFound();
 
-  const [istoric, listaCategorii] = await Promise.all([
+  const [istoric, listaCategorii, module] = await Promise.all([
     istoricAlocari(tenant.organizationId, id),
     categorii(),
+    getEnabledFeatures(tenant.organizationId),
   ]);
+  // Modulul de ticketing e opțional: dacă nu e activ la organizație, secțiunea
+  // cu tichete nu se randează deloc, în loc să arate o listă goală derutantă.
+  const tichete = module.has("ticketing") ? await listeazaTicheteleObiectului(obiect.id) : null;
   const angajati = await numeleAngajatilor(
     tenant.organizationId,
     istoric.map((rand) => rand.employee_id),
@@ -239,6 +249,47 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
           </ul>
         )}
       </section>
+
+      {/* Integrare bidirecțională cu ticketing-ul: pe fișa obiectului se văd
+          defecțiunile raportate pe el. Secțiunea apare doar dacă modulul e
+          activ la organizația respectivă. */}
+      {tichete !== null && (
+        <section aria-labelledby="titlu-tichete" className="border-border rounded-lg border p-4">
+          <h2 id="titlu-tichete" className="mb-4 text-lg font-medium">
+            Tichete pe acest obiect
+          </h2>
+          {tichete.length === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              Nu s-a raportat nicio defecțiune pe acest obiect.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {tichete.map((tichet) => (
+                <li
+                  key={tichet.id}
+                  className="border-border flex flex-wrap items-center gap-3 rounded-md border p-3"
+                >
+                  <Link
+                    href={`/ticketing/${tichet.id}`}
+                    className="text-primary font-mono text-xs hover:underline"
+                  >
+                    {tichet.numar_afisat}
+                  </Link>
+                  <span className="flex-1 text-sm">{tichet.titlu}</span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs ${CLASE_STATUS_TICHET[tichet.status]}`}
+                  >
+                    {ETICHETE_STATUS_TICHET[tichet.status]}
+                  </span>
+                  <span className="text-muted-foreground text-xs">
+                    {formatDate(tichet.created_at)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
 
       {poateScrie ? (
         <section aria-labelledby="titlu-actiuni" className="border-border rounded-lg border p-4">

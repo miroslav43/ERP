@@ -14,6 +14,12 @@ import { FEATURE_KEYS, imparteCheiDeModul, isFeatureKey } from "./features";
  *
  * Contractul corect e cel scris în capul lui `features.ts`: cheile necunoscute
  * se TAIE la citire. Aici se verifică exact asta.
+ *
+ * Fixture-ul folosea chiar `ticketing` drept cheie necunoscută. Între timp
+ * modulul a fost livrat și cheia a intrat în catalog, așa că testul ar fi
+ * început să treacă din motive greșite. Exemplele de mai jos folosesc chei care
+ * NU există nicăieri — dacă vreuna ajunge vreodată modul real, testul pică și
+ * cere din nou o cheie nefolosită, exact cum s-a întâmplat acum.
  */
 describe("imparteCheiDeModul", () => {
   it("păstrează cheile cunoscute, în ordinea primită", () => {
@@ -22,14 +28,14 @@ describe("imparteCheiDeModul", () => {
   });
 
   it("taie o cheie pe care codul nu o cunoaște, fără să arunce", () => {
-    const { cunoscute, necunoscute } = imparteCheiDeModul(["nucleu", "ticketing", "leave"]);
+    const { cunoscute, necunoscute } = imparteCheiDeModul(["nucleu", "facturare", "leave"]);
     expect(cunoscute).toEqual(["nucleu", "leave"]);
-    expect(necunoscute).toEqual(["ticketing"]);
+    expect(necunoscute).toEqual(["facturare"]);
   });
 
   it("raportează cheile necunoscute o singură dată, chiar dacă se repetă", () => {
-    const { necunoscute } = imparteCheiDeModul(["ticketing", "ticketing", "crm"]);
-    expect(necunoscute).toEqual(["ticketing", "crm"]);
+    const { necunoscute } = imparteCheiDeModul(["facturare", "facturare", "crm"]);
+    expect(necunoscute).toEqual(["facturare", "crm"]);
   });
 
   it("acceptă lista goală", () => {
@@ -49,6 +55,6 @@ describe("isFeatureKey", () => {
   });
 
   it("respinge o cheie din afara catalogului", () => {
-    expect(isFeatureKey("ticketing")).toBe(false);
+    expect(isFeatureKey("facturare")).toBe(false);
   });
 });

@@ -20,6 +20,7 @@ import {
   FolderTree,
   HardHat,
   LayoutDashboard,
+  LifeBuoy,
   MapPin,
   Megaphone,
   Network,
@@ -284,6 +285,45 @@ export const NAV_ITEMS: readonly NavItem[] = [
     permission: "announcements:read",
     minScope: "own",
     order: 100,
+  },
+  {
+    id: "ticketing",
+    label: "Ticketing IT",
+    href: "/ticketing",
+    icon: LifeBuoy,
+    group: "resurse",
+    featureKey: "ticketing",
+    permission: "tickets:read",
+    // `own`: orice angajat își vede tichetele proprii. Cine are drepturi mai
+    // largi vede mai mult, dar intrarea de meniu nu trebuie ascunsă nimănui.
+    minScope: "own",
+    order: 105,
+    children: [
+      {
+        id: "ticketing-toate",
+        label: "Tichetele mele",
+        href: "/ticketing",
+        featureKey: "ticketing",
+        permission: "tickets:read",
+        minScope: "own",
+      },
+      {
+        id: "ticketing-nou",
+        label: "Tichet nou",
+        href: "/ticketing/nou",
+        featureKey: "ticketing",
+        permission: "tickets:create",
+        minScope: "own",
+      },
+      {
+        id: "ticketing-coada",
+        label: "Coada echipei",
+        href: "/ticketing/coada",
+        featureKey: "ticketing",
+        permission: "tickets:read",
+        minScope: "team",
+      },
+    ],
   },
   {
     id: "salarizare",
