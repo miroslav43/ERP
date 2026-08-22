@@ -78,64 +78,66 @@ export function AsistentFirma({ numeFirma, valoriInitiale }: Props) {
     if (valid) setPasCurent(urmatorul(pasCurent));
   };
 
-  const trimite = handleSubmit(async (valori) => {
-    setEroareServer(null);
-    try {
-      const raspuns = await completeazaDateleFirmei(valori);
-      if (raspuns.ok) {
-        // `refresh()` înainte de navigare: poarta din layout citește starea
-        // firmei memoizat per request, iar fără reîmprospătare următoarea
-        // pagină ar vedea tot `pending` și ne-ar trimite înapoi aici.
-        router.refresh();
-        router.replace(RUTA_DUPA_AUTENTIFICARE);
-        return;
-      }
-      let primulPas: number | null = null;
-      for (const [camp, mesaje] of Object.entries(raspuns.error.fieldErrors ?? {})) {
-        const primul = mesaje[0];
-        if (primul === undefined) continue;
-        setError(camp as keyof OnboardeazaOrganizatieInput, { type: "server", message: primul });
-        const pas = Number(
-          Object.entries(CAMPURI_PAS).find(([, campuri]) =>
-            (campuri as readonly string[]).includes(camp),
-          )?.[0] ?? 1,
+  const trimite = handleSubmit(
+    async (valori) => {
+      setEroareServer(null);
+      try {
+        const raspuns = await completeazaDateleFirmei(valori);
+        if (raspuns.ok) {
+          // `refresh()` înainte de navigare: poarta din layout citește starea
+          // firmei memoizat per request, iar fără reîmprospătare următoarea
+          // pagină ar vedea tot `pending` și ne-ar trimite înapoi aici.
+          router.refresh();
+          router.replace(RUTA_DUPA_AUTENTIFICARE);
+          return;
+        }
+        let primulPas: number | null = null;
+        for (const [camp, mesaje] of Object.entries(raspuns.error.fieldErrors ?? {})) {
+          const primul = mesaje[0];
+          if (primul === undefined) continue;
+          setError(camp as keyof OnboardeazaOrganizatieInput, { type: "server", message: primul });
+          const pas = Number(
+            Object.entries(CAMPURI_PAS).find(([, campuri]) =>
+              (campuri as readonly string[]).includes(camp),
+            )?.[0] ?? 1,
+          );
+          if (primulPas === null || pas < primulPas) primulPas = pas;
+        }
+        if (primulPas !== null) setPasCurent(primulPas);
+        setEroareServer(raspuns.error.message);
+      } catch (eroare) {
+        // Fără acest catch, o cădere de rețea e o excepție nepreluată: butonul
+        // iese din „Se salvează…", dar utilizatorul nu vede niciun motiv.
+        console.error("[asistent-firma] trimite", eroare);
+        setEroareServer(
+          `Salvarea a eșuat neașteptat: ${eroare instanceof Error ? eroare.message : String(eroare)}. Reîncearcă.`,
         );
-        if (primulPas === null || pas < primulPas) primulPas = pas;
       }
-      if (primulPas !== null) setPasCurent(primulPas);
-      setEroareServer(raspuns.error.message);
-    } catch (eroare) {
-      // Fără acest catch, o cădere de rețea e o excepție nepreluată: butonul
-      // iese din „Se salvează…", dar utilizatorul nu vede niciun motiv.
-      console.error("[asistent-firma] trimite", eroare);
+    },
+    // A DOUA funcție a lui `handleSubmit`: ce se întâmplă când validarea pică.
+    // Fără ea, apăsarea pe „Finalizează" cu un câmp invalid pe un pas pe care
+    // nu-l vezi nu face NIMIC — niciun mesaj, niciun apel, niciun indiciu. Cu
+    // navigarea liberă între pași, situația a devenit ușor de nimerit.
+    (erori) => {
+      const campuriGresite = Object.keys(erori);
+      const pasi = campuriGresite
+        .map((camp) =>
+          Number(
+            Object.entries(CAMPURI_PAS).find(([, campuri]) =>
+              (campuri as readonly string[]).includes(camp),
+            )?.[0] ?? 0,
+          ),
+        )
+        .filter((pas) => pas > 0);
+      const primul = pasi.length > 0 ? Math.min(...pasi) : 1;
+      setPasCurent(primul);
       setEroareServer(
-        `Salvarea a eșuat neașteptat: ${eroare instanceof Error ? eroare.message : String(eroare)}. Reîncearcă.`,
+        campuriGresite.length === 1
+          ? "Un câmp obligatoriu lipsește sau e greșit. L-am deschis mai jos."
+          : `${campuriGresite.length} câmpuri obligatorii lipsesc sau sunt greșite. Am deschis primul pas cu probleme.`,
       );
-    }
-  },
-  // A DOUA funcție a lui `handleSubmit`: ce se întâmplă când validarea pică.
-  // Fără ea, apăsarea pe „Finalizează" cu un câmp invalid pe un pas pe care
-  // nu-l vezi nu face NIMIC — niciun mesaj, niciun apel, niciun indiciu. Cu
-  // navigarea liberă între pași, situația a devenit ușor de nimerit.
-  (erori) => {
-    const campuriGresite = Object.keys(erori);
-    const pasi = campuriGresite
-      .map((camp) =>
-        Number(
-          Object.entries(CAMPURI_PAS).find(([, campuri]) =>
-            (campuri as readonly string[]).includes(camp),
-          )?.[0] ?? 0,
-        ),
-      )
-      .filter((pas) => pas > 0);
-    const primul = pasi.length > 0 ? Math.min(...pasi) : 1;
-    setPasCurent(primul);
-    setEroareServer(
-      campuriGresite.length === 1
-        ? "Un câmp obligatoriu lipsește sau e greșit. L-am deschis mai jos."
-        : `${campuriGresite.length} câmpuri obligatorii lipsesc sau sunt greșite. Am deschis primul pas cu probleme.`,
-    );
-  });
+    },
+  );
 
   return (
     <div className="flex flex-col gap-6">

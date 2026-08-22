@@ -60,10 +60,10 @@ să rămână în zona lor.
 Se mută în `src/components/onboarding/`, cu aceleași fișiere `pas-1..7`. Cele două puncte de
 intrare le folosesc pe amândouă:
 
-| Cine | Unde | Ce face la final |
-|---|---|---|
-| Super-admin | `/super-admin/organizatii/nou` | creează firma **și** o activează |
-| Administrator | `/bun-venit` | completează firma existentă, o activează |
+| Cine          | Unde                           | Ce face la final                         |
+| ------------- | ------------------------------ | ---------------------------------------- |
+| Super-admin   | `/super-admin/organizatii/nou` | creează firma **și** o activează         |
+| Administrator | `/bun-venit`                   | completează firma existentă, o activează |
 
 Diferența dintre ele e doar pasul 6 (proprietarul): super-adminul îl completează, administratorul
 **e** proprietarul, deci pasul îi este sărit și pre-completat cu propriul cont.
@@ -130,12 +130,12 @@ pnpm typecheck && pnpm lint && pnpm test && pnpm build
 
 Proba pe roluri, în producție:
 
-| Situație | Așteptat |
-|---|---|
-| Super-admin creează firmă, alege „completez eu" | asistent 7 pași → firmă `active` |
-| Super-admin creează firmă, alege „completează administratorul" | firmă `pending`, invitație primită |
-| Administrator invitat intră prima dată | `/bun-venit`, nu poate ieși în aplicație |
-| Administrator termină asistentul | firmă `active`, intră în `/panou` |
-| `hr` intră într-o firmă `pending` | ecran explicativ, NU asistentul |
-| Salt de la pasul 1 la 7 | permis; confirmarea arată ce lipsește |
-| Firmă deja `active` | neschimbată, fără poartă |
+| Situație                                                       | Așteptat                                 |
+| -------------------------------------------------------------- | ---------------------------------------- |
+| Super-admin creează firmă, alege „completez eu"                | asistent 7 pași → firmă `active`         |
+| Super-admin creează firmă, alege „completează administratorul" | firmă `pending`, invitație primită       |
+| Administrator invitat intră prima dată                         | `/bun-venit`, nu poate ieși în aplicație |
+| Administrator termină asistentul                               | firmă `active`, intră în `/panou`        |
+| `hr` intră într-o firmă `pending`                              | ecran explicativ, NU asistentul          |
+| Salt de la pasul 1 la 7                                        | permis; confirmarea arată ce lipsește    |
+| Firmă deja `active`                                            | neschimbată, fără poartă                 |

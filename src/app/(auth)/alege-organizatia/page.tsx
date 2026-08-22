@@ -69,7 +69,6 @@ export default async function AlegeOrganizatiaPage({ searchParams }: Props) {
         </p>
       </header>
 
-
       {areEroareAcces ? (
         <p
           role="alert"

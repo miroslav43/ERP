@@ -54,9 +54,9 @@ export default async function PaginaOrganizatieNoua({ searchParams }: Proprietat
       <header>
         <h1 className="text-foreground text-2xl font-semibold">Înrolare companie nouă</h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          Firma se creează în starea „În așteptare”, cu modulele de bază activate. Alege dacă
-          îi completezi tu datele acum sau le lași administratorului, care le primește prin e-mail
-          și le completează la prima intrare.
+          Firma se creează în starea „În așteptare”, cu modulele de bază activate. Alege dacă îi
+          completezi tu datele acum sau le lași administratorului, care le primește prin e-mail și
+          le completează la prima intrare.
         </p>
       </header>
 

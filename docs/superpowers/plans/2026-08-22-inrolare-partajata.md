@@ -30,9 +30,9 @@ Resend e live de la 2026-08-22, dar fluxurile de platformă încă întorc un li
 `(platform)/super-admin/organizatii/[orgId]/membri/actions.ts`
 
 - [ ] **1.1** În ambele acțiuni, după crearea invitației, apelează `trimiteEmailInvitatie(...)` cu
-  `db`, `destinatar`, `organizatie`, `invitatDe`, `rol`, `token`, `expiraLa`, `invitationId`.
+      `db`, `destinatar`, `organizatie`, `invitatDe`, `rol`, `token`, `expiraLa`, `invitationId`.
 - [ ] **1.2** Rezultatul devine `{ trimisa: true, prinEmail: boolean, linkInvitatie }` — linkul
-  **rămâne** ca plasă de siguranță când e-mailul eșuează, dar nu mai e calea principală.
+      **rămâne** ca plasă de siguranță când e-mailul eșuează, dar nu mai e calea principală.
 - [ ] **1.3** Textele din interfață nu mai spun „Fluxul nu trimite e-mail".
 - [ ] **1.4** `./node_modules/.bin/tsc --noEmit` + `eslint` pe fișierele atinse. Commit.
 
@@ -48,7 +48,7 @@ Resend e live de la 2026-08-22, dar fluxurile de platformă încă întorc un li
 - [ ] **2.1** `git mv` cele 9 fișiere.
 - [ ] **2.2** Repară importurile: în orchestrator (`./pas-1-identitate` → `@/components/onboarding/pas-1-identitate`).
 - [ ] **2.3** `LinkInvitatie` e importat din `../../[orgId]/membri/panou-membri` — rămâne în
-  consolă; orchestratorul de acolo îl păstrează, cel din `(app)` nu-l folosește.
+      consolă; orchestratorul de acolo îl păstrează, cel din `(app)` nu-l folosește.
 - [ ] **2.4** `grep -rn "nou/_components" src/` → zero. `tsc` + `build`. Commit.
 
 ---
@@ -58,11 +58,11 @@ Resend e live de la 2026-08-22, dar fluxurile de platformă încă întorc un li
 `ProgresAsistent` e azi doar afișaj: primește `pasCurent`, desenează. Devine navigabil.
 
 - [ ] **3.1** Semnătură nouă: `{ pasCurent, onSalt?, pasiAscunsi? }`. `pasiAscunsi` servește
-  Task 5 (administratorul nu vede pasul 6 — el ESTE proprietarul).
+      Task 5 (administratorul nu vede pasul 6 — el ESTE proprietarul).
 - [ ] **3.2** Fiecare pas devine `<button type="button">`, nu `<span>` într-un `<li>` — accesibil
-  la tastatură și anunțat ca acțiune. Fără `onSalt`, rămâne `<span>` (nu inventăm interactivitate).
+      la tastatură și anunțat ca acțiune. Fără `onSalt`, rămâne `<span>` (nu inventăm interactivitate).
 - [ ] **3.3** În orchestrator: `onSalt={setPasCurent}`. **Fără validare la salt** — validarea
-  rămâne la „Continuă" și la confirmare. Blocarea saltului ar reface tunelul pe care îl desființăm.
+      rămâne la „Continuă" și la confirmare. Blocarea saltului ar reface tunelul pe care îl desființăm.
 - [ ] **3.4** Pasul 7 (confirmare) listează câmpurile lipsă, fiecare cu buton spre pasul lui.
 - [ ] **3.5** `build`. Commit.
 
@@ -74,14 +74,14 @@ Resend e live de la 2026-08-22, dar fluxurile de platformă încă întorc un li
 „cine completează restul".
 
 - [ ] **4.1** Componentă nouă `_components/alegere-inrolare.tsx`: cele 3 câmpuri și două butoane —
-  „Completez eu datele firmei" / „Le completează administratorul".
+      „Completez eu datele firmei" / „Le completează administratorul".
 - [ ] **4.2** „Completez eu" → montează asistentul cu valorile pre-completate, pornit de la
-  **pasul 2** (pasul 1 e deja dat).
+      **pasul 2** (pasul 1 e deja dat).
 - [ ] **4.3** „Le completează administratorul" → acțiune nouă `creeazaOrganizatieMinima`:
-  `insert` cu `status: "pending"` (denumire, CUI, slug derivat) + invitație + e-mail (Task 1).
-  Schemă Zod nouă în `src/schemas/organization.ts`, refolosind `cuiSchema`, `slugSchema`, `emailSchema`.
+      `insert` cu `status: "pending"` (denumire, CUI, slug derivat) + invitație + e-mail (Task 1).
+      Schemă Zod nouă în `src/schemas/organization.ts`, refolosind `cuiSchema`, `slugSchema`, `emailSchema`.
 - [ ] **4.4** Ecran de succes: „Firma a fost creată. Administratorul completează datele la prima
-  intrare." + starea invitației.
+      intrare." + starea invitației.
 - [ ] **4.5** `tsc` + `build`. Commit.
 
 ---
@@ -89,20 +89,20 @@ Resend e live de la 2026-08-22, dar fluxurile de platformă încă întorc un li
 ## Task 5: Poarta și ecranul administratorului
 
 - [ ] **5.1** `src/app/(app)/bun-venit/page.tsx` — server component: `requireTenant()`, verifică
-  `status === "pending"` și rol `org_admin`; altfel `redirect(RUTA_DUPA_AUTENTIFICARE)`.
-  Randează asistentul cu `pasiAscunsi={[6]}` și valorile existente ale firmei.
+      `status === "pending"` și rol `org_admin`; altfel `redirect(RUTA_DUPA_AUTENTIFICARE)`.
+      Randează asistentul cu `pasiAscunsi={[6]}` și valorile existente ale firmei.
 - [ ] **5.2** Acțiune `completeazaDateleFirmei` în `(app)/bun-venit/actions.ts`: `update` pe
-  organizație + `status: "active"` + `activated_at`. Prin `createAction`, cu
-  `permission: "organizations:update"` — **nu** `createAdminSupabase`: administratorul are voie
-  pe propria firmă, deci RLS e suficientă și corectă.
+      organizație + `status: "active"` + `activated_at`. Prin `createAction`, cu
+      `permission: "organizations:update"` — **nu** `createAdminSupabase`: administratorul are voie
+      pe propria firmă, deci RLS e suficientă și corectă.
 - [ ] **5.3** Poarta în `src/app/(app)/layout.tsx`, imediat după `requireTenant()`:
   - `pending` + `org_admin` → `redirect("/bun-venit")`;
   - `pending` + alt rol → `redirect("/firma-in-configurare")`;
   - `active` → neschimbat.
-  **Atenție:** `/bun-venit` e ÎN `(app)`, deci ar intra în propria poartă. Se exclude explicit
-  după `pathname`, altfel e buclă infinită de redirect.
+    **Atenție:** `/bun-venit` e ÎN `(app)`, deci ar intra în propria poartă. Se exclude explicit
+    după `pathname`, altfel e buclă infinită de redirect.
 - [ ] **5.4** `src/app/(app)/firma-in-configurare/page.tsx` — ecran explicativ pentru `hr`,
-  `manager`, `employee`: firma nu e configurată, administratorul trebuie să termine.
+      `manager`, `employee`: firma nu e configurată, administratorul trebuie să termine.
 - [ ] **5.5** `build` + probă manuală pe roluri. Commit.
 
 ---
