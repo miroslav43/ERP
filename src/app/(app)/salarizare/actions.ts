@@ -20,6 +20,7 @@ import { descriereCompleta, problema } from "@/domain/payroll/erori";
 import {
   creeazaPerioadaSchema,
   idPerioadaSchema,
+  istoricVenitSchema,
   primaSchema,
   retinereSchema,
   setariSalarizareSchema,
@@ -622,5 +623,72 @@ export const adaugaRetinere = createAction({
     });
     if (error !== null) traduEroare(error);
     return null;
+  },
+});
+
+export const salveazaIstoricVenit = createAction({
+  name: "payroll.prior_income.save",
+  feature: "payroll",
+  permission: "payroll:create",
+  minScope: "all",
+  input: istoricVenitSchema,
+  audit: {
+    action: "create",
+    entityType: "payroll_prior_income",
+    allow: ["employee_id", "an", "luna"],
+  },
+  revalidate: ["/salarizare/istoric-venituri"],
+  handler: async (ctx, input) => {
+    // Citire-apoi-scriere, nu `.upsert()`: unicitatea e pe un index PARȚIAL
+    // (`where deleted_at is null`), iar PostgREST nu poate ținti unul prin
+    // ON CONFLICT — ar cădea cu 42P10 (capcana 7).
+    const { data: existent, error: eroareCitire } = await ctx.supabase
+      .from("payroll_prior_income")
+      .select("id")
+      .eq("organization_id", ctx.tenant.organizationId)
+      .eq("employee_id", input.employee_id)
+      .eq("an", input.an)
+      .eq("luna", input.luna)
+      .is("deleted_at", null)
+      .maybeSingle<{ id: string }>();
+    if (eroareCitire !== null) traduEroare(eroareCitire);
+
+    const campuri = {
+      venit_brut: input.venit_brut,
+      drepturi_salariale: input.drepturi_salariale,
+      zile_lucrate: input.zile_lucrate,
+      sursa: input.sursa,
+    };
+
+    if (existent !== null) {
+      const { data, error } = await ctx.supabase
+        .from("payroll_prior_income")
+        .update(campuri)
+        .eq("id", existent.id)
+        .eq("organization_id", ctx.tenant.organizationId)
+        .select("id")
+        .maybeSingle<{ id: string }>();
+      if (error !== null) traduEroare(error);
+      if (data === null) {
+        throw businessRule(
+          "Rândul nu a putut fi actualizat. Reîmprospătați pagina și încercați din nou.",
+        );
+      }
+      return { id: data.id };
+    }
+
+    const { data, error } = await ctx.supabase
+      .from("payroll_prior_income")
+      .insert({
+        organization_id: ctx.tenant.organizationId,
+        employee_id: input.employee_id,
+        an: input.an,
+        luna: input.luna,
+        ...campuri,
+      })
+      .select("id")
+      .single<{ id: string }>();
+    if (error !== null) traduEroare(error);
+    return { id: data.id };
   },
 });

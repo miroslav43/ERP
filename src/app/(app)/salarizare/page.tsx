@@ -47,12 +47,20 @@ export default async function PaginaSalarizare() {
             Perioadele de salarizare ale organizației.
           </p>
         </div>
-        <Link
-          href="/salarizare/setari"
-          className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm font-medium"
-        >
-          Setări
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            href="/salarizare/istoric-venituri"
+            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm font-medium"
+          >
+            Istoric venituri
+          </Link>
+          <Link
+            href="/salarizare/setari"
+            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm font-medium"
+          >
+            Setări
+          </Link>
+        </div>
       </header>
 
       <div role="note" className="border-warning/40 bg-warning/8 rounded-lg border p-4 text-sm">

@@ -65,3 +65,24 @@ export const retinereSchema = z.object({
   motiv: z.string().trim().min(1, "Motivul este obligatoriu.").max(500),
 });
 export type IntrareRetinere = z.output<typeof retinereSchema>;
+
+/**
+ * Un rând de venit anterior punerii în funcțiune a aplicației.
+ *
+ * Fără el, baza de calcul a concediului medical (media pe șase luni) și cea a
+ * indemnizației de concediu de odihnă (media pe trei) rămân incomplete, iar
+ * indemnizațiile ies mai mici decât cele legale — fără nicio eroare.
+ */
+export const istoricVenitSchema = z.object({
+  employee_id: z.uuid(),
+  an: z.coerce.number().int().min(2000).max(2100),
+  luna: z.coerce.number().int().min(1).max(12),
+  venit_brut: z.coerce.number().min(0, "Venitul brut nu poate fi negativ."),
+  drepturi_salariale: z.coerce.number().min(0, "Drepturile salariale nu pot fi negative."),
+  zile_lucrate: z.coerce
+    .number()
+    .min(0, "Zilele lucrate nu pot fi negative.")
+    .max(31, "O lună are cel mult 31 de zile."),
+  sursa: z.string().trim().max(200).nullable().default(null),
+});
+export type IntrareIstoricVenit = z.output<typeof istoricVenitSchema>;

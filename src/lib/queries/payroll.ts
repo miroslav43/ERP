@@ -1162,3 +1162,44 @@ export async function compensariLuna(
   }
   return rezultat;
 }
+
+export interface RandIstoricVenit {
+  readonly id: string;
+  readonly employee_id: string;
+  readonly nume: string;
+  readonly marca: string;
+  readonly an: number;
+  readonly luna: number;
+  readonly venit_brut: number;
+  readonly drepturi_salariale: number;
+  readonly zile_lucrate: number;
+  readonly sursa: string | null;
+}
+
+/** Istoricul de venit introdus manual, cel mai recent primul. */
+export async function listeazaIstoricVenit(
+  organizationId: string,
+): Promise<readonly RandIstoricVenit[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("payroll_prior_income")
+    .select(
+      "id, employee_id, an, luna, venit_brut, drepturi_salariale, zile_lucrate, sursa, angajat:employees!employee_id(full_name, marca)",
+    )
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .order("an", { ascending: false })
+    .order("luna", { ascending: false })
+    .limit(500)
+    .returns<
+      (Omit<RandIstoricVenit, "nume" | "marca"> & {
+        angajat: { full_name: string; marca: string } | null;
+      })[]
+    >();
+  if (error !== null) throw error;
+  return (data ?? []).map(({ angajat, ...rest }) => ({
+    ...rest,
+    nume: angajat?.full_name ?? "",
+    marca: angajat?.marca ?? "",
+  }));
+}
