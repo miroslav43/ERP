@@ -76,6 +76,12 @@ export async function listeazaCereri(
   organizationId: string,
   scope: PermissionScope,
   filtre: FiltreCereri,
+  /**
+   * Fișa proprie a celui care se uită. `null` pentru un cont fără fișă de
+   * angajat — un administrator invitat, de exemplu. Atunci „mele” n-ar avea ce
+   * selecta, iar „echipa” e tot ce se vede, deci filtrul se ignoră.
+   */
+  fisaMea: string | null = null,
 ): Promise<RezultatCereri> {
   const db = await createServerSupabase();
   let interogare = db
@@ -87,6 +93,11 @@ export async function listeazaCereri(
     .order("id", { ascending: false })
     .limit(filtre.limita + 1);
 
+  if (fisaMea !== null && filtre.vizualizare === "mele") {
+    interogare = interogare.eq("employee_id", fisaMea);
+  } else if (fisaMea !== null && filtre.vizualizare === "echipa") {
+    interogare = interogare.neq("employee_id", fisaMea);
+  }
   if (filtre.status !== null && filtre.status.length > 0) {
     interogare = interogare.in("status", filtre.status);
   }

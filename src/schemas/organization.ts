@@ -280,49 +280,48 @@ export type CreeazaOrganizatieOutput = z.output<typeof creeazaOrganizatieSchema>
  * `superRefine` nu se mai poate face `.omit()`, de aceea rafinarea se aplică
  * la fiecare capăt, nu aici.
  */
-const CAMPURI_INROLARE = creeazaOrganizatieSchema
-  .extend({
-    // Obligatoriu doar la înrolare (spre deosebire de `creeazaOrganizatieSchema`,
-    // unde e opțional): documentele oficiale (contracte, adeverințe, viitoarele
-    // exporturi ANAF) folosesc forma juridică completă, nu denumirea uzuală.
-    legal_name: z
-      .string()
-      .trim()
-      .min(2, "Denumirea completă (statutul) trebuie să aibă cel puțin 2 caractere.")
-      .max(160, "Denumirea completă este prea lungă."),
-    capital_social: capitalSocialSchema,
-    // Suprascrie `cod_caen` moștenit (opțional) din `creeazaOrganizatieSchema`:
-    // la înrolare e obligatoriu, ca `legal_name` mai sus.
-    cod_caen: caenClasaSchema,
-    cod_caen_secundare: z.array(caenClasaSchema).max(50).default([]),
-    sector: sectorSchema,
-    functie_reprezentant_legal: functieReprezentantSchema,
-    reprezentant_cnp: cnpReprezentantSchema,
+const CAMPURI_INROLARE = creeazaOrganizatieSchema.extend({
+  // Obligatoriu doar la înrolare (spre deosebire de `creeazaOrganizatieSchema`,
+  // unde e opțional): documentele oficiale (contracte, adeverințe, viitoarele
+  // exporturi ANAF) folosesc forma juridică completă, nu denumirea uzuală.
+  legal_name: z
+    .string()
+    .trim()
+    .min(2, "Denumirea completă (statutul) trebuie să aibă cel puțin 2 caractere.")
+    .max(160, "Denumirea completă este prea lungă."),
+  capital_social: capitalSocialSchema,
+  // Suprascrie `cod_caen` moștenit (opțional) din `creeazaOrganizatieSchema`:
+  // la înrolare e obligatoriu, ca `legal_name` mai sus.
+  cod_caen: caenClasaSchema,
+  cod_caen_secundare: z.array(caenClasaSchema).max(50).default([]),
+  sector: sectorSchema,
+  functie_reprezentant_legal: functieReprezentantSchema,
+  reprezentant_cnp: cnpReprezentantSchema,
 
-    banca_nume: textOptional(160),
-    banca_iban: opțional(ibanOrganizatieSchema),
+  banca_nume: textOptional(160),
+  banca_iban: opțional(ibanOrganizatieSchema),
 
-    plata_avans: z.boolean().default(false),
-    ziua_plata_avans: ziuaLuniiSchema,
-    ziua_plata_lichidare: ziuaLuniiSchema,
-    tichete_furnizor: ticheteFurnizorSchema,
+  plata_avans: z.boolean().default(false),
+  ziua_plata_avans: ziuaLuniiSchema,
+  ziua_plata_lichidare: ziuaLuniiSchema,
+  tichete_furnizor: ticheteFurnizorSchema,
 
-    punct_lucru_denumire: textOptional(160),
-    punct_lucru_adresa: textOptional(240),
-    punct_lucru_judet: opțional(judetSchema),
-    punct_lucru_oras: textOptional(80),
-    punct_lucru_cod_postal: textOptional(10),
+  punct_lucru_denumire: textOptional(160),
+  punct_lucru_adresa: textOptional(240),
+  punct_lucru_judet: opțional(judetSchema),
+  punct_lucru_oras: textOptional(80),
+  punct_lucru_cod_postal: textOptional(10),
 
-    zile_concediu_anual_implicit: zileConcediuImplicitSchema,
+  zile_concediu_anual_implicit: zileConcediuImplicitSchema,
 
-    ssm_furnizor_extern: textOptional(200),
-    ssm_persoana_responsabila: textOptional(160),
+  ssm_furnizor_extern: textOptional(200),
+  ssm_persoana_responsabila: textOptional(160),
 
-    owner_nume: z.string().trim().min(1, "Introduceți numele proprietarului.").max(120),
-    owner_prenume: z.string().trim().min(1, "Introduceți prenumele proprietarului.").max(120),
-    owner_email: emailSchema,
-    owner_telefon: telefonSchema,
-  });
+  owner_nume: z.string().trim().min(1, "Introduceți numele proprietarului.").max(120),
+  owner_prenume: z.string().trim().min(1, "Introduceți prenumele proprietarului.").max(120),
+  owner_email: emailSchema,
+  owner_telefon: telefonSchema,
+});
 
 /** Codurile CAEN secundare depind de forma juridică — regula e aceeași oriunde. */
 const verificaCaen = (

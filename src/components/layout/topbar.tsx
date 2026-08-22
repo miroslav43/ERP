@@ -84,15 +84,11 @@ export async function Topbar() {
       ? 0
       : await numaraNotificariNecitite(supabase, tenant.organizationId, utilizator.id);
 
-  // `buildNavigation` cere setul de chei, nu harta de scope-uri; refuzul explicit
-  // (`none`) se elimină, ca o intrare refuzată să nu apară în meniu.
-  const cheiPermisiuni: ReadonlySet<string> = new Set(
-    Array.from(permisiuni.entries())
-      .filter(([, scope]) => scope !== "none")
-      .map(([cheie]) => cheie),
-  );
-
-  const navigatie = buildNavigation({ features: module, permissions: cheiPermisiuni, badges: {} });
+  // Harta se predă întreagă, ca în `(app)/layout.tsx`: `buildNavigation` are
+  // nevoie de scope-uri, nu doar de chei, ca să compare cu pragul `minScope` al
+  // fiecărei intrări. Turtită într-un `Set`, paleta de comenzi ar fi oferit
+  // intrări pe care meniul le ascunde.
+  const navigatie = buildNavigation({ features: module, permissions: permisiuni, badges: {} });
   const elementePaleta: ElementPaleta[] = [];
   aplatizeazaNavigatie(navigatie, "Navigare", elementePaleta);
 

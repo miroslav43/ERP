@@ -13,7 +13,19 @@ interface OptiuneTip {
   readonly denumire: string;
 }
 
-export function FiltreCereri({ tipuri }: { readonly tipuri: readonly OptiuneTip[] }) {
+const VIZUALIZARI: readonly { readonly cheie: string; readonly eticheta: string }[] = [
+  { cheie: "toate", eticheta: "Toate" },
+  { cheie: "mele", eticheta: "Ale mele" },
+  { cheie: "echipa", eticheta: "Ale echipei" },
+];
+
+export function FiltreCereri({
+  tipuri,
+  aratăVizualizarea = false,
+}: {
+  readonly tipuri: readonly OptiuneTip[];
+  readonly aratăVizualizarea?: boolean;
+}) {
   const router = useRouter();
   const cale = usePathname();
   const parametri = useSearchParams();
@@ -33,93 +45,137 @@ export function FiltreCereri({ tipuri }: { readonly tipuri: readonly OptiuneTip[
     if (leaveTypeId.length > 0) noi.set("leave_type_id", leaveTypeId);
     if (deLa.length > 0) noi.set("de_la", deLa);
     if (panaLa.length > 0) noi.set("pana_la", panaLa);
+    // Vizualizarea nu e în formular — se schimbă din butoanele de mai sus — dar
+    // trebuie să supraviețuiască aplicării celorlalte filtre.
+    const vizualizare = parametri.get("vizualizare");
+    if (vizualizare !== null && vizualizare !== "toate") noi.set("vizualizare", vizualizare);
+    porneste(() => {
+      router.replace(`${cale}?${noi.toString()}`);
+    });
+  }
+
+  const vizualizareCurenta = parametri.get("vizualizare") ?? "toate";
+
+  function schimbaVizualizarea(cheie: string): void {
+    const noi = new URLSearchParams(parametri.toString());
+    if (cheie === "toate") noi.delete("vizualizare");
+    else noi.set("vizualizare", cheie);
+    // Cursorul aparține paginii anterioare; păstrat, ar sări rânduri.
+    noi.delete("cursor");
     porneste(() => {
       router.replace(`${cale}?${noi.toString()}`);
     });
   }
 
   return (
-    <form
-      action={aplica}
-      role="search"
-      aria-label="Filtrare cereri de concediu"
-      className="border-border flex flex-wrap items-end gap-4 rounded-lg border p-4"
-    >
-      <div>
-        <label htmlFor={idStatus} className="block text-sm font-medium">
-          Stare
-        </label>
-        <select
-          id={idStatus}
-          name="status"
-          defaultValue={parametri.get("status") ?? ""}
-          className="border-foreground/60 mt-1 rounded-md border px-2 py-2 text-sm"
+    <>
+      {aratăVizualizarea ? (
+        <div
+          role="group"
+          aria-label="Ce cereri se afișează"
+          className="border-border inline-flex rounded-md border p-0.5"
         >
-          <option value="">Toate</option>
-          {STATUSURI_CERERE.map((status) => (
-            <option key={status} value={status}>
-              {ETICHETE_STATUS_CERERE[status]}
-            </option>
+          {VIZUALIZARI.map((v) => (
+            <button
+              key={v.cheie}
+              type="button"
+              disabled={inCurs}
+              aria-pressed={vizualizareCurenta === v.cheie}
+              onClick={() => schimbaVizualizarea(v.cheie)}
+              className={`rounded px-3 py-1.5 text-sm font-medium ${
+                vizualizareCurenta === v.cheie
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-surface"
+              }`}
+            >
+              {v.eticheta}
+            </button>
           ))}
-        </select>
-      </div>
+        </div>
+      ) : null}
 
-      <div className="min-w-48">
-        <label htmlFor={idTip} className="block text-sm font-medium">
-          Tip de concediu
-        </label>
-        <select
-          id={idTip}
-          name="leave_type_id"
-          defaultValue={parametri.get("leave_type_id") ?? ""}
-          className="border-foreground/60 mt-1 w-full rounded-md border px-2 py-2 text-sm"
-        >
-          <option value="">Toate</option>
-          {tipuri.map((tip) => (
-            <option key={tip.id} value={tip.id}>
-              {tip.denumire}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div>
-        <label htmlFor={idDeLa} className="block text-sm font-medium">
-          De la
-        </label>
-        <input
-          id={idDeLa}
-          name="de_la"
-          type="date"
-          defaultValue={parametri.get("de_la") ?? ""}
-          className="border-foreground/60 mt-1 rounded-md border px-2 py-2 text-sm"
-        />
-      </div>
-
-      <div>
-        <label htmlFor={idPanaLa} className="block text-sm font-medium">
-          Până la
-        </label>
-        <input
-          id={idPanaLa}
-          name="pana_la"
-          type="date"
-          defaultValue={parametri.get("pana_la") ?? ""}
-          className="border-foreground/60 mt-1 rounded-md border px-2 py-2 text-sm"
-        />
-      </div>
-
-      <button
-        type="submit"
-        disabled={inCurs}
-        className="bg-primary text-primary-foreground disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
+      <form
+        action={aplica}
+        role="search"
+        aria-label="Filtrare cereri de concediu"
+        className="border-border flex flex-wrap items-end gap-4 rounded-lg border p-4"
       >
-        <Search aria-hidden="true" className="size-4" />
-        {inCurs ? "Se filtrează…" : "Aplică filtrele"}
-      </button>
-      <p aria-live="polite" className="sr-only">
-        {inCurs ? "Se aplică filtrele." : "Filtre aplicate."}
-      </p>
-    </form>
+        <div>
+          <label htmlFor={idStatus} className="block text-sm font-medium">
+            Stare
+          </label>
+          <select
+            id={idStatus}
+            name="status"
+            defaultValue={parametri.get("status") ?? ""}
+            className="border-foreground/60 mt-1 rounded-md border px-2 py-2 text-sm"
+          >
+            <option value="">Toate</option>
+            {STATUSURI_CERERE.map((status) => (
+              <option key={status} value={status}>
+                {ETICHETE_STATUS_CERERE[status]}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="min-w-48">
+          <label htmlFor={idTip} className="block text-sm font-medium">
+            Tip de concediu
+          </label>
+          <select
+            id={idTip}
+            name="leave_type_id"
+            defaultValue={parametri.get("leave_type_id") ?? ""}
+            className="border-foreground/60 mt-1 w-full rounded-md border px-2 py-2 text-sm"
+          >
+            <option value="">Toate</option>
+            {tipuri.map((tip) => (
+              <option key={tip.id} value={tip.id}>
+                {tip.denumire}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label htmlFor={idDeLa} className="block text-sm font-medium">
+            De la
+          </label>
+          <input
+            id={idDeLa}
+            name="de_la"
+            type="date"
+            defaultValue={parametri.get("de_la") ?? ""}
+            className="border-foreground/60 mt-1 rounded-md border px-2 py-2 text-sm"
+          />
+        </div>
+
+        <div>
+          <label htmlFor={idPanaLa} className="block text-sm font-medium">
+            Până la
+          </label>
+          <input
+            id={idPanaLa}
+            name="pana_la"
+            type="date"
+            defaultValue={parametri.get("pana_la") ?? ""}
+            className="border-foreground/60 mt-1 rounded-md border px-2 py-2 text-sm"
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={inCurs}
+          className="bg-primary text-primary-foreground disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
+        >
+          <Search aria-hidden="true" className="size-4" />
+          {inCurs ? "Se filtrează…" : "Aplică filtrele"}
+        </button>
+        <p aria-live="polite" className="sr-only">
+          {inCurs ? "Se aplică filtrele." : "Filtre aplicate."}
+        </p>
+      </form>
+    </>
   );
 }

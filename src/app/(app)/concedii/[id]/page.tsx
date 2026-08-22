@@ -19,6 +19,7 @@ import {
   ETICHETE_STATUS_SARCINA,
 } from "../etichete";
 import { ActiuniCerere } from "./actiuni-cerere";
+import { DecizieAprobare } from "../aprobari/decizie-aprobare";
 import { idDinRuta } from "@/lib/rute/parametri";
 
 export const metadata: Metadata = { title: "Detaliile cererii de concediu" };
@@ -40,7 +41,7 @@ interface AngajatMinim {
 export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina) {
   const { id: idBrut } = await params;
   const id = idDinRuta(idBrut);
-  const { tenant } = await requireTenant();
+  const { tenant, user } = await requireTenant();
   await requireFeature(tenant.organizationId, "leave");
   const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
 
@@ -57,6 +58,17 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
     zileleCererii(cerere.id),
     lantulAprobarii(tenant.organizationId, cerere.id),
   ]);
+
+  // Sarcina proprie, dacă există: cine poate decide trebuie s-o poată face DE
+  // AICI, nu doar din ecranul de aprobări. Fișa e locul unde te uiți ca să
+  // înțelegi cererea; a te trimite înapoi în listă ca să apeși un buton e
+  // exact drumul pe care nimeni nu-l găsește.
+  //
+  // `lantulAprobarii` trece prin RLS: `approval_tasks_select` arată sarcinile
+  // proprii, deci dacă apare aici e a mea. Verificarea de drept rămâne oricum
+  // în `decideCerere`, la scriere.
+  const sarcinaMea =
+    lant.find((pas) => pas.approver_user_id === user.id && pas.status === "in_asteptare") ?? null;
 
   const db = await createServerSupabase();
   const { data: tip } = await db
@@ -255,6 +267,18 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
           </ol>
         )}
       </section>
+
+      {sarcinaMea !== null ? (
+        <section
+          aria-labelledby="titlu-decizie"
+          className="border-border bg-surface rounded-lg border p-4"
+        >
+          <h2 id="titlu-decizie" className="mb-3 text-lg font-medium">
+            Cererea așteaptă decizia dumneavoastră
+          </h2>
+          <DecizieAprobare taskId={sarcinaMea.id} />
+        </section>
+      ) : null}
 
       {poateAnula ? <ActiuniCerere cerereId={cerere.id} /> : null}
     </main>

@@ -12,6 +12,8 @@ export const RUTA_DUPA_AUTENTIFICARE = "/panou";
 export const RUTA_ALEGE_ORGANIZATIA = "/alege-organizatia";
 
 export const RUTA_SUPER_ADMIN = "/super-admin";
+/** Portalul angajatului. `(app)/layout.tsx` redirecționează aici rolul `employee`. */
+export const RUTA_PORTAL = "/portal";
 
 /**
  * Unde ajunge cineva imediat după autentificare.
