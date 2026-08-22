@@ -234,9 +234,15 @@ jobs:
       total: ${{ steps.numara.outputs.total }}
       are_de_reparat: ${{ steps.numara.outputs.are_de_reparat }}
       valida: ${{ steps.numara.outputs.valida }}
-    env:
-      DIR_RAPORT: ${{ runner.temp }}/revizuire
     steps:
+      # `runner.temp` NU e disponibil în `env:` la nivel de job — contextul
+      # `runner` există doar la nivel de pas. Variabila de mediu `$RUNNER_TEMP`
+      # e însă mereu în shell, deci o propagăm prin $GITHUB_ENV către pașii
+      # următori. Un `env:` de job cu ${{ runner.temp }} face workflow-ul
+      # invalid și GitHub îl respinge înainte să pornească vreun job.
+      - name: Pregătește directorul de raport
+        run: echo "DIR_RAPORT=$RUNNER_TEMP/revizuire" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -430,12 +436,14 @@ jobs:
     timeout-minutes: 45
     permissions:
       contents: write
-    env:
-      DIR_RAPORT: ${{ runner.temp }}/revizuire
     outputs:
       reparate: ${{ steps.rezultat.outputs.reparate }}
       sarite: ${{ steps.rezultat.outputs.sarite }}
     steps:
+      # Vezi nota din jobul `analiza`: `runner.temp` nu e permis în `env:` de job.
+      - name: Pregătește directorul de raport
+        run: echo "DIR_RAPORT=$RUNNER_TEMP/revizuire" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
