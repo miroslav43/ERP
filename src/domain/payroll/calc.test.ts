@@ -352,3 +352,237 @@ describe("calculatePayrollEntry — breakdown", () => {
     expect(pasi.indexOf("brut")).toBeLessThan(pasi.indexOf("net"));
   });
 });
+
+describe("calculatePayrollEntry — normă parțială", () => {
+  const PONTAJ_CU_SUPLIMENTARE = {
+    ...PONTAJ_STANDARD,
+    oreLucrate: 84,
+    oreSuplimentare: 2,
+    oreNoapte: 4,
+  } as const;
+
+  it("tariful orar se calculează la norma DIN CONTRACT, nu la cea a organizației", () => {
+    // Setările organizației spun 8 ore; contractul spune 4. Un angajat cu
+    // jumătate de normă are tariful orar dublu față de cel calculat pe 8 ore,
+    // fiindcă același salariu se împarte la jumătate din ore.
+    const laNormaOrganizatiei = calculatePayrollEntry({
+      settings: SETARI,
+      contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0 },
+      attendance: PONTAJ_CU_SUPLIMENTARE,
+      bonuses: [],
+      deductions: [],
+    });
+    const laNormaContractului = calculatePayrollEntry({
+      settings: SETARI,
+      contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0, normaZilnicaOre: 4 },
+      attendance: PONTAJ_CU_SUPLIMENTARE,
+      bonuses: [],
+      deductions: [],
+    });
+
+    // Toleranța de un ban NU e neglijență: fiecare rezultat se rotunjește
+    // separat, iar dublul unei sume rotunjite nu e rotunjirea dublului
+    // (104,17 x 2 = 208,34, dar 208,33... se rotunjește la 208,33). Exact
+    // motivul pentru care aritmetica trebuie mutată pe bani întregi.
+    const UN_BAN = 0.01;
+    expect(
+      Math.abs(
+        laNormaContractului.sumaOreSuplimentare - laNormaOrganizatiei.sumaOreSuplimentare * 2,
+      ),
+    ).toBeLessThanOrEqual(UN_BAN);
+    expect(
+      Math.abs(laNormaContractului.sporNoapte - laNormaOrganizatiei.sporNoapte * 2),
+    ).toBeLessThanOrEqual(UN_BAN);
+    // Ancoră absolută, ca testul să nu treacă dacă AMBELE variante se strică:
+    // 2 ore x (5000 / (21 x 4)) x 1,75 = 208,33 lei.
+    expect(laNormaContractului.sumaOreSuplimentare).toBeCloseTo(208.33, 2);
+    expect(laNormaOrganizatiei.sumaOreSuplimentare).toBeCloseTo(104.17, 2);
+  });
+
+  it("norma lipsă din contract cade pe cea a organizației, fără să schimbe rezultatul", () => {
+    const fara = calculatePayrollEntry({
+      settings: SETARI,
+      contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0 },
+      attendance: PONTAJ_CU_SUPLIMENTARE,
+      bonuses: [],
+      deductions: [],
+    });
+    const cuAceeasi = calculatePayrollEntry({
+      settings: SETARI,
+      contract: {
+        salariuBaza: 5000,
+        nrPersoaneIntretinere: 0,
+        normaZilnicaOre: SETARI.normaZilnicaOre,
+      },
+      attendance: PONTAJ_CU_SUPLIMENTARE,
+      bonuses: [],
+      deductions: [],
+    });
+    expect(cuAceeasi).toEqual(fara);
+  });
+
+  it("o normă zero în contract e respinsă, nu ignorată tăcut", () => {
+    expect(() =>
+      calculatePayrollEntry({
+        settings: SETARI,
+        contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0, normaZilnicaOre: 0 },
+        attendance: PONTAJ_STANDARD,
+        bonuses: [],
+        deductions: [],
+      }),
+    ).toThrow(RangeError);
+  });
+
+  it("baza de salariu NU depinde de normă — ea se plătește pe zile, nu pe ore", () => {
+    const intreaga = calculatePayrollEntry({
+      settings: SETARI,
+      contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0, normaZilnicaOre: 8 },
+      attendance: PONTAJ_STANDARD,
+      bonuses: [],
+      deductions: [],
+    });
+    const partiala = calculatePayrollEntry({
+      settings: SETARI,
+      contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0, normaZilnicaOre: 4 },
+      attendance: PONTAJ_STANDARD,
+      bonuses: [],
+      deductions: [],
+    });
+    // Salariul de bază al unui part-time e deja mai mic în contract; motorul nu
+    // îl mai reduce o dată. Confuzia asta ar înjumătăți salarii reale.
+    expect(partiala.bazaSalariu).toBe(intreaga.bazaSalariu);
+  });
+});
+
+describe("calculatePayrollEntry — zile de repaus și de sărbătoare", () => {
+  // Tariful orar: 5000 / (21 x 8) = 29,7619 lei.
+  const cuSpor = (repaus: number, sarbatoare?: number): PayrollSettingsSnapshot => ({
+    ...SETARI,
+    procentSporWeekend: repaus,
+    ...(sarbatoare === undefined ? {} : { procentSporSarbatoare: sarbatoare }),
+  });
+
+  it("DEFECTUL REPARAT: o sâmbătă lucrată este plătită, nu ignorată", () => {
+    const rezultat = calculatePayrollEntry({
+      settings: SETARI,
+      contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0 },
+      attendance: { ...PONTAJ_STANDARD, zileRepausLucrate: 1, oreNormaleRepaus: 8 },
+      bonuses: [],
+      deductions: [],
+    });
+    // Fără spor configurat, orele se plătesc măcar la tariful orar simplu:
+    // 8 x 29,7619 = 238,10 lei. Varianta veche plătea ZERO.
+    expect(rezultat.sporRepaus).toBeCloseTo(238.1, 2);
+    expect(rezultat.oreRepaus).toBe(8);
+    expect(rezultat.brut).toBeCloseTo(5238.1, 2);
+  });
+
+  it("sporul configurat pentru repaus se aplică peste tariful orar", () => {
+    const rezultat = calculatePayrollEntry({
+      settings: cuSpor(1),
+      contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0 },
+      attendance: { ...PONTAJ_STANDARD, zileRepausLucrate: 1, oreNormaleRepaus: 8 },
+      bonuses: [],
+      deductions: [],
+    });
+    // 8 x 29,7619 x (1 + 1,00) = 476,19 lei.
+    expect(rezultat.sporRepaus).toBeCloseTo(476.19, 2);
+  });
+
+  it("regula MAXIM, nu sumă: sporul de repaus și cel de ore suplimentare nu se cumulează", () => {
+    const rezultat = calculatePayrollEntry({
+      settings: cuSpor(1),
+      contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0 },
+      attendance: { ...PONTAJ_STANDARD, zileRepausLucrate: 1, oreSuplimentareRepaus: 2 },
+      bonuses: [],
+      deductions: [],
+    });
+    // 2 x 29,7619 x (1 + max(1,00; 0,75)) = 119,05 lei.
+    expect(rezultat.sporRepaus).toBeCloseTo(119.05, 2);
+    // Dacă s-ar însuma (1 + 1,00 + 0,75), ar ieși 163,69 — greșit.
+    expect(rezultat.sporRepaus).not.toBeCloseTo(163.69, 2);
+  });
+
+  it("zilele de repaus NU cresc zilele plătite din salariul de bază", () => {
+    const fara = calculatePayrollEntry({
+      settings: SETARI,
+      contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0 },
+      attendance: PONTAJ_STANDARD,
+      bonuses: [],
+      deductions: [],
+    });
+    const cu = calculatePayrollEntry({
+      settings: SETARI,
+      contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0 },
+      attendance: { ...PONTAJ_STANDARD, zileRepausLucrate: 2, oreNormaleRepaus: 16 },
+      bonuses: [],
+      deductions: [],
+    });
+    // Altfel zilele plătite ar depăși zilele lucrătoare ale lunii și calculul
+    // s-ar opri — sau, mai rău, ar plăti de două ori aceeași zi.
+    expect(cu.bazaSalariu).toBe(fara.bazaSalariu);
+  });
+
+  it("sporurile intră în brut ȘI în baza de contribuții", () => {
+    const rezultat = calculatePayrollEntry({
+      settings: cuSpor(1),
+      contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0 },
+      attendance: { ...PONTAJ_STANDARD, zileSarbatoareLucrate: 1, oreNormaleSarbatoare: 8 },
+      bonuses: [],
+      deductions: [],
+    });
+    expect(rezultat.bazaCasCass).toBeCloseTo(rezultat.brut, 2);
+    expect(rezultat.cas).toBeCloseTo(rezultat.brut * 0.25, 2);
+  });
+
+  it("sărbătoarea fără procent propriu e plătită cu cel de repaus și avertizează", () => {
+    const rezultat = calculatePayrollEntry({
+      settings: cuSpor(1),
+      contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0 },
+      attendance: { ...PONTAJ_STANDARD, zileSarbatoareLucrate: 1, oreNormaleSarbatoare: 8 },
+      bonuses: [],
+      deductions: [],
+    });
+    expect(rezultat.sporSarbatoare).toBeCloseTo(476.19, 2);
+    expect(rezultat.warnings.map((w) => w.cod)).toContain("SAL_SPOR_SARBATOARE_NECONFIGURAT");
+  });
+
+  it("cu procent propriu de sărbătoare, avertismentul dispare și suma se schimbă", () => {
+    const rezultat = calculatePayrollEntry({
+      settings: cuSpor(1, 2),
+      contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0 },
+      attendance: { ...PONTAJ_STANDARD, zileSarbatoareLucrate: 1, oreNormaleSarbatoare: 8 },
+      bonuses: [],
+      deductions: [],
+    });
+    // 8 x 29,7619 x (1 + 2,00) = 714,29 lei.
+    expect(rezultat.sporSarbatoare).toBeCloseTo(714.29, 2);
+    expect(rezultat.warnings.map((w) => w.cod)).not.toContain("SAL_SPOR_SARBATOARE_NECONFIGURAT");
+  });
+
+  it("avertizează când s-a lucrat în repaus dar sporul e zero", () => {
+    const rezultat = calculatePayrollEntry({
+      settings: SETARI,
+      contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0 },
+      attendance: { ...PONTAJ_STANDARD, zileRepausLucrate: 1, oreNormaleRepaus: 8 },
+      bonuses: [],
+      deductions: [],
+    });
+    expect(rezultat.warnings.map((w) => w.cod)).toContain("SAL_SPOR_REPAUS_NECONFIGURAT");
+  });
+
+  it("o lună fără muncă în repaus nu produce niciun avertisment despre sporuri", () => {
+    const rezultat = calculatePayrollEntry({
+      settings: SETARI,
+      contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0 },
+      attendance: PONTAJ_STANDARD,
+      bonuses: [],
+      deductions: [],
+    });
+    const coduri = rezultat.warnings.map((w) => w.cod);
+    expect(coduri).not.toContain("SAL_SPOR_REPAUS_NECONFIGURAT");
+    expect(coduri).not.toContain("SAL_SPOR_SARBATOARE_NECONFIGURAT");
+    expect(rezultat.sporRepaus).toBe(0);
+    expect(rezultat.sporSarbatoare).toBe(0);
+  });
+});

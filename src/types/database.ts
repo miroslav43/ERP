@@ -6586,6 +6586,8 @@ export type Database = {
           nr_tichete: number
           ore_lucrate: number
           ore_noapte: number
+          ore_repaus: number
+          ore_sarbatoare: number
           ore_suplimentare: number
           organization_id: string
           period_id: string
@@ -6594,6 +6596,8 @@ export type Database = {
           scutire_fiscala: number
           settings_snapshot: Json
           spor_noapte: number
+          spor_repaus: number
+          spor_sarbatoare: number
           status: Database["public"]["Enums"]["payroll_entry_status"]
           suma_ore_suplimentare: number
           updated_at: string
@@ -6604,6 +6608,8 @@ export type Database = {
           zile_concediu_odihna: number
           zile_lucrate: number
           zile_lucratoare_luna: number
+          zile_repaus_lucrate: number
+          zile_sarbatoare_lucrate: number
         }
         Insert: {
           baza_cas_cass?: number
@@ -6630,6 +6636,8 @@ export type Database = {
           nr_tichete?: number
           ore_lucrate?: number
           ore_noapte?: number
+          ore_repaus?: number
+          ore_sarbatoare?: number
           ore_suplimentare?: number
           organization_id: string
           period_id: string
@@ -6638,6 +6646,8 @@ export type Database = {
           scutire_fiscala?: number
           settings_snapshot: Json
           spor_noapte?: number
+          spor_repaus?: number
+          spor_sarbatoare?: number
           status?: Database["public"]["Enums"]["payroll_entry_status"]
           suma_ore_suplimentare?: number
           updated_at?: string
@@ -6648,6 +6658,8 @@ export type Database = {
           zile_concediu_odihna?: number
           zile_lucrate?: number
           zile_lucratoare_luna: number
+          zile_repaus_lucrate?: number
+          zile_sarbatoare_lucrate?: number
         }
         Update: {
           baza_cas_cass?: number
@@ -6674,6 +6686,8 @@ export type Database = {
           nr_tichete?: number
           ore_lucrate?: number
           ore_noapte?: number
+          ore_repaus?: number
+          ore_sarbatoare?: number
           ore_suplimentare?: number
           organization_id?: string
           period_id?: string
@@ -6682,6 +6696,8 @@ export type Database = {
           scutire_fiscala?: number
           settings_snapshot?: Json
           spor_noapte?: number
+          spor_repaus?: number
+          spor_sarbatoare?: number
           status?: Database["public"]["Enums"]["payroll_entry_status"]
           suma_ore_suplimentare?: number
           updated_at?: string
@@ -6692,6 +6708,8 @@ export type Database = {
           zile_concediu_odihna?: number
           zile_lucrate?: number
           zile_lucratoare_luna?: number
+          zile_repaus_lucrate?: number
+          zile_sarbatoare_lucrate?: number
         }
         Relationships: [
           {
@@ -9742,7 +9760,34 @@ export type Database = {
         }
         Returns: string
       }
+      payroll_scrie_rezultate: {
+        Args: { p_period_id: string; p_randuri: Json }
+        Returns: {
+          actualizate: number
+          inserate: number
+        }[]
+      }
       peek_invitation: { Args: { p_token: string }; Returns: Json }
+      pontaj_agregat_salarizare: {
+        Args: { p_period_id: string }
+        Returns: {
+          employee_id: string
+          ore_lucrate: number
+          ore_noapte: number
+          ore_normale_repaus: number
+          ore_normale_sarbatoare: number
+          ore_normale_zi: number
+          ore_suplimentare_repaus: number
+          ore_suplimentare_sarbatoare: number
+          ore_suplimentare_zi: number
+          zile_absenta_nemotivata: number
+          zile_concediu_medical: number
+          zile_concediu_odihna: number
+          zile_lucrate: number
+          zile_repaus_lucrate: number
+          zile_sarbatoare_lucrate: number
+        }[]
+      }
       seed_leave_balances: {
         Args: {
           p_an: number

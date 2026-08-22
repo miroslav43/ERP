@@ -167,24 +167,10 @@ la Eduvora — același domeniu, aceeași filiație; nu s-a rulat certbot la mig
 
 ## Probleme cunoscute
 
-**Migrarea `0035_reguli_concediu.sql` nu e aplicată pe baza live.**
-0036 e aplicată, 0035 nu — a fost sărită. Lipsesc din bază două funcții
-(`aplica_drepturi_concediu`, `seteaza_zile_concediu_implicit`) și șase coloane din
-`leave_entitlement_rules` (`tip_criteriu`, `vechime_ani_min`, `valoare_text`, `department_id`,
-`job_position_id`, `activ`). Codul de la HEAD le folosește.
-
-_Efect:_ ecranul **Concedii → Setări** (grile de drepturi) dă eroare la rulare. Restul aplicației
-funcționează. Tot de aici vin cele 9 erori de tip care au impus `DOCKER_BUILD=1` în `next.config.ts`.
-
-_Reparație_ (necesită `DATABASE_URL` în `.env.production`):
-
-```bash
-./administrativo.sh db:migrate     # aplică 0035 + 0037
-pnpm db:types                      # regenerează src/types/database.ts
-./administrativo.sh prod           # rebuild + redeploy, fără downtime
-```
-
-După asta, `typescript.ignoreBuildErrors` din `next.config.ts` poate dispărea complet.
+**Migrarea `0035` — rezolvată (2026-08-22).** Aplicată pe baza live împreună cu 0037 și 0045;
+`database.ts` regenerat; ocolul `DOCKER_BUILD=1` scos din `next.config.ts` și `Dockerfile`.
+Verifică starea reală prin MCP (`execute_sql`) înainte de a presupune drift — repo-ul e lucrat
+în paralel, iar o migrare poate fi aplicată de altcineva între timp.
 
 **Modulul `ticketing` există în bază, dar nu în cod.**
 `features` are 14 rânduri, `FEATURE_KEYS` din `src/config/features.ts` are 13 — lipsește
@@ -197,6 +183,28 @@ intrarea în `src/config/navigation.ts` — și transformă seed-ul manual într
 
 **`/preturi` întoarce 404.** E declarată rută publică în `src/proxy.ts`, dar pagina nu există.
 Preexistent, fără legătură cu deploy-ul.
+
+---
+
+## Publicare când altcineva lucrează în repo
+
+Build-ul Docker ia ÎNTREG directorul ca context, nu doar fișierele comise. Cu o sesiune paralelă
+care are muncă necomisă, `./administrativo.sh prod` din `/srv/apps/ERP` publică și munca ei
+neterminată — inclusiv cod care cheamă funcții dintr-o migrare încă neaplicată.
+
+Soluția, folosită pe 2026-08-22: publică dintr-un worktree curat pe `HEAD`, care conține exact
+commit-urile, fără fișierele în lucru ale nimănui.
+
+```bash
+W=/tmp/erp-deploy
+git worktree add --detach "$W" HEAD
+cp .env.production "$W/.env.production" && chmod 600 "$W/.env.production"
+cd "$W" && ./administrativo.sh prod
+cd - && shred -u "$W/.env.production" && git worktree remove --force "$W"
+```
+
+Verifică înainte de build că fișierele lor chiar lipsesc din worktree — e diferența dintre a
+publica ce ai vrut și a publica ce s-a nimerit.
 
 ---
 
