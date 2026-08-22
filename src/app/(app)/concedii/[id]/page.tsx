@@ -10,6 +10,7 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { formatAmount } from "@/lib/format/money";
 import { formatDate, formatDateTime } from "@/lib/format/date";
 import { citesteCerere, lantulAprobarii, zileleCererii } from "@/lib/queries/leave";
+import { grupeazaPeTrepte } from "@/domain/leave/lant-aprobare";
 
 import {
   CLASE_STATUS_CERERE,
@@ -211,10 +212,20 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
           </p>
         ) : (
           <ol className="space-y-2 text-sm">
-            {lant.map((pas) => (
-              <li key={pas.id} className="border-border rounded-md border p-3">
+            {/* Grupat pe trepte: `approval_tasks` are o sarcină per aprobator
+                posibil, nu per treaptă. Negrupate, cei patru aprobatori ai unei
+                singure trepte apăreau ca „Pasul 1” de patru ori. */}
+            {grupeazaPeTrepte(lant).map((pas) => (
+              <li key={pas.ordine} className="border-border rounded-md border p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="font-medium">Pasul {pas.ordine}</span>
+                  <span className="font-medium">
+                    Pasul {pas.ordine}
+                    {pas.candidatiVizibili > 1 && pas.status === "in_asteptare" ? (
+                      <span className="text-muted-foreground ml-2 font-normal">
+                        oricare dintre {pas.candidatiVizibili} aprobatori
+                      </span>
+                    ) : null}
+                  </span>
                   <span
                     className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                       pas.status === "aprobata"
