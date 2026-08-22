@@ -126,8 +126,45 @@ cheia de criptare a CNP-urilor**. Grupul `docker` are azi un singur membru (`mir
 unul, ăsta e pragul care trebuie recitit.
 
 Întărirea, când merită efortul: `docker secret create` + `secrets:` în `docker-stack.yml` montează
-valorile ca fișiere în `/run/secrets/`, nu în mediu. `docker-stack.yml` n-are azi niciun bloc
-`secrets:`.
+valorile ca fișiere în `/run/secrets/`, nu în mediu.
+
+**Suportul e deja în imagine** (`deploy/entrypoint.sh`), inert până când îl folosești: fără o
+variabilă `<NUME>_FILE` setată, scriptul nu face nimic și pornirea e identică cu cea de azi.
+Traducerea fișier → variabilă de mediu se face în entrypoint, nu în `src/config/env.ts`: acolo ar
+fi însemnat un import de `node:fs` într-un fișier pe care îl importă și bundle-ul de client.
+
+Migrarea se face **o cheie pe rând** — `<NUME>_FILE` are prioritate, restul rămân pe mediu:
+
+```bash
+# 1. creezi secretul din valoarea existentă, FĂRĂ să treacă prin shell history
+printf '%s' "$HR_ENCRYPTION_KEYS" | docker secret create hr_encryption_keys -
+
+# 2. în docker-stack.yml, la serviciu:
+#      environment:
+#        - HR_ENCRYPTION_KEYS_FILE=/run/secrets/hr_encryption_keys   # în loc de HR_ENCRYPTION_KEYS=...
+#      secrets:
+#        - hr_encryption_keys
+#    și la nivel de stack:
+#      secrets:
+#        hr_encryption_keys:
+#          external: true
+
+# 3. deploy normal; verifici că replica nouă trece healthcheck-ul ÎNAINTE de a continua
+./administrativo.sh prod
+./administrativo.sh health
+
+# 4. confirmi că valoarea a dispărut din inspect
+docker inspect "$(docker ps -q -f name=administrativo-web | head -1)" --format '{{.Config.Env}}' | grep -c HR_ENCRYPTION_KEYS=
+#    → 0 (mai apare doar HR_ENCRYPTION_KEYS_FILE, care e o cale, nu o valoare)
+```
+
+⚠️ `docker secret` e **imuabil**: rotația înseamnă secret nou + update de serviciu. Pentru
+`HR_ENCRYPTION_KEYS` asta nu e o problemă — regula 4 spune că oricum nu se rotește. Pentru
+`TENANT_COOKIE_SECRET`, care se poate roti, ține minte pasul în plus.
+
+Entrypoint-ul taie newline-ul final al fișierului: `docker secret create` îl adaugă aproape mereu
+când valoarea vine dintr-un `echo`, iar o cheie AES cu `\n` la capăt devine invalidă și decriptarea
+eșuează cu un mesaj care nu spune de ce.
 
 **Regula care nu se încalcă niciodată**: un secret NU se pasează ca argument de linie de comandă.
 S-a întâmplat o dată — un container de diagnostic pornit manual în timpul deploy-ului căuta prin
