@@ -63,10 +63,21 @@ export async function writeAuditLog(supabase: ServerSupabase, entry: AuditEntry)
 
 /**
  * Plasă de siguranță PESTE allow-list: chiar dacă cineva enumeră din greșeală
- * un câmp sensibil, tiparul îl taie. Aceeași listă ca în triggerul generic de
- * audit din bază (R9) — cele două trebuie să rămână sincronizate.
+ * un câmp sensibil, tiparul îl taie.
+ *
+ * Trebuie să fie un SUPERSET al tiparelor din triggerul generic de audit al
+ * bazei (`internal.audit_forbidden_patterns()`, R9). Nu era: baza redacta
+ * `ciphertext`, `hash`, `auth_tag` și sufixul `_iv`, iar partea de TypeScript
+ * nu le avea. Din cele 118 câmpuri auditate în cod, niciunul nu e afectat de
+ * lărgire — golul era doar pentru viitor, dar exact acolo apar câmpurile
+ * criptografice. `audit.test.ts` verifică de acum incluziunea, citind SQL-ul.
+ *
+ * Cele două liste NU sunt identice, și e corect: baza filtrează NUME DE
+ * COLOANE (`cnp_ciphertext`, `cnp_iv`), iar aici filtrăm CHEI DE PAYLOAD
+ * (`cnp`, `salariu_brut`) — vocabulare diferite, cu aceeași intenție.
  */
-const CAMPURI_INTERZISE = /cnp|iban|salar|token|secret|parol|password/i;
+const CAMPURI_INTERZISE =
+  /cnp|iban|salar|token|secret|parol|password|ciphertext|auth_tag|hash|_iv$/i;
 const ADANCIME_MAXIMA = 4;
 const LUNGIME_MAXIMA_TEXT = 500;
 const ELEMENTE_MAXIME = 50;
@@ -78,6 +89,13 @@ const ELEMENTE_MAXIME = 50;
  * sau numele simplu (`start`), la orice adâncime. Restul dispare — inclusiv
  * câmpurile pe care nu le cunoaștem, ceea ce este esențial la validarea eșuată,
  * unde `rawInput` este complet necontrolat.
+ *
+ * ATENȚIE la structurile imbricate: filtrarea coboară nivel cu nivel, deci un
+ * câmp imbricat cere ȘI PĂRINTELE în allow-list. `["perioada.start"]` singur nu
+ * păstrează nimic — `perioada` e tăiat înainte să se ajungă la `start`. Forma
+ * corectă e `["perioada", "perioada.start"]` sau `["perioada", "start"]`.
+ * Toate allow-list-urile din cod sunt azi plate, deci nimic nu depinde de asta;
+ * capcana e pentru primul care scrie una imbricată.
  */
 export function redactPayload(input: unknown, allow: readonly string[]): JsonObject | null {
   if (typeof input !== "object" || input === null || Array.isArray(input)) return null;

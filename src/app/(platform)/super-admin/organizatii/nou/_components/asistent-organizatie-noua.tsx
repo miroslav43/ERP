@@ -53,7 +53,7 @@ interface RezultatSucces {
   readonly id: string;
   readonly name: string;
   readonly invitatie:
-    | Readonly<{ trimisa: true; linkInvitatie: string }>
+    | Readonly<{ trimisa: true; prinEmail: boolean; linkInvitatie: string }>
     | Readonly<{ trimisa: false; eroare: string }>;
 }
 
@@ -143,10 +143,9 @@ export function AsistentOrganizatieNoua({ valoriInitiale }: Proprietati = {}) {
         {rezultat.invitatie.trimisa ? (
           <>
             <p className="text-muted-foreground text-sm">
-              Invitația pentru proprietar a fost creată. Fluxul nu trimite e-mail — trimite linkul
-              de mai jos persoanei respective. Poate fi regenerat oricând din ecranul de membri al
-              organizației, dar cel de acum nu mai poate fi recuperat după ce părăsești pagina: în
-              baza de date se păstrează doar amprenta tokenului.
+              {rezultat.invitatie.prinEmail
+                ? "Invitația a plecat pe e-mail către administrator. Linkul de mai jos e o rezervă, dacă mesajul nu ajunge — nu mai poate fi recuperat după ce părăsești pagina, fiindcă în baza de date se păstrează doar amprenta tokenului."
+                : "Invitația a fost creată, dar e-mailul nu a putut fi trimis. Trimite manual linkul de mai jos — nu mai poate fi recuperat după ce părăsești pagina, fiindcă în baza de date se păstrează doar amprenta tokenului. Poate fi regenerat oricând din ecranul de membri."}
             </p>
             <LinkInvitatie link={rezultat.invitatie.linkInvitatie} />
           </>

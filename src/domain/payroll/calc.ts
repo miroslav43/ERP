@@ -19,6 +19,7 @@
 // NIMIC din modulul ăsta nu e certificat. Fiecare cotă vine din
 // `PayrollSettingsSnapshot`, niciodată hardcodată — vezi banner-ul din UI.
 
+import { rotunjesteLaBani } from "../bani";
 import { descriereCompleta, problema, type CodProblema } from "./erori";
 
 export interface PragDeducerePersonala {
@@ -48,8 +49,20 @@ export interface PayrollSettingsSnapshot {
   readonly procentOreSuplimentare: number;
   readonly valoareTichetMasa: number;
   readonly ticheteImpozabile: boolean;
+  /**
+   * Tichetele intră în baza CASS (nu și în cea CAS). Implicit `false`: o
+   * valoare implicită `true` ar schimba tăcut netul fiecărui angajat la prima
+   * recalculare. ⚠️ Regim de confirmat de contabil — vezi NOTES.md §3.
+   */
+  readonly ticheteSupuseCass?: boolean;
+  /** Setările au fost confirmate de contabil. Cât timp e `false`, motorul avertizează. */
+  readonly verificatDeContabil?: boolean;
   readonly deducerePersonala: readonly PragDeducerePersonala[];
   readonly rotunjireLei: boolean;
+  /** ⚠️ De confirmat de contabil. Pragul minim al bazei de contribuții. */
+  readonly salariuMinimBrut?: number;
+  /** Ridică baza CAS/CASS la salariul minim. Implicit stins — vezi 0055. */
+  readonly aplicaMinimContributii?: boolean;
 }
 
 /**
@@ -108,7 +121,21 @@ export interface AttendanceSummary {
 export interface BonusInput {
   readonly suma: number;
   readonly impozabil: boolean;
+  /** Implicitul pentru ambele baze, când nu se dau steaguri separate. */
   readonly supusContributii: boolean;
+  /**
+   * Suprascriu implicitul de mai sus. `salary_component_types` are de mult
+   * coloanele `intra_in_baza_cas` și `intra_in_baza_cass` — o componentă poate
+   * intra în baza de sănătate fără să intre în cea de pensie.
+   */
+  readonly intraInBazaCas?: boolean;
+  readonly intraInBazaCass?: boolean;
+  /**
+   * Avantaj primit ÎN NATURĂ (mașină de serviciu folosită personal, cazare,
+   * abonament). Intră în brut și se impozitează ca orice venit, dar NU se
+   * plătește în bani: angajatul l-a primit deja. Se scade la restul de plată.
+   */
+  readonly esteAvantajInNatura?: boolean;
 }
 
 export interface DeductionInput {
@@ -141,7 +168,10 @@ export interface PayrollCalcResult {
   readonly brut: number;
   readonly nrTichete: number;
   readonly valoareTichete: number;
+  /** ÎNVECHIT: egal cu `bazaCas`. Păstrat cât timp consumatorii încă îl citesc. */
   readonly bazaCasCass: number;
+  readonly bazaCas: number;
+  readonly bazaCass: number;
   readonly cas: number;
   readonly cass: number;
   readonly deducerePersonala: number;
@@ -152,15 +182,22 @@ export interface PayrollCalcResult {
   readonly net: number;
   readonly retineriTotal: number;
   readonly netDePlata: number;
+  readonly avantajeNatura: number;
+  readonly restDePlata: number;
   readonly costTotalAngajator: number;
   readonly breakdown: readonly Readonly<{ pas: string; valoare: number }>[];
   readonly warnings: readonly PayrollCalcWarning[];
 }
 
-/** Rotunjire aritmetică la ban — nu „half to even", care ar surprinde la o verificare manuală. */
-function rotund2(valoare: number): number {
-  return Math.round((valoare + Number.EPSILON) * 100) / 100;
-}
+/**
+ * Rotunjire aritmetică la ban, din regula unică a aplicației (`domain/bani.ts`).
+ *
+ * Varianta locală de dinainte folosea un epsilon ABSOLUT, iar `lib/format/money.ts`
+ * unul RELATIV: pe 2,675 dădeau 2,67 și 2,68. O sumă putea fi afișată altfel
+ * decât fusese calculată — pe un fluturaș, asta e o discrepanță pe care omul o
+ * vede și nu o poate explica.
+ */
+const rotund2 = rotunjesteLaBani;
 
 function rotundLeu(valoare: number, rotunjireLei: boolean): number {
   return rotunjireLei ? Math.round(valoare) : rotund2(valoare);
@@ -292,8 +329,11 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     "primeTotal",
     bonuses.reduce((s, b) => s + b.suma, 0),
   );
-  const primeSupuseContributii = bonuses
-    .filter((b) => b.supusContributii)
+  const primeInBazaCas = bonuses
+    .filter((b) => b.intraInBazaCas ?? b.supusContributii)
+    .reduce((s, b) => s + b.suma, 0);
+  const primeInBazaCass = bonuses
+    .filter((b) => b.intraInBazaCass ?? b.supusContributii)
     .reduce((s, b) => s + b.suma, 0);
   const primeImpozabileFaraContributii = bonuses
     .filter((b) => b.impozabil && !b.supusContributii)
@@ -310,17 +350,39 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
   const nrTichete = attendance.zileLucrate;
   const valoareTichete = inregistreaza("valoareTichete", nrTichete * settings.valoareTichetMasa);
 
-  const bazaCasCass = inregistreaza(
-    "bazaCasCass",
-    bazaSalariu +
-      sumaOreSuplimentare +
-      sporNoapte +
-      sporRepaus +
-      sporSarbatoare +
-      primeSupuseContributii,
-  );
-  const cas = inregistreaza("cas", bazaCasCass * settings.cotaCas);
-  const cass = inregistreaza("cass", bazaCasCass * settings.cotaCass);
+  // Baza comună a celor două contribuții — drepturile din muncă propriu-zise.
+  const bazaComuna = bazaSalariu + sumaOreSuplimentare + sporNoapte + sporRepaus + sporSarbatoare;
+
+  // Tichetele de masă NU intră în baza de pensie. În cea de sănătate intră sau
+  // nu, după regimul fiscal în vigoare — de aceea e o setare, nu o constantă.
+  const ticheteInCass = (settings.ticheteSupuseCass ?? false) ? valoareTichete : 0;
+  if (valoareTichete > 0 && settings.verificatDeContabil === false) {
+    avertizeaza(
+      "SAL_TICHETE_REGIM_NECONFIRMAT",
+      `${valoareTichete.toFixed(2)} lei în tichete, tratate ${ticheteInCass > 0 ? "CU" : "FĂRĂ"} CASS.`,
+    );
+  }
+
+  const bazaCas = inregistreaza("bazaCas", bazaComuna + primeInBazaCas);
+  const bazaCass = inregistreaza("bazaCass", bazaComuna + primeInBazaCass + ticheteInCass);
+  // Plafonul minim al bazei de contribuții. Legea prevede EXCEPȚII (elevi și
+  // studenți sub 26 de ani, pensionari, persoane cu handicap, cumul de
+  // contracte) pentru care schema nu are încă niciun câmp — de aceea motorul
+  // ridică baza și AVERTIZEAZĂ, în loc să decidă singur.
+  const minim = settings.salariuMinimBrut ?? 0;
+  const aplicaMinim = (settings.aplicaMinimContributii ?? false) && minim > 0;
+  const bazaCasFinala = aplicaMinim ? Math.max(bazaCas, minim) : bazaCas;
+  const bazaCassFinala = aplicaMinim ? Math.max(bazaCass, minim) : bazaCass;
+  if (aplicaMinim && (bazaCasFinala > bazaCas || bazaCassFinala > bazaCass)) {
+    avertizeaza(
+      "SAL_CAS_LA_MINIM",
+      `Baza a fost ridicată de la ${bazaCas.toFixed(2)} la ${minim.toFixed(2)} lei.`,
+    );
+  }
+
+  const cas = inregistreaza("cas", bazaCasFinala * settings.cotaCas);
+  const cass = inregistreaza("cass", bazaCassFinala * settings.cotaCass);
+  const bazaCasCass = bazaCasFinala;
 
   const deducerePersonala = inregistreaza(
     "deducerePersonala",
@@ -359,7 +421,7 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     "bazaImpozit",
     Math.max(
       0,
-      bazaCasCass -
+      bazaCasFinala -
         cas -
         cass -
         deducerePersonala +
@@ -392,6 +454,23 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
   inregistreaza("retineriTotal", retineriTotal);
 
   const netDePlata = inregistreaza("netDePlata", net - retineriTotal);
+
+  // Avantajele în natură au fost deja adunate în brut și impozitate; aici se
+  // scad din suma VIRATĂ, fiindcă angajatul le-a primit în natură, nu în bani.
+  const avantajeNatura = inregistreaza(
+    "avantajeNatura",
+    bonuses.filter((b) => b.esteAvantajInNatura === true).reduce((s, b) => s + b.suma, 0),
+  );
+  const restBrut = netDePlata - avantajeNatura;
+  if (restBrut < -0.005) {
+    avertizeaza(
+      "SAL_AVANTAJ_NATURA_PESTE_NET",
+      `Lipsesc ${Math.abs(restBrut).toFixed(2)} lei: avantajele depășesc netul rămas.`,
+    );
+  }
+  // Nu se poate vira o sumă negativă. Diferența rămâne de recuperat altfel, iar
+  // avertismentul de mai sus o numește în cifre.
+  const restDePlata = inregistreaza("restDePlata", Math.max(0, restBrut));
   const costTotalAngajator = inregistreaza(
     "costTotalAngajator",
     brut + camAngajator + valoareTichete,
@@ -411,6 +490,8 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     nrTichete,
     valoareTichete: rotundLeu(valoareTichete, r),
     bazaCasCass: rotundLeu(bazaCasCass, r),
+    bazaCas: rotundLeu(bazaCasFinala, r),
+    bazaCass: rotundLeu(bazaCassFinala, r),
     cas: rotundLeu(cas, r),
     cass: rotundLeu(cass, r),
     deducerePersonala: rotundLeu(deducerePersonala, r),
@@ -421,6 +502,8 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     net: rotundLeu(net, r),
     retineriTotal: rotundLeu(retineriTotal, r),
     netDePlata: rotundLeu(netDePlata, r),
+    avantajeNatura: rotundLeu(avantajeNatura, r),
+    restDePlata: rotundLeu(restDePlata, r),
     costTotalAngajator: rotundLeu(costTotalAngajator, r),
     breakdown,
     warnings,

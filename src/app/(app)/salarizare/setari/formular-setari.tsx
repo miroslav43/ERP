@@ -57,6 +57,7 @@ export function FormularSetari({
   const idSporNoapte = useId();
   const idOreSupl = useId();
   const idTichet = useId();
+  const idSalariuMinim = useId();
 
   function actualizeazaPrag(cheie: number, camp: keyof RandPrag, valoare: string): void {
     setPraguri((anterior) =>
@@ -80,6 +81,9 @@ export function FormularSetari({
         procent_ore_suplimentare: Number(formular.get("procent_ore_suplimentare")),
         valoare_tichet_masa: Number(formular.get("valoare_tichet_masa")),
         tichete_impozabile: formular.get("tichete_impozabile") === "on",
+        tichete_supuse_cass: formular.get("tichete_supuse_cass") === "on",
+        salariu_minim_brut: formular.get("salariu_minim_brut"),
+        aplica_minim_contributii: formular.get("aplica_minim_contributii") === "on",
         rotunjire_lei: formular.get("rotunjire_lei") === "on",
         praguri: praguri.map((p) => ({
           nr_persoane_intretinere_min: Number(p.nr_persoane_intretinere_min),
@@ -236,6 +240,24 @@ export function FormularSetari({
             className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           />
         </div>
+        <div className="flex flex-col gap-1">
+          <label htmlFor={idSalariuMinim} className="text-sm">
+            Salariu minim brut (lei)
+          </label>
+          <input
+            id={idSalariuMinim}
+            name="salariu_minim_brut"
+            type="number"
+            step="0.01"
+            min={0}
+            defaultValue={setariCurente?.salariu_minim_brut ?? 0}
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          />
+          <p className="text-muted-foreground text-xs">
+            Pragul minim al bazei de contribuții. Se confirmă cu contabilul — valoarea se schimbă
+            prin hotărâre de guvern, iar minimele sectoriale diferă.
+          </p>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-6 text-sm">
@@ -246,6 +268,22 @@ export function FormularSetari({
             defaultChecked={setariCurente?.tichete_impozabile ?? false}
           />
           Tichetele intră în baza de impozit
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            name="tichete_supuse_cass"
+            defaultChecked={setariCurente?.tichete_supuse_cass ?? false}
+          />
+          Tichetele intră în baza CASS (nu și în cea CAS)
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            name="aplica_minim_contributii"
+            defaultChecked={setariCurente?.aplica_minim_contributii ?? false}
+          />
+          Ridică baza de contribuții la salariul minim
         </label>
         <label className="flex items-center gap-2">
           <input

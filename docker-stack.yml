@@ -60,6 +60,16 @@ services:
       - EMAIL_FROM=${EMAIL_FROM:-Administrativo <noreply@administrativo.ro>}
       - RESEND_API_KEY=${RESEND_API_KEY:-}
       - RESEND_WEBHOOK_SECRET=${RESEND_WEBHOOK_SECRET:-}
+      # Trecerea la `docker secret`, când se decide (pași în DEPLOY.md →
+      # „Ce vede docker inspect"): creezi secretul, adaugi blocul `secrets:` la
+      # serviciu și la nivel de stack, apoi înlocuiești linia de mai sus cu
+      # perechea `<NUME>_FILE=/run/secrets/<nume>`. `deploy/entrypoint.sh` o
+      # traduce în variabilă de mediu înainte de a porni serverul, iar valoarea
+      # nu mai apare în `docker inspect`.
+      #
+      # Se poate face O CHEIE PE RÂND: `<NUME>_FILE` are prioritate, restul
+      # rămân pe mediu. Exemplu:
+      #   - HR_ENCRYPTION_KEYS_FILE=/run/secrets/hr_encryption_keys
 
     healthcheck:
       # Ruta e `force-static` și exclusă din matcher-ul proxy-ului, deci nu

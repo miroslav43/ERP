@@ -110,6 +110,12 @@ COPY --from=builder --chown=appuser:appgroup /app/.next/standalone ./
 COPY --from=builder --chown=appuser:appgroup /app/.next/static ./.next/static
 COPY --from=builder --chown=appuser:appgroup /app/public ./public
 
+# Puntea `docker secret` → `process.env`. Vezi comentariul din script și
+# secțiunea „Ce vede `docker inspect`" din DEPLOY.md. Fără `<NUME>_FILE` setat,
+# scriptul nu face nimic și pornirea e identică cu cea de dinainte.
+COPY --chown=appuser:appgroup deploy/entrypoint.sh /usr/local/bin/entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+
 USER appuser
 
 EXPOSE 3000

@@ -132,7 +132,13 @@ export function decodificaCursor(valoare: string): Cursor | null {
   }
 }
 
-function ghilimeleaza(valoare: string): string {
+/**
+ * Exportată pentru test: capcana 11 o declară OBLIGATORIE pe orice cursor de
+ * text, fiindcă o virgulă sau o ghilimea într-un nume rupe filtrul
+ * `or=(...)` al lui PostgREST. O funcție de care depinde corectitudinea unei
+ * interogări merită verificată direct, nu prin efect.
+ */
+export function ghilimeleaza(valoare: string): string {
   return `"${valoare.replace(/\\/gu, "\\\\").replace(/"/gu, '\\"')}"`;
 }
 

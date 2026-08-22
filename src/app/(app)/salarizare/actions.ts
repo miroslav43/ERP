@@ -49,6 +49,9 @@ export const salveazaSetari = createAction({
         procent_ore_suplimentare: input.procent_ore_suplimentare,
         valoare_tichet_masa: input.valoare_tichet_masa,
         tichete_impozabile: input.tichete_impozabile,
+        tichete_supuse_cass: input.tichete_supuse_cass,
+        salariu_minim_brut: input.salariu_minim_brut,
+        aplica_minim_contributii: input.aplica_minim_contributii,
         rotunjire_lei: input.rotunjire_lei,
       })
       .select("id")
@@ -146,6 +149,8 @@ function laSetariSnapshot(
     procentOreSuplimentare: setari.procent_ore_suplimentare,
     valoareTichetMasa: setari.valoare_tichet_masa,
     ticheteImpozabile: setari.tichete_impozabile,
+    ticheteSupuseCass: setari.tichete_supuse_cass,
+    verificatDeContabil: setari.verificat_de_contabil,
     deducerePersonala: setari.praguri.map((p) => ({
       nrPersoaneIntretinereMin: p.nr_persoane_intretinere_min,
       nrPersoaneIntretinereMax: p.nr_persoane_intretinere_max,
@@ -153,6 +158,8 @@ function laSetariSnapshot(
       valoare: p.valoare,
     })),
     rotunjireLei: setari.rotunjire_lei,
+    salariuMinimBrut: setari.salariu_minim_brut,
+    aplicaMinimContributii: setari.aplica_minim_contributii,
   };
 }
 
@@ -300,6 +307,11 @@ export const calculeazaPerioada = createAction({
                 : (c.suma ?? 0),
             impozabil: c.impozabil,
             supusContributii: c.supusContributii,
+            intraInBazaCas: c.intraInBazaCas,
+            intraInBazaCass: c.intraInBazaCass,
+            // Mașina de serviciu, cazarea, abonamentul: intră în brut și se
+            // impozitează, dar nu se plătesc a doua oară în bani.
+            esteAvantajInNatura: c.kind === "beneficiu_natura",
           })),
         ],
         deductions: (retineriPeAngajat.get(angajat.employee_id) ?? []).map((r) => ({
@@ -336,6 +348,8 @@ export const calculeazaPerioada = createAction({
         nr_tichete: rezultat.nrTichete,
         valoare_tichete: rezultat.valoareTichete,
         baza_cas_cass: rezultat.bazaCasCass,
+        baza_cas: rezultat.bazaCas,
+        baza_cass: rezultat.bazaCass,
         cas: rezultat.cas,
         cass: rezultat.cass,
         deducere_personala: rezultat.deducerePersonala,
@@ -346,6 +360,8 @@ export const calculeazaPerioada = createAction({
         net: rezultat.net,
         retineri_total: rezultat.retineriTotal,
         net_de_plata: rezultat.netDePlata,
+        avantaje_natura: rezultat.avantajeNatura,
+        rest_de_plata: rezultat.restDePlata,
         cost_total_angajator: rezultat.costTotalAngajator,
         // JSON.parse(JSON.stringify(...)) scapă de `readonly` pe array-uri și
         // obiecte imbricate — `Json` din tipurile generate cere structuri

@@ -1,5 +1,6 @@
 // src/app/(platform)/super-admin/organizatii/[orgId]/page.tsx
 import Link from "next/link";
+import { SlidersHorizontal, UserPlus } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { formatDateTime } from "@/lib/format/date";
@@ -195,10 +196,15 @@ export default async function PaginaFisaOrganizatie({
               ))}
             </ul>
           )}
+          {/*
+            Buton, nu link subliniat: e acțiunea principală a cardului, iar un
+            link în corpul textului se citește ca proză, nu ca ceva de apăsat.
+          */}
           <Link
             href={`/super-admin/organizatii/${organizatie.id}/module`}
-            className="text-primary mt-4 inline-block text-sm underline-offset-4 hover:underline"
+            className="border-border bg-background text-foreground hover:border-primary hover:text-primary focus-visible:ring-ring mt-4 inline-flex items-center gap-2 rounded-md border px-3.5 py-2 text-sm font-semibold transition focus-visible:ring-2 focus-visible:outline-none"
           >
+            <SlidersHorizontal aria-hidden="true" className="size-4" />
             Gestionează modulele
           </Link>
         </section>
@@ -211,13 +217,24 @@ export default async function PaginaFisaOrganizatie({
             Membri
           </h2>
           {membri.length === 0 ? (
-            <div className="border-border rounded-md border border-dashed p-6 text-center">
-              <p className="text-foreground text-sm">Organizația nu are încă niciun membru.</p>
+            <div className="border-border flex flex-col items-center gap-1 rounded-md border border-dashed p-6 text-center">
+              <p className="text-foreground text-sm font-medium">
+                Organizația nu are încă niciun membru.
+              </p>
+              <p className="text-muted-foreground mb-3 text-sm">
+                Până nu are un administrator, nimeni nu poate intra în ea.
+              </p>
+              {/*
+                Buton PRIMAR: pe o organizație goală asta e singura acțiune care
+                contează. Ca link subliniat, arăta ca a doua propoziție a mesajului
+                de gol — adică exact ca text de citit, nu de apăsat.
+              */}
               <Link
                 href={`/super-admin/organizatii/${organizatie.id}/membri`}
-                className="text-primary mt-2 inline-block text-sm underline-offset-4 hover:underline"
+                className="bg-primary text-primary-foreground hover:bg-primary-hover focus-visible:ring-ring inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
               >
-                Invită administratorul organizației
+                <UserPlus aria-hidden="true" className="size-4" />
+                Invită administratorul
               </Link>
             </div>
           ) : (

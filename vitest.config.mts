@@ -17,11 +17,37 @@ export default defineConfig({
   test: {
     projects: [
       {
-        resolve: { tsconfigPaths: true },
+        resolve: {
+          tsconfigPaths: true,
+          // Vezi `tests/stub/server-only.ts`: pachetul real aruncă la import,
+          // ceea ce ar face netestabile funcțiile pure din fișierele marcate
+          // `server-only`. Aliasul e strict pentru teste; build-ul folosește
+          // pachetul adevărat.
+          alias: {
+            "server-only": new URL("./tests/stub/server-only.ts", import.meta.url).pathname,
+          },
+        },
         test: {
           name: "unit",
           environment: "node",
           include: ["src/**/*.test.ts"],
+          // `src/config/env.ts` validează configurația la IMPORT DE MODUL, nu la
+          // primul request — o valoare lipsă oprește aplicația imediat, ceea ce
+          // e corect în producție și blochează orice test care importă un modul
+          // din `src/lib/`. Aceleași placeholdere ca în `.github/workflows/ci.yml`,
+          // pentru pasul de build: suficiente cât să treacă validarea Zod, fără
+          // să atingă nimic real. Testele `unit` nu fac I/O.
+          env: {
+            NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
+            NEXT_PUBLIC_SUPABASE_ANON_KEY: "ci-placeholder",
+            NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+            SUPABASE_SERVICE_ROLE_KEY: "ci-placeholder",
+            HR_ENCRYPTION_KEYS: '{"1":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}',
+            HR_ENCRYPTION_ACTIVE_KEY: "1",
+            HR_HASH_KEY: "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=",
+            TENANT_COOKIE_SECRET: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+            EMAIL_MODE: "test",
+          },
         },
       },
       {
