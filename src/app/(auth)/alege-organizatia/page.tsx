@@ -2,7 +2,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Building2, LifeBuoy, LogOut, ShieldCheck } from "lucide-react";
+import { Building2, LifeBuoy, LogOut } from "lucide-react";
 
 import { comutaOrganizatiaDirect, deconecteaza } from "@/app/(app)/actions";
 import { listUserOrganizations } from "@/lib/queries/organizations";
@@ -45,7 +45,16 @@ export default async function AlegeOrganizatiaPage({ searchParams }: Props) {
   // resolveTenant() îl trimite aici, iar de aici n-ar avea unde merge.
   // Verificarea se face doar când lista e goală, ca să nu coste un drum la bază
   // pentru utilizatorii obișnuiți.
-  const estePlatformAdmin = organizatii.length === 0 ? await isPlatformAdmin() : false;
+  // Un administrator de platformă FĂRĂ nicio firmă n-are ce alege aici. Ecranul
+  // ăsta e punctul prin care trec TOATE drumurile spre aplicație: layout-ul din
+  // `(app)` și cel din `(portal)` trimit amândouă aici când `resolveTenant()`
+  // întoarce `fara_organizatie`. Redirectând de aici, consola devine singurul loc
+  // în care poate ajunge — fără să pun câte o gardă în fiecare layout.
+  //
+  // Redirect, nu link: un link e o sugestie, iar contul ăsta n-are alternativă.
+  if (organizatii.length === 0 && (await isPlatformAdmin())) {
+    redirect(RUTA_SUPER_ADMIN);
+  }
 
   return (
     <main className="mx-auto flex w-full max-w-lg flex-col gap-6 px-4 py-12">
@@ -60,22 +69,6 @@ export default async function AlegeOrganizatiaPage({ searchParams }: Props) {
         </p>
       </header>
 
-      {estePlatformAdmin ? (
-        <Link
-          href={RUTA_SUPER_ADMIN}
-          className="border-border bg-surface hover:border-primary flex items-center gap-3 rounded-md border px-4 py-3 transition"
-        >
-          <ShieldCheck aria-hidden="true" className="text-primary size-5 shrink-0" />
-          <span className="flex flex-col">
-            <span className="text-foreground text-sm font-medium">
-              Intrați în consola de platformă
-            </span>
-            <span className="text-muted-foreground text-sm">
-              Contul dumneavoastră administrează platforma, nu o firmă anume.
-            </span>
-          </span>
-        </Link>
-      ) : null}
 
       {areEroareAcces ? (
         <p

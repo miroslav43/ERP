@@ -3,7 +3,11 @@ import { redirect } from "next/navigation";
 import { Building2, LogOut } from "lucide-react";
 
 import { deconecteaza } from "@/app/(app)/actions";
-import { RUTA_DUPA_AUTENTIFICARE } from "@/config/routes";
+import {
+  RUTA_ALEGE_ORGANIZATIA,
+  RUTA_AUTENTIFICARE,
+  RUTA_DUPA_AUTENTIFICARE,
+} from "@/config/routes";
 import { resolveTenant } from "@/lib/tenant/resolve-tenant";
 import { stareFirmei } from "@/lib/tenant/stare-firma";
 
@@ -25,7 +29,13 @@ export const dynamic = "force-dynamic";
  */
 export default async function PaginaFirmaInConfigurare() {
   const rezolvare = await resolveTenant();
-  if (rezolvare.status !== "ok") redirect("/autentificare");
+  // Două cazuri distincte, nu unul. „Nu ești autentificat" duce la login;
+  // „ești autentificat, dar fără organizație" duce la ecranul de alegere — care
+  // trimite mai departe un administrator de platformă în consolă. Contopite,
+  // un super-admin care nimerește adresa asta ar fi trimis la login deși e deja
+  // conectat, adică într-o buclă fără explicație.
+  if (rezolvare.status === "neautentificat") redirect(RUTA_AUTENTIFICARE);
+  if (rezolvare.status !== "ok") redirect(RUTA_ALEGE_ORGANIZATIA);
 
   // Firma s-a configurat între timp (sau utilizatorul a nimerit adresa direct):
   // nu-l ținem pe un ecran de așteptare care nu mai are obiect.

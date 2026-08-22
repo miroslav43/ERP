@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
-import { RUTA_DUPA_AUTENTIFICARE } from "@/config/routes";
+import {
+  RUTA_ALEGE_ORGANIZATIA,
+  RUTA_AUTENTIFICARE,
+  RUTA_DUPA_AUTENTIFICARE,
+} from "@/config/routes";
 import { resolveTenant } from "@/lib/tenant/resolve-tenant";
 import { stareFirmei } from "@/lib/tenant/stare-firma";
 import { createServerSupabase } from "@/lib/supabase/server";
@@ -27,7 +31,13 @@ export const dynamic = "force-dynamic";
  */
 export default async function PaginaBunVenit() {
   const rezolvare = await resolveTenant();
-  if (rezolvare.status !== "ok") redirect("/autentificare");
+  // Două cazuri distincte, nu unul. „Nu ești autentificat" duce la login;
+  // „ești autentificat, dar fără organizație" duce la ecranul de alegere — care
+  // trimite mai departe un administrator de platformă în consolă. Contopite,
+  // un super-admin care nimerește adresa asta ar fi trimis la login deși e deja
+  // conectat, adică într-o buclă fără explicație.
+  if (rezolvare.status === "neautentificat") redirect(RUTA_AUTENTIFICARE);
+  if (rezolvare.status !== "ok") redirect(RUTA_ALEGE_ORGANIZATIA);
   const { tenant } = rezolvare;
 
   // Cine nu poate completa nu are ce căuta aici: un `hr` n-are cum să știe
