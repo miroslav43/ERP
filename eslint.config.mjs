@@ -73,7 +73,18 @@ const eslintConfig = defineConfig([
     rules: { "no-restricted-imports": "off" },
   },
 
-  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts", "docs/design/**"]),
+  // `.remember/` e directorul de lucru al plugin-ului cu același nume: fișiere
+  // temporare, ignorate de git prin propriul `.remember/.gitignore`. ESLint nu
+  // citește `.gitignore`, deci le parcurgea și raporta erori într-un cod pe
+  // care nimeni nu-l scrie și nimeni nu-l livrează. Prettier îl ignoră deja.
+  globalIgnores([
+    ".next/**",
+    "out/**",
+    "build/**",
+    "next-env.d.ts",
+    "docs/design/**",
+    ".remember/**",
+  ]),
 ]);
 
 export default eslintConfig;

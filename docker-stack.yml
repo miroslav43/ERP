@@ -50,11 +50,11 @@ services:
       # HR_ENCRYPTION_KEYS / HR_HASH_KEY sunt cheile cu care sunt deja criptate
       # CNP-urile și IBAN-urile din bază: trebuie să rămână identice cu cele din
       # dev, altfel datele existente devin ilizibile ireversibil.
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
-      - HR_ENCRYPTION_KEYS=${HR_ENCRYPTION_KEYS}
+      - SUPABASE_SERVICE_ROLE_KEY_FILE=/run/secrets/supabase_service_role_key
+      - HR_ENCRYPTION_KEYS_FILE=/run/secrets/hr_encryption_keys
       - HR_ENCRYPTION_ACTIVE_KEY=${HR_ENCRYPTION_ACTIVE_KEY}
-      - HR_HASH_KEY=${HR_HASH_KEY}
-      - TENANT_COOKIE_SECRET=${TENANT_COOKIE_SECRET}
+      - HR_HASH_KEY_FILE=/run/secrets/hr_hash_key
+      - TENANT_COOKIE_SECRET_FILE=/run/secrets/tenant_cookie_secret
 
       - EMAIL_MODE=${EMAIL_MODE:-test}
       - EMAIL_FROM=${EMAIL_FROM:-Administrativo <noreply@administrativo.ro>}
@@ -86,6 +86,17 @@ services:
 
     stop_grace_period: 15s
 
+    # Montate ca fișiere în /run/secrets/, NU injectate ca variabile: o valoare
+    # din `environment:` apare în `docker inspect` → `.Config.Env`, deci
+    # oricine e în grupul `docker` pe VM putea citi cheia care criptează
+    # CNP-urile. `deploy/entrypoint.sh` le traduce în variabile de mediu
+    # înainte de a porni serverul, în interiorul containerului.
+    secrets:
+      - supabase_service_role_key
+      - hr_encryption_keys
+      - hr_hash_key
+      - tenant_cookie_secret
+
     networks:
       - strawboss-net
 
@@ -113,6 +124,21 @@ services:
           # Excel (exceljs ține fișierul în memorie) fără să pună în pericol
           # celelalte 8 site-uri de pe VM.
           memory: 1G
+
+secrets:
+  # `external: true`: secretele sunt create O SINGURĂ DATĂ, în afara stack-ului
+  # (`docker secret create <nume> -`), și supraviețuiesc unui `stack rm`.
+  # Sunt IMUABILE: rotația înseamnă secret nou + update de serviciu. Pentru
+  # HR_ENCRYPTION_KEYS asta nu contează — regula 4 din DEPLOY.md spune că oricum
+  # nu se rotește; pentru TENANT_COOKIE_SECRET, care se poate roti, e un pas în plus.
+  supabase_service_role_key:
+    external: true
+  hr_encryption_keys:
+    external: true
+  hr_hash_key:
+    external: true
+  tenant_cookie_secret:
+    external: true
 
 networks:
   # Creat de StrawBoss (docker network create --driver overlay --attachable
