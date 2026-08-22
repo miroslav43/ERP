@@ -765,3 +765,132 @@ export async function pontajAgregatPerioada(
   }
   return { pePersoana, trunchiat: true };
 }
+
+// ── Istoricul de venit, pentru mediile de indemnizație ─────────────────────
+
+export interface LunaIstoricVenit {
+  readonly an: number;
+  readonly luna: number;
+  /** Venit brut realizat — baza pentru indemnizația de concediu medical. */
+  readonly venitBrut: number;
+  /** Salariu de bază + sporuri, fără primele ocazionale — baza pentru CO. */
+  readonly drepturiSalariale: number;
+  readonly zileLucrate: number;
+}
+
+/**
+ * Ultimele `luniInapoi` luni de venit per angajat, cele mai recente primele.
+ *
+ * Două surse, în ordinea asta:
+ *   1. `payroll_entries` — lunile calculate în aplicație;
+ *   2. `payroll_prior_income` — lunile dinaintea punerii ei în funcțiune.
+ *
+ * Prima câștigă la egalitate: dacă o lună a fost și importată, și calculată,
+ * cifra calculată e cea reală.
+ *
+ * APROXIMARE ASUMATĂ pentru `drepturiSalariale`: legea cere „salariu de bază
+ * plus sporuri PERMANENTE", iar `payroll_entries` nu separă sporurile
+ * permanente de cele variabile (orele suplimentare, sporul de noapte). Se
+ * folosește brutul minus primele ocazionale, ceea ce include și sporuri
+ * variabile — deci înclină în favoarea angajatului, nu împotriva lui. Pentru
+ * lunile importate, `payroll_prior_income.drepturi_salariale` e autoritativ,
+ * fiindcă acolo valoarea o scrie omul.
+ */
+export async function istoricVenitPerAngajat(
+  organizationId: string,
+  an: number,
+  luna: number,
+  luniInapoi: number,
+): Promise<ReadonlyMap<string, readonly LunaIstoricVenit[]>> {
+  const db = await createServerSupabase();
+
+  // Fereastra: cele `luniInapoi` luni dinaintea lunii calculate.
+  const luni: { an: number; luna: number }[] = [];
+  for (let i = 1; i <= luniInapoi; i += 1) {
+    const total = an * 12 + (luna - 1) - i;
+    luni.push({ an: Math.floor(total / 12), luna: (total % 12) + 1 });
+  }
+  if (luni.length === 0) return new Map();
+  const ceaMaiVeche = luni[luni.length - 1] as { an: number; luna: number };
+
+  interface RandCalculat {
+    readonly employee_id: string;
+    readonly brut: number;
+    readonly prime_total: number;
+    readonly zile_lucrate: number;
+    readonly perioada: { an: number; luna: number } | null;
+  }
+  const { data: calculate, error: eroareCalculate } = await db
+    .from("payroll_entries")
+    .select(
+      "employee_id, brut, prime_total, zile_lucrate, perioada:payroll_periods!period_id(an, luna)",
+    )
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .returns<RandCalculat[]>();
+  if (eroareCalculate !== null) throw eroareCalculate;
+
+  interface RandImportat {
+    readonly employee_id: string;
+    readonly an: number;
+    readonly luna: number;
+    readonly venit_brut: number;
+    readonly drepturi_salariale: number;
+    readonly zile_lucrate: number;
+  }
+  const { data: importate, error: eroareImportate } = await db
+    .from("payroll_prior_income")
+    .select("employee_id, an, luna, venit_brut, drepturi_salariale, zile_lucrate")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .gte("an", ceaMaiVeche.an)
+    .returns<RandImportat[]>();
+  if (eroareImportate !== null) throw eroareImportate;
+
+  const inFereastra = new Set(luni.map((l) => `${String(l.an)}-${String(l.luna)}`));
+  const peAngajat = new Map<string, Map<string, LunaIstoricVenit>>();
+  const pune = (employeeId: string, valoare: LunaIstoricVenit, suprascrie: boolean): void => {
+    const cheie = `${String(valoare.an)}-${String(valoare.luna)}`;
+    if (!inFereastra.has(cheie)) return;
+    const alAngajatului = peAngajat.get(employeeId) ?? new Map<string, LunaIstoricVenit>();
+    if (suprascrie || !alAngajatului.has(cheie)) alAngajatului.set(cheie, valoare);
+    peAngajat.set(employeeId, alAngajatului);
+  };
+
+  for (const rand of importate ?? []) {
+    pune(
+      rand.employee_id,
+      {
+        an: rand.an,
+        luna: rand.luna,
+        venitBrut: rand.venit_brut,
+        drepturiSalariale: rand.drepturi_salariale,
+        zileLucrate: rand.zile_lucrate,
+      },
+      false,
+    );
+  }
+  for (const rand of calculate ?? []) {
+    if (rand.perioada === null) continue;
+    pune(
+      rand.employee_id,
+      {
+        an: rand.perioada.an,
+        luna: rand.perioada.luna,
+        venitBrut: rand.brut,
+        drepturiSalariale: rand.brut - rand.prime_total,
+        zileLucrate: rand.zile_lucrate,
+      },
+      true,
+    );
+  }
+
+  const rezultat = new Map<string, readonly LunaIstoricVenit[]>();
+  for (const [employeeId, alAngajatului] of peAngajat) {
+    const lista = [...alAngajatului.values()].sort(
+      (a, b) => b.an * 12 + b.luna - (a.an * 12 + a.luna),
+    );
+    rezultat.set(employeeId, lista);
+  }
+  return rezultat;
+}

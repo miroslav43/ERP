@@ -745,6 +745,7 @@ export type Database = {
           pauza_masa_minute: number
           pauza_obligatorie_peste_ore: number
           perioada_referinta_luni: number
+          prag_ore_noapte: number
           repaus_saptamanal_minim_ore: number
           repaus_zilnic_minim_ore: number
           spor_noapte_procent: number
@@ -773,6 +774,7 @@ export type Database = {
           pauza_masa_minute: number
           pauza_obligatorie_peste_ore: number
           perioada_referinta_luni: number
+          prag_ore_noapte?: number
           repaus_saptamanal_minim_ore: number
           repaus_zilnic_minim_ore: number
           spor_noapte_procent: number
@@ -801,6 +803,7 @@ export type Database = {
           pauza_masa_minute?: number
           pauza_obligatorie_peste_ore?: number
           perioada_referinta_luni?: number
+          prag_ore_noapte?: number
           repaus_saptamanal_minim_ore?: number
           repaus_zilnic_minim_ore?: number
           spor_noapte_procent?: number
@@ -6568,6 +6571,7 @@ export type Database = {
           baza_cass: number
           baza_impozit: number
           baza_salariu: number
+          baza_zilnica_cm: number
           brut: number
           calc_breakdown: Json
           calc_warnings: Json
@@ -6584,6 +6588,9 @@ export type Database = {
           employee_id: string
           id: string
           impozit: number
+          indemnizatie_cm_angajator: number
+          indemnizatie_cm_fnuass: number
+          indemnizatie_co: number
           net: number
           net_de_plata: number
           nr_tichete: number
@@ -6591,6 +6598,7 @@ export type Database = {
           ore_noapte: number
           ore_repaus: number
           ore_sarbatoare: number
+          ore_supl_compensate: number
           ore_suplimentare: number
           organization_id: string
           period_id: string
@@ -6608,6 +6616,8 @@ export type Database = {
           updated_by: string | null
           valoare_tichete: number
           zile_absenta_nemotivata: number
+          zile_cm_angajator: number
+          zile_cm_fnuass: number
           zile_concediu_medical: number
           zile_concediu_odihna: number
           zile_lucrate: number
@@ -6622,6 +6632,7 @@ export type Database = {
           baza_cass?: number
           baza_impozit?: number
           baza_salariu?: number
+          baza_zilnica_cm?: number
           brut?: number
           calc_breakdown?: Json
           calc_warnings?: Json
@@ -6638,6 +6649,9 @@ export type Database = {
           employee_id: string
           id?: string
           impozit?: number
+          indemnizatie_cm_angajator?: number
+          indemnizatie_cm_fnuass?: number
+          indemnizatie_co?: number
           net?: number
           net_de_plata?: number
           nr_tichete?: number
@@ -6645,6 +6659,7 @@ export type Database = {
           ore_noapte?: number
           ore_repaus?: number
           ore_sarbatoare?: number
+          ore_supl_compensate?: number
           ore_suplimentare?: number
           organization_id: string
           period_id: string
@@ -6662,6 +6677,8 @@ export type Database = {
           updated_by?: string | null
           valoare_tichete?: number
           zile_absenta_nemotivata?: number
+          zile_cm_angajator?: number
+          zile_cm_fnuass?: number
           zile_concediu_medical?: number
           zile_concediu_odihna?: number
           zile_lucrate?: number
@@ -6676,6 +6693,7 @@ export type Database = {
           baza_cass?: number
           baza_impozit?: number
           baza_salariu?: number
+          baza_zilnica_cm?: number
           brut?: number
           calc_breakdown?: Json
           calc_warnings?: Json
@@ -6692,6 +6710,9 @@ export type Database = {
           employee_id?: string
           id?: string
           impozit?: number
+          indemnizatie_cm_angajator?: number
+          indemnizatie_cm_fnuass?: number
+          indemnizatie_co?: number
           net?: number
           net_de_plata?: number
           nr_tichete?: number
@@ -6699,6 +6720,7 @@ export type Database = {
           ore_noapte?: number
           ore_repaus?: number
           ore_sarbatoare?: number
+          ore_supl_compensate?: number
           ore_suplimentare?: number
           organization_id?: string
           period_id?: string
@@ -6716,6 +6738,8 @@ export type Database = {
           updated_by?: string | null
           valoare_tichete?: number
           zile_absenta_nemotivata?: number
+          zile_cm_angajator?: number
+          zile_cm_fnuass?: number
           zile_concediu_medical?: number
           zile_concediu_odihna?: number
           zile_lucrate?: number
@@ -6917,6 +6941,72 @@ export type Database = {
           },
         ]
       }
+      payroll_prior_income: {
+        Row: {
+          an: number
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          drepturi_salariale: number
+          employee_id: string
+          id: string
+          luna: number
+          organization_id: string
+          sursa: string | null
+          updated_at: string
+          updated_by: string | null
+          venit_brut: number
+          zile_lucrate: number
+        }
+        Insert: {
+          an: number
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          drepturi_salariale?: number
+          employee_id: string
+          id?: string
+          luna: number
+          organization_id: string
+          sursa?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          venit_brut?: number
+          zile_lucrate?: number
+        }
+        Update: {
+          an?: number
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          drepturi_salariale?: number
+          employee_id?: string
+          id?: string
+          luna?: number
+          organization_id?: string
+          sursa?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          venit_brut?: number
+          zile_lucrate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_prior_income_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_prior_income_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payroll_settings: {
         Row: {
           aplica_minim_contributii: boolean
@@ -6928,6 +7018,8 @@ export type Database = {
           created_by: string | null
           deleted_at: string | null
           id: string
+          luni_medie_indemnizatie_co: number
+          mod_calcul_indemnizatie_co: string
           norma_zilnica_ore: number
           note: string | null
           organization_id: string
@@ -6946,6 +7038,7 @@ export type Database = {
           valoare_tichet_masa: number
           verificat_de_contabil: boolean
           verificat_la: string | null
+          zile_avertizare_termen_compensare: number
           ziua_plata_avans: number | null
           ziua_plata_lichidare: number | null
         }
@@ -6959,6 +7052,8 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           id?: string
+          luni_medie_indemnizatie_co?: number
+          mod_calcul_indemnizatie_co?: string
           norma_zilnica_ore?: number
           note?: string | null
           organization_id: string
@@ -6977,6 +7072,7 @@ export type Database = {
           valoare_tichet_masa?: number
           verificat_de_contabil?: boolean
           verificat_la?: string | null
+          zile_avertizare_termen_compensare?: number
           ziua_plata_avans?: number | null
           ziua_plata_lichidare?: number | null
         }
@@ -6990,6 +7086,8 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           id?: string
+          luni_medie_indemnizatie_co?: number
+          mod_calcul_indemnizatie_co?: string
           norma_zilnica_ore?: number
           note?: string | null
           organization_id?: string
@@ -7008,6 +7106,7 @@ export type Database = {
           valoare_tichet_masa?: number
           verificat_de_contabil?: boolean
           verificat_la?: string | null
+          zile_avertizare_termen_compensare?: number
           ziua_plata_avans?: number | null
           ziua_plata_lichidare?: number | null
         }

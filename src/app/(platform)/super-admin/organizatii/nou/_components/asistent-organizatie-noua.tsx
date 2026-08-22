@@ -175,7 +175,7 @@ export function AsistentOrganizatieNoua({ valoriInitiale }: Proprietati = {}) {
 
   return (
     <form onSubmit={trimite} noValidate className="space-y-6">
-      <ProgresAsistent pasCurent={pasCurent} />
+      <ProgresAsistent pasCurent={pasCurent} onSalt={setPasCurent} />
 
       <div aria-live="assertive">
         {eroareServer && (
