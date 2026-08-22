@@ -200,6 +200,28 @@ Preexistent, fără legătură cu deploy-ul.
 
 ---
 
+## Publicare când altcineva lucrează în repo
+
+Build-ul Docker ia ÎNTREG directorul ca context, nu doar fișierele comise. Cu o sesiune paralelă
+care are muncă necomisă, `./administrativo.sh prod` din `/srv/apps/ERP` publică și munca ei
+neterminată — inclusiv cod care cheamă funcții dintr-o migrare încă neaplicată.
+
+Soluția, folosită pe 2026-08-22: publică dintr-un worktree curat pe `HEAD`, care conține exact
+commit-urile, fără fișierele în lucru ale nimănui.
+
+```bash
+W=/tmp/erp-deploy
+git worktree add --detach "$W" HEAD
+cp .env.production "$W/.env.production" && chmod 600 "$W/.env.production"
+cd "$W" && ./administrativo.sh prod
+cd - && shred -u "$W/.env.production" && git worktree remove --force "$W"
+```
+
+Verifică înainte de build că fișierele lor chiar lipsesc din worktree — e diferența dintre a
+publica ce ai vrut și a publica ce s-a nimerit.
+
+---
+
 ## Istoric
 
 **2026-08-21** — `infomeditatii.ro` a fost preluat de la „Eduvora" (FastAPI/uvicorn pe host, systemd
