@@ -204,20 +204,34 @@ export const creeazaContract = createAction({
     // Contractul de bază face fișa activă (dacă era „candidat" sau ieșise din
     // efectiv). Un act adițional nu schimbă starea — modifică un contract deja
     // activ, nu creează unul nou.
-    const { error: eroareActivare } = await db
+    // `.select()` după `.update()`, obligatoriu pe o tranziție de status: un
+    // UPDATE respins de clauza `USING` a politicii afectează ZERO rânduri și NU
+    // ridică eroare (capcana 17). Fără verificarea asta, contractul rămâne
+    // „proiect", fișa rămâne „candidat", iar utilizatorul vede „salvat".
+    const { data: contractActivat, error: eroareActivare } = await db
       .from("employment_contracts")
       .update({ status: "activ", updated_by: ctx.user.id })
       .eq("id", data.id)
-      .eq("organization_id", ctx.tenant.organizationId);
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle();
     if (eroareActivare !== null) throw eroareActivare;
+    if (contractActivat === null) {
+      throw businessRule("Contractul a fost creat, dar activarea lui a fost respinsă.");
+    }
 
     if (!input.este_act_aditional) {
-      const { error: eroareStatus } = await db
+      const { data: fisaActivata, error: eroareStatus } = await db
         .from("employees")
         .update({ status: "activ", updated_by: ctx.user.id })
         .eq("id", input.employee_id)
-        .eq("organization_id", ctx.tenant.organizationId);
+        .eq("organization_id", ctx.tenant.organizationId)
+        .select("id")
+        .maybeSingle();
       if (eroareStatus !== null) throw eroareStatus;
+      if (fisaActivata === null) {
+        throw businessRule("Contractul a fost creat, dar fișa angajatului nu a putut fi activată.");
+      }
     }
 
     // REVISAL: angajarea se transmite la Inspecția Muncii într-un termen legal,
@@ -288,7 +302,11 @@ export const inceteazaContract = createAction({
       throw businessRule("Data încetării nu poate fi anterioară datei de început a contractului.");
     }
 
-    const { error: eroareContract } = await db
+    // Zero rânduri afectate = politica a respins tranziția, fără eroare
+    // (capcana 17). Aici ar fi cel mai scump: încetarea „reușește", contractul
+    // rămâne activ, iar evenimentul REVISAL de mai jos se generează pentru o
+    // încetare care nu s-a întâmplat.
+    const { data: contractIncetat, error: eroareContract } = await db
       .from("employment_contracts")
       .update({
         status: "incetat",
@@ -298,8 +316,13 @@ export const inceteazaContract = createAction({
         updated_by: ctx.user.id,
       })
       .eq("id", contract.id)
-      .eq("organization_id", ctx.tenant.organizationId);
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle();
     if (eroareContract !== null) throw eroareContract;
+    if (contractIncetat === null) {
+      throw businessRule("Încetarea contractului a fost respinsă. Verificați dreptul de acces.");
+    }
 
     // Fișa NU se șterge: rămâne cu istoricul complet, doar iese din efectiv.
     const { count, error: eroareRamase } = await db
@@ -313,7 +336,7 @@ export const inceteazaContract = createAction({
     if (eroareRamase !== null) throw eroareRamase;
 
     if ((count ?? 0) === 0) {
-      const { error: eroareFisa } = await db
+      const { data: fisaIncetata, error: eroareFisa } = await db
         .from("employees")
         .update({
           status: input.arhiveaza_fisa ? "arhivat" : "incetat",
@@ -321,8 +344,13 @@ export const inceteazaContract = createAction({
           updated_by: ctx.user.id,
         })
         .eq("id", contract.employee_id)
-        .eq("organization_id", ctx.tenant.organizationId);
+        .eq("organization_id", ctx.tenant.organizationId)
+        .select("id")
+        .maybeSingle();
       if (eroareFisa !== null) throw eroareFisa;
+      if (fisaIncetata === null) {
+        throw businessRule("Contractul a fost încetat, dar fișa angajatului a rămas în efectiv.");
+      }
     }
 
     revalidatePath("/angajati");
