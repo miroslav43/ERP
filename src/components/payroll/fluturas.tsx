@@ -38,6 +38,8 @@ const ETICHETE_PAS: Record<string, string> = {
   net: "Net",
   retineriTotal: "Rețineri",
   avantajeNatura: "Avantaje primite în natură (scăzute din plată)",
+  diurnaImpozabila: "Diurnă peste plafon (impozitată)",
+  diurnaNeimpozabila: "Diurnă neimpozabilă",
   restDePlata: "Rest de plată",
   netDePlata: "Net de plată",
   costTotalAngajator: "Cost total angajator",

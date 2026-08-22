@@ -6585,6 +6585,8 @@ export type Database = {
           created_by: string | null
           deducere_personala: number
           deleted_at: string | null
+          diurna_impozabila: number
+          diurna_neimpozabila: number
           employee_id: string
           id: string
           impozit: number
@@ -6646,6 +6648,8 @@ export type Database = {
           created_by?: string | null
           deducere_personala?: number
           deleted_at?: string | null
+          diurna_impozabila?: number
+          diurna_neimpozabila?: number
           employee_id: string
           id?: string
           impozit?: number
@@ -6707,6 +6711,8 @@ export type Database = {
           created_by?: string | null
           deducere_personala?: number
           deleted_at?: string | null
+          diurna_impozabila?: number
+          diurna_neimpozabila?: number
           employee_id?: string
           id?: string
           impozit?: number

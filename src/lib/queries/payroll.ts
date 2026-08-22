@@ -1203,3 +1203,144 @@ export async function listeazaIstoricVenit(
     marca: angajat?.marca ?? "",
   }));
 }
+
+// ── Diurna lunii, din calculele deja făcute de modulul de deplasări ────────
+
+export interface ZiDiurnaCitita {
+  readonly data: string;
+  readonly sumaAcordata: number;
+  readonly baremLegalZi: number;
+  readonly deplasareId: string;
+}
+
+export interface DiurnaAngajat {
+  readonly zile: readonly ZiDiurnaCitita[];
+  /** Partea neimpozabilă deja calculată de modulul de deplasări, pentru control. */
+  readonly neimpozabilaCalculata: number;
+  readonly impozabilaCalculata: number;
+  /** Cel puțin un calcul are curs valutar incomplet — cifrele sunt provizorii. */
+  readonly cursIncomplet: boolean;
+}
+
+/**
+ * Diurna decontabilă a lunii, per angajat.
+ *
+ * Modulul de deplasări calculează DEJA plafonul și împărțirea impozabil /
+ * neimpozabil (`per_diem_calculations`, migrarea 0015). Salarizarea nu
+ * recalculează nimic din ce s-a decis acolo — doar aduce cifrele, ca partea
+ * impozabilă să treacă prin contribuții și impozit, iar cea neimpozabilă să
+ * ajungă direct în restul de plată.
+ *
+ * Se iau doar deplasările ÎNCHEIATE sau DECONTATE: una încă în aprobare nu e
+ * un drept câștigat, iar o ciornă nici atât.
+ *
+ * `zile` se reconstituie ca o singură zi sintetică per deplasare, cu suma
+ * totală și baremul mediu: `per_diem_calculations` reține rezultatul, nu
+ * defalcarea zi cu zi. Etapa de plafonare lunară funcționează la fel, fiindcă
+ * ea cumulează pe lună; plafonul ZILNIC a fost însă deja aplicat în modulul de
+ * deplasări, la calculul lui.
+ */
+export async function diurnaLunaPerAngajat(
+  organizationId: string,
+  an: number,
+  luna: number,
+): Promise<ReadonlyMap<string, DiurnaAngajat>> {
+  const db = await createServerSupabase();
+  const { prima, ultima } = marginileLunii(an, luna);
+
+  interface Brut {
+    readonly business_trip_id: string;
+    readonly zile_total: number;
+    readonly valoare_lei: number;
+    readonly plafon_neimpozabil_lei: number;
+    readonly parte_neimpozabila_lei: number;
+    readonly parte_impozabila_lei: number;
+    readonly curs_incomplet: boolean;
+    readonly deplasare: {
+      employee_id: string;
+      status: string;
+      sosire_la: string;
+    } | null;
+  }
+  const { data, error } = await db
+    .from("per_diem_calculations")
+    .select(
+      "business_trip_id, zile_total, valoare_lei, plafon_neimpozabil_lei, parte_neimpozabila_lei, parte_impozabila_lei, curs_incomplet, deplasare:business_trips!business_trip_id(employee_id, status, sosire_la)",
+    )
+    .eq("organization_id", organizationId)
+    .returns<Brut[]>();
+  if (error !== null) throw error;
+
+  const rezultat = new Map<string, DiurnaAngajat>();
+  for (const rand of data ?? []) {
+    const deplasare = rand.deplasare;
+    if (deplasare === null) continue;
+    if (deplasare.status !== "incheiata" && deplasare.status !== "decontata") continue;
+    const zi = deplasare.sosire_la.slice(0, 10);
+    if (zi < prima || zi > ultima) continue;
+
+    const curent = rezultat.get(deplasare.employee_id) ?? {
+      zile: [],
+      neimpozabilaCalculata: 0,
+      impozabilaCalculata: 0,
+      cursIncomplet: false,
+    };
+    rezultat.set(deplasare.employee_id, {
+      zile: [
+        ...curent.zile,
+        {
+          data: zi,
+          sumaAcordata: rand.valoare_lei,
+          // Baremul mediu pe zi, reconstituit din plafonul deja calculat. Nu se
+          // reaplică plafonul zilnic — el a fost aplicat în modulul de
+          // deplasări; aici contează doar cumulul lunar.
+          baremLegalZi: rand.zile_total > 0 ? rand.plafon_neimpozabil_lei / rand.zile_total : 0,
+          deplasareId: rand.business_trip_id,
+        },
+      ],
+      neimpozabilaCalculata: curent.neimpozabilaCalculata + rand.parte_neimpozabila_lei,
+      impozabilaCalculata: curent.impozabilaCalculata + rand.parte_impozabila_lei,
+      cursIncomplet: curent.cursIncomplet || rand.curs_incomplet,
+    });
+  }
+  return rezultat;
+}
+
+export interface PlafoaneDiurna {
+  /** Multiplul baremului legal sub care ziua rămâne neimpozabilă. */
+  readonly multiplicatorPlafonZilnic: number;
+  /** Fracțiunea din salariul de bază care plafonează luna. */
+  readonly fractiePlafonLunar: number;
+}
+
+/**
+ * Plafoanele de diurnă în vigoare în luna dată.
+ *
+ * Vin din `per_diem_policies`, nu din setările de salarizare: acolo le
+ * administrează cine configurează deplasările, iar o a doua copie ar însemna
+ * două adevăruri care se pot despărți. `null` înseamnă că organizația n-are
+ * politică de diurnă — caz în care salarizarea nu are ce plafona.
+ */
+export async function plafoaneDiurnaLuna(
+  organizationId: string,
+  an: number,
+  luna: number,
+): Promise<PlafoaneDiurna | null> {
+  const db = await createServerSupabase();
+  const { ultima } = marginileLunii(an, luna);
+  const { data, error } = await db
+    .from("per_diem_policies")
+    .select("multiplu_plafon_neimpozabil, plafon_salarii_baza_luna")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .lte("valabil_de_la", ultima)
+    .order("valabil_de_la", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ multiplu_plafon_neimpozabil: number; plafon_salarii_baza_luna: number }>();
+  if (error !== null) throw error;
+  if (data === null) return null;
+  return {
+    multiplicatorPlafonZilnic: data.multiplu_plafon_neimpozabil,
+    fractiePlafonLunar: data.plafon_salarii_baza_luna,
+  };
+}

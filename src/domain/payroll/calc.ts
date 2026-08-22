@@ -31,6 +31,7 @@
 import { rotunjesteLaBani } from "../bani";
 import { descriereCompleta, problema, problemaDinEtapa, type CodProblema } from "./erori";
 import { calculeazaCompensarea, type IntrareCompensare } from "./etape/compensare-ore";
+import { calculeazaDiurna, type IntrareDiurna } from "./etape/diurna-plafoane";
 import { calculeazaIndemnizatieCm, type IntrareIndemnizatieCm } from "./etape/indemnizatie-cm";
 import { calculeazaIndemnizatieCo, type IntrareIndemnizatieCo } from "./etape/indemnizatie-co";
 
@@ -177,6 +178,13 @@ export interface PayrollCalcInput {
   >;
   readonly concediuMedical?: Omit<IntrareIndemnizatieCm, "zileLucratoareLuna">;
   readonly compensari?: Omit<IntrareCompensare, "ziReferinta"> & { readonly ziReferinta: string };
+  /**
+   * Diurna lunii. Plafonul ZILNIC a fost deja aplicat în modulul de deplasări,
+   * care cunoaște baremul pe țară; aici se verifică doar cumulul LUNAR raportat
+   * la salariul de bază — două deplasări care separat se încadrează pot
+   * împreună să depășească.
+   */
+  readonly diurna?: Omit<IntrareDiurna, "salariuBazaBrut">;
   readonly contract: EmployeeContractSnapshot;
   readonly attendance: AttendanceSummary;
   readonly bonuses: readonly BonusInput[];
@@ -222,6 +230,8 @@ export interface PayrollCalcResult {
   readonly retineriTotal: number;
   readonly netDePlata: number;
   readonly avantajeNatura: number;
+  readonly diurnaNeimpozabila: number;
+  readonly diurnaImpozabila: number;
   readonly restDePlata: number;
   readonly costTotalAngajator: number;
   readonly breakdown: readonly Readonly<{ pas: string; valoare: number }>[];
@@ -448,6 +458,20 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     .filter((b) => b.impozabil && !b.supusContributii)
     .reduce((s, b) => s + b.suma, 0);
 
+  // Diurna: partea peste plafon devine venit asimilat salariului și trece prin
+  // toate contribuțiile; partea din plafon nu se impozitează și merge direct în
+  // restul de plată, fără să atingă brutul.
+  let diurnaNeimpozabila = 0;
+  let diurnaImpozabila = 0;
+  if (input.diurna !== undefined) {
+    const d = calculeazaDiurna({ ...input.diurna, salariuBazaBrut: contract.salariuBaza });
+    diurnaNeimpozabila = d.neimpozabila;
+    diurnaImpozabila = d.impozabila;
+    raporteaza(d.probleme);
+  }
+  inregistreaza("diurnaImpozabila", diurnaImpozabila);
+  inregistreaza("diurnaNeimpozabila", diurnaNeimpozabila);
+
   const brut = inregistreaza(
     "brut",
     bazaSalariu +
@@ -458,6 +482,7 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
       sporNoapte +
       sporRepaus +
       sporSarbatoare +
+      diurnaImpozabila +
       primeTotal,
   );
 
@@ -584,7 +609,7 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     "avantajeNatura",
     bonuses.filter((b) => b.esteAvantajInNatura === true).reduce((s, b) => s + b.suma, 0),
   );
-  const restBrut = netDePlata - avantajeNatura;
+  const restBrut = netDePlata - avantajeNatura + diurnaNeimpozabila;
   if (restBrut < -0.005) {
     avertizeaza(
       "SAL_AVANTAJ_NATURA_PESTE_NET",
@@ -633,6 +658,8 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     retineriTotal: rotundLeu(retineriTotal, r),
     netDePlata: rotundLeu(netDePlata, r),
     avantajeNatura: rotundLeu(avantajeNatura, r),
+    diurnaNeimpozabila: rotundLeu(diurnaNeimpozabila, r),
+    diurnaImpozabila: rotundLeu(diurnaImpozabila, r),
     restDePlata: rotundLeu(restDePlata, r),
     costTotalAngajator: rotundLeu(costTotalAngajator, r),
     breakdown,

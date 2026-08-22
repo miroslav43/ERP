@@ -7,9 +7,11 @@ import {
   certificateMedicaleLuna,
   citesteSetariPeId,
   compensariLuna,
+  diurnaLunaPerAngajat,
   componenteSalarialeActivePerioada,
   istoricVenitPerAngajat,
   marginileLunii,
+  plafoaneDiurnaLuna,
   PONTAJ_GOL,
   pontajAgregatPerioada,
   scutiriActivePerioada,
@@ -215,6 +217,8 @@ export const calculeazaPerioada = createAction({
       istoric,
       certificate,
       compensari,
+      diurna,
+      plafoaneDiurna,
     ] = await Promise.all([
       zileLucratoareLuna(ctx.tenant.organizationId, perioada.an, perioada.luna),
       angajatiActiviCuContract(ctx.tenant.organizationId, perioada.an, perioada.luna),
@@ -231,6 +235,8 @@ export const calculeazaPerioada = createAction({
       ),
       certificateMedicaleLuna(ctx.tenant.organizationId, perioada.an, perioada.luna),
       compensariLuna(ctx.tenant.organizationId, perioada.an, perioada.luna),
+      diurnaLunaPerAngajat(ctx.tenant.organizationId, perioada.an, perioada.luna),
+      plafoaneDiurnaLuna(ctx.tenant.organizationId, perioada.an, perioada.luna),
     ]);
     const angajati = personal.angajati;
 
@@ -369,6 +375,18 @@ export const calculeazaPerioada = createAction({
           ziReferinta: ultimaZiALunii,
           zileAvertizareTermen: setari.zile_avertizare_termen_compensare,
         },
+        // Fără politică de diurnă configurată nu există plafon de aplicat, deci
+        // etapa nu se apelează deloc — altfel ar plafona la zero și ar face
+        // TOATĂ diurna impozabilă.
+        ...(plafoaneDiurna === null
+          ? {}
+          : {
+              diurna: {
+                zile: diurna.get(angajat.employee_id)?.zile ?? [],
+                multiplicatorPlafonZilnic: plafoaneDiurna.multiplicatorPlafonZilnic,
+                fractiePlafonLunar: plafoaneDiurna.fractiePlafonLunar,
+              },
+            }),
         deductions: (retineriPeAngajat.get(angajat.employee_id) ?? []).map((r) => ({
           suma: r.suma,
           procentMaximDinNet: r.procentMaximDinNet,
@@ -423,6 +441,8 @@ export const calculeazaPerioada = createAction({
         retineri_total: rezultat.retineriTotal,
         net_de_plata: rezultat.netDePlata,
         avantaje_natura: rezultat.avantajeNatura,
+        diurna_neimpozabila: rezultat.diurnaNeimpozabila,
+        diurna_impozabila: rezultat.diurnaImpozabila,
         rest_de_plata: rezultat.restDePlata,
         cost_total_angajator: rezultat.costTotalAngajator,
         // JSON.parse(JSON.stringify(...)) scapă de `readonly` pe array-uri și
