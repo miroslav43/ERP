@@ -49,6 +49,13 @@ export function SidebarProvider({
   );
 }
 
+/**
+ * Butonul care deschide sertarul pe ecran îngust.
+ *
+ * `size-11` (44 px), nu `p-2` în jurul unei iconițe de `size-5` (36 px): e un
+ * buton care există DOAR pe telefon, iar ținta tactilă minimă a proiectului e
+ * `min-h-11`. Sub prag exact acolo unde contează.
+ */
 export function SidebarTrigger() {
   const { mobilDeschis, setMobilDeschis } = useSidebar();
   return (
@@ -57,7 +64,7 @@ export function SidebarTrigger() {
       onClick={() => setMobilDeschis(true)}
       aria-controls="meniu-principal"
       aria-expanded={mobilDeschis}
-      className="hover:bg-surface rounded-md p-2 md:hidden"
+      className="hover:bg-surface inline-flex size-11 items-center justify-center rounded-md md:hidden"
     >
       <Menu className="size-5" aria-hidden />
       <span className="sr-only">Deschide meniul</span>

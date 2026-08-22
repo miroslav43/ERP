@@ -1,0 +1,111 @@
+// src/app/(portal)/portal/integrarea-mea/[id]/page.tsx
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+
+import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { can, getPermissionMap } from "@/lib/auth/permissions";
+import { requireFeature } from "@/lib/auth/features";
+import { requireTenant } from "@/lib/tenant/resolve-tenant";
+import { idDinRuta } from "@/lib/rute/parametri";
+import { formatDate } from "@/lib/format/date";
+import { citesteInstanta, pasiiInstantei } from "@/lib/queries/checklist";
+import { fisaMea } from "@/lib/queries/portal";
+import { PasChecklist } from "@/app/(app)/onboarding/[id]/pas-checklist";
+import { ETICHETE_STATUS_INSTANTA, ETICHETE_TIP } from "@/app/(app)/onboarding/etichete";
+
+import { FaraFisa } from "../../fara-fisa";
+
+export const metadata: Metadata = { title: "Parcursul meu" };
+
+export default async function PaginaParcursulMeu({
+  params,
+}: {
+  readonly params: Promise<{ readonly id: string }>;
+}) {
+  const { id } = await params;
+  const instantaId = idDinRuta(id);
+
+  const { tenant, user } = await requireTenant();
+  await requireFeature(tenant.organizationId, "onboarding");
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+
+  if (!can(permisiuni, "checklists:read", "own")) {
+    return (
+      <div className="p-4">
+        <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta parcursul de integrare." />
+      </div>
+    );
+  }
+
+  const stare = await fisaMea(tenant.organizationId, user.id);
+  if (stare.stare !== "ok") return <FaraFisa stare={stare} numeOrganizatie={tenant.name} />;
+
+  const instanta = await citesteInstanta(tenant.organizationId, instantaId);
+  if (instanta === null) notFound();
+  if (instanta.employee_id !== stare.fisa.id) notFound();
+
+  const pasi = await pasiiInstantei(tenant.organizationId, instanta.id);
+
+  /*
+   * Care pași se pot bifa — regula e strictă și vine din politică, nu din bun-simț.
+   *
+   * `checklist_instance_items_update` (`0014_checklist.sql:856-881`) cere pe ramura
+   * `own` ca `responsabil_employee_id` să fie fișa curentă — NU `employee_id`.
+   * Într-un parcurs de angajare tipic, majoritatea pașilor au ca responsabil
+   * resursele umane. Un control oferit pe unul dintre ei ar produce un UPDATE cu
+   * ZERO rânduri, tăcut: acțiunea îl prinde și răspunde „nu aveți dreptul", dar
+   * un refuz pe un buton pe care i l-am oferit noi e un defect de ecran.
+   *
+   * Pașii altcuiva rămân VIZIBILI, fără control: politica de SELECT îi arată
+   * (`0014:823`), iar omul trebuie să știe pe cine așteaptă.
+   */
+  const idPasuriBifabile = pasi
+    .filter(
+      (pas) => pas.verificare_automata === null && pas.responsabil_employee_id === stare.fisa.id,
+    )
+    .map((pas) => pas.id);
+
+  const facute = pasi.filter((pas) => pas.status !== "de_facut").length;
+
+  return (
+    <div className="mx-auto max-w-2xl space-y-4 p-4">
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-foreground text-xl font-semibold">{ETICHETE_TIP[instanta.tip]}</h1>
+          <p className="text-muted-foreground text-sm">
+            Din {formatDate(instanta.data_referinta)} ·{" "}
+            <span className="tabular-nums">
+              {facute.toLocaleString("ro-RO")} din {pasi.length.toLocaleString("ro-RO")}
+            </span>{" "}
+            pași
+          </p>
+        </div>
+        <span className="border-border text-muted-foreground shrink-0 rounded border px-2 py-0.5 text-xs">
+          {ETICHETE_STATUS_INSTANTA[instanta.status]}
+        </span>
+      </header>
+
+      {idPasuriBifabile.length === 0 && pasi.length > 0 ? (
+        <p className="bg-surface border-border text-muted-foreground rounded-lg border p-3 text-sm">
+          Niciun pas nu vă revine acum. Îi puteți urmări mai jos pe cei în lucru la colegi.
+        </p>
+      ) : null}
+
+      <PasChecklist pasi={pasi} idPasuriBifabile={idPasuriBifabile} />
+
+      {/* Fără buton de finalizare: `checklist.instance.finish` cere
+          `checklists:update` la prag `team`, pe care angajatul nu-l are.
+          Parcursul îl închide resursele umane. */}
+
+      <p>
+        <Link
+          href="/portal/integrarea-mea"
+          className="text-primary text-sm underline-offset-2 hover:underline"
+        >
+          Înapoi la integrarea mea
+        </Link>
+      </p>
+    </div>
+  );
+}

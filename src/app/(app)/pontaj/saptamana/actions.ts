@@ -6,7 +6,13 @@ import { notFound } from "@/lib/actions/errors";
 import { decideSaptamanaPontajSchema, trimiteSaptamanaPontajSchema } from "@/schemas/attendance";
 import { traduEroare } from "../erori";
 
-const CAI_REVALIDARE = ["/pontaj/saptamana", "/pontaj/aprobare"] as const;
+const CAI_REVALIDARE = [
+  "/pontaj/saptamana",
+  "/pontaj/aprobare",
+  "/portal",
+  "/portal/pontajul-meu",
+  "/portal/pontajul-meu/saptamana",
+] as const;
 
 /**
  * Singurul drum de scriere pentru angajat: apelează `trimite_saptamana_pontaj`

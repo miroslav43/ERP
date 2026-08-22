@@ -20,10 +20,21 @@ interface EchipamentCautat {
   readonly locatie: string | null;
 }
 
+/**
+ * `caleDupaSalvare` există pentru portal, unde același formular trebuie să ducă
+ * înapoi în `/portal/sesizari`. Parametrizare, nu variantă proprie: spre
+ * deosebire de cererea de concediu — unde portalul chiar are alt formular, fără
+ * selector de angajat și fără câmpul de cale de storage — aici randarea e
+ * identică, iar ce ar fi de dublat e partea grea: precompletarea din QR și
+ * căutarea cu debounce prin acțiunea cu client admin. Două copii ale acelei
+ * logici ar diverge la prima corectură.
+ */
 export function FormularSesizare({
   echipamentIdPrefill,
+  caleDupaSalvare = "/mentenanta",
 }: {
   readonly echipamentIdPrefill: string | null;
+  readonly caleDupaSalvare?: string;
 }) {
   const router = useRouter();
   const [echipamentSelectat, setEchipamentSelectat] = useState<EchipamentCautat | null>(null);
@@ -96,7 +107,7 @@ export function FormularSesizare({
         setEroare(rezultat.error.message);
         return;
       }
-      router.push("/mentenanta");
+      router.push(caleDupaSalvare);
       router.refresh();
     });
   }

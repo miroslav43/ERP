@@ -2,36 +2,43 @@
 import type { Metadata } from "next";
 import { FileText } from "lucide-react";
 
+import Link from "next/link";
+
+import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { requireFeature } from "@/lib/auth/features";
+import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { formatDate } from "@/lib/format/date";
-import { documenteleMele, fisaProprie } from "@/lib/queries/portal";
+import { documenteleMele, fisaMea } from "@/lib/queries/portal";
+
+import { FaraFisa } from "../fara-fisa";
 
 export const metadata: Metadata = { title: "Documentele mele" };
 
 export default async function PaginaDocumenteleMele() {
   const { tenant, user } = await requireTenant();
   await requireFeature(tenant.organizationId, "employee_portal");
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
 
-  const fisa = await fisaProprie(tenant.organizationId, user.id);
-  if (fisa === null) {
+  // Gardul lipsea. Pagina se sprijinea doar pe RLS, ceea ce funcționa — dar
+  // preambulul canonic are patru pași tocmai ca refuzul să fie explicit și
+  // vizibil, nu o listă goală pe care omul o citește ca „nu am documente".
+  if (!can(permisiuni, "employees:read", "own")) {
     return (
       <div className="p-4">
-        <div className="bg-surface border-border rounded-lg border p-6 text-center">
-          <h1 className="text-foreground text-lg font-semibold">Nu aveți o fișă de personal</h1>
-          <p className="text-muted-foreground mt-2 text-sm">
-            Documentele se emit către un angajat. Cereți resurselor umane să vă completeze fișa.
-          </p>
-        </div>
+        <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta documentele emise pe numele dumneavoastră." />
       </div>
     );
   }
 
-  const documente = await documenteleMele(tenant.organizationId, fisa.id);
+  const stare = await fisaMea(tenant.organizationId, user.id);
+  if (stare.stare !== "ok") return <FaraFisa stare={stare} numeOrganizatie={tenant.name} />;
+
+  const documente = await documenteleMele(tenant.organizationId, stare.fisa.id);
 
   return (
-    <div className="space-y-4 p-4">
+    <div className="mx-auto max-w-2xl space-y-4 p-4">
       <div>
         <h1 className="text-foreground text-xl font-semibold">Documentele mele</h1>
         <p className="text-muted-foreground text-sm">
@@ -88,6 +95,23 @@ export default async function PaginaDocumenteleMele() {
                   <p className="text-muted-foreground mt-2 font-mono text-xs">
                     Cod de verificare: {d.cod_verificare}
                   </p>
+                )}
+
+                {/*
+                  Singura legătură din portal care iese din `/portal`, și e
+                  intenționat: `documente/[id]` e Route Handler, deci nu trece
+                  prin layout și nu e prins de poarta de rol. E și singurul drum
+                  prin care angajatul își deschide adeverința — `hr_issued_select`
+                  are ramură `own`. Pagina lista documentele fără niciun link
+                  către ele, adică arăta ce există fără să-l lase să ajungă.
+                */}
+                {anulat ? null : (
+                  <Link
+                    href={`/documente/${d.id}`}
+                    className="border-border hover:border-primary text-foreground mt-3 inline-flex min-h-11 items-center rounded-md border px-3 text-sm font-medium transition-colors"
+                  >
+                    Deschide pentru tipărire
+                  </Link>
                 )}
               </li>
             );

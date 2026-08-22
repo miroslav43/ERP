@@ -235,3 +235,254 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     scroll-behavior: auto !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * STRATUL DE MARKETING — „Foaia care se închide"
+ *
+ * Tot ce urmează are prefixul `mk-` și NU atinge niciun token al aplicației.
+ * Izolarea se obține prin NUME, nu prin excludere: `--color-mk-*` generează
+ * utilitare noi, pe care niciunul dintre ecranele din `(app)` nu le folosește.
+ * Diff-ul pe fișierul ăsta trebuie să rămână strict aditiv.
+ *
+ * De ce nu sub o clasă `.mk`: fără `tailwind.config`, utilitarele se nasc
+ * exclusiv din `@theme`. Definite sub o clasă, tokenii n-ar genera
+ * `bg-mk-hartie`, iar fiecare culoare ar deveni `bg-[var(--color-mk-hartie)]`
+ * pe douăzeci de secțiuni.
+ *
+ * Regula cromatică, într-o frază: culoarea nu e niciodată text — cu o singură
+ * excepție, semnul „—" al refuzului, și numai pe hârtie. Codurile din foaie
+ * (CO, CM, SL, AN, D) se scriu în culoarea textului fundalului; culoarea apare
+ * doar ca tentă de celulă. Consecință: culoarea nu poartă niciodată singură un
+ * înțeles, deci foaia rămâne citibilă și tipărită alb-negru.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  /* Funduri. Hârtia e gri-verzuie RECE — deliberat departe de cremul cald
+   * #FAF7F0 al aplicației, ca să nu pară o variantă spălăcită a acestuia. */
+  --color-mk-hartie: #ecefec;
+  --color-mk-cerneala: #0e1c21;
+
+  /* Text. Contrastele sunt calculate, nu estimate. */
+  --color-mk-text: #0e1c21; /* pe hârtie   15,02:1  AAA */
+  --color-mk-text-slab: #4a5a5e; /* pe hârtie    6,22:1  AA  */
+  --color-mk-text-inv: #ecefec; /* pe cerneală 15,02:1  AAA */
+  --color-mk-text-inv-slab: #93a5a6; /* pe cerneală  6,77:1  AA  */
+
+  /* Rigle. Cele STRUCTURALE poartă sens singure, deci trec pragul 1.4.11 de
+   * 3:1. Cele REDUNDANTE (liniatura din interiorul foii) n-au nevoie: acolo
+   * structura e purtată de <table>, <th scope> și alinierea tabulară. */
+  --color-mk-rigla: #7b8982; /* structurală, hârtie    3,16:1 */
+  --color-mk-rigla-inv: #586a70; /* structurală, cerneală  3,08:1 */
+  --color-mk-liniatura: #c7cfc9; /* redundantă, hârtie */
+  --color-mk-liniatura-inv: #2a3f46; /* redundantă, cerneală */
+
+  /* Legenda foii. NICIODATĂ text — excepția e `--color-mk-refuz`. */
+  --color-mk-co: #2f6b52;
+  --color-mk-co-inv: #5fa383; /* pe cerneală 5,84:1 */
+  --color-mk-sl: #b4802a;
+  --color-mk-sl-apasat: #856020; /* pe hârtie   4,91:1 */
+  --color-mk-an: #a8443a;
+  --color-mk-refuz: #a8443a; /* semnul „—", DOAR pe hârtie 5,10:1 */
+
+  /* Tente precalculate și auditate. `color-mix()` e INTERZIS pentru ele:
+   * amestecul `in oklab` dă alte valori decât cele verificate mai jos. */
+  --color-mk-co-hartie: #d2ddd6; /* text 12,47:1 */
+  --color-mk-sl-hartie: #e4dfd1; /* text 13,07:1 */
+  --color-mk-an-hartie: #e2d7d3; /* text 12,34:1 */
+  --color-mk-weekend-hartie: #e3e6e3; /* text 13,83:1 */
+  --color-mk-activ-hartie: #dfe3e0; /* text 13,43:1 */
+  --color-mk-co-cerneala: #132728;
+  --color-mk-sl-cerneala: #252a22;
+  --color-mk-an-cerneala: #242224;
+  --color-mk-weekend-cerneala: #1b2a2e;
+  --color-mk-activ-cerneala: #1b333a;
+
+  /* Ușa. Singurul element navy de pe toată pagina e butonul „Autentificare" —
+   * vopsit în culoarea camerei în care duce. 14,23:1 pe hârtie. */
+  --color-mk-usa: #0f1e3d;
+  --color-mk-usa-text: #faf7f0;
+
+  /* Hașura: notația pentru „nu s-a întâmplat și nu se mai poate scrie aici".
+   * Într-o condică, o celulă barată e definitiv barată. */
+  --mk-hasura: repeating-linear-gradient(45deg, #93a5a6 0 1px, transparent 1px 7px);
+  --mk-hasura-inv: repeating-linear-gradient(45deg, #4a5a5e 0 1px, transparent 1px 7px);
+
+  /* Geometrie. Pasul vertical e 8px, fără excepție. */
+  --mk-celula: 34px;
+  --mk-celula-mica: 30px;
+}
+
+@theme inline {
+  --color-mk-hartie: var(--color-mk-hartie);
+  --color-mk-cerneala: var(--color-mk-cerneala);
+
+  --color-mk-text: var(--color-mk-text);
+  --color-mk-text-slab: var(--color-mk-text-slab);
+  --color-mk-text-inv: var(--color-mk-text-inv);
+  --color-mk-text-inv-slab: var(--color-mk-text-inv-slab);
+
+  --color-mk-rigla: var(--color-mk-rigla);
+  --color-mk-rigla-inv: var(--color-mk-rigla-inv);
+  --color-mk-liniatura: var(--color-mk-liniatura);
+  --color-mk-liniatura-inv: var(--color-mk-liniatura-inv);
+
+  --color-mk-co: var(--color-mk-co);
+  --color-mk-co-inv: var(--color-mk-co-inv);
+  --color-mk-sl: var(--color-mk-sl);
+  --color-mk-sl-apasat: var(--color-mk-sl-apasat);
+  --color-mk-an: var(--color-mk-an);
+  --color-mk-refuz: var(--color-mk-refuz);
+
+  --color-mk-co-hartie: var(--color-mk-co-hartie);
+  --color-mk-sl-hartie: var(--color-mk-sl-hartie);
+  --color-mk-an-hartie: var(--color-mk-an-hartie);
+  --color-mk-weekend-hartie: var(--color-mk-weekend-hartie);
+  --color-mk-activ-hartie: var(--color-mk-activ-hartie);
+  --color-mk-co-cerneala: var(--color-mk-co-cerneala);
+  --color-mk-sl-cerneala: var(--color-mk-sl-cerneala);
+  --color-mk-an-cerneala: var(--color-mk-an-cerneala);
+  --color-mk-weekend-cerneala: var(--color-mk-weekend-cerneala);
+  --color-mk-activ-cerneala: var(--color-mk-activ-cerneala);
+
+  --color-mk-usa: var(--color-mk-usa);
+  --color-mk-usa-text: var(--color-mk-usa-text);
+
+  --font-mk-display: var(--font-fira-condensed);
+  --font-mk-date: var(--font-fira-mono);
+
+  --container-mk: 77.5rem; /* 1240px */
+  --radius-mk-rama: 0.25rem; /* rama vinietelor; controalele folosesc `rounded` = --radius */
+}
+
+/*
+ * Două reguli globale ale aplicației curg înapoi în landing și trebuie oprite.
+ * Amândouă sunt scrise ca selectori nuzi în capul fișierului, deci se aplică
+ * și aici. Contra-regulile de mai jos sunt aditive și câștigă prin
+ * specificitate — aplicația rămâne neatinsă.
+ */
+
+/* 1. Autofill-ul Chrome ar picta câmpul cu CREMUL APLICAȚIEI pe hârtie rece. */
+.mk input:-webkit-autofill,
+.mk input:-webkit-autofill:hover,
+.mk input:-webkit-autofill:focus,
+.mk textarea:-webkit-autofill {
+  -webkit-text-fill-color: var(--color-mk-text);
+  box-shadow: 0 0 0 1000px var(--color-mk-hartie) inset;
+  caret-color: var(--color-mk-text);
+}
+
+/*
+ * 2. Inelul global de focus e `--color-ring` #2A3D66, care dă 1,62:1 pe
+ * cerneală — invizibil exact pe butoanele demonstrației. Se schimbă DOAR
+ * culoarea; grosimea și offsetul rămân cele din regula globală, ca degetul să
+ * întâlnească același obiect ca în aplicație.
+ */
+.mk :focus-visible {
+  outline-color: var(--color-mk-text);
+}
+.mk-cerneala :focus-visible {
+  outline-color: var(--color-mk-text-inv);
+}
+
+/* Notația pentru ce nu există încă. Nu se animă niciodată și n-are hover. */
+.mk-hasura {
+  background-image: var(--mk-hasura);
+}
+.mk-cerneala .mk-hasura {
+  background-image: var(--mk-hasura-inv);
+}
+
+/*
+ * Evidențierea din foaie. O SINGURĂ regulă, nu 38 generate pe un wrapper cu
+ * două atribute: 240 de celule re-randate la un clic sunt gratuite, iar
+ * complexitatea nu era.
+ */
+.mk-foaie [data-activ] {
+  background-color: var(--color-mk-activ-hartie);
+}
+
+/*
+ * Ferestrele foii, FĂRĂ JavaScript.
+ *
+ * Pe ecran îngust documentul nu se derulează lateral — se taie. Regulile de mai
+ * jos dau fereastra implicită: luna întreagă peste 1280px, prima jumătate între
+ * 768 și 1279, prima săptămână sub 768. Când JavaScript-ul pornește, pune
+ * `data-fereastra` pe figură, `:not([data-fereastra])` nu se mai potrivește, iar
+ * vizibilitatea trece în seama atributului `hidden` pus de componentă.
+ *
+ * Ordinea contează: a doua regulă vine după prima și, la aceeași specificitate,
+ * câștigă — deci sub 768px rămâne doar intersecția, adică prima săptămână.
+ */
+@media (max-width: 1279.98px) {
+  .mk-foaie:not([data-fereastra]) [data-zi]:not([data-j1]) {
+    display: none;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .mk-foaie:not([data-fereastra]) [data-zi]:not([data-s1]) {
+    display: none;
+  }
+}
+
+/*
+ * Inelul de focus din interiorul foii merge spre INTERIOR. Cu offset pozitiv ar
+ * fi acoperit de celula vecină, iar regula globală din capul fișierului e
+ * nestratificată, deci ar bate orice utilitar Tailwind — de aceea corectura stă
+ * tot aici, nu într-o clasă.
+ */
+.mk-foaie button:focus-visible {
+  outline-offset: -2px;
+}
+
+/*
+ * Baleierea de completare a foii.
+ *
+ * NU ascunde nimic. Animează o tentă care se stinge, coloană după coloană, de
+ * la stânga la dreapta — deci starea din HTML e deja starea finală și nu există
+ * niciun moment în care o celulă să lipsească, nici înainte de hidratare, nici
+ * dacă JavaScript-ul nu pornește niciodată.
+ *
+ * `backwards`, nu `both`: cu `both`, ultimul cadru ar rămâne lipit pe element
+ * după ce animația se termină, iar `background-color: transparent` ar șterge
+ * definitiv tenta proprie a celulelor de weekend, de sărbătoare și de concediu.
+ * Cu `backwards`, elementul revine la stilul lui.
+ *
+ * Clasa `.mk-anim` se pune din JS numai când omul NU a cerut mișcare redusă.
+ */
+@keyframes mk-baleiaza {
+  from {
+    background-color: var(--color-mk-activ-hartie);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+.mk-anim [data-celula] {
+  animation: mk-baleiaza 300ms cubic-bezier(0.2, 0.7, 0.3, 1) backwards;
+  animation-delay: calc(var(--mk-coloana, 0) * 10ms);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Portalul angajatului — corecții pentru ecrane atinse cu degetul.
+ *
+ * Strat strict aditiv, la fel ca blocul de marketing de deasupra: nu atinge
+ * niciun token al aplicației și se aplică numai sub `[data-zona="portal"]`.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+/*
+ * iOS Safari MĂREȘTE automat pagina când primește focus un câmp cu
+ * `font-size` sub 16px, și nu o micșorează la loc. Repo-ul pune `text-sm`
+ * (14px) pe câmpuri aproape peste tot — pe telefon, asta înseamnă că pagina
+ * sare la fiecare atingere într-un formular și rămâne mărită, cu bara de jos
+ * ieșită din ecran.
+ *
+ * `pointer: coarse` restrânge regula la dispozitivele cu atingere, deci
+ * densitatea de pe laptop rămâne neschimbată. 16px e pragul exact al lui
+ * Safari, nu o rotunjire.
+ */
+@media (pointer: coarse) {
+  [data-zona="portal"] :is(input, select, textarea) {
+    font-size: 16px;
+  }
+}

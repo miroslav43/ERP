@@ -32,7 +32,7 @@ export const pornesteInstanta = createAction({
     entityId: (_input, data: Readonly<{ id: string }>) => data.id,
     allow: ["template_id", "employee_id", "data_referinta"],
   },
-  revalidate: ["/onboarding"],
+  revalidate: ["/onboarding", "/portal", "/portal/integrarea-mea"],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const db = await createServerSupabase();
     // NU se trimit: ciclu, status, finalizata_la, finalizata_de, anulata_la,
@@ -77,6 +77,12 @@ export const bifeazaPas = createAction({
   },
   revalidate: (_input, data: Readonly<{ id: string; instance_id: string }>) => [
     `/onboarding/${data.instance_id}`,
+    "/onboarding",
+    // Bifarea unui pas schimbă și progresul din portal, și contorul de pe
+    // pagina de start a angajatului.
+    `/portal/integrarea-mea/${data.instance_id}`,
+    "/portal/integrarea-mea",
+    "/portal",
   ],
   handler: async (ctx, input): Promise<Readonly<{ id: string; instance_id: string }>> => {
     const db = await createServerSupabase();
@@ -155,7 +161,13 @@ export const finalizeazaInstanta = createAction({
     entityId: (input) => input.id,
     allow: ["id"],
   },
-  revalidate: (input) => [`/onboarding/${input.id}`, "/onboarding"],
+  revalidate: (input) => [
+    `/onboarding/${input.id}`,
+    "/onboarding",
+    `/portal/integrarea-mea/${input.id}`,
+    "/portal/integrarea-mea",
+    "/portal",
+  ],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const db = await createServerSupabase();
     // Se trimite DOAR `status`. `finalizata_la`/`finalizata_de` le pune
@@ -193,7 +205,13 @@ export const anuleazaInstanta = createAction({
     entityId: (input) => input.id,
     allow: ["id"],
   },
-  revalidate: (input) => [`/onboarding/${input.id}`, "/onboarding"],
+  revalidate: (input) => [
+    `/onboarding/${input.id}`,
+    "/onboarding",
+    `/portal/integrarea-mea/${input.id}`,
+    "/portal/integrarea-mea",
+    "/portal",
+  ],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const db = await createServerSupabase();
     // NU se trimite `anulata_la` — îl pune triggerul.

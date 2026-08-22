@@ -16,6 +16,16 @@ import { anuleazaCerereSchema, creeazaCerereSchema, decideCerereSchema } from "@
 import { sincronizeazaZileleDeConcediu } from "@/app/(app)/pontaj/sincronizare-concediu";
 import { traduEroare } from "./erori";
 
+/**
+ * Rutele de portal atinse de orice mișcare pe o cerere de concediu.
+ *
+ * Fără ele, angajatul depune cererea, se întoarce pe „Concediile mele" și nu o
+ * vede. Nu e o eroare — e cache-ul de Router al lui Next, iar tăcerea lui e
+ * exact felul în care defectul trece de review: pe server totul e corect.
+ * `/portal` intră fiindcă pagina de start arată soldul și cererile în așteptare.
+ */
+const CAI_PORTAL_CONCEDII: readonly string[] = ["/portal", "/portal/concediile-mele"];
+
 function laDataUTC(valoare: string): Date {
   const parti = valoare.split("-");
   const an = Number(parti[0]);
@@ -46,7 +56,7 @@ export const creeazaCerereConcediu = createAction({
       "trimite",
     ],
   },
-  revalidate: ["/concedii", "/concedii/sold"],
+  revalidate: ["/concedii", "/concedii/sold", ...CAI_PORTAL_CONCEDII],
   handler: async (ctx, input): Promise<Readonly<{ id: string; zileLucratoare: number }>> => {
     // ── (1) Angajatul țintă ────────────────────────────────────────────────
     // Rolul `employee` are `leave:create = own`: nu poate crea decât pentru
@@ -207,7 +217,12 @@ export const anuleazaCerere = createAction({
     entityId: (input) => input.id,
     allow: ["id"],
   },
-  revalidate: ["/concedii", "/concedii/sold"],
+  revalidate: (input) => [
+    "/concedii",
+    "/concedii/sold",
+    ...CAI_PORTAL_CONCEDII,
+    `/portal/concediile-mele/${input.id}`,
+  ],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const { data, error } = await ctx.supabase
       .from("leave_requests")
@@ -239,7 +254,21 @@ export const decideCerere = createAction({
     entityId: (input) => input.taskId,
     allow: ["taskId", "decizie", "comentariu", "motivRespingere"],
   },
-  revalidate: ["/concedii", "/concedii/aprobari", "/concedii/sold"],
+  // Al doilea argument, nu primul: intrarea poartă `taskId` (sarcina de
+  // aprobare), iar calea de portal are nevoie de identificatorul CERERII, pe
+  // care handlerul îl întoarce.
+  // Tipul se scrie explicit: `revalidate` e declarat ÎNAINTEA lui `handler` în
+  // obiectul literal, deci TypeScript n-are încă de unde infera forma datelor.
+  revalidate: (_input, data: Readonly<{ id: string }>) => [
+    "/concedii",
+    "/concedii/aprobari",
+    "/concedii/sold",
+    ...CAI_PORTAL_CONCEDII,
+    `/portal/concediile-mele/${data.id}`,
+    // Decizia sincronizează zilele în pontaj (v. handler): fără calea asta,
+    // angajatul vede concediul aprobat și pontajul nemodificat.
+    "/portal/pontajul-meu",
+  ],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     // (1) Sarcina, cu clientul utilizatorului: `approval_tasks_select` arată
     // doar sarcinile proprii (sau `leave:approve = all`), deci un aprobator

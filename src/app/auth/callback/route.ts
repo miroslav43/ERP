@@ -1,8 +1,9 @@
 // src/app/auth/callback/route.ts
 import { NextResponse, type NextRequest } from "next/server";
 import { clientEnv } from "@/config/env";
-import { rutaDupaAutentificare } from "@/config/routes";
+import { POARTA_PORTAL_ACTIVA, rutaDupaAutentificare } from "@/config/routes";
 import { isPlatformAdmin } from "@/lib/auth/platform";
+import { isAppRole } from "@/lib/tenant/types";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { caleInterna } from "@/schemas/auth";
 
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest): Promise<Response> {
   }
 
   const supabase = await createServerSupabase();
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
+  const { data: sesiune, error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) {
     return NextResponse.redirect(new URL("/autentificare?eroare=link", baza));
   }
@@ -42,20 +43,42 @@ export async function GET(request: NextRequest): Promise<Response> {
     return NextResponse.redirect(new URL(next, baza));
   }
 
-  // Clientul de sesiune, nu service_role: RLS filtrează singură rândurile
-  // utilizatorului curent, deci nu e nevoie de `.eq("user_id", ...)` și nu
-  // ocolim nimic.
+  // Clientul de sesiune, nu service_role. Filtrul pe `user_id` NU e redundant cu
+  // RLS: politicile lasă un administrator de platformă să citească apartenențele
+  // tuturor, deci fără el numărătoarea ar fi a întregii platforme, iar rolul citit
+  // ar fi al altcuiva.
   const [estePlatformAdmin, apartenente] = await Promise.all([
     isPlatformAdmin(),
     supabase
       .from("organization_members")
-      .select("organization_id", { count: "exact", head: true })
-      .eq("status", "active"),
+      .select("organization_id, role")
+      .eq("user_id", sesiune.user.id)
+      .eq("status", "active")
+      .is("deleted_at", null)
+      // Doi ajunge: unul înseamnă „știm rolul", doi sau mai mulți înseamnă „decide
+      // ecranul de alegere". Câți sunt peste doi nu schimbă nimic.
+      .limit(2),
   ]);
+
+  const randuri = apartenente.data ?? [];
+  const singura = randuri.length === 1 ? randuri[0] : undefined;
 
   const destinatie = rutaDupaAutentificare({
     estePlatformAdmin,
-    areOrganizatii: (apartenente.count ?? 0) > 0,
+    areOrganizatii: randuri.length > 0,
+    // Cu două sau mai multe apartenențe, organizația activă o stabilește
+    // `resolveTenant()` din cookie-ul-hint sau ecranul de alegere — deci rolul
+    // de aici ar fi o presupunere.
+    // Ramura de portal se aprinde odată cu `POARTA_PORTAL_ACTIVA`. Cât timp e
+    // stinsă, angajatul aterizează unde a aterizat dintotdeauna: portalul încă
+    // nu acoperă tot ce poate face în aplicația mare, iar a-l trimite acolo mai
+    // devreme i-ar lua cererea de concediu fără să-i dea nimic în schimb.
+    // `rutaDupaAutentificare` rămâne pură și testată pe ambele ramuri —
+    // comutatorul stă la apelant, nu în ea.
+    rol:
+      POARTA_PORTAL_ACTIVA && singura !== undefined && isAppRole(singura.role)
+        ? singura.role
+        : null,
   });
 
   return NextResponse.redirect(new URL(destinatie, baza));

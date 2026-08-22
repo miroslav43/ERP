@@ -11,7 +11,7 @@ import { getPermissionMap } from "@/lib/auth/permissions";
 import { buildNavigation } from "@/lib/navigation/build-navigation";
 import { resolveTenant } from "@/lib/tenant/resolve-tenant";
 import { stareFirmei } from "@/lib/tenant/stare-firma";
-import { RUTA_PORTAL } from "@/config/routes";
+import { POARTA_PORTAL_ACTIVA, RUTA_PORTAL } from "@/config/routes";
 import type { AuthUser, Tenant } from "@/lib/tenant/types";
 
 export const dynamic = "force-dynamic";
@@ -61,7 +61,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   // Fără condiție pe `employee_portal`: modulul nu e de nucleu, deci majoritatea
   // firmelor îl au stins. Portalul funcționează și așa — „Acasă" nu depinde de
   // el, iar restul intrărilor sunt păzite de modulele lor proprii.
-  if (tenant.role === "employee") redirect(RUTA_PORTAL);
+  if (POARTA_PORTAL_ACTIVA && tenant.role === "employee") redirect(RUTA_PORTAL);
 
   // ── Poarta firmei neconfigurate ─────────────────────────────────────────
   // `pending` = datele firmei nu sunt complete. Super-adminul poate crea o

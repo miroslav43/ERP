@@ -45,6 +45,29 @@ export function idDinRuta(valoare: string): string {
 }
 
 /**
+ * Zi calendaristică dintr-un segment dinamic. Ca `idDinRuta`, dar pentru dată.
+ *
+ * `31 februarie` are formatul corect și nu există. Fără verificarea zilei reale,
+ * șirul ajunge la Postgres, unde coloana `date` îl respinge cu 22P02 — o eroare
+ * de server pentru ceva ce e, de fapt, o adresă greșită. 404 e răspunsul corect,
+ * la fel ca la orice segment `[id]` inventat.
+ */
+export function ziDinRuta(valoare: string): string {
+  const potrivire = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(valoare);
+  if (potrivire === null) notFound();
+
+  const an = Number(potrivire[1]);
+  const luna = Number(potrivire[2]);
+  const zi = Number(potrivire[3]);
+  if (luna < 1 || luna > 12 || zi < 1) notFound();
+  // `Date.UTC(an, luna, 0)` dă ultima zi a lunii `luna` (lunile sunt indexate
+  // de la zero, deci `luna` e deja luna următoare, iar ziua 0 e cea dinaintea ei).
+  if (zi > new Date(Date.UTC(an, luna, 0)).getUTCDate()) notFound();
+
+  return valoare;
+}
+
+/**
  * Filtrele din query string, cu revenire la valorile implicite.
  *
  * Un filtru nevalid NU e un motiv să refuzi pagina. Cineva a editat URL-ul, a

@@ -777,11 +777,14 @@ begin
   insert into public.tickets (id, organization_id, numar_afisat, tip, titlu, descriere,
                               modul, pasi_efectuati, rezultat_asteptat, rezultat_obtinut,
                               solicitant_employee_id, created_by, updated_by)
-  values ((select val from t_ids where cheie='tichet_alfa'), v_alfa, 'IT-2026-00001',
+  -- Numere din afara plajei pe care o produce `public.aloca_numar_tichet`
+  -- (care începe de la 1): altfel proba de mai jos, care chiar apelează
+  -- alocatorul, s-ar lovi de fixture în loc să dovedească ceva.
+  values ((select val from t_ids where cheie='tichet_alfa'), v_alfa, 'IT-2026-900001',
           'bug_erp', 'Tichet Alfa', 'Conținut de fixture.',
           'Pontaj', 'Am deschis luna.', 'Se salvează.', 'Nu se salvează.',
           (select val from t_ids where cheie='ang_alfa'), v_admin_alfa, v_admin_alfa),
-         ((select val from t_ids where cheie='tichet_beta'), v_beta, 'IT-2026-00001',
+         ((select val from t_ids where cheie='tichet_beta'), v_beta, 'IT-2026-900001',
           'bug_erp', 'Tichet Beta', 'Conținut de fixture.',
           'Pontaj', 'Am deschis luna.', 'Se salvează.', 'Nu se salvează.',
           (select val from t_ids where cheie='ang_beta'), v_admin_beta, v_admin_beta);
@@ -1500,8 +1503,11 @@ begin
 
       -- Ramura `own` din `app.poate_scrie_pontaj` (0013:249). Ziua de azi e
       -- liberă: fixture-ul a pus `current_date - 1` pe seama lui org_admin.
+      -- Ziua trebuie să fie LIBERĂ: `attendance_entries_zi_uq` e index unic
+      -- parțial pe (employee_id, data). Fixture-ul ocupă deja `current_date` și
+      -- `current_date - 1` (org_admin), iar pregătirea de mai sus `- 5`.
       ('employee', 'attendance_entries (ziua proprie)',    'PERMIS',
-       'insert into public.attendance_entries (organization_id, employee_id, data, ore_lucrate, tip_zi) values ($1,$6,current_date,8,''lucratoare'')'),
+       'insert into public.attendance_entries (organization_id, employee_id, data, ore_lucrate, tip_zi) values ($1,$6,current_date - 3,8,''lucratoare'')'),
 
       -- Capcana tăcută a modulului: `attendance_entries_update` (0013:795) cere
       -- `approved_at is null`. Un UPDATE respins de `USING` NU aruncă — afectează
@@ -1552,7 +1558,11 @@ begin
 
       -- Tichetele IT, acordate de 0046. `returning` prinde din nou capcana 28.
       ('employee', 'tickets (cerere IT proprie)',          'PERMIS',
-       'insert into public.tickets (organization_id, solicitant_employee_id, tip, titlu, descriere, modul, pasi_efectuati, rezultat_asteptat, rezultat_obtinut) values ($1,$6,''bug_erp'',''Tichet (l)'',''Descriere.'',''Portal'',''Am apăsat.'',''Se salvează.'',''Nu se salvează.'') returning id'),
+      -- `numar_afisat` e NOT NULL fără implicit: îl rezervă
+      -- `public.aloca_numar_tichet`, acordată lui `authenticated` (0047). Proba
+      -- urmează exact drumul acțiunii reale — dacă funcția s-ar muta înapoi în
+      -- schema `app`, PostgREST n-ar mai expune-o, iar aici s-ar vedea imediat.
+       'insert into public.tickets (organization_id, numar_afisat, solicitant_employee_id, tip, titlu, descriere, modul, pasi_efectuati, rezultat_asteptat, rezultat_obtinut) values ($1, public.aloca_numar_tichet($1), $6, ''bug_erp'', ''Tichet (l)'', ''Descriere.'', ''Portal'', ''Am apăsat.'', ''Se salvează.'', ''Nu se salvează.'') returning id'),
 
       -- Fișa unui coleg rămâne inaccesibilă: `employees:read = own` compară pe
       -- `user_id`, nu pe apartenență.

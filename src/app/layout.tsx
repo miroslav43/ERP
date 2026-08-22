@@ -23,10 +23,21 @@ export const metadata: Metadata = {
   },
   description:
     "Sistem de administrare a personalului pentru firme din România: pontaj, concedii, salarii, SSM, flotă și inventar.",
+  // `favicon.ico` rămâne pentru browserele vechi; varianta SVG e clară la orice
+  // densitate de ecran și e chiar marca desenată în antet.
+  icons: { icon: [{ url: "/marca.svg", type: "image/svg+xml" }] },
 };
 
+/**
+ * `viewportFit: "cover"` nu e cosmetic: fără el, `env(safe-area-inset-*)`
+ * evaluează la ZERO pe iOS, iar bara de navigare a portalului
+ * (`(portal)/bara-portal.tsx`, care se bazează pe `pb-[env(safe-area-inset-bottom)]`)
+ * ajunge sub indicatorul de gesturi al iPhone-ului — exact zona în care
+ * atingerea deschide ecranul de start în loc să apese butonul.
+ */
 export const viewport: Viewport = {
   themeColor: "#0F1E3D",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

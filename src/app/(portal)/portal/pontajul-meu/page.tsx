@@ -1,7 +1,7 @@
 // src/app/(portal)/portal/pontajul-meu/page.tsx
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Clock } from "lucide-react";
+import { Clock, CalendarClock } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { EmptyState } from "@/components/feedback/empty-state";
@@ -10,10 +10,11 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, formatMonthYear, todayInBucharest } from "@/lib/format/date";
 import { anDinUrl } from "@/lib/rute/parametri";
-import { idFisaProprie } from "@/lib/queries/employees";
-import { pontajulMeu } from "@/lib/queries/portal";
+import { pontajulMeu, fisaMea } from "@/lib/queries/portal";
 
 import { ETICHETE_TIP_ZI } from "../etichete";
+
+import { FaraFisa } from "../fara-fisa";
 
 export const metadata: Metadata = { title: "Pontajul meu" };
 
@@ -43,21 +44,17 @@ export default async function PaginaPontajulMeu({ searchParams }: ProprietatiPag
     );
   }
 
-  const propriaFisaId = await idFisaProprie(tenant.organizationId, user.id);
-  if (propriaFisaId === null) {
-    return (
-      <div className="p-4">
-        <div className="bg-surface border-border rounded-lg border p-6 text-center">
-          <h1 className="text-foreground text-lg font-semibold">
-            Nu aveți încă o fișă de personal
-          </h1>
-          <p className="text-muted-foreground mt-2 text-sm">
-            Pontajul se leagă de un angajat. Cereți resurselor umane să vă completeze fișa.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  // `fisaMea`, nu `idFisaProprie`: cea din urmă doar SORTEAZĂ după `is_primary`,
+  // în timp ce `app.current_employee_id()` — prin care trec toate ramurile `own`
+  // din RLS — chiar îl cere. Un cont a cărui unică fișă nu e principală primea
+  // altfel un ecran care îi arăta numele și nicio dată, fără nicio explicație.
+  // `attendance:create`, nu `:read`: planul e o scriere. Fără dreptul ăsta,
+  // butonul ar duce direct într-un refuz.
+  const poatePlanifica = can(permisiuni, "attendance:create", "own");
+
+  const stare = await fisaMea(tenant.organizationId, user.id);
+  if (stare.stare !== "ok") return <FaraFisa stare={stare} numeOrganizatie={tenant.name} />;
+  const propriaFisaId = stare.fisa.id;
 
   const parametri = await searchParams;
   const azi = todayInBucharest();
@@ -81,9 +78,18 @@ export default async function PaginaPontajulMeu({ searchParams }: ProprietatiPag
   const lunaUrmatoare = luna === 12 ? { an: an + 1, luna: 1 } : { an, luna: luna + 1 };
 
   return (
-    <div className="space-y-4 p-4">
+    <div className="mx-auto max-w-2xl space-y-4 p-4">
       <header className="flex items-center justify-between gap-3">
         <h1 className="text-foreground text-xl font-semibold">Pontajul meu</h1>
+        {poatePlanifica ? (
+          <Link
+            href="/portal/pontajul-meu/saptamana"
+            className="border-border hover:border-primary text-foreground inline-flex min-h-11 items-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors"
+          >
+            <CalendarClock aria-hidden="true" className="size-4" />
+            Planul săptămânii
+          </Link>
+        ) : null}
       </header>
 
       <nav aria-label="Alege luna" className="flex items-center justify-between gap-2">
@@ -121,28 +127,34 @@ export default async function PaginaPontajulMeu({ searchParams }: ProprietatiPag
 
           <ul className="space-y-2">
             {zile.map((z) => (
-              <li key={z.id} className="bg-surface border-border rounded-lg border p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-foreground text-sm font-medium">{formatDate(z.data)}</p>
-                    <p className="text-muted-foreground text-xs">
-                      {ETICHETE_TIP_ZI[z.tip_zi] ?? z.tip_zi}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-foreground text-sm tabular-nums">
-                      {(z.ore_lucrate ?? 0).toLocaleString("ro-RO")} ore
-                    </p>
-                    {(z.ore_suplimentare ?? 0) > 0 ? (
-                      <p className="text-muted-foreground text-xs tabular-nums">
-                        +{(z.ore_suplimentare ?? 0).toLocaleString("ro-RO")} suplimentare
+              <li key={z.id}>
+                {/* Rândul e link doar când ziua chiar se poate edita: o zi venită
+                    din concediu sau dintr-o lună închisă ar duce la un ecran care
+                    explică refuzul, ceea ce e corect — dar un rând care nu
+                    reacționează spune mai bine „nu e nimic de făcut aici". */}
+                <ZiRand data={z.data} editabila={poatePlanifica && z.tip_zi === "lucratoare"}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-foreground text-sm font-medium">{formatDate(z.data)}</p>
+                      <p className="text-muted-foreground text-xs">
+                        {ETICHETE_TIP_ZI[z.tip_zi] ?? z.tip_zi}
                       </p>
-                    ) : null}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-foreground text-sm tabular-nums">
+                        {(z.ore_lucrate ?? 0).toLocaleString("ro-RO")} ore
+                      </p>
+                      {(z.ore_suplimentare ?? 0) > 0 ? (
+                        <p className="text-muted-foreground text-xs tabular-nums">
+                          +{(z.ore_suplimentare ?? 0).toLocaleString("ro-RO")} suplimentare
+                        </p>
+                      ) : null}
+                    </div>
                   </div>
-                </div>
-                {z.observatii === null ? null : (
-                  <p className="text-muted-foreground mt-2 text-xs">{z.observatii}</p>
-                )}
+                  {z.observatii === null ? null : (
+                    <p className="text-muted-foreground mt-2 text-xs">{z.observatii}</p>
+                  )}
+                </ZiRand>
               </li>
             ))}
           </ul>
@@ -158,5 +170,32 @@ function Total({ eticheta, valoare }: { readonly eticheta: string; readonly valo
       <p className="text-xs opacity-90">{eticheta}</p>
       <p className="text-2xl font-semibold tabular-nums">{valoare.toLocaleString("ro-RO")}</p>
     </div>
+  );
+}
+
+/**
+ * Rândul unei zile: link când e editabilă, simplu card când nu.
+ *
+ * Un singur element interactiv per rând, niciodată un link într-un link — de
+ * aceea decizia se ia aici, nu prin înfășurarea condiționată a conținutului.
+ */
+function ZiRand({
+  data,
+  editabila,
+  children,
+}: {
+  readonly data: string;
+  readonly editabila: boolean;
+  readonly children: React.ReactNode;
+}) {
+  const clasa = "bg-surface border-border block rounded-lg border p-3";
+  if (!editabila) return <div className={clasa}>{children}</div>;
+  return (
+    <Link
+      href={`/portal/pontajul-meu/zi/${data}`}
+      className={`${clasa} hover:border-ring transition-colors`}
+    >
+      {children}
+    </Link>
   );
 }

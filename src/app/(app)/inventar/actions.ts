@@ -41,7 +41,7 @@ export const creeazaObiect = createAction({
       "observatii",
     ],
   },
-  revalidate: ["/inventar"],
+  revalidate: ["/inventar", "/portal", "/portal/in-primirea-mea"],
   handler: async (ctx, input): Promise<Readonly<{ id: string; denumire: string }>> => {
     const db = await createServerSupabase();
     // `status` explicit: politica INSERT îl cere fix pe „in_stoc” — un obiect
@@ -270,7 +270,7 @@ export const confirmaPrimirea = createAction({
     entityId: (input) => input.id,
     allow: ["id"],
   },
-  revalidate: ["/inventar/in-primire"],
+  revalidate: ["/inventar/in-primire", "/portal", "/portal/in-primirea-mea"],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const db = await createServerSupabase();
     const { data, error } = await db

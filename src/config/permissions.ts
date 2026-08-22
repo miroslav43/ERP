@@ -56,6 +56,13 @@ export const PERMISSION_KEYS = [
   "announcements:update",
   "attendance:read",
   "attendance:create",
+  // Acordată rolului `employee` de seed (0002_authz.sql:1207) și nedeclarată aici
+  // până acum, ceea ce făcea imposibilă scrierea unei acțiuni care s-o ceară:
+  // `createAction` tipează `permission` pe uniunea de mai jos, deci o cheie
+  // absentă nici măcar nu compilează. Politicile de pontaj comută astăzi tot pe
+  // `attendance:create` (0013_attendance.sql:249-259) — cheia există ca să poată
+  // fi cerută explicit de o acțiune de EDITARE, nu ca să schimbe vreo politică.
+  "attendance:update",
   "attendance:approve",
   "audit:read",
   "branding:create",
@@ -82,6 +89,12 @@ export const PERMISSION_KEYS = [
   "leave:read",
   "leave:create",
   "leave:update",
+  // Acordată rolului `employee` de seed (0002_authz.sql:1208). Nu există nicio
+  // politică DELETE pe `leave_requests` — ștergerea e logică, prin `anuleazaCerere`
+  // (care cere `leave:update`). Cheia se declară pentru ca inventarul din cod să
+  // corespundă seed-ului: o cheie acordată în bază și absentă din cod e drift
+  // tăcut, iar testul din `permissions.test.ts` îl prinde de acum în ambele sensuri.
+  "leave:delete",
   "leave:approve",
   "maintenance:create",
   "maintenance:read",

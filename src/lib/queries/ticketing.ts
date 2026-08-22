@@ -102,6 +102,40 @@ const COLOANE_FISA = `
   obiect:inventory_items (id, denumire, numar_inventar, serie, model, garantie_expira)
 ` as const;
 
+/**
+ * Tichetele deschise de un angajat anume, cu filtru EXPLICIT pe solicitant.
+ *
+ * `listeazaTichete` se sprijină pe RLS, ceea ce e corect în aplicația mare —
+ * acolo, cine are drepturi mai largi TREBUIE să vadă mai mult. Sub eticheta
+ * „tichetele mele” însă, același comportament ar arăta unui `org_admin` coada
+ * întregii firme ca fiind a lui. Vezi avertismentul din capul lui
+ * `queries/portal.ts`.
+ *
+ * Fără cursor: un angajat obișnuit are zeci de tichete, nu mii, iar paginarea pe
+ * telefon nu-și merită complexitatea. Limita e explicită și sub `max_rows`, deci
+ * nu poate fi trunchiată tăcut de PostgREST.
+ */
+export async function ticheteleMele(
+  organizationId: string,
+  employeeId: string,
+  limita = 50,
+): Promise<readonly RandTichet[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("tickets")
+    .select(COLOANE_LISTA)
+    .eq("organization_id", organizationId)
+    .eq("solicitant_employee_id", employeeId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(limita)
+    .returns<RandTichet[]>();
+
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
 export async function citesteTichetul(id: string) {
   const db = await createServerSupabase();
   const { data, error } = await db

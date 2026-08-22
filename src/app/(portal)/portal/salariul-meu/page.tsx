@@ -7,11 +7,13 @@ import { Fluturas } from "@/components/payroll/fluturas";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { idFisaProprie } from "@/lib/queries/employees";
+import { fisaMea } from "@/lib/queries/portal";
 import { citesteFluturasulPropriu, listeazaBonusuriSiRetineri } from "@/lib/queries/payroll";
 import { Wallet } from "lucide-react";
 
 import { AVERTISMENT_SALARIZARE } from "../../../(app)/salarizare/etichete";
+
+import { FaraFisa } from "../fara-fisa";
 
 export const metadata: Metadata = { title: "Salariul meu" };
 
@@ -28,21 +30,13 @@ export default async function PaginaSalariulMeu() {
     );
   }
 
-  const propriaFisaId = await idFisaProprie(tenant.organizationId, user.id);
-  if (propriaFisaId === null) {
-    return (
-      <div className="p-4">
-        <div className="bg-surface border-border rounded-lg border p-6 text-center">
-          <h1 className="text-foreground text-lg font-semibold">
-            Nu aveți încă o fișă de personal
-          </h1>
-          <p className="text-muted-foreground mt-2 text-sm">
-            Salariul se leagă de un angajat. Cereți resurselor umane să vă completeze fișa.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  // `fisaMea`, nu `idFisaProprie`: cea din urmă doar SORTEAZĂ după `is_primary`,
+  // în timp ce `app.current_employee_id()` — prin care trec toate ramurile `own`
+  // din RLS — chiar îl cere. Un cont a cărui unică fișă nu e principală primea
+  // altfel un ecran care îi arăta numele și nicio dată, fără nicio explicație.
+  const stare = await fisaMea(tenant.organizationId, user.id);
+  if (stare.stare !== "ok") return <FaraFisa stare={stare} numeOrganizatie={tenant.name} />;
+  const propriaFisaId = stare.fisa.id;
 
   const inregistrare = await citesteFluturasulPropriu(tenant.organizationId, propriaFisaId);
   const { bonusuri, retineri } =
@@ -55,7 +49,7 @@ export default async function PaginaSalariulMeu() {
         );
 
   return (
-    <div className="space-y-4 p-4">
+    <div className="mx-auto max-w-2xl space-y-4 p-4">
       <h1 className="text-foreground text-xl font-semibold">Salariul meu</h1>
 
       {inregistrare === null ? (

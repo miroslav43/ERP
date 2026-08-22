@@ -22,7 +22,15 @@ import { tipZiAutomat } from "./etichete";
 import { traduEroare } from "./erori";
 import { sincronizeazaZileleDeConcediu } from "./sincronizare-concediu";
 
-const CAI_REVALIDARE = ["/pontaj", "/pontaj/perioade", "/pontaj/aprobare"] as const;
+const CAI_REVALIDARE = [
+  "/pontaj",
+  "/pontaj/perioade",
+  "/pontaj/aprobare",
+  // Aceleași date, celălalt înveliș: fără căile astea, angajatul
+  // salvează o zi și se întoarce pe „Pontajul meu" fără s-o vadă.
+  "/portal",
+  "/portal/pontajul-meu",
+] as const;
 
 /** Prima și ultima zi calendaristică a unei luni, ca șiruri ISO. */
 function intervalulLunii(

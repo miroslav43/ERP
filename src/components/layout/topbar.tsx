@@ -6,10 +6,12 @@ import { deconecteaza } from "@/app/(app)/actions";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { CommandPalette, type ElementPaleta } from "@/components/layout/command-palette";
 import { OrgSwitcher, type OrganizatieComutator } from "@/components/layout/org-switcher";
+import { SidebarTrigger } from "@/components/layout/sidebar";
 import { buildNavigation } from "@/lib/navigation/build-navigation";
 import { getEnabledFeatures } from "@/lib/auth/features";
 import { getPermissionMap } from "@/lib/auth/permissions";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { numaraNecitite } from "@/lib/queries/notifications";
 import { listUserOrganizations } from "@/lib/queries/organizations";
 import { resolveTenant } from "@/lib/tenant/resolve-tenant";
 function esteObiect(valoare: unknown): valoare is Readonly<Record<string, unknown>> {
@@ -44,25 +46,6 @@ function aplatizeazaNavigatie(nod: unknown, grup: string, acumulator: ElementPal
   }
 }
 
-async function numaraNotificariNecitite(
-  supabase: Awaited<ReturnType<typeof createServerSupabase>>,
-  organizationId: string,
-  userId: string,
-): Promise<number> {
-  const { count, error } = await supabase
-    .from("notifications")
-    .select("id", { count: "exact", head: true })
-    .eq("organization_id", organizationId)
-    .eq("user_id", userId)
-    .is("read_at", null);
-
-  if (error !== null) {
-    console.error("[notificari] Numărul de necitite nu a putut fi calculat", error.message);
-    return 0;
-  }
-  return count ?? 0;
-}
-
 export async function Topbar() {
   const rezolvare = await resolveTenant();
   if (rezolvare.status !== "ok") {
@@ -80,14 +63,12 @@ export async function Topbar() {
 
   const utilizator = sesiune.user;
   const necitite =
-    utilizator === null
-      ? 0
-      : await numaraNotificariNecitite(supabase, tenant.organizationId, utilizator.id);
+    utilizator === null ? 0 : await numaraNecitite(tenant.organizationId, utilizator.id);
 
-  // Harta se predă întreagă, ca în `(app)/layout.tsx`: `buildNavigation` are
-  // nevoie de scope-uri, nu doar de chei, ca să compare cu pragul `minScope` al
-  // fiecărei intrări. Turtită într-un `Set`, paleta de comenzi ar fi oferit
-  // intrări pe care meniul le ascunde.
+  // Harta se predă întreagă: `buildNavigation` aplică și `scope = 'none'` (refuz
+  // explicit) și pragul `minScope` al fiecărei intrări. Paleta de comenzi trebuie
+  // să ofere exact ce oferă meniul — o rută găsibilă la ⌘K dar refuzată la
+  // deschidere e mai rea decât una ascunsă.
   const navigatie = buildNavigation({ features: module, permissions: permisiuni, badges: {} });
   const elementePaleta: ElementPaleta[] = [];
   aplatizeazaNavigatie(navigatie, "Navigare", elementePaleta);
@@ -101,6 +82,19 @@ export async function Topbar() {
 
   return (
     <header className="border-border bg-surface flex h-14 items-center gap-3 border-b px-4">
+      {/*
+        Butonul care deschide sertarul pe telefon. `SidebarTrigger` exista de la
+        început, cu `md:hidden` pe el, dar nu era montat nicăieri — iar
+        `Sidebar` ține `<aside>` la `-translate-x-full` până când cineva îi
+        schimbă starea. Rezultatul: pe ecran îngust, meniul aplicației mari nu
+        se putea deschide deloc.
+
+        Merge deși `Topbar` e Server Component: `SidebarTrigger` e client și
+        consumă `useSidebar()`, iar `SidebarProvider` îl învelește în arborele
+        randat de `(app)/layout.tsx`. Contextul curge prin copiii randați pe
+        server.
+      */}
+      <SidebarTrigger />
       <Breadcrumb />
 
       <div className="ml-auto flex items-center gap-2">

@@ -1,4 +1,4 @@
--- supabase/migrations/0058_salarizare_diurna.sql
+-- supabase/migrations/0060_salarizare_diurna.sql
 --
 -- Diurna ajunge în salarizare.
 --

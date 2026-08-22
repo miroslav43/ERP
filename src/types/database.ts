@@ -7106,6 +7106,14 @@ export type Database = {
       payroll_settings: {
         Row: {
           aplica_minim_contributii: boolean
+          cont_avansuri: string
+          cont_cas_retinut: string
+          cont_cass_retinut: string
+          cont_cheltuiala_contributie_angajator: string
+          cont_cheltuiala_salarii: string
+          cont_impozit: string
+          cont_retineri_terti: string
+          cont_salarii_datorate: string
           cota_cam_angajator: number
           cota_cas: number
           cota_cass: number
@@ -7142,6 +7150,14 @@ export type Database = {
         }
         Insert: {
           aplica_minim_contributii?: boolean
+          cont_avansuri?: string
+          cont_cas_retinut?: string
+          cont_cass_retinut?: string
+          cont_cheltuiala_contributie_angajator?: string
+          cont_cheltuiala_salarii?: string
+          cont_impozit?: string
+          cont_retineri_terti?: string
+          cont_salarii_datorate?: string
           cota_cam_angajator: number
           cota_cas: number
           cota_cass: number
@@ -7178,6 +7194,14 @@ export type Database = {
         }
         Update: {
           aplica_minim_contributii?: boolean
+          cont_avansuri?: string
+          cont_cas_retinut?: string
+          cont_cass_retinut?: string
+          cont_cheltuiala_contributie_angajator?: string
+          cont_cheltuiala_salarii?: string
+          cont_impozit?: string
+          cont_retineri_terti?: string
+          cont_salarii_datorate?: string
           cota_cam_angajator?: number
           cota_cas?: number
           cota_cass?: number

@@ -19,6 +19,21 @@ const esec = (error: ActionError): ActionResult<never> => ({ ok: false, error })
 
 const schemaId = z.object({ id: z.uuid("Notificarea selectată nu este validă.") });
 
+/**
+ * Ambele cutii poștale, nu doar cea din aplicația mare.
+ *
+ * Angajatul își citește notificările din `/portal/notificarile-mele`, iar
+ * pastila de necitite trăiește în antetul portalului — deci și `/portal`. Fără
+ * căile astea, omul marchează o notificare drept citită și o vede tot
+ * nemarcată: nu e o eroare, e cache-ul de Router, iar tăcerea lui e exact
+ * felul în care defectul trece de review.
+ */
+function reimprospateazaCutiaPostala(): void {
+  revalidatePath("/notificari");
+  revalidatePath("/portal/notificarile-mele");
+  revalidatePath("/portal");
+}
+
 export async function marcheazaNotificareaCitita(rawInput: unknown): Promise<ActionResult<null>> {
   const requestId = randomUUID();
   const user = await requireUser();
@@ -54,7 +69,7 @@ export async function marcheazaNotificareaCitita(rawInput: unknown): Promise<Act
     );
   }
 
-  revalidatePath("/notificari");
+  reimprospateazaCutiaPostala();
   return { ok: true, data: null };
 }
 
@@ -87,6 +102,6 @@ export async function marcheazaToateNotificarileCitite(): Promise<ActionResult<n
     );
   }
 
-  revalidatePath("/notificari");
+  reimprospateazaCutiaPostala();
   return { ok: true, data: null };
 }

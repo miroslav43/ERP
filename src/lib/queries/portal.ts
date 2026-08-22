@@ -10,6 +10,8 @@
 // pe N rânduri) chiar cade cu 500; pentru liste, ar afișa concediile și
 // pontajul colegilor ca fiind proprii. Reprodus cu `demo_admin` (org_admin,
 // `employees:read = all`) deschizând `/portal`.
+import { cache } from "react";
+
 import { createServerSupabase } from "@/lib/supabase/server";
 
 export interface FisaProprie {
@@ -46,6 +48,14 @@ export interface TipConcediu {
   readonly id: string;
   readonly denumire: string;
   readonly culoare: string | null;
+  /**
+   * Necesar ca ecranul de start să aleagă soldul DESPRE CARE se întreabă.
+   *
+   * Alegerea „cel cu dreptul anual cel mai mare" e corectă doar printre tipurile
+   * care scad din sold. O firmă care configurează „concediu fără plată" cu un
+   * plafon generos ar împinge în față o cifră exactă și complet lipsită de sens.
+   */
+  readonly scade_din_sold: boolean;
 }
 
 export interface ZiPontaj {
@@ -95,6 +105,62 @@ export async function fisaProprie(
   return data;
 }
 
+/**
+ * Rezultatul rezolvării fișei, cu cele TREI stări pe care le distinge baza.
+ *
+ * Distincția nu e teoretică. `app.current_employee_id()`
+ * (`0005_hr_rls.sql:16-30`) cere `e.is_primary`, iar prin ea trec TOATE ramurile
+ * `own` din RLS: concedii, pontaj, diurnă, salarizare, SSM, inventar, checklist.
+ * `employees_select`, în schimb, compară pe `user_id` — deci fișa se citește și
+ * când nu e principală.
+ *
+ * Rezultatul, pentru un cont a cărui unică fișă are `is_primary = false`: portalul
+ * îi arată numele și marca, iar fiecare listă e goală și fiecare scriere refuză.
+ * Nimic nu spune de ce. Iar mesajul „nu aveți fișă de personal” e fals și
+ * derutant pentru cineva care își vede marca pe ecran — de aceea `fara_principala`
+ * e o stare separată, cu text propriu.
+ */
+export type StareFisa =
+  | Readonly<{ stare: "ok"; fisa: FisaProprie }>
+  /** Cont fără nicio fișă — de exemplu un administrator invitat, care nu e angajat. */
+  | Readonly<{ stare: "fara_fisa" }>
+  /** Are fișă, dar niciuna principală: `app.current_employee_id` întoarce NULL. */
+  | Readonly<{ stare: "fara_principala"; marca: string }>;
+
+/**
+ * Fișa proprie, cu diagnosticul stării.
+ *
+ * `cache()` pentru că portalul o cere de două ori pe cerere — o dată învelișul,
+ * pentru nume și avatar, o dată ecranul, pentru `employeeId`. Argumentele sunt
+ * primitive, deci memoizarea prin identitate funcționează.
+ */
+export const fisaMea = cache(async (organizationId: string, userId: string): Promise<StareFisa> => {
+  const db = await createServerSupabase();
+  // `limit(2)`, nu `maybeSingle()`: cumulul de funcții e permis, deci un
+  // utilizator poate avea mai multe fișe în aceeași firmă. Al doilea rând nu
+  // ne interesează în sine — doar faptul că primul, sortat cu principala în
+  // față, spune dacă există vreuna principală.
+  const { data, error } = await db
+    .from("employees")
+    .select("id, full_name, marca, hired_on, department_id, job_position_id, status, is_primary")
+    .eq("organization_id", organizationId)
+    .eq("user_id", userId)
+    .is("deleted_at", null)
+    .order("is_primary", { ascending: false })
+    .limit(2)
+    .returns<(FisaProprie & { readonly is_primary: boolean })[]>();
+
+  if (error !== null) throw error;
+
+  const randuri = data ?? [];
+  const prima = randuri[0];
+  if (prima === undefined) return { stare: "fara_fisa" };
+  if (!prima.is_primary) return { stare: "fara_principala", marca: prima.marca };
+
+  const { is_primary: _principala, ...fisa } = prima;
+  return { stare: "ok", fisa };
+});
+
 export async function soldurileMele(
   organizationId: string,
   an: number,
@@ -142,7 +208,7 @@ export async function tipuriConcediu(
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("leave_types")
-    .select("id, denumire, culoare")
+    .select("id, denumire, culoare, scade_din_sold")
     .eq("organization_id", organizationId)
     .is("deleted_at", null)
     .returns<TipConcediu[]>();

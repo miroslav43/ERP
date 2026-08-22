@@ -150,6 +150,38 @@ const COLOANE_DEPLASARE =
   "sosire_la, plecare_efectiva_la, sosire_efectiva_la, mijloc_transport, vehicle_id, " +
   "km_parcursi, avans_acordat, moneda_avans, curs_diurna, status, detasare_transnationala";
 
+/**
+ * Deplasările unui angajat anume, cu filtru EXPLICIT pe fișă.
+ *
+ * `listeazaDeplasari` se sprijină pe RLS pentru îngustare, iar
+ * `app.poate_accesa_deplasare` (`0015_per_diem.sql:673-700`) trece tot pentru
+ * `per_diem:read = all`. Sub eticheta „deplasările mele" asta ar însemna toate
+ * deplasările firmei. Vezi avertismentul din capul lui `queries/portal.ts`.
+ *
+ * Fără cursor: cincizeci de deplasări acoperă mai mult de un an pentru un
+ * angajat obișnuit, iar paginarea pe telefon nu-și merită complexitatea. Limita
+ * e explicită și cu mult sub `max_rows`, deci nu poate fi trunchiată tăcut.
+ */
+export async function deplasarileMele(
+  organizationId: string,
+  employeeId: string,
+  limita = 50,
+): Promise<readonly RandDeplasare[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("business_trips")
+    .select(COLOANE_DEPLASARE)
+    .eq("organization_id", organizationId)
+    .eq("employee_id", employeeId)
+    .is("deleted_at", null)
+    .order("plecare_la", { ascending: false })
+    .limit(limita)
+    .returns<RandDeplasare[]>();
+
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
 // ── Cursorul keyset ─────────────────────────────────────────────────────────
 //
 // Separatorul e scris ca SECVENȚĂ DE EVADARE, nu ca octet brut — la fel ca în

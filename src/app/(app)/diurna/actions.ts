@@ -14,6 +14,15 @@ import {
   trimiteDeplasareSchema,
 } from "@/schemas/per-diem";
 
+/**
+ * Rutele de portal atinse de orice mișcare pe o deplasare.
+ *
+ * Angajatul își urmărește deplasarea din portal; fără căile astea, adaugă o
+ * etapă și se întoarce la o pagină din care lipsește. Nu e o eroare — e cache-ul
+ * de Router, iar tăcerea lui e felul în care defectul trece de review.
+ */
+const CAI_PORTAL_DIURNA: readonly string[] = ["/portal", "/portal/diurna-mea"];
+
 import { traduEroare } from "./erori";
 
 /**
@@ -65,7 +74,7 @@ export const creeazaDeplasare = createAction({
       "detasare_transnationala",
     ],
   },
-  revalidate: ["/diurna"],
+  revalidate: ["/diurna", ...CAI_PORTAL_DIURNA],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     // Cu scope „own” (angajatul), un `employee_id` explicit ar însemna o
     // cerere pentru altcineva — respins înainte de a atinge baza.
@@ -122,7 +131,7 @@ export const trimiteDeplasare = createAction({
     entityId: (input) => input.id,
     allow: ["id"],
   },
-  revalidate: ["/diurna", "/diurna/aprobari"],
+  revalidate: ["/diurna", "/diurna/aprobari", ...CAI_PORTAL_DIURNA],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const { data, error } = await ctx.supabase
       .from("business_trips")
@@ -157,7 +166,7 @@ export const stergeCiornaDeplasare = createAction({
     entityId: (input) => input.id,
     allow: ["id"],
   },
-  revalidate: ["/diurna"],
+  revalidate: ["/diurna", ...CAI_PORTAL_DIURNA],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const { data, error } = await ctx.supabase
       .from("business_trips")
@@ -190,7 +199,7 @@ export const decideDeplasare = createAction({
     entityId: (input) => input.id,
     allow: ["id", "decizie"],
   },
-  revalidate: ["/diurna", "/diurna/aprobari"],
+  revalidate: ["/diurna", "/diurna/aprobari", ...CAI_PORTAL_DIURNA],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const { data, error } = await ctx.supabase
       .from("business_trips")
@@ -222,7 +231,7 @@ export const deconteazaDeplasare = createAction({
     entityId: (input) => input.id,
     allow: ["id"],
   },
-  revalidate: ["/diurna", "/diurna/aprobari"],
+  revalidate: ["/diurna", "/diurna/aprobari", ...CAI_PORTAL_DIURNA],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const { data, error } = await ctx.supabase
       .from("business_trips")
@@ -254,7 +263,7 @@ export const adaugaEtapa = createAction({
     entityId: (_input, data: Readonly<{ id: string }>) => data.id,
     allow: ["business_trip_id", "from_country_id", "to_country_id", "plecare_la", "sosire_la"],
   },
-  revalidate: ["/diurna"],
+  revalidate: ["/diurna", ...CAI_PORTAL_DIURNA],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     // `ordine` nu vine din formular: se calculează din etapele existente,
     // exact ca numărul curent + 1. Indexul unic `business_trip_legs_ordine_uk`
@@ -303,7 +312,7 @@ export const adaugaCheltuiala = createAction({
     entityId: (_input, data: Readonly<{ id: string }>) => data.id,
     allow: ["business_trip_id", "tip", "data_cheltuielii", "suma", "moneda", "curs_valutar"],
   },
-  revalidate: ["/diurna"],
+  revalidate: ["/diurna", ...CAI_PORTAL_DIURNA],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     // NU se trimit: `suma_lei` (GENERATED ALWAYS), `aprobata`, `aprobata_de`,
     // `aprobata_la`, `motiv_respingere` (WITH CHECK le cere false/NULL la
@@ -359,7 +368,13 @@ export const creeazaPolitica = createAction({
       "valabil_de_la",
     ],
   },
-  revalidate: ["/diurna/politica", "/diurna", "/diurna/noua"],
+  revalidate: [
+    "/diurna/politica",
+    "/diurna",
+    "/diurna/noua",
+    ...CAI_PORTAL_DIURNA,
+    "/portal/diurna-mea/noua",
+  ],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const { data, error } = await ctx.supabase
       .from("per_diem_policies")

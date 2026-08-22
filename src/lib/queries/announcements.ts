@@ -28,6 +28,44 @@ export async function listeazaAnunturi(organizationId: string): Promise<readonly
   return data ?? [];
 }
 
+/**
+ * Avizierul, așa cum îl vede un angajat: doar publicate, doar neexpirate.
+ *
+ * `announcements_select` (`0028_announcements.sql:71-83`) arată ciornele și
+ * anunțurile expirate oricui are `announcements:update = all`. Portalul e al
+ * angajatului, dar filtrul stă AICI, nu în politică: e regula scrisă în capul
+ * lui `queries/portal.ts` — citirile portalului nu se sprijină pe scope-ul
+ * cititorului, fiindcă „ale mele" trebuie să însemne același lucru indiferent
+ * cine deschide ecranul.
+ *
+ * `acum` vine ca argument: o citire nu atinge ceasul, ca să rămână determinsită
+ * la test.
+ */
+export async function anunturiPublicate(
+  organizationId: string,
+  acum: string,
+  limita = 100,
+): Promise<readonly RandAnunt[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("announcements")
+    .select("id, titlu, fixat, publicat_la, expira_la, created_at")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .not("publicat_la", "is", null)
+    .lte("publicat_la", acum)
+    // `or()` primește o listă separată prin virgulă: fără încadrare, un
+    // `timestamptz` ar putea rupe filtrul. Marca temporală n-are virgule azi,
+    // dar formatul ei nu e contractul nostru.
+    .or(`expira_la.is.null,expira_la.gt."${acum}"`)
+    .order("fixat", { ascending: false })
+    .order("publicat_la", { ascending: false })
+    .limit(limita)
+    .returns<RandAnunt[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
 export interface DetaliuAnunt extends RandAnunt {
   readonly continut: string;
 }

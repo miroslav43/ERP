@@ -21,11 +21,14 @@ export function ActiuniDeplasare({
   poateTrimite,
   poateSterge,
   poateDeconta,
+  /** Unde se ajunge după ștergerea ciornei — fișa tocmai dispărută nu mai există. */
+  caleDupaStergere = "/diurna",
 }: {
   readonly id: string;
   readonly poateTrimite: boolean;
   readonly poateSterge: boolean;
   readonly poateDeconta: boolean;
+  readonly caleDupaStergere?: string;
 }) {
   const router = useRouter();
   const [eroare, setEroare] = useState<string | null>(null);
@@ -51,7 +54,7 @@ export function ActiuniDeplasare({
         setEroare(rezultat.error.message);
         return;
       }
-      router.push("/diurna");
+      router.push(caleDupaStergere);
     });
   }
 

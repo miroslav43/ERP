@@ -19,6 +19,7 @@ import {
   FileText,
   FolderTree,
   HardHat,
+  House,
   LayoutDashboard,
   LifeBuoy,
   MapPin,
@@ -421,61 +422,207 @@ export const NAV_ITEMS: readonly NavItem[] = [
   },
 ];
 
-/** Portalul angajatului: UI redus, aceleași două condiții, alt set de rute. */
-export const PORTAL_NAV_ITEMS: readonly NavItem[] = [
+/**
+ * Meniul portalului angajatului.
+ *
+ * Separat de `NAV_ITEMS` fiindcă e alt produs, nu un subset: rutele diferă
+ * (`/portal/...`), etichetele sunt scrise la persoana întâi („Concediile mele",
+ * nu „Concedii"), iar gruparea urmează felul în care un om își împarte ziua, nu
+ * organigrama firmei.
+ *
+ * Portalul e SINGURA aplicație a unui `employee` — de aceea „Acasă" are
+ * `featureKey: null`. Dacă ar depinde de `employee_portal`, un angajat dintr-o
+ * firmă care n-a pornit modulul (azi, majoritatea: modulul nu e `is_core`, iar
+ * înrolarea activează doar modulele de nucleu) ar primi un portal cu meniul gol.
+ * Restul intrărilor sunt păzite de modulele lor proprii, deci se aprind exact
+ * când firma le folosește.
+ */
+export type PortalNavGroupId = "munca" | "bani" | "firma";
+
+export const PORTAL_NAV_GROUPS: readonly Readonly<{ id: PortalNavGroupId; label: string }>[] = [
+  { id: "munca", label: "Munca mea" },
+  { id: "bani", label: "Banii și actele mele" },
+  { id: "firma", label: "Firma" },
+];
+
+export type PortalNavItem = NavLink &
+  Readonly<{
+    icon: LucideIcon;
+    group: PortalNavGroupId;
+    order: number;
+    /**
+     * Potrivire exactă a căii pentru starea „pagină curentă".
+     *
+     * Numai „Acasă" o cere: `/portal` e prefix pentru absolut toate celelalte
+     * rute, deci cu potrivire pe prefix ar apărea activă peste tot.
+     */
+    exact: boolean;
+    /**
+     * Prioritatea pentru cele patru sloturi principale ale barei de jos.
+     * `null` = niciodată în bară, doar sub „Mai multe".
+     *
+     * Prioritate, nu poziție fixă: modulele diferă de la o firmă la alta. Cu
+     * `payroll` stins, un slot fix ar rămâne gol; așa, următoarea intrare urcă
+     * în locul lui și bara are mereu patru ținte pline.
+     */
+    prioritateBara: number | null;
+  }>;
+
+export const PORTAL_NAV_ITEMS: readonly PortalNavItem[] = [
   {
     id: "portal-acasa",
     label: "Acasă",
     href: "/portal",
-    icon: LayoutDashboard,
-    group: "operatiuni",
-    featureKey: "employee_portal",
+    icon: House,
+    group: "munca",
+    featureKey: null,
     permission: null,
     minScope: "own",
     order: 10,
-  },
-  {
-    id: "portal-concedii",
-    label: "Concediile mele",
-    href: "/portal/concediile-mele",
-    icon: CalendarDays,
-    group: "operatiuni",
-    featureKey: "leave",
-    permission: "leave:read",
-    minScope: "own",
-    order: 20,
+    exact: true,
+    prioritateBara: 1,
   },
   {
     id: "portal-pontaj",
     label: "Pontajul meu",
     href: "/portal/pontajul-meu",
     icon: Clock,
-    group: "operatiuni",
+    group: "munca",
     featureKey: "attendance",
     permission: "attendance:read",
     minScope: "own",
-    order: 30,
+    order: 20,
+    exact: false,
+    prioritateBara: 2,
   },
   {
-    id: "portal-documente",
-    label: "Documentele mele",
-    href: "/portal/documentele-mele",
-    icon: FileText,
-    group: "operatiuni",
-    featureKey: "employee_portal",
-    permission: "employees:read",
+    id: "portal-concedii",
+    label: "Concediile mele",
+    href: "/portal/concediile-mele",
+    icon: CalendarDays,
+    group: "munca",
+    featureKey: "leave",
+    permission: "leave:read",
     minScope: "own",
-    order: 40,
+    order: 30,
+    exact: false,
+    prioritateBara: 3,
   },
   {
     id: "portal-salariul",
     label: "Salariul meu",
     href: "/portal/salariul-meu",
     icon: Wallet,
-    group: "operatiuni",
+    group: "bani",
     featureKey: "payroll",
     permission: "payroll:read",
     minScope: "own",
+    order: 40,
+    exact: false,
+    prioritateBara: 4,
+  },
+  {
+    id: "portal-diurna",
+    label: "Diurna mea",
+    href: "/portal/diurna-mea",
+    icon: Receipt,
+    group: "munca",
+    featureKey: "per_diem",
+    permission: "per_diem:read",
+    minScope: "own",
+    order: 35,
+    exact: false,
+    prioritateBara: 7,
+  },
+  {
+    id: "portal-integrare",
+    label: "Integrarea mea",
+    href: "/portal/integrarea-mea",
+    icon: ClipboardList,
+    group: "munca",
+    featureKey: "onboarding",
+    permission: "checklists:read",
+    minScope: "own",
+    order: 38,
+    exact: false,
+    prioritateBara: null,
+  },
+  {
+    id: "portal-anunturi",
+    label: "Anunțuri",
+    href: "/portal/anunturi",
+    icon: Megaphone,
+    group: "firma",
+    featureKey: "announcements",
+    permission: "announcements:read",
+    minScope: "own",
+    order: 60,
+    exact: false,
+    prioritateBara: 6,
+  },
+  {
+    id: "portal-in-primire",
+    label: "Ce am în primire",
+    href: "/portal/in-primirea-mea",
+    icon: Package,
+    group: "firma",
+    featureKey: "inventory",
+    permission: "inventory:read",
+    minScope: "own",
+    order: 70,
+    exact: false,
+    prioritateBara: null,
+  },
+  {
+    id: "portal-instruiri",
+    label: "Dosarul meu SSM",
+    href: "/portal/instruirile-mele",
+    icon: HardHat,
+    group: "firma",
+    featureKey: "ssm",
+    permission: "ssm:read",
+    minScope: "own",
+    order: 80,
+    exact: false,
+    prioritateBara: null,
+  },
+  {
+    id: "portal-sesizari",
+    label: "Sesizări",
+    href: "/portal/sesizari",
+    icon: Wrench,
+    group: "firma",
+    featureKey: "maintenance",
+    permission: "maintenance:read",
+    minScope: "own",
+    order: 90,
+    exact: false,
+    prioritateBara: null,
+  },
+  {
+    id: "portal-tichete",
+    label: "Tichetele mele",
+    href: "/portal/tichetele-mele",
+    icon: LifeBuoy,
+    group: "firma",
+    featureKey: "ticketing",
+    permission: "tickets:read",
+    minScope: "own",
+    order: 95,
+    exact: false,
+    prioritateBara: null,
+  },
+  {
+    id: "portal-documente",
+    label: "Documentele mele",
+    href: "/portal/documentele-mele",
+    icon: FileText,
+    group: "bani",
+    featureKey: "employee_portal",
+    permission: "employees:read",
+    minScope: "own",
     order: 50,
+    exact: false,
+    prioritateBara: 5,
   },
 ];

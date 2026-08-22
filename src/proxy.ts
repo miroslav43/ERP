@@ -28,6 +28,7 @@ import { updateSession } from "@/lib/supabase/middleware";
 
 /** Rutele accesibile fără sesiune. Restul aplicației e închis implicit. */
 const RUTE_PUBLICE: readonly string[] = [
+  "/en", // landing-ul în engleză; fără linia asta, /en trimite la autentificare
   "/autentificare",
   "/invitatie",
   "/resetare-parola",
@@ -48,8 +49,26 @@ const RUTE_PUBLICE: readonly string[] = [
  */
 export const PARAM_REDIRECT = "redirect";
 
+/**
+ * Fișierele de metadate generate de Next primesc un sufix de conținut în URL:
+ * `opengraph-image` ajunge `/opengraph-image-pwu6ef?…`. Nu se potrivesc nici pe
+ * egalitate, nici pe prefixul cu bară, deci au nevoie de o ramură proprie.
+ *
+ * Fără ea, robotul de previzualizare al oricărei aplicații de mesagerie —
+ * WhatsApp, Facebook, LinkedIn, Slack — primește un redirect către
+ * autentificare în loc de imagine, iar linkul apare gol oriunde e distribuit.
+ * Robotul nu are sesiune și nu va avea niciodată.
+ */
+const PREFIXE_METADATE: readonly string[] = [
+  "/opengraph-image",
+  "/twitter-image",
+  "/icon",
+  "/apple-icon",
+];
+
 function estePublica(pathname: string): boolean {
   if (pathname === "/") return true;
+  if (PREFIXE_METADATE.some((prefix) => pathname.startsWith(prefix))) return true;
   return RUTE_PUBLICE.some((ruta) => pathname === ruta || pathname.startsWith(`${ruta}/`));
 }
 

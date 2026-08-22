@@ -19,16 +19,25 @@ interface Angajat {
 
 const CLASA_CAMP = "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
 
+/**
+ * `prefixCale` există pentru portal: aceeași deplasare, dar deschisă apoi în
+ * `/portal/diurna-mea/<id>`. Parametrizare, nu copie — calculul de zile și
+ * bareme e partea grea, iar două exemplare ale lui ar diverge la primul barem
+ * schimbat. `angajati: null` scoate singura diferență de randare: selectorul
+ * „pentru angajatul", care în portal n-are sens.
+ */
 export function FormularDeplasare({
   tari,
   politica,
   baremuri,
   angajati,
+  prefixCale = "/diurna",
 }: {
   readonly tari: readonly Tara[];
   readonly politica: PoliticaRand;
   readonly baremuri: readonly BaremTara[];
   readonly angajati: readonly Angajat[] | null;
+  readonly prefixCale?: string;
 }) {
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
@@ -104,7 +113,7 @@ export function FormularDeplasare({
         setEroare(rezultat.error.message);
         return;
       }
-      router.push(`/diurna/${rezultat.data.id}`);
+      router.push(`${prefixCale}/${rezultat.data.id}`);
     });
   }
 

@@ -44,10 +44,25 @@ const CULOARE_TIP: Readonly<Record<TipNotificare, string>> = {
  * naviga „de oriunde pe linie", nu doar de pe un link îngust. Un singur
  * element interactiv per rând (`<Link>` sau `<button>`, niciodată amândouă),
  * ca să nu imbricăm conținut interactiv unul în celălalt.
+ *
+ * `href` suprascrie `notificare.link`. Există pentru portal: legăturile din
+ * notificări sunt scrise de triggere, în bază, cu rute de aplicație mare
+ * codificate literal (`/concedii/<id>`, `/pontaj/saptamana`). Un angajat care le
+ * urmează brut e scos din portal și adus înapoi de poartă — adică apasă pe
+ * „Cererea a fost respinsă" și ajunge unde era. Portalul le traduce prin
+ * `caleaDePortal` și trimite rezultatul aici; `null` înseamnă „fără link", ceea
+ * ce e mai onest decât o cale ghicită.
  */
-export function RandNotificare({ notificare }: { readonly notificare: Notificare }) {
+export function RandNotificare({
+  notificare,
+  href,
+}: {
+  readonly notificare: Notificare;
+  readonly href?: string | null;
+}) {
   const Iconita = ICONITA_TIP[notificare.kind];
   const necitita = notificare.read_at === null;
+  const destinatie = href === undefined ? notificare.link : href;
 
   const continut = (
     <>
@@ -80,10 +95,10 @@ export function RandNotificare({ notificare }: { readonly notificare: Notificare
   const clasa =
     "flex w-full items-start gap-3 rounded-md p-4 text-left transition-colors hover:bg-background focus-visible:bg-background outline-none";
 
-  if (notificare.link !== null) {
+  if (destinatie !== null) {
     return (
       <Link
-        href={notificare.link}
+        href={destinatie}
         onClick={() => {
           if (necitita) void marcheazaNotificareaCitita({ id: notificare.id });
         }}

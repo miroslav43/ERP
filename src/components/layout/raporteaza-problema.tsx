@@ -6,7 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Bug } from "lucide-react";
 
-import { NAV_ITEMS } from "@/config/navigation";
+import { NAV_ITEMS, PORTAL_NAV_ITEMS } from "@/config/navigation";
 
 /**
  * Deduce modulul din calea curentă, ca angajatul să nu fie pus să-l aleagă.
@@ -16,10 +16,10 @@ import { NAV_ITEMS } from "@/config/navigation";
  * potrivește nimic, se trimite calea brută — tot e mai util pentru cine
  * citește raportul decât un câmp gol.
  */
-function modulDinCale(cale: string): string {
+function modulDinCale(cale: string, intrari: readonly { href: string; label: string }[]): string {
   let gasit: string | null = null;
   let lungime = 0;
-  for (const item of NAV_ITEMS) {
+  for (const item of intrari) {
     if ((cale === item.href || cale.startsWith(`${item.href}/`)) && item.href.length > lungime) {
       gasit = item.label;
       lungime = item.href.length;
@@ -33,12 +33,23 @@ function modulDinCale(cale: string): string {
  * formularul existent, cu tipul și modulul precompletate. Un al doilea formular
  * ar fi însemnat a doua listă de câmpuri de ținut în acord cu prima.
  */
-export function RaporteazaProblema() {
+export function RaporteazaProblema({
+  caleFormular = "/ticketing/nou",
+  zona = "aplicatie",
+}: {
+  readonly caleFormular?: string;
+  /**
+   * Din ce meniu se deduce numele modulului. În portal, `NAV_ITEMS` n-ar
+   * potrivi niciodată nimic — rutele lui încep cu `/portal/` — iar raportul ar
+   * ajunge la IT cu o cale brută în loc de numele ecranului.
+   */
+  readonly zona?: "aplicatie" | "portal";
+} = {}) {
   const cale = usePathname();
-  const href = useMemo(
-    () => `/ticketing/nou?modul=${encodeURIComponent(modulDinCale(cale))}`,
-    [cale],
-  );
+  const href = useMemo(() => {
+    const intrari = zona === "portal" ? PORTAL_NAV_ITEMS : NAV_ITEMS;
+    return `${caleFormular}?modul=${encodeURIComponent(modulDinCale(cale, intrari))}`;
+  }, [cale, caleFormular, zona]);
 
   return (
     <footer className="border-border mt-8 border-t px-4 py-3 md:px-6">

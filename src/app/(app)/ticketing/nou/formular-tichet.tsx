@@ -27,10 +27,22 @@ function Eroare({ mesaj }: Readonly<{ mesaj: string | undefined }>) {
  * întâi, ca un pas separat: e singura decizie care schimbă tot restul, iar
  * amestecarea ei printre câmpuri ar face-o să pară o opțiune oarecare.
  */
+/**
+ * `prefixCale` există pentru portal: același formular, dar întors în
+ * `/portal/tichetele-mele/<id>` în loc de `/ticketing/<id>`. Parametrizare, nu
+ * copie: partea grea — alegerea tipului ca pas separat, câmpurile care depind de
+ * el, obiectele din primire — ar fi de dublat întreagă, iar două exemplare ale
+ * ei ar diverge la prima corectură.
+ */
 export function FormularTichet({
   obiecteAlocate,
   modulCurent,
-}: Readonly<{ obiecteAlocate: readonly ObiectAlocat[]; modulCurent: string }>) {
+  prefixCale = "/ticketing",
+}: Readonly<{
+  obiecteAlocate: readonly ObiectAlocat[];
+  modulCurent: string;
+  prefixCale?: string;
+}>) {
   const router = useRouter();
   const id = useId();
   const [tip, setTip] = useState<TipTichet | null>(null);
@@ -84,7 +96,7 @@ export function FormularTichet({
     porneste(async () => {
       const raspuns = await creeazaTichet(brut);
       if (raspuns.ok) {
-        router.push(`/ticketing/${raspuns.data.id}`);
+        router.push(`${prefixCale}/${raspuns.data.id}`);
         return;
       }
       setErori(raspuns.error.fieldErrors ?? null);

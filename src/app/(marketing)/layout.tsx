@@ -1,148 +1,69 @@
 // src/app/(marketing)/layout.tsx
-import Link from "next/link";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import { Fira_Mono, Fira_Sans_Condensed } from "next/font/google";
 import type { ReactNode } from "react";
-import { RUTA_AUTENTIFICARE } from "@/config/routes";
+
+import { ADRESA_SITE } from "@/content/landing/contact";
+import { RO } from "@/content/landing/ro";
+
+/**
+ * Fonturile stratului de marketing.
+ *
+ * Se declară AICI, nu în layout-ul rădăcină: altfel cele douăzeci și trei de
+ * ecrane ale aplicației ar preîncărca două familii pe care nu le folosesc.
+ *
+ * `latin-ext` e obligatoriu — fără el, browserul cade pe fontul de rezervă
+ * exact pe ș și ț. Ambele familii au fost verificate empiric înainte de prima
+ * linie de layout: U+0219 și U+021B au glife PROPRII, distincte de variantele
+ * cu sedilă U+015F/U+0163, iar în Fira glifa se numește chiar `scommaaccent`.
+ *
+ * `preload` doar pe titlu: H1-ul e cel mai mare element de text al paginii,
+ * deci elementul care decide LCP-ul.
+ */
+const firaCondensed = Fira_Sans_Condensed({
+  weight: "600",
+  subsets: ["latin", "latin-ext"],
+  variable: "--font-fira-condensed",
+  display: "swap",
+  preload: true,
+});
+
+const firaMono = Fira_Mono({
+  weight: ["400", "500"],
+  subsets: ["latin", "latin-ext"],
+  variable: "--font-fira-mono",
+  display: "swap",
+  preload: false,
+});
+
 export const metadata: Metadata = {
-  title: {
-    default: "Administrativo — ERP pentru firme mici și mijlocii din România",
-    template: "%s · Administrativo",
+  metadataBase: new URL(ADRESA_SITE),
+  title: { default: RO.meta.titlu, template: "%s · Administrativo" },
+  description: RO.meta.descriere,
+  applicationName: "Administrativo",
+  openGraph: {
+    type: "website",
+    siteName: "Administrativo",
+    locale: "ro_RO",
+    alternateLocale: ["en_GB"],
+    title: RO.meta.titlu,
+    description: RO.meta.descriere,
   },
-  description:
-    "Administrativo este un ERP pentru IMM-uri din România: organizații, echipă, roluri și module activate exact pe nevoia firmei tale.",
+  twitter: { card: "summary_large_image" },
+  robots: { index: true, follow: true },
 };
 
-const LINKURI_PRODUS = [
-  { href: "/#module", eticheta: "Module" },
-  { href: "/#incredere", eticheta: "Date și securitate" },
-  { href: "/#pasi", eticheta: "Cum începi" },
-] as const;
-
-const LINKURI_LEGALE = [
-  { href: "/legal/termeni", eticheta: "Termeni și condiții" },
-  { href: "/legal/confidentialitate", eticheta: "Politica de confidențialitate" },
-] as const;
-
-const FOCUS = "   focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+/**
+ * Rădăcina declară `themeColor: "#0F1E3D"`, navy-ul aplicației. Fără
+ * suprascrierea de aici, prima imagine pe telefon ar fi o bară de browser navy
+ * lipită de un antet aproape alb.
+ */
+export const viewport: Viewport = { themeColor: "#ECEFEC" };
 
 export default function LayoutMarketing({ children }: { children: ReactNode }) {
-  const anCurent = new Date().getFullYear();
-
   return (
-    <div className="bg-background text-foreground flex min-h-screen flex-col">
-      <a
-        href="#continut"
-        className={`focus:bg-primary focus:text-primary-foreground sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:rounded-md focus:px-4 focus:py-2 ${FOCUS}`}
-      >
-        Sari la conținutul principal
-      </a>
-
-      <header className="border-border bg-background/95 sticky top-0 z-40 border-b backdrop-blur">
-        <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-          <Link
-            href="/"
-            className={`flex items-center gap-2.5 rounded-md ${FOCUS}`}
-            aria-label="Administrativo — pagina principală"
-          >
-            <span
-              aria-hidden="true"
-              className="bg-primary text-primary-foreground flex h-8 w-8 items-center justify-center rounded-md text-sm font-semibold"
-            >
-              A
-            </span>
-            <span className="text-base font-semibold tracking-tight">Administrativo</span>
-          </Link>
-
-          <nav aria-label="Navigare principală" className="hidden items-center gap-7 md:flex">
-            {LINKURI_PRODUS.map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                className={`text-muted-foreground hover:text-foreground rounded-md text-sm transition-colors ${FOCUS}`}
-              >
-                {link.eticheta}
-              </a>
-            ))}
-          </nav>
-
-          <div className="flex items-center gap-2 sm:gap-3">
-            <Link
-              href={RUTA_AUTENTIFICARE}
-              className={`text-foreground hover:text-primary rounded-md px-3 py-2 text-sm font-medium transition-colors ${FOCUS}`}
-            >
-              Autentificare
-            </Link>
-            <Link
-              href="/cere-demo"
-              className={`bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium transition-colors ${FOCUS}`}
-            >
-              Cere demo
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <main id="continut" tabIndex={-1} className="flex-1">
-        {children}
-      </main>
-
-      <footer className="border-border bg-surface border-t">
-        <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-3">
-          <div className="max-w-sm">
-            <p className="text-base font-semibold tracking-tight">Administrativo</p>
-            <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
-              Administrare de firmă pentru IMM-uri din România. Fiecare organizație are propriul
-              spațiu de date, propriile roluri și doar modulele de care are nevoie.
-            </p>
-          </div>
-
-          <nav aria-label="Produs">
-            <h2 className="text-sm font-semibold">Produs</h2>
-            <ul className="mt-3 space-y-2">
-              {LINKURI_PRODUS.map((link) => (
-                <li key={link.href}>
-                  <a
-                    href={link.href}
-                    className={`text-muted-foreground hover:text-foreground rounded-md text-sm transition-colors ${FOCUS}`}
-                  >
-                    {link.eticheta}
-                  </a>
-                </li>
-              ))}
-              <li>
-                <Link
-                  href="/cere-demo"
-                  className={`text-muted-foreground hover:text-foreground rounded-md text-sm transition-colors ${FOCUS}`}
-                >
-                  Cere demo
-                </Link>
-              </li>
-            </ul>
-          </nav>
-
-          <nav aria-label="Informații legale">
-            <h2 className="text-sm font-semibold">Legal</h2>
-            <ul className="mt-3 space-y-2">
-              {LINKURI_LEGALE.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className={`text-muted-foreground hover:text-foreground rounded-md text-sm transition-colors ${FOCUS}`}
-                  >
-                    {link.eticheta}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        </div>
-
-        <div className="border-border border-t">
-          <p className="text-muted-foreground mx-auto w-full max-w-6xl px-4 py-6 text-xs sm:px-6">
-            © {anCurent} Administrativo. Toate drepturile rezervate.
-          </p>
-        </div>
-      </footer>
+    <div className={`${firaCondensed.variable} ${firaMono.variable} mk bg-mk-hartie text-mk-text`}>
+      {children}
     </div>
   );
 }

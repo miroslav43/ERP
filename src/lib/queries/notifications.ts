@@ -19,6 +19,33 @@ export interface RandNotificare {
 
 const LIMITA_LISTA = 100;
 
+/**
+ * Numărul de notificări necitite, pentru pastila din antet.
+ *
+ * A trăit ca funcție privată în `components/layout/topbar.tsx`. Odată cu
+ * portalul, antetul lui are nevoie de exact aceeași cifră — iar o a doua copie
+ * a aceleiași interogări e felul în care două antete ajung să afișeze numere
+ * diferite după prima modificare.
+ *
+ * O eroare nu se propagă: pastila e un ornament, iar o excepție aici ar doborî
+ * întregul antet — deci și navigarea. Zero e răspunsul corect când nu știm.
+ */
+export async function numaraNecitite(organizationId: string, userId: string): Promise<number> {
+  const db = await createServerSupabase();
+  const { count, error } = await db
+    .from("notifications")
+    .select("id", { count: "exact", head: true })
+    .eq("organization_id", organizationId)
+    .eq("user_id", userId)
+    .is("read_at", null);
+
+  if (error !== null) {
+    console.error("[notificari] Numărul de necitite nu a putut fi calculat", error.message);
+    return 0;
+  }
+  return count ?? 0;
+}
+
 export async function listeazaNotificarile(
   organizationId: string,
   userId: string,

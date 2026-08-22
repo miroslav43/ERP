@@ -20,7 +20,14 @@ import {
   type CreeazaTichetInput,
 } from "@/schemas/ticketing";
 
-const CAI_DE_REIMPROSPATAT = ["/ticketing", "/panou"];
+const CAI_DE_REIMPROSPATAT = [
+  "/ticketing",
+  "/panou",
+  // Solicitantul își urmărește tichetul din portal, iar pagina de start numără
+  // ce așteaptă răspuns. Fără căile astea, comentează și nu-și vede comentariul.
+  "/portal",
+  "/portal/tichetele-mele",
+];
 
 /**
  * Fișa de angajat a utilizatorului curent. Tichetele se leagă de angajat, nu de

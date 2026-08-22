@@ -9,6 +9,7 @@ import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { todayInBucharest } from "@/lib/format/date";
 import { idFisaProprie } from "@/lib/queries/employees";
 import { citesteSaptamanaPontaj } from "@/lib/queries/attendance";
+import { adaugaZile, esteLuni, lunieaUrmatoare } from "@/domain/attendance/saptamana";
 
 import { NavPontaj } from "../nav-pontaj";
 import { ETICHETE_STARE_SAPTAMANA, CLASE_STARE_SAPTAMANA } from "../etichete";
@@ -18,24 +19,6 @@ export const metadata: Metadata = { title: "Planul săptămânii" };
 
 interface ProprietatiPagina {
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
-}
-
-/** Luni ISO. */
-function esteLuni(data: string): boolean {
-  return /^\d{4}-\d{2}-\d{2}$/u.test(data) && new Date(`${data}T00:00:00Z`).getUTCDay() === 1;
-}
-
-function adaugaZile(data: string, n: number): string {
-  const d = new Date(`${data}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().slice(0, 10);
-}
-
-/** Lunea săptămânii care urmează celei curente — nu lunea săptămânii în curs. */
-function lunieaUrmatoare(azi: string): string {
-  const ziuaSaptamanii = new Date(`${azi}T00:00:00Z`).getUTCDay();
-  const zilePanaLuniViitoare = ziuaSaptamanii === 0 ? 1 : 8 - ziuaSaptamanii;
-  return adaugaZile(azi, zilePanaLuniViitoare);
 }
 
 export default async function PaginaSaptamanaPontaj({ searchParams }: ProprietatiPagina) {

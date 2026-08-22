@@ -9,7 +9,8 @@ import { z } from "zod";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { listUserOrganizations } from "@/lib/queries/organizations";
 import { setOrganizationCookie, clearOrganizationCookie } from "@/lib/tenant/organization-cookie";
-import { RUTA_DUPA_AUTENTIFICARE, RUTA_PUBLICA } from "@/config/routes";
+import { POARTA_PORTAL_ACTIVA, RUTA_PUBLICA, rutaDupaAutentificare } from "@/config/routes";
+import type { AppRole } from "@/lib/tenant/types";
 import type { StareComutare } from "./actions-types";
 type Supabase = Awaited<ReturnType<typeof createServerSupabase>>;
 
@@ -68,7 +69,8 @@ async function jurnalizeazaComutarea(
   }
 }
 
-type RezultatComutare = Readonly<{ ok: true }> | Readonly<{ ok: false; eroare: string }>;
+type RezultatComutare =
+  Readonly<{ ok: true; rol: AppRole }> | Readonly<{ ok: false; eroare: string }>;
 
 /**
  * Sursa unică de adevăr pentru comutare. Cookie-ul rezultat rămâne un HINT NEÎNCREZUT:
@@ -107,7 +109,9 @@ async function comutaNucleu(valoareBruta: unknown): Promise<RezultatComutare> {
 
   await setOrganizationCookie(tinta.id);
   await jurnalizeazaComutarea(supabase, ctx, "tenant_switch", tinta.id, true);
-  return { ok: true };
+  // Rolul din organizația ȚINTĂ, nu din cea curentă: cine e `org_admin` aici
+  // poate fi `employee` dincolo, iar destinația se alege după unde ajunge.
+  return { ok: true, rol: tinta.role };
 }
 
 /** Variantă pentru useActionState (comutatorul din topbar). */
@@ -120,7 +124,15 @@ export async function comutaOrganizatia(
     return { eroare: rezultat.eroare };
   }
   revalidatePath("/", "layout");
-  redirect(RUTA_DUPA_AUTENTIFICARE);
+  redirect(
+    rutaDupaAutentificare({
+      estePlatformAdmin: false,
+      areOrganizatii: true,
+      // Vezi `POARTA_PORTAL_ACTIVA`: cât timp e stinsă, comutarea duce în
+      // aplicație pentru toată lumea, ca până acum.
+      rol: POARTA_PORTAL_ACTIVA ? rezultat.rol : null,
+    }),
+  );
 }
 
 /** Variantă pentru formulare simple (ecranul de alegere, paleta de comenzi). */
@@ -130,7 +142,15 @@ export async function comutaOrganizatiaDirect(formData: FormData): Promise<void>
     redirect("/alege-organizatia?eroare=acces");
   }
   revalidatePath("/", "layout");
-  redirect(RUTA_DUPA_AUTENTIFICARE);
+  redirect(
+    rutaDupaAutentificare({
+      estePlatformAdmin: false,
+      areOrganizatii: true,
+      // Vezi `POARTA_PORTAL_ACTIVA`: cât timp e stinsă, comutarea duce în
+      // aplicație pentru toată lumea, ca până acum.
+      rol: POARTA_PORTAL_ACTIVA ? rezultat.rol : null,
+    }),
+  );
 }
 
 export async function deconecteaza(): Promise<void> {

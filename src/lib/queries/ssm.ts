@@ -225,6 +225,133 @@ export async function instruirileMele(organizationId: string): Promise<readonly 
   return data ?? [];
 }
 
+/**
+ * Instruirile unui angajat anume, cu filtru EXPLICIT pe fișă.
+ *
+ * `instruirileMele` de mai sus se sprijină pe RLS, ceea ce e corect în aplicația
+ * mare — dar `app.ssm_acces` (`0011_ssm.sql:466-478`) trece necondiționat pe
+ * prima ramură pentru `ssm:read = all`. Un `hr` care ar deschide un ecran „ale
+ * mele" construit pe ea ar primi instruirile ÎNTREGII firme, etichetate ca fiind
+ * ale lui. Vezi avertismentul din capul lui `queries/portal.ts`.
+ *
+ * NU aduce denumirea tipului: `ssm_training_types` are coloană de scope `null`
+ * în bucla de politici, deci cere `ssm:read >= team` — un angajat nu-l poate
+ * citi cu clientul lui. Denumirile vin separat, prin `nomenclatorInstruiri`
+ * (acțiune cu client admin). Capcana 27.
+ */
+export async function instruirileAngajatului(
+  organizationId: string,
+  employeeId: string,
+): Promise<readonly RandInstruire[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("ssm_trainings")
+    .select(
+      "id, employee_id, training_type_id, data_instruirii, durata_ore, urmatoarea_scadenta, semnatura_confirmata",
+    )
+    .eq("organization_id", organizationId)
+    .eq("employee_id", employeeId)
+    .is("deleted_at", null)
+    .order("data_instruirii", { ascending: false })
+    .returns<RandInstruire[]>();
+
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+/**
+ * Restul dosarului SSM propriu — fișe de aptitudine, restricții, EIP,
+ * autorizații nominale — cu filtru EXPLICIT pe angajat.
+ *
+ * Toate variantele „generale" de mai jos trec prin `app.ssm_acces`, a cărei
+ * primă ramură (`can(..., 'all')`) e adevărată necondiționat pentru `hr` sau
+ * `org_admin`. Un ecran „dosarul meu" construit pe ele ar arăta fișele de
+ * aptitudine, restricțiile medicale și echipamentul de protecție ale ÎNTREGII
+ * firme — la fișe și la restricții, date privind sănătatea (art. 9 GDPR).
+ *
+ * `COLOANE_FISA` rămâne neatins: `observatii` și `cost` nu se citesc niciodată.
+ */
+export async function fiseAptitudineAngajat(
+  organizationId: string,
+  employeeId: string,
+  limita = 20,
+): Promise<readonly RandFisa[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("occupational_health_exams")
+    .select(COLOANE_FISA)
+    .eq("organization_id", organizationId)
+    .eq("employee_id", employeeId)
+    .is("deleted_at", null)
+    .order("data_examinarii", { ascending: false })
+    .limit(limita)
+    .returns<RandFisa[]>();
+
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+export async function restrictiiActiveAngajat(
+  organizationId: string,
+  employeeId: string,
+): Promise<readonly RestrictieActiva[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("employee_work_restrictions")
+    .select(
+      "id, employee_id, exam_id, sursa, restrictie, valabil_de_la, valabil_pana, generata_automat, ridicata_la",
+    )
+    .eq("organization_id", organizationId)
+    .eq("employee_id", employeeId)
+    .is("deleted_at", null)
+    .is("ridicata_la", null)
+    .order("valabil_de_la", { ascending: false })
+    .limit(100)
+    .returns<RestrictieActiva[]>();
+
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+export async function eipAngajatului(
+  organizationId: string,
+  employeeId: string,
+  limita = 100,
+): Promise<readonly RandEip[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("ppe_issuances")
+    .select(COLOANE_EIP)
+    .eq("organization_id", organizationId)
+    .eq("employee_id", employeeId)
+    .is("deleted_at", null)
+    .order("data_predarii", { ascending: false })
+    .limit(limita)
+    .returns<RandEip[]>();
+
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+export async function autorizatiiNominaleAngajat(
+  organizationId: string,
+  employeeId: string,
+): Promise<readonly RandAutorizatieNominala[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("personnel_authorizations")
+    .select("id, employee_id, tip, grupa, numar, emitent, emis_la, valabil_pana, suspendata_la")
+    .eq("organization_id", organizationId)
+    .eq("employee_id", employeeId)
+    .is("deleted_at", null)
+    .order("valabil_pana", { ascending: true })
+    .limit(100)
+    .returns<RandAutorizatieNominala[]>();
+
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
 // ── Medicina muncii ──────────────────────────────────────────────────────────
 
 export interface RandFisa {

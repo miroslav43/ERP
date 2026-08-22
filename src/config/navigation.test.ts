@@ -2,7 +2,13 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { NAV_ITEMS, type NavLink } from "./navigation";
+import {
+  NAV_ITEMS,
+  PORTAL_NAV_ITEMS,
+  type NavItem,
+  type NavLink,
+  type PortalNavItem,
+} from "./navigation";
 
 /**
  * Fiecare intrare de meniu trebuie să ducă undeva.
@@ -37,20 +43,38 @@ type IntrarePlata = Readonly<{ href: string; featureKey: string | null; id: stri
 
 function aplatizeaza(): readonly IntrarePlata[] {
   const rezultat: IntrarePlata[] = [];
-  for (const item of NAV_ITEMS) {
+  // Ambele meniuri, nu doar cel de administrare. Portalul a fost multă vreme
+  // scutit de verificarea asta fiindcă avea cinci intrări scrise odată cu
+  // paginile lor; de când e singura aplicație a unui angajat, o intrare moartă
+  // acolo nu mai e o neplăcere, e o fundătură — omul n-are alt meniu în care
+  // să se întoarcă.
+  // `PortalNavItem` nu are `children` — portalul n-are submeniuri, fiindcă bara
+  // de jos nu poate cuibări. Accesul se face prin `copiii()`, ca aplatizarea să
+  // meargă peste ambele forme fără să presupună una.
+  const copiii = (item: NavItem | PortalNavItem): readonly NavLink[] =>
+    "children" in item ? (item.children ?? []) : [];
+
+  for (const item of [...NAV_ITEMS, ...PORTAL_NAV_ITEMS]) {
     rezultat.push({ href: item.href, featureKey: item.featureKey, id: item.id });
-    for (const copil of (item.children ?? []) as readonly NavLink[]) {
+    for (const copil of copiii(item)) {
       rezultat.push({ href: copil.href, featureKey: copil.featureKey, id: copil.id });
     }
   }
   return rezultat;
 }
 
-/** Ruta `/x/y` corespunde lui `src/app/(app)/x/y/page.tsx` sau `src/app/x/y/page.tsx`. */
+/**
+ * Ruta `/x/y` corespunde unui `page.tsx` sub unul dintre grupurile de rute.
+ *
+ * Grupurile `(app)` / `(portal)` nu apar în URL, deci aceeași cale poate fi
+ * servită din oricare. Al treilea candidat, fără grup, acoperă rutele de la
+ * rădăcină.
+ */
 function arePagina(href: string): boolean {
   const segmente = href.replace(/^\//, "").split("/");
   return [
     path.join(process.cwd(), "src", "app", "(app)", ...segmente, "page.tsx"),
+    path.join(process.cwd(), "src", "app", "(portal)", ...segmente, "page.tsx"),
     path.join(process.cwd(), "src", "app", ...segmente, "page.tsx"),
   ].some((cale) => existsSync(cale));
 }
