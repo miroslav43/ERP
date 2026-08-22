@@ -195,3 +195,45 @@ export const decideSaptamanaPontajSchema = z
     }
   });
 export type DecideSaptamanaPontaj = z.output<typeof decideSaptamanaPontajSchema>;
+
+/**
+ * Parametrii de dreptul muncii ai organizației.
+ *
+ * ⚠️ TOATE valorile de aici trebuie confirmate de jurist înainte de a fi
+ * folosite la o plată reală. Tabela `attendance_settings` a fost creată
+ * DELIBERAT fără valori implicite (migrarea 0013, secțiunea 2, cu un
+ * `comment ... 'DE VERIFICAT DE JURIST'` pe fiecare coloană) — tocmai ca
+ * nimeni să nu poată calcula un salariu pe niște implicite inventate.
+ *
+ * Consecința e că, până acum, tabela a rămas complet goală în toate
+ * organizațiile: nu exista niciun ecran care s-o scrie. Sporurile de noapte,
+ * de weekend și de sărbătoare, intervalul nocturn și termenele de compensare
+ * nu erau configurate nicăieri, iar salarizarea cădea tăcut pe cele din
+ * `payroll_settings`.
+ */
+export const setariPontajSchema = z.object({
+  valabil_de_la: z.string().regex(/^\d{4}-\d{2}-\d{2}$/u, "Data trebuie să fie AAAA-LL-ZZ."),
+  ore_pe_zi: z.coerce.number().positive("Norma zilnică trebuie să fie pozitivă.").max(24),
+  ore_pe_saptamana: z.coerce.number().positive().max(168),
+  ore_maxime_saptamanale: z.coerce.number().positive().max(168),
+  perioada_referinta_luni: z.coerce.number().int().min(1).max(12),
+  repaus_zilnic_minim_ore: z.coerce.number().min(0).max(24),
+  repaus_saptamanal_minim_ore: z.coerce.number().min(0).max(168),
+  // Procente 0-100, nu fracții: scara e cea din `attendance_settings`, diferită
+  // de cea din `payroll_settings`. Confuzia dintre ele ar înmulți sau împărți
+  // sporurile cu o sută.
+  spor_suplimentare_procent: z.coerce.number().min(0).max(300),
+  spor_noapte_procent: z.coerce.number().min(0).max(300),
+  spor_weekend_procent: z.coerce.number().min(0).max(300),
+  spor_sarbatoare_procent: z.coerce.number().min(0).max(300),
+  noapte_start: z.string().regex(/^\d{2}:\d{2}$/u, "Ora trebuie să fie HH:MM."),
+  noapte_sfarsit: z.string().regex(/^\d{2}:\d{2}$/u, "Ora trebuie să fie HH:MM."),
+  prag_ore_noapte: z.coerce.number().min(0).max(12),
+  termen_compensare_suplimentare_zile: z.coerce.number().int().min(0).max(365),
+  termen_compensare_sarbatoare_zile: z.coerce.number().int().min(0).max(365),
+  pauza_masa_minute: z.coerce.number().int().min(0).max(240),
+  pauza_masa_inclusa_in_program: z.coerce.boolean(),
+  pauza_obligatorie_peste_ore: z.coerce.number().min(0).max(24),
+  observatii_juridice: z.string().trim().max(2000).nullable().default(null),
+});
+export type IntrareSetariPontaj = z.output<typeof setariPontajSchema>;

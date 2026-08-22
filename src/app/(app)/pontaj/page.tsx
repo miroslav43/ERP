@@ -247,11 +247,19 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
 
   return (
     <main className="space-y-6 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Pontaj</h1>
-        <p className="text-muted-foreground text-sm">
-          Foaia colectivă pentru {formatMonthYear(an, filtre.luna)}.
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold">Pontaj</h1>
+          <p className="text-muted-foreground text-sm">
+            Foaia colectivă pentru {formatMonthYear(an, filtre.luna)}.
+          </p>
+        </div>
+        <Link
+          href="/pontaj/setari"
+          className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm font-medium"
+        >
+          Setări
+        </Link>
       </header>
 
       <NavPontaj poateAproba={poateAproba} />

@@ -546,3 +546,72 @@ export async function saptamaniDeAprobat(
     })
     .filter((rand): rand is SarcinaSaptamanaDeAprobat => rand !== null);
 }
+
+export interface SetariPontajComplete {
+  readonly id: string;
+  readonly valabil_de_la: string;
+  readonly ore_pe_zi: number;
+  readonly ore_pe_saptamana: number;
+  readonly ore_maxime_saptamanale: number;
+  readonly perioada_referinta_luni: number;
+  readonly repaus_zilnic_minim_ore: number;
+  readonly repaus_saptamanal_minim_ore: number;
+  readonly spor_suplimentare_procent: number;
+  readonly spor_noapte_procent: number;
+  readonly spor_weekend_procent: number;
+  readonly spor_sarbatoare_procent: number;
+  readonly noapte_start: string;
+  readonly noapte_sfarsit: string;
+  readonly prag_ore_noapte: number;
+  readonly termen_compensare_suplimentare_zile: number;
+  readonly termen_compensare_sarbatoare_zile: number;
+  readonly pauza_masa_minute: number;
+  readonly pauza_masa_inclusa_in_program: boolean;
+  readonly pauza_obligatorie_peste_ore: number;
+  readonly observatii_juridice: string | null;
+}
+
+const CAMPURI_SETARI_PONTAJ =
+  "id, valabil_de_la, ore_pe_zi, ore_pe_saptamana, ore_maxime_saptamanale, perioada_referinta_luni, repaus_zilnic_minim_ore, repaus_saptamanal_minim_ore, spor_suplimentare_procent, spor_noapte_procent, spor_weekend_procent, spor_sarbatoare_procent, noapte_start, noapte_sfarsit, prag_ore_noapte, termen_compensare_suplimentare_zile, termen_compensare_sarbatoare_zile, pauza_masa_minute, pauza_masa_inclusa_in_program, pauza_obligatorie_peste_ore, observatii_juridice";
+
+/**
+ * Parametrii de dreptul muncii în vigoare la o dată dată.
+ *
+ * `null` e o stare NORMALĂ, nu o eroare: tabela n-a avut niciodată valori
+ * implicite, tocmai ca nimeni să nu calculeze un salariu pe cifre inventate.
+ * Apelantul trebuie să trateze absența explicit, nu să cadă pe un 8 hardcodat.
+ */
+export async function setariPontajComplete(
+  organizationId: string,
+  laData: string,
+): Promise<SetariPontajComplete | null> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("attendance_settings")
+    .select(CAMPURI_SETARI_PONTAJ)
+    .eq("organization_id", organizationId)
+    .lte("valabil_de_la", laData)
+    .is("deleted_at", null)
+    .order("valabil_de_la", { ascending: false })
+    .limit(1)
+    .maybeSingle<SetariPontajComplete>();
+  if (error !== null) throw error;
+  return data;
+}
+
+/** Toate versiunile, cea mai recentă prima — istoricul rămâne vizibil. */
+export async function istoricSetariPontaj(
+  organizationId: string,
+): Promise<readonly SetariPontajComplete[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("attendance_settings")
+    .select(CAMPURI_SETARI_PONTAJ)
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .order("valabil_de_la", { ascending: false })
+    .limit(50)
+    .returns<SetariPontajComplete[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}
