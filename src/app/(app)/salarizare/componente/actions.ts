@@ -1,17 +1,18 @@
 // src/app/(app)/salarizare/componente/actions.ts
 "use server";
 
-import { revalidatePath } from "next/cache";
-
-import { mapPostgrestError, notFound } from "@/lib/actions/errors";
+import { notFound } from "@/lib/actions/errors";
 import { createAction } from "@/lib/actions/create-action";
 import {
   actualizeazaSablonComponentaSchema,
   creeazaSablonComponentaSchema,
   dezactiveazaSablonComponentaSchema,
 } from "@/schemas/salary-component";
+import { traduEroare } from "../erori";
 
 type SablonIdentificat = Readonly<{ id: string }>;
+
+const CAI_REVALIDARE = ["/salarizare/componente"] as const;
 
 const CAMPURI_AUDITATE_CREARE = [
   "cod",
@@ -45,6 +46,7 @@ export const creeazaSablonComponenta = createAction<
     entityId: (_input, data) => data.id,
     allow: CAMPURI_AUDITATE_CREARE,
   },
+  revalidate: CAI_REVALIDARE,
   handler: async (ctx, input) => {
     const { data, error } = await ctx.supabase
       .from("salary_component_types")
@@ -57,8 +59,7 @@ export const creeazaSablonComponenta = createAction<
       })
       .select("id")
       .single();
-    if (error !== null) throw mapPostgrestError(error, ctx.requestId);
-    revalidatePath("/salarizare/componente");
+    if (error !== null) traduEroare(error);
     return { id: data.id };
   },
 });
@@ -78,6 +79,7 @@ export const actualizeazaSablonComponenta = createAction<
     entityId: (input) => input.id,
     allow: CAMPURI_AUDITATE_ACTUALIZARE,
   },
+  revalidate: CAI_REVALIDARE,
   handler: async (ctx, input) => {
     const { id, ...campuri } = input;
     const { data, error } = await ctx.supabase
@@ -88,9 +90,8 @@ export const actualizeazaSablonComponenta = createAction<
       .is("deleted_at", null)
       .select("id")
       .maybeSingle();
-    if (error !== null) throw mapPostgrestError(error, ctx.requestId);
+    if (error !== null) traduEroare(error);
     if (data === null) throw notFound("Șablonul nu a fost găsit.");
-    revalidatePath("/salarizare/componente");
     return { id };
   },
 });
@@ -110,14 +111,18 @@ export const dezactiveazaSablonComponenta = createAction<
     entityId: (input) => input.id,
     allow: [],
   },
+  revalidate: CAI_REVALIDARE,
   handler: async (ctx, input) => {
-    const { error } = await ctx.supabase
+    const { data, error } = await ctx.supabase
       .from("salary_component_types")
       .update({ activ: false, updated_by: ctx.user.id })
       .eq("id", input.id)
-      .eq("organization_id", ctx.tenant.organizationId);
-    if (error !== null) throw mapPostgrestError(error, ctx.requestId);
-    revalidatePath("/salarizare/componente");
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
+    if (error !== null) traduEroare(error);
+    if (data === null) throw notFound("Șablonul nu a fost găsit.");
     return { id: input.id };
   },
 });

@@ -19,6 +19,8 @@
 // NIMIC din modulul ăsta nu e certificat. Fiecare cotă vine din
 // `PayrollSettingsSnapshot`, niciodată hardcodată — vezi banner-ul din UI.
 
+import { descriereCompleta, problema, type CodProblema } from "./erori";
+
 export interface PragDeducerePersonala {
   readonly nrPersoaneIntretinereMin: number;
   /** `null` = fără plafon superior de persoane în întreținere (4+). */
@@ -36,6 +38,13 @@ export interface PayrollSettingsSnapshot {
   readonly normaZilnicaOre: number;
   readonly procentSporNoapte: number;
   readonly procentSporWeekend: number;
+  /**
+   * Sporul distinct pentru sărbătoare legală. Lipsește din `payroll_settings`;
+   * sursa lui de drept e `attendance_settings.spor_sarbatoare_procent`, care
+   * încă nu alimentează calculul. Cât timp lipsește, orele de sărbătoare se
+   * plătesc cu sporul de repaus și se ridică un avertisment.
+   */
+  readonly procentSporSarbatoare?: number;
   readonly procentOreSuplimentare: number;
   readonly valoareTichetMasa: number;
   readonly ticheteImpozabile: boolean;
@@ -59,6 +68,13 @@ export interface TaxExemptionSnapshot {
 export interface EmployeeContractSnapshot {
   readonly salariuBaza: number;
   readonly nrPersoaneIntretinere: number;
+  /**
+   * Norma zilnică din CONTRACTUL angajatului. Când lipsește, se cade pe cea din
+   * setările organizației — dar atunci un angajat cu normă parțială (4h) e
+   * plătit ca full-time la ore suplimentare și la sporul de noapte, fiindcă
+   * tariful orar se obține împărțind la norma greșită.
+   */
+  readonly normaZilnicaOre?: number;
   readonly exemptii?: readonly TaxExemptionSnapshot[];
 }
 
@@ -71,6 +87,22 @@ export interface AttendanceSummary {
   readonly zileConcediuOdihna: number;
   readonly zileConcediuMedical: number;
   readonly zileAbsentaNemotivata: number;
+  /**
+   * Zilele și orele lucrate în repaus săptămânal și în sărbătoare legală.
+   *
+   * Opționale ca să nu rupă apelanții existenți, dar ABSENȚA lor a fost, până
+   * acum, un defect: agregarea pontajului arunca pur și simplu rândurile cu
+   * `tip_zi` weekend/sarbatoare, iar cine muncea sâmbăta nu era plătit deloc.
+   *
+   * Zilele NU intră în `zileLucrate`: acela împarte salariul lunar la zilele
+   * lucrătoare ale lunii. Orele de aici se plătesc SEPARAT, la tarif orar.
+   */
+  readonly zileRepausLucrate?: number;
+  readonly zileSarbatoareLucrate?: number;
+  readonly oreNormaleRepaus?: number;
+  readonly oreSuplimentareRepaus?: number;
+  readonly oreNormaleSarbatoare?: number;
+  readonly oreSuplimentareSarbatoare?: number;
 }
 
 export interface BonusInput {
@@ -101,6 +133,10 @@ export interface PayrollCalcResult {
   readonly bazaSalariu: number;
   readonly sumaOreSuplimentare: number;
   readonly sporNoapte: number;
+  readonly oreRepaus: number;
+  readonly sporRepaus: number;
+  readonly oreSarbatoare: number;
+  readonly sporSarbatoare: number;
   readonly primeTotal: number;
   readonly brut: number;
   readonly nrTichete: number;
@@ -157,7 +193,10 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     return valoare;
   };
 
-  if (settings.normaZilnicaOre <= 0) {
+  // Norma contractului bate norma organizației: tariful orar al unui angajat cu
+  // normă parțială se calculează la norma LUI, nu la cele 8 ore implicite.
+  const normaZilnica = contract.normaZilnicaOre ?? settings.normaZilnicaOre;
+  if (normaZilnica <= 0) {
     throw new RangeError("Norma zilnică de ore trebuie să fie pozitivă.");
   }
   if (attendance.zileLucratoareLuna <= 0) {
@@ -187,7 +226,7 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
   }
   const bazaSalariu = inregistreaza("bazaSalariu", salariuZi * zilePlatite);
 
-  const oreRata = contract.salariuBaza / (attendance.zileLucratoareLuna * settings.normaZilnicaOre);
+  const oreRata = contract.salariuBaza / (attendance.zileLucratoareLuna * normaZilnica);
   const sumaOreSuplimentare = inregistreaza(
     "sumaOreSuplimentare",
     attendance.oreSuplimentare * oreRata * (1 + settings.procentOreSuplimentare),
@@ -196,6 +235,58 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     "sporNoapte",
     attendance.oreNoapte * oreRata * settings.procentSporNoapte,
   );
+
+  // Zilele de repaus săptămânal și de sărbătoare legală.
+  //
+  // Regula, preluată din `app.sporuri_pontaj` (0013_attendance.sql:686): pe
+  // aceeași axă, sărbătoarea și orele suplimentare NU se însumează — se aplică
+  // procentul MAI MARE. Un spor de 100% pentru sărbătoare plus 75% pentru ore
+  // suplimentare nu fac 175%; ambele compensează același lucru, munca într-o zi
+  // în care nu trebuia să lucrezi.
+  const procentRepaus = settings.procentSporWeekend;
+  const procentSarbatoare = settings.procentSporSarbatoare ?? settings.procentSporWeekend;
+
+  const oreNormaleRepaus = attendance.oreNormaleRepaus ?? 0;
+  const oreSuplRepaus = attendance.oreSuplimentareRepaus ?? 0;
+  const oreNormaleSarbatoare = attendance.oreNormaleSarbatoare ?? 0;
+  const oreSuplSarbatoare = attendance.oreSuplimentareSarbatoare ?? 0;
+
+  // NU trec prin `inregistreaza`: `breakdown` e o listă de SUME în lei, iar
+  // fluturașul o formatează integral cu `formatLei`. Un număr de ore strecurat
+  // acolo s-ar tipări drept „8,00 lei" pe un document pe care angajatul îl
+  // semnează.
+  const oreRepaus = oreNormaleRepaus + oreSuplRepaus;
+  const oreSarbatoare = oreNormaleSarbatoare + oreSuplSarbatoare;
+
+  const sporRepaus = inregistreaza(
+    "sporRepaus",
+    oreNormaleRepaus * oreRata * (1 + procentRepaus) +
+      oreSuplRepaus * oreRata * (1 + Math.max(procentRepaus, settings.procentOreSuplimentare)),
+  );
+  const sporSarbatoare = inregistreaza(
+    "sporSarbatoare",
+    oreNormaleSarbatoare * oreRata * (1 + procentSarbatoare) +
+      oreSuplSarbatoare *
+        oreRata *
+        (1 + Math.max(procentSarbatoare, settings.procentOreSuplimentare)),
+  );
+
+  const avertizeaza = (cod: CodProblema, detalii: string | null = null): void => {
+    const p = problema(cod, { detalii });
+    warnings.push({ cod: p.cod, mesaj: descriereCompleta(p) });
+  };
+  if (oreSarbatoare > 0 && settings.procentSporSarbatoare === undefined) {
+    avertizeaza(
+      "SAL_SPOR_SARBATOARE_NECONFIGURAT",
+      `${oreSarbatoare.toFixed(2)} ore lucrate în zile de sărbătoare legală.`,
+    );
+  }
+  if (oreRepaus + oreSarbatoare > 0 && procentRepaus === 0 && procentSarbatoare === 0) {
+    avertizeaza(
+      "SAL_SPOR_REPAUS_NECONFIGURAT",
+      `${(oreRepaus + oreSarbatoare).toFixed(2)} ore plătite la tariful orar simplu, fără spor.`,
+    );
+  }
 
   const primeTotal = inregistreaza(
     "primeTotal",
@@ -208,7 +299,10 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     .filter((b) => b.impozabil && !b.supusContributii)
     .reduce((s, b) => s + b.suma, 0);
 
-  const brut = inregistreaza("brut", bazaSalariu + sumaOreSuplimentare + sporNoapte + primeTotal);
+  const brut = inregistreaza(
+    "brut",
+    bazaSalariu + sumaOreSuplimentare + sporNoapte + sporRepaus + sporSarbatoare + primeTotal,
+  );
 
   // Tichetele de masă nu intră niciodată în baza CAS/CASS — regulă legală, nu
   // opțiune de configurare. Zilele plătite (lucrate, nu și CO) sunt baza de
@@ -218,7 +312,12 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
 
   const bazaCasCass = inregistreaza(
     "bazaCasCass",
-    bazaSalariu + sumaOreSuplimentare + sporNoapte + primeSupuseContributii,
+    bazaSalariu +
+      sumaOreSuplimentare +
+      sporNoapte +
+      sporRepaus +
+      sporSarbatoare +
+      primeSupuseContributii,
   );
   const cas = inregistreaza("cas", bazaCasCass * settings.cotaCas);
   const cass = inregistreaza("cass", bazaCasCass * settings.cotaCass);
@@ -303,6 +402,10 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     bazaSalariu: rotundLeu(bazaSalariu, r),
     sumaOreSuplimentare: rotundLeu(sumaOreSuplimentare, r),
     sporNoapte: rotundLeu(sporNoapte, r),
+    oreRepaus,
+    sporRepaus: rotundLeu(sporRepaus, r),
+    oreSarbatoare,
+    sporSarbatoare: rotundLeu(sporSarbatoare, r),
     primeTotal: rotundLeu(primeTotal, r),
     brut: rotundLeu(brut, r),
     nrTichete,

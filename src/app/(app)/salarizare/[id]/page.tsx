@@ -52,10 +52,11 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
   const poateCalcula = can(permisiuni, "payroll:create", "all");
   const poateAproba = can(permisiuni, "payroll:approve", "all");
 
-  const angajatiDraft =
+  const personalDraft =
     perioada.status === "draft" && poateCalcula
-      ? await angajatiActiviCuContract(tenant.organizationId)
-      : [];
+      ? await angajatiActiviCuContract(tenant.organizationId, perioada.an, perioada.luna)
+      : { angajati: [], faraContract: [], trunchiat: false };
+  const angajatiDraft = personalDraft.angajati;
   const { prime, retineri } =
     perioada.status === "draft" && poateCalcula
       ? await primeSiRetineriPerioada(tenant.organizationId, perioada.id)

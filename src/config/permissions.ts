@@ -92,6 +92,11 @@ export const PERMISSION_KEYS = [
   "payroll:create",
   "payroll:update",
   "payroll:approve",
+  // `payroll:delete` e acordat de seed ca artefact al produsului cartezian din
+  // 0002_authz.sql, dar modulul nu are NICIO politică DELETE (soft delete +
+  // REVOKE DELETE, 0026_payroll.sql:627) — cheia ar invita un drum pe care baza
+  // îl refuză, deci rămâne nedeclarată.
+  "payroll:export",
   "per_diem:read",
   "per_diem:create",
   "per_diem:update",

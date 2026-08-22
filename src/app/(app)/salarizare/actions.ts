@@ -6,11 +6,13 @@ import {
   angajatiActiviCuContract,
   citesteSetariPeId,
   componenteSalarialeActivePerioada,
+  PONTAJ_GOL,
   pontajAgregatPerioada,
   scutiriActivePerioada,
   zileLucratoareLuna,
 } from "@/lib/queries/payroll";
 import { calculatePayrollEntry, type PayrollSettingsSnapshot } from "@/domain/payroll/calc";
+import { descriereCompleta, problema } from "@/domain/payroll/erori";
 import {
   creeazaPerioadaSchema,
   idPerioadaSchema,
@@ -19,6 +21,7 @@ import {
   setariSalarizareSchema,
 } from "@/schemas/payroll";
 import type { Json } from "@/types/database";
+import { traduEroare } from "./erori";
 
 const CAI_REVALIDARE = ["/salarizare", "/panou"] as const;
 
@@ -50,7 +53,7 @@ export const salveazaSetari = createAction({
       })
       .select("id")
       .single<{ id: string }>();
-    if (error !== null) throw error;
+    if (error !== null) traduEroare(error);
 
     const { error: eroarePraguri } = await ctx.supabase
       .from("payroll_personal_deduction_brackets")
@@ -65,7 +68,7 @@ export const salveazaSetari = createAction({
           ordine: index,
         })),
       );
-    if (eroarePraguri !== null) throw eroarePraguri;
+    if (eroarePraguri !== null) traduEroare(eroarePraguri);
 
     return { id: setari.id };
   },
@@ -88,7 +91,7 @@ export const creeazaPerioada = createAction({
       .eq("luna", input.luna)
       .is("deleted_at", null)
       .maybeSingle<{ id: string }>();
-    if (eroarePontaj !== null) throw eroarePontaj;
+    if (eroarePontaj !== null) traduEroare(eroarePontaj);
     if (perioadaPontaj === null) {
       throw businessRule(
         "Nu există o perioadă de pontaj pentru luna aleasă. Deschideți-o mai întâi din modulul Pontaj.",
@@ -105,7 +108,7 @@ export const creeazaPerioada = createAction({
       .order("valabil_de_la", { ascending: false })
       .limit(1)
       .maybeSingle<{ id: string }>();
-    if (eroareSetari !== null) throw eroareSetari;
+    if (eroareSetari !== null) traduEroare(eroareSetari);
     if (setari === null) {
       throw businessRule(
         "Nu există setări de salarizare valabile pentru luna aleasă. Configurați-le înainte de a crea perioada.",
@@ -123,7 +126,7 @@ export const creeazaPerioada = createAction({
       })
       .select("id")
       .single<{ id: string }>();
-    if (error !== null) throw error;
+    if (error !== null) traduEroare(error);
     return { id: data.id };
   },
 });
@@ -176,7 +179,7 @@ export const calculeazaPerioada = createAction({
         settings_id: string;
         status: string;
       }>();
-    if (eroarePerioada !== null) throw eroarePerioada;
+    if (eroarePerioada !== null) traduEroare(eroarePerioada);
     if (perioada === null) throw notFound("Perioada de salarizare nu a fost găsită.");
     if (perioada.status !== "draft") {
       throw businessRule(
@@ -188,13 +191,32 @@ export const calculeazaPerioada = createAction({
     if (setari === null) throw notFound("Setările de salarizare ale perioadei nu mai există.");
     const snapshot = laSetariSnapshot(setari);
 
-    const [zileLuna, angajati, pontaj, scutiri, componenteSalariale] = await Promise.all([
+    const [zileLuna, personal, pontaj, scutiri, componenteSalariale] = await Promise.all([
       zileLucratoareLuna(ctx.tenant.organizationId, perioada.an, perioada.luna),
-      angajatiActiviCuContract(ctx.tenant.organizationId),
-      pontajAgregatPerioada(ctx.tenant.organizationId, perioada.attendance_period_id),
+      angajatiActiviCuContract(ctx.tenant.organizationId, perioada.an, perioada.luna),
+      pontajAgregatPerioada(perioada.attendance_period_id),
       scutiriActivePerioada(ctx.tenant.organizationId, perioada.an, perioada.luna),
       componenteSalarialeActivePerioada(ctx.tenant.organizationId, perioada.an, perioada.luna),
     ]);
+    const angajati = personal.angajati;
+
+    // O citire trunchiată ar produce un stat de plată incomplet care ARATĂ
+    // complet — clasa de defect cea mai costisitoare din acest modul.
+    if (personal.trunchiat || pontaj.trunchiat) {
+      const p = problema("SAL_TRUNCHIERE_CITIRE");
+      throw businessRule(descriereCompleta(p));
+    }
+    // Angajații activi fără contract aplicabil se raportau NOMINAL, nu se sar:
+    // varianta veche îi elimina tăcut și pur și simplu lipseau de pe stat.
+    if (personal.faraContract.length > 0) {
+      const nume = personal.faraContract
+        .map((a) => `${a.full_name || "(fără nume)"} (marca ${a.marca})`)
+        .join(", ");
+      const p = problema("SAL_CONTRACT_LIPSA", {
+        detalii: `${String(personal.faraContract.length)}: ${nume}.`,
+      });
+      throw businessRule(descriereCompleta(p));
+    }
     if (angajati.length === 0) {
       throw businessRule("Nu există niciun angajat activ cu contract activ de calculat.");
     }
@@ -210,7 +232,7 @@ export const calculeazaPerioada = createAction({
       .eq("period_id", perioada.id)
       .is("deleted_at", null)
       .returns<(ElementVariabil & { employee_id: string })[]>();
-    if (eroarePrime !== null) throw eroarePrime;
+    if (eroarePrime !== null) traduEroare(eroarePrime);
 
     const { data: retineri, error: eroareRetineri } = await ctx.supabase
       .from("payroll_deductions")
@@ -218,7 +240,7 @@ export const calculeazaPerioada = createAction({
       .eq("period_id", perioada.id)
       .is("deleted_at", null)
       .returns<{ employee_id: string; suma: number; procent_maxim_din_net: number | null }[]>();
-    if (eroareRetineri !== null) throw eroareRetineri;
+    if (eroareRetineri !== null) traduEroare(eroareRetineri);
 
     const primePeAngajat = new Map<string, ElementVariabil[]>();
     for (const p of prime ?? []) {
@@ -238,31 +260,30 @@ export const calculeazaPerioada = createAction({
     }
 
     const randuri = angajati.map((angajat) => {
-      const pontajAngajat = pontaj.get(angajat.employee_id) ?? {
-        zile_lucrate: 0,
-        ore_lucrate: 0,
-        ore_suplimentare: 0,
-        ore_noapte: 0,
-        zile_concediu_odihna: 0,
-        zile_concediu_medical: 0,
-        zile_absenta_nemotivata: 0,
-      };
+      const pontajAngajat = pontaj.pePersoana.get(angajat.employee_id) ?? PONTAJ_GOL;
       const rezultat = calculatePayrollEntry({
         settings: snapshot,
         contract: {
           salariuBaza: angajat.salariu_baza,
           nrPersoaneIntretinere: angajat.nr_persoane_intretinere,
+          normaZilnicaOre: angajat.norma_ore_zi,
           exemptii: scutiri.get(angajat.employee_id) ?? [],
         },
         attendance: {
           zileLucratoareLuna: zileLuna,
           zileLucrate: pontajAngajat.zile_lucrate,
           oreLucrate: pontajAngajat.ore_lucrate,
-          oreSuplimentare: pontajAngajat.ore_suplimentare,
+          oreSuplimentare: pontajAngajat.ore_suplimentare_zi,
           oreNoapte: pontajAngajat.ore_noapte,
           zileConcediuOdihna: pontajAngajat.zile_concediu_odihna,
           zileConcediuMedical: pontajAngajat.zile_concediu_medical,
           zileAbsentaNemotivata: pontajAngajat.zile_absenta_nemotivata,
+          zileRepausLucrate: pontajAngajat.zile_repaus_lucrate,
+          zileSarbatoareLucrate: pontajAngajat.zile_sarbatoare_lucrate,
+          oreNormaleRepaus: pontajAngajat.ore_normale_repaus,
+          oreSuplimentareRepaus: pontajAngajat.ore_suplimentare_repaus,
+          oreNormaleSarbatoare: pontajAngajat.ore_normale_sarbatoare,
+          oreSuplimentareSarbatoare: pontajAngajat.ore_suplimentare_sarbatoare,
         },
         bonuses: [
           ...(primePeAngajat.get(angajat.employee_id) ?? []).map((p) => ({
@@ -299,8 +320,14 @@ export const calculeazaPerioada = createAction({
         zile_concediu_medical: pontajAngajat.zile_concediu_medical,
         zile_absenta_nemotivata: pontajAngajat.zile_absenta_nemotivata,
         ore_lucrate: pontajAngajat.ore_lucrate,
-        ore_suplimentare: pontajAngajat.ore_suplimentare,
+        ore_suplimentare: pontajAngajat.ore_suplimentare_zi,
         ore_noapte: pontajAngajat.ore_noapte,
+        zile_repaus_lucrate: pontajAngajat.zile_repaus_lucrate,
+        zile_sarbatoare_lucrate: pontajAngajat.zile_sarbatoare_lucrate,
+        ore_repaus: rezultat.oreRepaus,
+        ore_sarbatoare: rezultat.oreSarbatoare,
+        spor_repaus: rezultat.sporRepaus,
+        spor_sarbatoare: rezultat.sporSarbatoare,
         baza_salariu: rezultat.bazaSalariu,
         suma_ore_suplimentare: rezultat.sumaOreSuplimentare,
         spor_noapte: rezultat.sporNoapte,
@@ -325,51 +352,65 @@ export const calculeazaPerioada = createAction({
         // mutabile, iar rezultatul motorului de calcul e complet imutabil.
         settings_snapshot: JSON.parse(JSON.stringify(snapshot)) as Json,
         calc_breakdown: JSON.parse(JSON.stringify(rezultat.breakdown)) as Json,
-        calc_warnings: JSON.parse(JSON.stringify(rezultat.warnings)) as Json,
+        calc_warnings: JSON.parse(
+          JSON.stringify([
+            ...rezultat.warnings,
+            ...(angajat.contract_schimbat_in_luna
+              ? [
+                  (() => {
+                    const p = problema("SAL_CONTRACT_SCHIMBAT_IN_LUNA");
+                    return { cod: p.cod, mesaj: descriereCompleta(p) };
+                  })(),
+                ]
+              : []),
+          ]),
+        ) as Json,
         calculat_la: new Date().toISOString(),
       };
     });
 
-    // Fără `.upsert(..., { onConflict })`: unicitatea e pe un index PARȚIAL
-    // (`where deleted_at is null`), iar PostgREST nu poate ținti unul prin
-    // ON CONFLICT — exact limitarea documentată în `scripts/demo/seed-demo.mjs`
-    // pentru `asigura()`. Recalcularea devine, deci, select-apoi-scrie.
-    const { data: existente, error: eroareExistente } = await ctx.supabase
-      .from("payroll_entries")
-      .select("id, employee_id")
-      .eq("organization_id", ctx.tenant.organizationId)
-      .eq("period_id", perioada.id)
-      .is("deleted_at", null)
-      .returns<{ id: string; employee_id: string }[]>();
-    if (eroareExistente !== null) throw eroareExistente;
-    const idExistent = new Map((existente ?? []).map((e) => [e.employee_id, e.id]));
-
-    const deActualizat = randuri.filter((r) => idExistent.has(r.employee_id));
-    const deInserat = randuri.filter((r) => !idExistent.has(r.employee_id));
-
-    const rezultateActualizare = await Promise.all(
-      deActualizat.map((rand) =>
-        ctx.supabase
-          .from("payroll_entries")
-          .update(rand)
-          .eq("id", idExistent.get(rand.employee_id) as string),
-      ),
-    );
-    const eroareActualizare = rezultateActualizare.find((r) => r.error !== null)?.error;
-    if (eroareActualizare !== undefined) throw eroareActualizare;
-
-    if (deInserat.length > 0) {
-      const { error: eroareInserare } = await ctx.supabase
-        .from("payroll_entries")
-        .insert(deInserat);
-      if (eroareInserare !== null) throw eroareInserare;
+    // O SINGURĂ tranzacție, prin RPC (migrarea 0047).
+    //
+    // Varianta anterioară trimitea câte o cerere HTTP per angajat — pentru 200
+    // de angajați, 200 de cereri fără nimic care să le lege. Un eșec la
+    // jumătate lăsa perioada cu jumătate din rânduri recalculate și jumătate
+    // vechi, fără urmă a locului rupturii. Un apel RPC rulează într-o singură
+    // tranzacție: ori toate rândurile, ori niciunul.
+    //
+    // `organization_id` și `period_id` NU se trimit: funcția le derivă din
+    // perioadă, ca o sarcină utilă construită de mână să nu poată ținti altă
+    // organizație.
+    const { data: scrise, error: eroareScriere } = await ctx.supabase
+      .rpc("payroll_scrie_rezultate", {
+        p_period_id: perioada.id,
+        p_randuri: randuri.map(({ organization_id: _o, period_id: _p, ...rest }) => rest) as Json,
+      })
+      .select("inserate, actualizate")
+      .maybeSingle<{ inserate: number; actualizate: number }>();
+    if (eroareScriere !== null) traduEroare(eroareScriere);
+    if (scrise === null) {
+      throw businessRule(
+        "Rândurile de salariu nu au putut fi scrise. Verificați că aveți dreptul de calcul și că perioada mai este în ciornă.",
+      );
+    }
+    if (scrise.inserate + scrise.actualizate !== randuri.length) {
+      // Numărul scris trebuie să fie exact numărul calculat. O diferență
+      // înseamnă că o politică RLS a filtrat rânduri fără să arunce eroare —
+      // exact clasa de defect pe care restul modulului o vânează.
+      throw businessRule(
+        `S-au calculat ${String(randuri.length)} rânduri, dar baza a acceptat doar ${String(scrise.inserate + scrise.actualizate)}. Perioada nu a fost marcată drept calculată.`,
+      );
     }
 
     const totalBrut = randuri.reduce((s, r) => s + r.brut, 0);
     const totalNet = randuri.reduce((s, r) => s + r.net, 0);
     const totalCost = randuri.reduce((s, r) => s + r.cost_total_angajator, 0);
 
-    const { error: eroareStatus } = await ctx.supabase
+    // Capcana 17: un UPDATE respins de clauza USING a politicii RLS afectează
+    // ZERO rânduri, TĂCUT — fără nicio eroare. `.select()` după update e
+    // singura dovadă că s-a schimbat ceva; fără el UI-ul raportează succes
+    // peste o bază neschimbată.
+    const { data: perioadaCalculata, error: eroareStatus } = await ctx.supabase
       .from("payroll_periods")
       .update({
         status: "calculat",
@@ -378,8 +419,15 @@ export const calculeazaPerioada = createAction({
         total_cost_angajator: totalCost,
       })
       .eq("id", perioada.id)
-      .eq("organization_id", ctx.tenant.organizationId);
-    if (eroareStatus !== null) throw eroareStatus;
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle<{ id: string }>();
+    if (eroareStatus !== null) traduEroare(eroareStatus);
+    if (perioadaCalculata === null) {
+      throw businessRule(
+        "Rândurile de salariu au fost scrise, dar perioada nu a putut fi trecută în starea calculat. Reîmprospătați pagina și recalculați.",
+      );
+    }
 
     return { id: perioada.id, angajati: randuri.length };
   },
@@ -394,12 +442,23 @@ export const aprobaPerioada = createAction({
   audit: { action: "update", entityType: "payroll_period", allow: ["id"] },
   revalidate: CAI_REVALIDARE,
   handler: async (ctx, input) => {
-    const { error } = await ctx.supabase
+    // Capcana 17: un UPDATE respins de clauza USING a politicii RLS afectează
+    // ZERO rânduri, TĂCUT — fără nicio eroare. `.select()` după update e
+    // singura dovadă că s-a schimbat ceva; fără el UI-ul raportează succes
+    // peste o bază neschimbată.
+    const { data, error } = await ctx.supabase
       .from("payroll_periods")
       .update({ status: "aprobat" })
       .eq("id", input.id)
-      .eq("organization_id", ctx.tenant.organizationId);
-    if (error !== null) throw error;
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id, status")
+      .maybeSingle<{ id: string; status: string }>();
+    if (error !== null) traduEroare(error);
+    if (data === null) {
+      throw businessRule(
+        "Perioada nu a putut fi aprobată. Fie nu mai este în starea calculat, fie nu aveți dreptul de aprobare. Reîmprospătați pagina.",
+      );
+    }
     return null;
   },
 });
@@ -413,12 +472,23 @@ export const inchidePerioada = createAction({
   audit: { action: "update", entityType: "payroll_period", allow: ["id"] },
   revalidate: CAI_REVALIDARE,
   handler: async (ctx, input) => {
-    const { error } = await ctx.supabase
+    // Capcana 17: un UPDATE respins de clauza USING a politicii RLS afectează
+    // ZERO rânduri, TĂCUT — fără nicio eroare. `.select()` după update e
+    // singura dovadă că s-a schimbat ceva; fără el UI-ul raportează succes
+    // peste o bază neschimbată.
+    const { data, error } = await ctx.supabase
       .from("payroll_periods")
       .update({ status: "inchis" })
       .eq("id", input.id)
-      .eq("organization_id", ctx.tenant.organizationId);
-    if (error !== null) throw error;
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id, status")
+      .maybeSingle<{ id: string; status: string }>();
+    if (error !== null) traduEroare(error);
+    if (data === null) {
+      throw businessRule(
+        "Perioada nu a putut fi închisă. Fie nu mai este în starea aprobat, fie nu aveți dreptul de închidere. Reîmprospătați pagina.",
+      );
+    }
     return null;
   },
 });
@@ -446,7 +516,7 @@ export const adaugaPrima = createAction({
       impozabil: input.impozabil,
       supus_contributii: input.supus_contributii,
     });
-    if (error !== null) throw error;
+    if (error !== null) traduEroare(error);
     return null;
   },
 });
@@ -473,7 +543,7 @@ export const adaugaRetinere = createAction({
       procent_maxim_din_net: input.procent_maxim_din_net,
       motiv: input.motiv,
     });
-    if (error !== null) throw error;
+    if (error !== null) traduEroare(error);
     return null;
   },
 });

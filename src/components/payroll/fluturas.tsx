@@ -17,6 +17,8 @@ const ETICHETE_PAS: Record<string, string> = {
   bazaSalariu: "Salariu de bază (zile plătite)",
   sumaOreSuplimentare: "Ore suplimentare",
   sporNoapte: "Spor de noapte",
+  sporRepaus: "Ore lucrate în zile de repaus săptămânal",
+  sporSarbatoare: "Ore lucrate în zile de sărbătoare legală",
   primeTotal: "Prime",
   brut: "Total brut",
   valoareTichete: "Tichete de masă",

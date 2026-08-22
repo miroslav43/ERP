@@ -3,6 +3,7 @@
 
 import { numaraZileCerere } from "@/domain/leave/zile-cerere";
 import type { TaxExemptionSnapshot } from "@/domain/payroll/calc";
+import { contractEfectiv } from "@/domain/payroll/contract";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { zileNelucratoare } from "@/lib/queries/leave";
 
@@ -309,56 +310,164 @@ export async function zileLucratoareLuna(
 
 // ── Angajați activi și pontajul lor agregat pentru o perioadă ──────────────
 
+/** Marginile lunii ca șiruri 'AAAA-LL-ZZ' — fără a construi vreun `Date` local. */
+export function marginileLunii(an: number, luna: number): { prima: string; ultima: string } {
+  const ll = String(luna).padStart(2, "0");
+  const zz = String(new Date(Date.UTC(an, luna, 0)).getUTCDate()).padStart(2, "0");
+  return { prima: `${String(an)}-${ll}-01`, ultima: `${String(an)}-${ll}-${zz}` };
+}
+
 export interface AngajatDeCalculat {
   readonly employee_id: string;
+  /** Rândul care dă termenii — actul adițional aplicabil, dacă există. */
   readonly contract_id: string;
+  /** Contractul de bază al lanțului, cel raportat în REVISAL. */
+  readonly contract_de_baza_id: string;
   readonly full_name: string;
   readonly marca: string;
   readonly salariu_baza: number;
+  readonly norma_ore_zi: number;
+  readonly norma_ore_saptamana: number;
   readonly nr_persoane_intretinere: number;
+  readonly contract_schimbat_in_luna: boolean;
 }
 
+export interface AngajatFaraContract {
+  readonly employee_id: string;
+  readonly full_name: string;
+  readonly marca: string;
+}
+
+export interface RezultatAngajatiDeCalculat {
+  readonly angajati: readonly AngajatDeCalculat[];
+  /**
+   * Angajați activi pentru care nu s-a găsit niciun contract aplicabil lunii.
+   * Se întorc SEPARAT, nu se sar tăcut: varianta veche îi elimina cu `continue`,
+   * iar oamenii aceștia pur și simplu nu apăreau pe statul de plată.
+   */
+  readonly faraContract: readonly AngajatFaraContract[];
+  /** Citirea a atins plafonul de siguranță — cifrele NU sunt complete. */
+  readonly trunchiat: boolean;
+}
+
+const PAGINA_ANGAJATI = 500;
+/** ~50.000 de angajați. Peste atât, ceva e în neregulă, nu e o firmă mare. */
+const MAXIM_PAGINI = 100;
+
+/**
+ * Angajații activi și contractul lor EFECTIV în luna dată.
+ *
+ * Două defecte reparate față de varianta anterioară:
+ *
+ * 1. Se citeau doar contractele cu `este_act_aditional = false`, deci o mărire
+ *    de salariu (care se face exact printr-un act adițional) nu ajungea
+ *    niciodată în calcul. Acum se citește tot lanțul, iar alegerea o face
+ *    `contractEfectiv()` — funcție pură, testată separat.
+ * 2. Citirea nu era paginată. PostgREST taie tăcut la 1000 de rânduri
+ *    (`max_rows`, supabase/config.toml), deci de la al 1001-lea angajat lista
+ *    se scurta fără nicio eroare. Acum se parcurge în pagini după `id`.
+ */
 export async function angajatiActiviCuContract(
   organizationId: string,
-): Promise<readonly AngajatDeCalculat[]> {
+  an: number,
+  luna: number,
+): Promise<RezultatAngajatiDeCalculat> {
   const db = await createServerSupabase();
+  const { prima, ultima } = marginileLunii(an, luna);
+
+  interface ContractBrut {
+    readonly id: string;
+    readonly este_act_aditional: boolean;
+    readonly parent_contract_id: string | null;
+    readonly status: string;
+    readonly valabil_de_la: string;
+    readonly valabil_pana: string | null;
+    readonly data_contract: string;
+    readonly salariu_baza: number;
+    readonly norma_ore_zi: number;
+    readonly norma_ore_saptamana: number;
+  }
   interface Bruta {
     readonly id: string;
     readonly full_name: string;
     readonly marca: string;
     readonly nr_persoane_intretinere: number;
-    readonly contracts: readonly Readonly<{
-      id: string;
-      salariu_baza: number;
-      status: string;
-      este_act_aditional: boolean;
-    }>[];
+    readonly contracts: readonly ContractBrut[];
   }
-  const { data, error } = await db
-    .from("employees")
-    .select(
-      "id, full_name, marca, nr_persoane_intretinere, contracts:employment_contracts!employee_id(id, salariu_baza, status, este_act_aditional)",
-    )
-    .eq("organization_id", organizationId)
-    .eq("status", "activ")
-    .is("deleted_at", null)
-    .returns<Bruta[]>();
-  if (error !== null) throw error;
 
-  const rezultat: AngajatDeCalculat[] = [];
-  for (const angajat of data ?? []) {
-    const contract = angajat.contracts.find((c) => c.status === "activ" && !c.este_act_aditional);
-    if (contract === undefined) continue;
-    rezultat.push({
-      employee_id: angajat.id,
-      contract_id: contract.id,
-      full_name: angajat.full_name,
-      marca: angajat.marca,
-      salariu_baza: contract.salariu_baza,
-      nr_persoane_intretinere: angajat.nr_persoane_intretinere,
-    });
+  const angajati: AngajatDeCalculat[] = [];
+  const faraContract: AngajatFaraContract[] = [];
+  let dupaId: string | null = null;
+  let trunchiat = true;
+
+  for (let pagina = 0; pagina < MAXIM_PAGINI; pagina += 1) {
+    let interogare = db
+      .from("employees")
+      .select(
+        "id, full_name, marca, nr_persoane_intretinere, contracts:employment_contracts!employee_id(id, este_act_aditional, parent_contract_id, status, valabil_de_la, valabil_pana, data_contract, salariu_baza, norma_ore_zi, norma_ore_saptamana)",
+      )
+      .eq("organization_id", organizationId)
+      .eq("status", "activ")
+      .is("deleted_at", null)
+      .order("id", { ascending: true })
+      .limit(PAGINA_ANGAJATI);
+    if (dupaId !== null) interogare = interogare.gt("id", dupaId);
+
+    const { data, error } = await interogare.returns<Bruta[]>();
+    if (error !== null) throw error;
+    const lot = data ?? [];
+
+    for (const angajat of lot) {
+      const efectiv = contractEfectiv(
+        angajat.contracts.map((c) => ({
+          id: c.id,
+          esteActAditional: c.este_act_aditional,
+          parentContractId: c.parent_contract_id,
+          status: c.status,
+          valabilDeLa: c.valabil_de_la,
+          valabilPana: c.valabil_pana,
+          dataContract: c.data_contract,
+          salariuBaza: c.salariu_baza,
+          normaOreZi: c.norma_ore_zi,
+          normaOreSaptamana: c.norma_ore_saptamana,
+        })),
+        prima,
+        ultima,
+      );
+      if (efectiv === null) {
+        faraContract.push({
+          employee_id: angajat.id,
+          full_name: angajat.full_name,
+          marca: angajat.marca,
+        });
+        continue;
+      }
+      angajati.push({
+        employee_id: angajat.id,
+        contract_id: efectiv.contractId,
+        contract_de_baza_id: efectiv.contractDeBazaId,
+        full_name: angajat.full_name,
+        marca: angajat.marca,
+        salariu_baza: efectiv.salariuBaza,
+        norma_ore_zi: efectiv.normaOreZi,
+        norma_ore_saptamana: efectiv.normaOreSaptamana,
+        nr_persoane_intretinere: angajat.nr_persoane_intretinere,
+        contract_schimbat_in_luna: efectiv.schimbatInLuna,
+      });
+    }
+
+    if (lot.length < PAGINA_ANGAJATI) {
+      trunchiat = false;
+      break;
+    }
+    dupaId = lot[lot.length - 1]?.id ?? null;
+    if (dupaId === null) {
+      trunchiat = false;
+      break;
+    }
   }
-  return rezultat;
+
+  return { angajati, faraContract, trunchiat };
 }
 
 /**
@@ -563,63 +672,86 @@ export async function listeazaBonusuriSiRetineri(
 
 export interface PontajAgregat {
   readonly zile_lucrate: number;
-  readonly ore_lucrate: number;
-  readonly ore_suplimentare: number;
-  readonly ore_noapte: number;
   readonly zile_concediu_odihna: number;
   readonly zile_concediu_medical: number;
   readonly zile_absenta_nemotivata: number;
+  readonly zile_repaus_lucrate: number;
+  readonly zile_sarbatoare_lucrate: number;
+  readonly ore_lucrate: number;
+  readonly ore_normale_zi: number;
+  readonly ore_suplimentare_zi: number;
+  readonly ore_normale_repaus: number;
+  readonly ore_suplimentare_repaus: number;
+  readonly ore_normale_sarbatoare: number;
+  readonly ore_suplimentare_sarbatoare: number;
+  readonly ore_noapte: number;
 }
 
-const PONTAJ_GOL: PontajAgregat = {
+export const PONTAJ_GOL: PontajAgregat = {
   zile_lucrate: 0,
-  ore_lucrate: 0,
-  ore_suplimentare: 0,
-  ore_noapte: 0,
   zile_concediu_odihna: 0,
   zile_concediu_medical: 0,
   zile_absenta_nemotivata: 0,
+  zile_repaus_lucrate: 0,
+  zile_sarbatoare_lucrate: 0,
+  ore_lucrate: 0,
+  ore_normale_zi: 0,
+  ore_suplimentare_zi: 0,
+  ore_normale_repaus: 0,
+  ore_suplimentare_repaus: 0,
+  ore_normale_sarbatoare: 0,
+  ore_suplimentare_sarbatoare: 0,
+  ore_noapte: 0,
 };
 
-/** Pontajul agregat, pe angajat, pentru toată perioada de pontaj legată. */
-export async function pontajAgregatPerioada(
-  organizationId: string,
-  attendancePeriodId: string,
-): Promise<ReadonlyMap<string, PontajAgregat>> {
-  const db = await createServerSupabase();
-  interface RandBrut {
-    readonly employee_id: string;
-    readonly tip_zi: string;
-    readonly ore_lucrate: number;
-    readonly ore_suplimentare: number;
-    readonly ore_noapte: number;
-  }
-  const { data, error } = await db
-    .from("attendance_entries")
-    .select("employee_id, tip_zi, ore_lucrate, ore_suplimentare, ore_noapte")
-    .eq("organization_id", organizationId)
-    .eq("period_id", attendancePeriodId)
-    .is("deleted_at", null)
-    .returns<RandBrut[]>();
-  if (error !== null) throw error;
+export interface RezultatPontajAgregat {
+  readonly pePersoana: ReadonlyMap<string, PontajAgregat>;
+  /** Citirea a atins plafonul de siguranță — pontajul NU e complet. */
+  readonly trunchiat: boolean;
+}
 
-  const rezultat = new Map<string, PontajAgregat>();
-  for (const rand of data ?? []) {
-    const curent = rezultat.get(rand.employee_id) ?? { ...PONTAJ_GOL };
-    const urmatorul: { -readonly [K in keyof PontajAgregat]: PontajAgregat[K] } = { ...curent };
-    if (rand.tip_zi === "lucratoare" || rand.tip_zi === "delegatie") {
-      urmatorul.zile_lucrate += 1;
-      urmatorul.ore_lucrate += rand.ore_lucrate;
-      urmatorul.ore_suplimentare += rand.ore_suplimentare;
-      urmatorul.ore_noapte += rand.ore_noapte;
-    } else if (rand.tip_zi === "concediu") {
-      urmatorul.zile_concediu_odihna += 1;
-    } else if (rand.tip_zi === "medical") {
-      urmatorul.zile_concediu_medical += 1;
-    } else if (rand.tip_zi === "absenta_nemotivata") {
-      urmatorul.zile_absenta_nemotivata += 1;
+const PAGINA_PONTAJ = 500;
+const MAXIM_PAGINI_PONTAJ = 100;
+
+/**
+ * Pontajul lunii, agregat pe angajat, prin `public.pontaj_agregat_salarizare`
+ * (migrarea 0045).
+ *
+ * Varianta anterioară citea `attendance_entries` rând-cu-zi și avea DOUĂ
+ * defecte tăcute, ambele reparate de funcția SQL:
+ *
+ *   - rândurile cu `tip_zi` 'weekend' sau 'sarbatoare' cădeau prin toate
+ *     ramurile de clasificare: cine muncea sâmbăta nu era plătit deloc;
+ *   - la 33 de angajați x 31 de zile se depășeau cele 1000 de rânduri pe care
+ *     PostgREST le întoarce, iar restul se tăiau fără nicio eroare.
+ *
+ * Agregarea în SQL întoarce un rând per angajat, deci pragul de 1000 se atinge
+ * abia la 1000 de angajați — și chiar și atunci, paginarea de mai jos îl
+ * traversează, cu santinelă dacă s-ar depăși plafonul de siguranță.
+ *
+ * Izolarea rămâne la RLS: funcția e `SECURITY INVOKER`, deci `attendance_entries`
+ * își aplică politicile pentru apelantul curent.
+ */
+export async function pontajAgregatPerioada(
+  attendancePeriodId: string,
+): Promise<RezultatPontajAgregat> {
+  const db = await createServerSupabase();
+  const pePersoana = new Map<string, PontajAgregat>();
+
+  for (let pagina = 0; pagina < MAXIM_PAGINI_PONTAJ; pagina += 1) {
+    const de = pagina * PAGINA_PONTAJ;
+    const { data, error } = await db
+      .rpc("pontaj_agregat_salarizare", { p_period_id: attendancePeriodId })
+      .select("*")
+      .range(de, de + PAGINA_PONTAJ - 1);
+    if (error !== null) throw error;
+
+    const lot = data ?? [];
+    for (const rand of lot) {
+      const { employee_id, ...restul } = rand;
+      pePersoana.set(employee_id, restul);
     }
-    rezultat.set(rand.employee_id, urmatorul);
+    if (lot.length < PAGINA_PONTAJ) return { pePersoana, trunchiat: false };
   }
-  return rezultat;
+  return { pePersoana, trunchiat: true };
 }
