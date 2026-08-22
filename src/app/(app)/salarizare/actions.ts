@@ -369,7 +369,7 @@ export const calculeazaPerioada = createAction({
       };
     });
 
-    // O SINGURĂ tranzacție, prin RPC (migrarea 0047).
+    // O SINGURĂ tranzacție, prin RPC (migrarea 0051).
     //
     // Varianta anterioară trimitea câte o cerere HTTP per angajat — pentru 200
     // de angajați, 200 de cereri fără nimic care să le lege. Un eșec la

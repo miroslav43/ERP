@@ -715,7 +715,7 @@ const MAXIM_PAGINI_PONTAJ = 100;
 
 /**
  * Pontajul lunii, agregat pe angajat, prin `public.pontaj_agregat_salarizare`
- * (migrarea 0045).
+ * (migrarea 0049).
  *
  * Varianta anterioară citea `attendance_entries` rând-cu-zi și avea DOUĂ
  * defecte tăcute, ambele reparate de funcția SQL:

@@ -1,35 +1,19 @@
--- supabase/migrations/0047_salarizare_scriere_atomica.sql
+-- supabase/migrations/0052_salarizare_scriere_completa.sql
 --
--- Scrierea rezultatelor de salarizare, într-o singură tranzacție.
+-- Gardă de completitudine peste `payroll_scrie_rezultate` (0051).
 --
--- DEFECTUL REPARAT: `calculeazaPerioada` scria cu `Promise.all` peste UPDATE-uri
--- individuale, apoi un INSERT separat, apoi încă un UPDATE de stare — fiecare o
--- cerere HTTP proprie, fără nicio tranzacție care să le lege. Pentru 200 de
--- angajați însemna 200+ cereri, iar un eșec la jumătate lăsa perioada cu
--- jumătate din rânduri recalculate și jumătate vechi, fără nimic care să arate
--- unde s-a rupt. Pe un stat de plată, asta e mai rău decât o eroare curată.
+-- DEFECTUL, găsit la proba pe baza reală: `jsonb_populate_record` transformă
+-- ORICE cheie lipsă din JSON în NULL. Pentru o coloană `not null` asta produce
+-- 23502 — zgomotos, deci inofensiv. Dar pentru coloanele care ACCEPTĂ null
+-- (`contract_id`, `calculat_la`) un rând parțial ar fi ȘTERS tăcut valoarea
+-- existentă, la o simplă recalculare. Exact clasa de defect pe care restul
+-- modulului o vânează: nicio eroare, date pierdute.
 --
--- Un apel RPC prin PostgREST rulează într-o SINGURĂ tranzacție: ori se scriu
--- toate rândurile, ori niciunul.
---
--- De ce nu `.upsert()` din client: unicitatea e pe un index PARȚIAL
--- (`payroll_entries_uq ... where deleted_at is null`), iar PostgREST nu emite
--- predicatul în `ON CONFLICT` — cade cu 42P10 (capcana 7). Aici, în SQL,
--- „citește-apoi-scrie" e ieftin și corect.
---
--- SECURITY INVOKER, deliberat: politicile `payroll_entries_insert` și
--- `payroll_entries_update` se aplică apelantului. Un rol fără drept de scriere
--- primește 42501, nu o scriere reușită.
---
--- `organization_id` și `period_id` NU se iau din sarcina utilă, ci se derivă din
--- perioadă. Altfel un apel construit de mână ar putea încerca să strecoare
--- rânduri în altă organizație — RLS l-ar opri, dar e mai bine să nici nu ajungă
--- acolo. La fel, `id`, `created_*`, `updated_*` și `deleted_at` sunt în afara
--- controlului clientului: primele două le pune baza, celelalte triggerele.
---
--- Apelantul trimite rânduri COMPLETE: o recalculare înlocuiește rândul întreg,
--- nu îl peticește. O cheie lipsă din JSON devine NULL, ca la orice
--- `jsonb_populate_record`.
+-- Semantica funcției rămâne „înlocuiește rândul", nu „peticește-l": o
+-- recalculare recompune rândul întreg. Prin urmare, în loc să deducem intenția
+-- din cheile prezente, cerem rândul complet și refuzăm explicit orice altceva,
+-- numind prima cheie lipsă. Un apelant care uită o coloană nou-adăugată în
+-- schemă află imediat, nu peste trei luni, dintr-un fluturaș greșit.
 
 \set ON_ERROR_STOP on
 
@@ -48,9 +32,64 @@ declare
   v_org         uuid;
   v_inserate    integer := 0;
   v_actualizate integer := 0;
+  v_lipsa       text;
+  v_chei        text[] := array[
+    'employee_id',
+    'contract_id',
+    'status',
+    'zile_lucratoare_luna',
+    'zile_lucrate',
+    'zile_concediu_odihna',
+    'zile_concediu_medical',
+    'zile_absenta_nemotivata',
+    'ore_lucrate',
+    'ore_suplimentare',
+    'ore_noapte',
+    'baza_salariu',
+    'suma_ore_suplimentare',
+    'spor_noapte',
+    'prime_total',
+    'brut',
+    'nr_tichete',
+    'valoare_tichete',
+    'baza_cas_cass',
+    'cas',
+    'cass',
+    'deducere_personala',
+    'baza_impozit',
+    'impozit',
+    'cam_angajator',
+    'net',
+    'retineri_total',
+    'net_de_plata',
+    'cost_total_angajator',
+    'settings_snapshot',
+    'calc_breakdown',
+    'calc_warnings',
+    'calculat_la',
+    'scutire_fiscala',
+    'zile_repaus_lucrate',
+    'zile_sarbatoare_lucrate',
+    'ore_repaus',
+    'ore_sarbatoare',
+    'spor_repaus',
+    'spor_sarbatoare'
+  ];
 begin
   if jsonb_typeof(p_randuri) is distinct from 'array' then
     raise exception 'Rândurile de salariu trebuie trimise ca listă.' using errcode = 'P0001';
+  end if;
+
+  select k into v_lipsa
+    from jsonb_array_elements(p_randuri) e
+    cross join lateral unnest(v_chei) k
+   where not (e ? k)
+   limit 1;
+
+  if v_lipsa is not null then
+    raise exception
+      'Rândul de salariu este incomplet: lipsește câmpul „%". Recalcularea înlocuiește rândul întreg, deci toate câmpurile sunt obligatorii.',
+      v_lipsa using errcode = 'P0001';
   end if;
 
   select pp.organization_id into v_org
@@ -224,11 +263,5 @@ begin
   return query select v_inserate, v_actualizate;
 end;
 $fn$;
-
-comment on function public.payroll_scrie_rezultate(uuid, jsonb) is
-  'Scrie rândurile de salariu ale unei perioade într-o singură tranzacție. SECURITY INVOKER: RLS-ul payroll_entries rămâne bariera. organization_id si period_id se derivă din perioadă, nu din sarcina utilă.';
-
-revoke all on function public.payroll_scrie_rezultate(uuid, jsonb) from public, anon;
-grant execute on function public.payroll_scrie_rezultate(uuid, jsonb) to authenticated;
 
 commit;

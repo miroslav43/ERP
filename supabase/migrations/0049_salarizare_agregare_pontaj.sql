@@ -1,4 +1,4 @@
--- supabase/migrations/0045_salarizare_agregare_pontaj.sql
+-- supabase/migrations/0049_salarizare_agregare_pontaj.sql
 --
 -- Agregarea pontajului pentru salarizare, mutată din TypeScript în SQL.
 -- Repară două defecte care produceau salarii greșite, ambele TĂCUT.

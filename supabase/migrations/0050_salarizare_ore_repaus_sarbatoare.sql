@@ -1,7 +1,7 @@
--- supabase/migrations/0046_salarizare_ore_repaus_sarbatoare.sql
+-- supabase/migrations/0050_salarizare_ore_repaus_sarbatoare.sql
 --
 -- Coloanele în care ajung orele lucrate în zilele de repaus săptămânal și de
--- sărbătoare legală, recuperate de `0045`.
+-- sărbătoare legală, recuperate de `0049`.
 --
 -- De ce coloane proprii și nu îndesate în `suma_ore_suplimentare`: fluturașul
 -- afișează linie cu linie. Orele normale lucrate într-o sâmbătă NU sunt ore
