@@ -1,0 +1,15 @@
+# Terminatori de linie: LF peste tot, inclusiv în copia de lucru de pe Windows.
+#
+# Fără acest fișier, `core.autocrlf=true` — implicit la instalările Git de pe
+# Windows — scrie CRLF la fiecare checkout, deși în depozit totul e stocat cu LF.
+# Prettier are `endOfLine: "lf"` implicit, deci respingea 679 de fișiere din 679,
+# adică tot repozitoriul: `pnpm verify` nu putea trece pe Windows, niciodată.
+#
+# `eol=lf` e mai tare decât `text=auto` singur: normalizează la commit ȘI forțează
+# LF la checkout, indiferent de `core.autocrlf` al fiecărui dezvoltator. Fără el,
+# problema reapare pe orice mașină nou clonată.
+* text=auto eol=lf
+
+# Singurul binar din repo. `text=auto` l-ar detecta oricum, dar o declarație
+# explicită nu depinde de euristică.
+*.ico binary
