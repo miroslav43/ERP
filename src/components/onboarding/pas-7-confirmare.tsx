@@ -1,4 +1,4 @@
-// src/app/(platform)/super-admin/organizatii/nou/_components/pas-7-confirmare.tsx
+// src/components/onboarding/pas-7-confirmare.tsx
 "use client";
 
 import { useWatch, type UseFormReturn } from "react-hook-form";
