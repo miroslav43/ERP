@@ -39,6 +39,12 @@ declare
   v_emp_alfa   uuid := gen_random_uuid();
   v_admin_beta uuid := gen_random_uuid();
   v_emp_beta   uuid := gen_random_uuid();
+  -- Actori adăugați pentru verificarea (l): fixture-ul avea DOAR org_admin și
+  -- employee, deci trei roluri din cinci nu erau niciodată dovedite capabile să
+  -- scrie ceva. `mgr_alfa` exista ca FIȘĂ de angajat, dar `user_id`-ul ei era
+  -- chiar al lui org_admin — un manager pe hârtie, nu un utilizator.
+  v_mgr_alfa   uuid := gen_random_uuid();
+  v_hr_alfa    uuid := gen_random_uuid();
   v_sufix      text;
 begin
   -- Identificatorii se generează la fiecare rulare, nu sunt ficși.
@@ -56,17 +62,23 @@ begin
   insert into t_ids values
     ('alfa', v_alfa), ('beta', v_beta),
     ('admin_alfa', v_admin_alfa), ('emp_alfa', v_emp_alfa),
-    ('admin_beta', v_admin_beta), ('emp_beta', v_emp_beta);
+    ('admin_beta', v_admin_beta), ('emp_beta', v_emp_beta),
+    ('mgr_user_alfa', v_mgr_alfa), ('hr_user_alfa', v_hr_alfa),
+    ('mgr2_alfa', gen_random_uuid()), ('hr_ang_alfa', gen_random_uuid()),
+    ('sub_alfa', gen_random_uuid());
 
   insert into auth.users (id, email) values
     (v_admin_alfa, 'admin-' || v_sufix || '@alfa.test'), (v_emp_alfa, 'angajat-' || v_sufix || '@alfa.test'),
-    (v_admin_beta, 'admin-' || v_sufix || '@beta.test'), (v_emp_beta, 'angajat-' || v_sufix || '@beta.test');
+    (v_admin_beta, 'admin-' || v_sufix || '@beta.test'), (v_emp_beta, 'angajat-' || v_sufix || '@beta.test'),
+    (v_mgr_alfa, 'manager-' || v_sufix || '@alfa.test'), (v_hr_alfa, 'hr-' || v_sufix || '@alfa.test');
 
   insert into public.profiles (id, email, full_name) values
     (v_admin_alfa, 'admin-' || v_sufix || '@alfa.test',   'Administrator Alfa'),
     (v_emp_alfa,   'angajat-' || v_sufix || '@alfa.test', 'Angajat Alfa'),
     (v_admin_beta, 'admin-' || v_sufix || '@beta.test',   'Administrator Beta'),
-    (v_emp_beta,   'angajat-' || v_sufix || '@beta.test', 'Angajat Beta')
+    (v_emp_beta,   'angajat-' || v_sufix || '@beta.test', 'Angajat Beta'),
+    (v_mgr_alfa,   'manager-' || v_sufix || '@alfa.test', 'Manager Alfa'),
+    (v_hr_alfa,    'hr-' || v_sufix || '@alfa.test',      'Resurse Umane Alfa')
   on conflict (id) do nothing;
 
   insert into public.organizations (id, slug, name, legal_name, cui, judet, oras, status)
@@ -78,7 +90,9 @@ begin
     (v_alfa, v_admin_alfa, 'org_admin', 'active', now()),
     (v_alfa, v_emp_alfa,   'employee',  'active', now()),
     (v_beta, v_admin_beta, 'org_admin', 'active', now()),
-    (v_beta, v_emp_beta,   'employee',  'active', now());
+    (v_beta, v_emp_beta,   'employee',  'active', now()),
+    (v_alfa, v_mgr_alfa,   'manager',   'active', now()),
+    (v_alfa, v_hr_alfa,    'hr',        'active', now());
 
   -- Alfa are „leave" activ, Beta nu: verificăm și feature flag-ul, nu doar tenantul.
   -- Alfa are toate modulele necesare verificării (l) activate — altfel scrierile
@@ -195,6 +209,33 @@ begin
           (select val from t_ids where cheie='dep_beta'), (select val from t_ids where cheie='poz_beta'),
           (select val from t_ids where cheie='mgr_beta'),
           current_date - 300, 'activ', v_emp_beta);
+
+  -- Fișele actorilor `manager` și `hr`, plus un subordonat al managerului.
+  --
+  -- Managerul PRIMEȘTE un subordonat propriu în loc să preia fișa `mgr_alfa`:
+  -- aceea e legată de `v_admin_alfa` și e folosită deja de verificările (c)-(k)
+  -- ca „managerul direct al Anei". Mutarea ei ar schimba tăcut premisele
+  -- testelor existente. Un al doilea lanț manager→subordonat e aditiv.
+  --
+  -- `manager_path` NU se trimite: îl calculează triggerul BEFORE. Exact aici a
+  -- fost defectul din Faza 2 — politica cerea `manager_path = '{}'` cu un
+  -- comentariu care spunea „calculat de trigger", dar WITH CHECK vede valoarea
+  -- DEJA scrisă de trigger (capcana 6).
+  insert into public.employees (id, organization_id, marca, first_name, last_name,
+                                department_id, job_position_id, hired_on, status, user_id)
+  values ((select val from t_ids where cheie='mgr2_alfa'), v_alfa, '010', 'Mircea', 'Șef',
+          (select val from t_ids where cheie='dep_alfa'), (select val from t_ids where cheie='poz_alfa'),
+          current_date - 600, 'activ', v_mgr_alfa),
+         ((select val from t_ids where cheie='hr_ang_alfa'), v_alfa, '011', 'Hortensia', 'Resurse',
+          (select val from t_ids where cheie='dep_alfa'), (select val from t_ids where cheie='poz_alfa'),
+          current_date - 550, 'activ', v_hr_alfa);
+
+  insert into public.employees (id, organization_id, marca, first_name, last_name,
+                                department_id, job_position_id, manager_employee_id, hired_on, status)
+  values ((select val from t_ids where cheie='sub_alfa'), v_alfa, '012', 'Sorin', 'Subordonat',
+          (select val from t_ids where cheie='dep_alfa'), (select val from t_ids where cheie='poz_alfa'),
+          (select val from t_ids where cheie='mgr2_alfa'),
+          current_date - 200, 'activ');
 
   insert into public.employment_contracts (organization_id, employee_id, numar, data_contract, valabil_de_la, salariu_baza)
   values (v_alfa, (select val from t_ids where cheie='ang_alfa'), 'CIM-1', current_date - 400, current_date - 400, 5000.00),
@@ -1122,6 +1163,17 @@ declare
   v_admin      uuid := pg_temp.id('admin_alfa');   -- și org_admin, și managerul direct al Anei (mgr_alfa.user_id)
   v_emp_user   uuid := pg_temp.id('emp_alfa');
   v_ang_alfa   uuid := pg_temp.id('ang_alfa');
+  -- Actori cu rolurile `manager` și `hr` PROPRIU-ZISE. Până acum, scrierile
+  -- etichetate „manager" erau făcute de `v_admin`, care e `org_admin`: treceau
+  -- fiindcă org_admin are scope `all`, nu fiindcă scope-ul `team` al
+  -- managerului funcționează. Eticheta era aspirațională.
+  v_mgr_user   uuid := pg_temp.id('mgr_user_alfa');
+  v_hr_user    uuid := pg_temp.id('hr_user_alfa');
+  v_sub_alfa   uuid := pg_temp.id('sub_alfa');
+  v_dep_alfa   uuid := pg_temp.id('dep_alfa');
+  v_equip      uuid := pg_temp.id('equip_alfa');
+  v_scapate    text := '';
+  v_caz        record;
   v_leave_type uuid;
   v_leave_req_id uuid;
   v_task_id    uuid;
@@ -1284,6 +1336,77 @@ begin
   end;
   reset role;
 
+  -- ───────────────────────────────────────────────────────────────────────
+  -- Rolurile `hr` și `manager`, cu identitatea lor reală.
+  --
+  -- Fiecare pereche (rol, tabelă) de mai jos a fost stabilită EMPIRIC pe un
+  -- Postgres 17 cu toate migrările aplicate, nu dedusă din seed: o sondă a
+  -- încercat scrierea sub identitatea rolului și a înregistrat rezultatul.
+  -- Cazurile REFUZATE sunt la fel de importante ca cele permise — fără ele, o
+  -- politică `using (true)` ar trece verificarea.
+  -- ───────────────────────────────────────────────────────────────────────
+  for v_caz in
+    select * from (values
+      -- rol, eticheta, asteptat, sql
+      ('hr',      'employees (fișă nouă)',            'PERMIS',
+       'insert into public.employees (organization_id, marca, first_name, last_name, department_id) values ($1,''L-HR-'' || $5,''Test'',''HR'',$4)'),
+      ('hr',      'departments (departament nou)',    'PERMIS',
+       'insert into public.departments (organization_id, cod, denumire, activ, path, depth) values ($1,''L-HR-'' || $5,''Departament (l)'',true,''{}'',0)'),
+      ('hr',      'attendance_entries (pontaj)',      'PERMIS',
+       'insert into public.attendance_entries (organization_id, employee_id, data, ore_lucrate, tip_zi) values ($1,$3,current_date,8,''lucratoare'')'),
+      ('hr',      'ssm_trainings (instruire)',        'PERMIS',
+       'insert into public.ssm_trainings (organization_id, employee_id, training_type_id, data_instruirii, durata_ore, semnatura_confirmata) select $1,$3,tt.id,current_date - 10,2,true from public.ssm_training_types tt where tt.organization_id=$1 and tt.cod=''la_locul_de_munca'' and tt.deleted_at is null limit 1'),
+      ('hr',      'inventory_items (obiect)',         'PERMIS',
+       'insert into public.inventory_items (organization_id, denumire, numar_inventar) values ($1,''Obiect (l)'',''L-HR-'' || $5)'),
+      -- hr administrează SSM, dar NU are niciun `vehicles:*` (capcana 18/26).
+      ('hr',      'vehicles (fără drept)',            'REFUZAT',
+       'insert into public.vehicles (organization_id, nr_inmatriculare, marca, model, created_by, updated_by) values ($1,''CJ'' || left($5,2) || ''SND'',''Dacia'',''Logan'',auth.uid(),auth.uid())'),
+      -- Calea REALĂ de aprobare a managerului. Capcana 4 îi închide scrierea
+      -- linie cu linie pe `attendance_entries` (are `approve`, nu `create`),
+      -- dar LOTUL de aprobare trece prin `app.can(...,'attendance','approve',
+      -- 'team')` — deci exact scope-ul lui. Dacă asta s-ar rupe, managerul n-ar
+      -- mai putea aproba pontajul deloc, iar verificările (a)-(k) ar rămâne
+      -- toate verzi. `linii_aprobate` NU se trimite: WITH CHECK îl cere 0.
+      ('manager', 'attendance_approval_batches (lot)', 'PERMIS',
+       'insert into public.attendance_approval_batches (organization_id, period_id) values ($1, (select p.id from public.attendance_periods p where p.organization_id=$1 and p.deleted_at is null order by p.created_at limit 1))'),
+      -- Singura scriere pe care managerul o poate face în modulele active:
+      -- `maintenance:create = all` îi deschide sesizarea de defect. Capcana 35
+      -- avertizează că poarta BAZEI e mai largă decât cea a aplicației.
+      ('manager', 'fault_reports (sesizare)',         'PERMIS',
+       'insert into public.fault_reports (organization_id, equipment_id, descriere, urgenta) values ($1,$2,''Defect semnalat în (l)'',''medie'')'),
+      -- Capcana 4: are attendance:approve=team, dar NU attendance:create.
+      ('manager', 'attendance_entries (fără create)', 'REFUZAT',
+       'insert into public.attendance_entries (organization_id, employee_id, data, ore_lucrate, tip_zi) values ($1,$3,current_date,8,''lucratoare'')'),
+      -- employees:read=team, fără create.
+      ('manager', 'employees (fără create)',          'REFUZAT',
+       'insert into public.employees (organization_id, marca, first_name, last_name, department_id) values ($1,''L-MG-'' || $5,''Test'',''Manager'',$4)')
+    ) as t(rol, eticheta, asteptat, sql)
+  loop
+    perform set_config('request.jwt.claim.sub',
+      (case v_caz.rol when 'manager' then v_mgr_user else v_hr_user end)::text, true);
+    set local role authenticated;
+    begin
+      execute v_caz.sql using v_alfa, v_equip, v_sub_alfa, v_dep_alfa, left(v_rand, 6);
+      if v_caz.asteptat = 'PERMIS' then
+        v_reusite := v_reusite || format(E'\n  %s -> %s', v_caz.rol, v_caz.eticheta);
+      else
+        v_scapate := v_scapate || format(E'\n  %s -> %s: scrierea a REUȘIT, deși trebuia refuzată', v_caz.rol, v_caz.eticheta);
+      end if;
+    exception when others then
+      if v_caz.asteptat = 'PERMIS' then
+        v_esuate := v_esuate || format(E'\n  %s -> %s: %s (%s)', v_caz.rol, v_caz.eticheta, sqlerrm, sqlstate);
+      else
+        v_reusite := v_reusite || format(E'\n  %s -> %s: refuzat corect (%s)', v_caz.rol, v_caz.eticheta, sqlstate);
+      end if;
+    end;
+    reset role;
+  end loop;
+
+  if v_scapate <> '' then
+    perform pg_temp.esueaza(format(
+      E'(l) SCRIERI CARE TREBUIAU REFUZATE AU TRECUT — gaură de permisiuni:%s', v_scapate));
+  end if;
+
   if v_reusite <> '' then
     raise notice '(l) scrieri reușite:%', v_reusite;
   end if;
@@ -1293,7 +1416,7 @@ begin
       E'(l) SCRIERI LEGITIME RESPINSE — defect real în politică sau trigger, nu în test:%s', v_esuate));
   end if;
 
-  raise notice '(l) employee + manager + org_admin pot lucra în concedii, inventar, flotă, pontaj, SSM, onboarding și deplasări ✓';
+  raise notice '(l) toate cele patru roluri de organizație (org_admin, hr, manager, employee) pot scrie ce au voie și SUNT refuzate unde nu au ✓';
 end $$;
 
 rollback;

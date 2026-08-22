@@ -45,7 +45,16 @@ if [ -z "$URL" ]; then
     echo "        $0 --url postgresql://postgres:parola@localhost:5432/banc"
     exit 3; }
   CONTAINER="administrativo-banc-$$"
-  PORT=55432
+  # Port liber, nu unul fix: o rulare anterioară cu `--pastreaza` ține 55432
+  # ocupat, iar `docker run` cade atunci cu „port is already allocated" —
+  # adică bancul refuză să pornească exact după o sesiune de iterat, când ai
+  # cea mai mare nevoie de el.
+  PORT=""
+  for p in $(seq 55432 55452); do
+    if ! (exec 3<>/dev/tcp/127.0.0.1/"$p") 2>/dev/null; then PORT="$p"; break; fi
+    exec 3>&- 2>/dev/null || true
+  done
+  [ -z "$PORT" ] && { echo "banc: niciun port liber în 55432-55452"; exit 3; }
   echo "▶ pornesc postgres:17-alpine (container $CONTAINER, port $PORT)"
   docker run --rm -d --name "$CONTAINER" -e POSTGRES_PASSWORD=banc -p "$PORT:5432" postgres:17-alpine >/dev/null || {
     echo "banc: nu am putut porni containerul"; exit 3; }
