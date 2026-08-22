@@ -35,6 +35,8 @@ export interface SetariSalarizare {
   readonly mod_calcul_indemnizatie_co: string;
   readonly luni_medie_indemnizatie_co: number;
   readonly zile_avertizare_termen_compensare: number;
+  readonly plafon_poprire_unica: number;
+  readonly plafon_popriri_concurente: number;
   readonly verificat_de_contabil: boolean;
   readonly verificat_la: string | null;
   readonly note: string | null;
@@ -65,7 +67,7 @@ export async function citesteSetariPeId(
   const { data, error } = await db
     .from("payroll_settings")
     .select(
-      "id, valabil_de_la, cota_cas, cota_cass, cota_impozit, cota_cam_angajator, norma_zilnica_ore, procent_spor_noapte, procent_spor_weekend, procent_ore_suplimentare, valoare_tichet_masa, tichete_impozabile, tichete_supuse_cass, rotunjire_lei, salariu_minim_brut, aplica_minim_contributii, mod_calcul_indemnizatie_co, luni_medie_indemnizatie_co, zile_avertizare_termen_compensare, verificat_de_contabil, verificat_la, note",
+      "id, valabil_de_la, cota_cas, cota_cass, cota_impozit, cota_cam_angajator, norma_zilnica_ore, procent_spor_noapte, procent_spor_weekend, procent_ore_suplimentare, valoare_tichet_masa, tichete_impozabile, tichete_supuse_cass, rotunjire_lei, salariu_minim_brut, aplica_minim_contributii, mod_calcul_indemnizatie_co, luni_medie_indemnizatie_co, zile_avertizare_termen_compensare, plafon_poprire_unica, plafon_popriri_concurente, verificat_de_contabil, verificat_la, note",
     )
     .eq("organization_id", organizationId)
     .eq("id", id)
@@ -85,7 +87,7 @@ export async function citesteSetariValabile(
   const { data: randuri, error } = await db
     .from("payroll_settings")
     .select(
-      "id, valabil_de_la, cota_cas, cota_cass, cota_impozit, cota_cam_angajator, norma_zilnica_ore, procent_spor_noapte, procent_spor_weekend, procent_ore_suplimentare, valoare_tichet_masa, tichete_impozabile, tichete_supuse_cass, rotunjire_lei, salariu_minim_brut, aplica_minim_contributii, mod_calcul_indemnizatie_co, luni_medie_indemnizatie_co, zile_avertizare_termen_compensare, verificat_de_contabil, verificat_la, note",
+      "id, valabil_de_la, cota_cas, cota_cass, cota_impozit, cota_cam_angajator, norma_zilnica_ore, procent_spor_noapte, procent_spor_weekend, procent_ore_suplimentare, valoare_tichet_masa, tichete_impozabile, tichete_supuse_cass, rotunjire_lei, salariu_minim_brut, aplica_minim_contributii, mod_calcul_indemnizatie_co, luni_medie_indemnizatie_co, zile_avertizare_termen_compensare, plafon_poprire_unica, plafon_popriri_concurente, verificat_de_contabil, verificat_la, note",
     )
     .eq("organization_id", organizationId)
     .lte("valabil_de_la", data)
@@ -1343,4 +1345,70 @@ export async function plafoaneDiurnaLuna(
     multiplicatorPlafonZilnic: data.multiplu_plafon_neimpozabil,
     fractiePlafonLunar: data.plafon_salarii_baza_luna,
   };
+}
+
+// ── Popriri active ────────────────────────────────────────────────────────
+
+export interface PoprireActiva {
+  readonly id: string;
+  readonly sumaLunara: number;
+  readonly soldRamas: number;
+  readonly esteIntretinere: boolean;
+  readonly prioritate: number;
+  readonly dosar: string;
+}
+
+/**
+ * Popririle active ale lunii, per angajat.
+ *
+ * `sold_ramas` e o coloană GENERATĂ (suma totală minus cea recuperată), tocmai
+ * ca reținerea să se poată opri singură când datoria se stinge. Se citesc și
+ * dosarele cu sold zero: etapa de calcul are nevoie de ele ca să raporteze
+ * `SAL_POPRIRE_STINSA` — altfel stingerea ar fi tăcută, iar nimeni n-ar ști de
+ * ce a crescut brusc netul.
+ */
+export async function popririActive(
+  organizationId: string,
+  an: number,
+  luna: number,
+): Promise<ReadonlyMap<string, readonly PoprireActiva[]>> {
+  const db = await createServerSupabase();
+  const { prima, ultima } = marginileLunii(an, luna);
+  const { data, error } = await db
+    .from("payroll_garnishments")
+    .select("id, employee_id, suma_lunara, sold_ramas, tip_creanta, prioritate, dosar")
+    .eq("organization_id", organizationId)
+    .eq("activa", true)
+    .is("deleted_at", null)
+    .lte("data_inceput", ultima)
+    .or(`data_sfarsit.is.null,data_sfarsit.gte.${prima}`)
+    .order("prioritate", { ascending: true })
+    .returns<
+      {
+        id: string;
+        employee_id: string;
+        suma_lunara: number;
+        sold_ramas: number | null;
+        tip_creanta: string;
+        prioritate: number;
+        dosar: string;
+      }[]
+    >();
+  if (error !== null) throw error;
+
+  const rezultat = new Map<string, PoprireActiva[]>();
+  for (const rand of data ?? []) {
+    rezultat.set(rand.employee_id, [
+      ...(rezultat.get(rand.employee_id) ?? []),
+      {
+        id: rand.id,
+        sumaLunara: rand.suma_lunara,
+        soldRamas: rand.sold_ramas ?? 0,
+        esteIntretinere: rand.tip_creanta === "intretinere",
+        prioritate: rand.prioritate,
+        dosar: rand.dosar,
+      },
+    ]);
+  }
+  return rezultat;
 }

@@ -12,6 +12,7 @@ import {
   istoricVenitPerAngajat,
   marginileLunii,
   plafoaneDiurnaLuna,
+  popririActive,
   PONTAJ_GOL,
   pontajAgregatPerioada,
   scutiriActivePerioada,
@@ -219,6 +220,7 @@ export const calculeazaPerioada = createAction({
       compensari,
       diurna,
       plafoaneDiurna,
+      popriri,
     ] = await Promise.all([
       zileLucratoareLuna(ctx.tenant.organizationId, perioada.an, perioada.luna),
       angajatiActiviCuContract(ctx.tenant.organizationId, perioada.an, perioada.luna),
@@ -237,6 +239,7 @@ export const calculeazaPerioada = createAction({
       compensariLuna(ctx.tenant.organizationId, perioada.an, perioada.luna),
       diurnaLunaPerAngajat(ctx.tenant.organizationId, perioada.an, perioada.luna),
       plafoaneDiurnaLuna(ctx.tenant.organizationId, perioada.an, perioada.luna),
+      popririActive(ctx.tenant.organizationId, perioada.an, perioada.luna),
     ]);
     const angajati = personal.angajati;
 
@@ -276,10 +279,18 @@ export const calculeazaPerioada = createAction({
 
     const { data: retineri, error: eroareRetineri } = await ctx.supabase
       .from("payroll_deductions")
-      .select("employee_id, suma, procent_maxim_din_net")
+      .select("employee_id, tip, suma, procent_maxim_din_net, motiv")
       .eq("period_id", perioada.id)
       .is("deleted_at", null)
-      .returns<{ employee_id: string; suma: number; procent_maxim_din_net: number | null }[]>();
+      .returns<
+        {
+          employee_id: string;
+          tip: string;
+          suma: number;
+          procent_maxim_din_net: number | null;
+          motiv: string;
+        }[]
+      >();
     if (eroareRetineri !== null) traduEroare(eroareRetineri);
 
     const primePeAngajat = new Map<string, ElementVariabil[]>();
@@ -289,13 +300,13 @@ export const calculeazaPerioada = createAction({
     }
     const retineriPeAngajat = new Map<
       string,
-      { suma: number; procentMaximDinNet: number | null }[]
+      { tip: string; suma: number; procentMaximDinNet: number | null; motiv: string }[]
     >();
     for (const r of retineri ?? []) {
       const listaAnterioara = retineriPeAngajat.get(r.employee_id) ?? [];
       retineriPeAngajat.set(r.employee_id, [
         ...listaAnterioara,
-        { suma: r.suma, procentMaximDinNet: r.procent_maxim_din_net },
+        { tip: r.tip, suma: r.suma, procentMaximDinNet: r.procent_maxim_din_net, motiv: r.motiv },
       ]);
     }
 
@@ -385,6 +396,30 @@ export const calculeazaPerioada = createAction({
                 zile: diurna.get(angajat.employee_id)?.zile ?? [],
                 multiplicatorPlafonZilnic: plafoaneDiurna.multiplicatorPlafonZilnic,
                 fractiePlafonLunar: plafoaneDiurna.fractiePlafonLunar,
+              },
+            }),
+        // Regulile legale de urmărire silită se aplică doar când angajatul are
+        // dosare de poprire. Fără ele, plafonarea per reținere e suficientă și
+        // mai simplă — iar bucla veche rămâne calea folosită.
+        ...((popriri.get(angajat.employee_id) ?? []).length === 0
+          ? {}
+          : {
+              popriri: {
+                dosare: popriri.get(angajat.employee_id) ?? [],
+                retineri: (retineriPeAngajat.get(angajat.employee_id) ?? []).map((r, i) => ({
+                  id: `r${String(i)}`,
+                  tip: r.tip as
+                    | "avans"
+                    | "poprire"
+                    | "imputatie"
+                    | "rata_interna"
+                    | "retinere_sindicat"
+                    | "alta",
+                  suma: r.suma,
+                  motiv: r.motiv,
+                })),
+                plafonPoprireUnica: setari.plafon_poprire_unica,
+                plafonPopririConcurente: setari.plafon_popriri_concurente,
               },
             }),
         deductions: (retineriPeAngajat.get(angajat.employee_id) ?? []).map((r) => ({

@@ -46,6 +46,21 @@ export const CODURI_PROBLEMA = [
   "SAL_ORE_SUPL_EXPIRATE",
   "SAL_ZI_LIBERA_SARBATOARE_NEACORDATA",
   "SAL_SPOR_SARBATOARE_FARA_PROCENT",
+  "SAL_CM_FARA_ISTORIC",
+  "SAL_DIURNA_PESTE_PLAFON_ZILNIC",
+  "SAL_DIURNA_PESTE_PLAFON_LUNAR",
+  "SAL_DIURNA_FARA_SALARIU_BAZA",
+  "SAL_POPRIRI_CONCURENTE_PLAFON",
+  "SAL_POPRIRE_STINSA",
+  "SAL_RETINERI_PESTE_NET",
+  "SAL_SEPA_IBAN_INVALID",
+  "SAL_SEPA_SUMA_INVALIDA",
+  "SAL_SEPA_TEXT_TRUNCHIAT",
+  "SAL_SEPA_MONEDA_INVALIDA",
+  "SAL_SEPA_FARA_PLATI",
+  "SAL_NOTA_DEZECHILIBRATA",
+  "SAL_NOTA_VALOARE_NEGATIVA",
+  "SAL_NOTA_CONT_LIPSA",
   "SAL_ETAPA_COD_NECUNOSCUT",
 ] as const;
 
@@ -254,6 +269,131 @@ const CATALOG: Readonly<Record<CodProblema, IntrareCatalog>> = {
       "Compensarea prin spor are nevoie de un procent; fără el orele s-ar plăti la tarif simplu.",
     cumSeRepara: "Completați procentul de spor de sărbătoare în setările de pontaj.",
     unde: "/pontaj",
+  },
+  SAL_CM_FARA_ISTORIC: {
+    severitate: "blocant",
+    mesaj: "Nu există nicio lună cu venit din care să se formeze baza concediului medical.",
+    cauza:
+      "Indemnizația se calculează pe media veniturilor din lunile anterioare. Fără nicio lună cu zile lucrate, baza e zero și indemnizația ar ieși zero.",
+    cumSeRepara:
+      "Introduceți veniturile anterioare în Salarizare → Istoric venituri. Pentru un angajat nou fără nicio lună lucrată, indemnizația se stabilește separat, cu contabilul.",
+    unde: "/salarizare/istoric-venituri",
+  },
+  SAL_DIURNA_PESTE_PLAFON_ZILNIC: {
+    severitate: "avertisment",
+    mesaj: "Diurna acordată depășește plafonul zilnic neimpozabil.",
+    cauza:
+      "Plafonul zilnic e un multiplu al baremului legal pentru țara deplasării. Ce trece peste el devine venit asimilat salariului.",
+    cumSeRepara:
+      "Partea peste plafon a fost impozitată automat. Verificați baremul configurat pentru țara respectivă dacă suma pare greșită.",
+    unde: "/diurna",
+  },
+  SAL_DIURNA_PESTE_PLAFON_LUNAR: {
+    severitate: "avertisment",
+    mesaj: "Totalul diurnelor lunii depășește plafonul raportat la salariul de bază.",
+    cauza:
+      "Plafonul lunar se verifică pe CUMULUL lunii, nu pe fiecare deplasare. Două deplasări care separat se încadrează pot împreună să depășească.",
+    cumSeRepara:
+      "Diferența a fost impozitată automat. Nu e nimic de corectat dacă deplasările sunt reale.",
+    unde: "/diurna",
+  },
+  SAL_DIURNA_FARA_SALARIU_BAZA: {
+    severitate: "blocant",
+    mesaj: "Salariul de bază e zero, deci plafonul lunar al diurnei e și el zero.",
+    cauza:
+      "Plafonul lunar e o fracțiune din salariul de bază brut. Fără salariu, întreaga diurnă ar deveni impozabilă.",
+    cumSeRepara:
+      "Verificați contractul angajatului — un salariu de bază zero e aproape sigur o eroare de date.",
+    unde: "/angajati",
+  },
+  SAL_POPRIRI_CONCURENTE_PLAFON: {
+    severitate: "informativ",
+    mesaj:
+      "S-a aplicat plafonul pentru popriri concurente, mai permisiv decât cel pentru una singură.",
+    cauza:
+      "Angajatul are mai multe popriri active. Legea permite atunci un cumul mai mare, dar tot plafonat.",
+    cumSeRepara: "Nu e nimic de reparat. Creanțele de întreținere s-au satisfăcut primele.",
+    unde: "/salarizare/popriri",
+  },
+  SAL_POPRIRE_STINSA: {
+    severitate: "informativ",
+    mesaj: "O poprire și-a atins soldul zero și nu se mai reține nimic pentru ea.",
+    cauza: "Datoria a fost recuperată integral, iar reținerea se oprește automat.",
+    cumSeRepara:
+      "Închideți dosarul, ca să nu mai apară în listă. Netul angajatului crește începând cu luna aceasta — e explicația pe care o va cere.",
+    unde: "/salarizare/popriri",
+  },
+  SAL_RETINERI_PESTE_NET: {
+    severitate: "avertisment",
+    mesaj: "Reținerile cerute depășesc netul disponibil.",
+    cauza:
+      "Nu se poate reține dintr-o sumă care nu există. Ce nu a încăput rămâne de recuperat în lunile următoare.",
+    cumSeRepara:
+      "Verificați dacă diferența e urmărită. Un avans prea mare acordat la mijlocul lunii e cauza obișnuită.",
+    unde: "/salarizare",
+  },
+  SAL_SEPA_IBAN_INVALID: {
+    severitate: "blocant",
+    mesaj: "Un IBAN nu trece verificarea și plata a fost exclusă din fișierul bancar.",
+    cauza:
+      "Cifra de control a IBAN-ului nu corespunde. Banca ar respinge fișierul întreg, nu doar linia greșită.",
+    cumSeRepara: "Corectați IBAN-ul pe fișa angajatului și regenerați fișierul.",
+    unde: "/angajati",
+  },
+  SAL_SEPA_SUMA_INVALIDA: {
+    severitate: "blocant",
+    mesaj: "O plată cu sumă zero sau negativă a fost exclusă din fișierul bancar.",
+    cauza: "Un ordin de plată fără sumă pozitivă nu are ce transfera.",
+    cumSeRepara:
+      "Verificați rândul de salariu al angajatului: un rest de plată zero înseamnă că reținerile au acoperit tot netul.",
+    unde: "/salarizare",
+  },
+  SAL_SEPA_TEXT_TRUNCHIAT: {
+    severitate: "informativ",
+    mesaj: "Un nume sau o explicație a fost scurtată la limita permisă de standardul bancar.",
+    cauza: "Formatul ISO 20022 limitează numele la 70 de caractere și explicația la 140.",
+    cumSeRepara:
+      "Nu afectează plata. Verificați dacă textul scurtat rămâne recognoscibil pe extras.",
+    unde: null,
+  },
+  SAL_SEPA_MONEDA_INVALIDA: {
+    severitate: "blocant",
+    mesaj: "Moneda fișierului bancar nu are un cod valid de trei litere.",
+    cauza: "Standardul cere un cod ISO 4217, de forma RON sau EUR.",
+    cumSeRepara: "Corectați moneda în setările de plată ale organizației.",
+    unde: "/setari",
+  },
+  SAL_SEPA_FARA_PLATI: {
+    severitate: "blocant",
+    mesaj: "Nu a rămas nicio plată validă, deci fișierul bancar ar fi gol.",
+    cauza:
+      "Toate plățile au fost excluse — IBAN-uri invalide, sume nepozitive, sau nu există rânduri de salariu aprobate.",
+    cumSeRepara: "Rezolvați problemele semnalate mai sus, apoi regenerați fișierul.",
+    unde: "/salarizare",
+  },
+  SAL_NOTA_DEZECHILIBRATA: {
+    severitate: "blocant",
+    mesaj: "Nota contabilă nu închide: debitul nu egalează creditul.",
+    cauza:
+      "O notă dezechilibrată nu poate fi înregistrată în contabilitate. Diferența arată că o sumă lipsește sau e numărată de două ori.",
+    cumSeRepara:
+      "Nu trimiteți nota. Semnalați problema — diferența din detalii arată de unde pornește căutarea.",
+    unde: "/salarizare",
+  },
+  SAL_NOTA_VALOARE_NEGATIVA: {
+    severitate: "blocant",
+    mesaj: "Un total de intrare în nota contabilă e negativ.",
+    cauza:
+      "Sumele dintr-o notă de salarii sunt prin natura lor nenegative; una negativă e o eroare de calcul.",
+    cumSeRepara: "Recalculați perioada și verificați rândul de salariu care produce valoarea.",
+    unde: "/salarizare",
+  },
+  SAL_NOTA_CONT_LIPSA: {
+    severitate: "blocant",
+    mesaj: "Un cont contabil nu e configurat.",
+    cauza: "Maparea conturilor diferă de la firmă la firmă, deci niciun cod nu e presupus.",
+    cumSeRepara: "Completați planul de conturi al organizației în setările de salarizare.",
+    unde: "/salarizare/setari",
   },
   SAL_ETAPA_COD_NECUNOSCUT: {
     severitate: "avertisment",

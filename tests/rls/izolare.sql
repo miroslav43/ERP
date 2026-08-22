@@ -104,7 +104,13 @@ begin
          (v_alfa, 'leave', true), (v_beta, 'leave', false),
          (v_alfa, 'inventory', true), (v_alfa, 'fleet', true),
          (v_alfa, 'attendance', true), (v_alfa, 'ssm', true), (v_alfa, 'maintenance', true),
-         (v_alfa, 'onboarding', true), (v_alfa, 'per_diem', true);
+         (v_alfa, 'onboarding', true), (v_alfa, 'per_diem', true),
+         -- Fără modulele astea, `app.feature_on()` refuză scrierile de mai jos
+         -- ÎNAINTE de orice verificare de permisiune — iar rezultatul ar arăta
+         -- ca un defect de politică, deși e doar un modul stins în fixture.
+         (v_alfa, 'announcements', true), (v_alfa, 'payroll', true),
+         (v_alfa, 'employee_portal', true), (v_alfa, 'ticketing', true),
+         (v_beta, 'ticketing', true);
 
   insert into public.organization_branding (organization_id, denumire_afisata)
   values (v_alfa, 'Alfa'), (v_beta, 'Beta');
@@ -172,7 +178,8 @@ begin
   select 'mgr_' || e, gen_random_uuid() from unnest(array['alfa','beta']) e union all
   select 'ang_' || e, gen_random_uuid() from unnest(array['alfa','beta']) e union all
   select 'tipdoc_' || e, gen_random_uuid() from unnest(array['alfa','beta']) e union all
-  select 'sct_' || e, gen_random_uuid() from unnest(array['alfa','beta']) e;
+  select 'sct_' || e, gen_random_uuid() from unnest(array['alfa','beta']) e union all
+  select 'tichet_' || e, gen_random_uuid() from unnest(array['alfa','beta']) e;
 
   insert into public.departments (id, organization_id, cod, denumire)
   values ((select val from t_ids where cheie='dep_alfa'), v_alfa, 'ADM', 'Administrativ'),
@@ -740,6 +747,13 @@ begin
          (v_beta, (select val from t_ids where cheie='ang_beta'),
           (select val from t_ids where cheie='pper_beta'), 'avans', 50.00, 'fixture');
 
+  insert into public.payroll_garnishments (organization_id, employee_id, dosar, creditor,
+    tip_creanta, suma_totala, suma_lunara, data_inceput)
+  values (v_alfa, (select val from t_ids where cheie='ang_alfa'), 'DOS-ALFA', 'Creditor Alfa',
+          'alta', 5000.00, 500.00, current_date),
+         (v_beta, (select val from t_ids where cheie='ang_beta'), 'DOS-BETA', 'Creditor Beta',
+          'alta', 4000.00, 400.00, current_date);
+
   insert into public.payroll_prior_income (organization_id, employee_id, an, luna,
     venit_brut, drepturi_salariale, zile_lucrate, sursa)
   values (v_alfa, (select val from t_ids where cheie='ang_alfa'),
@@ -750,6 +764,49 @@ begin
   insert into public.announcements (id, organization_id, titlu, continut)
   values ((select val from t_ids where cheie='anunt_alfa'), v_alfa, 'Anunț Alfa', 'Conținut de fixture.'),
          ((select val from t_ids where cheie='anunt_beta'), v_beta, 'Anunț Beta', 'Conținut de fixture.');
+
+  -- ── Faza 12 (migrarea 0045): tichete IT ─────────────────────────────────────
+  -- Modulul a fost livrat fără rânduri în fixture, iar verificarea (c) s-a oprit
+  -- exact aici: cinci tabele pe care nimeni nu demonstrase că sunt izolate.
+  -- `numar_afisat` se scrie literal — în producție îl alocă
+  -- `public.aloca_numar_tichet`, dar aici ne trebuie o valoare stabilă care să
+  -- respecte `tickets_numar_ck`.
+  -- `bug_erp` cere cele patru câmpuri de reproducere (`tickets_bug_ck`): fiecare
+  -- tip de tichet are propriile coloane obligatorii, verificate prin CHECK, nu
+  -- doar prin formular.
+  insert into public.tickets (id, organization_id, numar_afisat, tip, titlu, descriere,
+                              modul, pasi_efectuati, rezultat_asteptat, rezultat_obtinut,
+                              solicitant_employee_id, created_by, updated_by)
+  values ((select val from t_ids where cheie='tichet_alfa'), v_alfa, 'IT-2026-00001',
+          'bug_erp', 'Tichet Alfa', 'Conținut de fixture.',
+          'Pontaj', 'Am deschis luna.', 'Se salvează.', 'Nu se salvează.',
+          (select val from t_ids where cheie='ang_alfa'), v_admin_alfa, v_admin_alfa),
+         ((select val from t_ids where cheie='tichet_beta'), v_beta, 'IT-2026-00001',
+          'bug_erp', 'Tichet Beta', 'Conținut de fixture.',
+          'Pontaj', 'Am deschis luna.', 'Se salvează.', 'Nu se salvează.',
+          (select val from t_ids where cheie='ang_beta'), v_admin_beta, v_admin_beta);
+
+  insert into public.ticket_comments (organization_id, ticket_id, autor_employee_id, continut, created_by, updated_by)
+  values (v_alfa, (select val from t_ids where cheie='tichet_alfa'),
+          (select val from t_ids where cheie='ang_alfa'), 'Comentariu Alfa.', v_admin_alfa, v_admin_alfa),
+         (v_beta, (select val from t_ids where cheie='tichet_beta'),
+          (select val from t_ids where cheie='ang_beta'), 'Comentariu Beta.', v_admin_beta, v_admin_beta);
+
+  insert into public.ticket_history (organization_id, ticket_id, actor_user_id, camp, valoare_veche, valoare_noua)
+  values (v_alfa, (select val from t_ids where cheie='tichet_alfa'), v_admin_alfa, 'status', 'nou', 'in_lucru'),
+         (v_beta, (select val from t_ids where cheie='tichet_beta'), v_admin_beta, 'status', 'nou', 'in_lucru');
+
+  insert into public.ticket_watchers (organization_id, ticket_id, employee_id, created_by)
+  values (v_alfa, (select val from t_ids where cheie='tichet_alfa'),
+          (select val from t_ids where cheie='mgr_alfa'), v_admin_alfa),
+         (v_beta, (select val from t_ids where cheie='tichet_beta'),
+          (select val from t_ids where cheie='ang_beta'), v_admin_beta);
+
+  insert into public.ticket_attachments (organization_id, ticket_id, storage_path, denumire, mime, created_by)
+  values (v_alfa, (select val from t_ids where cheie='tichet_alfa'),
+          v_alfa || '/tickets/a.png', 'captura-alfa.png', 'image/png', v_admin_alfa),
+         (v_beta, (select val from t_ids where cheie='tichet_beta'),
+          v_beta || '/tickets/b.png', 'captura-beta.png', 'image/png', v_admin_beta);
 
   insert into public.announcement_reads (organization_id, announcement_id, employee_id, user_id)
   values (v_alfa, (select val from t_ids where cheie='anunt_alfa'),
@@ -1195,6 +1252,11 @@ declare
   v_task_id    uuid;
   v_veh_id     uuid;
   v_rand       text := replace(gen_random_uuid()::text, '-', '');
+  -- Pregătiri pentru probele rolului `employee` (v. blocul din bucla de mai jos).
+  v_anunt_nou  uuid;
+  v_pas_meu    uuid;
+  v_inst_mea   uuid;
+  v_pontaj_apr uuid;
   v_esuate     text := '';
   v_reusite    text := '';
 begin
@@ -1353,6 +1415,40 @@ begin
   reset role;
 
   -- ───────────────────────────────────────────────────────────────────────
+  -- Pregătirea probelor rolului `employee`.
+  --
+  -- Rulează cu rolul sesiunii (fără `set local role`), ca fixture: scopul e să
+  -- EXISTE rândurile peste care angajatul va încerca apoi să scrie, nu să
+  -- dovedim că cineva le poate crea.
+  -- ───────────────────────────────────────────────────────────────────────
+
+  -- Un al doilea anunț: primul are deja o confirmare de citire în fixture, iar
+  -- indexul unic ar face proba să pice pe duplicat în loc de permisiune.
+  insert into public.announcements (organization_id, titlu, continut, publicat_la)
+  values (v_alfa, 'Anunț (l) ' || left(v_rand, 6), 'Conținut.', now())
+  returning id into v_anunt_nou;
+
+  -- O linie de pontaj DEJA APROBATĂ. `attendance_entries_update` (0013:795) cere
+  -- `approved_at is null` sau `attendance:approve` la prag `team` — pe care un
+  -- angajat nu-l are. Fără rândul ăsta, capcana cea mai costisitoare a modulului
+  -- (editarea după aprobare, refuzată TĂCUT) n-ar avea ce proba.
+  insert into public.attendance_entries (organization_id, employee_id, data, ore_lucrate, tip_zi, approved_at)
+  values (v_alfa, v_ang_alfa, current_date - 5, 8, 'lucratoare', now())
+  returning id into v_pontaj_apr;
+
+  -- Instanța proprie de checklist și un pas al cărui responsabil e chiar el.
+  select id into v_inst_mea from public.checklist_instances
+   where organization_id = v_alfa and employee_id = v_ang_alfa and deleted_at is null
+   order by created_at limit 1;
+
+  update public.checklist_instance_items
+     set responsabil_employee_id = v_ang_alfa, responsabil_tip = 'angajat'
+   where instance_id = v_inst_mea
+     and id = (select id from public.checklist_instance_items
+                where instance_id = v_inst_mea order by ordine limit 1)
+  returning id into v_pas_meu;
+
+  -- ───────────────────────────────────────────────────────────────────────
   -- Rolurile `hr` și `manager`, cu identitatea lor reală.
   --
   -- Fiecare pereche (rol, tabelă) de mai jos a fost stabilită EMPIRIC pe un
@@ -1395,21 +1491,119 @@ begin
        'insert into public.attendance_entries (organization_id, employee_id, data, ore_lucrate, tip_zi) values ($1,$3,current_date,8,''lucratoare'')'),
       -- employees:read=team, fără create.
       ('manager', 'employees (fără create)',          'REFUZAT',
-       'insert into public.employees (organization_id, marca, first_name, last_name, department_id) values ($1,''L-MG-'' || $5,''Test'',''Manager'',$4)')
+       'insert into public.employees (organization_id, marca, first_name, last_name, department_id) values ($1,''L-MG-'' || $5,''Test'',''Manager'',$4)'),
+
+      -- ── Rolul `employee` ─────────────────────────────────────────────────
+      -- Portalul e acum SINGURA lui aplicație, deci fiecare scriere de mai jos
+      -- e un ecran care fie funcționează, fie nu. Până acum, verificarea (l)
+      -- acoperea pentru el două scrieri din toate modulele.
+
+      -- Ramura `own` din `app.poate_scrie_pontaj` (0013:249). Ziua de azi e
+      -- liberă: fixture-ul a pus `current_date - 1` pe seama lui org_admin.
+      ('employee', 'attendance_entries (ziua proprie)',    'PERMIS',
+       'insert into public.attendance_entries (organization_id, employee_id, data, ore_lucrate, tip_zi) values ($1,$6,current_date,8,''lucratoare'')'),
+
+      -- Capcana tăcută a modulului: `attendance_entries_update` (0013:795) cere
+      -- `approved_at is null`. Un UPDATE respins de `USING` NU aruncă — afectează
+      -- zero rânduri și tace. De aceea ecranul de portal afișează zilele aprobate
+      -- ca blocate, în loc să lase butonul activ.
+      ('employee', 'attendance_entries (zi aprobată)',     'ZERO',
+       'update public.attendance_entries set ore_lucrate = 9 where id = $7'),
+
+      -- Capcana 28: coloana de scope e `raportat_de_employee_id` și e nullable.
+      -- Scrisă explicit, rândul rămâne vizibil autorului. `returning` e esențial:
+      -- sub o politică SELECT care ascunde rândul, INSERT-ul cade cu 42501.
+      ('employee', 'fault_reports (sesizare proprie)',     'PERMIS',
+       'insert into public.fault_reports (organization_id, equipment_id, raportat_de_employee_id, descriere, urgenta) values ($1,$2,$6,''Defect (l) angajat'',''medie'') returning id'),
+
+      -- Aceeași inserare FĂRĂ raportor: `ssm_acces(...,null)` cade pe ramura care
+      -- cere `team`, deci rândul devine invizibil autorului și `returning` pică.
+      -- Contractul acțiunii `creeazaSesizare` se sprijină pe faptul ăsta.
+      ('employee', 'fault_reports (fără raportor)',        'REFUZAT',
+       'insert into public.fault_reports (organization_id, equipment_id, descriere, urgenta) values ($1,$2,''Defect (l) anonim'',''medie'') returning id'),
+
+      -- Confirmarea de primire: `inventory_allocations_update` (0010:716) are
+      -- ramură `own` reală, dar cere și `updated_by = auth.uid()`.
+      ('employee', 'inventory_allocations (confirmare)',   'PERMIS_RAND',
+       'update public.inventory_allocations set confirmat_de_angajat_la = now(), updated_by = auth.uid() where organization_id = $1 and employee_id = $6 and returnat_la is null'),
+
+      -- `announcement_reads_insert` (0028:118) cere fișă principală ȘI
+      -- `user_id = auth.uid()`. Un membru fără fișă primește 42501.
+      ('employee', 'announcement_reads (confirmare)',      'PERMIS',
+       'insert into public.announcement_reads (organization_id, announcement_id, employee_id, user_id) values ($1,$8,$6,auth.uid())'),
+
+      -- Bifează pasul al cărui responsabil e chiar el (0014:865).
+      ('employee', 'checklist_instance_items (pasul meu)', 'PERMIS_RAND',
+       'update public.checklist_instance_items set status = ''bifat'' where id = $9'),
+
+      -- Dar NU un pas al altcuiva: ramura `own` compară cu
+      -- `responsabil_employee_id`, nu cu `employee_id`. De aceea ecranul de
+      -- portal oferă control DOAR pe pașii lui, iar restul se văd fără buton.
+      ('employee', 'checklist_instance_items (pas străin)','ZERO',
+       'update public.checklist_instance_items set status = ''bifat'' where instance_id = $10 and id <> $9'),
+
+      -- Seed-ul îi dă `checklists:update = own`, dar `checklist_instances_update`
+      -- (0014:802) NU are ramură `own` — doar `all` sau `team`. Dreptul există în
+      -- matrice și nu are corespondent în politică: scrierea cade tăcut, la zero
+      -- rânduri. Proba consemnează starea reală; dacă cineva adaugă ramura,
+      -- testul devine roșu și îl obligă să treacă cazul pe PERMIS_RAND.
+      ('employee', 'checklist_instances (instanța mea)',   'ZERO',
+       'update public.checklist_instances set observatii = ''note (l)'' where id = $10'),
+
+      -- Tichetele IT, acordate de 0046. `returning` prinde din nou capcana 28.
+      ('employee', 'tickets (cerere IT proprie)',          'PERMIS',
+       'insert into public.tickets (organization_id, solicitant_employee_id, tip, titlu, descriere, modul, pasi_efectuati, rezultat_asteptat, rezultat_obtinut) values ($1,$6,''bug_erp'',''Tichet (l)'',''Descriere.'',''Portal'',''Am apăsat.'',''Se salvează.'',''Nu se salvează.'') returning id'),
+
+      -- Fișa unui coleg rămâne inaccesibilă: `employees:read = own` compară pe
+      -- `user_id`, nu pe apartenență.
+      ('employee', 'employees (fișa altui coleg)',         'ZERO',
+       'update public.employees set observatii = ''(l)'' where organization_id = $1 and id = $3')
     ) as t(rol, eticheta, asteptat, sql)
   loop
+    -- Ramura `employee` NU e opțională. Fără ea, orice caz marcat „employee" ar
+    -- rula sub identitatea lui `hr` — care are `all` pe aproape tot — și ar
+    -- trece. Testul ar fi verde, iar dovada zero: exact felul de fals-pozitiv pe
+    -- care poarta asta există ca să-l facă imposibil.
     perform set_config('request.jwt.claim.sub',
-      (case v_caz.rol when 'manager' then v_mgr_user else v_hr_user end)::text, true);
+      (case v_caz.rol
+         when 'manager'  then v_mgr_user
+         when 'employee' then v_emp_user
+         else v_hr_user
+       end)::text, true);
     set local role authenticated;
     begin
-      execute v_caz.sql using v_alfa, v_equip, v_sub_alfa, v_dep_alfa, left(v_rand, 6);
-      if v_caz.asteptat = 'PERMIS' then
-        v_reusite := v_reusite || format(E'\n  %s -> %s', v_caz.rol, v_caz.eticheta);
-      else
-        v_scapate := v_scapate || format(E'\n  %s -> %s: scrierea a REUȘIT, deși trebuia refuzată', v_caz.rol, v_caz.eticheta);
-      end if;
+      execute v_caz.sql using v_alfa, v_equip, v_sub_alfa, v_dep_alfa, left(v_rand, 6),
+                              v_ang_alfa, v_pontaj_apr, v_anunt_nou, v_pas_meu, v_inst_mea;
+      get diagnostics v_randuri = row_count;
+
+      -- Patru feluri de așteptare, nu două. Un UPDATE respins de clauza `USING`
+      -- NU aruncă: afectează zero rânduri și tace. Un `exception when others`
+      -- nu-l prinde niciodată, deci fără ramurile ZERO și PERMIS_RAND, cea mai
+      -- răspândită capcană tăcută a schemei ar rămâne în afara testului.
+      case v_caz.asteptat
+        when 'PERMIS' then
+          v_reusite := v_reusite || format(E'\n  %s -> %s', v_caz.rol, v_caz.eticheta);
+        when 'PERMIS_RAND' then
+          if v_randuri > 0 then
+            v_reusite := v_reusite || format(E'\n  %s -> %s (%s rânduri)', v_caz.rol, v_caz.eticheta, v_randuri);
+          else
+            v_esuate := v_esuate || format(
+              E'\n  %s -> %s: ZERO rânduri, fără eroare — politica a respins tăcut o scriere legitimă',
+              v_caz.rol, v_caz.eticheta);
+          end if;
+        when 'ZERO' then
+          if v_randuri = 0 then
+            v_reusite := v_reusite || format(E'\n  %s -> %s: zero rânduri, ca așteptat', v_caz.rol, v_caz.eticheta);
+          else
+            v_scapate := v_scapate || format(
+              E'\n  %s -> %s: a afectat %s rânduri, deși politica trebuia să-l oprească',
+              v_caz.rol, v_caz.eticheta, v_randuri);
+          end if;
+        else
+          v_scapate := v_scapate || format(E'\n  %s -> %s: scrierea a REUȘIT, deși trebuia refuzată', v_caz.rol, v_caz.eticheta);
+      end case;
     exception when others then
-      if v_caz.asteptat = 'PERMIS' then
+      if v_caz.asteptat in ('PERMIS', 'PERMIS_RAND', 'ZERO') then
         v_esuate := v_esuate || format(E'\n  %s -> %s: %s (%s)', v_caz.rol, v_caz.eticheta, sqlerrm, sqlstate);
       else
         v_reusite := v_reusite || format(E'\n  %s -> %s: refuzat corect (%s)', v_caz.rol, v_caz.eticheta, sqlstate);

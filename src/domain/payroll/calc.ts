@@ -32,6 +32,7 @@ import { rotunjesteLaBani } from "../bani";
 import { descriereCompleta, problema, problemaDinEtapa, type CodProblema } from "./erori";
 import { calculeazaCompensarea, type IntrareCompensare } from "./etape/compensare-ore";
 import { calculeazaDiurna, type IntrareDiurna } from "./etape/diurna-plafoane";
+import { calculeazaRetinerile, type Poprire, type RetinereSimpla } from "./etape/retineri-popriri";
 import { calculeazaIndemnizatieCm, type IntrareIndemnizatieCm } from "./etape/indemnizatie-cm";
 import { calculeazaIndemnizatieCo, type IntrareIndemnizatieCo } from "./etape/indemnizatie-co";
 
@@ -185,6 +186,17 @@ export interface PayrollCalcInput {
    * împreună să depășească.
    */
   readonly diurna?: Omit<IntrareDiurna, "salariuBazaBrut">;
+  /**
+   * Dosarele de poprire și reținerile cu tip, când se aplică regulile legale de
+   * plafonare. Absente, se folosește bucla simplă de mai jos, cu plafonul
+   * per-reținere din `DeductionInput` — comportamentul de dinainte.
+   */
+  readonly popriri?: {
+    readonly dosare: readonly Poprire[];
+    readonly retineri: readonly RetinereSimpla[];
+    readonly plafonPoprireUnica: number;
+    readonly plafonPopririConcurente: number;
+  };
   readonly contract: EmployeeContractSnapshot;
   readonly attendance: AttendanceSummary;
   readonly bonuses: readonly BonusInput[];
@@ -586,19 +598,37 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
 
   let netRamas = net;
   let retineriTotal = 0;
-  for (const deducere of deductions) {
-    const plafon =
-      deducere.procentMaximDinNet === null ? netRamas : net * deducere.procentMaximDinNet;
-    const aplicata = Math.min(deducere.suma, Math.max(0, plafon), netRamas);
-    if (aplicata < deducere.suma - 0.005) {
-      warnings.push({
-        cod: "RETINERE_PLAFONATA",
-        mesaj: `O reținere de ${deducere.suma.toFixed(2)} lei a fost plafonată la ${aplicata.toFixed(2)} lei.`,
-      });
+
+  if (input.popriri !== undefined) {
+    // Regulile legale de urmărire silită: o singură poprire ia cel mult o
+    // treime din net, mai multe cel mult jumătate CUMULAT, iar creanțele de
+    // întreținere se satisfac primele. Bucla simplă de mai jos aplica plafonul
+    // pe FIECARE reținere separat, deci două popriri de câte o treime treceau
+    // amândouă — cumulat două treimi, peste limita legală.
+    const r = calculeazaRetinerile({
+      net,
+      popriri: input.popriri.dosare,
+      retineri: input.popriri.retineri,
+      plafonPoprireUnica: input.popriri.plafonPoprireUnica,
+      plafonPopririConcurente: input.popriri.plafonPopririConcurente,
+    });
+    retineriTotal = r.totalRetinut;
+    netRamas = r.netRamas;
+    raporteaza(r.probleme);
+  } else
+    for (const deducere of deductions) {
+      const plafon =
+        deducere.procentMaximDinNet === null ? netRamas : net * deducere.procentMaximDinNet;
+      const aplicata = Math.min(deducere.suma, Math.max(0, plafon), netRamas);
+      if (aplicata < deducere.suma - 0.005) {
+        warnings.push({
+          cod: "RETINERE_PLAFONATA",
+          mesaj: `O reținere de ${deducere.suma.toFixed(2)} lei a fost plafonată la ${aplicata.toFixed(2)} lei.`,
+        });
+      }
+      retineriTotal += aplicata;
+      netRamas -= aplicata;
     }
-    retineriTotal += aplicata;
-    netRamas -= aplicata;
-  }
   inregistreaza("retineriTotal", retineriTotal);
 
   const netDePlata = inregistreaza("netDePlata", net - retineriTotal);

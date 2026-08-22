@@ -6499,6 +6499,7 @@ export type Database = {
           created_by: string | null
           deleted_at: string | null
           employee_id: string
+          garnishment_id: string | null
           id: string
           motiv: string
           organization_id: string
@@ -6514,6 +6515,7 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           employee_id: string
+          garnishment_id?: string | null
           id?: string
           motiv: string
           organization_id: string
@@ -6529,6 +6531,7 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           employee_id?: string
+          garnishment_id?: string | null
           id?: string
           motiv?: string
           organization_id?: string
@@ -6784,6 +6787,93 @@ export type Database = {
           },
         ]
       }
+      payroll_garnishments: {
+        Row: {
+          activa: boolean
+          created_at: string
+          created_by: string | null
+          creditor: string
+          data_inceput: string
+          data_sfarsit: string | null
+          deleted_at: string | null
+          dosar: string
+          employee_id: string
+          executor: string | null
+          id: string
+          observatii: string | null
+          organization_id: string
+          prioritate: number
+          sold_ramas: number | null
+          suma_lunara: number
+          suma_recuperata: number
+          suma_totala: number
+          tip_creanta: Database["public"]["Enums"]["garnishment_claim_type"]
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          activa?: boolean
+          created_at?: string
+          created_by?: string | null
+          creditor: string
+          data_inceput: string
+          data_sfarsit?: string | null
+          deleted_at?: string | null
+          dosar: string
+          employee_id: string
+          executor?: string | null
+          id?: string
+          observatii?: string | null
+          organization_id: string
+          prioritate?: number
+          sold_ramas?: number | null
+          suma_lunara: number
+          suma_recuperata?: number
+          suma_totala: number
+          tip_creanta?: Database["public"]["Enums"]["garnishment_claim_type"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          activa?: boolean
+          created_at?: string
+          created_by?: string | null
+          creditor?: string
+          data_inceput?: string
+          data_sfarsit?: string | null
+          deleted_at?: string | null
+          dosar?: string
+          employee_id?: string
+          executor?: string | null
+          id?: string
+          observatii?: string | null
+          organization_id?: string
+          prioritate?: number
+          sold_ramas?: number | null
+          suma_lunara?: number
+          suma_recuperata?: number
+          suma_totala?: number
+          tip_creanta?: Database["public"]["Enums"]["garnishment_claim_type"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_garnishments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_garnishments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payroll_periods: {
         Row: {
           an: number
@@ -7029,6 +7119,8 @@ export type Database = {
           norma_zilnica_ore: number
           note: string | null
           organization_id: string
+          plafon_poprire_unica: number
+          plafon_popriri_concurente: number
           plata_avans: boolean
           procent_ore_suplimentare: number
           procent_spor_noapte: number
@@ -7063,6 +7155,8 @@ export type Database = {
           norma_zilnica_ore?: number
           note?: string | null
           organization_id: string
+          plafon_poprire_unica?: number
+          plafon_popriri_concurente?: number
           plata_avans?: boolean
           procent_ore_suplimentare?: number
           procent_spor_noapte?: number
@@ -7097,6 +7191,8 @@ export type Database = {
           norma_zilnica_ore?: number
           note?: string | null
           organization_id?: string
+          plafon_poprire_unica?: number
+          plafon_popriri_concurente?: number
           plata_avans?: boolean
           procent_ore_suplimentare?: number
           procent_spor_noapte?: number
@@ -10166,6 +10262,7 @@ export type Database = {
         | "retinere_sindicat"
         | "alta"
       payroll_entry_status: "draft" | "calculat"
+      garnishment_claim_type: "alta" | "intretinere"
       payroll_period_status: "draft" | "calculat" | "aprobat" | "inchis"
       per_diem_border_rule:
         | "tara_plecare"

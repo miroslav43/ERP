@@ -1,4 +1,6 @@
 // src/domain/payroll/erori.test.ts
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -132,5 +134,47 @@ describe("descriereCompleta()", () => {
     for (const cod of CODURI_PROBLEMA satisfies readonly CodProblema[]) {
       expect(descriereCompleta(problema(cod))).toContain(problema(cod).cumSeRepara);
     }
+  });
+});
+
+describe("catalogul acoperă tot ce emit etapele", () => {
+  // Etapele întorc coduri ca ȘIRURI, deliberat: altfel fiecare etapă nouă ar
+  // cere o modificare în catalog, adică exact punctul de coliziune pe care
+  // structura îl evită. Prețul e că un cod poate rămâne neînregistrat, iar
+  // atunci `problemaDinEtapa` îl degradează la o problemă generică — vizibilă,
+  // dar fără cauză și fără mod de reparare.
+  //
+  // Testul citește modulele ca TEXT, ca în `config/permissions.test.ts`:
+  // verificarea trebuie să meargă fără să importe fiecare etapă.
+  const RADACINA = join(process.cwd(), "src/domain/payroll");
+
+  function coduriEmise(): ReadonlySet<string> {
+    const directoare = ["etape", "bancar", "contabil"];
+    const gasite = new Set<string>();
+    for (const director of directoare) {
+      const cale = join(RADACINA, director);
+      if (!existsSync(cale)) continue;
+      for (const fisier of readdirSync(cale)) {
+        if (!fisier.endsWith(".ts") || fisier.endsWith(".test.ts")) continue;
+        const sursa = readFileSync(join(cale, fisier), "utf8");
+        for (const potrivire of sursa.matchAll(/"(SAL_[A-Z_]+)"/g)) {
+          if (potrivire[1] !== undefined) gasite.add(potrivire[1]);
+        }
+      }
+    }
+    return gasite;
+  }
+
+  it("s-au găsit coduri de verificat — altfel testul ar trece fals-pozitiv", () => {
+    expect(coduriEmise().size).toBeGreaterThan(10);
+  });
+
+  it("fiecare cod emis de o etapă e înregistrat în catalog", () => {
+    const declarate = new Set<string>(CODURI_PROBLEMA);
+    const lipsa = [...coduriEmise()].filter((cod) => !declarate.has(cod)).sort();
+    expect(
+      lipsa,
+      `Coduri emise fără intrare în catalog — ar apărea fără cauză și fără mod de reparare: ${lipsa.join(", ")}`,
+    ).toEqual([]);
   });
 });
