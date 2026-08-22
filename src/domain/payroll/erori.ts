@@ -36,6 +36,17 @@ export const CODURI_PROBLEMA = [
   "SAL_SCUTIRE_FARA_PROCENT",
   "SAL_SCUTIRI_MULTIPLE",
   "SAL_RETINERE_PLAFONATA",
+  "SAL_CO_MEDIE_INCOMPLETA",
+  "SAL_CO_FARA_ISTORIC",
+  "SAL_CO_MEDIA_MAI_MICA",
+  "SAL_CM_ISTORIC_INCOMPLET",
+  "SAL_CM_BAZA_PLAFONATA",
+  "SAL_CM_ZILE_ANGAJATOR_EPUIZATE",
+  "SAL_ORE_SUPL_NECOMPENSATE",
+  "SAL_ORE_SUPL_EXPIRATE",
+  "SAL_ZI_LIBERA_SARBATOARE_NEACORDATA",
+  "SAL_SPOR_SARBATOARE_FARA_PROCENT",
+  "SAL_ETAPA_COD_NECUNOSCUT",
 ] as const;
 
 export type CodProblema = (typeof CODURI_PROBLEMA)[number];
@@ -153,6 +164,106 @@ const CATALOG: Readonly<Record<CodProblema, IntrareCatalog>> = {
       "Verificați evaluarea avantajelor pe fișa angajatului. Diferența trebuie recuperată separat, nu prin restul de plată.",
     unde: "/angajati",
   },
+  SAL_CO_MEDIE_INCOMPLETA: {
+    severitate: "avertisment",
+    mesaj:
+      "Media pentru indemnizația de concediu de odihnă s-a calculat pe mai puține luni decât cere legea.",
+    cauza:
+      "Istoricul de venit nu acoperă toată perioada de referință — de regulă la un angajat nou sau la o organizație intrată recent în aplicație.",
+    cumSeRepara:
+      "Introduceți veniturile lunilor lipsă în Salarizare → Istoric venituri, apoi recalculați perioada.",
+    unde: "/salarizare/istoric-venituri",
+  },
+  SAL_CO_FARA_ISTORIC: {
+    severitate: "avertisment",
+    mesaj:
+      "Nu există nicio lună cu zile lucrate în istoric, deci indemnizația de concediu s-a plătit la salariul de bază.",
+    cauza:
+      "Media pe ultimele luni are nevoie de cel puțin o lună cu zile lucrate. Fără ea rămâne aplicabil doar salariul curent.",
+    cumSeRepara:
+      "Pentru un angajat nou e normal. Altfel, introduceți istoricul de venit și recalculați.",
+    unde: "/salarizare/istoric-venituri",
+  },
+  SAL_CO_MEDIA_MAI_MICA: {
+    severitate: "informativ",
+    mesaj:
+      "Media perioadei de referință e sub salariul de bază, deci s-a aplicat salariul de bază.",
+    cauza:
+      "Legea cere varianta mai avantajoasă pentru angajat, iar aici aceea e rata zilnică a salariului curent.",
+    cumSeRepara: "Nu e nimic de reparat — calculul a ales corect.",
+    unde: null,
+  },
+  SAL_CM_ISTORIC_INCOMPLET: {
+    severitate: "avertisment",
+    mesaj:
+      "Baza de calcul a concediului medical s-a format pe mai puține luni decât cere codul de indemnizație.",
+    cauza:
+      "Codul cere media pe un număr de luni; istoricul de venit nu le acoperă pe toate. Indemnizația poate ieși mai mică decât cea legală.",
+    cumSeRepara:
+      "Introduceți veniturile lunilor lipsă în Salarizare → Istoric venituri, sau confirmați cu contabilul că baza parțială e acceptabilă.",
+    unde: "/salarizare/istoric-venituri",
+  },
+  SAL_CM_BAZA_PLAFONATA: {
+    severitate: "informativ",
+    mesaj: "Baza zilnică a concediului medical a fost redusă la plafonul legal.",
+    cauza:
+      "Codul de indemnizație are un plafon exprimat în salarii minime, iar media veniturilor l-a depășit.",
+    cumSeRepara:
+      "Nu e nimic de reparat, dar verificați că salariul minim configurat e cel în vigoare.",
+    unde: "/salarizare/setari",
+  },
+  SAL_CM_ZILE_ANGAJATOR_EPUIZATE: {
+    severitate: "informativ",
+    mesaj:
+      "Zilele de concediu medical suportate de firmă erau deja consumate în acest episod de boală.",
+    cauza:
+      "Primele zile calendaristice ale unui concediu medical le suportă angajatorul, iar un certificat de continuare nu le resetează. Restul se recuperează de la fondul de sănătate.",
+    cumSeRepara:
+      "Verificați că certificatele au fost înregistrate în ordine și că un episod nou nu a fost marcat din greșeală drept continuare.",
+    unde: "/concedii",
+  },
+  SAL_ORE_SUPL_NECOMPENSATE: {
+    severitate: "avertisment",
+    mesaj: "Termenul de compensare a unor ore suplimentare se apropie de expirare.",
+    cauza:
+      "Orele suplimentare se compensează cu timp liber într-un termen legal. După expirare trebuie plătite cu spor, oricât ar costa.",
+    cumSeRepara:
+      "Programați zilele libere înainte de termen, sau acceptați plata cu spor. Avertismentul apare ÎNAINTE de expirare tocmai ca să existe alegerea.",
+    unde: "/pontaj",
+  },
+  SAL_ORE_SUPL_EXPIRATE: {
+    severitate: "informativ",
+    mesaj: "Ore suplimentare cu termenul de compensare depășit se plătesc obligatoriu cu spor.",
+    cauza: "Termenul legal de compensare cu timp liber a trecut fără ca zilele să fie acordate.",
+    cumSeRepara: "Nu se mai poate compensa. Suma apare pe fluturaș ca ore suplimentare plătite.",
+    unde: null,
+  },
+  SAL_ZI_LIBERA_SARBATOARE_NEACORDATA: {
+    severitate: "avertisment",
+    mesaj: "O zi liberă cuvenită pentru muncă în sărbătoare legală nu a fost acordată în termen.",
+    cauza:
+      "Munca într-o sărbătoare legală se compensează cu zi liberă în termen, altfel cu spor. Termenul a trecut.",
+    cumSeRepara:
+      "Sporul se plătește acum. Verificați dacă zilele libere sunt urmărite în modulul de pontaj.",
+    unde: "/pontaj",
+  },
+  SAL_SPOR_SARBATOARE_FARA_PROCENT: {
+    severitate: "avertisment",
+    mesaj: "S-a ales plata cu spor pentru o sărbătoare legală, dar procentul nu e configurat.",
+    cauza:
+      "Compensarea prin spor are nevoie de un procent; fără el orele s-ar plăti la tarif simplu.",
+    cumSeRepara: "Completați procentul de spor de sărbătoare în setările de pontaj.",
+    unde: "/pontaj",
+  },
+  SAL_ETAPA_COD_NECUNOSCUT: {
+    severitate: "avertisment",
+    mesaj: "O etapă de calcul a raportat o problemă pe care aplicația nu o recunoaște.",
+    cauza:
+      "Codul întors de etapă nu e înregistrat în catalog. E o scăpare de dezvoltare, nu o situație a angajatului.",
+    cumSeRepara:
+      "Semnalați problema. Până atunci, detaliile de mai sus descriu situația reală și pot fi folosite ca atare.",
+    unde: null,
+  },
   SAL_CM_NECALCULAT: {
     severitate: "avertisment",
     mesaj: "Zilele de concediu medical nu sunt incluse în acest calcul.",
@@ -252,4 +363,30 @@ export function sorteazaProbleme(
 export function descriereCompleta(p: ProblemaSalarizare): string {
   const parti = [p.mesaj, p.detalii, p.cauza, p.cumSeRepara];
   return parti.filter((parte): parte is string => parte !== null && parte.length > 0).join(" ");
+}
+
+/**
+ * Traduce un cod venit dintr-o etapă de calcul în problema completă din catalog.
+ *
+ * Etapele sunt module pure care nu cunosc catalogul — întorc un cod ca ȘIR și
+ * cifrele cazului. Aici se adaugă severitatea, cauza și modul de reparare.
+ *
+ * Un cod necunoscut NU se aruncă și nu se înghite: devine o problemă generică,
+ * marcată ca atare. O etapă care emite un cod neînregistrat e un defect de
+ * dezvoltare, iar mesajul îl face vizibil în loc să-l ascundă.
+ */
+export function problemaDinEtapa(
+  cod: string,
+  detalii: string,
+  employeeId: string | null = null,
+): ProblemaSalarizare {
+  if (esteCodProblema(cod)) return problema(cod, { detalii, employeeId });
+  return problema("SAL_ETAPA_COD_NECUNOSCUT", {
+    detalii: `Cod „${cod}": ${detalii}`,
+    employeeId,
+  });
+}
+
+function esteCodProblema(valoare: string): valoare is CodProblema {
+  return (CODURI_PROBLEMA as readonly string[]).includes(valoare);
 }

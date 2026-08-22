@@ -15,6 +15,9 @@ import { TaxePieChart } from "./taxe-pie-chart";
 
 const ETICHETE_PAS: Record<string, string> = {
   bazaSalariu: "Salariu de bază (zile plătite)",
+  indemnizatieCo: "Indemnizație de concediu de odihnă",
+  indemnizatieCmAngajator: "Concediu medical — suportat de firmă",
+  indemnizatieCmFnuass: "Concediu medical — de la fondul de sănătate",
   sumaOreSuplimentare: "Ore suplimentare",
   sporNoapte: "Spor de noapte",
   sporRepaus: "Ore lucrate în zile de repaus săptămânal",
@@ -22,6 +25,8 @@ const ETICHETE_PAS: Record<string, string> = {
   primeTotal: "Prime",
   brut: "Total brut",
   valoareTichete: "Tichete de masă",
+  bazaCas: "Bază CAS (pensie)",
+  bazaCass: "Bază CASS (sănătate)",
   bazaCasCass: "Bază CAS/CASS",
   cas: "CAS",
   cass: "CASS",
@@ -32,6 +37,8 @@ const ETICHETE_PAS: Record<string, string> = {
   camAngajator: "CAM (angajator)",
   net: "Net",
   retineriTotal: "Rețineri",
+  avantajeNatura: "Avantaje primite în natură (scăzute din plată)",
+  restDePlata: "Rest de plată",
   netDePlata: "Net de plată",
   costTotalAngajator: "Cost total angajator",
 };

@@ -29,7 +29,10 @@
 // `PayrollSettingsSnapshot`, niciodată hardcodată — vezi banner-ul din UI.
 
 import { rotunjesteLaBani } from "../bani";
-import { descriereCompleta, problema, type CodProblema } from "./erori";
+import { descriereCompleta, problema, problemaDinEtapa, type CodProblema } from "./erori";
+import { calculeazaCompensarea, type IntrareCompensare } from "./etape/compensare-ore";
+import { calculeazaIndemnizatieCm, type IntrareIndemnizatieCm } from "./etape/indemnizatie-cm";
+import { calculeazaIndemnizatieCo, type IntrareIndemnizatieCo } from "./etape/indemnizatie-co";
 
 export interface PragDeducerePersonala {
   readonly nrPersoaneIntretinereMin: number;
@@ -72,6 +75,8 @@ export interface PayrollSettingsSnapshot {
   readonly salariuMinimBrut?: number;
   /** Ridică baza CAS/CASS la salariul minim. Implicit stins — vezi 0055. */
   readonly aplicaMinimContributii?: boolean;
+  /** Cum se plătește indemnizația de concediu de odihnă. Vezi `etape/indemnizatie-co.ts`. */
+  readonly modCalculIndemnizatieCo?: "baza" | "media_3_luni" | "cea_mai_avantajoasa";
 }
 
 /**
@@ -154,6 +159,24 @@ export interface DeductionInput {
 
 export interface PayrollCalcInput {
   readonly settings: PayrollSettingsSnapshot;
+  /**
+   * Cele trei etape de mai jos sunt OPȚIONALE, deliberat.
+   *
+   * Absente, motorul se comportă exact ca înainte: concediul de odihnă se
+   * plătește la rata zilnică a salariului de bază, concediul medical nu se
+   * calculează, iar orele suplimentare se plătesc toate. Așa rămân valabile
+   * apelanții existenți și cele douăzeci și trei de teste care sunt contractul
+   * de non-regresie al acestui modul.
+   *
+   * Prezente, fiecare preia bucata ei de calcul, iar avertismentul de
+   * simplificare corespunzător dispare — nu mai are ce semnala.
+   */
+  readonly concediuOdihna?: Omit<
+    IntrareIndemnizatieCo,
+    "zileConcediu" | "salariuBaza" | "zileLucratoareLuna"
+  >;
+  readonly concediuMedical?: Omit<IntrareIndemnizatieCm, "zileLucratoareLuna">;
+  readonly compensari?: Omit<IntrareCompensare, "ziReferinta"> & { readonly ziReferinta: string };
   readonly contract: EmployeeContractSnapshot;
   readonly attendance: AttendanceSummary;
   readonly bonuses: readonly BonusInput[];
@@ -167,6 +190,13 @@ export interface PayrollCalcWarning {
 
 export interface PayrollCalcResult {
   readonly bazaSalariu: number;
+  readonly indemnizatieCo: number;
+  readonly indemnizatieCmAngajator: number;
+  readonly indemnizatieCmFnuass: number;
+  readonly zileCmAngajator: number;
+  readonly zileCmFnuass: number;
+  readonly bazaZilnicaCm: number;
+  readonly oreSuplCompensate: number;
   readonly sumaOreSuplimentare: number;
   readonly sporNoapte: number;
   readonly oreRepaus: number;
@@ -249,13 +279,13 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     throw new RangeError("Numărul de zile lucrătoare din lună trebuie să fie pozitiv.");
   }
 
-  if (attendance.zileConcediuMedical > 0) {
+  if (attendance.zileConcediuMedical > 0 && input.concediuMedical === undefined) {
     warnings.push({
       cod: "CONCEDIU_MEDICAL_NECALCULAT",
       mesaj: `${String(attendance.zileConcediuMedical)} zile de concediu medical nu sunt incluse în acest calcul — indemnizația CNAS se calculează separat.`,
     });
   }
-  if (attendance.zileConcediuOdihna > 0) {
+  if (attendance.zileConcediuOdihna > 0 && input.concediuOdihna === undefined) {
     warnings.push({
       cod: "INDEMNIZATIE_CO_SIMPLIFICATA",
       mesaj:
@@ -264,8 +294,17 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
   }
 
   const salariuZi = contract.salariuBaza / attendance.zileLucratoareLuna;
-  const zilePlatite = attendance.zileLucrate + attendance.zileConcediuOdihna;
-  if (zilePlatite > attendance.zileLucratoareLuna + 0.01) {
+  // Când etapa de indemnizație preia concediul de odihnă, zilele ei ies din
+  // baza de salariu — altfel ar fi plătite de două ori, o dată la rata de bază
+  // și o dată la rata de indemnizație.
+  const zilePlatite =
+    input.concediuOdihna === undefined
+      ? attendance.zileLucrate + attendance.zileConcediuOdihna
+      : attendance.zileLucrate;
+  if (
+    attendance.zileLucrate + attendance.zileConcediuOdihna >
+    attendance.zileLucratoareLuna + 0.01
+  ) {
     throw new RangeError(
       "Zilele lucrate plus zilele de concediu de odihnă depășesc zilele lucrătoare ale lunii.",
     );
@@ -273,9 +312,24 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
   const bazaSalariu = inregistreaza("bazaSalariu", salariuZi * zilePlatite);
 
   const oreRata = contract.salariuBaza / (attendance.zileLucratoareLuna * normaZilnica);
+
+  // Orele compensate cu timp liber NU se mai plătesc — ar fi plată dublă.
+  // Când evidența compensărilor e dată, ea e autoritativă asupra pontajului:
+  // pontajul spune ce s-a lucrat, compensările spun ce s-a stins deja altfel.
+  let oreSuplDePlata = attendance.oreSuplimentare;
+  let oreSuplCompensate = 0;
+  if (input.compensari !== undefined) {
+    const comp = calculeazaCompensarea(input.compensari);
+    oreSuplDePlata = comp.oreDePlata;
+    oreSuplCompensate = comp.oreCompensate;
+    for (const pb of comp.probleme) {
+      const completa = problemaDinEtapa(pb.cod, pb.detalii);
+      warnings.push({ cod: completa.cod, mesaj: descriereCompleta(completa) });
+    }
+  }
   const sumaOreSuplimentare = inregistreaza(
     "sumaOreSuplimentare",
-    attendance.oreSuplimentare * oreRata * (1 + settings.procentOreSuplimentare),
+    oreSuplDePlata * oreRata * (1 + settings.procentOreSuplimentare),
   );
   const sporNoapte = inregistreaza(
     "sporNoapte",
@@ -334,6 +388,52 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     );
   }
 
+  const raporteaza = (probleme: readonly { cod: string; detalii: string }[]): void => {
+    for (const pb of probleme) {
+      const completa = problemaDinEtapa(pb.cod, pb.detalii);
+      warnings.push({ cod: completa.cod, mesaj: descriereCompleta(completa) });
+    }
+  };
+
+  // Indemnizația de concediu de odihnă: media perioadei de referință față de
+  // rata curentă, în varianta mai avantajoasă pentru angajat.
+  let indemnizatieCo = 0;
+  if (input.concediuOdihna !== undefined && attendance.zileConcediuOdihna > 0) {
+    const co = calculeazaIndemnizatieCo({
+      ...input.concediuOdihna,
+      zileConcediu: attendance.zileConcediuOdihna,
+      salariuBaza: contract.salariuBaza,
+      zileLucratoareLuna: attendance.zileLucratoareLuna,
+    });
+    indemnizatieCo = co.suma;
+    raporteaza(co.probleme);
+  }
+  inregistreaza("indemnizatieCo", indemnizatieCo);
+
+  // Concediul medical: bază pe mai multe luni, plafon, procent, și împărțirea
+  // între firmă și fondul de sănătate.
+  let indemnizatieCmAngajator = 0;
+  let indemnizatieCmFnuass = 0;
+  let zileCmAngajator = 0;
+  let zileCmFnuass = 0;
+  let bazaZilnicaCm = 0;
+  if (input.concediuMedical !== undefined) {
+    const cm = calculeazaIndemnizatieCm({
+      ...input.concediuMedical,
+      zileLucratoareLuna: attendance.zileLucratoareLuna,
+    });
+    indemnizatieCmAngajator = cm.totalAngajator;
+    indemnizatieCmFnuass = cm.totalFnuass;
+    bazaZilnicaCm = cm.bazaZilnica;
+    for (const linie of cm.peCertificat) {
+      zileCmAngajator += linie.zileAngajator;
+      zileCmFnuass += linie.zileFnuass;
+    }
+    raporteaza(cm.probleme);
+  }
+  inregistreaza("indemnizatieCmAngajator", indemnizatieCmAngajator);
+  inregistreaza("indemnizatieCmFnuass", indemnizatieCmFnuass);
+
   const primeTotal = inregistreaza(
     "primeTotal",
     bonuses.reduce((s, b) => s + b.suma, 0),
@@ -350,7 +450,15 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
 
   const brut = inregistreaza(
     "brut",
-    bazaSalariu + sumaOreSuplimentare + sporNoapte + sporRepaus + sporSarbatoare + primeTotal,
+    bazaSalariu +
+      indemnizatieCo +
+      indemnizatieCmAngajator +
+      indemnizatieCmFnuass +
+      sumaOreSuplimentare +
+      sporNoapte +
+      sporRepaus +
+      sporSarbatoare +
+      primeTotal,
   );
 
   // Numărul de tichete se acordă pe zilele efectiv LUCRATE, nu pe cele plătite
@@ -434,7 +542,9 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     "bazaImpozit",
     Math.max(
       0,
-      bazaCasFinala -
+      bazaCasFinala +
+        indemnizatieCmAngajator +
+        indemnizatieCmFnuass -
         cas -
         cass -
         deducerePersonala +
@@ -492,6 +602,13 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
   const r = settings.rotunjireLei;
   return {
     bazaSalariu: rotundLeu(bazaSalariu, r),
+    indemnizatieCo: rotundLeu(indemnizatieCo, r),
+    indemnizatieCmAngajator: rotundLeu(indemnizatieCmAngajator, r),
+    indemnizatieCmFnuass: rotundLeu(indemnizatieCmFnuass, r),
+    zileCmAngajator,
+    zileCmFnuass,
+    bazaZilnicaCm: rotundLeu(bazaZilnicaCm, r),
+    oreSuplCompensate,
     sumaOreSuplimentare: rotundLeu(sumaOreSuplimentare, r),
     sporNoapte: rotundLeu(sporNoapte, r),
     oreRepaus,

@@ -4,8 +4,12 @@ import { createAction } from "@/lib/actions/create-action";
 import { businessRule, notFound } from "@/lib/actions/errors";
 import {
   angajatiActiviCuContract,
+  certificateMedicaleLuna,
   citesteSetariPeId,
+  compensariLuna,
   componenteSalarialeActivePerioada,
+  istoricVenitPerAngajat,
+  marginileLunii,
   PONTAJ_GOL,
   pontajAgregatPerioada,
   scutiriActivePerioada,
@@ -160,6 +164,8 @@ function laSetariSnapshot(
     rotunjireLei: setari.rotunjire_lei,
     salariuMinimBrut: setari.salariu_minim_brut,
     aplicaMinimContributii: setari.aplica_minim_contributii,
+    modCalculIndemnizatieCo: setari.mod_calcul_indemnizatie_co as
+      "baza" | "media_3_luni" | "cea_mai_avantajoasa",
   };
 }
 
@@ -198,12 +204,32 @@ export const calculeazaPerioada = createAction({
     if (setari === null) throw notFound("Setările de salarizare ale perioadei nu mai există.");
     const snapshot = laSetariSnapshot(setari);
 
-    const [zileLuna, personal, pontaj, scutiri, componenteSalariale] = await Promise.all([
+    const { ultima: ultimaZiALunii } = marginileLunii(perioada.an, perioada.luna);
+    const [
+      zileLuna,
+      personal,
+      pontaj,
+      scutiri,
+      componenteSalariale,
+      istoric,
+      certificate,
+      compensari,
+    ] = await Promise.all([
       zileLucratoareLuna(ctx.tenant.organizationId, perioada.an, perioada.luna),
       angajatiActiviCuContract(ctx.tenant.organizationId, perioada.an, perioada.luna),
       pontajAgregatPerioada(perioada.attendance_period_id),
       scutiriActivePerioada(ctx.tenant.organizationId, perioada.an, perioada.luna),
       componenteSalarialeActivePerioada(ctx.tenant.organizationId, perioada.an, perioada.luna),
+      istoricVenitPerAngajat(
+        ctx.tenant.organizationId,
+        perioada.an,
+        perioada.luna,
+        // Se ia maximul cerut de cele două indemnizații: concediul medical cere
+        // șase luni, cel de odihnă trei. O singură citire acoperă ambele.
+        Math.max(6, setari.luni_medie_indemnizatie_co),
+      ),
+      certificateMedicaleLuna(ctx.tenant.organizationId, perioada.an, perioada.luna),
+      compensariLuna(ctx.tenant.organizationId, perioada.an, perioada.luna),
     ]);
     const angajati = personal.angajati;
 
@@ -314,6 +340,34 @@ export const calculeazaPerioada = createAction({
             esteAvantajInNatura: c.kind === "beneficiu_natura",
           })),
         ],
+        concediuOdihna: {
+          mod: snapshot.modCalculIndemnizatieCo ?? "baza",
+          istoric: (istoric.get(angajat.employee_id) ?? []).map((l) => ({
+            an: l.an,
+            luna: l.luna,
+            drepturiSalariale: l.drepturiSalariale,
+            zileLucrate: l.zileLucrate,
+          })),
+          luniNecesare: setari.luni_medie_indemnizatie_co,
+        },
+        concediuMedical: {
+          certificate: certificate.get(angajat.employee_id)?.certificate ?? [],
+          istoric: (istoric.get(angajat.employee_id) ?? []).map((l) => ({
+            an: l.an,
+            luna: l.luna,
+            venitBrut: l.venitBrut,
+            zileLucrate: l.zileLucrate,
+          })),
+          salariuMinimBrut: setari.salariu_minim_brut,
+          zileAngajatorDejaConsumate:
+            certificate.get(angajat.employee_id)?.zileAngajatorDejaConsumate ?? 0,
+        },
+        compensari: {
+          suplimentare: compensari.get(angajat.employee_id)?.suplimentare ?? [],
+          sarbatori: compensari.get(angajat.employee_id)?.sarbatori ?? [],
+          ziReferinta: ultimaZiALunii,
+          zileAvertizareTermen: setari.zile_avertizare_termen_compensare,
+        },
         deductions: (retineriPeAngajat.get(angajat.employee_id) ?? []).map((r) => ({
           suma: r.suma,
           procentMaximDinNet: r.procentMaximDinNet,
@@ -341,6 +395,13 @@ export const calculeazaPerioada = createAction({
         spor_repaus: rezultat.sporRepaus,
         spor_sarbatoare: rezultat.sporSarbatoare,
         baza_salariu: rezultat.bazaSalariu,
+        indemnizatie_co: rezultat.indemnizatieCo,
+        indemnizatie_cm_angajator: rezultat.indemnizatieCmAngajator,
+        indemnizatie_cm_fnuass: rezultat.indemnizatieCmFnuass,
+        zile_cm_angajator: rezultat.zileCmAngajator,
+        zile_cm_fnuass: rezultat.zileCmFnuass,
+        baza_zilnica_cm: rezultat.bazaZilnicaCm,
+        ore_supl_compensate: rezultat.oreSuplCompensate,
         suma_ore_suplimentare: rezultat.sumaOreSuplimentare,
         spor_noapte: rezultat.sporNoapte,
         prime_total: rezultat.primeTotal,

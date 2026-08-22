@@ -32,6 +32,9 @@ export interface SetariSalarizare {
   readonly rotunjire_lei: boolean;
   readonly salariu_minim_brut: number;
   readonly aplica_minim_contributii: boolean;
+  readonly mod_calcul_indemnizatie_co: string;
+  readonly luni_medie_indemnizatie_co: number;
+  readonly zile_avertizare_termen_compensare: number;
   readonly verificat_de_contabil: boolean;
   readonly verificat_la: string | null;
   readonly note: string | null;
@@ -62,7 +65,7 @@ export async function citesteSetariPeId(
   const { data, error } = await db
     .from("payroll_settings")
     .select(
-      "id, valabil_de_la, cota_cas, cota_cass, cota_impozit, cota_cam_angajator, norma_zilnica_ore, procent_spor_noapte, procent_spor_weekend, procent_ore_suplimentare, valoare_tichet_masa, tichete_impozabile, tichete_supuse_cass, rotunjire_lei, salariu_minim_brut, aplica_minim_contributii, verificat_de_contabil, verificat_la, note",
+      "id, valabil_de_la, cota_cas, cota_cass, cota_impozit, cota_cam_angajator, norma_zilnica_ore, procent_spor_noapte, procent_spor_weekend, procent_ore_suplimentare, valoare_tichet_masa, tichete_impozabile, tichete_supuse_cass, rotunjire_lei, salariu_minim_brut, aplica_minim_contributii, mod_calcul_indemnizatie_co, luni_medie_indemnizatie_co, zile_avertizare_termen_compensare, verificat_de_contabil, verificat_la, note",
     )
     .eq("organization_id", organizationId)
     .eq("id", id)
@@ -82,7 +85,7 @@ export async function citesteSetariValabile(
   const { data: randuri, error } = await db
     .from("payroll_settings")
     .select(
-      "id, valabil_de_la, cota_cas, cota_cass, cota_impozit, cota_cam_angajator, norma_zilnica_ore, procent_spor_noapte, procent_spor_weekend, procent_ore_suplimentare, valoare_tichet_masa, tichete_impozabile, tichete_supuse_cass, rotunjire_lei, salariu_minim_brut, aplica_minim_contributii, verificat_de_contabil, verificat_la, note",
+      "id, valabil_de_la, cota_cas, cota_cass, cota_impozit, cota_cam_angajator, norma_zilnica_ore, procent_spor_noapte, procent_spor_weekend, procent_ore_suplimentare, valoare_tichet_masa, tichete_impozabile, tichete_supuse_cass, rotunjire_lei, salariu_minim_brut, aplica_minim_contributii, mod_calcul_indemnizatie_co, luni_medie_indemnizatie_co, zile_avertizare_termen_compensare, verificat_de_contabil, verificat_la, note",
     )
     .eq("organization_id", organizationId)
     .lte("valabil_de_la", data)
@@ -891,6 +894,271 @@ export async function istoricVenitPerAngajat(
       (a, b) => b.an * 12 + b.luna - (a.an * 12 + a.luna),
     );
     rezultat.set(employeeId, lista);
+  }
+  return rezultat;
+}
+
+// ── Certificate medicale, cu detectarea episodului ─────────────────────────
+
+export interface CertificatMedicalCitit {
+  readonly serie: string;
+  readonly numar: string;
+  readonly dataInceput: string;
+  readonly dataSfarsit: string;
+  readonly zileCalendaristice: number;
+  readonly zileLucratoare: number;
+  readonly esteContinuare: boolean;
+  readonly cod: {
+    readonly cod: string;
+    readonly procent: number;
+    readonly zileAngajator: number;
+    readonly platitor: "angajator" | "fnuass" | "mixt";
+    readonly luniBazaCalcul: number;
+    readonly plafonSalariiMinime: number | null;
+  };
+}
+
+export interface CertificateAngajat {
+  readonly certificate: readonly CertificatMedicalCitit[];
+  /** Zile de angajator consumate în episod ÎNAINTE de luna calculată. */
+  readonly zileAngajatorDejaConsumate: number;
+}
+
+/** Ziua următoare, pe componente de dată — fără să construim vreun `Date` local. */
+function ziuaUrmatoare(zi: string): string {
+  const an = Number(zi.slice(0, 4));
+  const luna = Number(zi.slice(5, 7));
+  const ziua = Number(zi.slice(8, 10));
+  const urmatoare = new Date(Date.UTC(an, luna - 1, ziua + 1));
+  return urmatoare.toISOString().slice(0, 10);
+}
+
+/**
+ * Certificatele medicale care ating luna calculată, per angajat.
+ *
+ * Se citesc și lunile dinainte, fiindcă regula care contează cel mai mult nu se
+ * poate afla dintr-o singură lună: primele zile calendaristice ale unui concediu
+ * medical le suportă firma, iar un certificat de CONTINUARE **nu le resetează**.
+ * Fără istoricul episodului, fiecare certificat ar reporni contorul și firma ar
+ * plăti de mai multe ori aceleași cinci zile.
+ *
+ * Un episod = lanț de certificate în care fiecare începe cel târziu în ziua
+ * următoare sfârșitului celui dinainte.
+ */
+export async function certificateMedicaleLuna(
+  organizationId: string,
+  an: number,
+  luna: number,
+): Promise<ReadonlyMap<string, CertificateAngajat>> {
+  const db = await createServerSupabase();
+  const { prima, ultima } = marginileLunii(an, luna);
+  // Șase luni în urmă acoperă orice episod realist; un concediu medical mai
+  // lung de-atât e oricum un caz care se verifică manual.
+  const dinTrecut = marginileLunii(
+    Math.floor((an * 12 + (luna - 1) - 6) / 12),
+    ((an * 12 + (luna - 1) - 6) % 12) + 1,
+  ).prima;
+
+  interface Brut {
+    readonly employee_id: string;
+    readonly data_inceput: string;
+    readonly data_sfarsit: string;
+    readonly zile_lucratoare: number;
+    readonly zile_calendaristice: number;
+    readonly serie_certificat: string | null;
+    readonly numar_certificat: string | null;
+    readonly cod: {
+      cod: string;
+      procent: number;
+      zile_angajator: number;
+      platitor: string;
+      luni_baza_calcul: number;
+      plafon_salarii_minime: number | null;
+    } | null;
+  }
+  const { data, error } = await db
+    .from("leave_requests")
+    .select(
+      "employee_id, data_inceput, data_sfarsit, zile_lucratoare, zile_calendaristice, serie_certificat, numar_certificat, cod:medical_leave_codes!medical_code_id(cod, procent, zile_angajator, platitor, luni_baza_calcul, plafon_salarii_minime)",
+    )
+    .eq("organization_id", organizationId)
+    .eq("status", "aprobata")
+    .not("medical_code_id", "is", null)
+    .is("deleted_at", null)
+    .gte("data_inceput", dinTrecut)
+    .lte("data_inceput", ultima)
+    .order("data_inceput", { ascending: true })
+    .returns<Brut[]>();
+  if (error !== null) throw error;
+
+  const peAngajat = new Map<string, Brut[]>();
+  for (const rand of data ?? []) {
+    if (rand.cod === null) continue;
+    peAngajat.set(rand.employee_id, [...(peAngajat.get(rand.employee_id) ?? []), rand]);
+  }
+
+  const rezultat = new Map<string, CertificateAngajat>();
+  for (const [employeeId, toate] of peAngajat) {
+    const dinLuna: CertificatMedicalCitit[] = [];
+    let consumateInainte = 0;
+    let sfarsitulAnterior: string | null = null;
+
+    for (const rand of toate) {
+      const cod = rand.cod as NonNullable<Brut["cod"]>;
+      const continuare =
+        sfarsitulAnterior !== null && rand.data_inceput <= ziuaUrmatoare(sfarsitulAnterior);
+      if (!continuare) consumateInainte = 0;
+
+      const atingeLuna = rand.data_sfarsit >= prima && rand.data_inceput <= ultima;
+      if (atingeLuna) {
+        dinLuna.push({
+          serie: rand.serie_certificat ?? "",
+          numar: rand.numar_certificat ?? "",
+          dataInceput: rand.data_inceput,
+          dataSfarsit: rand.data_sfarsit,
+          zileCalendaristice: rand.zile_calendaristice,
+          zileLucratoare: rand.zile_lucratoare,
+          esteContinuare: continuare,
+          cod: {
+            cod: cod.cod,
+            procent: cod.procent,
+            zileAngajator: cod.zile_angajator,
+            platitor: cod.platitor as "angajator" | "fnuass" | "mixt",
+            luniBazaCalcul: cod.luni_baza_calcul,
+            plafonSalariiMinime: cod.plafon_salarii_minime,
+          },
+        });
+      } else {
+        // Certificat din episod, dar dinaintea lunii: consumă din cele cinci zile.
+        consumateInainte = Math.min(
+          cod.zile_angajator,
+          consumateInainte + rand.zile_calendaristice,
+        );
+      }
+      sfarsitulAnterior = rand.data_sfarsit;
+    }
+
+    if (dinLuna.length > 0) {
+      rezultat.set(employeeId, {
+        certificate: dinLuna,
+        zileAngajatorDejaConsumate: consumateInainte,
+      });
+    }
+  }
+  return rezultat;
+}
+
+// ── Compensări de ore, din tabelele populate de triggerele de pontaj ───────
+
+export interface CompensariAngajat {
+  readonly suplimentare: readonly {
+    readonly ore: number;
+    readonly oreFolosite: number;
+    readonly oreExpirate: number;
+    readonly termenFolosire: string;
+  }[];
+  readonly sarbatori: readonly {
+    readonly dataSarbatorii: string;
+    readonly oreLucrate: number;
+    readonly tip: "zi_libera" | "spor";
+    readonly acordata: boolean;
+    readonly termenAcordare: string | null;
+    readonly sporProcent: number | null;
+  }[];
+}
+
+const COMPENSARI_GOALE: CompensariAngajat = { suplimentare: [], sarbatori: [] };
+
+/**
+ * Compensările care ating luna calculată.
+ *
+ * `overtime_compensation` și `holiday_compensation` se populează automat din
+ * triggerele migrării 0013, dar până acum nimeni nu le citea: orele compensate
+ * cu timp liber erau plătite A DOUA OARĂ, iar sporul de sărbătoare deja
+ * calculat de bază nu ajungea nicăieri.
+ */
+export async function compensariLuna(
+  organizationId: string,
+  an: number,
+  luna: number,
+): Promise<ReadonlyMap<string, CompensariAngajat>> {
+  const db = await createServerSupabase();
+  const { prima, ultima } = marginileLunii(an, luna);
+
+  const [supl, sarb] = await Promise.all([
+    db
+      .from("overtime_compensation")
+      .select("employee_id, ore, ore_folosite, ore_expirate, termen_folosire")
+      .eq("organization_id", organizationId)
+      .is("deleted_at", null)
+      .lte("data_generarii", ultima)
+      .returns<
+        {
+          employee_id: string;
+          ore: number;
+          ore_folosite: number;
+          ore_expirate: number;
+          termen_folosire: string;
+        }[]
+      >(),
+    db
+      .from("holiday_compensation")
+      .select(
+        "employee_id, data_sarbatorii, ore_lucrate, tip, acordata, termen_acordare, spor_procent",
+      )
+      .eq("organization_id", organizationId)
+      .is("deleted_at", null)
+      .gte("data_sarbatorii", prima)
+      .lte("data_sarbatorii", ultima)
+      .returns<
+        {
+          employee_id: string;
+          data_sarbatorii: string;
+          ore_lucrate: number;
+          tip: string;
+          acordata: boolean;
+          termen_acordare: string | null;
+          spor_procent: number | null;
+        }[]
+      >(),
+  ]);
+  if (supl.error !== null) throw supl.error;
+  if (sarb.error !== null) throw sarb.error;
+
+  const rezultat = new Map<string, CompensariAngajat>();
+  const ia = (id: string): CompensariAngajat => rezultat.get(id) ?? COMPENSARI_GOALE;
+
+  for (const rand of supl.data ?? []) {
+    const curent = ia(rand.employee_id);
+    rezultat.set(rand.employee_id, {
+      ...curent,
+      suplimentare: [
+        ...curent.suplimentare,
+        {
+          ore: rand.ore,
+          oreFolosite: rand.ore_folosite,
+          oreExpirate: rand.ore_expirate,
+          termenFolosire: rand.termen_folosire,
+        },
+      ],
+    });
+  }
+  for (const rand of sarb.data ?? []) {
+    const curent = ia(rand.employee_id);
+    rezultat.set(rand.employee_id, {
+      ...curent,
+      sarbatori: [
+        ...curent.sarbatori,
+        {
+          dataSarbatorii: rand.data_sarbatorii,
+          oreLucrate: rand.ore_lucrate,
+          tip: rand.tip === "spor" ? "spor" : "zi_libera",
+          acordata: rand.acordata,
+          termenAcordare: rand.termen_acordare,
+          sporProcent: rand.spor_procent,
+        },
+      ],
+    });
   }
   return rezultat;
 }
