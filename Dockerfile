@@ -75,11 +75,9 @@ ENV SUPABASE_SERVICE_ROLE_KEY="build-placeholder" \
     NEXT_TELEMETRY_DISABLED=1 \
     NODE_ENV=production
 
-# Semnalizează next.config.ts că suntem într-un build de imagine: acolo
-# verificarea de tipuri nu blochează livrarea (vezi comentariul de acolo).
-# `pnpm build` local și CI rămân stricte.
-ENV DOCKER_BUILD=1
-
+# Build-ul de imagine rulează verificarea de tipuri ca oricare altul. A existat
+# aici un `ENV DOCKER_BUILD=1` care o dezactiva, ca ocol pentru erori venite din
+# tipuri generate rămase în urma bazei; cauza e reparată, ocolul a fost scos.
 RUN pnpm build
 
 # ---------------------------------------------------------------------------

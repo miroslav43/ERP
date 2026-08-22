@@ -1,28 +1,5 @@
 import type { NextConfig } from "next";
 
-/**
- * Build-ul din container relaxează verificarea de tipuri, restul NU.
- *
- * Codul de la HEAD apelează `aplica_drepturi_concediu` și
- * `seteaza_zile_concediu_implicit` plus șase coloane din
- * `leave_entitlement_rules` care există în migrarea 0035_reguli_concediu.sql,
- * dar NU în baza live: migrarea nu a fost aplicată (0036 da, 0035 nu).
- * `src/types/database.ts` descrie corect baza reală, deci `tsc` semnalează pe
- * bună dreptate nepotrivirea — 9 erori, în două fișiere.
- *
- * Tipurile sunt strict compile-time: nu schimbă nimic din ce se execută. A
- * bloca deploy-ul pe ele ar însemna ca 23 de module funcționale să rămână
- * nepublicate din cauza unuia singur. Așa că build-ul de imagine trece mai
- * departe, iar `pnpm build` local și CI (.github/workflows/ci.yml rulează
- * `typecheck` separat) rămân stricte — poarta de calitate nu se pierde, doar
- * nu mai stă în drumul livrării.
- *
- * ⚠️ Ecranul „Concedii → Setări" (grile de drepturi) va da eroare la RULARE
- * până când migrarea 0035 e aplicată. După aplicare: `pnpm db:types`, apoi
- * variabila asta poate dispărea cu totul.
- */
-const inContainer = process.env.DOCKER_BUILD === "1";
-
 const nextConfig: NextConfig = {
   /**
    * Build de producție containerizat: `standalone` scrie în `.next/standalone`
@@ -50,7 +27,13 @@ const nextConfig: NextConfig = {
 
   reactCompiler: true,
 
-  typescript: { ignoreBuildErrors: inContainer },
+  // Fără cheie `typescript`: build-ul de imagine relaxa verificarea
+  // (`ignoreBuildErrors` când `DOCKER_BUILD=1`), ca ocol pentru cele 9 erori
+  // `tsc` din ecranul Concedii → Setări. Cauza reală era `src/types/database.ts`
+  // rămas în urma bazei, nu invers; regenerarea l-a rezolvat. Ocolul a fost
+  // scos: `next build` e singura poartă care prinde granița server/client, iar
+  // în container ea era exact cea dezactivată.
+  //
   // Fără cheie `eslint`: în Next 16 opțiunea a fost ELIMINATĂ din NextConfig
   // (`node_modules/next/dist/docs/01-app/03-api-reference/05-config/03-eslint.md`,
   // tabelul de versiuni: „v16.0.0 — `next lint` and the `eslint` next.config.js
