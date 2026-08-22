@@ -1,0 +1,112 @@
+# ============================================================================
+# Stack Docker Swarm pentru Administrativo (ERP) — serviciul `administrativo-web`.
+#
+# Deploy:  ./administrativo.sh stack:deploy
+#   care face:  set -a; source .env.production; set +a
+#               IMAGE_TAG=<git-sha> docker stack deploy \
+#                 -c docker-stack.yml --resolve-image never administrativo
+#
+# DE CE UN SINGUR SERVICIU
+# Aplicația e Next.js App Router integral: 42 de fișiere "use server" (Server
+# Actions) și doar 2 route handlers. Nu există proces de backend separat —
+# „backend"-ul este Supabase Cloud (Postgres + Auth + PostgREST + Storage).
+# Un al doilea container ar fi un container gol. Câștigul real din Swarm îl dau
+# cele 2 replici: rolling update `start-first` cu rollback automat, deci deploy
+# fără downtime. Un worker sau un API propriu s-ar adăuga aici, ca al doilea
+# serviciu, fără să schimbe nimic din rest.
+#
+# DE CE `strawboss-net` ȘI NU UN OVERLAY PROPRIU
+# `strawboss-nginx-1` (proxy-ul partajat al întregului VM) e atașat la
+# `strawboss-net` prin docker-compose.yml-ul StrawBoss, deci legătura
+# supraviețuiește unei recreări a nginx-ului. Un overlay propriu ar cere
+# `docker network connect` pe containerul viu și s-ar pierde tăcut la prima
+# recreare, lăsând site-ul în 502 până la următorul deploy.
+#
+# PARTICULARITĂȚI SWARM (diferă de Compose)
+#  - fără `build:`   — Swarm rulează imagini deja construite și taguite.
+#  - fără `container_name:` / `restart:` — ignorate; se folosește `deploy.*`.
+#  - secretele și IMAGE_TAG se interpolează din mediul shell-ului la deploy.
+# ============================================================================
+
+services:
+  administrativo-web:
+    image: administrativo-web:${IMAGE_TAG:-latest}
+
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      # Vezi comentariul din Dockerfile: fără asta serverul standalone se leagă
+      # pe id-ul containerului, iar healthcheck-ul pe 127.0.0.1 eșuează fals.
+      - HOSTNAME=0.0.0.0
+
+      # Publice — deja inlinuite în bundle la build; retrimise aici pentru ca
+      # validarea Zod din src/config/env.ts să treacă și pe partea de server.
+      - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+
+      # Secrete — există DOAR la runtime, niciodată într-un layer de imagine.
+      # SUPABASE_SERVICE_ROLE_KEY ocolește complet RLS.
+      # HR_ENCRYPTION_KEYS / HR_HASH_KEY sunt cheile cu care sunt deja criptate
+      # CNP-urile și IBAN-urile din bază: trebuie să rămână identice cu cele din
+      # dev, altfel datele existente devin ilizibile ireversibil.
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - HR_ENCRYPTION_KEYS=${HR_ENCRYPTION_KEYS}
+      - HR_ENCRYPTION_ACTIVE_KEY=${HR_ENCRYPTION_ACTIVE_KEY}
+      - HR_HASH_KEY=${HR_HASH_KEY}
+      - TENANT_COOKIE_SECRET=${TENANT_COOKIE_SECRET}
+
+      - EMAIL_MODE=${EMAIL_MODE:-test}
+      - EMAIL_FROM=${EMAIL_FROM:-Administrativo <noreply@administrativo.ro>}
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
+      - RESEND_WEBHOOK_SECRET=${RESEND_WEBHOOK_SECRET:-}
+
+    healthcheck:
+      # Ruta e `force-static` și exclusă din matcher-ul proxy-ului, deci nu
+      # atinge nici React, nici GoTrue: o pană la Supabase nu trebuie să facă
+      # Swarm-ul să omoare replici sănătoase.
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://127.0.0.1:3000/healthz']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      # Next.js pornește lent la rece, iar în timpul unui deploy două replici
+      # concurează pe CPU. Sub 40s, Swarm ar declara moartă o replică care doar
+      # se încălzea, ar da rollback și deploy-ul n-ar converge niciodată.
+      start_period: 40s
+
+    stop_grace_period: 15s
+
+    networks:
+      - strawboss-net
+
+    deploy:
+      replicas: 2
+      update_config:
+        # start-first: replica nouă primește trafic abia după ce trece
+        # healthcheck-ul, apoi se retrage cea veche. Cu `stop-first` (implicit)
+        # ar exista o fereastră cu zero replici pe rotație.
+        order: start-first
+        parallelism: 1
+        monitor: 30s
+        failure_action: rollback
+        max_failure_ratio: 0
+      rollback_config:
+        order: start-first
+        parallelism: 1
+      restart_policy:
+        condition: any
+        delay: 5s
+      resources:
+        limits:
+          # Un `next build` la rece cere mult, dar serverul standalone stă în
+          # ~150-250 MB. 1 GB per replică lasă marjă pentru vârfuri la export
+          # Excel (exceljs ține fișierul în memorie) fără să pună în pericol
+          # celelalte 8 site-uri de pe VM.
+          memory: 1G
+
+networks:
+  # Creat de StrawBoss (docker network create --driver overlay --attachable
+  # strawboss-net). `external: true` => Swarm doar se atașează, nu îi gestionează
+  # ciclul de viață. NU îl șterge: îl folosește și stack-ul strawboss-app.
+  strawboss-net:
+    external: true

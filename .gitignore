@@ -33,6 +33,7 @@ yarn-error.log*
 # env files — secretele nu se comit niciodată, dar șablonul da
 .env*
 !.env.example
+!.env.production.example
 
 # vercel
 .vercel
@@ -53,3 +54,9 @@ supabase/.branches
 
 # Capturi de ecran lăsate la rădăcină în timpul lucrului.
 /image*.png
+
+# Claude Code — componentele de proiect (.claude/agents, .claude/skills,
+# .claude-plugin) SE COMIT deliberat: vin cu `git clone` și se încarcă automat.
+# Excepțiile sunt strict locale, per mașină.
+.claude/settings.local.json
+.claude/RESUME.md

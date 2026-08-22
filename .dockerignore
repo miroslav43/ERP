@@ -1,0 +1,25 @@
+# Contextul de build urcă la daemon-ul Docker înainte de orice instrucțiune —
+# tot ce e aici scurtează transferul ȘI evită invalidarea inutilă a cache-ului.
+node_modules
+.next
+.git
+.github
+
+# Secretele: build-ul primeste variabilele publice prin --build-arg, iar pe cele
+# de server prin placeholdere. Un .env* copiat în context ar fi încărcat automat
+# de `next build` și ar coace secrete reale în layer-ul builder.
+.env
+.env.*
+!.env.example
+
+# ~2 MB de documentație de design, nefolosită de aplicație.
+docs/
+# Migrările se aplică din afara containerului (./administrativo.sh db:migrate);
+# la runtime nu sunt citite niciodată.
+supabase/
+tests/
+scripts/checks/
+
+*.log
+*.tsbuildinfo
+.DS_Store
