@@ -17,7 +17,7 @@ interface RezultatOnboarding {
   readonly name: string;
   readonly slug: string;
   readonly invitatie:
-    | Readonly<{ trimisa: true; linkInvitatie: string }>
+    | Readonly<{ trimisa: true; prinEmail: boolean; linkInvitatie: string }>
     | Readonly<{ trimisa: false; eroare: string }>;
 }
 
@@ -233,7 +233,11 @@ export const onboardeazaOrganizatie = createPlatformAction<
       name: organizatie.name,
       slug: organizatie.slug,
       invitatie: rezultatInvitatie.ok
-        ? { trimisa: true, linkInvitatie: rezultatInvitatie.data.linkInvitatie }
+        ? {
+            trimisa: true,
+            prinEmail: rezultatInvitatie.data.prinEmail,
+            linkInvitatie: rezultatInvitatie.data.linkInvitatie,
+          }
         : { trimisa: false, eroare: rezultatInvitatie.error.message },
     };
   },

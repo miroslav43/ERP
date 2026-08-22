@@ -10,6 +10,7 @@ import type { ActionResult } from "@/lib/actions/types";
 import { requirePlatformAdmin } from "@/lib/auth/platform";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { trimiteEmailInvitatie } from "@/lib/email/invitations";
 import {
   ETICHETE_ROL,
   schemaActiuneInvitatie,
@@ -169,6 +170,8 @@ export type RezultatInvitatie = Readonly<{
   role: RolAtribuibil;
   expiraLa: string;
   linkInvitatie: string;
+  /** A plecat e-mailul? Linkul rămâne ca plasă de siguranță când nu a plecat. */
+  prinEmail: boolean;
   mesaj: string;
 }>;
 
@@ -236,7 +239,7 @@ export async function invitaMembru(raw: unknown): Promise<ActionResult<RezultatI
     );
   }
 
-  const { hash, link } = await generateazaToken();
+  const { token, hash, link } = await generateazaToken();
   const expiraLa = new Date(Date.now() + input.expiraInZile * ZI_IN_MS).toISOString();
 
   const { data: invitatie, error } = await admin
@@ -293,6 +296,40 @@ export async function invitaMembru(raw: unknown): Promise<ActionResult<RezultatI
     requestId,
   });
 
+  // E-mailul, nu linkul copiat manual, e calea principală de acum. Șablonul
+  // compune adresa din `NEXT_PUBLIC_APP_URL` validat la boot — construită aici,
+  // fiecare loc de apel ar putea produce alt domeniu.
+  //
+  // Eșecul NU anulează invitația: ea e deja validă în bază, iar linkul întors
+  // mai jos rămâne plasa de siguranță. A arunca aici ar însemna o invitație
+  // creată pe care apelantul o crede nereușită.
+  let prinEmail = false;
+  try {
+    const rezultatEmail = await trimiteEmailInvitatie({
+      db: admin,
+      destinatar: invitatie.email,
+      organizatie: org.name,
+      invitatDe: "Administratorul platformei",
+      rol: input.role,
+      token,
+      expiraLa,
+      invitationId: invitatie.id,
+    });
+    prinEmail = rezultatEmail.ok;
+    if (!rezultatEmail.ok) {
+      console.error("[email] Invitația din consolă nu a plecat", {
+        invitationId: invitatie.id,
+        motiv: rezultatEmail.motiv,
+        mesaj: rezultatEmail.message,
+      });
+    }
+  } catch (eroare) {
+    console.error("[email] Invitația din consolă a aruncat", {
+      invitationId: invitatie.id,
+      mesaj: eroare instanceof Error ? eroare.message : "necunoscut",
+    });
+  }
+
   reimprospateaza(org.id);
 
   return reusit({
@@ -301,7 +338,10 @@ export async function invitaMembru(raw: unknown): Promise<ActionResult<RezultatI
     role: input.role,
     expiraLa,
     linkInvitatie: link,
-    mesaj: `Invitația pentru ${invitatie.email} a fost creată, cu rolul „${ETICHETE_ROL[input.role]}”.`,
+    prinEmail,
+    mesaj: prinEmail
+      ? `Invitația a fost trimisă pe ${invitatie.email}, cu rolul „${ETICHETE_ROL[input.role]}”.`
+      : `Invitația pentru ${invitatie.email} a fost creată, dar e-mailul nu a plecat. Trimite linkul manual.`,
   });
 }
 
@@ -310,6 +350,7 @@ export type RezultatRetrimitere = Readonly<{
   email: string;
   expiraLa: string;
   linkInvitatie: string;
+  prinEmail: boolean;
   mesaj: string;
 }>;
 
@@ -342,7 +383,7 @@ export async function retrimiteInvitatie(raw: unknown): Promise<ActionResult<Rez
     );
   }
 
-  const { hash, link } = await generateazaToken();
+  const { token, hash, link } = await generateazaToken();
   const expiraLa = new Date(Date.now() + ZILE_EXPIRARE_IMPLICIT * ZI_IN_MS).toISOString();
 
   const { error } = await admin
@@ -371,6 +412,33 @@ export async function retrimiteInvitatie(raw: unknown): Promise<ActionResult<Rez
     requestId,
   });
 
+  let prinEmail = false;
+  try {
+    const rezultatEmail = await trimiteEmailInvitatie({
+      db: admin,
+      destinatar: invitatie.email,
+      organizatie: org.name,
+      invitatDe: "Administratorul platformei",
+      rol: invitatie.role as RolAtribuibil,
+      token,
+      expiraLa,
+      invitationId: invitatie.id,
+    });
+    prinEmail = rezultatEmail.ok;
+    if (!rezultatEmail.ok) {
+      console.error("[email] Retrimiterea invitației nu a plecat", {
+        invitationId: invitatie.id,
+        motiv: rezultatEmail.motiv,
+        mesaj: rezultatEmail.message,
+      });
+    }
+  } catch (eroare) {
+    console.error("[email] Retrimiterea invitației a aruncat", {
+      invitationId: invitatie.id,
+      mesaj: eroare instanceof Error ? eroare.message : "necunoscut",
+    });
+  }
+
   reimprospateaza(org.id);
 
   return reusit({
@@ -378,7 +446,10 @@ export async function retrimiteInvitatie(raw: unknown): Promise<ActionResult<Rez
     email: invitatie.email,
     expiraLa,
     linkInvitatie: link,
-    mesaj: `Invitația pentru ${invitatie.email} a fost regenerată. Linkul anterior nu mai este valabil.`,
+    prinEmail,
+    mesaj: prinEmail
+      ? `Invitația a fost retrimisă pe ${invitatie.email}. Linkul anterior nu mai este valabil.`
+      : `Invitația a fost regenerată, dar e-mailul nu a plecat. Trimite linkul manual. Linkul anterior nu mai este valabil.`,
   });
 }
 
