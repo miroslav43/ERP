@@ -57,7 +57,13 @@ export async function GET(cerere: Request): Promise<Response> {
     .eq("organization_id", tenant.organizationId)
     .eq("id", periodId)
     .is("deleted_at", null)
-    .maybeSingle<{ id: string; an: number; luna: number; status: string; data_plata: string | null }>();
+    .maybeSingle<{
+      id: string;
+      an: number;
+      luna: number;
+      status: string;
+      data_plata: string | null;
+    }>();
   if (eroarePerioada !== null) return raspunsText("Perioada nu a putut fi citită.", 500);
   if (perioada === null) return raspunsText("Perioada nu există sau nu aveți acces la ea.", 404);
   if (perioada.status !== "aprobat" && perioada.status !== "inchis") {
@@ -80,7 +86,8 @@ export async function GET(cerere: Request): Promise<Response> {
         angajat: { full_name: string; marca: string } | null;
       }[]
     >();
-  if (eroareRanduri !== null) return raspunsText("Rândurile de salariu nu au putut fi citite.", 500);
+  if (eroareRanduri !== null)
+    return raspunsText("Rândurile de salariu nu au putut fi citite.", 500);
 
   const eticheta = `${String(perioada.luna).padStart(2, "0")}.${String(perioada.an)}`;
   const plati: PlataSepa[] = [];

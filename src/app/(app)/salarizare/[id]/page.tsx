@@ -116,6 +116,31 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
         poateAproba={poateAproba}
       />
 
+      {perioada.status !== "aprobat" && perioada.status !== "inchis" ? null : (
+        <section aria-label="Livrabile" className="border-border rounded-lg border p-4">
+          <h2 className="mb-1 text-sm font-medium">Livrabile</h2>
+          <p className="text-muted-foreground mb-3 text-xs">
+            Fișierul bancar plătește restul de plată, nu netul: el scade avantajele primite în
+            natură și adaugă sumele neimpozabile. Generarea lui decriptează IBAN-ul fiecărui angajat
+            și lasă câte un rând de audit.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <a
+              href={`/api/export/salarizare/bancar?perioada=${perioada.id}`}
+              className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
+            >
+              Fișier bancar (SEPA)
+            </a>
+            <a
+              href={`/api/export/salarizare/nota?perioada=${perioada.id}`}
+              className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
+            >
+              Notă contabilă (CSV)
+            </a>
+          </div>
+        </section>
+      )}
+
       {perioada.status === "draft" ? (
         <>
           <EmptyState

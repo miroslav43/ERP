@@ -81,7 +81,8 @@ export async function GET(cerere: Request): Promise<Response> {
       .eq("id", perioada.settings_id)
       .maybeSingle(),
   ]);
-  if (eroareRanduri !== null) return raspunsText("Rândurile de salariu nu au putut fi citite.", 500);
+  if (eroareRanduri !== null)
+    return raspunsText("Rândurile de salariu nu au putut fi citite.", 500);
   if (setari === null) return raspunsText("Planul de conturi nu a putut fi citit.", 500);
 
   const aduna = (camp: keyof (typeof randuri)[number]): number =>
