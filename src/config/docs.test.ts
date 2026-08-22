@@ -183,4 +183,34 @@ describe("CLAUDE.md descrie verificarea reală", () => {
       /NU include `?build`?/,
     );
   });
+
+  it("cifrele din antet corespund realității", () => {
+    // Antetul lui CLAUDE.md rezumă proiectul în cifre. Cifrele îmbătrânesc
+    // tăcut: la prima verificare spunea 43 de migrări când erau deja 46, iar
+    // `project-overview.md` §8 spunea 14 capcane când erau 36. Un rezumat
+    // greșit e mai rău decât unul absent — se citește ca fapt.
+    const claude = citeste(CLAUDE_MD);
+
+    const migrariReale = readdirSync(join(RADACINA, "supabase/migrations")).filter((f) =>
+      f.endsWith(".sql"),
+    ).length;
+    const migrariCitate = /(\d+)\s+migrări/.exec(claude)?.[1];
+    expect(migrariCitate, "CLAUDE.md nu mai citează numărul de migrări").toBeDefined();
+    expect(
+      Number(migrariCitate),
+      `CLAUDE.md spune ${String(migrariCitate)} migrări, pe disc sunt ${String(migrariReale)}`,
+    ).toBe(migrariReale);
+
+    const actiuniReale = execSync(
+      "git grep -c --no-color -E 'createAction[<(]' -- 'src/**/actions.ts' | " +
+        "awk -F: '{s+=$2} END{print s+0}'",
+      { cwd: RADACINA, encoding: "utf8", shell: "/bin/bash" },
+    ).trim();
+    const actiuniCitate = /(\d+)\s+Server Actions/.exec(claude)?.[1];
+    expect(actiuniCitate, "CLAUDE.md nu mai citează numărul de Server Actions").toBeDefined();
+    expect(
+      Number(actiuniCitate),
+      `CLAUDE.md spune ${String(actiuniCitate)} Server Actions, în cod sunt ${actiuniReale}`,
+    ).toBe(Number(actiuniReale));
+  });
 });

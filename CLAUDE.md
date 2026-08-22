@@ -3,7 +3,7 @@
 # Administrativo — regulile proiectului
 
 ERP/HR multi-tenant românesc. Next.js 16.3 · React 19.2 · Zod 4 · Tailwind v4 ·
-Supabase Postgres 17 · pnpm 10 · 43 migrări · 22 module · 118 Server Actions.
+Supabase Postgres 17 · pnpm 10 · 46 migrări · 22 module · 118 Server Actions.
 Izolarea între firme-client se face prin **RLS FORCED**, nu prin filtre de
 aplicație. Cod, comentarii, mesaje și identificatori de domeniu: **în română**,
 cu ș/ț cu virgulă dedesubt (U+0219/U+021B), nu cu sedilă.
