@@ -15,6 +15,7 @@ import {
   SelectorCodCaenSecundare,
 } from "@/components/forms/selector-cod-caen";
 import { claseCamp, claseLabel, Eroare } from "./campuri-comune";
+import { CampCuiAnaf } from "./camp-cui-anaf";
 
 export const CAMPURI_PAS_1 = [
   "name",
@@ -117,19 +118,7 @@ export function Pas1Identitate({ formular, idFormular }: Proprietati) {
             </select>
             <Eroare id={`${idFormular}-forma-eroare`} mesaj={errors.forma_juridica?.message} />
           </div>
-          <div>
-            <label htmlFor={`${idFormular}-cui`} className={claseLabel}>
-              CUI / CIF *
-            </label>
-            <input
-              id={`${idFormular}-cui`}
-              {...register("cui")}
-              placeholder="RO 14399840"
-              aria-invalid={Boolean(errors.cui)}
-              className={claseCamp}
-            />
-            <Eroare id={`${idFormular}-cui-eroare`} mesaj={errors.cui?.message} />
-          </div>
+          <CampCuiAnaf formular={formular} idFormular={idFormular} />
         </div>
 
         <div className="flex items-center gap-2">
