@@ -272,7 +272,15 @@ export type CreeazaOrganizatieOutput = z.output<typeof creeazaOrganizatieSchema>
  * ecranele dedicate. Un rând se creează doar dacă utilizatorul a completat
  * câmpurile lui — decizia se ia în acțiune, nu în schemă.
  */
-export const onboardeazaOrganizatieSchema = creeazaOrganizatieSchema
+/**
+ * Câmpurile înrolării, ca OBIECT — înainte de `superRefine`.
+ *
+ * Extras separat ca să poată fi derivat: schema administratorului e aceeași,
+ * minus datele proprietarului (el ESTE proprietarul). Pe rezultatul unui
+ * `superRefine` nu se mai poate face `.omit()`, de aceea rafinarea se aplică
+ * la fiecare capăt, nu aici.
+ */
+const CAMPURI_INROLARE = creeazaOrganizatieSchema
   .extend({
     // Obligatoriu doar la înrolare (spre deosebire de `creeazaOrganizatieSchema`,
     // unde e opțional): documentele oficiale (contracte, adeverințe, viitoarele
@@ -314,17 +322,42 @@ export const onboardeazaOrganizatieSchema = creeazaOrganizatieSchema
     owner_prenume: z.string().trim().min(1, "Introduceți prenumele proprietarului.").max(120),
     owner_email: emailSchema,
     owner_telefon: telefonSchema,
-  })
-  .superRefine((valori, ctx) => {
-    const rezultat = valideazaSelectieCaen(
-      valori.forma_juridica,
-      valori.cod_caen,
-      valori.cod_caen_secundare,
-    );
-    if (!rezultat.valid) {
-      ctx.addIssue({ code: "custom", message: rezultat.eroare, path: ["cod_caen_secundare"] });
-    }
   });
+
+/** Codurile CAEN secundare depind de forma juridică — regula e aceeași oriunde. */
+const verificaCaen = (
+  valori: Readonly<{
+    forma_juridica: Parameters<typeof valideazaSelectieCaen>[0];
+    cod_caen: Parameters<typeof valideazaSelectieCaen>[1];
+    cod_caen_secundare: Parameters<typeof valideazaSelectieCaen>[2];
+  }>,
+  ctx: z.RefinementCtx,
+): void => {
+  const rezultat = valideazaSelectieCaen(
+    valori.forma_juridica,
+    valori.cod_caen,
+    valori.cod_caen_secundare,
+  );
+  if (!rezultat.valid) {
+    ctx.addIssue({ code: "custom", message: rezultat.eroare, path: ["cod_caen_secundare"] });
+  }
+};
+
+export const onboardeazaOrganizatieSchema = CAMPURI_INROLARE.superRefine(verificaCaen);
+
+/**
+ * Ce completează ADMINISTRATORUL la prima intrare, când super-adminul a lăsat
+ * datele în seama lui.
+ *
+ * Aceleași câmpuri ca la înrolare, deliberat: pașii sunt aceleași componente,
+ * tipate pe forma completă. Datele proprietarului NU se cer — se pre-completează
+ * din contul celui care umple formularul, fiindcă el ESTE proprietarul, iar
+ * pasul 6 e ascuns. `plan` și `seats_limit` vin din firma deja creată; acțiunea
+ * le ignoră, ca un administrator să nu-și poată ridica singur plafonul.
+ */
+export const completeazaFirmaSchema = CAMPURI_INROLARE.superRefine(verificaCaen);
+
+export type CompleteazaFirmaInput = z.input<typeof completeazaFirmaSchema>;
 
 export type OnboardeazaOrganizatieInput = z.input<typeof onboardeazaOrganizatieSchema>;
 export type OnboardeazaOrganizatieOutput = z.output<typeof onboardeazaOrganizatieSchema>;

@@ -10,6 +10,8 @@ import { getEnabledFeatures } from "@/lib/auth/features";
 import { getPermissionMap } from "@/lib/auth/permissions";
 import { buildNavigation } from "@/lib/navigation/build-navigation";
 import { resolveTenant } from "@/lib/tenant/resolve-tenant";
+import { stareFirmei } from "@/lib/tenant/stare-firma";
+import { RUTA_PORTAL } from "@/config/routes";
 import type { AuthUser, Tenant } from "@/lib/tenant/types";
 
 export const dynamic = "force-dynamic";
@@ -37,21 +39,59 @@ async function requireTenant(): Promise<{ user: AuthUser; tenant: Tenant }> {
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const { tenant } = await requireTenant();
 
+  // ── Poarta angajatului ──────────────────────────────────────────────────
+  // Angajatul nu vede niciodată învelișul de administrare. Redirect tăcut, nu
+  // un ecran de „acces interzis": n-are ce face cu informația că există o
+  // aplicație în care nu are voie, iar un refuz pe pagina de start arată ca o
+  // defecțiune.
+  //
+  // Un singur `if`, într-un singur fișier, deliberat: cele ~90 de pagini din
+  // `(app)` sunt acoperite fără nicio modificare per pagină, iar dezactivarea în
+  // producție e un revert de trei linii, nu arheologie prin proxy și rute.
+  //
+  // NU e o barieră de securitate și nu trebuie tratată ca atare la review:
+  //   · Server Actions — un layout nu rulează la un POST; `createAction` reface
+  //     verificarea de modul, permisiune și prag. Suprafața de scriere a
+  //     angajatului rămâne EXACT cea de dinainte.
+  //   · Route handlers — nu trec prin layout. `documente/[id]/route.ts` rămâne
+  //     deschis intenționat: `hr_issued_select` are ramură `own`, deci e singurul
+  //     drum prin care angajatul își tipărește o adeverință. Nu-l „repara".
+  //   · RLS rămâne ultima linie, indiferent de toate cele de mai sus.
+  //
+  // Fără condiție pe `employee_portal`: modulul nu e de nucleu, deci majoritatea
+  // firmelor îl au stins. Portalul funcționează și așa — „Acasă" nu depinde de
+  // el, iar restul intrărilor sunt păzite de modulele lor proprii.
+  if (tenant.role === "employee") redirect(RUTA_PORTAL);
+
+  // ── Poarta firmei neconfigurate ─────────────────────────────────────────
+  // `pending` = datele firmei nu sunt complete. Super-adminul poate crea o
+  // firmă doar cu denumirea, CUI-ul și administratorul, lăsându-i acestuia
+  // restul; până le completează, aplicația n-are cu ce lucra — salarizarea are
+  // nevoie de date bancare, SSM de responsabil, documentele de reprezentant legal.
+  //
+  // Destinațiile sunt ÎN AFARA lui `(app)`, în `(onboarding)`. Dacă ar fi aici,
+  // ar trece prin acest layout, ar fi redirectate spre ele însele și pagina n-ar
+  // mai încărca niciodată — o buclă din care nu se iese decât ștergând cookie-ul.
+  //
+  // Rolul contează: doar `org_admin` poate completa datele. Unui `hr` sau
+  // `manager` i-am cere capitalul social și IBAN-ul firmei — o fundătură cu
+  // câmpuri pe care n-are cum să le știe. Ei primesc un ecran care explică.
+  const stare = await stareFirmei(tenant.organizationId);
+  if (stare === "pending") {
+    redirect(tenant.role === "org_admin" ? "/bun-venit" : "/firma-in-configurare");
+  }
+
   const [features, permissions, store] = await Promise.all([
     getEnabledFeatures(tenant.organizationId),
     getPermissionMap(tenant.organizationId, tenant.role),
     cookies(),
   ]);
 
-  // `scope = 'none'` este REFUZ EXPLICIT, nu absența rândului: cheia există în
-  // hartă, deci filtrarea trebuie făcută pe valoare, nu pe prezență.
-  const permise = new Set(
-    Array.from(permissions.entries())
-      .filter(([, scope]) => scope !== "none")
-      .map(([cheie]) => cheie),
-  );
-
-  const grupuri = buildNavigation({ features, permissions: permise, badges: {} });
+  // Harta se predă întreagă, nu turtită într-un `Set` de chei. `scope = 'none'`
+  // rămâne refuz explicit — dar acum îl tratează `meetsScope` din
+  // `buildNavigation`, împreună cu pragul `minScope` al fiecărei intrări, care
+  // înainte se pierdea pe drum.
+  const grupuri = buildNavigation({ features, permissions, badges: {} });
 
   // Iconițele sunt componente: trec granița server → client ca elemente randate.
   const navigare: readonly NavGroupView[] = grupuri.map((grup) => ({
