@@ -527,9 +527,7 @@ export async function datePanou() {
   };
 
   const moduleP = numaraPeOrganizatie(module.data ?? []);
-  const adminiP = numaraPeOrganizatie(
-    (membri.data ?? []).filter((m) => m.role === "org_admin"),
-  );
+  const adminiP = numaraPeOrganizatie((membri.data ?? []).filter((m) => m.role === "org_admin"));
 
   const randuri = (organizatii.data ?? []).map((o) => ({
     ...o,

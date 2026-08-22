@@ -9,9 +9,9 @@
 Trei probleme distincte, descoperite împreună, care se rezolvă în aceeași trecere.
 
 **1. Contul de super-admin nu e separat de cel de administrator de firmă.**
-Schema separă *rolul* — `organization_members` are un CHECK care interzice valoarea
-`super_admin`, iar sursa de adevăr e `platform_admins`. Dar nimic nu împiedică *aceeași
-persoană* să fie și una și alta, iar contul curent (`demo_admin@gmail.com`) e exact așa:
+Schema separă _rolul_ — `organization_members` are un CHECK care interzice valoarea
+`super_admin`, iar sursa de adevăr e `platform_admins`. Dar nimic nu împiedică _aceeași
+persoană_ să fie și una și alta, iar contul curent (`demo_admin@gmail.com`) e exact așa:
 platform admin **și** `org_admin` în două organizații. Separarea există în schemă și lipsește
 în practică.
 
@@ -46,13 +46,13 @@ Delimitarea e parte din decizie, nu o notă de subsol.
 
 ## Decizii luate
 
-| Întrebare | Decizie |
-|---|---|
-| Contul tău de super-admin | Cont **nou**, doar în `platform_admins`, fără apartenență la vreo firmă. `demo_admin` rămâne neatins, ca date de demonstrație. |
-| Cuprinsul redesign-ului | Doar `(platform)/super-admin/**` — ~10 ecrane. |
-| Coloana vertebrală a panoului | Panou de sumar la intrare, lista de organizații separat. |
-| Chrome | **Varianta A**: rail navy + antet navy + pânză crem. |
-| Ce vede super-adminul | Firme, module, înregistrări. **Nimic** operațional — fără angajați, pontaje, salarii. |
+| Întrebare                     | Decizie                                                                                                                        |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Contul tău de super-admin     | Cont **nou**, doar în `platform_admins`, fără apartenență la vreo firmă. `demo_admin` rămâne neatins, ca date de demonstrație. |
+| Cuprinsul redesign-ului       | Doar `(platform)/super-admin/**` — ~10 ecrane.                                                                                 |
+| Coloana vertebrală a panoului | Panou de sumar la intrare, lista de organizații separat.                                                                       |
+| Chrome                        | **Varianta A**: rail navy + antet navy + pânză crem.                                                                           |
+| Ce vede super-adminul         | Firme, module, înregistrări. **Nimic** operațional — fără angajați, pontaje, salarii.                                          |
 
 ---
 
@@ -74,7 +74,7 @@ Trei puncte de decizie:
 - **`src/proxy.ts`** — regula „autentificat pe `/` → `RUTA_DUPA_AUTENTIFICARE`" capătă aceeași
   ramură. Atenție: proxy-ul **nu** e boundary de autorizare (CVE-2025-29927) și nu trebuie să
   devină unul — aici e strict confort de navigare.
-- **`/alege-organizatia`** — când lista e goală *și* utilizatorul e platform admin, ecranul
+- **`/alege-organizatia`** — când lista e goală _și_ utilizatorul e platform admin, ecranul
   oferă „Intră în consola de platformă" în locul fundăturii actuale.
 
 Pentru cine e **și** platform admin **și** membru într-o firmă (cazul `demo_admin`), antetul
@@ -156,29 +156,34 @@ Schimbarea linkului ar fi fost o literă mai puțin de scris și un nume mai mul
 Fiecare etapă se termină cu ceva verificabil. Ordinea e impusă de dependențe, nu de preferință.
 
 ### Etapa 1 · Rutarea (fără atingerea conturilor)
+
 `auth/callback/route.ts`, `src/proxy.ts`, `/alege-organizatia`, comutatorul de planuri în
 antetul consolei.
 **Verificare:** `demo_admin` (dublu rol) ajunge în consolă și poate comuta în firmă. Un cont
 obișnuit ajunge în `/panou`, neschimbat.
 
 ### Etapa 2 · Contul de super-admin
+
 Script sub `scripts/`: invitație Supabase Auth + `insert` în `platform_admins`, fără
 `organization_members`.
 **Verificare:** contul nou se autentifică, aterizează direct în `/super-admin`, iar
 `/panou` nu-l mai blochează într-o fundătură.
 
 ### Etapa 3 · Scheletul consolei
+
 Token, fonturi, rail, antet, pânză, componentele comune. Ecranele existente se mută pe schelet
 fără modificări de conținut.
 **Verificare:** `pnpm build` trece; toate cele 10 ecrane se randează; aplicația de firmă e
 neschimbată la pixel.
 
 ### Etapa 4 · Panou, organizații, jurnal
+
 Ecranele principale, cu datele noi pentru coada de lucru. Redenumirea rutei de audit intră aici.
 **Verificare:** panoul arată cele 3 organizații reale și cererea demo; jurnalul se deschide din
 meniu.
 
 ### Etapa 5 · Restul ecranelor de platformă
+
 Fișă, membri, module, permisiuni, cereri demo, e-mailuri, asistentul în 7 pași.
 **Verificare:** lanțul complet, plus o parcurgere manuală a fiecărui ecran.
 

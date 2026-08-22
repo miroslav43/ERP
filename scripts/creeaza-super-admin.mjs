@@ -70,9 +70,7 @@ async function cere(cale, optiuni = {}) {
 try {
   // ── 1. Contul de autentificare ────────────────────────────────────────────
   const lista = await cere("/auth/v1/admin/users?per_page=1000");
-  let utilizator = (lista.users ?? []).find(
-    (u) => u.email?.toLowerCase() === email.toLowerCase(),
-  );
+  let utilizator = (lista.users ?? []).find((u) => u.email?.toLowerCase() === email.toLowerCase());
 
   if (utilizator) {
     console.log(`•  Contul ${email} există deja (${utilizator.id}).`);

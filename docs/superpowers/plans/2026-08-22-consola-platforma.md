@@ -51,38 +51,40 @@ costul din middleware.
 
 ## Structura fișierelor
 
-| Fișier | Răspundere |
-|---|---|
-| `src/config/routes.ts` *(mod.)* | Rutele + **politica pură** de destinație după autentificare |
-| `src/config/routes.test.ts` *(nou)* | Testele politicii |
-| `src/app/auth/callback/route.ts` *(mod.)* | Aplică politica după schimbul PKCE |
-| `src/app/(auth)/alege-organizatia/page.tsx` *(mod.)* | Ieșire spre consolă când lista e goală |
-| `scripts/creeaza-super-admin.mjs` *(nou)* | Creează contul de platformă |
-| `src/app/globals.css` *(mod.)* | Un token: `--color-navy-abis` |
-| `.../super-admin/_lib/fonturi.ts` *(nou)* | Instanțele Plex Sans + Plex Mono |
-| `.../super-admin/_components/rail-platforma.tsx` *(nou)* | Navigația navy (înlocuiește `nav-platforma.tsx`) |
-| `.../super-admin/_components/antet-platforma.tsx` *(nou)* | Antetul navy + comutatorul de planuri |
-| `.../super-admin/_components/cifra.tsx` *(nou)* | Cartela din banda de stări |
-| `.../super-admin/_components/stare-organizatie.tsx` *(nou)* | Pastila de stare |
-| `.../super-admin/_components/module-mini.tsx` *(nou)* | Cele 14 pătrățele |
-| `.../super-admin/_components/sarcina.tsx` *(nou)* | Rândul din coada de lucru |
-| `.../super-admin/_lib/sarcini.ts` *(nou)* | **Pură:** din date brute → listă de sarcini |
-| `.../super-admin/_lib/sarcini.test.ts` *(nou)* | Testele ei |
-| `.../super-admin/organizatii/actions.ts` *(mod.)* | Citirile cross-organizație (service_role) |
-| `.../super-admin/layout.tsx` *(mod.)* | Scheletul consolei |
-| `.../super-admin/page.tsx` *(rescris)* | Panoul |
-| `.../super-admin/organizatii/page.tsx` *(rescris)* | Lista de firme |
-| `.../super-admin/audit/` → `jurnal-audit/` | Redenumire de rută |
+| Fișier                                                      | Răspundere                                                  |
+| ----------------------------------------------------------- | ----------------------------------------------------------- |
+| `src/config/routes.ts` _(mod.)_                             | Rutele + **politica pură** de destinație după autentificare |
+| `src/config/routes.test.ts` _(nou)_                         | Testele politicii                                           |
+| `src/app/auth/callback/route.ts` _(mod.)_                   | Aplică politica după schimbul PKCE                          |
+| `src/app/(auth)/alege-organizatia/page.tsx` _(mod.)_        | Ieșire spre consolă când lista e goală                      |
+| `scripts/creeaza-super-admin.mjs` _(nou)_                   | Creează contul de platformă                                 |
+| `src/app/globals.css` _(mod.)_                              | Un token: `--color-navy-abis`                               |
+| `.../super-admin/_lib/fonturi.ts` _(nou)_                   | Instanțele Plex Sans + Plex Mono                            |
+| `.../super-admin/_components/rail-platforma.tsx` _(nou)_    | Navigația navy (înlocuiește `nav-platforma.tsx`)            |
+| `.../super-admin/_components/antet-platforma.tsx` _(nou)_   | Antetul navy + comutatorul de planuri                       |
+| `.../super-admin/_components/cifra.tsx` _(nou)_             | Cartela din banda de stări                                  |
+| `.../super-admin/_components/stare-organizatie.tsx` _(nou)_ | Pastila de stare                                            |
+| `.../super-admin/_components/module-mini.tsx` _(nou)_       | Cele 14 pătrățele                                           |
+| `.../super-admin/_components/sarcina.tsx` _(nou)_           | Rândul din coada de lucru                                   |
+| `.../super-admin/_lib/sarcini.ts` _(nou)_                   | **Pură:** din date brute → listă de sarcini                 |
+| `.../super-admin/_lib/sarcini.test.ts` _(nou)_              | Testele ei                                                  |
+| `.../super-admin/organizatii/actions.ts` _(mod.)_           | Citirile cross-organizație (service_role)                   |
+| `.../super-admin/layout.tsx` _(mod.)_                       | Scheletul consolei                                          |
+| `.../super-admin/page.tsx` _(rescris)_                      | Panoul                                                      |
+| `.../super-admin/organizatii/page.tsx` _(rescris)_          | Lista de firme                                              |
+| `.../super-admin/audit/` → `jurnal-audit/`                  | Redenumire de rută                                          |
 
 ---
 
 ## Task 1: Politica de rutare după autentificare
 
 **Fișiere:**
+
 - Modifică: `src/config/routes.ts`
-- Test: `src/config/routes.test.ts` *(nou)*
+- Test: `src/config/routes.test.ts` _(nou)_
 
 **Interfețe:**
+
 - Produce: `RUTA_SUPER_ADMIN: string`;
   `rutaDupaAutentificare(stare: { estePlatformAdmin: boolean; areOrganizatii: boolean }): string`
 
@@ -102,29 +104,29 @@ import {
 
 describe("rutaDupaAutentificare", () => {
   it("duce administratorul de platformă fără firme în consolă", () => {
-    expect(
-      rutaDupaAutentificare({ estePlatformAdmin: true, areOrganizatii: false }),
-    ).toBe(RUTA_SUPER_ADMIN);
+    expect(rutaDupaAutentificare({ estePlatformAdmin: true, areOrganizatii: false })).toBe(
+      RUTA_SUPER_ADMIN,
+    );
   });
 
   it("duce administratorul de platformă CU firme tot în consolă", () => {
     // Planul de platformă e „acasă" pentru el; spre firmă comută explicit,
     // din antetul consolei.
-    expect(
-      rutaDupaAutentificare({ estePlatformAdmin: true, areOrganizatii: true }),
-    ).toBe(RUTA_SUPER_ADMIN);
+    expect(rutaDupaAutentificare({ estePlatformAdmin: true, areOrganizatii: true })).toBe(
+      RUTA_SUPER_ADMIN,
+    );
   });
 
   it("duce utilizatorul obișnuit cu firme în aplicație", () => {
-    expect(
-      rutaDupaAutentificare({ estePlatformAdmin: false, areOrganizatii: true }),
-    ).toBe(RUTA_DUPA_AUTENTIFICARE);
+    expect(rutaDupaAutentificare({ estePlatformAdmin: false, areOrganizatii: true })).toBe(
+      RUTA_DUPA_AUTENTIFICARE,
+    );
   });
 
   it("duce utilizatorul fără firme la ecranul de alegere, care explică situația", () => {
-    expect(
-      rutaDupaAutentificare({ estePlatformAdmin: false, areOrganizatii: false }),
-    ).toBe(RUTA_ALEGE_ORGANIZATIA);
+    expect(rutaDupaAutentificare({ estePlatformAdmin: false, areOrganizatii: false })).toBe(
+      RUTA_ALEGE_ORGANIZATIA,
+    );
   });
 });
 ```
@@ -134,6 +136,7 @@ describe("rutaDupaAutentificare", () => {
 ```bash
 ./node_modules/.bin/vitest run --project unit src/config/routes.test.ts
 ```
+
 Așteptat: FAIL — `rutaDupaAutentificare is not a function`.
 
 - [ ] **Pasul 3 — implementează**
@@ -170,6 +173,7 @@ export function rutaDupaAutentificare(
 ```bash
 ./node_modules/.bin/vitest run --project unit src/config/routes.test.ts
 ```
+
 Așteptat: PASS, 4 teste.
 
 - [ ] **Pasul 5 — comite**
@@ -184,9 +188,11 @@ git commit -m "feat(rutare): politică de destinație după autentificare, testa
 ## Task 2: Callback-ul de autentificare aplică politica
 
 **Fișiere:**
+
 - Modifică: `src/app/auth/callback/route.ts`
 
 **Interfețe:**
+
 - Consumă: `rutaDupaAutentificare()`, `RUTA_SUPER_ADMIN` (Task 1);
   `isPlatformAdmin()` din `@/lib/auth/platform`
 - Produce: nimic pentru alte sarcini
@@ -205,33 +211,33 @@ import { isPlatformAdmin } from "@/lib/auth/platform";
 Înlocuiește ultima linie a funcției `GET`:
 
 ```ts
-  return NextResponse.redirect(new URL(next, baza));
+return NextResponse.redirect(new URL(next, baza));
 ```
 
 cu:
 
 ```ts
-  // `next` explicit înseamnă link profund (invitație, resetare de parolă): se
-  // respectă. `caleInterna` întoarce „/" când parametrul lipsește, iar „/" e
-  // exact cazul în care avem voie să decidem noi destinația.
-  if (next !== "/") {
-    return NextResponse.redirect(new URL(next, baza));
-  }
+// `next` explicit înseamnă link profund (invitație, resetare de parolă): se
+// respectă. `caleInterna` întoarce „/" când parametrul lipsește, iar „/" e
+// exact cazul în care avem voie să decidem noi destinația.
+if (next !== "/") {
+  return NextResponse.redirect(new URL(next, baza));
+}
 
-  const [estePlatformAdmin, organizatii] = await Promise.all([
-    isPlatformAdmin(),
-    supabase
-      .from("organization_members")
-      .select("organization_id", { count: "exact", head: true })
-      .eq("status", "active"),
-  ]);
+const [estePlatformAdmin, organizatii] = await Promise.all([
+  isPlatformAdmin(),
+  supabase
+    .from("organization_members")
+    .select("organization_id", { count: "exact", head: true })
+    .eq("status", "active"),
+]);
 
-  const destinatie = rutaDupaAutentificare({
-    estePlatformAdmin,
-    areOrganizatii: (organizatii.count ?? 0) > 0,
-  });
+const destinatie = rutaDupaAutentificare({
+  estePlatformAdmin,
+  areOrganizatii: (organizatii.count ?? 0) > 0,
+});
 
-  return NextResponse.redirect(new URL(destinatie, baza));
+return NextResponse.redirect(new URL(destinatie, baza));
 ```
 
 > Interogarea folosește clientul de sesiune, nu `service_role`: RLS filtrează
@@ -243,6 +249,7 @@ cu:
 ```bash
 ./node_modules/.bin/tsc --noEmit 2>&1 | grep -v "concedii/setari\|queries/leave" ; echo "cod: $?"
 ```
+
 Așteptat: nicio linie nouă (cele două filtrate sunt datoria preexistentă din migrarea 0035).
 
 - [ ] **Pasul 4 — comite**
@@ -257,9 +264,11 @@ git commit -m "feat(auth): administratorul de platformă aterizează în consol�
 ## Task 3: Ecranul „nicio organizație" oferă ieșire spre consolă
 
 **Fișiere:**
+
 - Modifică: `src/app/(auth)/alege-organizatia/page.tsx`
 
 **Interfețe:**
+
 - Consumă: `RUTA_SUPER_ADMIN` (Task 1); `isPlatformAdmin()`
 
 - [ ] **Pasul 1 — adaugă importurile**
@@ -278,9 +287,9 @@ import { ShieldCheck } from "lucide-react";
 După `const organizatii = await listUserOrganizations();` adaugă:
 
 ```ts
-  // Un administrator de platformă poate să nu aibă nicio firmă — e chiar forma
-  // corectă a contului. Fără ieșirea de mai jos, ecranul ăsta i-ar fi fundătură.
-  const estePlatformAdmin = organizatii.length === 0 ? await isPlatformAdmin() : false;
+// Un administrator de platformă poate să nu aibă nicio firmă — e chiar forma
+// corectă a contului. Fără ieșirea de mai jos, ecranul ăsta i-ar fi fundătură.
+const estePlatformAdmin = organizatii.length === 0 ? await isPlatformAdmin() : false;
 ```
 
 - [ ] **Pasul 3 — adaugă blocul de ieșire**
@@ -288,22 +297,22 @@ După `const organizatii = await listUserOrganizations();` adaugă:
 Imediat după `</header>` și înaintea blocului `areEroareAcces`:
 
 ```tsx
-      {estePlatformAdmin ? (
-        <Link
-          href={RUTA_SUPER_ADMIN}
-          className="border-border bg-surface hover:border-primary flex items-center gap-3 rounded-md border px-4 py-3 transition"
-        >
-          <ShieldCheck aria-hidden="true" className="text-primary size-5 shrink-0" />
-          <span className="flex flex-col">
-            <span className="text-foreground text-sm font-medium">
-              Intrați în consola de platformă
-            </span>
-            <span className="text-muted-foreground text-sm">
-              Contul dumneavoastră administrează platforma, nu o firmă anume.
-            </span>
-          </span>
-        </Link>
-      ) : null}
+{
+  estePlatformAdmin ? (
+    <Link
+      href={RUTA_SUPER_ADMIN}
+      className="border-border bg-surface hover:border-primary flex items-center gap-3 rounded-md border px-4 py-3 transition"
+    >
+      <ShieldCheck aria-hidden="true" className="text-primary size-5 shrink-0" />
+      <span className="flex flex-col">
+        <span className="text-foreground text-sm font-medium">Intrați în consola de platformă</span>
+        <span className="text-muted-foreground text-sm">
+          Contul dumneavoastră administrează platforma, nu o firmă anume.
+        </span>
+      </span>
+    </Link>
+  ) : null;
+}
 ```
 
 - [ ] **Pasul 4 — verifică**
@@ -312,6 +321,7 @@ Imediat după `</header>` și înaintea blocului `areEroareAcces`:
 ./node_modules/.bin/tsc --noEmit 2>&1 | grep -v "concedii/setari\|queries/leave"
 ./node_modules/.bin/eslint "src/app/(auth)/alege-organizatia/page.tsx"
 ```
+
 Așteptat: fără ieșire.
 
 - [ ] **Pasul 5 — comite**
@@ -326,6 +336,7 @@ git commit -m "feat(auth): ieșire spre consolă pentru administratorul de platf
 ## Task 4: Contul de super-admin
 
 **Fișiere:**
+
 - Creează: `scripts/creeaza-super-admin.mjs`
 
 **Interfețe:** niciuna (unealtă de operare)
@@ -367,29 +378,29 @@ const mediu = Object.fromEntries(
     .map((linie) => {
       const taiere = linie.indexOf("=");
       const cheie = linie.slice(0, taiere).trim();
-      const valoare = linie.slice(taiere + 1).trim().replace(/^["']|["']$/g, "");
+      const valoare = linie
+        .slice(taiere + 1)
+        .trim()
+        .replace(/^["']|["']$/g, "");
       return [cheie, valoare];
     }),
 );
 
 // service_role: crearea unui utilizator și scrierea în `platform_admins` sunt
 // operațiuni de platformă, imposibile sub RLS-ul unui utilizator obișnuit.
-const admin = createClient(
-  mediu.NEXT_PUBLIC_SUPABASE_URL,
-  mediu.SUPABASE_SERVICE_ROLE_KEY,
-  { auth: { autoRefreshToken: false, persistSession: false } },
-);
+const admin = createClient(mediu.NEXT_PUBLIC_SUPABASE_URL, mediu.SUPABASE_SERVICE_ROLE_KEY, {
+  auth: { autoRefreshToken: false, persistSession: false },
+});
 
-const { data: listaUtilizatori, error: eroareLista } =
-  await admin.auth.admin.listUsers({ perPage: 1000 });
+const { data: listaUtilizatori, error: eroareLista } = await admin.auth.admin.listUsers({
+  perPage: 1000,
+});
 if (eroareLista) {
   console.error("Nu s-a putut citi lista de utilizatori:", eroareLista.message);
   process.exit(1);
 }
 
-let utilizator = listaUtilizatori.users.find(
-  (u) => u.email?.toLowerCase() === email.toLowerCase(),
-);
+let utilizator = listaUtilizatori.users.find((u) => u.email?.toLowerCase() === email.toLowerCase());
 
 if (utilizator) {
   console.log(`• Contul ${email} există deja (${utilizator.id}).`);
@@ -453,6 +464,7 @@ if ((count ?? 0) > 0) {
 ```bash
 node scripts/creeaza-super-admin.mjs scoala.ai43@gmail.com
 ```
+
 Așteptat: invitație trimisă, acces acordat, „cont de platformă pur".
 
 - [ ] **Pasul 3 — verifică în bază**
@@ -462,6 +474,7 @@ set -a; source .env.production; set +a
 curl -sS -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
   "$NEXT_PUBLIC_SUPABASE_URL/rest/v1/platform_admins?select=user_id,revoked_at"
 ```
+
 Așteptat: două rânduri, ambele cu `revoked_at: null`.
 
 - [ ] **Pasul 4 — comite**
@@ -476,10 +489,12 @@ git commit -m "feat(scripts): unealtă pentru contul de administrator de platfor
 ## Task 5: Tokenul și fonturile consolei
 
 **Fișiere:**
+
 - Modifică: `src/app/globals.css`
 - Creează: `src/app/(platform)/super-admin/_lib/fonturi.ts`
 
 **Interfețe:**
+
 - Produce: `plexSans`, `plexMono` (obiecte `next/font` cu `.variable`);
   tokenul CSS `--color-navy-abis`
 
@@ -488,19 +503,19 @@ git commit -m "feat(scripts): unealtă pentru contul de administrator de platfor
 În `src/app/globals.css`, în blocul `:root`, imediat sub grupul „Navy":
 
 ```css
-  /*
+/*
    * Fundalul consolei de platformă — mai adânc decât primarul, folosit DOAR în
    * `(platform)/super-admin`. Raportul se inversează acolo intenționat: navy
    * devine fundal, crem rămâne pentru conținut. Culoarea spune singură în ce
    * plan ești, fără să fie nevoie de banner.
    */
-  --color-navy-abis: #0a1428;
+--color-navy-abis: #0a1428;
 ```
 
 Și în blocul `@theme inline`, lângă celelalte:
 
 ```css
-  --color-navy-abis: var(--color-navy-abis);
+--color-navy-abis: var(--color-navy-abis);
 ```
 
 - [ ] **Pasul 2 — declară fonturile**
@@ -542,6 +557,7 @@ export const plexMono = IBM_Plex_Mono({
 ```bash
 ./node_modules/.bin/tsc --noEmit 2>&1 | grep -v "concedii/setari\|queries/leave"
 ```
+
 Așteptat: fără ieșire.
 
 - [ ] **Pasul 4 — comite**
@@ -556,12 +572,14 @@ git commit -m "feat(consolă): token navy-abis și fonturile Plex pentru zona de
 ## Task 6: Railul, antetul și scheletul
 
 **Fișiere:**
+
 - Creează: `src/app/(platform)/super-admin/_components/rail-platforma.tsx`
 - Creează: `src/app/(platform)/super-admin/_components/antet-platforma.tsx`
 - Modifică: `src/app/(platform)/super-admin/layout.tsx`
 - Șterge: `src/app/(platform)/super-admin/_components/nav-platforma.tsx`
 
 **Interfețe:**
+
 - Consumă: `plexSans`, `plexMono` (Task 5); `RUTA_DUPA_AUTENTIFICARE`
 - Produce: `<RailPlatforma numarOrganizatii numarCereriNoi />`,
   `<AntetPlatforma email titlu cale areFirme />`
@@ -620,7 +638,7 @@ export function RailPlatforma({ numarOrganizatii, numarCereriNoi }: Props) {
     >
       {GRUPURI.map((grup) => (
         <div key={grup.titlu} className="flex flex-col gap-1">
-          <span className="font-mono px-2 text-[0.6rem] font-medium tracking-[0.15em] text-white/40 uppercase max-md:hidden">
+          <span className="px-2 font-mono text-[0.6rem] font-medium tracking-[0.15em] text-white/40 uppercase max-md:hidden">
             {grup.titlu}
           </span>
           <ul className="flex gap-1 overflow-x-auto md:flex-col">
@@ -634,7 +652,9 @@ export function RailPlatforma({ numarOrganizatii, numarCereriNoi }: Props) {
                     href={href}
                     aria-current={activ ? "page" : undefined}
                     className={`relative flex items-center gap-2.5 rounded-md px-2 py-2 text-sm font-medium transition ${
-                      activ ? "bg-white/10 text-white" : "text-white/55 hover:bg-white/5 hover:text-white/90"
+                      activ
+                        ? "bg-white/10 text-white"
+                        : "text-white/55 hover:bg-white/5 hover:text-white/90"
                     }`}
                   >
                     {/* Singurul auriu din rail: indicatorul de pagină activă. */}
@@ -647,7 +667,7 @@ export function RailPlatforma({ numarOrganizatii, numarCereriNoi }: Props) {
                     <Icon aria-hidden="true" className="size-4 shrink-0" />
                     <span className="whitespace-nowrap">{eticheta}</span>
                     {numar !== null ? (
-                      <span className="bg-accent text-navy-abis font-mono ms-auto rounded-full px-1.5 text-[0.68rem] font-semibold tabular-nums">
+                      <span className="bg-accent text-navy-abis ms-auto rounded-full px-1.5 font-mono text-[0.68rem] font-semibold tabular-nums">
                         {numar}
                       </span>
                     ) : null}
@@ -750,10 +770,7 @@ export default async function LayoutSuperAdmin({ children }: { children: ReactNo
       className={`${plexSans.variable} ${plexMono.variable} bg-navy-abis flex min-h-dvh flex-col md:flex-row`}
       style={{ fontFamily: "var(--font-consola)" }}
     >
-      <RailPlatforma
-        numarOrganizatii={totalOrganizatii}
-        numarCereriNoi={sumar.cereriDemoNoi}
-      />
+      <RailPlatforma numarOrganizatii={totalOrganizatii} numarCereriNoi={sumar.cereriDemoNoi} />
       <div className="flex min-w-0 flex-1 flex-col">
         <AntetPlatforma
           titlu="Consolă de platformă"
@@ -781,6 +798,7 @@ git rm "src/app/(platform)/super-admin/_components/nav-platforma.tsx"
 ```bash
 ./node_modules/.bin/next build 2>&1 | tail -25
 ```
+
 Așteptat: „Compiled successfully". Build-ul e singurul care prinde granița
 server/client — `rail-platforma.tsx` e `"use client"`, `antet-platforma.tsx` nu.
 
@@ -796,10 +814,12 @@ git commit -m "feat(consolă): schelet navy — rail, antet, fonturi"
 ## Task 7: Componentele de date
 
 **Fișiere:**
+
 - Creează: `_components/cifra.tsx`, `_components/stare-organizatie.tsx`,
   `_components/module-mini.tsx`, `_components/sarcina.tsx`
 
 **Interfețe:**
+
 - Produce: `<Cifra eticheta valoare nota ton />`,
   `<StareOrganizatie stare />`, `<ModuleMini active total />`,
   `<Sarcina titlu detaliu href eticheta ton />`
@@ -844,7 +864,7 @@ export function Cifra({ eticheta, valoare, nota, ton = "neutru" }: Props) {
       <dt className="text-muted-foreground text-sm font-medium">{eticheta}</dt>
       <dd className="text-primary mt-0.5 text-3xl font-semibold tabular-nums">{valoare}</dd>
       {nota ? (
-        <span className="text-muted-foreground font-mono mt-0.5 block text-[0.66rem]">{nota}</span>
+        <span className="text-muted-foreground mt-0.5 block font-mono text-[0.66rem]">{nota}</span>
       ) : null}
     </div>
   );
@@ -898,7 +918,7 @@ export function ModuleMini({ active, total }: Props) {
           className={`size-2 rounded-[2px] ${i < active ? "bg-primary" : "bg-border"}`}
         />
       ))}
-      <span className="text-muted-foreground font-mono ms-1.5 text-xs tabular-nums">
+      <span className="text-muted-foreground ms-1.5 font-mono text-xs tabular-nums">
         {active}/{total}
       </span>
     </span>
@@ -957,11 +977,13 @@ git commit -m "feat(consolă): componente de date — cifră, stare, module, sar
 ## Task 8: Datele panoului
 
 **Fișiere:**
+
 - Creează: `src/app/(platform)/super-admin/_lib/sarcini.ts`
 - Creează: `src/app/(platform)/super-admin/_lib/sarcini.test.ts`
 - Modifică: `src/app/(platform)/super-admin/organizatii/actions.ts`
 
 **Interfețe:**
+
 - Produce: `type RandOrganizatiePanou`, `construiesteSarcini()`,
   `datePanou(): Promise<{ sumar; organizatii; sarcini; activitate }>`
 
@@ -974,7 +996,9 @@ import { describe, expect, it } from "vitest";
 
 import { construiesteSarcini } from "./sarcini";
 
-const firma = (peste: Partial<Parameters<typeof construiesteSarcini>[0]["organizatii"][number]>) => ({
+const firma = (
+  peste: Partial<Parameters<typeof construiesteSarcini>[0]["organizatii"][number]>,
+) => ({
   id: "00000000-0000-0000-0000-000000000001",
   name: "Firma X",
   status: "active" as const,
@@ -1036,6 +1060,7 @@ describe("construiesteSarcini", () => {
 ```bash
 ./node_modules/.bin/vitest run --project unit "src/app/(platform)/super-admin/_lib/sarcini.test.ts"
 ```
+
 Așteptat: FAIL — modulul nu există.
 
 - [ ] **Pasul 3 — implementează**
@@ -1129,6 +1154,7 @@ export function construiesteSarcini(
 ```bash
 ./node_modules/.bin/vitest run --project unit "src/app/(platform)/super-admin/_lib/sarcini.test.ts"
 ```
+
 Așteptat: PASS, 6 teste.
 
 - [ ] **Pasul 5 — adaugă citirea în `organizatii/actions.ts`**
@@ -1164,10 +1190,7 @@ export async function datePanou() {
       .select("organization_id")
       .eq("enabled", true)
       .is("deleted_at", null),
-    admin
-      .from("organization_members")
-      .select("organization_id, role")
-      .eq("status", "active"),
+    admin.from("organization_members").select("organization_id, role").eq("status", "active"),
     admin
       .from("audit_logs")
       .select("id, action, entity_type, created_at, organization_id, status")
@@ -1224,9 +1247,11 @@ git commit -m "feat(consolă): datele panoului + coada de lucru, testată"
 ## Task 9: Panoul
 
 **Fișiere:**
+
 - Rescrie: `src/app/(platform)/super-admin/page.tsx`
 
 **Interfețe:**
+
 - Consumă: `datePanou()` (Task 8); `Cifra`, `Sarcina` (Task 7)
 
 - [ ] **Pasul 1 — rescrie pagina**
@@ -1359,9 +1384,11 @@ git commit -m "feat(consolă): panou de platformă cu coadă de lucru și activi
 ## Task 10: Lista de organizații
 
 **Fișiere:**
+
 - Rescrie: `src/app/(platform)/super-admin/organizatii/page.tsx`
 
 **Interfețe:**
+
 - Consumă: `datePanou()` (Task 8); `StareOrganizatie`, `ModuleMini` (Task 7)
 
 > Citește pagina existentă înainte de a o rescrie: are filtre
@@ -1387,11 +1414,15 @@ Păstrează antetul paginii, filtrele și paginarea existente. Rândul devine:
     </Link>
   </td>
   <td className="text-muted-foreground px-4 py-3 text-sm">{org.oras ?? "—"}</td>
-  <td className="px-4 py-3"><StareOrganizatie stare={org.status} /></td>
+  <td className="px-4 py-3">
+    <StareOrganizatie stare={org.status} />
+  </td>
   <td className="px-4 py-3">
     <span className="text-muted-foreground font-mono text-xs uppercase">{org.plan}</span>
   </td>
-  <td className="px-4 py-3"><ModuleMini active={org.moduleActive} total={TOTAL_MODULE} /></td>
+  <td className="px-4 py-3">
+    <ModuleMini active={org.moduleActive} total={TOTAL_MODULE} />
+  </td>
   <td className="px-4 py-3">
     <span className="font-mono text-xs tabular-nums">
       {org.administratori}/{org.seats_limit}
@@ -1428,6 +1459,7 @@ git commit -m "feat(consolă): lista de firme cu stare și module citite din râ
 ## Task 11: Redenumirea rutei de audit și proba finală
 
 **Fișiere:**
+
 - Redenumește: `src/app/(platform)/super-admin/audit/` → `jurnal-audit/`
 
 - [ ] **Pasul 1 — redenumește**
@@ -1441,6 +1473,7 @@ git mv "src/app/(platform)/super-admin/audit" "src/app/(platform)/super-admin/ju
 ```bash
 grep -rn "super-admin/audit" src/ || echo "✓ nicio referință rămasă"
 ```
+
 Așteptat: „✓ nicio referință rămasă". (`src/app/api/export/audit/route.ts` e altceva —
 ruta de export, nu pagina. Rămâne cum e.)
 
@@ -1452,6 +1485,7 @@ ruta de export, nu pagina. Rămâne cum e.)
 ./node_modules/.bin/vitest run --project unit
 ./node_modules/.bin/next build
 ```
+
 Așteptat: typecheck fără linii noi · lint curat · toate testele trec ·
 „Compiled successfully".
 
@@ -1460,21 +1494,22 @@ Așteptat: typecheck fără linii noi · lint curat · toate testele trec ·
 ```bash
 ./administrativo.sh prod
 ```
+
 Așteptat: tag nou cu marcaj de timp, „Convergent: 2/2 replici active pe
 administrativo-web:&lt;tag&gt;", `healthz` 200.
 
 - [ ] **Pasul 5 — proba manuală**
 
-| Verificare | Așteptat |
-|---|---|
-| Login cu `scoala.ai43@gmail.com` | aterizează direct în `/super-admin` |
-| Antetul consolei | **fără** „Treci în firmă" (cont pur de platformă) |
-| Login cu `demo_admin@gmail.com` | aterizează în `/super-admin`, **cu** „Treci în firmă" |
-| Meniu → Jurnal audit | se deschide, nu 404 |
-| Panoul | 3 firme, 1 cerere demo, sarcini pentru Beta și Firma Test |
-| `/super-admin` cu un cont `org_admin` obișnuit | **404**, nu 403 |
-| `https://infomeditatii.ro/panou` cu cont de firmă | neschimbat |
-| Vecinii (`nortiauno.com`, `buget.scoala-ai.ro`, …) | 200 |
+| Verificare                                         | Așteptat                                                  |
+| -------------------------------------------------- | --------------------------------------------------------- |
+| Login cu `scoala.ai43@gmail.com`                   | aterizează direct în `/super-admin`                       |
+| Antetul consolei                                   | **fără** „Treci în firmă" (cont pur de platformă)         |
+| Login cu `demo_admin@gmail.com`                    | aterizează în `/super-admin`, **cu** „Treci în firmă"     |
+| Meniu → Jurnal audit                               | se deschide, nu 404                                       |
+| Panoul                                             | 3 firme, 1 cerere demo, sarcini pentru Beta și Firma Test |
+| `/super-admin` cu un cont `org_admin` obișnuit     | **404**, nu 403                                           |
+| `https://infomeditatii.ro/panou` cu cont de firmă  | neschimbat                                                |
+| Vecinii (`nortiauno.com`, `buget.scoala-ai.ro`, …) | 200                                                       |
 
 - [ ] **Pasul 6 — comite**
 
