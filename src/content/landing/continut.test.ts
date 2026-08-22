@@ -19,7 +19,9 @@ function fisiere(radacina: string, extensii: readonly string[]): string[] {
     for (const intrare of readdirSync(cale)) {
       const plin = join(cale, intrare);
       if (statSync(plin).isDirectory()) mergi(plin);
-      else if (extensii.some((ext) => plin.endsWith(ext))) gasite.push(plin);
+      // `join` dă `\` pe Windows, iar potrivirile de mai jos sunt scrise cu `/`:
+      // fără normalizare, setul de rute iese gol și testul cade doar pe Windows.
+      else if (extensii.some((ext) => plin.endsWith(ext))) gasite.push(plin.replaceAll("\\", "/"));
     }
   };
   mergi(radacina);
