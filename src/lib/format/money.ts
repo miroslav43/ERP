@@ -10,6 +10,8 @@
  * acceptă și string, iar conversia se face aici, într-un singur loc.
  */
 
+import { rotunjesteLaBani } from "@/domain/bani";
+
 const CURRENCY_FRACTION_DIGITS = 2;
 
 const formatter = new Intl.NumberFormat("ro-RO", {
@@ -33,12 +35,13 @@ function toFiniteNumber(value: Amount): number {
  * virgulă mobilă cad chiar sub jumătate (2.675 este de fapt 2.67499...).
  * Pentru bani, așteptarea contabilului este rotunjirea aritmetică la doi
  * zecimali, așa că o forțăm explicit înainte de formatare.
+ *
+ * Regula trăiește într-un SINGUR loc, `domain/bani.ts`. Până atunci existau
+ * două formule diferite — una aici, alta în motorul de salarizare — care pe
+ * 2,675 dădeau 2,68 și 2,67. Adică o sumă putea fi afișată altfel decât fusese
+ * calculată.
  */
-function roundToBani(value: number): number {
-  const scaled = value * 100;
-  const rounded = Math.round(scaled + Math.sign(scaled) * Number.EPSILON * Math.abs(scaled));
-  return rounded / 100;
-}
+const roundToBani = rotunjesteLaBani;
 
 /** `1234.56` → `"1.234,56"`. Fără simbol monetar — pentru coloane de tabel. */
 export function formatAmount(value: Amount, currency?: string): string {

@@ -80,6 +80,7 @@ export function FormularSetari({
         procent_ore_suplimentare: Number(formular.get("procent_ore_suplimentare")),
         valoare_tichet_masa: Number(formular.get("valoare_tichet_masa")),
         tichete_impozabile: formular.get("tichete_impozabile") === "on",
+        tichete_supuse_cass: formular.get("tichete_supuse_cass") === "on",
         rotunjire_lei: formular.get("rotunjire_lei") === "on",
         praguri: praguri.map((p) => ({
           nr_persoane_intretinere_min: Number(p.nr_persoane_intretinere_min),
@@ -246,6 +247,14 @@ export function FormularSetari({
             defaultChecked={setariCurente?.tichete_impozabile ?? false}
           />
           Tichetele intră în baza de impozit
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            name="tichete_supuse_cass"
+            defaultChecked={setariCurente?.tichete_supuse_cass ?? false}
+          />
+          Tichetele intră în baza CASS (nu și în cea CAS)
         </label>
         <label className="flex items-center gap-2">
           <input

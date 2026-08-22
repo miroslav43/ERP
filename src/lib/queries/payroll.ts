@@ -28,6 +28,7 @@ export interface SetariSalarizare {
   readonly procent_ore_suplimentare: number;
   readonly valoare_tichet_masa: number;
   readonly tichete_impozabile: boolean;
+  readonly tichete_supuse_cass: boolean;
   readonly rotunjire_lei: boolean;
   readonly verificat_de_contabil: boolean;
   readonly verificat_la: string | null;
@@ -59,7 +60,7 @@ export async function citesteSetariPeId(
   const { data, error } = await db
     .from("payroll_settings")
     .select(
-      "id, valabil_de_la, cota_cas, cota_cass, cota_impozit, cota_cam_angajator, norma_zilnica_ore, procent_spor_noapte, procent_spor_weekend, procent_ore_suplimentare, valoare_tichet_masa, tichete_impozabile, rotunjire_lei, verificat_de_contabil, verificat_la, note",
+      "id, valabil_de_la, cota_cas, cota_cass, cota_impozit, cota_cam_angajator, norma_zilnica_ore, procent_spor_noapte, procent_spor_weekend, procent_ore_suplimentare, valoare_tichet_masa, tichete_impozabile, tichete_supuse_cass, rotunjire_lei, verificat_de_contabil, verificat_la, note",
     )
     .eq("organization_id", organizationId)
     .eq("id", id)
@@ -79,7 +80,7 @@ export async function citesteSetariValabile(
   const { data: randuri, error } = await db
     .from("payroll_settings")
     .select(
-      "id, valabil_de_la, cota_cas, cota_cass, cota_impozit, cota_cam_angajator, norma_zilnica_ore, procent_spor_noapte, procent_spor_weekend, procent_ore_suplimentare, valoare_tichet_masa, tichete_impozabile, rotunjire_lei, verificat_de_contabil, verificat_la, note",
+      "id, valabil_de_la, cota_cas, cota_cass, cota_impozit, cota_cam_angajator, norma_zilnica_ore, procent_spor_noapte, procent_spor_weekend, procent_ore_suplimentare, valoare_tichet_masa, tichete_impozabile, tichete_supuse_cass, rotunjire_lei, verificat_de_contabil, verificat_la, note",
     )
     .eq("organization_id", organizationId)
     .lte("valabil_de_la", data)
@@ -518,12 +519,17 @@ export interface ComponentaSalarialaActiva {
   readonly suma: number | null;
   readonly impozabil: boolean;
   /**
-   * Motorul de calcul (`calc.ts`) are un singur flag `supusContributii`, dar
-   * baza ține separat CAS/CASS — o componentă e „supusă contribuțiilor" dacă
-   * intră în ORICARE dintre cele două (simplificare deliberată, ca restul
-   * modulului: mai degrabă supra-taxată decât sub-taxată).
+   * Păstrat pentru apelanții care nu disting cele două baze: adevărat dacă
+   * componenta intră în ORICARE dintre ele.
    */
   readonly supusContributii: boolean;
+  /**
+   * Steagurile fidele din `salary_component_types`. Până la 0054 motorul avea
+   * o singură bază și le colapsa aici într-un `sau` — o componentă supusă doar
+   * CASS ajungea, deci, și în baza de pensie. Acum se transmit ca atare.
+   */
+  readonly intraInBazaCas: boolean;
+  readonly intraInBazaCass: boolean;
 }
 
 /**
@@ -576,6 +582,8 @@ export async function componenteSalarialeActivePerioada(
         procent: rand.procent,
         suma: rand.suma,
         impozabil: rand.component_type?.impozabil ?? true,
+        intraInBazaCas: rand.component_type?.intra_in_baza_cas ?? true,
+        intraInBazaCass: rand.component_type?.intra_in_baza_cass ?? true,
         supusContributii:
           (rand.component_type?.intra_in_baza_cas ?? true) ||
           (rand.component_type?.intra_in_baza_cass ?? true),

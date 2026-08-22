@@ -6562,7 +6562,9 @@ export type Database = {
       }
       payroll_entries: {
         Row: {
+          baza_cas: number
           baza_cas_cass: number
+          baza_cass: number
           baza_impozit: number
           baza_salariu: number
           brut: number
@@ -6612,7 +6614,9 @@ export type Database = {
           zile_sarbatoare_lucrate: number
         }
         Insert: {
+          baza_cas?: number
           baza_cas_cass?: number
+          baza_cass?: number
           baza_impozit?: number
           baza_salariu?: number
           brut?: number
@@ -6662,7 +6666,9 @@ export type Database = {
           zile_sarbatoare_lucrate?: number
         }
         Update: {
+          baza_cas?: number
           baza_cas_cass?: number
+          baza_cass?: number
           baza_impozit?: number
           baza_salariu?: number
           brut?: number
@@ -6925,6 +6931,7 @@ export type Database = {
           rotunjire_lei: boolean
           tichete_furnizor: string | null
           tichete_impozabile: boolean
+          tichete_supuse_cass: boolean
           updated_at: string
           updated_by: string | null
           valabil_de_la: string
@@ -6953,6 +6960,7 @@ export type Database = {
           rotunjire_lei?: boolean
           tichete_furnizor?: string | null
           tichete_impozabile?: boolean
+          tichete_supuse_cass?: boolean
           updated_at?: string
           updated_by?: string | null
           valabil_de_la: string
@@ -6981,6 +6989,7 @@ export type Database = {
           rotunjire_lei?: boolean
           tichete_furnizor?: string | null
           tichete_impozabile?: boolean
+          tichete_supuse_cass?: boolean
           updated_at?: string
           updated_by?: string | null
           valabil_de_la?: string

@@ -586,3 +586,113 @@ describe("calculatePayrollEntry — zile de repaus și de sărbătoare", () => {
     expect(rezultat.sporSarbatoare).toBe(0);
   });
 });
+
+describe("calculatePayrollEntry — baza CAS separată de baza CASS", () => {
+  const CU_TICHETE = { ...SETARI, valoareTichetMasa: 30 };
+
+  it("tichetele nu intră în baza de pensie, dar intră în cea de sănătate când e activat", () => {
+    const rezultat = calculatePayrollEntry({
+      settings: { ...CU_TICHETE, ticheteSupuseCass: true },
+      contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0 },
+      attendance: PONTAJ_STANDARD,
+      bonuses: [],
+      deductions: [],
+    });
+    // 21 de zile x 30 lei = 630 lei în tichete.
+    expect(rezultat.valoareTichete).toBe(630);
+    expect(rezultat.bazaCass - rezultat.bazaCas).toBeCloseTo(630, 2);
+    expect(rezultat.cas).toBeCloseTo(rezultat.bazaCas * 0.25, 2);
+    expect(rezultat.cass).toBeCloseTo(rezultat.bazaCass * 0.1, 2);
+  });
+
+  it("implicit, comutatorul e stins și cele două baze coincid", () => {
+    const rezultat = calculatePayrollEntry({
+      settings: CU_TICHETE,
+      contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0 },
+      attendance: PONTAJ_STANDARD,
+      bonuses: [],
+      deductions: [],
+    });
+    // Deliberat: o valoare implicită „true" ar schimba tăcut netul tuturor.
+    expect(rezultat.bazaCass).toBe(rezultat.bazaCas);
+  });
+
+  it("o componentă poate intra în baza de sănătate fără să intre în cea de pensie", () => {
+    const rezultat = calculatePayrollEntry({
+      settings: SETARI,
+      contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0 },
+      attendance: PONTAJ_STANDARD,
+      bonuses: [{ suma: 400, impozabil: true, supusContributii: true, intraInBazaCas: false }],
+      deductions: [],
+    });
+    expect(rezultat.bazaCas).toBeCloseTo(5000, 2);
+    expect(rezultat.bazaCass).toBeCloseTo(5400, 2);
+  });
+
+  it("steagurile lipsă cad pe `supusContributii`, deci apelanții vechi nu se schimbă", () => {
+    const cuSteaguri = calculatePayrollEntry({
+      settings: SETARI,
+      contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0 },
+      attendance: PONTAJ_STANDARD,
+      bonuses: [
+        {
+          suma: 400,
+          impozabil: true,
+          supusContributii: true,
+          intraInBazaCas: true,
+          intraInBazaCass: true,
+        },
+      ],
+      deductions: [],
+    });
+    const faraSteaguri = calculatePayrollEntry({
+      settings: SETARI,
+      contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0 },
+      attendance: PONTAJ_STANDARD,
+      bonuses: [{ suma: 400, impozabil: true, supusContributii: true }],
+      deductions: [],
+    });
+    expect(cuSteaguri).toEqual(faraSteaguri);
+  });
+
+  it("`bazaCasCass` rămâne egal cu `bazaCas`, ca ecranele existente să nu se rupă", () => {
+    const rezultat = calculatePayrollEntry({
+      settings: { ...CU_TICHETE, ticheteSupuseCass: true },
+      contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0 },
+      attendance: PONTAJ_STANDARD,
+      bonuses: [],
+      deductions: [],
+    });
+    expect(rezultat.bazaCasCass).toBe(rezultat.bazaCas);
+  });
+
+  it("avertizează despre regimul tichetelor doar când setările nu sunt confirmate", () => {
+    const neconfirmat = calculatePayrollEntry({
+      settings: { ...CU_TICHETE, verificatDeContabil: false },
+      contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0 },
+      attendance: PONTAJ_STANDARD,
+      bonuses: [],
+      deductions: [],
+    });
+    const confirmat = calculatePayrollEntry({
+      settings: { ...CU_TICHETE, verificatDeContabil: true },
+      contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0 },
+      attendance: PONTAJ_STANDARD,
+      bonuses: [],
+      deductions: [],
+    });
+    expect(neconfirmat.warnings.map((w) => w.cod)).toContain("SAL_TICHETE_REGIM_NECONFIRMAT");
+    expect(confirmat.warnings.map((w) => w.cod)).not.toContain("SAL_TICHETE_REGIM_NECONFIRMAT");
+  });
+
+  it("fără tichete, avertismentul nu apare nici dacă setările sunt neconfirmate", () => {
+    const rezultat = calculatePayrollEntry({
+      settings: { ...SETARI, valoareTichetMasa: 0, verificatDeContabil: false },
+      contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0 },
+      attendance: PONTAJ_STANDARD,
+      bonuses: [],
+      deductions: [],
+    });
+    expect(rezultat.warnings.map((w) => w.cod)).not.toContain("SAL_TICHETE_REGIM_NECONFIRMAT");
+  });
+});

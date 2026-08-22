@@ -49,6 +49,7 @@ export const salveazaSetari = createAction({
         procent_ore_suplimentare: input.procent_ore_suplimentare,
         valoare_tichet_masa: input.valoare_tichet_masa,
         tichete_impozabile: input.tichete_impozabile,
+        tichete_supuse_cass: input.tichete_supuse_cass,
         rotunjire_lei: input.rotunjire_lei,
       })
       .select("id")
@@ -146,6 +147,8 @@ function laSetariSnapshot(
     procentOreSuplimentare: setari.procent_ore_suplimentare,
     valoareTichetMasa: setari.valoare_tichet_masa,
     ticheteImpozabile: setari.tichete_impozabile,
+    ticheteSupuseCass: setari.tichete_supuse_cass,
+    verificatDeContabil: setari.verificat_de_contabil,
     deducerePersonala: setari.praguri.map((p) => ({
       nrPersoaneIntretinereMin: p.nr_persoane_intretinere_min,
       nrPersoaneIntretinereMax: p.nr_persoane_intretinere_max,
@@ -300,6 +303,8 @@ export const calculeazaPerioada = createAction({
                 : (c.suma ?? 0),
             impozabil: c.impozabil,
             supusContributii: c.supusContributii,
+            intraInBazaCas: c.intraInBazaCas,
+            intraInBazaCass: c.intraInBazaCass,
           })),
         ],
         deductions: (retineriPeAngajat.get(angajat.employee_id) ?? []).map((r) => ({
@@ -336,6 +341,8 @@ export const calculeazaPerioada = createAction({
         nr_tichete: rezultat.nrTichete,
         valoare_tichete: rezultat.valoareTichete,
         baza_cas_cass: rezultat.bazaCasCass,
+        baza_cas: rezultat.bazaCas,
+        baza_cass: rezultat.bazaCass,
         cas: rezultat.cas,
         cass: rezultat.cass,
         deducere_personala: rezultat.deducerePersonala,

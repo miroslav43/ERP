@@ -28,6 +28,7 @@ export const CODURI_PROBLEMA = [
   "SAL_CONTRACT_SCHIMBAT_IN_LUNA",
   "SAL_SPOR_SARBATOARE_NECONFIGURAT",
   "SAL_SPOR_REPAUS_NECONFIGURAT",
+  "SAL_TICHETE_REGIM_NECONFIRMAT",
   "SAL_CM_NECALCULAT",
   "SAL_CO_BAZA_SIMPLIFICATA",
   "SAL_SCUTIRE_FARA_PROCENT",
@@ -121,6 +122,15 @@ const CATALOG: Readonly<Record<CodProblema, IntrareCatalog>> = {
       "Procentul de spor din setările de salarizare a rămas pe valoarea implicită. Orele au fost plătite la tariful orar simplu, fără niciun spor.",
     cumSeRepara:
       "Configurați procentul de spor pentru zilele de repaus în setările de salarizare, apoi recalculați perioada.",
+    unde: "/salarizare/setari",
+  },
+  SAL_TICHETE_REGIM_NECONFIRMAT: {
+    severitate: "informativ",
+    mesaj: "Regimul fiscal al tichetelor de masă nu a fost confirmat de contabil.",
+    cauza:
+      "Tichetele nu intră în baza de pensie, dar pot intra în cea de sănătate — regula s-a schimbat de mai multe ori în ultimii ani. Motorul aplică setarea curentă, oricare ar fi ea.",
+    cumSeRepara:
+      "Confirmați cu contabilul dacă tichetele se supun CASS, potriviți comutatorul din setările de salarizare și bifați setările ca verificate.",
     unde: "/salarizare/setari",
   },
   SAL_CM_NECALCULAT: {

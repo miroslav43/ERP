@@ -29,6 +29,7 @@ export const setariSalarizareSchema = z.object({
   procent_ore_suplimentare: z.coerce.number().min(0),
   valoare_tichet_masa: z.coerce.number().min(0),
   tichete_impozabile: z.coerce.boolean(),
+  tichete_supuse_cass: z.coerce.boolean(),
   rotunjire_lei: z.coerce.boolean(),
   praguri: z.array(pragDeducereSchema).min(1, "Adăugați cel puțin un prag de deducere personală."),
 });
