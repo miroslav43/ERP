@@ -42,9 +42,9 @@ scoaterea lui din diff doar îl recreează la următorul `next dev`.
 
 Conectează Claude Code direct la proiectul Supabase real
 (`nybmhorngsajoqaxjlbr`, regiunea **aws-1-eu-west-1** — vezi `NOTES.md` §1).
-Prin el rulează `apply_migration`, `execute_sql`, `generate_typescript_types`,
-`get_advisors`, `list_migrations` etc. — folosite masiv în acest proiect
-pentru migrări și verificări directe pe baza vie.
+Prin el rulează `execute_sql`, `generate_typescript_types`, `get_advisors`,
+`list_migrations` etc. — folosite masiv pentru inspecție și verificări directe
+pe baza vie. **Aplicarea migrărilor NU trece prin MCP** — vezi §4 pct. 3.
 
 La un cont nou, acest fișier vine automat cu `git clone` — dar Claude Code
 cere autorizare/autentificare OAuth către Supabase la prima folosire a
@@ -268,9 +268,13 @@ Din istoricul acestui proiect, dincolo de fișierele de memorie de mai sus:
    push, niciodată `git add -A`/`.` orb, redenumirea propriilor migrări la o
    coliziune de nume (niciodată a fișierului altcuiva), `git merge` normal
    (nu rebase) când upstream-ul are commit-uri noi.
-3. **Migrări pe baza de date live**: aplicate prin MCP (`apply_migration`),
-   nu prin `supabase db push` din CLI local (`NOTES.md` explică de ce —
-   fidelitate byte-exactă). Schimbările de schemă live pot cere confirmare
+3. **Migrări pe baza de date live**: aplicate prin `psql`, cu fișierul trimis
+   byte-exact (`NOTES.md` §1 dă comanda completă, prin pooler). NICI prin
+   `supabase db push` din CLI, NICI prin `apply_migration` din MCP: ambele cer
+   ca SQL-ul să treacă prin model ca text, iar 104 KB de DDL retranscris e
+   exact locul în care apare o eroare subtilă imposibil de observat. MCP-ul
+   rămâne pentru inspecție: `execute_sql`, `list_migrations`, `get_advisors`,
+   `generate_typescript_types`. Schimbările de schemă live pot cere confirmare
    explicită a utilizatorului în chat (clasificatorul Auto Mode le tratează
    ca acțiuni ireversibile pe un sistem distribuit) — nu presupune că un
    „da" anterior acoperă o migrare nouă, cere din nou dacă apare blocajul.

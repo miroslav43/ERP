@@ -182,10 +182,23 @@ comment on function internal.verifica_pontaj_saptamanal_restante() is
 -- 4. pg_cron — prima activare reală în acest proiect.
 ---------------------------------------------------------------------------
 
-create extension if not exists pg_cron with schema cron;
-
-select cron.schedule(
-  'pontaj-saptamanal-restante',
-  '0 7 * * *',
-  $$select internal.verifica_pontaj_saptamanal_restante();$$
-);
+-- Garda de disponibilitate, aceeași convenție ca în 0008_expirables.sql:
+-- migrarea rulează și pe un Postgres 17 gol, în CI, unde pg_cron nu există.
+-- Fără gardă, `create extension` oprește AICI tot lanțul de migrări — deci și
+-- cele trei bariere din scripts/checks/ și testul de izolare între tenanți,
+-- care rulează după migrări. Pe Supabase extensia e disponibilă, deci ramura
+-- de sus se execută exact ca înainte.
+do $do$
+begin
+  if exists (select 1 from pg_catalog.pg_available_extensions where name = 'pg_cron') then
+    create extension if not exists pg_cron with schema cron;
+    perform cron.schedule(
+      'pontaj-saptamanal-restante',
+      '0 7 * * *',
+      $job$select internal.verifica_pontaj_saptamanal_restante();$job$
+    );
+  else
+    raise warning 'pg_cron nu este disponibil (Postgres gol / CI). Jobul zilnic "pontaj-saptamanal-restante" nu a fost programat. Pe Supabase se programează normal.';
+  end if;
+end
+$do$;

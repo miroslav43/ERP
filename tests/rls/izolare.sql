@@ -300,12 +300,15 @@ begin
   values (v_alfa, current_date + 200, 'Zi liberă test Alfa ' || v_sufix, 'liber_suplimentar', v_admin_alfa),
          (v_beta, current_date + 200, 'Zi liberă test Beta ' || v_sufix, 'liber_suplimentar', v_admin_beta);
 
+  -- `tip_criteriu` + discriminantul lui sunt obligatorii din 0035_reguli_concediu:
+  -- `categorie` a devenit etichetă liberă, iar `ler_criteriu_ck` cere ca pentru
+  -- 'vechime' să fie populat exact `vechime_ani_min`, restul null.
   insert into public.leave_entitlement_rules
-    (organization_id, leave_type_id, categorie, denumire, zile_suplimentare, temei_legal)
-  select v_alfa, lt.id, 'vechime_test', 'Spor CO vechime (test)', 3, 'Regulament intern (DE VERIFICAT)'
+    (organization_id, leave_type_id, tip_criteriu, vechime_ani_min, categorie, denumire, zile_suplimentare, temei_legal)
+  select v_alfa, lt.id, 'vechime'::public.leave_rule_criterion, 5, 'vechime_test', 'Spor CO vechime (test)', 3, 'Regulament intern (DE VERIFICAT)'
     from public.leave_types lt where lt.organization_id = v_alfa and lt.key = 'odihna' and lt.deleted_at is null
   union all
-  select v_beta, lt.id, 'vechime_test', 'Spor CO vechime (test)', 3, 'Regulament intern (DE VERIFICAT)'
+  select v_beta, lt.id, 'vechime'::public.leave_rule_criterion, 5, 'vechime_test', 'Spor CO vechime (test)', 3, 'Regulament intern (DE VERIFICAT)'
     from public.leave_types lt where lt.organization_id = v_beta and lt.key = 'odihna' and lt.deleted_at is null;
 
   -- O cerere „trimisă" pornește motorul întreg: triggerul de sincronizare
@@ -645,6 +648,90 @@ begin
   union all
   select v_beta, (select val from t_ids where cheie='btrip_beta'), p.id, 2, 100.00
     from public.per_diem_policies p where p.organization_id = v_beta;
+  -- ── Modulele adăugate după scrierea fixture-ului ────────────────────────────
+  -- Salarizare (0026), anunțuri (0028), evaluări (0038) și pontajul săptămânal
+  -- (0041) au intrat în proiect DUPĂ ce fixture-ul a fost scris, deci
+  -- verificarea (c) le raporta drept „izolare nedemonstrată”: fără rânduri ale
+  -- organizației Beta, nu ai ce încerca să citești din Alfa. Nu erau nesigure —
+  -- doar nedovedite. Aici le dăm ambelor organizații câte un rând.
+  insert into t_ids
+  select k || '_' || e, gen_random_uuid()
+    from unnest(array['alfa','beta']) e,
+         unnest(array['pset','pper','anunt','etpl','wsub']) k;
+
+  insert into public.payroll_settings (id, organization_id, valabil_de_la,
+    cota_cas, cota_cass, cota_impozit, cota_cam_angajator)
+  -- Cotele sunt FRACȚII între 0 și 1 (`payroll_settings_cote_ck`), nu procente:
+  -- 0.25 = 25 % CAS. Valorile sunt ilustrative — cele reale trăiesc în
+  -- configurație și sunt marcate ⚠️ în NOTES.md §3 până le confirmă un contabil.
+  values ((select val from t_ids where cheie='pset_alfa'), v_alfa, current_date - 400, 0.25, 0.10, 0.10, 0.0225),
+         ((select val from t_ids where cheie='pset_beta'), v_beta, current_date - 400, 0.25, 0.10, 0.10, 0.0225);
+
+  insert into public.payroll_personal_deduction_brackets (organization_id, settings_id,
+    nr_persoane_intretinere_min, venit_brut_max, valoare)
+  values (v_alfa, (select val from t_ids where cheie='pset_alfa'), 0, 4000, 20),
+         (v_beta, (select val from t_ids where cheie='pset_beta'), 0, 4000, 20);
+
+  insert into public.payroll_periods (id, organization_id, an, luna, attendance_period_id, settings_id)
+  values ((select val from t_ids where cheie='pper_alfa'), v_alfa,
+          extract(year from current_date)::smallint, extract(month from current_date)::smallint,
+          (select val from t_ids where cheie='aper_alfa'), (select val from t_ids where cheie='pset_alfa')),
+         ((select val from t_ids where cheie='pper_beta'), v_beta,
+          extract(year from current_date)::smallint, extract(month from current_date)::smallint,
+          (select val from t_ids where cheie='aper_beta'), (select val from t_ids where cheie='pset_beta'));
+
+  insert into public.payroll_entries (organization_id, period_id, employee_id,
+    zile_lucratoare_luna, settings_snapshot)
+  values (v_alfa, (select val from t_ids where cheie='pper_alfa'),
+          (select val from t_ids where cheie='ang_alfa'), 21, '{}'::jsonb),
+         (v_beta, (select val from t_ids where cheie='pper_beta'),
+          (select val from t_ids where cheie='ang_beta'), 21, '{}'::jsonb);
+
+  insert into public.payroll_bonuses (organization_id, employee_id, period_id, tip, suma, motiv)
+  values (v_alfa, (select val from t_ids where cheie='ang_alfa'),
+          (select val from t_ids where cheie='pper_alfa'), 'prima_performanta', 100.00, 'fixture'),
+         (v_beta, (select val from t_ids where cheie='ang_beta'),
+          (select val from t_ids where cheie='pper_beta'), 'prima_performanta', 100.00, 'fixture');
+
+  insert into public.payroll_deductions (organization_id, employee_id, period_id, tip, suma, motiv)
+  values (v_alfa, (select val from t_ids where cheie='ang_alfa'),
+          (select val from t_ids where cheie='pper_alfa'), 'avans', 50.00, 'fixture'),
+         (v_beta, (select val from t_ids where cheie='ang_beta'),
+          (select val from t_ids where cheie='pper_beta'), 'avans', 50.00, 'fixture');
+
+  insert into public.announcements (id, organization_id, titlu, continut)
+  values ((select val from t_ids where cheie='anunt_alfa'), v_alfa, 'Anunț Alfa', 'Conținut de fixture.'),
+         ((select val from t_ids where cheie='anunt_beta'), v_beta, 'Anunț Beta', 'Conținut de fixture.');
+
+  insert into public.announcement_reads (organization_id, announcement_id, employee_id, user_id)
+  values (v_alfa, (select val from t_ids where cheie='anunt_alfa'),
+          (select val from t_ids where cheie='ang_alfa'), v_emp_alfa),
+         (v_beta, (select val from t_ids where cheie='anunt_beta'),
+          (select val from t_ids where cheie='ang_beta'), v_emp_beta);
+
+  -- `evaluation_templates.organization_id` e NULLABIL (există șabloane de
+  -- platformă). Fixture-ul dă fiecărei organizații șablonul ei, altfel
+  -- `employee_evaluations` n-ar avea la ce să se lege per tenant.
+  insert into public.evaluation_templates (id, organization_id, denumire)
+  values ((select val from t_ids where cheie='etpl_alfa'), v_alfa, 'Evaluare anuală Alfa'),
+         ((select val from t_ids where cheie='etpl_beta'), v_beta, 'Evaluare anuală Beta');
+
+  insert into public.employee_evaluations (organization_id, employee_id, template_id, data_evaluarii)
+  values (v_alfa, (select val from t_ids where cheie='ang_alfa'),
+          (select val from t_ids where cheie='etpl_alfa'), current_date),
+         (v_beta, (select val from t_ids where cheie='ang_beta'),
+          (select val from t_ids where cheie='etpl_beta'), current_date);
+
+  insert into public.attendance_week_submissions (id, organization_id, employee_id, saptamana_start)
+  values ((select val from t_ids where cheie='wsub_alfa'), v_alfa,
+          (select val from t_ids where cheie='ang_alfa'), date_trunc('week', current_date)::date),
+         ((select val from t_ids where cheie='wsub_beta'), v_beta,
+          (select val from t_ids where cheie='ang_beta'), date_trunc('week', current_date)::date);
+
+  insert into public.attendance_week_submission_days (organization_id, submission_id, data)
+  values (v_alfa, (select val from t_ids where cheie='wsub_alfa'), date_trunc('week', current_date)::date),
+         (v_beta, (select val from t_ids where cheie='wsub_beta'), date_trunc('week', current_date)::date);
+
 end
 $$;
 

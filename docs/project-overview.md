@@ -282,10 +282,13 @@ Protocol verificat, de urmat:
 - **Numerotare secvențială** (`00NN_descriere.sql`), dar Supabase urmărește
   aplicarea prin propriul timestamp intern (`list_migrations`), nu prin
   numele fișierului — o coliziune de nume local nu strică nimic pe cloud.
-- **Aplicare prin MCP** (`mcp__supabase__apply_migration`), nu prin
-  `supabase db push` din CLI — vezi `NOTES.md` §1 pentru motiv (fidelitate
-  byte-exactă) — și poate cere confirmare explicită a utilizatorului pentru
-  scheme noi/sensibile (clasificatorul Auto Mode).
+- **Aplicare prin `psql`**, cu fișierul trimis byte-exact — vezi `NOTES.md` §1
+  pentru comanda completă prin pooler și pentru motiv. NICI `supabase db push`
+  din CLI, NICI `mcp__supabase__apply_migration`: ambele cer ca SQL-ul să treacă
+  prin model ca text. MCP-ul rămâne pentru inspecție (`execute_sql`,
+  `list_migrations`, `get_advisors`, `generate_typescript_types`). Aplicarea pe
+  baza live poate cere confirmare explicită a utilizatorului (clasificatorul
+  Auto Mode o tratează ca acțiune ireversibilă).
 - **Trei bariere de securitate**, în `scripts/checks/*.sql`, rulate în CI pe
   Postgres 17 curat:
   1. `security-definer.sql` — orice funcție `SECURITY DEFINER` trebuie
@@ -333,7 +336,7 @@ Protocol verificat, de urmat:
 ## 8. Capcane cunoscute din schemă
 
 **Citește direct [`docs/design/ecrane/capcane.md`](design/ecrane/capcane.md)**
-— 14 capcane concrete, verificate empiric, fiecare cu explicație și fișierul
+— 36 de capcane concrete, verificate empiric, fiecare cu explicație și fișierul
 exact afectat. Cele mai relevante pentru orice modul nou:
 
 - Orice funcție din schema `app` NU e apelabilă cu `.rpc()` din cod client.

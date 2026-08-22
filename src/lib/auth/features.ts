@@ -6,16 +6,23 @@ import { cache } from "react";
 import { z } from "zod";
 
 import { createServerSupabase } from "@/lib/supabase/server";
-import { FEATURE_KEYS, type FeatureKey } from "@/config/features";
+import { imparteCheiDeModul, type FeatureKey } from "@/config/features";
 
 /**
- * Cheia se validează față de catalogul cunoscut de cod, nu ca simplu `string`.
+ * Forma rândului, nu și apartenența cheii la catalog.
  *
- * O cheie prezentă în bază dar absentă din `FEATURE_KEYS` înseamnă drift între
- * seed-ul SQL și cod — exact genul de nepotrivire care altfel ar trece tăcut și
- * ar face ca un modul să nu apară niciodată în meniu, fără nicio eroare.
+ * Aici s-a aflat un defect scump: schema era `z.enum(FEATURE_KEYS)`, iar
+ * `z.array(...).parse()` ARUNCĂ la prima cheie necunoscută. Intenția era bună —
+ * driftul între seed-ul SQL și cod să nu treacă tăcut — dar prețul era greșit:
+ * `organization_features` se citește pe FIECARE pagină din spatele
+ * autentificării, deci o cheie în plus în bază nu ascundea un modul, ci dădea
+ * 500 pe toată aplicația. S-a întâmplat pe 2026-08-21 cu `ticketing`, seedat în
+ * bază înaintea codului.
+ *
+ * Acum cheile necunoscute se taie (`imparteCheiDeModul`) și se scriu în log:
+ * driftul rămâne vizibil, fără să mai coste disponibilitatea.
  */
-const randSchema = z.object({ feature_key: z.enum(FEATURE_KEYS) });
+const randSchema = z.object({ feature_key: z.string() });
 
 /**
  * Modulele active ale organizației, un singur query per request.
@@ -45,12 +52,25 @@ export const getEnabledFeatures = cache(
       throw new Error(`Nu s-au putut citi modulele active: ${error.message}`);
     }
 
-    return new Set(
+    const { cunoscute, necunoscute } = imparteCheiDeModul(
       z
         .array(randSchema)
         .parse(data ?? [])
         .map((r) => r.feature_key),
     );
+
+    if (necunoscute.length > 0) {
+      // Nu e eroare: baza poate merge legitim înaintea codului. E însă un semnal
+      // care trebuie să lase urmă — altfel modulul lipsește din meniu fără ca
+      // nimeni să poată spune de ce.
+      console.warn(
+        `[features] Organizația ${organizationId} are module active pe care codul nu le cunoaște: ` +
+          `${necunoscute.join(", ")}. Adaugă-le în FEATURE_KEYS din src/config/features.ts sau ` +
+          "dezactivează-le din Super-Admin → Module.",
+      );
+    }
+
+    return new Set(cunoscute);
   },
 );
 

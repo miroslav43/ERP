@@ -62,6 +62,23 @@ begin
     grant usage on schema storage to anon, authenticated, service_role;
     grant select, insert, update on storage.objects to authenticated;
     grant select on storage.buckets to authenticated;
+
+    -- `storage.foldername(text)` întoarce segmentele de cale ALE DIRECTORULUI,
+    -- adică fără numele fișierului: 'uid/avatar.png' -> {uid}. Politicile din
+    -- 0029_avatare.sql o folosesc ca să lege obiectul de utilizatorul din
+    -- primul segment. Pe Supabase funcția vine cu Storage; pe Postgres gol nu
+    -- există, iar fără shim-ul ăsta 0029 oprește TOATE migrările din CI — deci
+    -- și cele trei bariere din scripts/checks/ și testul de izolare între
+    -- tenanți, care rulează după ele.
+    execute $fn$
+      create function storage.foldername(name text) returns text[]
+      language sql immutable as $b$
+        select (string_to_array($1, '/'))[
+          1 : greatest(array_length(string_to_array($1, '/'), 1) - 1, 0)
+        ]
+      $b$;
+      grant execute on function storage.foldername(text) to anon, authenticated, service_role;
+    $fn$;
   end if;
 end
 $do$;
