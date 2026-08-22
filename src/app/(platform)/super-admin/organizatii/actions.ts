@@ -5,6 +5,8 @@ import { businessRule, notFound } from "@/lib/actions/errors";
 import { createPlatformAction } from "@/lib/actions/platform";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { requirePlatformAdmin } from "@/lib/auth/platform";
+
+import { construiesteSarcini } from "../_lib/sarcini";
 import {
   actualizeazaOrganizatieSchema,
   creeazaOrganizatieSchema,
@@ -325,17 +327,36 @@ export async function listaOrganizatii(parametri: ListaOrganizatiiInput) {
   const randuri = data ?? [];
   const idOrganizatii = randuri.map((rand) => rand.id);
   const membriPeOrganizatie = new Map<string, number>();
+  const modulePeOrganizatie = new Map<string, number>();
   if (idOrganizatii.length > 0) {
-    const { data: membri, error: eroareMembri } = await admin
-      .from("organization_members")
-      .select("organization_id")
-      .in("organization_id", idOrganizatii)
-      .eq("status", "active");
+    // Ambele numărători pe pagina curentă, în paralel: sunt independente, iar
+    // secvențial ar adăuga un dus-întors către eu-west-1 la fiecare afișare.
+    const [{ data: membri, error: eroareMembri }, { data: module, error: eroareModule }] =
+      await Promise.all([
+        admin
+          .from("organization_members")
+          .select("organization_id")
+          .in("organization_id", idOrganizatii)
+          .eq("status", "active"),
+        admin
+          .from("organization_features")
+          .select("organization_id")
+          .in("organization_id", idOrganizatii)
+          .eq("enabled", true)
+          .is("deleted_at", null),
+      ]);
     if (eroareMembri) throw eroareMembri;
+    if (eroareModule) throw eroareModule;
     for (const membru of membri ?? []) {
       membriPeOrganizatie.set(
         membru.organization_id,
         (membriPeOrganizatie.get(membru.organization_id) ?? 0) + 1,
+      );
+    }
+    for (const modul of module ?? []) {
+      modulePeOrganizatie.set(
+        modul.organization_id,
+        (modulePeOrganizatie.get(modul.organization_id) ?? 0) + 1,
       );
     }
   }
@@ -345,6 +366,7 @@ export async function listaOrganizatii(parametri: ListaOrganizatiiInput) {
     randuri: randuri.map((rand) => ({
       ...rand,
       membriActivi: membriPeOrganizatie.get(rand.id) ?? 0,
+      moduleActive: modulePeOrganizatie.get(rand.id) ?? 0,
     })),
     total,
     pagina: filtru.pagina,
@@ -454,5 +476,74 @@ export async function sumarPlatforma() {
     organizatii: { pending, active, suspended, archived },
     cereriDemoNoi: cereriNoi,
     invitatiiInAsteptare: invitatii,
+  };
+}
+
+/**
+ * Tot ce afișează panoul de platformă, într-o singură trecere.
+ *
+ * `createAdminSupabase()` ocolește RLS deliberat: citirile de platformă sunt
+ * prin definiție cross-organizație, iar un administrator de platformă nu e
+ * membru nicăieri — politicile per-tenant i-ar întoarce zero rânduri. Poarta e
+ * `requirePlatformAdmin()` de mai jos, nu RLS-ul.
+ *
+ * Stă aici, în `actions.ts`, și nu în `src/lib/queries/` ca restul citirilor din
+ * aplicație, pentru că ESLint permite `createAdminSupabase()` doar în
+ * `actions.ts`, `api/**` , `rate-limit.ts`, `scripts/**` și `tests/**`.
+ *
+ * O singură trecere, cu `Promise.all`: cinci interogări secvențiale ar face
+ * panoul să se încarce în cinci dus-întorsuri către eu-west-1.
+ */
+export async function datePanou() {
+  await requirePlatformAdmin();
+  const admin = createAdminSupabase();
+
+  const [sumar, organizatii, module, membri, activitate] = await Promise.all([
+    sumarPlatforma(),
+    admin
+      .from("organizations")
+      .select("id, name, cui, oras, status, plan, seats_limit, created_at")
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false }),
+    admin
+      .from("organization_features")
+      .select("organization_id")
+      .eq("enabled", true)
+      .is("deleted_at", null),
+    admin.from("organization_members").select("organization_id, role").eq("status", "active"),
+    admin
+      .from("audit_logs")
+      .select("id, action, entity_type, created_at, status")
+      .order("created_at", { ascending: false })
+      .limit(6),
+  ]);
+
+  const numaraPeOrganizatie = (randuri: readonly { organization_id: string }[]) => {
+    const harta = new Map<string, number>();
+    for (const rand of randuri) {
+      harta.set(rand.organization_id, (harta.get(rand.organization_id) ?? 0) + 1);
+    }
+    return harta;
+  };
+
+  const moduleP = numaraPeOrganizatie(module.data ?? []);
+  const adminiP = numaraPeOrganizatie(
+    (membri.data ?? []).filter((m) => m.role === "org_admin"),
+  );
+
+  const randuri = (organizatii.data ?? []).map((o) => ({
+    ...o,
+    moduleActive: moduleP.get(o.id) ?? 0,
+    administratori: adminiP.get(o.id) ?? 0,
+  }));
+
+  return {
+    sumar,
+    organizatii: randuri,
+    sarcini: construiesteSarcini({
+      cereriDemoNoi: sumar.cereriDemoNoi,
+      organizatii: randuri,
+    }),
+    activitate: activitate.data ?? [],
   };
 }

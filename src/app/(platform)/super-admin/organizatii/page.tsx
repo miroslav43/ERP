@@ -8,6 +8,7 @@ import Link from "next/link";
 
 import { RandTabel } from "@/components/data/rand-tabel";
 import { formatDateTime } from "@/lib/format/date";
+import { FEATURE_KEYS } from "@/config/features";
 import { STATUSURI_ORGANIZATIE } from "@/schemas/organization";
 import {
   InsignaPlan,
@@ -15,10 +16,18 @@ import {
   type PlanOrganizatie,
   type StatusOrganizatie,
 } from "../_components/insigne";
+import { ModuleMini } from "../_components/module-mini";
 import { FiltreOrganizatii } from "./_components/filtre-organizatii";
 import { listaOrganizatii } from "./actions";
 
 export const metadata = { title: "Organizații · Panou de platformă" };
+
+/**
+ * Totalul din catalogul CODULUI, nu din bază: pătrățelele arată câte module
+ * cunoaște aplicația. Dacă baza are unul în plus — cum a fost cu `ticketing` —
+ * el nu apare în cod, deci nu are ce reprezenta aici.
+ */
+const TOTAL_MODULE = FEATURE_KEYS.length;
 
 type ParametriCautare = Readonly<{ cautare?: string; status?: string; pagina?: string }>;
 
@@ -98,7 +107,7 @@ export default async function PaginaOrganizatii({
         </div>
       ) : (
         <div className="border-border overflow-x-auto rounded-lg border">
-          <table className="w-full min-w-[52rem] border-collapse text-sm">
+          <table className="w-full min-w-[62rem] border-collapse text-sm">
             <caption className="sr-only">
               Lista organizațiilor, pagina {rezultat.pagina} din {rezultat.pagini}
             </caption>
@@ -115,6 +124,9 @@ export default async function PaginaOrganizatii({
                 </th>
                 <th scope="col" className="px-4 py-3 font-medium">
                   Plan
+                </th>
+                <th scope="col" className="px-4 py-3 font-medium">
+                  Module
                 </th>
                 <th scope="col" className="px-4 py-3 font-medium">
                   Membri / locuri
@@ -149,6 +161,9 @@ export default async function PaginaOrganizatii({
                   </td>
                   <td className="px-4 py-3">
                     <InsignaPlan plan={organizatie.plan as PlanOrganizatie} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <ModuleMini active={organizatie.moduleActive} total={TOTAL_MODULE} />
                   </td>
                   <td className="px-4 py-3 tabular-nums">
                     <span

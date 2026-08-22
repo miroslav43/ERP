@@ -1,116 +1,113 @@
-// src/app/(platform)/super-admin/page.tsx
 import Link from "next/link";
 
-import { sumarPlatforma } from "./organizatii/actions";
+import { Cifra } from "./_components/cifra";
+import { Sarcina } from "./_components/sarcina";
+import { datePanou } from "./organizatii/actions";
 
-export const metadata = { title: "Panou de platformă · Administrativo" };
+export const metadata = { title: "Panou de platformă" };
 
-function Cartela({
-  eticheta,
-  valoare,
-  href,
-}: {
-  eticheta: string;
-  valoare: number;
-  href?: string;
-}) {
-  const continut = (
-    <>
-      <dt className="text-muted-foreground text-sm">{eticheta}</dt>
-      <dd className="text-foreground mt-1 text-3xl font-semibold tabular-nums">{valoare}</dd>
-    </>
-  );
-  return href ? (
-    <Link
-      href={href}
-      className="border-border bg-surface hover:border-primary block rounded-lg border p-4 transition"
-    >
-      <dl>{continut}</dl>
-    </Link>
-  ) : (
-    <dl className="border-border bg-surface rounded-lg border p-4">{continut}</dl>
-  );
-}
+/** Acțiunile din `audit_logs` sunt chei tehnice; aici le dăm nume de oameni. */
+const ETICHETE_ACTIUNE: Readonly<Record<string, string>> = {
+  feature_toggled: "Modul comutat",
+  invite_sent: "Invitație trimisă",
+  invite_revoked: "Invitație anulată",
+  role_changed: "Rol schimbat",
+  update: "Modificare",
+};
 
-export default async function PaginaSumarPlatforma() {
-  const sumar = await sumarPlatforma();
-  const totalOrganizatii = Object.values(sumar.organizatii).reduce(
-    (total, valoare) => total + valoare,
-    0,
-  );
+export default async function PaginaPanouPlatforma() {
+  const { sumar, sarcini, activitate } = await datePanou();
+  const { pending, active, suspended } = sumar.organizatii;
 
   return (
-    <div className="space-y-8">
+    <div className="flex flex-col gap-6">
       <header>
-        <h1 className="text-foreground text-2xl font-semibold">Sumar platformă</h1>
+        <h1 className="text-foreground text-2xl font-semibold">Panou de platformă</h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          Starea celor {totalOrganizatii} organizații înregistrate.
+          Firme, module și înregistrări. Operarea fiecărei firme se face din contul ei.
         </p>
       </header>
 
-      {totalOrganizatii === 0 ? (
-        <div className="border-border rounded-lg border border-dashed p-8 text-center">
-          <h2 className="text-foreground text-base font-medium">Nicio organizație încă</h2>
-          <p className="text-muted-foreground mx-auto mt-1 max-w-md text-sm">
-            Creați prima organizație pentru a începe. Veți putea invita membri imediat după
-            activare.
-          </p>
-          <Link
-            href="/super-admin/organizatii/nou"
-            className="bg-primary text-primary-foreground hover:bg-primary-hover mt-4 inline-block rounded-md px-4 py-2 text-sm font-medium"
-          >
-            Creează prima organizație
-          </Link>
-        </div>
-      ) : (
-        <section aria-labelledby="titlu-organizatii" className="space-y-3">
-          <h2
-            id="titlu-organizatii"
-            className="text-muted-foreground text-sm font-medium tracking-wide uppercase"
-          >
-            Organizații după status
+      <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Cifra eticheta="Active" valoare={active} ton={active > 0 ? "bun" : "neutru"} />
+        <Cifra eticheta="În așteptare" valoare={pending} />
+        <Cifra eticheta="Suspendate" valoare={suspended} />
+        <Cifra
+          eticheta="Cereri noi"
+          valoare={sumar.cereriDemoNoi}
+          ton={sumar.cereriDemoNoi > 0 ? "atentie" : "neutru"}
+        />
+      </dl>
+
+      <div className="grid items-start gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+        <section className="border-border bg-surface overflow-hidden rounded-lg border">
+          <h2 className="border-border bg-background border-b px-4 py-2.5 text-sm font-semibold">
+            De rezolvat
           </h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Cartela
-              eticheta="În așteptare"
-              valoare={sumar.organizatii.pending}
-              href="/super-admin/organizatii?status=pending"
-            />
-            <Cartela
-              eticheta="Active"
-              valoare={sumar.organizatii.active}
-              href="/super-admin/organizatii?status=active"
-            />
-            <Cartela
-              eticheta="Suspendate"
-              valoare={sumar.organizatii.suspended}
-              href="/super-admin/organizatii?status=suspended"
-            />
-            <Cartela
-              eticheta="Arhivate"
-              valoare={sumar.organizatii.archived}
-              href="/super-admin/organizatii?status=archived"
-            />
+          {sarcini.length > 0 ? (
+            <ul>
+              {sarcini.map((s) => (
+                <Sarcina
+                  key={`${s.cheie}-${s.href}`}
+                  titlu={s.titlu}
+                  detaliu={s.detaliu}
+                  href={s.href}
+                  eticheta={s.eticheta}
+                  urgent={s.urgent}
+                />
+              ))}
+            </ul>
+          ) : (
+            <p className="text-muted-foreground px-4 py-10 text-center text-sm">
+              Nimic de rezolvat. Panoul se golește când totul e în regulă.
+            </p>
+          )}
+        </section>
+
+        <section className="border-border bg-surface overflow-hidden rounded-lg border">
+          <h2 className="border-border bg-background border-b px-4 py-2.5 text-sm font-semibold">
+            Ce s-a schimbat
+          </h2>
+          {activitate.length > 0 ? (
+            <ul>
+              {activitate.map((intrare) => (
+                <li
+                  key={intrare.id}
+                  className="border-border grid grid-cols-[3.5rem_1fr] gap-3 border-b px-4 py-2.5 last:border-b-0"
+                >
+                  <time
+                    dateTime={intrare.created_at}
+                    className="text-muted-foreground font-mono text-xs"
+                  >
+                    {new Date(intrare.created_at).toLocaleDateString("ro-RO", {
+                      day: "2-digit",
+                      month: "short",
+                    })}
+                  </time>
+                  <span className="min-w-0 text-sm">
+                    <span className="font-semibold">
+                      {ETICHETE_ACTIUNE[intrare.action] ?? intrare.action}
+                    </span>
+                    <span className="text-muted-foreground"> · {intrare.entity_type}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-muted-foreground px-4 py-10 text-center text-sm">
+              Nicio activitate înregistrată încă.
+            </p>
+          )}
+          <div className="border-border border-t px-4 py-2.5">
+            <Link
+              href="/super-admin/jurnal-audit"
+              className="text-primary text-sm font-semibold underline-offset-4 hover:underline"
+            >
+              Vezi jurnalul complet
+            </Link>
           </div>
         </section>
-      )}
-
-      <section aria-labelledby="titlu-activitate" className="space-y-3">
-        <h2
-          id="titlu-activitate"
-          className="text-muted-foreground text-sm font-medium tracking-wide uppercase"
-        >
-          Necesită atenție
-        </h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Cartela
-            eticheta="Cereri demo noi"
-            valoare={sumar.cereriDemoNoi}
-            href="/super-admin/cereri-demo?status=new"
-          />
-          <Cartela eticheta="Invitații în așteptare" valoare={sumar.invitatiiInAsteptare} />
-        </div>
-      </section>
+      </div>
     </div>
   );
 }
