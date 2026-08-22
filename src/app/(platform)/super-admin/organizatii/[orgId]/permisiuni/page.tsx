@@ -12,12 +12,17 @@ type Scope = "none" | "own" | "team" | "all";
 
 type RandPermisiune = Readonly<{
   role: RolAplicatie;
-  permission_key: string;
+  resource: string;
+  action: string;
   scope: Scope;
 }>;
 
 const CLASA_ANTET =
   "px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground";
+
+function cheiePermisiune(rand: RandPermisiune): string {
+  return `${rand.resource}:${rand.action}`;
+}
 
 function cheieCelula(permisiune: string, rol: RolAplicatie): string {
   return `${permisiune}::${rol}`;
@@ -37,12 +42,12 @@ export default async function PaginaPermisiuni({ params }: { params: Promise<{ o
       .maybeSingle(),
     supabase
       .from("role_permissions")
-      .select("role, permission_key, scope")
+      .select("role, resource, action, scope")
       .is("organization_id", null)
       .returns<RandPermisiune[]>(),
     supabase
       .from("role_permissions")
-      .select("role, permission_key, scope")
+      .select("role, resource, action, scope")
       .eq("organization_id", orgId)
       .returns<RandPermisiune[]>(),
   ]);
@@ -74,19 +79,21 @@ export default async function PaginaPermisiuni({ params }: { params: Promise<{ o
   const suprascrise = rezSuprascrise.data ?? [];
 
   const valori = new Map<string, Scope>();
-  for (const rand of implicite) valori.set(cheieCelula(rand.permission_key, rand.role), rand.scope);
+  for (const rand of implicite)
+    valori.set(cheieCelula(cheiePermisiune(rand), rand.role), rand.scope);
 
   const celuleSuprascrise = new Set<string>();
   const permisiuniSuprascrise = new Set<string>();
   for (const rand of suprascrise) {
-    const cheie = cheieCelula(rand.permission_key, rand.role);
+    const cheiePerm = cheiePermisiune(rand);
+    const cheie = cheieCelula(cheiePerm, rand.role);
     valori.set(cheie, rand.scope);
     celuleSuprascrise.add(cheie);
-    permisiuniSuprascrise.add(rand.permission_key);
+    permisiuniSuprascrise.add(cheiePerm);
   }
 
   const cheiPermisiuni = Array.from(
-    new Set([...implicite, ...suprascrise].map((rand) => rand.permission_key)),
+    new Set([...implicite, ...suprascrise].map(cheiePermisiune)),
   ).sort((a, b) => a.localeCompare(b, "ro"));
 
   if (cheiPermisiuni.length === 0) {
