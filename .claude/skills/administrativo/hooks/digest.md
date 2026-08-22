@@ -1,7 +1,7 @@
 # Administrativo — context de sesiune (încărcat automat)
 
 ERP/HR multi-tenant românesc. Next.js 16.3 · React 19.2 · Zod 4 · Supabase
-Postgres 17 · 43 migrări · 22 module · 118 Server Actions · RLS FORCED peste tot.
+Postgres 17 · {{migrari}} migrări · 22 module · {{actiuni}} Server Actions · RLS FORCED peste tot.
 Cod, comentarii, mesaje și identificatori de domeniu: **în română**, cu ș/ț cu
 virgulă dedesubt (U+0219/U+021B), nu cu sedilă. Mesajele de eroare se termină cu punct.
 
@@ -45,7 +45,7 @@ Migrările se aplică prin **`psql`**, byte-exact (NOTES.md §1) — NICI prin
 
 ## Unde e restul
 
-`docs/design/ecrane/capcane.md` — **36** de capcane · `NOTES.md` (decizii +
+`docs/design/ecrane/capcane.md` — **{{capcane}}** de capcane · `NOTES.md` (decizii +
 valori legale ⚠ de confirmat de contabil) · `docs/claude-setup.md` ·
 `PROGRESS.md` (istoricul defectelor) · `tests/rls/izolare.sql` verificarea `(l)`.
 Căutare rapidă: `node .claude/skills/administrativo/scripts/capcana.mjs <cod|--tabela X|--rol Y>`.

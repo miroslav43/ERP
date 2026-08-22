@@ -184,33 +184,41 @@ describe("CLAUDE.md descrie verificarea reală", () => {
     );
   });
 
-  it("cifrele din antet corespund realității", () => {
-    // Antetul lui CLAUDE.md rezumă proiectul în cifre. Cifrele îmbătrânesc
-    // tăcut: la prima verificare spunea 43 de migrări când erau deja 46, iar
-    // `project-overview.md` §8 spunea 14 capcane când erau 36. Un rezumat
-    // greșit e mai rău decât unul absent — se citește ca fapt.
+  it("cifrele volatile nu sunt scrise de mână nicăieri", () => {
+    // Prima versiune a acestui test compara numarul de migrari citat in
+    // CLAUDE.md cu fisierele de pe disc. Era gresit proiectat: pica pentru
+    // munca CORECTA — orice migrare noua il facea rosu — si taxa pe cel care
+    // adauga migrarea, pentru o linie de documentatie scrisa de altcineva.
+    //
+    // Regula corecta e alta: cifrele care se schimba la fiecare livrare
+    // (migrari, Server Actions, capcane) NU se scriu ca proza. Se calculeaza
+    // la rulare, in hook-ul SessionStart. O valoare calculata nu poate rugini.
+    // Testul pazeste principiul, nu numarul.
+    const digest = citeste(join(RADACINA, ".claude/skills/administrativo/hooks/digest.md"));
+
+    const scrieDeMana = [
+      { tipar: /\d+\s+migrări/, ce: "numărul de migrări" },
+      { tipar: /\d+\s+Server Actions/, ce: "numărul de Server Actions" },
+      { tipar: /\*\*\d+\*\*\s+de capcane/, ce: "numărul de capcane" },
+    ].filter(({ tipar }) => tipar.test(digest));
+
+    expect(
+      scrieDeMana.map((x) => x.ce),
+      "digest.md conține cifre scrise de mână — folosește un substituent {{...}} rezolvat de digest.mjs",
+    ).toEqual([]);
+
+    for (const cheie of ["migrari", "actiuni", "capcane"]) {
+      expect(digest, `digest.md nu mai conține substituentul {{${cheie}}}`).toContain(
+        `{{${cheie}}}`,
+      );
+    }
+
+    // Iar CLAUDE.md, fiind Markdown static care nu poate calcula nimic, nu are
+    // voie să le poarte deloc.
     const claude = citeste(CLAUDE_MD);
-
-    const migrariReale = readdirSync(join(RADACINA, "supabase/migrations")).filter((f) =>
-      f.endsWith(".sql"),
-    ).length;
-    const migrariCitate = /(\d+)\s+migrări/.exec(claude)?.[1];
-    expect(migrariCitate, "CLAUDE.md nu mai citează numărul de migrări").toBeDefined();
     expect(
-      Number(migrariCitate),
-      `CLAUDE.md spune ${String(migrariCitate)} migrări, pe disc sunt ${String(migrariReale)}`,
-    ).toBe(migrariReale);
-
-    const actiuniReale = execSync(
-      "git grep -c --no-color -E 'createAction[<(]' -- 'src/**/actions.ts' | " +
-        "awk -F: '{s+=$2} END{print s+0}'",
-      { cwd: RADACINA, encoding: "utf8", shell: "/bin/bash" },
-    ).trim();
-    const actiuniCitate = /(\d+)\s+Server Actions/.exec(claude)?.[1];
-    expect(actiuniCitate, "CLAUDE.md nu mai citează numărul de Server Actions").toBeDefined();
-    expect(
-      Number(actiuniCitate),
-      `CLAUDE.md spune ${String(actiuniCitate)} Server Actions, în cod sunt ${actiuniReale}`,
-    ).toBe(Number(actiuniReale));
+      /\d+\s+migrări/.test(claude),
+      "CLAUDE.md citează iar numărul de migrări — scoate-l, îl dă digestul",
+    ).toBe(false);
   });
 });

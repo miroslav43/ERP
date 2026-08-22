@@ -3,10 +3,17 @@
 # Administrativo — regulile proiectului
 
 ERP/HR multi-tenant românesc. Next.js 16.3 · React 19.2 · Zod 4 · Tailwind v4 ·
-Supabase Postgres 17 · pnpm 10 · 46 migrări · 22 module · 118 Server Actions.
+Supabase Postgres 17 · pnpm 10 · 22 module.
 Izolarea între firme-client se face prin **RLS FORCED**, nu prin filtre de
 aplicație. Cod, comentarii, mesaje și identificatori de domeniu: **în română**,
 cu ș/ț cu virgulă dedesubt (U+0219/U+021B), nu cu sedilă.
+
+> Numărul de migrări, de Server Actions și de capcane NU se scrie aici: se
+> schimbă la fiecare livrare și îmbătrânește tăcut — antetul ăsta a stat pe „43
+> migrări" cât timp pe disc erau 47. Cifrele vin calculate la fiecare sesiune,
+> din hook-ul `SessionStart` al plugin-ului
+> (`.claude/skills/administrativo/hooks/digest.mjs`). Pentru o numărătoare pe
+> loc: `ls supabase/migrations/*.sql | wc -l`.
 
 ## Verificarea
 
