@@ -5,7 +5,10 @@ import { businessRule } from "@/lib/actions/errors";
 import { createPlatformAction } from "@/lib/actions/platform";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { amprentaSensibila, catreBytea, encrypt, versiuneCaNumar } from "@/lib/crypto/aes-gcm";
-import { onboardeazaOrganizatieSchema } from "@/schemas/organization";
+import {
+  creeazaOrganizatieMinimaSchema,
+  onboardeazaOrganizatieSchema,
+} from "@/schemas/organization";
 import { ZILE_EXPIRARE_IMPLICIT } from "@/schemas/membership";
 
 import { invitaMembru } from "../[orgId]/membri/actions";
@@ -239,6 +242,89 @@ export const onboardeazaOrganizatie = createPlatformAction<
             linkInvitatie: rezultatInvitatie.data.linkInvitatie,
           }
         : { trimisa: false, eroare: rezultatInvitatie.error.message },
+    };
+  },
+});
+
+
+/**
+ * Creează firma cu minimul și predă restul administratorului ei.
+ *
+ * Rămâne în `pending` — starea pe care o citește poarta din layout-ul
+ * aplicației și care îl trimite pe administrator în asistent la prima intrare.
+ * Nu se activează aici: activarea E terminarea asistentului.
+ *
+ * Modulele de bază se activează totuși acum: fără `nucleu`, `requireFeature`
+ * dă 404 pe propriul tablou de bord, deci administratorul n-ar avea unde
+ * ateriza nici măcar ca să completeze datele.
+ */
+export const creeazaOrganizatieMinima = createPlatformAction({
+  name: "creeazaOrganizatieMinima",
+  input: creeazaOrganizatieMinimaSchema,
+  audit: {
+    action: "update",
+    entityType: "organizations",
+    entityId: (_input, data) => (data as { id?: string } | null)?.id ?? null,
+    allow: ["name", "cui", "status"],
+  },
+  revalidate: CAI_REVALIDATE,
+  handler: async (ctx, input) => {
+    const admin = createAdminSupabase();
+
+    const { data: organizatie, error } = await admin
+      .from("organizations")
+      .insert({
+        name: input.name,
+        slug: input.slug,
+        cui: input.cui,
+        status: "pending",
+        plan: "trial",
+        seats_limit: 10,
+        subscription_status: "trialing",
+        created_by: ctx.user.id,
+        updated_by: ctx.user.id,
+      })
+      .select("id, name, slug")
+      .single();
+    if (error) throw error;
+
+    const { data: moduleDeBaza } = await admin
+      .from("features")
+      .select("feature_key")
+      .eq("is_core", true);
+    if (moduleDeBaza && moduleDeBaza.length > 0) {
+      const { error: eroareActivare } = await admin.from("organization_features").insert(
+        moduleDeBaza.map((modul) => ({
+          organization_id: organizatie.id,
+          feature_key: modul.feature_key,
+          enabled: true,
+          activated_at: ctx.now.toISOString(),
+          activated_by: ctx.user.id,
+        })),
+      );
+      if (eroareActivare) throw eroareActivare;
+    }
+
+    // Invitația pleacă pe e-mail (Resend, live de la 2026-08-22). Linkul rămâne
+    // în răspuns ca plasă de siguranță dacă mesajul nu ajunge.
+    const rezultatInvitatie = await invitaMembru({
+      organizationId: organizatie.id,
+      email: input.admin_email,
+      role: "org_admin",
+      expiraInZile: ZILE_EXPIRARE_IMPLICIT,
+    });
+
+    return {
+      id: organizatie.id,
+      name: organizatie.name,
+      slug: organizatie.slug,
+      invitatie: rezultatInvitatie.ok
+        ? {
+            trimisa: true as const,
+            prinEmail: rezultatInvitatie.data.prinEmail,
+            linkInvitatie: rezultatInvitatie.data.linkInvitatie,
+          }
+        : { trimisa: false as const, eroare: rezultatInvitatie.error.message },
     };
   },
 });

@@ -359,6 +359,23 @@ export const completeazaFirmaSchema = CAMPURI_INROLARE.superRefine(verificaCaen)
 
 export type CompleteazaFirmaInput = z.input<typeof completeazaFirmaSchema>;
 
+/**
+ * Minimul cu care super-adminul poate preda o firmă administratorului ei.
+ *
+ * Trei câmpuri: cine e clientul (denumire + CUI) și cine îl administrează.
+ * Restul — adresă, reprezentant legal, capital social, bancă, SSM — le știe
+ * firma mai bine decât platforma, iar cererea lor prin telefon e exact ce
+ * bloca înrolarea până acum.
+ */
+export const creeazaOrganizatieMinimaSchema = z.object({
+  name: z.string().trim().min(2, "Denumirea trebuie să aibă cel puțin 2 caractere.").max(160),
+  cui: cuiSchema,
+  slug: slugSchema,
+  admin_email: emailSchema,
+});
+
+export type CreeazaOrganizatieMinimaInput = z.input<typeof creeazaOrganizatieMinimaSchema>;
+
 export type OnboardeazaOrganizatieInput = z.input<typeof onboardeazaOrganizatieSchema>;
 export type OnboardeazaOrganizatieOutput = z.output<typeof onboardeazaOrganizatieSchema>;
 
