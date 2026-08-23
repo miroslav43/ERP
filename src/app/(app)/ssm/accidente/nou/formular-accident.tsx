@@ -3,6 +3,7 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
 import { TIPURI_ACCIDENT } from "@/schemas/ssm";
 
 import { inregistreazaAccident } from "../../actions";
@@ -59,26 +60,26 @@ export function FormularAccident({ angajati }: { readonly angajati: readonly Ang
     <form action={trimite} className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.numar} className="text-sm font-medium">
+          <label htmlFor={id.numar} className="text-corp font-medium">
             Număr intern (opțional)
           </label>
           <input
             id={id.numar}
             name="numar_intern"
             maxLength={64}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.angajat} className="text-sm font-medium">
+          <label htmlFor={id.angajat} className="text-corp font-medium">
             Angajat
           </label>
           <select
             id={id.angajat}
             name="employee_id"
             defaultValue=""
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           >
             <option value="">—</option>
             {angajati.map((a) => (
@@ -90,7 +91,7 @@ export function FormularAccident({ angajati }: { readonly angajati: readonly Ang
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.data} className="text-sm font-medium">
+          <label htmlFor={id.data} className="text-corp font-medium">
             Data producerii
           </label>
           <input
@@ -98,31 +99,31 @@ export function FormularAccident({ angajati }: { readonly angajati: readonly Ang
             name="data_producerii"
             type="date"
             required
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.ora} className="text-sm font-medium">
+          <label htmlFor={id.ora} className="text-corp font-medium">
             Ora producerii (opțional)
           </label>
           <input
             id={id.ora}
             name="ora_producerii"
             type="time"
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.tip} className="text-sm font-medium">
+          <label htmlFor={id.tip} className="text-corp font-medium">
             Tip
           </label>
           <select
             id={id.tip}
             name="tip"
             defaultValue="usor"
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           >
             {TIPURI_ACCIDENT.map((t) => (
               <option key={t} value={t}>
@@ -133,7 +134,7 @@ export function FormularAccident({ angajati }: { readonly angajati: readonly Ang
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.zile} className="text-sm font-medium">
+          <label htmlFor={id.zile} className="text-corp font-medium">
             Zile de incapacitate
           </label>
           <input
@@ -142,12 +143,12 @@ export function FormularAccident({ angajati }: { readonly angajati: readonly Ang
             type="number"
             min={0}
             defaultValue={0}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1 sm:col-span-2">
-          <label htmlFor={id.locul} className="text-sm font-medium">
+          <label htmlFor={id.locul} className="text-corp font-medium">
             Locul
           </label>
           <input
@@ -155,12 +156,12 @@ export function FormularAccident({ angajati }: { readonly angajati: readonly Ang
             name="locul"
             required
             maxLength={200}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1 sm:col-span-2">
-          <label htmlFor={id.imprejurari} className="text-sm font-medium">
+          <label htmlFor={id.imprejurari} className="text-corp font-medium">
             Împrejurări
           </label>
           <textarea
@@ -169,21 +170,17 @@ export function FormularAccident({ angajati }: { readonly angajati: readonly Ang
             required
             rows={4}
             maxLength={4000}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="submit"
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se salvează…" : "Înregistrează accidentul"}
-        </button>
+        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+          Înregistrează accidentul
+        </Buton>
         {eroare === null ? null : (
-          <p role="alert" className="text-danger text-sm">
+          <p role="alert" className="text-danger text-corp">
             {eroare}
           </p>
         )}

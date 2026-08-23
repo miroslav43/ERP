@@ -5,8 +5,11 @@ import type { Metadata } from "next";
 import { Plus, Stethoscope } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
-import { SkeletonTable } from "@/components/data/skeleton-table";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
+import { Schelet } from "@/components/ui/schelet";
+import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
@@ -16,7 +19,7 @@ import { filtreDinUrl } from "@/lib/rute/parametri";
 import { angajatiDupaId, fiseAptitudine } from "@/lib/queries/ssm";
 import { filtreFiseSchema } from "@/schemas/ssm";
 
-import { CLASE_REZULTAT_EXAMEN, ETICHETE_REZULTAT_EXAMEN, ETICHETE_TIP_EXAMEN } from "../etichete";
+import { ETICHETE_REZULTAT_EXAMEN, ETICHETE_TIP_EXAMEN, TONURI_REZULTAT_EXAMEN } from "../etichete";
 import { NavSsm } from "../nav-ssm";
 
 export const metadata: Metadata = { title: "Medicina muncii" };
@@ -37,11 +40,12 @@ async function TabelFise({
 
   if (randuri.length === 0) {
     return (
-      <EmptyState
-        icon={Stethoscope}
-        title="Nicio fișă de aptitudine înregistrată"
-        description="Adăugați prima fișă ca să urmăriți valabilitatea controalelor medicale periodice."
-        action={{ label: "Fișă nouă", href: "/ssm/medicina-muncii/noua" }}
+      <StareGoala
+        fel="initiala"
+        pictograma={Stethoscope}
+        titlu="Nicio fișă de aptitudine înregistrată"
+        descriere="Adăugați prima fișă ca să urmăriți valabilitatea controalelor medicale periodice."
+        actiune={{ eticheta: "Fișă nouă", href: "/ssm/medicina-muncii/noua" }}
       />
     );
   }
@@ -59,8 +63,8 @@ async function TabelFise({
 
   return (
     <>
-      <div className="border-border overflow-x-auto rounded-lg border">
-        <table className="w-full text-sm">
+      <div className="border-border rounded-panou overflow-x-auto border">
+        <table className="text-corp w-full">
           <caption className="sr-only">Fișele de aptitudine la care aveți acces.</caption>
           <thead className="bg-surface text-left">
             <tr>
@@ -95,11 +99,9 @@ async function TabelFise({
                     {f.valabil_pana === null ? "—" : formatDate(f.valabil_pana)}
                   </td>
                   <td className="px-4 py-3">
-                    <span
-                      className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_REZULTAT_EXAMEN[f.rezultat]}`}
-                    >
+                    <Badge ton={TONURI_REZULTAT_EXAMEN[f.rezultat]}>
                       {ETICHETE_REZULTAT_EXAMEN[f.rezultat]}
-                    </span>
+                    </Badge>
                   </td>
                 </tr>
               );
@@ -112,7 +114,7 @@ async function TabelFise({
         {urmatorulCursor === null ? null : (
           <Link
             href={`/ssm/medicina-muncii?${cautare.toString()}`}
-            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
+            className={buton({ varianta: "secundar" })}
           >
             Pagina următoare
           </Link>
@@ -138,39 +140,37 @@ export default async function PaginaMedicinaMuncii({ searchParams }: Proprietati
   const poateCrea = can(permisiuni, "ssm:create", "team");
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Medicina muncii</h1>
-          <p className="text-muted-foreground text-sm">
-            Fișele de aptitudine. Diagnosticul nu se stochează — doar rezultatul.
-          </p>
-        </div>
-        {poateCrea ? (
-          <Link
-            href="/ssm/medicina-muncii/noua"
-            className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
-          >
-            <Plus aria-hidden="true" className="size-4" />
-            Fișă nouă
-          </Link>
-        ) : null}
-      </header>
-
-      <NavSsm
-        poateVedeaInstruiri={
-          can(permisiuni, "ssm:read", "team") && can(permisiuni, "employees:read", "team")
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Medicina muncii"
+        descriere="Fișele de aptitudine. Diagnosticul nu se stochează — doar rezultatul."
+        {...(poateCrea
+          ? {
+              actiuni: (
+                <Link href="/ssm/medicina-muncii/noua" className={buton({ varianta: "primar" })}>
+                  <Plus aria-hidden="true" className="size-4" />
+                  Fișă nouă
+                </Link>
+              ),
+            }
+          : {})}
+        file={
+          <NavSsm
+            poateVedeaInstruiri={
+              can(permisiuni, "ssm:read", "team") && can(permisiuni, "employees:read", "team")
+            }
+            poateVedeaMedicina
+            poateVedeaAccidente={can(permisiuni, "ssm:read", "team")}
+            poateVedeaStingatoare={can(permisiuni, "ssm:read", "team")}
+            poateVedeaEip={can(permisiuni, "ssm:read", "team")}
+            poateVedeaAutorizatii={can(permisiuni, "ssm:read", "team")}
+          />
         }
-        poateVedeaMedicina
-        poateVedeaAccidente={can(permisiuni, "ssm:read", "team")}
-        poateVedeaStingatoare={can(permisiuni, "ssm:read", "team")}
-        poateVedeaEip={can(permisiuni, "ssm:read", "team")}
-        poateVedeaAutorizatii={can(permisiuni, "ssm:read", "team")}
       />
 
-      <Suspense key={JSON.stringify(parametri)} fallback={<SkeletonTable cols={5} />}>
+      <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={5} />}>
         <TabelFise organizationId={tenant.organizationId} parametri={parametri} />
       </Suspense>
-    </main>
+    </div>
   );
 }

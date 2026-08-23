@@ -3,6 +3,7 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
 import { CHECKLIST_TIP } from "@/schemas/checklist";
 
 import { actualizeazaSablon, creeazaSablon } from "../../actions";
@@ -86,7 +87,7 @@ export function FormularSablon({ departamente, posturi, astazi, initial }: Propr
     <form action={trimite} className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1 sm:col-span-2">
-          <label htmlFor={id.denumire} className="text-sm font-medium">
+          <label htmlFor={id.denumire} className="text-corp font-medium">
             Denumire
           </label>
           <input
@@ -96,19 +97,19 @@ export function FormularSablon({ departamente, posturi, astazi, initial }: Propr
             minLength={2}
             maxLength={160}
             defaultValue={initial?.denumire}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.tip} className="text-sm font-medium">
+          <label htmlFor={id.tip} className="text-corp font-medium">
             Tip
           </label>
           <select
             id={id.tip}
             name="tip"
             defaultValue={initial?.tip ?? "onboarding"}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           >
             {CHECKLIST_TIP.map((t) => (
               <option key={t} value={t}>
@@ -126,21 +127,21 @@ export function FormularSablon({ departamente, posturi, astazi, initial }: Propr
             defaultChecked={initial?.activ ?? true}
             className="border-foreground/60 size-4 rounded"
           />
-          <label htmlFor={id.activ} className="text-sm font-medium">
+          <label htmlFor={id.activ} className="text-corp font-medium">
             Activ
           </label>
         </div>
 
         {departamente.length === 0 ? null : (
           <div className="flex flex-col gap-1">
-            <label htmlFor={id.departament} className="text-sm font-medium">
+            <label htmlFor={id.departament} className="text-corp font-medium">
               Restrâns la departament
             </label>
             <select
               id={id.departament}
               name="department_id"
               defaultValue={initial?.department_id ?? ""}
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
             >
               <option value="">Toate departamentele</option>
               {departamente.map((d) => (
@@ -154,14 +155,14 @@ export function FormularSablon({ departamente, posturi, astazi, initial }: Propr
 
         {posturi.length === 0 ? null : (
           <div className="flex flex-col gap-1">
-            <label htmlFor={id.post} className="text-sm font-medium">
+            <label htmlFor={id.post} className="text-corp font-medium">
               Restrâns la post
             </label>
             <select
               id={id.post}
               name="job_position_id"
               defaultValue={initial?.job_position_id ?? ""}
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
             >
               <option value="">Toate posturile</option>
               {posturi.map((p) => (
@@ -174,7 +175,7 @@ export function FormularSablon({ departamente, posturi, astazi, initial }: Propr
         )}
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.deLa} className="text-sm font-medium">
+          <label htmlFor={id.deLa} className="text-corp font-medium">
             Valabil de la
           </label>
           <input
@@ -183,12 +184,12 @@ export function FormularSablon({ departamente, posturi, astazi, initial }: Propr
             type="date"
             required
             defaultValue={initial?.valabil_de_la ?? astazi}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.panaLa} className="text-sm font-medium">
+          <label htmlFor={id.panaLa} className="text-corp font-medium">
             Valabil până la
           </label>
           <input
@@ -196,12 +197,12 @@ export function FormularSablon({ departamente, posturi, astazi, initial }: Propr
             name="valabil_pana_la"
             type="date"
             defaultValue={initial?.valabil_pana_la ?? ""}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1 sm:col-span-2">
-          <label htmlFor={id.descriere} className="text-sm font-medium">
+          <label htmlFor={id.descriere} className="text-corp font-medium">
             Descriere
           </label>
           <textarea
@@ -210,25 +211,17 @@ export function FormularSablon({ departamente, posturi, astazi, initial }: Propr
             rows={3}
             maxLength={2000}
             defaultValue={initial?.descriere ?? ""}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="submit"
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs
-            ? "Se salvează…"
-            : initial === undefined
-              ? "Creează șablonul"
-              : "Salvează modificările"}
-        </button>
+        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+          {initial === undefined ? "Creează șablonul" : "Salvează modificările"}
+        </Buton>
         {eroare === null ? null : (
-          <p role="alert" className="text-danger text-sm">
+          <p role="alert" className="text-danger text-corp">
             {eroare}
           </p>
         )}

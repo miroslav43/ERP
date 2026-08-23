@@ -36,8 +36,8 @@ export function Pas2Contact({ formular, idFormular }: Proprietati) {
 
   return (
     <div className="space-y-6">
-      <fieldset className="border-border space-y-4 rounded-lg border p-4">
-        <legend className="text-foreground px-1 text-sm font-medium">Contact personal</legend>
+      <fieldset className="border-border rounded-panou space-y-4 border p-4">
+        <legend className="text-foreground text-corp px-1 font-medium">Contact personal</legend>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor={`${idFormular}-email-personal`} className={claseLabel}>
@@ -64,8 +64,8 @@ export function Pas2Contact({ formular, idFormular }: Proprietati) {
         </div>
       </fieldset>
 
-      <fieldset className="border-border space-y-4 rounded-lg border p-4">
-        <legend className="text-foreground px-1 text-sm font-medium">Contact de muncă</legend>
+      <fieldset className="border-border rounded-panou space-y-4 border p-4">
+        <legend className="text-foreground text-corp px-1 font-medium">Contact de muncă</legend>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor={`${idFormular}-email-serviciu`} className={claseLabel}>
@@ -92,8 +92,8 @@ export function Pas2Contact({ formular, idFormular }: Proprietati) {
         </div>
       </fieldset>
 
-      <fieldset className="border-border space-y-4 rounded-lg border p-4">
-        <legend className="text-foreground px-1 text-sm font-medium">Domiciliu</legend>
+      <fieldset className="border-border rounded-panou space-y-4 border p-4">
+        <legend className="text-foreground text-corp px-1 font-medium">Domiciliu</legend>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <label htmlFor={`${idFormular}-adresa`} className={claseLabel}>
@@ -130,8 +130,8 @@ export function Pas2Contact({ formular, idFormular }: Proprietati) {
         </div>
       </fieldset>
 
-      <fieldset className="border-border space-y-4 rounded-lg border p-4">
-        <legend className="text-foreground px-1 text-sm font-medium">Reședință</legend>
+      <fieldset className="border-border rounded-panou space-y-4 border p-4">
+        <legend className="text-foreground text-corp px-1 font-medium">Reședință</legend>
         <div className="flex items-center gap-2">
           <input
             id={`${idFormular}-resedinta-difera`}
@@ -142,7 +142,7 @@ export function Pas2Contact({ formular, idFormular }: Proprietati) {
             }}
             className="border-border size-4 rounded"
           />
-          <label htmlFor={`${idFormular}-resedinta-difera`} className="text-foreground text-sm">
+          <label htmlFor={`${idFormular}-resedinta-difera`} className="text-foreground text-corp">
             Reședința diferă de domiciliu
           </label>
         </div>
@@ -192,8 +192,8 @@ export function Pas2Contact({ formular, idFormular }: Proprietati) {
         ) : null}
       </fieldset>
 
-      <fieldset className="border-border space-y-4 rounded-lg border p-4">
-        <legend className="text-foreground px-1 text-sm font-medium">Contact de urgență</legend>
+      <fieldset className="border-border rounded-panou space-y-4 border p-4">
+        <legend className="text-foreground text-corp px-1 font-medium">Contact de urgență</legend>
         <div className="grid gap-4 sm:grid-cols-3">
           <div>
             <label htmlFor={`${idFormular}-urgenta-nume`} className={claseLabel}>

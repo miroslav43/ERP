@@ -4,6 +4,9 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
+import { buton } from "@/components/ui/buton";
+import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
@@ -15,12 +18,12 @@ import { citesteStingator, verificariStingator } from "@/lib/queries/ssm";
 import { stareScadentaSsm } from "@/domain/ssm/scadente";
 
 import {
-  CLASE_SCADENTA,
-  CLASE_STATUS_STINGATOR,
   ETICHETE_REZULTAT_VERIFICARE,
   ETICHETE_SCADENTA,
   ETICHETE_STATUS_STINGATOR,
   ETICHETE_TIP_VERIFICARE_STINGATOR,
+  TONURI_SCADENTA,
+  TONURI_STATUS_STINGATOR,
 } from "../../etichete";
 import { FormularVerificare } from "./formular-verificare";
 
@@ -72,58 +75,57 @@ export default async function PaginaStingator({ params }: ProprietatiPagina) {
     },
   ];
 
+  // `descriere` e șir, nu JSX: componenta o cere așa. Textul rămâne identic.
+  const unde = `${stingator.tip} · ${stingator.locatie}${
+    stingator.cladire === null ? "" : ` · ${stingator.cladire}`
+  }`;
+
   return (
-    <main className="mx-auto w-full max-w-3xl space-y-6 p-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-muted-foreground text-sm">
-            <Link href="/ssm/stingatoare" className="underline-offset-2 hover:underline">
-              Stingătoare
-            </Link>
-          </p>
-          <h1 className="text-2xl font-semibold">{stingator.cod}</h1>
-          <p className="text-muted-foreground text-sm">
-            {stingator.tip} · {stingator.locatie}
-            {stingator.cladire === null ? null : ` · ${stingator.cladire}`}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          {can(permisiuni, "ssm:update", "team") ? (
-            <Link
-              href={`/ssm/stingatoare/${stingator.id}/editeaza`}
-              className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-1.5 text-sm font-medium"
-            >
-              Editează
-            </Link>
-          ) : null}
-          <span
-            className={`rounded px-2 py-1 text-xs font-medium ${CLASE_STATUS_STINGATOR[stingator.status]}`}
-          >
-            {ETICHETE_STATUS_STINGATOR[stingator.status]}
-          </span>
-        </div>
-      </header>
+    <div className={`${LATIMI.detaliu} space-y-6`}>
+      <p className="text-muted-foreground text-corp">
+        <Link href="/ssm/stingatoare" className="underline-offset-2 hover:underline">
+          Stingătoare
+        </Link>
+      </p>
+
+      <AntetPagina
+        titlu={stingator.cod}
+        descriere={unde}
+        actiuni={
+          <>
+            {can(permisiuni, "ssm:update", "team") ? (
+              <Link
+                href={`/ssm/stingatoare/${stingator.id}/editeaza`}
+                className={buton({ varianta: "secundar" })}
+              >
+                Editează
+              </Link>
+            ) : null}
+            <Badge ton={TONURI_STATUS_STINGATOR[stingator.status]}>
+              {ETICHETE_STATUS_STINGATOR[stingator.status]}
+            </Badge>
+          </>
+        }
+      />
 
       <section
         aria-label="Cele trei obligații de întreținere"
-        className="border-border grid gap-4 rounded-lg border p-4 sm:grid-cols-3"
+        className="border-border rounded-panou grid gap-4 border p-4 sm:grid-cols-3"
       >
         {obligatii.map((o) => {
           const stare = stareScadentaSsm(o.data !== null, o.scadenta, azi);
           return (
             <div key={o.cheie}>
-              <dt className="text-muted-foreground text-xs">{o.titlu}</dt>
+              <dt className="text-muted-foreground text-nota">{o.titlu}</dt>
               <dd className="mt-1 space-y-1">
-                <span
-                  className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${CLASE_SCADENTA[stare]}`}
-                >
+                <Badge ton={TONURI_SCADENTA[stare]} cuAvertisment={stare === "expirat"}>
                   {ETICHETE_SCADENTA[stare]}
-                </span>
-                <p className="text-sm">
+                </Badge>
+                <p className="text-corp">
                   {o.data === null ? "niciodată" : `ultima: ${formatDate(o.data)}`}
                 </p>
                 {o.scadenta === null ? null : (
-                  <p className="text-muted-foreground text-xs">
+                  <p className="text-muted-foreground text-nota">
                     scadență: {formatDate(o.scadenta)}
                   </p>
                 )}
@@ -134,14 +136,14 @@ export default async function PaginaStingator({ params }: ProprietatiPagina) {
       </section>
 
       <section aria-labelledby="istoric-verificari" className="space-y-3">
-        <h2 id="istoric-verificari" className="text-lg font-semibold">
+        <h2 id="istoric-verificari" className="text-sectiune font-semibold">
           Istoric verificări
         </h2>
         {verificari.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Nicio verificare înregistrată.</p>
+          <p className="text-muted-foreground text-corp">Nicio verificare înregistrată.</p>
         ) : (
-          <div className="border-border overflow-x-auto rounded-lg border">
-            <table className="w-full text-sm">
+          <div className="border-border rounded-panou overflow-x-auto border">
+            <table className="text-corp w-full">
               <thead className="bg-surface text-left">
                 <tr>
                   <th scope="col" className="px-4 py-3 font-medium">
@@ -182,6 +184,6 @@ export default async function PaginaStingator({ params }: ProprietatiPagina) {
       </section>
 
       {poateInregistra ? <FormularVerificare extinguisherId={stingator.id} /> : null}
-    </main>
+    </div>
   );
 }

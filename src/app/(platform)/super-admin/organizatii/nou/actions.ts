@@ -246,7 +246,6 @@ export const onboardeazaOrganizatie = createPlatformAction<
   },
 });
 
-
 /**
  * Creează firma cu minimul și predă restul administratorului ei.
  *

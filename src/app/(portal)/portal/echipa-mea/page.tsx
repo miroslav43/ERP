@@ -16,6 +16,7 @@ import type { Metadata } from "next";
 import { Network } from "lucide-react";
 
 import { AvatarAngajat } from "@/components/data/avatar-angajat";
+import { AntetPagina } from "@/components/ui/antet-pagina";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { arboreleManagerial, idFisaProprie, type NodManagerial } from "@/lib/queries/employees";
 import { requireFeature } from "@/lib/auth/features";
@@ -71,17 +72,17 @@ function Ramura({
         return (
           <li key={nod.id} role="treeitem" aria-selected={esteEu} aria-level={nivel}>
             <div
-              className={`flex items-center gap-3 rounded-lg border p-3 ${
+              className={`rounded-panou flex items-center gap-3 border p-3 ${
                 esteEu ? "border-primary bg-primary/5" : "border-border bg-surface"
               }`}
             >
               <AvatarAngajat url={nod.avatar_url} nume={nod.full_name} marime="sm" />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">
+                <p className="text-corp truncate font-medium">
                   {nod.full_name}
-                  {esteEu ? <span className="text-primary ml-2 text-xs">(tu)</span> : null}
+                  {esteEu ? <span className="text-primary text-nota ml-2">(tu)</span> : null}
                 </p>
-                <p className="text-muted-foreground truncate text-xs">
+                <p className="text-muted-foreground text-nota truncate">
                   {[nod.job_position?.denumire, nod.department?.denumire]
                     .filter((v): v is string => v !== undefined && v !== null)
                     .join(" · ")}
@@ -116,13 +117,10 @@ export default async function PaginaEchipaMea() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Echipa mea</h1>
-        <p className="text-muted-foreground text-sm">
-          Locul tău în organizație: lanțul de șefi deasupra ta și, dacă ai, oamenii din subordine.
-          Restul firmei nu apare aici.
-        </p>
-      </header>
+      <AntetPagina
+        titlu="Echipa mea"
+        descriere="Locul tău în organizație: lanțul de șefi deasupra ta și, dacă ai, oamenii din subordine. Restul firmei nu apare aici."
+      />
 
       {arbore.length === 0 ? (
         <StareGoala

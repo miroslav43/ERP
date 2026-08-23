@@ -3,6 +3,8 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
+
 import { decideFoaie } from "../actions";
 
 /**
@@ -46,7 +48,7 @@ export function DecizieFoaie({ id }: { readonly id: string }) {
         }}
         className="w-full space-y-2 sm:w-80"
       >
-        <label htmlFor={idMotiv} className="block text-sm font-medium">
+        <label htmlFor={idMotiv} className="text-corp block font-medium">
           Motivul respingerii
         </label>
         <textarea
@@ -55,29 +57,24 @@ export function DecizieFoaie({ id }: { readonly id: string }) {
           rows={2}
           maxLength={500}
           required
-          className="border-foreground/60 w-full rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp w-full border px-3 py-2"
         />
         <div className="flex gap-2">
-          <button
-            type="submit"
-            disabled={inCurs}
-            className="bg-danger text-primary-foreground hover:bg-danger disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed"
-          >
-            {inCurs ? "Se trimite…" : "Respinge"}
-          </button>
-          <button
-            type="button"
+          <Buton type="submit" varianta="distructiv" inCurs={inCurs} textInCurs="Se trimite…">
+            Respinge
+          </Buton>
+          <Buton
+            varianta="secundar"
             onClick={() => {
               setCereMotiv(false);
               setEroare(null);
             }}
-            className="border-foreground/60 rounded-md border px-3 py-1.5 text-sm"
           >
             Renunță
-          </button>
+          </Buton>
         </div>
         {eroare === null ? null : (
-          <p role="alert" className="text-danger text-xs">
+          <p role="alert" className="text-danger text-nota">
             {eroare}
           </p>
         )}
@@ -88,29 +85,28 @@ export function DecizieFoaie({ id }: { readonly id: string }) {
   return (
     <div className="space-y-2">
       <div className="flex gap-2">
-        <button
-          type="button"
-          disabled={inCurs}
+        <Buton
+          varianta="primar"
+          inCurs={inCurs}
+          textInCurs="Se trimite…"
           onClick={() => {
             decide("aprobat", null);
           }}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed"
         >
-          {inCurs ? "Se trimite…" : "Aprobă"}
-        </button>
-        <button
-          type="button"
+          Aprobă
+        </Buton>
+        <Buton
+          varianta="secundar"
           disabled={inCurs}
           onClick={() => {
             setCereMotiv(true);
           }}
-          className="border-foreground/60 hover:bg-surface disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md border px-3 py-1.5 text-sm disabled:cursor-not-allowed"
         >
           Respinge
-        </button>
+        </Buton>
       </div>
       {eroare === null ? null : (
-        <p role="alert" className="text-danger max-w-sm text-xs">
+        <p role="alert" className="text-danger text-nota max-w-sm">
           {eroare}
         </p>
       )}

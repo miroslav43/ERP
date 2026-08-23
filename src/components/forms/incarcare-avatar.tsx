@@ -85,7 +85,7 @@ export function IncarcareAvatar({
     <div className="flex flex-wrap items-center gap-4">
       <AvatarAngajat url={urlInitial} nume={nume} marime="lg" />
       <div className="flex flex-col gap-1">
-        <label htmlFor={idFisier} className="text-sm font-medium">
+        <label htmlFor={idFisier} className="text-corp font-medium">
           Schimbă fotografia
         </label>
         <input
@@ -95,15 +95,15 @@ export function IncarcareAvatar({
           accept="image/png,image/jpeg,image/webp"
           onChange={() => void incarca()}
           disabled={stare.tip === "lucru"}
-          className="text-sm"
+          className="text-corp"
         />
-        <p className="text-muted-foreground text-xs">JPG, PNG sau WEBP, până în 2 MB.</p>
+        <p className="text-muted-foreground text-nota">JPG, PNG sau WEBP, până în 2 MB.</p>
         {stare.tip === "eroare" ? (
-          <p role="alert" className="text-danger text-sm">
+          <p role="alert" className="text-danger text-corp">
             {stare.mesaj}
           </p>
         ) : stare.tip === "lucru" ? (
-          <p role="status" className="text-muted-foreground text-sm">
+          <p role="status" className="text-muted-foreground text-corp">
             {stare.mesaj}
           </p>
         ) : null}

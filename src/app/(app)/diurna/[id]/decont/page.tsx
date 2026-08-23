@@ -4,6 +4,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
+import { cn } from "@/lib/ui/cn";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -107,53 +109,57 @@ export default async function PaginaDecont({ params }: ProprietatiPagina) {
     diurnaLei === null ? null : diurnaLei + cheltuieliAprobateLei - deplasare.avans_acordat;
 
   return (
-    <main className="mx-auto w-full max-w-3xl space-y-6 p-6 print:max-w-none print:p-0">
+    <div className={cn(LATIMI.formular, "space-y-6 print:max-w-none")}>
       {/* Nu putem elimina din markup bara laterală și antetul aplicației —
           trăiesc în `(app)/layout.tsx`, comun tuturor modulelor. Le ascundem
           la tipărire pe selectorul de element semantic pe care îl folosesc
-          `Sidebar` (`aside`) și `Topbar` (`header`), STRICT sub `@media print`. */}
+          `Sidebar` (`aside`) și `Topbar` (`header`), STRICT sub `@media print`.
+          Antetul PROPRIU al decontului e tot un `<header>`, deci se exceptează
+          pe nume — altfel documentul tipărit ar rămâne fără titlu. */}
       <style>{`
         @media print {
-          aside, header { display: none !important; }
+          aside, header:not(.antet-decont) { display: none !important; }
           main { padding: 0 !important; max-width: none !important; }
         }
       `}</style>
 
       <div className="flex items-center justify-between print:hidden">
-        <Link href={`/diurna/${deplasare.id}`} className="text-sm underline underline-offset-2">
+        <Link href={`/diurna/${deplasare.id}`} className="text-corp underline underline-offset-2">
           ← Înapoi la fișa deplasării
         </Link>
         <ButonTipar />
       </div>
 
-      <header className="border-foreground/60 space-y-1 border-b pb-4">
-        <h1 className="text-xl font-semibold">Decont de deplasare</h1>
-        <p className="text-muted-foreground text-sm">
-          Nr. document: {deplasare.numar_document ?? "(fără număr)"} · Stare:{" "}
-          {ETICHETE_STATUS_DEPLASARE[deplasare.status]}
-        </p>
-        <p className="text-muted-foreground text-sm">
-          {angajat === undefined ? "" : `${angajat.full_name ?? "—"} (${angajat.marca}) · `}
-          {deplasare.scop}
-        </p>
-        <p className="text-muted-foreground text-sm">
-          {formatDateTime(new Date(deplasare.plecare_la))} –{" "}
-          {formatDateTime(new Date(deplasare.sosire_la))}
-          {deplasare.localitate === null ? "" : ` · ${deplasare.localitate}`} ·{" "}
-          {ETICHETE_MIJLOC_TRANSPORT[deplasare.mijloc_transport]}
-        </p>
-      </header>
+      <AntetPagina
+        className="antet-decont border-foreground/60 gap-1 border-b pb-4"
+        titlu="Decont de deplasare"
+        descriere={`Nr. document: ${deplasare.numar_document ?? "(fără număr)"} · Stare: ${ETICHETE_STATUS_DEPLASARE[deplasare.status]}`}
+        file={
+          <div className="text-muted-foreground text-corp space-y-1">
+            <p>
+              {angajat === undefined ? "" : `${angajat.full_name ?? "—"} (${angajat.marca}) · `}
+              {deplasare.scop}
+            </p>
+            <p>
+              {formatDateTime(new Date(deplasare.plecare_la))} –{" "}
+              {formatDateTime(new Date(deplasare.sosire_la))}
+              {deplasare.localitate === null ? "" : ` · ${deplasare.localitate}`} ·{" "}
+              {ETICHETE_MIJLOC_TRANSPORT[deplasare.mijloc_transport]}
+            </p>
+          </div>
+        }
+      />
 
       <section aria-labelledby="titlu-diurna">
-        <h2 id="titlu-diurna" className="mb-2 text-base font-medium">
+        <h2 id="titlu-diurna" className="text-sectiune mb-2 font-medium">
           Diurnă
         </h2>
         {politica === null ? (
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground text-corp">
             Nu există o politică de diurnă valabilă la data plecării.
           </p>
         ) : calcul === null ? null : (
-          <p className="text-sm">
+          <p className="text-corp">
             {calcul.rezultat.zileTotal} zile ={" "}
             {diurnaLei === null ? "sumă necunoscută (curs sau barem lipsă)" : formatLei(diurnaLei)}
           </p>
@@ -161,13 +167,13 @@ export default async function PaginaDecont({ params }: ProprietatiPagina) {
       </section>
 
       <section aria-labelledby="titlu-cheltuieli">
-        <h2 id="titlu-cheltuieli" className="mb-2 text-base font-medium">
+        <h2 id="titlu-cheltuieli" className="text-sectiune mb-2 font-medium">
           Cheltuieli aprobate
         </h2>
         {cheltuieliTrip.filter((c) => c.aprobata).length === 0 ? (
-          <p className="text-muted-foreground text-sm">Nicio cheltuială aprobată.</p>
+          <p className="text-muted-foreground text-corp">Nicio cheltuială aprobată.</p>
         ) : (
-          <table className="w-full text-sm">
+          <table className="text-corp w-full">
             <thead>
               <tr className="border-foreground/60 border-b text-left">
                 <th className="py-1 font-medium">Tip</th>
@@ -194,10 +200,10 @@ export default async function PaginaDecont({ params }: ProprietatiPagina) {
       </section>
 
       <section aria-labelledby="titlu-total" className="border-foreground/60 border-t pt-4">
-        <h2 id="titlu-total" className="mb-2 text-base font-medium">
+        <h2 id="titlu-total" className="text-sectiune mb-2 font-medium">
           Total decont
         </h2>
-        <dl className="space-y-1 text-sm">
+        <dl className="text-corp space-y-1">
           <div className="flex justify-between">
             <dt>Diurnă</dt>
             <dd>{diurnaLei === null ? "—" : formatLei(diurnaLei)}</dd>
@@ -216,6 +222,6 @@ export default async function PaginaDecont({ params }: ProprietatiPagina) {
           </div>
         </dl>
       </section>
-    </main>
+    </div>
   );
 }

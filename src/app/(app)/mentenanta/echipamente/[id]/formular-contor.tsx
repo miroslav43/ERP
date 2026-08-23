@@ -3,6 +3,7 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
 import { TIPURI_CONTOR } from "@/schemas/maintenance";
 import { ETICHETE_TIP_CONTOR } from "../../etichete";
 import { inregistreazaContor } from "../../actions";
@@ -61,19 +62,19 @@ export function FormularContor({
   return (
     <form
       action={trimite}
-      className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-3"
+      className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-2 lg:grid-cols-3"
     >
-      <p className="text-sm font-medium sm:col-span-2 lg:col-span-3">Înregistrează o citire</p>
+      <p className="text-corp font-medium sm:col-span-2 lg:col-span-3">Înregistrează o citire</p>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idTip} className="text-sm">
+        <label htmlFor={idTip} className="text-corp">
           Tip contor
         </label>
         <select
           id={idTip}
           name="tip"
           required
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         >
           {TIPURI_CONTOR.map((t) => (
             <option key={t} value={t}>
@@ -84,7 +85,7 @@ export function FormularContor({
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idCitire} className="text-sm">
+        <label htmlFor={idCitire} className="text-corp">
           Citire
         </label>
         <input
@@ -94,12 +95,12 @@ export function FormularContor({
           min="0"
           step="0.01"
           required
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idData} className="text-sm">
+        <label htmlFor={idData} className="text-corp">
           Data citirii
         </label>
         <input
@@ -107,18 +108,18 @@ export function FormularContor({
           name="data_citirii"
           type="date"
           required
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idCititDe} className="text-sm">
+        <label htmlFor={idCititDe} className="text-corp">
           Citit de
         </label>
         <select
           id={idCititDe}
           name="citit_de_employee_id"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         >
           <option value="">Nespecificat</option>
           {angajati.map((a) => (
@@ -130,39 +131,35 @@ export function FormularContor({
       </div>
 
       <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-2">
-        <label htmlFor={idObs} className="text-sm">
+        <label htmlFor={idObs} className="text-corp">
           Observații
         </label>
         <input
           id={idObs}
           name="observatii"
           maxLength={500}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex items-center gap-2 self-end">
         <input id={idReset} name="resetare_contor" type="checkbox" className="size-4" />
-        <label htmlFor={idReset} className="text-sm">
+        <label htmlFor={idReset} className="text-corp">
           Resetare contor
         </label>
       </div>
 
       <div className="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-3">
-        <button
-          type="submit"
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se salvează…" : "Salvează citirea"}
-        </button>
+        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+          Salvează citirea
+        </Buton>
         {eroare === null ? null : (
-          <p role="alert" className="text-danger text-sm">
+          <p role="alert" className="text-danger text-corp">
             {eroare}
           </p>
         )}
         {avertisment === null ? null : (
-          <p role="alert" className="text-foreground text-sm">
+          <p role="alert" className="text-foreground text-corp">
             {avertisment}
           </p>
         )}

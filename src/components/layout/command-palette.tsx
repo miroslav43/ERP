@@ -165,16 +165,20 @@ export function CommandPalette({ elemente, organizatii }: Props) {
 
   return (
     <>
+      {/*
+        Declanșatorul stă în antetul navy; panoul cade pe pânză. De aceea cele
+        două jumătăți ale acestei componente au palete diferite, deliberat.
+      */}
       <button
         type="button"
         onClick={deschide}
         aria-haspopup="dialog"
         aria-keyshortcuts="Meta+K Control+K"
-        className="border-border bg-background text-muted-foreground hover:text-foreground hidden h-9 items-center gap-2 rounded-md border px-3 text-sm md:inline-flex"
+        className="rounded-control text-corp hidden h-9 items-center gap-2 border border-white/15 px-3 text-white/70 transition-colors hover:bg-white/10 hover:text-white md:inline-flex"
       >
         <Search aria-hidden="true" className="h-4 w-4" />
         Căutare
-        <kbd className="border-border ml-2 inline-flex items-center gap-0.5 rounded border px-1 text-[10px]">
+        <kbd className="text-nota ml-2 inline-flex items-center gap-0.5 rounded-sm border border-white/15 px-1">
           <Command aria-hidden="true" className="h-3 w-3" />K
         </kbd>
       </button>
@@ -186,7 +190,7 @@ export function CommandPalette({ elemente, organizatii }: Props) {
           setDeschis(false);
           setInterogare("");
         }}
-        className="border-border bg-surface text-foreground w-full max-w-lg rounded-lg border p-0 backdrop:bg-black/40"
+        className="border-border bg-background text-foreground rounded-panou shadow-plutitor z-meniu w-full max-w-lg border p-0 backdrop:bg-black/40"
       >
         <div className="border-border flex items-center gap-2 border-b px-3">
           <Search aria-hidden="true" className="text-muted-foreground h-4 w-4" />
@@ -208,7 +212,7 @@ export function CommandPalette({ elemente, organizatii }: Props) {
             }}
             onKeyDown={laTastaLista}
             placeholder="Căutați o pagină sau o organizație…"
-            className="placeholder:text-muted-foreground h-11 w-full bg-transparent text-sm"
+            className="placeholder:text-muted-foreground text-corp h-11 w-full bg-transparent"
           />
         </div>
 
@@ -219,7 +223,7 @@ export function CommandPalette({ elemente, organizatii }: Props) {
           className="max-h-80 overflow-y-auto p-1"
         >
           {filtrate.length === 0 ? (
-            <li className="text-muted-foreground px-3 py-6 text-center text-sm">
+            <li className="text-muted-foreground text-corp px-3 py-6 text-center">
               Niciun rezultat pentru „{interogare}”. Paleta caută doar în paginile la care aveți
               acces.
             </li>
@@ -232,10 +236,8 @@ export function CommandPalette({ elemente, organizatii }: Props) {
                   aria-selected={indice === indiceActiv}
                   onMouseEnter={() => setIndiceActiv(indice)}
                   onClick={() => activeaza(rezultat)}
-                  className={`flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm ${
-                    indice === indiceActiv
-                      ? "bg-background text-foreground"
-                      : "text-muted-foreground"
+                  className={`rounded-control text-corp flex w-full items-center gap-2 px-3 py-2 text-left ${
+                    indice === indiceActiv ? "bg-surface text-foreground" : "text-muted-foreground"
                   }`}
                 >
                   {rezultat.tip === "organizatie" ? (
@@ -244,7 +246,7 @@ export function CommandPalette({ elemente, organizatii }: Props) {
                     <CornerDownLeft aria-hidden="true" className="h-4 w-4" />
                   )}
                   <span className="text-foreground truncate">{rezultat.eticheta}</span>
-                  <span className="ml-auto shrink-0 text-xs">{rezultat.grup}</span>
+                  <span className="text-nota ml-auto shrink-0">{rezultat.grup}</span>
                 </button>
               </li>
             ))

@@ -5,6 +5,8 @@ import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRightLeft, Ban, Pencil } from "lucide-react";
 
+import { Buton } from "@/components/ui/buton";
+
 import { actualizeazaDepartament, dezactiveazaDepartament, mutaDepartament } from "./actions";
 
 interface OptiuneDepartament {
@@ -103,42 +105,35 @@ export function ActiuniDepartament({
 
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap gap-1 text-xs">
-        <button
-          type="button"
+      <div className="text-nota flex flex-wrap gap-1">
+        <Buton
+          varianta="tertiar"
           onClick={() => {
             setPanou(panou === "editeaza" ? null : "editeaza");
           }}
-          className="text-muted-foreground hover:bg-surface hover:text-foreground inline-flex items-center gap-1.5 rounded-md px-2 py-1"
         >
           <Pencil aria-hidden="true" className="size-3.5" />
           Editează
-        </button>
-        <button
-          type="button"
+        </Buton>
+        <Buton
+          varianta="tertiar"
           onClick={() => {
             setPanou(panou === "muta" ? null : "muta");
           }}
-          className="text-muted-foreground hover:bg-surface hover:text-foreground inline-flex items-center gap-1.5 rounded-md px-2 py-1"
         >
           <ArrowRightLeft aria-hidden="true" className="size-3.5" />
           Mută
-        </button>
+        </Buton>
         {departament.numarAngajati === 0 ? (
-          <button
-            type="button"
-            onClick={dezactiveaza}
-            disabled={inCurs}
-            className="text-danger hover:bg-danger/8 inline-flex items-center gap-1.5 rounded-md px-2 py-1 disabled:cursor-not-allowed disabled:opacity-50"
-          >
+          <Buton varianta="distructiv" onClick={dezactiveaza} disabled={inCurs}>
             <Ban aria-hidden="true" className="size-3.5" />
             Dezactivează
-          </button>
+          </Buton>
         ) : null}
       </div>
 
       {eroare === null ? null : (
-        <p role="alert" className="text-danger text-xs">
+        <p role="alert" className="text-danger text-nota">
           {eroare}
         </p>
       )}
@@ -146,10 +141,10 @@ export function ActiuniDepartament({
       {panou === "editeaza" ? (
         <form
           action={trimiteEditare}
-          className="border-border grid gap-2 rounded-md border p-3 sm:grid-cols-2"
+          className="border-border rounded-control grid gap-2 border p-3 sm:grid-cols-2"
         >
           <div className="flex flex-col gap-1">
-            <label htmlFor={idDenumire} className="text-xs font-medium">
+            <label htmlFor={idDenumire} className="text-nota font-medium">
               Denumire
             </label>
             <input
@@ -159,18 +154,18 @@ export function ActiuniDepartament({
               required
               maxLength={160}
               defaultValue={departament.denumire}
-              className="border-foreground/60 rounded-md border px-2 py-1.5 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-2 py-1.5"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor={idManager} className="text-xs font-medium">
+            <label htmlFor={idManager} className="text-nota font-medium">
               Manager
             </label>
             <select
               id={idManager}
               name="manager_employee_id"
               defaultValue={departament.manager_employee_id ?? ""}
-              className="border-foreground/60 rounded-md border px-2 py-1.5 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-2 py-1.5"
             >
               <option value="">— nedesemnat —</option>
               {angajati.map((a) => (
@@ -181,7 +176,7 @@ export function ActiuniDepartament({
             </select>
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor={idCostCenter} className="text-xs font-medium">
+            <label htmlFor={idCostCenter} className="text-nota font-medium">
               Centru de cost
             </label>
             <input
@@ -190,11 +185,11 @@ export function ActiuniDepartament({
               type="text"
               maxLength={40}
               defaultValue={departament.cost_center ?? ""}
-              className="border-foreground/60 rounded-md border px-2 py-1.5 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-2 py-1.5"
             />
           </div>
           <div className="flex flex-col gap-1 sm:col-span-2">
-            <label htmlFor={idDescriere} className="text-xs font-medium">
+            <label htmlFor={idDescriere} className="text-nota font-medium">
               Descriere
             </label>
             <textarea
@@ -203,17 +198,13 @@ export function ActiuniDepartament({
               maxLength={1000}
               rows={2}
               defaultValue={departament.descriere ?? ""}
-              className="border-foreground/60 rounded-md border px-2 py-1.5 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-2 py-1.5"
             />
           </div>
           <div className="sm:col-span-2">
-            <button
-              type="submit"
-              disabled={inCurs}
-              className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {inCurs ? "Se salvează…" : "Salvează"}
-            </button>
+            <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+              Salvează
+            </Buton>
           </div>
         </form>
       ) : null}
@@ -221,17 +212,17 @@ export function ActiuniDepartament({
       {panou === "muta" ? (
         <form
           action={trimiteMutare}
-          className="border-border flex flex-wrap items-end gap-2 rounded-md border p-3"
+          className="border-border rounded-control flex flex-wrap items-end gap-2 border p-3"
         >
           <div className="flex flex-col gap-1">
-            <label htmlFor={idParinte} className="text-xs font-medium">
+            <label htmlFor={idParinte} className="text-nota font-medium">
               Mută sub
             </label>
             <select
               id={idParinte}
               name="parent_id"
               defaultValue={departament.parent_id ?? ""}
-              className="border-foreground/60 rounded-md border px-2 py-1.5 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-2 py-1.5"
             >
               <option value="">— rădăcină —</option>
               {departamente
@@ -243,13 +234,9 @@ export function ActiuniDepartament({
                 ))}
             </select>
           </div>
-          <button
-            type="submit"
-            disabled={inCurs}
-            className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {inCurs ? "Se mută…" : "Mută"}
-          </button>
+          <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se mută…">
+            Mută
+          </Buton>
         </form>
       ) : null}
     </div>

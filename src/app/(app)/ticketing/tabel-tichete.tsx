@@ -1,15 +1,16 @@
 // src/app/(app)/ticketing/tabel-tichete.tsx
 import Link from "next/link";
 
+import { Badge } from "@/components/ui/badge";
 import { formatDateTime } from "@/lib/format/date";
 import type { RandTichet } from "@/lib/queries/ticketing";
 
 import {
-  CLASE_PRIORITATE,
-  CLASE_STATUS,
   ETICHETE_PRIORITATE,
   ETICHETE_STATUS,
   ETICHETE_TIP,
+  TONURI_PRIORITATE,
+  TONURI_STATUS,
 } from "./etichete";
 
 /**
@@ -22,8 +23,8 @@ export function TabelTichete({
   aratSolicitantul = false,
 }: Readonly<{ randuri: readonly RandTichet[]; aratSolicitantul?: boolean }>) {
   return (
-    <div className="border-border overflow-x-auto rounded-lg border">
-      <table className="w-full text-sm">
+    <div className="border-border rounded-panou overflow-x-auto border">
+      <table className="text-corp w-full">
         <caption className="sr-only">Lista tichetelor, cu starea și prioritatea lor.</caption>
         <thead className="bg-surface text-left">
           <tr>
@@ -55,7 +56,7 @@ export function TabelTichete({
         <tbody className="divide-border divide-y">
           {randuri.map((tichet) => (
             <tr key={tichet.id} className="hover:bg-surface/60">
-              <td className="px-4 py-3 font-mono text-xs">
+              <td className="text-nota px-4 py-3 font-mono">
                 <Link href={`/ticketing/${tichet.id}`} className="text-primary hover:underline">
                   {tichet.numar_afisat}
                 </Link>
@@ -72,20 +73,14 @@ export function TabelTichete({
                 </td>
               )}
               <td className="px-4 py-3">
-                <span
-                  className={`inline-block rounded-full px-2 py-0.5 text-xs ${CLASE_PRIORITATE[tichet.prioritate]}`}
-                >
+                <Badge ton={TONURI_PRIORITATE[tichet.prioritate]}>
                   {ETICHETE_PRIORITATE[tichet.prioritate]}
-                </span>
+                </Badge>
               </td>
               <td className="px-4 py-3">
-                <span
-                  className={`inline-block rounded-full px-2 py-0.5 text-xs ${CLASE_STATUS[tichet.status]}`}
-                >
-                  {ETICHETE_STATUS[tichet.status]}
-                </span>
+                <Badge ton={TONURI_STATUS[tichet.status]}>{ETICHETE_STATUS[tichet.status]}</Badge>
               </td>
-              <td className="text-muted-foreground px-4 py-3 text-xs">
+              <td className="text-muted-foreground text-nota px-4 py-3">
                 {formatDateTime(tichet.created_at)}
               </td>
             </tr>

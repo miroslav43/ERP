@@ -17,7 +17,7 @@ import { ChevronDown } from "lucide-react";
  */
 
 const CLASA_CAMP =
-  "mt-1 w-full rounded-md border border-border bg-background py-2 pl-3 pr-9 text-sm text-foreground";
+  "mt-1 w-full rounded-control border border-border bg-background py-2 pl-3 pr-9 text-corp text-foreground";
 
 function normalizeaza(text: string): string {
   return text
@@ -142,7 +142,7 @@ export function CampCuSugestii({
         <ul
           id={idListbox}
           role="listbox"
-          className="border-border bg-surface absolute z-10 mt-1 max-h-64 w-full overflow-auto rounded-md border shadow-md"
+          className="border-border bg-surface rounded-control shadow-plutitor absolute z-10 mt-1 max-h-64 w-full overflow-auto border"
         >
           {rezultate.map((sugestie, index) => (
             <li key={sugestie}>
@@ -155,7 +155,7 @@ export function CampCuSugestii({
                   comite(sugestie);
                 }}
                 className={
-                  "text-foreground block w-full px-3 py-2 text-left text-sm " +
+                  "text-foreground text-corp block w-full px-3 py-2 text-left " +
                   (index === indiceActiv ? "bg-primary/10" : "hover:bg-primary/5")
                 }
               >

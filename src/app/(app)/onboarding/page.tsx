@@ -5,9 +5,12 @@ import type { Metadata } from "next";
 import { ClipboardList, ListChecks } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { RandTabel } from "@/components/data/rand-tabel";
-import { SkeletonTable } from "@/components/data/skeleton-table";
+import { Schelet } from "@/components/ui/schelet";
+import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -22,7 +25,7 @@ import {
 } from "@/lib/queries/checklist";
 import { filtreInstanteSchema } from "@/schemas/checklist";
 
-import { CLASE_STATUS_INSTANTA, ETICHETE_STATUS_INSTANTA, ETICHETE_TIP } from "./etichete";
+import { TONURI_STATUS_INSTANTA, ETICHETE_STATUS_INSTANTA, ETICHETE_TIP } from "./etichete";
 import { FiltreInstante } from "./filtre-instante";
 import { NavOnboarding } from "./nav-onboarding";
 
@@ -54,14 +57,16 @@ async function TabelInstante({
       filtre.de_la !== null ||
       filtre.pana_la !== null;
     return (
-      <EmptyState
-        icon={ClipboardList}
-        title={areFiltre ? "Niciun rezultat pentru filtrele alese" : "Niciun checklist pornit încă"}
-        description={
+      <StareGoala
+        fel={areFiltre ? "filtrata" : "initiala"}
+        pictograma={ClipboardList}
+        titlu={areFiltre ? "Niciun rezultat pentru filtrele alese" : "Niciun checklist pornit încă"}
+        descriere={
           areFiltre
             ? "Ștergeți filtrele ca să vedeți toate instanțele."
             : "Porniți un checklist de integrare sau de ieșire pentru un angajat, dintr-un șablon."
         }
+        {...(areFiltre ? { actiune: { eticheta: "Șterge filtrele", href: "/onboarding" } } : {})}
       />
     );
   }
@@ -84,8 +89,8 @@ async function TabelInstante({
 
   return (
     <>
-      <div className="border-border overflow-x-auto rounded-lg border">
-        <table className="w-full text-sm">
+      <div className="border-border rounded-panou overflow-x-auto border">
+        <table className="text-corp w-full">
           <caption className="sr-only">Instanțele de checklist la care aveți acces.</caption>
           <thead className="bg-surface text-left">
             <tr>
@@ -125,11 +130,9 @@ async function TabelInstante({
                   <td className="px-4 py-3">{ETICHETE_TIP[r.tip]}</td>
                   <td className="px-4 py-3">{formatDate(r.data_referinta)}</td>
                   <td className="px-4 py-3">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${CLASE_STATUS_INSTANTA[r.status]}`}
-                    >
+                    <Badge ton={TONURI_STATUS_INSTANTA[r.status]}>
                       {ETICHETE_STATUS_INSTANTA[r.status]}
-                    </span>
+                    </Badge>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
@@ -139,7 +142,7 @@ async function TabelInstante({
                         aria-label={`${String(p.gata)} din ${String(p.total)} pași finalizați`}
                         className="h-2 w-24 accent-blue-700"
                       />
-                      <span className="text-muted-foreground text-xs">
+                      <span className="text-muted-foreground text-nota">
                         {p.gata} din {p.total} pași
                       </span>
                     </div>
@@ -155,7 +158,7 @@ async function TabelInstante({
         {urmatorulCursor === null ? null : (
           <Link
             href={`/onboarding?${cautare.toString()}`}
-            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
+            className={buton({ varianta: "secundar" })}
           >
             Pagina următoare
           </Link>
@@ -188,37 +191,36 @@ export default async function PaginaOnboarding({ searchParams }: ProprietatiPagi
   const angajati = poateVedeaAngajati ? await angajatiActivi(tenant.organizationId) : null;
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Onboarding</h1>
-          <p className="text-muted-foreground text-sm">
-            {scope === "all" || scope === "team"
-              ? "Checklisturile de integrare și de ieșire ale organizației, cu progresul lor."
-              : "Checklistul dvs. de integrare, cu progresul lui."}
-          </p>
-        </div>
-        {poatePorni ? (
-          <Link
-            href="/onboarding/noua"
-            className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
-          >
-            <ListChecks aria-hidden="true" className="size-4" />
-            Instanță nouă
-          </Link>
-        ) : null}
-      </header>
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Onboarding"
+        descriere={
+          scope === "all" || scope === "team"
+            ? "Checklisturile de integrare și de ieșire ale organizației, cu progresul lor."
+            : "Checklistul dvs. de integrare, cu progresul lui."
+        }
+        {...(poatePorni
+          ? {
+              actiuni: (
+                <Link href="/onboarding/noua" className={buton({ varianta: "primar" })}>
+                  <ListChecks aria-hidden="true" className="size-4" />
+                  Instanță nouă
+                </Link>
+              ),
+            }
+          : {})}
+        file={<NavOnboarding />}
+      />
 
-      <NavOnboarding />
       <FiltreInstante angajati={angajati} />
 
-      <Suspense key={JSON.stringify(parametri)} fallback={<SkeletonTable cols={5} />}>
+      <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={5} />}>
         <TabelInstante
           organizationId={tenant.organizationId}
           parametri={parametri}
           poateVedeaAngajati={poateVedeaAngajati}
         />
       </Suspense>
-    </main>
+    </div>
   );
 }

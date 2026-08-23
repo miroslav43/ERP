@@ -5,10 +5,13 @@ import type { Metadata } from "next";
 import { UserPlus, Users } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina } from "@/components/ui/antet-pagina";
 import { AvatarAngajat } from "@/components/data/avatar-angajat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { Badge } from "@/components/ui/badge";
+import { buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { RandTabel } from "@/components/data/rand-tabel";
-import { SkeletonTable } from "@/components/data/skeleton-table";
+import { Schelet } from "@/components/ui/schelet";
 import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
@@ -17,7 +20,7 @@ import { formatDate } from "@/lib/format/date";
 import { idFisaProprie, listeazaAngajati } from "@/lib/queries/employees";
 import { filtreAngajatiSchema } from "@/schemas/employee";
 
-import { CLASE_STATUS, ETICHETE_STATUS } from "./etichete";
+import { ETICHETE_STATUS, TONURI_STATUS } from "./etichete";
 import { FiltreAngajati } from "./filtre-angajati";
 
 export const metadata: Metadata = { title: "Angajați" };
@@ -44,11 +47,20 @@ async function TabelAngajati({ organizationId, scope, userId, parametri }: Propr
   });
 
   if (randuri.length === 0) {
+    // Textul recomandă ștergerea filtrelor, deci butonul trebuie să existe —
+    // dar numai când chiar există filtre de șters.
+    const areFiltre =
+      filtre.q !== null ||
+      filtre.department_id !== null ||
+      filtre.job_position_id !== null ||
+      filtre.status !== null;
     return (
-      <EmptyState
-        icon={Users}
-        title="Niciun angajat găsit"
-        description="Nu există fișe care să corespundă filtrelor alese. Ștergeți filtrele sau adăugați primul angajat."
+      <StareGoala
+        fel={areFiltre ? "filtrata" : "initiala"}
+        pictograma={Users}
+        titlu="Niciun angajat găsit"
+        descriere="Nu există fișe care să corespundă filtrelor alese. Ștergeți filtrele sau adăugați primul angajat."
+        {...(areFiltre ? { actiune: { eticheta: "Șterge filtrele", href: "/angajati" } } : {})}
       />
     );
   }
@@ -61,8 +73,8 @@ async function TabelAngajati({ organizationId, scope, userId, parametri }: Propr
 
   return (
     <>
-      <div className="border-border overflow-x-auto rounded-lg border">
-        <table className="w-full text-left text-sm">
+      <div className="border-border rounded-panou overflow-x-auto border">
+        <table className="text-corp w-full text-left">
           <caption className="sr-only">Lista angajaților din organizație</caption>
           <thead className="bg-surface text-foreground">
             <tr>
@@ -95,7 +107,7 @@ async function TabelAngajati({ organizationId, scope, userId, parametri }: Propr
                 <td className="px-4 py-3">
                   <AvatarAngajat url={rand.avatar_url} nume={rand.full_name} marime="sm" />
                 </td>
-                <td className="px-4 py-3 font-mono text-xs">{rand.marca}</td>
+                <td className="text-nota px-4 py-3 font-mono">{rand.marca}</td>
                 <td className="px-4 py-3">
                   <Link
                     href={`/angajati/${rand.id}`}
@@ -104,7 +116,7 @@ async function TabelAngajati({ organizationId, scope, userId, parametri }: Propr
                     {rand.full_name}
                   </Link>
                   {!rand.is_primary ? (
-                    <span className="text-muted-foreground ml-2 text-xs">(cumul de funcții)</span>
+                    <span className="text-muted-foreground text-nota ml-2">(cumul de funcții)</span>
                   ) : null}
                 </td>
                 <td className="px-4 py-3">{rand.department?.denumire ?? "—"}</td>
@@ -113,11 +125,7 @@ async function TabelAngajati({ organizationId, scope, userId, parametri }: Propr
                   {rand.hired_on === null ? "—" : formatDate(rand.hired_on)}
                 </td>
                 <td className="px-4 py-3">
-                  <span
-                    className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${CLASE_STATUS[rand.status]}`}
-                  >
-                    {ETICHETE_STATUS[rand.status]}
-                  </span>
+                  <Badge ton={TONURI_STATUS[rand.status]}>{ETICHETE_STATUS[rand.status]}</Badge>
                 </td>
               </RandTabel>
             ))}
@@ -127,11 +135,11 @@ async function TabelAngajati({ organizationId, scope, userId, parametri }: Propr
 
       <nav aria-label="Paginare" className="mt-4 flex justify-end">
         {urmatorulCursor === null ? (
-          <p className="text-muted-foreground text-sm">Aceasta este ultima pagină.</p>
+          <p className="text-muted-foreground text-corp">Aceasta este ultima pagină.</p>
         ) : (
           <Link
             href={`/angajati?${cautare.toString()}`}
-            className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-2 text-sm font-medium"
+            className={buton({ varianta: "secundar" })}
           >
             Pagina următoare
           </Link>
@@ -158,32 +166,31 @@ export default async function PaginaAngajati({ searchParams }: ProprietatiPagina
   const poateCrea = scopeFor(permisiuni, "employees:create") === "all";
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Angajați</h1>
-          <p className="text-muted-foreground text-sm">
-            {scope === "own"
-              ? "Vedeți propria fișă de personal."
-              : scope === "team"
-                ? "Vedeți fișele angajaților din subordinea dumneavoastră."
-                : "Evidența completă de personal a organizației."}
-          </p>
-        </div>
-        {poateCrea ? (
-          <Link
-            href="/angajati/nou"
-            className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
-          >
-            <UserPlus aria-hidden="true" className="size-4" />
-            Angajat nou
-          </Link>
-        ) : null}
-      </header>
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Angajați"
+        descriere={
+          scope === "own"
+            ? "Vedeți propria fișă de personal."
+            : scope === "team"
+              ? "Vedeți fișele angajaților din subordinea dumneavoastră."
+              : "Evidența completă de personal a organizației."
+        }
+        {...(poateCrea
+          ? {
+              actiuni: (
+                <Link href="/angajati/nou" className={buton({ varianta: "primar" })}>
+                  <UserPlus aria-hidden="true" className="size-4" />
+                  Angajat nou
+                </Link>
+              ),
+            }
+          : {})}
+      />
 
       <FiltreAngajati />
 
-      <Suspense key={JSON.stringify(parametri)} fallback={<SkeletonTable />}>
+      <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={7} />}>
         <TabelAngajati
           organizationId={tenant.organizationId}
           scope={scope}
@@ -191,6 +198,6 @@ export default async function PaginaAngajati({ searchParams }: ProprietatiPagina
           parametri={parametri}
         />
       </Suspense>
-    </main>
+    </div>
   );
 }

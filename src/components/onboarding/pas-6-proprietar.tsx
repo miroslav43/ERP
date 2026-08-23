@@ -35,11 +35,11 @@ export function Pas6Proprietar({ formular, idFormular }: Proprietati) {
 
   return (
     <div className="space-y-6">
-      <fieldset className="border-border space-y-4 rounded-lg border p-4">
-        <legend className="text-foreground px-1 text-sm font-medium">
+      <fieldset className="border-border rounded-panou space-y-4 border p-4">
+        <legend className="text-foreground text-corp px-1 font-medium">
           Contul de proprietar (primul utilizator)
         </legend>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-muted-foreground text-corp">
           La finalul înrolării se trimite automat o invitație pe acest email — link de acces fără
           parolă, ca la orice membru invitat.
         </p>
@@ -86,7 +86,7 @@ export function Pas6Proprietar({ formular, idFormular }: Proprietati) {
             />
             <p
               id={`${idFormular}-owner-email-ajutor`}
-              className="text-muted-foreground mt-1 text-xs"
+              className="text-muted-foreground text-nota mt-1"
             >
               Devine username-ul de autentificare.
             </p>
@@ -112,8 +112,8 @@ export function Pas6Proprietar({ formular, idFormular }: Proprietati) {
         </div>
       </fieldset>
 
-      <fieldset className="border-border space-y-4 rounded-lg border p-4">
-        <legend className="text-foreground px-1 text-sm font-medium">Abonament</legend>
+      <fieldset className="border-border rounded-panou space-y-4 border p-4">
+        <legend className="text-foreground text-corp px-1 font-medium">Abonament</legend>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor={`${idFormular}-plan`} className={claseLabel}>

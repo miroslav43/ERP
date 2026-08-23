@@ -3,6 +3,8 @@
 import { useId, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
+import { cn } from "@/lib/ui/cn";
 import { DOMENII_SSM } from "@/schemas/ssm";
 
 import { ETICHETE_DOMENIU } from "../etichete";
@@ -45,34 +47,33 @@ export function FiltreInstruiri() {
       <div
         role="tablist"
         aria-label="Domeniu"
-        className="border-foreground/60 inline-flex rounded-md border"
+        className="border-foreground/60 rounded-control inline-flex border"
       >
         {DOMENII_SSM.map((d) => (
-          <button
+          <Buton
             key={d}
-            type="button"
             role="tab"
             aria-selected={domeniuCurent === d}
+            varianta={domeniuCurent === d ? "primar" : "tertiar"}
             onClick={() => {
               schimbaDomeniu(d);
             }}
-            className={
-              domeniuCurent === d
-                ? "bg-primary text-primary-foreground rounded-md px-4 py-2 text-sm font-medium"
-                : "text-muted-foreground hover:text-foreground px-4 py-2 text-sm"
-            }
+            className={cn(
+              "first:rounded-l-control last:rounded-r-control rounded-none",
+              domeniuCurent === d ? "" : "text-muted-foreground hover:text-foreground",
+            )}
           >
             {ETICHETE_DOMENIU[d]}
-          </button>
+          </Buton>
         ))}
       </div>
 
       <form
         action={aplica}
-        className="border-border flex flex-wrap items-end gap-3 rounded-lg border p-4"
+        className="border-border rounded-panou flex flex-wrap items-end gap-3 border p-4"
       >
         <div className="flex flex-col gap-1">
-          <label htmlFor={idCauta} className="text-sm font-medium">
+          <label htmlFor={idCauta} className="text-corp font-medium">
             Caută angajat
           </label>
           <input
@@ -81,16 +82,12 @@ export function FiltreInstruiri() {
             type="search"
             defaultValue={parametri.get("q") ?? ""}
             placeholder="Nume angajat"
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
-        <button
-          type="submit"
-          disabled={inCurs}
-          className="border-foreground/60 hover:bg-surface disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se filtrează…" : "Filtrează"}
-        </button>
+        <Buton type="submit" varianta="secundar" inCurs={inCurs} textInCurs="Se filtrează…">
+          Filtrează
+        </Buton>
       </form>
     </div>
   );

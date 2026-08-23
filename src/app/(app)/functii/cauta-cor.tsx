@@ -60,15 +60,15 @@ export function CautaCor({
             setDeschis(false);
           }, 150);
         }}
-        className="border-foreground/60 w-full rounded-md border px-3 py-2 text-sm"
+        className="border-foreground/60 rounded-control text-corp w-full border px-3 py-2"
       />
 
       {alesa !== null ? (
-        <p className="text-muted-foreground mt-1 text-xs">
+        <p className="text-muted-foreground text-nota mt-1">
           <span className="font-mono">{alesa.cod}</span> — {alesa.denumire}
         </p>
       ) : interogare.trim().length > 0 ? (
-        <p className="text-muted-foreground mt-1 text-xs">
+        <p className="text-muted-foreground text-nota mt-1">
           Alegeți o ocupație din listă. Codul trebuie să existe în Clasificarea Ocupațiilor din
           România — REVISAL îl refuză altfel.
         </p>
@@ -78,7 +78,7 @@ export function CautaCor({
         <ul
           id={idLista}
           role="listbox"
-          className="border-border bg-surface absolute z-10 mt-1 max-h-64 w-full overflow-auto rounded-md border shadow-lg"
+          className="border-border bg-surface rounded-control shadow-plutitor absolute z-10 mt-1 max-h-64 w-full overflow-auto border"
         >
           {rezultate.map((ocupatie) => (
             <li key={ocupatie.cod}>
@@ -90,9 +90,9 @@ export function CautaCor({
                   setInterogare(ocupatie.cod);
                   setDeschis(false);
                 }}
-                className="hover:bg-background flex w-full gap-2 px-3 py-2 text-left text-sm"
+                className="hover:bg-background text-corp flex w-full gap-2 px-3 py-2 text-left"
               >
-                <span className="text-muted-foreground shrink-0 font-mono text-xs">
+                <span className="text-muted-foreground text-nota shrink-0 font-mono">
                   {ocupatie.cod}
                 </span>
                 <span className="min-w-0">{ocupatie.denumire}</span>

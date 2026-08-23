@@ -4,9 +4,11 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
+
 import { seteazaZileConcediuImplicit } from "./actions";
 
-const CLASA_CAMP = "w-24 rounded-md border border-foreground/60 px-3 py-2 text-sm";
+const CLASA_CAMP = "w-24 rounded-control border border-foreground/60 px-3 py-2 text-corp";
 
 export function FormularZileBaza({ zileCurente }: { readonly zileCurente: number }) {
   const router = useRouter();
@@ -33,7 +35,7 @@ export function FormularZileBaza({ zileCurente }: { readonly zileCurente: number
   return (
     <div className="flex flex-wrap items-end gap-3">
       <div className="flex flex-col gap-1">
-        <label htmlFor={idZile} className="text-sm">
+        <label htmlFor={idZile} className="text-corp">
           Zile de concediu de odihnă / an
         </label>
         <input
@@ -48,21 +50,16 @@ export function FormularZileBaza({ zileCurente }: { readonly zileCurente: number
           className={CLASA_CAMP}
         />
       </div>
-      <button
-        type="button"
-        disabled={inCurs}
-        onClick={trimite}
-        className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-      >
-        {inCurs ? "Se salvează…" : "Salvează"}
-      </button>
+      <Buton varianta="primar" inCurs={inCurs} textInCurs="Se salvează…" onClick={trimite}>
+        Salvează
+      </Buton>
       {eroare === null ? null : (
-        <p role="alert" className="text-danger text-sm">
+        <p role="alert" className="text-danger text-corp">
           {eroare}
         </p>
       )}
       {reusit ? (
-        <p role="status" className="text-foreground text-sm">
+        <p role="status" className="text-foreground text-corp">
           Salvat. Tipurile de concediu de odihnă existente au fost actualizate.
         </p>
       ) : null}

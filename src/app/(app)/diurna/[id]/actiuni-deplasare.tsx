@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { BadgeCheck, Send, Trash2 } from "lucide-react";
 
 import { deconteazaDeplasare, stergeCiornaDeplasare, trimiteDeplasare } from "../actions";
+import { Buton } from "@/components/ui/buton";
 
 /**
  * Acțiunile disponibile pe fișa unei deplasări: trimiterea și ștergerea
@@ -76,41 +77,26 @@ export function ActiuniDeplasare({
     <div className="space-y-2">
       <div className="flex flex-wrap gap-2">
         {poateTrimite ? (
-          <button
-            type="button"
-            disabled={inCurs}
-            onClick={trimite}
-            className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-          >
+          <Buton varianta="primar" inCurs={inCurs} textInCurs="Se trimite…" onClick={trimite}>
             <Send aria-hidden="true" className="size-4" />
-            {inCurs ? "Se trimite…" : "Trimite spre aprobare"}
-          </button>
+            Trimite spre aprobare
+          </Buton>
         ) : null}
         {poateDeconta ? (
-          <button
-            type="button"
-            disabled={inCurs}
-            onClick={deconteaza}
-            className="text-primary-foreground disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-2 rounded-md bg-violet-700 px-4 py-2 text-sm font-medium hover:bg-violet-800 disabled:cursor-not-allowed"
-          >
+          <Buton varianta="primar" inCurs={inCurs} textInCurs="Se marchează…" onClick={deconteaza}>
             <BadgeCheck aria-hidden="true" className="size-4" />
-            {inCurs ? "Se marchează…" : "Marchează decontată"}
-          </button>
+            Marchează decontată
+          </Buton>
         ) : null}
         {poateSterge ? (
-          <button
-            type="button"
-            disabled={inCurs}
-            onClick={sterge}
-            className="border-danger text-danger hover:bg-danger hover:text-danger-foreground disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-          >
+          <Buton varianta="distructiv" inCurs={inCurs} textInCurs="Se șterge…" onClick={sterge}>
             <Trash2 aria-hidden="true" className="size-4" />
-            {inCurs ? "Se șterge…" : "Șterge ciorna"}
-          </button>
+            Șterge ciorna
+          </Buton>
         ) : null}
       </div>
       {eroare === null ? null : (
-        <p role="alert" className="text-danger text-sm">
+        <p role="alert" className="text-danger text-corp">
           {eroare}
         </p>
       )}

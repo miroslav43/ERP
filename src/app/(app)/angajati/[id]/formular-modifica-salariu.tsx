@@ -4,6 +4,8 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
+
 import { formatLei } from "@/lib/format/money";
 import { modificaSalariulContractului } from "../actions";
 
@@ -37,25 +39,25 @@ export function FormularModificaSalariu({ contractId, salariuActual }: Proprieta
 
   if (!deschis) {
     return (
-      <button
-        type="button"
+      <Buton
+        varianta="secundar"
+        className="mt-3"
         onClick={() => {
           setDeschis(true);
         }}
-        className="border-foreground/60 hover:bg-surface mt-3 rounded-md border px-3 py-1.5 text-sm font-medium"
       >
         Modifică salariul
-      </button>
+      </Buton>
     );
   }
 
   return (
     <form
       action={trimite}
-      className="border-border mt-3 flex flex-wrap items-end gap-3 rounded-md border p-3"
+      className="border-border rounded-control mt-3 flex flex-wrap items-end gap-3 border p-3"
     >
       <div className="flex flex-col gap-1">
-        <label htmlFor={idSalariu} className="text-sm">
+        <label htmlFor={idSalariu} className="text-corp">
           Salariu de bază nou (lei)
         </label>
         <input
@@ -66,34 +68,29 @@ export function FormularModificaSalariu({ contractId, salariuActual }: Proprieta
           min={0}
           required
           defaultValue={salariuActual}
-          className="border-foreground/60 w-40 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp w-40 border px-3 py-2"
         />
-        <p className="text-muted-foreground text-xs">
+        <p className="text-muted-foreground text-nota">
           Actual: {formatLei(salariuActual)}. Se aplică din următoarea perioadă calculată —
           fluturașii deja calculați rămân neschimbați.
         </p>
       </div>
       <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se salvează…" : "Salvează"}
-        </button>
-        <button
-          type="button"
+        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+          Salvează
+        </Buton>
+        <Buton
+          varianta="link"
           onClick={() => {
             setDeschis(false);
             setEroare(null);
           }}
-          className="text-muted-foreground hover:text-foreground text-sm underline underline-offset-4"
         >
           Renunță
-        </button>
+        </Buton>
       </div>
       {eroare === null ? null : (
-        <p role="alert" className="text-danger w-full text-sm">
+        <p role="alert" className="text-danger text-corp w-full">
           {eroare}
         </p>
       )}

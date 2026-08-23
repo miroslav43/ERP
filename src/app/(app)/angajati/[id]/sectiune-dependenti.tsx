@@ -4,6 +4,7 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
 import { RELATII_INTRETINERE, type RelatieIntretinere } from "@/schemas/employee";
 import { formatDate } from "@/lib/format/date";
 
@@ -25,7 +26,7 @@ const ETICHETE_RELATIE: Readonly<Record<RelatieIntretinere, string>> = {
   alta_ruda: "Altă rudă",
 };
 
-const CLASA_CAMP = "border-foreground/60 rounded-md border px-3 py-2 text-sm";
+const CLASA_CAMP = "border-foreground/60 rounded-control border px-3 py-2 text-corp";
 
 /**
  * Persoanele în întreținere ale angajatului.
@@ -91,30 +92,30 @@ export function SectiuneDependenti({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <p className="text-muted-foreground text-sm">
+        <p className="text-muted-foreground text-corp">
           Numărul persoanelor aflate azi în întreținere decide deducerea personală din calculul
           salarial. Se recalculează singur din lista asta.
         </p>
         {poateEdita && !deschis ? (
-          <button
-            type="button"
+          <Buton
+            varianta="secundar"
+            className="shrink-0"
             onClick={() => {
               setDeschis(true);
             }}
-            className="border-foreground/60 hover:bg-surface shrink-0 rounded-md border px-3 py-1.5 text-sm"
           >
             Adaugă
-          </button>
+          </Buton>
         ) : null}
       </div>
 
       {deschis ? (
         <form
           action={trimite}
-          className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-2"
+          className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-2"
         >
           <div className="flex flex-col gap-1 sm:col-span-2">
-            <label htmlFor={idNume} className="text-sm font-medium">
+            <label htmlFor={idNume} className="text-corp font-medium">
               Nume și prenume *
             </label>
             <input
@@ -127,7 +128,7 @@ export function SectiuneDependenti({
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor={idRelatie} className="text-sm font-medium">
+            <label htmlFor={idRelatie} className="text-corp font-medium">
               Relația *
             </label>
             <select id={idRelatie} name="relatie" defaultValue="copil" className={CLASA_CAMP}>
@@ -139,13 +140,13 @@ export function SectiuneDependenti({
             </select>
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor={idNastere} className="text-sm font-medium">
+            <label htmlFor={idNastere} className="text-corp font-medium">
               Data nașterii
             </label>
             <input id={idNastere} name="data_nasterii" type="date" className={CLASA_CAMP} />
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor={idDeLa} className="text-sm font-medium">
+            <label htmlFor={idDeLa} className="text-corp font-medium">
               În întreținere de la *
             </label>
             <input
@@ -157,41 +158,38 @@ export function SectiuneDependenti({
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor={idPanaLa} className="text-sm font-medium">
+            <label htmlFor={idPanaLa} className="text-corp font-medium">
               Până la
             </label>
             <input id={idPanaLa} name="in_intretinere_pana_la" type="date" className={CLASA_CAMP} />
           </div>
           <div className="flex gap-2 sm:col-span-2">
-            <button
-              type="submit"
-              disabled={inCurs}
-              className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium disabled:opacity-60"
-            >
-              {inCurs ? "Se salvează…" : "Salvează"}
-            </button>
-            <button
-              type="button"
+            <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+              Salvează
+            </Buton>
+            <Buton
+              varianta="secundar"
               onClick={() => {
                 setDeschis(false);
               }}
-              className="border-border rounded-md border px-4 py-2 text-sm font-medium"
             >
               Renunță
-            </button>
+            </Buton>
           </div>
         </form>
       ) : null}
 
       {dependenti.length === 0 ? (
-        <p className="text-muted-foreground text-sm">Nicio persoană în întreținere înregistrată.</p>
+        <p className="text-muted-foreground text-corp">
+          Nicio persoană în întreținere înregistrată.
+        </p>
       ) : (
         <ul className="divide-border divide-y">
           {dependenti.map((dependent) => (
             <li key={dependent.id} className="flex flex-wrap items-center gap-3 py-2">
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium">{dependent.nume}</p>
-                <p className="text-muted-foreground text-xs">
+                <p className="text-corp font-medium">{dependent.nume}</p>
+                <p className="text-muted-foreground text-nota">
                   {ETICHETE_RELATIE[dependent.relatie]}
                   {dependent.data_nasterii !== null
                     ? ` · născut(ă) ${formatDate(dependent.data_nasterii)}`
@@ -203,16 +201,16 @@ export function SectiuneDependenti({
                 </p>
               </div>
               {poateEdita ? (
-                <button
-                  type="button"
+                <Buton
+                  varianta="secundar"
+                  className="shrink-0"
                   disabled={inCurs}
                   onClick={() => {
                     scoate(dependent.id);
                   }}
-                  className="border-border shrink-0 rounded-md border px-3 py-1.5 text-sm disabled:opacity-60"
                 >
                   Scoate
-                </button>
+                </Buton>
               ) : null}
             </li>
           ))}
@@ -220,7 +218,7 @@ export function SectiuneDependenti({
       )}
 
       {eroare === null ? null : (
-        <p role="alert" className="text-danger text-sm">
+        <p role="alert" className="text-danger text-corp">
           {eroare}
         </p>
       )}

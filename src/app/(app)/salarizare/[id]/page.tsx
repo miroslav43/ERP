@@ -4,7 +4,10 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
+import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -20,7 +23,7 @@ import {
 } from "@/lib/queries/payroll";
 import { Users } from "lucide-react";
 
-import { CLASE_STATUS_PERIOADA, ETICHETE_STATUS_PERIOADA, numeLuna } from "../etichete";
+import { TONURI_STATUS_PERIOADA, ETICHETE_STATUS_PERIOADA, numeLuna } from "../etichete";
 import { ActiuniPerioada } from "./actiuni-perioada";
 import { RandAngajatDraft } from "./rand-angajat-draft";
 
@@ -39,9 +42,9 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
 
   if (!can(permisiuni, "payroll:read", "all")) {
     return (
-      <main className="p-6">
+      <div>
         <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta salarizarea." />
-      </main>
+      </div>
     );
   }
 
@@ -73,40 +76,38 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
   }
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-muted-foreground text-sm">
-            <Link href="/salarizare" className="underline-offset-2 hover:underline">
-              Salarizare
-            </Link>
-          </p>
-          <h1 className="text-2xl font-semibold">
-            {numeLuna(perioada.luna)} {perioada.an}
-          </h1>
-        </div>
-        <span
-          className={`rounded px-3 py-1 text-sm font-medium ${CLASE_STATUS_PERIOADA[perioada.status] ?? ""}`}
-        >
-          {ETICHETE_STATUS_PERIOADA[perioada.status] ?? perioada.status}
-        </span>
-      </header>
+    <div className="space-y-6">
+      <div className="space-y-1">
+        <p className="text-muted-foreground text-corp">
+          <Link href="/salarizare" className="underline-offset-2 hover:underline">
+            Salarizare
+          </Link>
+        </p>
+        <AntetPagina
+          titlu={`${numeLuna(perioada.luna)} ${String(perioada.an)}`}
+          actiuni={
+            <Badge ton={TONURI_STATUS_PERIOADA[perioada.status] ?? "neutru"}>
+              {ETICHETE_STATUS_PERIOADA[perioada.status] ?? perioada.status}
+            </Badge>
+          }
+        />
+      </div>
 
       <section
         aria-label="Totaluri"
-        className="border-border grid gap-4 rounded-lg border p-4 sm:grid-cols-3"
+        className="border-border rounded-panou grid gap-4 border p-4 sm:grid-cols-3"
       >
         <div>
-          <dt className="text-muted-foreground text-xs">Total brut</dt>
-          <dd className="text-lg font-medium">{formatLei(perioada.total_brut)}</dd>
+          <dt className="text-muted-foreground text-nota">Total brut</dt>
+          <dd className="text-sectiune font-medium">{formatLei(perioada.total_brut)}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground text-xs">Total net</dt>
-          <dd className="text-lg font-medium">{formatLei(perioada.total_net)}</dd>
+          <dt className="text-muted-foreground text-nota">Total net</dt>
+          <dd className="text-sectiune font-medium">{formatLei(perioada.total_net)}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground text-xs">Cost total angajator</dt>
-          <dd className="text-lg font-medium">{formatLei(perioada.total_cost_angajator)}</dd>
+          <dt className="text-muted-foreground text-nota">Cost total angajator</dt>
+          <dd className="text-sectiune font-medium">{formatLei(perioada.total_cost_angajator)}</dd>
         </div>
       </section>
 
@@ -119,9 +120,9 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
       />
 
       {perioada.status !== "aprobat" && perioada.status !== "inchis" ? null : (
-        <section aria-label="Livrabile" className="border-border rounded-lg border p-4">
-          <h2 className="mb-1 text-sm font-medium">Livrabile</h2>
-          <p className="text-muted-foreground mb-3 text-xs">
+        <section aria-label="Livrabile" className="border-border rounded-panou border p-4">
+          <h2 className="text-corp mb-1 font-medium">Livrabile</h2>
+          <p className="text-muted-foreground text-nota mb-3">
             Statul de plată e documentul care se semnează și se arhivează. Fișierul bancar plătește
             restul de plată, nu netul: el scade avantajele primite în natură și adaugă sumele
             neimpozabile. Generarea lui decriptează IBAN-ul fiecărui angajat și lasă câte un rând de
@@ -131,25 +132,25 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
           <div className="flex flex-wrap gap-2">
             <a
               href={`/api/export/salarizare/bancar?perioada=${perioada.id}`}
-              className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
+              className={buton({ varianta: "secundar" })}
             >
               Fișier bancar (SEPA)
             </a>
             <a
               href={`/api/export/salarizare/nota?perioada=${perioada.id}`}
-              className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
+              className={buton({ varianta: "secundar" })}
             >
               Notă contabilă (CSV)
             </a>
             <a
               href={`/api/export/salarizare/stat?perioada=${perioada.id}`}
-              className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
+              className={buton({ varianta: "secundar" })}
             >
               Stat de plată (PDF)
             </a>
             <a
               href={`/api/export/salarizare/d112?perioada=${perioada.id}`}
-              className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
+              className={buton({ varianta: "secundar" })}
             >
               Declarația 112 (XML)
             </a>
@@ -159,13 +160,14 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
 
       {perioada.status === "draft" ? (
         <>
-          <EmptyState
-            icon={Users}
-            title="Perioada nu a fost încă calculată"
-            description="Adăugați bonusuri sau rețineri per angajat mai jos, apoi apăsați „Calculează” pentru a genera fluturașii tuturor angajaților activi cu contract activ, pe baza pontajului blocat al lunii."
+          <StareGoala
+            fel="initiala"
+            pictograma={Users}
+            titlu="Perioada nu a fost încă calculată"
+            descriere="Adăugați bonusuri sau rețineri per angajat mai jos, apoi apăsați „Calculează” pentru a genera fluturașii tuturor angajaților activi cu contract activ, pe baza pontajului blocat al lunii."
           />
           {poateCalcula && angajatiDraft.length > 0 ? (
-            <ul className="border-border divide-border divide-y rounded-lg border">
+            <ul className="border-border divide-border rounded-panou divide-y border">
               {angajatiDraft.map((a) => (
                 <li key={a.employee_id} className="p-4">
                   <RandAngajatDraft
@@ -182,8 +184,8 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
           ) : null}
         </>
       ) : (
-        <div className="border-border overflow-x-auto rounded-lg border">
-          <table className="w-full text-sm">
+        <div className="border-border rounded-panou overflow-x-auto border">
+          <table className="text-corp w-full">
             <thead className="bg-surface text-left">
               <tr>
                 <th scope="col" className="px-4 py-3 font-medium">
@@ -226,6 +228,6 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
           </table>
         </div>
       )}
-    </main>
+    </div>
   );
 }

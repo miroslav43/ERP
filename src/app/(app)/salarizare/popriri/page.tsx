@@ -3,7 +3,8 @@ import type { Metadata } from "next";
 import { Gavel } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -43,24 +44,19 @@ export default async function PaginaPopriri() {
   ]);
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Popriri</h1>
-          <p className="text-muted-foreground text-sm">
-            Dosare de urmărire silită. Reținerea se plafonează automat la o treime din salariul net
-            pentru un singur dosar și la jumătate când sunt mai multe, iar dosarul se închide singur
-            când datoria e stinsă.
-          </p>
-        </div>
-        {poateCrea ? <FormularPoprireNoua angajati={angajati ?? []} /> : null}
-      </header>
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Popriri"
+        descriere="Dosare de urmărire silită. Reținerea se plafonează automat la o treime din salariul net pentru un singur dosar și la jumătate când sunt mai multe, iar dosarul se închide singur când datoria e stinsă."
+        {...(poateCrea ? { actiuni: <FormularPoprireNoua angajati={angajati ?? []} /> } : {})}
+      />
 
       {dosare.length === 0 ? (
-        <EmptyState
-          icon={Gavel}
-          title="Niciun dosar de poprire"
-          description="Când primiți o adresă de înființare a popririi de la un executor judecătoresc, deschideți aici dosarul — reținerea intră automat în calculul salarial."
+        <StareGoala
+          fel="initiala"
+          pictograma={Gavel}
+          titlu="Niciun dosar de poprire"
+          descriere="Când primiți o adresă de înființare a popririi de la un executor judecătoresc, deschideți aici dosarul — reținerea intră automat în calculul salarial."
         />
       ) : (
         <ul className="space-y-3">
@@ -71,31 +67,34 @@ export default async function PaginaPopriri() {
                 ? Math.min(100, Math.round((dosar.suma_recuperata / dosar.suma_totala) * 100))
                 : 0;
             return (
-              <li key={dosar.id} className="border-border bg-surface rounded-lg border shadow-sm">
+              <li
+                key={dosar.id}
+                className="border-border bg-surface rounded-panou shadow-ridicat border"
+              >
                 <div className="flex flex-wrap items-start gap-3 px-4 py-3">
-                  <span className="bg-background flex size-9 shrink-0 items-center justify-center rounded-md">
+                  <span className="bg-background rounded-control flex size-9 shrink-0 items-center justify-center">
                     <Gavel aria-hidden="true" className="text-primary size-4.5" />
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{dosar.angajat?.full_name ?? "—"}</span>
-                      <span className="text-muted-foreground font-mono text-xs">
+                      <span className="text-muted-foreground text-nota font-mono">
                         {dosar.angajat?.marca ?? ""}
                       </span>
-                      <span className="text-muted-foreground text-xs">dosar {dosar.dosar}</span>
+                      <span className="text-muted-foreground text-nota">dosar {dosar.dosar}</span>
                       {dosar.tip_creanta === "intretinere" ? (
-                        <span className="bg-primary/10 text-primary rounded-full px-2 py-0.5 text-xs font-medium">
+                        <span className="bg-primary/10 text-primary text-nota rounded-full px-2 py-0.5 font-medium">
                           Întreținere — prioritate legală
                         </span>
                       ) : null}
                       {dosar.activa ? null : (
-                        <span className="bg-background text-muted-foreground rounded-full px-2 py-0.5 text-xs font-medium">
+                        <span className="bg-background text-muted-foreground text-nota rounded-full px-2 py-0.5 font-medium">
                           {soldRamas <= 0 ? "Stins" : "Închis"}
                         </span>
                       )}
                     </div>
 
-                    <p className="text-muted-foreground mt-1 text-sm">
+                    <p className="text-muted-foreground text-corp mt-1">
                       {dosar.creditor}
                       {dosar.executor !== null ? ` · executor ${dosar.executor}` : ""} · din{" "}
                       {formatDate(dosar.data_inceput)}
@@ -104,7 +103,7 @@ export default async function PaginaPopriri() {
                         : ""}
                     </p>
 
-                    <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm">
+                    <div className="text-corp mt-2 flex flex-wrap gap-x-6 gap-y-1">
                       <span>
                         Datorie: <strong>{formatAmount(dosar.suma_totala)} lei</strong>
                       </span>
@@ -142,6 +141,6 @@ export default async function PaginaPopriri() {
           })}
         </ul>
       )}
-    </main>
+    </div>
   );
 }

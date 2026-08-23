@@ -3,6 +3,7 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
 import { REZULTATE_INTERVENTIE, TIPURI_MENTENANTA } from "@/schemas/maintenance";
 import { ETICHETE_REZULTAT_INTERVENTIE, ETICHETE_TIP_MENTENANTA } from "../../etichete";
 import { inregistreazaInterventie } from "../../actions";
@@ -77,18 +78,18 @@ export function FormularInterventie({
   return (
     <form
       action={trimite}
-      className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-3"
+      className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-2 lg:grid-cols-3"
     >
-      <p className="text-sm font-medium sm:col-span-2 lg:col-span-3">Intervenție nouă</p>
+      <p className="text-corp font-medium sm:col-span-2 lg:col-span-3">Intervenție nouă</p>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idPlan} className="text-sm">
+        <label htmlFor={idPlan} className="text-corp">
           Din planul
         </label>
         <select
           id={idPlan}
           name="plan_id"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         >
           <option value="">Fără plan (intervenție corectivă)</option>
           {planuri.map((p) => (
@@ -100,14 +101,14 @@ export function FormularInterventie({
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idTip} className="text-sm">
+        <label htmlFor={idTip} className="text-corp">
           Tip
         </label>
         <select
           id={idTip}
           name="tip"
           defaultValue="corectiva"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         >
           {TIPURI_MENTENANTA.map((t) => (
             <option key={t} value={t}>
@@ -118,7 +119,7 @@ export function FormularInterventie({
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idData} className="text-sm">
+        <label htmlFor={idData} className="text-corp">
           Data
         </label>
         <input
@@ -126,24 +127,24 @@ export function FormularInterventie({
           name="data"
           type="date"
           required
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idOraStart} className="text-sm">
+        <label htmlFor={idOraStart} className="text-corp">
           Ora de început
         </label>
         <input
           id={idOraStart}
           name="ora_start"
           type="time"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idDurata} className="text-sm">
+        <label htmlFor={idDurata} className="text-corp">
           Durata (ore)
         </label>
         <input
@@ -152,18 +153,18 @@ export function FormularInterventie({
           type="number"
           min="0"
           step="0.5"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idExecutantAngajat} className="text-sm">
+        <label htmlFor={idExecutantAngajat} className="text-corp">
           Executant (angajat)
         </label>
         <select
           id={idExecutantAngajat}
           name="executant_employee_id"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         >
           <option value="">—</option>
           {angajati.map((a) => (
@@ -175,19 +176,19 @@ export function FormularInterventie({
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idExecutantExtern} className="text-sm">
+        <label htmlFor={idExecutantExtern} className="text-corp">
           Executant (firmă externă)
         </label>
         <input
           id={idExecutantExtern}
           name="executant_extern"
           maxLength={200}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-3">
-        <label htmlFor={idDescriere} className="text-sm">
+        <label htmlFor={idDescriere} className="text-corp">
           Descriere
         </label>
         <textarea
@@ -196,12 +197,12 @@ export function FormularInterventie({
           rows={2}
           required
           maxLength={2000}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-3">
-        <label htmlFor={idPiese} className="text-sm">
+        <label htmlFor={idPiese} className="text-corp">
           Piese folosite
         </label>
         <textarea
@@ -209,12 +210,12 @@ export function FormularInterventie({
           name="piese"
           rows={2}
           maxLength={2000}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idCostPiese} className="text-sm">
+        <label htmlFor={idCostPiese} className="text-corp">
           Cost piese (lei)
         </label>
         <input
@@ -224,12 +225,12 @@ export function FormularInterventie({
           min="0"
           step="0.01"
           defaultValue="0"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idCostManopera} className="text-sm">
+        <label htmlFor={idCostManopera} className="text-corp">
           Cost manoperă (lei)
         </label>
         <input
@@ -239,19 +240,19 @@ export function FormularInterventie({
           min="0"
           step="0.01"
           defaultValue="0"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idRezultat} className="text-sm">
+        <label htmlFor={idRezultat} className="text-corp">
           Rezultat
         </label>
         <select
           id={idRezultat}
           name="rezultat"
           defaultValue="reusita"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         >
           {REZULTATE_INTERVENTIE.map((r) => (
             <option key={r} value={r}>
@@ -262,7 +263,7 @@ export function FormularInterventie({
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idOprireMinute} className="text-sm">
+        <label htmlFor={idOprireMinute} className="text-corp">
           Oprire (minute)
         </label>
         <input
@@ -270,12 +271,12 @@ export function FormularInterventie({
           name="oprire_minute"
           type="number"
           min="0"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idCitireContor} className="text-sm">
+        <label htmlFor={idCitireContor} className="text-corp">
           Citire contor la momentul intervenției
         </label>
         <input
@@ -284,12 +285,12 @@ export function FormularInterventie({
           type="number"
           min="0"
           step="0.01"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-3">
-        <label htmlFor={idObs} className="text-sm">
+        <label htmlFor={idObs} className="text-corp">
           Observații
         </label>
         <textarea
@@ -297,20 +298,16 @@ export function FormularInterventie({
           name="observatii"
           rows={2}
           maxLength={2000}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-3">
-        <button
-          type="submit"
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se salvează…" : "Salvează intervenția"}
-        </button>
+        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+          Salvează intervenția
+        </Buton>
         {eroare === null ? null : (
-          <p role="alert" className="text-danger text-sm">
+          <p role="alert" className="text-danger text-corp">
             {eroare}
           </p>
         )}

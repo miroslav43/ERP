@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 
+import { Buton } from "@/components/ui/buton";
 import { STARI_OBIECT } from "@/schemas/inventory";
 import { ETICHETE_STARE } from "../etichete";
 import { predaObiect } from "../actions";
@@ -25,7 +26,7 @@ interface ValoriFormular {
   observatii: string;
 }
 
-const CLASA_CAMP = "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
+const CLASA_CAMP = "mt-1 w-full rounded-control border border-foreground/60 px-3 py-2 text-corp";
 
 export function FormularPredare({ itemId, angajati }: Proprietati) {
   const router = useRouter();
@@ -47,7 +48,7 @@ export function FormularPredare({ itemId, angajati }: Proprietati) {
 
   if (angajati.length === 0) {
     return (
-      <p className="text-muted-foreground text-sm">
+      <p className="text-muted-foreground text-corp">
         Nu există angajați activi cărora să le puteți preda acest obiect.
       </p>
     );
@@ -57,7 +58,7 @@ export function FormularPredare({ itemId, angajati }: Proprietati) {
     <form onSubmit={handleSubmit(trimite)} className="space-y-4" noValidate>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <label htmlFor="employee_id" className="block text-sm font-medium">
+          <label htmlFor="employee_id" className="text-corp block font-medium">
             Predat către <span aria-hidden="true">*</span>
           </label>
           <select
@@ -74,12 +75,12 @@ export function FormularPredare({ itemId, angajati }: Proprietati) {
             ))}
           </select>
           {formState.errors.employee_id !== undefined ? (
-            <p className="text-danger mt-1 text-xs">{formState.errors.employee_id.message}</p>
+            <p className="text-danger text-nota mt-1">{formState.errors.employee_id.message}</p>
           ) : null}
         </div>
 
         <div>
-          <label htmlFor="stare_la_predare" className="block text-sm font-medium">
+          <label htmlFor="stare_la_predare" className="text-corp block font-medium">
             Stare la predare
           </label>
           <select
@@ -98,7 +99,7 @@ export function FormularPredare({ itemId, angajati }: Proprietati) {
       </div>
 
       <div>
-        <label htmlFor="observatii" className="block text-sm font-medium">
+        <label htmlFor="observatii" className="text-corp block font-medium">
           Observații
         </label>
         <textarea id="observatii" rows={2} className={CLASA_CAMP} {...register("observatii")} />
@@ -106,19 +107,15 @@ export function FormularPredare({ itemId, angajati }: Proprietati) {
 
       <div aria-live="polite">
         {eroare !== null ? (
-          <p className="border-danger bg-danger/8 text-danger rounded-md border p-3 text-sm">
+          <p className="border-danger bg-danger/8 text-danger rounded-control text-corp border p-3">
             {eroare}
           </p>
         ) : null}
       </div>
 
-      <button
-        type="submit"
-        disabled={inCurs}
-        className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-      >
-        {inCurs ? "Se înregistrează…" : "Înregistrează predarea"}
-      </button>
+      <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se înregistrează…">
+        Înregistrează predarea
+      </Buton>
     </form>
   );
 }

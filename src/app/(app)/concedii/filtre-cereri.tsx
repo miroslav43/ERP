@@ -5,6 +5,7 @@ import { useId, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
 
+import { Buton } from "@/components/ui/buton";
 import { STATUSURI_CERERE } from "@/schemas/leave";
 import { ETICHETE_STATUS_CERERE } from "./etichete";
 
@@ -73,23 +74,19 @@ export function FiltreCereri({
         <div
           role="group"
           aria-label="Ce cereri se afișează"
-          className="border-border inline-flex rounded-md border p-0.5"
+          className="border-border rounded-control inline-flex border p-0.5"
         >
           {VIZUALIZARI.map((v) => (
-            <button
+            <Buton
               key={v.cheie}
-              type="button"
+              varianta={vizualizareCurenta === v.cheie ? "primar" : "tertiar"}
               disabled={inCurs}
               aria-pressed={vizualizareCurenta === v.cheie}
               onClick={() => schimbaVizualizarea(v.cheie)}
-              className={`rounded px-3 py-1.5 text-sm font-medium ${
-                vizualizareCurenta === v.cheie
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-surface"
-              }`}
+              className="rounded"
             >
               {v.eticheta}
-            </button>
+            </Buton>
           ))}
         </div>
       ) : null}
@@ -98,17 +95,17 @@ export function FiltreCereri({
         action={aplica}
         role="search"
         aria-label="Filtrare cereri de concediu"
-        className="border-border flex flex-wrap items-end gap-4 rounded-lg border p-4"
+        className="border-border rounded-panou flex flex-wrap items-end gap-4 border p-4"
       >
         <div>
-          <label htmlFor={idStatus} className="block text-sm font-medium">
+          <label htmlFor={idStatus} className="text-corp block font-medium">
             Stare
           </label>
           <select
             id={idStatus}
             name="status"
             defaultValue={parametri.get("status") ?? ""}
-            className="border-foreground/60 mt-1 rounded-md border px-2 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp mt-1 border px-2 py-2"
           >
             <option value="">Toate</option>
             {STATUSURI_CERERE.map((status) => (
@@ -120,14 +117,14 @@ export function FiltreCereri({
         </div>
 
         <div className="min-w-48">
-          <label htmlFor={idTip} className="block text-sm font-medium">
+          <label htmlFor={idTip} className="text-corp block font-medium">
             Tip de concediu
           </label>
           <select
             id={idTip}
             name="leave_type_id"
             defaultValue={parametri.get("leave_type_id") ?? ""}
-            className="border-foreground/60 mt-1 w-full rounded-md border px-2 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp mt-1 w-full border px-2 py-2"
           >
             <option value="">Toate</option>
             {tipuri.map((tip) => (
@@ -139,7 +136,7 @@ export function FiltreCereri({
         </div>
 
         <div>
-          <label htmlFor={idDeLa} className="block text-sm font-medium">
+          <label htmlFor={idDeLa} className="text-corp block font-medium">
             De la
           </label>
           <input
@@ -147,12 +144,12 @@ export function FiltreCereri({
             name="de_la"
             type="date"
             defaultValue={parametri.get("de_la") ?? ""}
-            className="border-foreground/60 mt-1 rounded-md border px-2 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp mt-1 border px-2 py-2"
           />
         </div>
 
         <div>
-          <label htmlFor={idPanaLa} className="block text-sm font-medium">
+          <label htmlFor={idPanaLa} className="text-corp block font-medium">
             Până la
           </label>
           <input
@@ -160,18 +157,14 @@ export function FiltreCereri({
             name="pana_la"
             type="date"
             defaultValue={parametri.get("pana_la") ?? ""}
-            className="border-foreground/60 mt-1 rounded-md border px-2 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp mt-1 border px-2 py-2"
           />
         </div>
 
-        <button
-          type="submit"
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
+        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se filtrează…">
           <Search aria-hidden="true" className="size-4" />
-          {inCurs ? "Se filtrează…" : "Aplică filtrele"}
-        </button>
+          Aplică filtrele
+        </Buton>
         <p aria-live="polite" className="sr-only">
           {inCurs ? "Se aplică filtrele." : "Filtre aplicate."}
         </p>

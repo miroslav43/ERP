@@ -4,8 +4,10 @@ import type { Metadata } from "next";
 import { CalendarClock } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { Badge } from "@/components/ui/badge";
 import { RandTabel } from "@/components/data/rand-tabel";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -14,10 +16,10 @@ import { angajatiDupaId, echipamenteDupaId, planuriScadente } from "@/lib/querie
 import { stareScadentaData } from "@/domain/maintenance/scadente";
 
 import {
-  CLASE_STARE_SCADENTA,
   ETICHETE_STARE_SCADENTA,
   ETICHETE_TIP_CONTOR,
   ETICHETE_TIP_MENTENANTA,
+  TONURI_STARE_SCADENTA,
 } from "../etichete";
 import { NavMentenanta } from "../nav-mentenanta";
 
@@ -49,26 +51,23 @@ export default async function PaginaPlanuri() {
   ]);
 
   return (
-    <main className="space-y-6 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Planuri de mentenanță</h1>
-        <p className="text-muted-foreground text-sm">
-          Planurile ACTIVE ale organizației, cu cea mai apropiată scadență prima. Scadența pe contor
-          se vede exact pe fișa fiecărui echipament, unde intră și ultima citire.
-        </p>
-      </header>
-
-      <NavMentenanta />
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Planuri de mentenanță"
+        descriere="Planurile ACTIVE ale organizației, cu cea mai apropiată scadență prima. Scadența pe contor se vede exact pe fișa fiecărui echipament, unde intră și ultima citire."
+        file={<NavMentenanta />}
+      />
 
       {planuri.length === 0 ? (
-        <EmptyState
-          icon={CalendarClock}
-          title="Niciun plan de mentenanță activ"
-          description="Planurile se adaugă din fișa fiecărui echipament."
+        <StareGoala
+          fel="initiala"
+          pictograma={CalendarClock}
+          titlu="Niciun plan de mentenanță activ"
+          descriere="Planurile se adaugă din fișa fiecărui echipament."
         />
       ) : (
-        <div className="border-border overflow-x-auto rounded-lg border">
-          <table className="w-full text-sm">
+        <div className="border-border rounded-panou overflow-x-auto border">
+          <table className="text-corp w-full">
             <caption className="sr-only">Planurile de mentenanță active, cu scadența lor.</caption>
             <thead className="bg-surface text-left">
               <tr>
@@ -104,7 +103,7 @@ export default async function PaginaPlanuri() {
                   >
                     <td className="px-4 py-3 font-medium">
                       {plan.denumire}
-                      <span className="text-muted-foreground ml-1 text-xs">
+                      <span className="text-muted-foreground text-nota ml-1">
                         ({ETICHETE_TIP_MENTENANTA[plan.tip]})
                       </span>
                     </td>
@@ -120,7 +119,7 @@ export default async function PaginaPlanuri() {
                         </Link>
                       )}
                     </td>
-                    <td className="text-muted-foreground px-4 py-3 text-xs">
+                    <td className="text-muted-foreground text-nota px-4 py-3">
                       {plan.periodicitate_zile !== null ? `${plan.periodicitate_zile} zile` : ""}
                       {plan.periodicitate_zile !== null && plan.periodicitate_contor !== null
                         ? " · "
@@ -135,13 +134,14 @@ export default async function PaginaPlanuri() {
                         : (responsabili.get(plan.responsabil_employee_id)?.full_name ?? "—")}
                     </td>
                     <td className="px-4 py-3">
-                      <span
-                        className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_STARE_SCADENTA[stare]}`}
+                      <Badge
+                        cuAvertisment={stare === "in_intarziere"}
+                        ton={TONURI_STARE_SCADENTA[stare]}
                       >
                         {ETICHETE_STARE_SCADENTA[stare]}
-                      </span>
+                      </Badge>
                       {plan.urmatoarea_scadenta !== null ? (
-                        <span className="text-muted-foreground ml-2 text-xs">
+                        <span className="text-muted-foreground text-nota ml-2">
                           {formatDate(plan.urmatoarea_scadenta)}
                         </span>
                       ) : null}
@@ -153,6 +153,6 @@ export default async function PaginaPlanuri() {
           </table>
         </div>
       )}
-    </main>
+    </div>
   );
 }

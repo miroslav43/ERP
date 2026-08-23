@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
+import { buton } from "@/components/ui/buton";
 import { Fluturas } from "@/components/payroll/fluturas";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -30,9 +32,9 @@ export default async function PaginaFluturas({ params }: ProprietatiPagina) {
 
   if (!can(permisiuni, "payroll:read", "all")) {
     return (
-      <main className="p-6">
+      <div>
         <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta salarizarea." />
-      </main>
+      </div>
     );
   }
 
@@ -45,19 +47,22 @@ export default async function PaginaFluturas({ params }: ProprietatiPagina) {
   );
 
   return (
-    <main className="max-w-3xl space-y-6 p-6">
-      <header>
-        <p className="text-muted-foreground text-sm">
+    <div className={`${LATIMI.detaliu} space-y-6`}>
+      <div className="space-y-1">
+        <p className="text-muted-foreground text-corp">
           <Link href={`/salarizare/${id}`} className="underline-offset-2 hover:underline">
             Perioada de salarizare
           </Link>
         </p>
-        <h1 className="text-2xl font-semibold">
-          {inregistrare.angajat?.full_name ?? inregistrare.angajat?.marca ?? "Angajat"}
-        </h1>
-      </header>
+        <AntetPagina
+          titlu={inregistrare.angajat?.full_name ?? inregistrare.angajat?.marca ?? "Angajat"}
+        />
+      </div>
 
-      <div role="note" className="border-warning/40 bg-warning/8 rounded-lg border p-4 text-xs">
+      <div
+        role="note"
+        className="border-warning/40 bg-warning/8 rounded-panou text-nota border p-4"
+      >
         {AVERTISMENT_SALARIZARE}
       </div>
 
@@ -65,10 +70,10 @@ export default async function PaginaFluturas({ params }: ProprietatiPagina) {
 
       <a
         href={`/api/export/salarizare/fluturas?inregistrare=${inregistrare.id}`}
-        className="border-foreground/60 hover:bg-surface inline-flex w-fit rounded-md border px-4 py-2 text-sm"
+        className={buton({ varianta: "secundar" })}
       >
         Descarcă fluturașul (PDF)
       </a>
-    </main>
+    </div>
   );
 }

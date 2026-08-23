@@ -5,8 +5,10 @@ import type { Metadata } from "next";
 import { LifeBuoy } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
-import { SkeletonTable } from "@/components/data/skeleton-table";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
+import { Schelet } from "@/components/ui/schelet";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -36,10 +38,11 @@ async function ListaMea({
 
   if (randuri.length === 0) {
     return (
-      <EmptyState
-        icon={LifeBuoy}
-        title="Niciun tichet deschis"
-        description="Când ai nevoie de software, de un echipament, ți s-a stricat ceva sau ai găsit o problemă în aplicație, deschide un tichet."
+      <StareGoala
+        fel="initiala"
+        pictograma={LifeBuoy}
+        titlu="Niciun tichet deschis"
+        descriere="Când ai nevoie de software, de un echipament, ți s-a stricat ceva sau ai găsit o problemă în aplicație, deschide un tichet."
       />
     );
   }
@@ -61,25 +64,20 @@ export default async function PaginaTichetelorMele({ searchParams }: Proprietati
   const parametri = await searchParams;
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Tichetele mele</h1>
-          <p className="text-muted-foreground text-sm">
-            Cererile și problemele pe care le-ai trimis către IT, cu starea fiecăreia.
-          </p>
-        </div>
-        <Link
-          href="/ticketing/nou"
-          className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
-        >
-          Tichet nou
-        </Link>
-      </header>
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Tichetele mele"
+        descriere="Cererile și problemele pe care le-ai trimis către IT, cu starea fiecăreia."
+        actiuni={
+          <Link href="/ticketing/nou" className={buton({ varianta: "primar" })}>
+            Tichet nou
+          </Link>
+        }
+      />
 
-      <Suspense key={JSON.stringify(parametri)} fallback={<SkeletonTable cols={6} />}>
+      <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={6} />}>
         <ListaMea organizationId={tenant.organizationId} parametri={parametri} />
       </Suspense>
-    </main>
+    </div>
   );
 }

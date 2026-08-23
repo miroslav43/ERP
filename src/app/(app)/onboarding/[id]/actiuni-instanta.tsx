@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Ban, Check } from "lucide-react";
 
 import { anuleazaInstanta, finalizeazaInstanta } from "../actions";
+import { Buton } from "@/components/ui/buton";
 
 const LUNGIME_MINIMA_MOTIV = 5;
 
@@ -48,32 +49,26 @@ export function ActiuniInstanta({ instantaId }: { readonly instantaId: string })
   return (
     <section aria-label="Acțiuni" className="space-y-3">
       <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={finalizeaza}
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
+        <Buton varianta="primar" inCurs={inCurs} textInCurs="Se finalizează…" onClick={finalizeaza}>
           <Check aria-hidden="true" className="size-4" />
-          {inCurs ? "Se finalizează…" : "Finalizează checklistul"}
-        </button>
+          Finalizează checklistul
+        </Buton>
         {panou === "inchis" ? (
-          <button
-            type="button"
+          <Buton
+            varianta="distructiv"
             onClick={() => {
               setPanou("anulare");
             }}
-            className="border-danger text-danger hover:bg-danger hover:text-danger-foreground inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm font-medium"
           >
             <Ban aria-hidden="true" className="size-4" />
             Anulează checklistul
-          </button>
+          </Buton>
         ) : null}
       </div>
 
       {panou === "anulare" ? (
-        <div className="border-border space-y-2 rounded-md border p-3">
-          <label htmlFor={idMotiv} className="block text-xs font-medium">
+        <div className="border-border rounded-control space-y-2 border p-3">
+          <label htmlFor={idMotiv} className="text-nota block font-medium">
             Motivul anulării *
           </label>
           <input
@@ -82,27 +77,26 @@ export function ActiuniInstanta({ instantaId }: { readonly instantaId: string })
             onChange={(e) => {
               setMotiv(e.target.value);
             }}
-            className="border-foreground/60 w-full rounded-md border px-2 py-1.5 text-sm"
+            className="border-foreground/60 rounded-control text-corp w-full border px-2 py-1.5"
           />
           <div className="flex gap-2">
-            <button
-              type="button"
+            <Buton
+              varianta="distructiv"
+              inCurs={inCurs}
+              textInCurs="Se anulează…"
               onClick={anuleaza}
-              disabled={inCurs}
-              className="bg-danger text-primary-foreground hover:bg-danger disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed"
             >
-              {inCurs ? "Se anulează…" : "Confirmă anularea"}
-            </button>
-            <button
-              type="button"
+              Confirmă anularea
+            </Buton>
+            <Buton
+              varianta="secundar"
               onClick={() => {
                 setPanou("inchis");
                 setEroare(null);
               }}
-              className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-1.5 text-sm font-medium"
             >
               Renunță
-            </button>
+            </Buton>
           </div>
         </div>
       ) : null}
@@ -113,7 +107,7 @@ export function ActiuniInstanta({ instantaId }: { readonly instantaId: string })
       {eroare === null ? null : (
         <p
           role="alert"
-          className="border-danger/40 bg-danger/8 text-danger rounded-lg border p-3 text-sm"
+          className="border-danger/40 bg-danger/8 text-danger rounded-panou text-corp border p-3"
         >
           {eroare}
         </p>

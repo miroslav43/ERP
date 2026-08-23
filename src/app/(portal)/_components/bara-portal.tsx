@@ -44,7 +44,7 @@ export function BaraPortal({
                 href={intrare.href}
                 aria-current={activ ? "page" : undefined}
                 className={
-                  "flex min-h-14 flex-col items-center justify-center gap-1 px-1 py-2 text-xs " +
+                  "text-nota flex min-h-14 flex-col items-center justify-center gap-1 px-1 py-2 " +
                   (activ ? "text-primary font-medium" : "text-muted-foreground")
                 }
               >
@@ -69,12 +69,12 @@ export function BaraPortal({
               navigare.
             */}
             <details key={cale} className="group">
-              <summary className="text-muted-foreground flex min-h-14 cursor-pointer list-none flex-col items-center justify-center gap-1 px-1 py-2 text-xs [&::-webkit-details-marker]:hidden">
+              <summary className="text-muted-foreground text-nota flex min-h-14 cursor-pointer list-none flex-col items-center justify-center gap-1 px-1 py-2 [&::-webkit-details-marker]:hidden">
                 <Ellipsis aria-hidden="true" className="size-5 shrink-0" />
                 <span className="text-center leading-tight">Mai multe</span>
               </summary>
 
-              <div className="border-border bg-surface fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-30 max-h-[60dvh] overflow-y-auto overscroll-contain rounded-t-lg border-t p-2 shadow-lg">
+              <div className="border-border bg-surface shadow-plutitor fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-30 max-h-[60dvh] overflow-y-auto overscroll-contain rounded-t-lg border-t p-2">
                 <ul className="grid grid-cols-2 gap-1">
                   {secundare.map((intrare) => {
                     const activ = esteActiva(cale, intrare.href, intrare.exact);
@@ -85,7 +85,7 @@ export function BaraPortal({
                           href={intrare.href}
                           aria-current={activ ? "page" : undefined}
                           className={
-                            "hover:bg-background flex min-h-11 items-center gap-2.5 rounded-md px-3 py-2 text-sm " +
+                            "hover:bg-background rounded-control text-corp flex min-h-11 items-center gap-2.5 px-3 py-2 " +
                             (activ ? "text-primary font-medium" : "text-foreground")
                           }
                         >

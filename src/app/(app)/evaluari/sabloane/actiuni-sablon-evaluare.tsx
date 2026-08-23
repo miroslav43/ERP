@@ -5,6 +5,8 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Ban } from "lucide-react";
 
+import { Buton } from "@/components/ui/buton";
+
 import { dezactiveazaSablonEvaluare } from "../actions";
 
 export function ActiuniSablonEvaluare({ id }: { readonly id: string }) {
@@ -12,8 +14,8 @@ export function ActiuniSablonEvaluare({ id }: { readonly id: string }) {
   const [inCurs, porneste] = useTransition();
 
   return (
-    <button
-      type="button"
+    <Buton
+      varianta="distructiv"
       disabled={inCurs}
       onClick={() => {
         porneste(async () => {
@@ -21,10 +23,9 @@ export function ActiuniSablonEvaluare({ id }: { readonly id: string }) {
           router.refresh();
         });
       }}
-      className="text-danger hover:bg-danger/8 inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50"
     >
       <Ban aria-hidden="true" className="size-3.5" />
       Dezactivează
-    </button>
+    </Buton>
   );
 }

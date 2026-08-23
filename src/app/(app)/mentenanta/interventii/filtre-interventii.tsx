@@ -4,6 +4,7 @@ import { useId, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
 
+import { Buton } from "@/components/ui/buton";
 import { REZULTATE_INTERVENTIE, TIPURI_MENTENANTA } from "@/schemas/maintenance";
 import { ETICHETE_REZULTAT_INTERVENTIE, ETICHETE_TIP_MENTENANTA } from "../etichete";
 
@@ -29,17 +30,17 @@ export function FiltreInterventiiForm() {
   return (
     <form
       action={aplica}
-      className="border-border flex flex-wrap items-end gap-3 rounded-lg border p-4"
+      className="border-border rounded-panou flex flex-wrap items-end gap-3 border p-4"
     >
       <div className="flex flex-col gap-1">
-        <label htmlFor={idTip} className="text-sm font-medium">
+        <label htmlFor={idTip} className="text-corp font-medium">
           Tip
         </label>
         <select
           id={idTip}
           name="tip"
           defaultValue={parametri.get("tip") ?? ""}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         >
           <option value="">Toate</option>
           {TIPURI_MENTENANTA.map((t) => (
@@ -51,14 +52,14 @@ export function FiltreInterventiiForm() {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idRezultat} className="text-sm font-medium">
+        <label htmlFor={idRezultat} className="text-corp font-medium">
           Rezultat
         </label>
         <select
           id={idRezultat}
           name="rezultat"
           defaultValue={parametri.get("rezultat") ?? ""}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         >
           <option value="">Toate</option>
           {REZULTATE_INTERVENTIE.map((r) => (
@@ -69,14 +70,10 @@ export function FiltreInterventiiForm() {
         </select>
       </div>
 
-      <button
-        type="submit"
-        disabled={inCurs}
-        className="border-foreground/60 hover:bg-surface disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-      >
+      <Buton type="submit" varianta="secundar" inCurs={inCurs} textInCurs="Se filtrează…">
         <Search aria-hidden="true" className="size-4" />
-        {inCurs ? "Se filtrează…" : "Filtrează"}
-      </button>
+        Filtrează
+      </Buton>
     </form>
   );
 }

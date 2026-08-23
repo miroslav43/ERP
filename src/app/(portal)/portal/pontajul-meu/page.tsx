@@ -4,7 +4,9 @@ import type { Metadata } from "next";
 import { Clock, CalendarClock } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
+import { buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -78,47 +80,52 @@ export default async function PaginaPontajulMeu({ searchParams }: ProprietatiPag
   const lunaUrmatoare = luna === 12 ? { an: an + 1, luna: 1 } : { an, luna: luna + 1 };
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 p-4">
-      <header className="flex items-center justify-between gap-3">
-        <h1 className="text-foreground text-xl font-semibold">Pontajul meu</h1>
-        {poatePlanifica ? (
-          <Link
-            href="/portal/pontajul-meu/saptamana"
-            className="border-border hover:border-primary text-foreground inline-flex min-h-11 items-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors"
-          >
-            <CalendarClock aria-hidden="true" className="size-4" />
-            Planul săptămânii
-          </Link>
-        ) : null}
-      </header>
+    <div className={`${LATIMI.lista} space-y-4 p-4`}>
+      <AntetPagina
+        titlu="Pontajul meu"
+        {...(poatePlanifica
+          ? {
+              actiuni: (
+                <Link
+                  href="/portal/pontajul-meu/saptamana"
+                  className={buton({ varianta: "secundar" })}
+                >
+                  <CalendarClock aria-hidden="true" className="size-4" />
+                  Planul săptămânii
+                </Link>
+              ),
+            }
+          : {})}
+      />
 
       <nav aria-label="Alege luna" className="flex items-center justify-between gap-2">
         <Link
           href={`/portal/pontajul-meu?an=${lunaAnterioara.an}&luna=${lunaAnterioara.luna}`}
-          className="border-border text-foreground hover:border-ring min-h-11 rounded-md border px-4 py-2 text-sm"
+          className={buton({ varianta: "secundar" })}
         >
           ← Luna anterioară
         </Link>
-        <p className="text-foreground text-sm font-medium">{formatMonthYear(an, luna)}</p>
+        <p className="text-foreground text-corp font-medium">{formatMonthYear(an, luna)}</p>
         <Link
           href={`/portal/pontajul-meu?an=${lunaUrmatoare.an}&luna=${lunaUrmatoare.luna}`}
-          className="border-border text-foreground hover:border-ring min-h-11 rounded-md border px-4 py-2 text-sm"
+          className={buton({ varianta: "secundar" })}
         >
           Luna următoare →
         </Link>
       </nav>
 
       {zile.length === 0 ? (
-        <EmptyState
-          icon={Clock}
-          title="Nicio zi înregistrată în această lună"
-          description="Zilele apar aici pe măsură ce sunt completate. Dacă luna s-a încheiat și tot e goală, întrebați responsabilul de pontaj."
+        <StareGoala
+          fel="initiala"
+          pictograma={Clock}
+          titlu="Nicio zi înregistrată în această lună"
+          descriere="Zilele apar aici pe măsură ce sunt completate. Dacă luna s-a încheiat și tot e goală, întrebați responsabilul de pontaj."
         />
       ) : (
         <>
           <section
             aria-label="Totaluri"
-            className="bg-primary text-primary-foreground grid grid-cols-3 gap-2 rounded-lg p-4 text-center"
+            className="bg-primary text-primary-foreground rounded-panou grid grid-cols-3 gap-2 p-4 text-center"
           >
             <Total eticheta="Ore lucrate" valoare={total.lucrate} />
             <Total eticheta="Suplimentare" valoare={total.suplimentare} />
@@ -135,24 +142,24 @@ export default async function PaginaPontajulMeu({ searchParams }: ProprietatiPag
                 <ZiRand data={z.data} editabila={poatePlanifica && z.tip_zi === "lucratoare"}>
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-foreground text-sm font-medium">{formatDate(z.data)}</p>
-                      <p className="text-muted-foreground text-xs">
+                      <p className="text-foreground text-corp font-medium">{formatDate(z.data)}</p>
+                      <p className="text-muted-foreground text-nota">
                         {ETICHETE_TIP_ZI[z.tip_zi] ?? z.tip_zi}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-foreground text-sm tabular-nums">
+                      <p className="text-foreground text-corp tabular-nums">
                         {(z.ore_lucrate ?? 0).toLocaleString("ro-RO")} ore
                       </p>
                       {(z.ore_suplimentare ?? 0) > 0 ? (
-                        <p className="text-muted-foreground text-xs tabular-nums">
+                        <p className="text-muted-foreground text-nota tabular-nums">
                           +{(z.ore_suplimentare ?? 0).toLocaleString("ro-RO")} suplimentare
                         </p>
                       ) : null}
                     </div>
                   </div>
                   {z.observatii === null ? null : (
-                    <p className="text-muted-foreground mt-2 text-xs">{z.observatii}</p>
+                    <p className="text-muted-foreground text-nota mt-2">{z.observatii}</p>
                   )}
                 </ZiRand>
               </li>
@@ -167,8 +174,10 @@ export default async function PaginaPontajulMeu({ searchParams }: ProprietatiPag
 function Total({ eticheta, valoare }: { readonly eticheta: string; readonly valoare: number }) {
   return (
     <div>
-      <p className="text-xs opacity-90">{eticheta}</p>
-      <p className="text-2xl font-semibold tabular-nums">{valoare.toLocaleString("ro-RO")}</p>
+      <p className="text-nota opacity-90">{eticheta}</p>
+      <p className="text-cifra font-mono font-semibold tabular-nums">
+        {valoare.toLocaleString("ro-RO")}
+      </p>
     </div>
   );
 }
@@ -188,7 +197,7 @@ function ZiRand({
   readonly editabila: boolean;
   readonly children: React.ReactNode;
 }) {
-  const clasa = "bg-surface border-border block rounded-lg border p-3";
+  const clasa = "bg-surface border-border block rounded-panou border p-3";
   if (!editabila) return <div className={clasa}>{children}</div>;
   return (
     <Link

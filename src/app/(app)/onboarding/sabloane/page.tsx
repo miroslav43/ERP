@@ -5,9 +5,11 @@ import type { Metadata } from "next";
 import { FilePlus2, ListChecks } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { Buton, buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { RandTabel } from "@/components/data/rand-tabel";
-import { SkeletonTable } from "@/components/data/skeleton-table";
+import { Schelet } from "@/components/ui/schelet";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -38,14 +40,18 @@ async function TabelSabloane({
   if (randuri.length === 0) {
     const areFiltre = filtre.tip !== null || filtre.cauta !== null;
     return (
-      <EmptyState
-        icon={ListChecks}
-        title={areFiltre ? "Niciun rezultat pentru filtrele alese" : "Niciun șablon creat încă"}
-        description={
+      <StareGoala
+        fel={areFiltre ? "filtrata" : "initiala"}
+        pictograma={ListChecks}
+        titlu={areFiltre ? "Niciun rezultat pentru filtrele alese" : "Niciun șablon creat încă"}
+        descriere={
           areFiltre
             ? "Ștergeți filtrele ca să vedeți toate șabloanele."
             : "Creați primul șablon ca să puteți porni instanțe de checklist pentru angajați."
         }
+        {...(areFiltre
+          ? { actiune: { eticheta: "Șterge filtrele", href: "/onboarding/sabloane" } }
+          : {})}
       />
     );
   }
@@ -58,8 +64,8 @@ async function TabelSabloane({
 
   return (
     <>
-      <div className="border-border overflow-x-auto rounded-lg border">
-        <table className="w-full text-sm">
+      <div className="border-border rounded-panou overflow-x-auto border">
+        <table className="text-corp w-full">
           <caption className="sr-only">Șabloanele de checklist ale organizației.</caption>
           <thead className="bg-surface text-left">
             <tr>
@@ -92,7 +98,7 @@ async function TabelSabloane({
                 <td className="px-4 py-3">{formatDate(s.valabil_de_la)}</td>
                 <td className="px-4 py-3">
                   <span
-                    className={`rounded px-2 py-0.5 text-xs font-medium ${
+                    className={`text-nota rounded px-2 py-0.5 font-medium ${
                       s.activ ? "bg-surface text-foreground" : "bg-surface text-foreground"
                     }`}
                   >
@@ -109,7 +115,7 @@ async function TabelSabloane({
         {urmatorulCursor === null ? null : (
           <Link
             href={`/onboarding/sabloane?${cautare.toString()}`}
-            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
+            className={buton({ varianta: "secundar" })}
           >
             Pagina următoare
           </Link>
@@ -136,34 +142,30 @@ export default async function PaginaSabloane({ searchParams }: ProprietatiPagina
   const cautaCurent = typeof parametri["cauta"] === "string" ? parametri["cauta"] : "";
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Șabloane de checklist</h1>
-          <p className="text-muted-foreground text-sm">
-            Structura pașilor pentru integrare, ieșire sau transfer.
-          </p>
-        </div>
-        {poateCrea ? (
-          <Link
-            href="/onboarding/sabloane/nou"
-            className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
-          >
-            <FilePlus2 aria-hidden="true" className="size-4" />
-            Șablon nou
-          </Link>
-        ) : null}
-      </header>
-
-      <NavOnboarding />
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Șabloane de checklist"
+        descriere="Structura pașilor pentru integrare, ieșire sau transfer."
+        {...(poateCrea
+          ? {
+              actiuni: (
+                <Link href="/onboarding/sabloane/nou" className={buton({ varianta: "primar" })}>
+                  <FilePlus2 aria-hidden="true" className="size-4" />
+                  Șablon nou
+                </Link>
+              ),
+            }
+          : {})}
+        file={<NavOnboarding />}
+      />
 
       {/* Formular simplu, fără JavaScript: GET direct pe query string. */}
       <form
         method="get"
-        className="border-border flex flex-wrap items-end gap-3 rounded-lg border p-4"
+        className="border-border rounded-panou flex flex-wrap items-end gap-3 border p-4"
       >
         <div className="flex flex-col gap-1">
-          <label htmlFor="cauta" className="text-sm font-medium">
+          <label htmlFor="cauta" className="text-corp font-medium">
             Denumire
           </label>
           <input
@@ -171,18 +173,18 @@ export default async function PaginaSabloane({ searchParams }: ProprietatiPagina
             name="cauta"
             type="search"
             defaultValue={cautaCurent}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 text-corp rounded-control border px-3 py-2"
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor="tip" className="text-sm font-medium">
+          <label htmlFor="tip" className="text-corp font-medium">
             Tip
           </label>
           <select
             id="tip"
             name="tip"
             defaultValue={tipCurent}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 text-corp rounded-control border px-3 py-2"
           >
             <option value="">Toate</option>
             {CHECKLIST_TIP.map((t) => (
@@ -192,17 +194,14 @@ export default async function PaginaSabloane({ searchParams }: ProprietatiPagina
             ))}
           </select>
         </div>
-        <button
-          type="submit"
-          className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm font-medium"
-        >
+        <Buton type="submit" varianta="secundar">
           Filtrează
-        </button>
+        </Buton>
       </form>
 
-      <Suspense key={JSON.stringify(parametri)} fallback={<SkeletonTable cols={4} />}>
+      <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={4} />}>
         <TabelSabloane organizationId={tenant.organizationId} parametri={parametri} />
       </Suspense>
-    </main>
+    </div>
   );
 }

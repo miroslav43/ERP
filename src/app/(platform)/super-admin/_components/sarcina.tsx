@@ -19,12 +19,12 @@ export function Sarcina({ titlu, detaliu, href, eticheta, urgent = false }: Prop
         }`}
       />
       <span className="flex min-w-0 flex-col">
-        <span className="text-foreground text-sm font-semibold">{titlu}</span>
-        <span className="text-muted-foreground text-sm">{detaliu}</span>
+        <span className="text-foreground text-corp font-semibold">{titlu}</span>
+        <span className="text-muted-foreground text-corp">{detaliu}</span>
       </span>
       <Link
         href={href}
-        className="border-border bg-background text-primary hover:border-primary ms-auto shrink-0 rounded-md border px-3 py-1.5 text-sm font-semibold transition"
+        className="border-border bg-background text-primary hover:border-primary rounded-control text-corp ms-auto shrink-0 border px-3 py-1.5 font-semibold transition"
       >
         {eticheta}
       </Link>

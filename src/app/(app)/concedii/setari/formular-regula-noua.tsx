@@ -4,6 +4,7 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
 import type { OptiuneNomenclator, TipConcediuConfigurabil } from "@/lib/queries/leave";
 import {
   CRITERII_GRILA,
@@ -19,7 +20,7 @@ import {
   ETICHETE_VALOARE_GRAD_HANDICAP,
 } from "../etichete";
 
-const CLASA_CAMP = "w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
+const CLASA_CAMP = "w-full rounded-control border border-foreground/60 px-3 py-2 text-corp";
 
 export function FormularRegulaNoua({
   tipuri,
@@ -97,11 +98,11 @@ export function FormularRegulaNoua({
   }
 
   return (
-    <div className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-3">
-      <p className="text-sm font-medium sm:col-span-2 lg:col-span-3">O grilă nouă</p>
+    <div className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-2 lg:grid-cols-3">
+      <p className="text-corp font-medium sm:col-span-2 lg:col-span-3">O grilă nouă</p>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.tip} className="text-sm">
+        <label htmlFor={id.tip} className="text-corp">
           Tip de concediu
         </label>
         <select
@@ -121,7 +122,7 @@ export function FormularRegulaNoua({
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.criteriu} className="text-sm">
+        <label htmlFor={id.criteriu} className="text-corp">
           Criteriu
         </label>
         <select
@@ -142,7 +143,7 @@ export function FormularRegulaNoua({
 
       {tipCriteriu === "vechime" ? (
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.vechime} className="text-sm">
+          <label htmlFor={id.vechime} className="text-corp">
             Prag de vechime (ani)
           </label>
           <input
@@ -161,7 +162,7 @@ export function FormularRegulaNoua({
 
       {tipCriteriu === "conditii_munca" ? (
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.condMunca} className="text-sm">
+          <label htmlFor={id.condMunca} className="text-corp">
             Condiții de muncă
           </label>
           <select
@@ -183,7 +184,7 @@ export function FormularRegulaNoua({
 
       {tipCriteriu === "grad_handicap" ? (
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.handicap} className="text-sm">
+          <label htmlFor={id.handicap} className="text-corp">
             Grad de handicap
           </label>
           <select
@@ -205,7 +206,7 @@ export function FormularRegulaNoua({
 
       {tipCriteriu === "departament" ? (
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.departament} className="text-sm">
+          <label htmlFor={id.departament} className="text-corp">
             Departament
           </label>
           <select
@@ -227,7 +228,7 @@ export function FormularRegulaNoua({
 
       {tipCriteriu === "functie" ? (
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.functie} className="text-sm">
+          <label htmlFor={id.functie} className="text-corp">
             Funcție
           </label>
           <select
@@ -248,7 +249,7 @@ export function FormularRegulaNoua({
       ) : null}
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.zile} className="text-sm">
+        <label htmlFor={id.zile} className="text-corp">
           Zile suplimentare
         </label>
         <input
@@ -265,7 +266,7 @@ export function FormularRegulaNoua({
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.denumire} className="text-sm">
+        <label htmlFor={id.denumire} className="text-corp">
           Denumire
         </label>
         <input
@@ -282,7 +283,7 @@ export function FormularRegulaNoua({
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.deLa} className="text-sm">
+        <label htmlFor={id.deLa} className="text-corp">
           Valabilă de la
         </label>
         <input
@@ -297,7 +298,7 @@ export function FormularRegulaNoua({
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.panaLa} className="text-sm">
+        <label htmlFor={id.panaLa} className="text-corp">
           Valabilă până la (opțional)
         </label>
         <input
@@ -312,21 +313,16 @@ export function FormularRegulaNoua({
       </div>
 
       <div className="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-3">
-        <button
-          type="button"
-          disabled={inCurs}
-          onClick={trimite}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se salvează…" : "Adaugă grila"}
-        </button>
+        <Buton varianta="primar" inCurs={inCurs} textInCurs="Se salvează…" onClick={trimite}>
+          Adaugă grila
+        </Buton>
         {eroare === null ? null : (
-          <p role="alert" className="text-danger text-sm">
+          <p role="alert" className="text-danger text-corp">
             {eroare}
           </p>
         )}
         {reusit ? (
-          <p role="status" className="text-foreground text-sm">
+          <p role="status" className="text-foreground text-corp">
             Grilă adăugată. Aplicați drepturile mai jos ca să ajungă la angajați.
           </p>
         ) : null}

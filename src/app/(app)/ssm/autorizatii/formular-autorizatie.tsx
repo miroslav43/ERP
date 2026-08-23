@@ -3,6 +3,7 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
 import { adaugaAutorizatieNominala } from "../actions";
 
 interface AngajatOptiune {
@@ -59,19 +60,19 @@ export function FormularAutorizatie({
   return (
     <form
       action={trimite}
-      className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-3"
+      className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-3"
     >
-      <p className="text-sm font-medium sm:col-span-3">Adaugă o autorizație nominală</p>
+      <p className="text-corp font-medium sm:col-span-3">Adaugă o autorizație nominală</p>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.angajat} className="text-sm">
+        <label htmlFor={id.angajat} className="text-corp">
           Angajat
         </label>
         <select
           id={id.angajat}
           name="employee_id"
           required
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         >
           {angajati.map((a) => (
             <option key={a.id} value={a.id}>
@@ -82,7 +83,7 @@ export function FormularAutorizatie({
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.tip} className="text-sm">
+        <label htmlFor={id.tip} className="text-corp">
           Tip
         </label>
         <input
@@ -91,24 +92,24 @@ export function FormularAutorizatie({
           required
           maxLength={80}
           placeholder="stivuitorist, macaragiu, fochist…"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.grupa} className="text-sm">
+        <label htmlFor={id.grupa} className="text-corp">
           Grupă (opțional)
         </label>
         <input
           id={id.grupa}
           name="grupa"
           maxLength={40}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.numar} className="text-sm">
+        <label htmlFor={id.numar} className="text-corp">
           Număr
         </label>
         <input
@@ -116,12 +117,12 @@ export function FormularAutorizatie({
           name="numar"
           required
           maxLength={64}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.emitent} className="text-sm">
+        <label htmlFor={id.emitent} className="text-corp">
           Emitent
         </label>
         <input
@@ -129,24 +130,24 @@ export function FormularAutorizatie({
           name="emitent"
           required
           maxLength={160}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.emis} className="text-sm">
+        <label htmlFor={id.emis} className="text-corp">
           Emisă la (opțional)
         </label>
         <input
           id={id.emis}
           name="emis_la"
           type="date"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.valabil} className="text-sm">
+        <label htmlFor={id.valabil} className="text-corp">
           Valabilă până la
         </label>
         <input
@@ -154,20 +155,16 @@ export function FormularAutorizatie({
           name="valabil_pana"
           type="date"
           required
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-wrap items-center gap-3 sm:col-span-3">
-        <button
-          type="submit"
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se salvează…" : "Adaugă autorizația"}
-        </button>
+        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+          Adaugă autorizația
+        </Buton>
         {eroare === null ? null : (
-          <p role="alert" className="text-danger text-sm">
+          <p role="alert" className="text-danger text-corp">
             {eroare}
           </p>
         )}

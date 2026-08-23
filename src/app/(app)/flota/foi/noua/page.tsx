@@ -3,7 +3,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -38,13 +39,14 @@ export default async function PaginaFoaieNoua() {
 
   if (vehicule.length === 0) {
     return (
-      <main className="mx-auto w-full max-w-3xl space-y-6 p-6">
-        <EmptyState
-          icon={Car}
-          title="Niciun vehicul în parc"
-          description="O foaie de parcurs are nevoie de un vehicul activ. Adăugați întâi unul în parcul auto."
+      <div className={`${LATIMI.formular} space-y-6`}>
+        <StareGoala
+          fel="initiala"
+          pictograma={Car}
+          titlu="Niciun vehicul în parc"
+          descriere="O foaie de parcurs are nevoie de un vehicul activ. Adăugați întâi unul în parcul auto."
         />
-      </main>
+      </div>
     );
   }
 
@@ -59,19 +61,18 @@ export default async function PaginaFoaieNoua() {
     .limit(500);
 
   return (
-    <main className="mx-auto w-full max-w-3xl space-y-6 p-6">
-      <header>
-        <p className="text-muted-foreground text-sm">
+    <div className={`${LATIMI.formular} space-y-6`}>
+      <div className="space-y-1">
+        <p className="text-muted-foreground text-corp">
           <Link href="/flota/foi" className="underline-offset-2 hover:underline">
             Foi de parcurs
           </Link>
         </p>
-        <h1 className="text-2xl font-semibold">Foaie de parcurs nouă</h1>
-        <p className="text-muted-foreground text-sm">
-          Kilometrajul de plecare se completează singur din ultimul cunoscut al vehiculului.
-          Verificați-l înainte de salvare — un kilometraj mai mic decât ultimul e refuzat.
-        </p>
-      </header>
+        <AntetPagina
+          titlu="Foaie de parcurs nouă"
+          descriere="Kilometrajul de plecare se completează singur din ultimul cunoscut al vehiculului. Verificați-l înainte de salvare — un kilometraj mai mic decât ultimul e refuzat."
+        />
+      </div>
 
       <FormularFoaie
         vehicule={vehicule.map((v) => ({
@@ -85,6 +86,6 @@ export default async function PaginaFoaieNoua() {
           marca: a.marca,
         }))}
       />
-    </main>
+    </div>
   );
 }

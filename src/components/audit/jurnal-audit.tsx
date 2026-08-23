@@ -19,7 +19,7 @@ type Props = Readonly<{
 }>;
 
 const clasaLink =
-  "inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-foreground hover:bg-surface focus:  ";
+  "inline-flex items-center gap-2 rounded-control border border-border px-3 py-2 text-corp text-foreground hover:bg-surface focus:  ";
 
 const href = (cale: string, interogare: string): string =>
   interogare === "" ? cale : `${cale}?${interogare}`;
@@ -38,9 +38,9 @@ export async function JurnalAudit({ cale, filtre, mod }: Props) {
 
       <div aria-live="polite" className="space-y-4">
         {!rezultat.ok ? (
-          <div className="border-border bg-surface rounded-lg border p-6 text-center">
+          <div className="border-border bg-surface rounded-panou border p-6 text-center">
             <AlertTriangle aria-hidden="true" className="text-danger mx-auto size-6" />
-            <p className="text-foreground mt-2 text-sm">{rezultat.mesaj}</p>
+            <p className="text-foreground text-corp mt-2">{rezultat.mesaj}</p>
             <a
               href={href(cale, `${interogareCurenta}&reincarca=1`)}
               className={`${clasaLink} mt-4`}
@@ -50,12 +50,12 @@ export async function JurnalAudit({ cale, filtre, mod }: Props) {
             </a>
           </div>
         ) : rezultat.randuri.length === 0 ? (
-          <div className="border-border bg-surface rounded-lg border p-8 text-center">
+          <div className="border-border bg-surface rounded-panou border p-8 text-center">
             <FileSearch aria-hidden="true" className="text-muted-foreground mx-auto size-6" />
-            <p className="text-foreground mt-2 text-sm font-medium">
+            <p className="text-foreground text-corp mt-2 font-medium">
               Niciun eveniment pentru filtrele alese
             </p>
-            <p className="text-muted-foreground mt-1 text-sm">
+            <p className="text-muted-foreground text-corp mt-1">
               Încearcă un interval de date mai larg sau renunță la filtre.
             </p>
             <a href={cale} className={`${clasaLink} mt-4`}>
@@ -65,7 +65,7 @@ export async function JurnalAudit({ cale, filtre, mod }: Props) {
         ) : (
           <>
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-muted-foreground text-sm">
+              <p className="text-muted-foreground text-corp">
                 Se afișează {rezultat.randuri.length}{" "}
                 {rezultat.randuri.length === 1 ? "eveniment" : "de evenimente"}, de la cel mai
                 recent. Jurnalul este doar pentru citire.
@@ -92,7 +92,7 @@ export async function JurnalAudit({ cale, filtre, mod }: Props) {
                   Evenimente mai vechi
                 </a>
               ) : (
-                <span className="text-muted-foreground text-sm">Ai ajuns la capătul listei.</span>
+                <span className="text-muted-foreground text-corp">Ai ajuns la capătul listei.</span>
               )}
             </nav>
           </>

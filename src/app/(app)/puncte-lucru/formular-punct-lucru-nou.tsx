@@ -4,6 +4,7 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
 import { JUDETE } from "@/schemas/organization";
 import { creeazaPunctLucru } from "./actions";
 
@@ -42,25 +43,24 @@ export function FormularPunctLucruNou() {
 
   if (!deschis) {
     return (
-      <button
-        type="button"
+      <Buton
+        varianta="primar"
         onClick={() => {
           setDeschis(true);
         }}
-        className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium"
       >
         Punct de lucru nou
-      </button>
+      </Buton>
     );
   }
 
   return (
     <form
       action={trimite}
-      className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-2"
+      className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-2"
     >
       <div className="flex flex-col gap-1">
-        <label htmlFor={idDenumire} className="text-sm font-medium">
+        <label htmlFor={idDenumire} className="text-corp font-medium">
           Denumire *
         </label>
         <input
@@ -69,17 +69,17 @@ export function FormularPunctLucruNou() {
           type="text"
           required
           maxLength={160}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={idJudet} className="text-sm font-medium">
+        <label htmlFor={idJudet} className="text-corp font-medium">
           Județ
         </label>
         <select
           id={idJudet}
           name="judet"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         >
           <option value="">— Alegeți —</option>
           {JUDETE.map((judet) => (
@@ -90,7 +90,7 @@ export function FormularPunctLucruNou() {
         </select>
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={idOras} className="text-sm font-medium">
+        <label htmlFor={idOras} className="text-corp font-medium">
           Localitate
         </label>
         <input
@@ -98,11 +98,11 @@ export function FormularPunctLucruNou() {
           name="oras"
           type="text"
           maxLength={80}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={idCodPostal} className="text-sm font-medium">
+        <label htmlFor={idCodPostal} className="text-corp font-medium">
           Cod poștal
         </label>
         <input
@@ -110,11 +110,11 @@ export function FormularPunctLucruNou() {
           name="cod_postal"
           type="text"
           maxLength={10}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
       <div className="flex flex-col gap-1 sm:col-span-2">
-        <label htmlFor={idAdresa} className="text-sm font-medium">
+        <label htmlFor={idAdresa} className="text-corp font-medium">
           Adresă
         </label>
         <input
@@ -122,7 +122,7 @@ export function FormularPunctLucruNou() {
           name="adresa"
           type="text"
           maxLength={240}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
       <div className="flex items-center gap-2 sm:col-span-2">
@@ -132,30 +132,25 @@ export function FormularPunctLucruNou() {
           type="checkbox"
           className="border-border size-4 rounded"
         />
-        <label htmlFor={`${idDenumire}-principal`} className="text-sm">
+        <label htmlFor={`${idDenumire}-principal`} className="text-corp">
           Sediu principal
         </label>
       </div>
       <div className="flex items-center gap-3 sm:col-span-2">
-        <button
-          type="submit"
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se creează…" : "Creează punctul de lucru"}
-        </button>
-        <button
-          type="button"
+        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se creează…">
+          Creează punctul de lucru
+        </Buton>
+        <Buton
+          varianta="link"
           onClick={() => {
             setDeschis(false);
             setEroare(null);
           }}
-          className="text-muted-foreground hover:text-foreground text-sm underline underline-offset-4"
         >
           Renunță
-        </button>
+        </Buton>
         {eroare === null ? null : (
-          <p role="alert" className="text-danger text-sm">
+          <p role="alert" className="text-danger text-corp">
             {eroare}
           </p>
         )}

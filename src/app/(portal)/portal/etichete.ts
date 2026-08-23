@@ -8,6 +8,8 @@
 // stare adăugată printr-o migrare viitoare trebuie să se afișeze ca atare, nu să
 // scoată `undefined` pe ecranul unui om.
 
+import type { TonStare } from "@/components/ui/badge";
+
 export const ETICHETE_STATUS_CERERE: Readonly<Record<string, string>> = {
   ciorna: "Ciornă",
   trimisa: "Trimisă spre aprobare",
@@ -20,16 +22,22 @@ export const ETICHETE_STATUS_CERERE: Readonly<Record<string, string>> = {
 
 /**
  * Culoarea NU e singurul purtător de sens — badge-ul are întotdeauna text.
- * Aici alegem doar accentul, pentru cine îl poate percepe.
+ * Aici alegem doar tonul, pentru cine îl poate percepe.
+ *
+ * Indexat pe `string` din același motiv ca `ETICHETE_STATUS_CERERE`: o stare
+ * nouă venită din bază iese `undefined`, iar locurile de randare o tratează ca
+ * „neutru” — stare necunoscută.
  */
-export const CLASE_STATUS_CERERE: Readonly<Record<string, string>> = {
-  ciorna: "border-border text-muted-foreground",
-  trimisa: "border-ring text-foreground",
-  in_aprobare: "border-ring text-foreground",
-  aprobata: "border-success text-success",
-  respinsa: "border-danger text-danger",
-  anulata: "border-border text-muted-foreground",
-  intrerupta: "border-warning text-warning",
+export const TONURI_STATUS_CERERE: Readonly<Record<string, TonStare>> = {
+  ciorna: "ciorna",
+  // Depusă, dar încă fără răspuns: atenție, nu succes.
+  trimisa: "atentie",
+  in_aprobare: "atentie",
+  aprobata: "succes",
+  respinsa: "pericol",
+  anulata: "neutru",
+  // Rechemarea din concediu cere atenția omului, nu e o încheiere liniștită.
+  intrerupta: "atentie",
 };
 
 export const ETICHETE_TIP_ZI: Readonly<Record<string, string>> = {

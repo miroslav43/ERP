@@ -4,6 +4,8 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
+
 import { incheieComponentaAngajat } from "./componente-actions";
 
 interface Proprietati {
@@ -16,18 +18,18 @@ export function ButonIncheieComponenta({ id, employeeId }: Proprietati) {
   const [inCurs, porneste] = useTransition();
 
   return (
-    <button
-      type="button"
-      disabled={inCurs}
+    <Buton
+      varianta="distructiv"
+      inCurs={inCurs}
+      textInCurs="Se încheie…"
       onClick={() => {
         porneste(async () => {
           await incheieComponentaAngajat({ id, employee_id: employeeId });
           router.refresh();
         });
       }}
-      className="text-danger hover:bg-danger/8 rounded-md px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50"
     >
-      {inCurs ? "Se încheie…" : "Încheie"}
-    </button>
+      Încheie
+    </Buton>
   );
 }

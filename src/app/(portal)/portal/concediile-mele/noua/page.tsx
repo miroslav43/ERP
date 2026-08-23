@@ -4,6 +4,8 @@ import Link from "next/link";
 import { Settings } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
+import { buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -86,13 +88,11 @@ export default async function PaginaCerereNouaPortal() {
   const zileRecuperare = organizatie.filter((z) => z.tip === "zi_recuperare").map((z) => z.data);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 p-4">
-      <header>
-        <h1 className="text-foreground text-xl font-semibold">Cerere de concediu</h1>
-        <p className="text-muted-foreground text-sm">
-          Alegeți perioada; zilele lucrătoare se numără automat, fără sărbători legale.
-        </p>
-      </header>
+    <div className={`${LATIMI.formular} space-y-4 p-4`}>
+      <AntetPagina
+        titlu="Cerere de concediu"
+        descriere="Alegeți perioada; zilele lucrătoare se numără automat, fără sărbători legale."
+      />
 
       {tipuri === null || tipuri.length === 0 ? (
         <StareGoala
@@ -117,10 +117,7 @@ export default async function PaginaCerereNouaPortal() {
       )}
 
       <p>
-        <Link
-          href="/portal/concediile-mele"
-          className="text-primary text-sm underline-offset-2 hover:underline"
-        >
+        <Link href="/portal/concediile-mele" className={buton({ varianta: "link" })}>
           Înapoi la concediile mele
         </Link>
       </p>

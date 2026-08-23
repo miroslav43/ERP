@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
 import { TIPURI_ZI_ALEGERE, type TipZi } from "@/schemas/attendance";
 import {
   oreLucrateDinInterval,
@@ -29,7 +30,7 @@ interface Proprietati {
   readonly onInchide: () => void;
 }
 
-const CLASA_CAMP = "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
+const CLASA_CAMP = "mt-1 w-full rounded-control border border-foreground/60 px-3 py-2 text-corp";
 
 /**
  * Editorul unei zile de pontaj, ca `<dialog>` nativ — focus trap și Escape
@@ -195,16 +196,16 @@ export function CelulaZi({
       ref={dialogRef}
       aria-labelledby={idTitlu}
       onClose={onInchide}
-      className="border-border bg-surface text-foreground w-full max-w-md rounded-lg border p-0 backdrop:bg-black/40"
+      className="border-border bg-surface text-foreground rounded-panou w-full max-w-md border p-0 backdrop:bg-black/40"
     >
       <form onSubmit={trimite} className="space-y-4 p-5" noValidate>
-        <h2 id={idTitlu} className="text-base font-semibold">
+        <h2 id={idTitlu} className="text-sectiune font-semibold">
           {eticheta}
         </h2>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label htmlFor={idOraInceput} className="block text-sm font-medium">
+            <label htmlFor={idOraInceput} className="text-corp block font-medium">
               Ora început
             </label>
             <input
@@ -219,7 +220,7 @@ export function CelulaZi({
             />
           </div>
           <div>
-            <label htmlFor={idOraSfarsit} className="block text-sm font-medium">
+            <label htmlFor={idOraSfarsit} className="text-corp block font-medium">
               Ora sfârșit
             </label>
             <input
@@ -234,7 +235,7 @@ export function CelulaZi({
             />
           </div>
           <div>
-            <label htmlFor={idOreLucrate} className="block text-sm font-medium">
+            <label htmlFor={idOreLucrate} className="text-corp block font-medium">
               Ore lucrate
             </label>
             <input
@@ -251,7 +252,7 @@ export function CelulaZi({
             />
           </div>
           <div>
-            <label htmlFor={idOreSuplimentare} className="block text-sm font-medium">
+            <label htmlFor={idOreSuplimentare} className="text-corp block font-medium">
               Ore suplimentare
             </label>
             <input
@@ -268,7 +269,7 @@ export function CelulaZi({
             />
           </div>
           <div>
-            <label htmlFor={idOreNoapte} className="block text-sm font-medium">
+            <label htmlFor={idOreNoapte} className="text-corp block font-medium">
               Ore noapte
             </label>
             <input
@@ -285,7 +286,7 @@ export function CelulaZi({
             />
           </div>
           <div>
-            <label htmlFor={idTipZi} className="block text-sm font-medium">
+            <label htmlFor={idTipZi} className="text-corp block font-medium">
               Tip special
             </label>
             <select
@@ -307,7 +308,7 @@ export function CelulaZi({
         </div>
 
         <div>
-          <label htmlFor={idObservatii} className="block text-sm font-medium">
+          <label htmlFor={idObservatii} className="text-corp block font-medium">
             Observații
           </label>
           <textarea
@@ -323,16 +324,16 @@ export function CelulaZi({
         </div>
 
         {intrare !== null && intrare.respins ? (
-          <p className="border-danger/40 bg-danger/10 rounded-md border p-3 text-sm">
+          <p className="border-danger/40 bg-danger/10 rounded-control text-corp border p-3">
             <strong>Zi respinsă.</strong> {intrare.motivRespingere ?? "Fără motiv înregistrat."}{" "}
             Corectați-o și salvați din nou.
           </p>
         ) : null}
 
         {intrare !== null && poateAproba ? (
-          <fieldset className="border-border rounded-lg border p-3">
-            <legend className="px-1 text-sm font-medium">Decizia pe ziua asta</legend>
-            <p className="text-muted-foreground mb-2 text-sm">
+          <fieldset className="border-border rounded-panou border p-3">
+            <legend className="text-corp px-1 font-medium">Decizia pe ziua asta</legend>
+            <p className="text-muted-foreground text-corp mb-2">
               {intrare.aprobat
                 ? "Ziua e aprobată. O poți respinge dacă ai găsit o problemă."
                 : "Ziua nu e încă decisă. Aprobarea în bloc, din ecranul de aprobări, decide toată luna deodată."}
@@ -340,7 +341,7 @@ export function CelulaZi({
 
             {ceareMotiv ? (
               <div className="mb-2">
-                <label htmlFor={idMotivRespingere} className="block text-sm font-medium">
+                <label htmlFor={idMotivRespingere} className="text-corp block font-medium">
                   Motivul respingerii
                 </label>
                 <input
@@ -358,18 +359,17 @@ export function CelulaZi({
             ) : null}
 
             <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
+              <Buton
+                varianta="secundar"
                 onClick={() => {
                   decide(true);
                 }}
                 disabled={inCurs || intrare.aprobat}
-                className="border-border rounded-md border px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Aprobă ziua
-              </button>
-              <button
-                type="button"
+              </Buton>
+              <Buton
+                varianta="distructiv"
                 onClick={() => {
                   if (!ceareMotiv) {
                     setCereMotiv(true);
@@ -378,43 +378,29 @@ export function CelulaZi({
                   decide(false);
                 }}
                 disabled={inCurs}
-                className="border-danger text-danger hover:bg-danger hover:text-danger-foreground rounded-md border px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {ceareMotiv ? "Confirmă respingerea" : "Respinge ziua"}
-              </button>
+              </Buton>
             </div>
           </fieldset>
         ) : null}
 
         <div aria-live="polite">
-          {eroare === null ? null : <p className="text-danger text-sm">{eroare}</p>}
+          {eroare === null ? null : <p className="text-danger text-corp">{eroare}</p>}
         </div>
 
         <div className="flex flex-wrap justify-end gap-2">
           {intrare !== null && poateSterge ? (
-            <button
-              type="button"
-              onClick={sterge}
-              disabled={inCurs}
-              className="border-danger text-danger hover:bg-danger hover:text-danger-foreground disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md border px-3 py-2 text-sm disabled:cursor-not-allowed"
-            >
+            <Buton varianta="distructiv" onClick={sterge} disabled={inCurs}>
               Șterge ziua
-            </button>
+            </Buton>
           ) : null}
-          <button
-            type="button"
-            onClick={onInchide}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
-          >
+          <Buton varianta="secundar" onClick={onInchide}>
             Renunță
-          </button>
-          <button
-            type="submit"
-            disabled={inCurs}
-            className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-          >
-            {inCurs ? "Se salvează…" : "Salvează"}
-          </button>
+          </Buton>
+          <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+            Salvează
+          </Buton>
         </div>
       </form>
     </dialog>

@@ -4,6 +4,7 @@ import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { IncarcareAvatar } from "@/components/forms/incarcare-avatar";
+import { Buton } from "@/components/ui/buton";
 import {
   actualizeazaProfilul,
   pregatesteIncarcareAvatarulPropriu,
@@ -78,7 +79,7 @@ export function FormularProfil({
 
   return (
     <div className="space-y-6">
-      <div className="border-border rounded-lg border p-4">
+      <div className="border-border rounded-panou border p-4">
         <IncarcareAvatar
           urlInitial={avatarUrlInitial}
           nume={numeInitial}
@@ -89,12 +90,12 @@ export function FormularProfil({
 
       <form
         action={trimiteDate}
-        className="border-border grid gap-4 rounded-lg border p-4 sm:grid-cols-2"
+        className="border-border rounded-panou grid gap-4 border p-4 sm:grid-cols-2"
       >
-        <p className="text-sm font-medium sm:col-span-2">Date de contact</p>
+        <p className="text-corp font-medium sm:col-span-2">Date de contact</p>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={idNume} className="text-sm">
+          <label htmlFor={idNume} className="text-corp">
             Nume afișat
           </label>
           <input
@@ -103,12 +104,12 @@ export function FormularProfil({
             required
             maxLength={200}
             defaultValue={numeInitial}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={idTelefon} className="text-sm">
+          <label htmlFor={idTelefon} className="text-corp">
             Telefon
           </label>
           <input
@@ -117,25 +118,21 @@ export function FormularProfil({
             type="tel"
             maxLength={30}
             defaultValue={telefonInitial ?? ""}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
-          <button
-            type="submit"
-            disabled={inCursDate}
-            className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:bg-surface disabled:text-muted-foreground disabled:border-border rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-          >
-            {inCursDate ? "Se salvează…" : "Salvează datele"}
-          </button>
+          <Buton varianta="primar" type="submit" inCurs={inCursDate} textInCurs="Se salvează…">
+            Salvează datele
+          </Buton>
           {eroareDate === null ? null : (
-            <p role="alert" className="text-danger text-sm">
+            <p role="alert" className="text-danger text-corp">
               {eroareDate}
             </p>
           )}
           {reusitDate ? (
-            <p role="status" className="text-foreground text-sm">
+            <p role="status" className="text-foreground text-corp">
               Datele au fost actualizate.
             </p>
           ) : null}
@@ -144,12 +141,12 @@ export function FormularProfil({
 
       <form
         action={trimiteParola}
-        className="border-border grid gap-4 rounded-lg border p-4 sm:grid-cols-2"
+        className="border-border rounded-panou grid gap-4 border p-4 sm:grid-cols-2"
       >
-        <p className="text-sm font-medium sm:col-span-2">Schimbă parola</p>
+        <p className="text-corp font-medium sm:col-span-2">Schimbă parola</p>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={idParolaNoua} className="text-sm">
+          <label htmlFor={idParolaNoua} className="text-corp">
             Parolă nouă
           </label>
           <input
@@ -159,12 +156,12 @@ export function FormularProfil({
             required
             minLength={8}
             autoComplete="new-password"
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={idConfirmaParola} className="text-sm">
+          <label htmlFor={idConfirmaParola} className="text-corp">
             Confirmă parola
           </label>
           <input
@@ -174,25 +171,21 @@ export function FormularProfil({
             required
             minLength={8}
             autoComplete="new-password"
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
-          <button
-            type="submit"
-            disabled={inCursParola}
-            className="border-foreground/60 hover:bg-surface disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-          >
-            {inCursParola ? "Se schimbă…" : "Schimbă parola"}
-          </button>
+          <Buton varianta="secundar" type="submit" inCurs={inCursParola} textInCurs="Se schimbă…">
+            Schimbă parola
+          </Buton>
           {eroareParola === null ? null : (
-            <p role="alert" className="text-danger text-sm">
+            <p role="alert" className="text-danger text-corp">
               {eroareParola}
             </p>
           )}
           {reusitParola ? (
-            <p role="status" className="text-foreground text-sm">
+            <p role="status" className="text-foreground text-corp">
               Parola a fost schimbată.
             </p>
           ) : null}

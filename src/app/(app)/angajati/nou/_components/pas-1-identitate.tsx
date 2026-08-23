@@ -60,8 +60,8 @@ export function Pas1Identitate({ formular, idFormular }: Proprietati) {
 
   return (
     <div className="space-y-6">
-      <fieldset className="border-border space-y-4 rounded-lg border p-4">
-        <legend className="text-foreground px-1 text-sm font-medium">Identitate</legend>
+      <fieldset className="border-border rounded-panou space-y-4 border p-4">
+        <legend className="text-foreground text-corp px-1 font-medium">Identitate</legend>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor={`${idFormular}-prenume`} className={claseLabel}>
@@ -142,8 +142,8 @@ export function Pas1Identitate({ formular, idFormular }: Proprietati) {
         </div>
       </fieldset>
 
-      <fieldset className="border-border space-y-4 rounded-lg border p-4">
-        <legend className="text-foreground px-1 text-sm font-medium">Act de identitate</legend>
+      <fieldset className="border-border rounded-panou space-y-4 border p-4">
+        <legend className="text-foreground text-corp px-1 font-medium">Act de identitate</legend>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor={`${idFormular}-tip-act`} className={claseLabel}>
@@ -214,8 +214,8 @@ export function Pas1Identitate({ formular, idFormular }: Proprietati) {
         </div>
       </fieldset>
 
-      <fieldset className="border-border space-y-4 rounded-lg border p-4">
-        <legend className="text-foreground px-1 text-sm font-medium">Situație personală</legend>
+      <fieldset className="border-border rounded-panou space-y-4 border p-4">
+        <legend className="text-foreground text-corp px-1 font-medium">Situație personală</legend>
         <div className="grid gap-4 sm:grid-cols-3">
           <div>
             <label htmlFor={`${idFormular}-handicap`} className={claseLabel}>
@@ -249,7 +249,7 @@ export function Pas1Identitate({ formular, idFormular }: Proprietati) {
                 {...register("optiune_pilon_ii")}
                 className="border-border size-4 rounded"
               />
-              <label htmlFor={`${idFormular}-pilon-ii`} className="text-foreground text-sm">
+              <label htmlFor={`${idFormular}-pilon-ii`} className="text-foreground text-corp">
                 Optează pentru Pilonul II
               </label>
             </div>
@@ -258,11 +258,11 @@ export function Pas1Identitate({ formular, idFormular }: Proprietati) {
       </fieldset>
 
       {esteStrain ? (
-        <fieldset className="border-border space-y-4 rounded-lg border p-4">
-          <legend className="text-foreground px-1 text-sm font-medium">
+        <fieldset className="border-border rounded-panou space-y-4 border p-4">
+          <legend className="text-foreground text-corp px-1 font-medium">
             Dreptul de muncă (cetățean străin)
           </legend>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground text-corp">
             Munca fără permis valabil e contravenție pentru angajator. Completat aici, permisul
             intră în tabloul de expirabile și avertizează înainte de termen.
           </p>

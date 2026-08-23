@@ -169,12 +169,12 @@ export async function SectiuneConcedii({
   return (
     <section
       aria-labelledby="titlu-concedii"
-      className="border-border bg-surface rounded-lg border p-5 shadow-sm"
+      className="border-border bg-surface rounded-panou shadow-ridicat border p-5"
     >
-      <h2 id="titlu-concedii" className="mb-1 text-lg font-medium">
+      <h2 id="titlu-concedii" className="text-sectiune mb-1 font-medium">
         Concedii
       </h2>
-      <p className="text-muted-foreground mb-4 text-sm">
+      <p className="text-muted-foreground text-corp mb-4">
         Dreptul anual pentru {String(anCurent)}, rezultat din regula companiei.{" "}
         <Link href="/concedii/setari" className="underline underline-offset-2">
           Editați regulile
@@ -187,7 +187,7 @@ export async function SectiuneConcedii({
             key={tip.id}
             className="border-border flex flex-wrap items-baseline justify-between gap-2 border-t pt-2 first:border-t-0 first:pt-0"
           >
-            <span className="flex items-center gap-2 text-sm">
+            <span className="text-corp flex items-center gap-2">
               <span
                 className="inline-block size-2.5 rounded-full"
                 style={{ backgroundColor: tip.culoare }}
@@ -195,10 +195,10 @@ export async function SectiuneConcedii({
               />
               {tip.denumire}
             </span>
-            <span className="text-right text-sm">
+            <span className="text-corp text-right">
               <span className="font-medium tabular-nums">{formatAmount(dreptAfisat)} zile</span>
               {regulileOriginale.length === 0 ? null : (
-                <span className="text-muted-foreground ml-2 text-xs">
+                <span className="text-muted-foreground text-nota ml-2">
                   ({formatAmount(tip.zile_implicite)} bază
                   {regulileOriginale
                     .map(

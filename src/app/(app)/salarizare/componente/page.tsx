@@ -3,7 +3,8 @@ import type { Metadata } from "next";
 import { Percent } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -65,51 +66,50 @@ export default async function PaginaComponenteSalariale() {
   const sabloane = data ?? [];
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Sporuri și prime</h1>
-          <p className="text-muted-foreground text-sm">
-            Șabloane reutilizabile — se creează o singură dată, apoi se asociază angajaților de pe
-            fișa fiecăruia, cu un procent sau o sumă fixă.
-          </p>
-        </div>
-        {poateCrea ? <FormularSablonComponentaNou /> : null}
-      </header>
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Sporuri și prime"
+        descriere="Șabloane reutilizabile — se creează o singură dată, apoi se asociază angajaților de pe fișa fiecăruia, cu un procent sau o sumă fixă."
+        {...(poateCrea ? { actiuni: <FormularSablonComponentaNou /> } : {})}
+      />
 
       {sabloane.length === 0 ? (
-        <EmptyState
-          icon={Percent}
-          title="Niciun șablon de spor sau primă"
-          description="Adăugați primul șablon — de exemplu „Spor de vechime” sau „Primă de performanță”."
+        <StareGoala
+          fel="initiala"
+          pictograma={Percent}
+          titlu="Niciun șablon de spor sau primă"
+          descriere="Adăugați primul șablon — de exemplu „Spor de vechime” sau „Primă de performanță”."
         />
       ) : (
         <ul className="space-y-3">
           {sabloane.map((sablon) => (
-            <li key={sablon.id} className="border-border bg-surface rounded-lg border shadow-sm">
+            <li
+              key={sablon.id}
+              className="border-border bg-surface rounded-panou shadow-ridicat border"
+            >
               <div className="flex flex-wrap items-start gap-3 px-4 py-3">
-                <span className="bg-background flex size-9 shrink-0 items-center justify-center rounded-md">
+                <span className="bg-background rounded-control flex size-9 shrink-0 items-center justify-center">
                   <Percent aria-hidden="true" className="text-primary size-4.5" />
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">{sablon.denumire}</span>
-                    <span className="text-muted-foreground font-mono text-xs">{sablon.cod}</span>
-                    <span className="bg-primary/10 text-primary rounded-full px-2 py-0.5 text-xs font-medium">
+                    <span className="text-muted-foreground text-nota font-mono">{sablon.cod}</span>
+                    <span className="bg-primary/10 text-primary text-nota rounded-full px-2 py-0.5 font-medium">
                       {ETICHETE_TIP[sablon.kind] ?? sablon.kind}
                     </span>
                     {sablon.organization_id === null ? (
-                      <span className="bg-background text-muted-foreground rounded-full px-2 py-0.5 text-xs font-medium">
+                      <span className="bg-background text-muted-foreground text-nota rounded-full px-2 py-0.5 font-medium">
                         Șablon platformă
                       </span>
                     ) : null}
                     {!sablon.activ ? (
-                      <span className="bg-background text-muted-foreground rounded-full px-2 py-0.5 text-xs font-medium">
+                      <span className="bg-background text-muted-foreground text-nota rounded-full px-2 py-0.5 font-medium">
                         Inactiv
                       </span>
                     ) : null}
                   </div>
-                  <p className="text-muted-foreground mt-1 text-sm">
+                  <p className="text-muted-foreground text-corp mt-1">
                     {sablon.impozabil ? "Impozabil" : "Neimpozabil"} ·{" "}
                     {sablon.intra_in_baza_cas ? "intră în baza CAS" : "nu intră în baza CAS"} ·{" "}
                     {sablon.intra_in_baza_cass ? "intră în baza CASS" : "nu intră în baza CASS"}
@@ -126,6 +126,6 @@ export default async function PaginaComponenteSalariale() {
           ))}
         </ul>
       )}
-    </main>
+    </div>
   );
 }

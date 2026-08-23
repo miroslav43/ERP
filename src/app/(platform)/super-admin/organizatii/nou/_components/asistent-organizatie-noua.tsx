@@ -11,6 +11,7 @@ import {
   onboardeazaOrganizatieSchema,
   type OnboardeazaOrganizatieInput,
 } from "@/schemas/organization";
+import { Buton, buton } from "@/components/ui/buton";
 import { onboardeazaOrganizatie } from "../actions";
 import { ProgresAsistent, ETICHETE_PASI } from "@/components/onboarding/progres-asistent";
 import { Pas1Identitate, CAMPURI_PAS_1 } from "@/components/onboarding/pas-1-identitate";
@@ -136,13 +137,13 @@ export function AsistentOrganizatieNoua({ valoriInitiale }: Proprietati = {}) {
 
   if (rezultat !== null) {
     return (
-      <div className="border-border bg-surface space-y-4 rounded-lg border p-6">
-        <h2 className="text-foreground text-lg font-semibold">
+      <div className="border-border bg-surface rounded-panou space-y-4 border p-6">
+        <h2 className="text-foreground text-sectiune font-semibold">
           Organizația „{rezultat.name}” a fost creată
         </h2>
         {rezultat.invitatie.trimisa ? (
           <>
-            <p className="text-muted-foreground text-sm">
+            <p className="text-muted-foreground text-corp">
               {rezultat.invitatie.prinEmail
                 ? "Invitația a plecat pe e-mail către administrator. Linkul de mai jos e o rezervă, dacă mesajul nu ajunge — nu mai poate fi recuperat după ce părăsești pagina, fiindcă în baza de date se păstrează doar amprenta tokenului."
                 : "Invitația a fost creată, dar e-mailul nu a putut fi trimis. Trimite manual linkul de mai jos — nu mai poate fi recuperat după ce părăsești pagina, fiindcă în baza de date se păstrează doar amprenta tokenului. Poate fi regenerat oricând din ecranul de membri."}
@@ -150,7 +151,7 @@ export function AsistentOrganizatieNoua({ valoriInitiale }: Proprietati = {}) {
             <LinkInvitatie link={rezultat.invitatie.linkInvitatie} />
           </>
         ) : (
-          <p className="text-danger text-sm">
+          <p className="text-danger text-corp">
             Organizația s-a creat, dar invitația proprietarului nu a putut fi trimisă automat (
             {rezultat.invitatie.eroare}). Trimiteți-o manual din ecranul de membri.
           </p>
@@ -158,14 +159,11 @@ export function AsistentOrganizatieNoua({ valoriInitiale }: Proprietati = {}) {
         <div className="flex gap-3">
           <Link
             href={`/super-admin/organizatii/${rezultat.id}`}
-            className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium"
+            className={buton({ varianta: "primar" })}
           >
             Deschide fișa organizației
           </Link>
-          <Link
-            href="/super-admin/organizatii"
-            className="border-border text-foreground rounded-md border px-4 py-2 text-sm font-medium"
-          >
+          <Link href="/super-admin/organizatii" className={buton({ varianta: "secundar" })}>
             Înapoi la listă
           </Link>
         </div>
@@ -181,7 +179,7 @@ export function AsistentOrganizatieNoua({ valoriInitiale }: Proprietati = {}) {
         {eroareServer && (
           <p
             role="alert"
-            className="border-border bg-surface text-danger rounded-md border p-3 text-sm"
+            className="border-border bg-surface text-danger rounded-control text-corp border p-3"
           >
             {eroareServer}
           </p>
@@ -198,32 +196,20 @@ export function AsistentOrganizatieNoua({ valoriInitiale }: Proprietati = {}) {
 
       <div className="flex items-center gap-3">
         {pasCurent > 1 && (
-          <button
-            type="button"
-            onClick={mergiInapoi}
-            className="border-border text-foreground rounded-md border px-4 py-2 text-sm font-medium"
-          >
+          <Buton varianta="secundar" onClick={mergiInapoi}>
             Înapoi
-          </button>
+          </Buton>
         )}
         {pasCurent < TOTAL_PASI ? (
-          <button
-            type="button"
-            onClick={mergiInainte}
-            className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium"
-          >
+          <Buton varianta="primar" onClick={mergiInainte}>
             Continuă
-          </button>
+          </Buton>
         ) : (
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-          >
-            {isSubmitting ? "Se creează…" : "Creează organizația"}
-          </button>
+          <Buton type="submit" varianta="primar" inCurs={isSubmitting} textInCurs="Se creează…">
+            Creează organizația
+          </Buton>
         )}
-        <p aria-live="polite" className="text-muted-foreground text-sm">
+        <p aria-live="polite" className="text-muted-foreground text-corp">
           {isSubmitting ? "Se salvează datele…" : ""}
         </p>
       </div>

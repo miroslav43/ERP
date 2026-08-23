@@ -4,7 +4,8 @@ import type { Metadata } from "next";
 import { BarChart3 } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -19,9 +20,9 @@ interface ProprietatiPagina {
 
 function CardTotal({ eticheta, valoare }: { readonly eticheta: string; readonly valoare: string }) {
   return (
-    <div className="border-border bg-surface rounded-lg border p-4">
-      <p className="text-muted-foreground text-xs tracking-wide uppercase">{eticheta}</p>
-      <p className="text-foreground mt-1 text-xl font-semibold">{valoare}</p>
+    <div className="border-border bg-surface rounded-panou border p-4">
+      <p className="text-muted-foreground text-nota tracking-wide uppercase">{eticheta}</p>
+      <p className="text-foreground text-titlu mt-1 font-semibold">{valoare}</p>
     </div>
   );
 }
@@ -47,37 +48,35 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
   const aniDisponibili = Array.from({ length: 5 }, (_, i) => anulCurent - i);
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Rapoarte</h1>
-          <p className="text-muted-foreground text-sm">
-            Concediu, venit, tichete de masă și ore suplimentare — pe angajat și agregat pe
-            organizație, din perioadele de salarizare calculate.
-          </p>
-        </div>
-        <nav aria-label="Alege anul" className="flex flex-wrap gap-1.5">
-          {aniDisponibili.map((valoare) => (
-            <Link
-              key={valoare}
-              href={`/rapoarte?an=${String(valoare)}`}
-              className={`rounded-md border px-3 py-1.5 text-sm font-medium ${
-                valoare === an
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border text-foreground hover:bg-surface"
-              }`}
-            >
-              {valoare}
-            </Link>
-          ))}
-        </nav>
-      </header>
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Rapoarte"
+        descriere="Concediu, venit, tichete de masă și ore suplimentare — pe angajat și agregat pe organizație, din perioadele de salarizare calculate."
+        actiuni={
+          <nav aria-label="Alege anul" className="flex flex-wrap gap-1.5">
+            {aniDisponibili.map((valoare) => (
+              <Link
+                key={valoare}
+                href={`/rapoarte?an=${String(valoare)}`}
+                className={`rounded-control text-corp border px-3 py-1.5 font-medium ${
+                  valoare === an
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border text-foreground hover:bg-surface"
+                }`}
+              >
+                {valoare}
+              </Link>
+            ))}
+          </nav>
+        }
+      />
 
       {statistici.perAngajat.length === 0 ? (
-        <EmptyState
-          icon={BarChart3}
-          title={`Nicio perioadă calculată în ${String(an)}`}
-          description="Statisticile apar după ce cel puțin o perioadă de salarizare din acest an a fost calculată."
+        <StareGoala
+          fel="initiala"
+          pictograma={BarChart3}
+          titlu={`Nicio perioadă calculată în ${String(an)}`}
+          descriere="Statisticile apar după ce cel puțin o perioadă de salarizare din acest an a fost calculată."
         />
       ) : (
         <>
@@ -108,8 +107,8 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
             />
           </div>
 
-          <div className="border-border overflow-x-auto rounded-lg border">
-            <table className="w-full text-sm">
+          <div className="border-border rounded-panou overflow-x-auto border">
+            <table className="text-corp w-full">
               <caption className="sr-only">Statistici anuale per angajat, {an}.</caption>
               <thead className="bg-surface text-left">
                 <tr>
@@ -146,7 +145,7 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
                       >
                         {angajat.fullName}
                       </Link>
-                      <span className="text-muted-foreground ml-1.5 font-mono text-xs">
+                      <span className="text-muted-foreground text-nota ml-1.5 font-mono">
                         {angajat.marca}
                       </span>
                     </td>
@@ -175,6 +174,6 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
           </div>
         </>
       )}
-    </main>
+    </div>
   );
 }

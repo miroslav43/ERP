@@ -5,7 +5,10 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { AlertCircle, Check, Copy, Loader2, Send } from "lucide-react";
+import { AlertCircle, Check, Copy, Send } from "lucide-react";
+
+import { Buton } from "@/components/ui/buton";
+import { cn } from "@/lib/ui/cn";
 
 import {
   DESCRIERI_ROL,
@@ -28,8 +31,8 @@ import {
   suspendaMembru,
 } from "./actions";
 
-const CLASA_BUTON =
-  "inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs font-medium text-foreground hover:bg-background    disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground";
+/** Butoanele din celulele tabelului rămân compacte; restul geometriei vine din primitivă. */
+const CLASA_COMPACTA = "text-nota h-8 gap-1 px-2";
 
 function Mesaj({ text, ton }: Readonly<{ text: string | null; ton: "succes" | "eroare" }>) {
   if (!text) return null;
@@ -37,7 +40,7 @@ function Mesaj({ text, ton }: Readonly<{ text: string | null; ton: "succes" | "e
     <p
       role={ton === "eroare" ? "alert" : "status"}
       aria-live="polite"
-      className={`mt-2 inline-flex items-start gap-1 text-xs ${ton === "eroare" ? "text-danger" : "text-success"}`}
+      className={`text-nota mt-2 inline-flex items-start gap-1 ${ton === "eroare" ? "text-danger" : "text-success"}`}
     >
       {ton === "eroare" ? (
         <AlertCircle aria-hidden="true" className="mt-0.5 h-3 w-3 shrink-0" />
@@ -58,34 +61,33 @@ function ButonConfirmare({
   const [deschis, setDeschis] = useState(false);
   if (!deschis) {
     return (
-      <button
-        type="button"
-        className={CLASA_BUTON}
+      <Buton
+        varianta="secundar"
+        className={CLASA_COMPACTA}
         onClick={() => setDeschis(true)}
         disabled={inCurs}
       >
         {eticheta}
-      </button>
+      </Buton>
     );
   }
   return (
     <span className="inline-flex items-center gap-2">
-      <span className="text-muted-foreground text-xs">{intrebare}</span>
-      <button
-        type="button"
-        className={CLASA_BUTON}
-        disabled={inCurs}
+      <span className="text-muted-foreground text-nota">{intrebare}</span>
+      <Buton
+        varianta="secundar"
+        className={CLASA_COMPACTA}
+        inCurs={inCurs}
         onClick={() => {
           setDeschis(false);
           laConfirmare();
         }}
       >
-        {inCurs ? <Loader2 aria-hidden="true" className="h-3 w-3 animate-spin" /> : null}
         Da
-      </button>
-      <button type="button" className={CLASA_BUTON} onClick={() => setDeschis(false)}>
+      </Buton>
+      <Buton varianta="secundar" className={CLASA_COMPACTA} onClick={() => setDeschis(false)}>
         Nu
-      </button>
+      </Buton>
     </span>
   );
 }
@@ -106,15 +108,15 @@ export function LinkInvitatie({ link }: Readonly<{ link: string }>) {
   }
 
   return (
-    <div className="border-border bg-background mt-3 rounded-md border p-3">
-      <p className="text-foreground text-xs font-medium">
+    <div className="border-border bg-background rounded-control mt-3 border p-3">
+      <p className="text-foreground text-nota font-medium">
         Link de invitație (se afișează o singură dată)
       </p>
-      <p className="text-muted-foreground mt-1 font-mono text-xs break-all">{link}</p>
-      <button type="button" className={`${CLASA_BUTON} mt-2`} onClick={copiaza}>
+      <p className="text-muted-foreground text-nota mt-1 font-mono break-all">{link}</p>
+      <Buton varianta="secundar" className={cn(CLASA_COMPACTA, "mt-2")} onClick={copiaza}>
         <Copy aria-hidden="true" className="h-3 w-3" />
         {copiat ? "Copiat" : "Copiază linkul"}
-      </button>
+      </Buton>
       <span aria-live="polite" className="sr-only">
         {copiat ? "Linkul a fost copiat în clipboard." : ""}
       </span>
@@ -169,10 +171,10 @@ export function FormularInvitatie({ organizationId }: Readonly<{ organizationId:
 
   return (
     <form onSubmit={trimite} noValidate className="border-border bg-surface rounded-xl border p-4">
-      <h2 className="text-foreground text-sm font-semibold">Invită un membru</h2>
+      <h2 className="text-foreground text-corp font-semibold">Invită un membru</h2>
       <div className="mt-3 grid gap-4 sm:grid-cols-3">
         <div className="sm:col-span-2">
-          <label htmlFor="email-invitatie" className="text-foreground block text-sm font-medium">
+          <label htmlFor="email-invitatie" className="text-foreground text-corp block font-medium">
             Adresă de e-mail
           </label>
           <input
@@ -181,24 +183,24 @@ export function FormularInvitatie({ organizationId }: Readonly<{ organizationId:
             autoComplete="email"
             aria-invalid={errors.email ? true : false}
             aria-describedby={errors.email ? "eroare-email" : undefined}
-            className="border-border bg-background text-foreground mt-1 w-full rounded-md border px-3 py-2 text-sm"
+            className="border-border bg-background text-foreground rounded-control text-corp mt-1 w-full border px-3 py-2"
             {...register("email")}
           />
           {errors.email ? (
-            <p id="eroare-email" role="alert" className="text-danger mt-1 text-xs">
+            <p id="eroare-email" role="alert" className="text-danger text-nota mt-1">
               {errors.email.message}
             </p>
           ) : null}
         </div>
 
         <div>
-          <label htmlFor="rol-invitatie" className="text-foreground block text-sm font-medium">
+          <label htmlFor="rol-invitatie" className="text-foreground text-corp block font-medium">
             Rol
           </label>
           <select
             id="rol-invitatie"
             aria-describedby="descriere-rol"
-            className="border-border bg-background text-foreground mt-1 w-full rounded-md border px-3 py-2 text-sm"
+            className="border-border bg-background text-foreground rounded-control text-corp mt-1 w-full border px-3 py-2"
             {...register("role")}
           >
             {ROLURI_ATRIBUIBILE.map((rol) => (
@@ -207,13 +209,16 @@ export function FormularInvitatie({ organizationId }: Readonly<{ organizationId:
               </option>
             ))}
           </select>
-          <p id="descriere-rol" className="text-muted-foreground mt-1 text-xs">
+          <p id="descriere-rol" className="text-muted-foreground text-nota mt-1">
             {DESCRIERI_ROL[rolAles as RolAtribuibil]}
           </p>
         </div>
 
         <div>
-          <label htmlFor="expirare-invitatie" className="text-foreground block text-sm font-medium">
+          <label
+            htmlFor="expirare-invitatie"
+            className="text-foreground text-corp block font-medium"
+          >
             Valabilitate (zile)
           </label>
           <input
@@ -223,11 +228,11 @@ export function FormularInvitatie({ organizationId }: Readonly<{ organizationId:
             max={ZILE_EXPIRARE_MAX}
             aria-invalid={errors.expiraInZile ? true : false}
             aria-describedby={errors.expiraInZile ? "eroare-expirare" : undefined}
-            className="border-border bg-background text-foreground mt-1 w-full rounded-md border px-3 py-2 text-sm"
+            className="border-border bg-background text-foreground rounded-control text-corp mt-1 w-full border px-3 py-2"
             {...register("expiraInZile", { valueAsNumber: true })}
           />
           {errors.expiraInZile ? (
-            <p id="eroare-expirare" role="alert" className="text-danger mt-1 text-xs">
+            <p id="eroare-expirare" role="alert" className="text-danger text-nota mt-1">
               {errors.expiraInZile.message}
             </p>
           ) : null}
@@ -236,18 +241,10 @@ export function FormularInvitatie({ organizationId }: Readonly<{ organizationId:
 
       <input type="hidden" {...register("organizationId")} />
 
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground mt-4 inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium disabled:cursor-not-allowed"
-      >
-        {isSubmitting ? (
-          <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
-        ) : (
-          <Send aria-hidden="true" className="h-4 w-4" />
-        )}
+      <Buton type="submit" varianta="primar" inCurs={isSubmitting} className="mt-4">
+        {isSubmitting ? null : <Send aria-hidden="true" className="h-4 w-4" />}
         Trimite invitația
-      </button>
+      </Buton>
 
       <Mesaj text={eroare} ton="eroare" />
       <Mesaj text={succes} ton="succes" />
@@ -290,7 +287,9 @@ export function ActiuniMembru({
 
   if (esteContPropriu) {
     return (
-      <p className="text-muted-foreground text-xs">Cont propriu — nu poate fi modificat de aici.</p>
+      <p className="text-muted-foreground text-nota">
+        Cont propriu — nu poate fi modificat de aici.
+      </p>
     );
   }
 
@@ -304,7 +303,7 @@ export function ActiuniMembru({
           id={`rol-${memberId}`}
           defaultValue={rol}
           disabled={inCurs}
-          className="border-border bg-background text-foreground disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md border px-2 py-1 text-xs disabled:cursor-not-allowed"
+          className="border-border bg-background text-foreground disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-control text-nota border px-2 py-1 disabled:cursor-not-allowed"
           onChange={(eveniment) => {
             const rolNou = eveniment.target.value;
             ruleaza(async () => {
@@ -337,9 +336,9 @@ export function ActiuniMembru({
             }
           />
         ) : (
-          <button
-            type="button"
-            className={CLASA_BUTON}
+          <Buton
+            varianta="secundar"
+            className={CLASA_COMPACTA}
             disabled={inCurs}
             onClick={() =>
               ruleaza(async () => {
@@ -351,7 +350,7 @@ export function ActiuniMembru({
             }
           >
             Reactivează
-          </button>
+          </Buton>
         )}
       </div>
       <Mesaj text={eroare} ton="eroare" />
@@ -373,10 +372,10 @@ export function ActiuniInvitatie({
   return (
     <div className="flex flex-col items-start gap-2">
       <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          className={CLASA_BUTON}
-          disabled={inCurs}
+        <Buton
+          varianta="secundar"
+          className={CLASA_COMPACTA}
+          inCurs={inCurs}
           onClick={() => {
             setEroare(null);
             setSucces(null);
@@ -392,9 +391,8 @@ export function ActiuniInvitatie({
             });
           }}
         >
-          {inCurs ? <Loader2 aria-hidden="true" className="h-3 w-3 animate-spin" /> : null}
           Retrimite
-        </button>
+        </Buton>
 
         <ButonConfirmare
           eticheta="Revocă"

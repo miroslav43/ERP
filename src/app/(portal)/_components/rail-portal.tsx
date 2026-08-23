@@ -37,12 +37,14 @@ export function RailPortal({
     >
       <div className="flex items-center gap-2 px-2 py-1">
         <Building2 aria-hidden="true" className="text-accent size-4 shrink-0" />
-        <span className="min-w-0 truncate text-sm font-semibold text-white">{numeOrganizatie}</span>
+        <span className="text-corp min-w-0 truncate font-semibold text-white">
+          {numeOrganizatie}
+        </span>
       </div>
 
       {grupuri.map((grup) => (
         <div key={grup.id} className="flex flex-col gap-1">
-          <span className="px-2 text-[0.625rem] font-medium tracking-[0.15em] text-white/40 uppercase">
+          <span className="text-eticheta px-2 font-medium tracking-[0.15em] text-white/70 uppercase">
             {grup.label}
           </span>
           <ul className="flex flex-col gap-1">
@@ -64,10 +66,10 @@ export function RailPortal({
                     href={intrare.href}
                     aria-current={activ ? "page" : undefined}
                     className={
-                      "flex min-h-11 items-center gap-2.5 rounded-md px-2 py-2 text-sm font-medium transition-colors " +
+                      "rounded-control text-corp flex min-h-11 items-center gap-2.5 px-2 py-2 font-medium transition-colors " +
                       (activ
                         ? "bg-white/10 text-white"
-                        : "text-white/60 hover:bg-white/5 hover:text-white")
+                        : "text-white/70 hover:bg-white/5 hover:text-white")
                     }
                   >
                     <Iconita aria-hidden="true" className="size-4 shrink-0" />

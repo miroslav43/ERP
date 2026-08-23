@@ -4,14 +4,17 @@ import Link from "next/link";
 import { Plane, Plus } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
+import { Badge } from "@/components/ui/badge";
+import { buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate } from "@/lib/format/date";
 import { deplasarileMele, tari } from "@/lib/queries/per-diem";
 import { fisaMea } from "@/lib/queries/portal";
-import { CLASE_STATUS_DEPLASARE, ETICHETE_STATUS_DEPLASARE } from "@/app/(app)/diurna/etichete";
+import { ETICHETE_STATUS_DEPLASARE, TONURI_STATUS_DEPLASARE } from "@/app/(app)/diurna/etichete";
 
 import { FaraFisa } from "../fara-fisa";
 
@@ -41,28 +44,28 @@ export default async function PaginaDiurnaMea() {
   const denumireTara = new Map(listaTari.map((t) => [t.id, t.denumire]));
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 p-4">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-foreground text-xl font-semibold">Diurna mea</h1>
-          <p className="text-muted-foreground text-sm">Deplasările dumneavoastră și starea lor.</p>
-        </div>
-        {poateInregistra ? (
-          <Link
-            href="/portal/diurna-mea/noua"
-            className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex min-h-11 items-center gap-2 rounded-md px-4 text-sm font-medium transition-colors"
-          >
-            <Plus aria-hidden="true" className="size-4" />
-            Deplasare nouă
-          </Link>
-        ) : null}
-      </header>
+    <div className={`${LATIMI.lista} space-y-4 p-4`}>
+      <AntetPagina
+        titlu="Diurna mea"
+        descriere="Deplasările dumneavoastră și starea lor."
+        {...(poateInregistra
+          ? {
+              actiuni: (
+                <Link href="/portal/diurna-mea/noua" className={buton({ varianta: "primar" })}>
+                  <Plus aria-hidden="true" className="size-4" />
+                  Deplasare nouă
+                </Link>
+              ),
+            }
+          : {})}
+      />
 
       {deplasari.length === 0 ? (
-        <EmptyState
-          icon={Plane}
-          title="Nicio deplasare"
-          description="Deplasările pe care le înregistrați apar aici, cu diurna calculată."
+        <StareGoala
+          fel="initiala"
+          pictograma={Plane}
+          titlu="Nicio deplasare"
+          descriere="Deplasările pe care le înregistrați apar aici, cu diurna calculată."
         />
       ) : (
         <ul className="space-y-2">
@@ -70,26 +73,24 @@ export default async function PaginaDiurnaMea() {
             <li key={deplasare.id}>
               <Link
                 href={`/portal/diurna-mea/${deplasare.id}`}
-                className="bg-surface border-border hover:border-ring block rounded-lg border p-4 transition-colors"
+                className="bg-surface border-border hover:border-ring rounded-panou block border p-4 transition-colors"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-foreground text-sm font-medium">{deplasare.scop}</p>
-                    <p className="text-muted-foreground mt-0.5 text-sm">
+                    <p className="text-foreground text-corp font-medium">{deplasare.scop}</p>
+                    <p className="text-muted-foreground text-corp mt-0.5">
                       {formatDate(deplasare.plecare_la)} – {formatDate(deplasare.sosire_la)}
                     </p>
-                    <p className="text-muted-foreground mt-0.5 text-xs">
+                    <p className="text-muted-foreground text-nota mt-0.5">
                       {deplasare.localitate ?? "Fără localitate"}
                       {deplasare.country_id === null
                         ? null
                         : ` · ${denumireTara.get(deplasare.country_id) ?? "—"}`}
                     </p>
                   </div>
-                  <span
-                    className={`shrink-0 rounded border px-2 py-0.5 text-xs ${CLASE_STATUS_DEPLASARE[deplasare.status]}`}
-                  >
+                  <Badge className="shrink-0" ton={TONURI_STATUS_DEPLASARE[deplasare.status]}>
                     {ETICHETE_STATUS_DEPLASARE[deplasare.status]}
-                  </span>
+                  </Badge>
                 </div>
               </Link>
             </li>

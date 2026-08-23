@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, Pencil, Trash2 } from "lucide-react";
 
+import { Buton } from "@/components/ui/buton";
+
 import { mutaPas, stergePas } from "../../actions";
 import { ETICHETE_RESPONSABIL_TIP, ETICHETE_ROL, ETICHETE_TIP_DOVADA } from "../../etichete";
 import { FormularPas } from "./formular-pas";
@@ -82,14 +84,14 @@ export function ListaPasi({ templateId, pasi, poateEditare, poateAdauga }: Propr
       {eroare === null ? null : (
         <p
           role="alert"
-          className="border-danger/40 bg-danger/8 text-danger rounded-lg border p-3 text-sm"
+          className="border-danger/40 bg-danger/8 text-danger rounded-panou text-corp border p-3"
         >
           {eroare}
         </p>
       )}
 
       {pasi.length === 0 ? (
-        <p className="text-muted-foreground text-sm">Acest șablon nu are încă niciun pas.</p>
+        <p className="text-muted-foreground text-corp">Acest șablon nu are încă niciun pas.</p>
       ) : (
         <ol className="space-y-2">
           {pasi.map((pas, index) =>
@@ -104,19 +106,19 @@ export function ListaPasi({ templateId, pasi, poateEditare, poateAdauga }: Propr
                 />
               </li>
             ) : (
-              <li key={pas.id} className="border-border rounded-lg border p-4">
+              <li key={pas.id} className="border-border rounded-panou border p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="font-medium">
                       {pas.ordine}. {pas.titlu}
                       {pas.obligatoriu ? (
-                        <span className="text-muted-foreground ml-1 text-xs">(obligatoriu)</span>
+                        <span className="text-muted-foreground text-nota ml-1">(obligatoriu)</span>
                       ) : null}
                     </p>
                     {pas.descriere === null ? null : (
-                      <p className="text-muted-foreground mt-0.5 text-sm">{pas.descriere}</p>
+                      <p className="text-muted-foreground text-corp mt-0.5">{pas.descriere}</p>
                     )}
-                    <p className="text-muted-foreground mt-1 text-xs">
+                    <p className="text-muted-foreground text-nota mt-1">
                       Responsabil: {responsabilText(pas)} · Dovadă:{" "}
                       {ETICHETE_TIP_DOVADA[pas.tip_dovada]} · Termen: {pas.termen_zile_relativ} zile
                       {pas.verificare_automata === null
@@ -127,50 +129,50 @@ export function ListaPasi({ templateId, pasi, poateEditare, poateAdauga }: Propr
 
                   {poateEditare ? (
                     <div className="flex items-center gap-1">
-                      <button
-                        type="button"
+                      <Buton
+                        varianta="secundar"
+                        marime="iconita"
                         aria-label={`Mută pasul „${pas.titlu}” mai sus`}
                         disabled={inCurs || index === 0}
                         onClick={() => {
                           muta(pas, "sus", index);
                         }}
-                        className="border-foreground/60 hover:bg-surface rounded-md border p-1.5 disabled:opacity-40"
                       >
                         <ArrowUp aria-hidden="true" className="size-4" />
-                      </button>
-                      <button
-                        type="button"
+                      </Buton>
+                      <Buton
+                        varianta="secundar"
+                        marime="iconita"
                         aria-label={`Mută pasul „${pas.titlu}” mai jos`}
                         disabled={inCurs || index === pasi.length - 1}
                         onClick={() => {
                           muta(pas, "jos", index);
                         }}
-                        className="border-foreground/60 hover:bg-surface rounded-md border p-1.5 disabled:opacity-40"
                       >
                         <ArrowDown aria-hidden="true" className="size-4" />
-                      </button>
-                      <button
-                        type="button"
+                      </Buton>
+                      <Buton
+                        varianta="secundar"
+                        marime="iconita"
                         aria-label={`Editează pasul „${pas.titlu}”`}
                         disabled={inCurs}
                         onClick={() => {
                           setIdInEditare(pas.id);
                         }}
-                        className="border-foreground/60 hover:bg-surface rounded-md border p-1.5 disabled:opacity-40"
                       >
                         <Pencil aria-hidden="true" className="size-4" />
-                      </button>
-                      <button
-                        type="button"
+                      </Buton>
+                      <Buton
+                        varianta="distructiv"
+                        marime="iconita"
                         aria-label={`Șterge pasul „${pas.titlu}”`}
                         disabled={inCurs}
                         onClick={() => {
                           sterge(pas);
                         }}
-                        className="border-danger text-danger hover:bg-danger hover:text-danger-foreground rounded-md border p-1.5 disabled:opacity-40"
                       >
                         <Trash2 aria-hidden="true" className="size-4" />
-                      </button>
+                      </Buton>
                     </div>
                   ) : null}
                 </div>

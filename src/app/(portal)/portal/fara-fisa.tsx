@@ -23,23 +23,23 @@ export function FaraFisa({
 }) {
   return (
     <div className="mx-auto max-w-2xl p-4">
-      <div className="bg-surface border-border rounded-lg border p-6 text-center">
+      <div className="bg-surface border-border rounded-panou border p-6 text-center">
         {stare.stare === "fara_fisa" ? (
           <>
-            <h1 className="text-foreground text-lg font-semibold">
+            <h1 className="text-foreground text-sectiune font-semibold">
               Nu aveți încă o fișă de personal
             </h1>
-            <p className="text-muted-foreground mt-2 text-sm">
+            <p className="text-muted-foreground text-corp mt-2">
               Contul dumneavoastră are acces la {numeOrganizatie}, dar nu este legat de un angajat.
               Cereți departamentului de resurse umane să vă completeze fișa.
             </p>
           </>
         ) : (
           <>
-            <h1 className="text-foreground text-lg font-semibold">
+            <h1 className="text-foreground text-sectiune font-semibold">
               Fișa dumneavoastră nu este marcată drept principală
             </h1>
-            <p className="text-muted-foreground mt-2 text-sm">
+            <p className="text-muted-foreground text-corp mt-2">
               Aveți fișa cu marca {stare.marca} în {numeOrganizatie}, dar sistemul nu vă poate
               identifica pornind de la ea, așa că nu vă poate arăta concediile, pontajul sau
               salariul. Cereți departamentului de resurse umane să o marcheze drept fișă principală.

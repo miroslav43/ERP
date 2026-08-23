@@ -4,8 +4,9 @@ import type { Metadata } from "next";
 import { LifeBuoy } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
-import { SkeletonTable } from "@/components/data/skeleton-table";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { StareGoala } from "@/components/ui/stare-goala";
+import { Schelet } from "@/components/ui/schelet";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -23,9 +24,9 @@ interface ProprietatiPagina {
 
 function Cifra({ eticheta, valoare }: Readonly<{ eticheta: string; valoare: number }>) {
   return (
-    <div className="border-border bg-surface rounded-lg border p-4">
-      <p className="text-muted-foreground text-xs">{eticheta}</p>
-      <p className="text-foreground mt-1 text-2xl font-semibold">{valoare}</p>
+    <div className="border-border bg-surface rounded-panou border p-4">
+      <p className="text-muted-foreground text-nota">{eticheta}</p>
+      <p className="text-foreground text-titlu mt-1 font-semibold">{valoare}</p>
     </div>
   );
 }
@@ -53,10 +54,11 @@ async function Continut({
       </div>
 
       {randuri.length === 0 ? (
-        <EmptyState
-          icon={LifeBuoy}
-          title="Nimic în coadă"
-          description="Tichetele echipei apar aici pe măsură ce sunt deschise."
+        <StareGoala
+          fel="initiala"
+          pictograma={LifeBuoy}
+          titlu="Nimic în coadă"
+          descriere="Tichetele echipei apar aici pe măsură ce sunt deschise."
         />
       ) : (
         <TabelTichete randuri={randuri} aratSolicitantul />
@@ -81,17 +83,15 @@ export default async function PaginaCoada({ searchParams }: ProprietatiPagina) {
   const parametri = await searchParams;
 
   return (
-    <main className="space-y-6 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Coada de tichete</h1>
-        <p className="text-muted-foreground text-sm">
-          Tichetele la care ai acces, cu cererile care așteaptă decizia ta.
-        </p>
-      </header>
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Coada de tichete"
+        descriere="Tichetele la care ai acces, cu cererile care așteaptă decizia ta."
+      />
 
-      <Suspense key={JSON.stringify(parametri)} fallback={<SkeletonTable cols={7} />}>
+      <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={7} />}>
         <Continut organizationId={tenant.organizationId} parametri={parametri} />
       </Suspense>
-    </main>
+    </div>
   );
 }

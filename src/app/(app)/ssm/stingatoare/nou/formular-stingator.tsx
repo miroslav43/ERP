@@ -3,6 +3,7 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
 import { STATUS_STINGATOR } from "@/schemas/ssm";
 
 import { actualizeazaStingator, adaugaStingator } from "../../actions";
@@ -88,7 +89,7 @@ export function FormularStingator({
     <form action={trimite} className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.cod} className="text-sm font-medium">
+          <label htmlFor={id.cod} className="text-corp font-medium">
             Cod
           </label>
           <input
@@ -97,12 +98,12 @@ export function FormularStingator({
             required
             maxLength={40}
             defaultValue={stingatorExistent?.cod}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.tip} className="text-sm font-medium">
+          <label htmlFor={id.tip} className="text-corp font-medium">
             Tip
           </label>
           <input
@@ -112,12 +113,12 @@ export function FormularStingator({
             maxLength={60}
             placeholder="pulbere, CO2, spumă…"
             defaultValue={stingatorExistent?.tip}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.masa} className="text-sm font-medium">
+          <label htmlFor={id.masa} className="text-corp font-medium">
             Masă (kg)
           </label>
           <input
@@ -127,19 +128,19 @@ export function FormularStingator({
             min="0.1"
             step="0.1"
             defaultValue={stingatorExistent?.masa_kg ?? undefined}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.status} className="text-sm font-medium">
+          <label htmlFor={id.status} className="text-corp font-medium">
             Stare
           </label>
           <select
             id={id.status}
             name="status"
             defaultValue={stingatorExistent?.status ?? "activ"}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           >
             {STATUS_STINGATOR.map((s) => (
               <option key={s} value={s}>
@@ -150,7 +151,7 @@ export function FormularStingator({
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.locatie} className="text-sm font-medium">
+          <label htmlFor={id.locatie} className="text-corp font-medium">
             Locație
           </label>
           <input
@@ -159,12 +160,12 @@ export function FormularStingator({
             required
             maxLength={200}
             defaultValue={stingatorExistent?.locatie}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.cladire} className="text-sm font-medium">
+          <label htmlFor={id.cladire} className="text-corp font-medium">
             Clădire
           </label>
           <input
@@ -172,12 +173,12 @@ export function FormularStingator({
             name="cladire"
             maxLength={120}
             defaultValue={stingatorExistent?.cladire ?? undefined}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.producator} className="text-sm font-medium">
+          <label htmlFor={id.producator} className="text-corp font-medium">
             Producător
           </label>
           <input
@@ -185,12 +186,12 @@ export function FormularStingator({
             name="producator"
             maxLength={120}
             defaultValue={stingatorExistent?.producator ?? undefined}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.serie} className="text-sm font-medium">
+          <label htmlFor={id.serie} className="text-corp font-medium">
             Serie
           </label>
           <input
@@ -198,12 +199,12 @@ export function FormularStingator({
             name="serie"
             maxLength={64}
             defaultValue={stingatorExistent?.serie ?? undefined}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.punere} className="text-sm font-medium">
+          <label htmlFor={id.punere} className="text-corp font-medium">
             Punere în funcțiune
           </label>
           <input
@@ -211,12 +212,12 @@ export function FormularStingator({
             name="data_punerii_in_functiune"
             type="date"
             defaultValue={stingatorExistent?.data_punerii_in_functiune ?? undefined}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.verificare} className="text-sm font-medium">
+          <label htmlFor={id.verificare} className="text-corp font-medium">
             Ultima verificare
           </label>
           <input
@@ -224,12 +225,12 @@ export function FormularStingator({
             name="ultima_verificare"
             type="date"
             defaultValue={stingatorExistent?.ultima_verificare ?? undefined}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.reincarcare} className="text-sm font-medium">
+          <label htmlFor={id.reincarcare} className="text-corp font-medium">
             Ultima reîncărcare
           </label>
           <input
@@ -237,12 +238,12 @@ export function FormularStingator({
             name="ultima_reincarcare"
             type="date"
             defaultValue={stingatorExistent?.ultima_reincarcare ?? undefined}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.proba} className="text-sm font-medium">
+          <label htmlFor={id.proba} className="text-corp font-medium">
             Ultima probă de presiune
           </label>
           <input
@@ -250,21 +251,17 @@ export function FormularStingator({
             name="ultima_proba_presiune"
             type="date"
             defaultValue={stingatorExistent?.ultima_proba_presiune ?? undefined}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="submit"
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se salvează…" : editare ? "Salvează modificările" : "Adaugă stingătorul"}
-        </button>
+        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+          {editare ? "Salvează modificările" : "Adaugă stingătorul"}
+        </Buton>
         {eroare === null ? null : (
-          <p role="alert" className="text-danger text-sm">
+          <p role="alert" className="text-danger text-corp">
             {eroare}
           </p>
         )}

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { ClipboardCheck } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina } from "@/components/ui/antet-pagina";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -56,16 +57,11 @@ export default async function PaginaSabloaneEvaluare() {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Șabloane de evaluare</h1>
-          <p className="text-muted-foreground text-sm">
-            Un set de criterii reutilizabil, aplicat apoi angajaților de pe fișa fiecăruia. Poate fi
-            creat de manageri, nu doar de administratori.
-          </p>
-        </div>
-        {poateCrea ? <FormularSablonEvaluareNou /> : null}
-      </header>
+      <AntetPagina
+        titlu="Șabloane de evaluare"
+        descriere="Un set de criterii reutilizabil, aplicat apoi angajaților de pe fișa fiecăruia. Poate fi creat de manageri, nu doar de administratori."
+        {...(poateCrea ? { actiuni: <FormularSablonEvaluareNou /> } : {})}
+      />
 
       {sabloane.length === 0 ? (
         <StareGoala
@@ -77,29 +73,32 @@ export default async function PaginaSabloaneEvaluare() {
       ) : (
         <ul className="space-y-3">
           {sabloane.map((sablon) => (
-            <li key={sablon.id} className="border-border bg-surface rounded-lg border shadow-sm">
+            <li
+              key={sablon.id}
+              className="border-border bg-surface rounded-panou shadow-ridicat border"
+            >
               <div className="flex flex-wrap items-start gap-3 px-4 py-3">
-                <span className="bg-background flex size-9 shrink-0 items-center justify-center rounded-md">
+                <span className="bg-background rounded-control flex size-9 shrink-0 items-center justify-center">
                   <ClipboardCheck aria-hidden="true" className="text-primary size-4.5" />
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">{sablon.denumire}</span>
                     {sablon.organization_id === null ? (
-                      <span className="bg-background text-muted-foreground rounded-full px-2 py-0.5 text-xs font-medium">
+                      <span className="bg-background text-muted-foreground text-nota rounded-full px-2 py-0.5 font-medium">
                         Șablon platformă
                       </span>
                     ) : null}
                     {!sablon.activ ? (
-                      <span className="bg-background text-muted-foreground rounded-full px-2 py-0.5 text-xs font-medium">
+                      <span className="bg-background text-muted-foreground text-nota rounded-full px-2 py-0.5 font-medium">
                         Inactiv
                       </span>
                     ) : null}
                   </div>
                   {sablon.descriere !== null ? (
-                    <p className="text-muted-foreground mt-1 text-sm">{sablon.descriere}</p>
+                    <p className="text-muted-foreground text-corp mt-1">{sablon.descriere}</p>
                   ) : null}
-                  <ul className="text-muted-foreground mt-2 flex flex-wrap gap-1.5 text-xs">
+                  <ul className="text-muted-foreground text-nota mt-2 flex flex-wrap gap-1.5">
                     {sablon.criterii.map((criteriu) => (
                       <li key={criteriu.cod} className="bg-background rounded-full px-2 py-0.5">
                         {criteriu.denumire}

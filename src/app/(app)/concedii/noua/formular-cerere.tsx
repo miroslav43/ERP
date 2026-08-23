@@ -4,6 +4,7 @@
 import { useId, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
 import { numaraZileCerere, type PortiuneZi } from "@/domain/leave/zile-cerere";
 import { formatAmount } from "@/lib/format/money";
 import { ETICHETE_PORTIUNE } from "../etichete";
@@ -57,7 +58,7 @@ interface Proprietati {
 
 const PORTIUNI: readonly PortiuneZi[] = ["zi_intreaga", "prima_jumatate", "a_doua_jumatate"];
 
-const CLASA_CAMP = "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
+const CLASA_CAMP = "mt-1 w-full rounded-control border border-foreground/60 px-3 py-2 text-corp";
 
 const ETICHETE_PLATITOR: Readonly<Record<CodMedical["platitor"], string>> = {
   angajator: "suportat integral de firmă",
@@ -198,7 +199,7 @@ export function FormularCerere({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {angajati !== null ? (
           <div className="sm:col-span-2">
-            <label htmlFor={idAngajat} className="block text-sm font-medium">
+            <label htmlFor={idAngajat} className="text-corp block font-medium">
               Pentru angajatul
             </label>
             <select
@@ -220,7 +221,7 @@ export function FormularCerere({
         ) : null}
 
         <div>
-          <label htmlFor={idTip} className="block text-sm font-medium">
+          <label htmlFor={idTip} className="text-corp block font-medium">
             Tip de concediu
           </label>
           <select
@@ -238,14 +239,14 @@ export function FormularCerere({
             ))}
           </select>
           {tip?.necesita_document ? (
-            <p className="text-foreground mt-1 text-xs">
+            <p className="text-foreground text-nota mt-1">
               Acest tip de concediu necesită un document justificativ atașat înainte de trimitere.
             </p>
           ) : null}
         </div>
 
         <div>
-          <label htmlFor={idInceput} className="block text-sm font-medium">
+          <label htmlFor={idInceput} className="text-corp block font-medium">
             Data de început *
           </label>
           <input
@@ -261,7 +262,7 @@ export function FormularCerere({
         </div>
 
         <div>
-          <label htmlFor={idPortiuneInceput} className="block text-sm font-medium">
+          <label htmlFor={idPortiuneInceput} className="text-corp block font-medium">
             Porțiunea zilei de început
           </label>
           <select
@@ -281,7 +282,7 @@ export function FormularCerere({
         </div>
 
         <div>
-          <label htmlFor={idSfarsit} className="block text-sm font-medium">
+          <label htmlFor={idSfarsit} className="text-corp block font-medium">
             Data de sfârșit *
           </label>
           <input
@@ -297,7 +298,7 @@ export function FormularCerere({
         </div>
 
         <div>
-          <label htmlFor={idPortiuneSfarsit} className="block text-sm font-medium">
+          <label htmlFor={idPortiuneSfarsit} className="text-corp block font-medium">
             Porțiunea zilei de sfârșit
           </label>
           <select
@@ -317,7 +318,7 @@ export function FormularCerere({
         </div>
 
         <div className="sm:col-span-2">
-          <label htmlFor={idMotiv} className="block text-sm font-medium">
+          <label htmlFor={idMotiv} className="text-corp block font-medium">
             Motiv (opțional)
           </label>
           <textarea
@@ -333,7 +334,7 @@ export function FormularCerere({
 
         {varianteTip.length > 0 ? (
           <div className="sm:col-span-2">
-            <label htmlFor={idVarianta} className="block text-sm font-medium">
+            <label htmlFor={idVarianta} className="text-corp block font-medium">
               Variantă legală
             </label>
             <select
@@ -354,7 +355,7 @@ export function FormularCerere({
               ))}
             </select>
             {variantaAleasa !== null ? (
-              <p aria-live="polite" className="text-muted-foreground mt-1 text-sm">
+              <p aria-live="polite" className="text-muted-foreground text-corp mt-1">
                 {variantaAleasa.conditie_descriere}
                 {variantaAleasa.temei_legal !== null ? ` (${variantaAleasa.temei_legal})` : ""}
               </p>
@@ -363,16 +364,16 @@ export function FormularCerere({
         ) : null}
 
         {esteMedical ? (
-          <fieldset className="border-border bg-surface rounded-lg border p-4 sm:col-span-2">
-            <legend className="px-1 text-sm font-medium">Certificatul medical</legend>
-            <p className="text-muted-foreground mb-3 text-sm">
+          <fieldset className="border-border bg-surface rounded-panou border p-4 sm:col-span-2">
+            <legend className="text-corp px-1 font-medium">Certificatul medical</legend>
+            <p className="text-muted-foreground text-corp mb-3">
               Codul de pe certificat decide procentul indemnizației și câte zile suportă firma din
               bugetul propriu. Fără el indemnizația nu se poate calcula.
             </p>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
-                <label htmlFor={idCodMedical} className="block text-sm font-medium">
+                <label htmlFor={idCodMedical} className="text-corp block font-medium">
                   Cod de indemnizație
                 </label>
                 <select
@@ -392,7 +393,7 @@ export function FormularCerere({
                   ))}
                 </select>
                 {codAles !== null ? (
-                  <p aria-live="polite" className="text-muted-foreground mt-1 text-sm">
+                  <p aria-live="polite" className="text-muted-foreground text-corp mt-1">
                     {formatAmount(codAles.procent)}% din baza de calcul,{" "}
                     {ETICHETE_PLATITOR[codAles.platitor]}
                     {codAles.zileAngajator > 0
@@ -403,7 +404,7 @@ export function FormularCerere({
               </div>
 
               <div>
-                <label htmlFor={idSerie} className="block text-sm font-medium">
+                <label htmlFor={idSerie} className="text-corp block font-medium">
                   Seria (opțional)
                 </label>
                 <input
@@ -419,7 +420,7 @@ export function FormularCerere({
               </div>
 
               <div>
-                <label htmlFor={idNumar} className="block text-sm font-medium">
+                <label htmlFor={idNumar} className="text-corp block font-medium">
                   Numărul certificatului
                 </label>
                 <input
@@ -439,7 +440,7 @@ export function FormularCerere({
         ) : null}
 
         <div className="sm:col-span-2">
-          <label htmlFor={idAtasament} className="block text-sm font-medium">
+          <label htmlFor={idAtasament} className="text-corp block font-medium">
             Calea documentului justificativ (opțional)
           </label>
           <input
@@ -455,7 +456,10 @@ export function FormularCerere({
         </div>
       </div>
 
-      <div aria-live="polite" className="border-border bg-surface rounded-lg border p-4 text-sm">
+      <div
+        aria-live="polite"
+        className="border-border bg-surface rounded-panou text-corp border p-4"
+      >
         {previzualizare === null ? (
           <p className="text-muted-foreground">
             Completați ambele date pentru a vedea câte zile lucrătoare consumă cererea.
@@ -468,7 +472,7 @@ export function FormularCerere({
               {previzualizare.zileCalendaristice} zile calendaristice.
             </p>
             {tip !== null && !tip.scade_din_sold ? (
-              <p className="text-muted-foreground mt-1 text-xs">
+              <p className="text-muted-foreground text-nota mt-1">
                 Acest tip de concediu nu scade din soldul de zile.
               </p>
             ) : ramaseAfisate !== null ? (
@@ -478,7 +482,7 @@ export function FormularCerere({
                 <strong>{formatAmount(ramaseAfisate - previzualizare.zileLucratoare)}</strong>.
               </p>
             ) : (
-              <p className="text-muted-foreground mt-1 text-xs">
+              <p className="text-muted-foreground text-nota mt-1">
                 Soldul disponibil se verifică exact la trimitere.
               </p>
             )}
@@ -488,33 +492,33 @@ export function FormularCerere({
 
       <div aria-live="polite">
         {eroare !== null ? (
-          <p className="border-danger bg-danger/8 text-danger rounded-md border p-3 text-sm">
+          <p className="border-danger bg-danger/8 text-danger rounded-control text-corp border p-3">
             {eroare}
           </p>
         ) : null}
       </div>
 
       <div className="flex flex-wrap gap-3">
-        <button
-          type="button"
-          disabled={inCurs}
+        <Buton
+          varianta="secundar"
+          inCurs={inCurs}
+          textInCurs="Se salvează…"
           onClick={() => {
             trimiteFormular(false);
           }}
-          className="border-foreground/60 hover:bg-surface disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
         >
-          {inCurs ? "Se salvează…" : "Salvează ca ciornă"}
-        </button>
-        <button
-          type="button"
-          disabled={inCurs}
+          Salvează ca ciornă
+        </Buton>
+        <Buton
+          varianta="primar"
+          inCurs={inCurs}
+          textInCurs="Se trimite…"
           onClick={() => {
             trimiteFormular(true);
           }}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
         >
-          {inCurs ? "Se trimite…" : "Trimite spre aprobare"}
-        </button>
+          Trimite spre aprobare
+        </Buton>
       </div>
     </form>
   );

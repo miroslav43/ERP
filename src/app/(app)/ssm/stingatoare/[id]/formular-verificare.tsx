@@ -3,6 +3,7 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
 import { REZULTATE_VERIFICARE_STINGATOR, TIPURI_VERIFICARE_STINGATOR } from "@/schemas/ssm";
 
 import { inregistreazaVerificareStingator } from "../../actions";
@@ -57,19 +58,19 @@ export function FormularVerificare({ extinguisherId }: { readonly extinguisherId
   return (
     <form
       action={trimite}
-      className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-2"
+      className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-2"
     >
-      <p className="text-sm font-medium sm:col-span-2">Înregistrează o verificare</p>
+      <p className="text-corp font-medium sm:col-span-2">Înregistrează o verificare</p>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.tip} className="text-sm">
+        <label htmlFor={id.tip} className="text-corp">
           Tip
         </label>
         <select
           id={id.tip}
           name="tip_verificare"
           required
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         >
           {TIPURI_VERIFICARE_STINGATOR.map((t) => (
             <option key={t} value={t}>
@@ -80,7 +81,7 @@ export function FormularVerificare({ extinguisherId }: { readonly extinguisherId
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.data} className="text-sm">
+        <label htmlFor={id.data} className="text-corp">
           Data
         </label>
         <input
@@ -88,43 +89,43 @@ export function FormularVerificare({ extinguisherId }: { readonly extinguisherId
           name="data"
           type="date"
           required
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.firma} className="text-sm">
+        <label htmlFor={id.firma} className="text-corp">
           Firmă autorizată
         </label>
         <input
           id={id.firma}
           name="firma_autorizata"
           maxLength={160}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.executant} className="text-sm">
+        <label htmlFor={id.executant} className="text-corp">
           Executant
         </label>
         <input
           id={id.executant}
           name="executant"
           maxLength={120}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.rezultat} className="text-sm">
+        <label htmlFor={id.rezultat} className="text-corp">
           Rezultat
         </label>
         <select
           id={id.rezultat}
           name="rezultat"
           defaultValue="conform"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         >
           {REZULTATE_VERIFICARE_STINGATOR.map((r) => (
             <option key={r} value={r}>
@@ -135,7 +136,7 @@ export function FormularVerificare({ extinguisherId }: { readonly extinguisherId
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.cost} className="text-sm">
+        <label htmlFor={id.cost} className="text-corp">
           Cost (lei)
         </label>
         <input
@@ -144,32 +145,28 @@ export function FormularVerificare({ extinguisherId }: { readonly extinguisherId
           type="number"
           min="0"
           step="0.01"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1 sm:col-span-2">
-        <label htmlFor={id.observatii} className="text-sm">
+        <label htmlFor={id.observatii} className="text-corp">
           Observații
         </label>
         <input
           id={id.observatii}
           name="observatii"
           maxLength={1000}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
-        <button
-          type="submit"
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se salvează…" : "Înregistrează verificarea"}
-        </button>
+        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+          Înregistrează verificarea
+        </Buton>
         {eroare === null ? null : (
-          <p role="alert" className="text-danger text-sm">
+          <p role="alert" className="text-danger text-corp">
             {eroare}
           </p>
         )}

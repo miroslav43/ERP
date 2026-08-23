@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
 import { URGENTE_SESIZARE } from "@/schemas/maintenance";
 import { ETICHETE_URGENTA_SESIZARE } from "../../etichete";
 import { cautaEchipament, creeazaSesizare } from "../../actions";
@@ -115,26 +116,26 @@ export function FormularSesizare({
   return (
     <form onSubmit={trimite} className="space-y-6" noValidate>
       <div className="space-y-2">
-        <label htmlFor={idCauta} className="block text-sm font-medium">
+        <label htmlFor={idCauta} className="text-corp block font-medium">
           Echipament *
         </label>
 
         {echipamentSelectat !== null ? (
-          <div className="border-foreground/60 flex items-center justify-between rounded-md border px-3 py-2 text-sm">
+          <div className="border-foreground/60 rounded-control text-corp flex items-center justify-between border px-3 py-2">
             <span>
               <strong>{echipamentSelectat.cod}</strong> — {echipamentSelectat.denumire}
               {echipamentSelectat.locatie !== null ? ` · ${echipamentSelectat.locatie}` : ""}
             </span>
-            <button
-              type="button"
+            <Buton
+              varianta="link"
               onClick={() => {
                 setEchipamentSelectat(null);
                 setInterogare("");
               }}
-              className="text-primary text-xs underline-offset-2 hover:underline"
+              className="text-nota"
             >
               Schimbă
-            </button>
+            </Buton>
           </div>
         ) : (
           <div className="relative">
@@ -147,14 +148,14 @@ export function FormularSesizare({
               }}
               placeholder="Căutați după cod sau denumire (minimum 2 caractere)"
               autoComplete="off"
-              className="border-foreground/60 w-full rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp w-full border px-3 py-2"
             />
-            {inCautare ? <p className="text-muted-foreground mt-1 text-xs">Se caută…</p> : null}
+            {inCautare ? <p className="text-muted-foreground text-nota mt-1">Se caută…</p> : null}
             {rezultate.length > 0 ? (
               <ul
                 role="listbox"
                 aria-label="Rezultate căutare echipament"
-                className="border-foreground/60 bg-background absolute z-10 mt-1 w-full rounded-md border shadow-lg"
+                className="border-foreground/60 bg-background rounded-control shadow-plutitor absolute z-10 mt-1 w-full border"
               >
                 {rezultate.map((echipament) => (
                   <li key={echipament.id}>
@@ -166,7 +167,7 @@ export function FormularSesizare({
                         setEchipamentSelectat(echipament);
                         setRezultate([]);
                       }}
-                      className="hover:bg-surface block w-full px-3 py-2 text-left text-sm"
+                      className="hover:bg-surface text-corp block w-full px-3 py-2 text-left"
                     >
                       <strong>{echipament.cod}</strong> — {echipament.denumire}
                       {echipament.locatie !== null ? (
@@ -182,7 +183,7 @@ export function FormularSesizare({
       </div>
 
       <div>
-        <label htmlFor={idDescriere} className="block text-sm font-medium">
+        <label htmlFor={idDescriere} className="text-corp block font-medium">
           Ce s-a defectat? *
         </label>
         <textarea
@@ -195,13 +196,13 @@ export function FormularSesizare({
             setDescriere(eveniment.target.value);
           }}
           placeholder="Descrieți ce ați observat: zgomot, scurgere, oprire neașteptată etc."
-          className="border-foreground/60 mt-1 w-full rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp mt-1 w-full border px-3 py-2"
         />
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <label htmlFor={idUrgenta} className="block text-sm font-medium">
+          <label htmlFor={idUrgenta} className="text-corp block font-medium">
             Urgență
           </label>
           <select
@@ -210,7 +211,7 @@ export function FormularSesizare({
             onChange={(eveniment) => {
               setUrgenta(eveniment.target.value as (typeof URGENTE_SESIZARE)[number]);
             }}
-            className="border-foreground/60 mt-1 w-full rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp mt-1 w-full border px-3 py-2"
           >
             {URGENTE_SESIZARE.map((u) => (
               <option key={u} value={u}>
@@ -230,7 +231,7 @@ export function FormularSesizare({
             }}
             className="size-4"
           />
-          <label htmlFor={idOpreste} className="text-sm">
+          <label htmlFor={idOpreste} className="text-corp">
             Defecțiunea oprește funcționarea echipamentului
           </label>
         </div>
@@ -238,19 +239,15 @@ export function FormularSesizare({
 
       <div aria-live="polite">
         {eroare !== null ? (
-          <p className="border-danger bg-danger/8 text-danger rounded-md border p-3 text-sm">
+          <p className="border-danger bg-danger/8 text-danger rounded-control text-corp border p-3">
             {eroare}
           </p>
         ) : null}
       </div>
 
-      <button
-        type="submit"
-        disabled={inCurs}
-        className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-      >
-        {inCurs ? "Se trimite…" : "Trimite sesizarea"}
-      </button>
+      <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se trimite…">
+        Trimite sesizarea
+      </Buton>
     </form>
   );
 }

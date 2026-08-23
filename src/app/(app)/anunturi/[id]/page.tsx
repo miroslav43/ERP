@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -30,9 +31,9 @@ export default async function PaginaAnunt({ params }: ProprietatiPagina) {
 
   if (!can(permisiuni, "announcements:read", "own")) {
     return (
-      <main className="p-6">
+      <div>
         <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta avizierul." />
-      </main>
+      </div>
     );
   }
 
@@ -47,26 +48,26 @@ export default async function PaginaAnunt({ params }: ProprietatiPagina) {
     ? await Promise.all([cititoriAnunt(anunt.id), numarAngajatiActivi(tenant.organizationId)])
     : [null, null];
 
+  const descriere =
+    (publicat
+      ? `Publicat ${formatDateTime(anunt.publicat_la as string)}`
+      : "Ciornă — nepublicat încă") +
+    (anunt.expira_la === null ? "" : ` · expiră ${formatDateTime(anunt.expira_la)}`);
+
   return (
-    <main className="max-w-3xl space-y-6 p-6">
-      <header>
-        <p className="text-muted-foreground text-sm">
+    <div className={`${LATIMI.formular} space-y-6`}>
+      <div className="space-y-1">
+        <p className="text-muted-foreground text-corp">
           <Link href="/anunturi" className="underline-offset-2 hover:underline">
             Anunțuri
           </Link>
         </p>
-        <h1 className="text-2xl font-semibold">{anunt.titlu}</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          {publicat
-            ? `Publicat ${formatDateTime(anunt.publicat_la as string)}`
-            : "Ciornă — nepublicat încă"}
-          {anunt.expira_la === null ? "" : ` · expiră ${formatDateTime(anunt.expira_la)}`}
-        </p>
-      </header>
+        <AntetPagina titlu={anunt.titlu} descriere={descriere} />
+      </div>
 
       {!publicat && poateAdministra ? <PublicaButon id={anunt.id} /> : null}
 
-      <div className="border-border rounded-lg border p-4 text-sm whitespace-pre-wrap">
+      <div className="border-border rounded-panou text-corp border p-4 whitespace-pre-wrap">
         {anunt.continut}
       </div>
 
@@ -74,18 +75,18 @@ export default async function PaginaAnunt({ params }: ProprietatiPagina) {
 
       {poateAdministra && cititori !== null ? (
         <section aria-labelledby="cititori" className="space-y-2">
-          <h2 id="cititori" className="text-sm font-semibold">
+          <h2 id="cititori" className="text-corp font-semibold">
             Confirmări de citire ({cititori.length}
             {totalAngajati === null ? "" : ` / ${totalAngajati}`})
           </h2>
           {cititori.length === 0 ? (
-            <p className="text-muted-foreground text-sm">Nimeni nu l-a citit încă.</p>
+            <p className="text-muted-foreground text-corp">Nimeni nu l-a citit încă.</p>
           ) : (
-            <ul className="divide-border border-border divide-y rounded-lg border text-sm">
+            <ul className="divide-border border-border rounded-panou text-corp divide-y border">
               {cititori.map((c) => (
                 <li key={c.employee_id} className="flex items-center justify-between px-4 py-2">
                   <span>{c.angajat?.full_name ?? c.angajat?.marca ?? "—"}</span>
-                  <span className="text-muted-foreground text-xs">
+                  <span className="text-muted-foreground text-nota">
                     {formatDateTime(c.citit_la)}
                   </span>
                 </li>
@@ -94,6 +95,6 @@ export default async function PaginaAnunt({ params }: ProprietatiPagina) {
           )}
         </section>
       ) : null}
-    </main>
+    </div>
   );
 }

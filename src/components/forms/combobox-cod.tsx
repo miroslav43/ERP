@@ -27,7 +27,7 @@ export function etichetaOptiune(o: OptiuneCod): string {
 }
 
 export const CLASA_CAMP =
-  "mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground";
+  "mt-1 w-full rounded-control border border-border bg-background px-3 py-2 text-corp text-foreground";
 
 /** Niciun rând evidențiat: Enter nu alege din listă, ci interpretează textul. */
 export const FARA_RAND_ACTIV = -1;
@@ -104,7 +104,7 @@ export function rezolvaOptiune(
 export function Avertisment({ id, mesaj }: Readonly<{ id: string; mesaj: string | undefined }>) {
   if (mesaj === undefined) return null;
   return (
-    <p id={id} role="status" className="text-warning mt-1 text-xs">
+    <p id={id} role="status" className="text-warning text-nota mt-1">
       {mesaj}
     </p>
   );
@@ -125,7 +125,7 @@ export function ListaRezultate({
 }>) {
   if (rezultate.length === 0) {
     return (
-      <div className="border-border bg-surface text-muted-foreground absolute z-10 mt-1 w-full rounded-md border p-2 text-sm shadow-md">
+      <div className="border-border bg-surface text-muted-foreground rounded-control text-corp shadow-plutitor absolute z-10 mt-1 w-full border p-2">
         {mesajGol}
       </div>
     );
@@ -134,7 +134,7 @@ export function ListaRezultate({
     <ul
       id={idListbox}
       role="listbox"
-      className="border-border bg-surface absolute z-10 mt-1 max-h-64 w-full overflow-auto rounded-md border shadow-md"
+      className="border-border bg-surface rounded-control shadow-plutitor absolute z-10 mt-1 max-h-64 w-full overflow-auto border"
     >
       {rezultate.map((o, index) => (
         <li key={o.cod}>
@@ -147,7 +147,7 @@ export function ListaRezultate({
               onAlege(o);
             }}
             className={
-              "flex w-full items-baseline gap-2 px-3 py-2 text-left text-sm " +
+              "text-corp flex w-full items-baseline gap-2 px-3 py-2 text-left " +
               (index === indiceActiv ? "bg-primary/10" : "hover:bg-primary/5")
             }
           >

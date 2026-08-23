@@ -3,6 +3,7 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
 import { comunicaAccidentLaItm, finalizeazaCercetare } from "../../actions";
 
 /**
@@ -71,11 +72,11 @@ export function FormularComunicareItm({
       {comunicatLaItm === null ? (
         <form
           action={comunica}
-          className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-2"
+          className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-2"
         >
-          <p className="text-sm font-medium sm:col-span-2">Comunicare la ITM</p>
+          <p className="text-corp font-medium sm:col-span-2">Comunicare la ITM</p>
           <div className="flex flex-col gap-1">
-            <label htmlFor={idComunicat} className="text-sm">
+            <label htmlFor={idComunicat} className="text-corp">
               Comunicat la
             </label>
             <input
@@ -83,30 +84,26 @@ export function FormularComunicareItm({
               name="comunicat_la_itm_la"
               type="datetime-local"
               required
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor={idPv} className="text-sm">
+            <label htmlFor={idPv} className="text-corp">
               Număr proces verbal (opțional)
             </label>
             <input
               id={idPv}
               name="numar_proces_verbal"
               maxLength={64}
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
             />
           </div>
           <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
-            <button
-              type="submit"
-              disabled={inCurs}
-              className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-            >
-              {inCurs ? "Se salvează…" : "Marchează comunicat"}
-            </button>
+            <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+              Marchează comunicat
+            </Buton>
             {eroareComunicare === null ? null : (
-              <p role="alert" className="text-danger text-sm">
+              <p role="alert" className="text-danger text-corp">
                 {eroareComunicare}
               </p>
             )}
@@ -117,11 +114,11 @@ export function FormularComunicareItm({
       {comunicatLaItm === null || cercetareFinalizata !== null ? null : (
         <form
           action={finalizeaza}
-          className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-2"
+          className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-2"
         >
-          <p className="text-sm font-medium sm:col-span-2">Finalizarea cercetării</p>
+          <p className="text-corp font-medium sm:col-span-2">Finalizarea cercetării</p>
           <div className="flex flex-col gap-1">
-            <label htmlFor={idCercetare} className="text-sm">
+            <label htmlFor={idCercetare} className="text-corp">
               Cercetare finalizată la
             </label>
             <input
@@ -129,11 +126,11 @@ export function FormularComunicareItm({
               name="cercetare_finalizata_la"
               type="date"
               required
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor={idZile} className="text-sm">
+            <label htmlFor={idZile} className="text-corp">
               Zile de incapacitate (corectate)
             </label>
             <input
@@ -142,11 +139,11 @@ export function FormularComunicareItm({
               type="number"
               min={0}
               defaultValue={zileIncapacitate}
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
             />
           </div>
           <div className="flex flex-col gap-1 sm:col-span-2">
-            <label htmlFor={idUrmari} className="text-sm">
+            <label htmlFor={idUrmari} className="text-corp">
               Urmări
             </label>
             <textarea
@@ -154,19 +151,15 @@ export function FormularComunicareItm({
               name="urmari"
               rows={3}
               maxLength={2000}
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
             />
           </div>
           <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
-            <button
-              type="submit"
-              disabled={inCurs}
-              className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-            >
-              {inCurs ? "Se salvează…" : "Finalizează cercetarea"}
-            </button>
+            <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+              Finalizează cercetarea
+            </Buton>
             {eroareCercetare === null ? null : (
-              <p role="alert" className="text-danger text-sm">
+              <p role="alert" className="text-danger text-corp">
                 {eroareCercetare}
               </p>
             )}

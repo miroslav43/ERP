@@ -4,10 +4,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { idDinRuta } from "@/lib/rute/parametri";
+import { cn } from "@/lib/ui/cn";
 import { PERMISSION_KEYS, type PermissionScope } from "@/config/permissions";
 import { citesteAngajat } from "@/lib/queries/employees";
 
@@ -38,9 +40,9 @@ export default async function PaginaPermisiuniMembru({
   // butonul se dezactivează mai jos, ca refuzul să nu vină abia la clic.
   if (!can(permisiuni, "roles:update", "team")) {
     return (
-      <main className="p-6">
+      <div>
         <AccesRestrictionat mesaj="Nu aveți dreptul de a modifica permisiunile. Este nevoie de rolul de administrator al organizației." />
-      </main>
+      </div>
     );
   }
 
@@ -69,19 +71,19 @@ export default async function PaginaPermisiuniMembru({
 
   if (angajat.user_id === null || membru === null) {
     return (
-      <main className="mx-auto max-w-3xl space-y-4 p-6">
-        <h1 className="text-2xl font-semibold">Permisiuni suplimentare</h1>
-        <p className="border-warning/40 bg-warning/10 text-foreground rounded-lg border p-4 text-sm">
+      <div className={cn(LATIMI.formular, "space-y-4")}>
+        <AntetPagina titlu="Permisiuni suplimentare" />
+        <p className="border-warning/40 bg-warning/10 text-foreground rounded-panou text-corp border p-4">
           {angajat.full_name ?? "Angajatul"} nu are încă un cont în aplicație, deci nu are ce
           permisiuni primi. Invitați-l întâi din secțiunea de membri.
         </p>
         <Link
           href={`/angajati/${employeeId}`}
-          className="text-primary text-sm underline-offset-2 hover:underline"
+          className="text-primary text-corp underline-offset-2 hover:underline"
         >
           Înapoi la fișă
         </Link>
-      </main>
+      </div>
     );
   }
 
@@ -136,23 +138,24 @@ export default async function PaginaPermisiuniMembru({
   const numarSuprascrieri = randuri.filter((r) => r.suprascris !== null).length;
 
   return (
-    <main className="mx-auto max-w-3xl space-y-6 p-6">
-      <header>
-        <p className="text-muted-foreground text-sm">
+    <div className={cn(LATIMI.formular, "space-y-6")}>
+      <div className="flex flex-col gap-1">
+        <p className="text-muted-foreground text-corp">
           <Link href={`/angajati/${employeeId}`} className="underline-offset-2 hover:underline">
             {angajat.full_name ?? "Fișa angajatului"}
           </Link>
         </p>
-        <h1 className="text-2xl font-semibold">Permisiuni suplimentare</h1>
-        <p className="text-muted-foreground text-sm">
-          Peste ce îi dă rolul de <strong className="font-medium">{membru.role}</strong>.{" "}
-          {numarSuprascrieri === 0
-            ? "Momentan nimic suprascris — vede exact ce vede rolul lui."
-            : `${numarSuprascrieri.toLocaleString("ro-RO")} suprascrieri active.`}
-        </p>
-      </header>
+        <AntetPagina
+          titlu="Permisiuni suplimentare"
+          descriere={`Peste ce îi dă rolul de ${membru.role}. ${
+            numarSuprascrieri === 0
+              ? "Momentan nimic suprascris — vede exact ce vede rolul lui."
+              : `${numarSuprascrieri.toLocaleString("ro-RO")} suprascrieri active.`
+          }`}
+        />
+      </div>
 
-      <p className="border-border bg-surface text-muted-foreground rounded-lg border p-3 text-sm">
+      <p className="border-border bg-surface text-muted-foreground rounded-panou text-corp border p-3">
         „Ca la rol” înseamnă că permisiunea urmează rolul și se schimbă odată cu el. O valoare
         aleasă aici rămâne fixă, inclusiv dacă rolul se schimbă mai târziu — inclusiv „Refuzat
         explicit”, care ia un drept pe care rolul îl dă.
@@ -166,6 +169,6 @@ export default async function PaginaPermisiuniMembru({
         // controlul activ și afișează refuzul dacă vine.
         poateScrie={scopeAcordare === "all" || scopeAcordare === "team"}
       />
-    </main>
+    </div>
   );
 }

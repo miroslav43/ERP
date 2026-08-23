@@ -1,10 +1,11 @@
 // src/app/(app)/concedii/sold/page.tsx
 import Link from "next/link";
 import type { Metadata } from "next";
-import { PiggyBank } from "lucide-react";
+import { History, PiggyBank } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -50,8 +51,8 @@ const ETICHETE_EVENIMENT: Readonly<Record<string, string>> = {
 
 function TabelTipuri({ randuri }: { readonly randuri: readonly RandSold[] }) {
   return (
-    <div className="border-border overflow-x-auto rounded-lg border">
-      <table className="w-full text-left text-sm">
+    <div className="border-border rounded-panou overflow-x-auto border">
+      <table className="text-corp w-full text-left">
         <thead className="bg-surface text-foreground">
           <tr>
             <th scope="col" className="px-4 py-2 font-medium">
@@ -106,7 +107,7 @@ function TabelTipuri({ randuri }: { readonly randuri: readonly RandSold[] }) {
 
 function SelectorAn({ an }: { readonly an: number }) {
   return (
-    <nav aria-label="Anul soldului" className="flex items-center gap-3 text-sm">
+    <nav aria-label="Anul soldului" className="text-corp flex items-center gap-3">
       <Link href={`/concedii/sold?an=${String(an - 1)}`} className="underline underline-offset-2">
         {an - 1}
       </Link>
@@ -160,30 +161,30 @@ export default async function PaginaSoldConcediu({ searchParams }: ProprietatiPa
   const istoric = await istoricSold(tenant.organizationId, an);
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Soldul de concediu</h1>
-          <p className="text-muted-foreground text-sm">
-            {scope === "own"
-              ? "Soldul dumneavoastră de zile de concediu, pe tip."
-              : "Soldul de zile de concediu al angajaților vizibili pentru dvs., pe tip."}
-          </p>
-        </div>
-        <SelectorAn an={an} />
-      </header>
-
-      <NavConcedii
-        poateAproba={poateAproba}
-        poateVedeaCalendar={poateVedeaCalendar}
-        poateConfigura={poateConfigura}
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Soldul de concediu"
+        descriere={
+          scope === "own"
+            ? "Soldul dumneavoastră de zile de concediu, pe tip."
+            : "Soldul de zile de concediu al angajaților vizibili pentru dvs., pe tip."
+        }
+        actiuni={<SelectorAn an={an} />}
+        file={
+          <NavConcedii
+            poateAproba={poateAproba}
+            poateVedeaCalendar={poateVedeaCalendar}
+            poateConfigura={poateConfigura}
+          />
+        }
       />
 
       {tipuri.length === 0 ? (
-        <EmptyState
-          icon={PiggyBank}
-          title="Niciun tip de concediu configurat"
-          description="Organizația nu are încă niciun tip de concediu activ. Contactați administratorul."
+        <StareGoala
+          fel="initiala"
+          pictograma={PiggyBank}
+          titlu="Niciun tip de concediu configurat"
+          descriere="Organizația nu are încă niciun tip de concediu activ. Contactați administratorul."
         />
       ) : scope === "own" ? (
         <TabelTipuri randuri={imperecheazaSold(tipuri, solduri)} />
@@ -195,21 +196,33 @@ export default async function PaginaSoldConcediu({ searchParams }: ProprietatiPa
         />
       )}
 
-      <section aria-labelledby="titlu-istoric" className="border-border rounded-lg border p-4">
-        <h2 id="titlu-istoric" className="mb-4 text-lg font-medium">
+      <section aria-labelledby="titlu-istoric" className="border-border rounded-panou border p-4">
+        <h2 id="titlu-istoric" className="text-sectiune mb-4 font-medium">
           Istoricul soldului {String(an)}
         </h2>
         {istoric.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            {scope === "all" || fisaProprie !== null
-              ? "Fără mișcări de sold înregistrate în acest an."
-              : "Istoricul detaliat este vizibil doar pentru soldul propriu sau pentru rolurile cu citire extinsă asupra concediilor."}
-          </p>
+          <StareGoala
+            compact
+            // Aceeași listă goală, două cauze diferite: ori nu s-a mișcat nimic,
+            // ori nu aveți dreptul să vedeți mișcările.
+            fel={scope === "all" || fisaProprie !== null ? "initiala" : "restrictionata"}
+            pictograma={History}
+            titlu={
+              scope === "all" || fisaProprie !== null
+                ? "Niciun rând de istoric"
+                : "Istoric indisponibil"
+            }
+            descriere={
+              scope === "all" || fisaProprie !== null
+                ? "Fără mișcări de sold înregistrate în acest an."
+                : "Istoricul detaliat este vizibil doar pentru soldul propriu sau pentru rolurile cu citire extinsă asupra concediilor."
+            }
+          />
         ) : (
           <IstoricTabel randuri={istoric} tipuri={tipuri} />
         )}
       </section>
-    </main>
+    </div>
   );
 }
 
@@ -225,10 +238,13 @@ async function SectiuniPeAngajat({
   const grupuri = grupeazaSoldDupaAngajat(solduri);
   if (grupuri.size === 0) {
     return (
-      <p className="text-muted-foreground text-sm">
-        Nu există încă niciun rând de sold pentru anul acesta, pentru angajații vizibili
-        dumneavoastră.
-      </p>
+      <StareGoala
+        compact
+        fel="initiala"
+        pictograma={PiggyBank}
+        titlu="Niciun sold pentru anul acesta"
+        descriere="Nu există încă niciun rând de sold pentru anul acesta, pentru angajații vizibili dumneavoastră."
+      />
     );
   }
 
@@ -249,7 +265,7 @@ async function SectiuniPeAngajat({
         const randuri = imperecheazaSold(tipuri, grupuri.get(employeeId) ?? []);
         return (
           <div key={employeeId}>
-            <h3 className="mb-2 text-sm font-semibold">
+            <h3 className="text-corp mb-2 font-semibold">
               {angajat === undefined ? "Angajat" : `${angajat.full_name} (${angajat.marca})`}
             </h3>
             <TabelTipuri randuri={randuri} />
@@ -269,8 +285,8 @@ function IstoricTabel({
 }) {
   const hartaTipuri = new Map(tipuri.map((t) => [t.id, t]));
   return (
-    <div className="border-border overflow-x-auto rounded-lg border">
-      <table className="w-full text-left text-sm">
+    <div className="border-border rounded-panou overflow-x-auto border">
+      <table className="text-corp w-full text-left">
         <thead className="bg-surface text-foreground">
           <tr>
             <th scope="col" className="px-4 py-2 font-medium">

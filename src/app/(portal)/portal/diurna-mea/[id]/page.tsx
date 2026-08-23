@@ -4,6 +4,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
+import { Badge } from "@/components/ui/badge";
+import { buton } from "@/components/ui/buton";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -21,7 +24,7 @@ import { fisaMea } from "@/lib/queries/portal";
 import { ActiuniDeplasare } from "@/app/(app)/diurna/[id]/actiuni-deplasare";
 import { Etape } from "@/app/(app)/diurna/[id]/etape";
 import { FormularCheltuiala } from "@/app/(app)/diurna/[id]/formular-cheltuiala";
-import { CLASE_STATUS_DEPLASARE, ETICHETE_STATUS_DEPLASARE } from "@/app/(app)/diurna/etichete";
+import { ETICHETE_STATUS_DEPLASARE, TONURI_STATUS_DEPLASARE } from "@/app/(app)/diurna/etichete";
 
 import { FaraFisa } from "../../fara-fisa";
 
@@ -85,24 +88,21 @@ export default async function PaginaDeplasareaMea({
   const poateAdaugaCheltuiala = can(permisiuni, "per_diem:update", "own");
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 p-4">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-foreground text-xl font-semibold">{deplasare.scop}</h1>
-          <p className="text-muted-foreground text-sm">
-            {formatDate(deplasare.plecare_la)} – {formatDate(deplasare.sosire_la)}
-            {deplasare.localitate === null ? null : ` · ${deplasare.localitate}`}
-          </p>
-        </div>
-        <span
-          className={`shrink-0 rounded border px-2 py-0.5 text-xs ${CLASE_STATUS_DEPLASARE[deplasare.status]}`}
-        >
-          {ETICHETE_STATUS_DEPLASARE[deplasare.status]}
-        </span>
-      </header>
+    <div className={`${LATIMI.detaliu} space-y-4 p-4`}>
+      <AntetPagina
+        titlu={deplasare.scop}
+        descriere={`${formatDate(deplasare.plecare_la)} – ${formatDate(deplasare.sosire_la)}${
+          deplasare.localitate === null ? "" : ` · ${deplasare.localitate}`
+        }`}
+        actiuni={
+          <Badge className="shrink-0" ton={TONURI_STATUS_DEPLASARE[deplasare.status]}>
+            {ETICHETE_STATUS_DEPLASARE[deplasare.status]}
+          </Badge>
+        }
+      />
 
       {politica === null ? (
-        <p className="border-warning/40 bg-warning/10 text-foreground rounded-lg border p-3 text-sm">
+        <p className="border-warning/40 bg-warning/10 text-foreground rounded-panou text-corp border p-3">
           Nu există o politică de diurnă valabilă la data plecării, deci suma nu poate fi calculată.
           Anunțați administratorul organizației.
         </p>
@@ -117,26 +117,26 @@ export default async function PaginaDeplasareaMea({
       )}
 
       <section aria-labelledby="cheltuieli" className="space-y-2">
-        <h2 id="cheltuieli" className="text-foreground text-sm font-semibold">
+        <h2 id="cheltuieli" className="text-foreground text-corp font-semibold">
           Cheltuieli
         </h2>
         {cheltuieliTrip.length === 0 ? (
-          <p className="bg-surface border-border text-muted-foreground rounded-lg border p-4 text-sm">
+          <p className="bg-surface border-border text-muted-foreground rounded-panou text-corp border p-4">
             Nicio cheltuială înregistrată. Cazarea, transportul și restul se adaugă mai jos.
           </p>
         ) : (
-          <ul className="divide-border border-border bg-surface divide-y rounded-lg border">
+          <ul className="divide-border border-border bg-surface rounded-panou divide-y border">
             {cheltuieliTrip.map((cheltuiala) => (
               <li key={cheltuiala.id} className="flex items-start justify-between gap-3 p-3">
                 <div className="min-w-0">
-                  <p className="text-foreground text-sm">
+                  <p className="text-foreground text-corp">
                     {cheltuiala.descriere ?? cheltuiala.tip}
                   </p>
-                  <p className="text-muted-foreground text-xs">
+                  <p className="text-muted-foreground text-nota">
                     {formatDate(cheltuiala.data_cheltuielii)}
                   </p>
                 </div>
-                <span className="text-foreground shrink-0 text-sm font-medium tabular-nums">
+                <span className="text-foreground text-corp shrink-0 font-medium tabular-nums">
                   {cheltuiala.suma.toLocaleString("ro-RO")} {cheltuiala.moneda}
                 </span>
               </li>
@@ -147,10 +147,10 @@ export default async function PaginaDeplasareaMea({
       </section>
 
       {deplasare.observatii === null ? null : (
-        <p className="text-muted-foreground text-sm">{deplasare.observatii}</p>
+        <p className="text-muted-foreground text-corp">{deplasare.observatii}</p>
       )}
 
-      <p className="text-muted-foreground text-xs">
+      <p className="text-muted-foreground text-nota">
         Înregistrată {formatDateTime(deplasare.created_at)}
       </p>
 
@@ -167,10 +167,7 @@ export default async function PaginaDeplasareaMea({
       ) : null}
 
       <p>
-        <Link
-          href="/portal/diurna-mea"
-          className="text-primary text-sm underline-offset-2 hover:underline"
-        >
+        <Link href="/portal/diurna-mea" className={buton({ varianta: "link" })}>
           Înapoi la diurna mea
         </Link>
       </p>

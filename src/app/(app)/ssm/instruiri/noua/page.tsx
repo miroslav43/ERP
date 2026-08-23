@@ -4,7 +4,8 @@ import Link from "next/link";
 import { GraduationCap } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
@@ -31,13 +32,14 @@ export default async function PaginaInstruireNoua() {
   const tipuri = await tipuriInstruire(tenant.organizationId);
   if (tipuri.length === 0) {
     return (
-      <main className="mx-auto w-full max-w-3xl space-y-6 p-6">
-        <EmptyState
-          icon={GraduationCap}
-          title="Niciun tip de instruire configurat"
-          description="Nomenclatorul de tipuri de instruire se completează de administratorul organizației."
+      <div className={`${LATIMI.formular} space-y-6`}>
+        <StareGoala
+          fel="initiala"
+          pictograma={GraduationCap}
+          titlu="Niciun tip de instruire configurat"
+          descriere="Nomenclatorul de tipuri de instruire se completează de administratorul organizației."
         />
-      </main>
+      </div>
     );
   }
 
@@ -52,18 +54,17 @@ export default async function PaginaInstruireNoua() {
     .limit(500);
 
   return (
-    <main className="mx-auto w-full max-w-3xl space-y-6 p-6">
-      <header>
-        <p className="text-muted-foreground text-sm">
-          <Link href="/ssm/instruiri" className="underline-offset-2 hover:underline">
-            Instruiri
-          </Link>
-        </p>
-        <h1 className="text-2xl font-semibold">Instruire nouă</h1>
-        <p className="text-muted-foreground text-sm">
-          Un tip, o dată, câți angajați aveți nevoie — toți intră într-o singură înregistrare.
-        </p>
-      </header>
+    <div className={`${LATIMI.formular} space-y-6`}>
+      <p className="text-muted-foreground text-corp">
+        <Link href="/ssm/instruiri" className="underline-offset-2 hover:underline">
+          Instruiri
+        </Link>
+      </p>
+
+      <AntetPagina
+        titlu="Instruire nouă"
+        descriere="Un tip, o dată, câți angajați aveți nevoie — toți intră într-o singură înregistrare."
+      />
 
       <FormularInstruireBloc
         tipuri={tipuri.map((t) => ({ id: t.id, denumire: t.denumire, domeniu: t.domeniu }))}
@@ -73,6 +74,6 @@ export default async function PaginaInstruireNoua() {
           marca: a.marca,
         }))}
       />
-    </main>
+    </div>
   );
 }

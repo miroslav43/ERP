@@ -37,8 +37,8 @@ export function AntetPortal({
         <div className="min-w-0">
           {/* Numele firmei apare doar pe telefon: pe laptop e deja în capul
               rail-ului, iar de două ori pe același ecran e zgomot. */}
-          <p className="text-muted-foreground truncate text-xs md:hidden">{numeOrganizatie}</p>
-          <p className="text-foreground truncate text-sm font-semibold">{numeAfisat}</p>
+          <p className="text-muted-foreground text-nota truncate md:hidden">{numeOrganizatie}</p>
+          <p className="text-foreground text-corp truncate font-semibold">{numeAfisat}</p>
         </div>
 
         <div className="ml-auto flex items-center gap-1">
@@ -47,7 +47,7 @@ export function AntetPortal({
             aria-label={
               necitite > 0 ? `Notificări: ${necitite} necitite` : "Notificări: niciuna necitită"
             }
-            className="text-muted-foreground hover:bg-background hover:text-foreground relative inline-flex size-11 items-center justify-center rounded-md"
+            className="text-muted-foreground hover:bg-background hover:text-foreground rounded-control relative inline-flex size-11 items-center justify-center"
           >
             <Bell aria-hidden="true" className="size-5" />
             {necitite > 0 ? (

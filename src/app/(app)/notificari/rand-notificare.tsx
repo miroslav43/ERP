@@ -80,11 +80,11 @@ export function RandNotificare({
           ) : null}
         </span>
         {notificare.body !== null && notificare.body.length > 0 ? (
-          <span className="text-muted-foreground mt-0.5 block text-sm break-words">
+          <span className="text-muted-foreground text-corp mt-0.5 block break-words">
             {notificare.body}
           </span>
         ) : null}
-        <span className="text-muted-foreground mt-1 block text-xs">
+        <span className="text-muted-foreground text-nota mt-1 block">
           {formatDateTime(notificare.created_at)}
         </span>
       </span>
@@ -93,7 +93,7 @@ export function RandNotificare({
   );
 
   const clasa =
-    "flex w-full items-start gap-3 rounded-md p-4 text-left transition-colors hover:bg-background focus-visible:bg-background outline-none";
+    "flex w-full items-start gap-3 rounded-control p-4 text-left transition-colors hover:bg-background focus-visible:bg-background";
 
   if (destinatie !== null) {
     return (

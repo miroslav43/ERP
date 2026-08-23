@@ -2,15 +2,18 @@
 import Link from "next/link";
 import { Wrench } from "lucide-react";
 
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { Badge } from "@/components/ui/badge";
+import { buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { formatDateTime } from "@/lib/format/date";
 
 import { numeleEchipamentelorMele } from "./actions";
 import {
-  CLASE_STATUS_SESIZARE,
-  CLASE_URGENTA_SESIZARE,
   ETICHETE_STATUS_SESIZARE,
   ETICHETE_URGENTA_SESIZARE,
+  TONURI_STATUS_SESIZARE,
+  TONURI_URGENTA_SESIZARE,
 } from "./etichete";
 
 /**
@@ -23,40 +26,36 @@ export async function SesizarileMele() {
   const sesizari = rezultat.ok ? rezultat.data : [];
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Sesizările mele</h1>
-          <p className="text-muted-foreground text-sm">
-            Defecțiunile pe care le-ați raportat, cu starea lor curentă.
-          </p>
-        </div>
-        <Link
-          href="/mentenanta/sesizari/noua"
-          className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
-        >
-          Sesizare nouă
-        </Link>
-      </header>
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Sesizările mele"
+        descriere="Defecțiunile pe care le-ați raportat, cu starea lor curentă."
+        actiuni={
+          <Link href="/mentenanta/sesizari/noua" className={buton({ varianta: "primar" })}>
+            Sesizare nouă
+          </Link>
+        }
+      />
 
       {!rezultat.ok ? (
         <p
           role="alert"
-          className="border-danger bg-danger/8 text-danger rounded-md border p-4 text-sm"
+          className="border-danger bg-danger/8 text-danger rounded-control text-corp border p-4"
         >
           {rezultat.error.message}
         </p>
       ) : sesizari.length === 0 ? (
-        <EmptyState
-          icon={Wrench}
-          title="Nu ați trimis nicio sesizare"
-          description="Dacă un echipament s-a defectat, raportați-l — durează un minut."
-          action={{ label: "Sesizare nouă", href: "/mentenanta/sesizari/noua" }}
+        <StareGoala
+          fel="initiala"
+          pictograma={Wrench}
+          titlu="Nu ați trimis nicio sesizare"
+          descriere="Dacă un echipament s-a defectat, raportați-l — durează un minut."
+          actiune={{ eticheta: "Sesizare nouă", href: "/mentenanta/sesizari/noua" }}
         />
       ) : (
         <ul className="space-y-3">
           {sesizari.map((sesizare) => (
-            <li key={sesizare.id} className="border-border rounded-lg border p-4">
+            <li key={sesizare.id} className="border-border rounded-panou border p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p className="font-medium">
@@ -64,34 +63,30 @@ export async function SesizarileMele() {
                       ? "Echipament necunoscut"
                       : `${sesizare.echipament.cod} — ${sesizare.echipament.denumire}`}
                   </p>
-                  <p className="text-muted-foreground mt-1 text-sm">{sesizare.descriere}</p>
-                  <p className="text-muted-foreground mt-1 text-xs">
+                  <p className="text-muted-foreground text-corp mt-1">{sesizare.descriere}</p>
+                  <p className="text-muted-foreground text-nota mt-1">
                     Raportată la {formatDateTime(sesizare.raportat_la)}
                     {sesizare.opreste_functionarea ? " · Oprește funcționarea" : ""}
                   </p>
                   {sesizare.motiv_respingere !== null ? (
-                    <p className="text-danger mt-1 text-xs">
+                    <p className="text-danger text-nota mt-1">
                       Motivul respingerii: {sesizare.motiv_respingere}
                     </p>
                   ) : null}
                 </div>
                 <div className="flex flex-col items-end gap-1">
-                  <span
-                    className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_URGENTA_SESIZARE[sesizare.urgenta]}`}
-                  >
+                  <Badge ton={TONURI_URGENTA_SESIZARE[sesizare.urgenta]}>
                     {ETICHETE_URGENTA_SESIZARE[sesizare.urgenta]}
-                  </span>
-                  <span
-                    className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_STATUS_SESIZARE[sesizare.status]}`}
-                  >
+                  </Badge>
+                  <Badge ton={TONURI_STATUS_SESIZARE[sesizare.status]}>
                     {ETICHETE_STATUS_SESIZARE[sesizare.status]}
-                  </span>
+                  </Badge>
                 </div>
               </div>
             </li>
           ))}
         </ul>
       )}
-    </main>
+    </div>
   );
 }

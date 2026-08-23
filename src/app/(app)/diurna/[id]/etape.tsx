@@ -34,19 +34,19 @@ export function Etape({
   return (
     <div className="space-y-6">
       {etape.length === 0 ? (
-        <p className="text-muted-foreground text-sm">
+        <p className="text-muted-foreground text-corp">
           Deplasarea nu are încă nicio etapă înregistrată — calculul de mai jos folosește o singură
           țară, cea a deplasării.
         </p>
       ) : (
-        <ol className="space-y-2 text-sm">
+        <ol className="text-corp space-y-2">
           {etape.map((e) => (
-            <li key={e.id} className="border-border rounded-md border p-3">
+            <li key={e.id} className="border-border rounded-control border p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-medium">
                   {numeTara(tari, e.from_country_id)} → {numeTara(tari, e.to_country_id)}
                 </span>
-                <span className="text-muted-foreground text-xs">Etapa {e.ordine}</span>
+                <span className="text-muted-foreground text-nota">Etapa {e.ordine}</span>
               </div>
               <p className="text-muted-foreground">
                 {formatDateTime(new Date(e.plecare_la))} – {formatDateTime(new Date(e.sosire_la))}
@@ -58,7 +58,7 @@ export function Etape({
       )}
 
       {politica === null ? (
-        <p className="text-foreground text-sm">
+        <p className="text-foreground text-corp">
           Nu există o politică de diurnă valabilă la data plecării — calculul nu poate fi afișat.
         </p>
       ) : (
@@ -108,7 +108,7 @@ function CalculDiurna({
 
   if (ferestre.length === 0) {
     return (
-      <p className="text-foreground text-sm">
+      <p className="text-foreground text-corp">
         <strong>0 zile de diurnă</strong> — deplasarea a durat {formatAmount(durataOre)} ore, sub
         pragul de {formatAmount(politica.prag_ore_minim)} ore din politică.
       </p>
@@ -117,8 +117,8 @@ function CalculDiurna({
 
   return (
     <div className="space-y-3">
-      <div className="border-border overflow-x-auto rounded-lg border">
-        <table className="w-full text-sm">
+      <div className="border-border rounded-panou overflow-x-auto border">
+        <table className="text-corp w-full">
           <caption className="sr-only">
             Ferestrele de 24 de ore ale diurnei și fracțiunea acordată fiecăreia.
           </caption>
@@ -157,40 +157,40 @@ function CalculDiurna({
         </table>
       </div>
 
-      <dl className="border-border grid grid-cols-2 gap-4 rounded-lg border p-4 sm:grid-cols-4">
+      <dl className="border-border rounded-panou grid grid-cols-2 gap-4 border p-4 sm:grid-cols-4">
         <div>
-          <dt className="text-muted-foreground text-xs tracking-wide uppercase">Zile total</dt>
-          <dd className="mt-0.5 text-sm font-medium">{formatAmount(rezultat.zileTotal)}</dd>
+          <dt className="text-muted-foreground text-nota tracking-wide uppercase">Zile total</dt>
+          <dd className="text-corp mt-0.5 font-medium">{formatAmount(rezultat.zileTotal)}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground text-xs tracking-wide uppercase">Valoare</dt>
-          <dd className="mt-0.5 text-sm font-medium">
+          <dt className="text-muted-foreground text-nota tracking-wide uppercase">Valoare</dt>
+          <dd className="text-corp mt-0.5 font-medium">
             {rezultat.valoareLei === null ? "necunoscută" : formatLei(rezultat.valoareLei)}
           </dd>
         </div>
         <div>
-          <dt className="text-muted-foreground text-xs tracking-wide uppercase">Neimpozabil</dt>
-          <dd className="mt-0.5 text-sm font-medium">
+          <dt className="text-muted-foreground text-nota tracking-wide uppercase">Neimpozabil</dt>
+          <dd className="text-corp mt-0.5 font-medium">
             {rezultat.parteNeimpozabilaLei === null
               ? "—"
               : formatLei(rezultat.parteNeimpozabilaLei)}
           </dd>
         </div>
         <div>
-          <dt className="text-muted-foreground text-xs tracking-wide uppercase">Impozabil</dt>
-          <dd className="mt-0.5 text-sm font-medium">
+          <dt className="text-muted-foreground text-nota tracking-wide uppercase">Impozabil</dt>
+          <dd className="text-corp mt-0.5 font-medium">
             {rezultat.parteImpozabilaLei === null ? "—" : formatLei(rezultat.parteImpozabilaLei)}
           </dd>
         </div>
       </dl>
 
       {rezultat.baremLipsa ? (
-        <p className="text-foreground text-sm">
+        <p className="text-foreground text-corp">
           Lipsește baremul de diurnă pentru cel puțin o țară din traseu, la data respectivă — sumele
           nu pot fi calculate integral.
         </p>
       ) : rezultat.cursIncomplet ? (
-        <p className="text-foreground text-sm">
+        <p className="text-foreground text-corp">
           Zilele sunt calculate; suma în lei necesită cursul valutar (curs diurnă).
         </p>
       ) : null}

@@ -5,6 +5,9 @@ import type { ReactNode } from "react";
 import { AlertTriangle, CalendarClock, ShieldAlert, Wrench, type LucideIcon } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { Badge } from "@/components/ui/badge";
+import { buton } from "@/components/ui/buton";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -22,12 +25,12 @@ import { PRAG_AVERTIZARE_ZILE, stareScadentaData } from "@/domain/maintenance/sc
 import { URGENTE_SESIZARE } from "@/schemas/maintenance";
 
 import {
-  CLASE_STARE_SCADENTA,
-  CLASE_STATUS_ECHIPAMENT,
-  CLASE_URGENTA_SESIZARE,
   ETICHETE_STARE_SCADENTA,
   ETICHETE_STATUS_ECHIPAMENT,
   ETICHETE_URGENTA_SESIZARE,
+  TONURI_STARE_SCADENTA,
+  TONURI_STATUS_ECHIPAMENT,
+  TONURI_URGENTA_SESIZARE,
 } from "./etichete";
 import { NavMentenanta } from "./nav-mentenanta";
 import { SesizarileMele } from "./sesizarile-mele";
@@ -125,10 +128,10 @@ async function PanouOrganizatie({ organizationId }: { readonly organizationId: s
 
   return (
     <div className="space-y-6">
-      <div className="border-border rounded-lg border p-4">
-        <p className="text-muted-foreground text-sm">Scadențe în următoarele</p>
+      <div className="border-border rounded-panou border p-4">
+        <p className="text-muted-foreground text-corp">Scadențe în următoarele</p>
         <p className="text-3xl font-semibold tabular-nums">{numarScadente}</p>
-        <p className="text-muted-foreground text-xs">
+        <p className="text-muted-foreground text-nota">
           Planuri de mentenanță și autorizații ISCIR scadente sau în întârziere, în{" "}
           {PRAG_AVERTIZARE_ZILE} zile.
         </p>
@@ -151,7 +154,7 @@ async function PanouOrganizatie({ organizationId }: { readonly organizationId: s
                   >
                     {plan.denumire}
                   </Link>
-                  <p className="text-muted-foreground text-xs">
+                  <p className="text-muted-foreground text-nota">
                     {numeEchipament(plan.equipment_id)}
                     {plan.responsabil_employee_id !== null
                       ? ` · ${responsabili.get(plan.responsabil_employee_id)?.full_name ?? "—"}`
@@ -159,13 +162,14 @@ async function PanouOrganizatie({ organizationId }: { readonly organizationId: s
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-1 text-right">
-                  <span
-                    className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_STARE_SCADENTA[stare]}`}
+                  <Badge
+                    cuAvertisment={stare === "in_intarziere"}
+                    ton={TONURI_STARE_SCADENTA[stare]}
                   >
                     {ETICHETE_STARE_SCADENTA[stare]}
-                  </span>
+                  </Badge>
                   {plan.urmatoarea_scadenta !== null ? (
-                    <span className="text-muted-foreground text-xs">
+                    <span className="text-muted-foreground text-nota">
                       {formatDate(plan.urmatoarea_scadenta)}
                     </span>
                   ) : null}
@@ -189,13 +193,11 @@ async function PanouOrganizatie({ organizationId }: { readonly organizationId: s
                 >
                   {numeEchipament(sesizare.equipment_id)}
                 </Link>
-                <p className="text-muted-foreground text-xs">{sesizare.descriere}</p>
+                <p className="text-muted-foreground text-nota">{sesizare.descriere}</p>
               </div>
-              <span
-                className={`shrink-0 rounded px-2 py-0.5 text-xs font-medium ${CLASE_URGENTA_SESIZARE[sesizare.urgenta]}`}
-              >
+              <Badge className="shrink-0" ton={TONURI_URGENTA_SESIZARE[sesizare.urgenta]}>
                 {ETICHETE_URGENTA_SESIZARE[sesizare.urgenta]}
-              </span>
+              </Badge>
             </li>
           ))}
         </Panou>
@@ -213,11 +215,9 @@ async function PanouOrganizatie({ organizationId }: { readonly organizationId: s
               >
                 {echipament.cod} — {echipament.denumire}
               </Link>
-              <span
-                className={`shrink-0 rounded px-2 py-0.5 text-xs font-medium ${CLASE_STATUS_ECHIPAMENT[echipament.status]}`}
-              >
+              <Badge className="shrink-0" ton={TONURI_STATUS_ECHIPAMENT[echipament.status]}>
                 {ETICHETE_STATUS_ECHIPAMENT[echipament.status]}
-              </span>
+              </Badge>
             </li>
           ))}
         </Panou>
@@ -238,17 +238,18 @@ async function PanouOrganizatie({ organizationId }: { readonly organizationId: s
                   >
                     {numeEchipament(autorizatie.equipment_id)}
                   </Link>
-                  <p className="text-muted-foreground text-xs">
+                  <p className="text-muted-foreground text-nota">
                     {autorizatie.tip} · {autorizatie.numar}
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-1 text-right">
-                  <span
-                    className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_STARE_SCADENTA[stare]}`}
+                  <Badge
+                    cuAvertisment={stare === "in_intarziere"}
+                    ton={TONURI_STARE_SCADENTA[stare]}
                   >
                     {ETICHETE_STARE_SCADENTA[stare]}
-                  </span>
-                  <span className="text-muted-foreground text-xs">
+                  </Badge>
+                  <span className="text-muted-foreground text-nota">
                     {formatDate(autorizatie.valabil_pana)}
                   </span>
                 </div>
@@ -274,15 +275,15 @@ function Panou({
 }) {
   const areConținut = Array.isArray(children) ? children.length > 0 : children !== null;
   return (
-    <section className="border-border rounded-lg border p-4">
-      <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+    <section className="border-border rounded-panou border p-4">
+      <h2 className="text-corp mb-2 flex items-center gap-2 font-semibold">
         <Icon aria-hidden="true" className="text-muted-foreground size-4" />
         {titlu}
       </h2>
       {areConținut ? (
         <ul className="divide-border divide-y">{children}</ul>
       ) : (
-        <p className="text-muted-foreground py-4 text-sm">{gol}</p>
+        <p className="text-muted-foreground text-corp py-4">{gol}</p>
       )}
     </section>
   );
@@ -311,35 +312,26 @@ export default async function PaginaMentenanta() {
   const poateAdaugaEchipament = can(permisiuni, "maintenance:update", "team");
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Mentenanță</h1>
-          <p className="text-muted-foreground text-sm">
-            Echipamente, planuri de mentenanță, intervenții și sesizări de defecțiune.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <Link
-            href="/mentenanta/sesizari/noua"
-            className="border-foreground/60 hover:bg-surface inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium"
-          >
-            Sesizare nouă
-          </Link>
-          {poateAdaugaEchipament ? (
-            <Link
-              href="/mentenanta/echipamente/nou"
-              className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
-            >
-              Echipament nou
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Mentenanță"
+        descriere="Echipamente, planuri de mentenanță, intervenții și sesizări de defecțiune."
+        actiuni={
+          <>
+            <Link href="/mentenanta/sesizari/noua" className={buton({ varianta: "secundar" })}>
+              Sesizare nouă
             </Link>
-          ) : null}
-        </div>
-      </header>
-
-      <NavMentenanta />
+            {poateAdaugaEchipament ? (
+              <Link href="/mentenanta/echipamente/nou" className={buton({ varianta: "primar" })}>
+                Echipament nou
+              </Link>
+            ) : null}
+          </>
+        }
+        file={<NavMentenanta />}
+      />
 
       <PanouOrganizatie organizationId={tenant.organizationId} />
-    </main>
+    </div>
   );
 }

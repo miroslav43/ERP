@@ -4,6 +4,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -13,13 +15,13 @@ import { idDinRuta } from "@/lib/rute/parametri";
 import { citesteVehicul, documenteleVehiculului, tipuriDocument } from "@/lib/queries/fleet";
 
 import {
-  CLASE_SCADENTA,
-  CLASE_STATUS_VEHICUL,
   ETICHETE_CATEGORIE,
   ETICHETE_COMBUSTIBIL,
   ETICHETE_SCADENTA,
   ETICHETE_STATUS_VEHICUL,
   stareScadenta,
+  TONURI_SCADENTA,
+  TONURI_STATUS_VEHICUL,
 } from "../etichete";
 import { FormularDocument } from "./formular-document";
 
@@ -57,30 +59,27 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
   const dupaTip = new Map(curente.map((d) => [d.document_type_id, d]));
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-muted-foreground text-sm">
-            <Link href="/flota" className="underline-offset-2 hover:underline">
-              Parc auto
-            </Link>
-          </p>
-          <h1 className="text-2xl font-semibold">{vehicul.nr_inmatriculare}</h1>
-          <p className="text-muted-foreground text-sm">
-            {vehicul.marca} {vehicul.model} · {ETICHETE_CATEGORIE[vehicul.categorie]} ·{" "}
-            {ETICHETE_COMBUSTIBIL[vehicul.tip_combustibil]}
-          </p>
-        </div>
-        <span
-          className={`rounded px-2 py-1 text-xs font-medium ${CLASE_STATUS_VEHICUL[vehicul.status]}`}
-        >
-          {ETICHETE_STATUS_VEHICUL[vehicul.status]}
-        </span>
-      </header>
+    <div className="space-y-6">
+      <div className="space-y-1">
+        <p className="text-muted-foreground text-corp">
+          <Link href="/flota" className="underline-offset-2 hover:underline">
+            Parc auto
+          </Link>
+        </p>
+        <AntetPagina
+          titlu={vehicul.nr_inmatriculare}
+          descriere={`${vehicul.marca} ${vehicul.model} · ${ETICHETE_CATEGORIE[vehicul.categorie]} · ${ETICHETE_COMBUSTIBIL[vehicul.tip_combustibil]}`}
+          actiuni={
+            <Badge ton={TONURI_STATUS_VEHICUL[vehicul.status]} className="shrink-0">
+              {ETICHETE_STATUS_VEHICUL[vehicul.status]}
+            </Badge>
+          }
+        />
+      </div>
 
       <section
         aria-label="Date de identificare"
-        className="border-border grid gap-4 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-4"
+        className="border-border rounded-panou grid gap-4 border p-4 sm:grid-cols-2 lg:grid-cols-4"
       >
         <Camp eticheta="Kilometraj" valoare={`${vehicul.km_curent.toLocaleString("ro-RO")} km`} />
         <Camp eticheta="VIN" valoare={vehicul.vin ?? "—"} />
@@ -113,11 +112,11 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
       </section>
 
       <section aria-labelledby="documente" className="space-y-3">
-        <h2 id="documente" className="text-lg font-semibold">
+        <h2 id="documente" className="text-sectiune font-semibold">
           Documente
         </h2>
-        <div className="border-border overflow-x-auto rounded-lg border">
-          <table className="w-full text-sm">
+        <div className="border-border rounded-panou overflow-x-auto border">
+          <table className="text-corp w-full">
             <thead className="bg-surface text-left">
               <tr>
                 <th scope="col" className="px-4 py-3 font-medium">
@@ -147,7 +146,7 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
                     <td className="px-4 py-3">
                       {tip.denumire}
                       {tip.obligatoriu ? (
-                        <span className="text-muted-foreground ml-1 text-xs">(obligatoriu)</span>
+                        <span className="text-muted-foreground text-nota ml-1">(obligatoriu)</span>
                       ) : null}
                     </td>
                     <td className="px-4 py-3">{doc?.numar ?? "—"}</td>
@@ -157,11 +156,9 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
                         : formatDate(doc.expira_la)}
                     </td>
                     <td className="px-4 py-3">
-                      <span
-                        className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_SCADENTA[stare]}`}
-                      >
+                      <Badge ton={TONURI_SCADENTA[stare]} cuAvertisment={stare === "expirat"}>
                         {ETICHETE_SCADENTA[stare]}
-                      </span>
+                      </Badge>
                     </td>
                   </tr>
                 );
@@ -173,20 +170,20 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
         {poateScrie ? (
           <FormularDocument vehiculId={vehicul.id} tipuri={tipuri} />
         ) : (
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground text-corp">
             Documentele se adaugă de către cei care administrează parcul auto.
           </p>
         )}
       </section>
-    </main>
+    </div>
   );
 }
 
 function Camp({ eticheta, valoare }: { readonly eticheta: string; readonly valoare: string }) {
   return (
     <div>
-      <dt className="text-muted-foreground text-xs">{eticheta}</dt>
-      <dd className="text-sm font-medium">{valoare}</dd>
+      <dt className="text-muted-foreground text-nota">{eticheta}</dt>
+      <dd className="text-corp font-medium">{valoare}</dd>
     </div>
   );
 }

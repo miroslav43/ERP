@@ -3,6 +3,7 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
 import { adaugaAutorizatieIscir } from "../../actions";
 
 export function FormularIscir({ equipmentId }: { readonly equipmentId: string }) {
@@ -46,12 +47,12 @@ export function FormularIscir({ equipmentId }: { readonly equipmentId: string })
   return (
     <form
       action={trimite}
-      className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-3"
+      className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-2 lg:grid-cols-3"
     >
-      <p className="text-sm font-medium sm:col-span-2 lg:col-span-3">Autorizație ISCIR nouă</p>
+      <p className="text-corp font-medium sm:col-span-2 lg:col-span-3">Autorizație ISCIR nouă</p>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idNumar} className="text-sm">
+        <label htmlFor={idNumar} className="text-corp">
           Număr
         </label>
         <input
@@ -59,12 +60,12 @@ export function FormularIscir({ equipmentId }: { readonly equipmentId: string })
           name="numar"
           required
           maxLength={80}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idTip} className="text-sm">
+        <label htmlFor={idTip} className="text-corp">
           Tip
         </label>
         <input
@@ -73,12 +74,12 @@ export function FormularIscir({ equipmentId }: { readonly equipmentId: string })
           required
           maxLength={80}
           placeholder="Ex. macara, stivuitor, cazan"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idEmitent} className="text-sm">
+        <label htmlFor={idEmitent} className="text-corp">
           Emitent
         </label>
         <input
@@ -86,24 +87,24 @@ export function FormularIscir({ equipmentId }: { readonly equipmentId: string })
           name="emitent"
           defaultValue="ISCIR"
           maxLength={120}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idEmisLa} className="text-sm">
+        <label htmlFor={idEmisLa} className="text-corp">
           Emisă la
         </label>
         <input
           id={idEmisLa}
           name="emis_la"
           type="date"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idValabilPana} className="text-sm">
+        <label htmlFor={idValabilPana} className="text-corp">
           Valabilă până la
         </label>
         <input
@@ -111,24 +112,24 @@ export function FormularIscir({ equipmentId }: { readonly equipmentId: string })
           name="valabil_pana"
           type="date"
           required
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idScadentaVerificare} className="text-sm">
+        <label htmlFor={idScadentaVerificare} className="text-corp">
           Scadența verificării tehnice
         </label>
         <input
           id={idScadentaVerificare}
           name="scadenta_verificare_tehnica"
           type="date"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-3">
-        <label htmlFor={idConditii} className="text-sm">
+        <label htmlFor={idConditii} className="text-corp">
           Condiții
         </label>
         <textarea
@@ -136,20 +137,16 @@ export function FormularIscir({ equipmentId }: { readonly equipmentId: string })
           name="conditii"
           rows={2}
           maxLength={1000}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-3">
-        <button
-          type="submit"
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se salvează…" : "Salvează autorizația"}
-        </button>
+        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+          Salvează autorizația
+        </Buton>
         {eroare === null ? null : (
-          <p role="alert" className="text-danger text-sm">
+          <p role="alert" className="text-danger text-corp">
             {eroare}
           </p>
         )}

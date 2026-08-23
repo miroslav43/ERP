@@ -23,5 +23,5 @@ export function MarcheazaCitit({ id }: { readonly id: string }) {
   }, [id]);
 
   if (!confirmat) return null;
-  return <p className="text-muted-foreground text-xs">Confirmat citit.</p>;
+  return <p className="text-muted-foreground text-nota">Confirmat citit.</p>;
 }

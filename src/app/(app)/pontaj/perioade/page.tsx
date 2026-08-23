@@ -4,8 +4,10 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { Badge } from "@/components/ui/badge";
 import { RandTabel } from "@/components/data/rand-tabel";
-import { SkeletonTable } from "@/components/data/skeleton-table";
+import { Schelet } from "@/components/ui/schelet";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -14,7 +16,7 @@ import { anDinUrl } from "@/lib/rute/parametri";
 import { listeazaPerioade } from "@/lib/queries/attendance";
 
 import { NavPontaj } from "../nav-pontaj";
-import { CLASE_STATUS_PERIOADA, ETICHETE_STATUS_PERIOADA } from "../etichete";
+import { TONURI_STATUS_PERIOADA, ETICHETE_STATUS_PERIOADA } from "../etichete";
 import { ActiuniPerioada } from "./actiuni-perioada";
 
 export const metadata: Metadata = { title: "Perioade de pontaj" };
@@ -53,8 +55,8 @@ async function TabelPerioade({
   const dupaLuna = new Map(perioade.map((p) => [p.luna, p]));
 
   return (
-    <div className="border-border overflow-x-auto rounded-lg border">
-      <table className="w-full text-sm">
+    <div className="border-border rounded-panou overflow-x-auto border">
+      <table className="text-corp w-full">
         <caption className="sr-only">Perioadele de pontaj ale anului {an}.</caption>
         <thead className="bg-surface text-left">
           <tr>
@@ -89,13 +91,11 @@ async function TabelPerioade({
                 </td>
                 <td className="px-4 py-3">
                   {perioada === null ? (
-                    <span className="text-muted-foreground text-xs">Neschisă</span>
+                    <span className="text-muted-foreground text-nota">Neschisă</span>
                   ) : (
-                    <span
-                      className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_STATUS_PERIOADA[perioada.status]}`}
-                    >
+                    <Badge ton={TONURI_STATUS_PERIOADA[perioada.status]}>
                       {ETICHETE_STATUS_PERIOADA[perioada.status]}
-                    </span>
+                    </Badge>
                   )}
                 </td>
                 <td className="px-4 py-3">
@@ -136,34 +136,31 @@ export default async function PaginaPerioadePontaj({ searchParams }: Proprietati
   const an = anDinUrl(parametri["an"], Number(todayInBucharest().slice(0, 4)));
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Perioade de pontaj</h1>
-          <p className="text-muted-foreground text-sm">
-            Deschiderea și blocarea lunilor de pontaj ale anului {String(an)}.
-          </p>
-        </div>
-        <nav aria-label="Anul perioadelor" className="flex items-center gap-3 text-sm">
-          <Link
-            href={`/pontaj/perioade?an=${String(an - 1)}`}
-            className="underline underline-offset-2"
-          >
-            {an - 1}
-          </Link>
-          <span className="font-semibold">{an}</span>
-          <Link
-            href={`/pontaj/perioade?an=${String(an + 1)}`}
-            className="underline underline-offset-2"
-          >
-            {an + 1}
-          </Link>
-        </nav>
-      </header>
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Perioade de pontaj"
+        descriere={`Deschiderea și blocarea lunilor de pontaj ale anului ${String(an)}.`}
+        actiuni={
+          <nav aria-label="Anul perioadelor" className="text-corp flex items-center gap-3">
+            <Link
+              href={`/pontaj/perioade?an=${String(an - 1)}`}
+              className="underline underline-offset-2"
+            >
+              {an - 1}
+            </Link>
+            <span className="font-semibold">{an}</span>
+            <Link
+              href={`/pontaj/perioade?an=${String(an + 1)}`}
+              className="underline underline-offset-2"
+            >
+              {an + 1}
+            </Link>
+          </nav>
+        }
+        file={<NavPontaj poateAproba={poateAproba} />}
+      />
 
-      <NavPontaj poateAproba={poateAproba} />
-
-      <Suspense key={String(an)} fallback={<SkeletonTable cols={4} />}>
+      <Suspense key={String(an)} fallback={<Schelet forma="tabel" coloane={4} />}>
         <TabelPerioade
           organizationId={tenant.organizationId}
           an={an}
@@ -171,6 +168,6 @@ export default async function PaginaPerioadePontaj({ searchParams }: Proprietati
           poateBloca={poateBloca}
         />
       </Suspense>
-    </main>
+    </div>
   );
 }

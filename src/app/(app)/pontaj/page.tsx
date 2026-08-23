@@ -5,8 +5,10 @@ import type { Metadata } from "next";
 import { CalendarClock, Users } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
-import { SkeletonTable } from "@/components/data/skeleton-table";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
+import { Schelet } from "@/components/ui/schelet";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -134,14 +136,16 @@ async function Foaie({
   if (angajati.length === 0) {
     const areFiltre = filtre.departament !== null || filtre.cauta !== null;
     return (
-      <EmptyState
-        icon={Users}
-        title={areFiltre ? "Niciun rezultat pentru filtrele alese" : "Niciun angajat de pontat"}
-        description={
+      <StareGoala
+        fel={areFiltre ? "filtrata" : "initiala"}
+        pictograma={Users}
+        titlu={areFiltre ? "Niciun rezultat pentru filtrele alese" : "Niciun angajat de pontat"}
+        descriere={
           areFiltre
             ? "Ștergeți filtrele ca să vedeți toți angajații."
             : "Nu există angajați activi în organizație pentru luna selectată."
         }
+        {...(areFiltre ? { actiune: { eticheta: "Șterge filtrele", href: "/pontaj" } } : {})}
       />
     );
   }
@@ -204,10 +208,7 @@ async function Foaie({
       />
       <nav aria-label="Paginare" className="flex justify-end">
         {urmatorulCursor === null ? null : (
-          <Link
-            href={`/pontaj?${cautare.toString()}`}
-            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
-          >
+          <Link href={`/pontaj?${cautare.toString()}`} className={buton({ varianta: "secundar" })}>
             Pagina următoare
           </Link>
         )}
@@ -261,39 +262,34 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
       : orePeZi * (await zileLucratoareLuna(tenant.organizationId, an, filtre.luna));
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Pontaj</h1>
-          <p className="text-muted-foreground text-sm">
-            Foaia colectivă pentru {formatMonthYear(an, filtre.luna)}.
-          </p>
-        </div>
-        <Link
-          href="/pontaj/setari"
-          className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm font-medium"
-        >
-          Setări
-        </Link>
-      </header>
-
-      <NavPontaj poateAproba={poateAproba} />
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Pontaj"
+        descriere={`Foaia colectivă pentru ${formatMonthYear(an, filtre.luna)}.`}
+        actiuni={
+          <Link href="/pontaj/setari" className={buton({ varianta: "secundar" })}>
+            Setări
+          </Link>
+        }
+        file={<NavPontaj poateAproba={poateAproba} />}
+      />
 
       {scope === "own" ? null : (
         <FiltrePontaj an={an} luna={filtre.luna} departamente={listaDepartamente} />
       )}
 
       {perioada === null ? (
-        <EmptyState
-          icon={CalendarClock}
-          title="Luna nu a fost deschisă"
-          description="Deschideți perioada din „Perioade” înainte de a înregistra pontaj."
+        <StareGoala
+          fel="initiala"
+          pictograma={CalendarClock}
+          titlu="Luna nu a fost deschisă"
+          descriere="Deschideți perioada din „Perioade” înainte de a înregistra pontaj."
           {...(poateDeschide
-            ? { action: { label: "Mergi la Perioade", href: "/pontaj/perioade" } }
+            ? { actiune: { eticheta: "Mergi la Perioade", href: "/pontaj/perioade" } }
             : {})}
         />
       ) : (
-        <Suspense key={JSON.stringify(parametri)} fallback={<SkeletonTable cols={10} />}>
+        <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={10} />}>
           <Foaie
             organizationId={tenant.organizationId}
             scope={scope}
@@ -313,6 +309,6 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
           />
         </Suspense>
       )}
-    </main>
+    </div>
   );
 }

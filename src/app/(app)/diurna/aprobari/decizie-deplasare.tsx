@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { decideDeplasare, deconteazaDeplasare } from "../actions";
+import { Buton } from "@/components/ui/buton";
 
 /**
  * Decizia unui aprobator asupra unei deplasări.
@@ -52,40 +53,34 @@ export function DecizieDeplasare({
       <div className="flex gap-2">
         {status === "in_aprobare" ? (
           <>
-            <button
-              type="button"
-              disabled={inCurs}
+            <Buton
+              varianta="primar"
+              inCurs={inCurs}
+              textInCurs="Se trimite…"
               onClick={() => {
                 decide("aprobata");
               }}
-              className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed"
             >
-              {inCurs ? "Se trimite…" : "Aprobă"}
-            </button>
-            <button
-              type="button"
-              disabled={inCurs}
+              Aprobă
+            </Buton>
+            <Buton
+              varianta="secundar"
+              inCurs={inCurs}
               onClick={() => {
                 decide("respinsa");
               }}
-              className="border-foreground/60 hover:bg-surface disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md border px-3 py-1.5 text-sm disabled:cursor-not-allowed"
             >
               Respinge
-            </button>
+            </Buton>
           </>
         ) : (
-          <button
-            type="button"
-            disabled={inCurs}
-            onClick={deconteaza}
-            className="text-primary-foreground disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md bg-violet-700 px-3 py-1.5 text-sm font-medium hover:bg-violet-800 disabled:cursor-not-allowed"
-          >
-            {inCurs ? "Se marchează…" : "Marchează decontată"}
-          </button>
+          <Buton varianta="primar" inCurs={inCurs} textInCurs="Se marchează…" onClick={deconteaza}>
+            Marchează decontată
+          </Buton>
         )}
       </div>
       {eroare === null ? null : (
-        <p role="alert" className="text-danger max-w-sm text-xs">
+        <p role="alert" className="text-danger text-nota max-w-sm">
           {eroare}
         </p>
       )}

@@ -10,6 +10,7 @@ import {
   SelectorCodCaenPrincipal,
   SelectorCodCaenSecundare,
 } from "@/components/forms/selector-cod-caen";
+import { Buton } from "@/components/ui/buton";
 import { actualizeazaOrganizatie } from "../../actions";
 
 const ETICHETE_PLAN: Record<(typeof PLANURI)[number], string> = {
@@ -39,7 +40,8 @@ interface OrganizatieExistenta {
   readonly cod_caen_secundare: readonly string[];
 }
 
-const CLASA_CAMP = "mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm";
+const CLASA_CAMP =
+  "mt-1 w-full rounded-control border border-border bg-background px-3 py-2 text-corp";
 
 export function FormularEditeazaOrganizatie({
   organizatie,
@@ -97,25 +99,24 @@ export function FormularEditeazaOrganizatie({
 
   if (!deschis) {
     return (
-      <button
-        type="button"
+      <Buton
+        varianta="secundar"
         onClick={() => {
           setDeschis(true);
         }}
-        className="border-border hover:bg-surface rounded-md border px-3 py-2 text-sm font-medium"
       >
         Editează datele
-      </button>
+      </Buton>
     );
   }
 
   return (
     <form
       action={trimite}
-      className="border-border bg-surface grid gap-3 rounded-lg border p-4 sm:grid-cols-2"
+      className="border-border bg-surface rounded-panou grid gap-3 border p-4 sm:grid-cols-2"
     >
       <div className="flex flex-col gap-1">
-        <label htmlFor={`${idFormular}-name`} className="text-sm font-medium">
+        <label htmlFor={`${idFormular}-name`} className="text-corp font-medium">
           Denumire *
         </label>
         <input
@@ -128,7 +129,7 @@ export function FormularEditeazaOrganizatie({
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={`${idFormular}-legal_name`} className="text-sm font-medium">
+        <label htmlFor={`${idFormular}-legal_name`} className="text-corp font-medium">
           Denumire legală
         </label>
         <input
@@ -140,7 +141,7 @@ export function FormularEditeazaOrganizatie({
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={`${idFormular}-email`} className="text-sm font-medium">
+        <label htmlFor={`${idFormular}-email`} className="text-corp font-medium">
           Email de contact *
         </label>
         <input
@@ -153,7 +154,7 @@ export function FormularEditeazaOrganizatie({
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={`${idFormular}-telefon`} className="text-sm font-medium">
+        <label htmlFor={`${idFormular}-telefon`} className="text-corp font-medium">
           Telefon *
         </label>
         <input
@@ -165,7 +166,7 @@ export function FormularEditeazaOrganizatie({
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={`${idFormular}-judet`} className="text-sm font-medium">
+        <label htmlFor={`${idFormular}-judet`} className="text-corp font-medium">
           Județ *
         </label>
         <select
@@ -183,7 +184,7 @@ export function FormularEditeazaOrganizatie({
         </select>
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={`${idFormular}-oras`} className="text-sm font-medium">
+        <label htmlFor={`${idFormular}-oras`} className="text-corp font-medium">
           Localitate *
         </label>
         <input
@@ -195,7 +196,7 @@ export function FormularEditeazaOrganizatie({
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={`${idFormular}-adresa`} className="text-sm font-medium">
+        <label htmlFor={`${idFormular}-adresa`} className="text-corp font-medium">
           Adresă
         </label>
         <input
@@ -207,7 +208,7 @@ export function FormularEditeazaOrganizatie({
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={`${idFormular}-cod_postal`} className="text-sm font-medium">
+        <label htmlFor={`${idFormular}-cod_postal`} className="text-corp font-medium">
           Cod poștal
         </label>
         <input
@@ -219,7 +220,7 @@ export function FormularEditeazaOrganizatie({
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={`${idFormular}-website`} className="text-sm font-medium">
+        <label htmlFor={`${idFormular}-website`} className="text-corp font-medium">
           Website
         </label>
         <input
@@ -231,7 +232,7 @@ export function FormularEditeazaOrganizatie({
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={`${idFormular}-reprezentant`} className="text-sm font-medium">
+        <label htmlFor={`${idFormular}-reprezentant`} className="text-corp font-medium">
           Reprezentant legal
         </label>
         <input
@@ -243,13 +244,13 @@ export function FormularEditeazaOrganizatie({
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={`${idFormular}-caen`} className="text-sm font-medium">
+        <label htmlFor={`${idFormular}-caen`} className="text-corp font-medium">
           Cod CAEN principal
         </label>
         <SelectorCodCaenPrincipal id={`${idFormular}-caen`} value={codCaen} onChange={setCodCaen} />
       </div>
       <div className="flex flex-col gap-1 sm:col-span-2">
-        <label htmlFor={`${idFormular}-caen-secundare`} className="text-sm font-medium">
+        <label htmlFor={`${idFormular}-caen-secundare`} className="text-corp font-medium">
           Coduri CAEN secundare
         </label>
         <SelectorCodCaenSecundare
@@ -261,7 +262,7 @@ export function FormularEditeazaOrganizatie({
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={`${idFormular}-plan`} className="text-sm font-medium">
+        <label htmlFor={`${idFormular}-plan`} className="text-corp font-medium">
           Plan *
         </label>
         <select
@@ -279,7 +280,7 @@ export function FormularEditeazaOrganizatie({
         </select>
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={`${idFormular}-locuri`} className="text-sm font-medium">
+        <label htmlFor={`${idFormular}-locuri`} className="text-corp font-medium">
           Număr de locuri *
         </label>
         <input
@@ -294,7 +295,7 @@ export function FormularEditeazaOrganizatie({
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={`${idFormular}-zile_concediu`} className="text-sm font-medium">
+        <label htmlFor={`${idFormular}-zile_concediu`} className="text-corp font-medium">
           Zile de concediu de odihnă / an *
         </label>
         <input
@@ -309,25 +310,20 @@ export function FormularEditeazaOrganizatie({
         />
       </div>
       <div className="flex items-center gap-3 sm:col-span-2">
-        <button
-          type="submit"
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {inCurs ? "Se salvează…" : "Salvează modificările"}
-        </button>
-        <button
-          type="button"
+        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+          Salvează modificările
+        </Buton>
+        <Buton
+          varianta="link"
           onClick={() => {
             setDeschis(false);
             setEroare(null);
           }}
-          className="text-muted-foreground hover:text-foreground text-sm underline underline-offset-4"
         >
           Renunță
-        </button>
+        </Buton>
         {eroare === null ? null : (
-          <p role="alert" className="text-danger text-sm">
+          <p role="alert" className="text-danger text-corp">
             {eroare}
           </p>
         )}

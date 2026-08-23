@@ -4,6 +4,7 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
 import { TIPURI_PREZENTA, type TipPrezenta } from "@/schemas/attendance";
 import { ETICHETE_TIP_PREZENTA } from "../etichete";
 import { trimiteSaptamanaPontaj } from "./actions";
@@ -57,8 +58,8 @@ export function FormularSaptamana({ saptamanaStart, zileInitiale, poateEdita }: 
 
   return (
     <div className="space-y-4">
-      <div className="border-border overflow-x-auto rounded-lg border">
-        <table className="w-full text-sm">
+      <div className="border-border rounded-panou overflow-x-auto border">
+        <table className="text-corp w-full">
           <caption className="sr-only">Planul de prezență pentru săptămâna selectată.</caption>
           <thead className="bg-surface text-left">
             <tr>
@@ -96,7 +97,7 @@ export function FormularSaptamana({ saptamanaStart, zileInitiale, poateEdita }: 
                     onChange={(e) => {
                       actualizeazaZi(index, { tip_prezenta: e.target.value as TipPrezenta });
                     }}
-                    className="border-foreground/60 disabled:bg-surface rounded-md border px-2 py-1.5 text-sm disabled:cursor-not-allowed"
+                    className="border-foreground/60 disabled:bg-surface rounded-control text-corp border px-2 py-1.5 disabled:cursor-not-allowed"
                   >
                     {TIPURI_PREZENTA.map((t) => (
                       <option key={t} value={t}>
@@ -117,7 +118,7 @@ export function FormularSaptamana({ saptamanaStart, zileInitiale, poateEdita }: 
                     onChange={(e) => {
                       actualizeazaZi(index, { ore_planificate: e.target.value });
                     }}
-                    className="border-foreground/60 disabled:bg-surface w-20 rounded-md border px-2 py-1.5 text-sm disabled:cursor-not-allowed"
+                    className="border-foreground/60 disabled:bg-surface rounded-control text-corp w-20 border px-2 py-1.5 disabled:cursor-not-allowed"
                   />
                 </td>
                 <td className="px-3 py-2">
@@ -130,7 +131,7 @@ export function FormularSaptamana({ saptamanaStart, zileInitiale, poateEdita }: 
                     onChange={(e) => {
                       actualizeazaZi(index, { observatii: e.target.value });
                     }}
-                    className="border-foreground/60 disabled:bg-surface w-full min-w-32 rounded-md border px-2 py-1.5 text-sm disabled:cursor-not-allowed"
+                    className="border-foreground/60 disabled:bg-surface rounded-control text-corp w-full min-w-32 border px-2 py-1.5 disabled:cursor-not-allowed"
                   />
                 </td>
               </tr>
@@ -140,32 +141,31 @@ export function FormularSaptamana({ saptamanaStart, zileInitiale, poateEdita }: 
       </div>
 
       <div aria-live="polite">
-        {eroare === null ? null : <p className="text-danger text-sm">{eroare}</p>}
+        {eroare === null ? null : <p className="text-danger text-corp">{eroare}</p>}
       </div>
 
       {poateEdita ? (
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
+          <Buton
+            varianta="secundar"
             disabled={inCurs}
             onClick={() => {
               trimite("ciorna");
             }}
-            className="border-foreground/60 hover:bg-surface disabled:text-muted-foreground rounded-md border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
             id={idBaza}
           >
             Salvează ciornă
-          </button>
-          <button
-            type="button"
-            disabled={inCurs}
+          </Buton>
+          <Buton
+            varianta="primar"
+            inCurs={inCurs}
+            textInCurs="Se trimite…"
             onClick={() => {
               trimite("trimisa");
             }}
-            className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
           >
-            {inCurs ? "Se trimite…" : "Trimite spre aprobare"}
-          </button>
+            Trimite spre aprobare
+          </Buton>
         </div>
       ) : null}
     </div>

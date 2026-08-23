@@ -3,6 +3,8 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
+
 import { creeazaFoaie } from "../../actions";
 
 interface VehiculOptiune {
@@ -76,7 +78,7 @@ export function FormularFoaie({
     <form action={trimite} className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.vehicul} className="text-sm font-medium">
+          <label htmlFor={id.vehicul} className="text-corp font-medium">
             Vehicul
           </label>
           <select
@@ -87,7 +89,7 @@ export function FormularFoaie({
             onChange={(e) => {
               setVehiculId(e.target.value);
             }}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           >
             {vehicule.map((v) => (
               <option key={v.id} value={v.id}>
@@ -98,14 +100,14 @@ export function FormularFoaie({
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.sofer} className="text-sm font-medium">
+          <label htmlFor={id.sofer} className="text-corp font-medium">
             Șofer
           </label>
           <select
             id={id.sofer}
             name="employee_id"
             required
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           >
             {angajati.map((a) => (
               <option key={a.id} value={a.id}>
@@ -116,7 +118,7 @@ export function FormularFoaie({
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.plecare} className="text-sm font-medium">
+          <label htmlFor={id.plecare} className="text-corp font-medium">
             Plecare
           </label>
           <input
@@ -124,12 +126,12 @@ export function FormularFoaie({
             name="plecare_la"
             type="datetime-local"
             required
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.km} className="text-sm font-medium">
+          <label htmlFor={id.km} className="text-corp font-medium">
             Kilometraj la plecare
           </label>
           <input
@@ -143,15 +145,15 @@ export function FormularFoaie({
             required
             defaultValue={kmSugerat}
             aria-describedby={`${id.km}-ajutor`}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
-          <p id={`${id.km}-ajutor`} className="text-muted-foreground text-xs">
+          <p id={`${id.km}-ajutor`} className="text-muted-foreground text-nota">
             Ultimul kilometraj cunoscut: {kmSugerat.toLocaleString("ro-RO")} km.
           </p>
         </div>
 
         <div className="flex flex-col gap-1 sm:col-span-2">
-          <label htmlFor={id.traseu} className="text-sm font-medium">
+          <label htmlFor={id.traseu} className="text-corp font-medium">
             Traseu
           </label>
           <input
@@ -159,33 +161,29 @@ export function FormularFoaie({
             name="traseu"
             maxLength={500}
             placeholder="Cluj-Napoca – Turda – Cluj-Napoca"
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1 sm:col-span-2">
-          <label htmlFor={id.scop} className="text-sm font-medium">
+          <label htmlFor={id.scop} className="text-corp font-medium">
             Scopul deplasării
           </label>
           <input
             id={id.scop}
             name="scop"
             maxLength={500}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="submit"
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se salvează…" : "Salvează ciorna"}
-        </button>
+        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+          Salvează ciorna
+        </Buton>
         {eroare === null ? null : (
-          <p role="alert" className="text-danger text-sm">
+          <p role="alert" className="text-danger text-corp">
             {eroare}
           </p>
         )}

@@ -1,4 +1,7 @@
 // src/app/(app)/salarizare/etichete.ts
+import type { TonStare } from "@/components/ui/badge";
+
+type StatusPerioada = "draft" | "calculat" | "aprobat" | "inchis";
 
 export const ETICHETE_STATUS_PERIOADA: Record<string, string> = {
   draft: "Ciornă",
@@ -7,11 +10,14 @@ export const ETICHETE_STATUS_PERIOADA: Record<string, string> = {
   inchis: "Închis",
 };
 
-export const CLASE_STATUS_PERIOADA: Record<string, string> = {
-  draft: "bg-surface text-muted-foreground",
-  calculat: "bg-warning/12 text-foreground",
-  aprobat: "bg-success/12 text-foreground",
-  inchis: "bg-primary/10 text-primary",
+export const TONURI_STATUS_PERIOADA: Readonly<Record<StatusPerioada, TonStare>> = {
+  draft: "ciorna",
+  // Calculat = cifrele există, dar nimeni nu le-a aprobat încă; e o etapă care
+  // AȘTEAPTĂ o decizie, nu un rezultat bun — de aceea atenție, nu succes.
+  calculat: "atentie",
+  aprobat: "succes",
+  // Închis = perioadă încheiată, nu eroare — de aceea neutru, nu pericol.
+  inchis: "neutru",
 };
 
 export const LUNI_RO = [

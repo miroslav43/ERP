@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -12,10 +13,10 @@ import { idDinRuta } from "@/lib/rute/parametri";
 import { angajatiDupaId, citesteSesizare } from "@/lib/queries/maintenance";
 
 import {
-  CLASE_STATUS_SESIZARE,
-  CLASE_URGENTA_SESIZARE,
   ETICHETE_STATUS_SESIZARE,
   ETICHETE_URGENTA_SESIZARE,
+  TONURI_STATUS_SESIZARE,
+  TONURI_URGENTA_SESIZARE,
 } from "../../etichete";
 import { cautaEchipament } from "../../actions";
 import { ActiuniSesizare } from "./actiuni-sesizare";
@@ -59,71 +60,71 @@ export default async function PaginaSesizare({ params }: ProprietatiPagina) {
   const esteTerminala = sesizare.status === "rezolvat" || sesizare.status === "respins";
 
   return (
-    <main className="mx-auto w-full max-w-3xl space-y-6 p-6">
+    <div className="mx-auto w-full max-w-3xl space-y-6">
       <div>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-muted-foreground text-corp">
           <Link href="/mentenanta/sesizari" className="underline-offset-2 hover:underline">
             Sesizări
           </Link>
         </p>
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <h1 className="text-2xl font-semibold">
+          <h1 className="text-titlu font-semibold">
             {echipament === undefined || echipament === null
               ? "Echipament necunoscut"
               : `${echipament.cod} — ${echipament.denumire}`}
           </h1>
           <div className="flex flex-col items-end gap-1">
-            <span
-              className={`rounded-full px-3 py-1 text-sm font-medium ${CLASE_URGENTA_SESIZARE[sesizare.urgenta]}`}
-            >
+            <Badge ton={TONURI_URGENTA_SESIZARE[sesizare.urgenta]}>
               {ETICHETE_URGENTA_SESIZARE[sesizare.urgenta]}
-            </span>
-            <span
-              className={`rounded-full px-3 py-1 text-sm font-medium ${CLASE_STATUS_SESIZARE[sesizare.status]}`}
-            >
+            </Badge>
+            <Badge ton={TONURI_STATUS_SESIZARE[sesizare.status]}>
               {ETICHETE_STATUS_SESIZARE[sesizare.status]}
-            </span>
+            </Badge>
           </div>
         </div>
       </div>
 
-      <section className="border-border space-y-3 rounded-lg border p-4">
+      <section className="border-border rounded-panou space-y-3 border p-4">
         <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <dt className="text-muted-foreground text-xs tracking-wide uppercase">Raportată de</dt>
-            <dd className="mt-0.5 text-sm">
+            <dt className="text-muted-foreground text-nota tracking-wide uppercase">
+              Raportată de
+            </dt>
+            <dd className="text-corp mt-0.5">
               {sesizare.raportat_de_employee_id === null
                 ? "—"
                 : (numeAngajati.get(sesizare.raportat_de_employee_id)?.full_name ?? "—")}
             </dd>
           </div>
           <div>
-            <dt className="text-muted-foreground text-xs tracking-wide uppercase">Raportată la</dt>
-            <dd className="mt-0.5 text-sm">{formatDateTime(sesizare.raportat_la)}</dd>
+            <dt className="text-muted-foreground text-nota tracking-wide uppercase">
+              Raportată la
+            </dt>
+            <dd className="text-corp mt-0.5">{formatDateTime(sesizare.raportat_la)}</dd>
           </div>
           <div className="sm:col-span-2">
-            <dt className="text-muted-foreground text-xs tracking-wide uppercase">Descriere</dt>
-            <dd className="mt-0.5 text-sm">{sesizare.descriere}</dd>
+            <dt className="text-muted-foreground text-nota tracking-wide uppercase">Descriere</dt>
+            <dd className="text-corp mt-0.5">{sesizare.descriere}</dd>
           </div>
           {sesizare.opreste_functionarea ? (
             <div className="sm:col-span-2">
-              <p className="text-danger text-sm font-medium">
+              <p className="text-danger text-corp font-medium">
                 Defecțiunea oprește funcționarea echipamentului.
               </p>
             </div>
           ) : null}
           {sesizare.motiv_respingere !== null ? (
             <div className="sm:col-span-2">
-              <dt className="text-danger text-xs tracking-wide uppercase">Motivul respingerii</dt>
-              <dd className="mt-0.5 text-sm">{sesizare.motiv_respingere}</dd>
+              <dt className="text-danger text-nota tracking-wide uppercase">Motivul respingerii</dt>
+              <dd className="text-corp mt-0.5">{sesizare.motiv_respingere}</dd>
             </div>
           ) : null}
           {sesizare.rezolvat_la !== null ? (
             <div className="sm:col-span-2">
-              <dt className="text-muted-foreground text-xs tracking-wide uppercase">
+              <dt className="text-muted-foreground text-nota tracking-wide uppercase">
                 Rezolvată la
               </dt>
-              <dd className="mt-0.5 text-sm">{formatDateTime(sesizare.rezolvat_la)}</dd>
+              <dd className="text-corp mt-0.5">{formatDateTime(sesizare.rezolvat_la)}</dd>
             </div>
           ) : null}
         </dl>
@@ -131,12 +132,12 @@ export default async function PaginaSesizare({ params }: ProprietatiPagina) {
 
       {poateGestiona && !esteTerminala ? (
         <section aria-labelledby="actiuni-sesizare" className="space-y-3">
-          <h2 id="actiuni-sesizare" className="text-lg font-semibold">
+          <h2 id="actiuni-sesizare" className="text-sectiune font-semibold">
             Triaj și rezolvare
           </h2>
           <ActiuniSesizare sesizareId={sesizare.id} />
         </section>
       ) : null}
-    </main>
+    </div>
   );
 }

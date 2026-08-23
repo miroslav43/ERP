@@ -4,8 +4,10 @@ import type { Metadata } from "next";
 import { CalendarClock, CheckCircle2 } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
-import { SkeletonTable } from "@/components/data/skeleton-table";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { Buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
+import { Schelet } from "@/components/ui/schelet";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -88,8 +90,8 @@ async function ContinutAprobare({
       />
 
       {poateBloca ? (
-        <div className="border-border rounded-lg border p-4">
-          <p className="text-muted-foreground mb-2 text-sm">
+        <div className="border-border rounded-panou border p-4">
+          <p className="text-muted-foreground text-corp mb-2">
             Blocarea perioadei este aprobarea finală: oprește orice scriere ulterioară asupra lunii,
             inclusiv corecțiile manuale.
           </p>
@@ -105,14 +107,15 @@ async function ContinutAprobare({
       ) : null}
 
       {perAngajat.size === 0 ? (
-        <EmptyState
-          icon={CheckCircle2}
-          title="Nimic de aprobat"
-          description="Toate liniile de pontaj ale acestei luni au fost deja aprobate."
+        <StareGoala
+          fel="initiala"
+          pictograma={CheckCircle2}
+          titlu="Nimic de aprobat"
+          descriere="Toate liniile de pontaj ale acestei luni au fost deja aprobate."
         />
       ) : (
-        <div className="border-border overflow-x-auto rounded-lg border">
-          <table className="w-full text-sm">
+        <div className="border-border rounded-panou overflow-x-auto border">
+          <table className="text-corp w-full">
             <caption className="sr-only">Angajații cu linii de pontaj neaprobate.</caption>
             <thead className="bg-surface text-left">
               <tr>
@@ -168,25 +171,22 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
   const sarciniSaptamana = await saptamaniDeAprobat(tenant.organizationId, user.id);
 
   return (
-    <main className="space-y-6 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Aprobare pontaj</h1>
-        <p className="text-muted-foreground max-w-3xl text-sm">
-          Aprobarea în bloc pentru {formatMonthYear(an, filtre.luna)}.
-        </p>
-      </header>
-
-      <NavPontaj poateAproba={true} />
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Aprobare pontaj"
+        descriere={`Aprobarea în bloc pentru ${formatMonthYear(an, filtre.luna)}.`}
+        file={<NavPontaj poateAproba={true} />}
+      />
 
       <ListaSaptamaniDeAprobat sarcini={sarciniSaptamana} />
 
       {listaDepartamente.length === 0 ? null : (
-        <form className="border-border flex flex-wrap items-end gap-3 rounded-lg border p-4">
+        <form className="border-border rounded-panou flex flex-wrap items-end gap-3 border p-4">
           {/* Formular GET simplu, fără JavaScript: fără câmp explicit, `an` s-ar
               pierde din query string la reîncărcare. */}
           <input type="hidden" name="an" value={an} />
           <div className="flex flex-col gap-1">
-            <label htmlFor="luna" className="text-sm font-medium">
+            <label htmlFor="luna" className="text-corp font-medium">
               Luna
             </label>
             <input
@@ -196,18 +196,18 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
               min={1}
               max={12}
               defaultValue={filtre.luna}
-              className="border-foreground/60 w-20 rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp w-20 border px-3 py-2"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor="departament" className="text-sm font-medium">
+            <label htmlFor="departament" className="text-corp font-medium">
               Departament
             </label>
             <select
               id="departament"
               name="departament"
               defaultValue={filtre.departament ?? ""}
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
             >
               <option value="">Toate</option>
               {listaDepartamente.map((d) => (
@@ -217,25 +217,23 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
               ))}
             </select>
           </div>
-          <button
-            type="submit"
-            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm font-medium"
-          >
+          <Buton type="submit" varianta="secundar">
             Filtrează
-          </button>
+          </Buton>
         </form>
       )}
 
       {perioada === null ? (
-        <EmptyState
-          icon={CalendarClock}
-          title="Luna nu a fost deschisă"
-          description="Nu există nimic de aprobat cât timp luna nu a fost deschisă din „Perioade”."
+        <StareGoala
+          fel="initiala"
+          pictograma={CalendarClock}
+          titlu="Luna nu a fost deschisă"
+          descriere="Nu există nimic de aprobat cât timp luna nu a fost deschisă din „Perioade”."
         />
       ) : (
         <Suspense
           key={`${String(an)}-${String(filtre.luna)}-${filtre.departament ?? ""}`}
-          fallback={<SkeletonTable cols={3} />}
+          fallback={<Schelet forma="tabel" coloane={3} />}
         >
           <ContinutAprobare
             organizationId={tenant.organizationId}
@@ -249,6 +247,6 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
           />
         </Suspense>
       )}
-    </main>
+    </div>
   );
 }

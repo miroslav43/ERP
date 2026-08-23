@@ -53,7 +53,7 @@ export function ComutatorModul({
         aria-label={`${activ ? "Dezactivează" : "Activează"} modulul ${denumire}`}
         disabled={inCurs}
         onClick={comuta}
-        className={`border-border disabled:border-border disabled:bg-surface disabled:text-muted-foreground relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition-colors focus-visible:ring-offset-2 disabled:cursor-not-allowed ${
+        className={`border-border disabled:border-border disabled:bg-surface disabled:text-muted-foreground relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition-colors disabled:cursor-not-allowed ${
           activ ? "bg-primary" : "bg-background"
         }`}
       >
@@ -65,7 +65,7 @@ export function ComutatorModul({
         />
       </button>
 
-      <p id={idStare} aria-live="polite" className="text-muted-foreground text-right text-xs">
+      <p id={idStare} aria-live="polite" className="text-muted-foreground text-nota text-right">
         {inCurs ? (
           <span className="inline-flex items-center gap-1">
             <Loader2 aria-hidden="true" className="h-3 w-3 animate-spin" />
@@ -79,7 +79,7 @@ export function ComutatorModul({
       {eroare ? (
         <p
           role="alert"
-          className="text-danger inline-flex max-w-xs items-start gap-1 text-right text-xs"
+          className="text-danger text-nota inline-flex max-w-xs items-start gap-1 text-right"
         >
           <AlertCircle aria-hidden="true" className="mt-0.5 h-3 w-3 shrink-0" />
           {eroare}

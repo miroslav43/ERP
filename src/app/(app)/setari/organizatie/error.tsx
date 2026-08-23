@@ -1,13 +1,14 @@
 // src/app/(app)/setari/organizatie/error.tsx
 "use client";
 
-import { StareEroare } from "@/components/feedback/stare-eroare";
+import { StareEroare } from "@/components/ui/stare-eroare";
 
-export default function Error({
+export default function Eroare({
   error,
   reset,
-}: Readonly<{ error: Error & { digest?: string }; reset: () => void }>) {
-  return (
-    <StareEroare titlu="Datele firmei nu s-au putut încărca" eroare={error} reincearca={reset} />
-  );
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  return <StareEroare eroare={error} reset={reset} titlu="Datele firmei nu s-au putut încărca" />;
 }

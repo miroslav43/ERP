@@ -4,6 +4,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -17,7 +19,7 @@ import {
   vehiculeDupaId,
 } from "@/lib/queries/fleet";
 
-import { CLASE_STATUS_FOAIE, ETICHETE_STATUS_FOAIE } from "../../etichete";
+import { ETICHETE_STATUS_FOAIE, TONURI_STATUS_FOAIE } from "../../etichete";
 import { ActiuniFoaie } from "./actiuni-foaie";
 
 export const metadata: Metadata = { title: "Foaie de parcurs" };
@@ -52,6 +54,15 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
   const sofer = foaie.employee_id === null ? undefined : soferi.get(foaie.employee_id);
   const poateScrie = can(permisiuni, "trip_sheets:update", "own");
 
+  // Titlul și subtitlul se compun ca text: `AntetPagina` cere `string`, iar
+  // conținutul rămâne cuvânt cu cuvânt cel de dinainte.
+  const titlu = `${vehicul?.nr_inmatriculare ?? "Vehicul indisponibil"}${
+    foaie.numar === null ? "" : ` · ${foaie.numar}`
+  }`;
+  const descriere = `${formatDateTime(new Date(foaie.plecare_la))}${
+    foaie.sosire_la === null ? "" : ` – ${formatDateTime(new Date(foaie.sosire_la))}`
+  }${sofer === undefined ? "" : ` · ${sofer.full_name ?? sofer.marca}`}`;
+
   const litriTotali = alimentari.reduce((s, a) => s + a.litri, 0);
   const costTotal = alimentari.reduce((s, a) => s + a.cost, 0);
   // Consumul real se calculează doar când există și kilometri, și litri.
@@ -62,35 +73,29 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
       : null;
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-muted-foreground text-sm">
-            <Link href="/flota/foi" className="underline-offset-2 hover:underline">
-              Foi de parcurs
-            </Link>
-          </p>
-          <h1 className="text-2xl font-semibold">
-            {vehicul?.nr_inmatriculare ?? "Vehicul indisponibil"}
-            {foaie.numar === null ? null : (
-              <span className="text-muted-foreground"> · {foaie.numar}</span>
-            )}
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            {formatDateTime(new Date(foaie.plecare_la))}
-            {foaie.sosire_la === null ? null : ` – ${formatDateTime(new Date(foaie.sosire_la))}`}
-            {sofer === undefined ? null : ` · ${sofer.full_name ?? sofer.marca}`}
-          </p>
-        </div>
-        <span
-          className={`rounded px-2 py-1 text-xs font-medium ${CLASE_STATUS_FOAIE[foaie.status]}`}
-        >
-          {ETICHETE_STATUS_FOAIE[foaie.status]}
-        </span>
-      </header>
+    <div className="space-y-6">
+      <div className="space-y-1">
+        <p className="text-muted-foreground text-corp">
+          <Link href="/flota/foi" className="underline-offset-2 hover:underline">
+            Foi de parcurs
+          </Link>
+        </p>
+        <AntetPagina
+          titlu={titlu}
+          descriere={descriere}
+          actiuni={
+            <Badge ton={TONURI_STATUS_FOAIE[foaie.status]} className="shrink-0">
+              {ETICHETE_STATUS_FOAIE[foaie.status]}
+            </Badge>
+          }
+        />
+      </div>
 
       {foaie.status === "respins" ? (
-        <div role="alert" className="border-danger/40 bg-danger/8 rounded-lg border p-4 text-sm">
+        <div
+          role="alert"
+          className="border-danger/40 bg-danger/8 text-corp rounded-panou border p-4"
+        >
           <p className="font-medium">Foaia a fost respinsă</p>
           <p className="mt-1">
             {(foaie as { motiv_respingere?: string | null }).motiv_respingere ??
@@ -101,7 +106,7 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
 
       <section
         aria-label="Kilometraj și consum"
-        className="border-border grid gap-4 rounded-lg border p-4 sm:grid-cols-4"
+        className="border-border rounded-panou grid gap-4 border p-4 sm:grid-cols-4"
       >
         <Camp
           eticheta="Plecare"
@@ -126,7 +131,7 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
       </section>
 
       {foaie.traseu === null && foaie.scop === null ? null : (
-        <section aria-label="Traseu și scop" className="space-y-1 text-sm">
+        <section aria-label="Traseu și scop" className="text-corp space-y-1">
           {foaie.traseu === null ? null : (
             <p>
               <span className="text-muted-foreground">Traseu: </span>
@@ -143,16 +148,16 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
       )}
 
       <section aria-labelledby="alimentari" className="space-y-3">
-        <h2 id="alimentari" className="text-lg font-semibold">
+        <h2 id="alimentari" className="text-sectiune font-semibold">
           Alimentări
         </h2>
         {alimentari.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground text-corp">
             Nicio alimentare înregistrată pe această cursă.
           </p>
         ) : (
-          <div className="border-border overflow-x-auto rounded-lg border">
-            <table className="w-full text-sm">
+          <div className="border-border rounded-panou overflow-x-auto border">
+            <table className="text-corp w-full">
               <thead className="bg-surface text-left">
                 <tr>
                   <th scope="col" className="px-4 py-3 font-medium">
@@ -211,15 +216,15 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
           sosireLa={foaie.sosire_la}
         />
       ) : null}
-    </main>
+    </div>
   );
 }
 
 function Camp({ eticheta, valoare }: { readonly eticheta: string; readonly valoare: string }) {
   return (
     <div>
-      <dt className="text-muted-foreground text-xs">{eticheta}</dt>
-      <dd className="text-sm font-medium">{valoare}</dd>
+      <dt className="text-muted-foreground text-nota">{eticheta}</dt>
+      <dd className="text-corp font-medium">{valoare}</dd>
     </div>
   );
 }

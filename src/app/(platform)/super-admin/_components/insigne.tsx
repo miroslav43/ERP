@@ -24,7 +24,7 @@ export function InsignaStatus({ status }: { status: StatusOrganizatie }) {
   const { text, clasa } = ETICHETE_STATUS[status];
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap ${clasa}`}
+      className={`text-nota inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-semibold whitespace-nowrap ${clasa}`}
     >
       <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />
       {text}
@@ -34,7 +34,7 @@ export function InsignaStatus({ status }: { status: StatusOrganizatie }) {
 
 export function InsignaPlan({ plan }: { plan: PlanOrganizatie }) {
   return (
-    <span className="bg-surface text-muted-foreground rounded-md px-2 py-0.5 text-xs">
+    <span className="bg-surface text-muted-foreground rounded-control text-nota px-2 py-0.5">
       {ETICHETE_PLAN[plan]}
     </span>
   );
@@ -42,6 +42,9 @@ export function InsignaPlan({ plan }: { plan: PlanOrganizatie }) {
 
 export function Schelet({ className = "" }: { className?: string }) {
   return (
-    <span aria-hidden="true" className={`bg-surface block animate-pulse rounded-md ${className}`} />
+    <span
+      aria-hidden="true"
+      className={`bg-surface rounded-control block animate-pulse ${className}`}
+    />
   );
 }

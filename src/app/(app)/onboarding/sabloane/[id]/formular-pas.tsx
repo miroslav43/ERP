@@ -3,6 +3,7 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
 import {
   CHECKLIST_RESPONSABIL_TIP,
   CHECKLIST_TIP_DOVADA,
@@ -87,10 +88,10 @@ export function FormularPas({ templateId, initial, onGata }: Proprietati) {
   }
 
   return (
-    <form action={trimite} className="border-border space-y-3 rounded-lg border p-4">
+    <form action={trimite} className="border-border rounded-panou space-y-3 border p-4">
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1 sm:col-span-2">
-          <label htmlFor={id.titlu} className="text-sm font-medium">
+          <label htmlFor={id.titlu} className="text-corp font-medium">
             Titlu
           </label>
           <input
@@ -100,12 +101,12 @@ export function FormularPas({ templateId, initial, onGata }: Proprietati) {
             minLength={2}
             maxLength={200}
             defaultValue={initial?.titlu}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1 sm:col-span-2">
-          <label htmlFor={id.descriere} className="text-sm font-medium">
+          <label htmlFor={id.descriere} className="text-corp font-medium">
             Descriere
           </label>
           <textarea
@@ -114,12 +115,12 @@ export function FormularPas({ templateId, initial, onGata }: Proprietati) {
             rows={2}
             maxLength={2000}
             defaultValue={initial?.descriere ?? ""}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.responsabilTip} className="text-sm font-medium">
+          <label htmlFor={id.responsabilTip} className="text-corp font-medium">
             Responsabil
           </label>
           <select
@@ -129,7 +130,7 @@ export function FormularPas({ templateId, initial, onGata }: Proprietati) {
             onChange={(e) => {
               setResponsabilTip(e.target.value as typeof responsabilTip);
             }}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           >
             {CHECKLIST_RESPONSABIL_TIP.map((r) => (
               <option key={r} value={r}>
@@ -141,14 +142,14 @@ export function FormularPas({ templateId, initial, onGata }: Proprietati) {
 
         {responsabilTip === "rol" ? (
           <div className="flex flex-col gap-1">
-            <label htmlFor={id.responsabilRol} className="text-sm font-medium">
+            <label htmlFor={id.responsabilRol} className="text-corp font-medium">
               Rol
             </label>
             <select
               id={id.responsabilRol}
               name="responsabil_rol"
               defaultValue={initial?.responsabil_rol ?? ""}
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
             >
               <option value="">Alegeți rolul</option>
               {ROLURI_RESPONSABIL.map((r) => (
@@ -162,7 +163,7 @@ export function FormularPas({ templateId, initial, onGata }: Proprietati) {
 
         {responsabilTip === "angajat" ? (
           <div className="flex flex-col gap-1">
-            <label htmlFor={id.responsabilAngajat} className="text-sm font-medium">
+            <label htmlFor={id.responsabilAngajat} className="text-corp font-medium">
               Id-ul angajatului
             </label>
             <input
@@ -170,13 +171,13 @@ export function FormularPas({ templateId, initial, onGata }: Proprietati) {
               name="responsabil_employee_id"
               defaultValue={initial?.responsabil_employee_id ?? ""}
               placeholder="id-ul angajatului"
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
             />
           </div>
         ) : null}
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.termen} className="text-sm font-medium">
+          <label htmlFor={id.termen} className="text-corp font-medium">
             Termen (zile față de data de referință)
           </label>
           <input
@@ -186,7 +187,7 @@ export function FormularPas({ templateId, initial, onGata }: Proprietati) {
             min={-365}
             max={365}
             defaultValue={initial?.termen_zile_relativ ?? 0}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
@@ -198,20 +199,20 @@ export function FormularPas({ templateId, initial, onGata }: Proprietati) {
             defaultChecked={initial?.obligatoriu ?? true}
             className="border-foreground/60 size-4 rounded"
           />
-          <label htmlFor={id.obligatoriu} className="text-sm font-medium">
+          <label htmlFor={id.obligatoriu} className="text-corp font-medium">
             Obligatoriu
           </label>
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.tipDovada} className="text-sm font-medium">
+          <label htmlFor={id.tipDovada} className="text-corp font-medium">
             Dovadă cerută
           </label>
           <select
             id={id.tipDovada}
             name="tip_dovada"
             defaultValue={initial?.tip_dovada ?? "bifa"}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           >
             {CHECKLIST_TIP_DOVADA.map((t) => (
               <option key={t} value={t}>
@@ -222,7 +223,7 @@ export function FormularPas({ templateId, initial, onGata }: Proprietati) {
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.verificare} className="text-sm font-medium">
+          <label htmlFor={id.verificare} className="text-corp font-medium">
             Verificare automată
           </label>
           <select
@@ -230,7 +231,7 @@ export function FormularPas({ templateId, initial, onGata }: Proprietati) {
             name="verificare_automata"
             defaultValue={initial?.verificare_automata ?? ""}
             aria-describedby={`${id.verificare}-ajutor`}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           >
             <option value="">Fără</option>
             {CHECKLIST_VERIFICARE.map((v) => (
@@ -239,31 +240,23 @@ export function FormularPas({ templateId, initial, onGata }: Proprietati) {
               </option>
             ))}
           </select>
-          <p id={`${id.verificare}-ajutor`} className="text-muted-foreground text-xs">
+          <p id={`${id.verificare}-ajutor`} className="text-muted-foreground text-nota">
             Cere pasul obligatoriu și cu dovadă de tip „bifă”; se bifează singur, de sistem.
           </p>
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="submit"
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se salvează…" : initial === undefined ? "Adaugă pasul" : "Salvează pasul"}
-        </button>
+        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+          {initial === undefined ? "Adaugă pasul" : "Salvează pasul"}
+        </Buton>
         {onGata === undefined ? null : (
-          <button
-            type="button"
-            onClick={onGata}
-            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm font-medium"
-          >
+          <Buton varianta="secundar" onClick={onGata}>
             Renunță
-          </button>
+          </Buton>
         )}
         {eroare === null ? null : (
-          <p role="alert" className="text-danger text-sm">
+          <p role="alert" className="text-danger text-corp">
             {eroare}
           </p>
         )}

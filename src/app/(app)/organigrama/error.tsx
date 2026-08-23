@@ -1,0 +1,14 @@
+// src/app/(app)/organigrama/error.tsx
+"use client";
+
+import { StareEroare } from "@/components/ui/stare-eroare";
+
+export default function Eroare({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  return <StareEroare eroare={error} reset={reset} titlu="Organigrama nu a putut fi afișată" />;
+}

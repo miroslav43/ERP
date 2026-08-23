@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 
+import { Buton } from "@/components/ui/buton";
 import { STATUS_ECHIPAMENT } from "@/schemas/maintenance";
 import { ETICHETE_STATUS_ECHIPAMENT } from "../etichete";
 import { actualizeazaEchipament, creeazaEchipament } from "../actions";
@@ -60,7 +61,7 @@ interface ValoriFormular {
   derogare_motiv: string;
 }
 
-const CLASA_CAMP = "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
+const CLASA_CAMP = "mt-1 w-full rounded-control border border-foreground/60 px-3 py-2 text-corp";
 
 function laText(valoare: string | null): string {
   return valoare ?? "";
@@ -150,7 +151,7 @@ export function FormularEchipament({
     <form onSubmit={handleSubmit(trimite)} className="space-y-6" noValidate>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div>
-          <label htmlFor="cod" className="block text-sm font-medium">
+          <label htmlFor="cod" className="text-corp block font-medium">
             Cod *
           </label>
           <input
@@ -162,7 +163,7 @@ export function FormularEchipament({
           />
         </div>
         <div>
-          <label htmlFor="denumire" className="block text-sm font-medium">
+          <label htmlFor="denumire" className="text-corp block font-medium">
             Denumire *
           </label>
           <input
@@ -174,25 +175,25 @@ export function FormularEchipament({
           />
         </div>
         <div>
-          <label htmlFor="serie" className="block text-sm font-medium">
+          <label htmlFor="serie" className="text-corp block font-medium">
             Serie
           </label>
           <input id="serie" type="text" className={CLASA_CAMP} {...register("serie")} />
         </div>
         <div>
-          <label htmlFor="producator" className="block text-sm font-medium">
+          <label htmlFor="producator" className="text-corp block font-medium">
             Producător
           </label>
           <input id="producator" type="text" className={CLASA_CAMP} {...register("producator")} />
         </div>
         <div>
-          <label htmlFor="model" className="block text-sm font-medium">
+          <label htmlFor="model" className="text-corp block font-medium">
             Model
           </label>
           <input id="model" type="text" className={CLASA_CAMP} {...register("model")} />
         </div>
         <div>
-          <label htmlFor="an_fabricatie" className="block text-sm font-medium">
+          <label htmlFor="an_fabricatie" className="text-corp block font-medium">
             An fabricație
           </label>
           <input
@@ -205,13 +206,13 @@ export function FormularEchipament({
           />
         </div>
         <div>
-          <label htmlFor="locatie" className="block text-sm font-medium">
+          <label htmlFor="locatie" className="text-corp block font-medium">
             Locație
           </label>
           <input id="locatie" type="text" className={CLASA_CAMP} {...register("locatie")} />
         </div>
         <div>
-          <label htmlFor="department_id" className="block text-sm font-medium">
+          <label htmlFor="department_id" className="text-corp block font-medium">
             Departament
           </label>
           <select id="department_id" className={CLASA_CAMP} {...register("department_id")}>
@@ -224,7 +225,7 @@ export function FormularEchipament({
           </select>
         </div>
         <div>
-          <label htmlFor="status" className="block text-sm font-medium">
+          <label htmlFor="status" className="text-corp block font-medium">
             Stare
           </label>
           <select id="status" className={CLASA_CAMP} {...register("status")}>
@@ -236,7 +237,7 @@ export function FormularEchipament({
           </select>
         </div>
         <div>
-          <label htmlFor="data_punerii_in_functiune" className="block text-sm font-medium">
+          <label htmlFor="data_punerii_in_functiune" className="text-corp block font-medium">
             Data punerii în funcțiune
           </label>
           <input
@@ -247,7 +248,7 @@ export function FormularEchipament({
           />
         </div>
         <div>
-          <label htmlFor="valoare_achizitie" className="block text-sm font-medium">
+          <label htmlFor="valoare_achizitie" className="text-corp block font-medium">
             Valoare achiziție (lei)
           </label>
           <input
@@ -261,8 +262,8 @@ export function FormularEchipament({
         </div>
       </div>
 
-      <div className="border-border rounded-lg border p-4">
-        <label className="flex items-center gap-2 text-sm font-medium">
+      <div className="border-border rounded-panou border p-4">
+        <label className="text-corp flex items-center gap-2 font-medium">
           <input type="checkbox" className="size-4" {...register("este_iscir")} />
           Echipament sub incidența ISCIR
         </label>
@@ -270,7 +271,7 @@ export function FormularEchipament({
         {esteIscir ? (
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label htmlFor="tip_autorizare_necesara" className="block text-sm font-medium">
+              <label htmlFor="tip_autorizare_necesara" className="text-corp block font-medium">
                 Tipul de autorizație nominală necesară
               </label>
               <input
@@ -282,7 +283,7 @@ export function FormularEchipament({
               />
             </div>
             <div>
-              <label htmlFor="responsabil_employee_id" className="block text-sm font-medium">
+              <label htmlFor="responsabil_employee_id" className="text-corp block font-medium">
                 Responsabil
               </label>
               <select
@@ -299,7 +300,7 @@ export function FormularEchipament({
               </select>
             </div>
 
-            <p className="text-foreground text-xs sm:col-span-2">
+            <p className="text-foreground text-nota sm:col-span-2">
               {ssmActiv
                 ? "Responsabilul trebuie să aibă o autorizație nominală valabilă pe acest tip, altfel baza va respinge salvarea — verificați-o în modulul SSM."
                 : "Autorizațiile nominale se administrează în modulul SSM; fără el, un responsabil pe echipament ISCIR se poate desemna doar prin derogare motivată."}
@@ -307,7 +308,7 @@ export function FormularEchipament({
 
             {poateDerogare ? (
               <div className="sm:col-span-2">
-                <label htmlFor="derogare_motiv" className="block text-sm font-medium">
+                <label htmlFor="derogare_motiv" className="text-corp block font-medium">
                   Motivul derogării (minimum 20 de caractere)
                 </label>
                 <textarea
@@ -322,7 +323,7 @@ export function FormularEchipament({
           </div>
         ) : (
           <div className="mt-4">
-            <label htmlFor="responsabil_employee_id_simplu" className="block text-sm font-medium">
+            <label htmlFor="responsabil_employee_id_simplu" className="text-corp block font-medium">
               Responsabil
             </label>
             <select
@@ -343,19 +344,15 @@ export function FormularEchipament({
 
       <div aria-live="polite">
         {eroare !== null ? (
-          <p className="border-danger bg-danger/8 text-danger rounded-md border p-3 text-sm">
+          <p className="border-danger bg-danger/8 text-danger rounded-control text-corp border p-3">
             {eroare}
           </p>
         ) : null}
       </div>
 
-      <button
-        type="submit"
-        disabled={inCurs}
-        className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-      >
-        {inCurs ? "Se salvează…" : modEditare ? "Salvează modificările" : "Adaugă echipamentul"}
-      </button>
+      <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+        {modEditare ? "Salvează modificările" : "Adaugă echipamentul"}
+      </Buton>
     </form>
   );
 }

@@ -4,6 +4,8 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { Building2, Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 
+import { cn } from "@/lib/ui/cn";
+
 const COOKIE_SIDEBAR = "adm_sidebar";
 
 type StareSidebar = Readonly<{
@@ -28,9 +30,12 @@ export function useSidebar(): StareSidebar {
  */
 export function SidebarProvider({
   defaultCollapsed,
+  className,
   children,
 }: {
   defaultCollapsed: boolean;
+  /** Clase pentru învelișul exterior — folosit ca să atașeze variabila de font. */
+  className?: string;
   children: ReactNode;
 }) {
   const [colapsat, setColapsat] = useState(defaultCollapsed);
@@ -44,7 +49,7 @@ export function SidebarProvider({
 
   return (
     <ContextSidebar.Provider value={{ colapsat, comuta, mobilDeschis, setMobilDeschis }}>
-      <div className="flex min-h-dvh">{children}</div>
+      <div className={cn("flex min-h-dvh", className)}>{children}</div>
     </ContextSidebar.Provider>
   );
 }
@@ -64,7 +69,7 @@ export function SidebarTrigger() {
       onClick={() => setMobilDeschis(true)}
       aria-controls="meniu-principal"
       aria-expanded={mobilDeschis}
-      className="hover:bg-surface inline-flex size-11 items-center justify-center rounded-md md:hidden"
+      className="rounded-control inline-flex size-11 items-center justify-center text-white/80 transition-colors hover:bg-white/10 hover:text-white md:hidden"
     >
       <Menu className="size-5" aria-hidden />
       <span className="sr-only">Deschide meniul</span>
@@ -87,7 +92,7 @@ export function Sidebar({
         <button
           type="button"
           onClick={() => setMobilDeschis(false)}
-          className="bg-foreground/40 fixed inset-0 z-30 md:hidden"
+          className="bg-foreground/50 z-scrim fixed inset-0 md:hidden"
         >
           <span className="sr-only">Închide meniul</span>
         </button>
@@ -96,21 +101,29 @@ export function Sidebar({
       <aside
         id="meniu-principal"
         aria-label="Meniu principal"
-        className={`bg-surface border-border fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r transition-transform duration-150 md:static md:translate-x-0 ${
-          mobilDeschis ? "translate-x-0" : "-translate-x-full"
-        } ${colapsat ? "md:w-16" : "md:w-64"}`}
+        className={cn(
+          "bg-primary z-sertar fixed inset-y-0 left-0 flex w-64 flex-col border-r border-white/10",
+          "durata-lent transition-transform md:sticky md:top-0 md:h-dvh md:translate-x-0",
+          mobilDeschis ? "translate-x-0" : "-translate-x-full",
+          colapsat ? "md:w-16" : "md:w-64",
+        )}
       >
-        <div className="border-border flex h-14 items-center gap-2 border-b px-3">
-          <Building2 className="text-primary size-5 shrink-0" aria-hidden />
+        <div className="flex h-14 items-center gap-2 border-b border-white/10 px-3">
+          {/* Auriul e interzis pe crem (2,26:1) și trece confortabil pe navy
+              (6,82:1). Aici marchează marca firmei; în listă, pagina activă. */}
+          <Building2 className="text-accent size-5 shrink-0" aria-hidden />
           <span
-            className={`min-w-0 flex-1 truncate text-sm font-semibold ${colapsat ? "md:sr-only" : ""}`}
+            className={cn(
+              "text-corp min-w-0 flex-1 truncate font-semibold text-white",
+              colapsat ? "md:sr-only" : "",
+            )}
           >
             {organizationName}
           </span>
           <button
             type="button"
             onClick={() => setMobilDeschis(false)}
-            className="hover:bg-background rounded-md p-1.5 md:hidden"
+            className="rounded-control p-1.5 text-white/70 hover:bg-white/10 hover:text-white md:hidden"
           >
             <X className="size-4" aria-hidden />
             <span className="sr-only">Închide meniul</span>
@@ -119,12 +132,12 @@ export function Sidebar({
 
         <div className="min-h-0 flex-1 overflow-y-auto p-2">{children}</div>
 
-        <div className="border-border hidden border-t p-2 md:block">
+        <div className="hidden border-t border-white/10 p-2 md:block">
           <button
             type="button"
             onClick={comuta}
             aria-pressed={colapsat}
-            className="text-muted-foreground hover:bg-background flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm"
+            className="rounded-control text-corp flex w-full items-center gap-2 px-2 py-2 text-white/60 transition-colors hover:bg-white/5 hover:text-white"
           >
             {colapsat ? (
               <PanelLeftOpen className="size-4 shrink-0" aria-hidden />

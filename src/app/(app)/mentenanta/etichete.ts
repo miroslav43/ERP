@@ -8,6 +8,7 @@ import type {
   UrgentaSesizare,
 } from "@/schemas/maintenance";
 import type { StareScadentaMentenanta } from "@/domain/maintenance/scadente";
+import type { TonStare } from "@/components/ui/badge";
 
 export const ETICHETE_STATUS_ECHIPAMENT: Readonly<Record<StatusEchipament, string>> = {
   in_functiune: "În funcțiune",
@@ -16,11 +17,12 @@ export const ETICHETE_STATUS_ECHIPAMENT: Readonly<Record<StatusEchipament, strin
   casat: "Casat",
 };
 
-export const CLASE_STATUS_ECHIPAMENT: Readonly<Record<StatusEchipament, string>> = {
-  in_functiune: "bg-emerald-100 text-emerald-900",
-  in_reparatie: "bg-amber-100 text-amber-900",
-  in_conservare: "bg-zinc-200 text-zinc-800",
-  casat: "bg-zinc-200 text-zinc-800",
+export const TONURI_STATUS_ECHIPAMENT: Readonly<Record<StatusEchipament, TonStare>> = {
+  in_functiune: "succes",
+  // În reparație = utilajul lipsește din producție acum; e o stare de urmărit, nu o reușită.
+  in_reparatie: "atentie",
+  in_conservare: "neutru",
+  casat: "neutru",
 };
 
 export const ETICHETE_TIP_CONTOR: Readonly<Record<TipContor, string>> = {
@@ -42,11 +44,13 @@ export const ETICHETE_REZULTAT_INTERVENTIE: Readonly<Record<RezultatInterventie,
   amanata: "Amânată",
 };
 
-export const CLASE_REZULTAT_INTERVENTIE: Readonly<Record<RezultatInterventie, string>> = {
-  reusita: "bg-emerald-100 text-emerald-900",
-  partiala: "bg-amber-100 text-amber-900",
-  esuata: "bg-red-100 text-red-900",
-  amanata: "bg-zinc-200 text-zinc-800",
+export const TONURI_REZULTAT_INTERVENTIE: Readonly<Record<RezultatInterventie, TonStare>> = {
+  reusita: "succes",
+  // Parțială = lucrarea s-a făcut pe jumătate, rămâne de revenit — atenție, nu succes.
+  partiala: "atentie",
+  esuata: "pericol",
+  // Amânată = nu s-a încheiat nimic; intervenția s-a închis fără efect.
+  amanata: "neutru",
 };
 
 export const ETICHETE_URGENTA_SESIZARE: Readonly<Record<UrgentaSesizare, string>> = {
@@ -56,11 +60,16 @@ export const ETICHETE_URGENTA_SESIZARE: Readonly<Record<UrgentaSesizare, string>
   critica: "Critică",
 };
 
-export const CLASE_URGENTA_SESIZARE: Readonly<Record<UrgentaSesizare, string>> = {
-  scazuta: "bg-zinc-200 text-zinc-800",
-  medie: "bg-blue-100 text-blue-900",
-  ridicata: "bg-amber-100 text-amber-900",
-  critica: "bg-red-100 text-red-900",
+/**
+ * Urgența e o SCARĂ, nu o stare: nu există „succes” pe ea. Scăzută rămâne
+ * neutră (nu cere nimic), medie și ridicată împart tonul de atenție — se
+ * despart prin CUVÂNT, singurul purtător de înțeles — iar critica e pericol.
+ */
+export const TONURI_URGENTA_SESIZARE: Readonly<Record<UrgentaSesizare, TonStare>> = {
+  scazuta: "neutru",
+  medie: "atentie",
+  ridicata: "atentie",
+  critica: "pericol",
 };
 
 export const ETICHETE_STATUS_SESIZARE: Readonly<Record<StatusSesizare, string>> = {
@@ -71,12 +80,14 @@ export const ETICHETE_STATUS_SESIZARE: Readonly<Record<StatusSesizare, string>> 
   respins: "Respinsă",
 };
 
-export const CLASE_STATUS_SESIZARE: Readonly<Record<StatusSesizare, string>> = {
-  nou: "bg-blue-100 text-blue-900",
-  in_analiza: "bg-amber-100 text-amber-900",
-  in_lucru: "bg-amber-100 text-amber-900",
-  rezolvat: "bg-emerald-100 text-emerald-900",
-  respins: "bg-red-100 text-red-900",
+export const TONURI_STATUS_SESIZARE: Readonly<Record<StatusSesizare, TonStare>> = {
+  // Nouă = nimeni n-a atins-o încă; e neînceput, nu „în regulă”.
+  nou: "ciorna",
+  in_analiza: "atentie",
+  // În lucru = deschisă și în sarcina cuiva. Atenție, nu succes: succesul e „Rezolvată”.
+  in_lucru: "atentie",
+  rezolvat: "succes",
+  respins: "pericol",
 };
 
 export const ETICHETE_STARE_SCADENTA: Readonly<Record<StareScadentaMentenanta, string>> = {
@@ -86,9 +97,12 @@ export const ETICHETE_STARE_SCADENTA: Readonly<Record<StareScadentaMentenanta, s
   fara_scadenta: "Fără scadență",
 };
 
-export const CLASE_STARE_SCADENTA: Readonly<Record<StareScadentaMentenanta, string>> = {
-  in_intarziere: "bg-red-100 text-red-900",
-  scadenta_apropiata: "bg-amber-100 text-amber-900",
-  in_regula: "bg-emerald-100 text-emerald-900",
-  fara_scadenta: "bg-zinc-200 text-zinc-800",
+export const TONURI_STARE_SCADENTA: Readonly<Record<StareScadentaMentenanta, TonStare>> = {
+  // În întârziere se randează cu `cuAvertisment` — pictograma îl separă de restul
+  // stărilor de pericol pe o listă tipărită alb-negru.
+  in_intarziere: "pericol",
+  scadenta_apropiata: "atentie",
+  in_regula: "succes",
+  // Fără scadență nu e „în ordine”: scadența n-a putut fi calculată încă.
+  fara_scadenta: "ciorna",
 };

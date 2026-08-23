@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 
+import { Buton } from "@/components/ui/buton";
 import { STARI_OBIECT } from "@/schemas/inventory";
 import { ETICHETE_STARE } from "../etichete";
 import { actualizeazaObiect, caseazaObiect } from "../actions";
@@ -51,7 +52,7 @@ interface ValoriEditare {
   observatii: string;
 }
 
-const CLASA_CAMP = "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
+const CLASA_CAMP = "mt-1 w-full rounded-control border border-foreground/60 px-3 py-2 text-corp";
 
 function laText(valoare: string | null): string {
   return valoare ?? "";
@@ -112,7 +113,7 @@ export function ActiuniObiect({ obiect, categorii, poateCasa }: Proprietati) {
       <form onSubmit={handleSubmit(salveaza)} className="space-y-4" noValidate>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div>
-            <label htmlFor="edit-denumire" className="block text-sm font-medium">
+            <label htmlFor="edit-denumire" className="text-corp block font-medium">
               Denumire
             </label>
             <input
@@ -123,7 +124,7 @@ export function ActiuniObiect({ obiect, categorii, poateCasa }: Proprietati) {
             />
           </div>
           <div>
-            <label htmlFor="edit-numar" className="block text-sm font-medium">
+            <label htmlFor="edit-numar" className="text-corp block font-medium">
               Număr de inventar
             </label>
             <input
@@ -134,19 +135,19 @@ export function ActiuniObiect({ obiect, categorii, poateCasa }: Proprietati) {
             />
           </div>
           <div>
-            <label htmlFor="edit-serie" className="block text-sm font-medium">
+            <label htmlFor="edit-serie" className="text-corp block font-medium">
               Serie
             </label>
             <input id="edit-serie" type="text" className={CLASA_CAMP} {...register("serie")} />
           </div>
           <div>
-            <label htmlFor="edit-model" className="block text-sm font-medium">
+            <label htmlFor="edit-model" className="text-corp block font-medium">
               Model
             </label>
             <input id="edit-model" type="text" className={CLASA_CAMP} {...register("model")} />
           </div>
           <div>
-            <label htmlFor="edit-producator" className="block text-sm font-medium">
+            <label htmlFor="edit-producator" className="text-corp block font-medium">
               Producător
             </label>
             <input
@@ -157,7 +158,7 @@ export function ActiuniObiect({ obiect, categorii, poateCasa }: Proprietati) {
             />
           </div>
           <div>
-            <label htmlFor="edit-categorie" className="block text-sm font-medium">
+            <label htmlFor="edit-categorie" className="text-corp block font-medium">
               Categorie
             </label>
             <select id="edit-categorie" className={CLASA_CAMP} {...register("category_id")}>
@@ -170,7 +171,7 @@ export function ActiuniObiect({ obiect, categorii, poateCasa }: Proprietati) {
             </select>
           </div>
           <div>
-            <label htmlFor="edit-data-achizitie" className="block text-sm font-medium">
+            <label htmlFor="edit-data-achizitie" className="text-corp block font-medium">
               Data achiziției
             </label>
             <input
@@ -181,7 +182,7 @@ export function ActiuniObiect({ obiect, categorii, poateCasa }: Proprietati) {
             />
           </div>
           <div>
-            <label htmlFor="edit-valoare" className="block text-sm font-medium">
+            <label htmlFor="edit-valoare" className="text-corp block font-medium">
               Valoare (lei)
             </label>
             <input
@@ -194,7 +195,7 @@ export function ActiuniObiect({ obiect, categorii, poateCasa }: Proprietati) {
             />
           </div>
           <div>
-            <label htmlFor="edit-garantie" className="block text-sm font-medium">
+            <label htmlFor="edit-garantie" className="text-corp block font-medium">
               Garanția expiră la
             </label>
             <input
@@ -205,7 +206,7 @@ export function ActiuniObiect({ obiect, categorii, poateCasa }: Proprietati) {
             />
           </div>
           <div>
-            <label htmlFor="edit-stare" className="block text-sm font-medium">
+            <label htmlFor="edit-stare" className="text-corp block font-medium">
               Stare fizică
             </label>
             <select id="edit-stare" className={CLASA_CAMP} {...register("stare")}>
@@ -217,7 +218,7 @@ export function ActiuniObiect({ obiect, categorii, poateCasa }: Proprietati) {
             </select>
           </div>
           <div>
-            <label htmlFor="edit-locatie" className="block text-sm font-medium">
+            <label htmlFor="edit-locatie" className="text-corp block font-medium">
               Locație
             </label>
             <input id="edit-locatie" type="text" className={CLASA_CAMP} {...register("locatie")} />
@@ -225,7 +226,7 @@ export function ActiuniObiect({ obiect, categorii, poateCasa }: Proprietati) {
         </div>
 
         <div>
-          <label htmlFor="edit-observatii" className="block text-sm font-medium">
+          <label htmlFor="edit-observatii" className="text-corp block font-medium">
             Observații
           </label>
           <textarea
@@ -238,30 +239,25 @@ export function ActiuniObiect({ obiect, categorii, poateCasa }: Proprietati) {
 
         <div aria-live="polite">
           {eroare !== null ? (
-            <p className="border-danger bg-danger/8 text-danger rounded-md border p-3 text-sm">
+            <p className="border-danger bg-danger/8 text-danger rounded-control text-corp border p-3">
               {eroare}
             </p>
           ) : null}
         </div>
 
         <div className="flex gap-3">
-          <button
-            type="submit"
-            disabled={inCurs}
-            className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-          >
-            {inCurs ? "Se salvează…" : "Salvează modificările"}
-          </button>
-          <button
-            type="button"
+          <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+            Salvează modificările
+          </Buton>
+          <Buton
+            varianta="secundar"
             onClick={() => {
               setModEditare(false);
             }}
             disabled={inCurs}
-            className="border-foreground/60 hover:bg-surface disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
           >
             Renunță
-          </button>
+          </Buton>
         </div>
       </form>
     );
@@ -271,61 +267,53 @@ export function ActiuniObiect({ obiect, categorii, poateCasa }: Proprietati) {
     <div className="space-y-3">
       <div aria-live="polite">
         {eroare !== null ? (
-          <p className="border-danger bg-danger/8 text-danger rounded-md border p-3 text-sm">
+          <p className="border-danger bg-danger/8 text-danger rounded-control text-corp border p-3">
             {eroare}
           </p>
         ) : null}
       </div>
 
       <div className="flex flex-wrap gap-3">
-        <button
-          type="button"
+        <Buton
+          varianta="secundar"
           onClick={() => {
             setModEditare(true);
           }}
-          className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm font-medium"
         >
           Editează datele obiectului
-        </button>
+        </Buton>
         {poateCasa && !confirmaCasare ? (
-          <button
-            type="button"
+          <Buton
+            varianta="distructiv"
             onClick={() => {
               setConfirmaCasare(true);
             }}
-            className="border-danger text-danger hover:bg-danger hover:text-danger-foreground rounded-md border px-4 py-2 text-sm font-medium"
           >
             Casează obiectul
-          </button>
+          </Buton>
         ) : null}
       </div>
 
       {confirmaCasare ? (
-        <div className="border-danger bg-danger/8 rounded-md border p-4">
-          <p className="text-danger text-sm">
+        <div className="border-danger bg-danger/8 rounded-control border p-4">
+          <p className="text-danger text-corp">
             Obiectul trece definitiv în starea „Casat” și nu mai poate fi predat unui angajat.
             Rămâne în evidența organizației permanent — istoricul de predări-primiri nu se poate
             șterge.
           </p>
           <div className="mt-3 flex gap-3">
-            <button
-              type="button"
-              onClick={caseaza}
-              disabled={inCurs}
-              className="bg-danger text-primary-foreground hover:bg-danger disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-            >
-              {inCurs ? "Se casează…" : "Confirmă casarea"}
-            </button>
-            <button
-              type="button"
+            <Buton varianta="distructiv" onClick={caseaza} inCurs={inCurs} textInCurs="Se casează…">
+              Confirmă casarea
+            </Buton>
+            <Buton
+              varianta="secundar"
               onClick={() => {
                 setConfirmaCasare(false);
               }}
               disabled={inCurs}
-              className="border-foreground/60 hover:bg-surface disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
             >
               Renunță
-            </button>
+            </Buton>
           </div>
         </div>
       ) : null}

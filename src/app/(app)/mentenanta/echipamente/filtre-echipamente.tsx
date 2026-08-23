@@ -4,6 +4,7 @@ import { useId, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
 
+import { Buton } from "@/components/ui/buton";
 import { STATUS_ECHIPAMENT } from "@/schemas/maintenance";
 import { ETICHETE_STATUS_ECHIPAMENT } from "../etichete";
 
@@ -30,10 +31,10 @@ export function FiltreEchipamenteForm() {
   return (
     <form
       action={aplica}
-      className="border-border flex flex-wrap items-end gap-3 rounded-lg border p-4"
+      className="border-border rounded-panou flex flex-wrap items-end gap-3 border p-4"
     >
       <div className="flex flex-col gap-1">
-        <label htmlFor={idCauta} className="text-sm font-medium">
+        <label htmlFor={idCauta} className="text-corp font-medium">
           Cod sau denumire
         </label>
         <input
@@ -42,19 +43,19 @@ export function FiltreEchipamenteForm() {
           type="search"
           defaultValue={parametri.get("cauta") ?? ""}
           placeholder="Ex. CMP-014"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idStatus} className="text-sm font-medium">
+        <label htmlFor={idStatus} className="text-corp font-medium">
           Stare
         </label>
         <select
           id={idStatus}
           name="status"
           defaultValue={parametri.get("status") ?? ""}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         >
           <option value="">Toate</option>
           {STATUS_ECHIPAMENT.map((s) => (
@@ -65,14 +66,10 @@ export function FiltreEchipamenteForm() {
         </select>
       </div>
 
-      <button
-        type="submit"
-        disabled={inCurs}
-        className="border-foreground/60 hover:bg-surface disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-      >
+      <Buton type="submit" varianta="secundar" inCurs={inCurs} textInCurs="Se filtrează…">
         <Search aria-hidden="true" className="size-4" />
-        {inCurs ? "Se filtrează…" : "Filtrează"}
-      </button>
+        Filtrează
+      </Buton>
     </form>
   );
 }

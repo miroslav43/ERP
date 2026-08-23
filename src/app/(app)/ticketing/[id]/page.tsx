@@ -3,6 +3,9 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/ui/cn";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -17,12 +20,12 @@ import { fisaProprie } from "@/lib/queries/portal";
 import { tranzitiiOferite, type StatusTichet } from "@/domain/ticketing/stari";
 
 import {
-  CLASE_PRIORITATE,
-  CLASE_STATUS,
   ETICHETE_CAMP,
   ETICHETE_PRIORITATE,
   ETICHETE_STATUS,
   ETICHETE_TIP,
+  TONURI_PRIORITATE,
+  TONURI_STATUS,
 } from "../etichete";
 import { DecizieCerere, FormularComentariu, Macrouri, SchimbaStatus } from "./actiuni-tichet";
 
@@ -36,8 +39,8 @@ function Rand({ eticheta, valoare }: Readonly<{ eticheta: string; valoare: strin
   if (valoare === null || valoare === "") return null;
   return (
     <div className="border-border flex items-baseline justify-between gap-4 border-b py-2 last:border-0">
-      <dt className="text-muted-foreground text-sm">{eticheta}</dt>
-      <dd className="text-foreground text-right text-sm">{valoare}</dd>
+      <dt className="text-muted-foreground text-corp">{eticheta}</dt>
+      <dd className="text-foreground text-corp text-right">{valoare}</dd>
     </div>
   );
 }
@@ -83,46 +86,44 @@ export default async function PaginaTichet({ params }: ProprietatiPagina) {
   const asteaptaDecizia = tichet.status === "in_aprobare" && poateAproba;
 
   return (
-    <main className="mx-auto w-full max-w-4xl space-y-6 p-6">
-      <header className="space-y-2">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-muted-foreground font-mono text-sm">{tichet.numar_afisat}</span>
-          <span
-            className={`rounded-full px-2 py-0.5 text-xs ${CLASE_STATUS[tichet.status as StatusTichet]}`}
-          >
-            {ETICHETE_STATUS[tichet.status as StatusTichet]}
-          </span>
-          <span
-            className={`rounded-full px-2 py-0.5 text-xs ${CLASE_PRIORITATE[tichet.prioritate]}`}
-          >
-            {ETICHETE_PRIORITATE[tichet.prioritate]}
-          </span>
-        </div>
-        <h1 className="text-2xl font-semibold">{tichet.titlu}</h1>
-        <p className="text-muted-foreground text-sm">
-          {ETICHETE_TIP[tichet.tip]} · deschis de {tichet.solicitant?.full_name ?? "—"} la{" "}
-          {formatDateTime(tichet.created_at)}
-        </p>
-      </header>
+    <div className={cn(LATIMI.detaliu, "space-y-6")}>
+      {/* Numărul și cele două pastile stăteau DEASUPRA titlului; în antetul
+          comun locul lor e slotul de acțiuni, la dreapta — la fel ca pe fișa
+          obiectului de inventar și pe cea a deplasării. */}
+      <AntetPagina
+        titlu={tichet.titlu}
+        descriere={`${ETICHETE_TIP[tichet.tip]} · deschis de ${tichet.solicitant?.full_name ?? "—"} la ${formatDateTime(tichet.created_at)}`}
+        actiuni={
+          <>
+            <span className="text-muted-foreground text-corp font-mono">{tichet.numar_afisat}</span>
+            <Badge ton={TONURI_STATUS[tichet.status as StatusTichet]}>
+              {ETICHETE_STATUS[tichet.status as StatusTichet]}
+            </Badge>
+            <Badge ton={TONURI_PRIORITATE[tichet.prioritate]}>
+              {ETICHETE_PRIORITATE[tichet.prioritate]}
+            </Badge>
+          </>
+        }
+      />
 
       {tichet.status === "in_asteptare" && esteSolicitant && (
-        <p className="rounded-md border border-orange-300 bg-orange-100 p-3 text-sm text-orange-950">
+        <p className="border-warning/40 bg-warning/10 text-foreground rounded-control text-corp border p-3">
           Echipa așteaptă un răspuns de la tine ca să poată continua.
         </p>
       )}
 
       {tichet.status === "respins" && tichet.motiv_respingere !== null && (
-        <div className="border-border bg-surface rounded-md border p-3">
-          <p className="text-foreground text-sm font-medium">Motivul respingerii</p>
-          <p className="text-muted-foreground mt-1 text-sm">{tichet.motiv_respingere}</p>
+        <div className="border-border bg-surface rounded-control border p-3">
+          <p className="text-foreground text-corp font-medium">Motivul respingerii</p>
+          <p className="text-muted-foreground text-corp mt-1">{tichet.motiv_respingere}</p>
         </div>
       )}
 
       {asteaptaDecizia && <DecizieCerere ticketId={tichet.id} />}
 
-      <section className="border-border bg-surface rounded-lg border p-4">
-        <h2 className="text-foreground text-sm font-semibold">Detalii</h2>
-        <p className="text-foreground mt-2 text-sm whitespace-pre-wrap">{tichet.descriere}</p>
+      <section className="border-border bg-surface rounded-panou border p-4">
+        <h2 className="text-foreground text-corp font-semibold">Detalii</h2>
+        <p className="text-foreground text-corp mt-2 whitespace-pre-wrap">{tichet.descriere}</p>
 
         <dl className="mt-4">
           <Rand eticheta="Aplicație" valoare={tichet.aplicatie} />
@@ -188,28 +189,28 @@ export default async function PaginaTichet({ params }: ProprietatiPagina) {
       {poateOpera && <Macrouri ticketId={tichet.id} />}
 
       <section className="space-y-3">
-        <h2 className="text-foreground text-sm font-semibold">Conversație</h2>
+        <h2 className="text-foreground text-corp font-semibold">Conversație</h2>
         {comentarii.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Niciun răspuns încă.</p>
+          <p className="text-muted-foreground text-corp">Niciun răspuns încă.</p>
         ) : (
           <ul className="space-y-3">
             {comentarii.map((comentariu) => (
               <li
                 key={comentariu.id}
-                className={`rounded-lg border p-3 ${comentariu.intern ? "border-amber-300 bg-amber-50" : "border-border bg-surface"}`}
+                className={`rounded-panou border p-3 ${comentariu.intern ? "border-warning/40 bg-warning/8" : "border-border bg-surface"}`}
               >
-                <p className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
+                <p className="text-muted-foreground text-nota flex flex-wrap items-center gap-2">
                   <span className="text-foreground font-medium">
                     {comentariu.autor?.full_name ?? "—"}
                   </span>
                   {formatDateTime(comentariu.created_at)}
                   {comentariu.intern && (
-                    <span className="rounded bg-amber-200 px-1.5 py-0.5 text-amber-950">
+                    <span className="border-warning/40 text-muted-foreground rounded border px-1.5 py-0.5">
                       notă internă
                     </span>
                   )}
                 </p>
-                <p className="text-foreground mt-2 text-sm whitespace-pre-wrap">
+                <p className="text-foreground text-corp mt-2 whitespace-pre-wrap">
                   {comentariu.continut}
                 </p>
               </li>
@@ -221,11 +222,11 @@ export default async function PaginaTichet({ params }: ProprietatiPagina) {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-foreground text-sm font-semibold">Istoric</h2>
+        <h2 className="text-foreground text-corp font-semibold">Istoric</h2>
         {istoric.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Nicio schimbare înregistrată.</p>
+          <p className="text-muted-foreground text-corp">Nicio schimbare înregistrată.</p>
         ) : (
-          <ul className="text-muted-foreground space-y-1 text-xs">
+          <ul className="text-muted-foreground text-nota space-y-1">
             {istoric.map((intrare) => (
               <li key={intrare.id}>
                 {formatDateTime(intrare.created_at)} · {ETICHETE_CAMP[intrare.camp] ?? intrare.camp}
@@ -237,6 +238,6 @@ export default async function PaginaTichet({ params }: ProprietatiPagina) {
           </ul>
         )}
       </section>
-    </main>
+    </div>
   );
 }

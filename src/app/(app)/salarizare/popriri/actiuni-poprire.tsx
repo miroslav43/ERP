@@ -4,6 +4,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
+
 import { inchidePoprire } from "./actions";
 
 export function ActiuniPoprire({ id, activa }: { readonly id: string; readonly activa: boolean }) {
@@ -25,16 +27,11 @@ export function ActiuniPoprire({ id, activa }: { readonly id: string; readonly a
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <button
-        type="button"
-        onClick={comuta}
-        disabled={inCurs}
-        className="border-border rounded-md border px-3 py-1.5 text-sm font-medium disabled:opacity-60"
-      >
-        {inCurs ? "Se salvează…" : activa ? "Închide dosarul" : "Redeschide dosarul"}
-      </button>
+      <Buton varianta="secundar" onClick={comuta} inCurs={inCurs} textInCurs="Se salvează…">
+        {activa ? "Închide dosarul" : "Redeschide dosarul"}
+      </Buton>
       {eroare !== null ? (
-        <p role="alert" className="text-danger text-sm">
+        <p role="alert" className="text-danger text-corp">
           {eroare}
         </p>
       ) : null}

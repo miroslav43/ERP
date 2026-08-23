@@ -21,11 +21,11 @@ export function Pas4FisaPostului({ formular, idFormular }: Proprietati) {
   const { register } = formular;
 
   return (
-    <fieldset className="border-border space-y-4 rounded-lg border p-4">
-      <legend className="text-foreground px-1 text-sm font-medium">
+    <fieldset className="border-border rounded-panou space-y-4 border p-4">
+      <legend className="text-foreground text-corp px-1 font-medium">
         Fișa postului (opțională)
       </legend>
-      <p className="text-muted-foreground text-sm">
+      <p className="text-muted-foreground text-corp">
         Dacă se completează, fișa postului se generează automat ca document, gata de semnat.
         Necompletată, se poate adăuga oricând ulterior de pe fișa angajatului.
       </p>

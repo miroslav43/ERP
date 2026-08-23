@@ -83,7 +83,7 @@ export function MatricePermisiuni({
         <p
           role="alert"
           aria-live="assertive"
-          className="border-danger/40 bg-danger/10 text-foreground rounded-md border p-3 text-sm"
+          className="border-danger/40 bg-danger/10 text-foreground rounded-control text-corp border p-3"
         >
           {eroare}
         </p>
@@ -91,8 +91,8 @@ export function MatricePermisiuni({
 
       {[...peResursa.entries()].map(([resursa, grup]) => (
         <section key={resursa} className="space-y-2">
-          <h2 className="text-foreground text-sm font-semibold">{resursa}</h2>
-          <ul className="divide-border border-border divide-y rounded-lg border">
+          <h2 className="text-foreground text-corp font-semibold">{resursa}</h2>
+          <ul className="divide-border border-border rounded-panou divide-y border">
             {grup.map((rand) => {
               const idCamp = `${idBaza}-${rand.cheie}`;
               const valoare = rand.suprascris ?? "implicit";
@@ -103,10 +103,10 @@ export function MatricePermisiuni({
                   className="flex flex-wrap items-center justify-between gap-3 p-3"
                 >
                   <div className="min-w-0">
-                    <label htmlFor={idCamp} className="text-foreground text-sm font-medium">
+                    <label htmlFor={idCamp} className="text-foreground text-corp font-medium">
                       {rand.actiune}
                     </label>
-                    <p className="text-muted-foreground text-xs">
+                    <p className="text-muted-foreground text-nota">
                       Rolul dă: {rand.implicit === null ? "nimic" : ETICHETE_SCOPE[rand.implicit]}
                       {modificat ? " · suprascris" : null}
                     </p>
@@ -119,7 +119,7 @@ export function MatricePermisiuni({
                       schimba(rand.cheie, e.target.value);
                     }}
                     className={
-                      "min-h-11 rounded-md border px-3 py-2 text-sm disabled:opacity-60 " +
+                      "rounded-control text-corp disabled:bg-surface disabled:text-muted-foreground min-h-11 border px-3 py-2 disabled:cursor-not-allowed " +
                       (modificat ? "border-primary text-foreground" : "border-foreground/40")
                     }
                   >

@@ -3,6 +3,7 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
 import { predaEip } from "../actions";
 
 interface AngajatOptiune {
@@ -59,19 +60,19 @@ export function FormularEip({ angajati }: { readonly angajati: readonly AngajatO
   return (
     <form
       action={trimite}
-      className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-3"
+      className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-3"
     >
-      <p className="text-sm font-medium sm:col-span-3">Predă echipament</p>
+      <p className="text-corp font-medium sm:col-span-3">Predă echipament</p>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.angajat} className="text-sm">
+        <label htmlFor={id.angajat} className="text-corp">
           Angajat
         </label>
         <select
           id={id.angajat}
           name="employee_id"
           required
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         >
           {angajati.map((a) => (
             <option key={a.id} value={a.id}>
@@ -82,7 +83,7 @@ export function FormularEip({ angajati }: { readonly angajati: readonly AngajatO
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.articol} className="text-sm">
+        <label htmlFor={id.articol} className="text-corp">
           Articol
         </label>
         <input
@@ -90,24 +91,24 @@ export function FormularEip({ angajati }: { readonly angajati: readonly AngajatO
           name="articol"
           required
           maxLength={160}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.cod} className="text-sm">
+        <label htmlFor={id.cod} className="text-corp">
           Cod articol
         </label>
         <input
           id={id.cod}
           name="cod_articol"
           maxLength={64}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.cantitate} className="text-sm">
+        <label htmlFor={id.cantitate} className="text-corp">
           Cantitate
         </label>
         <input
@@ -117,12 +118,12 @@ export function FormularEip({ angajati }: { readonly angajati: readonly AngajatO
           min="0.01"
           step="1"
           defaultValue={1}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.unitate} className="text-sm">
+        <label htmlFor={id.unitate} className="text-corp">
           Unitate
         </label>
         <input
@@ -130,12 +131,12 @@ export function FormularEip({ angajati }: { readonly angajati: readonly AngajatO
           name="unitate"
           defaultValue="buc"
           maxLength={20}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.predare} className="text-sm">
+        <label htmlFor={id.predare} className="text-corp">
           Data predării
         </label>
         <input
@@ -143,12 +144,12 @@ export function FormularEip({ angajati }: { readonly angajati: readonly AngajatO
           name="data_predarii"
           type="date"
           required
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.durata} className="text-sm">
+        <label htmlFor={id.durata} className="text-corp">
           Durată utilizare (luni, opțional)
         </label>
         <input
@@ -156,12 +157,12 @@ export function FormularEip({ angajati }: { readonly angajati: readonly AngajatO
           name="durata_utilizare_luni"
           type="number"
           min="1"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.valoare} className="text-sm">
+        <label htmlFor={id.valoare} className="text-corp">
           Valoare (lei)
         </label>
         <input
@@ -170,20 +171,16 @@ export function FormularEip({ angajati }: { readonly angajati: readonly AngajatO
           type="number"
           min="0"
           step="0.01"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-wrap items-center gap-3 sm:col-span-3">
-        <button
-          type="submit"
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se salvează…" : "Predă echipamentul"}
-        </button>
+        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+          Predă echipamentul
+        </Buton>
         {eroare === null ? null : (
-          <p role="alert" className="text-danger text-sm">
+          <p role="alert" className="text-danger text-corp">
             {eroare}
           </p>
         )}

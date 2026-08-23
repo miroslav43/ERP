@@ -3,7 +3,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -22,9 +23,9 @@ export default async function PaginaAnunturi() {
 
   if (!can(permisiuni, "announcements:read", "own")) {
     return (
-      <main className="p-6">
+      <div>
         <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta avizierul." />
-      </main>
+      </div>
     );
   }
 
@@ -33,26 +34,24 @@ export default async function PaginaAnunturi() {
   const acum = new Date();
 
   return (
-    <main className="max-w-3xl space-y-6 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Anunțuri</h1>
-        <p className="text-muted-foreground text-sm">Avizierul organizației.</p>
-      </header>
+    <div className={`${LATIMI.formular} space-y-6`}>
+      <AntetPagina titlu="Anunțuri" descriere="Avizierul organizației." />
 
       {poateAdministra ? <FormularAnuntNou /> : null}
 
       {anunturi.length === 0 ? (
-        <EmptyState
-          icon={Megaphone}
-          title="Niciun anunț"
-          description={
+        <StareGoala
+          fel="initiala"
+          pictograma={Megaphone}
+          titlu="Niciun anunț"
+          descriere={
             poateAdministra
               ? "Scrieți primul anunț mai sus."
               : "Nu există încă niciun anunț publicat."
           }
         />
       ) : (
-        <ul className="divide-border border-border divide-y rounded-lg border">
+        <ul className="divide-border border-border rounded-panou divide-y border">
           {anunturi.map((a) => {
             const ciorna = a.publicat_la === null;
             const expirat =
@@ -66,17 +65,17 @@ export default async function PaginaAnunturi() {
                   {a.fixat ? <Pin className="text-primary size-4 shrink-0" aria-hidden /> : null}
                   <span className="font-medium">{a.titlu}</span>
                   {ciorna ? (
-                    <span className="bg-surface text-muted-foreground rounded px-2 py-0.5 text-xs">
+                    <span className="bg-surface text-muted-foreground text-nota rounded px-2 py-0.5">
                       Ciornă
                     </span>
                   ) : null}
                   {expirat ? (
-                    <span className="bg-surface text-muted-foreground rounded px-2 py-0.5 text-xs">
+                    <span className="bg-surface text-muted-foreground text-nota rounded px-2 py-0.5">
                       Expirat
                     </span>
                   ) : null}
                 </Link>
-                <p className="text-muted-foreground mt-1 text-xs">
+                <p className="text-muted-foreground text-nota mt-1">
                   {a.publicat_la === null
                     ? `Creat ${formatDateTime(a.created_at)}`
                     : `Publicat ${formatDateTime(a.publicat_la)}`}
@@ -86,6 +85,6 @@ export default async function PaginaAnunturi() {
           })}
         </ul>
       )}
-    </main>
+    </div>
   );
 }

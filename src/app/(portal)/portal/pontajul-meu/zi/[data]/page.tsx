@@ -4,7 +4,9 @@ import Link from "next/link";
 import { Lock } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
+import { buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -51,18 +53,12 @@ export default async function PaginaZiPontaj({
   const existenta = zileLuna.find((z) => z.data === zi) ?? null;
 
   const antet = (
-    <header>
-      <h1 className="text-foreground text-xl font-semibold">{formatDate(zi)}</h1>
-      <p className="text-muted-foreground text-sm">Pontajul dumneavoastră pe ziua aceasta.</p>
-    </header>
+    <AntetPagina titlu={formatDate(zi)} descriere="Pontajul dumneavoastră pe ziua aceasta." />
   );
 
   const inapoi = (
     <p>
-      <Link
-        href="/portal/pontajul-meu"
-        className="text-primary text-sm underline-offset-2 hover:underline"
-      >
+      <Link href="/portal/pontajul-meu" className={buton({ varianta: "link" })}>
         Înapoi la pontajul meu
       </Link>
     </p>
@@ -73,12 +69,13 @@ export default async function PaginaZiPontaj({
   // dar un buton care duce sigur în eroare e un defect de ecran.
   if (perioada === null || perioada.status !== "deschisa") {
     return (
-      <div className="mx-auto max-w-2xl space-y-4 p-4">
+      <div className={`${LATIMI.formular} space-y-4 p-4`}>
         {antet}
-        <EmptyState
-          icon={Lock}
-          title="Luna nu este deschisă pentru pontaj"
-          description="Pontajul se completează doar cât timp luna e deschisă de resursele umane. Pentru o corectură, întrebați responsabilul de pontaj."
+        <StareGoala
+          fel="restrictionata"
+          pictograma={Lock}
+          titlu="Luna nu este deschisă pentru pontaj"
+          descriere="Pontajul se completează doar cât timp luna e deschisă de resursele umane. Pentru o corectură, întrebați responsabilul de pontaj."
         />
         {inapoi}
       </div>
@@ -92,13 +89,13 @@ export default async function PaginaZiPontaj({
 
   if (dinConcediu) {
     return (
-      <div className="mx-auto max-w-2xl space-y-4 p-4">
+      <div className={`${LATIMI.formular} space-y-4 p-4`}>
         {antet}
-        <div className="bg-surface border-border rounded-lg border p-4">
-          <p className="text-foreground text-sm font-medium">
+        <div className="bg-surface border-border rounded-panou border p-4">
+          <p className="text-foreground text-corp font-medium">
             {ETICHETE_TIP_ZI[existenta.tip_zi] ?? existenta.tip_zi}
           </p>
-          <p className="text-muted-foreground mt-1 text-sm">
+          <p className="text-muted-foreground text-corp mt-1">
             Ziua vine din concediul aprobat și se modifică de acolo, nu din pontaj.
           </p>
         </div>
@@ -108,7 +105,7 @@ export default async function PaginaZiPontaj({
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 p-4">
+    <div className={`${LATIMI.formular} space-y-4 p-4`}>
       {antet}
       <FormularZi
         data={zi}

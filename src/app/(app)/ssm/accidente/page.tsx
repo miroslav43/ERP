@@ -5,9 +5,12 @@ import type { Metadata } from "next";
 import { Plus, ShieldAlert } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { RandTabel } from "@/components/data/rand-tabel";
-import { SkeletonTable } from "@/components/data/skeleton-table";
+import { Schelet } from "@/components/ui/schelet";
+import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
@@ -17,7 +20,7 @@ import { filtreDinUrl } from "@/lib/rute/parametri";
 import { accidente, angajatiDupaId } from "@/lib/queries/ssm";
 import { filtreAccidenteSchema } from "@/schemas/ssm";
 
-import { CLASE_TIP_ACCIDENT, ETICHETE_TIP_ACCIDENT } from "../etichete";
+import { ETICHETE_TIP_ACCIDENT, TONURI_TIP_ACCIDENT } from "../etichete";
 import { NavSsm } from "../nav-ssm";
 
 export const metadata: Metadata = { title: "Accidente de muncă" };
@@ -39,17 +42,20 @@ async function TabelAccidente({
   if (randuri.length === 0) {
     const areFiltre = filtre.tip !== null || filtre.necomunicate !== null;
     return (
-      <EmptyState
-        icon={ShieldAlert}
-        title={areFiltre ? "Niciun rezultat pentru filtrele alese" : "Niciun accident înregistrat"}
-        description={
+      <StareGoala
+        fel={areFiltre ? "filtrata" : "initiala"}
+        pictograma={ShieldAlert}
+        titlu={areFiltre ? "Niciun rezultat pentru filtrele alese" : "Niciun accident înregistrat"}
+        descriere={
           areFiltre
             ? "Ștergeți filtrele ca să vedeți toate accidentele."
             : "Registrul de accidente e gol — sperăm să rămână așa."
         }
-        {...(areFiltre
-          ? {}
-          : { action: { label: "Înregistrează un accident", href: "/ssm/accidente/nou" } })}
+        actiune={
+          areFiltre
+            ? { eticheta: "Șterge filtrele", href: "/ssm/accidente" }
+            : { eticheta: "Înregistrează un accident", href: "/ssm/accidente/nou" }
+        }
       />
     );
   }
@@ -67,8 +73,8 @@ async function TabelAccidente({
 
   return (
     <>
-      <div className="border-border overflow-x-auto rounded-lg border">
-        <table className="w-full text-sm">
+      <div className="border-border rounded-panou overflow-x-auto border">
+        <table className="text-corp w-full">
           <caption className="sr-only">Accidentele de muncă la care aveți acces.</caption>
           <thead className="bg-surface text-left">
             <tr>
@@ -106,11 +112,7 @@ async function TabelAccidente({
                     {angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`}
                   </td>
                   <td className="px-4 py-3">
-                    <span
-                      className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_TIP_ACCIDENT[a.tip]}`}
-                    >
-                      {ETICHETE_TIP_ACCIDENT[a.tip]}
-                    </span>
+                    <Badge ton={TONURI_TIP_ACCIDENT[a.tip]}>{ETICHETE_TIP_ACCIDENT[a.tip]}</Badge>
                   </td>
                   <td className="px-4 py-3">
                     {a.comunicat_la_itm_la === null ? (
@@ -135,7 +137,7 @@ async function TabelAccidente({
         {urmatorulCursor === null ? null : (
           <Link
             href={`/ssm/accidente?${cautare.toString()}`}
-            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
+            className={buton({ varianta: "secundar" })}
           >
             Pagina următoare
           </Link>
@@ -161,39 +163,37 @@ export default async function PaginaAccidente({ searchParams }: ProprietatiPagin
   const poateCrea = can(permisiuni, "ssm:create", "team");
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Accidente de muncă</h1>
-          <p className="text-muted-foreground text-sm">
-            Registrul de accidente, cu termenul de comunicare la ITM și stadiul cercetării.
-          </p>
-        </div>
-        {poateCrea ? (
-          <Link
-            href="/ssm/accidente/nou"
-            className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
-          >
-            <Plus aria-hidden="true" className="size-4" />
-            Accident nou
-          </Link>
-        ) : null}
-      </header>
-
-      <NavSsm
-        poateVedeaInstruiri={
-          can(permisiuni, "ssm:read", "team") && can(permisiuni, "employees:read", "team")
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Accidente de muncă"
+        descriere="Registrul de accidente, cu termenul de comunicare la ITM și stadiul cercetării."
+        {...(poateCrea
+          ? {
+              actiuni: (
+                <Link href="/ssm/accidente/nou" className={buton({ varianta: "primar" })}>
+                  <Plus aria-hidden="true" className="size-4" />
+                  Accident nou
+                </Link>
+              ),
+            }
+          : {})}
+        file={
+          <NavSsm
+            poateVedeaInstruiri={
+              can(permisiuni, "ssm:read", "team") && can(permisiuni, "employees:read", "team")
+            }
+            poateVedeaMedicina={can(permisiuni, "ssm:read", "team")}
+            poateVedeaAccidente
+            poateVedeaStingatoare={can(permisiuni, "ssm:read", "team")}
+            poateVedeaEip={can(permisiuni, "ssm:read", "team")}
+            poateVedeaAutorizatii={can(permisiuni, "ssm:read", "team")}
+          />
         }
-        poateVedeaMedicina={can(permisiuni, "ssm:read", "team")}
-        poateVedeaAccidente
-        poateVedeaStingatoare={can(permisiuni, "ssm:read", "team")}
-        poateVedeaEip={can(permisiuni, "ssm:read", "team")}
-        poateVedeaAutorizatii={can(permisiuni, "ssm:read", "team")}
       />
 
-      <Suspense key={JSON.stringify(parametri)} fallback={<SkeletonTable cols={5} />}>
+      <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={5} />}>
         <TabelAccidente organizationId={tenant.organizationId} parametri={parametri} />
       </Suspense>
-    </main>
+    </div>
   );
 }

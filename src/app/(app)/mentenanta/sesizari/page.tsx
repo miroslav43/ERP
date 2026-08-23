@@ -5,9 +5,12 @@ import type { Metadata } from "next";
 import { Wrench } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { Badge } from "@/components/ui/badge";
+import { buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { RandTabel } from "@/components/data/rand-tabel";
-import { SkeletonTable } from "@/components/data/skeleton-table";
+import { Schelet } from "@/components/ui/schelet";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -17,10 +20,10 @@ import { echipamenteDupaId, sesizari } from "@/lib/queries/maintenance";
 import { filtreSesizariSchema } from "@/schemas/maintenance";
 
 import {
-  CLASE_STATUS_SESIZARE,
-  CLASE_URGENTA_SESIZARE,
   ETICHETE_STATUS_SESIZARE,
   ETICHETE_URGENTA_SESIZARE,
+  TONURI_STATUS_SESIZARE,
+  TONURI_URGENTA_SESIZARE,
 } from "../etichete";
 import { NavMentenanta } from "../nav-mentenanta";
 import { FiltreSesizariForm } from "./filtre-sesizari";
@@ -45,14 +48,18 @@ async function TabelSesizari({
     const areFiltre =
       filtre.status !== null || filtre.urgenta !== null || filtre.echipament !== null;
     return (
-      <EmptyState
-        icon={Wrench}
-        title={areFiltre ? "Niciun rezultat pentru filtrele alese" : "Nicio sesizare înregistrată"}
-        description={
+      <StareGoala
+        fel={areFiltre ? "filtrata" : "initiala"}
+        pictograma={Wrench}
+        titlu={areFiltre ? "Niciun rezultat pentru filtrele alese" : "Nicio sesizare înregistrată"}
+        descriere={
           areFiltre
             ? "Ștergeți filtrele ca să vedeți toate sesizările."
             : "Sesizările apar aici pe măsură ce echipa raportează defecțiuni."
         }
+        {...(areFiltre
+          ? { actiune: { eticheta: "Șterge filtrele", href: "/mentenanta/sesizari" } }
+          : {})}
       />
     );
   }
@@ -70,8 +77,8 @@ async function TabelSesizari({
 
   return (
     <>
-      <div className="border-border overflow-x-auto rounded-lg border">
-        <table className="w-full text-sm">
+      <div className="border-border rounded-panou overflow-x-auto border">
+        <table className="text-corp w-full">
           <caption className="sr-only">Sesizările de defecțiune ale organizației.</caption>
           <thead className="bg-surface text-left">
             <tr>
@@ -112,18 +119,14 @@ async function TabelSesizari({
                   </td>
                   <td className="px-4 py-3">{formatDateTime(sesizare.raportat_la)}</td>
                   <td className="px-4 py-3">
-                    <span
-                      className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_URGENTA_SESIZARE[sesizare.urgenta]}`}
-                    >
+                    <Badge ton={TONURI_URGENTA_SESIZARE[sesizare.urgenta]}>
                       {ETICHETE_URGENTA_SESIZARE[sesizare.urgenta]}
-                    </span>
+                    </Badge>
                   </td>
                   <td className="px-4 py-3">
-                    <span
-                      className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_STATUS_SESIZARE[sesizare.status]}`}
-                    >
+                    <Badge ton={TONURI_STATUS_SESIZARE[sesizare.status]}>
                       {ETICHETE_STATUS_SESIZARE[sesizare.status]}
-                    </span>
+                    </Badge>
                   </td>
                 </RandTabel>
               );
@@ -136,7 +139,7 @@ async function TabelSesizari({
         {urmatorulCursor === null ? null : (
           <Link
             href={`/mentenanta/sesizari?${cautare.toString()}`}
-            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
+            className={buton({ varianta: "secundar" })}
           >
             Pagina următoare
           </Link>
@@ -160,28 +163,23 @@ export default async function PaginaSesizari({ searchParams }: ProprietatiPagina
   const parametri = await searchParams;
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Sesizări de defecțiune</h1>
-          <p className="text-muted-foreground text-sm">
-            Defecțiunile raportate, cu starea lor de triaj și rezolvare.
-          </p>
-        </div>
-        <Link
-          href="/mentenanta/sesizari/noua"
-          className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
-        >
-          Sesizare nouă
-        </Link>
-      </header>
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Sesizări de defecțiune"
+        descriere="Defecțiunile raportate, cu starea lor de triaj și rezolvare."
+        actiuni={
+          <Link href="/mentenanta/sesizari/noua" className={buton({ varianta: "primar" })}>
+            Sesizare nouă
+          </Link>
+        }
+        file={<NavMentenanta />}
+      />
 
-      <NavMentenanta />
       <FiltreSesizariForm />
 
-      <Suspense key={JSON.stringify(parametri)} fallback={<SkeletonTable cols={5} />}>
+      <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={5} />}>
         <TabelSesizari organizationId={tenant.organizationId} parametri={parametri} />
       </Suspense>
-    </main>
+    </div>
   );
 }

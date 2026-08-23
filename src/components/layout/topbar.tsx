@@ -81,7 +81,14 @@ export async function Topbar() {
   }));
 
   return (
-    <header className="border-border bg-surface flex h-14 items-center gap-3 border-b px-4">
+    /*
+      Antetul e navy, ca railul, și e LIPIT: pe o listă lungă, comutatorul de
+      organizație și clopoțelul trebuie să rămână la îndemână fără derulare
+      înapoi. `z-antet` (40) îl ține peste antetul lipit al unui tabel
+      (`z-antet-tabel`, 20) — înainte foaia colectivă de pontaj folosea tot
+      z-20, iar la egalitate ar fi câștigat ea, fiind mai jos în DOM.
+    */
+    <header className="bg-primary z-antet sticky top-0 flex h-14 items-center gap-3 border-b border-white/10 px-4">
       {/*
         Butonul care deschide sertarul pe telefon. `SidebarTrigger` exista de la
         început, cu `md:hidden` pe el, dar nu era montat nicăieri — iar
@@ -110,26 +117,28 @@ export async function Topbar() {
           aria-label={
             necitite > 0 ? `Notificări: ${necitite} necitite` : "Notificări: niciuna necitită"
           }
-          className="text-muted-foreground hover:bg-background hover:text-foreground relative inline-flex h-9 w-9 items-center justify-center rounded-md"
+          className="rounded-control relative inline-flex size-9 items-center justify-center text-white/70 transition-colors hover:bg-white/10 hover:text-white"
         >
           <Bell aria-hidden="true" className="h-5 w-5" />
           {necitite > 0 ? (
-            <span className="bg-danger text-primary-foreground absolute -top-0.5 -right-0.5 min-w-4 rounded-full px-1 text-[10px] leading-4 font-semibold">
+            <span className="bg-danger text-primary-foreground absolute -top-0.5 -right-0.5 min-w-4 rounded-full px-1 font-mono text-[10px] leading-4 font-semibold tabular-nums">
               {necitite > 99 ? "99+" : necitite}
             </span>
           ) : null}
         </Link>
 
         <details className="relative">
-          <summary className="text-foreground hover:bg-background flex h-9 cursor-pointer list-none items-center gap-1.5 rounded-md px-2 text-sm">
-            <UserRound aria-hidden="true" className="text-muted-foreground h-4 w-4" />
+          <summary className="rounded-control text-corp flex h-9 cursor-pointer list-none items-center gap-1.5 px-2 text-white/80 transition-colors hover:bg-white/10 hover:text-white">
+            <UserRound aria-hidden="true" className="size-4 opacity-80" />
             <span className="max-w-40 truncate">{utilizator?.email ?? "Contul meu"}</span>
-            <ChevronDown aria-hidden="true" className="text-muted-foreground h-4 w-4" />
+            <ChevronDown aria-hidden="true" className="size-4 opacity-80" />
           </summary>
-          <div className="border-border bg-surface absolute right-0 z-20 mt-1 w-56 rounded-md border p-1 shadow-lg">
+          {/* Panoul cade pe pânză, deci revine la paleta crem. `z-meniu` (30) îl
+              ține peste conținut, dar sub antetul care l-a deschis. */}
+          <div className="border-border bg-background rounded-panou shadow-plutitor z-meniu absolute right-0 mt-1 w-56 border p-1">
             <Link
               href="/profil"
-              className="text-foreground hover:bg-background flex items-center gap-2 rounded px-2 py-2 text-sm"
+              className="text-foreground rounded-control hover:bg-surface text-corp flex items-center gap-2 px-2 py-2 transition-colors"
             >
               <UserRound aria-hidden="true" className="h-4 w-4" />
               Profilul meu
@@ -137,7 +146,7 @@ export async function Topbar() {
             <form action={deconecteaza}>
               <button
                 type="submit"
-                className="text-danger hover:bg-background flex w-full items-center gap-2 rounded px-2 py-2 text-left text-sm"
+                className="text-danger rounded-control hover:bg-surface text-corp flex w-full items-center gap-2 px-2 py-2 text-left transition-colors"
               >
                 <LogOut aria-hidden="true" className="h-4 w-4" />
                 Deconectare

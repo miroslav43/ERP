@@ -4,6 +4,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
+import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
@@ -13,7 +15,7 @@ import { idDinRuta } from "@/lib/rute/parametri";
 import { angajatiDupaId, citesteAccident } from "@/lib/queries/ssm";
 import { momentLimitaComunicareItm, oreRamasePanaLaTermen } from "@/domain/ssm/termen-itm";
 
-import { CLASE_TIP_ACCIDENT, ETICHETE_TIP_ACCIDENT } from "../../etichete";
+import { ETICHETE_TIP_ACCIDENT, TONURI_TIP_ACCIDENT } from "../../etichete";
 import { FormularComunicareItm } from "./formular-comunicare-itm";
 
 export const metadata: Metadata = { title: "Accident de muncă" };
@@ -55,40 +57,40 @@ export default async function PaginaAccident({ params }: ProprietatiPagina) {
   const oreRamase =
     accident.comunicat_la_itm_la === null ? oreRamasePanaLaTermen(momentLimita, new Date()) : null;
 
+  // `titlu` și `descriere` sunt șiruri, nu JSX: componenta le cere așa. Textul
+  // rămâne cuvânt cu cuvânt, doar nuanțarea numărului intern se pierde.
+  const titlu =
+    accident.numar_intern === null
+      ? formatDate(accident.data_producerii)
+      : `${formatDate(accident.data_producerii)} · ${accident.numar_intern}`;
+  const cineSiUnde = `${
+    angajat === undefined
+      ? "Angajat neidentificat"
+      : `${angajat.full_name ?? "—"} (${angajat.marca})`
+  } · ${accident.locul}`;
+
   return (
-    <main className="mx-auto w-full max-w-3xl space-y-6 p-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-muted-foreground text-sm">
-            <Link href="/ssm/accidente" className="underline-offset-2 hover:underline">
-              Accidente de muncă
-            </Link>
-          </p>
-          <h1 className="text-2xl font-semibold">
-            {formatDate(accident.data_producerii)}
-            {accident.numar_intern === null ? null : (
-              <span className="text-muted-foreground"> · {accident.numar_intern}</span>
-            )}
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            {angajat === undefined
-              ? "Angajat neidentificat"
-              : `${angajat.full_name ?? "—"} (${angajat.marca})`}
-            {" · "}
-            {accident.locul}
-          </p>
-        </div>
-        <span
-          className={`rounded px-2 py-1 text-xs font-medium ${CLASE_TIP_ACCIDENT[accident.tip]}`}
-        >
-          {ETICHETE_TIP_ACCIDENT[accident.tip]}
-        </span>
-      </header>
+    <div className={`${LATIMI.detaliu} space-y-6`}>
+      <p className="text-muted-foreground text-corp">
+        <Link href="/ssm/accidente" className="underline-offset-2 hover:underline">
+          Accidente de muncă
+        </Link>
+      </p>
+
+      <AntetPagina
+        titlu={titlu}
+        descriere={cineSiUnde}
+        actiuni={
+          <Badge ton={TONURI_TIP_ACCIDENT[accident.tip]}>
+            {ETICHETE_TIP_ACCIDENT[accident.tip]}
+          </Badge>
+        }
+      />
 
       {oreRamase === null ? null : (
         <div
           role="alert"
-          className={`rounded-lg border p-4 text-sm ${
+          className={`rounded-panou text-corp border p-4 ${
             oreRamase >= 0
               ? "border-warning/40 bg-warning/12 text-foreground"
               : "border-danger/40 bg-danger/8 text-danger"
@@ -102,7 +104,7 @@ export default async function PaginaAccident({ params }: ProprietatiPagina) {
 
       <section
         aria-label="Detalii accident"
-        className="border-border grid gap-4 rounded-lg border p-4 sm:grid-cols-2"
+        className="border-border rounded-panou grid gap-4 border p-4 sm:grid-cols-2"
       >
         <Camp eticheta="Ora producerii" valoare={accident.ora_producerii ?? "—"} />
         <Camp eticheta="Zile de incapacitate" valoare={String(accident.zile_incapacitate)} />
@@ -125,7 +127,7 @@ export default async function PaginaAccident({ params }: ProprietatiPagina) {
         />
       </section>
 
-      <section aria-label="Împrejurări" className="space-y-1 text-sm">
+      <section aria-label="Împrejurări" className="text-corp space-y-1">
         <p className="text-muted-foreground">Împrejurări:</p>
         <p className="whitespace-pre-wrap">{accident.imprejurari}</p>
         {accident.urmari === null ? null : (
@@ -144,15 +146,15 @@ export default async function PaginaAccident({ params }: ProprietatiPagina) {
           zileIncapacitate={accident.zile_incapacitate}
         />
       ) : null}
-    </main>
+    </div>
   );
 }
 
 function Camp({ eticheta, valoare }: { readonly eticheta: string; readonly valoare: string }) {
   return (
     <div>
-      <dt className="text-muted-foreground text-xs">{eticheta}</dt>
-      <dd className="text-sm font-medium">{valoare}</dd>
+      <dt className="text-muted-foreground text-nota">{eticheta}</dt>
+      <dd className="text-corp font-medium">{valoare}</dd>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { Lock } from "lucide-react";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { JurnalAudit } from "@/components/audit/jurnal-audit";
 import { ScheletAudit } from "@/components/audit/schelet-audit";
 import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
@@ -40,16 +41,16 @@ export default async function PaginaAuditOrganizatie({ searchParams }: Props) {
   // `none` este refuz explicit, la fel ca orice scope mai mic decât `all` (S3).
   if (scope !== "all") {
     return (
-      <main className="mx-auto w-full max-w-3xl p-4 sm:p-6">
-        <div className="border-border bg-surface rounded-lg border p-8 text-center">
+      <div className={LATIMI.formular}>
+        <div className="border-border bg-surface rounded-panou border p-8 text-center">
           <Lock aria-hidden="true" className="text-warning mx-auto size-6" />
-          <h1 className="text-foreground mt-3 text-lg font-semibold">Acces restricționat</h1>
-          <p className="text-muted-foreground mt-2 text-sm">
+          <h1 className="text-foreground text-sectiune mt-3 font-semibold">Acces restricționat</h1>
+          <p className="text-muted-foreground text-corp mt-2">
             Jurnalul de audit poate fi consultat doar de administratorii organizației. Cere-i
             administratorului tău dreptul necesar dacă ai nevoie de el.
           </p>
         </div>
-      </main>
+      </div>
     );
   }
 
@@ -58,18 +59,15 @@ export default async function PaginaAuditOrganizatie({ searchParams }: Props) {
   const filtre = { ...parseazaFiltre(brute), organizationId: tenant.organizationId };
 
   return (
-    <main className="mx-auto w-full max-w-6xl space-y-6 p-4 sm:p-6">
-      <header className="space-y-1">
-        <h1 className="text-foreground text-xl font-semibold">Jurnal de audit</h1>
-        <p className="text-muted-foreground text-sm">
-          Ce s-a întâmplat în {tenant.name}: cine, ce și când. Înregistrările nu pot fi modificate
-          sau șterse.
-        </p>
-      </header>
+    <div className={`${LATIMI.lista} space-y-6`}>
+      <AntetPagina
+        titlu="Jurnal de audit"
+        descriere={`Ce s-a întâmplat în ${tenant.name}: cine, ce și când. Înregistrările nu pot fi modificate sau șterse.`}
+      />
 
       <Suspense key={cheieFiltre(filtre)} fallback={<ScheletAudit />}>
         <JurnalAudit cale={CALE} filtre={filtre} mod="organizatie" />
       </Suspense>
-    </main>
+    </div>
   );
 }

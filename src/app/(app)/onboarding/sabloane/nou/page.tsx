@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -53,24 +54,24 @@ export default async function PaginaSablonNou() {
   ]);
 
   return (
-    <main className="mx-auto w-full max-w-2xl space-y-6 p-6">
-      <header>
-        <p className="text-muted-foreground text-sm">
+    <div className={`${LATIMI.formular} space-y-6`}>
+      <div className="space-y-1">
+        <p className="text-muted-foreground text-corp">
           <Link href="/onboarding/sabloane" className="underline-offset-2 hover:underline">
             Șabloane
           </Link>
         </p>
-        <h1 className="text-2xl font-semibold">Șablon de checklist nou</h1>
-        <p className="text-muted-foreground text-sm">
-          Pașii se adaugă după salvare, din fișa șablonului.
-        </p>
-      </header>
+        <AntetPagina
+          titlu="Șablon de checklist nou"
+          descriere="Pașii se adaugă după salvare, din fișa șablonului."
+        />
+      </div>
 
       <FormularSablon
         departamente={departamenteRes.data ?? []}
         posturi={posturiRes.data ?? []}
         astazi={todayInBucharest()}
       />
-    </main>
+    </div>
   );
 }

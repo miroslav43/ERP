@@ -5,6 +5,8 @@ import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Ban, Pencil } from "lucide-react";
 
+import { Buton } from "@/components/ui/buton";
+
 import { actualizeazaSablonComponenta, dezactiveazaSablonComponenta } from "./actions";
 
 interface Proprietati {
@@ -63,30 +65,24 @@ export function ActiuniSablonComponenta({ sablon, poateEdita }: Proprietati) {
 
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap gap-1 text-xs">
-        <button
-          type="button"
+      <div className="text-nota flex flex-wrap gap-1">
+        <Buton
+          varianta="tertiar"
           onClick={() => {
             setEditeaza((v) => !v);
           }}
-          className="text-muted-foreground hover:bg-surface hover:text-foreground inline-flex items-center gap-1.5 rounded-md px-2 py-1"
         >
           <Pencil aria-hidden="true" className="size-3.5" />
           Editează
-        </button>
-        <button
-          type="button"
-          onClick={dezactiveaza}
-          disabled={inCurs}
-          className="text-danger hover:bg-danger/8 inline-flex items-center gap-1.5 rounded-md px-2 py-1 disabled:cursor-not-allowed disabled:opacity-50"
-        >
+        </Buton>
+        <Buton varianta="distructiv" onClick={dezactiveaza} disabled={inCurs}>
           <Ban aria-hidden="true" className="size-3.5" />
           Dezactivează
-        </button>
+        </Buton>
       </div>
 
       {eroare === null ? null : (
-        <p role="alert" className="text-danger text-xs">
+        <p role="alert" className="text-danger text-nota">
           {eroare}
         </p>
       )}
@@ -94,10 +90,10 @@ export function ActiuniSablonComponenta({ sablon, poateEdita }: Proprietati) {
       {editeaza ? (
         <form
           action={trimiteEditare}
-          className="border-border grid gap-2 rounded-md border p-3 sm:grid-cols-2"
+          className="border-border rounded-control grid gap-2 border p-3 sm:grid-cols-2"
         >
           <div className="flex flex-col gap-1">
-            <label htmlFor={idDenumire} className="text-xs font-medium">
+            <label htmlFor={idDenumire} className="text-nota font-medium">
               Denumire
             </label>
             <input
@@ -107,11 +103,11 @@ export function ActiuniSablonComponenta({ sablon, poateEdita }: Proprietati) {
               required
               maxLength={160}
               defaultValue={sablon.denumire}
-              className="border-foreground/60 rounded-md border px-2 py-1.5 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-2 py-1.5"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor={idCodRevisal} className="text-xs font-medium">
+            <label htmlFor={idCodRevisal} className="text-nota font-medium">
               Cod REVISAL
             </label>
             <input
@@ -120,11 +116,11 @@ export function ActiuniSablonComponenta({ sablon, poateEdita }: Proprietati) {
               type="text"
               maxLength={40}
               defaultValue={sablon.cod_revisal ?? ""}
-              className="border-foreground/60 rounded-md border px-2 py-1.5 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-2 py-1.5"
             />
           </div>
           <div className="flex flex-wrap gap-3 sm:col-span-2">
-            <label className="flex items-center gap-1.5 text-xs">
+            <label className="text-nota flex items-center gap-1.5">
               <input
                 name="impozabil"
                 type="checkbox"
@@ -133,7 +129,7 @@ export function ActiuniSablonComponenta({ sablon, poateEdita }: Proprietati) {
               />
               Impozabil
             </label>
-            <label className="flex items-center gap-1.5 text-xs">
+            <label className="text-nota flex items-center gap-1.5">
               <input
                 name="intra_in_baza_cas"
                 type="checkbox"
@@ -142,7 +138,7 @@ export function ActiuniSablonComponenta({ sablon, poateEdita }: Proprietati) {
               />
               Intră în baza CAS
             </label>
-            <label className="flex items-center gap-1.5 text-xs">
+            <label className="text-nota flex items-center gap-1.5">
               <input
                 name="intra_in_baza_cass"
                 type="checkbox"
@@ -153,13 +149,9 @@ export function ActiuniSablonComponenta({ sablon, poateEdita }: Proprietati) {
             </label>
           </div>
           <div className="sm:col-span-2">
-            <button
-              type="submit"
-              disabled={inCurs}
-              className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {inCurs ? "Se salvează…" : "Salvează"}
-            </button>
+            <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+              Salvează
+            </Buton>
           </div>
         </form>
       ) : null}

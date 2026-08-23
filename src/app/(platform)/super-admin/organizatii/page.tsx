@@ -7,6 +7,8 @@
 import Link from "next/link";
 
 import { RandTabel } from "@/components/data/rand-tabel";
+import { buton } from "@/components/ui/buton";
+import { cn } from "@/lib/ui/cn";
 import { formatDateTime } from "@/lib/format/date";
 import { FEATURE_KEYS } from "@/config/features";
 import { STATUSURI_ORGANIZATIE } from "@/schemas/organization";
@@ -66,17 +68,14 @@ export default async function PaginaOrganizatii({
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-foreground text-2xl font-semibold">Organizații</h1>
-          <p className="text-muted-foreground mt-1 text-sm">
+          <h1 className="text-foreground text-titlu font-semibold">Organizații</h1>
+          <p className="text-muted-foreground text-corp mt-1">
             {rezultat.total === 1
               ? "O organizație înregistrată"
               : `${rezultat.total} organizații înregistrate`}
           </p>
         </div>
-        <Link
-          href="/super-admin/organizatii/nou"
-          className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium"
-        >
+        <Link href="/super-admin/organizatii/nou" className={buton({ varianta: "primar" })}>
           Organizație nouă
         </Link>
       </header>
@@ -87,31 +86,31 @@ export default async function PaginaOrganizatii({
       />
 
       {rezultat.randuri.length === 0 ? (
-        <div className="border-border rounded-lg border border-dashed p-10 text-center">
-          <h2 className="text-foreground text-base font-medium">
+        <div className="border-border rounded-panou border border-dashed p-10 text-center">
+          <h2 className="text-foreground text-sectiune font-medium">
             {areFiltre
               ? "Nicio organizație pentru aceste filtre"
               : "Nu există încă nicio organizație"}
           </h2>
-          <p className="text-muted-foreground mx-auto mt-1 max-w-md text-sm">
+          <p className="text-muted-foreground text-corp mx-auto mt-1 max-w-md">
             {areFiltre
               ? "Încercați o altă denumire sau alt CUI, ori renunțați la filtrul de status."
               : "Creați prima organizație și invitați apoi administratorul ei."}
           </p>
           <Link
             href={areFiltre ? "/super-admin/organizatii" : "/super-admin/organizatii/nou"}
-            className="bg-primary text-primary-foreground hover:bg-primary-hover mt-4 inline-block rounded-md px-4 py-2 text-sm font-medium"
+            className={cn(buton({ varianta: "primar" }), "mt-4")}
           >
             {areFiltre ? "Șterge filtrele" : "Creează organizație"}
           </Link>
         </div>
       ) : (
-        <div className="border-border overflow-x-auto rounded-lg border">
-          <table className="w-full min-w-[62rem] border-collapse text-sm">
+        <div className="border-border rounded-panou overflow-x-auto border">
+          <table className="text-corp w-full min-w-[62rem] border-collapse">
             <caption className="sr-only">
               Lista organizațiilor, pagina {rezultat.pagina} din {rezultat.pagini}
             </caption>
-            <thead className="bg-surface text-muted-foreground text-left text-xs tracking-wide uppercase">
+            <thead className="bg-surface text-muted-foreground text-nota text-left tracking-wide uppercase">
               <tr>
                 <th scope="col" className="px-4 py-3 font-medium">
                   Denumire
@@ -151,7 +150,9 @@ export default async function PaginaOrganizatii({
                     >
                       {organizatie.name}
                     </Link>
-                    <span className="text-muted-foreground block text-xs">/{organizatie.slug}</span>
+                    <span className="text-muted-foreground text-nota block">
+                      /{organizatie.slug}
+                    </span>
                   </td>
                   <td className="text-muted-foreground px-4 py-3 tabular-nums">
                     {organizatie.cui}
@@ -190,7 +191,7 @@ export default async function PaginaOrganizatii({
       {rezultat.pagini > 1 && (
         <nav
           aria-label="Paginare organizații"
-          className="flex items-center justify-between gap-4 text-sm"
+          className="text-corp flex items-center justify-between gap-4"
         >
           <span className="text-muted-foreground" aria-live="polite">
             Pagina {rezultat.pagina} din {rezultat.pagini}
@@ -200,7 +201,7 @@ export default async function PaginaOrganizatii({
               <Link
                 href={construiesteLink(rezultat.pagina - 1)}
                 rel="prev"
-                className="border-border hover:bg-surface rounded-md border px-3 py-1.5"
+                className={buton({ varianta: "secundar" })}
               >
                 Pagina anterioară
               </Link>
@@ -209,7 +210,7 @@ export default async function PaginaOrganizatii({
               <Link
                 href={construiesteLink(rezultat.pagina + 1)}
                 rel="next"
-                className="border-border hover:bg-surface rounded-md border px-3 py-1.5"
+                className={buton({ varianta: "secundar" })}
               >
                 Pagina următoare
               </Link>

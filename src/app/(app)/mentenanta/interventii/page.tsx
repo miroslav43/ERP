@@ -5,9 +5,12 @@ import type { Metadata } from "next";
 import { Wrench } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { Badge } from "@/components/ui/badge";
+import { buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { RandTabel } from "@/components/data/rand-tabel";
-import { SkeletonTable } from "@/components/data/skeleton-table";
+import { Schelet } from "@/components/ui/schelet";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -18,9 +21,9 @@ import { echipamenteDupaId, interventii } from "@/lib/queries/maintenance";
 import { filtreInterventiiSchema } from "@/schemas/maintenance";
 
 import {
-  CLASE_REZULTAT_INTERVENTIE,
   ETICHETE_REZULTAT_INTERVENTIE,
   ETICHETE_TIP_MENTENANTA,
+  TONURI_REZULTAT_INTERVENTIE,
 } from "../etichete";
 import { NavMentenanta } from "../nav-mentenanta";
 import { FiltreInterventiiForm } from "./filtre-interventii";
@@ -44,16 +47,20 @@ async function TabelInterventii({
   if (randuri.length === 0) {
     const areFiltre = filtre.tip !== null || filtre.rezultat !== null || filtre.echipament !== null;
     return (
-      <EmptyState
-        icon={Wrench}
-        title={
+      <StareGoala
+        fel={areFiltre ? "filtrata" : "initiala"}
+        pictograma={Wrench}
+        titlu={
           areFiltre ? "Niciun rezultat pentru filtrele alese" : "Nicio intervenție înregistrată"
         }
-        description={
+        descriere={
           areFiltre
             ? "Ștergeți filtrele ca să vedeți toate intervențiile."
             : "Intervențiile se adaugă din fișa fiecărui echipament, sau la rezolvarea unei sesizări."
         }
+        {...(areFiltre
+          ? { actiune: { eticheta: "Șterge filtrele", href: "/mentenanta/interventii" } }
+          : {})}
       />
     );
   }
@@ -71,8 +78,8 @@ async function TabelInterventii({
 
   return (
     <>
-      <div className="border-border overflow-x-auto rounded-lg border">
-        <table className="w-full text-sm">
+      <div className="border-border rounded-panou overflow-x-auto border">
+        <table className="text-corp w-full">
           <caption className="sr-only">Intervențiile de mentenanță ale organizației.</caption>
           <thead className="bg-surface text-left">
             <tr>
@@ -129,11 +136,9 @@ async function TabelInterventii({
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <span
-                      className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_REZULTAT_INTERVENTIE[interventie.rezultat]}`}
-                    >
+                    <Badge ton={TONURI_REZULTAT_INTERVENTIE[interventie.rezultat]}>
                       {ETICHETE_REZULTAT_INTERVENTIE[interventie.rezultat]}
-                    </span>
+                    </Badge>
                   </td>
                 </RandTabel>
               );
@@ -146,7 +151,7 @@ async function TabelInterventii({
         {urmatorulCursor === null ? null : (
           <Link
             href={`/mentenanta/interventii?${cautare.toString()}`}
-            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
+            className={buton({ varianta: "secundar" })}
           >
             Pagina următoare
           </Link>
@@ -170,20 +175,18 @@ export default async function PaginaInterventii({ searchParams }: ProprietatiPag
   const parametri = await searchParams;
 
   return (
-    <main className="space-y-6 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Intervenții de mentenanță</h1>
-        <p className="text-muted-foreground text-sm">
-          Istoricul intervențiilor, cu costurile lor. Se adaugă din fișa fiecărui echipament.
-        </p>
-      </header>
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Intervenții de mentenanță"
+        descriere="Istoricul intervențiilor, cu costurile lor. Se adaugă din fișa fiecărui echipament."
+        file={<NavMentenanta />}
+      />
 
-      <NavMentenanta />
       <FiltreInterventiiForm />
 
-      <Suspense key={JSON.stringify(parametri)} fallback={<SkeletonTable cols={6} />}>
+      <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={6} />}>
         <TabelInterventii organizationId={tenant.organizationId} parametri={parametri} />
       </Suspense>
-    </main>
+    </div>
   );
 }

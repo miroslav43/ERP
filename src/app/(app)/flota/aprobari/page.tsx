@@ -5,8 +5,9 @@ import type { Metadata } from "next";
 import { CheckCircle2 } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
-import { SkeletonTable } from "@/components/data/skeleton-table";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { StareGoala } from "@/components/ui/stare-goala";
+import { Schelet } from "@/components/ui/schelet";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -31,10 +32,11 @@ async function ListaDeAprobat({ organizationId }: { readonly organizationId: str
 
   if (randuri.length === 0) {
     return (
-      <EmptyState
-        icon={CheckCircle2}
-        title="Nimic de aprobat"
-        description="Toate foile de parcurs trimise au fost deja decise."
+      <StareGoala
+        fel="initiala"
+        pictograma={CheckCircle2}
+        titlu="Nimic de aprobat"
+        descriere="Toate foile de parcurs trimise au fost deja decise."
       />
     );
   }
@@ -56,7 +58,7 @@ async function ListaDeAprobat({ organizationId }: { readonly organizationId: str
         const sofer = f.employee_id === null ? undefined : soferi.get(f.employee_id);
         const vehicul = vehicule.get(f.vehicle_id);
         return (
-          <li key={f.id} className="border-border rounded-lg border p-4">
+          <li key={f.id} className="border-border rounded-panou border p-4">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="space-y-1">
                 <p className="font-medium">
@@ -70,13 +72,13 @@ async function ListaDeAprobat({ organizationId }: { readonly organizationId: str
                     </span>
                   )}
                 </p>
-                <p className="text-muted-foreground text-sm">
+                <p className="text-muted-foreground text-corp">
                   {formatDateTime(new Date(f.plecare_la))}
                   {f.sosire_la === null ? null : ` – ${formatDateTime(new Date(f.sosire_la))}`}
                   {f.km_parcursi === null ? null : ` · ${f.km_parcursi.toLocaleString("ro-RO")} km`}
                 </p>
                 {f.traseu === null ? null : (
-                  <p className="text-muted-foreground text-sm">{f.traseu}</p>
+                  <p className="text-muted-foreground text-corp">{f.traseu}</p>
                 )}
               </div>
               <DecizieFoaie id={f.id} />
@@ -100,24 +102,22 @@ export default async function PaginaAprobari() {
   }
 
   return (
-    <main className="space-y-6 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Foi de aprobat</h1>
-        <p className="text-muted-foreground max-w-3xl text-sm">
-          Foaia de parcurs justifică fiscal consumul de combustibil, de aceea nu vă puteți aproba
-          propria foaie — nici măcar cu drepturi depline.
-        </p>
-      </header>
-
-      <NavFlota
-        poateVedeaFoi={can(permisiuni, "trip_sheets:read", "own")}
-        poateAproba={can(permisiuni, "trip_sheets:approve", "team")}
-        poateVedeaAnomalii={can(permisiuni, "vehicles:update", "team")}
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Foi de aprobat"
+        descriere="Foaia de parcurs justifică fiscal consumul de combustibil, de aceea nu vă puteți aproba propria foaie — nici măcar cu drepturi depline."
+        file={
+          <NavFlota
+            poateVedeaFoi={can(permisiuni, "trip_sheets:read", "own")}
+            poateAproba={can(permisiuni, "trip_sheets:approve", "team")}
+            poateVedeaAnomalii={can(permisiuni, "vehicles:update", "team")}
+          />
+        }
       />
 
-      <Suspense fallback={<SkeletonTable cols={5} />}>
+      <Suspense fallback={<Schelet forma="lista" />}>
         <ListaDeAprobat organizationId={tenant.organizationId} />
       </Suspense>
-    </main>
+    </div>
   );
 }

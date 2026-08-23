@@ -41,8 +41,10 @@ export function Pas3Financiar({ formular, idFormular }: Proprietati) {
 
   return (
     <div className="space-y-6">
-      <fieldset className="border-border space-y-4 rounded-lg border p-4">
-        <legend className="text-foreground px-1 text-sm font-medium">Cont bancar principal</legend>
+      <fieldset className="border-border rounded-panou space-y-4 border p-4">
+        <legend className="text-foreground text-corp px-1 font-medium">
+          Cont bancar principal
+        </legend>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor={`${idFormular}-banca-nume`} className={claseLabel}>
@@ -69,13 +71,13 @@ export function Pas3Financiar({ formular, idFormular }: Proprietati) {
             <Eroare id={`${idFormular}-banca-iban-eroare`} mesaj={errors.banca_iban?.message} />
           </div>
         </div>
-        <p className="text-muted-foreground text-xs">
+        <p className="text-muted-foreground text-nota">
           Necesar pentru fișierul de plată a salariilor. Se pot adăuga alte conturi ulterior.
         </p>
       </fieldset>
 
-      <fieldset className="border-border space-y-4 rounded-lg border p-4">
-        <legend className="text-foreground px-1 text-sm font-medium">
+      <fieldset className="border-border rounded-panou space-y-4 border p-4">
+        <legend className="text-foreground text-corp px-1 font-medium">
           Program de plată a salariilor
         </legend>
         <div className="flex items-center gap-2">
@@ -85,7 +87,7 @@ export function Pas3Financiar({ formular, idFormular }: Proprietati) {
             {...register("plata_avans")}
             className="border-border size-4 rounded"
           />
-          <label htmlFor={`${idFormular}-avans`} className="text-foreground text-sm">
+          <label htmlFor={`${idFormular}-avans`} className="text-foreground text-corp">
             Se dă avans, separat de lichidare
           </label>
         </div>
@@ -131,8 +133,8 @@ export function Pas3Financiar({ formular, idFormular }: Proprietati) {
         </div>
       </fieldset>
 
-      <fieldset className="border-border space-y-4 rounded-lg border p-4">
-        <legend className="text-foreground px-1 text-sm font-medium">Tichete de masă</legend>
+      <fieldset className="border-border rounded-panou space-y-4 border p-4">
+        <legend className="text-foreground text-corp px-1 font-medium">Tichete de masă</legend>
         <div>
           <label htmlFor={`${idFormular}-tichete`} className={claseLabel}>
             Furnizor
@@ -149,7 +151,7 @@ export function Pas3Financiar({ formular, idFormular }: Proprietati) {
               </option>
             ))}
           </select>
-          <p className="text-muted-foreground mt-1 text-xs">
+          <p className="text-muted-foreground text-nota mt-1">
             Valoarea per tichet se stabilește din setările de salarizare, după activarea modulului.
           </p>
           <Eroare id={`${idFormular}-tichete-eroare`} mesaj={errors.tichete_furnizor?.message} />

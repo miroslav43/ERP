@@ -1,4 +1,5 @@
 // src/app/(app)/flota/etichete.ts
+import type { TonStare } from "@/components/ui/badge";
 import type { CategorieVehicul, Combustibil, StatusFoaie, StatusVehicul } from "@/schemas/fleet";
 
 export const ETICHETE_STATUS_VEHICUL: Readonly<Record<StatusVehicul, string>> = {
@@ -8,11 +9,15 @@ export const ETICHETE_STATUS_VEHICUL: Readonly<Record<StatusVehicul, string>> = 
   casat: "Casat",
 };
 
-export const CLASE_STATUS_VEHICUL: Readonly<Record<StatusVehicul, string>> = {
-  activ: "bg-emerald-100 text-emerald-900",
-  in_service: "bg-amber-100 text-amber-900",
-  vandut: "bg-zinc-200 text-zinc-800",
-  casat: "bg-zinc-200 text-zinc-800",
+export const TONURI_STATUS_VEHICUL: Readonly<Record<StatusVehicul, TonStare>> = {
+  activ: "succes",
+  // „În service" nu e o defecțiune, e o indisponibilitate temporară: vehiculul
+  // se întoarce în parc. Atenție, nu pericol.
+  in_service: "atentie",
+  // Vândut și casat sunt sfârșituri de viață, nu probleme — ies din parc și nu
+  // mai cer nicio acțiune.
+  vandut: "neutru",
+  casat: "neutru",
 };
 
 export const ETICHETE_CATEGORIE: Readonly<Record<CategorieVehicul, string>> = {
@@ -46,11 +51,13 @@ export const ETICHETE_STATUS_FOAIE: Readonly<Record<StatusFoaie, string>> = {
   respins: "Respinsă",
 };
 
-export const CLASE_STATUS_FOAIE: Readonly<Record<StatusFoaie, string>> = {
-  draft: "bg-zinc-200 text-zinc-800",
-  trimis: "bg-blue-100 text-blue-900",
-  aprobat: "bg-emerald-100 text-emerald-900",
-  respins: "bg-red-100 text-red-900",
+export const TONURI_STATUS_FOAIE: Readonly<Record<StatusFoaie, TonStare>> = {
+  draft: "ciorna",
+  // Trimisă = așteaptă pe altcineva. E o stare deschisă, care cere o acțiune de
+  // la aprobator, deci atenție — nu succes și nici stare neutră.
+  trimis: "atentie",
+  aprobat: "succes",
+  respins: "pericol",
 };
 
 /** Câte zile înainte de expirare scadența devine portocalie. */
@@ -65,11 +72,15 @@ export const ETICHETE_SCADENTA: Readonly<Record<StareScadenta, string>> = {
   lipsa: "Lipsește",
 };
 
-export const CLASE_SCADENTA: Readonly<Record<StareScadenta, string>> = {
-  expirat: "bg-red-100 text-red-900",
-  curand: "bg-amber-100 text-amber-900",
-  in_regula: "bg-emerald-100 text-emerald-900",
-  lipsa: "bg-zinc-200 text-zinc-800",
+export const TONURI_SCADENTA: Readonly<Record<StareScadenta, TonStare>> = {
+  expirat: "pericol",
+  curand: "atentie",
+  in_regula: "succes",
+  // „Lipsește" e MAI GRAV decât „Expirat", nu o stare neutră: documentul nu
+  // există deloc, deci nu are nicio dată de la care să se numere și nu se va
+  // aprinde niciodată singur în „Expiră curând". Un RCA absent rămâne absent
+  // tăcut până când îl vede cineva pe listă.
+  lipsa: "pericol",
 };
 
 /**

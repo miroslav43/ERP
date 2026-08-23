@@ -4,6 +4,7 @@ import { useId, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
 
+import { Buton } from "@/components/ui/buton";
 import { CHECKLIST_INSTANTA_STATUS, CHECKLIST_TIP } from "@/schemas/checklist";
 
 import { ETICHETE_STATUS_INSTANTA, ETICHETE_TIP } from "./etichete";
@@ -51,17 +52,17 @@ export function FiltreInstante({ angajati }: Proprietati) {
   return (
     <form
       action={aplica}
-      className="border-border flex flex-wrap items-end gap-3 rounded-lg border p-4"
+      className="border-border rounded-panou flex flex-wrap items-end gap-3 border p-4"
     >
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.tip} className="text-sm font-medium">
+        <label htmlFor={id.tip} className="text-corp font-medium">
           Tip
         </label>
         <select
           id={id.tip}
           name="tip"
           defaultValue={parametri.get("tip") ?? ""}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         >
           <option value="">Toate</option>
           {CHECKLIST_TIP.map((t) => (
@@ -73,14 +74,14 @@ export function FiltreInstante({ angajati }: Proprietati) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.status} className="text-sm font-medium">
+        <label htmlFor={id.status} className="text-corp font-medium">
           Stare
         </label>
         <select
           id={id.status}
           name="status"
           defaultValue={parametri.get("status") ?? ""}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         >
           <option value="">Toate</option>
           {CHECKLIST_INSTANTA_STATUS.map((s) => (
@@ -93,14 +94,14 @@ export function FiltreInstante({ angajati }: Proprietati) {
 
       {angajati === null ? null : (
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.angajat} className="text-sm font-medium">
+          <label htmlFor={id.angajat} className="text-corp font-medium">
             Angajat
           </label>
           <select
             id={id.angajat}
             name="angajat"
             defaultValue={parametri.get("angajat") ?? ""}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           >
             <option value="">Toți</option>
             {angajati.map((a) => (
@@ -113,7 +114,7 @@ export function FiltreInstante({ angajati }: Proprietati) {
       )}
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.deLa} className="text-sm font-medium">
+        <label htmlFor={id.deLa} className="text-corp font-medium">
           De la
         </label>
         <input
@@ -121,12 +122,12 @@ export function FiltreInstante({ angajati }: Proprietati) {
           name="de_la"
           type="date"
           defaultValue={parametri.get("de_la") ?? ""}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.panaLa} className="text-sm font-medium">
+        <label htmlFor={id.panaLa} className="text-corp font-medium">
           Până la
         </label>
         <input
@@ -134,18 +135,14 @@ export function FiltreInstante({ angajati }: Proprietati) {
           name="pana_la"
           type="date"
           defaultValue={parametri.get("pana_la") ?? ""}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
-      <button
-        type="submit"
-        disabled={inCurs}
-        className="border-foreground/60 hover:bg-surface disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-      >
+      <Buton type="submit" varianta="secundar" inCurs={inCurs} textInCurs="Se filtrează…">
         <Search aria-hidden="true" className="size-4" />
-        {inCurs ? "Se filtrează…" : "Filtrează"}
-      </button>
+        Filtrează
+      </Buton>
     </form>
   );
 }

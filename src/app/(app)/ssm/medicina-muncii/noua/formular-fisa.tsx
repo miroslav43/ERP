@@ -3,6 +3,7 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
 import { REZULTATE_EXAMEN, TIPURI_EXAMEN } from "@/schemas/ssm";
 
 import { adaugaFisaAptitudine } from "../../actions";
@@ -67,14 +68,14 @@ export function FormularFisa({ angajati }: { readonly angajati: readonly Angajat
     <form action={trimite} className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1 sm:col-span-2">
-          <label htmlFor={id.angajat} className="text-sm font-medium">
+          <label htmlFor={id.angajat} className="text-corp font-medium">
             Angajat
           </label>
           <select
             id={id.angajat}
             name="employee_id"
             required
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           >
             {angajati.map((a) => (
               <option key={a.id} value={a.id}>
@@ -85,14 +86,14 @@ export function FormularFisa({ angajati }: { readonly angajati: readonly Angajat
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.tip} className="text-sm font-medium">
+          <label htmlFor={id.tip} className="text-corp font-medium">
             Tip examen
           </label>
           <select
             id={id.tip}
             name="tip"
             defaultValue="periodic"
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           >
             {TIPURI_EXAMEN.map((t) => (
               <option key={t} value={t}>
@@ -103,7 +104,7 @@ export function FormularFisa({ angajati }: { readonly angajati: readonly Angajat
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.data} className="text-sm font-medium">
+          <label htmlFor={id.data} className="text-corp font-medium">
             Data examinării
           </label>
           <input
@@ -111,19 +112,19 @@ export function FormularFisa({ angajati }: { readonly angajati: readonly Angajat
             name="data_examinarii"
             type="date"
             required
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.rezultat} className="text-sm font-medium">
+          <label htmlFor={id.rezultat} className="text-corp font-medium">
             Rezultat
           </label>
           <select
             id={id.rezultat}
             name="rezultat"
             defaultValue="apt"
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           >
             {REZULTATE_EXAMEN.map((r) => (
               <option key={r} value={r}>
@@ -134,55 +135,55 @@ export function FormularFisa({ angajati }: { readonly angajati: readonly Angajat
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.valabil} className="text-sm font-medium">
+          <label htmlFor={id.valabil} className="text-corp font-medium">
             Valabilă până la
           </label>
           <input
             id={id.valabil}
             name="valabil_pana"
             type="date"
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.medic} className="text-sm font-medium">
+          <label htmlFor={id.medic} className="text-corp font-medium">
             Medic
           </label>
           <input
             id={id.medic}
             name="medic"
             maxLength={120}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.unitate} className="text-sm font-medium">
+          <label htmlFor={id.unitate} className="text-corp font-medium">
             Unitate medicală
           </label>
           <input
             id={id.unitate}
             name="unitate_medicala"
             maxLength={160}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.numar} className="text-sm font-medium">
+          <label htmlFor={id.numar} className="text-corp font-medium">
             Număr fișă
           </label>
           <input
             id={id.numar}
             name="numar_fisa"
             maxLength={64}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.cost} className="text-sm font-medium">
+          <label htmlFor={id.cost} className="text-corp font-medium">
             Cost (lei)
           </label>
           <input
@@ -191,21 +192,17 @@ export function FormularFisa({ angajati }: { readonly angajati: readonly Angajat
             type="number"
             min="0"
             step="0.01"
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="submit"
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se salvează…" : "Salvează fișa"}
-        </button>
+        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+          Salvează fișa
+        </Buton>
         {eroare === null ? null : (
-          <p role="alert" className="text-danger text-sm">
+          <p role="alert" className="text-danger text-corp">
             {eroare}
           </p>
         )}

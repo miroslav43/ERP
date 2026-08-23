@@ -5,6 +5,8 @@ import type { Metadata } from "next";
 import { PackageX } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -17,7 +19,7 @@ import {
   pasiiInstantei,
 } from "@/lib/queries/checklist";
 
-import { CLASE_STATUS_INSTANTA, ETICHETE_STATUS_INSTANTA, ETICHETE_TIP } from "../etichete";
+import { TONURI_STATUS_INSTANTA, ETICHETE_STATUS_INSTANTA, ETICHETE_TIP } from "../etichete";
 import { ActiuniInstanta } from "./actiuni-instanta";
 import { PasChecklist } from "./pas-checklist";
 
@@ -84,39 +86,38 @@ export default async function PaginaInstanta({ params }: ProprietatiPagina) {
       : [];
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-muted-foreground text-sm">
-            <Link href="/onboarding" className="underline-offset-2 hover:underline">
-              Onboarding
-            </Link>
-          </p>
-          <h1 className="text-2xl font-semibold">
-            {angajat === undefined
+    <div className="space-y-6">
+      <div className="space-y-1">
+        <p className="text-muted-foreground text-corp">
+          <Link href="/onboarding" className="underline-offset-2 hover:underline">
+            Onboarding
+          </Link>
+        </p>
+        <AntetPagina
+          titlu={
+            angajat === undefined
               ? "Checklist"
-              : `${angajat.full_name ?? angajat.marca} (${angajat.marca})`}
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            {ETICHETE_TIP[instanta.tip]} · Referință {formatDate(instanta.data_referinta)} · Ciclul{" "}
-            {instanta.ciclu}
-          </p>
-        </div>
-        <span
-          className={`rounded-full px-3 py-1 text-sm font-medium ${CLASE_STATUS_INSTANTA[instanta.status]}`}
-        >
-          {ETICHETE_STATUS_INSTANTA[instanta.status]}
-        </span>
-      </header>
+              : `${angajat.full_name ?? angajat.marca} (${angajat.marca})`
+          }
+          descriere={`${ETICHETE_TIP[instanta.tip]} · Referință ${formatDate(
+            instanta.data_referinta,
+          )} · Ciclul ${instanta.ciclu}`}
+          actiuni={
+            <Badge ton={TONURI_STATUS_INSTANTA[instanta.status]}>
+              {ETICHETE_STATUS_INSTANTA[instanta.status]}
+            </Badge>
+          }
+        />
+      </div>
 
       {instanta.status === "anulata" && instanta.motiv_anulare !== null ? (
-        <p className="border-border text-foreground rounded-lg border p-3 text-sm">
+        <p className="border-border text-foreground text-corp rounded-panou border p-3">
           Motivul anulării: {instanta.motiv_anulare}
         </p>
       ) : null}
 
       {instanta.observatii === null || instanta.observatii.length === 0 ? null : (
-        <p className="border-border text-foreground rounded-lg border p-3 text-sm">
+        <p className="border-border text-foreground text-corp rounded-panou border p-3">
           Observații: {instanta.observatii}
         </p>
       )}
@@ -124,23 +125,23 @@ export default async function PaginaInstanta({ params }: ProprietatiPagina) {
       {instanta.tip === "offboarding" && bunuri.length > 0 ? (
         <section
           aria-labelledby="titlu-bunuri"
-          className="border-warning/40 bg-warning/12 rounded-lg border p-4"
+          className="border-warning/40 bg-warning/12 rounded-panou border p-4"
         >
           <h2
             id="titlu-bunuri"
-            className="text-foreground flex items-center gap-2 text-sm font-semibold"
+            className="text-foreground text-corp flex items-center gap-2 font-semibold"
           >
             <PackageX aria-hidden="true" className="size-4" />
             Bunuri nereturnate
           </h2>
-          <p className="text-foreground mt-1 text-sm">
+          <p className="text-foreground text-corp mt-1">
             Checklistul poate fi finalizat doar după ce toate sunt returnate în modulul{" "}
             <Link href="/inventar" className="underline underline-offset-2">
               Inventar
             </Link>
             .
           </p>
-          <ul className="text-foreground mt-2 space-y-1 text-sm">
+          <ul className="text-foreground text-corp mt-2 space-y-1">
             {bunuri.map((b) => (
               <li key={b.id}>
                 {b.item.denumire} ({b.item.numar_inventar}) — în primire din{" "}
@@ -152,7 +153,7 @@ export default async function PaginaInstanta({ params }: ProprietatiPagina) {
       ) : null}
 
       <section aria-labelledby="titlu-pasi" className="space-y-3">
-        <h2 id="titlu-pasi" className="text-lg font-semibold">
+        <h2 id="titlu-pasi" className="text-sectiune font-semibold">
           Pași
         </h2>
         <PasChecklist pasi={pasi} idPasuriBifabile={idPasuriBifabile} />
@@ -160,7 +161,7 @@ export default async function PaginaInstanta({ params }: ProprietatiPagina) {
 
       {poateGestiona ? <ActiuniInstanta instantaId={instanta.id} /> : null}
 
-      <p className="text-muted-foreground text-sm">
+      <p className="text-muted-foreground text-corp">
         <Link
           href={`/onboarding/${instanta.id}/dovada`}
           className="underline-offset-2 hover:underline"
@@ -168,6 +169,6 @@ export default async function PaginaInstanta({ params }: ProprietatiPagina) {
           Vezi dovada de parcurgere
         </Link>
       </p>
-    </main>
+    </div>
   );
 }

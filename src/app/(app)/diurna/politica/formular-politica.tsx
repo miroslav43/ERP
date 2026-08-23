@@ -3,13 +3,14 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
 import type { Tara } from "@/lib/queries/per-diem";
 import { REGULI_TRECERE_FRONTIERA } from "@/schemas/per-diem";
 
 import { creeazaPolitica } from "../actions";
 import { ETICHETE_REGULA_TRECERE } from "../etichete";
 
-const CLASA_CAMP = "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
+const CLASA_CAMP = "mt-1 w-full rounded-control border border-foreground/60 px-3 py-2 text-corp";
 
 /**
  * O versiune NOUĂ de politică — niciodată o editare a celei vechi. Politica e
@@ -103,11 +104,13 @@ export function FormularPolitica({ tari }: { readonly tari: readonly Tara[] }) {
   }
 
   return (
-    <div className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-3">
-      <p className="text-sm font-medium sm:col-span-2 lg:col-span-3">O versiune nouă de politică</p>
+    <div className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-2 lg:grid-cols-3">
+      <p className="text-corp font-medium sm:col-span-2 lg:col-span-3">
+        O versiune nouă de politică
+      </p>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.denumire} className="text-sm">
+        <label htmlFor={id.denumire} className="text-corp">
           Denumire
         </label>
         <input
@@ -123,7 +126,7 @@ export function FormularPolitica({ tari }: { readonly tari: readonly Tara[] }) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.valabilDeLa} className="text-sm">
+        <label htmlFor={id.valabilDeLa} className="text-corp">
           Valabilă de la
         </label>
         <input
@@ -138,7 +141,7 @@ export function FormularPolitica({ tari }: { readonly tari: readonly Tara[] }) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.tara} className="text-sm">
+        <label htmlFor={id.tara} className="text-corp">
           Țara internă
         </label>
         <select
@@ -158,7 +161,7 @@ export function FormularPolitica({ tari }: { readonly tari: readonly Tara[] }) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.monedaInterna} className="text-sm">
+        <label htmlFor={id.monedaInterna} className="text-corp">
           Moneda internă
         </label>
         <input
@@ -174,7 +177,7 @@ export function FormularPolitica({ tari }: { readonly tari: readonly Tara[] }) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.diurnaInternaZi} className="text-sm">
+        <label htmlFor={id.diurnaInternaZi} className="text-corp">
           Diurnă internă / zi
         </label>
         <input
@@ -191,7 +194,7 @@ export function FormularPolitica({ tari }: { readonly tari: readonly Tara[] }) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.diurnaBazaLegalaInterna} className="text-sm">
+        <label htmlFor={id.diurnaBazaLegalaInterna} className="text-corp">
           Diurnă legală de bază (plafon)
         </label>
         <input
@@ -208,7 +211,7 @@ export function FormularPolitica({ tari }: { readonly tari: readonly Tara[] }) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.multiploPlafon} className="text-sm">
+        <label htmlFor={id.multiploPlafon} className="text-corp">
           Multiplu plafon neimpozabil
         </label>
         <input
@@ -225,7 +228,7 @@ export function FormularPolitica({ tari }: { readonly tari: readonly Tara[] }) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.multiploExterna} className="text-sm">
+        <label htmlFor={id.multiploExterna} className="text-corp">
           Multiplu diurnă externă
         </label>
         <input
@@ -242,7 +245,7 @@ export function FormularPolitica({ tari }: { readonly tari: readonly Tara[] }) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.categorie} className="text-sm">
+        <label htmlFor={id.categorie} className="text-corp">
           Categorie barem
         </label>
         <select
@@ -259,7 +262,7 @@ export function FormularPolitica({ tari }: { readonly tari: readonly Tara[] }) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.pragMinim} className="text-sm">
+        <label htmlFor={id.pragMinim} className="text-corp">
           Prag ore minim
         </label>
         <input
@@ -276,7 +279,7 @@ export function FormularPolitica({ tari }: { readonly tari: readonly Tara[] }) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.pragZiIntreaga} className="text-sm">
+        <label htmlFor={id.pragZiIntreaga} className="text-corp">
           Prag ore zi întreagă
         </label>
         <input
@@ -294,7 +297,7 @@ export function FormularPolitica({ tari }: { readonly tari: readonly Tara[] }) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.fractiune} className="text-sm">
+        <label htmlFor={id.fractiune} className="text-corp">
           Fracțiune zi parțială
         </label>
         <input
@@ -312,7 +315,7 @@ export function FormularPolitica({ tari }: { readonly tari: readonly Tara[] }) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.regulaTrecere} className="text-sm">
+        <label htmlFor={id.regulaTrecere} className="text-corp">
           Regula de trecere a frontierei
         </label>
         <select
@@ -340,13 +343,13 @@ export function FormularPolitica({ tari }: { readonly tari: readonly Tara[] }) {
             setAcordaZiuaTrecerii(e.target.checked);
           }}
         />
-        <label htmlFor={id.acordaTrecere} className="text-sm">
+        <label htmlFor={id.acordaTrecere} className="text-corp">
           Acordă diurnă în ziua trecerii
         </label>
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.tarifKm} className="text-sm">
+        <label htmlFor={id.tarifKm} className="text-corp">
           Tarif km auto personal
         </label>
         <input
@@ -363,7 +366,7 @@ export function FormularPolitica({ tari }: { readonly tari: readonly Tara[] }) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.monedaTarifKm} className="text-sm">
+        <label htmlFor={id.monedaTarifKm} className="text-corp">
           Moneda tarifului km
         </label>
         <input
@@ -379,7 +382,7 @@ export function FormularPolitica({ tari }: { readonly tari: readonly Tara[] }) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.plafonSalarii} className="text-sm">
+        <label htmlFor={id.plafonSalarii} className="text-corp">
           Plafon salarii bază / lună
         </label>
         <input
@@ -396,21 +399,16 @@ export function FormularPolitica({ tari }: { readonly tari: readonly Tara[] }) {
       </div>
 
       <div className="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-3">
-        <button
-          type="button"
-          disabled={inCurs}
-          onClick={trimite}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se salvează…" : "Salvează versiunea nouă"}
-        </button>
+        <Buton varianta="primar" inCurs={inCurs} textInCurs="Se salvează…" onClick={trimite}>
+          Salvează versiunea nouă
+        </Buton>
         {eroare === null ? null : (
-          <p role="alert" className="text-danger text-sm">
+          <p role="alert" className="text-danger text-corp">
             {eroare}
           </p>
         )}
         {reusit ? (
-          <p role="status" className="text-foreground text-sm">
+          <p role="status" className="text-foreground text-corp">
             Versiune salvată. Deplasările plecate de acum înainte se vor calcula cu ea.
           </p>
         ) : null}

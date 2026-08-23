@@ -5,9 +5,12 @@ import type { Metadata } from "next";
 import { Car, CarFront } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { Badge } from "@/components/ui/badge";
+import { buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { RandTabel } from "@/components/data/rand-tabel";
-import { SkeletonTable } from "@/components/data/skeleton-table";
+import { Schelet } from "@/components/ui/schelet";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -17,12 +20,12 @@ import { listeazaVehicule, scadenteCurente, tipuriDocument } from "@/lib/queries
 import { filtreVehiculeSchema } from "@/schemas/fleet";
 
 import {
-  CLASE_SCADENTA,
-  CLASE_STATUS_VEHICUL,
   ETICHETE_CATEGORIE,
   ETICHETE_SCADENTA,
   ETICHETE_STATUS_VEHICUL,
   stareScadenta,
+  TONURI_SCADENTA,
+  TONURI_STATUS_VEHICUL,
 } from "./etichete";
 import { FiltreVehicule } from "./filtre-vehicule";
 import { NavFlota } from "./nav-flota";
@@ -49,14 +52,16 @@ async function TabelVehicule({
     // l-ar trimite pe om să adauge un vehicul care există deja.
     const areFiltre = filtre.status !== null || filtre.categorie !== null || filtre.cauta !== null;
     return (
-      <EmptyState
-        icon={Car}
-        title={areFiltre ? "Niciun rezultat pentru filtrele alese" : "Niciun vehicul înregistrat"}
-        description={
+      <StareGoala
+        fel={areFiltre ? "filtrata" : "initiala"}
+        pictograma={Car}
+        titlu={areFiltre ? "Niciun rezultat pentru filtrele alese" : "Niciun vehicul înregistrat"}
+        descriere={
           areFiltre
             ? "Ștergeți filtrele ca să vedeți întregul parc auto."
             : "Adăugați primul vehicul ca să puteți urmări ITP-ul, RCA-ul și foile de parcurs."
         }
+        {...(areFiltre ? { actiune: { eticheta: "Șterge filtrele", href: "/flota" } } : {})}
       />
     );
   }
@@ -84,8 +89,8 @@ async function TabelVehicule({
 
   return (
     <>
-      <div className="border-border overflow-x-auto rounded-lg border">
-        <table className="w-full text-sm">
+      <div className="border-border rounded-panou overflow-x-auto border">
+        <table className="text-corp w-full">
           <caption className="sr-only">
             Vehiculele organizației, cu starea documentului care expiră primul.
           </caption>
@@ -133,20 +138,16 @@ async function TabelVehicule({
                     {v.km_curent.toLocaleString("ro-RO")} km
                   </td>
                   <td className="px-4 py-3">
-                    <span
-                      className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_STATUS_VEHICUL[v.status]}`}
-                    >
+                    <Badge ton={TONURI_STATUS_VEHICUL[v.status]}>
                       {ETICHETE_STATUS_VEHICUL[v.status]}
-                    </span>
+                    </Badge>
                   </td>
                   <td className="px-4 py-3">
-                    <span
-                      className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_SCADENTA[stare]}`}
-                    >
+                    <Badge ton={TONURI_SCADENTA[stare]} cuAvertisment={stare === "expirat"}>
                       {ETICHETE_SCADENTA[stare]}
-                    </span>
+                    </Badge>
                     {scadenta === null ? null : (
-                      <span className="text-muted-foreground ml-2 text-xs">
+                      <span className="text-muted-foreground text-nota ml-2">
                         {denumireTip.get(scadenta.document_type_id) ?? "document"} ·{" "}
                         {scadenta.expira_la}
                       </span>
@@ -161,10 +162,7 @@ async function TabelVehicule({
 
       <nav aria-label="Paginare" className="flex justify-end">
         {urmatorulCursor === null ? null : (
-          <Link
-            href={`/flota?${cautare.toString()}`}
-            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
-          >
+          <Link href={`/flota?${cautare.toString()}`} className={buton({ varianta: "secundar" })}>
             Pagina următoare
           </Link>
         )}
@@ -191,37 +189,38 @@ export default async function PaginaFlota({ searchParams }: ProprietatiPagina) {
   const poateAdauga = can(permisiuni, "vehicles:create", "all");
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Parc auto</h1>
-          <p className="text-muted-foreground text-sm">
-            {scope === "all"
-              ? "Toate vehiculele organizației, cu documentul care expiră primul."
-              : "Vehiculele la care aveți acces, cu documentul care expiră primul."}
-          </p>
-        </div>
-        {poateAdauga ? (
-          <Link
-            href="/flota/nou"
-            className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
-          >
-            <CarFront aria-hidden="true" className="size-4" />
-            Vehicul nou
-          </Link>
-        ) : null}
-      </header>
-
-      <NavFlota
-        poateVedeaFoi={can(permisiuni, "trip_sheets:read", "own")}
-        poateAproba={can(permisiuni, "trip_sheets:approve", "team")}
-        poateVedeaAnomalii={can(permisiuni, "vehicles:update", "team")}
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Parc auto"
+        descriere={
+          scope === "all"
+            ? "Toate vehiculele organizației, cu documentul care expiră primul."
+            : "Vehiculele la care aveți acces, cu documentul care expiră primul."
+        }
+        {...(poateAdauga
+          ? {
+              actiuni: (
+                <Link href="/flota/nou" className={buton({ varianta: "primar" })}>
+                  <CarFront aria-hidden="true" className="size-4" />
+                  Vehicul nou
+                </Link>
+              ),
+            }
+          : {})}
+        file={
+          <NavFlota
+            poateVedeaFoi={can(permisiuni, "trip_sheets:read", "own")}
+            poateAproba={can(permisiuni, "trip_sheets:approve", "team")}
+            poateVedeaAnomalii={can(permisiuni, "vehicles:update", "team")}
+          />
+        }
       />
+
       <FiltreVehicule />
 
-      <Suspense key={JSON.stringify(parametri)} fallback={<SkeletonTable cols={6} />}>
+      <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={6} />}>
         <TabelVehicule organizationId={tenant.organizationId} parametri={parametri} />
       </Suspense>
-    </main>
+    </div>
   );
 }

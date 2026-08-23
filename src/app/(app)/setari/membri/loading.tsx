@@ -1,13 +1,6 @@
 // src/app/(app)/setari/membri/loading.tsx
-import { ScheletLista } from "@/components/feedback/schelet";
+import { Schelet } from "@/components/ui/schelet";
 
-export default function Loading() {
-  return (
-    <>
-      <p role="status" aria-live="polite" className="sr-only">
-        Se încarcă lista de membri.
-      </p>
-      <ScheletLista randuri={5} />
-    </>
-  );
+export default function Incarcare() {
+  return <Schelet forma="tabel" coloane={4} randuri={5} />;
 }

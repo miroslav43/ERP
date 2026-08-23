@@ -3,6 +3,7 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
 import type { BaremTara } from "@/domain/per-diem/sume";
 import { MIJLOACE_TRANSPORT } from "@/schemas/per-diem";
 import type { PoliticaRand, Tara } from "@/lib/queries/per-diem";
@@ -17,7 +18,7 @@ interface Angajat {
   readonly marca: string;
 }
 
-const CLASA_CAMP = "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
+const CLASA_CAMP = "mt-1 w-full rounded-control border border-foreground/60 px-3 py-2 text-corp";
 
 /**
  * `prefixCale` există pentru portal: aceeași deplasare, dar deschisă apoi în
@@ -129,7 +130,7 @@ export function FormularDeplasare({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {angajati !== null ? (
             <div className="sm:col-span-2">
-              <label htmlFor={id.angajat} className="block text-sm font-medium">
+              <label htmlFor={id.angajat} className="text-corp block font-medium">
                 Pentru angajatul
               </label>
               <select
@@ -151,7 +152,7 @@ export function FormularDeplasare({
           ) : null}
 
           <div className="sm:col-span-2">
-            <label htmlFor={id.scop} className="block text-sm font-medium">
+            <label htmlFor={id.scop} className="text-corp block font-medium">
               Scopul deplasării *
             </label>
             <input
@@ -168,7 +169,7 @@ export function FormularDeplasare({
           </div>
 
           <div>
-            <label htmlFor={id.tara} className="block text-sm font-medium">
+            <label htmlFor={id.tara} className="text-corp block font-medium">
               Țara
             </label>
             <select
@@ -188,7 +189,7 @@ export function FormularDeplasare({
           </div>
 
           <div>
-            <label htmlFor={id.localitate} className="block text-sm font-medium">
+            <label htmlFor={id.localitate} className="text-corp block font-medium">
               Localitatea (opțional)
             </label>
             <input
@@ -204,7 +205,7 @@ export function FormularDeplasare({
           </div>
 
           <div>
-            <label htmlFor={id.plecare} className="block text-sm font-medium">
+            <label htmlFor={id.plecare} className="text-corp block font-medium">
               Plecarea *
             </label>
             <input
@@ -220,7 +221,7 @@ export function FormularDeplasare({
           </div>
 
           <div>
-            <label htmlFor={id.sosire} className="block text-sm font-medium">
+            <label htmlFor={id.sosire} className="text-corp block font-medium">
               Sosirea *
             </label>
             <input
@@ -236,7 +237,7 @@ export function FormularDeplasare({
           </div>
 
           <div>
-            <label htmlFor={id.mijloc} className="block text-sm font-medium">
+            <label htmlFor={id.mijloc} className="text-corp block font-medium">
               Mijloc de transport
             </label>
             <select
@@ -257,7 +258,7 @@ export function FormularDeplasare({
 
           {taraEsteInterna ? null : (
             <div>
-              <label htmlFor={id.curs} className="block text-sm font-medium">
+              <label htmlFor={id.curs} className="text-corp block font-medium">
                 Curs valutar diurnă (opțional)
               </label>
               <input
@@ -271,14 +272,14 @@ export function FormularDeplasare({
                 }}
                 className={CLASA_CAMP}
               />
-              <p className="text-muted-foreground mt-1 text-xs">
+              <p className="text-muted-foreground text-nota mt-1">
                 Fără curs, zilele se văd, dar suma în lei rămâne necunoscută.
               </p>
             </div>
           )}
 
           <div>
-            <label htmlFor={id.avans} className="block text-sm font-medium">
+            <label htmlFor={id.avans} className="text-corp block font-medium">
               Avans acordat
             </label>
             <input
@@ -296,7 +297,7 @@ export function FormularDeplasare({
 
           {Number(avansAcordat) > 0 ? (
             <div>
-              <label htmlFor={id.monedaAvans} className="block text-sm font-medium">
+              <label htmlFor={id.monedaAvans} className="text-corp block font-medium">
                 Moneda avansului *
               </label>
               <input
@@ -314,7 +315,7 @@ export function FormularDeplasare({
           ) : null}
 
           <div className="sm:col-span-2">
-            <label htmlFor={id.observatii} className="block text-sm font-medium">
+            <label htmlFor={id.observatii} className="text-corp block font-medium">
               Observații (opțional)
             </label>
             <textarea
@@ -338,7 +339,7 @@ export function FormularDeplasare({
                 setDetasare(e.target.checked);
               }}
             />
-            <label htmlFor={id.detasare} className="text-sm font-medium">
+            <label htmlFor={id.detasare} className="text-corp font-medium">
               Detașare transnațională (Directiva 96/71/CE)
             </label>
           </div>
@@ -346,7 +347,7 @@ export function FormularDeplasare({
           {detasare ? (
             <>
               <div>
-                <label htmlFor={id.statGazda} className="block text-sm font-medium">
+                <label htmlFor={id.statGazda} className="text-corp block font-medium">
                   Statul gazdă *
                 </label>
                 <select
@@ -366,7 +367,7 @@ export function FormularDeplasare({
                 </select>
               </div>
               <div>
-                <label htmlFor={id.salariuMinim} className="block text-sm font-medium">
+                <label htmlFor={id.salariuMinim} className="text-corp block font-medium">
                   Salariul minim în statul gazdă *
                 </label>
                 <input
@@ -382,7 +383,7 @@ export function FormularDeplasare({
                 />
               </div>
               <div>
-                <label htmlFor={id.monedaSalariuMinim} className="block text-sm font-medium">
+                <label htmlFor={id.monedaSalariuMinim} className="text-corp block font-medium">
                   Moneda salariului minim *
                 </label>
                 <input
@@ -402,28 +403,23 @@ export function FormularDeplasare({
 
         <div aria-live="polite">
           {eroare !== null ? (
-            <p className="border-danger bg-danger/8 text-danger rounded-md border p-3 text-sm">
+            <p className="border-danger bg-danger/8 text-danger rounded-control text-corp border p-3">
               {eroare}
             </p>
           ) : null}
         </div>
 
-        <button
-          type="button"
-          disabled={inCurs}
-          onClick={trimite}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se salvează…" : "Salvează ciorna"}
-        </button>
-        <p className="text-muted-foreground text-xs">
+        <Buton varianta="primar" inCurs={inCurs} textInCurs="Se salvează…" onClick={trimite}>
+          Salvează ciorna
+        </Buton>
+        <p className="text-muted-foreground text-nota">
           Deplasarea se salvează ca ciornă; traseul pe etape și trimiterea spre aprobare se fac pe
           fișa deplasării, după salvare.
         </p>
       </form>
 
-      <aside aria-live="polite" className="border-border bg-surface h-fit rounded-lg border p-4">
-        <h2 className="mb-2 text-sm font-semibold">Previzualizare diurnă</h2>
+      <aside aria-live="polite" className="border-border bg-surface rounded-panou h-fit border p-4">
+        <h2 className="text-corp mb-2 font-semibold">Previzualizare diurnă</h2>
         <PrevizualizareDiurna
           plecareLa={plecareLa}
           sosireLa={sosireLa}

@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { useForm, type FieldErrors, type UseFormRegister } from "react-hook-form";
 import { Lock } from "lucide-react";
 
+import { Buton } from "@/components/ui/buton";
 import { GENURI } from "@/schemas/employee";
 import { actualizeazaAngajat } from "./actions";
 
@@ -48,7 +49,8 @@ interface ValoriFormular {
   banca: string;
 }
 
-const CLASA_CAMP = "mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm";
+const CLASA_CAMP =
+  "mt-1 w-full rounded-control border border-border bg-background px-3 py-2 text-corp";
 
 /**
  * Un singur câmp text/dată/e-mail, cu etichetă și eroare inline. Secțiunile
@@ -74,7 +76,7 @@ function Camp({
 }) {
   return (
     <div>
-      <label htmlFor={nume} className="block text-sm font-medium">
+      <label htmlFor={nume} className="text-corp block font-medium">
         {eticheta}
         {obligatoriu ? <span aria-hidden="true"> *</span> : null}
       </label>
@@ -90,7 +92,7 @@ function Camp({
         )}
       />
       {errors[nume] !== undefined ? (
-        <p className="text-danger mt-1 text-xs">{errors[nume]?.message}</p>
+        <p className="text-danger text-nota mt-1">{errors[nume]?.message}</p>
       ) : null}
     </div>
   );
@@ -132,14 +134,14 @@ export function FormularAngajat({ departamente, functii, angajatExistent }: Prop
       {eroare !== null ? (
         <p
           role="alert"
-          className="border-danger bg-danger/8 text-danger rounded-md border p-3 text-sm"
+          className="border-danger bg-danger/8 text-danger rounded-control text-corp border p-3"
         >
           {eroare}
         </p>
       ) : null}
 
-      <fieldset className="border-border bg-surface rounded-lg border p-5 shadow-sm">
-        <legend className="px-1 text-sm font-semibold">Identitate</legend>
+      <fieldset className="border-border bg-surface rounded-panou shadow-ridicat border p-5">
+        <legend className="text-corp px-1 font-semibold">Identitate</legend>
         <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Camp
             nume="last_name"
@@ -156,7 +158,7 @@ export function FormularAngajat({ departamente, functii, angajatExistent }: Prop
             errors={formState.errors}
           />
           <div>
-            <label htmlFor="gen" className="block text-sm font-medium">
+            <label htmlFor="gen" className="text-corp block font-medium">
               Gen
             </label>
             <select id="gen" className={CLASA_CAMP} {...register("gen")}>
@@ -177,8 +179,8 @@ export function FormularAngajat({ departamente, functii, angajatExistent }: Prop
         </div>
       </fieldset>
 
-      <fieldset className="border-border bg-surface rounded-lg border p-5 shadow-sm">
-        <legend className="px-1 text-sm font-semibold">Contact</legend>
+      <fieldset className="border-border bg-surface rounded-panou shadow-ridicat border p-5">
+        <legend className="text-corp px-1 font-semibold">Contact</legend>
         <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Camp
             nume="email_personal"
@@ -197,8 +199,8 @@ export function FormularAngajat({ departamente, functii, angajatExistent }: Prop
         </div>
       </fieldset>
 
-      <fieldset className="border-border bg-surface rounded-lg border p-5 shadow-sm">
-        <legend className="px-1 text-sm font-semibold">Angajare</legend>
+      <fieldset className="border-border bg-surface rounded-panou shadow-ridicat border p-5">
+        <legend className="text-corp px-1 font-semibold">Angajare</legend>
         <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Camp
             nume="hired_on"
@@ -208,7 +210,7 @@ export function FormularAngajat({ departamente, functii, angajatExistent }: Prop
             errors={formState.errors}
           />
           <div>
-            <label htmlFor="department_id" className="block text-sm font-medium">
+            <label htmlFor="department_id" className="text-corp block font-medium">
               Departament
             </label>
             <select id="department_id" className={CLASA_CAMP} {...register("department_id")}>
@@ -221,7 +223,7 @@ export function FormularAngajat({ departamente, functii, angajatExistent }: Prop
             </select>
           </div>
           <div>
-            <label htmlFor="job_position_id" className="block text-sm font-medium">
+            <label htmlFor="job_position_id" className="text-corp block font-medium">
               Funcție
             </label>
             <select id="job_position_id" className={CLASA_CAMP} {...register("job_position_id")}>
@@ -236,12 +238,12 @@ export function FormularAngajat({ departamente, functii, angajatExistent }: Prop
         </div>
       </fieldset>
 
-      <fieldset className="border-border border-l-accent bg-surface rounded-lg border border-l-2 p-5 shadow-sm">
-        <legend className="flex items-center gap-1.5 px-1 text-sm font-semibold">
+      <fieldset className="border-border border-l-accent bg-surface rounded-panou shadow-ridicat border border-l-2 p-5">
+        <legend className="text-corp flex items-center gap-1.5 px-1 font-semibold">
           <Lock aria-hidden="true" className="text-accent size-4" />
           Date sensibile
         </legend>
-        <p className="text-muted-foreground mt-1 text-xs">
+        <p className="text-muted-foreground text-nota mt-1">
           Vizibile doar personalului autorizat — completați doar dacă se schimbă.
         </p>
         <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -262,13 +264,9 @@ export function FormularAngajat({ departamente, functii, angajatExistent }: Prop
       </fieldset>
 
       <div className="border-border flex justify-end border-t pt-4">
-        <button
-          type="submit"
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-5 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se salvează…" : "Salvează fișa"}
-        </button>
+        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+          Salvează fișa
+        </Buton>
       </div>
     </form>
   );

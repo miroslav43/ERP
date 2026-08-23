@@ -4,6 +4,7 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
 import { formatLei } from "@/lib/format/money";
 import { ETICHETE_TIP_PRIMA, ETICHETE_TIP_RETINERE } from "@/domain/payroll/etichete";
 import type { RandPrimaPerioada, RandRetinerePerioada } from "@/lib/queries/payroll";
@@ -85,34 +86,34 @@ export function RandAngajatDraft({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="font-medium">{nume}</p>
-          <p className="text-muted-foreground text-sm">Salariu de bază: {formatLei(salariuBaza)}</p>
+          <p className="text-muted-foreground text-corp">
+            Salariu de bază: {formatLei(salariuBaza)}
+          </p>
         </div>
         <div className="flex gap-2">
-          <button
-            type="button"
+          <Buton
+            varianta="secundar"
             onClick={() => {
               setEroare(null);
               setFormular(formular === "prima" ? null : "prima");
             }}
-            className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-1.5 text-sm font-medium"
           >
             + Bonus
-          </button>
-          <button
-            type="button"
+          </Buton>
+          <Buton
+            varianta="secundar"
             onClick={() => {
               setEroare(null);
               setFormular(formular === "retinere" ? null : "retinere");
             }}
-            className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-1.5 text-sm font-medium"
           >
             + Reținere
-          </button>
+          </Buton>
         </div>
       </div>
 
       {prime.length === 0 && retineri.length === 0 ? null : (
-        <ul className="space-y-1 text-sm">
+        <ul className="text-corp space-y-1">
           {prime.map((p) => (
             <li key={p.id} className="text-success flex items-center gap-2">
               <span>+ {formatLei(p.suma)}</span>
@@ -135,17 +136,17 @@ export function RandAngajatDraft({
       {formular === "prima" ? (
         <form
           action={trimitePrima}
-          className="border-border grid gap-3 rounded-md border p-3 sm:grid-cols-2"
+          className="border-border rounded-control grid gap-3 border p-3 sm:grid-cols-2"
         >
           <div className="flex flex-col gap-1">
-            <label htmlFor={idTip} className="text-sm">
+            <label htmlFor={idTip} className="text-corp">
               Tip primă
             </label>
             <select
               id={idTip}
               name="tip"
               required
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
             >
               {TIPURI_PRIMA.map((tip) => (
                 <option key={tip} value={tip}>
@@ -155,7 +156,7 @@ export function RandAngajatDraft({
             </select>
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor={idSuma} className="text-sm">
+            <label htmlFor={idSuma} className="text-corp">
               Sumă (lei)
             </label>
             <input
@@ -165,11 +166,11 @@ export function RandAngajatDraft({
               step="0.01"
               min={0.01}
               required
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
             />
           </div>
           <div className="flex flex-col gap-1 sm:col-span-2">
-            <label htmlFor={idMotiv} className="text-sm">
+            <label htmlFor={idMotiv} className="text-corp">
               Motiv
             </label>
             <textarea
@@ -178,10 +179,10 @@ export function RandAngajatDraft({
               required
               maxLength={500}
               rows={2}
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
             />
           </div>
-          <div className="flex flex-wrap gap-6 text-sm sm:col-span-2">
+          <div className="text-corp flex flex-wrap gap-6 sm:col-span-2">
             <label className="flex items-center gap-2">
               <input type="checkbox" name="impozabil" defaultChecked />
               Impozabilă
@@ -192,15 +193,11 @@ export function RandAngajatDraft({
             </label>
           </div>
           <div className="flex items-center gap-3 sm:col-span-2">
-            <button
-              type="submit"
-              disabled={inCurs}
-              className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-            >
-              {inCurs ? "Se salvează…" : "Adaugă bonusul"}
-            </button>
+            <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+              Adaugă bonusul
+            </Buton>
             {eroare === null ? null : (
-              <p role="alert" className="text-danger text-sm">
+              <p role="alert" className="text-danger text-corp">
                 {eroare}
               </p>
             )}
@@ -211,17 +208,17 @@ export function RandAngajatDraft({
       {formular === "retinere" ? (
         <form
           action={trimiteRetinere}
-          className="border-border grid gap-3 rounded-md border p-3 sm:grid-cols-2"
+          className="border-border rounded-control grid gap-3 border p-3 sm:grid-cols-2"
         >
           <div className="flex flex-col gap-1">
-            <label htmlFor={idTip} className="text-sm">
+            <label htmlFor={idTip} className="text-corp">
               Tip reținere
             </label>
             <select
               id={idTip}
               name="tip"
               required
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
             >
               {TIPURI_RETINERE.map((tip) => (
                 <option key={tip} value={tip}>
@@ -231,7 +228,7 @@ export function RandAngajatDraft({
             </select>
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor={idSuma} className="text-sm">
+            <label htmlFor={idSuma} className="text-corp">
               Sumă (lei)
             </label>
             <input
@@ -241,11 +238,11 @@ export function RandAngajatDraft({
               step="0.01"
               min={0.01}
               required
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor={idProcent} className="text-sm">
+            <label htmlFor={idProcent} className="text-corp">
               Plafon (fracție din net, gol = fără plafon)
             </label>
             <input
@@ -255,11 +252,11 @@ export function RandAngajatDraft({
               step="0.01"
               min={0}
               max={1}
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
             />
           </div>
           <div className="flex flex-col gap-1 sm:col-span-2">
-            <label htmlFor={idMotiv} className="text-sm">
+            <label htmlFor={idMotiv} className="text-corp">
               Motiv
             </label>
             <textarea
@@ -268,19 +265,15 @@ export function RandAngajatDraft({
               required
               maxLength={500}
               rows={2}
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
             />
           </div>
           <div className="flex items-center gap-3 sm:col-span-2">
-            <button
-              type="submit"
-              disabled={inCurs}
-              className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-            >
-              {inCurs ? "Se salvează…" : "Adaugă reținerea"}
-            </button>
+            <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+              Adaugă reținerea
+            </Buton>
             {eroare === null ? null : (
-              <p role="alert" className="text-danger text-sm">
+              <p role="alert" className="text-danger text-corp">
                 {eroare}
               </p>
             )}

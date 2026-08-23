@@ -9,6 +9,7 @@ import { formatDateTime } from "@/lib/format/date";
 import { RUTA_ALEGE_ORGANIZATIA, RUTA_AUTENTIFICARE } from "@/config/routes";
 import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina } from "@/components/ui/antet-pagina";
 export const metadata: Metadata = { title: "Membri și invitații" };
 
 export default async function SetariMembriPage() {
@@ -104,15 +105,12 @@ export default async function SetariMembriPage() {
   }));
 
   return (
-    <main className="flex flex-col gap-6 p-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-foreground text-xl font-semibold">Membri și invitații</h1>
-        <p className="text-muted-foreground text-sm">
-          Persoanele care au acces la {tenant.name}. Rolul stabilește ce module și ce date poate
-          vedea fiecare.
-        </p>
-      </header>
+    <div className="flex flex-col gap-6">
+      <AntetPagina
+        titlu="Membri și invitații"
+        descriere={`Persoanele care au acces la ${tenant.name}. Rolul stabilește ce module și ce date poate vedea fiecare.`}
+      />
       <PanouMembri membri={membri} invitatii={invitatii} />
-    </main>
+    </div>
   );
 }

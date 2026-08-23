@@ -12,6 +12,7 @@ import { Pas3Financiar, CAMPURI_PAS_3 } from "@/components/onboarding/pas-3-fina
 import { Pas4Structura, CAMPURI_PAS_4 } from "@/components/onboarding/pas-4-structura";
 import { Pas5Ssm, CAMPURI_PAS_5 } from "@/components/onboarding/pas-5-ssm";
 import { Pas7Confirmare } from "@/components/onboarding/pas-7-confirmare";
+import { Buton } from "@/components/ui/buton";
 import { RUTA_DUPA_AUTENTIFICARE } from "@/config/routes";
 import type { OnboardeazaOrganizatieInput } from "@/schemas/organization";
 import { completeazaFirmaSchema } from "@/schemas/organization";
@@ -78,70 +79,72 @@ export function AsistentFirma({ numeFirma, valoriInitiale }: Props) {
     if (valid) setPasCurent(urmatorul(pasCurent));
   };
 
-  const trimite = handleSubmit(async (valori) => {
-    setEroareServer(null);
-    try {
-      const raspuns = await completeazaDateleFirmei(valori);
-      if (raspuns.ok) {
-        // `refresh()` înainte de navigare: poarta din layout citește starea
-        // firmei memoizat per request, iar fără reîmprospătare următoarea
-        // pagină ar vedea tot `pending` și ne-ar trimite înapoi aici.
-        router.refresh();
-        router.replace(RUTA_DUPA_AUTENTIFICARE);
-        return;
-      }
-      let primulPas: number | null = null;
-      for (const [camp, mesaje] of Object.entries(raspuns.error.fieldErrors ?? {})) {
-        const primul = mesaje[0];
-        if (primul === undefined) continue;
-        setError(camp as keyof OnboardeazaOrganizatieInput, { type: "server", message: primul });
-        const pas = Number(
-          Object.entries(CAMPURI_PAS).find(([, campuri]) =>
-            (campuri as readonly string[]).includes(camp),
-          )?.[0] ?? 1,
+  const trimite = handleSubmit(
+    async (valori) => {
+      setEroareServer(null);
+      try {
+        const raspuns = await completeazaDateleFirmei(valori);
+        if (raspuns.ok) {
+          // `refresh()` înainte de navigare: poarta din layout citește starea
+          // firmei memoizat per request, iar fără reîmprospătare următoarea
+          // pagină ar vedea tot `pending` și ne-ar trimite înapoi aici.
+          router.refresh();
+          router.replace(RUTA_DUPA_AUTENTIFICARE);
+          return;
+        }
+        let primulPas: number | null = null;
+        for (const [camp, mesaje] of Object.entries(raspuns.error.fieldErrors ?? {})) {
+          const primul = mesaje[0];
+          if (primul === undefined) continue;
+          setError(camp as keyof OnboardeazaOrganizatieInput, { type: "server", message: primul });
+          const pas = Number(
+            Object.entries(CAMPURI_PAS).find(([, campuri]) =>
+              (campuri as readonly string[]).includes(camp),
+            )?.[0] ?? 1,
+          );
+          if (primulPas === null || pas < primulPas) primulPas = pas;
+        }
+        if (primulPas !== null) setPasCurent(primulPas);
+        setEroareServer(raspuns.error.message);
+      } catch (eroare) {
+        // Fără acest catch, o cădere de rețea e o excepție nepreluată: butonul
+        // iese din „Se salvează…", dar utilizatorul nu vede niciun motiv.
+        console.error("[asistent-firma] trimite", eroare);
+        setEroareServer(
+          `Salvarea a eșuat neașteptat: ${eroare instanceof Error ? eroare.message : String(eroare)}. Reîncearcă.`,
         );
-        if (primulPas === null || pas < primulPas) primulPas = pas;
       }
-      if (primulPas !== null) setPasCurent(primulPas);
-      setEroareServer(raspuns.error.message);
-    } catch (eroare) {
-      // Fără acest catch, o cădere de rețea e o excepție nepreluată: butonul
-      // iese din „Se salvează…", dar utilizatorul nu vede niciun motiv.
-      console.error("[asistent-firma] trimite", eroare);
+    },
+    // A DOUA funcție a lui `handleSubmit`: ce se întâmplă când validarea pică.
+    // Fără ea, apăsarea pe „Finalizează" cu un câmp invalid pe un pas pe care
+    // nu-l vezi nu face NIMIC — niciun mesaj, niciun apel, niciun indiciu. Cu
+    // navigarea liberă între pași, situația a devenit ușor de nimerit.
+    (erori) => {
+      const campuriGresite = Object.keys(erori);
+      const pasi = campuriGresite
+        .map((camp) =>
+          Number(
+            Object.entries(CAMPURI_PAS).find(([, campuri]) =>
+              (campuri as readonly string[]).includes(camp),
+            )?.[0] ?? 0,
+          ),
+        )
+        .filter((pas) => pas > 0);
+      const primul = pasi.length > 0 ? Math.min(...pasi) : 1;
+      setPasCurent(primul);
       setEroareServer(
-        `Salvarea a eșuat neașteptat: ${eroare instanceof Error ? eroare.message : String(eroare)}. Reîncearcă.`,
+        campuriGresite.length === 1
+          ? "Un câmp obligatoriu lipsește sau e greșit. L-am deschis mai jos."
+          : `${campuriGresite.length} câmpuri obligatorii lipsesc sau sunt greșite. Am deschis primul pas cu probleme.`,
       );
-    }
-  },
-  // A DOUA funcție a lui `handleSubmit`: ce se întâmplă când validarea pică.
-  // Fără ea, apăsarea pe „Finalizează" cu un câmp invalid pe un pas pe care
-  // nu-l vezi nu face NIMIC — niciun mesaj, niciun apel, niciun indiciu. Cu
-  // navigarea liberă între pași, situația a devenit ușor de nimerit.
-  (erori) => {
-    const campuriGresite = Object.keys(erori);
-    const pasi = campuriGresite
-      .map((camp) =>
-        Number(
-          Object.entries(CAMPURI_PAS).find(([, campuri]) =>
-            (campuri as readonly string[]).includes(camp),
-          )?.[0] ?? 0,
-        ),
-      )
-      .filter((pas) => pas > 0);
-    const primul = pasi.length > 0 ? Math.min(...pasi) : 1;
-    setPasCurent(primul);
-    setEroareServer(
-      campuriGresite.length === 1
-        ? "Un câmp obligatoriu lipsește sau e greșit. L-am deschis mai jos."
-        : `${campuriGresite.length} câmpuri obligatorii lipsesc sau sunt greșite. Am deschis primul pas cu probleme.`,
-    );
-  });
+    },
+  );
 
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-2">
-        <h1 className="text-foreground text-2xl font-semibold">Bun venit</h1>
-        <p className="text-muted-foreground text-sm">
+        <h1 className="text-foreground text-titlu font-semibold">Bun venit</h1>
+        <p className="text-muted-foreground text-corp">
           Înainte de a folosi aplicația, completează datele firmei{" "}
           <strong className="text-foreground font-medium">{numeFirma}</strong>. Sunt necesare pentru
           contracte, adeverințe și state de plată — fără ele, modulele care le folosesc nu pot
@@ -155,7 +158,7 @@ export function AsistentFirma({ numeFirma, valoriInitiale }: Props) {
         <p
           role="alert"
           aria-live="assertive"
-          className="border-border bg-surface text-danger rounded-md border px-4 py-3 text-sm"
+          className="border-border bg-surface text-danger rounded-control text-corp border px-4 py-3"
         >
           {eroareServer}
         </p>
@@ -177,31 +180,22 @@ export function AsistentFirma({ numeFirma, valoriInitiale }: Props) {
         {pasCurent === PAS_CONFIRMARE ? <Pas7Confirmare formular={formular} /> : null}
 
         <div className="border-border flex items-center justify-between gap-3 border-t pt-4">
-          <button
-            type="button"
+          <Buton
+            varianta="secundar"
             onClick={() => setPasCurent(anteriorul(pasCurent))}
             disabled={pasCurent === 1}
-            className="border-border text-foreground hover:bg-surface rounded-md border px-4 py-2 text-sm font-medium transition disabled:opacity-40"
           >
             Înapoi
-          </button>
+          </Buton>
 
           {pasCurent === PAS_CONFIRMARE ? (
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-5 py-2 text-sm font-semibold transition disabled:opacity-60"
-            >
-              {isSubmitting ? "Se salvează…" : "Finalizează configurarea"}
-            </button>
+            <Buton varianta="primar" type="submit" inCurs={isSubmitting} textInCurs="Se salvează…">
+              Finalizează configurarea
+            </Buton>
           ) : (
-            <button
-              type="button"
-              onClick={() => void mergiInainte()}
-              className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-5 py-2 text-sm font-semibold transition"
-            >
+            <Buton varianta="primar" onClick={() => void mergiInainte()}>
               Continuă
-            </button>
+            </Buton>
           )}
         </div>
       </form>

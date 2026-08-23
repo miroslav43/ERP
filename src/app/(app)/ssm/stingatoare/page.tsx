@@ -5,9 +5,12 @@ import type { Metadata } from "next";
 import { FireExtinguisher, Plus } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { RandTabel } from "@/components/data/rand-tabel";
-import { SkeletonTable } from "@/components/data/skeleton-table";
+import { Schelet } from "@/components/ui/schelet";
+import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
@@ -19,10 +22,10 @@ import { filtreStingatoareSchema } from "@/schemas/ssm";
 import { stareScadentaSsm } from "@/domain/ssm/scadente";
 
 import {
-  CLASE_SCADENTA,
-  CLASE_STATUS_STINGATOR,
   ETICHETE_SCADENTA,
   ETICHETE_STATUS_STINGATOR,
+  TONURI_SCADENTA,
+  TONURI_STATUS_STINGATOR,
 } from "../etichete";
 import { NavSsm } from "../nav-ssm";
 import { FiltreStingatoare } from "./filtre-stingatoare";
@@ -47,11 +50,11 @@ function CelulaScadenta({
   const stare = stareScadentaSsm(areInregistrare, scadenta, azi);
   return (
     <td className="px-4 py-3 whitespace-nowrap">
-      <span className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_SCADENTA[stare]}`}>
+      <Badge ton={TONURI_SCADENTA[stare]} cuAvertisment={stare === "expirat"}>
         {ETICHETE_SCADENTA[stare]}
-      </span>
+      </Badge>
       {data === null ? null : (
-        <span className="text-muted-foreground ml-2 text-xs">{formatDate(data)}</span>
+        <span className="text-muted-foreground text-nota ml-2">{formatDate(data)}</span>
       )}
     </td>
   );
@@ -70,17 +73,20 @@ async function TabelStingatoare({
   if (randuri.length === 0) {
     const areFiltre = filtre.status !== null || filtre.cauta !== null;
     return (
-      <EmptyState
-        icon={FireExtinguisher}
-        title={areFiltre ? "Niciun rezultat pentru filtrele alese" : "Niciun stingător înregistrat"}
-        description={
+      <StareGoala
+        fel={areFiltre ? "filtrata" : "initiala"}
+        pictograma={FireExtinguisher}
+        titlu={areFiltre ? "Niciun rezultat pentru filtrele alese" : "Niciun stingător înregistrat"}
+        descriere={
           areFiltre
             ? "Ștergeți filtrele ca să vedeți toate stingătoarele."
             : "Adăugați primul stingător ca să puteți urmări verificările, reîncărcările și probele de presiune."
         }
-        {...(areFiltre
-          ? {}
-          : { action: { label: "Adaugă stingător", href: "/ssm/stingatoare/nou" } })}
+        actiune={
+          areFiltre
+            ? { eticheta: "Șterge filtrele", href: "/ssm/stingatoare" }
+            : { eticheta: "Adaugă stingător", href: "/ssm/stingatoare/nou" }
+        }
       />
     );
   }
@@ -95,8 +101,8 @@ async function TabelStingatoare({
 
   return (
     <>
-      <div className="border-border overflow-x-auto rounded-lg border">
-        <table className="w-full text-sm">
+      <div className="border-border rounded-panou overflow-x-auto border">
+        <table className="text-corp w-full">
           <caption className="sr-only">
             Stingătoarele organizației, cu cele trei obligații de întreținere pe coloane distincte.
           </caption>
@@ -140,11 +146,9 @@ async function TabelStingatoare({
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  <span
-                    className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_STATUS_STINGATOR[s.status]}`}
-                  >
+                  <Badge ton={TONURI_STATUS_STINGATOR[s.status]}>
                     {ETICHETE_STATUS_STINGATOR[s.status]}
-                  </span>
+                  </Badge>
                 </td>
                 <CelulaScadenta
                   areInregistrare={s.ultima_verificare !== null}
@@ -174,7 +178,7 @@ async function TabelStingatoare({
         {urmatorulCursor === null ? null : (
           <Link
             href={`/ssm/stingatoare?${cautare.toString()}`}
-            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
+            className={buton({ varianta: "secundar" })}
           >
             Pagina următoare
           </Link>
@@ -200,42 +204,39 @@ export default async function PaginaStingatoare({ searchParams }: ProprietatiPag
   const poateCrea = can(permisiuni, "ssm:create", "team");
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Stingătoare</h1>
-          <p className="text-muted-foreground text-sm">
-            Verificarea tehnică, reîncărcarea și proba de presiune — trei obligații cu periodicități
-            diferite.
-          </p>
-        </div>
-        {poateCrea ? (
-          <Link
-            href="/ssm/stingatoare/nou"
-            className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
-          >
-            <Plus aria-hidden="true" className="size-4" />
-            Stingător nou
-          </Link>
-        ) : null}
-      </header>
-
-      <NavSsm
-        poateVedeaInstruiri={
-          can(permisiuni, "ssm:read", "team") && can(permisiuni, "employees:read", "team")
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Stingătoare"
+        descriere="Verificarea tehnică, reîncărcarea și proba de presiune — trei obligații cu periodicități diferite."
+        {...(poateCrea
+          ? {
+              actiuni: (
+                <Link href="/ssm/stingatoare/nou" className={buton({ varianta: "primar" })}>
+                  <Plus aria-hidden="true" className="size-4" />
+                  Stingător nou
+                </Link>
+              ),
+            }
+          : {})}
+        file={
+          <NavSsm
+            poateVedeaInstruiri={
+              can(permisiuni, "ssm:read", "team") && can(permisiuni, "employees:read", "team")
+            }
+            poateVedeaMedicina={can(permisiuni, "ssm:read", "team")}
+            poateVedeaAccidente={can(permisiuni, "ssm:read", "team")}
+            poateVedeaStingatoare
+            poateVedeaEip={can(permisiuni, "ssm:read", "team")}
+            poateVedeaAutorizatii={can(permisiuni, "ssm:read", "team")}
+          />
         }
-        poateVedeaMedicina={can(permisiuni, "ssm:read", "team")}
-        poateVedeaAccidente={can(permisiuni, "ssm:read", "team")}
-        poateVedeaStingatoare
-        poateVedeaEip={can(permisiuni, "ssm:read", "team")}
-        poateVedeaAutorizatii={can(permisiuni, "ssm:read", "team")}
       />
 
       <FiltreStingatoare />
 
-      <Suspense key={JSON.stringify(parametri)} fallback={<SkeletonTable cols={6} />}>
+      <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={6} />}>
         <TabelStingatoare organizationId={tenant.organizationId} parametri={parametri} />
       </Suspense>
-    </main>
+    </div>
   );
 }

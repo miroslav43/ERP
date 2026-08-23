@@ -6,8 +6,10 @@ import type { ReactNode } from "react";
 import { ChevronRight, FileText, KeyRound, Pencil } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina } from "@/components/ui/antet-pagina";
 import { AvatarAngajat } from "@/components/data/avatar-angajat";
 import { Badge } from "@/components/ui/badge";
+import { buton } from "@/components/ui/buton";
 import { IncarcareAvatar } from "@/components/forms/incarcare-avatar";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -15,6 +17,7 @@ import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate } from "@/lib/format/date";
 import { formatLei } from "@/lib/format/money";
+import { cn } from "@/lib/ui/cn";
 import { pregatesteIncarcareAvatarulPropriu, salveazaAvatarulPropriu } from "@/lib/actions/profile";
 import { createServerSupabase } from "@/lib/supabase/server";
 import {
@@ -61,7 +64,7 @@ interface ProprietatiPagina {
   readonly params: Promise<{ readonly id: string }>;
 }
 
-const CLASA_SECTIUNE = "rounded-lg border border-border bg-surface p-5 shadow-sm";
+const CLASA_SECTIUNE = "rounded-panou border border-border bg-surface p-5 shadow-ridicat";
 
 function Camp({
   eticheta,
@@ -73,8 +76,8 @@ function Camp({
   const gol = valoare === null || valoare.length === 0;
   return (
     <div>
-      <dt className="text-muted-foreground text-xs tracking-wide uppercase">{eticheta}</dt>
-      <dd className={`mt-0.5 text-sm ${gol ? "text-muted-foreground/70 italic" : ""}`}>
+      <dt className="text-muted-foreground text-nota tracking-wide uppercase">{eticheta}</dt>
+      <dd className={`text-corp mt-0.5 ${gol ? "text-muted-foreground/70 italic" : ""}`}>
         {gol ? "Necompletat" : valoare}
       </dd>
     </div>
@@ -90,7 +93,7 @@ function GrupCampuri({
 }) {
   return (
     <div className="border-border border-t pt-4 first:border-t-0 first:pt-0">
-      <h3 className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase">
+      <h3 className="text-muted-foreground text-nota mb-2 font-semibold tracking-wide uppercase">
         {titlu}
       </h3>
       <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">{children}</dl>
@@ -100,7 +103,7 @@ function GrupCampuri({
 
 function StareGoala({ mesaj }: { readonly mesaj: string }) {
   return (
-    <p className="border-border text-muted-foreground rounded-md border border-dashed px-3 py-4 text-center text-sm">
+    <p className="border-border text-muted-foreground rounded-control text-corp border border-dashed px-3 py-4 text-center">
       {mesaj}
     </p>
   );
@@ -194,103 +197,103 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
     .returns<RandDependent[]>();
   const dependenti = dependentiBruti ?? [];
 
+  // Nota „fără cont" și lanțul managerial coboară sub titlu, prin prop-ul
+  // `file` al antetului: rămân în același bloc, nu ca frați ai lui.
+  const notaFaraCont =
+    poateIncarcaPtOricine && angajat.user_id === null ? (
+      <p className="text-muted-foreground text-nota italic">
+        Fără cont în portal — nu i se poate atașa o fotografie.
+      </p>
+    ) : null;
+  const lantAfisat =
+    lantManageri.length > 0 ? (
+      <ol className="text-corp flex flex-wrap items-center gap-1.5">
+        {lantManageri.map((veriga) => (
+          <li key={veriga.id} className="flex items-center gap-1.5">
+            <Link
+              href={`/angajati/${veriga.id}`}
+              className="border-border bg-background hover:border-primary/30 hover:bg-primary/5 inline-flex items-center gap-1.5 rounded-full border py-1 pr-3 pl-1 transition-colors"
+            >
+              <AvatarAngajat url={veriga.avatar_url} nume={veriga.full_name} marime="sm" />
+              <span className="font-medium">{veriga.full_name}</span>
+            </Link>
+            <ChevronRight aria-hidden="true" className="text-muted-foreground size-4 shrink-0" />
+          </li>
+        ))}
+        <li className="border-primary/30 bg-primary/5 inline-flex items-center gap-1.5 rounded-full border py-1 pr-3 pl-1">
+          <AvatarAngajat url={angajat.avatar_url} nume={angajat.full_name} marime="sm" />
+          <span className="text-primary font-semibold">{angajat.full_name}</span>
+        </li>
+      </ol>
+    ) : angajat.manager_path.length > 1 ? (
+      <p className="text-muted-foreground text-nota">
+        Lanțul de manageri nu a putut fi determinat.
+      </p>
+    ) : null;
+  const subAntet =
+    notaFaraCont === null && lantAfisat === null ? null : (
+      <div className="flex flex-col gap-2">
+        {notaFaraCont}
+        {lantAfisat}
+      </div>
+    );
+
   return (
     <div className="space-y-6">
-      <header className={CLASA_SECTIUNE}>
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex flex-wrap items-start gap-4">
-            {esteFisaProprie ? (
-              <IncarcareAvatar
-                urlInitial={angajat.avatar_url}
-                nume={angajat.full_name}
-                pregateste={pregatesteIncarcareAvatarulPropriu}
-                salveaza={salveazaAvatarulPropriu}
-              />
-            ) : poateIncarcaPtOricine && angajat.user_id !== null ? (
-              <IncarcareAvatarAdmin
-                employeeId={angajat.id}
-                urlInitial={angajat.avatar_url}
-                nume={angajat.full_name}
-              />
-            ) : (
-              <AvatarAngajat url={angajat.avatar_url} nume={angajat.full_name} marime="lg" />
-            )}
-
-            <div>
-              <h1 className="text-2xl font-semibold">{angajat.full_name}</h1>
-              <p className="text-muted-foreground text-sm">
-                Marca <span className="font-mono">{angajat.marca}</span>
-                {angajat.job_position !== null ? ` · ${angajat.job_position.denumire}` : ""}
-                {angajat.department !== null ? ` · ${angajat.department.denumire}` : ""}
-              </p>
-              {poateIncarcaPtOricine && angajat.user_id === null ? (
-                <p className="text-muted-foreground mt-1 text-xs italic">
-                  Fără cont în portal — nu i se poate atașa o fotografie.
-                </p>
+      <div className={cn(CLASA_SECTIUNE, "flex flex-wrap items-start gap-4")}>
+        {esteFisaProprie ? (
+          <IncarcareAvatar
+            urlInitial={angajat.avatar_url}
+            nume={angajat.full_name}
+            pregateste={pregatesteIncarcareAvatarulPropriu}
+            salveaza={salveazaAvatarulPropriu}
+          />
+        ) : poateIncarcaPtOricine && angajat.user_id !== null ? (
+          <IncarcareAvatarAdmin
+            employeeId={angajat.id}
+            urlInitial={angajat.avatar_url}
+            nume={angajat.full_name}
+          />
+        ) : (
+          <AvatarAngajat url={angajat.avatar_url} nume={angajat.full_name} marime="lg" />
+        )}
+        <AntetPagina
+          className="min-w-0 flex-1"
+          titlu={angajat.full_name}
+          descriere={`Marca ${angajat.marca}${
+            angajat.job_position !== null ? ` · ${angajat.job_position.denumire}` : ""
+          }${angajat.department !== null ? ` · ${angajat.department.denumire}` : ""}`}
+          actiuni={
+            <>
+              {poateAcordaPermisiuni ? (
+                <Link
+                  href={`/angajati/${angajat.id}/permisiuni`}
+                  className={buton({ varianta: "secundar" })}
+                >
+                  <KeyRound aria-hidden="true" className="size-3.5" />
+                  Permisiuni
+                </Link>
               ) : null}
-
-              {lantManageri.length > 0 ? (
-                <ol className="mt-2 flex flex-wrap items-center gap-1.5 text-sm">
-                  {lantManageri.map((veriga) => (
-                    <li key={veriga.id} className="flex items-center gap-1.5">
-                      <Link
-                        href={`/angajati/${veriga.id}`}
-                        className="border-border bg-background hover:border-primary/30 hover:bg-primary/5 inline-flex items-center gap-1.5 rounded-full border py-1 pr-3 pl-1 transition-colors"
-                      >
-                        <AvatarAngajat
-                          url={veriga.avatar_url}
-                          nume={veriga.full_name}
-                          marime="sm"
-                        />
-                        <span className="font-medium">{veriga.full_name}</span>
-                      </Link>
-                      <ChevronRight
-                        aria-hidden="true"
-                        className="text-muted-foreground size-4 shrink-0"
-                      />
-                    </li>
-                  ))}
-                  <li className="border-primary/30 bg-primary/5 inline-flex items-center gap-1.5 rounded-full border py-1 pr-3 pl-1">
-                    <AvatarAngajat url={angajat.avatar_url} nume={angajat.full_name} marime="sm" />
-                    <span className="text-primary font-semibold">{angajat.full_name}</span>
-                  </li>
-                </ol>
-              ) : angajat.manager_path.length > 1 ? (
-                <p className="text-muted-foreground mt-2 text-xs">
-                  Lanțul de manageri nu a putut fi determinat.
-                </p>
+              {poateEditaAngajat ? (
+                <Link
+                  href={`/angajati/${angajat.id}/editeaza`}
+                  className={buton({ varianta: "secundar" })}
+                >
+                  <Pencil aria-hidden="true" className="size-3.5" />
+                  Editează fișa
+                </Link>
               ) : null}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {poateAcordaPermisiuni ? (
-              <Link
-                href={`/angajati/${angajat.id}/permisiuni`}
-                className="border-border bg-background hover:bg-surface inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
-              >
-                <KeyRound aria-hidden="true" className="size-3.5" />
-                Permisiuni
-              </Link>
-            ) : null}
-            {poateEditaAngajat ? (
-              <Link
-                href={`/angajati/${angajat.id}/editeaza`}
-                className="border-border bg-background hover:bg-surface inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
-              >
-                <Pencil aria-hidden="true" className="size-3.5" />
-                Editează fișa
-              </Link>
-            ) : null}
-            <Badge className="px-3 py-1 text-sm" ton={TONURI_STATUS[angajat.status]}>
-              {ETICHETE_STATUS[angajat.status]}
-            </Badge>
-          </div>
-        </div>
-      </header>
+              <Badge className="text-corp px-3 py-1" ton={TONURI_STATUS[angajat.status]}>
+                {ETICHETE_STATUS[angajat.status]}
+              </Badge>
+            </>
+          }
+          {...(subAntet === null ? {} : { file: subAntet })}
+        />
+      </div>
 
       <section aria-labelledby="titlu-date-personale" className={CLASA_SECTIUNE}>
-        <h2 id="titlu-date-personale" className="mb-4 text-lg font-medium">
+        <h2 id="titlu-date-personale" className="text-sectiune mb-4 font-medium">
           Date personale
         </h2>
         <div className="space-y-4">
@@ -331,7 +334,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
             <Camp eticheta="Grad de handicap" valoare={angajat.grad_handicap} />
           </GrupCampuri>
           <div className="sm:col-span-2">
-            <h3 className="text-muted-foreground mb-2 text-xs font-medium tracking-wide uppercase">
+            <h3 className="text-muted-foreground text-nota mb-2 font-medium tracking-wide uppercase">
               Persoane în întreținere
             </h3>
             <SectiuneDependenti
@@ -344,7 +347,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
       </section>
 
       <section aria-labelledby="titlu-contracte" className={CLASA_SECTIUNE}>
-        <h2 id="titlu-contracte" className="mb-4 text-lg font-medium">
+        <h2 id="titlu-contracte" className="text-sectiune mb-4 font-medium">
           Contracte
         </h2>
         {angajat.contracts.length === 0 ? (
@@ -354,14 +357,14 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
             {contractPrincipal === null ? (
               <StareGoala mesaj="Niciun contract activ momentan." />
             ) : (
-              <div className="border-primary/25 bg-primary/5 rounded-md border p-3">
+              <div className="border-primary/25 bg-primary/5 rounded-control border p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium">Contract nr. {contractPrincipal.numar}</span>
-                  <span className="bg-success/12 text-success rounded-full px-2 py-0.5 text-xs font-medium">
+                  <span className="bg-success/12 text-success text-nota rounded-full px-2 py-0.5 font-medium">
                     {ETICHETE_CONTRACT[contractPrincipal.status] ?? contractPrincipal.status}
                   </span>
                   {contractPrincipal.este_act_aditional ? (
-                    <span className="bg-background rounded-full px-2 py-0.5 text-xs">
+                    <span className="bg-background text-nota rounded-full px-2 py-0.5">
                       Act adițional
                     </span>
                   ) : null}
@@ -396,7 +399,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
 
             {contracteIstoric.length > 0 ? (
               <details className="group">
-                <summary className="text-muted-foreground flex cursor-pointer list-none items-center gap-1.5 text-sm [&::-webkit-details-marker]:hidden">
+                <summary className="text-muted-foreground text-corp flex cursor-pointer list-none items-center gap-1.5 [&::-webkit-details-marker]:hidden">
                   <ChevronRight
                     aria-hidden="true"
                     className="size-3.5 shrink-0 transition-transform group-open:rotate-90"
@@ -405,15 +408,15 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                 </summary>
                 <ul className="border-border mt-2 space-y-2 border-l-2 pl-4">
                   {contracteIstoric.map((contract) => (
-                    <li key={contract.id} className="border-border rounded-md border p-3">
+                    <li key={contract.id} className="border-border rounded-control border p-3">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-medium">Contract nr. {contract.numar}</span>
                         {contract.este_act_aditional ? (
-                          <span className="bg-surface rounded-full px-2 py-0.5 text-xs">
+                          <span className="bg-surface text-nota rounded-full px-2 py-0.5">
                             Act adițional
                           </span>
                         ) : null}
-                        <span className="text-muted-foreground ml-auto text-xs">
+                        <span className="text-muted-foreground text-nota ml-auto">
                           {ETICHETE_CONTRACT[contract.status] ?? contract.status}
                         </span>
                       </div>
@@ -482,7 +485,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
 
       {scope === "all" ? (
         <section aria-labelledby="titlu-scutiri" className={CLASA_SECTIUNE}>
-          <h2 id="titlu-scutiri" className="mb-4 text-lg font-medium">
+          <h2 id="titlu-scutiri" className="text-sectiune mb-4 font-medium">
             Scutiri fiscale
           </h2>
           {scutiriFiscale.length === 0 ? (
@@ -490,18 +493,18 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
           ) : (
             <ul className="space-y-3">
               {scutiriFiscale.map((scutire) => (
-                <li key={scutire.id} className="border-border rounded-md border p-3">
+                <li key={scutire.id} className="border-border rounded-control border p-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">
                       {ETICHETE_SCUTIRE[scutire.exemption_type as keyof typeof ETICHETE_SCUTIRE] ??
                         scutire.exemption_type}
                     </span>
                     {scutire.procent_scutire === null ? (
-                      <span className="bg-warning/12 rounded-full px-2 py-0.5 text-xs font-medium">
+                      <span className="bg-warning/12 text-nota rounded-full px-2 py-0.5 font-medium">
                         Fără procent — nu se aplică automat
                       </span>
                     ) : (
-                      <span className="bg-success/12 text-success rounded-full px-2 py-0.5 text-xs font-medium">
+                      <span className="bg-success/12 text-success text-nota rounded-full px-2 py-0.5 font-medium">
                         {scutire.procent_scutire}%
                       </span>
                     )}
@@ -533,7 +536,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
 
       {scope === "all" ? (
         <section aria-labelledby="titlu-componente" className={CLASA_SECTIUNE}>
-          <h2 id="titlu-componente" className="mb-4 text-lg font-medium">
+          <h2 id="titlu-componente" className="text-sectiune mb-4 font-medium">
             Sporuri și prime
           </h2>
           {componenteSalariale.length === 0 ? (
@@ -545,20 +548,20 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                   componenta.valabil_pana === null ||
                   componenta.valabil_pana >= new Date().toISOString().slice(0, 10);
                 return (
-                  <li key={componenta.id} className="border-border rounded-md border p-3">
+                  <li key={componenta.id} className="border-border rounded-control border p-3">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">
                         {componenta.component_type?.denumire ??
                           ETICHETE_TIP_COMPONENTA[componenta.kind] ??
                           componenta.kind}
                       </span>
-                      <span className="bg-primary/10 text-primary rounded-full px-2 py-0.5 text-xs font-medium">
+                      <span className="bg-primary/10 text-primary text-nota rounded-full px-2 py-0.5 font-medium">
                         {componenta.procent !== null
                           ? `${String(componenta.procent)}%`
                           : formatLei(componenta.suma ?? 0)}
                       </span>
                       {!activa ? (
-                        <span className="bg-background text-muted-foreground rounded-full px-2 py-0.5 text-xs font-medium">
+                        <span className="bg-background text-muted-foreground text-nota rounded-full px-2 py-0.5 font-medium">
                           Încheiată
                         </span>
                       ) : null}
@@ -589,7 +592,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
       ) : null}
 
       <section aria-labelledby="titlu-evaluari" className={CLASA_SECTIUNE}>
-        <h2 id="titlu-evaluari" className="mb-4 text-lg font-medium">
+        <h2 id="titlu-evaluari" className="text-sectiune mb-4 font-medium">
           Evaluări
         </h2>
         {evaluari.length === 0 ? (
@@ -601,19 +604,19 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                 (evaluare.template?.criterii ?? []).map((c) => [c.cod, c]),
               );
               return (
-                <li key={evaluare.id} className="border-border rounded-md border p-3">
+                <li key={evaluare.id} className="border-border rounded-control border p-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">
                       {evaluare.template?.denumire ?? "Șablon șters"}
                     </span>
-                    <span className="text-muted-foreground text-sm">
+                    <span className="text-muted-foreground text-corp">
                       {formatDate(evaluare.data_evaluarii)}
                     </span>
                     <Badge ton={evaluare.status === "finalizat" ? "succes" : "ciorna"}>
                       {evaluare.status === "finalizat" ? "Finalizată" : "Ciornă"}
                     </Badge>
                   </div>
-                  <ul className="mt-2 flex flex-wrap gap-2 text-xs">
+                  <ul className="text-nota mt-2 flex flex-wrap gap-2">
                     {evaluare.raspunsuri.map((raspuns) => {
                       const criteriu = criteriiDupaCod.get(raspuns.criteriu_cod);
                       return (
@@ -628,7 +631,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                     })}
                   </ul>
                   {evaluare.concluzie !== null ? (
-                    <p className="text-muted-foreground mt-2 text-sm">{evaluare.concluzie}</p>
+                    <p className="text-muted-foreground text-corp mt-2">{evaluare.concluzie}</p>
                   ) : null}
                 </li>
               );
@@ -641,19 +644,19 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
       </section>
 
       <section aria-labelledby="titlu-documente" className={CLASA_SECTIUNE}>
-        <h2 id="titlu-documente" className="mb-4 text-lg font-medium">
+        <h2 id="titlu-documente" className="text-sectiune mb-4 font-medium">
           Documente
         </h2>
         {angajat.documents.length === 0 ? (
           <StareGoala mesaj="Nu există documente încărcate pentru acest angajat." />
         ) : (
-          <ul className="divide-border divide-y text-sm">
+          <ul className="divide-border text-corp divide-y">
             {angajat.documents.map((document) => (
               <li key={document.id} className="flex flex-wrap items-center gap-3 py-2.5">
                 <FileText aria-hidden="true" className="text-muted-foreground size-4 shrink-0" />
                 <span className="min-w-0 flex-1 font-medium">{document.titlu}</span>
                 {document.confidential ? (
-                  <span className="bg-warning/12 text-foreground rounded-full px-2 py-0.5 text-xs font-medium">
+                  <span className="bg-warning/12 text-foreground text-nota rounded-full px-2 py-0.5 font-medium">
                     Confidențial
                   </span>
                 ) : null}

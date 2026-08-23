@@ -4,8 +4,10 @@ import type { Metadata } from "next";
 import { BadgeCheck } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
-import { SkeletonTable } from "@/components/data/skeleton-table";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { StareGoala } from "@/components/ui/stare-goala";
+import { Schelet } from "@/components/ui/schelet";
+import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
@@ -15,7 +17,7 @@ import { formatDate, todayInBucharest } from "@/lib/format/date";
 import { angajatiDupaId, autorizatiiNominale } from "@/lib/queries/ssm";
 import { stareScadentaSsm } from "@/domain/ssm/scadente";
 
-import { CLASE_SCADENTA, ETICHETE_SCADENTA } from "../etichete";
+import { ETICHETE_SCADENTA, TONURI_SCADENTA } from "../etichete";
 import { NavSsm } from "../nav-ssm";
 import { FormularAutorizatie } from "./formular-autorizatie";
 
@@ -26,10 +28,11 @@ async function TabelAutorizatii({ organizationId }: { readonly organizationId: s
 
   if (autorizatii.length === 0) {
     return (
-      <EmptyState
-        icon={BadgeCheck}
-        title="Nicio autorizație nominală înregistrată"
-        description="Adăugați prima autorizație (stivuitorist, macaragiu, fochist, electrician autorizat…) folosind formularul de mai sus."
+      <StareGoala
+        fel="initiala"
+        pictograma={BadgeCheck}
+        titlu="Nicio autorizație nominală înregistrată"
+        descriere="Adăugați prima autorizație (stivuitorist, macaragiu, fochist, electrician autorizat…) folosind formularul de mai sus."
       />
     );
   }
@@ -41,8 +44,8 @@ async function TabelAutorizatii({ organizationId }: { readonly organizationId: s
   const azi = todayInBucharest();
 
   return (
-    <div className="border-border overflow-x-auto rounded-lg border">
-      <table className="w-full text-sm">
+    <div className="border-border rounded-panou overflow-x-auto border">
+      <table className="text-corp w-full">
         <caption className="sr-only">Autorizațiile nominale ale angajaților.</caption>
         <thead className="bg-surface text-left">
           <tr>
@@ -87,15 +90,13 @@ async function TabelAutorizatii({ organizationId }: { readonly organizationId: s
                 <td className="px-4 py-3">{formatDate(a.valabil_pana)}</td>
                 <td className="px-4 py-3">
                   {a.suspendata_la !== null ? (
-                    <span className="bg-surface text-foreground rounded px-2 py-0.5 text-xs font-medium">
+                    <span className="bg-surface text-foreground text-nota rounded px-2 py-0.5 font-medium">
                       Suspendată {formatDate(a.suspendata_la)}
                     </span>
                   ) : stare === null ? null : (
-                    <span
-                      className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_SCADENTA[stare]}`}
-                    >
+                    <Badge ton={TONURI_SCADENTA[stare]} cuAvertisment={stare === "expirat"}>
                       {ETICHETE_SCADENTA[stare]}
-                    </span>
+                    </Badge>
                   )}
                 </td>
               </tr>
@@ -140,31 +141,29 @@ export default async function PaginaAutorizatii() {
   }
 
   return (
-    <main className="space-y-6 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Autorizații nominale</h1>
-        <p className="text-muted-foreground max-w-3xl text-sm">
-          Stivuitorist, macaragiu, fochist, electrician autorizat și altele — condiționează
-          desemnarea unui angajat ca responsabil pe echipamente ISCIR.
-        </p>
-      </header>
-
-      <NavSsm
-        poateVedeaInstruiri={
-          can(permisiuni, "ssm:read", "team") && can(permisiuni, "employees:read", "team")
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Autorizații nominale"
+        descriere="Stivuitorist, macaragiu, fochist, electrician autorizat și altele — condiționează desemnarea unui angajat ca responsabil pe echipamente ISCIR."
+        file={
+          <NavSsm
+            poateVedeaInstruiri={
+              can(permisiuni, "ssm:read", "team") && can(permisiuni, "employees:read", "team")
+            }
+            poateVedeaMedicina={can(permisiuni, "ssm:read", "team")}
+            poateVedeaAccidente={can(permisiuni, "ssm:read", "team")}
+            poateVedeaStingatoare={can(permisiuni, "ssm:read", "team")}
+            poateVedeaEip={can(permisiuni, "ssm:read", "team")}
+            poateVedeaAutorizatii
+          />
         }
-        poateVedeaMedicina={can(permisiuni, "ssm:read", "team")}
-        poateVedeaAccidente={can(permisiuni, "ssm:read", "team")}
-        poateVedeaStingatoare={can(permisiuni, "ssm:read", "team")}
-        poateVedeaEip={can(permisiuni, "ssm:read", "team")}
-        poateVedeaAutorizatii
       />
 
       {poateCrea ? <FormularAutorizatie angajati={angajati} /> : null}
 
-      <Suspense fallback={<SkeletonTable cols={6} />}>
+      <Suspense fallback={<Schelet forma="tabel" coloane={6} />}>
         <TabelAutorizatii organizationId={tenant.organizationId} />
       </Suspense>
-    </main>
+    </div>
   );
 }

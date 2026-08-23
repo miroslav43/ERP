@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -21,9 +22,9 @@ export default async function PaginaSetariSalarizare() {
 
   if (!can(permisiuni, "payroll:update", "all")) {
     return (
-      <main className="p-6">
+      <div>
         <AccesRestrictionat mesaj="Nu aveți dreptul de a configura salarizarea." />
-      </main>
+      </div>
     );
   }
 
@@ -33,17 +34,20 @@ export default async function PaginaSetariSalarizare() {
   ]);
 
   return (
-    <main className="max-w-3xl space-y-6 p-6">
-      <header>
-        <p className="text-muted-foreground text-sm">
+    <div className={`${LATIMI.formular} space-y-6`}>
+      <div className="space-y-1">
+        <p className="text-muted-foreground text-corp">
           <Link href="/salarizare" className="underline-offset-2 hover:underline">
             Salarizare
           </Link>
         </p>
-        <h1 className="text-2xl font-semibold">Setări salarizare</h1>
-      </header>
+        <AntetPagina titlu="Setări salarizare" />
+      </div>
 
-      <div role="note" className="border-warning/40 bg-warning/8 rounded-lg border p-4 text-sm">
+      <div
+        role="note"
+        className="border-warning/40 bg-warning/8 rounded-panou text-corp border p-4"
+      >
         {AVERTISMENT_SALARIZARE} Fiecare modificare creează o versiune NOUĂ, valabilă de la o dată —
         versiunile vechi rămân neschimbate, fiindcă fluturașii deja calculați le păstrează într-o
         fotografie proprie.
@@ -53,14 +57,14 @@ export default async function PaginaSetariSalarizare() {
 
       {istoric.length === 0 ? null : (
         <section aria-labelledby="istoric-setari" className="space-y-2">
-          <h2 id="istoric-setari" className="text-sm font-semibold">
+          <h2 id="istoric-setari" className="text-corp font-semibold">
             Istoricul versiunilor
           </h2>
-          <ul className="divide-border border-border divide-y rounded-lg border text-sm">
+          <ul className="divide-border border-border rounded-panou text-corp divide-y border">
             {istoric.map((s) => (
               <li key={s.id} className="flex items-center justify-between px-4 py-2">
                 <span>Valabil de la {formatDate(s.valabil_de_la)}</span>
-                <span className="text-muted-foreground text-xs">
+                <span className="text-muted-foreground text-nota">
                   {s.verificat_de_contabil ? "verificat de contabil" : "neverificat"}
                 </span>
               </li>
@@ -68,6 +72,6 @@ export default async function PaginaSetariSalarizare() {
           </ul>
         </section>
       )}
-    </main>
+    </div>
   );
 }

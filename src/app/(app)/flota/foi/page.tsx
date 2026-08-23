@@ -5,9 +5,12 @@ import type { Metadata } from "next";
 import { ClipboardList, FilePlus2 } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { Badge } from "@/components/ui/badge";
+import { buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { RandTabel } from "@/components/data/rand-tabel";
-import { SkeletonTable } from "@/components/data/skeleton-table";
+import { Schelet } from "@/components/ui/schelet";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -16,7 +19,7 @@ import { filtreDinUrl } from "@/lib/rute/parametri";
 import { angajatiDupaId, listeazaFoi, vehiculeDupaId } from "@/lib/queries/fleet";
 import { filtreFoiSchema } from "@/schemas/fleet";
 
-import { CLASE_STATUS_FOAIE, ETICHETE_STATUS_FOAIE } from "../etichete";
+import { ETICHETE_STATUS_FOAIE, TONURI_STATUS_FOAIE } from "../etichete";
 import { NavFlota } from "../nav-flota";
 
 export const metadata: Metadata = { title: "Foi de parcurs" };
@@ -38,14 +41,16 @@ async function TabelFoi({
   if (randuri.length === 0) {
     const areFiltre = filtre.status !== null || filtre.vehicul !== null;
     return (
-      <EmptyState
-        icon={ClipboardList}
-        title={areFiltre ? "Niciun rezultat pentru filtrele alese" : "Nicio foaie de parcurs"}
-        description={
+      <StareGoala
+        fel={areFiltre ? "filtrata" : "initiala"}
+        pictograma={ClipboardList}
+        titlu={areFiltre ? "Niciun rezultat pentru filtrele alese" : "Nicio foaie de parcurs"}
+        descriere={
           areFiltre
             ? "Ștergeți filtrele ca să vedeți toate foile."
             : "Înregistrați prima cursă ca să puteți justifica consumul de combustibil."
         }
+        {...(areFiltre ? { actiune: { eticheta: "Șterge filtrele", href: "/flota/foi" } } : {})}
       />
     );
   }
@@ -73,8 +78,8 @@ async function TabelFoi({
 
   return (
     <>
-      <div className="border-border overflow-x-auto rounded-lg border">
-        <table className="w-full text-sm">
+      <div className="border-border rounded-panou overflow-x-auto border">
+        <table className="text-corp w-full">
           <caption className="sr-only">Foile de parcurs la care aveți acces.</caption>
           <thead className="bg-surface text-left">
             <tr>
@@ -130,11 +135,9 @@ async function TabelFoi({
                   </td>
                   <td className="max-w-xs truncate px-4 py-3">{f.traseu ?? "—"}</td>
                   <td className="px-4 py-3">
-                    <span
-                      className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_STATUS_FOAIE[f.status]}`}
-                    >
+                    <Badge ton={TONURI_STATUS_FOAIE[f.status]}>
                       {ETICHETE_STATUS_FOAIE[f.status]}
-                    </span>
+                    </Badge>
                   </td>
                 </RandTabel>
               );
@@ -147,7 +150,7 @@ async function TabelFoi({
         {urmatorulCursor === null ? null : (
           <Link
             href={`/flota/foi?${cautare.toString()}`}
-            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
+            className={buton({ varianta: "secundar" })}
           >
             Pagina următoare
           </Link>
@@ -172,34 +175,32 @@ export default async function PaginaFoi({ searchParams }: ProprietatiPagina) {
   const poateCrea = can(permisiuni, "trip_sheets:create", "own");
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Foi de parcurs</h1>
-          <p className="text-muted-foreground text-sm">
-            Cursele înregistrate, cu kilometrii și starea aprobării.
-          </p>
-        </div>
-        {poateCrea ? (
-          <Link
-            href="/flota/foi/noua"
-            className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
-          >
-            <FilePlus2 aria-hidden="true" className="size-4" />
-            Foaie nouă
-          </Link>
-        ) : null}
-      </header>
-
-      <NavFlota
-        poateVedeaFoi={can(permisiuni, "trip_sheets:read", "own")}
-        poateAproba={can(permisiuni, "trip_sheets:approve", "team")}
-        poateVedeaAnomalii={can(permisiuni, "vehicles:update", "team")}
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Foi de parcurs"
+        descriere="Cursele înregistrate, cu kilometrii și starea aprobării."
+        {...(poateCrea
+          ? {
+              actiuni: (
+                <Link href="/flota/foi/noua" className={buton({ varianta: "primar" })}>
+                  <FilePlus2 aria-hidden="true" className="size-4" />
+                  Foaie nouă
+                </Link>
+              ),
+            }
+          : {})}
+        file={
+          <NavFlota
+            poateVedeaFoi={can(permisiuni, "trip_sheets:read", "own")}
+            poateAproba={can(permisiuni, "trip_sheets:approve", "team")}
+            poateVedeaAnomalii={can(permisiuni, "vehicles:update", "team")}
+          />
+        }
       />
 
-      <Suspense key={JSON.stringify(parametri)} fallback={<SkeletonTable cols={6} />}>
+      <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={6} />}>
         <TabelFoi organizationId={tenant.organizationId} parametri={parametri} />
       </Suspense>
-    </main>
+    </div>
   );
 }

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
@@ -36,11 +37,9 @@ export default async function PaginaEditeazaStingator({ params }: ProprietatiPag
   if (stingator === null) notFound();
 
   return (
-    <main className="max-w-3xl space-y-6 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Editează stingătorul {stingator.cod}</h1>
-      </header>
+    <div className={`${LATIMI.formular} space-y-6`}>
+      <AntetPagina titlu={`Editează stingătorul ${stingator.cod}`} />
       <FormularStingator stingatorExistent={stingator} />
-    </main>
+    </div>
   );
 }

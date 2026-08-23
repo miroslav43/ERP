@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { Building2, LifeBuoy, LogOut } from "lucide-react";
 
 import { comutaOrganizatiaDirect, deconecteaza } from "@/app/(app)/actions";
+import { Buton } from "@/components/ui/buton";
 import { listUserOrganizations } from "@/lib/queries/organizations";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { RUTA_AUTENTIFICARE, RUTA_SUPER_ADMIN } from "@/config/routes";
@@ -57,30 +58,42 @@ export default async function AlegeOrganizatiaPage({ searchParams }: Props) {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-col gap-6 px-4 py-12">
+    <div className="flex w-full flex-col gap-6">
       <header className="flex flex-col gap-2">
-        <h1 className="text-foreground text-2xl font-semibold">
+        <h1 className="text-foreground text-titlu font-semibold">
           {organizatii.length > 0 ? "Alegeți organizația" : "Nicio organizație asociată"}
         </h1>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-muted-foreground text-corp">
           {organizatii.length > 0
             ? "Contul dumneavoastră are acces la mai multe organizații. Selectați-o pe cea în care doriți să lucrați; puteți comuta oricând din bara de sus."
             : "Contul dumneavoastră nu este asociat niciunei organizații."}
         </p>
       </header>
 
-
       {areEroareAcces ? (
         <p
           role="alert"
           aria-live="assertive"
-          className="border-border bg-surface text-danger rounded-md border px-4 py-3 text-sm"
+          className="border-border bg-surface text-danger rounded-control text-corp border px-4 py-3"
         >
           Nu aveți acces la organizația solicitată. Alegeți una dintre organizațiile de mai jos.
         </p>
       ) : null}
 
       {organizatii.length > 0 ? (
+        /*
+          Ecranul cu cea mai mare consecință a unei citiri greșite din tot
+          produsul: de aici pleacă tenantul în care se va lucra. Două lucruri îi
+          răspund direct.
+
+          1. DENUMIREA e cel mai proeminent element al rândului — `text-sectiune`
+             semi-bold, adică o treaptă peste corpul textului, cu rolul și slugul
+             coborâte la `text-nota` sub ea. Înainte toate trei erau la o
+             jumătate de treaptă distanță, iar ochiul citea rândul ca un bloc.
+          2. ȚINTA e rândul ÎNTREG, nu denumirea: `<button>` pe toată lățimea,
+             `min-h-14` (56px, peste minimul de 44). Nimeni nu alege firma greșit
+             fiindcă a atins doi pixeli mai jos.
+        */
         <ul className="flex flex-col gap-2">
           {organizatii.map((organizatie) => (
             <li key={organizatie.id}>
@@ -88,13 +101,15 @@ export default async function AlegeOrganizatiaPage({ searchParams }: Props) {
                 <input type="hidden" name="organizationId" value={organizatie.id} />
                 <button
                   type="submit"
-                  className="border-border bg-surface hover:bg-background flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left transition-colors"
+                  className="border-border bg-surface hover:bg-background rounded-panou flex min-h-14 w-full items-center gap-3 border px-4 py-3 text-left transition-colors"
                 >
-                  <Building2 aria-hidden="true" className="text-primary h-5 w-5" />
+                  <Building2 aria-hidden="true" className="text-primary h-5 w-5 shrink-0" />
                   <span className="flex min-w-0 flex-col">
                     {/* Conținut de la utilizator: randat ca text, niciodată ca HTML (S8). */}
-                    <span className="text-foreground truncate font-medium">{organizatie.name}</span>
-                    <span className="text-muted-foreground text-sm">
+                    <span className="text-foreground text-sectiune truncate font-semibold">
+                      {organizatie.name}
+                    </span>
+                    <span className="text-muted-foreground text-nota truncate">
                       {ETICHETE_ROL[organizatie.role] ?? organizatie.role} · /{organizatie.slug}
                     </span>
                   </span>
@@ -106,22 +121,22 @@ export default async function AlegeOrganizatiaPage({ searchParams }: Props) {
       ) : (
         <section
           aria-labelledby="titlu-fara-organizatie"
-          className="border-border bg-surface flex flex-col gap-3 rounded-lg border px-4 py-6"
+          className="border-border bg-surface rounded-panou flex flex-col gap-3 border px-4 py-6"
         >
           <h2
             id="titlu-fara-organizatie"
-            className="text-foreground flex items-center gap-2 font-medium"
+            className="text-foreground text-sectiune flex items-center gap-2 font-medium"
           >
-            <LifeBuoy aria-hidden="true" className="text-warning h-5 w-5" />
+            <LifeBuoy aria-hidden="true" className="text-warning h-5 w-5 shrink-0" />
             Ce puteți face mai departe
           </h2>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground text-corp">
             Contul există și autentificarea a reușit, însă nimeni nu v-a adăugat încă într-o
             organizație. Rugați administratorul firmei dumneavoastră să vă trimită o invitație pe
             adresa <span className="text-foreground font-medium">{user.email}</span>. Dacă ați
             primit deja o invitație pe e-mail, deschideți linkul din mesaj — el vă asociază automat.
           </p>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground text-corp">
             Nu aveți încă o organizație în Administrativo?{" "}
             <Link
               href="/#cere-demo"
@@ -135,14 +150,11 @@ export default async function AlegeOrganizatiaPage({ searchParams }: Props) {
       )}
 
       <form action={deconecteaza}>
-        <button
-          type="submit"
-          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 text-sm underline underline-offset-4"
-        >
+        <Buton type="submit" varianta="link">
           <LogOut aria-hidden="true" className="h-4 w-4" />
           Deconectare
-        </button>
+        </Buton>
       </form>
-    </main>
+    </div>
   );
 }

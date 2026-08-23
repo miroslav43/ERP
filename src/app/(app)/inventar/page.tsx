@@ -5,9 +5,12 @@ import type { Metadata } from "next";
 import { Package, PackagePlus } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { Badge } from "@/components/ui/badge";
+import { buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { RandTabel } from "@/components/data/rand-tabel";
-import { SkeletonTable } from "@/components/data/skeleton-table";
+import { Schelet } from "@/components/ui/schelet";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -15,7 +18,7 @@ import { formatLei } from "@/lib/format/money";
 import { alocariDeschise, categorii, listeazaObiecte } from "@/lib/queries/inventory";
 import { filtreInventarSchema } from "@/schemas/inventory";
 
-import { CLASE_STARE, CLASE_STATUS, ETICHETE_STARE, ETICHETE_STATUS } from "./etichete";
+import { ETICHETE_STARE, ETICHETE_STATUS, TONURI_STARE, TONURI_STATUS } from "./etichete";
 import { FiltreInventar } from "./filtre-inventar";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 
@@ -45,11 +48,19 @@ async function TabelInventar({
   const { randuri, urmatorulCursor } = await listeazaObiecte(organizationId, filtre);
 
   if (randuri.length === 0) {
+    const areFiltre =
+      filtre.q !== null ||
+      filtre.numar !== null ||
+      filtre.status !== null ||
+      filtre.stare !== null ||
+      filtre.category_id !== null;
     return (
-      <EmptyState
-        icon={Package}
-        title="Niciun obiect găsit"
-        description="Nu există obiecte de inventar care să corespundă filtrelor alese. Ștergeți filtrele sau adăugați primul obiect."
+      <StareGoala
+        fel={areFiltre ? "filtrata" : "initiala"}
+        pictograma={Package}
+        titlu="Niciun obiect găsit"
+        descriere="Nu există obiecte de inventar care să corespundă filtrelor alese. Ștergeți filtrele sau adăugați primul obiect."
+        {...(areFiltre ? { actiune: { eticheta: "Șterge filtrele", href: "/inventar" } } : {})}
       />
     );
   }
@@ -66,8 +77,8 @@ async function TabelInventar({
 
   return (
     <>
-      <div className="border-border overflow-x-auto rounded-lg border">
-        <table className="w-full text-left text-sm">
+      <div className="border-border rounded-panou overflow-x-auto border">
+        <table className="text-corp w-full text-left">
           <caption className="sr-only">Lista obiectelor de inventar</caption>
           <thead className="bg-surface text-foreground">
             <tr>
@@ -107,26 +118,18 @@ async function TabelInventar({
                       {rand.denumire}
                     </Link>
                     {rand.model !== null ? (
-                      <span className="text-muted-foreground ml-2 text-xs">({rand.model})</span>
+                      <span className="text-muted-foreground text-nota ml-2">({rand.model})</span>
                     ) : null}
                   </td>
-                  <td className="px-4 py-3 font-mono text-xs">{rand.numar_inventar}</td>
+                  <td className="text-nota px-4 py-3 font-mono">{rand.numar_inventar}</td>
                   <td className="px-4 py-3">
                     {rand.category_id === null ? "—" : (numeCategorii.get(rand.category_id) ?? "—")}
                   </td>
                   <td className="px-4 py-3">
-                    <span
-                      className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${CLASE_STATUS[rand.status]}`}
-                    >
-                      {ETICHETE_STATUS[rand.status]}
-                    </span>
+                    <Badge ton={TONURI_STATUS[rand.status]}>{ETICHETE_STATUS[rand.status]}</Badge>
                   </td>
                   <td className="px-4 py-3">
-                    <span
-                      className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${CLASE_STARE[rand.stare]}`}
-                    >
-                      {ETICHETE_STARE[rand.stare]}
-                    </span>
+                    <Badge ton={TONURI_STARE[rand.stare]}>{ETICHETE_STARE[rand.stare]}</Badge>
                   </td>
                   <td className="px-4 py-3">
                     {detinator === undefined ? "—" : (detinator.angajatNume ?? "—")}
@@ -143,11 +146,11 @@ async function TabelInventar({
 
       <nav aria-label="Paginare" className="mt-4 flex justify-end">
         {urmatorulCursor === null ? (
-          <p className="text-muted-foreground text-sm">Aceasta este ultima pagină.</p>
+          <p className="text-muted-foreground text-corp">Aceasta este ultima pagină.</p>
         ) : (
           <Link
             href={`/inventar?${cautare.toString()}`}
-            className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-2 text-sm font-medium"
+            className={buton({ varianta: "secundar" })}
           >
             Pagina următoare
           </Link>
@@ -174,38 +177,37 @@ export default async function PaginaInventar({ searchParams }: ProprietatiPagina
   const listaCategorii = await categorii();
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Inventar</h1>
-          <p className="text-muted-foreground text-sm">
-            {scope === "own"
-              ? "Vedeți obiectele aflate acum în primirea dumneavoastră."
-              : scope === "team"
-                ? "Vedeți obiectele aflate acum în primirea echipei dumneavoastră."
-                : "Evidența completă a obiectelor de inventar ale organizației."}
-          </p>
-        </div>
-        {poateScrie ? (
-          <Link
-            href="/inventar/nou"
-            className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
-          >
-            <PackagePlus aria-hidden="true" className="size-4" />
-            Obiect nou
-          </Link>
-        ) : null}
-      </header>
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Inventar"
+        descriere={
+          scope === "own"
+            ? "Vedeți obiectele aflate acum în primirea dumneavoastră."
+            : scope === "team"
+              ? "Vedeți obiectele aflate acum în primirea echipei dumneavoastră."
+              : "Evidența completă a obiectelor de inventar ale organizației."
+        }
+        {...(poateScrie
+          ? {
+              actiuni: (
+                <Link href="/inventar/nou" className={buton({ varianta: "primar" })}>
+                  <PackagePlus aria-hidden="true" className="size-4" />
+                  Obiect nou
+                </Link>
+              ),
+            }
+          : {})}
+      />
 
       <FiltreInventar categorii={listaCategorii} />
 
-      <Suspense key={JSON.stringify(parametri)} fallback={<SkeletonTable cols={7} />}>
+      <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={7} />}>
         <TabelInventar
           organizationId={tenant.organizationId}
           parametri={parametri}
           categorii={listaCategorii}
         />
       </Suspense>
-    </main>
+    </div>
   );
 }

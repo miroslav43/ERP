@@ -4,6 +4,8 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
+
 import { CautaCor } from "./cauta-cor";
 import { creeazaFunctie } from "./actions";
 
@@ -39,25 +41,24 @@ export function FormularFunctieNoua() {
 
   if (!deschis) {
     return (
-      <button
-        type="button"
+      <Buton
+        varianta="primar"
         onClick={() => {
           setDeschis(true);
         }}
-        className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium"
       >
         Funcție nouă
-      </button>
+      </Buton>
     );
   }
 
   return (
     <form
       action={trimite}
-      className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-2"
+      className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-2"
     >
       <div className="flex flex-col gap-1">
-        <label htmlFor={idCod} className="text-sm font-medium">
+        <label htmlFor={idCod} className="text-corp font-medium">
           Cod intern *
         </label>
         <input
@@ -66,11 +67,11 @@ export function FormularFunctieNoua() {
           type="text"
           required
           maxLength={32}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={idDenumire} className="text-sm font-medium">
+        <label htmlFor={idDenumire} className="text-corp font-medium">
           Denumire *
         </label>
         <input
@@ -79,17 +80,17 @@ export function FormularFunctieNoua() {
           type="text"
           required
           maxLength={160}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={idCodCor} className="text-sm font-medium">
+        <label htmlFor={idCodCor} className="text-corp font-medium">
           Cod COR
         </label>
         <CautaCor idInput={idCodCor} />
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={idNivelStudii} className="text-sm font-medium">
+        <label htmlFor={idNivelStudii} className="text-corp font-medium">
           Nivel de studii
         </label>
         <input
@@ -98,11 +99,11 @@ export function FormularFunctieNoua() {
           type="text"
           maxLength={80}
           placeholder="Superioare"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
       <div className="flex flex-col gap-1 sm:col-span-2">
-        <label htmlFor={idDescriere} className="text-sm font-medium">
+        <label htmlFor={idDescriere} className="text-corp font-medium">
           Descriere
         </label>
         <textarea
@@ -110,29 +111,24 @@ export function FormularFunctieNoua() {
           name="descriere"
           maxLength={1000}
           rows={2}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
       <div className="flex items-center gap-3 sm:col-span-2">
-        <button
-          type="submit"
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se creează…" : "Creează funcția"}
-        </button>
-        <button
-          type="button"
+        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se creează…">
+          Creează funcția
+        </Buton>
+        <Buton
+          varianta="link"
           onClick={() => {
             setDeschis(false);
             setEroare(null);
           }}
-          className="text-muted-foreground hover:text-foreground text-sm underline underline-offset-4"
         >
           Renunță
-        </button>
+        </Buton>
         {eroare === null ? null : (
-          <p role="alert" className="text-danger text-sm">
+          <p role="alert" className="text-danger text-corp">
             {eroare}
           </p>
         )}

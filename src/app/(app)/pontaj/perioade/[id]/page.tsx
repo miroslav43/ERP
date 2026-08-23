@@ -4,7 +4,9 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { StareGoala } from "@/components/ui/stare-goala";
+import { Badge } from "@/components/ui/badge";
 import { CheckCircle2 } from "lucide-react";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -19,7 +21,7 @@ import {
   loturiPerioadei,
 } from "@/lib/queries/attendance";
 
-import { CLASE_STATUS_PERIOADA, ETICHETE_STATUS_PERIOADA } from "../../etichete";
+import { TONURI_STATUS_PERIOADA, ETICHETE_STATUS_PERIOADA } from "../../etichete";
 
 export const metadata: Metadata = { title: "Lotul de aprobare" };
 
@@ -57,36 +59,40 @@ export default async function PaginaPerioadaDetaliu({ params }: ProprietatiPagin
   const manageri = await angajatiPontajDupaId(tenant.organizationId, idManageri);
   const hartaDepartamente = new Map(departamenteList.map((d) => [d.id, d.denumire]));
 
+  // Aceleași cuvinte ca înainte, doar mutate din trei noduri într-un singur șir:
+  // `descriere` primește text, nu JSX.
+  const intervalPerioadei =
+    `${formatDate(perioada.data_inceput)} – ${formatDate(perioada.data_sfarsit)}` +
+    (perioada.blocata_la === null ? "" : ` · blocată la ${formatDateTime(perioada.blocata_la)}`);
+
   return (
-    <main className="space-y-6 p-6">
-      <header>
-        <p className="text-muted-foreground text-sm">
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <p className="text-muted-foreground text-corp">
           <Link href="/pontaj/perioade" className="underline-offset-2 hover:underline">
             Perioade de pontaj
           </Link>
         </p>
-        <h1 className="text-2xl font-semibold">{formatMonthYear(perioada.an, perioada.luna)}</h1>
-        <p className="text-muted-foreground mt-1 flex flex-wrap items-center gap-2 text-sm">
-          <span>
-            {formatDate(perioada.data_inceput)} – {formatDate(perioada.data_sfarsit)}
-          </span>
-          <span
-            className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_STATUS_PERIOADA[perioada.status]}`}
-          >
-            {ETICHETE_STATUS_PERIOADA[perioada.status]}
-          </span>
-          {perioada.blocata_la === null ? null : (
-            <span>· blocată la {formatDateTime(perioada.blocata_la)}</span>
-          )}
-        </p>
-      </header>
+        <AntetPagina
+          titlu={formatMonthYear(perioada.an, perioada.luna)}
+          descriere={intervalPerioadei}
+          actiuni={
+            <Badge ton={TONURI_STATUS_PERIOADA[perioada.status]}>
+              {ETICHETE_STATUS_PERIOADA[perioada.status]}
+            </Badge>
+          }
+        />
+      </div>
 
-      <section aria-labelledby="titlu-neaprobate" className="border-border rounded-lg border p-4">
-        <h2 id="titlu-neaprobate" className="text-sm font-medium">
+      <section
+        aria-labelledby="titlu-neaprobate"
+        className="border-border rounded-panou border p-4"
+      >
+        <h2 id="titlu-neaprobate" className="text-corp font-medium">
           Linii încă neaprobate
         </h2>
-        <p className="mt-1 text-2xl font-semibold tabular-nums">{liniiNeaprobate.length}</p>
-        <p className="text-muted-foreground mt-1 text-sm">
+        <p className="text-titlu mt-1 font-semibold tabular-nums">{liniiNeaprobate.length}</p>
+        <p className="text-muted-foreground text-corp mt-1">
           Aprobarea în bloc se face din{" "}
           <Link href="/pontaj/aprobare" className="underline-offset-2 hover:underline">
             ecranul de aprobare
@@ -96,15 +102,17 @@ export default async function PaginaPerioadaDetaliu({ params }: ProprietatiPagin
       </section>
 
       <section aria-labelledby="titlu-loturi" className="space-y-3">
-        <h2 id="titlu-loturi" className="text-lg font-semibold">
+        <h2 id="titlu-loturi" className="text-sectiune font-semibold">
           Loturile de aprobare
         </h2>
 
         {loturi.length === 0 ? (
-          <EmptyState
-            icon={CheckCircle2}
-            title="Niciun lot de aprobare"
-            description="Nu s-a aprobat încă niciun grup de linii de pontaj pentru această lună."
+          <StareGoala
+            fel="initiala"
+            pictograma={CheckCircle2}
+            titlu="Niciun lot de aprobare"
+            descriere="Nu s-a aprobat încă niciun grup de linii de pontaj pentru această lună."
+            compact
           />
         ) : (
           <ul className="space-y-3">
@@ -114,7 +122,7 @@ export default async function PaginaPerioadaDetaliu({ params }: ProprietatiPagin
                   ? undefined
                   : manageri.get(lot.manager_employee_id);
               return (
-                <li key={lot.id} className="border-border rounded-lg border p-4">
+                <li key={lot.id} className="border-border rounded-panou border p-4">
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div className="space-y-1">
                       <p className="font-medium">
@@ -122,21 +130,21 @@ export default async function PaginaPerioadaDetaliu({ params }: ProprietatiPagin
                           ? "Toată organizația"
                           : (hartaDepartamente.get(lot.department_id) ?? "Departament necunoscut")}
                       </p>
-                      <p className="text-muted-foreground text-sm">
+                      <p className="text-muted-foreground text-corp">
                         Aprobat la {formatDateTime(lot.aprobat_la)}
                         {manager === undefined
                           ? null
                           : ` · ${manager.full_name} (${manager.marca})`}
                       </p>
                       {lot.observatii === null ? null : (
-                        <p className="text-muted-foreground text-sm">{lot.observatii}</p>
+                        <p className="text-muted-foreground text-corp">{lot.observatii}</p>
                       )}
                     </div>
-                    <p className="text-right text-sm">
-                      <span className="block text-2xl font-semibold tabular-nums">
+                    <p className="text-corp text-right">
+                      <span className="text-titlu block font-semibold tabular-nums">
                         {lot.linii_aprobate}
                       </span>
-                      <span className="text-muted-foreground text-xs">linii aprobate</span>
+                      <span className="text-muted-foreground text-nota">linii aprobate</span>
                     </p>
                   </div>
                 </li>
@@ -145,6 +153,6 @@ export default async function PaginaPerioadaDetaliu({ params }: ProprietatiPagin
           </ul>
         )}
       </section>
-    </main>
+    </div>
   );
 }

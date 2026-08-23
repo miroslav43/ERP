@@ -4,6 +4,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -21,10 +23,10 @@ import {
 } from "@/lib/queries/per-diem";
 
 import {
-  CLASE_STATUS_DEPLASARE,
   ETICHETE_MIJLOC_TRANSPORT,
   ETICHETE_STATUS_DEPLASARE,
   ETICHETE_TIP_CHELTUIALA,
+  TONURI_STATUS_DEPLASARE,
 } from "../etichete";
 import { ActiuniDeplasare } from "./actiuni-deplasare";
 import { Etape } from "./etape";
@@ -87,32 +89,35 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
   const poateAdaugaEtapa = can(permisiuni, "per_diem:update", "own") && editabila;
   const poateAdaugaCheltuiala = can(permisiuni, "per_diem:update", "own");
 
-  return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-muted-foreground text-sm">
-            <Link href="/diurna" className="underline-offset-2 hover:underline">
-              Deplasări
-            </Link>
-          </p>
-          <h1 className="text-2xl font-semibold">{deplasare.scop}</h1>
-          <p className="text-muted-foreground text-sm">
-            {angajat === undefined ? "" : `${angajat.full_name ?? "—"} (${angajat.marca}) · `}
-            {formatDateTime(new Date(deplasare.plecare_la))} –{" "}
-            {formatDateTime(new Date(deplasare.sosire_la))}
-            {deplasare.localitate === null ? "" : ` · ${deplasare.localitate}`}
-          </p>
-        </div>
-        <span
-          className={`rounded-full px-3 py-1 text-sm font-medium ${CLASE_STATUS_DEPLASARE[deplasare.status]}`}
-        >
-          {ETICHETE_STATUS_DEPLASARE[deplasare.status]}
-        </span>
-      </header>
+  // Aceleași cuvinte ca înainte, doar strânse într-un șir: `descriere` e text,
+  // nu JSX. Ordinea și separatorii rămân identici.
+  const descriereDeplasare = `${
+    angajat === undefined ? "" : `${angajat.full_name ?? "—"} (${angajat.marca}) · `
+  }${formatDateTime(new Date(deplasare.plecare_la))} – ${formatDateTime(
+    new Date(deplasare.sosire_la),
+  )}${deplasare.localitate === null ? "" : ` · ${deplasare.localitate}`}`;
 
-      <section aria-labelledby="titlu-rezumat" className="border-border rounded-lg border p-4">
-        <h2 id="titlu-rezumat" className="mb-4 text-lg font-medium">
+  return (
+    <div className="space-y-6">
+      <div className="space-y-1">
+        <p className="text-muted-foreground text-corp">
+          <Link href="/diurna" className="underline-offset-2 hover:underline">
+            Deplasări
+          </Link>
+        </p>
+        <AntetPagina
+          titlu={deplasare.scop}
+          descriere={descriereDeplasare}
+          actiuni={
+            <Badge ton={TONURI_STATUS_DEPLASARE[deplasare.status]}>
+              {ETICHETE_STATUS_DEPLASARE[deplasare.status]}
+            </Badge>
+          }
+        />
+      </div>
+
+      <section aria-labelledby="titlu-rezumat" className="border-border rounded-panou border p-4">
+        <h2 id="titlu-rezumat" className="text-sectiune mb-4 font-medium">
           Rezumat
         </h2>
         <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -142,10 +147,10 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
           />
           {deplasare.detasare_transnationala ? (
             <div className="col-span-2 sm:col-span-4">
-              <dt className="text-muted-foreground text-xs tracking-wide uppercase">
+              <dt className="text-muted-foreground text-nota tracking-wide uppercase">
                 Detașare transnațională
               </dt>
-              <dd className="mt-0.5 text-sm">
+              <dd className="text-corp mt-0.5">
                 Stat gazdă:{" "}
                 {deplasare.stat_gazda_country_id === null
                   ? "—"
@@ -159,8 +164,10 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
           ) : null}
           {deplasare.observatii === null ? null : (
             <div className="col-span-2 sm:col-span-4">
-              <dt className="text-muted-foreground text-xs tracking-wide uppercase">Observații</dt>
-              <dd className="mt-0.5 text-sm">{deplasare.observatii}</dd>
+              <dt className="text-muted-foreground text-nota tracking-wide uppercase">
+                Observații
+              </dt>
+              <dd className="text-corp mt-0.5">{deplasare.observatii}</dd>
             </div>
           )}
         </dl>
@@ -174,7 +181,7 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
       />
 
       <section aria-labelledby="titlu-traseu" className="space-y-3">
-        <h2 id="titlu-traseu" className="text-lg font-medium">
+        <h2 id="titlu-traseu" className="text-sectiune font-medium">
           Traseu și calculul diurnei
         </h2>
         <Etape
@@ -187,7 +194,7 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
         {poateAdaugaEtapa ? (
           <FormularEtapa tripId={deplasare.id} tari={listaTari} />
         ) : (
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground text-corp">
             {editabila
               ? ""
               : "Traseul nu mai poate fi modificat — deplasarea a ieșit din starea editabilă."}
@@ -196,14 +203,14 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
       </section>
 
       <section aria-labelledby="titlu-cheltuieli" className="space-y-3">
-        <h2 id="titlu-cheltuieli" className="text-lg font-medium">
+        <h2 id="titlu-cheltuieli" className="text-sectiune font-medium">
           Cheltuieli
         </h2>
         {cheltuieliTrip.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Nicio cheltuială înregistrată încă.</p>
+          <p className="text-muted-foreground text-corp">Nicio cheltuială înregistrată încă.</p>
         ) : (
-          <div className="border-border overflow-x-auto rounded-lg border">
-            <table className="w-full text-sm">
+          <div className="border-border rounded-panou overflow-x-auto border">
+            <table className="text-corp w-full">
               <thead className="bg-surface text-left">
                 <tr>
                   <th scope="col" className="px-3 py-2 font-medium">
@@ -237,15 +244,15 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
                     <td className="px-3 py-2 text-right tabular-nums">{formatLei(c.suma_lei)}</td>
                     <td className="px-3 py-2">
                       {c.aprobata ? (
-                        <span className="bg-surface text-foreground rounded px-2 py-0.5 text-xs font-medium">
+                        <span className="bg-surface text-foreground text-nota rounded px-2 py-0.5 font-medium">
                           Aprobată
                         </span>
                       ) : c.motiv_respingere !== null ? (
-                        <span className="bg-danger/8 text-danger rounded px-2 py-0.5 text-xs font-medium">
+                        <span className="bg-danger/8 text-danger text-nota rounded px-2 py-0.5 font-medium">
                           Respinsă
                         </span>
                       ) : (
-                        <span className="bg-surface text-foreground rounded px-2 py-0.5 text-xs font-medium">
+                        <span className="bg-surface text-foreground text-nota rounded px-2 py-0.5 font-medium">
                           În așteptare
                         </span>
                       )}
@@ -259,20 +266,20 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
         {poateAdaugaCheltuiala ? <FormularCheltuiala tripId={deplasare.id} /> : null}
       </section>
 
-      <p className="text-sm">
+      <p className="text-corp">
         <Link href={`/diurna/${deplasare.id}/decont`} className="underline underline-offset-2">
           Deschide decontul printabil
         </Link>
       </p>
-    </main>
+    </div>
   );
 }
 
 function Camp({ eticheta, valoare }: { readonly eticheta: string; readonly valoare: string }) {
   return (
     <div>
-      <dt className="text-muted-foreground text-xs tracking-wide uppercase">{eticheta}</dt>
-      <dd className="mt-0.5 text-sm">{valoare}</dd>
+      <dt className="text-muted-foreground text-nota tracking-wide uppercase">{eticheta}</dt>
+      <dd className="text-corp mt-0.5">{valoare}</dd>
     </div>
   );
 }

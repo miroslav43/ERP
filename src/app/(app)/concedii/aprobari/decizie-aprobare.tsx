@@ -5,6 +5,8 @@ import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, X } from "lucide-react";
 
+import { Buton } from "@/components/ui/buton";
+
 import { decideCerere } from "../actions";
 
 const LUNGIME_MINIMA_MOTIV = 5;
@@ -47,34 +49,32 @@ export function DecizieAprobare({ taskId }: { readonly taskId: string }) {
   if (panou === "inchis") {
     return (
       <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
+        <Buton
+          varianta="primar"
           onClick={() => {
             setPanou("aprobare");
           }}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium"
         >
           <Check aria-hidden="true" className="size-4" />
           Aprobă
-        </button>
-        <button
-          type="button"
+        </Buton>
+        <Buton
+          varianta="distructiv"
           onClick={() => {
             setPanou("respingere");
           }}
-          className="border-danger text-danger hover:bg-danger hover:text-danger-foreground inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium"
         >
           <X aria-hidden="true" className="size-4" />
           Respinge
-        </button>
+        </Buton>
       </div>
     );
   }
 
   return (
-    <div className="border-border space-y-2 rounded-md border p-3">
+    <div className="border-border rounded-control space-y-2 border p-3">
       <div>
-        <label htmlFor={idComentariu} className="block text-xs font-medium">
+        <label htmlFor={idComentariu} className="text-nota block font-medium">
           Comentariu (opțional)
         </label>
         <input
@@ -83,13 +83,13 @@ export function DecizieAprobare({ taskId }: { readonly taskId: string }) {
           onChange={(eveniment) => {
             setComentariu(eveniment.target.value);
           }}
-          className="border-foreground/60 mt-1 w-full rounded-md border px-2 py-1.5 text-sm"
+          className="border-foreground/60 rounded-control text-corp mt-1 w-full border px-2 py-1.5"
         />
       </div>
 
       {panou === "respingere" ? (
         <div>
-          <label htmlFor={idMotiv} className="block text-xs font-medium">
+          <label htmlFor={idMotiv} className="text-nota block font-medium">
             Motivul respingerii *
           </label>
           <input
@@ -98,44 +98,35 @@ export function DecizieAprobare({ taskId }: { readonly taskId: string }) {
             onChange={(eveniment) => {
               setMotivRespingere(eveniment.target.value);
             }}
-            className="border-foreground/60 mt-1 w-full rounded-md border px-2 py-1.5 text-sm"
+            className="border-foreground/60 rounded-control text-corp mt-1 w-full border px-2 py-1.5"
           />
         </div>
       ) : null}
 
       <div aria-live="polite">
-        {eroare !== null ? <p className="text-danger text-xs">{eroare}</p> : null}
+        {eroare !== null ? <p className="text-danger text-nota">{eroare}</p> : null}
       </div>
 
       <div className="flex gap-2">
-        <button
-          type="button"
-          disabled={inCurs}
+        <Buton
+          varianta={panou === "respingere" ? "distructiv" : "primar"}
+          inCurs={inCurs}
+          textInCurs="Se salvează…"
           onClick={() => {
             decide(panou === "respingere" ? "respinsa" : "aprobata");
           }}
-          className={`text-primary-foreground disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed ${
-            panou === "respingere"
-              ? "bg-danger hover:bg-danger"
-              : "bg-primary hover:bg-primary-hover"
-          }`}
         >
-          {inCurs
-            ? "Se salvează…"
-            : panou === "respingere"
-              ? "Confirmă respingerea"
-              : "Confirmă aprobarea"}
-        </button>
-        <button
-          type="button"
+          {panou === "respingere" ? "Confirmă respingerea" : "Confirmă aprobarea"}
+        </Buton>
+        <Buton
+          varianta="secundar"
           onClick={() => {
             setPanou("inchis");
             setEroare(null);
           }}
-          className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-1.5 text-sm font-medium"
         >
           Renunță
-        </button>
+        </Buton>
       </div>
     </div>
   );

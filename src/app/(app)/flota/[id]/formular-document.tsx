@@ -3,6 +3,8 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
+
 import { adaugaDocument } from "../actions";
 
 interface TipDocument {
@@ -70,21 +72,21 @@ export function FormularDocument({
   return (
     <form
       action={trimite}
-      className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-3"
+      className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-2 lg:grid-cols-3"
     >
-      <p className="text-sm font-medium sm:col-span-2 lg:col-span-3">
+      <p className="text-corp font-medium sm:col-span-2 lg:col-span-3">
         Adaugă sau reînnoiește un document
       </p>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idTip} className="text-sm">
+        <label htmlFor={idTip} className="text-corp">
           Tip document
         </label>
         <select
           id={idTip}
           name="document_type_id"
           required
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         >
           {tipuri.map((t) => (
             <option key={t.id} value={t.id}>
@@ -95,55 +97,55 @@ export function FormularDocument({
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idNumar} className="text-sm">
+        <label htmlFor={idNumar} className="text-corp">
           Număr
         </label>
         <input
           id={idNumar}
           name="numar"
           maxLength={64}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idEmitent} className="text-sm">
+        <label htmlFor={idEmitent} className="text-corp">
           Emitent
         </label>
         <input
           id={idEmitent}
           name="emitent"
           maxLength={120}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idDeLa} className="text-sm">
+        <label htmlFor={idDeLa} className="text-corp">
           Valabil de la
         </label>
         <input
           id={idDeLa}
           name="valabil_de_la"
           type="date"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idExpira} className="text-sm">
+        <label htmlFor={idExpira} className="text-corp">
           Expiră la
         </label>
         <input
           id={idExpira}
           name="expira_la"
           type="date"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idCost} className="text-sm">
+        <label htmlFor={idCost} className="text-corp">
           Cost (lei)
         </label>
         <input
@@ -152,25 +154,21 @@ export function FormularDocument({
           type="number"
           min="0"
           step="0.01"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-3">
-        <button
-          type="submit"
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se salvează…" : "Salvează documentul"}
-        </button>
+        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+          Salvează documentul
+        </Buton>
         {eroare === null ? null : (
-          <p role="alert" className="text-danger text-sm">
+          <p role="alert" className="text-danger text-corp">
             {eroare}
           </p>
         )}
         {reusit ? (
-          <p role="status" className="text-foreground text-sm">
+          <p role="status" className="text-foreground text-corp">
             Document salvat. Cel cu data de expirare cea mai îndepărtată devine documentul curent.
           </p>
         ) : null}

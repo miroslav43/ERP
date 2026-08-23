@@ -2,6 +2,7 @@
 import { notFound } from "next/navigation";
 import { Lock, PackageOpen, RotateCw } from "lucide-react";
 
+import { buton } from "@/components/ui/buton";
 import { requirePlatformAdmin } from "@/lib/auth/platform";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { formatDateTime } from "@/lib/format/date";
@@ -107,8 +108,8 @@ export default async function PaginaModule({ params }: { params: Promise<{ orgId
   return (
     <section className="space-y-6">
       <header className="space-y-1">
-        <h1 className="text-foreground text-2xl font-semibold">Module — {org.name}</h1>
-        <p className="text-muted-foreground text-sm">
+        <h1 className="text-foreground text-titlu font-semibold">Module — {org.name}</h1>
+        <p className="text-muted-foreground text-corp">
           {moduleActive.length === 0
             ? "Catalogul de module este gol."
             : `${activeCount} din ${moduleActive.length} module sunt disponibile pentru această organizație.`}
@@ -118,8 +119,8 @@ export default async function PaginaModule({ params }: { params: Promise<{ orgId
       {moduleActive.length === 0 ? (
         <div className="border-border bg-surface flex flex-col items-center gap-3 rounded-xl border p-10 text-center">
           <PackageOpen aria-hidden="true" className="text-muted-foreground h-8 w-8" />
-          <p className="text-foreground text-sm font-medium">Nu există module în catalog</p>
-          <p className="text-muted-foreground max-w-md text-sm">
+          <p className="text-foreground text-corp font-medium">Nu există module în catalog</p>
+          <p className="text-muted-foreground text-corp max-w-md">
             Catalogul din tabela <code>features</code> nu conține încă nicio intrare, așa că nu
             poate fi activat nimic pentru organizații. Populează catalogul, apoi revino aici.
           </p>
@@ -127,7 +128,7 @@ export default async function PaginaModule({ params }: { params: Promise<{ orgId
       ) : (
         grupuri.map((intrare) => (
           <div key={intrare.grup} className="border-border bg-surface rounded-xl border">
-            <h2 className="border-border text-muted-foreground border-b px-4 py-3 text-sm font-semibold tracking-wide uppercase">
+            <h2 className="border-border text-muted-foreground text-corp border-b px-4 py-3 font-semibold tracking-wide uppercase">
               {ETICHETE_GRUP[intrare.grup]}
             </h2>
             <ul className="divide-border divide-y">
@@ -143,10 +144,10 @@ export default async function PaginaModule({ params }: { params: Promise<{ orgId
                     <div className="min-w-0 flex-1">
                       <p className="text-foreground font-medium">{modul.denumire}</p>
                       {modul.descriere ? (
-                        <p className="text-muted-foreground mt-0.5 text-sm">{modul.descriere}</p>
+                        <p className="text-muted-foreground text-corp mt-0.5">{modul.descriere}</p>
                       ) : null}
                       {activare?.activated_at ? (
-                        <p className="text-muted-foreground mt-1 text-xs">
+                        <p className="text-muted-foreground text-nota mt-1">
                           Ultima activare: {formatDateTime(new Date(activare.activated_at))} de{" "}
                           {numeAfisat(autor)}
                         </p>
@@ -155,11 +156,11 @@ export default async function PaginaModule({ params }: { params: Promise<{ orgId
 
                     {modul.is_core ? (
                       <div className="flex max-w-xs flex-col items-end gap-1">
-                        <span className="border-border text-muted-foreground inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs">
+                        <span className="border-border text-muted-foreground text-nota inline-flex items-center gap-1 rounded-full border px-2 py-0.5">
                           <Lock aria-hidden="true" className="h-3 w-3" />
                           Inclus în nucleu
                         </span>
-                        <p className="text-muted-foreground text-right text-xs">
+                        <p className="text-muted-foreground text-nota text-right">
                           Modulele de nucleu sunt necesare funcționării platformei și nu pot fi
                           dezactivate.
                         </p>
@@ -189,14 +190,14 @@ function StareEroare({ orgId }: Readonly<{ orgId: string }>) {
       role="alert"
       className="border-border bg-surface flex flex-col items-center gap-3 rounded-xl border p-10 text-center"
     >
-      <p className="text-danger text-sm font-medium">Modulele nu au putut fi încărcate</p>
-      <p className="text-muted-foreground max-w-md text-sm">
+      <p className="text-danger text-corp font-medium">Modulele nu au putut fi încărcate</p>
+      <p className="text-muted-foreground text-corp max-w-md">
         A apărut o problemă la citirea datelor. Poți încerca din nou; dacă se repetă, verifică
         jurnalul de audit.
       </p>
       <a
         href={`/super-admin/organizatii/${orgId}/module`}
-        className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium"
+        className={buton({ varianta: "primar" })}
       >
         <RotateCw aria-hidden="true" className="h-4 w-4" />
         Reîncearcă

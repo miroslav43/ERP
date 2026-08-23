@@ -58,6 +58,14 @@ export function OrgSwitcher({ organizatii, organizatiaCurentaId }: Props) {
       <label htmlFor={idSelect} className="sr-only">
         Organizația activă
       </label>
+      {/*
+        Câmpul rămâne CREM deși stă pe navy, și e singurul control din antet
+        care face asta. Motivul e că lista de opțiuni a unui `<select>` nativ o
+        desenează browserul, nu pagina: `bg-transparent` ar face doar caseta să
+        se topească în navy, iar opțiunile ar rămâne pe fundalul lui — text
+        crem pe crem la deschidere. Un câmp crem, cu chenar, arată ca un
+        control și se citește în ambele stări (16,03:1 închis, la fel deschis).
+      */}
       <div className="relative flex items-center">
         <Building2
           aria-hidden="true"
@@ -69,7 +77,7 @@ export function OrgSwitcher({ organizatii, organizatiaCurentaId }: Props) {
           value={selectata}
           onChange={(eveniment) => setSelectata(eveniment.target.value)}
           disabled={inCurs}
-          className="border-border bg-surface text-foreground disabled:border-border disabled:bg-surface disabled:text-muted-foreground h-9 max-w-56 truncate rounded-md border py-1 pr-2 pl-8 text-sm disabled:cursor-not-allowed"
+          className="border-border bg-background text-foreground rounded-control text-corp disabled:border-border disabled:bg-surface disabled:text-muted-foreground h-9 max-w-56 truncate border py-1 pr-2 pl-8 disabled:cursor-not-allowed"
         >
           {organizatii.map((organizatie) => (
             <option key={organizatie.id} value={organizatie.id}>
@@ -79,10 +87,18 @@ export function OrgSwitcher({ organizatii, organizatiaCurentaId }: Props) {
         </select>
       </div>
 
+      {/*
+        `bg-primary` ar fi fost navy pe navy — butonul ar fi dispărut în antet.
+        Pe navy, „plin" se face din alb translucid: `white/70` (8,61:1) în
+        repaus, alb plin la hover. Blocat, coboară la `white/60` (6,67:1) —
+        peste prag, dar vizibil mai stins decât starea activă. Starea blocată se
+        face din culoare, niciodată din opacitate: diluată la jumătate ar fi dat
+        3,22:1, iar la 60% tot doar 4,34:1.
+      */}
       <button
         type="submit"
         disabled={neschimbata || inCurs}
-        className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex h-9 items-center gap-1.5 rounded-md px-3 text-sm font-medium disabled:cursor-not-allowed"
+        className="rounded-control text-corp inline-flex h-9 items-center gap-1.5 border border-white/15 px-3 font-medium text-white/70 transition-colors enabled:hover:bg-white/10 enabled:hover:text-white disabled:cursor-not-allowed disabled:border-white/10 disabled:text-white/60"
       >
         {inCurs ? (
           <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
@@ -95,7 +111,15 @@ export function OrgSwitcher({ organizatii, organizatiaCurentaId }: Props) {
       <p role="status" aria-live="polite" className="sr-only">
         {inCurs ? "Se comută organizația." : (stare.eroare ?? "")}
       </p>
-      {stare.eroare !== null ? <span className="text-danger text-sm">{stare.eroare}</span> : null}
+      {/*
+        Eroarea nu poate fi `text-danger` aici: #b3261e pe #0f1e3d dă 2,51:1.
+        Inversată — text crem pe roșu plin — urcă la 6,23:1 și rămâne roșie.
+      */}
+      {stare.eroare !== null ? (
+        <span className="bg-danger text-danger-foreground rounded-control text-nota px-2 py-1">
+          {stare.eroare}
+        </span>
+      ) : null}
     </form>
   );
 }

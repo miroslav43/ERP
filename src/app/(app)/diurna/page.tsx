@@ -6,9 +6,12 @@ import { Plane, PlaneTakeoff, Settings } from "lucide-react";
 
 import type { BaremTara } from "@/domain/per-diem/sume";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { Badge } from "@/components/ui/badge";
+import { buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { RandTabel } from "@/components/data/rand-tabel";
-import { SkeletonTable } from "@/components/data/skeleton-table";
+import { Schelet } from "@/components/ui/schelet";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -28,7 +31,7 @@ import {
 } from "@/lib/queries/per-diem";
 import { filtreDeplasariSchema } from "@/schemas/per-diem";
 
-import { CLASE_STATUS_DEPLASARE, ETICHETE_STATUS_DEPLASARE } from "./etichete";
+import { ETICHETE_STATUS_DEPLASARE, TONURI_STATUS_DEPLASARE } from "./etichete";
 import { FiltreDeplasari } from "./filtre-deplasari";
 import { NavDiurna } from "./nav-diurna";
 
@@ -99,14 +102,16 @@ async function TabelDeplasari({
   if (randuri.length === 0) {
     const areFiltre = filtre.status !== null;
     return (
-      <EmptyState
-        icon={Plane}
-        title={areFiltre ? "Niciun rezultat pentru filtrele alese" : "Nicio deplasare înregistrată"}
-        description={
+      <StareGoala
+        fel={areFiltre ? "filtrata" : "initiala"}
+        pictograma={Plane}
+        titlu={areFiltre ? "Niciun rezultat pentru filtrele alese" : "Nicio deplasare înregistrată"}
+        descriere={
           areFiltre
             ? "Ștergeți filtrele ca să vedeți toate deplasările."
             : "Adăugați prima deplasare în interes de serviciu ca să urmăriți diurna și decontul."
         }
+        {...(areFiltre ? { actiune: { eticheta: "Șterge filtrele", href: "/diurna" } } : {})}
       />
     );
   }
@@ -142,8 +147,8 @@ async function TabelDeplasari({
 
   return (
     <>
-      <div className="border-border overflow-x-auto rounded-lg border">
-        <table className="w-full text-sm">
+      <div className="border-border rounded-panou overflow-x-auto border">
+        <table className="text-corp w-full">
           <caption className="sr-only">
             Deplasările în interes de serviciu, cu diurna estimată.
           </caption>
@@ -193,13 +198,11 @@ async function TabelDeplasari({
                     {formatDateTime(new Date(r.sosire_la))}
                   </td>
                   <td className="px-4 py-3">
-                    <span
-                      className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_STATUS_DEPLASARE[r.status]}`}
-                    >
+                    <Badge ton={TONURI_STATUS_DEPLASARE[r.status]}>
                       {ETICHETE_STATUS_DEPLASARE[r.status]}
-                    </span>
+                    </Badge>
                   </td>
-                  <td className="px-4 py-3 text-sm">
+                  <td className="text-corp px-4 py-3">
                     {(() => {
                       const sumar = sumarDeplasare(
                         r,
@@ -211,7 +214,7 @@ async function TabelDeplasari({
                         <>
                           {sumar.text}
                           {sumar.estimare ? (
-                            <span className="text-muted-foreground ml-1 text-xs">(estimare)</span>
+                            <span className="text-muted-foreground text-nota ml-1">(estimare)</span>
                           ) : null}
                         </>
                       );
@@ -226,10 +229,7 @@ async function TabelDeplasari({
 
       <nav aria-label="Paginare" className="flex justify-end">
         {urmatorulCursor === null ? null : (
-          <Link
-            href={`/diurna?${cautare.toString()}`}
-            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
-          >
+          <Link href={`/diurna?${cautare.toString()}`} className={buton({ varianta: "secundar" })}>
             Pagina următoare
           </Link>
         )}
@@ -259,61 +259,58 @@ export default async function PaginaDiurna({ searchParams }: ProprietatiPagina) 
 
   if (politicaCurenta === null) {
     return (
-      <main className="space-y-6 p-6">
-        <header>
-          <h1 className="text-2xl font-semibold">Deplasări</h1>
-        </header>
-        <NavDiurna poateAproba={poateAproba} />
-        <EmptyState
-          icon={Settings}
-          title="Politica de diurnă nu este configurată"
-          description={
+      <div className="space-y-6">
+        <AntetPagina titlu="Deplasări" file={<NavDiurna poateAproba={poateAproba} />} />
+        <StareGoala
+          fel="initiala"
+          pictograma={Settings}
+          titlu="Politica de diurnă nu este configurată"
+          descriere={
             poateConfiguraPolitica
               ? "Fără o politică valabilă la data plecării, nicio deplasare nu poate fi salvată. Configurați pragurile și baremul firmei."
               : "Fără o politică valabilă la data plecării, nicio deplasare nu poate fi salvată. Cereți administratorului organizației să configureze politica firmei."
           }
           {...(poateConfiguraPolitica
-            ? { action: { label: "Configurează politica", href: "/diurna/politica" } }
+            ? { actiune: { eticheta: "Configurează politica", href: "/diurna/politica" } }
             : {})}
         />
-      </main>
+      </div>
     );
   }
 
   const parametri = await searchParams;
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Deplasări</h1>
-          <p className="text-muted-foreground text-sm">
-            {scope === "own"
-              ? "Deplasările dumneavoastră în interes de serviciu, cu diurna estimată."
-              : "Deplasările la care aveți acces, cu diurna estimată."}
-          </p>
-        </div>
-        {poateAdauga ? (
-          <Link
-            href="/diurna/noua"
-            className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
-          >
-            <PlaneTakeoff aria-hidden="true" className="size-4" />
-            Deplasare nouă
-          </Link>
-        ) : null}
-      </header>
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Deplasări"
+        descriere={
+          scope === "own"
+            ? "Deplasările dumneavoastră în interes de serviciu, cu diurna estimată."
+            : "Deplasările la care aveți acces, cu diurna estimată."
+        }
+        {...(poateAdauga
+          ? {
+              actiuni: (
+                <Link href="/diurna/noua" className={buton({ varianta: "primar" })}>
+                  <PlaneTakeoff aria-hidden="true" className="size-4" />
+                  Deplasare nouă
+                </Link>
+              ),
+            }
+          : {})}
+        file={<NavDiurna poateAproba={poateAproba} />}
+      />
 
-      <NavDiurna poateAproba={poateAproba} />
       <FiltreDeplasari />
 
-      <Suspense key={JSON.stringify(parametri)} fallback={<SkeletonTable cols={5} />}>
+      <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={5} />}>
         <TabelDeplasari
           organizationId={tenant.organizationId}
           parametri={parametri}
           arataAngajat={scope === "team" || scope === "all"}
         />
       </Suspense>
-    </main>
+    </div>
   );
 }

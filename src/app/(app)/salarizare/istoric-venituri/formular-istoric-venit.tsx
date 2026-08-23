@@ -2,6 +2,8 @@
 
 import { useId, useState, useTransition } from "react";
 
+import { Buton } from "@/components/ui/buton";
+
 import { salveazaIstoricVenit } from "../actions";
 
 interface AngajatOptiune {
@@ -48,13 +50,13 @@ export function FormularIstoricVenit({
     });
   }
 
-  const camp = "border-foreground/60 rounded-md border px-3 py-2 text-sm";
+  const camp = "border-foreground/60 rounded-control border px-3 py-2 text-corp";
 
   return (
-    <form action={trimite} className="border-border space-y-4 rounded-lg border p-4">
+    <form action={trimite} className="border-border rounded-panou space-y-4 border p-4">
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="flex flex-col gap-1 sm:col-span-3">
-          <label htmlFor={idAngajat} className="text-sm">
+          <label htmlFor={idAngajat} className="text-corp">
             Angajat
           </label>
           <select id={idAngajat} name="employee_id" required className={camp}>
@@ -66,7 +68,7 @@ export function FormularIstoricVenit({
           </select>
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={idAn} className="text-sm">
+          <label htmlFor={idAn} className="text-corp">
             An
           </label>
           <input
@@ -80,13 +82,13 @@ export function FormularIstoricVenit({
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={idLuna} className="text-sm">
+          <label htmlFor={idLuna} className="text-corp">
             Luna
           </label>
           <input id={idLuna} name="luna" type="number" min={1} max={12} required className={camp} />
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={idZile} className="text-sm">
+          <label htmlFor={idZile} className="text-corp">
             Zile lucrate
           </label>
           <input
@@ -101,7 +103,7 @@ export function FormularIstoricVenit({
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={idBrut} className="text-sm">
+          <label htmlFor={idBrut} className="text-corp">
             Venit brut (lei)
           </label>
           <input
@@ -113,10 +115,10 @@ export function FormularIstoricVenit({
             required
             className={camp}
           />
-          <p className="text-muted-foreground text-xs">Baza indemnizației de concediu medical.</p>
+          <p className="text-muted-foreground text-nota">Baza indemnizației de concediu medical.</p>
         </div>
         <div className="flex flex-col gap-1 sm:col-span-2">
-          <label htmlFor={idDrepturi} className="text-sm">
+          <label htmlFor={idDrepturi} className="text-corp">
             Drepturi salariale (lei)
           </label>
           <input
@@ -128,7 +130,7 @@ export function FormularIstoricVenit({
             required
             className={camp}
           />
-          <p className="text-muted-foreground text-xs">
+          <p className="text-muted-foreground text-nota">
             Salariu de bază plus sporurile <strong>permanente</strong>, fără primele ocazionale.
             Baza indemnizației de concediu de odihnă.
           </p>
@@ -137,16 +139,18 @@ export function FormularIstoricVenit({
 
       <input type="hidden" name="sursa" value="introdus manual" />
 
-      <button
+      <Buton
         type="submit"
-        disabled={seTrimite || angajati.length === 0}
-        className="bg-foreground text-background rounded-md px-4 py-2 text-sm disabled:opacity-50"
+        varianta="primar"
+        inCurs={seTrimite}
+        textInCurs="Se salvează…"
+        disabled={angajati.length === 0}
       >
-        {seTrimite ? "Se salvează…" : "Salvează luna"}
-      </button>
+        Salvează luna
+      </Buton>
 
-      {mesaj !== null ? <p className="text-success text-sm">{mesaj}</p> : null}
-      {eroare !== null ? <p className="text-danger text-sm">{eroare}</p> : null}
+      {mesaj !== null ? <p className="text-success text-corp">{mesaj}</p> : null}
+      {eroare !== null ? <p className="text-danger text-corp">{eroare}</p> : null}
     </form>
   );
 }

@@ -3,6 +3,8 @@ import Link from "next/link";
 import { SlidersHorizontal, UserPlus } from "lucide-react";
 import { notFound } from "next/navigation";
 
+import { buton } from "@/components/ui/buton";
+import { cn } from "@/lib/ui/cn";
 import { formatDateTime } from "@/lib/format/date";
 import { formateazaCui } from "@/domain/organization/cui";
 import {
@@ -26,8 +28,8 @@ const ETICHETE_ROL: Record<string, string> = {
 function Rand({ eticheta, valoare }: { eticheta: string; valoare: string | null }) {
   return (
     <div className="border-border border-b py-2 last:border-0">
-      <dt className="text-muted-foreground text-xs tracking-wide uppercase">{eticheta}</dt>
-      <dd className="text-foreground mt-0.5 text-sm">
+      <dt className="text-muted-foreground text-nota tracking-wide uppercase">{eticheta}</dt>
+      <dd className="text-foreground text-corp mt-0.5">
         {valoare && valoare.length > 0 ? valoare : "—"}
       </dd>
     </div>
@@ -48,7 +50,7 @@ export default async function PaginaFisaOrganizatie({
 
   return (
     <div className="space-y-6">
-      <nav aria-label="Firimituri" className="text-sm">
+      <nav aria-label="Firimituri" className="text-corp">
         <Link
           href="/super-admin/organizatii"
           className="text-primary underline-offset-4 hover:underline"
@@ -63,11 +65,11 @@ export default async function PaginaFisaOrganizatie({
 
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-foreground text-2xl font-semibold">{organizatie.name}</h1>
+          <h1 className="text-foreground text-titlu font-semibold">{organizatie.name}</h1>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <InsignaStatus status={organizatie.status as StatusOrganizatie} />
             <InsignaPlan plan={organizatie.plan as PlanOrganizatie} />
-            <span className="text-muted-foreground text-sm">/{organizatie.slug}</span>
+            <span className="text-muted-foreground text-corp">/{organizatie.slug}</span>
           </div>
         </div>
         <ActiuniOrganizatie
@@ -80,7 +82,7 @@ export default async function PaginaFisaOrganizatie({
       {organizatie.status === "suspended" && organizatie.suspended_reason && (
         <p
           role="status"
-          className="border-border bg-surface text-danger rounded-md border p-3 text-sm"
+          className="border-border bg-surface text-danger rounded-control text-corp border p-3"
         >
           Suspendată la{" "}
           {organizatie.suspended_at ? formatDateTime(new Date(organizatie.suspended_at)) : "—"}.
@@ -89,10 +91,10 @@ export default async function PaginaFisaOrganizatie({
       )}
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <section aria-labelledby="titlu-date" className="border-border rounded-lg border p-4">
+        <section aria-labelledby="titlu-date" className="border-border rounded-panou border p-4">
           <h2
             id="titlu-date"
-            className="text-muted-foreground mb-2 text-sm font-medium tracking-wide uppercase"
+            className="text-muted-foreground text-corp mb-2 font-medium tracking-wide uppercase"
           >
             Date de identificare
           </h2>
@@ -145,10 +147,13 @@ export default async function PaginaFisaOrganizatie({
           </div>
         </section>
 
-        <section aria-labelledby="titlu-abonament" className="border-border rounded-lg border p-4">
+        <section
+          aria-labelledby="titlu-abonament"
+          className="border-border rounded-panou border p-4"
+        >
           <h2
             id="titlu-abonament"
-            className="text-muted-foreground mb-2 text-sm font-medium tracking-wide uppercase"
+            className="text-muted-foreground text-corp mb-2 font-medium tracking-wide uppercase"
           >
             Abonament
           </h2>
@@ -166,21 +171,21 @@ export default async function PaginaFisaOrganizatie({
             />
           </dl>
           {membriActivi >= organizatie.seats_limit && (
-            <p role="status" className="text-warning mt-3 text-sm">
+            <p role="status" className="text-warning text-corp mt-3">
               Toate locurile sunt ocupate. Invitațiile noi vor fi refuzate până la mărirea limitei.
             </p>
           )}
         </section>
 
-        <section aria-labelledby="titlu-module" className="border-border rounded-lg border p-4">
+        <section aria-labelledby="titlu-module" className="border-border rounded-panou border p-4">
           <h2
             id="titlu-module"
-            className="text-muted-foreground mb-3 text-sm font-medium tracking-wide uppercase"
+            className="text-muted-foreground text-corp mb-3 font-medium tracking-wide uppercase"
           >
             Module activate
           </h2>
           {moduleActive.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
+            <p className="text-muted-foreground text-corp">
               Niciun modul activat. Activați cel puțin modulele de bază pentru ca membrii să vadă
               meniul.
             </p>
@@ -189,7 +194,7 @@ export default async function PaginaFisaOrganizatie({
               {moduleActive.map((modul) => (
                 <li
                   key={modul.cheie}
-                  className="border-border bg-surface text-foreground rounded-md border px-2.5 py-1 text-xs"
+                  className="border-border bg-surface text-foreground rounded-control text-nota border px-2.5 py-1"
                 >
                   {modul.denumire}
                 </li>
@@ -202,26 +207,26 @@ export default async function PaginaFisaOrganizatie({
           */}
           <Link
             href={`/super-admin/organizatii/${organizatie.id}/module`}
-            className="border-border bg-background text-foreground hover:border-primary hover:text-primary focus-visible:ring-ring mt-4 inline-flex items-center gap-2 rounded-md border px-3.5 py-2 text-sm font-semibold transition focus-visible:ring-2 focus-visible:outline-none"
+            className={cn(buton({ varianta: "secundar" }), "mt-4")}
           >
             <SlidersHorizontal aria-hidden="true" className="size-4" />
             Gestionează modulele
           </Link>
         </section>
 
-        <section aria-labelledby="titlu-membri" className="border-border rounded-lg border p-4">
+        <section aria-labelledby="titlu-membri" className="border-border rounded-panou border p-4">
           <h2
             id="titlu-membri"
-            className="text-muted-foreground mb-3 text-sm font-medium tracking-wide uppercase"
+            className="text-muted-foreground text-corp mb-3 font-medium tracking-wide uppercase"
           >
             Membri
           </h2>
           {membri.length === 0 ? (
-            <div className="border-border flex flex-col items-center gap-1 rounded-md border border-dashed p-6 text-center">
-              <p className="text-foreground text-sm font-medium">
+            <div className="border-border rounded-control flex flex-col items-center gap-1 border border-dashed p-6 text-center">
+              <p className="text-foreground text-corp font-medium">
                 Organizația nu are încă niciun membru.
               </p>
-              <p className="text-muted-foreground mb-3 text-sm">
+              <p className="text-muted-foreground text-corp mb-3">
                 Până nu are un administrator, nimeni nu poate intra în ea.
               </p>
               {/*
@@ -231,7 +236,7 @@ export default async function PaginaFisaOrganizatie({
               */}
               <Link
                 href={`/super-admin/organizatii/${organizatie.id}/membri`}
-                className="bg-primary text-primary-foreground hover:bg-primary-hover focus-visible:ring-ring inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+                className={buton({ varianta: "primar" })}
               >
                 <UserPlus aria-hidden="true" className="size-4" />
                 Invită administratorul
@@ -242,14 +247,14 @@ export default async function PaginaFisaOrganizatie({
               {membri.slice(0, 8).map((membru) => (
                 <li key={membru.id} className="flex items-center justify-between gap-3 py-2">
                   <span className="min-w-0">
-                    <span className="text-foreground block truncate text-sm">
+                    <span className="text-foreground text-corp block truncate">
                       {membru.nume ?? membru.email ?? "Utilizator"}
                     </span>
-                    <span className="text-muted-foreground block truncate text-xs">
+                    <span className="text-muted-foreground text-nota block truncate">
                       {membru.email ?? ""}
                     </span>
                   </span>
-                  <span className="text-muted-foreground shrink-0 text-xs">
+                  <span className="text-muted-foreground text-nota shrink-0">
                     {ETICHETE_ROL[membru.role] ?? membru.role}
                   </span>
                 </li>

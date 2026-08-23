@@ -21,12 +21,12 @@ export function AccesRestrictionat({
   mesaj: string;
 }) {
   return (
-    <main className="mx-auto w-full max-w-3xl p-4 sm:p-6">
-      <div className="border-border bg-surface rounded-lg border p-8 text-center">
+    <div className="mx-auto w-full max-w-3xl">
+      <div className="border-border bg-surface rounded-panou border p-8 text-center">
         <Lock aria-hidden="true" className="text-warning mx-auto size-6" />
-        <h1 className="text-foreground mt-3 text-lg font-semibold">{titlu}</h1>
-        <p className="text-muted-foreground mt-2 text-sm">{mesaj}</p>
+        <h1 className="text-foreground text-sectiune mt-3 font-semibold">{titlu}</h1>
+        <p className="text-muted-foreground text-corp mt-2">{mesaj}</p>
       </div>
-    </main>
+    </div>
   );
 }

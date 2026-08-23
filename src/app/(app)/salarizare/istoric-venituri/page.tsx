@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -21,9 +22,9 @@ export default async function PaginaIstoricVenituri() {
 
   if (!can(permisiuni, "payroll:create", "all")) {
     return (
-      <main className="p-6">
+      <div>
         <AccesRestrictionat mesaj="Nu aveți dreptul de a introduce istoricul de venit." />
-      </main>
+      </div>
     );
   }
 
@@ -36,32 +37,34 @@ export default async function PaginaIstoricVenituri() {
   ]);
 
   return (
-    <main className="max-w-4xl space-y-6 p-6">
-      <header>
-        <p className="text-muted-foreground text-sm">
+    <div className={`${LATIMI.detaliu} space-y-6`}>
+      <div className="space-y-1">
+        <p className="text-muted-foreground text-corp">
           <Link href="/salarizare" className="underline-offset-2 hover:underline">
             Salarizare
           </Link>
         </p>
-        <h1 className="text-2xl font-semibold">Istoric venituri</h1>
-        <p className="text-muted-foreground mt-2 text-sm">
+        <AntetPagina titlu="Istoric venituri" />
+        {/* Rămâne un `<p>` de sine stătător, nu prop-ul `descriere`: accentul pe
+            „înainte” e purtat de `<strong>`, iar `descriere` primește un string. */}
+        <p className="text-muted-foreground text-corp mt-2 max-w-prose text-pretty">
           Veniturile realizate <strong>înainte</strong> ca firma să folosească aplicația.
           Indemnizația de concediu medical se calculează pe media ultimelor șase luni, iar cea de
           concediu de odihnă pe media ultimelor trei. Fără lunile acestea, mediile ies incomplete și
           indemnizațiile mai mici decât cele legale — fără nicio eroare vizibilă.
         </p>
-      </header>
+      </div>
 
       <FormularIstoricVenit angajati={personal.angajati} />
 
-      <section aria-label="Rânduri introduse" className="border-border rounded-lg border">
+      <section aria-label="Rânduri introduse" className="border-border rounded-panou border">
         {randuri.length === 0 ? (
-          <p className="text-muted-foreground p-4 text-sm">
+          <p className="text-muted-foreground text-corp p-4">
             Niciun rând încă. Introduceți lunile anterioare pentru angajații care au avut sau ar
             putea avea concediu medical.
           </p>
         ) : (
-          <table className="w-full text-sm">
+          <table className="text-corp w-full">
             <thead className="text-muted-foreground border-border border-b text-left">
               <tr>
                 <th className="px-4 py-2 font-medium">Angajat</th>
@@ -89,6 +92,6 @@ export default async function PaginaIstoricVenituri() {
           </table>
         )}
       </section>
-    </main>
+    </div>
   );
 }

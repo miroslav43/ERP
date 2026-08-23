@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
+
 import { aprobaPerioada, calculeazaPerioada, inchidePerioada, trimiteFluturasii } from "../actions";
 
 interface Proprietati {
@@ -68,76 +70,71 @@ export function ActiuniPerioada({
   return (
     <div className="flex flex-wrap items-center gap-3">
       {status === "draft" && poateCalcula ? (
-        <button
-          type="button"
-          disabled={inCurs}
+        <Buton
+          varianta="primar"
+          inCurs={inCurs}
+          textInCurs="Se calculează…"
           onClick={() => {
             ruleaza(() => calculeazaPerioada({ id }));
           }}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
         >
-          {inCurs ? "Se calculează…" : "Calculează"}
-        </button>
+          Calculează
+        </Buton>
       ) : null}
 
       {status === "calculat" && poateCalcula ? (
-        <button
-          type="button"
-          disabled={inCurs}
+        <Buton
+          varianta="secundar"
+          inCurs={inCurs}
+          textInCurs="Se recalculează…"
           onClick={() => {
             ruleaza(() => calculeazaPerioada({ id }));
           }}
-          className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {inCurs ? "Se recalculează…" : "Recalculează"}
-        </button>
+          Recalculează
+        </Buton>
       ) : null}
 
       {status === "calculat" && poateAproba ? (
-        <button
-          type="button"
-          disabled={inCurs}
+        <Buton
+          varianta="primar"
+          inCurs={inCurs}
+          textInCurs="Se aprobă…"
           onClick={() => {
             ruleaza(() => aprobaPerioada({ id }));
           }}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
         >
-          {inCurs ? "Se aprobă…" : "Aprobă"}
-        </button>
+          Aprobă
+        </Buton>
       ) : null}
 
       {status === "aprobat" && poateAproba ? (
-        <button
-          type="button"
-          disabled={inCurs}
+        <Buton
+          varianta="secundar"
+          inCurs={inCurs}
+          textInCurs="Se închide…"
           onClick={() => {
             ruleaza(() => inchidePerioada({ id }));
           }}
-          className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {inCurs ? "Se închide…" : "Închide perioada"}
-        </button>
+          Închide perioada
+        </Buton>
       ) : null}
 
       {(status === "aprobat" || status === "inchis") && poateExporta ? (
-        <button
-          type="button"
-          disabled={inCurs}
-          onClick={trimite}
-          className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {inCurs ? "Se trimit…" : "Trimite fluturașii pe e-mail"}
-        </button>
+        <Buton varianta="secundar" inCurs={inCurs} textInCurs="Se trimit…" onClick={trimite}>
+          Trimite fluturașii pe e-mail
+        </Buton>
       ) : null}
 
       {raportTrimitere === null ? null : (
-        <p aria-live="polite" className="text-muted-foreground w-full text-sm">
+        <p aria-live="polite" className="text-muted-foreground text-corp w-full">
           {raportTrimitere}
         </p>
       )}
 
       {eroare === null ? null : (
-        <p role="alert" className="text-danger w-full text-sm">
+        <p role="alert" className="text-danger text-corp w-full">
           {eroare}
         </p>
       )}

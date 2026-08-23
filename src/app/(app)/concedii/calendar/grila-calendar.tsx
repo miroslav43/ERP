@@ -1,6 +1,7 @@
 // src/app/(app)/concedii/calendar/grila-calendar.tsx
 import Link from "next/link";
 
+import { Buton, buton } from "@/components/ui/buton";
 import type { StatusCerere } from "@/schemas/leave";
 
 export interface EvenimentZiCalendar {
@@ -88,11 +89,11 @@ export function GrilaCalendar({ an, luna, zileHarta, lunaAnterioara, lunaUrmatoa
     <div className="space-y-3">
       <nav
         aria-label="Navigare lunară"
-        className="flex flex-wrap items-center justify-between gap-3 text-sm"
+        className="text-corp flex flex-wrap items-center justify-between gap-3"
       >
         <Link
           href={`/concedii/calendar?an=${String(lunaAnterioara.an)}&luna=${String(lunaAnterioara.luna)}`}
-          className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-1.5"
+          className={buton({ varianta: "secundar" })}
         >
           ← Luna anterioară
         </Link>
@@ -112,7 +113,7 @@ export function GrilaCalendar({ an, luna, zileHarta, lunaAnterioara, lunaUrmatoa
             id="calendar-luna"
             name="luna"
             defaultValue={String(luna)}
-            className="border-foreground/60 rounded-md border px-2 py-1.5 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-2 py-1.5"
           >
             {LUNI_AN.map((eticheta, index) => (
               <option key={eticheta} value={String(index + 1)}>
@@ -130,32 +131,29 @@ export function GrilaCalendar({ an, luna, zileHarta, lunaAnterioara, lunaUrmatoa
             min={2000}
             max={2199}
             defaultValue={String(an)}
-            className="border-foreground/60 w-20 rounded-md border px-2 py-1.5 text-sm"
+            className="border-foreground/60 rounded-control text-corp w-20 border px-2 py-1.5"
           />
-          <button
-            type="submit"
-            className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-1.5"
-          >
+          <Buton type="submit" varianta="secundar">
             Mergi
-          </button>
+          </Buton>
         </form>
 
         <Link
           href={`/concedii/calendar?an=${String(lunaUrmatoare.an)}&luna=${String(lunaUrmatoare.luna)}`}
-          className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-1.5"
+          className={buton({ varianta: "secundar" })}
         >
           Luna următoare →
         </Link>
       </nav>
 
       {!areEvenimente ? (
-        <p className="border-foreground/60 text-muted-foreground rounded-lg border border-dashed p-4 text-center text-sm">
+        <p className="border-foreground/60 text-muted-foreground rounded-panou text-corp border border-dashed p-4 text-center">
           Nicio absență de echipă înregistrată în această lună.
         </p>
       ) : null}
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[56rem] table-fixed border-collapse text-left text-sm">
+        <table className="text-corp w-full min-w-[56rem] table-fixed border-collapse text-left">
           <caption className="sr-only">Grila lunară a absențelor de echipă</caption>
           <thead>
             <tr>
@@ -163,7 +161,7 @@ export function GrilaCalendar({ an, luna, zileHarta, lunaAnterioara, lunaUrmatoa
                 <th
                   key={zi}
                   scope="col"
-                  className="border-border bg-surface text-muted-foreground border px-2 py-1.5 text-xs font-medium"
+                  className="border-border bg-surface text-muted-foreground text-nota border px-2 py-1.5 font-medium"
                 >
                   {zi}
                 </th>
@@ -187,7 +185,7 @@ export function GrilaCalendar({ an, luna, zileHarta, lunaAnterioara, lunaUrmatoa
                   return (
                     <td key={iso} className="border-border h-24 border align-top">
                       <div className="p-1.5">
-                        <span className="text-muted-foreground text-xs font-medium">{zi}</span>
+                        <span className="text-muted-foreground text-nota font-medium">{zi}</span>
                         <ul className="mt-1 space-y-0.5">
                           {evenimente.slice(0, 3).map((eveniment, indexEveniment) => (
                             <li
@@ -195,7 +193,7 @@ export function GrilaCalendar({ an, luna, zileHarta, lunaAnterioara, lunaUrmatoa
                               title={`${eveniment.employeeLabel} · ${eveniment.tipDenumire} (${
                                 eveniment.status === "aprobata" ? "aprobată" : "în aprobare"
                               })`}
-                              className={`text-primary-foreground truncate rounded px-1 py-0.5 text-xs ${
+                              className={`text-primary-foreground text-nota truncate rounded px-1 py-0.5 ${
                                 eveniment.status === "aprobata" ? "" : "opacity-60"
                               }`}
                               style={{ backgroundColor: eveniment.tipCuloare }}
@@ -204,7 +202,7 @@ export function GrilaCalendar({ an, luna, zileHarta, lunaAnterioara, lunaUrmatoa
                             </li>
                           ))}
                           {evenimente.length > 3 ? (
-                            <li className="text-muted-foreground text-xs">
+                            <li className="text-muted-foreground text-nota">
                               +{evenimente.length - 3} altele
                             </li>
                           ) : null}

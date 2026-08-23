@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina } from "@/components/ui/antet-pagina";
 import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -51,13 +52,11 @@ export default async function PaginaEditeazaAngajat({ params }: ProprietatiPagin
   ]);
 
   return (
-    <main className="space-y-6 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Editează fișa — {angajat.full_name}</h1>
-        <p className="text-muted-foreground text-sm">
-          CNP-ul și IBAN-ul rămân neschimbate dacă lăsați câmpurile goale.
-        </p>
-      </header>
+    <div className="space-y-6">
+      <AntetPagina
+        titlu={`Editează fișa — ${angajat.full_name}`}
+        descriere="CNP-ul și IBAN-ul rămân neschimbate dacă lăsați câmpurile goale."
+      />
       <FormularAngajat
         departamente={departamente.data ?? []}
         functii={functii.data ?? []}
@@ -74,6 +73,6 @@ export default async function PaginaEditeazaAngajat({ params }: ProprietatiPagin
           hired_on: angajat.hired_on,
         }}
       />
-    </main>
+    </div>
   );
 }

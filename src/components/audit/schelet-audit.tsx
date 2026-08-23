@@ -5,8 +5,8 @@ export function ScheletAudit() {
   return (
     <div className="space-y-4" aria-busy="true" aria-live="polite">
       <span className="sr-only">Se încarcă jurnalul de audit…</span>
-      <div className="border-border bg-surface h-40 animate-pulse rounded-lg border" />
-      <div className="border-border overflow-hidden rounded-lg border">
+      <div className="border-border bg-surface rounded-panou h-40 animate-pulse border" />
+      <div className="border-border rounded-panou overflow-hidden border">
         <div className="bg-surface h-10 animate-pulse" />
         {LINII.map((linie) => (
           <div key={linie} className="border-border flex gap-3 border-t px-3 py-3">

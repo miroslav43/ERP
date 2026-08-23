@@ -65,8 +65,8 @@ export function Pas1Identitate({ formular, idFormular }: Proprietati) {
 
   return (
     <div className="space-y-6">
-      <fieldset className="border-border space-y-4 rounded-lg border p-4">
-        <legend className="text-foreground px-1 text-sm font-medium">Date de identificare</legend>
+      <fieldset className="border-border rounded-panou space-y-4 border p-4">
+        <legend className="text-foreground text-corp px-1 font-medium">Date de identificare</legend>
 
         <div>
           <label htmlFor={`${idFormular}-name`} className={claseLabel}>
@@ -93,7 +93,10 @@ export function Pas1Identitate({ formular, idFormular }: Proprietati) {
             aria-describedby={`${idFormular}-legal-name-ajutor`}
             className={claseCamp}
           />
-          <p id={`${idFormular}-legal-name-ajutor`} className="text-muted-foreground mt-1 text-xs">
+          <p
+            id={`${idFormular}-legal-name-ajutor`}
+            className="text-muted-foreground text-nota mt-1"
+          >
             Forma juridică completă, exact ca în actul constitutiv — apare pe contracte, adeverințe
             și orice alt document oficial. Denumirea de mai sus rămâne cea afișată în aplicație.
           </p>
@@ -128,7 +131,7 @@ export function Pas1Identitate({ formular, idFormular }: Proprietati) {
             {...register("platitor_tva")}
             className="border-border size-4 rounded"
           />
-          <label htmlFor={`${idFormular}-tva`} className="text-foreground text-sm">
+          <label htmlFor={`${idFormular}-tva`} className="text-foreground text-corp">
             Plătitor de TVA
           </label>
         </div>
@@ -187,7 +190,7 @@ export function Pas1Identitate({ formular, idFormular }: Proprietati) {
               ariaInvalid={Boolean(errors.cod_caen)}
               ariaDescribedBy={`${idFormular}-caen-ajutor`}
             />
-            <p id={`${idFormular}-caen-ajutor`} className="text-muted-foreground mt-1 text-xs">
+            <p id={`${idFormular}-caen-ajutor`} className="text-muted-foreground text-nota mt-1">
               Anumite coduri (IT, Construcții, Agricultură, Industria Alimentară) permit scutiri
               fiscale per-angajat în modulul de Salarizare.
             </p>
@@ -210,7 +213,7 @@ export function Pas1Identitate({ formular, idFormular }: Proprietati) {
             ariaInvalid={Boolean(errors.cod_caen_secundare)}
           />
           {formaJuridicaSelectata === "SRL-D" && (
-            <p className="text-muted-foreground mt-1 text-xs">
+            <p className="text-muted-foreground text-nota mt-1">
               SRL-D: toate codurile alese trebuie să facă parte din cel mult 5 grupe de activitate
               (primele 3 cifre ale codului), iar anumite activități sunt excluse prin lege pentru
               forma debutant.
@@ -223,8 +226,8 @@ export function Pas1Identitate({ formular, idFormular }: Proprietati) {
         </div>
       </fieldset>
 
-      <fieldset className="border-border space-y-4 rounded-lg border p-4">
-        <legend className="text-foreground px-1 text-sm font-medium">
+      <fieldset className="border-border rounded-panou space-y-4 border p-4">
+        <legend className="text-foreground text-corp px-1 font-medium">
           Contact și sediu social
         </legend>
         <div className="grid gap-4 sm:grid-cols-2">

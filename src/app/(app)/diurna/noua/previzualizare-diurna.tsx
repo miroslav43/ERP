@@ -73,7 +73,7 @@ export function PrevizualizareDiurna({
 
   if (rezultat === null) {
     return (
-      <p className="text-muted-foreground text-sm">
+      <p className="text-muted-foreground text-corp">
         Completați data de plecare și data de sosire pentru a vedea previzualizarea diurnei.
       </p>
     );
@@ -83,7 +83,7 @@ export function PrevizualizareDiurna({
 
   if (sume.zileTotal === 0) {
     return (
-      <p className="text-foreground text-sm">
+      <p className="text-foreground text-corp">
         <strong>0 zile de diurnă</strong> — deplasarea durează {formatAmount(durataOre)} ore, sub
         pragul de {formatAmount(politica.prag_ore_minim)} ore din politică.
       </p>
@@ -93,7 +93,7 @@ export function PrevizualizareDiurna({
   const primaFereastra = sume.detalii.find((d) => d.stare === "ok");
 
   return (
-    <div className="text-foreground space-y-1 text-sm">
+    <div className="text-foreground text-corp space-y-1">
       {sume.baremLipsa ? (
         <p>
           <strong>{formatAmount(sume.zileTotal)} zile</strong> — lipsește baremul de diurnă pentru
@@ -114,7 +114,7 @@ export function PrevizualizareDiurna({
             = <strong>{formatLei(sume.valoareLei)}</strong>
           </p>
           {sume.parteImpozabilaLei !== null && sume.parteImpozabilaLei > 0 ? (
-            <p className="text-foreground text-xs">
+            <p className="text-foreground text-nota">
               din care neimpozabil {formatLei(sume.parteNeimpozabilaLei ?? 0)}, impozabil{" "}
               {formatLei(sume.parteImpozabilaLei)} (peste plafonul legal).
             </p>

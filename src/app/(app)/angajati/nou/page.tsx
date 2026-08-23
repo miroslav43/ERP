@@ -2,10 +2,12 @@
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { cn } from "@/lib/ui/cn";
 
 import { AsistentAngajatNou } from "./_components/asistent-angajat-nou";
 
@@ -62,14 +64,11 @@ export default async function PaginaAngajatNou() {
   ]);
 
   return (
-    <main className="max-w-3xl space-y-6 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Înrolare angajat</h1>
-        <p className="text-muted-foreground text-sm">
-          Un singur formular pentru fișa de personal, contractul de muncă și fișa postului — marca
-          se atribuie automat, iar contractul și documentele se generează la trimitere.
-        </p>
-      </header>
+    <div className={cn(LATIMI.formular, "space-y-6")}>
+      <AntetPagina
+        titlu="Înrolare angajat"
+        descriere="Un singur formular pentru fișa de personal, contractul de muncă și fișa postului — marca se atribuie automat, iar contractul și documentele se generează la trimitere."
+      />
       <AsistentAngajatNou
         departamente={departamente.data ?? []}
         functii={functii.data ?? []}
@@ -82,6 +81,6 @@ export default async function PaginaAngajatNou() {
         }
         obiecteDisponibile={obiecteInventar.data ?? []}
       />
-    </main>
+    </div>
   );
 }

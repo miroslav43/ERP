@@ -3,17 +3,19 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Badge } from "@/components/ui/badge";
+import { Buton } from "@/components/ui/buton";
 import { formatDate, formatDateTime } from "@/lib/format/date";
 import type { ChecklistItemStatus } from "@/schemas/checklist";
 import { CHECKLIST_ITEM_STATUS } from "@/schemas/checklist";
 
 import { bifeazaPas } from "../actions";
 import {
-  CLASE_STATUS_ITEM,
   ETICHETE_RESPONSABIL_TIP,
   ETICHETE_ROL,
   ETICHETE_STATUS_ITEM,
   ETICHETE_TIP_DOVADA,
+  TONURI_STATUS_ITEM,
 } from "../etichete";
 
 export interface PasAfisat {
@@ -49,7 +51,7 @@ export function PasChecklist({ pasi, idPasuriBifabile }: Proprietati) {
   return (
     <ol className="space-y-3">
       {pasi.map((pas) => (
-        <li key={pas.id} className="border-border rounded-lg border p-4">
+        <li key={pas.id} className="border-border rounded-panou border p-4">
           <PasRand pas={pas} poateBifa={bifabile.has(pas.id)} />
         </li>
       ))}
@@ -108,38 +110,34 @@ function PasRand({ pas, poateBifa }: { readonly pas: PasAfisat; readonly poateBi
           <p className="font-medium">
             {pas.ordine}. {pas.titlu}
             {pas.obligatoriu ? (
-              <span className="text-muted-foreground ml-1 text-xs">(obligatoriu)</span>
+              <span className="text-muted-foreground text-nota ml-1">(obligatoriu)</span>
             ) : null}
           </p>
           {pas.descriere === null ? null : (
-            <p className="text-muted-foreground mt-0.5 text-sm">{pas.descriere}</p>
+            <p className="text-muted-foreground text-corp mt-0.5">{pas.descriere}</p>
           )}
-          <p className="text-muted-foreground mt-1 text-xs">
+          <p className="text-muted-foreground text-nota mt-1">
             Responsabil: {responsabilText(pas)}
             {pas.termen === null ? "" : ` · Termen: ${formatDate(pas.termen)}`}
           </p>
         </div>
-        <span
-          className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_STATUS_ITEM[pas.status]}`}
-        >
-          {ETICHETE_STATUS_ITEM[pas.status]}
-        </span>
+        <Badge ton={TONURI_STATUS_ITEM[pas.status]}>{ETICHETE_STATUS_ITEM[pas.status]}</Badge>
       </div>
 
       {pas.verificare_automata !== null ? (
-        <p className="bg-surface text-muted-foreground rounded-md p-2 text-xs">
+        <p className="bg-surface text-muted-foreground rounded-control text-nota p-2">
           Se bifează automat de sistem, pe baza altui modul.
           {pas.observatii === null ? "" : ` ${pas.observatii}`}
         </p>
       ) : !poateBifa ? (
         pas.observatii === null ? null : (
-          <p className="text-muted-foreground text-xs">Observații: {pas.observatii}</p>
+          <p className="text-muted-foreground text-nota">Observații: {pas.observatii}</p>
         )
       ) : (
-        <form action={salveaza} className="bg-surface space-y-2 rounded-md p-3">
+        <form action={salveaza} className="bg-surface rounded-control space-y-2 p-3">
           <div className="flex flex-wrap items-end gap-2">
             <div className="flex flex-col gap-1">
-              <label htmlFor={idStatus} className="text-xs font-medium">
+              <label htmlFor={idStatus} className="text-nota font-medium">
                 Stare
               </label>
               <select
@@ -149,7 +147,7 @@ function PasRand({ pas, poateBifa }: { readonly pas: PasAfisat; readonly poateBi
                 onChange={(e) => {
                   setStatus(e.target.value as ChecklistItemStatus);
                 }}
-                className="border-foreground/60 rounded-md border px-2 py-1.5 text-sm"
+                className="border-foreground/60 rounded-control text-corp border px-2 py-1.5"
               >
                 {CHECKLIST_ITEM_STATUS.map((s) => (
                   <option key={s} value={s}>
@@ -161,7 +159,7 @@ function PasRand({ pas, poateBifa }: { readonly pas: PasAfisat; readonly poateBi
 
             {pas.tip_dovada === "document" ? (
               <div className="flex flex-col gap-1">
-                <label htmlFor={idDovadaDoc} className="text-xs font-medium">
+                <label htmlFor={idDovadaDoc} className="text-nota font-medium">
                   {ETICHETE_TIP_DOVADA.document}
                 </label>
                 <input
@@ -169,14 +167,14 @@ function PasRand({ pas, poateBifa }: { readonly pas: PasAfisat; readonly poateBi
                   name="dovada_document_id"
                   defaultValue={pas.dovada_document_id ?? ""}
                   placeholder="id-ul documentului"
-                  className="border-foreground/60 rounded-md border px-2 py-1.5 text-sm"
+                  className="border-foreground/60 rounded-control text-corp border px-2 py-1.5"
                 />
               </div>
             ) : null}
 
             {pas.tip_dovada === "semnatura" ? (
               <div className="flex flex-col gap-1">
-                <label htmlFor={idDovadaSemn} className="text-xs font-medium">
+                <label htmlFor={idDovadaSemn} className="text-nota font-medium">
                   {ETICHETE_TIP_DOVADA.semnatura}
                 </label>
                 <input
@@ -184,22 +182,18 @@ function PasRand({ pas, poateBifa }: { readonly pas: PasAfisat; readonly poateBi
                   name="dovada"
                   defaultValue={pas.dovada ?? ""}
                   placeholder="numele semnatarului"
-                  className="border-foreground/60 rounded-md border px-2 py-1.5 text-sm"
+                  className="border-foreground/60 rounded-control text-corp border px-2 py-1.5"
                 />
               </div>
             ) : null}
 
-            <button
-              type="submit"
-              disabled={inCurs}
-              className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed"
-            >
-              {inCurs ? "Se salvează…" : "Salvează"}
-            </button>
+            <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+              Salvează
+            </Buton>
           </div>
 
           <div className="flex flex-col gap-1">
-            <label htmlFor={idObservatii} className="text-xs font-medium">
+            <label htmlFor={idObservatii} className="text-nota font-medium">
               Observații
             </label>
             <input
@@ -207,12 +201,12 @@ function PasRand({ pas, poateBifa }: { readonly pas: PasAfisat; readonly poateBi
               name="observatii"
               defaultValue={pas.observatii ?? ""}
               maxLength={1000}
-              className="border-foreground/60 rounded-md border px-2 py-1.5 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-2 py-1.5"
             />
           </div>
 
           {eroare === null ? null : (
-            <p role="alert" className="text-danger text-xs">
+            <p role="alert" className="text-danger text-nota">
               {eroare}
             </p>
           )}
@@ -220,7 +214,7 @@ function PasRand({ pas, poateBifa }: { readonly pas: PasAfisat; readonly poateBi
       )}
 
       {pas.bifat_la === null ? null : (
-        <p className="text-muted-foreground text-xs">
+        <p className="text-muted-foreground text-nota">
           Bifat {pas.bifat_automat ? "automat" : ""} la {formatDateTime(pas.bifat_la)}.
         </p>
       )}

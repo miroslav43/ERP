@@ -4,6 +4,9 @@ import type { Metadata } from "next";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
+import { Badge } from "@/components/ui/badge";
+import { buton } from "@/components/ui/buton";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -17,7 +20,7 @@ import {
   zileleSaptamanii,
 } from "@/domain/attendance/saptamana";
 import { FormularSaptamana } from "@/app/(app)/pontaj/saptamana/formular-saptamana";
-import { CLASE_STARE_SAPTAMANA, ETICHETE_STARE_SAPTAMANA } from "@/app/(app)/pontaj/etichete";
+import { TONURI_STARE_SAPTAMANA, ETICHETE_STARE_SAPTAMANA } from "@/app/(app)/pontaj/etichete";
 
 import { FaraFisa } from "../../fara-fisa";
 
@@ -72,43 +75,40 @@ export default async function PaginaSaptamanaPortal({
   const poateEdita = submisie === null || submisie.status !== "aprobata";
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 p-4">
-      <header>
-        <h1 className="text-foreground text-xl font-semibold">Planul săptămânii</h1>
-        <p className="text-muted-foreground text-sm">
-          Săptămâna care începe {formatDate(saptamanaStart)}: cum veniți la lucru și câte ore
-          planificați.
-        </p>
-      </header>
+    <div className={`${LATIMI.formular} space-y-4 p-4`}>
+      <AntetPagina
+        titlu="Planul săptămânii"
+        descriere={`Săptămâna care începe ${formatDate(
+          saptamanaStart,
+        )}: cum veniți la lucru și câte ore planificați.`}
+      />
 
       <nav aria-label="Alege săptămâna" className="flex flex-wrap items-center gap-2">
         <Link
           href={`/portal/pontajul-meu/saptamana?saptamana=${adaugaZile(saptamanaStart, -7)}`}
-          className="border-border hover:border-primary text-foreground inline-flex min-h-11 items-center gap-1 rounded-md border px-3 text-sm"
+          className={buton({ varianta: "secundar" })}
         >
           <ChevronLeft aria-hidden="true" className="size-4" />
           Anterioară
         </Link>
         <Link
           href={`/portal/pontajul-meu/saptamana?saptamana=${adaugaZile(saptamanaStart, 7)}`}
-          className="border-border hover:border-primary text-foreground inline-flex min-h-11 items-center gap-1 rounded-md border px-3 text-sm"
+          className={buton({ varianta: "secundar" })}
         >
           Următoarea
           <ChevronRight aria-hidden="true" className="size-4" />
         </Link>
         {submisie === null ? null : (
-          <span
-            className={`rounded-full px-3 py-1 text-xs font-medium ${CLASE_STARE_SAPTAMANA[submisie.status]}`}
-          >
+          <Badge ton={TONURI_STARE_SAPTAMANA[submisie.status]}>
             {ETICHETE_STARE_SAPTAMANA[submisie.status]}
-          </span>
+          </Badge>
         )}
       </nav>
 
       {/* Motivul respingerii, înaintea formularului: e informația pentru care
           omul a deschis ecranul, iar notificarea care l-a adus aici n-o conține. */}
       {submisie?.status === "respinsa" && submisie.motivRespingere !== null ? (
-        <p className="border-danger/40 bg-danger/10 text-foreground rounded-lg border p-3 text-sm">
+        <p className="border-danger/40 bg-danger/10 text-foreground rounded-panou text-corp border p-3">
           <strong className="font-medium">Motivul respingerii:</strong> {submisie.motivRespingere}
         </p>
       ) : null}
@@ -120,10 +120,7 @@ export default async function PaginaSaptamanaPortal({
       />
 
       <p>
-        <Link
-          href="/portal/pontajul-meu"
-          className="text-primary text-sm underline-offset-2 hover:underline"
-        >
+        <Link href="/portal/pontajul-meu" className={buton({ varianta: "link" })}>
           Înapoi la pontajul meu
         </Link>
       </p>

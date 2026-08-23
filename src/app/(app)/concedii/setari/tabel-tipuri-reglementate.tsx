@@ -31,12 +31,12 @@ export function TabelTipuriReglementate({
   }
 
   if (tipuri.length === 0) {
-    return <p className="text-muted-foreground text-sm">Niciun tip reglementat configurat.</p>;
+    return <p className="text-muted-foreground text-corp">Niciun tip reglementat configurat.</p>;
   }
 
   return (
-    <div className="border-border overflow-x-auto rounded-lg border">
-      <table className="w-full text-left text-sm">
+    <div className="border-border rounded-panou overflow-x-auto border">
+      <table className="text-corp w-full text-left">
         <caption className="sr-only">Tipurile de concediu reglementate legal.</caption>
         <thead className="bg-surface text-foreground">
           <tr>

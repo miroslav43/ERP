@@ -25,19 +25,19 @@ export function AntetPlatforma({ titlu, email, areFirme }: Props) {
   return (
     <header className="bg-primary flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-white/10 px-5 py-2.5">
       <ShieldCheck aria-hidden="true" className="text-accent size-4 shrink-0" />
-      <span className="text-sm font-semibold text-white">{titlu}</span>
+      <span className="text-corp font-semibold text-white">{titlu}</span>
 
       <div className="ms-auto flex items-center gap-4">
         {areFirme ? (
           <Link
             href={RUTA_DUPA_AUTENTIFICARE}
-            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
+            className="rounded-control text-nota flex items-center gap-1.5 px-2 py-1 font-medium text-white/70 transition hover:bg-white/10 hover:text-white"
           >
             <ArrowLeftRight aria-hidden="true" className="size-3.5" />
             Treci în firmă
           </Link>
         ) : null}
-        <span className="font-mono text-xs text-white/50">{email}</span>
+        <span className="text-nota font-mono text-white/50">{email}</span>
       </div>
     </header>
   );

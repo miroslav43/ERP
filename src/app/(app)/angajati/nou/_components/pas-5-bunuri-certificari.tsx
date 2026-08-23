@@ -60,13 +60,13 @@ export function Pas5BunuriCertificari({ formular, idFormular, obiecteDisponibile
 
   return (
     <div className="space-y-6">
-      <p className="text-muted-foreground text-sm">
+      <p className="text-muted-foreground text-corp">
         Toți acești pași sunt opționali — se pot completa oricând ulterior, din ecranele dedicate
         (Inventar, SSM).
       </p>
 
-      <fieldset className="border-border space-y-4 rounded-lg border p-4">
-        <legend className="text-foreground px-1 text-sm font-medium">Bunuri alocate</legend>
+      <fieldset className="border-border rounded-panou space-y-4 border p-4">
+        <legend className="text-foreground text-corp px-1 font-medium">Bunuri alocate</legend>
         <div>
           <label htmlFor={`${idFormular}-inventar`} className={claseLabel}>
             Obiecte de inventar
@@ -84,15 +84,15 @@ export function Pas5BunuriCertificari({ formular, idFormular, obiecteDisponibile
               </option>
             ))}
           </select>
-          <p className="text-muted-foreground mt-1 text-xs">
+          <p className="text-muted-foreground text-nota mt-1">
             Se pot alege mai multe, cu Ctrl (Cmd pe Mac). Mașina de serviciu se alocă separat, din
             modulul Parc auto.
           </p>
         </div>
       </fieldset>
 
-      <fieldset className="border-border space-y-4 rounded-lg border p-4">
-        <legend className="text-foreground px-1 text-sm font-medium">
+      <fieldset className="border-border rounded-panou space-y-4 border p-4">
+        <legend className="text-foreground text-corp px-1 font-medium">
           Fișă de aptitudine (medicina muncii)
         </legend>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -183,9 +183,9 @@ export function Pas5BunuriCertificari({ formular, idFormular, obiecteDisponibile
         </div>
       </fieldset>
 
-      <fieldset className="border-border space-y-4 rounded-lg border p-4">
-        <legend className="text-foreground px-1 text-sm font-medium">Autorizații nominale</legend>
-        <p className="text-muted-foreground text-xs">
+      <fieldset className="border-border rounded-panou space-y-4 border p-4">
+        <legend className="text-foreground text-corp px-1 font-medium">Autorizații nominale</legend>
+        <p className="text-muted-foreground text-nota">
           ISCIR, lucru la înălțime, electrician autorizat… Fiecare are propria dată de expirare și
           intră în tabloul de expirabile, care avertizează înainte să iasă din valabilitate.
         </p>
@@ -193,7 +193,7 @@ export function Pas5BunuriCertificari({ formular, idFormular, obiecteDisponibile
         {autorizatii.fields.map((camp, index) => (
           <div
             key={camp.id}
-            className="border-border grid gap-4 rounded-md border p-3 sm:grid-cols-2"
+            className="border-border rounded-control grid gap-4 border p-3 sm:grid-cols-2"
           >
             <div>
               <label
@@ -271,7 +271,7 @@ export function Pas5BunuriCertificari({ formular, idFormular, obiecteDisponibile
                 onClick={() => {
                   autorizatii.remove(index);
                 }}
-                className="border-border rounded-md border px-3 py-1.5 text-sm"
+                className="border-border rounded-control text-corp border px-3 py-1.5"
               >
                 Scoate autorizația
               </button>
@@ -284,7 +284,7 @@ export function Pas5BunuriCertificari({ formular, idFormular, obiecteDisponibile
           onClick={() => {
             autorizatii.append({ tip: "", numar: "", emitent: "", valabil_pana: "" });
           }}
-          className="border-foreground/60 rounded-md border px-3 py-1.5 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-1.5"
         >
           Adaugă o autorizație
         </button>

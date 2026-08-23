@@ -4,7 +4,8 @@ import type { Metadata } from "next";
 import { ClipboardCheck } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -33,30 +34,30 @@ export default async function PaginaAprobariConcedii() {
   const sarcini = await deAprobat(tenant.organizationId, user.id);
 
   return (
-    <main className="space-y-6 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Aprobări</h1>
-        <p className="text-muted-foreground text-sm">
-          Cererile de concediu care așteaptă decizia dumneavoastră.
-        </p>
-      </header>
-
-      <NavConcedii
-        poateAproba={true}
-        poateVedeaCalendar={poateVedeaCalendar}
-        poateConfigura={poateConfigura}
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Aprobări"
+        descriere="Cererile de concediu care așteaptă decizia dumneavoastră."
+        file={
+          <NavConcedii
+            poateAproba={true}
+            poateVedeaCalendar={poateVedeaCalendar}
+            poateConfigura={poateConfigura}
+          />
+        }
       />
 
       {sarcini.length === 0 ? (
-        <EmptyState
-          icon={ClipboardCheck}
-          title="Nimic de aprobat"
-          description="Nu aveți nicio cerere de concediu în așteptarea deciziei dumneavoastră."
+        <StareGoala
+          fel="initiala"
+          pictograma={ClipboardCheck}
+          titlu="Nimic de aprobat"
+          descriere="Nu aveți nicio cerere de concediu în așteptarea deciziei dumneavoastră."
         />
       ) : (
         <ul className="space-y-3">
           {sarcini.map((sarcina) => (
-            <li key={sarcina.taskId} className="border-border rounded-lg border p-4">
+            <li key={sarcina.taskId} className="border-border rounded-panou border p-4">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <p className="font-medium">
@@ -71,19 +72,19 @@ export default async function PaginaAprobariConcedii() {
                     {" · "}
                     {sarcina.tip?.denumire ?? "Concediu"}
                   </p>
-                  <p className="text-muted-foreground mt-1 text-sm">
+                  <p className="text-muted-foreground text-corp mt-1">
                     {formatDate(sarcina.cerere.dataInceput)} –{" "}
                     {formatDate(sarcina.cerere.dataSfarsit)} ·{" "}
                     {formatAmount(sarcina.cerere.zileLucratoare)} zile lucrătoare
                   </p>
                   {sarcina.termenLa !== null ? (
-                    <p className="text-foreground mt-1 text-xs">
+                    <p className="text-foreground text-nota mt-1">
                       Termen de decizie: {formatDateTime(sarcina.termenLa)}
                     </p>
                   ) : null}
                   <Link
                     href={`/concedii/${sarcina.cerere.id}`}
-                    className="text-primary mt-1 inline-block text-xs underline-offset-2 hover:underline"
+                    className="text-primary text-nota mt-1 inline-block underline-offset-2 hover:underline"
                   >
                     Vezi cererea completă
                   </Link>
@@ -94,6 +95,6 @@ export default async function PaginaAprobariConcedii() {
           ))}
         </ul>
       )}
-    </main>
+    </div>
   );
 }

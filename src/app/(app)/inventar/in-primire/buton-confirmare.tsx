@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
+
 import { confirmaPrimirea } from "../actions";
 
 interface Proprietati {
@@ -28,16 +30,11 @@ export function ButonConfirmare({ alocareId }: Proprietati) {
 
   return (
     <div>
-      <button
-        type="button"
-        onClick={confirma}
-        disabled={inCurs}
-        className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed"
-      >
-        {inCurs ? "Se confirmă…" : "Confirmă primirea"}
-      </button>
+      <Buton varianta="primar" onClick={confirma} inCurs={inCurs} textInCurs="Se confirmă…">
+        Confirmă primirea
+      </Buton>
       {eroare !== null ? (
-        <p role="alert" className="text-danger mt-1 text-xs">
+        <p role="alert" className="text-danger text-nota mt-1">
           {eroare}
         </p>
       ) : null}

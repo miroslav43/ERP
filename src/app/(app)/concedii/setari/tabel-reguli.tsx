@@ -4,6 +4,7 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
 import { formatAmount } from "@/lib/format/money";
 import { formatDate } from "@/lib/format/date";
 import type {
@@ -71,15 +72,15 @@ export function TabelReguli({
 
   if (reguliActive.length === 0) {
     return (
-      <p className="text-muted-foreground text-sm">
+      <p className="text-muted-foreground text-corp">
         Nicio grilă configurată încă — toți angajații primesc doar baza tipului de concediu.
       </p>
     );
   }
 
   return (
-    <div className="border-border overflow-x-auto rounded-lg border">
-      <table className="w-full text-left text-sm">
+    <div className="border-border rounded-panou overflow-x-auto border">
+      <table className="text-corp w-full text-left">
         <caption className="sr-only">Grilele de zile suplimentare configurate.</caption>
         <thead className="bg-surface text-foreground">
           <tr>
@@ -117,16 +118,15 @@ export function TabelReguli({
                 {regula.valabil_pana_la === null ? "" : ` – ${formatDate(regula.valabil_pana_la)}`}
               </td>
               <td className="px-4 py-2 text-right">
-                <button
-                  type="button"
+                <Buton
+                  varianta="distructiv"
                   disabled={inCurs}
                   onClick={() => {
                     dezactiveaza(regula.id);
                   }}
-                  className="text-danger text-xs disabled:opacity-40"
                 >
                   Dezactivează
-                </button>
+                </Buton>
               </td>
             </tr>
           ))}

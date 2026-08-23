@@ -68,38 +68,41 @@ export function DateSensibile({ employeeId, cnpUltimele4, ibanUltimele4, banca }
   return (
     <section
       aria-labelledby="titlu-date-sensibile"
-      className="border-warning/40 bg-surface rounded-lg border p-5 shadow-sm"
+      className="border-warning/40 bg-surface rounded-panou shadow-ridicat border p-5"
     >
-      <h2 id="titlu-date-sensibile" className="mb-1 flex items-center gap-2 text-lg font-medium">
+      <h2
+        id="titlu-date-sensibile"
+        className="text-sectiune mb-1 flex items-center gap-2 font-medium"
+      >
         <ShieldAlert aria-hidden="true" className="text-foreground size-5" />
         Date de identificare
       </h2>
-      <p className="text-muted-foreground mb-4 text-sm">
+      <p className="text-muted-foreground text-corp mb-4">
         CNP-ul și IBAN-ul sunt păstrate criptat. Fiecare consultare este înregistrată în jurnalul de
         audit, împreună cu motivul pe care îl introduceți mai jos.
       </p>
 
       <dl className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div>
-          <dt className="text-muted-foreground text-xs tracking-wide uppercase">CNP</dt>
-          <dd className="mt-0.5 font-mono text-sm">
+          <dt className="text-muted-foreground text-nota tracking-wide uppercase">CNP</dt>
+          <dd className="text-corp mt-0.5 font-mono">
             {cnpUltimele4 === null ? "necompletat" : `•••••••••${cnpUltimele4}`}
           </dd>
         </div>
         <div>
-          <dt className="text-muted-foreground text-xs tracking-wide uppercase">IBAN</dt>
-          <dd className="mt-0.5 font-mono text-sm">
+          <dt className="text-muted-foreground text-nota tracking-wide uppercase">IBAN</dt>
+          <dd className="text-corp mt-0.5 font-mono">
             {ibanUltimele4 === null ? "necompletat" : `RO•• •••• •••• ${ibanUltimele4}`}
           </dd>
         </div>
         <div>
-          <dt className="text-muted-foreground text-xs tracking-wide uppercase">Bancă</dt>
-          <dd className="mt-0.5 text-sm">{banca ?? "—"}</dd>
+          <dt className="text-muted-foreground text-nota tracking-wide uppercase">Bancă</dt>
+          <dd className="text-corp mt-0.5">{banca ?? "—"}</dd>
         </div>
       </dl>
 
       <div className="max-w-md">
-        <label htmlFor={idMotiv} className="block text-sm font-medium">
+        <label htmlFor={idMotiv} className="text-corp block font-medium">
           Motivul consultării
         </label>
         <input
@@ -109,10 +112,10 @@ export function DateSensibile({ employeeId, cnpUltimele4, ibanUltimele4, banca }
             setMotiv(eveniment.target.value);
           }}
           aria-describedby={`${idMotiv}-ajutor`}
-          className="border-border bg-background mt-1 w-full rounded-md border px-3 py-2 text-sm"
+          className="border-border bg-background rounded-control text-corp mt-1 w-full border px-3 py-2"
           placeholder="Ex. întocmire adeverință de venit"
         />
-        <p id={`${idMotiv}-ajutor`} className="text-muted-foreground mt-1 text-xs">
+        <p id={`${idMotiv}-ajutor`} className="text-muted-foreground text-nota mt-1">
           Minimum 5 caractere. Motivul rămâne în jurnal.
         </p>
       </div>
@@ -124,7 +127,7 @@ export function DateSensibile({ employeeId, cnpUltimele4, ibanUltimele4, banca }
             cere("cnp");
           }}
           disabled={inCurs || motiv.trim().length < 5 || cnpUltimele4 === null}
-          className="border-border bg-background disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium disabled:cursor-not-allowed"
+          className="border-border bg-background disabled:bg-surface disabled:text-muted-foreground rounded-control text-corp inline-flex items-center gap-2 border px-3 py-2 font-medium disabled:cursor-not-allowed"
         >
           <Eye aria-hidden="true" className="size-4" />
           Dezvăluie CNP
@@ -135,21 +138,21 @@ export function DateSensibile({ employeeId, cnpUltimele4, ibanUltimele4, banca }
             cere("iban");
           }}
           disabled={inCurs || motiv.trim().length < 5 || ibanUltimele4 === null}
-          className="border-border bg-background disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium disabled:cursor-not-allowed"
+          className="border-border bg-background disabled:bg-surface disabled:text-muted-foreground rounded-control text-corp inline-flex items-center gap-2 border px-3 py-2 font-medium disabled:cursor-not-allowed"
         >
           <Eye aria-hidden="true" className="size-4" />
           Dezvăluie IBAN
         </button>
       </div>
 
-      <div aria-live="polite" className="mt-3 min-h-10 text-sm">
+      <div aria-live="polite" className="text-corp mt-3 min-h-10">
         {inCurs ? <p>Se verifică dreptul de acces…</p> : null}
         {eroare !== null ? <p className="text-danger">{eroare}</p> : null}
         {dezvaluit !== null ? (
-          <p className="font-mono text-base">
+          <p className="text-sectiune font-mono">
             {dezvaluit.camp === "cnp" ? "CNP: " : "IBAN: "}
             {dezvaluit.valoare}
-            <span className="text-muted-foreground ml-2 font-sans text-xs">
+            <span className="text-muted-foreground text-nota ml-2 font-sans">
               (se ascunde automat după {String(SECUNDE_AFISARE)} de secunde)
             </span>
           </p>

@@ -12,7 +12,9 @@ import { buildNavigation } from "@/lib/navigation/build-navigation";
 import { resolveTenant } from "@/lib/tenant/resolve-tenant";
 import { stareFirmei } from "@/lib/tenant/stare-firma";
 import { POARTA_PORTAL_ACTIVA, RUTA_PORTAL } from "@/config/routes";
+import { monoCifre } from "@/lib/ui/fonturi";
 import type { AuthUser, Tenant } from "@/lib/tenant/types";
+import { ZonaToast } from "@/components/ui/toast";
 
 export const dynamic = "force-dynamic";
 
@@ -121,11 +123,14 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     <>
       <a
         href="#continut"
-        className="bg-primary text-primary-foreground sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-50 focus:rounded-md focus:px-3 focus:py-2 focus:text-sm"
+        className="bg-primary text-primary-foreground rounded-control focus:z-plutitor text-corp sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:px-3 focus:py-2"
       >
         Sari la conținut
       </a>
-      <SidebarProvider defaultCollapsed={store.get(COOKIE_SIDEBAR)?.value === "colapsat"}>
+      <SidebarProvider
+        defaultCollapsed={store.get(COOKIE_SIDEBAR)?.value === "colapsat"}
+        className={monoCifre.variable}
+      >
         <Sidebar organizationName={tenant.name}>
           <SidebarNav groups={navigare} />
         </Sidebar>
@@ -133,13 +138,33 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           {/* `Topbar` este Server Component fără props: își rezolvă singur
               tenantul, utilizatorul și lista de organizații. */}
           <Topbar />
-          <main id="continut" className="min-w-0 flex-1 p-4 md:p-6">
+          {/*
+            Landmark-ul, umplutura și lățimea maximă aparțin EXCLUSIV învelișului.
+            Înainte, fiecare dintre cele 94 de pagini randa încă un `<main>` cu
+            `p-6` propriu înăuntrul acestuia: două landmark-uri „main” pe același
+            ecran (HTML invalid, două regiuni principale pentru cititorul de
+            ecran) și umplutură dublă — pe un telefon de 375px rămâneau 295 de
+            pixeli utili. Pe ramura de acces restricționat erau TREI.
+
+            Lățimea maximă lipsea cu totul: pe un monitor de 27" un tabel de șase
+            coloane se întindea pe 2400 de pixeli, iar ochiul pierdea rândul între
+            prima și ultima celulă. Paginile care au nevoie de o coloană mai
+            îngustă (formulare, fișe) o cer ele, cu `max-w-3xl` pe propriul înveliș.
+          */}
+          <main
+            id="continut"
+            data-zona="app"
+            className="mx-auto w-full max-w-[104rem] min-w-0 flex-1 p-4 md:p-6"
+          >
             {children}
           </main>
           {/* Prezent pe fiecare pagină, deliberat discret: e o ieșire de
               siguranță, nu o acțiune pe care o cauți. Modulul se deduce din
               calea curentă și ajunge precompletat în formular. */}
           {features.has("ticketing") ? <RaporteazaProblema /> : null}
+          {/* Montată o singură dată pe zonă. `arataToast()` se poate chema de
+              oriunde, fără provider — depozitarul e la nivel de modul. */}
+          <ZonaToast />
         </div>
       </SidebarProvider>
     </>

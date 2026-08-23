@@ -38,7 +38,7 @@ export function SchimbaStatus({
   return (
     <div className="flex flex-wrap items-end gap-3">
       <div>
-        <label htmlFor={`${idCamp}-status`} className="block text-sm font-medium">
+        <label htmlFor={`${idCamp}-status`} className="text-corp block font-medium">
           Status
         </label>
         <select
@@ -46,7 +46,7 @@ export function SchimbaStatus({
           value={selectat}
           disabled={inCurs}
           onChange={(eveniment) => setSelectat(eveniment.target.value as StatusCerere)}
-          className="border-border bg-background mt-1.5 rounded-md border px-3 py-2 text-sm"
+          className="border-border bg-background rounded-control text-corp mt-1.5 border px-3 py-2"
         >
           {STATUSURI_CERERE.map((status) => (
             <option key={status} value={status}>
@@ -60,13 +60,13 @@ export function SchimbaStatus({
         type="button"
         onClick={salveaza}
         disabled={inCurs || selectat === statusCurent}
-        className="border-border hover:border-primary disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed"
+        className="border-border hover:border-primary disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-control text-corp inline-flex items-center gap-2 border px-4 py-2 font-medium transition-colors disabled:cursor-not-allowed"
       >
         {inCurs ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
         {inCurs ? "Se salvează…" : "Salvează statusul"}
       </button>
 
-      <p aria-live="polite" className="text-sm">
+      <p aria-live="polite" className="text-corp">
         {rezultat.tip === "ok" ? <span className="text-success">Status actualizat.</span> : null}
         {rezultat.tip === "eroare" ? <span className="text-danger">{rezultat.mesaj}</span> : null}
       </p>

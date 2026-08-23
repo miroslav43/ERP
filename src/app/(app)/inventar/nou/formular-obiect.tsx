@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 
+import { Buton } from "@/components/ui/buton";
 import { STARI_OBIECT } from "@/schemas/inventory";
 import { ETICHETE_STARE } from "../etichete";
 import { creeazaObiect } from "../actions";
@@ -32,7 +33,7 @@ interface ValoriFormular {
   observatii: string;
 }
 
-const CLASA_CAMP = "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
+const CLASA_CAMP = "mt-1 w-full rounded-control border border-foreground/60 px-3 py-2 text-corp";
 
 export function FormularObiect({ categorii }: Proprietati) {
   const router = useRouter();
@@ -70,7 +71,7 @@ export function FormularObiect({ categorii }: Proprietati) {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {campuriText.map(([nume, eticheta, tip, obligatoriu]) => (
           <div key={nume}>
-            <label htmlFor={nume} className="block text-sm font-medium">
+            <label htmlFor={nume} className="text-corp block font-medium">
               {eticheta}
               {obligatoriu ? <span aria-hidden="true"> *</span> : null}
             </label>
@@ -88,13 +89,13 @@ export function FormularObiect({ categorii }: Proprietati) {
               )}
             />
             {formState.errors[nume] !== undefined ? (
-              <p className="text-danger mt-1 text-xs">{formState.errors[nume]?.message}</p>
+              <p className="text-danger text-nota mt-1">{formState.errors[nume]?.message}</p>
             ) : null}
           </div>
         ))}
 
         <div>
-          <label htmlFor="category_id" className="block text-sm font-medium">
+          <label htmlFor="category_id" className="text-corp block font-medium">
             Categorie
           </label>
           <select id="category_id" className={CLASA_CAMP} {...register("category_id")}>
@@ -108,7 +109,7 @@ export function FormularObiect({ categorii }: Proprietati) {
         </div>
 
         <div>
-          <label htmlFor="stare" className="block text-sm font-medium">
+          <label htmlFor="stare" className="text-corp block font-medium">
             Stare fizică
           </label>
           <select id="stare" defaultValue="nou" className={CLASA_CAMP} {...register("stare")}>
@@ -122,7 +123,7 @@ export function FormularObiect({ categorii }: Proprietati) {
       </div>
 
       <div>
-        <label htmlFor="observatii" className="block text-sm font-medium">
+        <label htmlFor="observatii" className="text-corp block font-medium">
           Observații
         </label>
         <textarea id="observatii" rows={3} className={CLASA_CAMP} {...register("observatii")} />
@@ -130,19 +131,15 @@ export function FormularObiect({ categorii }: Proprietati) {
 
       <div aria-live="polite">
         {eroare !== null ? (
-          <p className="border-danger bg-danger/8 text-danger rounded-md border p-3 text-sm">
+          <p className="border-danger bg-danger/8 text-danger rounded-control text-corp border p-3">
             {eroare}
           </p>
         ) : null}
       </div>
 
-      <button
-        type="submit"
-        disabled={inCurs}
-        className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-      >
-        {inCurs ? "Se salvează…" : "Salvează obiectul"}
-      </button>
+      <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+        Salvează obiectul
+      </Buton>
     </form>
   );
 }

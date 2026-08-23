@@ -2,6 +2,7 @@
 import { notFound } from "next/navigation";
 import { MailPlus, RotateCw, Users } from "lucide-react";
 
+import { buton } from "@/components/ui/buton";
 import { requirePlatformAdmin } from "@/lib/auth/platform";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { formatDateTime } from "@/lib/format/date";
@@ -34,9 +35,9 @@ type RandInvitatie = Readonly<{
   created_at: string | null;
 }>;
 
-const CLASA_CELULA = "px-4 py-3 text-sm text-foreground align-top";
+const CLASA_CELULA = "px-4 py-3 text-corp text-foreground align-top";
 const CLASA_ANTET =
-  "px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground";
+  "px-4 py-2 text-left text-nota font-semibold uppercase tracking-wide text-muted-foreground";
 
 export default async function PaginaMembri({ params }: { params: Promise<{ orgId: string }> }) {
   const actor = await requirePlatformAdmin();
@@ -77,13 +78,13 @@ export default async function PaginaMembri({ params }: { params: Promise<{ orgId
         role="alert"
         className="border-border bg-surface flex flex-col items-center gap-3 rounded-xl border p-10 text-center"
       >
-        <p className="text-danger text-sm font-medium">Membrii nu au putut fi încărcați</p>
-        <p className="text-muted-foreground max-w-md text-sm">
+        <p className="text-danger text-corp font-medium">Membrii nu au putut fi încărcați</p>
+        <p className="text-muted-foreground text-corp max-w-md">
           A apărut o problemă la citirea datelor organizației. Încearcă din nou.
         </p>
         <a
           href={`/super-admin/organizatii/${orgId}/membri`}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium"
+          className={buton({ varianta: "primar" })}
         >
           <RotateCw aria-hidden="true" className="h-4 w-4" />
           Reîncearcă
@@ -117,8 +118,8 @@ export default async function PaginaMembri({ params }: { params: Promise<{ orgId
   return (
     <section className="space-y-6">
       <header className="space-y-1">
-        <h1 className="text-foreground text-2xl font-semibold">Membri — {org.name}</h1>
-        <p className="text-muted-foreground text-sm">
+        <h1 className="text-foreground text-titlu font-semibold">Membri — {org.name}</h1>
+        <p className="text-muted-foreground text-corp">
           {org.seats_limit === null
             ? `${activi} membri activi și ${invitatii.length} invitații în așteptare. Planul nu are plafon de locuri.`
             : `${ocupate} din ${org.seats_limit} locuri ocupate (${activi} membri activi, ${invitatii.length} invitații în așteptare).`}
@@ -128,15 +129,15 @@ export default async function PaginaMembri({ params }: { params: Promise<{ orgId
       <FormularInvitatie organizationId={org.id} />
 
       <div className="border-border bg-surface rounded-xl border">
-        <h2 className="border-border text-foreground border-b px-4 py-3 text-sm font-semibold">
+        <h2 className="border-border text-foreground text-corp border-b px-4 py-3 font-semibold">
           Membri ({membri.length})
         </h2>
 
         {membri.length === 0 ? (
           <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
             <Users aria-hidden="true" className="text-muted-foreground h-8 w-8" />
-            <p className="text-foreground text-sm font-medium">Organizația nu are încă membri</p>
-            <p className="text-muted-foreground max-w-md text-sm">
+            <p className="text-foreground text-corp font-medium">Organizația nu are încă membri</p>
+            <p className="text-muted-foreground text-corp max-w-md">
               Folosește formularul de mai sus ca să trimiți prima invitație. Primul membru invitat
               ar trebui să aibă rolul „Administrator organizație”.
             </p>
@@ -177,7 +178,7 @@ export default async function PaginaMembri({ params }: { params: Promise<{ orgId
                       <td className={CLASA_CELULA}>
                         <span className="font-medium">{numeAfisat(profil)}</span>
                         {membru.job_title ? (
-                          <span className="text-muted-foreground block text-xs">
+                          <span className="text-muted-foreground text-nota block">
                             {membru.job_title}
                           </span>
                         ) : null}
@@ -221,15 +222,15 @@ export default async function PaginaMembri({ params }: { params: Promise<{ orgId
       </div>
 
       <div className="border-border bg-surface rounded-xl border">
-        <h2 className="border-border text-foreground border-b px-4 py-3 text-sm font-semibold">
+        <h2 className="border-border text-foreground text-corp border-b px-4 py-3 font-semibold">
           Invitații în așteptare ({invitatii.length})
         </h2>
 
         {invitatii.length === 0 ? (
           <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
             <MailPlus aria-hidden="true" className="text-muted-foreground h-8 w-8" />
-            <p className="text-foreground text-sm font-medium">Nicio invitație în așteptare</p>
-            <p className="text-muted-foreground max-w-md text-sm">
+            <p className="text-foreground text-corp font-medium">Nicio invitație în așteptare</p>
+            <p className="text-muted-foreground text-corp max-w-md">
               Toate invitațiile au fost acceptate, au expirat sau au fost revocate. Poți trimite una
               nouă din formularul de mai sus.
             </p>

@@ -184,7 +184,7 @@ export function CampCuiAnaf({ formular, idFormular }: Proprietati) {
               ? "Preia denumirea, sediul și codul CAEN din registrul public ANAF"
               : "Introduceți un CUI valid pentru a putea interoga registrul"
           }
-          className="border-border text-foreground hover:bg-surface disabled:text-muted-foreground mt-1 shrink-0 rounded-md border px-3 py-2 text-sm font-medium whitespace-nowrap disabled:cursor-not-allowed"
+          className="border-border text-foreground hover:bg-surface disabled:text-muted-foreground rounded-control text-corp mt-1 shrink-0 border px-3 py-2 font-medium whitespace-nowrap disabled:cursor-not-allowed"
         >
           {inCurs ? "Se interoghează…" : "Preia de la ANAF"}
         </button>
@@ -193,7 +193,7 @@ export function CampCuiAnaf({ formular, idFormular }: Proprietati) {
 
       <div id={`${idFormular}-anaf-stare`} aria-live="polite" className="mt-1">
         {stare.fel === "succes" && (
-          <p className="text-muted-foreground text-xs">
+          <p className="text-muted-foreground text-nota">
             {stare.completate.length === 0
               ? `„${stare.denumire}” a fost găsită, dar câmpurile erau deja completate — nu am schimbat nimic.`
               : `„${stare.denumire}” — s-au completat din registrul ANAF: ${stare.completate
@@ -201,11 +201,14 @@ export function CampCuiAnaf({ formular, idFormular }: Proprietati) {
                   .join(", ")}. Verificați-le înainte de a continua.`}
           </p>
         )}
-        {stare.fel === "eroare" && <p className="text-danger text-xs">{stare.mesaj}</p>}
+        {stare.fel === "eroare" && <p className="text-danger text-nota">{stare.mesaj}</p>}
       </div>
 
       {avertismente.length > 0 && (
-        <div role="alert" className="border-danger text-danger mt-2 rounded-md border p-2 text-xs">
+        <div
+          role="alert"
+          className="border-danger text-danger rounded-control text-nota mt-2 border p-2"
+        >
           {avertismente.map((avertisment) => (
             <p key={avertisment}>{avertisment}</p>
           ))}

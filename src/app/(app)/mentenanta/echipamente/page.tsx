@@ -5,9 +5,12 @@ import type { Metadata } from "next";
 import { Wrench, WrenchIcon } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { Badge } from "@/components/ui/badge";
+import { buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { RandTabel } from "@/components/data/rand-tabel";
-import { SkeletonTable } from "@/components/data/skeleton-table";
+import { Schelet } from "@/components/ui/schelet";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -15,7 +18,7 @@ import { filtreDinUrl } from "@/lib/rute/parametri";
 import { listeazaEchipamente } from "@/lib/queries/maintenance";
 import { filtreEchipamenteSchema } from "@/schemas/maintenance";
 
-import { CLASE_STATUS_ECHIPAMENT, ETICHETE_STATUS_ECHIPAMENT } from "../etichete";
+import { ETICHETE_STATUS_ECHIPAMENT, TONURI_STATUS_ECHIPAMENT } from "../etichete";
 import { NavMentenanta } from "../nav-mentenanta";
 import { FiltreEchipamenteForm } from "./filtre-echipamente";
 
@@ -38,16 +41,20 @@ async function TabelEchipamente({
   if (randuri.length === 0) {
     const areFiltre = filtre.status !== null || filtre.cauta !== null;
     return (
-      <EmptyState
-        icon={Wrench}
-        title={
+      <StareGoala
+        fel={areFiltre ? "filtrata" : "initiala"}
+        pictograma={Wrench}
+        titlu={
           areFiltre ? "Niciun rezultat pentru filtrele alese" : "Niciun echipament înregistrat"
         }
-        description={
+        descriere={
           areFiltre
             ? "Ștergeți filtrele ca să vedeți tot parcul de echipamente."
             : "Adăugați primul echipament ca să puteți urmări mentenanța și autorizațiile ISCIR."
         }
+        {...(areFiltre
+          ? { actiune: { eticheta: "Șterge filtrele", href: "/mentenanta/echipamente" } }
+          : {})}
       />
     );
   }
@@ -60,8 +67,8 @@ async function TabelEchipamente({
 
   return (
     <>
-      <div className="border-border overflow-x-auto rounded-lg border">
-        <table className="w-full text-sm">
+      <div className="border-border rounded-panou overflow-x-auto border">
+        <table className="text-corp w-full">
           <caption className="sr-only">Echipamentele organizației.</caption>
           <thead className="bg-surface text-left">
             <tr>
@@ -106,11 +113,9 @@ async function TabelEchipamente({
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  <span
-                    className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_STATUS_ECHIPAMENT[echipament.status]}`}
-                  >
+                  <Badge ton={TONURI_STATUS_ECHIPAMENT[echipament.status]}>
                     {ETICHETE_STATUS_ECHIPAMENT[echipament.status]}
-                  </span>
+                  </Badge>
                 </td>
               </RandTabel>
             ))}
@@ -122,7 +127,7 @@ async function TabelEchipamente({
         {urmatorulCursor === null ? null : (
           <Link
             href={`/mentenanta/echipamente?${cautare.toString()}`}
-            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
+            className={buton({ varianta: "secundar" })}
           >
             Pagina următoare
           </Link>
@@ -147,30 +152,27 @@ export default async function PaginaEchipamente({ searchParams }: ProprietatiPag
   const poateAdauga = can(permisiuni, "maintenance:update", "team");
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Echipamente</h1>
-          <p className="text-muted-foreground text-sm">
-            Parcul de echipamente al organizației, cu starea și acoperirea ISCIR.
-          </p>
-        </div>
-        {poateAdauga ? (
-          <Link
-            href="/mentenanta/echipamente/nou"
-            className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
-          >
-            Echipament nou
-          </Link>
-        ) : null}
-      </header>
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Echipamente"
+        descriere="Parcul de echipamente al organizației, cu starea și acoperirea ISCIR."
+        {...(poateAdauga
+          ? {
+              actiuni: (
+                <Link href="/mentenanta/echipamente/nou" className={buton({ varianta: "primar" })}>
+                  Echipament nou
+                </Link>
+              ),
+            }
+          : {})}
+        file={<NavMentenanta />}
+      />
 
-      <NavMentenanta />
       <FiltreEchipamenteForm />
 
-      <Suspense key={JSON.stringify(parametri)} fallback={<SkeletonTable cols={5} />}>
+      <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={5} />}>
         <TabelEchipamente organizationId={tenant.organizationId} parametri={parametri} />
       </Suspense>
-    </main>
+    </div>
   );
 }

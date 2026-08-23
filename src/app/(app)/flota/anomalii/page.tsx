@@ -4,8 +4,9 @@ import type { Metadata } from "next";
 import { CheckCircle2 } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
-import { SkeletonTable } from "@/components/data/skeleton-table";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { StareGoala } from "@/components/ui/stare-goala";
+import { Schelet } from "@/components/ui/schelet";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -24,10 +25,11 @@ async function TabelAnomalii({ organizationId }: { readonly organizationId: stri
     // Lista goală e o stare BUNĂ aici, nu o lipsă de date — textul trebuie să
     // spună asta, altfel omul caută ce a greșit.
     return (
-      <EmptyState
-        icon={CheckCircle2}
-        title="Nicio anomalie neconfirmată"
-        description="Kilometrajul tuturor vehiculelor este continuu. Diferențele apar aici automat, când o foaie de parcurs sare peste kilometri."
+      <StareGoala
+        fel="initiala"
+        pictograma={CheckCircle2}
+        titlu="Nicio anomalie neconfirmată"
+        descriere="Kilometrajul tuturor vehiculelor este continuu. Diferențele apar aici automat, când o foaie de parcurs sare peste kilometri."
       />
     );
   }
@@ -38,8 +40,8 @@ async function TabelAnomalii({ organizationId }: { readonly organizationId: stri
   );
 
   return (
-    <div className="border-border overflow-x-auto rounded-lg border">
-      <table className="w-full text-sm">
+    <div className="border-border rounded-panou overflow-x-auto border">
+      <table className="text-corp w-full">
         <caption className="sr-only">
           Discontinuități de kilometraj constatate automat, în așteptarea unei explicații.
         </caption>
@@ -74,7 +76,7 @@ async function TabelAnomalii({ organizationId }: { readonly organizationId: stri
               </td>
               <td className="px-4 py-3 text-right tabular-nums">
                 {a.km_declarat.toLocaleString("ro-RO")} km
-                <span className="text-foreground ml-2 text-xs">
+                <span className="text-foreground text-nota ml-2">
                   +{(a.km_declarat - a.km_asteptat).toLocaleString("ro-RO")}
                 </span>
               </td>
@@ -101,29 +103,35 @@ export default async function PaginaAnomalii() {
   }
 
   return (
-    <main className="space-y-6 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Anomalii de kilometraj</h1>
-        <p className="text-muted-foreground max-w-3xl text-sm">
-          Un kilometraj care sare peste o diferență neobișnuită nu blochează salvarea foii — cea mai
-          frecventă explicație e o cursă necompletată, iar un refuz l-ar împinge pe șofer să
-          potrivească cifra. Diferența ajunge aici, ca cineva să o explice.
-          <span className="mt-1 block">
-            Un <strong>regres</strong> de kilometraj, în schimb, e refuzat din start: un odometru nu
-            poate da înapoi.
-          </span>
-        </p>
-      </header>
-
-      <NavFlota
-        poateVedeaFoi={can(permisiuni, "trip_sheets:read", "own")}
-        poateAproba={can(permisiuni, "trip_sheets:approve", "team")}
-        poateVedeaAnomalii={can(permisiuni, "vehicles:update", "team")}
+    <div className="space-y-6">
+      {/* Textul explicativ rămâne JSX (are `<strong>` și un al doilea bloc), deci
+          nu încape în prop-ul `descriere`, care e string. Trece prin `file`, ca
+          să stea în același bloc de antet, deasupra benzii de file. */}
+      <AntetPagina
+        titlu="Anomalii de kilometraj"
+        file={
+          <>
+            <p className="text-muted-foreground text-corp max-w-3xl">
+              Un kilometraj care sare peste o diferență neobișnuită nu blochează salvarea foii — cea
+              mai frecventă explicație e o cursă necompletată, iar un refuz l-ar împinge pe șofer să
+              potrivească cifra. Diferența ajunge aici, ca cineva să o explice.
+              <span className="mt-1 block">
+                Un <strong>regres</strong> de kilometraj, în schimb, e refuzat din start: un
+                odometru nu poate da înapoi.
+              </span>
+            </p>
+            <NavFlota
+              poateVedeaFoi={can(permisiuni, "trip_sheets:read", "own")}
+              poateAproba={can(permisiuni, "trip_sheets:approve", "team")}
+              poateVedeaAnomalii={can(permisiuni, "vehicles:update", "team")}
+            />
+          </>
+        }
       />
 
-      <Suspense fallback={<SkeletonTable cols={5} />}>
+      <Suspense fallback={<Schelet forma="tabel" coloane={5} />}>
         <TabelAnomalii organizationId={tenant.organizationId} />
       </Suspense>
-    </main>
+    </div>
   );
 }

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { numaraZileCerere, type PortiuneZi } from "@/domain/leave/zile-cerere";
 import { creeazaCerereConcediu } from "@/app/(app)/concedii/actions";
 import { ETICHETE_PORTIUNE } from "@/app/(app)/concedii/etichete";
+import { Buton } from "@/components/ui/buton";
 import { formatAmount } from "@/lib/format/money";
 
 /**
@@ -58,7 +59,7 @@ const ETICHETE_PLATITOR: Readonly<Record<CodMedical["platitor"], string>> = {
 const PORTIUNI: readonly PortiuneZi[] = ["zi_intreaga", "prima_jumatate", "a_doua_jumatate"];
 
 const CLASA_CAMP =
-  "mt-1 min-h-11 w-full rounded-md border border-foreground/60 bg-background px-3 py-2 text-sm";
+  "mt-1 min-h-11 w-full rounded-control border border-foreground/60 bg-background px-3 py-2 text-corp";
 
 export function FormularCererePortal({
   tipuri,
@@ -191,7 +192,7 @@ export function FormularCererePortal({
       noValidate
     >
       <div>
-        <label htmlFor={idTip} className="text-foreground text-sm font-medium">
+        <label htmlFor={idTip} className="text-foreground text-corp font-medium">
           Tipul de concediu
         </label>
         <select
@@ -209,7 +210,7 @@ export function FormularCererePortal({
           ))}
         </select>
         {tip?.necesita_document === true ? (
-          <p className="text-muted-foreground mt-1 text-xs">
+          <p className="text-muted-foreground text-nota mt-1">
             Pentru acest tip veți avea nevoie de un document justificativ. Îl predați resurselor
             umane.
           </p>
@@ -218,7 +219,7 @@ export function FormularCererePortal({
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
-          <label htmlFor={idInceput} className="text-foreground text-sm font-medium">
+          <label htmlFor={idInceput} className="text-foreground text-corp font-medium">
             Din data
           </label>
           <input
@@ -235,7 +236,7 @@ export function FormularCererePortal({
           />
         </div>
         <div>
-          <label htmlFor={idSfarsit} className="text-foreground text-sm font-medium">
+          <label htmlFor={idSfarsit} className="text-foreground text-corp font-medium">
             Până în data
           </label>
           <input
@@ -254,7 +255,7 @@ export function FormularCererePortal({
       {aratăJumatati ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
-            <label htmlFor={idPortiuneInceput} className="text-foreground text-sm font-medium">
+            <label htmlFor={idPortiuneInceput} className="text-foreground text-corp font-medium">
               Prima zi
             </label>
             <select
@@ -273,7 +274,7 @@ export function FormularCererePortal({
             </select>
           </div>
           <div>
-            <label htmlFor={idPortiuneSfarsit} className="text-foreground text-sm font-medium">
+            <label htmlFor={idPortiuneSfarsit} className="text-foreground text-corp font-medium">
               Ultima zi
             </label>
             <select
@@ -293,20 +294,19 @@ export function FormularCererePortal({
           </div>
         </div>
       ) : (
-        <button
-          type="button"
+        <Buton
+          varianta="link"
           onClick={() => {
             setAratăJumatati(true);
           }}
-          className="text-primary min-h-11 text-sm underline-offset-2 hover:underline"
         >
           Am nevoie de jumătăți de zi
-        </button>
+        </Buton>
       )}
 
       {varianteTip.length > 0 && (
         <div>
-          <label htmlFor={idVarianta} className="text-foreground text-sm font-medium">
+          <label htmlFor={idVarianta} className="text-foreground text-corp font-medium">
             Variantă legală
           </label>
           <select
@@ -325,7 +325,7 @@ export function FormularCererePortal({
             ))}
           </select>
           {variantaAleasa !== null && (
-            <p aria-live="polite" className="text-muted-foreground mt-1 text-sm">
+            <p aria-live="polite" className="text-muted-foreground text-corp mt-1">
               {variantaAleasa.conditie_descriere} Va trebui să atașezi documentul justificativ.
             </p>
           )}
@@ -333,16 +333,16 @@ export function FormularCererePortal({
       )}
 
       {esteMedical && (
-        <fieldset className="border-border bg-surface rounded-lg border p-4">
-          <legend className="px-1 text-sm font-medium">Certificatul medical</legend>
-          <p className="text-muted-foreground mb-3 text-sm">
+        <fieldset className="border-border bg-surface rounded-panou border p-4">
+          <legend className="text-corp px-1 font-medium">Certificatul medical</legend>
+          <p className="text-muted-foreground text-corp mb-3">
             Trece codul de pe certificatul primit de la medic. El decide procentul indemnizației și
             cine o suportă.
           </p>
 
           <div className="space-y-4">
             <div>
-              <label htmlFor={idCodMedical} className="text-foreground text-sm font-medium">
+              <label htmlFor={idCodMedical} className="text-foreground text-corp font-medium">
                 Cod de indemnizație
               </label>
               <select
@@ -362,7 +362,7 @@ export function FormularCererePortal({
                 ))}
               </select>
               {codAles !== null && (
-                <p aria-live="polite" className="text-muted-foreground mt-1 text-sm">
+                <p aria-live="polite" className="text-muted-foreground text-corp mt-1">
                   {formatAmount(codAles.procent)}% din baza de calcul,{" "}
                   {ETICHETE_PLATITOR[codAles.platitor]}
                   {codAles.zileAngajator > 0
@@ -373,7 +373,7 @@ export function FormularCererePortal({
             </div>
 
             <div>
-              <label htmlFor={idSerie} className="text-foreground text-sm font-medium">
+              <label htmlFor={idSerie} className="text-foreground text-corp font-medium">
                 Seria <span className="text-muted-foreground font-normal">(opțional)</span>
               </label>
               <input
@@ -389,7 +389,7 @@ export function FormularCererePortal({
             </div>
 
             <div>
-              <label htmlFor={idNumar} className="text-foreground text-sm font-medium">
+              <label htmlFor={idNumar} className="text-foreground text-corp font-medium">
                 Numărul certificatului
               </label>
               <input
@@ -409,7 +409,7 @@ export function FormularCererePortal({
       )}
 
       <div>
-        <label htmlFor={idMotiv} className="text-foreground text-sm font-medium">
+        <label htmlFor={idMotiv} className="text-foreground text-corp font-medium">
           Motiv <span className="text-muted-foreground font-normal">(opțional)</span>
         </label>
         <textarea
@@ -425,9 +425,9 @@ export function FormularCererePortal({
       </div>
 
       {previzualizare === null ? null : (
-        <div className="bg-surface border-border rounded-lg border p-4">
-          <p className="text-foreground text-sm">
-            <span className="text-2xl font-semibold tabular-nums">
+        <div className="bg-surface border-border rounded-panou border p-4">
+          <p className="text-foreground text-corp">
+            <span className="text-titlu font-semibold tabular-nums">
               {previzualizare.zileLucratoare.toLocaleString("ro-RO")}
             </span>{" "}
             {previzualizare.zileLucratoare === 1 ? "zi lucrătoare" : "zile lucrătoare"}
@@ -437,7 +437,7 @@ export function FormularCererePortal({
             </span>
           </p>
           {tip?.scade_din_sold === true && ramase !== null ? (
-            <p className="text-muted-foreground mt-1 text-sm">
+            <p className="text-muted-foreground text-corp mt-1">
               Aveți {ramase.toLocaleString("ro-RO")} zile. După aprobare ar rămâne{" "}
               <span
                 className={
@@ -453,7 +453,7 @@ export function FormularCererePortal({
           ) : null}
           {/* Previzualizarea e orientativă; soldul se verifică exact la trimitere,
               în acțiune, unde vede și cererile depuse între timp de altcineva. */}
-          <p className="text-muted-foreground mt-2 text-xs">
+          <p className="text-muted-foreground text-nota mt-2">
             Cifrele se recalculează exact la trimitere.
           </p>
         </div>
@@ -465,33 +465,34 @@ export function FormularCererePortal({
         <p
           role="alert"
           aria-live="assertive"
-          className="border-danger/40 bg-danger/10 text-foreground rounded-md border p-3 text-sm"
+          className="border-danger/40 bg-danger/10 text-foreground rounded-control text-corp border p-3"
         >
           {eroare}
         </p>
       )}
 
       <div className="flex flex-col gap-2 sm:flex-row">
-        <button
-          type="button"
-          disabled={inCurs || tipuri.length === 0}
+        <Buton
+          varianta="primar"
+          className="flex-1"
+          disabled={tipuri.length === 0}
+          inCurs={inCurs}
+          textInCurs="Se trimite…"
           onClick={() => {
             trimiteFormular(true);
           }}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover min-h-11 flex-1 rounded-md px-4 text-sm font-medium transition-colors disabled:opacity-60"
         >
-          {inCurs ? "Se trimite…" : "Trimite cererea"}
-        </button>
-        <button
-          type="button"
+          Trimite cererea
+        </Buton>
+        <Buton
+          varianta="secundar"
           disabled={inCurs || tipuri.length === 0}
           onClick={() => {
             trimiteFormular(false);
           }}
-          className="border-border hover:border-primary text-foreground min-h-11 rounded-md border px-4 text-sm font-medium transition-colors disabled:opacity-60"
         >
           Salvează ciornă
-        </button>
+        </Buton>
       </div>
     </form>
   );

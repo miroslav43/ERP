@@ -5,6 +5,7 @@ import { useId, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
 
+import { Buton } from "@/components/ui/buton";
 import { STATUSURI_ANGAJAT } from "@/schemas/employee";
 import { ETICHETE_STATUS } from "./etichete";
 
@@ -32,13 +33,13 @@ export function FiltreAngajati() {
       action={aplica}
       role="search"
       aria-label="Filtrare angajați"
-      className="border-border flex flex-wrap items-end gap-4 rounded-lg border p-4"
+      className="border-border rounded-panou flex flex-wrap items-end gap-4 border p-4"
     >
       <div className="min-w-56 flex-1">
-        <label htmlFor={idCautare} className="block text-sm font-medium">
+        <label htmlFor={idCautare} className="text-corp block font-medium">
           Caută după nume
         </label>
-        <div className="border-foreground/60 mt-1 flex items-center gap-2 rounded-md border px-2 focus-within:outline-2">
+        <div className="border-foreground/60 rounded-control mt-1 flex items-center gap-2 border px-2 focus-within:outline-2">
           <Search aria-hidden="true" className="text-muted-foreground size-4" />
           <input
             id={idCautare}
@@ -46,20 +47,20 @@ export function FiltreAngajati() {
             type="search"
             defaultValue={parametri.get("q") ?? ""}
             placeholder="Ex. Popescu"
-            className="w-full bg-transparent py-2 text-sm"
+            className="text-corp w-full bg-transparent py-2"
           />
         </div>
       </div>
 
       <div>
-        <label htmlFor={idStatus} className="block text-sm font-medium">
+        <label htmlFor={idStatus} className="text-corp block font-medium">
           Stare
         </label>
         <select
           id={idStatus}
           name="status"
           defaultValue={parametri.get("status") ?? ""}
-          className="border-foreground/60 mt-1 rounded-md border px-2 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp mt-1 border px-2 py-2"
         >
           <option value="">Toate</option>
           {STATUSURI_ANGAJAT.map((status) => (
@@ -70,13 +71,9 @@ export function FiltreAngajati() {
         </select>
       </div>
 
-      <button
-        type="submit"
-        disabled={inCurs}
-        className="bg-primary text-primary-foreground disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-      >
-        {inCurs ? "Se filtrează…" : "Aplică filtrele"}
-      </button>
+      <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se filtrează…">
+        Aplică filtrele
+      </Buton>
       <p aria-live="polite" className="sr-only">
         {inCurs ? "Se aplică filtrele." : "Filtre aplicate."}
       </p>

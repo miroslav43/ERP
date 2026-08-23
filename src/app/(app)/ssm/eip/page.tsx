@@ -5,8 +5,10 @@ import type { Metadata } from "next";
 import { HardHat } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
-import { SkeletonTable } from "@/components/data/skeleton-table";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
+import { Schelet } from "@/components/ui/schelet";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
@@ -38,10 +40,11 @@ async function TabelEip({
 
   if (randuri.length === 0) {
     return (
-      <EmptyState
-        icon={HardHat}
-        title="Niciun echipament predat"
-        description="Predați primul echipament individual de protecție folosind formularul de mai jos."
+      <StareGoala
+        fel="initiala"
+        pictograma={HardHat}
+        titlu="Niciun echipament predat"
+        descriere="Predați primul echipament individual de protecție folosind formularul de mai jos."
       />
     );
   }
@@ -59,8 +62,8 @@ async function TabelEip({
 
   return (
     <>
-      <div className="border-border overflow-x-auto rounded-lg border">
-        <table className="w-full text-sm">
+      <div className="border-border rounded-panou overflow-x-auto border">
+        <table className="text-corp w-full">
           <caption className="sr-only">Echipamentul individual de protecție predat.</caption>
           <thead className="bg-surface text-left">
             <tr>
@@ -117,10 +120,7 @@ async function TabelEip({
 
       <nav aria-label="Paginare" className="flex justify-end">
         {urmatorulCursor === null ? null : (
-          <Link
-            href={`/ssm/eip?${cautare.toString()}`}
-            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
-          >
+          <Link href={`/ssm/eip?${cautare.toString()}`} className={buton({ varianta: "secundar" })}>
             Pagina următoare
           </Link>
         )}
@@ -163,30 +163,29 @@ export default async function PaginaEip({ searchParams }: ProprietatiPagina) {
   }
 
   return (
-    <main className="space-y-6 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Echipament individual de protecție</h1>
-        <p className="text-muted-foreground text-sm">
-          Predările de EIP, cu data de înlocuire calculată automat.
-        </p>
-      </header>
-
-      <NavSsm
-        poateVedeaInstruiri={
-          can(permisiuni, "ssm:read", "team") && can(permisiuni, "employees:read", "team")
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Echipament individual de protecție"
+        descriere="Predările de EIP, cu data de înlocuire calculată automat."
+        file={
+          <NavSsm
+            poateVedeaInstruiri={
+              can(permisiuni, "ssm:read", "team") && can(permisiuni, "employees:read", "team")
+            }
+            poateVedeaMedicina={can(permisiuni, "ssm:read", "team")}
+            poateVedeaAccidente={can(permisiuni, "ssm:read", "team")}
+            poateVedeaStingatoare={can(permisiuni, "ssm:read", "team")}
+            poateVedeaEip
+            poateVedeaAutorizatii={can(permisiuni, "ssm:read", "team")}
+          />
         }
-        poateVedeaMedicina={can(permisiuni, "ssm:read", "team")}
-        poateVedeaAccidente={can(permisiuni, "ssm:read", "team")}
-        poateVedeaStingatoare={can(permisiuni, "ssm:read", "team")}
-        poateVedeaEip
-        poateVedeaAutorizatii={can(permisiuni, "ssm:read", "team")}
       />
 
       {poateCrea ? <FormularEip angajati={angajati} /> : null}
 
-      <Suspense key={JSON.stringify(parametri)} fallback={<SkeletonTable cols={6} />}>
+      <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={6} />}>
         <TabelEip organizationId={tenant.organizationId} parametri={parametri} />
       </Suspense>
-    </main>
+    </div>
   );
 }

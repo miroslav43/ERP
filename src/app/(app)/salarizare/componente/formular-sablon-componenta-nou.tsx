@@ -4,6 +4,7 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
 import { TIPURI_COMPONENTA_SALARIALA } from "@/schemas/salary-component";
 import { creeazaSablonComponenta } from "./actions";
 
@@ -48,25 +49,24 @@ export function FormularSablonComponentaNou() {
 
   if (!deschis) {
     return (
-      <button
-        type="button"
+      <Buton
+        varianta="primar"
         onClick={() => {
           setDeschis(true);
         }}
-        className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium"
       >
         Șablon nou
-      </button>
+      </Buton>
     );
   }
 
   return (
     <form
       action={trimite}
-      className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-2"
+      className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-2"
     >
       <div className="flex flex-col gap-1">
-        <label htmlFor={idCod} className="text-sm font-medium">
+        <label htmlFor={idCod} className="text-corp font-medium">
           Cod intern *
         </label>
         <input
@@ -76,11 +76,11 @@ export function FormularSablonComponentaNou() {
           required
           maxLength={40}
           placeholder="spor_vechime"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={idDenumire} className="text-sm font-medium">
+        <label htmlFor={idDenumire} className="text-corp font-medium">
           Denumire *
         </label>
         <input
@@ -89,18 +89,18 @@ export function FormularSablonComponentaNou() {
           type="text"
           required
           maxLength={160}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
       <div className="flex flex-col gap-1 sm:col-span-2">
-        <label htmlFor={idKind} className="text-sm font-medium">
+        <label htmlFor={idKind} className="text-corp font-medium">
           Tip *
         </label>
         <select
           id={idKind}
           name="kind"
           required
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         >
           {TIPURI_COMPONENTA_SALARIALA.map((tip) => (
             <option key={tip} value={tip}>
@@ -110,7 +110,7 @@ export function FormularSablonComponentaNou() {
         </select>
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={idCodRevisal} className="text-sm font-medium">
+        <label htmlFor={idCodRevisal} className="text-corp font-medium">
           Cod REVISAL
         </label>
         <input
@@ -118,7 +118,7 @@ export function FormularSablonComponentaNou() {
           name="cod_revisal"
           type="text"
           maxLength={40}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
       <div className="flex flex-col gap-2 sm:col-span-2">
@@ -130,7 +130,7 @@ export function FormularSablonComponentaNou() {
             defaultChecked
             className="border-border size-4 rounded"
           />
-          <label htmlFor="impozabil" className="text-sm">
+          <label htmlFor="impozabil" className="text-corp">
             Impozabil
           </label>
         </div>
@@ -142,7 +142,7 @@ export function FormularSablonComponentaNou() {
             defaultChecked
             className="border-border size-4 rounded"
           />
-          <label htmlFor="intra_in_baza_cas" className="text-sm">
+          <label htmlFor="intra_in_baza_cas" className="text-corp">
             Intră în baza CAS
           </label>
         </div>
@@ -154,31 +154,26 @@ export function FormularSablonComponentaNou() {
             defaultChecked
             className="border-border size-4 rounded"
           />
-          <label htmlFor="intra_in_baza_cass" className="text-sm">
+          <label htmlFor="intra_in_baza_cass" className="text-corp">
             Intră în baza CASS
           </label>
         </div>
       </div>
       <div className="flex items-center gap-3 sm:col-span-2">
-        <button
-          type="submit"
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se creează…" : "Creează șablonul"}
-        </button>
-        <button
-          type="button"
+        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se creează…">
+          Creează șablonul
+        </Buton>
+        <Buton
+          varianta="link"
           onClick={() => {
             setDeschis(false);
             setEroare(null);
           }}
-          className="text-muted-foreground hover:text-foreground text-sm underline underline-offset-4"
         >
           Renunță
-        </button>
+        </Buton>
         {eroare === null ? null : (
-          <p role="alert" className="text-danger text-sm">
+          <p role="alert" className="text-danger text-corp">
             {eroare}
           </p>
         )}

@@ -5,8 +5,11 @@ import type { Metadata } from "next";
 import { GraduationCap, Plus } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
-import { SkeletonTable } from "@/components/data/skeleton-table";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
+import { Schelet } from "@/components/ui/schelet";
+import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
@@ -18,7 +21,7 @@ import { cheieMatrice, matriceInstruiri, periodicitati, tipuriInstruire } from "
 import { filtreInstruiriSchema } from "@/schemas/ssm";
 import { stareScadentaSsm } from "@/domain/ssm/scadente";
 
-import { CLASE_SCADENTA, ETICHETE_DOMENIU, ETICHETE_SCADENTA } from "../etichete";
+import { ETICHETE_DOMENIU, ETICHETE_SCADENTA, TONURI_SCADENTA } from "../etichete";
 import { NavSsm } from "../nav-ssm";
 import { FiltreInstruiri } from "./filtre-instruiri";
 
@@ -66,24 +69,34 @@ async function Matrice({
   if (angajati.length === 0) {
     const areFiltre = filtre.q !== null;
     return (
-      <EmptyState
-        icon={GraduationCap}
-        title={areFiltre ? "Niciun rezultat pentru filtrele alese" : "Niciun angajat de afișat"}
-        description={
+      <StareGoala
+        fel={areFiltre ? "filtrata" : "initiala"}
+        pictograma={GraduationCap}
+        titlu={areFiltre ? "Niciun rezultat pentru filtrele alese" : "Niciun angajat de afișat"}
+        descriere={
           areFiltre
             ? "Ștergeți filtrele ca să vedeți toți angajații."
             : "Nu aveți acces la niciun angajat activ în acest scop."
         }
+        {...(areFiltre
+          ? {
+              actiune: {
+                eticheta: "Șterge filtrele",
+                href: `/ssm/instruiri?domeniu=${filtre.domeniu}`,
+              },
+            }
+          : {})}
       />
     );
   }
 
   if (tipuri.length === 0) {
     return (
-      <EmptyState
-        icon={GraduationCap}
-        title="Niciun tip de instruire configurat pentru acest domeniu"
-        description="Nomenclatorul de tipuri de instruire se completează de administratorul organizației."
+      <StareGoala
+        fel="initiala"
+        pictograma={GraduationCap}
+        titlu="Niciun tip de instruire configurat pentru acest domeniu"
+        descriere="Nomenclatorul de tipuri de instruire se completează de administratorul organizației."
       />
     );
   }
@@ -98,8 +111,8 @@ async function Matrice({
 
   return (
     <>
-      <div className="border-border overflow-x-auto rounded-lg border">
-        <table className="w-full text-sm">
+      <div className="border-border rounded-panou overflow-x-auto border">
+        <table className="text-corp w-full">
           <caption className="sr-only">
             Matricea de instruiri {ETICHETE_DOMENIU[filtre.domeniu]}, angajați × tipuri.
           </caption>
@@ -137,13 +150,11 @@ async function Matrice({
                   );
                   return (
                     <td key={tip.id} className="px-4 py-3 whitespace-nowrap">
-                      <span
-                        className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_SCADENTA[stare]}`}
-                      >
+                      <Badge ton={TONURI_SCADENTA[stare]} cuAvertisment={stare === "expirat"}>
                         {ETICHETE_SCADENTA[stare]}
-                      </span>
+                      </Badge>
                       {rand === undefined ? null : (
-                        <span className="text-muted-foreground ml-2 text-xs">
+                        <span className="text-muted-foreground text-nota ml-2">
                           {formatDate(rand.data_instruirii)}
                         </span>
                       )}
@@ -160,7 +171,7 @@ async function Matrice({
         {urmatorulCursor === null ? null : (
           <Link
             href={`/ssm/instruiri?${cautare.toString()}`}
-            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
+            className={buton({ varianta: "secundar" })}
           >
             Pagina următoare
           </Link>
@@ -192,37 +203,35 @@ export default async function PaginaInstruiri({ searchParams }: ProprietatiPagin
   const poateCrea = can(permisiuni, "ssm:create", "team");
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Instruiri</h1>
-          <p className="text-muted-foreground text-sm">
-            Matricea angajați × tipuri de instruire, cu cea mai recentă efectuare.
-          </p>
-        </div>
-        {poateCrea ? (
-          <Link
-            href="/ssm/instruiri/noua"
-            className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
-          >
-            <Plus aria-hidden="true" className="size-4" />
-            Instruire nouă
-          </Link>
-        ) : null}
-      </header>
-
-      <NavSsm
-        poateVedeaInstruiri
-        poateVedeaMedicina={can(permisiuni, "ssm:read", "team")}
-        poateVedeaAccidente={can(permisiuni, "ssm:read", "team")}
-        poateVedeaStingatoare={can(permisiuni, "ssm:read", "team")}
-        poateVedeaEip={can(permisiuni, "ssm:read", "team")}
-        poateVedeaAutorizatii={can(permisiuni, "ssm:read", "team")}
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Instruiri"
+        descriere="Matricea angajați × tipuri de instruire, cu cea mai recentă efectuare."
+        {...(poateCrea
+          ? {
+              actiuni: (
+                <Link href="/ssm/instruiri/noua" className={buton({ varianta: "primar" })}>
+                  <Plus aria-hidden="true" className="size-4" />
+                  Instruire nouă
+                </Link>
+              ),
+            }
+          : {})}
+        file={
+          <NavSsm
+            poateVedeaInstruiri
+            poateVedeaMedicina={can(permisiuni, "ssm:read", "team")}
+            poateVedeaAccidente={can(permisiuni, "ssm:read", "team")}
+            poateVedeaStingatoare={can(permisiuni, "ssm:read", "team")}
+            poateVedeaEip={can(permisiuni, "ssm:read", "team")}
+            poateVedeaAutorizatii={can(permisiuni, "ssm:read", "team")}
+          />
+        }
       />
 
       <FiltreInstruiri />
 
-      <Suspense key={JSON.stringify(parametri)} fallback={<SkeletonTable cols={6} />}>
+      <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={6} />}>
         <Matrice
           organizationId={tenant.organizationId}
           userId={user.id}
@@ -230,6 +239,6 @@ export default async function PaginaInstruiri({ searchParams }: ProprietatiPagin
           parametri={parametri}
         />
       </Suspense>
-    </main>
+    </div>
   );
 }

@@ -84,7 +84,7 @@ export function TaxePieChart({ felii, titluCentral = "din brut" }: Proprietati) 
           {titluCentral}
         </text>
       </svg>
-      <ul className="space-y-1.5 text-sm">
+      <ul className="text-corp space-y-1.5">
         {felii.map((f) => (
           <li key={f.eticheta} className="flex items-center gap-2">
             <span
@@ -94,7 +94,7 @@ export function TaxePieChart({ felii, titluCentral = "din brut" }: Proprietati) 
             />
             <span className="flex-1">{f.eticheta}</span>
             <span className="font-medium tabular-nums">{formatLei(f.valoare)}</span>
-            <span className="text-muted-foreground text-xs">
+            <span className="text-muted-foreground text-nota">
               ({total > 0 ? ((f.valoare / total) * 100).toFixed(1) : "0"}%)
             </span>
           </li>

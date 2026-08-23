@@ -1,6 +1,7 @@
 // src/components/audit/filtre-audit.tsx
 import { Search } from "lucide-react";
 
+import { Buton, buton } from "@/components/ui/buton";
 import { OPTIUNI_ACTIUNI, OPTIUNI_ENTITATI, OPTIUNI_STATUS } from "@/lib/audit/etichete";
 import type { FiltreAudit, OptiuneOrganizatie } from "@/lib/queries/audit";
 
@@ -13,14 +14,14 @@ type Props = Readonly<{
 }>;
 
 const clasaCamp =
-  "w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:  ";
-const clasaEticheta = "mb-1 block text-xs font-medium text-muted-foreground";
+  "w-full rounded-control border border-border bg-background px-3 py-2 text-corp text-foreground";
+const clasaEticheta = "mb-1 block text-nota font-medium text-muted-foreground";
 
 export function FiltreAuditForm({ cale, filtre, organizatii }: Props) {
   return (
-    <form method="get" action={cale} className="border-border bg-surface rounded-lg border p-4">
+    <form method="get" action={cale} className="border-border bg-surface rounded-panou border p-4">
       <fieldset className="border-0 p-0">
-        <legend className="text-foreground mb-3 text-sm font-semibold">Filtrează jurnalul</legend>
+        <legend className="text-foreground text-corp mb-3 font-semibold">Filtrează jurnalul</legend>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <label htmlFor="filtru-de-la" className={clasaEticheta}>
@@ -150,17 +151,11 @@ export function FiltreAuditForm({ cale, filtre, organizatii }: Props) {
         </div>
       </fieldset>
       <div className="mt-4 flex flex-wrap items-center gap-3">
-        <button
-          type="submit"
-          className="bg-primary text-primary-foreground hover:bg-primary-hover focus: inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
-        >
+        <Buton varianta="primar" type="submit">
           <Search aria-hidden="true" className="size-4" />
           Filtrează
-        </button>
-        <a
-          href={cale}
-          className="text-muted-foreground hover:text-foreground focus: rounded-md px-2 py-2 text-sm underline underline-offset-4"
-        >
+        </Buton>
+        <a href={cale} className={buton({ varianta: "link" })}>
           Golește filtrele
         </a>
       </div>

@@ -2,7 +2,8 @@
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { Fluturas } from "@/components/payroll/fluturas";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -50,24 +51,25 @@ export default async function PaginaSalariulMeu() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 p-4">
-      <h1 className="text-foreground text-xl font-semibold">Salariul meu</h1>
+      <h1 className="text-foreground text-titlu font-semibold">Salariul meu</h1>
 
       {inregistrare === null ? (
-        <EmptyState
-          icon={Wallet}
-          title="Niciun fluturaș disponibil încă"
-          description="Fluturașul apare aici după ce luna e calculată și aprobată de resurse umane."
+        <StareGoala
+          fel="initiala"
+          pictograma={Wallet}
+          titlu="Niciun fluturaș disponibil încă"
+          descriere="Fluturașul apare aici după ce luna e calculată și aprobată de resurse umane."
         />
       ) : (
         <>
-          <p className="text-muted-foreground border-warning/40 bg-warning/8 rounded-lg border p-3 text-xs">
+          <p className="text-muted-foreground border-warning/40 bg-warning/8 rounded-panou text-nota border p-3">
             {AVERTISMENT_SALARIZARE}
           </p>
           <Fluturas inregistrare={inregistrare} bonusuri={bonusuri} retineri={retineri} />
 
           <a
             href={`/api/export/salarizare/fluturas?inregistrare=${inregistrare.id}`}
-            className="border-foreground/60 hover:bg-surface inline-flex min-h-11 w-fit items-center rounded-md border px-4 py-2 text-sm"
+            className={buton({ varianta: "secundar" })}
           >
             Descarcă fluturașul (PDF)
           </a>

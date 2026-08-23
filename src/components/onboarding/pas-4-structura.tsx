@@ -28,11 +28,11 @@ export function Pas4Structura({ formular, idFormular }: Proprietati) {
 
   return (
     <div className="space-y-6">
-      <fieldset className="border-border space-y-4 rounded-lg border p-4">
-        <legend className="text-foreground px-1 text-sm font-medium">
+      <fieldset className="border-border rounded-panou space-y-4 border p-4">
+        <legend className="text-foreground text-corp px-1 font-medium">
           Punct de lucru principal
         </legend>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-muted-foreground text-corp">
           Relevant pentru pontaj (geofencing/terminale per locație) și parc auto. Alte puncte de
           lucru se adaugă ulterior.
         </p>
@@ -102,8 +102,8 @@ export function Pas4Structura({ formular, idFormular }: Proprietati) {
         </div>
       </fieldset>
 
-      <fieldset className="border-border space-y-4 rounded-lg border p-4">
-        <legend className="text-foreground px-1 text-sm font-medium">Politica de concediu</legend>
+      <fieldset className="border-border rounded-panou space-y-4 border p-4">
+        <legend className="text-foreground text-corp px-1 font-medium">Politica de concediu</legend>
         <div>
           <label htmlFor={`${idFormular}-zile-concediu`} className={claseLabel}>
             Zile de concediu anual, implicit
@@ -117,7 +117,7 @@ export function Pas4Structura({ formular, idFormular }: Proprietati) {
             aria-invalid={Boolean(errors.zile_concediu_anual_implicit)}
             className={claseCamp}
           />
-          <p className="text-muted-foreground mt-1 text-xs">
+          <p className="text-muted-foreground text-nota mt-1">
             Valoarea implicită folosită la înrolarea fiecărui angajat nou.
           </p>
           <Eroare

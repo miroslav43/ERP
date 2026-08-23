@@ -3,6 +3,7 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
 import { TIPURI_CONTOR, TIPURI_MENTENANTA } from "@/schemas/maintenance";
 import { ETICHETE_TIP_CONTOR, ETICHETE_TIP_MENTENANTA } from "../../etichete";
 import { actualizeazaPlan, creeazaPlan } from "../../actions";
@@ -84,14 +85,14 @@ export function FormularPlan({
   return (
     <form
       action={trimite}
-      className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-3"
+      className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-2 lg:grid-cols-3"
     >
-      <p className="text-sm font-medium sm:col-span-2 lg:col-span-3">
+      <p className="text-corp font-medium sm:col-span-2 lg:col-span-3">
         {editare ? "Editează planul" : "Plan de mentenanță nou"}
       </p>
 
       <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-1">
-        <label htmlFor={idDenumire} className="text-sm">
+        <label htmlFor={idDenumire} className="text-corp">
           Denumire
         </label>
         <input
@@ -100,19 +101,19 @@ export function FormularPlan({
           required
           maxLength={200}
           defaultValue={planExistent?.denumire}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idTip} className="text-sm">
+        <label htmlFor={idTip} className="text-corp">
           Tip
         </label>
         <select
           id={idTip}
           name="tip"
           defaultValue={planExistent?.tip ?? "preventiva"}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         >
           {TIPURI_MENTENANTA.map((t) => (
             <option key={t} value={t}>
@@ -130,13 +131,13 @@ export function FormularPlan({
           defaultChecked={planExistent?.activ ?? true}
           className="size-4"
         />
-        <label htmlFor={idActiv} className="text-sm">
+        <label htmlFor={idActiv} className="text-corp">
           Plan activ
         </label>
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idPerZile} className="text-sm">
+        <label htmlFor={idPerZile} className="text-corp">
           Periodicitate (zile)
         </label>
         <input
@@ -145,12 +146,12 @@ export function FormularPlan({
           type="number"
           min="1"
           defaultValue={planExistent?.periodicitate_zile ?? undefined}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idPerContor} className="text-sm">
+        <label htmlFor={idPerContor} className="text-corp">
           Periodicitate (unități de contor)
         </label>
         <input
@@ -160,19 +161,19 @@ export function FormularPlan({
           min="0.01"
           step="0.01"
           defaultValue={planExistent?.periodicitate_contor ?? undefined}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idTipContor} className="text-sm">
+        <label htmlFor={idTipContor} className="text-corp">
           Tipul contorului
         </label>
         <select
           id={idTipContor}
           name="tip_contor"
           defaultValue={planExistent?.tip_contor ?? ""}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         >
           <option value="">— (doar dacă e periodicitate pe contor)</option>
           {TIPURI_CONTOR.map((t) => (
@@ -184,7 +185,7 @@ export function FormularPlan({
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor="ultima_executie" className="text-sm">
+        <label htmlFor="ultima_executie" className="text-corp">
           Ultima execuție
         </label>
         <input
@@ -192,19 +193,19 @@ export function FormularPlan({
           name="ultima_executie"
           type="date"
           defaultValue={planExistent?.ultima_executie ?? undefined}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idResponsabil} className="text-sm">
+        <label htmlFor={idResponsabil} className="text-corp">
           Responsabil
         </label>
         <select
           id={idResponsabil}
           name="responsabil_employee_id"
           defaultValue={planExistent?.responsabil_employee_id ?? ""}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         >
           <option value="">Nespecificat</option>
           {angajati.map((a) => (
@@ -216,7 +217,7 @@ export function FormularPlan({
       </div>
 
       <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-3">
-        <label htmlFor={idInstructiuni} className="text-sm">
+        <label htmlFor={idInstructiuni} className="text-corp">
           Instrucțiuni
         </label>
         <textarea
@@ -225,20 +226,16 @@ export function FormularPlan({
           rows={2}
           maxLength={2000}
           defaultValue={planExistent?.instructiuni ?? undefined}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-3">
-        <button
-          type="submit"
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se salvează…" : editare ? "Salvează modificările" : "Salvează planul"}
-        </button>
+        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+          {editare ? "Salvează modificările" : "Salvează planul"}
+        </Buton>
         {eroare === null ? null : (
-          <p role="alert" className="text-danger text-sm">
+          <p role="alert" className="text-danger text-corp">
             {eroare}
           </p>
         )}

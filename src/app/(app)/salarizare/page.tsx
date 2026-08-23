@@ -3,8 +3,11 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { buton } from "@/components/ui/buton";
 import { RandTabel } from "@/components/data/rand-tabel";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { StareGoala } from "@/components/ui/stare-goala";
+import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -14,7 +17,7 @@ import { Wallet } from "lucide-react";
 
 import {
   AVERTISMENT_SALARIZARE,
-  CLASE_STATUS_PERIOADA,
+  TONURI_STATUS_PERIOADA,
   ETICHETE_STATUS_PERIOADA,
   numeLuna,
 } from "./etichete";
@@ -29,9 +32,9 @@ export default async function PaginaSalarizare() {
 
   if (!can(permisiuni, "payroll:read", "all")) {
     return (
-      <main className="p-6">
+      <div>
         <AccesRestrictionat mesaj="Nu aveți dreptul de a administra salarizarea. Solicitați administratorului organizației rolul potrivit." />
-      </main>
+      </div>
     );
   }
 
@@ -39,45 +42,41 @@ export default async function PaginaSalarizare() {
   const perioade = await listeazaPerioade(tenant.organizationId);
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Salarizare</h1>
-          <p className="text-muted-foreground text-sm">
-            Perioadele de salarizare ale organizației.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Link
-            href="/salarizare/istoric-venituri"
-            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm font-medium"
-          >
-            Istoric venituri
-          </Link>
-          <Link
-            href="/salarizare/setari"
-            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm font-medium"
-          >
-            Setări
-          </Link>
-        </div>
-      </header>
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Salarizare"
+        descriere="Perioadele de salarizare ale organizației."
+        actiuni={
+          <>
+            <Link href="/salarizare/istoric-venituri" className={buton({ varianta: "secundar" })}>
+              Istoric venituri
+            </Link>
+            <Link href="/salarizare/setari" className={buton({ varianta: "secundar" })}>
+              Setări
+            </Link>
+          </>
+        }
+      />
 
-      <div role="note" className="border-warning/40 bg-warning/8 rounded-lg border p-4 text-sm">
+      <div
+        role="note"
+        className="border-warning/40 bg-warning/8 rounded-panou text-corp border p-4"
+      >
         {AVERTISMENT_SALARIZARE}
       </div>
 
       {poateCrea ? <FormularPerioadaNoua /> : null}
 
       {perioade.length === 0 ? (
-        <EmptyState
-          icon={Wallet}
-          title="Nicio perioadă de salarizare"
-          description="Configurați setările, apoi creați prima perioadă pentru o lună cu pontajul deschis."
+        <StareGoala
+          fel="initiala"
+          pictograma={Wallet}
+          titlu="Nicio perioadă de salarizare"
+          descriere="Configurați setările, apoi creați prima perioadă pentru o lună cu pontajul deschis."
         />
       ) : (
-        <div className="border-border overflow-x-auto rounded-lg border">
-          <table className="w-full text-sm">
+        <div className="border-border rounded-panou overflow-x-auto border">
+          <table className="text-corp w-full">
             <thead className="bg-surface text-left">
               <tr>
                 <th scope="col" className="px-4 py-3 font-medium">
@@ -109,11 +108,9 @@ export default async function PaginaSalarizare() {
                     </Link>
                   </td>
                   <td className="px-4 py-3">
-                    <span
-                      className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_STATUS_PERIOADA[p.status] ?? ""}`}
-                    >
+                    <Badge ton={TONURI_STATUS_PERIOADA[p.status] ?? "neutru"}>
                       {ETICHETE_STATUS_PERIOADA[p.status] ?? p.status}
-                    </span>
+                    </Badge>
                   </td>
                   <td className="px-4 py-3 text-right tabular-nums">{formatLei(p.total_brut)}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{formatLei(p.total_net)}</td>
@@ -126,6 +123,6 @@ export default async function PaginaSalarizare() {
           </table>
         </div>
       )}
-    </main>
+    </div>
   );
 }

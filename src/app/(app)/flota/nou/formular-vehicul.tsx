@@ -3,6 +3,7 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
 import { CATEGORII_VEHICUL, COMBUSTIBILI } from "@/schemas/fleet";
 
 import { creeazaVehicul } from "../actions";
@@ -73,14 +74,14 @@ export function FormularVehicul() {
         />
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.categorie} className="text-sm font-medium">
+          <label htmlFor={id.categorie} className="text-corp font-medium">
             Categorie
           </label>
           <select
             id={id.categorie}
             name="categorie"
             defaultValue="autoturism"
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           >
             {CATEGORII_VEHICUL.map((c) => (
               <option key={c} value={c}>
@@ -91,14 +92,14 @@ export function FormularVehicul() {
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.combustibil} className="text-sm font-medium">
+          <label htmlFor={id.combustibil} className="text-corp font-medium">
             Combustibil
           </label>
           <select
             id={id.combustibil}
             name="tip_combustibil"
             defaultValue="motorina"
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           >
             {COMBUSTIBILI.map((c) => (
               <option key={c} value={c}>
@@ -126,15 +127,11 @@ export function FormularVehicul() {
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="submit"
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se salvează…" : "Adaugă vehiculul"}
-        </button>
+        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+          Adaugă vehiculul
+        </Buton>
         {eroare === null ? null : (
-          <p role="alert" className="text-danger text-sm">
+          <p role="alert" className="text-danger text-corp">
             {eroare}
           </p>
         )}
@@ -163,7 +160,7 @@ function Camp({
   const idAjutor = `${id}-ajutor`;
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="text-sm font-medium">
+      <label htmlFor={id} className="text-corp font-medium">
         {eticheta}
         {obligatoriu ? (
           <span aria-hidden="true" className="text-danger">
@@ -179,10 +176,10 @@ function Camp({
         step={pas}
         required={obligatoriu}
         aria-describedby={ajutor === undefined ? undefined : idAjutor}
-        className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+        className="border-foreground/60 rounded-control text-corp border px-3 py-2"
       />
       {ajutor === undefined ? null : (
-        <p id={idAjutor} className="text-muted-foreground text-xs">
+        <p id={idAjutor} className="text-muted-foreground text-nota">
           {ajutor}
         </p>
       )}

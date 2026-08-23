@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
@@ -25,21 +26,19 @@ export default async function PaginaStingatorNou() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-2xl space-y-6 p-6">
-      <header>
-        <p className="text-muted-foreground text-sm">
-          <Link href="/ssm/stingatoare" className="underline-offset-2 hover:underline">
-            Stingătoare
-          </Link>
-        </p>
-        <h1 className="text-2xl font-semibold">Stingător nou</h1>
-        <p className="text-muted-foreground text-sm">
-          Scadențele de verificare, reîncărcare și probă de presiune se calculează automat, din
-          datele ultimelor operațiuni și periodicitățile legale ale organizației.
-        </p>
-      </header>
+    <div className={`${LATIMI.formular} space-y-6`}>
+      <p className="text-muted-foreground text-corp">
+        <Link href="/ssm/stingatoare" className="underline-offset-2 hover:underline">
+          Stingătoare
+        </Link>
+      </p>
+
+      <AntetPagina
+        titlu="Stingător nou"
+        descriere="Scadențele de verificare, reîncărcare și probă de presiune se calculează automat, din datele ultimelor operațiuni și periodicitățile legale ale organizației."
+      />
 
       <FormularStingator />
-    </main>
+    </div>
   );
 }

@@ -1,17 +1,16 @@
 // src/app/(app)/concedii/sold/error.tsx
 "use client";
 
-import { StareEroare } from "@/components/feedback/stare-eroare";
+import { StareEroare } from "@/components/ui/stare-eroare";
 
-export default function EroareSoldConcedii({
+export default function Eroare({
   error,
   reset,
-}: Readonly<{ error: Error & { digest?: string }; reset: () => void }>) {
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
   return (
-    <StareEroare
-      titlu="Soldul de concediu nu a putut fi încărcat"
-      eroare={error}
-      reincearca={reset}
-    />
+    <StareEroare eroare={error} reset={reset} titlu="Soldul de concediu nu a putut fi încărcat" />
   );
 }

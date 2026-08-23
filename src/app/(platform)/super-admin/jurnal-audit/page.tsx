@@ -35,8 +35,8 @@ export default async function PaginaAuditPlatforma({ searchParams }: Props) {
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">
-        <h1 className="text-foreground text-2xl font-semibold">Jurnal de audit</h1>
-        <p className="text-muted-foreground text-sm">
+        <h1 className="text-foreground text-titlu font-semibold">Jurnal de audit</h1>
+        <p className="text-muted-foreground text-corp">
           Toate evenimentele înregistrate în platformă, pe toate organizațiile. Înregistrările nu
           pot fi modificate sau șterse.
         </p>

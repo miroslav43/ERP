@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
@@ -36,18 +37,17 @@ export default async function PaginaFisaNoua() {
     .limit(500);
 
   return (
-    <main className="mx-auto w-full max-w-2xl space-y-6 p-6">
-      <header>
-        <p className="text-muted-foreground text-sm">
-          <Link href="/ssm/medicina-muncii" className="underline-offset-2 hover:underline">
-            Medicina muncii
-          </Link>
-        </p>
-        <h1 className="text-2xl font-semibold">Fișă de aptitudine nouă</h1>
-        <p className="text-muted-foreground text-sm">
-          Se stochează doar rezultatul aptitudinii — formularul nu are câmp de diagnostic.
-        </p>
-      </header>
+    <div className={`${LATIMI.formular} space-y-6`}>
+      <p className="text-muted-foreground text-corp">
+        <Link href="/ssm/medicina-muncii" className="underline-offset-2 hover:underline">
+          Medicina muncii
+        </Link>
+      </p>
+
+      <AntetPagina
+        titlu="Fișă de aptitudine nouă"
+        descriere="Se stochează doar rezultatul aptitudinii — formularul nu are câmp de diagnostic."
+      />
 
       <FormularFisa
         angajati={(angajati ?? []).map((a) => ({
@@ -56,6 +56,6 @@ export default async function PaginaFisaNoua() {
           marca: a.marca,
         }))}
       />
-    </main>
+    </div>
   );
 }

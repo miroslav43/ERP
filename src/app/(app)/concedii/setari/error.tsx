@@ -1,17 +1,20 @@
 // src/app/(app)/concedii/setari/error.tsx
 "use client";
 
-import { StareEroare } from "@/components/feedback/stare-eroare";
+import { StareEroare } from "@/components/ui/stare-eroare";
 
-export default function EroareSetariConcedii({
+export default function Eroare({
   error,
   reset,
-}: Readonly<{ error: Error & { digest?: string }; reset: () => void }>) {
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
   return (
     <StareEroare
-      titlu="Setările de concedii nu au putut fi încărcate"
       eroare={error}
-      reincearca={reset}
+      reset={reset}
+      titlu="Setările de concedii nu au putut fi încărcate"
     />
   );
 }

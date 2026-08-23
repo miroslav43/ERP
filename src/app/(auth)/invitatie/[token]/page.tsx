@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { z } from "zod";
+import { Buton } from "@/components/ui/buton";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { consumeRateLimit } from "@/lib/utils/rate-limit";
 import { param, tokenInvitatieSchema } from "@/schemas/auth";
@@ -31,14 +32,14 @@ type Props = {
 function Invalida() {
   return (
     <>
-      <h1 className="text-primary text-xl font-semibold">Invitația nu mai este validă.</h1>
-      <p className="text-muted-foreground mt-2 text-sm">
+      <h1 className="text-primary text-sectiune font-semibold">Invitația nu mai este validă.</h1>
+      <p className="text-muted-foreground text-corp mt-2">
         Este posibil să fi expirat, să fi fost revocată sau deja folosită. Cereți o invitație nouă
         administratorului organizației.
       </p>
       <Link
         href="/autentificare"
-        className="text-muted-foreground mt-6 inline-block rounded text-sm underline"
+        className="text-muted-foreground text-corp mt-6 inline-block rounded underline"
       >
         Mergi la autentificare
       </Link>
@@ -70,8 +71,8 @@ export default async function PaginaInvitatie({ params, searchParams }: Props) {
 
   return (
     <>
-      <h1 className="text-primary text-xl font-semibold">Invitație în organizație</h1>
-      <p className="text-muted-foreground mt-1 text-sm">
+      <h1 className="text-primary text-sectiune font-semibold">Invitație în organizație</h1>
+      <p className="text-muted-foreground text-corp mt-1">
         Ați fost invitat să vă alăturați organizației{" "}
         <span className="text-foreground font-medium">{invitatie.data.organization_name}</span>.
       </p>
@@ -79,7 +80,7 @@ export default async function PaginaInvitatie({ params, searchParams }: Props) {
       {eroare !== null && (
         <p
           role="alert"
-          className="text-danger border-danger/40 bg-danger/5 mt-4 rounded-md border px-3 py-2 text-sm"
+          className="text-danger border-danger/40 bg-danger/5 rounded-control text-corp mt-4 border px-3 py-2"
         >
           {eroare}
         </p>
@@ -87,7 +88,7 @@ export default async function PaginaInvitatie({ params, searchParams }: Props) {
       {linkTrimis && (
         <p
           role="status"
-          className="text-success border-success/40 bg-success/5 mt-4 rounded-md border px-3 py-2 text-sm"
+          className="text-success border-success/40 bg-success/5 rounded-control text-corp mt-4 border px-3 py-2"
         >
           Dacă adresa introdusă este cea invitată, veți primi în câteva minute un link de
           autentificare. Reveniți apoi pe această pagină.
@@ -97,39 +98,34 @@ export default async function PaginaInvitatie({ params, searchParams }: Props) {
       {sesiune.user ? (
         <form action={acceptaInvitatia} className="mt-6 flex flex-col gap-3">
           <input type="hidden" name="token" value={validat.data} />
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground text-corp">
             Sunteți autentificat ca{" "}
             <span className="text-foreground font-medium">{sesiune.user.email}</span>.
           </p>
-          <button
-            type="submit"
-            className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium transition-colors"
-          >
+          <Buton type="submit" varianta="primar">
             Acceptă invitația
-          </button>
+          </Buton>
         </form>
       ) : (
         <form action={trimiteLinkInvitatie} className="mt-6 flex flex-col gap-4">
           <input type="hidden" name="token" value={validat.data} />
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="email" className="text-sm font-medium">
+            <label htmlFor="email" className="text-corp font-medium">
               Adresa de e-mail pe care ați primit invitația
             </label>
+            {/* `pointer-coarse:text-sectiune` — vezi comentariul din `autentificare`. */}
             <input
               id="email"
               name="email"
               type="email"
               autoComplete="username"
               required
-              className="border-border bg-background focus:border-ring w-full rounded-md border px-3 py-2 text-sm"
+              className="border-border bg-background focus:border-ring rounded-control text-corp pointer-coarse:text-sectiune w-full border px-3 py-2"
             />
           </div>
-          <button
-            type="submit"
-            className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium transition-colors"
-          >
+          <Buton type="submit" varianta="primar">
             Trimite-mi linkul de autentificare
-          </button>
+          </Buton>
         </form>
       )}
     </>

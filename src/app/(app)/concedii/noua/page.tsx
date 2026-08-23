@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina } from "@/components/ui/antet-pagina";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -103,22 +104,20 @@ export default async function PaginaCerereNoua() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Cerere de concediu nouă</h1>
-        <p className="text-muted-foreground text-sm">
-          Previzualizarea zilelor consumate se calculează pe măsură ce completați formularul; soldul
-          se verifică din nou, exact, la trimitere.
-        </p>
-      </header>
-
-      <NavConcedii
-        poateAproba={poateAproba}
-        poateVedeaCalendar={poateVedeaCalendar}
-        poateConfigura={poateConfigura}
+      <AntetPagina
+        titlu="Cerere de concediu nouă"
+        descriere="Previzualizarea zilelor consumate se calculează pe măsură ce completați formularul; soldul se verifică din nou, exact, la trimitere."
+        file={
+          <NavConcedii
+            poateAproba={poateAproba}
+            poateVedeaCalendar={poateVedeaCalendar}
+            poateConfigura={poateConfigura}
+          />
+        }
       />
 
       {tipuri === null || tipuri.length === 0 ? (
-        <p className="border-warning/40 bg-warning/12 text-foreground rounded-lg border p-4 text-sm">
+        <p className="border-warning/40 bg-warning/12 text-foreground rounded-panou text-corp border p-4">
           Organizația nu are niciun tip de concediu activ configurat. Contactați administratorul.
         </p>
       ) : (

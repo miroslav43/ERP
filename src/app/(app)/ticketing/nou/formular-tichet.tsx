@@ -4,19 +4,20 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
 import { TIPURI_TICHET, type TipTichet } from "@/domain/ticketing/stari";
 import type { ObiectAlocat } from "@/lib/queries/ticketing";
 import { DESCRIERI_TIP, ETICHETE_TIP } from "../etichete";
 import { creeazaTichet } from "../actions";
 
 const CLASA_CAMP =
-  "mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground";
-const CLASA_ETICHETA = "block text-sm font-medium text-foreground";
+  "mt-1 w-full rounded-control border border-border bg-background px-3 py-2 text-corp text-foreground";
+const CLASA_ETICHETA = "block text-corp font-medium text-foreground";
 
 function Eroare({ mesaj }: Readonly<{ mesaj: string | undefined }>) {
   if (mesaj === undefined) return null;
   return (
-    <p role="alert" className="text-danger mt-1 text-xs">
+    <p role="alert" className="text-danger text-nota mt-1">
       {mesaj}
     </p>
   );
@@ -53,17 +54,17 @@ export function FormularTichet({
   if (tip === null) {
     return (
       <div className="space-y-3">
-        <p className="text-muted-foreground text-sm">Ce fel de solicitare deschizi?</p>
+        <p className="text-muted-foreground text-corp">Ce fel de solicitare deschizi?</p>
         <div className="grid gap-3 sm:grid-cols-2">
           {TIPURI_TICHET.map((t) => (
             <button
               key={t}
               type="button"
               onClick={() => setTip(t)}
-              className="border-border hover:border-primary hover:bg-surface rounded-lg border p-4 text-left"
+              className="border-border hover:border-primary hover:bg-surface rounded-panou border p-4 text-left"
             >
               <span className="text-foreground block font-medium">{ETICHETE_TIP[t]}</span>
-              <span className="text-muted-foreground mt-1 block text-sm">{DESCRIERI_TIP[t]}</span>
+              <span className="text-muted-foreground text-corp mt-1 block">{DESCRIERI_TIP[t]}</span>
             </button>
           ))}
         </div>
@@ -109,20 +110,16 @@ export function FormularTichet({
   return (
     <form action={trimite} className="space-y-5" noValidate>
       <div className="flex items-center justify-between gap-4">
-        <p className="text-foreground text-sm font-medium">{ETICHETE_TIP[tip]}</p>
-        <button
-          type="button"
-          onClick={() => setTip(null)}
-          className="text-muted-foreground text-xs underline"
-        >
+        <p className="text-foreground text-corp font-medium">{ETICHETE_TIP[tip]}</p>
+        <Buton varianta="link" onClick={() => setTip(null)}>
           Schimbă tipul
-        </button>
+        </Buton>
       </div>
 
       {eroareGenerala !== null && (
         <p
           role="alert"
-          className="border-border bg-surface text-danger rounded-md border p-3 text-sm"
+          className="border-border bg-surface text-danger rounded-control text-corp border p-3"
         >
           {eroareGenerala}
         </p>
@@ -202,7 +199,7 @@ export function FormularTichet({
               Adresa de livrare
             </label>
             <input id={`${id}-adresa`} name="adresa_livrare" className={CLASA_CAMP} />
-            <p className="text-muted-foreground mt-1 text-xs">
+            <p className="text-muted-foreground text-nota mt-1">
               Obligatorie doar dacă echipamentul se livrează la domiciliu.
             </p>
             <Eroare mesaj={e("adresa_livrare")} />
@@ -217,7 +214,7 @@ export function FormularTichet({
               Ce s-a stricat *
             </label>
             {obiecteAlocate.length === 0 ? (
-              <p className="border-border text-muted-foreground mt-1 rounded-md border border-dashed p-3 text-sm">
+              <p className="border-border text-muted-foreground rounded-control text-corp mt-1 border border-dashed p-3">
                 Nu ai niciun obiect de inventar în primire. Dacă ceva ți-a fost dat și nu apare
                 aici, cere-i administratorului să-l înregistreze în inventar întâi.
               </p>
@@ -237,7 +234,7 @@ export function FormularTichet({
           </div>
           <div className="flex items-center gap-2">
             <input id={`${id}-blocheaza`} name="blocheaza" type="checkbox" className="size-4" />
-            <label htmlFor={`${id}-blocheaza`} className="text-foreground text-sm">
+            <label htmlFor={`${id}-blocheaza`} className="text-foreground text-corp">
               Nu îmi pot face treaba din cauza asta
             </label>
           </div>
@@ -311,13 +308,9 @@ export function FormularTichet({
         <Eroare mesaj={e("descriere")} />
       </div>
 
-      <button
-        type="submit"
-        disabled={inCurs}
-        className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium disabled:opacity-60"
-      >
-        {inCurs ? "Se trimite…" : "Trimite tichetul"}
-      </button>
+      <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se trimite…">
+        Trimite tichetul
+      </Buton>
     </form>
   );
 }

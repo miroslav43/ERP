@@ -1,7 +1,9 @@
 // src/app/(app)/ssm/dosarul-meu.tsx
-import { GraduationCap } from "lucide-react";
+import { GraduationCap, HardHat, Stethoscope } from "lucide-react";
 
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { StareGoala } from "@/components/ui/stare-goala";
+import { Badge } from "@/components/ui/badge";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
 import {
   autorizatiiNominale,
@@ -14,11 +16,11 @@ import { stareScadentaSsm } from "@/domain/ssm/scadente";
 
 import { nomenclatorInstruiri } from "./actions";
 import {
-  CLASE_REZULTAT_EXAMEN,
-  CLASE_SCADENTA,
   ETICHETE_DOMENIU,
   ETICHETE_REZULTAT_EXAMEN,
   ETICHETE_SCADENTA,
+  TONURI_REZULTAT_EXAMEN,
+  TONURI_SCADENTA,
 } from "./etichete";
 
 /**
@@ -49,27 +51,26 @@ export async function DosarulMeu({ organizationId }: { readonly organizationId: 
 
   return (
     <div className="space-y-8">
-      <header>
-        <h1 className="text-2xl font-semibold">Dosarul meu SSM/PSI</h1>
-        <p className="text-muted-foreground text-sm">
-          Instruirile, fișa de aptitudine și echipamentul dumneavoastră. Pentru completări sau
-          corecturi, contactați responsabilul SSM al organizației.
-        </p>
-      </header>
+      <AntetPagina
+        titlu="Dosarul meu SSM/PSI"
+        descriere="Instruirile, fișa de aptitudine și echipamentul dumneavoastră. Pentru completări sau corecturi, contactați responsabilul SSM al organizației."
+      />
 
       <section aria-labelledby="instruiri-proprii" className="space-y-3">
-        <h2 id="instruiri-proprii" className="text-lg font-semibold">
+        <h2 id="instruiri-proprii" className="text-sectiune font-semibold">
           Instruiri efectuate
         </h2>
         {instruiri.length === 0 ? (
-          <EmptyState
-            icon={GraduationCap}
-            title="Nu aveți nicio instruire înregistrată"
-            description="Anunțați responsabilul SSM al organizației."
+          <StareGoala
+            fel="initiala"
+            pictograma={GraduationCap}
+            titlu="Nu aveți nicio instruire înregistrată"
+            descriere="Anunțați responsabilul SSM al organizației."
+            compact
           />
         ) : (
-          <div className="border-border overflow-x-auto rounded-lg border">
-            <table className="w-full text-sm">
+          <div className="border-border rounded-panou overflow-x-auto border">
+            <table className="text-corp w-full">
               <thead className="bg-surface text-left">
                 <tr>
                   <th scope="col" className="px-4 py-3 font-medium">
@@ -102,11 +103,9 @@ export async function DosarulMeu({ organizationId }: { readonly organizationId: 
                           <span className="text-muted-foreground">fără scadență</span>
                         ) : (
                           <>
-                            <span
-                              className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_SCADENTA[stare]}`}
-                            >
+                            <Badge ton={TONURI_SCADENTA[stare]} cuAvertisment={stare === "expirat"}>
                               {ETICHETE_SCADENTA[stare]}
-                            </span>{" "}
+                            </Badge>{" "}
                             <span className="text-muted-foreground">
                               {formatDate(i.urmatoarea_scadenta)}
                             </span>
@@ -123,17 +122,23 @@ export async function DosarulMeu({ organizationId }: { readonly organizationId: 
       </section>
 
       <section aria-labelledby="fisa-proprie" className="space-y-3">
-        <h2 id="fisa-proprie" className="text-lg font-semibold">
+        <h2 id="fisa-proprie" className="text-sectiune font-semibold">
           Fișă de aptitudine
         </h2>
         {fise.randuri.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Nicio fișă de aptitudine înregistrată.</p>
+          <StareGoala
+            compact
+            fel="initiala"
+            pictograma={Stethoscope}
+            titlu="Nicio fișă de aptitudine înregistrată"
+            descriere="Anunțați responsabilul SSM al organizației."
+          />
         ) : (
           <ul className="space-y-2">
             {fise.randuri.map((f) => (
               <li
                 key={f.id}
-                className="border-border flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-sm"
+                className="border-border rounded-panou text-corp flex flex-wrap items-center justify-between gap-2 border p-3"
               >
                 <span>
                   {formatDate(f.data_examinarii)}
@@ -141,11 +146,9 @@ export async function DosarulMeu({ organizationId }: { readonly organizationId: 
                     ? null
                     : ` · valabilă până la ${formatDate(f.valabil_pana)}`}
                 </span>
-                <span
-                  className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_REZULTAT_EXAMEN[f.rezultat]}`}
-                >
+                <Badge ton={TONURI_REZULTAT_EXAMEN[f.rezultat]}>
                   {ETICHETE_REZULTAT_EXAMEN[f.rezultat]}
-                </span>
+                </Badge>
               </li>
             ))}
           </ul>
@@ -154,7 +157,7 @@ export async function DosarulMeu({ organizationId }: { readonly organizationId: 
         {restrictii.length === 0 ? null : (
           <div
             role="alert"
-            className="border-warning/40 bg-warning/12 rounded-lg border p-4 text-sm"
+            className="border-warning/40 bg-warning/12 rounded-panou text-corp border p-4"
           >
             <p className="font-medium">Restricții active</p>
             <ul className="mt-1 list-inside list-disc space-y-1">
@@ -167,17 +170,23 @@ export async function DosarulMeu({ organizationId }: { readonly organizationId: 
       </section>
 
       <section aria-labelledby="eip-propriu" className="space-y-3">
-        <h2 id="eip-propriu" className="text-lg font-semibold">
+        <h2 id="eip-propriu" className="text-sectiune font-semibold">
           Echipament individual de protecție
         </h2>
         {echipamente.randuri.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Niciun echipament predat.</p>
+          <StareGoala
+            compact
+            fel="initiala"
+            pictograma={HardHat}
+            titlu="Niciun echipament predat"
+            descriere="Anunțați responsabilul SSM al organizației."
+          />
         ) : (
           <ul className="space-y-2">
             {echipamente.randuri.map((e) => (
               <li
                 key={e.id}
-                className="border-border flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-sm"
+                className="border-border rounded-panou text-corp flex flex-wrap items-center justify-between gap-2 border p-3"
               >
                 <span>
                   {e.articol} ({e.cantitate} {e.unitate})
@@ -196,14 +205,14 @@ export async function DosarulMeu({ organizationId }: { readonly organizationId: 
 
       {autorizatii.length === 0 ? null : (
         <section aria-labelledby="autorizatii-proprii" className="space-y-3">
-          <h2 id="autorizatii-proprii" className="text-lg font-semibold">
+          <h2 id="autorizatii-proprii" className="text-sectiune font-semibold">
             Autorizații nominale
           </h2>
           <ul className="space-y-2">
             {autorizatii.map((a) => (
               <li
                 key={a.id}
-                className="border-border flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-sm"
+                className="border-border rounded-panou text-corp flex flex-wrap items-center justify-between gap-2 border p-3"
               >
                 <span>
                   {a.tip} · nr. {a.numar}

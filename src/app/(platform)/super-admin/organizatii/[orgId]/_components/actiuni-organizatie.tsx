@@ -4,6 +4,8 @@
 import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
 
+import { Buton } from "@/components/ui/buton";
+
 import type { StatusOrganizatie } from "../../../_components/insigne";
 import { activeazaOrganizatie, arhiveazaOrganizatie, suspendaOrganizatie } from "../../actions";
 
@@ -45,15 +47,12 @@ export function ActiuniOrganizatie({
     });
   };
 
-  const claseButon =
-    "rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-surface disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground   ";
-
   return (
     <div className="w-full max-w-md space-y-3">
       <div className="flex flex-wrap justify-end gap-2">
         {(status === "pending" || status === "suspended") && (
-          <button
-            type="button"
+          <Buton
+            varianta="primar"
             disabled={inCurs}
             onClick={() =>
               ruleaza(
@@ -63,30 +62,23 @@ export function ActiuniOrganizatie({
                   : "Organizația a fost activată.",
               )
             }
-            className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-3 py-2 text-sm font-medium disabled:cursor-not-allowed"
           >
             {status === "suspended" ? "Reactivează" : "Activează"}
-          </button>
+          </Buton>
         )}
         {(status === "pending" || status === "active") && (
-          <button
-            type="button"
+          <Buton
+            varianta="distructiv"
             disabled={inCurs}
             onClick={() => setFormularMotiv("suspendare")}
-            className={`${claseButon} text-danger`}
           >
             Suspendă
-          </button>
+          </Buton>
         )}
         {status !== "archived" && (
-          <button
-            type="button"
-            disabled={inCurs}
-            onClick={() => setFormularMotiv("arhivare")}
-            className={claseButon}
-          >
+          <Buton varianta="secundar" disabled={inCurs} onClick={() => setFormularMotiv("arhivare")}>
             Arhivează
-          </button>
+          </Buton>
         )}
       </div>
 
@@ -107,14 +99,14 @@ export function ActiuniOrganizatie({
                 : "Organizația a fost arhivată.",
             );
           }}
-          className="border-border bg-surface rounded-lg border p-4"
+          className="border-border bg-surface rounded-panou border p-4"
         >
-          <p className="text-danger text-sm font-medium">
+          <p className="text-danger text-corp font-medium">
             {membriActivi === 1
               ? "O persoană va pierde accesul imediat, la următoarea cerere."
               : `${membriActivi} persoane vor pierde accesul imediat, la următoarea cerere.`}
           </p>
-          <label htmlFor={idMotiv} className="text-foreground mt-3 block text-sm font-medium">
+          <label htmlFor={idMotiv} className="text-foreground text-corp mt-3 block font-medium">
             Motivul {formularMotiv === "suspendare" ? "suspendării" : "arhivării"} *
           </label>
           <textarea
@@ -123,29 +115,24 @@ export function ActiuniOrganizatie({
             rows={3}
             value={motiv}
             onChange={(eveniment) => setMotiv(eveniment.target.value)}
-            className="border-border bg-background text-foreground mt-1 w-full rounded-md border px-3 py-2 text-sm"
+            className="border-border bg-background text-foreground rounded-control text-corp mt-1 w-full border px-3 py-2"
           />
-          <p className="text-muted-foreground mt-1 text-xs">
+          <p className="text-muted-foreground text-nota mt-1">
             Motivul se salvează în jurnalul de audit.
           </p>
           <div className="mt-3 flex gap-2">
-            <button
-              type="submit"
-              disabled={inCurs}
-              className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-3 py-2 text-sm font-medium disabled:cursor-not-allowed"
-            >
-              {inCurs ? "Se procesează…" : "Confirmă"}
-            </button>
-            <button
-              type="button"
+            <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se procesează…">
+              Confirmă
+            </Buton>
+            <Buton
+              varianta="secundar"
               onClick={() => {
                 setFormularMotiv(null);
                 setMotiv("");
               }}
-              className={claseButon}
             >
               Renunță
-            </button>
+            </Buton>
           </div>
         </form>
       )}
@@ -153,7 +140,7 @@ export function ActiuniOrganizatie({
       <p
         aria-live="polite"
         role="status"
-        className={`text-sm ${mesaj?.tip === "eroare" ? "text-danger" : "text-success"}`}
+        className={`text-corp ${mesaj?.tip === "eroare" ? "text-danger" : "text-success"}`}
       >
         {mesaj?.text ?? ""}
       </p>

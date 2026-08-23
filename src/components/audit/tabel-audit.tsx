@@ -1,9 +1,10 @@
 // src/components/audit/tabel-audit.tsx
 import { ShieldAlert } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { comparaPayload, formateazaValoare } from "@/lib/audit/diff";
 import {
-  clasaStatus,
+  tonStatus,
   etichetaActiune,
   etichetaCamp,
   etichetaEntitate,
@@ -22,17 +23,17 @@ const ETICHETE_TIP: Readonly<Record<string, string>> = {
   sters: "șters",
 };
 
-const clasaCelula = "px-3 py-2 align-top text-sm text-foreground";
+const clasaCelula = "px-3 py-2 align-top text-corp text-foreground";
 
 function Detaliu({ rand }: Readonly<{ rand: RandJurnal }>) {
   const modificari = comparaPayload(rand.before, rand.after);
   return (
     <details className="group">
-      <summary className="text-primary focus: cursor-pointer list-none rounded-md px-2 py-1 text-xs font-medium underline underline-offset-4">
+      <summary className="text-primary focus: rounded-control text-nota cursor-pointer list-none px-2 py-1 font-medium underline underline-offset-4">
         Vezi detaliile evenimentului
       </summary>
-      <div className="border-border bg-background mt-3 space-y-3 rounded-md border p-3">
-        <dl className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
+      <div className="border-border bg-background rounded-control mt-3 space-y-3 border p-3">
+        <dl className="text-nota grid grid-cols-1 gap-2 sm:grid-cols-2">
           <div>
             <dt className="text-muted-foreground">Identificator entitate</dt>
             <dd className="text-foreground break-all">{rand.entityId ?? "—"}</dd>
@@ -56,7 +57,7 @@ function Detaliu({ rand }: Readonly<{ rand: RandJurnal }>) {
         </dl>
 
         {modificari.length === 0 ? (
-          <p className="text-muted-foreground text-xs">
+          <p className="text-muted-foreground text-nota">
             Evenimentul nu a înregistrat modificări de câmpuri.
           </p>
         ) : (
@@ -64,7 +65,7 @@ function Detaliu({ rand }: Readonly<{ rand: RandJurnal }>) {
             {modificari.map((modificare) => (
               <li
                 key={modificare.cale.join(".")}
-                className="border-border rounded-md border px-3 py-2 text-xs"
+                className="border-border rounded-control text-nota border px-3 py-2"
               >
                 <p className="text-foreground font-medium">
                   {etichetaCamp(modificare.cale)}{" "}
@@ -96,31 +97,31 @@ function Detaliu({ rand }: Readonly<{ rand: RandJurnal }>) {
 export function TabelAudit({ randuri, arataOrganizatia }: Props) {
   const numarColoane = arataOrganizatia ? 6 : 5;
   return (
-    <div className="border-border overflow-x-auto rounded-lg border">
+    <div className="border-border rounded-panou overflow-x-auto border">
       <table className="w-full border-collapse text-left">
         <caption className="sr-only">
           Evenimente din jurnalul de audit, de la cel mai recent la cel mai vechi
         </caption>
         <thead className="bg-surface">
           <tr>
-            <th scope="col" className="text-muted-foreground px-3 py-2 text-xs font-semibold">
+            <th scope="col" className="text-muted-foreground text-nota px-3 py-2 font-semibold">
               Moment (ora României)
             </th>
             {arataOrganizatia ? (
-              <th scope="col" className="text-muted-foreground px-3 py-2 text-xs font-semibold">
+              <th scope="col" className="text-muted-foreground text-nota px-3 py-2 font-semibold">
                 Organizație
               </th>
             ) : null}
-            <th scope="col" className="text-muted-foreground px-3 py-2 text-xs font-semibold">
+            <th scope="col" className="text-muted-foreground text-nota px-3 py-2 font-semibold">
               Autor
             </th>
-            <th scope="col" className="text-muted-foreground px-3 py-2 text-xs font-semibold">
+            <th scope="col" className="text-muted-foreground text-nota px-3 py-2 font-semibold">
               Acțiune
             </th>
-            <th scope="col" className="text-muted-foreground px-3 py-2 text-xs font-semibold">
+            <th scope="col" className="text-muted-foreground text-nota px-3 py-2 font-semibold">
               Entitate
             </th>
-            <th scope="col" className="text-muted-foreground px-3 py-2 text-xs font-semibold">
+            <th scope="col" className="text-muted-foreground text-nota px-3 py-2 font-semibold">
               Rezultat
             </th>
           </tr>
@@ -137,14 +138,14 @@ export function TabelAudit({ randuri, arataOrganizatia }: Props) {
                 ) : null}
                 <td className={clasaCelula}>
                   <span className="block">{rand.actorNume ?? "Sistem"}</span>
-                  <span className="text-muted-foreground block text-xs">
+                  <span className="text-muted-foreground text-nota block">
                     {rand.actorEmail ?? (rand.actorId === null ? "acțiune automată" : "—")}
                   </span>
                 </td>
                 <td className={clasaCelula}>{etichetaActiune(rand.action)}</td>
                 <td className={clasaCelula}>{etichetaEntitate(rand.entityType)}</td>
-                <td className={`${clasaCelula} font-medium ${clasaStatus(rand.status)}`}>
-                  {etichetaStatus(rand.status)}
+                <td className={clasaCelula}>
+                  <Badge ton={tonStatus(rand.status)}>{etichetaStatus(rand.status)}</Badge>
                 </td>
               </tr>
               <tr key={`${rand.id}-detaliu`} className="border-border/50 border-t">

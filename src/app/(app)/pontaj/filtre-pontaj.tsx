@@ -4,6 +4,8 @@ import { useId, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Search } from "lucide-react";
 
+import { Buton } from "@/components/ui/buton";
+
 interface Departament {
   readonly id: string;
   readonly denumire: string;
@@ -76,10 +78,10 @@ export function FiltrePontaj({ an, luna, departamente }: Proprietati) {
   return (
     <form
       action={aplica}
-      className="border-border flex flex-wrap items-end gap-3 rounded-lg border p-4"
+      className="border-border rounded-panou flex flex-wrap items-end gap-3 border p-4"
     >
       <div className="flex flex-col gap-1">
-        <label htmlFor={idAn} className="text-sm font-medium">
+        <label htmlFor={idAn} className="text-corp font-medium">
           An
         </label>
         <input
@@ -89,19 +91,19 @@ export function FiltrePontaj({ an, luna, departamente }: Proprietati) {
           min={2000}
           max={2100}
           defaultValue={an}
-          className="border-foreground/60 w-24 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp w-24 border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idLuna} className="text-sm font-medium">
+        <label htmlFor={idLuna} className="text-corp font-medium">
           Luna
         </label>
         <select
           id={idLuna}
           name="luna"
           defaultValue={luna}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         >
           {LUNI_ETICHETE.map((eticheta, index) => (
             <option key={eticheta} value={index + 1}>
@@ -113,14 +115,14 @@ export function FiltrePontaj({ an, luna, departamente }: Proprietati) {
 
       {departamente.length === 0 ? null : (
         <div className="flex flex-col gap-1">
-          <label htmlFor={idDepartament} className="text-sm font-medium">
+          <label htmlFor={idDepartament} className="text-corp font-medium">
             Departament
           </label>
           <select
             id={idDepartament}
             name="departament"
             defaultValue={parametri.get("departament") ?? ""}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           >
             <option value="">Toate</option>
             {departamente.map((d) => (
@@ -133,7 +135,7 @@ export function FiltrePontaj({ an, luna, departamente }: Proprietati) {
       )}
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idCauta} className="text-sm font-medium">
+        <label htmlFor={idCauta} className="text-corp font-medium">
           Angajat
         </label>
         <input
@@ -142,18 +144,14 @@ export function FiltrePontaj({ an, luna, departamente }: Proprietati) {
           type="search"
           defaultValue={parametri.get("cauta") ?? ""}
           placeholder="Nume angajat"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
-      <button
-        type="submit"
-        disabled={inCurs}
-        className="border-foreground/60 hover:bg-surface disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-      >
+      <Buton type="submit" varianta="secundar" inCurs={inCurs} textInCurs="Se filtrează…">
         <Search aria-hidden="true" className="size-4" />
-        {inCurs ? "Se filtrează…" : "Filtrează"}
-      </button>
+        Filtrează
+      </Buton>
     </form>
   );
 }

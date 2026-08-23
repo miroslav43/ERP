@@ -20,11 +20,11 @@ export function Pas5Ssm({ formular, idFormular }: Proprietati) {
   const { register } = formular;
 
   return (
-    <fieldset className="border-border space-y-4 rounded-lg border p-4">
-      <legend className="text-foreground px-1 text-sm font-medium">
+    <fieldset className="border-border rounded-panou space-y-4 border p-4">
+      <legend className="text-foreground text-corp px-1 font-medium">
         SSM / PSI / Medicina muncii
       </legend>
-      <p className="text-muted-foreground text-sm">
+      <p className="text-muted-foreground text-corp">
         Dacă firma nu are servicii interne, se completează furnizorul extern care face
         instructajele.
       </p>

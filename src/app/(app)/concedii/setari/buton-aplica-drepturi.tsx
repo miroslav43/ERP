@@ -4,6 +4,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
+
 import { aplicaDrepturileConcediu } from "./actions";
 
 export function ButonAplicaDrepturi({
@@ -35,44 +37,37 @@ export function ButonAplicaDrepturi({
   if (!confirma) {
     return (
       <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
+        <Buton
+          varianta="primar"
           onClick={() => {
             setConfirma(true);
           }}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium"
         >
           Aplică pe angajați ({String(nrModificari)})
-        </button>
+        </Buton>
       </div>
     );
   }
 
   return (
-    <div className="border-warning/40 bg-warning/8 flex flex-wrap items-center gap-3 rounded-md border p-3">
-      <p className="text-sm">
+    <div className="border-warning/40 bg-warning/8 rounded-control flex flex-wrap items-center gap-3 border p-3">
+      <p className="text-corp">
         Se scriu {String(nrModificari)} solduri pentru anul {String(an)}. Confirmați?
       </p>
-      <button
-        type="button"
-        disabled={inCurs}
-        onClick={aplica}
-        className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed"
-      >
-        {inCurs ? "Se aplică…" : "Da, aplică"}
-      </button>
-      <button
-        type="button"
+      <Buton varianta="primar" inCurs={inCurs} textInCurs="Se aplică…" onClick={aplica}>
+        Da, aplică
+      </Buton>
+      <Buton
+        varianta="secundar"
         disabled={inCurs}
         onClick={() => {
           setConfirma(false);
         }}
-        className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-1.5 text-sm"
       >
         Anulează
-      </button>
+      </Buton>
       {eroare === null ? null : (
-        <p role="alert" className="text-danger text-sm">
+        <p role="alert" className="text-danger text-corp">
           {eroare}
         </p>
       )}

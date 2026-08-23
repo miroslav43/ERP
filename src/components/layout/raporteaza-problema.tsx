@@ -55,7 +55,7 @@ export function RaporteazaProblema({
     <footer className="border-border mt-8 border-t px-4 py-3 md:px-6">
       <Link
         href={href}
-        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-2 text-xs"
+        className="text-muted-foreground hover:text-foreground text-nota inline-flex items-center gap-2"
       >
         <Bug aria-hidden="true" className="size-3.5" />
         Raportează o problemă

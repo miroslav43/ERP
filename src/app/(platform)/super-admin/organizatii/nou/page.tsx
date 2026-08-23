@@ -38,7 +38,7 @@ export default async function PaginaOrganizatieNoua({ searchParams }: Proprietat
 
   return (
     <div className="max-w-3xl space-y-6">
-      <nav aria-label="Firimituri" className="text-sm">
+      <nav aria-label="Firimituri" className="text-corp">
         <Link
           href="/super-admin/organizatii"
           className="text-primary underline-offset-4 hover:underline"
@@ -52,11 +52,11 @@ export default async function PaginaOrganizatieNoua({ searchParams }: Proprietat
       </nav>
 
       <header>
-        <h1 className="text-foreground text-2xl font-semibold">Înrolare companie nouă</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Firma se creează în starea „În așteptare”, cu modulele de bază activate. Alege dacă
-          îi completezi tu datele acum sau le lași administratorului, care le primește prin e-mail
-          și le completează la prima intrare.
+        <h1 className="text-foreground text-titlu font-semibold">Înrolare companie nouă</h1>
+        <p className="text-muted-foreground text-corp mt-1">
+          Firma se creează în starea „În așteptare”, cu modulele de bază activate. Alege dacă îi
+          completezi tu datele acum sau le lași administratorului, care le primește prin e-mail și
+          le completează la prima intrare.
         </p>
       </header>
 

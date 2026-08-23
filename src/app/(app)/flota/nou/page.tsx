@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -23,21 +24,20 @@ export default async function PaginaVehiculNou() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-3xl space-y-6 p-6">
-      <header>
-        <p className="text-muted-foreground text-sm">
+    <div className={`${LATIMI.formular} space-y-6`}>
+      <div className="space-y-1">
+        <p className="text-muted-foreground text-corp">
           <Link href="/flota" className="underline-offset-2 hover:underline">
             Parc auto
           </Link>
         </p>
-        <h1 className="text-2xl font-semibold">Vehicul nou</h1>
-        <p className="text-muted-foreground text-sm">
-          Numărul de înmatriculare și VIN-ul se normalizează automat la salvare — scrieți-le cum vă
-          e comod.
-        </p>
-      </header>
+        <AntetPagina
+          titlu="Vehicul nou"
+          descriere="Numărul de înmatriculare și VIN-ul se normalizează automat la salvare — scrieți-le cum vă e comod."
+        />
+      </div>
 
       <FormularVehicul />
-    </main>
+    </div>
   );
 }

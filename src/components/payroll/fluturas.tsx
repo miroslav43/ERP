@@ -71,7 +71,7 @@ export function Fluturas({ inregistrare, bonusuri, retineri }: Proprietati) {
     <div className="space-y-6">
       <section
         aria-label="Zile și ore"
-        className="border-border grid gap-4 rounded-lg border p-4 sm:grid-cols-4"
+        className="border-border rounded-panou grid gap-4 border p-4 sm:grid-cols-4"
       >
         <Camp eticheta="Zile lucrătoare lună" valoare={String(inregistrare.zile_lucratoare_luna)} />
         <Camp eticheta="Zile lucrate" valoare={String(inregistrare.zile_lucrate)} />
@@ -97,7 +97,7 @@ export function Fluturas({ inregistrare, bonusuri, retineri }: Proprietati) {
             <li
               key={i}
               role="alert"
-              className="border-warning/40 bg-warning/8 rounded-md border p-3 text-sm"
+              className="border-warning/40 bg-warning/8 rounded-control text-corp border p-3"
             >
               {w.mesaj}
             </li>
@@ -107,16 +107,16 @@ export function Fluturas({ inregistrare, bonusuri, retineri }: Proprietati) {
 
       <section
         aria-label="Împărțirea salariului brut"
-        className="border-border rounded-lg border p-4"
+        className="border-border rounded-panou border p-4"
       >
         <TaxePieChart felii={felii} />
         {inregistrare.retineri_total > 0 ? (
-          <p className="text-muted-foreground mt-3 text-sm">
+          <p className="text-muted-foreground text-corp mt-3">
             Din net, {formatLei(inregistrare.retineri_total)} rețineri → net de plată efectiv:{" "}
             <strong className="text-foreground">{formatLei(inregistrare.net_de_plata)}</strong>.
           </p>
         ) : null}
-        <p className="text-muted-foreground mt-1 text-xs">
+        <p className="text-muted-foreground text-nota mt-1">
           Cost total angajator: {formatLei(inregistrare.cost_total_angajator)} (din care CAM
           angajator: {formatLei(inregistrare.cam_angajator)} — cost suplimentar al angajatorului, nu
           se scade din salariul dvs.).
@@ -126,9 +126,9 @@ export function Fluturas({ inregistrare, bonusuri, retineri }: Proprietati) {
       {bonusuri.length === 0 && retineri.length === 0 ? null : (
         <section
           aria-label="Prime și rețineri individuale"
-          className="border-border rounded-lg border"
+          className="border-border rounded-panou border"
         >
-          <ul className="divide-border divide-y text-sm">
+          <ul className="divide-border text-corp divide-y">
             {bonusuri.map((b) => (
               <li key={b.id} className="text-success flex items-center gap-2 px-4 py-2">
                 <span className="tabular-nums">+ {formatLei(b.suma)}</span>
@@ -149,8 +149,8 @@ export function Fluturas({ inregistrare, bonusuri, retineri }: Proprietati) {
         </section>
       )}
 
-      <section aria-label="Calculul detaliat" className="border-border rounded-lg border">
-        <table className="w-full text-sm">
+      <section aria-label="Calculul detaliat" className="border-border rounded-panou border">
+        <table className="text-corp w-full">
           <tbody className="divide-border divide-y">
             {inregistrare.calc_breakdown.map((pas) => (
               <tr
@@ -171,8 +171,8 @@ export function Fluturas({ inregistrare, bonusuri, retineri }: Proprietati) {
 function Camp({ eticheta, valoare }: { readonly eticheta: string; readonly valoare: string }) {
   return (
     <div>
-      <dt className="text-muted-foreground text-xs">{eticheta}</dt>
-      <dd className="text-sm font-medium">{valoare}</dd>
+      <dt className="text-muted-foreground text-nota">{eticheta}</dt>
+      <dd className="text-corp font-medium">{valoare}</dd>
     </div>
   );
 }

@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina } from "@/components/ui/antet-pagina";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -35,7 +36,7 @@ interface AngajatMinim {
 /** Ancorat pe `#aplicare`, ca schimbarea anului să nu sară pagina la vârf. */
 function SelectorAnAplicare({ an }: { readonly an: number }) {
   return (
-    <nav aria-label="Anul de aplicat" className="flex items-center gap-3 text-sm">
+    <nav aria-label="Anul de aplicat" className="text-corp flex items-center gap-3">
       <Link
         href={`/concedii/setari?an=${String(an - 1)}#aplicare`}
         className="underline underline-offset-2"
@@ -100,30 +101,27 @@ export default async function PaginaSetariConcedii({ searchParams }: Proprietati
   const tipuriAdaptabile = tipuri.filter((t) => !t.reglementat);
 
   return (
-    <main className="space-y-8 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Setări concedii</h1>
-        <p className="text-muted-foreground max-w-3xl text-sm">
-          Regulile de mai jos se aplică AUTOMAT tuturor angajaților organizației. Tipurile
-          reglementate legal (medical, maternitate, creștere copil, paternal, îngrijitor, donator de
-          sânge) nu pot fi modificate din aplicație — durata lor vine direct din lege.
-        </p>
-      </header>
-
-      <NavConcedii
-        poateAproba={poateAproba}
-        poateVedeaCalendar={poateVedeaCalendar}
-        poateConfigura={true}
+    <div className="space-y-8">
+      <AntetPagina
+        titlu="Setări concedii"
+        descriere="Regulile de mai jos se aplică AUTOMAT tuturor angajaților organizației. Tipurile reglementate legal (medical, maternitate, creștere copil, paternal, îngrijitor, donator de sânge) nu pot fi modificate din aplicație — durata lor vine direct din lege."
+        file={
+          <NavConcedii
+            poateAproba={poateAproba}
+            poateVedeaCalendar={poateVedeaCalendar}
+            poateConfigura={true}
+          />
+        }
       />
 
       <section
         aria-labelledby="titlu-zile-baza"
-        className="border-border space-y-3 rounded-lg border p-4"
+        className="border-border rounded-panou space-y-3 border p-4"
       >
-        <h2 id="titlu-zile-baza" className="text-lg font-medium">
+        <h2 id="titlu-zile-baza" className="text-sectiune font-medium">
           Zile de bază — concediu de odihnă
         </h2>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-muted-foreground text-corp">
           Minimul legal e de 20 de zile lucrătoare/an (Codul Muncii, art. 145 — de verificat de
           jurist). Valoarea se propagă automat spre tipul „Concediu de odihnă” de mai jos.
         </p>
@@ -131,23 +129,23 @@ export default async function PaginaSetariConcedii({ searchParams }: Proprietati
       </section>
 
       <section aria-labelledby="titlu-tipuri" className="space-y-4">
-        <h2 id="titlu-tipuri" className="text-lg font-medium">
+        <h2 id="titlu-tipuri" className="text-sectiune font-medium">
           Tipuri de concediu
         </h2>
 
         <div className="space-y-2">
-          <h3 className="text-muted-foreground text-sm font-semibold">
+          <h3 className="text-muted-foreground text-corp font-semibold">
             Reglementate legal — doar activare/dezactivare
           </h3>
           <TabelTipuriReglementate tipuri={tipuriReglementate} />
         </div>
 
         <div className="space-y-3">
-          <h3 className="text-muted-foreground text-sm font-semibold">
+          <h3 className="text-muted-foreground text-corp font-semibold">
             Stabilite de companie — editabile
           </h3>
           {tipuriAdaptabile.length === 0 ? (
-            <p className="text-muted-foreground text-sm">Niciun tip adaptabil configurat.</p>
+            <p className="text-muted-foreground text-corp">Niciun tip adaptabil configurat.</p>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
               {tipuriAdaptabile.map((tip) => (
@@ -159,10 +157,10 @@ export default async function PaginaSetariConcedii({ searchParams }: Proprietati
       </section>
 
       <section aria-labelledby="titlu-grile" className="space-y-4">
-        <h2 id="titlu-grile" className="text-lg font-medium">
+        <h2 id="titlu-grile" className="text-sectiune font-medium">
           Grile de zile suplimentare
         </h2>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-muted-foreground text-corp">
           Zilele se ADUNĂ la baza tipului de concediu — un angajat poate întruni mai multe grile
           simultan (ex. vechime + condiții deosebite). Nu se pot adăuga grile pe tipurile
           reglementate legal.
@@ -183,14 +181,14 @@ export default async function PaginaSetariConcedii({ searchParams }: Proprietati
       <section
         id="aplicare"
         aria-labelledby="titlu-aplicare"
-        className="border-border space-y-4 rounded-lg border p-4"
+        className="border-border rounded-panou space-y-4 border p-4"
       >
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h2 id="titlu-aplicare" className="text-lg font-medium">
+            <h2 id="titlu-aplicare" className="text-sectiune font-medium">
               Aplicarea drepturilor pe angajați
             </h2>
-            <p className="text-muted-foreground max-w-2xl text-sm">
+            <p className="text-muted-foreground text-corp max-w-2xl">
               Salvarea unei reguli de mai sus NU schimbă automat soldurile angajaților existenți.
               Alegeți anul, verificați diferențele, apoi aplicați.
             </p>
@@ -199,14 +197,14 @@ export default async function PaginaSetariConcedii({ searchParams }: Proprietati
         </div>
 
         {previzualizare.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground text-corp">
             Nicio diferență pentru anul {String(an)} — soldurile existente sunt deja aliniate cu
             regulile curente.
           </p>
         ) : (
           <>
-            <div className="border-border overflow-x-auto rounded-lg border">
-              <table className="w-full text-left text-sm">
+            <div className="border-border rounded-panou overflow-x-auto border">
+              <table className="text-corp w-full text-left">
                 <thead className="bg-surface text-foreground">
                   <tr>
                     <th scope="col" className="px-4 py-2 font-medium">
@@ -258,6 +256,6 @@ export default async function PaginaSetariConcedii({ searchParams }: Proprietati
           </>
         )}
       </section>
-    </main>
+    </div>
   );
 }

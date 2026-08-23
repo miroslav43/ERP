@@ -11,13 +11,13 @@
 export function Eroare({ id, mesaj }: { id: string; mesaj?: string | undefined }) {
   if (mesaj === undefined || mesaj === "") return null;
   return (
-    <p id={id} className="text-danger mt-1 text-sm">
+    <p id={id} className="text-danger text-corp mt-1">
       {mesaj}
     </p>
   );
 }
 
 export const claseCamp =
-  "mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground";
+  "mt-1 w-full rounded-control border border-border bg-background px-3 py-2 text-corp text-foreground";
 
-export const claseLabel = "text-foreground block text-sm font-medium";
+export const claseLabel = "text-foreground block text-corp font-medium";

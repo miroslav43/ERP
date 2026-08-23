@@ -151,7 +151,7 @@ export function FoaieColectiva({
   return (
     <div className="space-y-3">
       {perioadaBlocata ? (
-        <p className="border-foreground/60 bg-surface text-foreground rounded-lg border p-3 text-sm">
+        <p className="border-foreground/60 bg-surface text-foreground rounded-panou text-corp border p-3">
           Perioada este <strong>blocată</strong>
           {blocataLa === null ? "" : ` din ${new Date(blocataLa).toLocaleDateString("ro-RO")}`} —
           foaia nu mai poate fi modificată. Redeschideți luna din „Perioade” dacă aveți nevoie de
@@ -159,8 +159,8 @@ export function FoaieColectiva({
         </p>
       ) : null}
 
-      <div className="border-border overflow-x-auto rounded-lg border">
-        <table className="w-full border-collapse text-sm">
+      <div className="border-border rounded-panou overflow-x-auto border">
+        <table className="text-corp w-full border-collapse">
           <caption className="sr-only">Pontajul angajaților pentru zilele lunii selectate.</caption>
           <thead className="bg-surface sticky top-0 z-20">
             <tr>
@@ -184,7 +184,7 @@ export function FoaieColectiva({
                         ? `${ziuaDinIso(zi)} — ${info.denumireSarbatoare}`
                         : undefined
                     }
-                    className={`border-border min-w-11 border-b px-1 py-2 text-center text-xs font-medium ${
+                    className={`border-border text-nota min-w-11 border-b px-1 py-2 text-center font-medium ${
                       esteWeekend ? "bg-surface" : esteSarbatoare ? "bg-warning/12" : ""
                     }`}
                   >
@@ -279,7 +279,7 @@ export function FoaieColectiva({
                           key={zi}
                           aria-disabled="true"
                           title={titlu}
-                          className={`border-border border-r px-1 py-2 text-center text-xs ${clasaFundal}`}
+                          className={`border-border text-nota border-r px-1 py-2 text-center ${clasaFundal}`}
                         >
                           {continut}
                         </td>
@@ -289,7 +289,7 @@ export function FoaieColectiva({
                     return (
                       <td
                         key={zi}
-                        className={`border-border border-r p-0 text-center text-xs ${clasaFundal}`}
+                        className={`border-border text-nota border-r p-0 text-center ${clasaFundal}`}
                       >
                         <button
                           type="button"
@@ -313,7 +313,7 @@ export function FoaieColectiva({
                   <td className="px-2 py-2 text-right tabular-nums">{totalOre}</td>
                   <td className="px-2 py-2 text-right tabular-nums">{totalSuplimentar}</td>
                   <td className="px-2 py-2 text-right tabular-nums">{totalNoapte}</td>
-                  <td className="text-muted-foreground px-2 py-2 text-left text-xs">
+                  <td className="text-muted-foreground text-nota px-2 py-2 text-left">
                     {speciale.length === 0
                       ? "—"
                       : speciale.map((s) => `${ETICHETE_TIP_ZI[s.tip]}: ${s.numar}`).join(", ")}
@@ -328,7 +328,7 @@ export function FoaieColectiva({
                 Total pe pagina curentă ({randuri.length} angajați)
               </th>
               {zile.map((zi) => (
-                <td key={zi} className="px-1 py-2 text-center text-xs tabular-nums">
+                <td key={zi} className="text-nota px-1 py-2 text-center tabular-nums">
                   {totaluriColoana.get(zi) ?? 0}
                 </td>
               ))}
@@ -344,7 +344,10 @@ export function FoaieColectiva({
         </table>
       </div>
 
-      <p className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs">
+      {/* Legenda listează doar fundalurile care au rămas. Concediul, medicalul
+          și delegația nu mai au tentă: codul de trei litere din celulă e deja
+          purtătorul înțelesului, iar culoarea se pierdea la tipărire. */}
+      <p className="text-muted-foreground text-nota flex flex-wrap gap-x-4 gap-y-1">
         <span>
           <span
             aria-hidden="true"
@@ -355,24 +358,18 @@ export function FoaieColectiva({
         <span>
           <span
             aria-hidden="true"
-            className="bg-warning/12 mr-1 inline-block size-3 rounded align-middle"
+            className="bg-accent/25 mr-1 inline-block size-3 rounded align-middle"
           />
           Sărbătoare legală (*)
         </span>
         <span>
           <span
             aria-hidden="true"
-            className="bg-surface mr-1 inline-block size-3 rounded align-middle"
+            className="bg-danger/8 mr-1 inline-block size-3 rounded align-middle"
           />
-          Concediu
+          Absență nemotivată
         </span>
-        <span>
-          <span
-            aria-hidden="true"
-            className="mr-1 inline-block size-3 rounded bg-purple-50 align-middle"
-          />
-          Medical
-        </span>
+        <span>Concediul, medicalul și delegația se citesc din codul celulei.</span>
       </p>
 
       {selectie === null ? null : (

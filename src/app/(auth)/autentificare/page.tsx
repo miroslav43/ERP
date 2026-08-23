@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Buton } from "@/components/ui/buton";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { caleInterna, param } from "@/schemas/auth";
 import { autentificarePrinParola, trimiteLinkMagic } from "./actions";
@@ -18,8 +19,16 @@ const MESAJE: Record<string, string> = {
   sesiune: "Sesiunea a expirat. Autentificați-vă din nou.",
 };
 
+/**
+ * `pointer-coarse:text-sectiune` nu e decor: sub 16px, iOS Safari mărește pagina la
+ * fiecare atingere într-un câmp și nu o mai micșorează. `globals.css` are deja
+ * regula pe `[data-zona]`, deci zona o acoperă deja; clasa de aici o repetă
+ * deliberat, la nivel de element, ca un câmp scos vreodată din zonă să nu
+ * regreseze tăcut. Pe laptop nu se schimbă nimic —
+ * `pointer-coarse` prinde doar ecranele atinse cu degetul.
+ */
 const CLASA_CAMP =
-  "border-border bg-background focus:border-ring w-full rounded-md border px-3 py-2 text-sm";
+  "border-border bg-background focus:border-ring rounded-control text-corp w-full border px-3 py-2 pointer-coarse:text-sectiune";
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
@@ -36,15 +45,15 @@ export default async function PaginaAutentificare({ searchParams }: Props) {
 
   return (
     <>
-      <h1 className="text-primary text-xl font-semibold">Autentificare</h1>
-      <p className="text-muted-foreground mt-1 text-sm">
+      <h1 className="text-primary text-sectiune font-semibold">Autentificare</h1>
+      <p className="text-muted-foreground text-corp mt-1">
         Introduceți datele contului sau cereți un link de autentificare pe e-mail.
       </p>
 
       {eroare !== null && (
         <p
           role="alert"
-          className="text-danger border-danger/40 bg-danger/5 mt-4 rounded-md border px-3 py-2 text-sm"
+          className="text-danger border-danger/40 bg-danger/5 rounded-control text-corp mt-4 border px-3 py-2"
         >
           {eroare}
         </p>
@@ -52,7 +61,7 @@ export default async function PaginaAutentificare({ searchParams }: Props) {
       {linkTrimis && (
         <p
           role="status"
-          className="text-success border-success/40 bg-success/5 mt-4 rounded-md border px-3 py-2 text-sm"
+          className="text-success border-success/40 bg-success/5 rounded-control text-corp mt-4 border px-3 py-2"
         >
           Dacă adresa introdusă are un cont activ, veți primi în câteva minute un link de
           autentificare. Linkul este valabil o singură dată.
@@ -63,7 +72,7 @@ export default async function PaginaAutentificare({ searchParams }: Props) {
         <input type="hidden" name="redirect" value={catre} />
 
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="email" className="text-sm font-medium">
+          <label htmlFor="email" className="text-corp font-medium">
             Adresă de e-mail
           </label>
           <input
@@ -79,12 +88,12 @@ export default async function PaginaAutentificare({ searchParams }: Props) {
 
         <div className="flex flex-col gap-1.5">
           <div className="flex items-baseline justify-between">
-            <label htmlFor="parola" className="text-sm font-medium">
+            <label htmlFor="parola" className="text-corp font-medium">
               Parolă
             </label>
             <Link
               href="/resetare-parola"
-              className="text-muted-foreground hover:text-foreground rounded text-xs underline"
+              className="text-muted-foreground hover:text-foreground text-nota rounded underline"
             >
               Am uitat parola
             </Link>
@@ -99,26 +108,25 @@ export default async function PaginaAutentificare({ searchParams }: Props) {
           />
         </div>
 
-        <button
-          type="submit"
-          className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium transition-colors"
-        >
+        {/* Singurul navy din zonă: acțiunea care te duce înăuntru. */}
+        <Buton type="submit" varianta="primar">
           Intră în cont
-        </button>
+        </Buton>
 
         <div className="border-border relative border-t pt-4 text-center">
-          <span className="bg-surface text-muted-foreground absolute -top-2.5 left-1/2 -translate-x-1/2 px-2 text-xs">
+          <span className="bg-surface text-muted-foreground text-nota absolute -top-2.5 left-1/2 -translate-x-1/2 px-2">
             sau
           </span>
           {/* `formNoValidate`: linkul magic nu are nevoie de parolă. */}
-          <button
+          <Buton
             type="submit"
+            varianta="secundar"
             formAction={trimiteLinkMagic}
             formNoValidate
-            className="border-border hover:bg-background w-full rounded-md border px-4 py-2 text-sm font-medium transition-colors"
+            className="w-full"
           >
             Trimite-mi un link de autentificare
-          </button>
+          </Buton>
         </div>
       </form>
     </>

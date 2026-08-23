@@ -3,6 +3,7 @@
 import { useId, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
 import { inregistreazaInstruireBloc } from "../../actions";
 import { ETICHETE_DOMENIU } from "../../etichete";
 
@@ -111,14 +112,14 @@ export function FormularInstruireBloc({
     <form action={trimite} className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.tip} className="text-sm font-medium">
+          <label htmlFor={id.tip} className="text-corp font-medium">
             Tip instruire
           </label>
           <select
             id={id.tip}
             name="training_type_id"
             required
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           >
             {tipuri.map((t) => (
               <option key={t.id} value={t.id}>
@@ -129,7 +130,7 @@ export function FormularInstruireBloc({
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.data} className="text-sm font-medium">
+          <label htmlFor={id.data} className="text-corp font-medium">
             Data instruirii
           </label>
           <input
@@ -137,12 +138,12 @@ export function FormularInstruireBloc({
             name="data_instruirii"
             type="date"
             required
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.durata} className="text-sm font-medium">
+          <label htmlFor={id.durata} className="text-corp font-medium">
             Durata (ore)
           </label>
           <input
@@ -152,12 +153,12 @@ export function FormularInstruireBloc({
             min={0}
             step="0.5"
             defaultValue={2}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.punctaj} className="text-sm font-medium">
+          <label htmlFor={id.punctaj} className="text-corp font-medium">
             Punctaj test (opțional)
           </label>
           <input
@@ -166,19 +167,19 @@ export function FormularInstruireBloc({
             type="number"
             min={0}
             max={100}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.lectorAngajat} className="text-sm font-medium">
+          <label htmlFor={id.lectorAngajat} className="text-corp font-medium">
             Lector — angajat propriu (opțional)
           </label>
           <select
             id={id.lectorAngajat}
             name="lector_employee_id"
             defaultValue=""
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           >
             <option value="">—</option>
             {angajati.map((a) => (
@@ -190,19 +191,19 @@ export function FormularInstruireBloc({
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.lectorExtern} className="text-sm font-medium">
+          <label htmlFor={id.lectorExtern} className="text-corp font-medium">
             Lector extern (opțional)
           </label>
           <input
             id={id.lectorExtern}
             name="lector_extern"
             maxLength={120}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1 sm:col-span-2">
-          <label htmlFor={id.tematica} className="text-sm font-medium">
+          <label htmlFor={id.tematica} className="text-corp font-medium">
             Tematică
           </label>
           <textarea
@@ -210,37 +211,37 @@ export function FormularInstruireBloc({
             name="tematica"
             rows={2}
             maxLength={2000}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.materiale} className="text-sm font-medium">
+          <label htmlFor={id.materiale} className="text-corp font-medium">
             Materiale folosite
           </label>
           <input
             id={id.materiale}
             name="materiale"
             maxLength={500}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.observatii} className="text-sm font-medium">
+          <label htmlFor={id.observatii} className="text-corp font-medium">
             Observații
           </label>
           <input
             id={id.observatii}
             name="observatii"
             maxLength={1000}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
       </div>
 
-      <fieldset className="border-border space-y-3 rounded-lg border p-4">
-        <legend className="px-1 text-sm font-medium">
+      <fieldset className="border-border rounded-panou space-y-3 border p-4">
+        <legend className="text-corp px-1 font-medium">
           Angajați ({selectati.size} selectați din {angajati.length})
         </legend>
 
@@ -256,36 +257,31 @@ export function FormularInstruireBloc({
             onChange={(e) => {
               setCauta(e.target.value);
             }}
-            className="border-foreground/60 min-w-56 flex-1 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp min-w-56 flex-1 border px-3 py-2"
           />
-          <button
-            type="button"
-            onClick={selecteazaToti}
-            className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-1.5 text-sm"
-          >
+          <Buton varianta="secundar" onClick={selecteazaToti}>
             Selectează toți cei afișați
-          </button>
-          <button
-            type="button"
+          </Buton>
+          <Buton
+            varianta="secundar"
             onClick={() => {
               setSelectati(new Set());
             }}
-            className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-1.5 text-sm"
           >
             Golește selecția
-          </button>
+          </Buton>
         </div>
 
-        <div className="border-border max-h-72 space-y-1 overflow-y-auto rounded-md border p-2">
+        <div className="border-border rounded-control max-h-72 space-y-1 overflow-y-auto border p-2">
           {angajatiFiltrati.length === 0 ? (
-            <p className="text-muted-foreground p-2 text-sm">
+            <p className="text-muted-foreground text-corp p-2">
               Niciun angajat nu se potrivește căutării.
             </p>
           ) : (
             angajatiFiltrati.map((a) => (
               <label
                 key={a.id}
-                className="hover:bg-surface flex items-center gap-2 rounded px-2 py-1 text-sm"
+                className="hover:bg-surface text-corp flex items-center gap-2 rounded px-2 py-1"
               >
                 <input
                   type="checkbox"
@@ -302,15 +298,11 @@ export function FormularInstruireBloc({
       </fieldset>
 
       <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="submit"
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se salvează…" : "Înregistrează instruirea"}
-        </button>
+        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+          Înregistrează instruirea
+        </Buton>
         {eroare === null ? null : (
-          <p role="alert" className="text-danger text-sm">
+          <p role="alert" className="text-danger text-corp">
             {eroare}
           </p>
         )}

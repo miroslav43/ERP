@@ -4,6 +4,8 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
+
 import { creeazaPoprire } from "./actions";
 
 interface Angajat {
@@ -12,7 +14,7 @@ interface Angajat {
   readonly marca: string;
 }
 
-const CLASA_CAMP = "border-foreground/60 rounded-md border px-3 py-2 text-sm";
+const CLASA_CAMP = "border-foreground/60 rounded-control border px-3 py-2 text-corp";
 
 export function FormularPoprireNoua({ angajati }: { readonly angajati: readonly Angajat[] }) {
   const router = useRouter();
@@ -59,25 +61,24 @@ export function FormularPoprireNoua({ angajati }: { readonly angajati: readonly 
 
   if (!deschis) {
     return (
-      <button
-        type="button"
+      <Buton
+        varianta="primar"
         onClick={() => {
           setDeschis(true);
         }}
-        className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium"
       >
         Dosar nou
-      </button>
+      </Buton>
     );
   }
 
   return (
     <form
       action={trimite}
-      className="border-border grid w-full gap-3 rounded-lg border p-4 sm:grid-cols-2"
+      className="border-border rounded-panou grid w-full gap-3 border p-4 sm:grid-cols-2"
     >
       <div className="flex flex-col gap-1 sm:col-span-2">
-        <label htmlFor={idAngajat} className="text-sm font-medium">
+        <label htmlFor={idAngajat} className="text-corp font-medium">
           Angajat *
         </label>
         <select id={idAngajat} name="employee_id" required className={CLASA_CAMP}>
@@ -91,7 +92,7 @@ export function FormularPoprireNoua({ angajati }: { readonly angajati: readonly 
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idDosar} className="text-sm font-medium">
+        <label htmlFor={idDosar} className="text-corp font-medium">
           Număr dosar *
         </label>
         <input
@@ -105,7 +106,7 @@ export function FormularPoprireNoua({ angajati }: { readonly angajati: readonly 
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idCreditor} className="text-sm font-medium">
+        <label htmlFor={idCreditor} className="text-corp font-medium">
           Creditor *
         </label>
         <input
@@ -119,14 +120,14 @@ export function FormularPoprireNoua({ angajati }: { readonly angajati: readonly 
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idExecutor} className="text-sm font-medium">
+        <label htmlFor={idExecutor} className="text-corp font-medium">
           Executor judecătoresc
         </label>
         <input id={idExecutor} name="executor" type="text" maxLength={200} className={CLASA_CAMP} />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idTip} className="text-sm font-medium">
+        <label htmlFor={idTip} className="text-corp font-medium">
           Tipul creanței *
         </label>
         <select id={idTip} name="tip_creanta" defaultValue="alta" className={CLASA_CAMP}>
@@ -136,7 +137,7 @@ export function FormularPoprireNoua({ angajati }: { readonly angajati: readonly 
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idTotala} className="text-sm font-medium">
+        <label htmlFor={idTotala} className="text-corp font-medium">
           Datoria totală (lei) *
         </label>
         <input
@@ -151,7 +152,7 @@ export function FormularPoprireNoua({ angajati }: { readonly angajati: readonly 
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idLunara} className="text-sm font-medium">
+        <label htmlFor={idLunara} className="text-corp font-medium">
           Rata lunară de reținut (lei) *
         </label>
         <input
@@ -163,14 +164,14 @@ export function FormularPoprireNoua({ angajati }: { readonly angajati: readonly 
           required
           className={CLASA_CAMP}
         />
-        <p className="text-muted-foreground text-xs">
+        <p className="text-muted-foreground text-nota">
           Plafonată automat la o treime din net pentru un singur dosar, la jumătate când sunt mai
           multe.
         </p>
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idPrioritate} className="text-sm font-medium">
+        <label htmlFor={idPrioritate} className="text-corp font-medium">
           Prioritate
         </label>
         <input
@@ -182,25 +183,25 @@ export function FormularPoprireNoua({ angajati }: { readonly angajati: readonly 
           defaultValue={100}
           className={CLASA_CAMP}
         />
-        <p className="text-muted-foreground text-xs">Numărul mai mic se satisface primul.</p>
+        <p className="text-muted-foreground text-nota">Numărul mai mic se satisface primul.</p>
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idInceput} className="text-sm font-medium">
+        <label htmlFor={idInceput} className="text-corp font-medium">
           Data de început *
         </label>
         <input id={idInceput} name="data_inceput" type="date" required className={CLASA_CAMP} />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idSfarsit} className="text-sm font-medium">
+        <label htmlFor={idSfarsit} className="text-corp font-medium">
           Data de sfârșit
         </label>
         <input id={idSfarsit} name="data_sfarsit" type="date" className={CLASA_CAMP} />
       </div>
 
       <div className="flex flex-col gap-1 sm:col-span-2">
-        <label htmlFor={idObservatii} className="text-sm font-medium">
+        <label htmlFor={idObservatii} className="text-corp font-medium">
           Observații
         </label>
         <textarea
@@ -213,28 +214,23 @@ export function FormularPoprireNoua({ angajati }: { readonly angajati: readonly 
       </div>
 
       {eroare !== null ? (
-        <p role="alert" className="text-danger text-sm sm:col-span-2">
+        <p role="alert" className="text-danger text-corp sm:col-span-2">
           {eroare}
         </p>
       ) : null}
 
       <div className="flex gap-2 sm:col-span-2">
-        <button
-          type="submit"
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium disabled:opacity-60"
-        >
-          {inCurs ? "Se salvează…" : "Deschide dosarul"}
-        </button>
-        <button
-          type="button"
+        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+          Deschide dosarul
+        </Buton>
+        <Buton
+          varianta="secundar"
           onClick={() => {
             setDeschis(false);
           }}
-          className="border-border rounded-md border px-4 py-2 text-sm font-medium"
         >
           Renunță
-        </button>
+        </Buton>
       </div>
     </form>
   );

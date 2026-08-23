@@ -3,6 +3,8 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
+
 import { creeazaPerioada } from "./actions";
 
 const LUNA_CURENTA = new Date();
@@ -32,17 +34,17 @@ export function FormularPerioadaNoua() {
   return (
     <form
       action={trimite}
-      className="border-border flex flex-wrap items-end gap-3 rounded-lg border p-4"
+      className="border-border rounded-panou flex flex-wrap items-end gap-3 border p-4"
     >
       <div className="flex flex-col gap-1">
-        <label htmlFor={idLuna} className="text-sm">
+        <label htmlFor={idLuna} className="text-corp">
           Luna
         </label>
         <select
           id={idLuna}
           name="luna"
           defaultValue={LUNA_CURENTA.getUTCMonth() + 1}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         >
           {Array.from({ length: 12 }, (_, i) => i + 1).map((l) => (
             <option key={l} value={l}>
@@ -52,7 +54,7 @@ export function FormularPerioadaNoua() {
         </select>
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={idAn} className="text-sm">
+        <label htmlFor={idAn} className="text-corp">
           Anul
         </label>
         <input
@@ -62,18 +64,14 @@ export function FormularPerioadaNoua() {
           min={2020}
           max={2100}
           defaultValue={LUNA_CURENTA.getUTCFullYear()}
-          className="border-foreground/60 w-28 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp w-28 border px-3 py-2"
         />
       </div>
-      <button
-        type="submit"
-        disabled={inCurs}
-        className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-      >
-        {inCurs ? "Se creează…" : "Creează perioada"}
-      </button>
+      <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se creează…">
+        Creează perioada
+      </Buton>
       {eroare === null ? null : (
-        <p role="alert" className="text-danger w-full text-sm">
+        <p role="alert" className="text-danger text-corp w-full">
           {eroare}
         </p>
       )}

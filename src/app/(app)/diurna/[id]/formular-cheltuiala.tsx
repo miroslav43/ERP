@@ -3,13 +3,14 @@
 import { useId, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
 import { formatLei } from "@/lib/format/money";
 import { TIPURI_CHELTUIALA } from "@/schemas/per-diem";
 
 import { adaugaCheltuiala } from "../actions";
 import { ETICHETE_TIP_CHELTUIALA } from "../etichete";
 
-const CLASA_CAMP = "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
+const CLASA_CAMP = "mt-1 w-full rounded-control border border-foreground/60 px-3 py-2 text-corp";
 
 /**
  * Adaugă o cheltuială decontabilă (`trip_expenses`).
@@ -89,11 +90,11 @@ export function FormularCheltuiala({ tripId }: { readonly tripId: string }) {
   }
 
   return (
-    <div className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-3">
-      <p className="text-sm font-medium sm:col-span-2 lg:col-span-3">Adaugă o cheltuială</p>
+    <div className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-2 lg:grid-cols-3">
+      <p className="text-corp font-medium sm:col-span-2 lg:col-span-3">Adaugă o cheltuială</p>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.tip} className="text-sm">
+        <label htmlFor={id.tip} className="text-corp">
           Tip
         </label>
         <select
@@ -113,7 +114,7 @@ export function FormularCheltuiala({ tripId }: { readonly tripId: string }) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.data} className="text-sm">
+        <label htmlFor={id.data} className="text-corp">
           Data cheltuielii
         </label>
         <input
@@ -128,7 +129,7 @@ export function FormularCheltuiala({ tripId }: { readonly tripId: string }) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.descriere} className="text-sm">
+        <label htmlFor={id.descriere} className="text-corp">
           Descriere (opțional)
         </label>
         <input
@@ -144,7 +145,7 @@ export function FormularCheltuiala({ tripId }: { readonly tripId: string }) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.suma} className="text-sm">
+        <label htmlFor={id.suma} className="text-corp">
           Suma
         </label>
         <input
@@ -161,7 +162,7 @@ export function FormularCheltuiala({ tripId }: { readonly tripId: string }) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.moneda} className="text-sm">
+        <label htmlFor={id.moneda} className="text-corp">
           Moneda
         </label>
         <input
@@ -177,7 +178,7 @@ export function FormularCheltuiala({ tripId }: { readonly tripId: string }) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.curs} className="text-sm">
+        <label htmlFor={id.curs} className="text-corp">
           Curs valutar (1 {moneda || "monedă"} = ? lei)
         </label>
         <input
@@ -192,12 +193,12 @@ export function FormularCheltuiala({ tripId }: { readonly tripId: string }) {
           className={CLASA_CAMP}
         />
         {sumaLei === null ? null : (
-          <p className="text-muted-foreground text-xs">= {formatLei(sumaLei)}</p>
+          <p className="text-muted-foreground text-nota">= {formatLei(sumaLei)}</p>
         )}
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.document} className="text-sm">
+        <label htmlFor={id.document} className="text-corp">
           Număr document (opțional)
         </label>
         <input
@@ -213,16 +214,11 @@ export function FormularCheltuiala({ tripId }: { readonly tripId: string }) {
       </div>
 
       <div className="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-3">
-        <button
-          type="button"
-          disabled={inCurs}
-          onClick={trimite}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se salvează…" : "Adaugă cheltuiala"}
-        </button>
+        <Buton varianta="primar" inCurs={inCurs} textInCurs="Se salvează…" onClick={trimite}>
+          Adaugă cheltuiala
+        </Buton>
         {eroare === null ? null : (
-          <p role="alert" className="text-danger text-sm">
+          <p role="alert" className="text-danger text-corp">
             {eroare}
           </p>
         )}

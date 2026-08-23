@@ -34,9 +34,9 @@ export function Pas2Reprezentant({ formular, idFormular }: Proprietati) {
   const functie = useWatch({ control, name: "functie_reprezentant_legal" }) ?? "";
 
   return (
-    <fieldset className="border-border space-y-4 rounded-lg border p-4">
-      <legend className="text-foreground px-1 text-sm font-medium">Reprezentantul legal</legend>
-      <p className="text-muted-foreground text-sm">
+    <fieldset className="border-border rounded-panou space-y-4 border p-4">
+      <legend className="text-foreground text-corp px-1 font-medium">Reprezentantul legal</legend>
+      <p className="text-muted-foreground text-corp">
         Apare pe contracte, decizii și fișe generate din HR/SSM.
       </p>
 
@@ -86,7 +86,7 @@ export function Pas2Reprezentant({ formular, idFormular }: Proprietati) {
           aria-describedby={`${idFormular}-repr-cnp-ajutor`}
           className={claseCamp}
         />
-        <p id={`${idFormular}-repr-cnp-ajutor`} className="text-muted-foreground mt-1 text-xs">
+        <p id={`${idFormular}-repr-cnp-ajutor`} className="text-muted-foreground text-nota mt-1">
           Necesar uneori în relația cu instituțiile sau pentru semnături electronice. Se păstrează
           criptat.
         </p>

@@ -4,8 +4,9 @@ import type { Metadata } from "next";
 import { Users } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina } from "@/components/ui/antet-pagina";
 import { AvatarAngajat } from "@/components/data/avatar-angajat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
@@ -55,17 +56,17 @@ function Arbore({
         <li key={nod.id} role="treeitem" aria-expanded={nod.copii.length > 0} aria-level={nivel}>
           <Link
             href={`/angajati/${nod.id}`}
-            className="border-border bg-background hover:bg-surface hover:border-primary/40 flex w-40 flex-col items-center gap-1.5 rounded-lg border px-3 py-3 text-center shadow-sm"
+            className="border-border bg-background hover:bg-surface hover:border-primary/40 rounded-panou shadow-ridicat flex w-40 flex-col items-center gap-1.5 border px-3 py-3 text-center"
           >
             <AvatarAngajat url={nod.avatar_url} nume={nod.full_name} marime="sm" />
-            <span className="text-sm leading-tight font-medium">{nod.full_name}</span>
-            <span className="text-muted-foreground font-mono text-xs">{nod.marca}</span>
-            <span className="text-muted-foreground text-xs leading-tight">
+            <span className="text-corp leading-tight font-medium">{nod.full_name}</span>
+            <span className="text-muted-foreground text-nota font-mono">{nod.marca}</span>
+            <span className="text-muted-foreground text-nota leading-tight">
               {nod.job_position?.denumire ?? "fără funcție"}
               {nod.department === null ? "" : ` · ${nod.department.denumire}`}
             </span>
             {nod.copii.length > 0 ? (
-              <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
+              <span className="text-muted-foreground text-nota inline-flex items-center gap-1">
                 <Users aria-hidden="true" className="size-3.5" />
                 <span>{nod.copii.length}</span>
                 <span className="sr-only">subordonați direcți</span>
@@ -88,9 +89,9 @@ export default async function PaginaOrganigrama() {
 
   if (scope === null || scope === "none") {
     return (
-      <main className="p-6">
+      <div>
         <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta organigrama. Solicitați administratorului organizației rolul potrivit." />
-      </main>
+      </div>
     );
   }
 
@@ -100,23 +101,24 @@ export default async function PaginaOrganigrama() {
   const arbore = construieste(RADACINA, grupeaza(noduri));
 
   return (
-    <main className="space-y-6 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Organigramă</h1>
-        <p className="text-muted-foreground text-sm">
-          {scope === "all"
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Organigramă"
+        descriere={
+          scope === "all"
             ? "Ierarhia managerială a întregii organizații."
             : scope === "team"
               ? "Ierarhia managerială a echipei dumneavoastră."
-              : "Locul dumneavoastră în ierarhia managerială."}
-        </p>
-      </header>
+              : "Locul dumneavoastră în ierarhia managerială."
+        }
+      />
 
       {arbore.length === 0 ? (
-        <EmptyState
-          icon={Users}
-          title="Nimic de afișat"
-          description="Ierarhia se completează pe măsură ce fișele angajaților primesc un manager direct."
+        <StareGoala
+          fel="initiala"
+          pictograma={Users}
+          titlu="Nimic de afișat"
+          descriere="Ierarhia se completează pe măsură ce fișele angajaților primesc un manager direct."
         />
       ) : (
         <div className="overflow-x-auto pb-4">
@@ -125,6 +127,6 @@ export default async function PaginaOrganigrama() {
           </div>
         </div>
       )}
-    </main>
+    </div>
   );
 }

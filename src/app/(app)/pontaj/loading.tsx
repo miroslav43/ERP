@@ -1,15 +1,9 @@
 // src/app/(app)/pontaj/loading.tsx
-import { SkeletonTable } from "@/components/data/skeleton-table";
+// Foaia colectivă are o coloană de nume, 28–31 de coloane de zi și cinci de
+// total. Numărul exact depinde de lună, deci scheletul redă densitatea
+// cadrului, nu fiecare zi în parte.
+import { Schelet } from "@/components/ui/schelet";
 
-export default function SeIncarcaPontaj() {
-  return (
-    <main className="space-y-6 p-6">
-      <div className="space-y-2">
-        <div className="bg-border h-7 w-48 animate-pulse rounded" />
-        <div className="bg-border h-4 w-72 animate-pulse rounded" />
-      </div>
-      <div className="bg-border h-10 w-full animate-pulse rounded" />
-      <SkeletonTable cols={10} />
-    </main>
-  );
+export default function Incarcare() {
+  return <Schelet forma="tabel" coloane={12} />;
 }

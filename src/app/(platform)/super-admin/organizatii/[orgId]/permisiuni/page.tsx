@@ -2,6 +2,7 @@
 import { notFound } from "next/navigation";
 import { RotateCw, ShieldCheck } from "lucide-react";
 
+import { buton } from "@/components/ui/buton";
 import { requirePlatformAdmin } from "@/lib/auth/platform";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { ETICHETE_ROL, ROLURI_APLICATIE, type RolAplicatie } from "@/schemas/membership";
@@ -17,7 +18,7 @@ type RandPermisiune = Readonly<{
 }>;
 
 const CLASA_ANTET =
-  "px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground";
+  "px-3 py-2 text-left text-nota font-semibold uppercase tracking-wide text-muted-foreground";
 
 function cheieCelula(permisiune: string, rol: RolAplicatie): string {
   return `${permisiune}::${rol}`;
@@ -53,12 +54,12 @@ export default async function PaginaPermisiuni({ params }: { params: Promise<{ o
         role="alert"
         className="border-border bg-surface flex flex-col items-center gap-3 rounded-xl border p-10 text-center"
       >
-        <p className="text-danger text-sm font-medium">
+        <p className="text-danger text-corp font-medium">
           Matricea de permisiuni nu a putut fi încărcată
         </p>
         <a
           href={`/super-admin/organizatii/${orgId}/permisiuni`}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium"
+          className={buton({ varianta: "primar" })}
         >
           <RotateCw aria-hidden="true" className="h-4 w-4" />
           Reîncearcă
@@ -92,11 +93,11 @@ export default async function PaginaPermisiuni({ params }: { params: Promise<{ o
   if (cheiPermisiuni.length === 0) {
     return (
       <section className="space-y-6">
-        <h1 className="text-foreground text-2xl font-semibold">Permisiuni — {org.name}</h1>
+        <h1 className="text-foreground text-titlu font-semibold">Permisiuni — {org.name}</h1>
         <div className="border-border bg-surface flex flex-col items-center gap-3 rounded-xl border p-10 text-center">
           <ShieldCheck aria-hidden="true" className="text-muted-foreground h-8 w-8" />
-          <p className="text-foreground text-sm font-medium">Nu există permisiuni definite</p>
-          <p className="text-muted-foreground max-w-md text-sm">
+          <p className="text-foreground text-corp font-medium">Nu există permisiuni definite</p>
+          <p className="text-muted-foreground text-corp max-w-md">
             Tabela <code>role_permissions</code> nu conține încă reguli implicite. Rulează seed-ul
             de permisiuni, apoi revino aici.
           </p>
@@ -108,8 +109,8 @@ export default async function PaginaPermisiuni({ params }: { params: Promise<{ o
   return (
     <section className="space-y-6">
       <header className="space-y-1">
-        <h1 className="text-foreground text-2xl font-semibold">Permisiuni — {org.name}</h1>
-        <p className="text-muted-foreground text-sm">
+        <h1 className="text-foreground text-titlu font-semibold">Permisiuni — {org.name}</h1>
+        <p className="text-muted-foreground text-corp">
           Matrice doar pentru consultare: {cheiPermisiuni.length} resurse pe{" "}
           {ROLURI_APLICATIE.length} roluri. Editarea permisiunilor va fi disponibilă într-o etapă
           următoare.
@@ -117,8 +118,8 @@ export default async function PaginaPermisiuni({ params }: { params: Promise<{ o
       </header>
 
       <div className="border-border bg-surface rounded-xl border p-4">
-        <h2 className="text-foreground text-sm font-semibold">Legendă</h2>
-        <ul className="mt-2 flex flex-wrap gap-3 text-xs">
+        <h2 className="text-foreground text-corp font-semibold">Legendă</h2>
+        <ul className="text-nota mt-2 flex flex-wrap gap-3">
           {(["none", "own", "team", "all"] as const).map((scope) => (
             <li
               key={scope}
@@ -159,9 +160,9 @@ export default async function PaginaPermisiuni({ params }: { params: Promise<{ o
                 <tr key={cheie}>
                   <th
                     scope="row"
-                    className="text-foreground px-3 py-2 text-left align-top text-sm font-medium"
+                    className="text-foreground text-corp px-3 py-2 text-left align-top font-medium"
                   >
-                    <span className="font-mono text-xs">{cheie}</span>
+                    <span className="text-nota font-mono">{cheie}</span>
                     {suprascrisa ? (
                       <span className="border-border text-accent ml-2 rounded-full border px-2 py-0.5 text-[0.65rem]">
                         suprascrisă
@@ -175,7 +176,7 @@ export default async function PaginaPermisiuni({ params }: { params: Promise<{ o
                     return (
                       <td key={rol} className="px-3 py-2 align-top">
                         <span
-                          className={`border-border inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${CULORI_SCOPE[scope]}`}
+                          className={`border-border text-nota inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${CULORI_SCOPE[scope]}`}
                         >
                           {ETICHETE_SCOPE[scope]}
                           {esteSuprascrisa ? (
