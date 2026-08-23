@@ -164,8 +164,18 @@ export function AsistentFirma({ numeFirma, valoriInitiale }: Props) {
         </p>
       ) : null}
 
+      {/* `noValidate`, ca în asistentul din consolă. Pașii sunt ACELEAȘI
+          componente în ambele zone; de când câmpurile obligatorii poartă
+          `required` (prin `<Camp obligatoriu>`), un formular fără `noValidate`
+          ar fi fost oprit de validarea nativă a browserului ÎNAINTE ca
+          `onSubmit` să se declanșeze — cu bula browserului, în limba
+          browserului, în locul mesajelor românești din Zod. Aceleași câmpuri
+          s-ar fi comportat diferit în cele două zone. Validarea rămâne
+          `zodResolver`; `required` rămâne în DOM fiindcă cititoarele de ecran
+          îl anunță. */}
       <form
         id={idFormular}
+        noValidate
         onSubmit={(eveniment) => {
           eveniment.preventDefault();
           if (pasCurent === PAS_CONFIRMARE) void trimite();

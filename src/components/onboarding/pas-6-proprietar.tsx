@@ -4,7 +4,9 @@
 import type { UseFormReturn } from "react-hook-form";
 
 import { PLANURI, type OnboardeazaOrganizatieInput } from "@/schemas/organization";
-import { claseCamp, claseLabel, Eroare } from "./campuri-comune";
+import { Camp } from "@/components/ui/camp";
+
+import { mesajeEroare } from "./campuri-comune";
 
 export const CAMPURI_PAS_6 = [
   "owner_nume",
@@ -45,104 +47,78 @@ export function Pas6Proprietar({ formular, idFormular }: Proprietati) {
         </p>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor={`${idFormular}-owner-prenume`} className={claseLabel}>
-              Prenume *
-            </label>
-            <input
-              id={`${idFormular}-owner-prenume`}
-              {...register("owner_prenume")}
-              aria-invalid={Boolean(errors.owner_prenume)}
-              className={claseCamp}
-            />
-            <Eroare
-              id={`${idFormular}-owner-prenume-eroare`}
-              mesaj={errors.owner_prenume?.message}
-            />
-          </div>
-          <div>
-            <label htmlFor={`${idFormular}-owner-nume`} className={claseLabel}>
-              Nume *
-            </label>
-            <input
-              id={`${idFormular}-owner-nume`}
-              {...register("owner_nume")}
-              aria-invalid={Boolean(errors.owner_nume)}
-              className={claseCamp}
-            />
-            <Eroare id={`${idFormular}-owner-nume-eroare`} mesaj={errors.owner_nume?.message} />
-          </div>
-          <div>
-            <label htmlFor={`${idFormular}-owner-email`} className={claseLabel}>
-              Email de business *
-            </label>
-            <input
-              id={`${idFormular}-owner-email`}
-              type="email"
-              {...register("owner_email")}
-              aria-invalid={Boolean(errors.owner_email)}
-              aria-describedby={`${idFormular}-owner-email-ajutor`}
-              className={claseCamp}
-            />
-            <p
-              id={`${idFormular}-owner-email-ajutor`}
-              className="text-muted-foreground text-nota mt-1"
-            >
-              Devine username-ul de autentificare.
-            </p>
-            <Eroare id={`${idFormular}-owner-email-eroare`} mesaj={errors.owner_email?.message} />
-          </div>
-          <div>
-            <label htmlFor={`${idFormular}-owner-telefon`} className={claseLabel}>
-              Telefon *
-            </label>
-            <input
-              id={`${idFormular}-owner-telefon`}
-              type="tel"
-              {...register("owner_telefon")}
-              placeholder="0721 234 567"
-              aria-invalid={Boolean(errors.owner_telefon)}
-              className={claseCamp}
-            />
-            <Eroare
-              id={`${idFormular}-owner-telefon-eroare`}
-              mesaj={errors.owner_telefon?.message}
-            />
-          </div>
+          <Camp
+            nume="owner_prenume"
+            id={`${idFormular}-owner-prenume`}
+            eticheta="Prenume"
+            obligatoriu
+            erori={mesajeEroare(errors.owner_prenume?.message)}
+          >
+            {(a) => <input {...a} {...register("owner_prenume")} />}
+          </Camp>
+          <Camp
+            nume="owner_nume"
+            id={`${idFormular}-owner-nume`}
+            eticheta="Nume"
+            obligatoriu
+            erori={mesajeEroare(errors.owner_nume?.message)}
+          >
+            {(a) => <input {...a} {...register("owner_nume")} />}
+          </Camp>
+          <Camp
+            nume="owner_email"
+            id={`${idFormular}-owner-email`}
+            eticheta="Email de business"
+            obligatoriu
+            ajutor="Devine username-ul de autentificare."
+            erori={mesajeEroare(errors.owner_email?.message)}
+          >
+            {(a) => <input {...a} type="email" {...register("owner_email")} />}
+          </Camp>
+          <Camp
+            nume="owner_telefon"
+            id={`${idFormular}-owner-telefon`}
+            eticheta="Telefon"
+            obligatoriu
+            erori={mesajeEroare(errors.owner_telefon?.message)}
+          >
+            {(a) => (
+              <input {...a} type="tel" {...register("owner_telefon")} placeholder="0721 234 567" />
+            )}
+          </Camp>
         </div>
       </fieldset>
 
       <fieldset className="border-border rounded-panou space-y-4 border p-4">
         <legend className="text-foreground text-corp px-1 font-medium">Abonament</legend>
         <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor={`${idFormular}-plan`} className={claseLabel}>
-              Plan *
-            </label>
-            <select id={`${idFormular}-plan`} {...register("plan")} className={claseCamp}>
-              {PLANURI.map((plan) => (
-                <option key={plan} value={plan}>
-                  {ETICHETE_PLAN[plan]}
-                </option>
-              ))}
-            </select>
-            <Eroare id={`${idFormular}-plan-eroare`} mesaj={errors.plan?.message} />
-          </div>
-          <div>
-            <label htmlFor={`${idFormular}-locuri`} className={claseLabel}>
-              Număr de locuri *
-            </label>
-            <input
-              id={`${idFormular}-locuri`}
-              type="number"
-              min={1}
-              max={1000}
-              {...register("seats_limit")}
-              aria-invalid={Boolean(errors.seats_limit)}
-              className={claseCamp}
-            />
-            <Eroare id={`${idFormular}-locuri-eroare`} mesaj={errors.seats_limit?.message} />
-          </div>
+          <Camp
+            nume="plan"
+            id={`${idFormular}-plan`}
+            eticheta="Plan"
+            fel="select"
+            obligatoriu
+            erori={mesajeEroare(errors.plan?.message)}
+          >
+            {(a) => (
+              <select {...a} {...register("plan")}>
+                {PLANURI.map((plan) => (
+                  <option key={plan} value={plan}>
+                    {ETICHETE_PLAN[plan]}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Camp>
+          <Camp
+            nume="seats_limit"
+            id={`${idFormular}-locuri`}
+            eticheta="Număr de locuri"
+            obligatoriu
+            erori={mesajeEroare(errors.seats_limit?.message)}
+          >
+            {(a) => <input {...a} type="number" min={1} max={1000} {...register("seats_limit")} />}
+          </Camp>
         </div>
       </fieldset>
     </div>

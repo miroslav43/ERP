@@ -43,7 +43,7 @@ export default async function PaginaFirmaInConfigurare() {
   if (stare !== "pending") redirect(RUTA_DUPA_AUTENTIFICARE);
 
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-col gap-6 px-4 py-16">
+    <div className="mx-auto flex w-full max-w-lg flex-col gap-6 py-6">
       <div className="border-border bg-surface rounded-panou flex flex-col items-center gap-4 border p-8 text-center">
         <span className="bg-background border-border flex size-12 items-center justify-center rounded-full border">
           <Building2 aria-hidden="true" className="text-primary size-6" />
@@ -72,6 +72,6 @@ export default async function PaginaFirmaInConfigurare() {
           Deconectare
         </button>
       </form>
-    </main>
+    </div>
   );
 }

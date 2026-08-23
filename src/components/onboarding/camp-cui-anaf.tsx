@@ -8,7 +8,10 @@ import type { PrecompletareAnaf } from "@/domain/organization/anaf";
 import { validateazaCui } from "@/domain/organization/cui";
 import type { OnboardeazaOrganizatieInput } from "@/schemas/organization";
 
-import { claseCamp, claseLabel, Eroare } from "./campuri-comune";
+import { Camp } from "@/components/ui/camp";
+import { cn } from "@/lib/ui/cn";
+
+import { mesajeEroare } from "./campuri-comune";
 
 /**
  * Câmpul CUI, cu precompletarea restului Pasului 1 din registrul public ANAF.
@@ -163,33 +166,45 @@ export function CampCuiAnaf({ formular, idFormular }: Proprietati) {
 
   return (
     <div>
-      <label htmlFor={`${idFormular}-cui`} className={claseLabel}>
-        CUI / CIF *
-      </label>
-      <div className="flex items-start gap-2">
-        <input
-          id={`${idFormular}-cui`}
-          {...register("cui")}
-          placeholder="RO 14399840"
-          aria-invalid={Boolean(errors.cui)}
-          aria-describedby={`${idFormular}-anaf-stare`}
-          className={`${claseCamp} flex-1`}
-        />
-        <button
-          type="button"
-          onClick={preia}
-          disabled={!cuiValid || inCurs}
-          title={
-            cuiValid
-              ? "Preia denumirea, sediul și codul CAEN din registrul public ANAF"
-              : "Introduceți un CUI valid pentru a putea interoga registrul"
-          }
-          className="border-border text-foreground hover:bg-surface disabled:text-muted-foreground rounded-control text-corp mt-1 shrink-0 border px-3 py-2 font-medium whitespace-nowrap disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se interoghează…" : "Preia de la ANAF"}
-        </button>
-      </div>
-      <Eroare id={`${idFormular}-cui-eroare`} mesaj={errors.cui?.message} />
+      <Camp
+        nume="cui"
+        id={`${idFormular}-cui`}
+        eticheta="CUI / CIF"
+        obligatoriu
+        erori={mesajeEroare(errors.cui?.message)}
+      >
+        {(a) => (
+          <div className="flex items-start gap-2">
+            <input
+              {...a}
+              // Regiunea vie a ANAF-ului se ADAUGĂ la ce a compus `Camp`
+              // (eroarea), nu o înlocuiește. Înainte, `aria-describedby` arăta
+              // NUMAI spre ea, deci mesajul de validare al CUI-ului nu se
+              // anunța niciodată — iar CUI-ul e singurul câmp din pas care are
+              // și validare de formă, și verificare la un registru extern.
+              aria-describedby={[a["aria-describedby"], `${idFormular}-anaf-stare`]
+                .filter((x) => x !== undefined)
+                .join(" ")}
+              className={cn(a.className, "flex-1")}
+              {...register("cui")}
+              placeholder="RO 14399840"
+            />
+            <button
+              type="button"
+              onClick={preia}
+              disabled={!cuiValid || inCurs}
+              title={
+                cuiValid
+                  ? "Preia denumirea, sediul și codul CAEN din registrul public ANAF"
+                  : "Introduceți un CUI valid pentru a putea interoga registrul"
+              }
+              className="border-border text-foreground hover:bg-surface disabled:text-muted-foreground rounded-control text-corp shrink-0 border px-3 py-2 font-medium whitespace-nowrap disabled:cursor-not-allowed"
+            >
+              {inCurs ? "Se interoghează…" : "Preia de la ANAF"}
+            </button>
+          </div>
+        )}
+      </Camp>
 
       <div id={`${idFormular}-anaf-stare`} aria-live="polite" className="mt-1">
         {stare.fel === "succes" && (
