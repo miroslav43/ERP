@@ -68,6 +68,51 @@
    * Stă aici, lângă paletă, nu ca utilitar pe <html>: o editare de layout nu o
    * poate șterge din greșeală, iar așa prinde și bara de derulare a documentului.
    */
+  /*
+   * ── STRATIFICAREA ──────────────────────────────────────────────────────
+   * Șapte niveluri, în ordinea în care se acoperă. Înainte existau z-10, 20,
+   * 30, 40 și 50 scrise de mână în paisprezece fișiere, iar două dintre ele
+   * se ciocneau: antetul lipit al foii colective de pontaj era pe z-20, exact
+   * unde urma să ajungă antetul aplicației — la egalitate câștigă ultimul din
+   * DOM, deci antetul de lună ar fi trecut peste antetul aplicației.
+   *
+   * Coloana lipită stă SUB antetul de tabel intenționat: la intersecția lor,
+   * în colțul din stânga-sus, trebuie să se vadă antetul.
+   *
+   * Meniurile din pagină stau sub antetul aplicației; cele deschise DIN antet
+   * nu au nevoie de un nivel propriu, fiindcă sunt copiii lui.
+   */
+  --z-coloana: 10; /* coloana lipită a unei matrice */
+  --z-antet-tabel: 20; /* <thead> lipit */
+  --z-meniu: 30; /* liste derulante și meniuri deschise în pagină */
+  --z-antet: 40; /* antetul aplicației */
+  --z-scrim: 50; /* fundalul întunecat al sertarului mobil */
+  --z-sertar: 60; /* sertarul mobil și railul */
+  --z-plutitor: 70; /* notificări temporare, „Sari la conținut” */
+
+  /*
+   * ── MIȘCAREA ───────────────────────────────────────────────────────────
+   * Două durate, o curbă. Înainte existau 88 de `transition-*` și O SINGURĂ
+   * durată scrisă (`duration-150`, în sidebar) — restul rulau pe implicitul
+   * Tailwind, prin coincidență, nu prin decizie.
+   *
+   * Durata rapidă nu apare ca token: e suprascrisă direct în
+   * `--default-transition-duration` din `@theme`, deci toate cele 88 o preiau
+   * fără să fie atins niciun fișier. Aici rămâne doar cea lentă, pentru
+   * mișcările de layout — sertarul mobil și panoul lateral.
+   */
+  --durata-lent: 240ms;
+
+  /*
+   * ── HAȘURA ─────────────────────────────────────────────────────────────
+   * Notația pentru „nu s-a întâmplat și nu se mai poate scrie aici": zi în
+   * afara contractului, lună de pontaj închisă. Stratul de marketing are deja
+   * echivalentul (`--mk-hasura`), iar aplicația îl reinventa local de fiecare
+   * dată prin culoare — care se pierde la tipărire alb-negru. Un tipar nu se
+   * pierde.
+   */
+  --hasura: repeating-linear-gradient(45deg, #c3b79b 0 1px, transparent 1px 7px);
+
   color-scheme: light;
 
   /* Bifele, radio-urile și barele de progres iau navy-ul platformei. */
@@ -100,7 +145,115 @@
   --color-ring: var(--color-ring);
 
   --font-sans: var(--font-inter);
+
+  /*
+   * Fontul cifrelor. Nu era declarat DELOC, deși `font-mono` apare de 75 de
+   * ori în cod — deci CNP-ul, IBAN-ul, CUI-ul, codul COR și seriile de
+   * inventar se randau în alt font pe Windows, pe macOS și pe Linux, într-un
+   * produs în care omul compară cifră cu cifră.
+   *
+   * `var(--font-mono-plex, ui-monospace)` cu rezervă, nu fără: o variabilă
+   * nedefinită într-o listă de fonturi invalidează TOATĂ declarația, nu doar
+   * termenul ei. Zonele care nu încarcă Plex (marketingul, care are propriul
+   * Fira Mono) cad curat pe stiva sistemului.
+   */
+  --font-mono: var(--font-mono-plex, ui-monospace), SFMono-Regular, Menlo, monospace;
+
+  /*
+   * ── SCARA TIPOGRAFICĂ ──────────────────────────────────────────────────
+   * Măsurat înainte: `text-corp` de 2101 de ori și `text-nota` de 495, față de
+   * 112 pentru `text-titlu` și 95 pentru `text-sectiune`. Peste 87 % din tot textul
+   * aplicației era la una din două mărimi — de aceea ecranele se citeau plat,
+   * fără să aibă vreun defect vizibil.
+   *
+   * Cinci trepte cu rol scris, plus una pentru cifre. `text-corp` rămâne la
+   * 14px: densitatea e corectă pentru un ERP, nu se umflă.
+   */
+  --text-cifra: 2rem; /* cifra mare de panou; mereu cu tabular-nums */
+  --text-titlu: 1.5rem; /* <h1> de pagină */
+  --text-sectiune: 1.125rem; /* <h2> de secțiune */
+  --text-corp: 0.875rem; /* corpul textului și al tabelelor */
+  --text-nota: 0.75rem; /* note, unități, metadate */
+  --text-eticheta: 0.6875rem; /* eticheta de coloană, majuscule cu tracking */
+
+  /*
+   * ── GEOMETRIA ──────────────────────────────────────────────────────────
+   * `--radius` există de la început și e chiar folosit — `rounded` gol apare
+   * de 253 de ori. Problema era că dă aceeași valoare ca `rounded-panou`, scrisă
+   * în două feluri, iar cele 839 de `rounded-control` nu treceau prin niciun token.
+   *
+   * Două raze cu rol, exact peste practica existentă: controalele erau deja
+   * la 0,375rem și panourile la 0,5rem. Numirea nu schimbă niciun pixel — o
+   * face doar verificabilă.
+   */
+  --radius-control: 0.375rem; /* buton, câmp, badge, pastilă */
+  --radius-panou: 0.5rem; /* card, panou, dialog */
   --radius-DEFAULT: var(--radius);
+
+  /*
+   * ── ELEVAȚIA ───────────────────────────────────────────────────────────
+   * Umbrele erau `shadow-ridicat` (14), `shadow-plutitor` (4) și `shadow-plutitor` (5), alese
+   * pe loc. Două niveluri, amândouă în cerneala paletei (#14213d), nu în
+   * negru: o umbră neutră pe crem cald arată murdară.
+   */
+  --shadow-ridicat: 0 1px 2px rgb(20 33 61 / 0.06), 0 1px 3px rgb(20 33 61 / 0.1);
+  --shadow-plutitor: 0 4px 6px rgb(20 33 61 / 0.05), 0 10px 15px rgb(20 33 61 / 0.1);
+
+  /*
+   * ── MIȘCAREA ───────────────────────────────────────────────────────────
+   * Suprascrierea implicitelor Tailwind e deliberată și e reparația cu cel
+   * mai mare randament din tot blocul: `transition-colors` citește
+   * `var(--tw-duration, var(--default-transition-duration))`, deci toate cele
+   * 88 de tranziții din aplicație preiau durata și curba de aici, fără să fie
+   * atins vreun fișier.
+   *
+   * Curba e cea deja calculată pentru stratul de marketing
+   * (`@keyframes mk-baleiaza`): pornește prompt și se așază lin.
+   */
+  --default-transition-duration: 120ms;
+  --default-transition-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1);
+  --ease-linistit: cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+/*
+ * Utilitare pentru cele două lucruri pe care Tailwind v4 NU le expune ca
+ * spațiu de nume în `@theme`: indicele de stivuire și o durată numită.
+ * Verificat prin compilare, nu presupus — `--z-*` și `--duration-*` în
+ * `@theme` nu generează nimic.
+ *
+ * `durata-lent` setează ȘI `--tw-duration`, nu doar `transition-duration`:
+ * altfel un `transition-colors` scris după ea în aceeași listă de clase i-ar
+ * suprascrie durata înapoi la implicit.
+ */
+@utility z-coloana {
+  z-index: var(--z-coloana);
+}
+@utility z-antet-tabel {
+  z-index: var(--z-antet-tabel);
+}
+@utility z-meniu {
+  z-index: var(--z-meniu);
+}
+@utility z-antet {
+  z-index: var(--z-antet);
+}
+@utility z-scrim {
+  z-index: var(--z-scrim);
+}
+@utility z-sertar {
+  z-index: var(--z-sertar);
+}
+@utility z-plutitor {
+  z-index: var(--z-plutitor);
+}
+
+@utility durata-lent {
+  --tw-duration: var(--durata-lent);
+  transition-duration: var(--durata-lent);
+}
+
+@utility hasura {
+  background-image: var(--hasura);
 }
 
 body {
@@ -472,7 +625,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 
 /*
  * iOS Safari MĂREȘTE automat pagina când primește focus un câmp cu
- * `font-size` sub 16px, și nu o micșorează la loc. Repo-ul pune `text-sm`
+ * `font-size` sub 16px, și nu o micșorează la loc. Repo-ul pune `text-corp`
  * (14px) pe câmpuri aproape peste tot — pe telefon, asta înseamnă că pagina
  * sare la fiecare atingere într-un formular și rămâne mărită, cu bara de jos
  * ieșită din ecran.
@@ -480,9 +633,15 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
  * `pointer: coarse` restrânge regula la dispozitivele cu atingere, deci
  * densitatea de pe laptop rămâne neschimbată. 16px e pragul exact al lui
  * Safari, nu o rotunjire.
+ *
+ * Selectorul e `[data-zona]`, nu `[data-zona="portal"]`: regula era scrisă
+ * pentru portal, dar problema n-are nimic portal-specific — un formular de
+ * autentificare se completează de pe telefon mai des decât orice altceva din
+ * produs. Atributul rămâne obligatoriu, ca `(marketing)` să NU fie prins:
+ * acolo geometria e proprie, cu pasul vertical de 8px și `--mk-celula: 34px`.
  */
 @media (pointer: coarse) {
-  [data-zona="portal"] :is(input, select, textarea) {
+  [data-zona] :is(input, select, textarea) {
     font-size: 16px;
   }
 }
