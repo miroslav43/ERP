@@ -10,13 +10,15 @@ import { AvatarAngajat } from "@/components/data/avatar-angajat";
 import { Badge } from "@/components/ui/badge";
 import { buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
-import { RandTabel } from "@/components/data/rand-tabel";
+import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate } from "@/lib/format/date";
+import { scrieSortare } from "@/lib/queries/cursor";
 import { idFisaProprie, listeazaAngajati } from "@/lib/queries/employees";
 import { filtreAngajatiSchema } from "@/schemas/employee";
 
@@ -39,7 +41,7 @@ interface ProprietatiTabel {
 async function TabelAngajati({ organizationId, scope, userId, parametri }: ProprietatiTabel) {
   const filtre = filtreAngajatiSchema.parse(parametri);
   const propriaFisaId = scope === "all" ? null : await idFisaProprie(organizationId, userId);
-  const { randuri, urmatorulCursor } = await listeazaAngajati({
+  const { randuri, urmatorulCursor, total, sortare } = await listeazaAngajati({
     organizationId,
     scope,
     propriaFisaId,
@@ -65,87 +67,111 @@ async function TabelAngajati({ organizationId, scope, userId, parametri }: Propr
     );
   }
 
-  const cautare = new URLSearchParams();
-  for (const [cheie, valoare] of Object.entries(parametri)) {
-    if (typeof valoare === "string" && cheie !== "cursor") cautare.set(cheie, valoare);
+  /**
+   * Adresele se construiesc din parametrii EXISTENȚI, nu dintr-un obiect gol:
+   * altfel o sortare ar șterge filtrele, iar o schimbare de mărime a paginii
+   * ar șterge sortarea — exact defectul pe care îl aveau cele șase componente
+   * de filtre ale produsului.
+   */
+  function adresa(schimba: (p: URLSearchParams) => void): string {
+    const p = new URLSearchParams();
+    for (const [cheie, valoare] of Object.entries(parametri)) {
+      if (typeof valoare === "string" && valoare !== "") p.set(cheie, valoare);
+    }
+    schimba(p);
+    return p.size === 0 ? "/angajati" : `/angajati?${p.toString()}`;
   }
-  if (urmatorulCursor !== null) cautare.set("cursor", urmatorulCursor);
+
+  const coloane: readonly Coloana<(typeof randuri)[number]>[] = [
+    {
+      cheie: "avatar",
+      antet: "Fotografie",
+      antetAscuns: true,
+      peTelefon: "ascuns",
+      latime: "ingusta",
+      celula: (r) => <AvatarAngajat url={r.avatar_url} nume={r.full_name} marime="sm" />,
+    },
+    {
+      cheie: "marca",
+      antet: "Marcă",
+      sortabil: true,
+      peTelefon: "meta",
+      celula: (r) => <span className="text-nota font-mono">{r.marca}</span>,
+    },
+    {
+      cheie: "nume",
+      antet: "Nume și prenume",
+      sortabil: true,
+      peTelefon: "titlu",
+      celula: (r) => (
+        <>
+          <span className="font-medium">{r.full_name}</span>
+          {r.is_primary ? null : (
+            <span className="text-muted-foreground text-nota ml-2">(cumul de funcții)</span>
+          )}
+        </>
+      ),
+    },
+    {
+      cheie: "departament",
+      antet: "Departament",
+      peTelefon: "meta",
+      celula: (r) => r.department?.denumire ?? "—",
+    },
+    {
+      cheie: "functie",
+      antet: "Funcție",
+      peTelefon: "meta",
+      celula: (r) => r.job_position?.denumire ?? "—",
+    },
+    {
+      cheie: "angajat_din",
+      antet: "Angajat din",
+      sortabil: true,
+      peTelefon: "meta",
+      celula: (r) => (r.hired_on === null ? "—" : formatDate(r.hired_on)),
+    },
+    {
+      cheie: "stare",
+      antet: "Stare",
+      peTelefon: "insigna",
+      celula: (r) => <Badge ton={TONURI_STATUS[r.status]}>{ETICHETE_STATUS[r.status]}</Badge>,
+    },
+  ];
 
   return (
-    <>
-      <div className="border-border rounded-panou overflow-x-auto border">
-        <table className="text-corp w-full text-left">
-          <caption className="sr-only">Lista angajaților din organizație</caption>
-          <thead className="bg-surface text-foreground">
-            <tr>
-              <th scope="col" className="px-4 py-3 font-medium">
-                <span className="sr-only">Fotografie</span>
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Marcă
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Nume și prenume
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Departament
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Funcție
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Angajat din
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Stare
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-border divide-y">
-            {randuri.map((rand) => (
-              <RandTabel key={rand.id} href={`/angajati/${rand.id}`}>
-                <td className="px-4 py-3">
-                  <AvatarAngajat url={rand.avatar_url} nume={rand.full_name} marime="sm" />
-                </td>
-                <td className="text-nota px-4 py-3 font-mono">{rand.marca}</td>
-                <td className="px-4 py-3">
-                  <Link
-                    href={`/angajati/${rand.id}`}
-                    className="text-primary font-medium underline-offset-2 hover:underline"
-                  >
-                    {rand.full_name}
-                  </Link>
-                  {!rand.is_primary ? (
-                    <span className="text-muted-foreground text-nota ml-2">(cumul de funcții)</span>
-                  ) : null}
-                </td>
-                <td className="px-4 py-3">{rand.department?.denumire ?? "—"}</td>
-                <td className="px-4 py-3">{rand.job_position?.denumire ?? "—"}</td>
-                <td className="px-4 py-3">
-                  {rand.hired_on === null ? "—" : formatDate(rand.hired_on)}
-                </td>
-                <td className="px-4 py-3">
-                  <Badge ton={TONURI_STATUS[rand.status]}>{ETICHETE_STATUS[rand.status]}</Badge>
-                </td>
-              </RandTabel>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <nav aria-label="Paginare" className="mt-4 flex justify-end">
-        {urmatorulCursor === null ? (
-          <p className="text-muted-foreground text-corp">Aceasta este ultima pagină.</p>
-        ) : (
-          <Link
-            href={`/angajati?${cautare.toString()}`}
-            className={buton({ varianta: "secundar" })}
-          >
-            Pagina următoare
-          </Link>
-        )}
-      </nav>
-    </>
+    <div className="flex flex-col gap-4">
+      <Tabel
+        caption="Lista angajaților din organizație"
+        coloane={coloane}
+        randuri={randuri}
+        cheieRand={(r) => r.id}
+        href={(r) => `/angajati/${r.id}`}
+        sortare={sortare}
+        hrefSortare={(s) =>
+          adresa((p) => {
+            p.set("sort", scrieSortare(s));
+            // Cursorul nu supraviețuiește unei schimbări de sortare: ar continua
+            // de la un rând care, în noua ordine, nu mai e acolo unde era.
+            p.delete("cursor");
+          })
+        }
+        gol={null}
+      />
+      <Paginare
+        afisate={randuri.length}
+        total={total}
+        cursorUrmator={urmatorulCursor}
+        limita={filtre.limita}
+        construiesteHref={({ cursor, limita }) =>
+          adresa((p) => {
+            p.set("limita", String(limita));
+            if (cursor === null) p.delete("cursor");
+            else p.set("cursor", cursor);
+          })
+        }
+      />
+    </div>
   );
 }
 

@@ -42,10 +42,19 @@ export type Sortare = Readonly<{ cheie: string; directie: "asc" | "desc" }>;
 export type Coloana<R> = Readonly<{
   cheie: string;
   antet: string;
+  /**
+   * Antetul se anunță, dar nu se vede — pentru coloane fără nume util
+   * (fotografie, pictogramă). NU e același lucru cu a-l lăsa gol: un `<th>` fără
+   * conținut nu spune nimic cititorului de ecran despre coloana pe care o
+   * conduce.
+   */
+  antetAscuns?: boolean;
   /** Fără `sortabil`, antetul rămâne text — nu un buton care nu face nimic. */
   sortabil?: boolean;
   /** Cifre: aliniate la dreapta, cu `tabular-nums`, ca să se compare pe verticală. */
   numeric?: boolean;
+  /** `ingusta` — coloana ia exact cât îi trebuie (avatar, cod, pictogramă). */
+  latime?: "auto" | "ingusta";
   /**
    * Rolul celulei în varianta de card, sub 768px.
    * `titlu` — rândul de sus, îngroșat. Exact una pe tabel.
@@ -135,6 +144,7 @@ export function Tabel<R>({
                     celula,
                     "align-middle",
                     c.numeric === true ? "text-right tabular-nums" : "",
+                    c.latime === "ingusta" ? "w-px whitespace-nowrap" : "",
                   )}
                 >
                   {c.celula(r)}
@@ -189,12 +199,17 @@ function AntetColoana<R>({
     celula,
     "text-eticheta text-foreground font-semibold tracking-wide uppercase",
     coloana.numeric === true ? "text-right tabular-nums" : "text-left",
+    coloana.latime === "ingusta" ? "w-px whitespace-nowrap" : "",
   );
 
   if (!poateSorta) {
     return (
       <th scope="col" className={clase}>
-        {coloana.antet}
+        {coloana.antetAscuns === true ? (
+          <span className="sr-only">{coloana.antet}</span>
+        ) : (
+          coloana.antet
+        )}
       </th>
     );
   }

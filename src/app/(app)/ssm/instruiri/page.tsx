@@ -57,6 +57,9 @@ async function Matrice({
         status: "activ",
         cursor: filtre.cursor,
         limita: filtre.limita,
+        // Matricea de instruiri își impune propria ordine (angajat × tip), deci
+        // sortarea din lista de angajați nu i se aplică.
+        sort: null,
       },
     }),
     tipuriInstruire(organizationId),

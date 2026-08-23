@@ -2,10 +2,23 @@
 // Citirile de personal, cu paginare keyset și restrângere după scope (self / team).
 
 import type { PermissionScope } from "@/config/permissions";
-import type { FiltreAngajati, StatusAngajat } from "@/schemas/employee";
+import {
+  SORTARI_ANGAJATI,
+  type FiltreAngajati,
+  type SortareAngajati,
+  type StatusAngajat,
+} from "@/schemas/employee";
 import { urlAvatar } from "@/lib/avatar/cale";
 import { avataturiPeUtilizatori } from "@/lib/queries/profile";
 import { createServerSupabase } from "@/lib/supabase/server";
+
+import {
+  codificaCursor as codificaKeyset,
+  decodificaCursor as decodificaKeyset,
+  predicatKeyset,
+  sortareCeruta,
+  type Directie,
+} from "./cursor";
 
 const EMBED_DEPARTAMENT = "department:departments!department_id(id, denumire)";
 const EMBED_FUNCTIE = "job_position:job_positions!job_position_id(id, denumire)";
@@ -29,7 +42,17 @@ interface RandAngajatBrut extends Omit<RandAngajat, "avatar_url"> {
 export interface RezultatAngajati {
   readonly randuri: readonly RandAngajat[];
   readonly urmatorulCursor: string | null;
+  /**
+   * Câte rânduri sunt în total, după filtre. Nicio listă din produs n-o spunea:
+   * „Pagina următoare" fără un total e o ușă fără indicație — nu știi dacă mai
+   * urmează un ecran sau o sută.
+   */
+  readonly total: number;
+  /** Sortarea EFECTIV aplicată, după îngustarea la coloanele permise. */
+  readonly sortare: Readonly<{ cheie: SortareAngajati; directie: Directie }>;
 }
+
+const SORTARE_IMPLICITA = { cheie: "nume", directie: "asc" } as const;
 
 export interface ContractAngajat {
   readonly id: string;
@@ -111,36 +134,13 @@ export interface RezumatDateSensibile {
   readonly banca: string | null;
 }
 
-interface Cursor {
-  readonly nume: string;
-  readonly id: string;
-}
-
-export function codificaCursor(cursor: Cursor): string {
-  return Buffer.from(`${cursor.nume}\u0000${cursor.id}`, "utf8").toString("base64url");
-}
-
-export function decodificaCursor(valoare: string): Cursor | null {
-  try {
-    const bucati = Buffer.from(valoare, "base64url").toString("utf8").split("\u0000");
-    const nume = bucati[0];
-    const id = bucati[1];
-    if (nume === undefined || id === undefined || id.length === 0) return null;
-    return { nume, id };
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Exportată pentru test: capcana 11 o declară OBLIGATORIE pe orice cursor de
- * text, fiindcă o virgulă sau o ghilimea într-un nume rupe filtrul
- * `or=(...)` al lui PostgREST. O funcție de care depinde corectitudinea unei
- * interogări merită verificată direct, nu prin efect.
+/*
+ * Cursorul, ghilimelarea și predicatul keyset trăiau AICI, în copii aproape
+ * identice răspândite prin zece fișiere de citiri — fiecare cu propriul
+ * `ghilimeleaza`. Au fost mutate în `./cursor.ts`, unde structura poartă o
+ * valoare opacă în loc de un nume, deci aceeași funcție servește orice coloană
+ * de sortare. Testele lor sunt în `cursor.test.ts`.
  */
-export function ghilimeleaza(valoare: string): string {
-  return `"${valoare.replace(/\\/gu, "\\\\").replace(/"/gu, '\\"')}"`;
-}
 
 /** Fișa proprie a utilizatorului curent — necesară pentru scope „self” și „team”. */
 export async function idFisaProprie(
@@ -161,6 +161,18 @@ export async function idFisaProprie(
   return data?.id ?? null;
 }
 
+/**
+ * Cheia din URL → coloana din bază. Traducerea e OBLIGATORIU explicită: numele
+ * coloanei intră într-un predicat construit ca text, deci nu are voie să vină
+ * din afară. Cheile sunt românești fiindcă apar în adresa pe care omul o
+ * copiază; coloanele rămân englezești, ca tot restul schemei.
+ */
+const COLOANA_SORTARE: Readonly<Record<SortareAngajati, string>> = {
+  nume: "full_name",
+  marca: "marca",
+  angajat_din: "hired_on",
+};
+
 export interface IntrareListare {
   readonly organizationId: string;
   readonly scope: PermissionScope;
@@ -171,19 +183,30 @@ export interface IntrareListare {
 export async function listeazaAngajati(intrare: IntrareListare): Promise<RezultatAngajati> {
   const { organizationId, scope, propriaFisaId, filtre } = intrare;
   if (scope !== "all" && propriaFisaId === null) {
-    return { randuri: [], urmatorulCursor: null };
+    return { randuri: [], urmatorulCursor: null, total: 0, sortare: SORTARE_IMPLICITA };
   }
 
   const db = await createServerSupabase();
+  const sortare = sortareCeruta(filtre.sort, SORTARI_ANGAJATI, SORTARE_IMPLICITA);
+  const coloana = COLOANA_SORTARE[sortare.cheie];
+  const crescator = sortare.directie === "asc";
+
   let interogare = db
     .from("employees")
     .select(
       `id, marca, full_name, status, hired_on, is_primary, user_id, ${EMBED_DEPARTAMENT}, ${EMBED_FUNCTIE}`,
+      // `count: "exact"` pe aceeași interogare: numărătoarea respectă filtrele
+      // ȘI politicile RLS, fără un al doilea drum la bază care le-ar putea
+      // aplica altfel.
+      { count: "exact" },
     )
     .eq("organization_id", organizationId)
     .is("deleted_at", null)
-    .order("full_name", { ascending: true })
-    .order("id", { ascending: true })
+    // Identificatorul e MEREU al doilea criteriu: numele nu e unic, iar fără el
+    // ordinea dintre doi omonimi e nedefinită, deci paginarea poate sări sau
+    // repeta exact acolo.
+    .order(coloana, { ascending: crescator, nullsFirst: false })
+    .order("id", { ascending: crescator })
     .limit(filtre.limita + 1);
 
   if (scope === "own" && propriaFisaId !== null) {
@@ -199,13 +222,12 @@ export async function listeazaAngajati(intrare: IntrareListare): Promise<Rezulta
     interogare = interogare.eq("job_position_id", filtre.job_position_id);
   if (filtre.status !== null) interogare = interogare.eq("status", filtre.status);
 
-  const cursor = filtre.cursor === null ? null : decodificaCursor(filtre.cursor);
+  const cursor = filtre.cursor === null ? null : decodificaKeyset(filtre.cursor);
   if (cursor !== null) {
-    const nume = ghilimeleaza(cursor.nume);
-    interogare = interogare.or(`full_name.gt.${nume},and(full_name.eq.${nume},id.gt.${cursor.id})`);
+    interogare = interogare.or(predicatKeyset(coloana, cursor, sortare.directie));
   }
 
-  const { data, error } = await interogare.returns<RandAngajatBrut[]>();
+  const { data, error, count } = await interogare.returns<RandAngajatBrut[]>();
   if (error !== null) throw error;
 
   const toate = data ?? [];
@@ -217,12 +239,23 @@ export async function listeazaAngajati(intrare: IntrareListare): Promise<Rezulta
     avatar_url: urlAvatar(avataruri.get(user_id ?? "") ?? null),
   }));
   const ultimul = randuri.at(-1);
+  const valoareCursor =
+    ultimul === undefined
+      ? null
+      : sortare.cheie === "marca"
+        ? ultimul.marca
+        : sortare.cheie === "angajat_din"
+          ? (ultimul.hired_on ?? "")
+          : ultimul.full_name;
+
   return {
     randuri,
     urmatorulCursor:
-      areUrmatoarea && ultimul !== undefined
-        ? codificaCursor({ nume: ultimul.full_name, id: ultimul.id })
+      areUrmatoarea && ultimul !== undefined && valoareCursor !== null
+        ? codificaKeyset({ valoare: valoareCursor, id: ultimul.id })
         : null,
+    total: count ?? randuri.length,
+    sortare,
   };
 }
 

@@ -118,6 +118,18 @@ const ibanOptional = z
 
 // ── Filtre de listare (paginare keyset) ───────────────────────────────────────
 
+/**
+ * Coloanele după care lista de angajați se poate sorta.
+ *
+ * Lista e ÎNCHISĂ, nu o validare de formă: numele coloanei ajunge într-un
+ * `.order()` și într-un predicat de cursor construit ca text, deci nu poate
+ * veni liber din query string. `sortareCeruta` din `lib/queries/cursor.ts` cade
+ * tăcut pe implicit pentru orice altceva — un URL copiat greșit nu strică
+ * ecranul, doar îl arată sortat implicit.
+ */
+export const SORTARI_ANGAJATI = ["nume", "marca", "angajat_din"] as const;
+export type SortareAngajati = (typeof SORTARI_ANGAJATI)[number];
+
 export const filtreAngajatiSchema = z.object({
   q: textOptional(80),
   department_id: uuidOptional,
@@ -125,6 +137,8 @@ export const filtreAngajatiSchema = z.object({
   status: z.enum(STATUSURI_ANGAJAT).nullable().default(null),
   cursor: textOptional(400),
   limita: z.coerce.number().int().min(5).max(100).default(25),
+  /** Forma din URL: `marca` crescător, `-marca` descrescător. */
+  sort: textOptional(40),
 });
 
 export type FiltreAngajati = z.infer<typeof filtreAngajatiSchema>;
