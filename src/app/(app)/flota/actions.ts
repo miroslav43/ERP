@@ -307,12 +307,25 @@ export const confirmaAnomalie = createAction({
   revalidate: ["/flota/anomalii"],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const db = await createServerSupabase();
-    const { error } = await db
+    // A vedea o anomalie și a o confirma sunt două drepturi diferite:
+    // `anomalii_select` (rescrisă în 0018) cere doar `app.poate_vedea_vehicul`,
+    // deci `vehicles:read`, pe când `anomalii_update` cere
+    // `app.can(org,'vehicles','update','team')`. Cine o vede și n-o poate
+    // confirma e respins de `USING` — zero rânduri, fără eroare — iar lista ar
+    // rămâne cu anomalia neconfirmată după un mesaj de reușită.
+    const { data: anomalieConfirmata, error } = await db
       .from("odometer_anomalies")
       .update({ confirmat_la: new Date().toISOString(), nota: input.nota })
       .eq("id", input.id)
-      .eq("organization_id", ctx.tenant.organizationId);
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle();
     if (error !== null) traduEroare(error);
+    if (anomalieConfirmata === null) {
+      throw businessRule(
+        "Confirmarea nu a fost înregistrată: anomalia a fost ștearsă între timp sau nu aveți dreptul de a opera vehiculele acestei echipe. Reîncărcați lista de anomalii.",
+      );
+    }
 
     return { id: input.id };
   },

@@ -450,6 +450,11 @@ export const decideCerere = createAction({
         );
       }
 
+      // Măturarea rămâne tăcută intenționat: rulează cu clientul admin, deci
+      // RLS n-o poate refuza, iar zero rânduri e cazul NORMAL — sarcinile
+      // surori de la aceeași ordine au fost deja anulate de
+      // `trg_approval_tasks_anuleaza_surori`, iar pașii următori pot lipsi cu
+      // totul. Aici tăcerea înseamnă „nu mai era nimic de anulat”, nu „refuzat”.
       const { error: eroareAnulare } = await admin
         .from("approval_tasks")
         .update({ status: "anulata", decis_la: acum })

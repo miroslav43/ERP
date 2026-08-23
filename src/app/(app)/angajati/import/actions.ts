@@ -231,11 +231,28 @@ async function importaUnRand(ctx: ActionContext, angajat: AngajatProtejat): Prom
   const employeeId = inserare.data.id;
 
   // Compensare: orice pas ulterior eșuat anulează logic fișa, eliberând marca.
+  //
+  // `.select()` fiindcă și compensarea poate fi respinsă TĂCUT: `employees_update`
+  // cere `employees:update`, pe când importul rulează pe `employees:create` — un
+  // rol care are creare fără modificare anula fișa cu zero rânduri și fără nicio
+  // eroare. Fișa rămânea în bază cu marca ocupată, iar reimportul aceluiași rând,
+  // după corectură, cădea pe 23505 „marca există deja”, mesaj care nu spune nimic
+  // despre fișa fantomă. `employees_select` NU filtrează `deleted_at`, deci rândul
+  // proaspăt anulat rămâne vizibil pentru `.select()` (vezi nota din 0018).
+  //
+  // Aici NU se aruncă: importul raportează erorile PE RÂND, iar un `throw` ar opri
+  // restul lotului și ar trimite clientul să reia același offset peste rândurile
+  // deja scrise. Tăcerea se rupe în mesajul rândului, nu în fluxul lotului.
   const anuleaza = async (motiv: string): Promise<string> => {
-    await ctx.supabase
+    const { data: anulata } = await ctx.supabase
       .from("employees")
       .update({ deleted_at: new Date().toISOString() })
-      .eq("id", employeeId);
+      .eq("id", employeeId)
+      .select("id")
+      .maybeSingle();
+    if (anulata === null) {
+      return `${motiv} Atenție: fișa creată pentru acest rând NU a putut fi anulată și a rămas în bază cu marca „${marca}” ocupată — ștergeți-o din ecranul Angajați înainte de a reimporta rândul.`;
+    }
     return motiv;
   };
 

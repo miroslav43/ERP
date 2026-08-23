@@ -239,7 +239,14 @@ export const returneazaObiect = createAction({
     // `internal.inventory_alloc_imutabile` acceptă exact aceste coloane la
     // UPDATE. Returnare cu starea „defect” mută obiectul în „in_reparatie”,
     // nu în „in_stoc” (0019/V1b) — mesajul de succes trebuie să o spună.
-    const { error } = await db
+    // Citirea de mai sus vede STRICT mai mult decât poate scrie UPDATE-ul:
+    // `inventory_allocations_select_checklist` (0014) deschide alocările oricui
+    // are `checklists:update=team` — cine conduce offboardingul citește aloca-
+    // rea, dar `inventory_allocations_update` îi cere `inventory:update=all` sau
+    // să fie chiar angajatul de pe rând. Refuzul e ZERO rânduri, FĂRĂ eroare, iar
+    // fără `.select()` ecranul ar anunța obiectul returnat în timp ce baza îl
+    // ține mai departe în primirea angajatului.
+    const { data: alocareInchisa, error } = await db
       .from("inventory_allocations")
       .update({
         returnat_la: input.returnat_la ?? ctx.now.toISOString(),
@@ -248,8 +255,15 @@ export const returneazaObiect = createAction({
         updated_by: ctx.user.id,
       })
       .eq("id", input.id)
-      .eq("organization_id", ctx.tenant.organizationId);
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle();
     if (error !== null) traduEroare(error);
+    if (alocareInchisa === null) {
+      throw businessRule(
+        "Returnarea nu a fost înregistrată: predarea-primirea a fost închisă de altcineva între timp sau nu aveți dreptul de a opera inventarul. Reîncărcați pagina și verificați cine are obiectul în primire.",
+      );
+    }
 
     return { id: input.id, item_id: alocare.item_id };
   },

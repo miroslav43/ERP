@@ -2,7 +2,7 @@
 "use server";
 
 import { createAction } from "@/lib/actions/create-action";
-import { notFound } from "@/lib/actions/errors";
+import { businessRule, notFound } from "@/lib/actions/errors";
 import { decideSaptamanaPontajSchema, trimiteSaptamanaPontajSchema } from "@/schemas/attendance";
 import { traduEroare } from "../erori";
 
@@ -88,14 +88,38 @@ export const decideSaptamanaPontaj = createAction<
     }
 
     const acum = ctx.now.toISOString();
-    const { error: eroareUpdateSarcina } = await ctx.supabase
+    // `.select()` aici e APĂRARE ÎN ADÂNCIME, nu reparația unei căi observate —
+    // și distincția contează, fiindcă motivarea greșită învață următorul
+    // cititor o regulă de RLS care nu există.
+    //
+    // `approval_tasks_select` (0009_leave.sql:957) și `approval_tasks_update`
+    // (:975) au ACELAȘI predicat: destinatarul, delegatul, sau
+    // `leave:approve = "all"` — permisiunea de CONCEDII, nu cea de pontaj. Cine
+    // e respins de `USING`-ul de UPDATE e respins deja și de SELECT, deci
+    // citirea de mai sus întoarce `null` și fluxul se oprește la `notFound()`,
+    // cu alt mesaj. Ramura de mai jos NU poate fi atinsă pe calea obișnuită.
+    //
+    // Se poate atinge doar dacă apartenența sau delegarea se schimbă ÎNTRE
+    // citire și scriere. Rar, dar nu imposibil, iar costul e o linie.
+    const { data: sarcinaDecisa, error: eroareUpdateSarcina } = await ctx.supabase
       .from("approval_tasks")
       .update({ status: input.decizie, comentariu: input.comentariu, decis_la: acum })
       .eq("id", sarcina.id)
-      .eq("organization_id", ctx.tenant.organizationId);
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle();
     if (eroareUpdateSarcina !== null) traduEroare(eroareUpdateSarcina);
+    if (sarcinaDecisa === null) {
+      throw businessRule(
+        "Sarcina de aprobare nu vă este atribuită sau a fost decisă de altcineva între timp, deci decizia nu a fost înregistrată. Reîncărcați lista de aprobări.",
+      );
+    }
 
-    const { error: eroareDecizie } = await ctx.supabase
+    // Tot tranziție: `attendance_week_submissions_update` (0041) cere
+    // `status = 'trimisa'` și manager direct sau `attendance:approve = all`. O
+    // retrimitere a angajatului sau decizia altui aprobator, între citire și
+    // scriere, scoate rândul din `USING` — zero rânduri, fără eroare.
+    const { data: saptamanaDecisa, error: eroareDecizie } = await ctx.supabase
       .from("attendance_week_submissions")
       .update({
         status: input.decizie,
@@ -104,8 +128,15 @@ export const decideSaptamanaPontaj = createAction<
         motiv_respingere: input.decizie === "respinsa" ? input.motivRespingere : null,
       })
       .eq("id", sarcina.entity_id)
-      .eq("organization_id", ctx.tenant.organizationId);
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle();
     if (eroareDecizie !== null) traduEroare(eroareDecizie);
+    if (saptamanaDecisa === null) {
+      throw businessRule(
+        "Sarcina a fost marcată ca decisă, dar săptămâna nu a mai putut fi actualizată: între timp a fost retrimisă de angajat sau decisă de alt aprobator. Reîncărcați pagina și verificați starea ei.",
+      );
+    }
 
     return { id: sarcina.entity_id };
   },

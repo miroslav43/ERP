@@ -380,6 +380,11 @@ export const aprobaPontajBloc = createAction({
     // de id-uri e deja mărginită de RLS la pasul (2), cu clientul
     // utilizatorului, deci ocolirea RLS aici e strict pentru scriere, nu
     // pentru vizibilitate.
+    // Rămâne fără `.select()`: scrierea trece cu clientul admin, deci nicio
+    // politică n-o poate refuza tăcut, iar mulțimea de id-uri tocmai a fost
+    // citită la pasul (2) — un rezultat gol n-ar însemna „refuzat”, ci că
+    // rândurile au dispărut fizic, ceea ce nicio tabelă `attendance_*` nu
+    // permite (n-au politică DELETE).
     const admin = createAdminSupabase();
     const { error: eroareMarcare } = await admin
       .from("attendance_entries")
@@ -389,12 +394,23 @@ export const aprobaPontajBloc = createAction({
     if (eroareMarcare !== null) throw eroareMarcare;
 
     // (5) Lotul + statusul perioadei, cu clientul utilizatorului.
-    const { error: eroareActualizareLot } = await ctx.supabase
+    // `attendance_batches_update` cere din nou `attendance:approve = team`
+    // (0013_attendance.sql). Respins de `USING`, UPDATE-ul afectează zero
+    // rânduri fără eroare: liniile ar rămâne aprobate, dar lotul ar arăta la
+    // nesfârșit „0 linii aprobate” — un contor care nu urmează lista.
+    const { data: lotActualizat, error: eroareActualizareLot } = await ctx.supabase
       .from("attendance_approval_batches")
       .update({ linii_aprobate: idDeAprobat.length })
       .eq("id", lot.id)
-      .eq("organization_id", ctx.tenant.organizationId);
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle();
     if (eroareActualizareLot !== null) throw eroareActualizareLot;
+    if (lotActualizat === null) {
+      throw businessRule(
+        "Liniile au fost aprobate, dar numărul lor nu a putut fi înscris pe lotul de aprobare, care rămâne afișat cu 0 linii. Reîncărcați pagina și verificați dacă mai aveți dreptul de aprobare.",
+      );
+    }
 
     if (perioada.status === "deschisa") {
       // Tranziția `deschisa -> in_aprobare` trece prin `attendance_periods_update`.

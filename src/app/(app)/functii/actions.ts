@@ -117,12 +117,25 @@ export const dezactiveazaFunctie = createAction<
       );
     }
 
-    const { error } = await db
+    // Precondiția de mai sus („nicio funcție cu angajați alocați”) e o CITIRE
+    // separată de scrierea asta: între ele, altcineva poate muta un angajat pe
+    // funcție sau o poate șterge logic. Iar `job_positions_update` cere în
+    // `USING` și `departments:update = all` și `deleted_at is null` — un refuz
+    // înseamnă zero rânduri, fără eroare, deci fără `.select()` ecranul ar
+    // arăta funcția dezactivată în timp ce ea rămâne activă.
+    const { data: functieDezactivata, error } = await db
       .from("job_positions")
       .update({ activ: false, updated_by: ctx.user.id })
       .eq("id", input.id)
-      .eq("organization_id", ctx.tenant.organizationId);
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle();
     if (error !== null) throw mapPostgrestError(error, ctx.requestId);
+    if (functieDezactivata === null) {
+      throw businessRule(
+        "Funcția nu a fost dezactivată: a fost ștearsă între timp sau nu aveți dreptul de a modifica structura organizatorică. Reîncărcați pagina.",
+      );
+    }
     revalidatePath("/functii");
     return { id: input.id };
   },

@@ -3,7 +3,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { mapPostgrestError } from "@/lib/actions/errors";
+import { businessRule, mapPostgrestError } from "@/lib/actions/errors";
 import { createAction } from "@/lib/actions/create-action";
 import {
   creeazaEvaluareSchema,
@@ -89,12 +89,25 @@ export const dezactiveazaSablonEvaluare = createAction<
     allow: [],
   },
   handler: async (ctx, input) => {
-    const { error } = await ctx.supabase
+    // `.select()` obligatoriu: un UPDATE respins de clauza USING a politicii
+    // `evaluation_templates_update` atinge ZERO rânduri și NU ridică eroare.
+    // Poarta acelei politici NU e `evaluations:update` (cea verificată în
+    // preambul), ci `employees:update in ('all','team')` — un rol care are una
+    // fără cealaltă primea „dezactivat” pe un șablon rămas activ. La fel un
+    // identificator care nu mai există sau nu aparține firmei.
+    const { data, error } = await ctx.supabase
       .from("evaluation_templates")
       .update({ activ: false, updated_by: ctx.user.id })
       .eq("id", input.id)
-      .eq("organization_id", ctx.tenant.organizationId);
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle();
     if (error !== null) throw mapPostgrestError(error, ctx.requestId);
+    if (data === null) {
+      throw businessRule(
+        "Șablonul nu a fost dezactivat: fie nu mai există, fie nu aveți dreptul să îl modificați. A rămas activ — reîncărcați lista de șabloane.",
+      );
+    }
     revalidatePath("/evaluari/sabloane");
     return { id: input.id };
   },

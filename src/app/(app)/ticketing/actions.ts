@@ -1,4 +1,21 @@
 // src/app/(app)/ticketing/actions.ts
+//
+// ── DE CE FIECARE SCRIERE FILTREAZĂ PE `organization_id` ──────────────────
+// Politica `tickets_update` (0045:657) leagă `organization_id = any(
+// app.current_org_ids())` — adică mulțimea firmelor din care face parte
+// utilizatorul, nu firma pe care o are deschisă. Iar `app.has_permission(
+// organization_id, …)` și `app.fisa_mea(organization_id)` se evaluează pe
+// organizația RÂNDULUI. Consecința, pentru cineva membru în două firme: având
+// contextul pe firma A, un `ticket_id` din firma B trecea de politică, fiindcă
+// acolo chiar are dreptul.
+//
+// Nu e o scurgere între firme străine — omul putea oricum acționa asupra
+// tichetului, din firma B. Dar intrarea de audit, revalidarea și
+// `ctx.tenant.organizationId` ar fi spus altceva decât ce s-a întâmplat.
+// Ticketing-ul era SINGURUL din cele optsprezece module cu scrieri și zero
+// filtre de tenant; celelalte șaptesprezece îl pun. Filtrul poate doar să
+// refuze mai mult, niciodată mai puțin, iar refuzul se vede acum ca un conflict
+// explicit, nu ca tăcere.
 "use server";
 
 import { createAction } from "@/lib/actions/create-action";
@@ -158,12 +175,13 @@ export const decideTichet = createAction({
     allow: ["ticket_id", "aprobat", "motiv"],
   },
   revalidate: CAI_DE_REIMPROSPATAT,
-  handler: async (_ctx, input): Promise<Readonly<{ status: string }>> => {
+  handler: async (ctx, input): Promise<Readonly<{ status: string }>> => {
     const db = await createServerSupabase();
     const { data: tichet, error: eroareCitire } = await db
       .from("tickets")
       .select("id, status, aprobare_ceruta")
       .eq("id", input.ticket_id)
+      .eq("organization_id", ctx.tenant.organizationId)
       .is("deleted_at", null)
       .maybeSingle();
     if (eroareCitire !== null) throw eroareCitire;
@@ -178,14 +196,27 @@ export const decideTichet = createAction({
     // Aprobatorul și data se scriu de trigger, nu de aici — vezi
     // `internal.tickets_valideaza_tranzitia`. Tot acolo se verifică dreptul:
     // managerul direct sau patronul, și niciodată solicitantul însuși.
-    const { error } = await db
+    // Între citirea de mai sus și scrierea asta, un al doilea aprobator poate
+    // decide — iar dreptul de a decide îl verifică tot baza. Un rând care nu
+    // trece de clauza USING a politicii `tickets_update` e sărit TĂCUT: zero
+    // rânduri, zero erori, iar acțiunea ar raporta „aprobat”. `.select()`
+    // transformă tăcerea în conflict.
+    const { data: decisa, error } = await db
       .from("tickets")
       .update({
         status: input.aprobat ? "in_lucru" : "respins",
         ...(input.motiv === undefined ? {} : { motiv_respingere: input.motiv }),
       })
-      .eq("id", input.ticket_id);
+      .eq("id", input.ticket_id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle();
     if (error !== null) throw error;
+    if (decisa === null) {
+      throw businessRule(
+        "Cererea a fost deja decisă de altcineva între timp sau nu aveți dreptul de a decide asupra ei. Reîncărcați pagina.",
+      );
+    }
 
     return { status: input.aprobat ? "in_lucru" : "respins" };
   },
@@ -204,15 +235,25 @@ export const schimbaStatusul = createAction({
     allow: ["ticket_id", "status"],
   },
   revalidate: CAI_DE_REIMPROSPATAT,
-  handler: async (_ctx, input): Promise<Readonly<{ status: string }>> => {
+  handler: async (ctx, input): Promise<Readonly<{ status: string }>> => {
     const db = await createServerSupabase();
     // Tranziția și dreptul de a o face sunt validate în bază. Aici nu le
     // dublăm: o a doua listă de reguli ar începe să difere de prima.
-    const { error } = await db
+    // Dacă politica refuză rândul, UPDATE-ul atinge zero rânduri fără eroare:
+    // utilizatorul ar vedea statusul nou pe ecran și cel vechi în bază.
+    const { data: mutat, error } = await db
       .from("tickets")
       .update({ status: input.status })
-      .eq("id", input.ticket_id);
+      .eq("id", input.ticket_id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle();
     if (error !== null) throw error;
+    if (mutat === null) {
+      throw businessRule(
+        "Tichetul nu a putut fi mutat în starea cerută: a fost schimbat de altcineva între timp sau nu aveți dreptul asupra lui. Reîncărcați pagina.",
+      );
+    }
     return { status: input.status };
   },
 });
@@ -266,15 +307,27 @@ export const suprascriePrioritatea = createAction({
   revalidate: CAI_DE_REIMPROSPATAT,
   handler: async (ctx, input): Promise<Readonly<{ prioritate: string }>> => {
     const db = await createServerSupabase();
-    const { error } = await db
+    // Prioritatea e un câmp păzit — o poate schimba doar cine operează
+    // tichetul — iar refuzul politicii `tickets_update` nu produce eroare.
+    // Verificarea stă ÎNAINTEA istoricului: altfel `ticket_history` ar
+    // consemna o schimbare care nu s-a produs.
+    const { data: reprioritizat, error } = await db
       .from("tickets")
       .update({
         prioritate: input.prioritate,
         prioritate_manuala: true,
         prioritate_motiv: input.motiv,
       })
-      .eq("id", input.ticket_id);
+      .eq("id", input.ticket_id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle();
     if (error !== null) throw error;
+    if (reprioritizat === null) {
+      throw businessRule(
+        "Prioritatea nu a fost schimbată: tichetul nu mai este accesibil sau nu aveți dreptul de a-l prelucra. Reîncărcați pagina.",
+      );
+    }
 
     // Justificarea rămâne în istoricul tichetului, nu doar în `audit_logs`:
     // e informație de care are nevoie cine deschide fișa, nu un auditor.
@@ -305,13 +358,24 @@ export const asigneaza = createAction({
     allow: ["ticket_id", "asignat_employee_id"],
   },
   revalidate: CAI_DE_REIMPROSPATAT,
-  handler: async (_ctx, input): Promise<Readonly<{ ok: true }>> => {
+  handler: async (ctx, input): Promise<Readonly<{ ok: true }>> => {
     const db = await createServerSupabase();
-    const { error } = await db
+    // `asignat_employee_id` e câmp păzit, iar politica poate sări rândul
+    // tăcut: fără `.select()`, ecranul ar arăta tichetul repartizat, iar în
+    // bază ar rămâne nerepartizat.
+    const { data: asignat, error } = await db
       .from("tickets")
       .update({ asignat_employee_id: input.asignat_employee_id })
-      .eq("id", input.ticket_id);
+      .eq("id", input.ticket_id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle();
     if (error !== null) throw error;
+    if (asignat === null) {
+      throw businessRule(
+        "Repartizarea nu a fost salvată: tichetul nu mai este accesibil sau nu aveți dreptul de a-l prelucra. Reîncărcați pagina.",
+      );
+    }
     return { ok: true };
   },
 });
@@ -329,7 +393,7 @@ export const marcheazaDuplicat = createAction({
     allow: ["ticket_id", "parent_ticket_id"],
   },
   revalidate: CAI_DE_REIMPROSPATAT,
-  handler: async (_ctx, input): Promise<Readonly<{ ok: true }>> => {
+  handler: async (ctx, input): Promise<Readonly<{ ok: true }>> => {
     if (input.ticket_id === input.parent_ticket_id) {
       throw businessRule("Un tichet nu poate fi duplicatul lui însuși.");
     }
@@ -339,6 +403,7 @@ export const marcheazaDuplicat = createAction({
       .from("tickets")
       .select("id, tip, parent_ticket_id")
       .eq("id", input.parent_ticket_id)
+      .eq("organization_id", ctx.tenant.organizationId)
       .is("deleted_at", null)
       .maybeSingle();
     if (eroareParinte !== null) throw eroareParinte;
@@ -349,11 +414,22 @@ export const marcheazaDuplicat = createAction({
       throw businessRule("Tichetul-părinte este el însuși un duplicat. Alegeți originalul.");
     }
 
-    const { error } = await db
+    // Legătura de duplicat e câmp păzit, iar tichetul-copil poate să fi fost
+    // șters sau scos din raza noastră între verificarea părintelui de mai sus
+    // și scrierea asta — ambele, zero rânduri fără eroare.
+    const { data: marcat, error } = await db
       .from("tickets")
       .update({ parent_ticket_id: input.parent_ticket_id })
-      .eq("id", input.ticket_id);
+      .eq("id", input.ticket_id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle();
     if (error !== null) throw error;
+    if (marcat === null) {
+      throw businessRule(
+        "Marcarea ca duplicat nu a fost salvată: tichetul nu mai este accesibil sau nu aveți dreptul de a-l prelucra. Reîncărcați pagina.",
+      );
+    }
     return { ok: true };
   },
 });
@@ -389,11 +465,22 @@ export const aplicaMacro = createAction({
     });
     if (eroareComentariu !== null) throw eroareComentariu;
 
-    const { error } = await db
+    // Comentariul e deja publicat, deci tăcerea de aici e cea mai costisitoare
+    // din modul: solicitantul ar citi un răspuns care anunță o schimbare de
+    // stare ce nu s-a produs. Mesajul spune exact ce a rămas făcut și ce nu.
+    const { data: mutatDeMacro, error } = await db
       .from("tickets")
       .update({ status: macro.status })
-      .eq("id", input.ticket_id);
+      .eq("id", input.ticket_id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle();
     if (error !== null) throw error;
+    if (mutatDeMacro === null) {
+      throw businessRule(
+        "Răspunsul a fost publicat, dar starea tichetului nu a putut fi schimbată: a fost mutat de altcineva între timp sau nu aveți dreptul de a-l prelucra. Reîncărcați pagina.",
+      );
+    }
 
     return { status: macro.status };
   },

@@ -418,12 +418,25 @@ export const modificaSalariulContractului = createAction({
       throw businessRule("Salariul se modifică doar pe contractul principal activ.");
     }
 
-    const { error } = await db
+    // Zero rânduri afectate = clauza USING a politicii `contracts_update` a
+    // respins tranziția, fără nicio eroare (capcana 17) — între citirea de mai
+    // sus și scrierea asta, contractul poate fi încetat sau șters logic de
+    // altcineva. Aici tăcerea e cea mai scumpă din modul: contractul e document
+    // cu efect legal, iar un salariu raportat ca modificat și nescris intră în
+    // statul de plată și în REVISAL cu suma veche, fără ca cineva să afle.
+    const { data: contractModificat, error } = await db
       .from("employment_contracts")
       .update({ salariu_baza: input.salariu_baza, updated_by: ctx.user.id })
       .eq("id", contract.id)
-      .eq("organization_id", ctx.tenant.organizationId);
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle();
     if (error !== null) throw error;
+    if (contractModificat === null) {
+      throw businessRule(
+        "Salariul NU a fost modificat: contractul a fost încetat sau modificat de altcineva între timp, ori nu aveți dreptul asupra lui. Reîncărcați fișa angajatului și verificați suma aflată acum în contract.",
+      );
+    }
 
     revalidatePath("/angajati");
     revalidatePath(`/angajati/${contract.employee_id}`);

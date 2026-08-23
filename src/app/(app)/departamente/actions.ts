@@ -160,12 +160,25 @@ export const dezactiveazaDepartament = createAction<
       );
     }
 
-    const { error } = await db
+    // Numărătoarea de angajați de mai sus e o citire separată de scrierea asta:
+    // între cele două, altcineva poate muta un angajat în departament sau îl
+    // poate șterge logic. Iar `departments_update` cere în `USING` și
+    // `departments:update = all` și `deleted_at is null` — refuzul e zero
+    // rânduri, fără eroare, deci fără `.select()` ecranul ar anunța
+    // dezactivarea unui departament rămas activ.
+    const { data: departamentDezactivat, error } = await db
       .from("departments")
       .update({ activ: false, updated_by: ctx.user.id })
       .eq("id", input.id)
-      .eq("organization_id", ctx.tenant.organizationId);
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle();
     if (error !== null) throw mapPostgrestError(error, ctx.requestId);
+    if (departamentDezactivat === null) {
+      throw businessRule(
+        "Departamentul nu a fost dezactivat: a fost șters între timp sau nu aveți dreptul de a modifica structura organizatorică. Reîncărcați pagina.",
+      );
+    }
     revalidatePath("/departamente");
     return { id: input.id };
   },
