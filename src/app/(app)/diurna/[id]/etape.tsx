@@ -15,6 +15,8 @@ import {
 } from "@/lib/queries/per-diem";
 import type { BaremTara } from "@/domain/per-diem/sume";
 
+import { ActiuniEtapa } from "./actiuni-etapa";
+
 function numeTara(tari: ReadonlyMap<string, Tara>, id: string): string {
   return tari.get(id)?.denumire ?? id;
 }
@@ -25,12 +27,15 @@ export function Etape({
   politica,
   baremuri,
   tari,
+  poateSterge = false,
 }: {
   readonly deplasare: Deplasare;
   readonly etape: readonly EtapaDeplasare[];
   readonly politica: PoliticaRand | null;
   readonly baremuri: readonly BaremTara[];
   readonly tari: ReadonlyMap<string, Tara>;
+  /** Implicit `false`: fișa decide, nu componenta. Portalul o randează fără. */
+  readonly poateSterge?: boolean;
 }) {
   return (
     <div className="space-y-6">
@@ -47,7 +52,15 @@ export function Etape({
                 <span className="font-medium">
                   {numeTara(tari, e.from_country_id)} → {numeTara(tari, e.to_country_id)}
                 </span>
-                <span className="text-muted-foreground text-nota">Etapa {e.ordine}</span>
+                <span className="flex items-center gap-1">
+                  <span className="text-muted-foreground text-nota">Etapa {e.ordine}</span>
+                  {poateSterge ? (
+                    <ActiuniEtapa
+                      id={e.id}
+                      descriere={`${numeTara(tari, e.from_country_id)} → ${numeTara(tari, e.to_country_id)}`}
+                    />
+                  ) : null}
+                </span>
               </div>
               <p className="text-muted-foreground">
                 {formatDateTime(new Date(e.plecare_la))} – {formatDateTime(new Date(e.sosire_la))}

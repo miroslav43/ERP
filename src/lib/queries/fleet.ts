@@ -31,13 +31,20 @@ export interface RandVehicul {
   readonly status: StatusVehicul;
   readonly prag_salt_km: number | null;
   readonly data_iesire: string | null;
+  /**
+   * Urcat din `Vehicul` în rândul de LISTĂ fiindcă e termenul de comparație al
+   * consumului real: coada de aprobare arată „9,4 l/100 km” fără el ca pe o
+   * cifră fără verdict. Costă o coloană în plus la fiecare citire de listă și
+   * scutește un al doilea drum la bază pe ecranul unde se semnează.
+   */
+  readonly consum_mediu_declarat: number | null;
 }
 
 export interface RezultatVehicule {
   readonly randuri: readonly RandVehicul[];
   readonly urmatorulCursor: string | null;
   /**
-   * Câte vehicule sunt în total, după filtre. „Pagina următoare" fără un total
+   * Câte vehicule sunt în total, după filtre. „Pagina următoare” fără un total
    * e o ușă fără indicație: nu știi dacă mai urmează un ecran sau o sută.
    */
   readonly total: number;
@@ -51,7 +58,6 @@ export interface Vehicul extends RandVehicul {
   readonly capacitate_cilindrica: number | null;
   readonly masa_maxima_kg: number | null;
   readonly numar_locuri: number | null;
-  readonly consum_mediu_declarat: number | null;
   readonly valoare_achizitie: number | null;
   readonly data_achizitie: string | null;
   readonly motiv_iesire: string | null;
@@ -105,6 +111,21 @@ export interface RandFoaie {
   readonly status: StatusFoaie;
   readonly trimis_la: string | null;
   readonly aprobat_la: string | null;
+}
+
+/**
+ * Foaia CITITĂ ÎNTREAGĂ — rândul de listă plus cele două câmpuri lungi.
+ *
+ * `citesteFoaie` le selecta dintotdeauna, dar întorcea `RandFoaie`, iar pagina
+ * de detaliu ajungea la `motiv_respingere` printr-un cast scris de mână
+ * (`(foaie as { motiv_respingere?: string | null })`). Un cast e o promisiune
+ * neverificată: dacă selectul ar fi pierdut coloana, tipul ar fi tăcut și
+ * ecranul ar fi arătat „Nu a fost consemnat niciun motiv.” pentru o respingere
+ * motivată. Acum semnătura spune ce citește interogarea.
+ */
+export interface Foaie extends RandFoaie {
+  readonly observatii: string | null;
+  readonly motiv_respingere: string | null;
 }
 
 export interface RezultatFoi {
@@ -205,7 +226,8 @@ export type FiltreFoiCitire = Omit<FiltreFoi, "sort"> & { readonly sort?: string
 
 const COLOANE_VEHICUL_LISTA =
   "id, nr_inmatriculare, marca, model, categorie, tip_combustibil, an_fabricatie, " +
-  "km_curent, employee_id, department_id, status, prag_salt_km, data_iesire";
+  "km_curent, employee_id, department_id, status, prag_salt_km, data_iesire, " +
+  "consum_mediu_declarat";
 
 const COLOANE_FOAIE =
   "id, vehicle_id, employee_id, numar, plecare_la, sosire_la, km_plecare, km_sosire, " +
@@ -278,7 +300,7 @@ export async function citesteVehicul(organizationId: string, id: string): Promis
     .from("vehicles")
     .select(
       `${COLOANE_VEHICUL_LISTA}, vin, culoare, capacitate_cilindrica, masa_maxima_kg, ` +
-        "numar_locuri, consum_mediu_declarat, valoare_achizitie, data_achizitie, " +
+        "numar_locuri, valoare_achizitie, data_achizitie, " +
         "motiv_iesire, observatii, created_at",
     )
     .eq("organization_id", organizationId)
@@ -405,7 +427,7 @@ export async function listeazaFoi(
   };
 }
 
-export async function citesteFoaie(organizationId: string, id: string): Promise<RandFoaie | null> {
+export async function citesteFoaie(organizationId: string, id: string): Promise<Foaie | null> {
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("trip_sheets")
@@ -413,7 +435,7 @@ export async function citesteFoaie(organizationId: string, id: string): Promise<
     .eq("organization_id", organizationId)
     .eq("id", id)
     .is("deleted_at", null)
-    .maybeSingle<RandFoaie & { observatii: string | null; motiv_respingere: string | null }>();
+    .maybeSingle<Foaie>();
 
   if (error !== null) throw error;
   return data;
@@ -462,6 +484,64 @@ export async function kmDePlecareSugerat(
   return Math.max(dinFoaie ?? 0, dinVehicul ?? 0);
 }
 
+/** Litrii și costul unei foi, adunate. Cifrele pe care le semnează aprobatorul. */
+export interface CombustibilFoaie {
+  readonly litri: number;
+  readonly cost: number;
+  readonly alimentari: number;
+}
+
+export interface RezultatCombustibil {
+  readonly perFoaie: ReadonlyMap<string, CombustibilFoaie>;
+  /**
+   * Citirea a atins plafonul, deci unele alimentări lipsesc din totaluri.
+   * Se raportează pe ecran: un total de litri prea mic, fără nicio eroare, e
+   * exact felul de cifră greșită care trece de o aprobare.
+   */
+  readonly trunchiat: boolean;
+}
+
+/**
+ * Combustibilul unui LOT de foi, într-o singură citire.
+ *
+ * Coada de aprobare avea nevoie de litri, cost și consum pentru fiecare rând;
+ * `alimentarileFoii` per foaie ar fi însemnat o sută de drumuri la bază pe un
+ * ecran care se deschide de zeci de ori pe zi. Agregarea se face în TypeScript,
+ * nu în Postgres, fiindcă `.rpc()` nu ajunge la schema `app` și o vedere nouă ar
+ * fi cerut o migrare.
+ */
+export async function combustibilPeFoi(idFoi: readonly string[]): Promise<RezultatCombustibil> {
+  const unice = [...new Set(idFoi)];
+  if (unice.length === 0) return { perFoaie: new Map(), trunchiat: false };
+
+  const db = await createServerSupabase();
+  // 20 de alimentări pe foaie e generos pentru o cursă; plafonul rămâne sub
+  // `max_rows = 1000`, care ar tăia TĂCUT dacă l-am depăși.
+  const plafon = Math.min(unice.length * 20, PLAFON_POSTGREST);
+  const { data, error } = await db
+    .from("fuel_entries")
+    .select("trip_sheet_id, litri, cost")
+    .in("trip_sheet_id", unice)
+    .is("deleted_at", null)
+    .limit(plafon)
+    .returns<{ trip_sheet_id: string; litri: number; cost: number }[]>();
+
+  if (error !== null) throw error;
+  const randuri = data ?? [];
+
+  const perFoaie = new Map<string, CombustibilFoaie>();
+  for (const r of randuri) {
+    const pana_acum = perFoaie.get(r.trip_sheet_id) ?? { litri: 0, cost: 0, alimentari: 0 };
+    perFoaie.set(r.trip_sheet_id, {
+      litri: pana_acum.litri + r.litri,
+      cost: pana_acum.cost + r.cost,
+      alimentari: pana_acum.alimentari + 1,
+    });
+  }
+
+  return { perFoaie, trunchiat: randuri.length >= plafon };
+}
+
 export async function alimentarileFoii(foaieId: string): Promise<readonly Alimentare[]> {
   const db = await createServerSupabase();
   const { data, error } = await db
@@ -476,23 +556,69 @@ export async function alimentarileFoii(foaieId: string): Promise<readonly Alimen
   return data ?? [];
 }
 
+const COLOANE_ANOMALIE =
+  "id, vehicle_id, trip_sheet_id, km_asteptat, km_declarat, diferenta, tip, " +
+  "explicatie, confirmat_la, nota, created_at";
+
+/** Plafonul tăcut al PostgREST. O citire care îl atinge e trunchiată, fără eroare. */
+const PLAFON_POSTGREST = 1000;
+
+/** Câte anomalii se citesc deodată în coada de explicat. */
+export const PLAFON_ANOMALII = 200;
+
 export async function anomaliiNeconfirmate(organizationId: string): Promise<readonly Anomalie[]> {
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("odometer_anomalies")
-    .select(
-      "id, vehicle_id, trip_sheet_id, km_asteptat, km_declarat, diferenta, tip, " +
-        "explicatie, confirmat_la, nota, created_at",
-    )
+    .select(COLOANE_ANOMALIE)
     .eq("organization_id", organizationId)
     .is("deleted_at", null)
     .is("confirmat_la", null)
     .order("created_at", { ascending: false })
-    .limit(200)
+    .limit(PLAFON_ANOMALII)
     .returns<Anomalie[]>();
 
   if (error !== null) throw error;
   return data ?? [];
+}
+
+/**
+ * Anomaliile produse de un lot de foi de parcurs, grupate pe foaie.
+ *
+ * Există fiindcă anomalia trăia doar în `useState`-ul formularului care a
+ * declanșat-o, iar `router.refresh()` de pe rândul următor o ștergea: o foaie cu
+ * un salt de 3 000 km neexplicat arăta, la reîncărcare și în coada de aprobare,
+ * exact ca una curată. Se citesc și cele CONFIRMATE — o anomalie explicată tot
+ * schimbă felul în care se citește foaia, doar că nu mai cere o acțiune.
+ */
+export async function anomaliiPeFoi(
+  organizationId: string,
+  idFoi: readonly string[],
+): Promise<ReadonlyMap<string, readonly Anomalie[]>> {
+  const unice = [...new Set(idFoi)];
+  if (unice.length === 0) return new Map();
+
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("odometer_anomalies")
+    .select(COLOANE_ANOMALIE)
+    .eq("organization_id", organizationId)
+    .in("trip_sheet_id", unice)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false })
+    .limit(Math.min(unice.length * 5, PLAFON_POSTGREST))
+    .returns<Anomalie[]>();
+
+  if (error !== null) throw error;
+
+  const perFoaie = new Map<string, Anomalie[]>();
+  for (const a of data ?? []) {
+    if (a.trip_sheet_id === null) continue;
+    const aleFoii = perFoaie.get(a.trip_sheet_id);
+    if (aleFoii === undefined) perFoaie.set(a.trip_sheet_id, [a]);
+    else aleFoii.push(a);
+  }
+  return perFoaie;
 }
 
 /**

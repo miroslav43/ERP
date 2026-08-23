@@ -1,13 +1,32 @@
 // src/app/(app)/functii/actiuni-functie.tsx
 "use client";
 
-import { useId, useState, useTransition } from "react";
+import { useCallback, useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Ban, Pencil, Undo2 } from "lucide-react";
 
 import { Buton } from "@/components/ui/buton";
+import { Camp } from "@/components/ui/camp";
+import { Formular } from "@/components/ui/formular";
 
+import { CautaCor } from "./cauta-cor";
 import { actualizeazaFunctie, dezactiveazaFunctie, reactiveazaFunctie } from "./actions";
+
+/**
+ * Acțiunile unui rând din nomenclatorul de funcții: editarea și comutarea
+ * activării.
+ *
+ * Numai editarea trece prin `<Formular>` — ea are câmpuri, deci și `fieldErrors`
+ * de arătat pe câmp, și date de pierdut la resetul de după acțiune al lui React
+ * 19. Comutarea activării n-are decât `id`, luat din props; acolo
+ * `useTransition` și un mesaj sub butoane spun tot ce e de spus.
+ *
+ * Ce se pierdea înainte, concret: `codCorOptional` respinge un cod care nu
+ * există în Clasificarea Ocupațiilor (nu doar unul cu alt număr de cifre). La
+ * refuz, formularul necontrolat se reseta, deci denumirea, nivelul de studii și
+ * descrierea rescrise se întorceau la valorile din bază — fără niciun semn că
+ * s-a pierdut ceva.
+ */
 
 interface Proprietati {
   readonly functie: Readonly<{
@@ -26,29 +45,26 @@ export function ActiuniFunctie({ functie, poateEdita }: Proprietati) {
   const [editeaza, setEditeaza] = useState(false);
   const [inCurs, porneste] = useTransition();
   const [eroare, setEroare] = useState<string | null>(null);
-  const idDenumire = useId();
-  const idCodCor = useId();
-  const idNivelStudii = useId();
-  const idDescriere = useId();
+  const idFormular = useId();
+  const idc = (sufix: string): string => `${idFormular}-${sufix}`;
+
+  // `useCallback`: `laReusita` intră în dependențele efectului din `Formular`;
+  // o funcție nouă la fiecare randare ar scoate notificarea de două ori.
+  const laReusita = useCallback((): void => {
+    setEditeaza(false);
+    router.refresh();
+  }, [router]);
 
   if (!poateEdita) return null;
 
-  function trimiteEditare(fd: FormData): void {
-    setEroare(null);
-    porneste(async () => {
-      const rezultat = await actualizeazaFunctie({
-        id: functie.id,
-        denumire: String(fd.get("denumire") ?? ""),
-        cod_cor: String(fd.get("cod_cor") ?? ""),
-        nivel_studii: String(fd.get("nivel_studii") ?? ""),
-        descriere: String(fd.get("descriere") ?? ""),
-      });
-      if (!rezultat.ok) {
-        setEroare(rezultat.error.message);
-        return;
-      }
-      setEditeaza(false);
-      router.refresh();
+  /** Cheile obiectului sunt EXACT cele din `actualizeazaFunctieSchema`. */
+  async function trimiteEditare(date: FormData) {
+    return actualizeazaFunctie({
+      id: functie.id,
+      denumire: String(date.get("denumire") ?? ""),
+      cod_cor: String(date.get("cod_cor") ?? ""),
+      nivel_studii: String(date.get("nivel_studii") ?? ""),
+      descriere: String(date.get("descriere") ?? ""),
     });
   }
 
@@ -100,70 +116,95 @@ export function ActiuniFunctie({ functie, poateEdita }: Proprietati) {
       )}
 
       {editeaza ? (
-        <form
-          action={trimiteEditare}
+        <Formular
+          actiune={trimiteEditare}
+          laReusita={laReusita}
+          mesajReusita="Funcția a fost salvată."
           className="border-border rounded-control grid gap-2 border p-3 sm:grid-cols-2"
         >
-          <div className="flex flex-col gap-1">
-            <label htmlFor={idDenumire} className="text-nota font-medium">
-              Denumire
-            </label>
-            <input
-              id={idDenumire}
-              name="denumire"
-              type="text"
-              required
-              maxLength={160}
-              defaultValue={functie.denumire}
-              className="border-foreground/60 rounded-control text-corp border px-2 py-1.5"
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor={idCodCor} className="text-nota font-medium">
-              Cod COR
-            </label>
-            <input
-              id={idCodCor}
-              name="cod_cor"
-              type="text"
-              inputMode="numeric"
-              maxLength={6}
-              defaultValue={functie.cod_cor ?? ""}
-              className="border-foreground/60 rounded-control text-corp border px-2 py-1.5"
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor={idNivelStudii} className="text-nota font-medium">
-              Nivel de studii
-            </label>
-            <input
-              id={idNivelStudii}
-              name="nivel_studii"
-              type="text"
-              maxLength={80}
-              defaultValue={functie.nivel_studii ?? ""}
-              className="border-foreground/60 rounded-control text-corp border px-2 py-1.5"
-            />
-          </div>
-          <div className="flex flex-col gap-1 sm:col-span-2">
-            <label htmlFor={idDescriere} className="text-nota font-medium">
-              Descriere
-            </label>
-            <textarea
-              id={idDescriere}
-              name="descriere"
-              maxLength={1000}
-              rows={2}
-              defaultValue={functie.descriere ?? ""}
-              className="border-foreground/60 rounded-control text-corp border px-2 py-1.5"
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
-              Salvează
-            </Buton>
-          </div>
-        </form>
+          {(stare) => {
+            const eroriCor = stare.erori["cod_cor"] ?? [];
+
+            return (
+              <>
+                <Camp
+                  nume="denumire"
+                  id={idc("denumire")}
+                  eticheta="Denumire"
+                  obligatoriu
+                  erori={stare.erori["denumire"] ?? []}
+                >
+                  {(a) => (
+                    <input
+                      {...a}
+                      type="text"
+                      maxLength={160}
+                      defaultValue={stare.valoriTrimise["denumire"] ?? functie.denumire}
+                    />
+                  )}
+                </Camp>
+
+                <Camp nume="cod_cor" id={idc("cod_cor")} eticheta="Cod COR" erori={eroriCor}>
+                  {(a) => (
+                    <CautaCor
+                      idInput={a.id}
+                      valoareInitiala={stare.valoriTrimise["cod_cor"] ?? functie.cod_cor ?? ""}
+                      invalid={eroriCor.length > 0}
+                      descrisDe={a["aria-describedby"]}
+                    />
+                  )}
+                </Camp>
+
+                <Camp
+                  nume="nivel_studii"
+                  id={idc("nivel_studii")}
+                  eticheta="Nivel de studii"
+                  erori={stare.erori["nivel_studii"] ?? []}
+                >
+                  {(a) => (
+                    <input
+                      {...a}
+                      type="text"
+                      maxLength={80}
+                      defaultValue={
+                        stare.valoriTrimise["nivel_studii"] ?? functie.nivel_studii ?? ""
+                      }
+                    />
+                  )}
+                </Camp>
+
+                <Camp
+                  nume="descriere"
+                  id={idc("descriere")}
+                  eticheta="Descriere"
+                  fel="textarea"
+                  className="sm:col-span-2"
+                  erori={stare.erori["descriere"] ?? []}
+                >
+                  {(a) => (
+                    <textarea
+                      {...a}
+                      maxLength={1000}
+                      rows={2}
+                      defaultValue={stare.valoriTrimise["descriere"] ?? functie.descriere ?? ""}
+                    />
+                  )}
+                </Camp>
+
+                <div className="sm:col-span-2">
+                  <Buton
+                    type="submit"
+                    varianta="primar"
+                    inCurs={stare.inCurs}
+                    textInCurs="Se salvează…"
+                  >
+                    Salvează
+                  </Buton>
+                </div>
+              </>
+            );
+          }}
+        </Formular>
       ) : null}
     </div>
   );

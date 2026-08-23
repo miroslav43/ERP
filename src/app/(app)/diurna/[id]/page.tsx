@@ -6,12 +6,14 @@ import type { Metadata } from "next";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
+import { buton } from "@/components/ui/buton";
+import { Callout } from "@/components/ui/callout";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { formatDateTime } from "@/lib/format/date";
-import { formatLei } from "@/lib/format/money";
+import { formatDate, formatDateTime } from "@/lib/format/date";
+import { formatAmount, formatLei } from "@/lib/format/money";
 import { idDinRuta } from "@/lib/rute/parametri";
 import {
   angajatiDupaId,
@@ -29,12 +31,23 @@ import {
   ETICHETE_TIP_CHELTUIALA,
   TONURI_STATUS_DEPLASARE,
 } from "../etichete";
+import { ActiuniCheltuiala } from "./actiuni-cheltuiala";
 import { ActiuniDeplasare } from "./actiuni-deplasare";
 import { Etape } from "./etape";
 import { FormularCheltuiala } from "./formular-cheltuiala";
 import { FormularEtapa } from "./formular-etapa";
 
 export const metadata: Metadata = { title: "Fișa deplasării" };
+
+/**
+ * Cursul NU trece prin `formatAmount`: acela rotunjește la doi zecimali, iar
+ * `curs_diurna` e `numeric(14,6)`. Un curs BNR de 4,9765 afișat „4,98” schimbă
+ * suma în lei cu ~0,07% — invizibil pe o zi, vizibil pe un decont de mie.
+ */
+const formatorCurs = new Intl.NumberFormat("ro-RO", {
+  minimumFractionDigits: 4,
+  maximumFractionDigits: 6,
+});
 
 interface ProprietatiPagina {
   readonly params: Promise<{ readonly id: string }>;
@@ -83,33 +96,67 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
   const angajat = angajati.get(deplasare.employee_id);
 
   const editabila = deplasare.status === "ciorna" || deplasare.status === "respinsa";
-  const poateTrimite = can(permisiuni, "per_diem:update", "own") && editabila;
+  const inchisa = deplasare.status === "decontata" || deplasare.status === "anulata";
+  const poateScrie = can(permisiuni, "per_diem:update", "own");
+  const poateTrimite = poateScrie && editabila;
+  const poateCorecta = poateScrie && editabila;
   const poateSterge = can(permisiuni, "per_diem:delete", "own") && deplasare.status === "ciorna";
-  const poateDeconta =
-    can(permisiuni, "per_diem:approve", "team") && deplasare.status === "aprobata";
-  const poateAdaugaEtapa = can(permisiuni, "per_diem:update", "own") && editabila;
-  const poateAdaugaCheltuiala = can(permisiuni, "per_diem:update", "own");
+  const poateAproba = can(permisiuni, "per_diem:approve", "team");
+  const poateDeconta = poateAproba && deplasare.status === "aprobata";
+  const poateAdaugaEtapa = poateScrie && editabila;
+  // Cheltuielile sosesc DUPĂ deplasare, deci nu se leagă de „editabilă”. Din
+  // „decontată” și „anulată” însă nu se mai iese (trigger P0001): un rând
+  // adăugat acolo n-ar mai putea fi nici aprobat, nici decontat.
+  const poateAdaugaCheltuiala = poateScrie && !inchisa;
+  /**
+   * Decizia pe cheltuială cere ambele drepturi, nu doar `approve`: politica
+   * `trip_expenses_update` are `per_diem:approve` în USING, dar `per_diem:update`
+   * în WITH CHECK. Un `manager` (seed: `per_diem = team {read, approve}`, fără
+   * `update`) trece de USING și cade pe WITH CHECK — zero rânduri, fără eroare.
+   * Butonul nu se arată cui baza îl va refuza tăcut; explicația apare în locul lui.
+   */
+  const poateDecideCheltuiala = poateAproba && poateScrie;
+  const aprobaDarNuPoateScrie = poateAproba && !poateScrie;
+
+  const arataActiuniCheltuiala = poateDecideCheltuiala || (poateScrie && !inchisa);
 
   const coloaneCheltuieli: readonly Coloana<(typeof cheltuieliTrip)[number]>[] = [
     {
       cheie: "tip",
       antet: "Tip",
       peTelefon: "titlu",
-      celula: (c) =>
-        `${ETICHETE_TIP_CHELTUIALA[c.tip]}${c.descriere === null ? "" : ` · ${c.descriere}`}`,
+      celula: (c) => (
+        <>
+          <span>
+            {ETICHETE_TIP_CHELTUIALA[c.tip]}
+            {c.descriere === null ? "" : ` · ${c.descriere}`}
+          </span>
+          {/* Motivul respingerii era CITIT din bază (`cheltuielile`, în
+              queries/per-diem.ts) și nu se randa nicăieri: angajatul vedea
+              cuvântul „Respinsă” și niciun cuvânt despre de ce. */}
+          {c.motiv_respingere === null ? null : (
+            <span className="text-muted-foreground text-nota block">
+              Motivul respingerii: {c.motiv_respingere}
+            </span>
+          )}
+        </>
+      ),
     },
     {
       cheie: "data",
       antet: "Data",
       peTelefon: "meta",
-      celula: (c) => c.data_cheltuielii,
+      celula: (c) => formatDate(c.data_cheltuielii),
     },
     {
       cheie: "suma",
       antet: "Sumă",
       numeric: true,
       peTelefon: "meta",
-      celula: (c) => `${String(c.suma)} ${c.moneda}`,
+      // `numeric` sosește din PostgREST ca ȘIR: `String(c.suma)` dădea
+      // „1200.5 EUR” lângă un `formatLei` în convenție românească, în același
+      // tabel.
+      celula: (c) => formatAmount(c.suma, c.moneda),
     },
     {
       cheie: "lei",
@@ -131,6 +178,27 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
           <Badge ton="atentie">În așteptare</Badge>
         ),
     },
+    ...(arataActiuniCheltuiala
+      ? [
+          {
+            cheie: "actiuni",
+            antet: "Acțiuni",
+            antetAscuns: true,
+            latime: "ingusta" as const,
+            peTelefon: "meta" as const,
+            celula: (c: (typeof cheltuieliTrip)[number]) => (
+              <ActiuniCheltuiala
+                id={c.id}
+                aprobata={c.aprobata}
+                descriere={`${ETICHETE_TIP_CHELTUIALA[c.tip]}${c.descriere === null ? "" : ` · ${c.descriere}`}`}
+                sumaLei={formatLei(c.suma_lei)}
+                poateDecide={poateDecideCheltuiala}
+                poateSterge={poateScrie && !inchisa}
+              />
+            ),
+          },
+        ]
+      : []),
   ];
 
   // Aceleași cuvinte ca înainte, doar strânse într-un șir: `descriere` e text,
@@ -153,9 +221,28 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
           titlu={deplasare.scop}
           descriere={descriereDeplasare}
           actiuni={
-            <Badge ton={TONURI_STATUS_DEPLASARE[deplasare.status]}>
-              {ETICHETE_STATUS_DEPLASARE[deplasare.status]}
-            </Badge>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge ton={TONURI_STATUS_DEPLASARE[deplasare.status]}>
+                {ETICHETE_STATUS_DEPLASARE[deplasare.status]}
+              </Badge>
+              {/* Punctul de intrare care lipsea: acțiunea de corectare există
+                  acum în `actions.ts`, iar fără linkul ăsta ar fi rămas o
+                  acțiune pe care niciun ecran n-o cheamă. */}
+              {poateCorecta ? (
+                <Link
+                  href={`/diurna/${deplasare.id}/editeaza`}
+                  className={buton({ varianta: "secundar" })}
+                >
+                  Corectează
+                </Link>
+              ) : null}
+              <Link
+                href={`/diurna/${deplasare.id}/decont`}
+                className={buton({ varianta: "secundar" })}
+              >
+                Decontul
+              </Link>
+            </div>
           }
         />
       </div>
@@ -179,7 +266,11 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
           />
           <Camp
             eticheta="Curs diurnă"
-            valoare={deplasare.curs_diurna === null ? "—" : String(deplasare.curs_diurna)}
+            valoare={
+              deplasare.curs_diurna === null
+                ? "—"
+                : formatorCurs.format(Number(deplasare.curs_diurna))
+            }
           />
           <Camp
             eticheta="Kilometri parcurși"
@@ -202,7 +293,10 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
                     deplasare.stat_gazda_country_id)}
                 {deplasare.salariu_minim_stat_gazda === null
                   ? ""
-                  : ` · Salariu minim: ${String(deplasare.salariu_minim_stat_gazda)} ${deplasare.moneda_salariu_minim ?? ""}`}
+                  : ` · Salariu minim: ${formatAmount(
+                      deplasare.salariu_minim_stat_gazda,
+                      deplasare.moneda_salariu_minim ?? undefined,
+                    )}`}
               </dd>
             </div>
           ) : null}
@@ -234,13 +328,17 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
           politica={politica}
           baremuri={baremuri}
           tari={hartaTari}
+          poateSterge={poateAdaugaEtapa}
         />
         {poateAdaugaEtapa ? (
           <FormularEtapa tripId={deplasare.id} tari={listaTari} />
         ) : (
+          /* Ramura asta randa un `<p>` GOL când deplasarea era editabilă dar
+             cititorul n-avea drept de scriere: un paragraf care ocupa loc și
+             nu spunea nimic. Cele două cauze sunt diferite și se scriu ca atare. */
           <p className="text-muted-foreground text-corp">
             {editabila
-              ? ""
+              ? "Nu aveți dreptul de a modifica traseul acestei deplasări."
               : "Traseul nu mai poate fi modificat — deplasarea a ieșit din starea editabilă."}
           </p>
         )}
@@ -260,14 +358,21 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
             <p className="text-muted-foreground text-corp">Nicio cheltuială înregistrată încă.</p>
           }
         />
+        {aprobaDarNuPoateScrie ? (
+          <Callout fel="atentie" titlu="Nu puteți decide asupra cheltuielilor">
+            Aprobarea unei cheltuieli cere, pe lângă dreptul de aprobare, și dreptul de modificare a
+            deplasărilor — așa e scrisă politica din bază. Rugați un administrator al organizației
+            să decidă, altfel decontul rămâne fără suma cheltuielilor.
+          </Callout>
+        ) : null}
         {poateAdaugaCheltuiala ? <FormularCheltuiala tripId={deplasare.id} /> : null}
+        {!poateAdaugaCheltuiala && poateScrie ? (
+          <p className="text-muted-foreground text-corp">
+            Deplasarea e {ETICHETE_STATUS_DEPLASARE[deplasare.status].toLocaleLowerCase("ro-RO")} —
+            nu se mai pot adăuga cheltuieli.
+          </p>
+        ) : null}
       </section>
-
-      <p className="text-corp">
-        <Link href={`/diurna/${deplasare.id}/decont`} className="underline underline-offset-2">
-          Deschide decontul printabil
-        </Link>
-      </p>
     </div>
   );
 }

@@ -26,6 +26,7 @@ import {
   ETICHETE_MIJLOC_TRANSPORT,
   ETICHETE_STATUS_DEPLASARE,
   ETICHETE_TIP_CHELTUIALA,
+  textZile,
 } from "../../etichete";
 import { ButonTipar } from "./buton-tipar";
 
@@ -108,9 +109,16 @@ export default async function PaginaDecont({ params }: ProprietatiPagina) {
         );
 
   const diurnaLei = calcul?.rezultat.valoareLei ?? null;
-  const cheltuieliAprobateLei = cheltuieliTrip
-    .filter((c) => c.aprobata)
-    .reduce((sum, c) => sum + c.suma_lei, 0);
+  const cheltuieliAprobate = cheltuieliTrip.filter((c) => c.aprobata);
+  /**
+   * Rândurile care NU intră în total. Se tipăresc separat, nu se ascund: omul
+   * care semnează decontul trebuie să vadă ce bonuri au fost depuse și lăsate
+   * pe dinafară, altfel diferența dintre teancul de hârtii și sumă nu se poate
+   * explica. Până acum ecranul le omitea complet.
+   */
+  const cheltuieliNeaprobate = cheltuieliTrip.filter((c) => !c.aprobata);
+  const cheltuieliAprobateLei = cheltuieliAprobate.reduce((sum, c) => sum + c.suma_lei, 0);
+  const cheltuieliNeaprobateLei = cheltuieliNeaprobate.reduce((sum, c) => sum + c.suma_lei, 0);
   const totalDecont =
     diurnaLei === null ? null : diurnaLei + cheltuieliAprobateLei - deplasare.avans_acordat;
 
@@ -153,7 +161,7 @@ export default async function PaginaDecont({ params }: ProprietatiPagina) {
           </p>
         ) : calcul === null ? null : (
           <p className="text-corp">
-            {calcul.rezultat.zileTotal} zile ={" "}
+            {textZile(calcul.rezultat.zileTotal)} ={" "}
             {diurnaLei === null ? "sumă necunoscută (curs sau barem lipsă)" : formatLei(diurnaLei)}
           </p>
         )}
@@ -163,34 +171,34 @@ export default async function PaginaDecont({ params }: ProprietatiPagina) {
         <h2 id="titlu-cheltuieli" className="text-sectiune mb-2 font-medium">
           Cheltuieli aprobate
         </h2>
-        {cheltuieliTrip.filter((c) => c.aprobata).length === 0 ? (
-          <p className="text-muted-foreground text-corp">Nicio cheltuială aprobată.</p>
+        {cheltuieliAprobate.length === 0 ? (
+          <p className="text-muted-foreground text-corp">
+            Nicio cheltuială aprobată — în total intră doar cheltuielile pe care un aprobator le-a
+            aprobat pe fișa deplasării.
+          </p>
         ) : (
-          <table className="text-corp w-full">
-            <thead>
-              <tr className="border-foreground/60 border-b text-left">
-                <th className="py-1 font-medium">Tip</th>
-                <th className="py-1 font-medium">Data</th>
-                <th className="py-1 text-right font-medium">Lei</th>
-              </tr>
-            </thead>
-            <tbody>
-              {cheltuieliTrip
-                .filter((c) => c.aprobata)
-                .map((c) => (
-                  <tr key={c.id} className="border-border border-b">
-                    <td className="py-1">
-                      {ETICHETE_TIP_CHELTUIALA[c.tip]}
-                      {c.descriere === null ? "" : ` · ${c.descriere}`}
-                    </td>
-                    <td className="py-1">{formatDate(c.data_cheltuielii)}</td>
-                    <td className="py-1 text-right tabular-nums">{formatLei(c.suma_lei)}</td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
+          <TabelCheltuieli
+            caption="Cheltuielile aprobate, cuprinse în totalul decontului."
+            randuri={cheltuieliAprobate}
+          />
         )}
       </section>
+
+      {cheltuieliNeaprobate.length === 0 ? null : (
+        <section aria-labelledby="titlu-cheltuieli-neaprobate">
+          <h2 id="titlu-cheltuieli-neaprobate" className="text-sectiune mb-2 font-medium">
+            Cheltuieli care NU intră în decont
+          </h2>
+          <TabelCheltuieli
+            caption="Cheltuielile respinse sau încă nedecise, în afara totalului."
+            randuri={cheltuieliNeaprobate}
+            arataMotiv
+          />
+          <p className="text-muted-foreground text-corp mt-1">
+            Total în afara decontului: {formatLei(cheltuieliNeaprobateLei)}.
+          </p>
+        </section>
+      )}
 
       <section aria-labelledby="titlu-total" className="border-foreground/60 border-t pt-4">
         <h2 id="titlu-total" className="text-sectiune mb-2 font-medium">
@@ -216,5 +224,76 @@ export default async function PaginaDecont({ params }: ProprietatiPagina) {
         </dl>
       </section>
     </div>
+  );
+}
+
+/**
+ * Tabelul de cheltuieli al decontului.
+ *
+ * Rămâne scris de mână, nu `<Tabel>`: primitiva randează AMBELE marcaje —
+ * tabel peste 768px și carduri sub — și ascunde unul prin media query. La
+ * tipărire, lățimea de referință e a hârtiei, deci pe foaie ar fi putut ieși
+ * varianta de card. Ce lipsea, și se adaugă aici, e marcajul de accesibilitate
+ * pe care restul modulului îl are deja: `scope="col"` pe antete și un
+ * `<caption>` care spune al cui e tabelul.
+ */
+function TabelCheltuieli({
+  caption,
+  randuri,
+  arataMotiv = false,
+}: {
+  readonly caption: string;
+  readonly randuri: readonly Readonly<{
+    id: string;
+    tip: keyof typeof ETICHETE_TIP_CHELTUIALA;
+    descriere: string | null;
+    data_cheltuielii: string;
+    suma_lei: number;
+    aprobata: boolean;
+    motiv_respingere: string | null;
+  }>[];
+  readonly arataMotiv?: boolean;
+}) {
+  return (
+    <table className="text-corp w-full">
+      <caption className="sr-only">{caption}</caption>
+      <thead>
+        <tr className="border-foreground/60 border-b text-left">
+          <th scope="col" className="py-1 font-medium">
+            Tip
+          </th>
+          <th scope="col" className="py-1 font-medium">
+            Data
+          </th>
+          {arataMotiv ? (
+            <th scope="col" className="py-1 font-medium">
+              Stare
+            </th>
+          ) : null}
+          <th scope="col" className="py-1 text-right font-medium">
+            Lei
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {randuri.map((c) => (
+          <tr key={c.id} className="border-border border-b">
+            <td className="py-1">
+              {ETICHETE_TIP_CHELTUIALA[c.tip]}
+              {c.descriere === null ? "" : ` · ${c.descriere}`}
+            </td>
+            <td className="py-1">{formatDate(c.data_cheltuielii)}</td>
+            {arataMotiv ? (
+              <td className="py-1">
+                {c.motiv_respingere === null
+                  ? "În așteptarea deciziei"
+                  : `Respinsă: ${c.motiv_respingere}`}
+              </td>
+            ) : null}
+            <td className="py-1 text-right tabular-nums">{formatLei(c.suma_lei)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }

@@ -111,6 +111,26 @@ async function TabelSesizari({
       },
     },
     {
+      /*
+       * `opreste_functionarea` era CITIT de `sesizari()` (e în `COLOANE_SESIZARE`)
+       * și nu apărea nicăieri în coadă — se vedea abia pe detaliu, după două
+       * clicuri. E singurul semnal care spune „utilajul nu produce acum”, adică
+       * exact ce decide ce se ia primul dintr-o coadă de triaj.
+       */
+      cheie: "oprit",
+      antet: "Utilaj",
+      latime: "ingusta",
+      peTelefon: "insigna",
+      celula: (s) =>
+        s.opreste_functionarea ? (
+          <Badge ton="pericol" cuAvertisment>
+            Oprit
+          </Badge>
+        ) : (
+          <span className="text-muted-foreground">Funcționează</span>
+        ),
+    },
+    {
       cheie: "descriere",
       antet: "Descriere",
       peTelefon: "meta",

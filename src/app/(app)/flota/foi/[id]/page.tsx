@@ -7,6 +7,7 @@ import type { Metadata } from "next";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
+import { Callout } from "@/components/ui/callout";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -14,14 +15,16 @@ import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime } from "@/lib/format/date";
 import { formatLei } from "@/lib/format/money";
 import { idDinRuta } from "@/lib/rute/parametri";
+import { abatereConsum, abatereNotabila, consumLa100Km } from "@/domain/fleet/consum";
 import {
   alimentarileFoii,
   angajatiDupaId,
+  anomaliiPeFoi,
   citesteFoaie,
   vehiculeDupaId,
 } from "@/lib/queries/fleet";
 
-import { ETICHETE_STATUS_FOAIE, TONURI_STATUS_FOAIE } from "../../etichete";
+import { ETICHETE_STATUS_FOAIE, formatConsum, TONURI_STATUS_FOAIE } from "../../etichete";
 import { ActiuniFoaie } from "./actiuni-foaie";
 
 export const metadata: Metadata = { title: "Foaie de parcurs" };
@@ -46,10 +49,11 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
   const foaie = await citesteFoaie(tenant.organizationId, id);
   if (foaie === null) notFound();
 
-  const [alimentari, vehicule, soferi] = await Promise.all([
+  const [alimentari, vehicule, soferi, anomalii] = await Promise.all([
     alimentarileFoii(foaie.id),
     vehiculeDupaId(tenant.organizationId, [foaie.vehicle_id]),
     angajatiDupaId(tenant.organizationId, foaie.employee_id === null ? [] : [foaie.employee_id]),
+    anomaliiPeFoi(tenant.organizationId, [foaie.id]),
   ]);
 
   const vehicul = vehicule.get(foaie.vehicle_id);
@@ -67,12 +71,12 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
 
   const litriTotali = alimentari.reduce((s, a) => s + a.litri, 0);
   const costTotal = alimentari.reduce((s, a) => s + a.cost, 0);
-  // Consumul real se calculează doar când există și kilometri, și litri.
-  // Împărțirea la zero ar da „Infinity" pe ecran — o cifră fără înțeles.
-  const consumReal =
-    foaie.km_parcursi !== null && foaie.km_parcursi > 0 && litriTotali > 0
-      ? (litriTotali / foaie.km_parcursi) * 100
-      : null;
+  // Formula a plecat în `@/domain/fleet/consum`: coada de aprobare avea nevoie
+  // de exact aceeași cifră, iar a doua copie scrisă în JSX pe alt ecran e felul
+  // în care două pagini ajung să arate două consumuri pentru aceeași cursă.
+  const consumReal = consumLa100Km(litriTotali, foaie.km_parcursi);
+  const abatere = abatereConsum(consumReal, vehicul?.consum_mediu_declarat ?? null);
+  const aleFoii = anomalii.get(foaie.id) ?? [];
 
   // Fără sortare: alimentările unei curse se citesc întregi, în ordinea orei, și
   // n-au cursor keyset.
@@ -138,12 +142,44 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
           className="border-danger/40 bg-danger/8 text-corp rounded-panou border p-4"
         >
           <p className="font-medium">Foaia a fost respinsă</p>
-          <p className="mt-1">
-            {(foaie as { motiv_respingere?: string | null }).motiv_respingere ??
-              "Nu a fost consemnat niciun motiv."}
-          </p>
+          {/* Castul de aici — `(foaie as { motiv_respingere?: string | null })` —
+              era o promisiune neverificată: dacă selectul ar fi pierdut coloana,
+              ecranul ar fi scris „Nu a fost consemnat niciun motiv.” pentru o
+              respingere motivată. Acum `citesteFoaie` întoarce tipul `Foaie`. */}
+          <p className="mt-1">{foaie.motiv_respingere ?? "Nu a fost consemnat niciun motiv."}</p>
         </div>
       ) : null}
+
+      {/* Avertismentul de salt de kilometraj trăia doar în `useState`-ul
+          formularului de trimitere, iar `router.refresh()` de pe rândul următor
+          îl ștergea: la prima reîncărcare foaia arăta identic cu una curată,
+          deși anomalia era în bază, legată chiar de ea prin `trip_sheet_id`.
+          Aici se citește de pe server, deci rămâne cât timp există. */}
+      {aleFoii.map((a) => {
+        // `diferenta` e GENERATED ALWAYS în bază; ocolirea acoperă doar rândurile
+        // vechi, dinainte de coloană. Semnul e explicit: un regres e negativ.
+        const diferenta = a.diferenta ?? a.km_declarat - a.km_asteptat;
+        const semn = diferenta < 0 ? "−" : "+";
+        return (
+          <Callout
+            key={a.id}
+            fel="atentie"
+            titlu={`Anomalie de kilometraj: ${semn}${Math.abs(diferenta).toLocaleString("ro-RO")} km`}
+            actiune={
+              <Link href="/flota/anomalii" className="text-corp underline underline-offset-2">
+                Vezi anomaliile
+              </Link>
+            }
+          >
+            Ultimul kilometraj cunoscut al vehiculului era {a.km_asteptat.toLocaleString("ro-RO")}{" "}
+            km, iar foaia declară {a.km_declarat.toLocaleString("ro-RO")} km.
+            {a.explicatie === null ? null : ` ${a.explicatie}`}
+            {a.confirmat_la === null
+              ? " Diferența nu blochează foaia, dar cineva trebuie să o explice."
+              : ` Explicată: ${a.nota ?? "fără notă"}.`}
+          </Callout>
+        );
+      })}
 
       <section aria-label="Kilometraj și consum" className="border-border rounded-panou border p-4">
         {/* Același defect ca în fluturaș: `<dt>`/`<dd>` într-un `<div>`, fără
@@ -165,8 +201,8 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
                 foaie.km_sosire === null ? null : `${foaie.km_sosire.toLocaleString("ro-RO")} km`,
             },
             {
-              // „cursă în desfășurare" NU e o valoare lipsă: e o stare reală a
-              // foii, iar „Neînregistrat" ar fi sugerat că cineva a uitat.
+              // „cursă în desfășurare” NU e o valoare lipsă: e o stare reală a
+              // foii, iar „Neînregistrat” ar fi sugerat că cineva a uitat.
               eticheta: "Parcurs",
               valoare:
                 foaie.km_parcursi === null
@@ -174,15 +210,34 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
                   : `${foaie.km_parcursi.toLocaleString("ro-RO")} km`,
             },
             {
+              // Cifra izolată n-avea niciun verdict: 9,4 l/100 km e bine sau rău
+              // doar față de ce declară vehiculul.
               eticheta: "Consum real",
-              valoare: consumReal === null ? null : `${consumReal.toFixed(2)} l/100 km`,
+              valoare:
+                consumReal === null ? null : (
+                  <>
+                    {formatConsum(consumReal)}
+                    {abatere === null ? null : (
+                      <span
+                        className={
+                          abatereNotabila(abatere)
+                            ? "text-danger ml-1 font-medium"
+                            : "text-muted-foreground ml-1"
+                        }
+                      >
+                        ({abatere < 0 ? "−" : "+"}
+                        {Math.abs(Math.round(abatere))}% față de declarat)
+                      </span>
+                    )}
+                  </>
+                ),
             },
           ]}
         />
       </section>
 
-      {foaie.traseu === null && foaie.scop === null ? null : (
-        <section aria-label="Traseu și scop" className="text-corp space-y-1">
+      {foaie.traseu === null && foaie.scop === null && foaie.observatii === null ? null : (
+        <section aria-label="Traseu, scop și observații" className="text-corp space-y-1">
           {foaie.traseu === null ? null : (
             <p>
               <span className="text-muted-foreground">Traseu: </span>
@@ -193,6 +248,15 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
             <p>
               <span className="text-muted-foreground">Scop: </span>
               {foaie.scop}
+            </p>
+          )}
+          {/* `observatii` era selectat de `citesteFoaie` și nu apărea nicăieri:
+              cine îl completa printr-o altă cale scria într-un câmp pe care
+              produsul nu-l arăta niciodată înapoi. */}
+          {foaie.observatii === null ? null : (
+            <p>
+              <span className="text-muted-foreground">Observații: </span>
+              {foaie.observatii}
             </p>
           )}
         </section>

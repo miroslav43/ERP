@@ -97,6 +97,12 @@ export default async function PaginaPuncteLucru() {
                       .filter(Boolean)
                       .join(", ") || "Fără adresă completată."}
                   </p>
+                  {/* `observatii` se citea din bază de la început și nu se
+                      randa nicăieri, iar formularul de creare trimitea `null`
+                      fix — coloana era moartă în ambele sensuri. */}
+                  {punct.observatii === null ? null : (
+                    <p className="text-foreground text-nota mt-1">{punct.observatii}</p>
+                  )}
                 </div>
               </div>
               {poateEdita ? (

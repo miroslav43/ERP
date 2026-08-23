@@ -13,10 +13,24 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
-import { angajatiDupaId, echipamenteDupaId, planuriScadente } from "@/lib/queries/maintenance";
-import { stareScadentaData } from "@/domain/maintenance/scadente";
+import {
+  angajatiDupaId,
+  cheieContor,
+  echipamenteDupaId,
+  planuriScadente,
+  ultimeleCitiriContor,
+} from "@/lib/queries/maintenance";
+import { stareScadentaPlan } from "@/domain/maintenance/scadente";
+import type { TipContor } from "@/schemas/maintenance";
 
-import { ETICHETE_STARE_SCADENTA, ETICHETE_TIP_CONTOR, ETICHETE_TIP_MENTENANTA } from "../etichete";
+import {
+  ETICHETE_STARE_SCADENTA,
+  ETICHETE_TIP_MENTENANTA,
+  formatCifraContor,
+  formatContor,
+  formatPeriodicitate,
+  textNumarat,
+} from "../etichete";
 import { NavMentenanta } from "../nav-mentenanta";
 
 export const metadata: Metadata = { title: "Planuri de mentenanță" };
@@ -33,9 +47,20 @@ export default async function PaginaPlanuri() {
   }
 
   const azi = todayInBucharest();
-  const planuri = await planuriScadente(tenant.organizationId);
+  const { randuri: planuri, total, trunchiat } = await planuriScadente(tenant.organizationId);
 
-  const [echipamente, responsabili] = await Promise.all([
+  /*
+   * Ultima citire pe fiecare (echipament, tip de contor) — numai pentru
+   * planurile care chiar au scadență pe contor. Fără ea, coloana „Scadență”
+   * putea spune numai jumătate din adevăr: `stareScadentaData` se uita doar la
+   * `urmatoarea_scadenta`, deci un plan depășit cu 200 de ore apărea „În
+   * regulă”, iar pagina își recunoștea lipsa în propriul subtitlu.
+   */
+  const planuriCuContor = planuri.filter(
+    (p) => p.tip_contor !== null && p.urmatoarea_scadenta_contor !== null,
+  );
+
+  const [echipamente, responsabili, citiri] = await Promise.all([
     echipamenteDupaId(
       tenant.organizationId,
       planuri.map((p) => p.equipment_id),
@@ -44,12 +69,24 @@ export default async function PaginaPlanuri() {
       tenant.organizationId,
       planuri.map((p) => p.responsabil_employee_id).filter((v): v is string => v !== null),
     ),
+    ultimeleCitiriContor(
+      tenant.organizationId,
+      planuriCuContor.map((p) => p.equipment_id),
+      planuriCuContor.map((p) => p.tip_contor).filter((tip): tip is TipContor => tip !== null),
+    ),
   ]);
+
+  /** Ultima citire relevantă pentru un plan, sau `null` dacă nu s-a citit nimic încă. */
+  function citireaPlanului(plan: (typeof planuri)[number]): number | null {
+    if (plan.tip_contor === null) return null;
+    return citiri.get(cheieContor(plan.equipment_id, plan.tip_contor)) ?? null;
+  }
 
   /*
    * Fără sortare și fără paginare: `planuriScadente` citește planurile active
    * întregi, cu o limită fixă și cu ordinea fixată pe scadență — n-are cursor
    * keyset, deci n-are cum să susțină o altă ordine fără să se rupă paginarea.
+   * Tăierea nu mai e însă tăcută: `trunchiat` ajunge la `<Tabel>`.
    *
    * Pastila de scadență și data ei erau lipite în aceeași celulă. Despărțite,
    * data se poate compara pe verticală, iar pastila rămâne singurul lucru
@@ -92,13 +129,7 @@ export default async function PaginaPlanuri() {
       antet: "Periodicitate",
       peTelefon: "meta",
       celula: (plan) => (
-        <span className="text-muted-foreground text-nota">
-          {plan.periodicitate_zile !== null ? `${plan.periodicitate_zile} zile` : ""}
-          {plan.periodicitate_zile !== null && plan.periodicitate_contor !== null ? " · " : ""}
-          {plan.periodicitate_contor !== null && plan.tip_contor !== null
-            ? `${plan.periodicitate_contor} ${ETICHETE_TIP_CONTOR[plan.tip_contor]}`
-            : ""}
-        </span>
+        <span className="text-muted-foreground text-nota">{formatPeriodicitate(plan)}</span>
       ),
     },
     {
@@ -115,7 +146,15 @@ export default async function PaginaPlanuri() {
       antet: "Scadență",
       peTelefon: "insigna",
       celula: (plan) => {
-        const stare = stareScadentaData(plan.urmatoarea_scadenta, azi);
+        const stare = stareScadentaPlan(
+          {
+            urmatoareaScadenta: plan.urmatoarea_scadenta,
+            urmatoareaScadentaContor: plan.urmatoarea_scadenta_contor,
+            periodicitateContor: plan.periodicitate_contor,
+            ultimaCitireContor: citireaPlanului(plan),
+          },
+          azi,
+        );
         return (
           <Scadenta treapta={TREPTE_MENTENANTA[stare]}>{ETICHETE_STARE_SCADENTA[stare]}</Scadenta>
         );
@@ -126,8 +165,25 @@ export default async function PaginaPlanuri() {
       antet: "Scadentă la",
       latime: "ingusta",
       peTelefon: "meta",
-      celula: (plan) =>
-        plan.urmatoarea_scadenta === null ? "—" : formatDate(plan.urmatoarea_scadenta),
+      celula: (plan) => {
+        const citire = citireaPlanului(plan);
+        return (
+          <div className="flex flex-col">
+            <span className="tabular-nums">
+              {plan.urmatoarea_scadenta === null ? "—" : formatDate(plan.urmatoarea_scadenta)}
+            </span>
+            {/* Scadența pe contor, scrisă lângă cea pe zile: pastila de alături
+                combină cele două stări, iar fără termenul care a produs-o un
+                „În întârziere” lângă o dată din viitor pare o eroare. */}
+            {plan.tip_contor !== null && plan.urmatoarea_scadenta_contor !== null ? (
+              <span className="text-muted-foreground text-nota tabular-nums">
+                la {formatContor(plan.urmatoarea_scadenta_contor, plan.tip_contor)}
+                {citire === null ? " (fără citire)" : `, acum ${formatCifraContor(citire)}`}
+              </span>
+            ) : null}
+          </div>
+        );
+      },
     },
   ];
 
@@ -135,7 +191,7 @@ export default async function PaginaPlanuri() {
     <div className="space-y-6">
       <AntetPagina
         titlu="Planuri de mentenanță"
-        descriere="Planurile ACTIVE ale organizației, cu cea mai apropiată scadență prima. Scadența pe contor se vede exact pe fișa fiecărui echipament, unde intră și ultima citire."
+        descriere={`${textNumarat(total, "plan ACTIV", "planuri ACTIVE")}, cu cea mai apropiată scadență prima. Starea combină scadența pe zile cu cea pe contor, față de ultima citire cunoscută.`}
         file={<NavMentenanta />}
       />
 
@@ -144,6 +200,7 @@ export default async function PaginaPlanuri() {
         coloane={coloane}
         randuri={planuri}
         cheieRand={(plan) => plan.id}
+        trunchiat={trunchiat}
         gol={
           <StareGoala
             fel="initiala"

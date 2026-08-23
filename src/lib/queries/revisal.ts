@@ -61,6 +61,54 @@ export interface RezultatRevisal {
   readonly azi: ZiIso;
 }
 
+/** Statusurile care nu s-au transmis încă — aceleași pe care `evalueazaTermen` le evaluează față de termen. */
+const STATUSURI_NETRANSMISE = ["de_pregatit", "pregatit", "respins"] as const;
+const STATUSURI_TRANSMISE = ["transmis", "confirmat"] as const;
+
+/**
+ * Cele patru cifre din capul ecranului, numărate în bază, pe TOT registrul.
+ *
+ * Erau calculate cu `randuri.reduce(...)` peste setul deja filtrat și deja
+ * tăiat la `filtre.limita` (100). Efectul: pe filtrul „Transmise”, fișa
+ * „Întârziate” arăta 0 chiar cu evenimente întârziate în registru, iar peste
+ * 100 de evenimente toate patru erau mai mici decât realitatea — fără nicio
+ * eroare. Într-un registru unde netransmiterea în termen e contravenție
+ * separată pentru fiecare salariat, cifra mică e mai rea decât lipsa cifrei.
+ *
+ * `head: true` nu aduce niciun rând, deci plafonul PostgREST de 1000 nu atinge
+ * numărătoarea; `count: "exact"` e singura variantă care nu estimează.
+ */
+async function numaraStatistici(
+  supabase: ServerSupabase,
+  organizationId: string,
+  azi: ZiIso,
+): Promise<StatisticiRevisal> {
+  const baza = () =>
+    supabase
+      .from("revisal_events")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", organizationId)
+      .is("deleted_at", null);
+
+  const [intarziate, astazi, inTermen, transmise] = await Promise.all([
+    baza().in("status", STATUSURI_NETRANSMISE).lt("termen_transmitere", azi),
+    baza().in("status", STATUSURI_NETRANSMISE).eq("termen_transmitere", azi),
+    baza().in("status", STATUSURI_NETRANSMISE).gt("termen_transmitere", azi),
+    baza().in("status", STATUSURI_TRANSMISE),
+  ]);
+
+  for (const rezultat of [intarziate, astazi, inTermen, transmise]) {
+    if (rezultat.error) throw mapPostgrestError(rezultat.error, randomUUID());
+  }
+
+  return {
+    intarziate: intarziate.count ?? 0,
+    astazi: astazi.count ?? 0,
+    inTermen: inTermen.count ?? 0,
+    transmise: transmise.count ?? 0,
+  };
+}
+
 const SELECT_EVENIMENTE =
   "id, event_type, data_evenimentului, termen_transmitere, status, transmis_la, numar_inregistrare, eroare, employee_id, contract_id";
 
@@ -81,13 +129,18 @@ export async function interogheazaEvenimenteRevisal(
 
   if (filtre.tip !== "toate") cerere = cerere.eq("event_type", filtre.tip);
   if (filtre.stare === "transmise") {
-    cerere = cerere.in("status", ["transmis", "confirmat"]);
+    cerere = cerere.in("status", STATUSURI_TRANSMISE);
   } else if (filtre.stare === "de_transmis" || filtre.stare === "intarziate") {
-    cerere = cerere.in("status", ["de_pregatit", "pregatit", "respins"]);
+    cerere = cerere.in("status", STATUSURI_NETRANSMISE);
     if (filtre.stare === "intarziate") cerere = cerere.lt("termen_transmitere", azi);
   }
 
-  const { data, error } = await cerere;
+  // Sinteza pleacă în paralel cu lista: nu depinde de filtru, deci nu are de ce
+  // să aștepte răspunsul lui.
+  const [{ data, error }, statistici] = await Promise.all([
+    cerere,
+    numaraStatistici(supabase, organizationId, azi),
+  ]);
   if (error) throw mapPostgrestError(error, randomUUID());
   const evenimente = data ?? [];
 
@@ -134,16 +187,6 @@ export async function interogheazaEvenimenteRevisal(
         eveniment.contract_id === null ? null : (numarContract.get(eveniment.contract_id) ?? null),
     };
   });
-
-  const statistici = randuri.reduce<StatisticiRevisal>(
-    (acumulat, rand) => ({
-      intarziate: acumulat.intarziate + (rand.stare === "intarziat" ? 1 : 0),
-      astazi: acumulat.astazi + (rand.stare === "astazi" ? 1 : 0),
-      inTermen: acumulat.inTermen + (rand.stare === "in_termen" ? 1 : 0),
-      transmise: acumulat.transmise + (rand.stare === "transmis" ? 1 : 0),
-    }),
-    { intarziate: 0, astazi: 0, inTermen: 0, transmise: 0 },
-  );
 
   return { randuri, statistici, azi };
 }

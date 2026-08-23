@@ -7,6 +7,7 @@ import type { Metadata } from "next";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
+import { buton } from "@/components/ui/buton";
 import { Scadenta } from "@/components/ui/scadenta";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
@@ -56,12 +57,13 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
   ]);
   const azi = todayInBucharest();
   const poateScrie = can(permisiuni, "vehicles:create", "all");
+  const poateVedeaFoi = can(permisiuni, "trip_sheets:read", "own");
 
   const curente = documente.filter((d) => d.este_curent);
   const dupaTip = new Map(curente.map((d) => [d.document_type_id, d]));
 
   // Se listează TIPURILE, nu documentele: un tip obligatoriu fără document
-  // trebuie să apară ca „Lipsește", roșu. Altfel absența unui RCA arată identic
+  // trebuie să apară ca „Lipsește”, roșu. Altfel absența unui RCA arată identic
   // cu absența unei rubrici.
   const randuriDocumente = tipuri.filter((tip) => dupaTip.has(tip.id) || tip.obligatoriu);
 
@@ -124,9 +126,22 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
           titlu={vehicul.nr_inmatriculare}
           descriere={`${vehicul.marca} ${vehicul.model} · ${ETICHETE_CATEGORIE[vehicul.categorie]} · ${ETICHETE_COMBUSTIBIL[vehicul.tip_combustibil]}`}
           actiuni={
-            <Badge ton={TONURI_STATUS_VEHICUL[vehicul.status]} className="shrink-0">
-              {ETICHETE_STATUS_VEHICUL[vehicul.status]}
-            </Badge>
+            <div className="flex flex-wrap items-center gap-3">
+              <Badge ton={TONURI_STATUS_VEHICUL[vehicul.status]} className="shrink-0">
+                {ETICHETE_STATUS_VEHICUL[vehicul.status]}
+              </Badge>
+              {/* Drumul vehicul → cursele lui nu exista deloc: `filtreFoiSchema`
+                  avea `vehicul` de la început, dar nimic nu-l scria în adresă.
+                  Acum filtrul de pe /flota/foi îl citește și îl arată ca pastilă. */}
+              {poateVedeaFoi ? (
+                <Link
+                  href={`/flota/foi?vehicul=${vehicul.id}`}
+                  className={buton({ varianta: "secundar" })}
+                >
+                  Foile de parcurs
+                </Link>
+              ) : null}
+            </div>
           }
         />
       </div>
@@ -170,7 +185,7 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
             },
             { eticheta: "Culoare", valoare: vehicul.culoare },
             {
-              // „implicit" NU e o valoare lipsă: pragul chiar se aplică, doar că
+              // „implicit” NU e o valoare lipsă: pragul chiar se aplică, doar că
               // vine din setările flotei. De aceea nu se lasă pe `null`.
               eticheta: "Prag salt kilometraj",
               valoare:

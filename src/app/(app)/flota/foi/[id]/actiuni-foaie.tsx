@@ -29,7 +29,11 @@ export function ActiuniFoaie({
   readonly sosireLa: string | null;
 }) {
   const router = useRouter();
-  const [inCurs, porneste] = useTransition();
+  // Câte o tranziție per formular: una singură pentru amândouă dezactiva butonul
+  // „Adaugă alimentarea” cât timp se trimitea foaia, și invers — două acțiuni
+  // fără nicio legătură care se blocau una pe alta.
+  const [seInchide, porneste] = useTransition();
+  const [seAlimenteaza, pornesteAlimentarea] = useTransition();
   const [eroare, setEroare] = useState<string | null>(null);
   const [avertisment, setAvertisment] = useState<string | null>(null);
 
@@ -64,7 +68,7 @@ export function ActiuniFoaie({
 
   function alimenteaza(formular: FormData): void {
     setEroare(null);
-    porneste(async () => {
+    pornesteAlimentarea(async () => {
       const rezultat = await adaugaAlimentare({
         trip_sheet_id: id,
         litri: Number(formular.get("litri") ?? 0),
@@ -138,7 +142,7 @@ export function ActiuniFoaie({
             />
           </div>
           <div className="flex items-end">
-            <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se trimite…">
+            <Buton type="submit" varianta="primar" inCurs={seInchide} textInCurs="Se trimite…">
               Trimite spre aprobare
             </Buton>
           </div>
@@ -155,11 +159,18 @@ export function ActiuniFoaie({
             <label htmlFor={idCand} className="text-corp">
               Când
             </label>
+            {/* Baza respinge o alimentare din afara intervalului cursei, iar
+                utilizatorul primea eroarea de la server pentru ceva ce browserul
+                putea opri. `max` se pune doar când cursa e închisă: pentru una
+                deschisă, „acum” calculat în client ar diferi de randarea de pe
+                server și ar produce nepotrivire la hidratare. */}
             <input
               id={idCand}
               name="alimentat_la"
               type="datetime-local"
               required
+              min={plecareLa.slice(0, 16)}
+              {...(sosireLa === null ? {} : { max: sosireLa.slice(0, 16) })}
               className="border-foreground/60 rounded-control text-corp border px-3 py-2"
             />
           </div>
@@ -203,7 +214,12 @@ export function ActiuniFoaie({
             />
           </div>
           <div className="sm:col-span-4">
-            <Buton type="submit" varianta="secundar" inCurs={inCurs} textInCurs="Se salvează…">
+            <Buton
+              type="submit"
+              varianta="secundar"
+              inCurs={seAlimenteaza}
+              textInCurs="Se salvează…"
+            >
               Adaugă alimentarea
             </Buton>
           </div>

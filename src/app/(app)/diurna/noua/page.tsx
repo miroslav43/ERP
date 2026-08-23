@@ -11,7 +11,7 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { todayInBucharest } from "@/lib/format/date";
-import { baremeleTarilor, politicaLaData, tari } from "@/lib/queries/per-diem";
+import { baremeleTarilor, politicaLaData, politiciOrganizatie, tari } from "@/lib/queries/per-diem";
 
 import { FormularDeplasare } from "./formular-deplasare";
 
@@ -36,7 +36,22 @@ export default async function PaginaDeplasareNoua() {
 
   const poateConfiguraPolitica = can(permisiuni, "per_diem:update", "all");
   const azi = todayInBucharest();
-  const politica = await politicaLaData(tenant.organizationId, azi);
+
+  /**
+   * Toate versiunile, nu doar cea de azi.
+   *
+   * Poarta de mai jos se închidea când politica nu era valabilă ASTĂZI — deci
+   * o firmă a cărei versiune nouă intră în vigoare de luna viitoare nu putea
+   * planifica nicio deplasare pentru luna viitoare, deși baza ar fi acceptat-o:
+   * `internal.valideaza_deplasare` cere o politică valabilă la `plecare_la`,
+   * nu la `now()`. Se închide doar când NU EXISTĂ nicio versiune, iar
+   * previzualizarea alege singură versiunea potrivită datei alese.
+   */
+  const politici = await politiciOrganizatie(tenant.organizationId);
+  const politicaAzi = await politicaLaData(tenant.organizationId, azi);
+  // Referința pentru țara internă implicită: versiunea de azi dacă există,
+  // altfel cea mai recentă (lista vine ordonată descrescător după `valabil_de_la`).
+  const politica = politicaAzi ?? politici[0] ?? null;
 
   if (politica === null) {
     return (
@@ -87,6 +102,7 @@ export default async function PaginaDeplasareNoua() {
       <FormularDeplasare
         tari={listaTari}
         politica={politica}
+        politici={politici}
         baremuri={baremuri}
         angajati={angajati}
       />

@@ -42,7 +42,7 @@ export default async function SetariMembriPage() {
     // trimite la `auth.users(id)`, nu la `public.profiles(id)`. Profilul are
     // ACEEAȘI valoare de id, dar relația nu e declarată nicăieri, iar PostgREST
     // răspunde PGRST200 „Could not find a relationship between
-    // 'organization_members' and 'profiles' in the schema cache".
+    // 'organization_members' and 'profiles' in the schema cache”.
     //
     // Efectul era că `throw` de mai jos se declanșa DE FIECARE DATĂ: pagina nu a
     // funcționat niciodată. Nu s-a văzut fiindcă mesajul aruncat vorbește despre
@@ -73,10 +73,13 @@ export default async function SetariMembriPage() {
     .map((rand) => rand.user_id)
     .filter((id): id is string => id !== null);
 
+  // `full_name` intra deja în `profiles` la înrolare și nu era citit niciodată:
+  // ecranul care administrează OAMENII îi identifica exclusiv prin adresa de
+  // e-mail, deci „cine e contabil.02@…” se afla întrebând pe cineva.
   const profiluriRezultat =
     idUtilizatori.length === 0
       ? { data: [], error: null }
-      : await supabase.from("profiles").select("id, email").in("id", idUtilizatori);
+      : await supabase.from("profiles").select("id, email, full_name").in("id", idUtilizatori);
 
   if (profiluriRezultat.error !== null) {
     throw new Error(
@@ -84,18 +87,23 @@ export default async function SetariMembriPage() {
     );
   }
 
-  const emailDupaId = new Map((profiluriRezultat.data ?? []).map((p) => [p.id, p.email] as const));
+  const profilDupaId = new Map((profiluriRezultat.data ?? []).map((p) => [p.id, p] as const));
 
-  const membri: readonly RandMembru[] = (membriRezultat.data ?? []).map((rand) => ({
-    id: rand.id,
-    email:
-      (rand.user_id === null ? null : (emailDupaId.get(rand.user_id) ?? null)) ??
-      "Adresă indisponibilă",
-    role: rand.role,
-    status: rand.status,
-    jobTitle: rand.job_title,
-    esteEu: rand.id === tenant.memberId,
-  }));
+  const membri: readonly RandMembru[] = (membriRezultat.data ?? []).map((rand) => {
+    const profil = rand.user_id === null ? undefined : profilDupaId.get(rand.user_id);
+    // `full_name` e opțional în `profiles`: un membru invitat care nu și-a
+    // completat încă profilul rămâne identificat prin e-mail, ca până acum.
+    const nume = profil?.full_name?.trim();
+    return {
+      id: rand.id,
+      nume: nume === undefined || nume.length === 0 ? null : nume,
+      email: profil?.email ?? "Adresă indisponibilă",
+      role: rand.role,
+      status: rand.status,
+      jobTitle: rand.job_title,
+      esteEu: rand.id === tenant.memberId,
+    };
+  });
 
   const invitatii: readonly RandInvitatie[] = (invitatiiRezultat.data ?? []).map((rand) => ({
     id: rand.id,

@@ -10,6 +10,8 @@
 import "server-only";
 
 import { createServerSupabase } from "@/lib/supabase/server";
+import { todayInBucharest } from "@/lib/format/date";
+import { cereActiune, stareScadentaPlan } from "@/domain/maintenance/scadente";
 import type {
   FiltreEchipamente,
   FiltreInterventii,
@@ -64,7 +66,7 @@ export interface RezultatEchipamente {
   readonly randuri: readonly RandEchipament[];
   readonly urmatorulCursor: string | null;
   /**
-   * Câte echipamente sunt în total, după filtre. „Pagina următoare" fără un
+   * Câte echipamente sunt în total, după filtre. „Pagina următoare” fără un
    * total e o ușă fără indicație: nu știi dacă mai urmează un ecran sau o sută.
    */
   readonly total: number;
@@ -417,21 +419,136 @@ export async function planuriEchipament(equipmentId: string): Promise<readonly P
   return data ?? [];
 }
 
-/** Planurile ACTIVE ale organizației, sortate cu cea mai apropiată scadență prima. */
-export async function planuriScadente(organizationId: string): Promise<readonly PlanMentenanta[]> {
+/** Câte planuri active se citesc dintr-o dată. Sub `max_rows = 1000` al PostgREST. */
+const LIMITA_PLANURI_SCADENTE = 500;
+
+export interface RezultatPlanuriScadente {
+  readonly randuri: readonly PlanMentenanta[];
+  /** Câte planuri active are organizația DUPĂ politici — nu câte s-au citit. */
+  readonly total: number;
+  /** `true` când limita a tăiat lista; ecranul trebuie s-o spună. */
+  readonly trunchiat: boolean;
+}
+
+/**
+ * Planurile ACTIVE ale organizației, sortate cu cea mai apropiată scadență prima.
+ *
+ * Întoarce și `total`, nu doar rândurile: limita era fixată la 500 și nimic nu
+ * spunea când a tăiat. Panoul de mentenanță NUMĂRĂ rândurile citite ca să scrie
+ * cifra de dimineață, deci o tăiere tăcută nu producea o listă scurtă, ci un
+ * indicator mai mic decât realitatea — cea mai proastă formă de defect, fiindcă
+ * arată corect.
+ */
+export async function planuriScadente(organizationId: string): Promise<RezultatPlanuriScadente> {
   const db = await createServerSupabase();
-  const { data, error } = await db
+  const { data, error, count } = await db
     .from("maintenance_plans")
-    .select(COLOANE_PLAN)
+    .select(COLOANE_PLAN, { count: "exact" })
     .eq("organization_id", organizationId)
     .eq("activ", true)
     .is("deleted_at", null)
     .order("urmatoarea_scadenta", { ascending: true, nullsFirst: false })
-    .limit(500)
+    .limit(LIMITA_PLANURI_SCADENTE)
     .returns<PlanMentenanta[]>();
 
   if (error !== null) throw error;
-  return data ?? [];
+  const randuri = data ?? [];
+  return {
+    randuri,
+    total: count ?? randuri.length,
+    trunchiat: count !== null && count > randuri.length,
+  };
+}
+
+// ── Ultima citire de contor, pe (echipament, tip) ──────────────────────────
+
+/** Cheia hărții întoarse de `ultimeleCitiriContor`. */
+export function cheieContor(equipmentId: string, tip: TipContor): string {
+  return `${equipmentId}:${tip}`;
+}
+
+interface RandUltimaCitire {
+  readonly equipment_id: string;
+  readonly tip: TipContor;
+  readonly citire: number;
+}
+
+/** Cât se citește pe pagină. Sub `max_rows = 1000`, altfel PostgREST taie el, tăcut. */
+const LIMITA_PAGINA_CONTOARE = 1000;
+
+/** Plasă de siguranță: o buclă de citire nu are voie să fie nemărginită. */
+const MAXIM_PAGINI_CONTOARE = 50;
+
+/**
+ * Ultima citire cunoscută a fiecărui contor, pentru un set de echipamente.
+ *
+ * Fără ea, `stareScadentaPlan()` nu se poate chema în afara fișei unui singur
+ * echipament: scadența pe contor se compară cu o citire, iar citirea stă în
+ * altă tabelă. De asta panoul și lista de planuri foloseau `stareScadentaData()`
+ * — și afișau „În regulă” pentru un plan depășit cu 200 de ore.
+ *
+ * ── DE CE O INTEROGARE PE FIECARE TIP DE CONTOR, ȘI NU UNA SINGURĂ ────────
+ * PostgREST nu are `distinct on`, deci ultima citire se alege în JavaScript din
+ * rândurile ordonate. Ordonarea `equipment_id` crescător + `data_citirii`
+ * descrescător grupează rândurile unui echipament la un loc ȘI îi pune primul
+ * rândul cel mai nou — dar numai cu `tip` FIXAT prin `.eq()`. Cu trei tipuri
+ * amestecate, primul rând al unui echipament ar fi cel mai nou al primului tip,
+ * iar celelalte două tipuri ar putea cădea dincolo de tăietură.
+ *
+ * Cu `tip` fixat, orice pagină, chiar tăiată, e CORECTĂ pentru fiecare
+ * `equipment_id` care apare în ea: prima lui apariție e citirea lui cea mai
+ * nouă. Lipsesc doar echipamentele de după tăietură, iar acelea se reiau cu
+ * `.gt("equipment_id", ultimul)`. De aceea bucla de mai jos n-are nevoie de
+ * niciun marcaj de trunchiere: nu poate întoarce o valoare greșită, doar una
+ * lipsă — iar `stareScadentaContor()` tratează lipsa ca „fara_scadenta”.
+ */
+export async function ultimeleCitiriContor(
+  organizationId: string,
+  equipmentIds: readonly string[],
+  tipuri: readonly TipContor[],
+): Promise<ReadonlyMap<string, number>> {
+  const idUnice = [...new Set(equipmentIds)];
+  const tipUnice = [...new Set(tipuri)];
+  if (idUnice.length === 0 || tipUnice.length === 0) return new Map();
+
+  const db = await createServerSupabase();
+  const ultima = new Map<string, number>();
+
+  for (const tip of tipUnice) {
+    let dupaId: string | null = null;
+
+    for (let pagina = 0; pagina < MAXIM_PAGINI_CONTOARE; pagina += 1) {
+      let interogare = db
+        .from("equipment_meters")
+        .select("equipment_id, tip, citire")
+        .eq("organization_id", organizationId)
+        .eq("tip", tip)
+        .in("equipment_id", idUnice)
+        .is("deleted_at", null)
+        .order("equipment_id", { ascending: true })
+        .order("data_citirii", { ascending: false })
+        // Două citiri în aceeași zi: cea introdusă ultima e cea bună.
+        .order("created_at", { ascending: false })
+        .limit(LIMITA_PAGINA_CONTOARE);
+      if (dupaId !== null) interogare = interogare.gt("equipment_id", dupaId);
+
+      const { data, error } = await interogare.returns<RandUltimaCitire[]>();
+      if (error !== null) throw error;
+
+      const randuri = data ?? [];
+      for (const rand of randuri) {
+        const cheie = cheieContor(rand.equipment_id, rand.tip);
+        if (!ultima.has(cheie)) ultima.set(cheie, rand.citire);
+      }
+
+      if (randuri.length < LIMITA_PAGINA_CONTOARE) break;
+      const ultimulRand = randuri.at(-1);
+      if (ultimulRand === undefined) break;
+      dupaId = ultimulRand.equipment_id;
+    }
+  }
+
+  return ultima;
 }
 
 // ── Intervenții ──────────────────────────────────────────────────────────
@@ -489,6 +606,30 @@ export async function interventii(
   };
 }
 
+/**
+ * O singură intervenție, după id.
+ *
+ * `fault_reports.intervention_id` era scris de `rezolvaSesizare` și citit de
+ * `citesteSesizare`, dar nu exista nicio funcție care să aducă intervenția
+ * indicată — deci legătura scrisă în bază nu se putea afișa nicăieri.
+ */
+export async function citesteInterventie(
+  organizationId: string,
+  id: string,
+): Promise<RandInterventie | null> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("maintenance_interventions")
+    .select(COLOANE_INTERVENTIE)
+    .eq("organization_id", organizationId)
+    .eq("id", id)
+    .is("deleted_at", null)
+    .maybeSingle<RandInterventie>();
+
+  if (error !== null) throw error;
+  return data;
+}
+
 // ── Sesizări ────────────────────────────────────────────────────────────
 
 export async function sesizari(
@@ -535,6 +676,56 @@ export async function sesizari(
     total: count ?? randuri.length,
     sortare,
   };
+}
+
+/**
+ * Statusurile care ÎNCĂ cer o acțiune — complementul lui `rezolvat`/`respins`.
+ * Scris ca listă, nu ca negație, ca să fie o alegere explicită: un status nou
+ * adăugat în `fault_status` n-ar trebui să intre tăcut în coada de dimineață.
+ */
+const STATUSURI_DESCHISE: readonly StatusSesizare[] = ["nou", "in_analiza", "in_lucru"];
+
+export interface RezultatSesizariDeschise {
+  readonly randuri: readonly RandSesizare[];
+  /** Câte sesizări deschise are organizația — nu câte încap în panou. */
+  readonly total: number;
+}
+
+/**
+ * Coada de dimineață: sesizările NEÎNCHISE, în ordinea în care trebuie luate.
+ *
+ * Panoul de mentenanță citea cele mai recente 50 de sesizări și abia apoi le
+ * filtra în JavaScript. Ordinea de citire fiind `raportat_la` descrescător, o
+ * organizație care închide 50 de sesizări într-o săptămână scotea din pagină
+ * exact sesizarea critică de acum o lună, iar panoul anunța senin „Nicio
+ * sesizare deschisă”. Filtrul intră în interogare, deci nu mai există fereastră
+ * din care ceva să cadă.
+ *
+ * Ordinea: utilaj oprit întâi, apoi urgența, apoi vechimea CRESCĂTOARE — o
+ * coadă se golește de la capătul vechi. `fault_urgency` e declarat crescător ca
+ * gravitate în `0011_ssm.sql:17` (`scazuta` → `critica`), deci `ascending:
+ * false` pe el înseamnă „critica prima”; enumul, nu un `case` scris de mână.
+ */
+export async function sesizariDeschise(
+  organizationId: string,
+  limita: number,
+): Promise<RezultatSesizariDeschise> {
+  const db = await createServerSupabase();
+  const { data, error, count } = await db
+    .from("fault_reports")
+    .select(COLOANE_SESIZARE, { count: "exact" })
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .in("status", STATUSURI_DESCHISE)
+    .order("opreste_functionarea", { ascending: false })
+    .order("urgenta", { ascending: false })
+    .order("raportat_la", { ascending: true })
+    .limit(limita)
+    .returns<RandSesizare[]>();
+
+  if (error !== null) throw error;
+  const randuri = data ?? [];
+  return { randuri, total: count ?? randuri.length };
 }
 
 export async function citesteSesizare(
@@ -632,45 +823,105 @@ export async function angajatiDupaId(
 // ── Badge de navigare ────────────────────────────────────────────────────
 
 /**
- * Numărul de scadențe de mentenanță pentru badge-ul „maintenance_due” din
- * meniu (`config/navigation.ts`).
+ * Numărul de scadențe de mentenanță pentru badge-ul „maintenance_due” din meniu
+ * (`config/navigation.ts`).
  *
- * Simplificare asumată: contorizează planurile active scadente pe ZILE în
- * următoarele `pragZile` zile (sau deja depășite) și autorizațiile ISCIR
- * nesuspendate care expiră în același interval. Scadența pe CONTOR nu intră
- * în numărătoare — necesită, per plan, ultima citire cunoscută a fiecărui
- * contor, adică un calcul pe rând, nu un simplu `count`; ecranul
- * `/mentenanta` afișează starea exactă (zile ȘI contor) pentru fiecare plan.
+ * Numărătoarea trece prin `stareScadentaPlan` și `cereActiune`, exact regulile
+ * după care ecranul `/mentenanta` își construiește coada. Varianta veche era o
+ * pereche de `count(head)` în bază și, tocmai de asta, nu putea vedea decât
+ * `urmatoarea_scadenta`: scadența pe CONTOR cere, per plan, ultima citire a
+ * contorului, adică un calcul pe rând, nu un `count`. Rezultatul era o cifră
+ * mai mică decât adevărul, fără nicio eroare — un plan depășit cu 200 de ore nu
+ * intra în ea. Odată ce ecranele au trecut pe starea combinată, un `count` pe
+ * zile ar fi rămas ca a doua sursă, care contrazice prima.
+ *
+ * Costul: se citesc rândurile, nu doar numărul lor. La volumele reale ale
+ * produsului (zeci de echipamente pe organizație) e sub o interogare de listă;
+ * dacă vreodată nu mai e, locul reparației e o vedere materializată în bază, nu
+ * întoarcerea la o cifră greșită.
+ *
+ * Limita rămasă, asumată: dacă `planuriScadente` taie la 500, badge-ul e un
+ * MINIM. Semnătura întoarce un `number` pentru `lib/queries/panou.ts`, deci n-are
+ * unde purta marcajul; ecranul `/mentenanta`, care poate, îl arată.
  */
+/**
+ * Câte autorizații ISCIR cer acțiune — NUMĂRATE în bază, nu citite și filtrate.
+ *
+ * ── DE CE NU SE REFOLOSEȘTE `autorizatiiIscir()` ──────────────────────────
+ * Fiindcă ea n-are `.limit()`: se sprijină pe `max_rows = 1000` din PostgREST,
+ * care TAIE TĂCUT. Pentru o listă afișată, tăierea se vede (utilizatorul dă mai
+ * departe); pentru un CONTOR, ea produce pur și simplu un număr mai mic, fără
+ * nimic care s-o semnaleze — exact clasa de defect pe care restul modulului o
+ * repară.
+ *
+ * Contează dublu aici: contorul alimentează insigna din meniul lateral, prin
+ * `contoarePanou`, iar aceea se calculează în `(app)/layout.tsx`, adică la
+ * FIECARE navigare din aplicație. O citire de listă neplafonată pe calea aia e
+ * și greșită, și scumpă.
+ *
+ * ── DE CE PREDICATUL E ECHIVALENT ─────────────────────────────────────────
+ * `cereActiune(stareScadentaData(d, azi, prag))` e adevărat exact când
+ * `d < azi` (în întârziere) sau `d <= azi + prag` (scadență apropiată) —
+ * adică, împreună, `d <= azi + prag`. Cazul `d === null` dă `fara_scadenta`,
+ * pe care `cereActiune` îl respinge, iar `.lte()` îl exclude oricum: în SQL,
+ * `null <= orice` nu e adevărat. Deci o singură comparație acoperă tot.
+ */
+async function numarAutorizatiiIscirScadente(
+  organizationId: string,
+  azi: string,
+  pragZile: number,
+): Promise<number> {
+  const limita = new Date(`${azi}T00:00:00Z`);
+  limita.setUTCDate(limita.getUTCDate() + pragZile);
+
+  const db = await createServerSupabase();
+  const { count, error } = await db
+    .from("iscir_authorizations")
+    .select("id", { count: "exact", head: true })
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .is("suspendata_la", null)
+    .lte("valabil_pana", limita.toISOString().slice(0, 10));
+  if (error !== null) throw error;
+  return count ?? 0;
+}
+
 export async function numarScadenteMentenanta(
   organizationId: string,
   pragZile: number,
 ): Promise<number> {
-  const db = await createServerSupabase();
-  const limita = new Date();
-  limita.setUTCDate(limita.getUTCDate() + pragZile);
-  const limitaText = limita.toISOString().slice(0, 10);
-
-  const [planuriRes, iscirRes] = await Promise.all([
-    db
-      .from("maintenance_plans")
-      .select("id", { count: "exact", head: true })
-      .eq("organization_id", organizationId)
-      .eq("activ", true)
-      .is("deleted_at", null)
-      .not("urmatoarea_scadenta", "is", null)
-      .lte("urmatoarea_scadenta", limitaText),
-    db
-      .from("iscir_authorizations")
-      .select("id", { count: "exact", head: true })
-      .eq("organization_id", organizationId)
-      .is("deleted_at", null)
-      .is("suspendata_la", null)
-      .lte("valabil_pana", limitaText),
+  const azi = todayInBucharest();
+  const [rezultatPlanuri, iscir] = await Promise.all([
+    planuriScadente(organizationId),
+    numarAutorizatiiIscirScadente(organizationId, azi, pragZile),
   ]);
 
-  if (planuriRes.error !== null) throw planuriRes.error;
-  if (iscirRes.error !== null) throw iscirRes.error;
+  const planuriCuContor = rezultatPlanuri.randuri.filter(
+    (p) => p.tip_contor !== null && p.urmatoarea_scadenta_contor !== null,
+  );
+  const citiri = await ultimeleCitiriContor(
+    organizationId,
+    planuriCuContor.map((p) => p.equipment_id),
+    planuriCuContor.map((p) => p.tip_contor).filter((tip): tip is TipContor => tip !== null),
+  );
 
-  return (planuriRes.count ?? 0) + (iscirRes.count ?? 0);
+  const planuri = rezultatPlanuri.randuri.filter((plan) =>
+    cereActiune(
+      stareScadentaPlan(
+        {
+          urmatoareaScadenta: plan.urmatoarea_scadenta,
+          urmatoareaScadentaContor: plan.urmatoarea_scadenta_contor,
+          periodicitateContor: plan.periodicitate_contor,
+          ultimaCitireContor:
+            plan.tip_contor === null
+              ? null
+              : (citiri.get(cheieContor(plan.equipment_id, plan.tip_contor)) ?? null),
+        },
+        azi,
+        pragZile,
+      ),
+    ),
+  ).length;
+
+  return planuri + iscir;
 }

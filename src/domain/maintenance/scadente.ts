@@ -103,6 +103,20 @@ export function stareScadentaContor(intrare: IntrareScadentaContor): StareScaden
   return ramas <= prag ? "scadenta_apropiata" : "in_regula";
 }
 
+/**
+ * Stările care CER o acțiune — adică exact ce intră în coada de dimineață.
+ *
+ * Predicatul era scris de mână în patru locuri (panoul de mentenanță, de două
+ * ori, și contorul de badge, tot de două ori), ca `stare === "in_intarziere" ||
+ * stare === "scadenta_apropiata"`. Cu el împrăștiat, cifra din antet și lista de
+ * sub ea puteau începe să numere altceva fără ca nimic să eșueze — deja se
+ * întâmplase o dată, când unele ecrane treceau pe scadența combinată zile+contor
+ * și altele nu.
+ */
+export function cereActiune(stare: StareScadentaMentenanta): boolean {
+  return stare === "in_intarziere" || stare === "scadenta_apropiata";
+}
+
 export interface IntrareScadentaPlan extends IntrareScadentaContor {
   /** `maintenance_plans.urmatoarea_scadenta`. */
   readonly urmatoareaScadenta: string | null;

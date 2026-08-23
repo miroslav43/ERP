@@ -17,7 +17,12 @@ export interface RandNotificare {
   readonly created_at: string;
 }
 
-const LIMITA_LISTA = 100;
+/**
+ * Câte notificări aduce ecranul într-o pagină. Exportată fiindcă ecranul are
+ * nevoie să ȘTIE unde s-a oprit: altfel `notificari.length` trece drept total
+ * și lista tăcut tăiată devine „atât ai”.
+ */
+export const LIMITA_LISTA_NOTIFICARI = 100;
 
 /**
  * Numărul de notificări necitite, pentru pastila din antet.
@@ -57,7 +62,7 @@ export async function listeazaNotificarile(
     .eq("organization_id", organizationId)
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
-    .limit(LIMITA_LISTA)
+    .limit(LIMITA_LISTA_NOTIFICARI)
     .returns<RandNotificare[]>();
   if (error !== null) throw error;
   return data ?? [];

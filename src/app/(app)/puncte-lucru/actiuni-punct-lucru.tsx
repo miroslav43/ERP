@@ -3,22 +3,27 @@
 
 import { useCallback, useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Ban, Pencil } from "lucide-react";
+import { Ban, Pencil, Undo2 } from "lucide-react";
 
 import { Buton } from "@/components/ui/buton";
 import { Camp, clasaBifa } from "@/components/ui/camp";
 import { Formular } from "@/components/ui/formular";
 import { JUDETE } from "@/schemas/organization";
-import { actualizeazaPunctLucru, dezactiveazaPunctLucru } from "./actions";
+import { actualizeazaPunctLucru, dezactiveazaPunctLucru, reactiveazaPunctLucru } from "./actions";
 
 /**
  * Acțiunile unui rând din lista punctelor de lucru: editarea și dezactivarea.
  *
  * Sunt DOUĂ lucruri separate, deci rămân separate. Numai editarea trece prin
  * `<Formular>`: ea are câmpuri, deci și `fieldErrors` de arătat pe câmp, și
- * date de pierdut la resetul de după acțiune al lui React 19. Dezactivarea
- * n-are decât `id`, luat din props — acolo `useTransition` și un mesaj sub
- * butoane spun tot ce e de spus.
+ * date de pierdut la resetul de după acțiune al lui React 19. Comutarea
+ * activării n-are decât `id`, luat din props — acolo `useTransition` și un
+ * mesaj sub butoane spun tot ce e de spus.
+ *
+ * Butonul e o COMUTARE, nu o dezactivare fără întoarcere: `activ: true` exista
+ * într-un singur loc în modul, la creare, deci un punct de lucru dezactivat din
+ * greșeală rămânea așa. Fiindcă acum se desface dintr-un clic, dezactivarea nu
+ * cere confirmare — vezi nota din `departamente/actiuni-departament.tsx`.
  *
  * Identificatorii se prefixează cu `useId()`: componenta se randează o dată per
  * rând, mai multe rânduri pot fi deschise în același timp, iar `Camp` derivă
@@ -34,6 +39,7 @@ interface Proprietati {
     oras: string | null;
     cod_postal: string | null;
     sediu_principal: boolean;
+    activ: boolean;
     observatii: string | null;
   }>;
   readonly poateEdita: boolean;
@@ -69,15 +75,16 @@ export function ActiuniPunctLucru({ punct, poateEdita }: Proprietati) {
       oras: String(date.get("oras") ?? ""),
       cod_postal: String(date.get("cod_postal") ?? ""),
       sediu_principal: date.get("sediu_principal") === "on",
-      // Observațiile n-au câmp în acest formular; se duc înapoi neschimbate.
-      observatii: punct.observatii,
+      observatii: String(date.get("observatii") ?? ""),
     });
   }
 
-  function dezactiveaza(): void {
+  function comutaActivarea(): void {
     setEroare(null);
     porneste(async () => {
-      const rezultat = await dezactiveazaPunctLucru({ id: punct.id });
+      const rezultat = punct.activ
+        ? await dezactiveazaPunctLucru({ id: punct.id })
+        : await reactiveazaPunctLucru({ id: punct.id });
       if (!rezultat.ok) {
         setEroare(rezultat.error.message);
         return;
@@ -98,10 +105,17 @@ export function ActiuniPunctLucru({ punct, poateEdita }: Proprietati) {
           <Pencil aria-hidden="true" className="size-3.5" />
           Editează
         </Buton>
-        <Buton varianta="distructiv" onClick={dezactiveaza} disabled={inCurs}>
-          <Ban aria-hidden="true" className="size-3.5" />
-          Dezactivează
-        </Buton>
+        {punct.activ ? (
+          <Buton varianta="distructiv" onClick={comutaActivarea} disabled={inCurs}>
+            <Ban aria-hidden="true" className="size-3.5" />
+            Dezactivează
+          </Buton>
+        ) : (
+          <Buton varianta="secundar" onClick={comutaActivarea} disabled={inCurs}>
+            <Undo2 aria-hidden="true" className="size-3.5" />
+            Reactivează
+          </Buton>
+        )}
       </div>
 
       {eroare === null ? null : (
@@ -211,6 +225,29 @@ export function ActiuniPunctLucru({ punct, poateEdita }: Proprietati) {
                       type="text"
                       maxLength={240}
                       defaultValue={stare.valoriTrimise["adresa"] ?? punct.adresa ?? ""}
+                    />
+                  )}
+                </Camp>
+
+                {/* Observațiile: `creeazaPunctLucruSchema` le acceptă de la
+                    început și `puncte_lucru.observatii` se citea deja în
+                    pagină, dar niciun ecran nu le arăta și niciun formular nu
+                    le scria — coloana era moartă în ambele sensuri. */}
+                <Camp
+                  nume="observatii"
+                  id={idc("observatii")}
+                  eticheta="Observații"
+                  fel="textarea"
+                  ajutor="Program, acces, persoană de contact — ce trebuie știut despre locație."
+                  className="sm:col-span-2"
+                  erori={stare.erori["observatii"] ?? []}
+                >
+                  {(a) => (
+                    <textarea
+                      {...a}
+                      maxLength={1000}
+                      rows={2}
+                      defaultValue={stare.valoriTrimise["observatii"] ?? punct.observatii ?? ""}
                     />
                   )}
                 </Camp>

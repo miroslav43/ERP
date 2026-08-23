@@ -1,10 +1,13 @@
 "use server";
 
+import { z } from "zod";
+
 import { createAction } from "@/lib/actions/create-action";
 import { businessRule } from "@/lib/actions/errors";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import {
   cheltuialaNouaSchema,
+  decizieCheltuialaSchema,
   decizieDeplasareSchema,
   deconteazaDeplasareSchema,
   deplasareNouaSchema,
@@ -403,6 +406,252 @@ export const creeazaPolitica = createAction({
       .single();
     if (error !== null) traduEroare(error);
 
+    return { id: data.id };
+  },
+});
+
+// ── Corectarea a ce s-a scris deja ───────────────────────────────────────
+//
+// Cele patru acțiuni de mai jos închid fundătura semnalată de audit: până
+// acum o deplasare salvată nu putea fi CORECTATĂ niciodată (opt acțiuni,
+// niciun UPDATE de câmpuri), o etapă cu țările inversate rămânea pe fișă
+// pentru totdeauna și schimba calculul, iar `decizieCheltuialaSchema` era un
+// contract mort — nicio cheltuială nu putea deveni „aprobată”, deci suma
+// cheltuielilor din decont era STRUCTURAL zero.
+//
+// Schemele locale stau AICI, nu în `src/schemas/per-diem.ts`: un fișier
+// `"use server"` nu poate exporta decât funcții asincrone — Next refuză
+// build-ul la prima constantă exportată, iar `tsc` tace. Neexportate, sunt
+// contracte private ale acestor acțiuni.
+
+/**
+ * Aceleași câmpuri ca la creare, plus `id`.
+ *
+ * Intersecție, nu o listă rescrisă: `deplasareNouaSchema` poartă și regulile
+ * încrucișate (sosirea după plecare, moneda obligatorie când există avans,
+ * tripletul detașării) — rescrise aici, ar fi divergat la prima schimbare de
+ * validare, iar divergența ar fi fost tăcută.
+ */
+const actualizeazaDeplasareSchema = z
+  .object({ id: z.uuid("Deplasarea selectată nu este validă.") })
+  .and(deplasareNouaSchema);
+
+const stergeEtapaSchema = z.object({ id: z.uuid("Etapa selectată nu este validă.") });
+
+const stergeCheltuialaSchema = z.object({ id: z.uuid("Cheltuiala selectată nu este validă.") });
+
+export const actualizeazaDeplasare = createAction({
+  name: "per_diem.trip.update",
+  feature: "per_diem",
+  permission: "per_diem:update",
+  minScope: "own",
+  input: actualizeazaDeplasareSchema,
+  audit: {
+    action: "update",
+    entityType: "business_trip",
+    entityId: (input) => input.id,
+    allow: [
+      "id",
+      "scop",
+      "country_id",
+      "plecare_la",
+      "sosire_la",
+      "mijloc_transport",
+      "km_parcursi",
+      "avans_acordat",
+      "moneda_avans",
+      "curs_diurna",
+      "detasare_transnationala",
+    ],
+  },
+  revalidate: (input) => [
+    "/diurna",
+    `/diurna/${input.id}`,
+    `/diurna/${input.id}/decont`,
+    ...CAI_PORTAL_DIURNA,
+  ],
+  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    // `employee_id` NU se rescrie, deși schema îl conține (e aceeași cu cea de
+    // creare, unde `null` înseamnă „pentru mine”). Mutarea unei deplasări de
+    // la un angajat la altul e o schimbare de proprietar, nu o corectură de
+    // date, și ar trece pe lângă verificarea de scope făcută la creare.
+    // La fel `status`, `numar_document` și `approval_task_id`: starea se
+    // schimbă prin acțiunile ei, nu printr-un formular de editare.
+    const { data, error } = await ctx.supabase
+      .from("business_trips")
+      .update({
+        scop: input.scop,
+        country_id: input.country_id,
+        localitate: input.localitate,
+        plecare_la: input.plecare_la,
+        sosire_la: input.sosire_la,
+        mijloc_transport: input.mijloc_transport,
+        km_parcursi: input.km_parcursi,
+        avans_acordat: input.avans_acordat,
+        moneda_avans: input.moneda_avans,
+        curs_diurna: input.curs_diurna,
+        observatii: input.observatii,
+        detasare_transnationala: input.detasare_transnationala,
+        stat_gazda_country_id: input.stat_gazda_country_id,
+        salariu_minim_stat_gazda: input.salariu_minim_stat_gazda,
+        moneda_salariu_minim: input.moneda_salariu_minim,
+      })
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .in("status", ["ciorna", "respinsa"])
+      .select("id")
+      .maybeSingle();
+    if (error !== null) traduEroare(error);
+    // Politica `business_trips_update` lasă UPDATE-ul doar pe „ciorna” și
+    // „respinsa” pentru cine are `per_diem:update`; un rând respins de clauza
+    // USING nu produce eroare, ci ZERO rânduri. Fără verificarea asta,
+    // ecranul ar anunța o corectură care nu s-a scris niciodată.
+    if (data === null) {
+      throw businessRule(
+        "Deplasarea nu mai poate fi modificată: fie nu a fost găsită, fie a ieșit între timp din starea de ciornă sau de deplasare respinsă.",
+      );
+    }
+    return { id: data.id };
+  },
+});
+
+export const stergeEtapa = createAction({
+  name: "per_diem.leg.remove",
+  feature: "per_diem",
+  permission: "per_diem:update",
+  minScope: "own",
+  input: stergeEtapaSchema,
+  audit: {
+    action: "delete",
+    entityType: "business_trip_leg",
+    entityId: (input) => input.id,
+    allow: ["id"],
+  },
+  revalidate: ["/diurna", ...CAI_PORTAL_DIURNA],
+  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    // Ștergere logică: indexul unic pe `ordine` e parțial
+    // (`where deleted_at is null`), deci numărul de ordine se eliberează
+    // singur, iar etapa următoare adăugată nu se ciocnește de cea scoasă.
+    const { data, error } = await ctx.supabase
+      .from("business_trip_legs")
+      .update({ deleted_at: ctx.now.toISOString() })
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
+    if (error !== null) traduEroare(error);
+    if (data === null) {
+      throw businessRule(
+        "Etapa nu a putut fi ștearsă: fie a fost deja scoasă, fie deplasarea a ieșit din starea în care traseul se mai poate modifica.",
+      );
+    }
+    return { id: data.id };
+  },
+});
+
+export const stergeCheltuiala = createAction({
+  name: "per_diem.expense.remove",
+  feature: "per_diem",
+  permission: "per_diem:update",
+  minScope: "own",
+  input: stergeCheltuialaSchema,
+  audit: {
+    action: "delete",
+    entityType: "trip_expense",
+    entityId: (input) => input.id,
+    allow: ["id"],
+  },
+  revalidate: ["/diurna", ...CAI_PORTAL_DIURNA],
+  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    // `aprobata = false` explicit, deși politica o cere oricum pentru cine are
+    // doar `update`: o cheltuială aprobată INTRĂ în totalul decontului, iar
+    // scoaterea ei ar schimba tăcut o sumă deja semnată. Se respinge întâi
+    // aprobarea, apoi se șterge.
+    const { data, error } = await ctx.supabase
+      .from("trip_expenses")
+      .update({ deleted_at: ctx.now.toISOString() })
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .eq("aprobata", false)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
+    if (error !== null) traduEroare(error);
+    if (data === null) {
+      throw businessRule(
+        "Cheltuiala nu a putut fi ștearsă: fie a fost deja scoasă, fie e aprobată și intră în total. Respingeți întâi aprobarea, apoi ștergeți-o.",
+      );
+    }
+    return { id: data.id };
+  },
+});
+
+/**
+ * Decizia asupra unei cheltuieli — aprobare sau respingere cu motiv.
+ *
+ * Fără ea, `decont/page.tsx` însuma doar rândurile cu `aprobata = true`, iar
+ * nimic din produs nu putea pune vreodată steagul: decontul arăta permanent
+ * „Nicio cheltuială aprobată” și un total mai mic cu exact suma cheltuielilor.
+ *
+ * ATENȚIE la granița bazei: `trip_expenses_update` cere în clauza WITH CHECK
+ * `per_diem:update`, nu `per_diem:approve`. Un `manager` are din seed
+ * `per_diem = team {read, approve}` și NICIUN `update` — pentru el UPDATE-ul
+ * trece de USING și cade pe WITH CHECK, adică zero rânduri, fără eroare.
+ * Ecranul nu-i mai arată butoanele, iar mesajul de mai jos numește cauza în
+ * loc să lase impresia unui defect.
+ */
+export const decideCheltuiala = createAction({
+  name: "per_diem.expense.decide",
+  feature: "per_diem",
+  permission: "per_diem:approve",
+  minScope: "team",
+  input: decizieCheltuialaSchema,
+  audit: {
+    action: "update",
+    entityType: "trip_expense",
+    entityId: (input) => input.id,
+    allow: ["id", "decizie", "motiv_respingere"],
+  },
+  revalidate: ["/diurna", ...CAI_PORTAL_DIURNA],
+  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    const aproba = input.decizie === "aproba";
+    if (!aproba && (input.motiv_respingere ?? "").trim().length === 0) {
+      throw businessRule(
+        "Respingerea unei cheltuieli cere un motiv scris — el ajunge pe fișa deplasării, la angajatul care a înregistrat-o.",
+      );
+    }
+
+    // `trip_expenses_aprobare_ck` cere tripletul complet sau tripletul gol:
+    // `aprobata = true` fără `aprobata_de` și `aprobata_la` e respins de bază.
+    const modificari = aproba
+      ? {
+          aprobata: true,
+          aprobata_de: ctx.user.id,
+          aprobata_la: ctx.now.toISOString(),
+          motiv_respingere: null,
+        }
+      : {
+          aprobata: false,
+          aprobata_de: null,
+          aprobata_la: null,
+          motiv_respingere: input.motiv_respingere,
+        };
+
+    const { data, error } = await ctx.supabase
+      .from("trip_expenses")
+      .update(modificari)
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
+    if (error !== null) traduEroare(error);
+    if (data === null) {
+      throw businessRule(
+        "Decizia nu a putut fi înregistrată: fie cheltuiala nu a fost găsită, fie baza cere pentru scrierea ei și dreptul de modificare a deplasărilor, nu doar cel de aprobare. Cereți administratorului organizației să decidă.",
+      );
+    }
     return { id: data.id };
   },
 });

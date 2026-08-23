@@ -129,3 +129,54 @@ export const dezactiveazaPunctLucru = createAction<
     return { id: input.id };
   },
 });
+
+/**
+ * Reactivarea unui punct de lucru dezactivat.
+ *
+ * `activ: true` apărea într-un singur loc în tot modulul — la CREARE. Un punct
+ * de lucru dezactivat din greșeală rămânea vizibil în listă, cu pastila
+ * „Inactiv”, și nu mai exista niciun drum înapoi din interfață: fluxul se putea
+ * începe, dar nu se putea desface. Asta face și dezactivarea mai puțin gravă,
+ * deci butonul ei nu mai are nevoie de confirmare.
+ *
+ * Nu are precondiție de business, spre deosebire de dezactivarea unei funcții
+ * sau a unui departament: nicio tabelă nu referă `puncte_lucru`, deci nu există
+ * nimic de verificat înainte.
+ */
+export const reactiveazaPunctLucru = createAction<
+  typeof dezactiveazaPunctLucruSchema,
+  PunctLucruIdentificat
+>({
+  name: "puncte_lucru.reactivate",
+  permission: "departments:update",
+  minScope: "all",
+  input: dezactiveazaPunctLucruSchema,
+  audit: {
+    action: "update",
+    entityType: "puncte_lucru",
+    entityId: (input) => input.id,
+    allow: [],
+  },
+  handler: async (ctx, input) => {
+    const db = await createServerSupabase();
+    // Aceeași grijă ca la dezactivare: `puncte_lucru_update` cere în `USING`
+    // `departments:update = all` și `deleted_at is null`, iar un refuz al
+    // politicii atinge zero rânduri FĂRĂ eroare. Fără `.select()`, ecranul ar
+    // anunța o reactivare care nu s-a produs.
+    const { data: reactivat, error } = await db
+      .from("puncte_lucru")
+      .update({ activ: true, updated_by: ctx.user.id })
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle();
+    if (error !== null) throw mapPostgrestError(error, ctx.requestId);
+    if (reactivat === null) {
+      throw businessRule(
+        "Punctul de lucru nu a fost reactivat: a fost șters între timp sau nu aveți dreptul de a modifica structura organizatorică. Reîncărcați pagina.",
+      );
+    }
+    revalidatePath("/puncte-lucru");
+    return { id: input.id };
+  },
+});

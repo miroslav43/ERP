@@ -40,7 +40,7 @@ async function trimite(date: FormData) {
     oras: String(date.get("oras") ?? ""),
     cod_postal: String(date.get("cod_postal") ?? ""),
     sediu_principal: date.get("sediu_principal") === "on",
-    observatii: null,
+    observatii: String(date.get("observatii") ?? ""),
   });
 }
 
@@ -161,6 +161,28 @@ export function FormularPunctLucruNou() {
                 type="text"
                 maxLength={240}
                 defaultValue={stare.valoriTrimise["adresa"] ?? ""}
+              />
+            )}
+          </Camp>
+
+          {/* Observațiile erau trimise ca `null` fix, deși schema le acceptă
+              și pagina le citea din bază: coloana nu se putea scrie de nicăieri
+              din interfață. */}
+          <Camp
+            nume="observatii"
+            id={idc("observatii")}
+            eticheta="Observații"
+            fel="textarea"
+            ajutor="Program, acces, persoană de contact — ce trebuie știut despre locație."
+            className="sm:col-span-2"
+            erori={stare.erori["observatii"] ?? []}
+          >
+            {(a) => (
+              <textarea
+                {...a}
+                maxLength={1000}
+                rows={2}
+                defaultValue={stare.valoriTrimise["observatii"] ?? ""}
               />
             )}
           </Camp>

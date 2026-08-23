@@ -107,9 +107,15 @@ export default async function PaginaSabloaneEvaluare() {
                   </ul>
                 </div>
               </div>
-              {poateCrea && sablon.organization_id !== null ? (
+              {/*
+                Un șablon deja inactiv păstra butonul „Dezactivează”: acțiunea
+                trecea (UPDATE-ul atinge rândul și îl lasă tot pe `false`) și
+                ecranul raporta o schimbare care nu se producea. Subsolul dispare
+                când nu mai are ce comanda.
+              */}
+              {poateCrea && sablon.organization_id !== null && sablon.activ ? (
                 <div className="border-border bg-background border-t px-4 py-2">
-                  <ActiuniSablonEvaluare id={sablon.id} />
+                  <ActiuniSablonEvaluare id={sablon.id} denumire={sablon.denumire} />
                 </div>
               ) : null}
             </li>

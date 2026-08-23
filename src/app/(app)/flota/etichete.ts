@@ -62,6 +62,25 @@ export const TONURI_STATUS_FOAIE: Readonly<Record<StatusFoaie, TonStare>> = {
 };
 
 /**
+ * Tipul unei anomalii de kilometraj. Era CITIT din bază și nerandat nicăieri,
+ * deși ecranul dedica un paragraf întreg distincției dintre cele două.
+ *
+ * `regres` e „pericol”, `salt` e „atentie”: un odometru care dă înapoi e
+ * imposibil fizic și e refuzat din start de bază, deci apariția lui înseamnă că
+ * s-a umblat la cifre. Un salt are explicații banale — cel mai des o cursă
+ * necompletată.
+ */
+export const ETICHETE_TIP_ANOMALIE: Readonly<Record<"regres" | "salt", string>> = {
+  regres: "Regres",
+  salt: "Salt",
+};
+
+export const TONURI_TIP_ANOMALIE: Readonly<Record<"regres" | "salt", TonStare>> = {
+  regres: "pericol",
+  salt: "atentie",
+};
+
+/**
  * Scadențele: aici rămâne doar cum ARATĂ o treaptă, nu cum se calculează.
  *
  * `stareScadenta` și pragul de 30 de zile au plecat în `@/domain/fleet/scadente`
@@ -93,3 +112,20 @@ export const ETICHETE_SCADENTA: Readonly<Record<StareScadentaFlota, string>> = {
   in_regula: "În regulă",
   lipsa: "Lipsește",
 };
+
+/**
+ * Consumul real, în convenția românească: „9,40 l/100 km”, nu „9.40”.
+ *
+ * Era scris cu `toFixed(2)` — care produce ÎNTOTDEAUNA punct zecimal, indiferent
+ * de limbă — în două locuri: pe fișa foii și, de la reparația cozii de aprobare,
+ * și acolo. Pe același rând cu `formatLei` și cu kilometrajul trecut prin
+ * `toLocaleString("ro-RO")`, aceeași cifră apărea în două convenții.
+ */
+const formatorConsum = new Intl.NumberFormat("ro-RO", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+export function formatConsum(litriLa100Km: number): string {
+  return `${formatorConsum.format(litriLa100Km)} l/100 km`;
+}

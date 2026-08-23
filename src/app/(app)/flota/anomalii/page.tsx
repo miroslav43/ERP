@@ -3,8 +3,11 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import { CheckCircle2 } from "lucide-react";
 
+import Link from "next/link";
+
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
+import { Badge } from "@/components/ui/badge";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Schelet } from "@/components/ui/schelet";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
@@ -12,12 +15,18 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime } from "@/lib/format/date";
-import { anomaliiNeconfirmate, vehiculeDupaId } from "@/lib/queries/fleet";
+import { anomaliiNeconfirmate, PLAFON_ANOMALII, vehiculeDupaId } from "@/lib/queries/fleet";
 
+import { ETICHETE_TIP_ANOMALIE, TONURI_TIP_ANOMALIE } from "../etichete";
 import { NavFlota } from "../nav-flota";
 import { ConfirmaAnomalie } from "./confirma-anomalie";
 
 export const metadata: Metadata = { title: "Anomalii de kilometraj" };
+
+/** Cifră cu semn, în format românesc: „+3 000”, „−250”. */
+function cuSemn(valoare: number): string {
+  return `${valoare < 0 ? "−" : "+"}${Math.abs(valoare).toLocaleString("ro-RO")}`;
+}
 
 async function TabelAnomalii({ organizationId }: { readonly organizationId: string }) {
   const anomalii = await anomaliiNeconfirmate(organizationId);
@@ -55,32 +64,60 @@ async function TabelAnomalii({ organizationId }: { readonly organizationId: stri
       cheie: "vehicul",
       antet: "Vehicul",
       peTelefon: "titlu",
-      celula: (a) => vehicule.get(a.vehicle_id)?.nr_inmatriculare ?? "—",
-    },
-    {
-      cheie: "asteptat",
-      antet: "Așteptat",
-      numeric: true,
-      peTelefon: "meta",
-      celula: (a) => `${a.km_asteptat.toLocaleString("ro-RO")} km`,
-    },
-    {
-      cheie: "declarat",
-      antet: "Declarat",
-      numeric: true,
-      peTelefon: "meta",
       celula: (a) => (
         <>
-          {a.km_declarat.toLocaleString("ro-RO")} km
-          <span className="text-foreground text-nota ml-2">
-            +{(a.km_declarat - a.km_asteptat).toLocaleString("ro-RO")}
-          </span>
+          {vehicule.get(a.vehicle_id)?.nr_inmatriculare ?? "—"}
+          {/* `trip_sheet_id` era citit din bază și nefolosit: ca să afli ce cursă
+              a produs diferența trebuia să mergi la /flota/foi și să cauți după
+              dată — iar acolo nici filtru pe vehicul nu exista. */}
+          {a.trip_sheet_id === null ? null : (
+            <Link
+              href={`/flota/foi/${a.trip_sheet_id}`}
+              className="text-muted-foreground text-nota block underline-offset-2 hover:underline"
+            >
+              Deschide foaia de parcurs
+            </Link>
+          )}
         </>
       ),
     },
     {
+      cheie: "tip",
+      antet: "Tip",
+      peTelefon: "insigna",
+      celula: (a) => <Badge ton={TONURI_TIP_ANOMALIE[a.tip]}>{ETICHETE_TIP_ANOMALIE[a.tip]}</Badge>,
+    },
+    {
+      cheie: "kilometraj",
+      antet: "Așteptat → declarat",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (a) =>
+        `${a.km_asteptat.toLocaleString("ro-RO")} → ${a.km_declarat.toLocaleString("ro-RO")} km`,
+    },
+    {
+      cheie: "diferenta",
+      antet: "Diferență",
+      numeric: true,
+      peTelefon: "meta",
+      // `diferenta` e GENERATED ALWAYS în bază și era deja citită, dar ecranul
+      // o recalcula în JSX cu un „+” scris de mână — semn care ar fi mințit pe
+      // un regres. Aici vine cifra bazei, cu semnul ei.
+      celula: (a) => (
+        <span className="font-medium">{`${cuSemn(a.diferenta ?? a.km_declarat - a.km_asteptat)} km`}</span>
+      ),
+    },
+    {
       cheie: "explicatie",
-      antet: "Explicație",
+      antet: "Explicație automată",
+      peTelefon: "meta",
+      // Coloana „Explicație” conținea de fapt formularul de confirmare, iar
+      // explicația pe care o scrie chiar baza nu se vedea nicăieri.
+      celula: (a) => a.explicatie ?? "—",
+    },
+    {
+      cheie: "confirma",
+      antet: "Confirmă",
       peTelefon: "meta",
       celula: (a) => <ConfirmaAnomalie id={a.id} />,
     },
@@ -92,6 +129,9 @@ async function TabelAnomalii({ organizationId }: { readonly organizationId: stri
       coloane={coloane}
       randuri={anomalii}
       cheieRand={(a) => a.id}
+      // Citirea are o limită fixă și PostgREST taie tăcut: o coadă plină rămânea
+      // o coadă care pare golită.
+      trunchiat={anomalii.length >= PLAFON_ANOMALII}
       gol={null}
     />
   );
@@ -135,7 +175,7 @@ export default async function PaginaAnomalii() {
         }
       />
 
-      <Suspense fallback={<Schelet forma="tabel" coloane={5} />}>
+      <Suspense fallback={<Schelet forma="tabel" coloane={7} />}>
         <TabelAnomalii organizationId={tenant.organizationId} />
       </Suspense>
     </div>

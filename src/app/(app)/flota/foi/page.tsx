@@ -12,17 +12,18 @@ import { StareGoala } from "@/components/ui/stare-goala";
 import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
-import { can, getPermissionMap } from "@/lib/auth/permissions";
+import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime } from "@/lib/format/date";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 import { scrieSortare } from "@/lib/queries/cursor";
-import { angajatiDupaId, listeazaFoi, vehiculeDupaId } from "@/lib/queries/fleet";
+import { angajatiDupaId, listeazaFoi, listeazaVehicule, vehiculeDupaId } from "@/lib/queries/fleet";
 import { filtreFoiSchema } from "@/schemas/fleet";
 
 import { ETICHETE_STATUS_FOAIE, TONURI_STATUS_FOAIE } from "../etichete";
 import { NavFlota } from "../nav-flota";
+import { FiltreFoi } from "./filtre-foi";
 
 export const metadata: Metadata = { title: "Foi de parcurs" };
 
@@ -40,8 +41,25 @@ async function TabelFoi({
   const filtre = filtreDinUrl(filtreFoiSchema, parametri);
   const { randuri, urmatorulCursor, total, sortare } = await listeazaFoi(organizationId, filtre);
 
+  /** Adresele pornesc din parametrii EXISTENȚI: o sortare nu trebuie să șteargă filtrele. */
+  function adresa(schimba: (p: URLSearchParams) => void): string {
+    const p = new URLSearchParams();
+    for (const [cheie, valoare] of Object.entries(parametri)) {
+      if (typeof valoare === "string" && valoare !== "") p.set(cheie, valoare);
+    }
+    schimba(p);
+    return p.size === 0 ? "/flota/foi" : `/flota/foi?${p.toString()}`;
+  }
+
   if (randuri.length === 0) {
     const areFiltre = filtre.status !== null || filtre.vehicul !== null;
+    // Ca la /flota: se scot DOAR cheile de filtrare. Un `href="/flota/foi"` sec
+    // ar fi luat cu el și sortarea coloanelor, și mărimea paginii.
+    const faraFiltre = adresa((p) => {
+      p.delete("status");
+      p.delete("vehicul");
+      p.delete("cursor");
+    });
     return (
       <StareGoala
         fel={areFiltre ? "filtrata" : "initiala"}
@@ -52,13 +70,13 @@ async function TabelFoi({
             ? "Ștergeți filtrele ca să vedeți toate foile."
             : "Înregistrați prima cursă ca să puteți justifica consumul de combustibil."
         }
-        {...(areFiltre ? { actiune: { eticheta: "Șterge filtrele", href: "/flota/foi" } } : {})}
+        {...(areFiltre ? { actiune: { eticheta: "Șterge filtrele", href: faraFiltre } } : {})}
       />
     );
   }
 
   // Numele șoferului și numărul vehiculului se citesc SEPARAT, nu prin embed.
-  // Un manager are `trip_sheets:read` la scope „team" dar niciun drept pe
+  // Un manager are `trip_sheets:read` la scope „team” dar niciun drept pe
   // `vehicles`; un embed refuzat de RLS vine NULL fără nicio eroare, adică o
   // coloană goală pe care nimeni n-o explică.
   const [soferi, vehicule] = await Promise.all([
@@ -71,16 +89,6 @@ async function TabelFoi({
       randuri.map((f) => f.vehicle_id),
     ),
   ]);
-
-  /** Adresele pornesc din parametrii EXISTENȚI: o sortare nu trebuie să șteargă filtrele. */
-  function adresa(schimba: (p: URLSearchParams) => void): string {
-    const p = new URLSearchParams();
-    for (const [cheie, valoare] of Object.entries(parametri)) {
-      if (typeof valoare === "string" && valoare !== "") p.set(cheie, valoare);
-    }
-    schimba(p);
-    return p.size === 0 ? "/flota/foi" : `/flota/foi?${p.toString()}`;
-  }
 
   const coloane: readonly Coloana<(typeof randuri)[number]>[] = [
     {
@@ -95,7 +103,7 @@ async function TabelFoi({
       cheie: "vehicul",
       antet: "Vehicul",
       peTelefon: "meta",
-      // „—" și nu gol: absența poate însemna și lipsa dreptului de a vedea
+      // „—” și nu gol: absența poate însemna și lipsa dreptului de a vedea
       // vehiculul, nu doar lipsa datei.
       celula: (f) => vehicule.get(f.vehicle_id)?.nr_inmatriculare ?? "—",
     },
@@ -193,12 +201,39 @@ export default async function PaginaFoi({ searchParams }: ProprietatiPagina) {
 
   const parametri = await searchParams;
   const poateCrea = can(permisiuni, "trip_sheets:create", "own");
+  const scope = scopeFor(permisiuni, "trip_sheets:read");
+
+  /*
+   * Vehiculele pentru filtru se citesc AICI, nu în tabel: bara trebuie să fie pe
+   * ecran înainte de rezultate, altfel „niciun rezultat pentru filtrele alese”
+   * apare fără niciun control cu care să le ștergi.
+   *
+   * Lista poate veni GOALĂ, fără nicio eroare: un `manager` are
+   * `trip_sheets:read` la scope „team” și niciun drept pe `vehicles`. Bara nu
+   * randează atunci câmpul de vehicul — un `<select>` cu o singură opțiune,
+   * „Toate”, ar fi arătat ca un filtru stricat.
+   */
+  const { randuri: vehiculeFiltru } = await listeazaVehicule(tenant.organizationId, {
+    status: null,
+    categorie: null,
+    cauta: null,
+    cursor: null,
+    limita: 100,
+  });
 
   return (
     <div className="space-y-6">
       <AntetPagina
         titlu="Foi de parcurs"
-        descriere="Cursele înregistrate, cu kilometrii și starea aprobării."
+        // Textul era fix și sugera registrul întregii firme și unui șofer care
+        // își vede doar propriile curse.
+        descriere={
+          scope === "all"
+            ? "Toate cursele organizației, cu kilometrii și starea aprobării."
+            : scope === "team"
+              ? "Cursele echipei dumneavoastră, cu kilometrii și starea aprobării."
+              : "Cursele dumneavoastră, cu kilometrii și starea aprobării."
+        }
         {...(poateCrea
           ? {
               actiuni: (
@@ -217,6 +252,8 @@ export default async function PaginaFoi({ searchParams }: ProprietatiPagina) {
           />
         }
       />
+
+      <FiltreFoi parametri={parametri} vehicule={vehiculeFiltru} />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={6} />}>
         <TabelFoi organizationId={tenant.organizationId} parametri={parametri} />

@@ -7,6 +7,7 @@ import { Copy, MailPlus, ShieldAlert } from "lucide-react";
 import { Buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
+import { arataToast } from "@/components/ui/toast";
 import { clientEnv } from "@/config/env";
 import type { ActionResult } from "@/lib/actions/types";
 
@@ -20,6 +21,8 @@ import type { InvitatieCreata } from "./actions";
 
 export type RandMembru = Readonly<{
   id: string;
+  /** `null` când profilul n-are încă numele completat — atunci rămâne e-mailul. */
+  nume: string | null;
   email: string;
   role: string;
   status: string;
@@ -104,11 +107,42 @@ export function PanouMembri({
   ): void {
     startTransition(async () => {
       const rezultat = await promisiune;
-      setMesaj(
-        rezultat.ok
-          ? { text: succes, esteEroare: false }
-          : { text: rezultat.error?.message ?? "Operațiunea a eșuat.", esteEroare: true },
-      );
+      const text = rezultat.ok ? succes : (rezultat.error?.message ?? "Operațiunea a eșuat.");
+      setMesaj({ text, esteEroare: !rezultat.ok });
+      // Mesajul din secțiunea de invitații stă la ~30 de rânduri de tabel
+      // distanță de butonul apăsat: pe o listă de 20 de membri, confirmarea și
+      // refuzul apar în afara ecranului. Toastul e singurul care ajunge acolo
+      // unde se uită omul.
+      arataToast({ fel: rezultat.ok ? "reusita" : "eroare", text });
+    });
+  }
+
+  /**
+   * Schimbarea rolului se comite pe `onChange`, fără buton de confirmare.
+   * Atât timp cât rămâne așa, REFUZUL trebuie să dea înapoi și controlul:
+   * `<select>`-ul e necontrolat, deci după un refuz al serverului (ultimul
+   * administrator, membru inexistent, drept lipsă) rămânea afișat rolul RESPINS
+   * — ecranul spunea „Manager”, baza păstra „Administrator”, iar singurul semn
+   * al dezacordului era un mesaj aflat în afara ecranului. Aici valoarea revine
+   * la ce are baza, `membru.role`.
+   */
+  function schimbaRol(membru: RandMembru, control: HTMLSelectElement): void {
+    const rolCerut = control.value;
+    const rolAnterior = membru.role;
+    if (rolCerut === rolAnterior) return;
+    startTransition(async () => {
+      const rezultat = await schimbaRolulMembrului({ memberId: membru.id, role: rolCerut });
+      const numePersoana = membru.nume ?? membru.email;
+      if (rezultat.ok) {
+        const text = `Rolul lui ${numePersoana} este acum ${etichetaRol(rolCerut)}.`;
+        setMesaj({ text, esteEroare: false });
+        arataToast({ fel: "reusita", text });
+        return;
+      }
+      control.value = rolAnterior;
+      const text = `${rezultat.error?.message ?? "Rolul nu a putut fi schimbat."} ${numePersoana} rămâne ${etichetaRol(rolAnterior)}.`;
+      setMesaj({ text, esteEroare: true });
+      arataToast({ fel: "eroare", text });
     });
   }
 
@@ -128,7 +162,10 @@ export function PanouMembri({
       peTelefon: "titlu",
       celula: (membru) => (
         <>
-          <span className="text-foreground block">{membru.email}</span>
+          <span className="text-foreground block">{membru.nume ?? membru.email}</span>
+          {membru.nume === null ? null : (
+            <span className="text-muted-foreground text-nota block">{membru.email}</span>
+          )}
           {membru.jobTitle === null ? null : (
             <span className="text-muted-foreground text-nota">{membru.jobTitle}</span>
           )}
@@ -145,21 +182,13 @@ export function PanouMembri({
         ) : (
           <>
             <label htmlFor={`rol-${membru.id}`} className="sr-only">
-              Rolul pentru {membru.email}
+              Rolul pentru {membru.nume ?? membru.email}
             </label>
             <select
               id={`rol-${membru.id}`}
               defaultValue={membru.role}
               disabled={inCurs}
-              onChange={(eveniment) =>
-                ruleaza(
-                  schimbaRolulMembrului({
-                    memberId: membru.id,
-                    role: eveniment.target.value,
-                  }),
-                  "Rolul a fost actualizat.",
-                )
-              }
+              onChange={(eveniment) => schimbaRol(membru, eveniment.currentTarget)}
               className="border-border bg-background rounded-control text-corp h-8 border px-2"
             >
               {ROLURI.map((element) => (

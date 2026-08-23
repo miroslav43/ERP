@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useId, useState } from "react";
+import { useCallback, useId, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
 import { Camp, clasaBifa } from "@/components/ui/camp";
 import { Formular } from "@/components/ui/formular";
 import type { ActionResult } from "@/lib/actions/types";
-import type { BaremTara } from "@/domain/per-diem/sume";
+import { gasesteRandValabil, type BaremTara } from "@/domain/per-diem/sume";
 import { MIJLOACE_TRANSPORT } from "@/schemas/per-diem";
 import type { PoliticaRand, Tara } from "@/lib/queries/per-diem";
 
@@ -117,12 +117,19 @@ async function trimiteDeplasarea(date: FormData): Promise<ActionResult<Deplasare
 export function FormularDeplasare({
   tari,
   politica,
+  politici,
   baremuri,
   angajati,
   prefixCale = "/diurna",
 }: {
   readonly tari: readonly Tara[];
+  /** Versiunea de referință: dă țara internă implicită și rămâne rezerva. */
   readonly politica: PoliticaRand;
+  /**
+   * TOATE versiunile politicii firmei. Opțional pentru compatibilitate cu
+   * portalul, care randează același formular fără ele.
+   */
+  readonly politici?: readonly PoliticaRand[];
   readonly baremuri: readonly BaremTara[];
   readonly angajati: readonly Angajat[] | null;
   readonly prefixCale?: string;
@@ -136,6 +143,32 @@ export function FormularDeplasare({
   const [avansAcordat, setAvansAcordat] = useState("0");
   const [cursDiurna, setCursDiurna] = useState("");
   const [detasare, setDetasare] = useState(false);
+
+  /**
+   * Versiunea de politică folosită la previzualizare se alege după DATA
+   * PLECĂRII, nu după ziua de azi.
+   *
+   * Ecranul primea până acum `politicaLaData(org, todayInBucharest())` și
+   * calcula cu ea orice deplasare, inclusiv una planificată după o schimbare de
+   * praguri — contrazicând planul propriu al modulului
+   * (`docs/design/ecrane/diurna.md`: „dataISO = plecare_la::date A DEPLASĂRII,
+   * nu ziua de azi”). Fișa deplasării, care folosește data corectă, arăta apoi
+   * altă sumă decât previzualizarea de la care omul plecase.
+   */
+  const politicaAplicabila = useMemo<PoliticaRand | null>(() => {
+    if (politici === undefined) return politica;
+    const dataPlecare = plecareLa.slice(0, 10);
+    if (dataPlecare.length < 10) return politica;
+    const potrivita = gasesteRandValabil(
+      politici.map((p) => ({
+        valabilDeLa: p.valabil_de_la,
+        valabilPana: p.valabil_pana,
+        politica: p,
+      })),
+      dataPlecare,
+    );
+    return potrivita === null ? null : potrivita.politica;
+  }, [politici, politica, plecareLa]);
 
   const taraEsteInterna = countryId === politica.country_id_intern;
 
@@ -470,7 +503,7 @@ export function FormularDeplasare({
           sosireLa={sosireLa}
           countryId={countryId.length === 0 ? null : countryId}
           cursDiurna={cursDiurna.length === 0 ? null : Number(cursDiurna)}
-          politica={politica}
+          politica={politicaAplicabila}
           baremuri={baremuri}
         />
       </aside>

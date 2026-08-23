@@ -43,6 +43,8 @@ import {
   TONURI_STATUS_ECHIPAMENT,
   TONURI_STATUS_SESIZARE,
   TONURI_URGENTA_SESIZARE,
+  formatContor,
+  formatPeriodicitate,
 } from "../../etichete";
 import { FormularEchipament } from "../formular-echipament";
 import { FormularContor } from "./formular-contor";
@@ -195,7 +197,9 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
       antet: "Citire",
       numeric: true,
       peTelefon: "meta",
-      celula: (citire) => citire.citire,
+      // „1284” fără unitate și fără separator de mii nu se compară pe verticală,
+      // iar pe cardul de sub 768px coloana „Tip” nici nu mai stă alături.
+      celula: (citire) => formatContor(citire.citire, citire.tip),
     },
     {
       cheie: "data",
@@ -428,15 +432,7 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
                       {ETICHETE_TIP_MENTENANTA[plan.tip]} · Responsabil:{" "}
                       {numeleAngajatului(plan.responsabil_employee_id)}
                     </p>
-                    <p className="text-muted-foreground text-nota">
-                      {plan.periodicitate_zile !== null ? `La ${plan.periodicitate_zile} zile` : ""}
-                      {plan.periodicitate_zile !== null && plan.periodicitate_contor !== null
-                        ? " · "
-                        : ""}
-                      {plan.periodicitate_contor !== null && plan.tip_contor !== null
-                        ? `La ${plan.periodicitate_contor} ${ETICHETE_TIP_CONTOR[plan.tip_contor]}`
-                        : ""}
-                    </p>
+                    <p className="text-muted-foreground text-nota">{formatPeriodicitate(plan)}</p>
                     {poateScrie ? (
                       <div className="mt-2">
                         <ButonEditeazaPlan
@@ -503,27 +499,75 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
           <ul className="space-y-2">
             {autorizatii.map((autorizatie) => {
               const stare = stareScadentaData(autorizatie.valabil_pana, azi);
+              /*
+               * `scadenta_verificare_tehnica` și `conditii` erau SELECTATE de
+               * `autorizatiiIscir` și nu ajungeau pe ecran. Verificarea tehnică
+               * periodică e o scadență legală distinctă de valabilitatea
+               * autorizației: o autorizație valabilă până în 2028 cu verificarea
+               * expirată luna trecută scoate utilajul din legalitate la fel de
+               * sigur ca una expirată.
+               */
+              const stareVerificare = stareScadentaData(
+                autorizatie.scadenta_verificare_tehnica,
+                azi,
+              );
+              const suspendataLa = autorizatie.suspendata_la;
+              const suspendata = suspendataLa !== null;
               return (
                 <li
                   key={autorizatie.id}
-                  className="border-border rounded-panou flex flex-wrap items-start justify-between gap-3 border p-3"
+                  className={`rounded-panou flex flex-wrap items-start justify-between gap-3 border p-3 ${
+                    // Suspendarea era un fragment de text de 12px lipit după
+                    // emitent, pentru starea care spune că utilajul nu are voie
+                    // să funcționeze. Rândul întreg o poartă acum.
+                    suspendata ? "border-danger/40 bg-danger/8" : "border-border"
+                  }`}
                 >
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-medium">
                       {autorizatie.tip} · {autorizatie.numar}
                     </p>
                     <p className="text-muted-foreground text-nota">
                       Emitent: {autorizatie.emitent}
-                      {autorizatie.suspendata_la !== null ? " · Suspendată" : ""}
                     </p>
+                    {autorizatie.conditii === null ? null : (
+                      <p className="text-foreground text-nota mt-1">
+                        Condiții impuse: {autorizatie.conditii}
+                      </p>
+                    )}
+                    {suspendataLa === null ? null : (
+                      <p className="text-foreground text-nota mt-1 font-medium">
+                        Suspendată la {formatDate(suspendataLa)}. Utilajul nu poate funcționa legal
+                        până la ridicarea suspendării.
+                      </p>
+                    )}
                   </div>
-                  <div className="flex flex-col items-end gap-1 text-right">
+                  <div className="flex shrink-0 flex-col items-end gap-1 text-right">
+                    {suspendata ? (
+                      <Badge ton="pericol" cuAvertisment>
+                        Suspendată
+                      </Badge>
+                    ) : null}
                     <Scadenta treapta={TREPTE_MENTENANTA[stare]}>
-                      {ETICHETE_STARE_SCADENTA[stare]}
+                      Autorizație: {ETICHETE_STARE_SCADENTA[stare]}
                     </Scadenta>
                     <span className="text-muted-foreground text-nota">
-                      {formatDate(autorizatie.valabil_pana)}
+                      până la {formatDate(autorizatie.valabil_pana)}
                     </span>
+                    {autorizatie.scadenta_verificare_tehnica === null ? (
+                      <span className="text-muted-foreground text-nota">
+                        Fără verificare tehnică programată
+                      </span>
+                    ) : (
+                      <>
+                        <Scadenta treapta={TREPTE_MENTENANTA[stareVerificare]}>
+                          Verificare tehnică: {ETICHETE_STARE_SCADENTA[stareVerificare]}
+                        </Scadenta>
+                        <span className="text-muted-foreground text-nota">
+                          la {formatDate(autorizatie.scadenta_verificare_tehnica)}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </li>
               );

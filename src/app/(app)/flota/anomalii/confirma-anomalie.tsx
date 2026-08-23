@@ -43,7 +43,7 @@ export function ConfirmaAnomalie({ id }: { readonly id: string }) {
         type="text"
         maxLength={500}
         placeholder="Ex. cursă necompletată pe 14 septembrie"
-        className="border-foreground/60 rounded-control text-corp min-w-56 flex-1 border px-3 py-1.5"
+        className="border-foreground/60 rounded-control text-corp min-w-40 flex-1 border px-3 py-1.5"
       />
       <Buton type="submit" varianta="secundar" inCurs={inCurs} textInCurs="Se salvează…">
         Confirmă

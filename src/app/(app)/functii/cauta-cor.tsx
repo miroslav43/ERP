@@ -3,6 +3,7 @@
 
 import { useId, useMemo, useState } from "react";
 
+import { clasaControl } from "@/components/ui/camp";
 import { cautaOcupatii, ocupatiaDupaCod } from "@/domain/hr/cor-nomenclator";
 
 /**
@@ -16,13 +17,22 @@ import { cautaOcupatii, ocupatiaDupaCod } from "@/domain/hr/cor-nomenclator";
  *
  * Câmpul rămâne un `<input name="cod_cor">` obișnuit, ca formularul-părinte să
  * citească valoarea din `FormData` fără să știe nimic despre componenta asta.
+ *
+ * `invalid` și `descrisDe` vin din `<Camp>`: `codCorOptional` respinge un cod
+ * care nu există în nomenclator, iar mesajul acela trebuie să ajungă LÂNGĂ
+ * câmpul de căutare, nu sub buton. Fără ele, singurul câmp care poate cădea pe
+ * o regulă de business era și singurul fără marcaj de invaliditate.
  */
 export function CautaCor({
   idInput,
   valoareInitiala = "",
+  invalid = false,
+  descrisDe,
 }: {
   readonly idInput: string;
   readonly valoareInitiala?: string;
+  readonly invalid?: boolean;
+  readonly descrisDe?: string | undefined;
 }) {
   const [interogare, setInterogare] = useState(valoareInitiala);
   const [deschis, setDeschis] = useState(false);
@@ -44,6 +54,8 @@ export function CautaCor({
         aria-expanded={deschis && rezultate.length > 0}
         aria-controls={idLista}
         aria-autocomplete="list"
+        aria-invalid={invalid ? true : undefined}
+        aria-describedby={descrisDe}
         placeholder="Caută ocupația: „sudor”, „inginer”, sau codul 251401"
         onChange={(eveniment) => {
           setInterogare(eveniment.target.value);
@@ -60,7 +72,7 @@ export function CautaCor({
             setDeschis(false);
           }, 150);
         }}
-        className="border-foreground/60 rounded-control text-corp w-full border px-3 py-2"
+        className={clasaControl()}
       />
 
       {alesa !== null ? (

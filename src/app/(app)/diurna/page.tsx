@@ -2,13 +2,14 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Plane, PlaneTakeoff, Settings } from "lucide-react";
+import { Plane, PlaneTakeoff } from "lucide-react";
 
 import type { BaremTara } from "@/domain/per-diem/sume";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
 import { buton } from "@/components/ui/buton";
+import { Callout } from "@/components/ui/callout";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
@@ -33,7 +34,7 @@ import {
 } from "@/lib/queries/per-diem";
 import { filtreDeplasariSchema } from "@/schemas/per-diem";
 
-import { ETICHETE_STATUS_DEPLASARE, TONURI_STATUS_DEPLASARE } from "./etichete";
+import { ETICHETE_STATUS_DEPLASARE, TONURI_STATUS_DEPLASARE, textZile } from "./etichete";
 import { FiltreDeplasari } from "./filtre-deplasari";
 import { NavDiurna } from "./nav-diurna";
 
@@ -61,7 +62,7 @@ function sumarDeplasare(
 ) {
   if (salvat !== undefined) {
     return {
-      text: `${String(salvat.zile_total)} zile${salvat.valoare_lei === null ? "" : ` · ${formatLei(salvat.valoare_lei)}`}`,
+      text: `${textZile(salvat.zile_total)}${salvat.valoare_lei === null ? "" : ` · ${formatLei(salvat.valoare_lei)}`}`,
       estimare: false,
     };
   }
@@ -84,7 +85,7 @@ function sumarDeplasare(
   );
 
   return {
-    text: `${String(rezultat.zileTotal)} zile${rezultat.valoareLei === null ? "" : ` · ${formatLei(rezultat.valoareLei)}`}`,
+    text: `${textZile(rezultat.zileTotal)}${rezultat.valoareLei === null ? "" : ` · ${formatLei(rezultat.valoareLei)}`}`,
     estimare: true,
   };
 }
@@ -287,29 +288,18 @@ export default async function PaginaDiurna({ searchParams }: ProprietatiPagina) 
 
   const azi = todayInBucharest();
   const politicaCurenta = await politicaLaData(tenant.organizationId, azi);
-
-  if (politicaCurenta === null) {
-    return (
-      <div className="space-y-6">
-        <AntetPagina titlu="Deplasări" file={<NavDiurna poateAproba={poateAproba} />} />
-        <StareGoala
-          fel="initiala"
-          pictograma={Settings}
-          titlu="Politica de diurnă nu este configurată"
-          descriere={
-            poateConfiguraPolitica
-              ? "Fără o politică valabilă la data plecării, nicio deplasare nu poate fi salvată. Configurați pragurile și baremul firmei."
-              : "Fără o politică valabilă la data plecării, nicio deplasare nu poate fi salvată. Cereți administratorului organizației să configureze politica firmei."
-          }
-          {...(poateConfiguraPolitica
-            ? { actiune: { eticheta: "Configurează politica", href: "/diurna/politica" } }
-            : {})}
-        />
-      </div>
-    );
-  }
-
   const parametri = await searchParams;
+
+  /**
+   * Lipsa unei politici valabile AZI e un avertisment, nu o poartă.
+   *
+   * Ecranul returna aici un `StareGoala` și NU mai randa deloc tabelul: o firmă
+   * a cărei politică s-a încheiat ieri își pierdea accesul la tot istoricul de
+   * deplasări deja înregistrate — o problemă de configurare ascundea datele.
+   * Politica lipsește doar pentru deplasările NOI (triggerul de inserare o cere
+   * la data plecării), deci exact butonul de adăugare e cel care se închide.
+   */
+  const faraPolitica = politicaCurenta === null;
 
   return (
     <div className="space-y-6">
@@ -320,7 +310,7 @@ export default async function PaginaDiurna({ searchParams }: ProprietatiPagina) 
             ? "Deplasările dumneavoastră în interes de serviciu, cu diurna estimată."
             : "Deplasările la care aveți acces, cu diurna estimată."
         }
-        {...(poateAdauga
+        {...(poateAdauga && !faraPolitica
           ? {
               actiuni: (
                 <Link href="/diurna/noua" className={buton({ varianta: "primar" })}>
@@ -332,6 +322,26 @@ export default async function PaginaDiurna({ searchParams }: ProprietatiPagina) 
           : {})}
         file={<NavDiurna poateAproba={poateAproba} />}
       />
+
+      {faraPolitica ? (
+        <Callout
+          fel="atentie"
+          titlu="Politica de diurnă nu e valabilă astăzi"
+          {...(poateConfiguraPolitica
+            ? {
+                actiune: (
+                  <Link href="/diurna/politica" className={buton({ varianta: "secundar" })}>
+                    Configurează politica
+                  </Link>
+                ),
+              }
+            : {})}
+        >
+          {poateConfiguraPolitica
+            ? "Deplasările deja înregistrate se văd mai jos, calculate cu politica valabilă la data lor. O deplasare NOUĂ nu se poate salva până nu există o versiune valabilă la data plecării."
+            : "Deplasările deja înregistrate se văd mai jos, calculate cu politica valabilă la data lor. Pentru o deplasare nouă, cereți administratorului organizației să configureze politica firmei."}
+        </Callout>
+      ) : null}
 
       <FiltreDeplasari parametri={parametri} />
 

@@ -11,7 +11,7 @@ import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime } from "@/lib/format/date";
 import { idDinRuta } from "@/lib/rute/parametri";
 import { idFisaProprie } from "@/lib/queries/employees";
-import { citesteAnunt, cititoriAnunt, numarAngajatiActivi } from "@/lib/queries/announcements";
+import { citesteAnunt, cititoriAnunt, numarAngajatiCuCont } from "@/lib/queries/announcements";
 
 import { MarcheazaCitit } from "./marcheaza-citit";
 import { PublicaButon } from "./publica-buton";
@@ -44,8 +44,12 @@ export default async function PaginaAnunt({ params }: ProprietatiPagina) {
   const propriaFisaId = await idFisaProprie(tenant.organizationId, user.id);
   const publicat = anunt.publicat_la !== null;
 
-  const [cititori, totalAngajati] = poateAdministra
-    ? await Promise.all([cititoriAnunt(anunt.id), numarAngajatiActivi(tenant.organizationId)])
+  // Numitorul e numărul de angajați activi CU CONT, nu numărul de angajați
+  // activi: confirmarea se scrie din portal, iar un angajat fără `user_id` nu
+  // se poate autentifica, deci nu poate confirma niciodată. Cu vechiul numitor,
+  // „3 / 47” nu putea ajunge la 47 nici dacă toată lumea citea.
+  const [cititori, totalConturi] = poateAdministra
+    ? await Promise.all([cititoriAnunt(anunt.id), numarAngajatiCuCont(tenant.organizationId)])
     : [null, null];
 
   const descriere =
@@ -77,8 +81,14 @@ export default async function PaginaAnunt({ params }: ProprietatiPagina) {
         <section aria-labelledby="cititori" className="space-y-2">
           <h2 id="cititori" className="text-corp font-semibold">
             Confirmări de citire ({cititori.length}
-            {totalAngajati === null ? "" : ` / ${totalAngajati}`})
+            {totalConturi === null ? "" : ` / ${totalConturi}`})
           </h2>
+          {totalConturi === null ? null : (
+            <p className="text-muted-foreground text-nota">
+              Numitorul e numărul angajaților activi care au cont în aplicație — ceilalți nu au de
+              unde confirma.
+            </p>
+          )}
           {cititori.length === 0 ? (
             <p className="text-muted-foreground text-corp">Nimeni nu l-a citit încă.</p>
           ) : (

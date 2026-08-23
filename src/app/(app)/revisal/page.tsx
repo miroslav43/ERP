@@ -158,22 +158,43 @@ export default async function PaginaRevisal(props: {
         descriere={`Registrul general de evidență a salariaților. Netransmiterea în termen a unui eveniment este contravenție, separat pentru fiecare salariat. Situația la ${formatDate(azi)}.`}
       />
 
-      <section aria-label="Situația termenelor" className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        {[
-          {
-            eticheta: "Întârziate",
-            valoare: statistici.intarziate,
-            clasa: CLASA_STARE["intarziat"],
-          },
-          { eticheta: "Cu termen azi", valoare: statistici.astazi, clasa: CLASA_STARE["astazi"] },
-          { eticheta: "În termen", valoare: statistici.inTermen, clasa: CLASA_STARE["in_termen"] },
-          { eticheta: "Transmise", valoare: statistici.transmise, clasa: CLASA_STARE["transmis"] },
-        ].map((fisa) => (
-          <div key={fisa.eticheta} className={`rounded-panou p-4 ${fisa.clasa ?? ""}`}>
-            <p className="text-corp font-medium">{fisa.eticheta}</p>
-            <p className="text-cifra font-semibold tabular-nums">{fisa.valoare}</p>
-          </div>
-        ))}
+      {/*
+        Cifrele se numără în bază, pe tot registrul, nu peste rândurile afișate:
+        pe filtrul „Transmise” fișa „Întârziate” arăta 0, iar peste 100 de
+        evenimente toate patru erau mai mici decât realitatea. De aceea, când un
+        filtru e activ, se spune explicit că sinteza nu-l urmează.
+      */}
+      <section aria-label="Situația întregului registru" className="space-y-2">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          {[
+            {
+              eticheta: "Întârziate",
+              valoare: statistici.intarziate,
+              clasa: CLASA_STARE["intarziat"],
+            },
+            { eticheta: "Cu termen azi", valoare: statistici.astazi, clasa: CLASA_STARE["astazi"] },
+            {
+              eticheta: "În termen",
+              valoare: statistici.inTermen,
+              clasa: CLASA_STARE["in_termen"],
+            },
+            {
+              eticheta: "Transmise",
+              valoare: statistici.transmise,
+              clasa: CLASA_STARE["transmis"],
+            },
+          ].map((fisa) => (
+            <div key={fisa.eticheta} className={`rounded-panou p-4 ${fisa.clasa ?? ""}`}>
+              <p className="text-corp font-medium">{fisa.eticheta}</p>
+              <p className="text-cifra font-semibold tabular-nums">{fisa.valoare}</p>
+            </div>
+          ))}
+        </div>
+        {filtre.stare === "toate" ? null : (
+          <p className="text-muted-foreground text-nota">
+            Cifrele de mai sus privesc întregul registru, nu filtrul ales.
+          </p>
+        )}
       </section>
 
       <nav aria-label="Filtrare după stare" className="flex flex-wrap gap-2">
