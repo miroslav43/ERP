@@ -2,47 +2,437 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import {
-  Banknote,
-  Bell,
-  Briefcase,
-  Building2,
-  CalendarDays,
-  Clock,
-  FileText,
-  LayoutGrid,
-  MessageSquare,
-  Settings,
-  Users,
-  type LucideIcon,
-} from "lucide-react";
+import { CalendarPlus, Check, UserPlus } from "lucide-react";
 
-import { createServerSupabase } from "@/lib/supabase/server";
-import { getEnabledFeatures } from "@/lib/auth/features";
-import { resolveTenant } from "@/lib/tenant/resolve-tenant";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { buton } from "@/components/ui/buton";
+import { Indicator } from "@/components/ui/indicator";
+import { FEATURES, type FeatureKey } from "@/config/features";
 import { RUTA_ALEGE_ORGANIZATIA, RUTA_AUTENTIFICARE } from "@/config/routes";
+import { can } from "@/lib/auth/permissions";
+import { getEnabledFeatures } from "@/lib/auth/features";
+import { getPermissionMap } from "@/lib/auth/permissions";
+import { contoarePanou, PRAG_PANOU_ZILE, type ContoarePanou } from "@/lib/queries/panou";
+import { resolveTenant } from "@/lib/tenant/resolve-tenant";
+
+import { RandCoada } from "./_components/rand-coada";
+
 export const metadata: Metadata = { title: "Panou" };
 
-const ICONURI: Readonly<Record<string, LucideIcon>> = {
-  users: Users,
-  briefcase: Briefcase,
-  clock: Clock,
-  "calendar-days": CalendarDays,
-  "file-text": FileText,
-  banknote: Banknote,
-  bell: Bell,
-  "message-square": MessageSquare,
-  settings: Settings,
-  building: Building2,
-};
+/**
+ * Panoul principal — registrul de dimineață al administratorului.
+ *
+ * ── CE ERA ÎNAINTE ────────────────────────────────────────────────────────
+ * Un cuprins: numele firmei, o linie cu trei cifre administrative (locuri
+ * ocupate, membri activi, invitații) și o grilă de carduri care duceau în
+ * module. Niciun număr operațional — nimic care așteaptă o semnătură, nimic
+ * care expiră. Era, în plus, singura pagină din `(app)` FĂRĂ preambul de
+ * permisiuni, deci putea trimite un `manager` direct într-un refuz.
+ *
+ * ── PRINCIPIUL ────────────────────────────────────────────────────────────
+ * Coada stă deasupra cifrelor, întotdeauna, chiar și goală. Panoul trebuie să
+ * se GOLEASCĂ, nu să se umple: unul mereu plin nu mai înseamnă nimic. De aceea
+ * starea goală se scrie ca reușită, nu ca absență.
+ *
+ * ── DE CE INDICATORII SE ADAPTEAZĂ LA EFECTIV ─────────────────────────────
+ * Sub prag se arată numere absolute și fapte; procentele apar abia peste el.
+ * Pe opt angajați — efectivul real al celei mai mari firme din sistem — o
+ * plecare înseamnă 12,5 % fluctuație, iar un indicator care afișează asta
+ * minte mai mult decât spune.
+ */
+
+/** Peste acest efectiv, procentele și tendințele încep să însemne ceva. */
+const PRAG_EFECTIV_PROCENTE = 25;
+
+/** Ordinea din coadă: cine mă așteaptă pe mine, apoi ce are termen, apoi ce e blocat. */
+type IntrareCoada = Readonly<{
+  cheie: string;
+  numar: number;
+  titlu: string;
+  detaliu: string;
+  href: string;
+  actiune: string;
+  urgent?: boolean;
+}>;
+
+function coadaDinContoare(c: ContoarePanou): readonly IntrareCoada[] {
+  const { coada } = c;
+  const intrari: IntrareCoada[] = [];
+
+  if (coada.cereriConcediu !== null && coada.cereriConcediu > 0) {
+    intrari.push({
+      cheie: "concedii",
+      numar: coada.cereriConcediu,
+      titlu: "Cereri de concediu care așteaptă o decizie",
+      detaliu: coada.cereriConcediu === 1 ? "cerere trimisă" : "cereri trimise",
+      href: "/concedii/aprobari",
+      actiune: "Aprobă",
+    });
+  }
+  if (coada.saptamaniPontaj !== null && coada.saptamaniPontaj > 0) {
+    intrari.push({
+      cheie: "pontaj",
+      numar: coada.saptamaniPontaj,
+      titlu: "Perioade de pontaj trimise spre aprobare",
+      detaliu: coada.saptamaniPontaj === 1 ? "perioadă" : "perioade",
+      href: "/pontaj/aprobare",
+      actiune: "Aprobă",
+    });
+  }
+  if (coada.deplasari !== null && coada.deplasari > 0) {
+    intrari.push({
+      cheie: "diurna",
+      numar: coada.deplasari,
+      titlu: "Deplasări care așteaptă aprobare",
+      detaliu: coada.deplasari === 1 ? "deplasare" : "deplasări",
+      href: "/diurna/aprobari",
+      actiune: "Aprobă",
+    });
+  }
+  if (coada.foiParcurs !== null && coada.foiParcurs > 0) {
+    intrari.push({
+      cheie: "foi",
+      numar: coada.foiParcurs,
+      titlu: "Foi de parcurs trimise spre aprobare",
+      detaliu: coada.foiParcurs === 1 ? "foaie" : "foi",
+      href: "/flota/aprobari",
+      actiune: "Aprobă",
+    });
+  }
+  if (coada.tichete !== null && coada.tichete > 0) {
+    intrari.push({
+      cheie: "tichete",
+      numar: coada.tichete,
+      titlu: "Tichete care așteaptă decizia ta",
+      detaliu: coada.tichete === 1 ? "tichet" : "tichete",
+      href: "/ticketing/coada",
+      actiune: "Deschide",
+    });
+  }
+  return intrari;
+}
+
+export default async function PanouPage() {
+  const rezolvare = await resolveTenant();
+  if (rezolvare.status === "neautentificat") redirect(RUTA_AUTENTIFICARE);
+  if (rezolvare.status !== "ok") redirect(RUTA_ALEGE_ORGANIZATIA);
+  const { tenant } = rezolvare;
+
+  // Preambulul canonic, absent până acum de pe singura pagină din `(app)` care
+  // n-avea niciunul. Fără el, un `manager` fără `payroll:read` ar fi văzut
+  // cifre de salarizare — sau, mai rău, un card care duce într-un refuz.
+  const [module, permisiuni] = await Promise.all([
+    getEnabledFeatures(tenant.organizationId),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+  ]);
+
+  const contoare = await contoarePanou(tenant.organizationId, {
+    features: module,
+    permissions: permisiuni,
+  });
+
+  const coada = coadaDinContoare(contoare);
+  const { scadente, firma } = contoare;
+  const firmaGoala = firma.angajatiActivi === 0;
+  const peProcente = firma.angajatiActivi >= PRAG_EFECTIV_PROCENTE;
+
+  const poateAdaugaAngajat = can(permisiuni, "employees:create", "all");
+  const poateCereConcediu = module.has("leave") && can(permisiuni, "leave:create", "own");
+
+  const azi = new Intl.DateTimeFormat("ro-RO", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Europe/Bucharest",
+  }).format(new Date());
+
+  const scadenteVizibile = [
+    scadente.ssm !== null
+      ? {
+          cheie: "ssm",
+          eticheta: "Scadențe SSM și PSI",
+          valoare: scadente.ssm,
+          href: "/ssm",
+          nota:
+            scadente.ssm === 0 ? "Nimic în fereastra de preaviz." : "Instruiri, fișe, verificări.",
+        }
+      : null,
+    scadente.mentenanta !== null
+      ? {
+          cheie: "mentenanta",
+          eticheta: "Mentenanță scadentă",
+          valoare: scadente.mentenanta,
+          href: "/mentenanta",
+          nota:
+            scadente.mentenanta === 0 ? "Niciun plan depășit." : "Planuri și autorizații ISCIR.",
+        }
+      : null,
+    scadente.documenteFlota !== null
+      ? {
+          cheie: "flota",
+          eticheta: "Documente de flotă",
+          valoare: scadente.documenteFlota,
+          href: "/flota",
+          nota:
+            scadente.documenteFlota === 0
+              ? `Nimic în următoarele ${PRAG_PANOU_ZILE} de zile.`
+              : "ITP, RCA, asigurare.",
+        }
+      : null,
+    scadente.contracteDeterminate !== null
+      ? {
+          cheie: "contracte",
+          eticheta: "Contracte care expiră",
+          valoare: scadente.contracteDeterminate,
+          href: "/angajati",
+          nota:
+            scadente.contracteDeterminate === 0
+              ? "Niciunul pe durată determinată în fereastră."
+              : "Prelungirea e eveniment REVISAL cu termen.",
+        }
+      : null,
+  ].filter((x): x is NonNullable<typeof x> => x !== null);
+
+  // „Lipsește" nu se numără la un loc cu „expiră": un vehicul fără niciun
+  // document n-are dată de la care să numere, deci nu se aprinde niciodată
+  // singur. Merită propria cartelă, cu ton de pericol.
+  const lipsuri =
+    scadente.vehiculeFaraDocumente !== null && scadente.vehiculeFaraDocumente > 0
+      ? scadente.vehiculeFaraDocumente
+      : null;
+
+  const scurtaturi = [...module]
+    .filter((cheie): cheie is FeatureKey => cheie !== "nucleu" && cheie !== "employee_portal")
+    .map((cheie) => ({ cheie, meta: FEATURES[cheie] }))
+    .filter((m) => m.meta !== undefined)
+    .sort((a, b) => a.meta.sortOrder - b.meta.sortOrder);
+
+  return (
+    <div className="flex flex-col gap-6">
+      <AntetPagina
+        titlu="Panou"
+        descriere={azi.charAt(0).toUpperCase() + azi.slice(1)}
+        {...(poateAdaugaAngajat || poateCereConcediu
+          ? {
+              actiuni: (
+                <>
+                  {poateCereConcediu ? (
+                    <Link href="/concedii/noua" className={buton({ varianta: "secundar" })}>
+                      <CalendarPlus aria-hidden="true" className="size-4" />
+                      Cerere de concediu
+                    </Link>
+                  ) : null}
+                  {poateAdaugaAngajat ? (
+                    <Link href="/angajati/nou" className={buton({ varianta: "primar" })}>
+                      <UserPlus aria-hidden="true" className="size-4" />
+                      Angajat nou
+                    </Link>
+                  ) : null}
+                </>
+              ),
+            }
+          : {})}
+      />
+
+      {/* ── PORNIRE ─────────────────────────────────────────────────────────
+          Apare DOAR cât timp firma n-are angajați și dispare de la sine la
+          primul. Două din cele trei firme reale din sistem sunt în starea asta,
+          iar pentru ele panoul obișnuit ar fi fost o listă de „nimic de făcut"
+          repetată de cinci ori — corect, dar rece pentru cineva care tocmai
+          s-a înrolat și nu știe ce urmează. */}
+      {firmaGoala ? (
+        <section className="border-border rounded-panou overflow-hidden border">
+          <header className="border-border border-b px-4 py-3">
+            <h2 className="text-eticheta text-foreground font-semibold tracking-wide uppercase">
+              Pornire
+            </h2>
+            <p className="text-foreground text-corp mt-2">
+              Firma e configurată. Mai lipsește cine lucrează în ea.
+            </p>
+            <p className="text-muted-foreground text-nota mt-0.5">
+              Blocul acesta dispare singur când adăugați primul angajat.
+            </p>
+          </header>
+          <ul className="divide-border divide-y">
+            <PasPornire
+              gata
+              titlu="Datele firmei sunt complete"
+              detaliu="CUI, sediu și reprezentant legal — completate la înrolare."
+            />
+            <PasPornire
+              titlu="Adăugați primul angajat"
+              detaliu="Fără oameni, niciun modul nu are ce arăta."
+              {...(poateAdaugaAngajat
+                ? { actiune: { eticheta: "Adaugă", href: "/angajati/nou" } }
+                : {})}
+            />
+            <PasPornire
+              titlu="Definiți departamentele"
+              detaliu="Un departament e destul ca să înceapă aprobările."
+              actiune={{ eticheta: "Definește", href: "/departamente" }}
+            />
+            <PasPornire
+              titlu="Porniți modulele de care aveți nevoie"
+              detaliu={`${module.size} din ${Object.keys(FEATURES).length} pornite. Pontajul și Concediile sunt cele mai folosite la început.`}
+              actiune={{ eticheta: "Vezi modulele", href: "/setari/organizatie" }}
+            />
+          </ul>
+        </section>
+      ) : null}
+
+      {/* ── COADA ───────────────────────────────────────────────────────────
+          Prima secțiune, singura care se poate goli. */}
+      <section className="border-border rounded-panou overflow-hidden border">
+        <header className="border-border flex items-center justify-between gap-3 border-b px-4 py-3">
+          <h2 className="text-eticheta text-foreground font-semibold tracking-wide uppercase">
+            De rezolvat
+          </h2>
+          <span
+            className={
+              contoare.totalDeRezolvat > 0
+                ? "bg-surface text-foreground text-nota rounded-full px-2.5 py-0.5 font-mono font-semibold tabular-nums"
+                : "text-muted-foreground text-nota font-mono tabular-nums"
+            }
+          >
+            {contoare.totalDeRezolvat}
+          </span>
+        </header>
+
+        {coada.length === 0 ? (
+          <div className="flex items-start gap-3 px-4 py-7">
+            <span
+              aria-hidden="true"
+              className="border-success text-success grid size-6 shrink-0 place-items-center rounded-full border-2"
+            >
+              <Check className="size-3.5" strokeWidth={3} />
+            </span>
+            <div>
+              <p className="text-foreground text-corp font-semibold">
+                Nimic nu așteaptă semnătura dumneavoastră.
+              </p>
+              <p className="text-muted-foreground text-corp mt-0.5 max-w-prose">
+                Panoul se golește când totul e în regulă. Dacă rămâne gol săptămâni la rând,
+                înseamnă că e corect — nu că s-a stricat.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <ul className="flex flex-col">
+            {coada.map((i) => (
+              <RandCoada
+                key={i.cheie}
+                titlu={i.titlu}
+                detaliu={i.detaliu}
+                numar={i.numar}
+                href={i.href}
+                etichetaActiune={i.actiune}
+                {...(i.urgent === true ? { urgent: true } : {})}
+              />
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* ── SCADENȚE ȘI LIPSURI ─────────────────────────────────────────── */}
+      {scadenteVizibile.length > 0 || lipsuri !== null ? (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-eticheta text-foreground font-semibold tracking-wide uppercase">
+            Scadențe și lipsuri
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {lipsuri === null ? null : (
+              <Indicator
+                eticheta="Documente de flotă"
+                valoare="Lipsesc"
+                esteCuvant
+                ton="pericol"
+                href="/flota"
+                nota={
+                  lipsuri === 1
+                    ? "Un vehicul fără ITP, RCA sau asigurare."
+                    : `${lipsuri} vehicule fără niciun document.`
+                }
+              />
+            )}
+            {scadenteVizibile.map((s) => (
+              <Indicator
+                key={s.cheie}
+                eticheta={s.eticheta}
+                valoare={s.valoare}
+                href={s.href}
+                nota={s.nota}
+                ton={s.valoare === 0 ? "bun" : "atentie"}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {/* ── FIRMA AZI ───────────────────────────────────────────────────── */}
+      {firmaGoala ? null : (
+        <section className="border-border rounded-panou overflow-hidden border">
+          <header className="border-border border-b px-4 py-3">
+            <h2 className="text-eticheta text-foreground font-semibold tracking-wide uppercase">
+              Firma azi
+            </h2>
+          </header>
+          <dl className="divide-border grid grid-cols-2 divide-x divide-y sm:grid-cols-4 sm:divide-y-0">
+            <Fapt valoare={firma.angajatiActivi} eticheta="angajați activi" />
+            <Fapt valoare={firma.inConcediu} eticheta="în concediu" />
+            <Fapt valoare={firma.departamente} eticheta="departamente" />
+            <Fapt valoare={firma.functii} eticheta="funcții" />
+          </dl>
+          {peProcente ? null : (
+            <p className="border-border bg-surface text-foreground text-nota border-t px-4 py-2.5">
+              Sub {PRAG_EFECTIV_PROCENTE} de angajați panoul arată{" "}
+              <strong className="font-semibold">numere, nu procente</strong>. O plecare din{" "}
+              {firma.angajatiActivi} ar însemna{" "}
+              {((1 / Math.max(firma.angajatiActivi, 1)) * 100).toFixed(1).replace(".", ",")} %
+              fluctuație — un indicator care ar minți mai mult decât ar spune.
+            </p>
+          )}
+        </section>
+      )}
+
+      {/* ── SCURTĂTURI ──────────────────────────────────────────────────── */}
+      {scurtaturi.length === 0 ? null : (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-eticheta text-muted-foreground font-semibold tracking-wide uppercase">
+            Module active
+          </h2>
+          <ul className="flex flex-wrap gap-2">
+            {scurtaturi.map(({ cheie, meta }) => {
+              const Pictograma = meta.icon;
+              return (
+                <li key={cheie}>
+                  <Link
+                    href={RUTE_MODUL[cheie] ?? "/panou"}
+                    className="border-border bg-background hover:bg-surface active:bg-border rounded-control text-foreground text-corp flex min-h-11 items-center gap-2 border px-3 transition-colors md:min-h-0 md:py-1.5"
+                  >
+                    <Pictograma aria-hidden="true" className="text-muted-foreground size-4" />
+                    {meta.denumire}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+    </div>
+  );
+}
 
 /**
- * Doar modulele care chiar au ecrane. Restul sunt anunțate onest ca „în
- * dezvoltare” — lista asta rămâne datoria scrisă negru pe alb, exact ca
- * `MODULE_NECONSTRUITE` din `config/navigation.test.ts`.
+ * Ruta de intrare a fiecărui modul.
+ *
+ * Înainte exista o a DOUA hartă modul→rută (`RUTE_IMPLEMENTATE`), divergentă
+ * față de `NAV_ITEMS`: îi lipsea `ticketing`, care apărea fals ca „în
+ * dezvoltare" deși e livrat. Aici e derivată din aceleași chei de modul, iar
+ * `FeatureKey` fiind o uniune închisă, o cheie nouă în bază fără pereche în cod
+ * nu mai poate trece tăcut.
  */
-const RUTE_IMPLEMENTATE: Readonly<Record<string, string>> = {
-  nucleu: "/angajati",
+const RUTE_MODUL: Readonly<Partial<Record<FeatureKey, string>>> = {
   attendance: "/pontaj",
   leave: "/concedii",
   onboarding: "/onboarding",
@@ -52,131 +442,65 @@ const RUTE_IMPLEMENTATE: Readonly<Record<string, string>> = {
   maintenance: "/mentenanta",
   inventory: "/inventar",
   ssm: "/ssm",
-  employee_portal: "/portal",
   announcements: "/anunturi",
   evaluations: "/evaluari/sabloane",
+  ticketing: "/ticketing",
 };
 
-export default async function PanouPage() {
-  const rezolvare = await resolveTenant();
-  if (rezolvare.status === "neautentificat") {
-    redirect(RUTA_AUTENTIFICARE);
-  }
-  if (rezolvare.status !== "ok") {
-    redirect(RUTA_ALEGE_ORGANIZATIA);
-  }
-  const { tenant } = rezolvare;
-
-  const supabase = await createServerSupabase();
-  const moduleActive = await getEnabledFeatures(tenant.organizationId);
-  const chei = [...moduleActive];
-
-  const [moduleRezultat, membriRezultat, invitatiiRezultat, organizatieRezultat] =
-    await Promise.all([
-      chei.length > 0
-        ? supabase
-            .from("features")
-            .select("feature_key, denumire, descriere, icon, grup, sort_order")
-            .in("feature_key", chei)
-            .order("sort_order", { ascending: true })
-        : Promise.resolve({ data: [], error: null }),
-      supabase
-        .from("organization_members")
-        .select("id", { count: "exact", head: true })
-        .eq("organization_id", tenant.organizationId)
-        .eq("status", "active"),
-      supabase
-        .from("invitations")
-        .select("id", { count: "exact", head: true })
-        .eq("organization_id", tenant.organizationId)
-        .eq("status", "pending"),
-      supabase
-        .from("organizations")
-        .select("seats_limit")
-        .eq("id", tenant.organizationId)
-        .maybeSingle(),
-    ]);
-
-  if (moduleRezultat.error !== null) {
-    throw new Error("Modulele active nu au putut fi încărcate.");
-  }
-
-  const locuriTotale = organizatieRezultat.data?.seats_limit ?? 0;
-  const membriActivi = membriRezultat.count ?? 0;
-  const invitatiiPendinte = invitatiiRezultat.count ?? 0;
-
+function Fapt({ valoare, eticheta }: Readonly<{ valoare: number; eticheta: string }>) {
   return (
-    <main className="flex flex-col gap-6 p-6">
-      <header className="flex flex-col gap-1">
-        {/* Denumirea organizației este conținut de la utilizator: randată ca text (S8). */}
-        <h1 className="text-foreground text-xl font-semibold">{tenant.name}</h1>
-        <p className="text-muted-foreground text-sm">
-          {membriActivi} din {locuriTotale} locuri ocupate
-          {invitatiiPendinte > 0 ? ` · ${invitatiiPendinte} invitații în așteptare` : ""}
+    <div className="px-4 py-3">
+      <dt className="sr-only">{eticheta}</dt>
+      <dd>
+        <span className="text-foreground text-cifra block font-mono leading-none font-semibold tabular-nums">
+          {valoare}
+        </span>
+        <span className="text-muted-foreground text-nota mt-1 block">{eticheta}</span>
+      </dd>
+    </div>
+  );
+}
+
+function PasPornire({
+  gata,
+  titlu,
+  detaliu,
+  actiune,
+}: Readonly<{
+  gata?: boolean;
+  titlu: string;
+  detaliu: string;
+  actiune?: Readonly<{ eticheta: string; href: string }>;
+}>) {
+  return (
+    <li className="flex min-h-14 items-center gap-3 px-4 py-3">
+      <span
+        aria-hidden="true"
+        className={
+          gata === true
+            ? "border-success bg-success text-background grid size-5 shrink-0 place-items-center rounded-full border-2"
+            : "border-muted-foreground size-5 shrink-0 rounded-full border-2"
+        }
+      >
+        {gata === true ? <Check className="size-3" strokeWidth={3.5} /> : null}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p
+          className={
+            gata === true
+              ? "text-muted-foreground text-corp font-medium"
+              : "text-foreground text-corp font-medium"
+          }
+        >
+          {titlu}
         </p>
-      </header>
-
-      <section aria-labelledby="titlu-module" className="flex flex-col gap-3">
-        <h2 id="titlu-module" className="text-foreground text-sm font-medium">
-          Module activate
-        </h2>
-
-        {(moduleRezultat.data ?? []).length === 0 ? (
-          <div className="border-border rounded-lg border border-dashed px-4 py-8 text-center">
-            <p className="text-foreground text-sm">Niciun modul nu este activat încă.</p>
-            <p className="text-muted-foreground mt-1 text-sm">
-              Modulele se activează din contract. Scrieți-ne ce aveți nevoie și le pornim pentru
-              organizația dumneavoastră.
-            </p>
-          </div>
-        ) : (
-          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {(moduleRezultat.data ?? []).map((modul) => {
-              const Icon = ICONURI[modul.icon ?? ""] ?? LayoutGrid;
-              const ruta = RUTE_IMPLEMENTATE[modul.feature_key];
-              const continut = (
-                <>
-                  <span className="flex items-center gap-2">
-                    <Icon aria-hidden="true" className="text-primary h-5 w-5" />
-                    <span className="text-foreground font-medium">{modul.denumire}</span>
-                    {ruta === undefined ? (
-                      <span className="bg-background text-warning ml-auto rounded-full px-2 py-0.5 text-[11px]">
-                        În dezvoltare
-                      </span>
-                    ) : null}
-                  </span>
-                  <span className="text-muted-foreground mt-2 block text-sm">
-                    {modul.descriere ?? "Descrierea acestui modul va fi completată în curând."}
-                  </span>
-                  {ruta === undefined ? (
-                    <span className="text-muted-foreground mt-2 block text-xs">
-                      Modulul este activat pentru organizația dumneavoastră, dar ecranele lui nu
-                      sunt încă publicate. Vă anunțăm când devin disponibile.
-                    </span>
-                  ) : null}
-                </>
-              );
-
-              return (
-                <li key={modul.feature_key}>
-                  {ruta !== undefined ? (
-                    <Link
-                      href={ruta}
-                      className="border-border bg-surface hover:bg-background block h-full rounded-lg border p-4 transition-colors"
-                    >
-                      {continut}
-                    </Link>
-                  ) : (
-                    <div className="border-border bg-surface h-full rounded-lg border p-4 opacity-90">
-                      {continut}
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
-    </main>
+        <p className="text-muted-foreground text-nota">{detaliu}</p>
+      </div>
+      {actiune === undefined ? null : (
+        <Link href={actiune.href} className={buton({ varianta: "secundar" })}>
+          {actiune.eticheta}
+        </Link>
+      )}
+    </li>
   );
 }
