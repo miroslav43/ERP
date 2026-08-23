@@ -6,6 +6,8 @@ import type { User } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/types/database";
 
+import { fetchCuTermen } from "./fetch-cu-termen";
+
 /**
  * Deliberat NU importăm `@/config/env`: modulul acela validează la import și
  * secretele de server (chei de criptare, secretul de cookie), care nu au ce
@@ -58,6 +60,10 @@ export async function updateSession(request: NextRequest): Promise<SessionUpdate
         }
       },
     },
+    // Locul cel mai expus din aplicație: `getUser()` de mai jos rulează la
+    // FIECARE request care trece de matcher. Un apel fără termen aici agață tot
+    // traficul autentificat deodată, ceea ce s-a și întâmplat pe 23 august.
+    global: { fetch: fetchCuTermen() },
   });
 
   // getUser(), niciodată getSession(): getSession decodează doar cookie-ul,

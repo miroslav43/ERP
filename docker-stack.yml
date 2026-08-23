@@ -72,12 +72,31 @@ services:
       #   - HR_ENCRYPTION_KEYS_FILE=/run/secrets/hr_encryption_keys
 
     healthcheck:
-      # Ruta e `force-static` și exclusă din matcher-ul proxy-ului, deci nu
-      # atinge nici React, nici GoTrue: o pană la Supabase nu trebuie să facă
-      # Swarm-ul să omoare replici sănătoase.
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/healthz"]
+      # Două sonde, două întrebări diferite.
+      #
+      # `/healthz` e `force-static` și exclusă din matcher-ul proxy-ului, deci
+      # nu atinge nici React, nici GoTrue. Răspunde la „procesul mai servește?".
+      #
+      # `/readyz` face un apel ADEVĂRAT către Supabase, cu termen de 2 s, și
+      # răspunde la „procesul mai poate ieși în exterior?". Pe 23 august 2026
+      # prima a răspuns 200 douăsprezece minute la rând, timp în care aplicația
+      # dădea 504 la fiecare cerere reală; Swarm n-a repornit nimic. A doua ar
+      # fi dat 503 și replicile s-ar fi rotit singure în ~60 s.
+      #
+      # `/readyz` eșuează DOAR când apelul nu se mai întoarce. Dacă Supabase
+      # răspunde cu erori sau refuză conexiunea, întoarce tot 200: o pană la ei
+      # nu trebuie să omoare replici sănătoase. Vezi src/app/readyz/route.ts.
+      #
+      # CMD-SHELL, nu CMD: e nevoie de `&&`. Imaginea e alpine, deci are /bin/sh.
+      test:
+        [
+          "CMD-SHELL",
+          "wget -q -O /dev/null http://127.0.0.1:3000/healthz && wget -q -O /dev/null http://127.0.0.1:3000/readyz",
+        ]
       interval: 10s
       timeout: 5s
+      # 6 × 10s: o replică trebuie să tacă un minut întreg înainte să fie
+      # declarată moartă. Sub atât, o sughițare de rețea ar declanșa rotații.
       retries: 6
       # Next.js pornește lent la rece, iar în timpul unui deploy două replici
       # concurează pe CPU. Sub 40s, Swarm ar declara moartă o replică care doar
