@@ -19,9 +19,10 @@ import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate } from "@/lib/format/date";
 import { scrieSortare } from "@/lib/queries/cursor";
-import { idFisaProprie, listeazaAngajati } from "@/lib/queries/employees";
+import { idFisaProprie, listeazaAngajati, functiiActive } from "@/lib/queries/employees";
 import { filtreAngajatiSchema } from "@/schemas/employee";
 import { filtreDinUrl } from "@/lib/rute/parametri";
+import { departamente as listaDepartamente } from "@/lib/queries/attendance";
 
 import { ETICHETE_STATUS, TONURI_STATUS } from "./etichete";
 import { FiltreAngajati } from "./filtre-angajati";
@@ -196,6 +197,19 @@ export default async function PaginaAngajati({ searchParams }: ProprietatiPagina
   // Aceleași filtre pe care le folosește lista: bara și tabelul de sub ea
   // arată o singură interpretare a adresei, nu două.
   const filtre = filtreDinUrl(filtreAngajatiSchema, parametri);
+
+  /*
+   * Cele două nomenclatoare, pentru filtrele care existau doar pe server.
+   * `departamente()` stă în `queries/attendance.ts`, unde a fost scrisă pentru
+   * filtrul de pontaj: e aceeași citire, cu aceeași formă, deci se refolosește
+   * în loc să se dubleze. Amândouă întorc listă goală când firma n-are încă
+   * nimic definit, iar bara ascunde atunci filtrul — două din cele trei firme
+   * reale din sistem au zero angajați, deci starea „gol" e cea obișnuită.
+   */
+  const [departamente, functii] = await Promise.all([
+    listaDepartamente(tenant.organizationId),
+    functiiActive(tenant.organizationId),
+  ]);
   const poateCrea = scopeFor(permisiuni, "employees:create") === "all";
 
   return (
@@ -223,7 +237,7 @@ export default async function PaginaAngajati({ searchParams }: ProprietatiPagina
 
       {/* Parametrii vin ca prop: bara de filtre e Server Component, iar
           `useSearchParams()` e hook de client. */}
-      <FiltreAngajati filtre={filtre} />
+      <FiltreAngajati filtre={filtre} departamente={departamente} functii={functii} />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={7} />}>
         <TabelAngajati

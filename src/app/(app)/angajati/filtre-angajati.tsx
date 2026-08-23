@@ -36,38 +36,81 @@ import { ETICHETE_STATUS } from "./etichete";
  * Acum ambele primesc ACELAȘI obiect. Adresa poate minți; ecranul nu.
  */
 
-/** Cheile pe care le administrează bara — exact cele două câmpuri de mai jos. */
-const CHEI_PROPRII = ["q", "status"] as const;
+/**
+ * Cheile administrate de bară.
+ *
+ * `department_id` și `job_position_id` sunt NOI aici, dar nu în produs:
+ * `listeazaAngajati` le filtrează din prima zi (`queries/employees.ts:219-222`),
+ * iar un `grep` pe tot depozitul găsea o singură apariție a lor — într-un
+ * comentariu. Capacitate implementată complet pe server și inaccesibilă din
+ * interfață. `sort`, `limita` și `cursor` NU sunt aici: nu sunt filtre.
+ */
+const CHEI_PROPRII = ["q", "status", "department_id", "job_position_id"] as const;
 
 // Fără `useId`: componenta e un Server Component și apare o singură dată pe pagină.
 const ID_CAUTARE = "filtre-angajati-cautare";
 const ID_STATUS = "filtre-angajati-status";
+const ID_DEPARTAMENT = "filtre-angajati-departament";
+const ID_FUNCTIE = "filtre-angajati-functie";
+
+const CLASA_SELECT = "border-foreground/60 rounded-control text-corp mt-1 border px-2 py-2";
 
 /**
  * Pastilele — filtrele efectiv APLICATE, cu etichete citibile. Starea se
  * traduce prin `ETICHETE_STATUS`: „Stare: Activ”, nu „status=activ”.
  */
-function filtreActive(filtre: ValoriFiltre): readonly FiltruActiv[] {
+function filtreActive(
+  filtre: ValoriFiltre,
+  departamente: readonly Optiune[],
+  functii: readonly Optiune[],
+): readonly FiltruActiv[] {
   const active: FiltruActiv[] = [];
   if (filtre.q !== null) active.push({ cheie: "q", eticheta: `Caută: ${filtre.q}` });
   if (filtre.status !== null) {
     active.push({ cheie: "status", eticheta: `Stare: ${ETICHETE_STATUS[filtre.status]}` });
   }
+  // Pastila poartă DENUMIREA, nu identificatorul. Un departament dezactivat
+  // între timp rămâne filtrabil, dar nu-l mai putem numi — atunci pastila spune
+  // doar ce filtru e, ca să existe oricum o ieșire.
+  if (filtre.department_id !== null) {
+    const d = departamente.find((x) => x.id === filtre.department_id);
+    active.push({
+      cheie: "department_id",
+      eticheta: d === undefined ? "Departament ales" : `Departament: ${d.denumire}`,
+    });
+  }
+  if (filtre.job_position_id !== null) {
+    const f = functii.find((x) => x.id === filtre.job_position_id);
+    active.push({
+      cheie: "job_position_id",
+      eticheta: f === undefined ? "Funcție aleasă" : `Funcție: ${f.denumire}`,
+    });
+  }
   return active;
+}
+
+export interface Optiune {
+  readonly id: string;
+  readonly denumire: string;
 }
 
 export function FiltreAngajati({
   filtre,
+  departamente,
+  functii,
 }: {
   /** Filtrele deja trecute prin `filtreDinUrl` — exact ce a folosit lista. */
   readonly filtre: ValoriFiltre;
+  /** Lista goală ascunde filtrul: o firmă fără departamente n-are ce alege. */
+  readonly departamente: readonly Optiune[];
+  readonly functii: readonly Optiune[];
 }): ReactElement {
   return (
     // Reperul de căutare stă pe înveliș: `<BaraFiltre>` își randează singură
     // formularul, iar pastilele fac parte din aceeași treabă.
     <div role="search" aria-label="Filtrare angajați">
       <BaraFiltre
-        active={filtreActive(filtre)}
+        active={filtreActive(filtre, departamente, functii)}
         cheiProprii={[...CHEI_PROPRII]}
         textAplica="Aplică filtrele"
       >
@@ -112,6 +155,50 @@ export function FiltreAngajati({
             ))}
           </select>
         </div>
+
+        {departamente.length === 0 ? null : (
+          <div>
+            <label htmlFor={ID_DEPARTAMENT} className="text-corp block font-medium">
+              Departament
+            </label>
+            <select
+              key={filtre.department_id ?? ""}
+              id={ID_DEPARTAMENT}
+              name="department_id"
+              defaultValue={filtre.department_id ?? ""}
+              className={CLASA_SELECT}
+            >
+              <option value="">Toate</option>
+              {departamente.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.denumire}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {functii.length === 0 ? null : (
+          <div>
+            <label htmlFor={ID_FUNCTIE} className="text-corp block font-medium">
+              Funcție
+            </label>
+            <select
+              key={filtre.job_position_id ?? ""}
+              id={ID_FUNCTIE}
+              name="job_position_id"
+              defaultValue={filtre.job_position_id ?? ""}
+              className={CLASA_SELECT}
+            >
+              <option value="">Toate</option>
+              {functii.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.denumire}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </BaraFiltre>
     </div>
   );

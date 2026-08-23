@@ -563,3 +563,34 @@ export async function citesteEvaluari(
   if (error !== null) throw error;
   return data ?? [];
 }
+
+// ── Funcții, pentru filtrul listei (0 rânduri ⇒ filtrul se ascunde) ─────────
+
+export interface OptiuneFunctie {
+  readonly id: string;
+  readonly denumire: string;
+}
+
+/**
+ * Funcțiile active, pentru `<select>`-ul din bara de filtre.
+ *
+ * `listeazaAngajati` filtrează după `job_position_id` de la bun început
+ * (`employees.ts:221`) — dar niciun control din interfață nu punea vreodată
+ * cheia în adresă, iar un `grep` pe tot depozitul găsea o singură apariție, și
+ * aceea într-un comentariu. Capacitatea era implementată complet pe server și
+ * inaccesibilă. Perechea ei pentru departamente există de mai demult, în
+ * `attendance.ts` (`departamente()`), scrisă pentru filtrul de pontaj.
+ */
+export async function functiiActive(organizationId: string): Promise<readonly OptiuneFunctie[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("job_positions")
+    .select("id, denumire")
+    .eq("organization_id", organizationId)
+    .eq("activ", true)
+    .is("deleted_at", null)
+    .order("denumire", { ascending: true })
+    .returns<OptiuneFunctie[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}
