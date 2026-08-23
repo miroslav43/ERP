@@ -7,6 +7,7 @@ import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
+import { Nivel } from "@/components/ui/nivel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -93,6 +94,31 @@ const COLOANE_SOLD: readonly Coloana<RandSold>[] = [
     numeric: true,
     peTelefon: "meta",
     celula: ({ sold }) => formatAmount(sold?.in_asteptare ?? 0),
+  },
+  {
+    cheie: "consum",
+    antet: "Consum",
+    // Ascunsă pe telefon: cifrele sunt oricum în rândul de metadate al cardului,
+    // iar o bară de 4px într-o listă separată prin „·" n-ar fi lizibilă.
+    peTelefon: "ascuns",
+    celula: ({ tip, sold }) => {
+      const cuvenite = (sold?.drept_anual ?? tip.zile_implicite) + (sold?.reportate ?? 0);
+      const angajate = (sold?.folosite ?? 0) + (sold?.in_asteptare ?? 0);
+      if (cuvenite <= 0 && angajate <= 0) return null;
+      return (
+        <Nivel
+          valoare={angajate}
+          din={cuvenite}
+          marime="subtire"
+          eticheta={`Zile angajate din ${tip.denumire}`}
+          // `ton="neutru"`, nu „rău": la zile de concediu LUATE, mult nu e rău —
+          // e chiar scopul concediului. Doar depășirea se distinge, și o face
+          // primitiva prin formă, nu prin culoare.
+          ton="neutru"
+          text={`${formatAmount(angajate)} zile angajate din ${formatAmount(cuvenite)} cuvenite`}
+        />
+      );
+    },
   },
   {
     cheie: "ramase",
