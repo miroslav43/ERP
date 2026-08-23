@@ -1,4 +1,5 @@
 // src/app/(app)/flota/foi/[id]/page.tsx
+import { ListaDefinitii } from "@/components/ui/lista-definitii";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
@@ -144,29 +145,39 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
         </div>
       ) : null}
 
-      <section
-        aria-label="Kilometraj și consum"
-        className="border-border rounded-panou grid gap-4 border p-4 sm:grid-cols-4"
-      >
-        <Camp
-          eticheta="Plecare"
-          valoare={`${foaie.km_plecare?.toLocaleString("ro-RO") ?? "—"} km`}
-        />
-        <Camp
-          eticheta="Sosire"
-          valoare={foaie.km_sosire === null ? "—" : `${foaie.km_sosire.toLocaleString("ro-RO")} km`}
-        />
-        <Camp
-          eticheta="Parcurs"
-          valoare={
-            foaie.km_parcursi === null
-              ? "cursă în desfășurare"
-              : `${foaie.km_parcursi.toLocaleString("ro-RO")} km`
-          }
-        />
-        <Camp
-          eticheta="Consum real"
-          valoare={consumReal === null ? "—" : `${consumReal.toFixed(2)} l/100 km`}
+      <section aria-label="Kilometraj și consum" className="border-border rounded-panou border p-4">
+        {/* Același defect ca în fluturaș: `<dt>`/`<dd>` într-un `<div>`, fără
+            niciun `<dl>` în fișier — perechea nu exista pentru cititorul de
+            ecran. Iar `?? "—"` nu spunea dacă valoarea lipsește sau nu se
+            aplică; primitiva primește valoarea brută și scrie cuvântul o dată. */}
+        <ListaDefinitii
+          coloane={4}
+          textNecompletat="Neînregistrat"
+          definitii={[
+            {
+              eticheta: "Plecare",
+              valoare:
+                foaie.km_plecare === null ? null : `${foaie.km_plecare.toLocaleString("ro-RO")} km`,
+            },
+            {
+              eticheta: "Sosire",
+              valoare:
+                foaie.km_sosire === null ? null : `${foaie.km_sosire.toLocaleString("ro-RO")} km`,
+            },
+            {
+              // „cursă în desfășurare" NU e o valoare lipsă: e o stare reală a
+              // foii, iar „Neînregistrat" ar fi sugerat că cineva a uitat.
+              eticheta: "Parcurs",
+              valoare:
+                foaie.km_parcursi === null
+                  ? "cursă în desfășurare"
+                  : `${foaie.km_parcursi.toLocaleString("ro-RO")} km`,
+            },
+            {
+              eticheta: "Consum real",
+              valoare: consumReal === null ? null : `${consumReal.toFixed(2)} l/100 km`,
+            },
+          ]}
         />
       </section>
 
@@ -223,15 +234,6 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
           sosireLa={foaie.sosire_la}
         />
       ) : null}
-    </div>
-  );
-}
-
-function Camp({ eticheta, valoare }: { readonly eticheta: string; readonly valoare: string }) {
-  return (
-    <div>
-      <dt className="text-muted-foreground text-nota">{eticheta}</dt>
-      <dd className="text-corp font-medium">{valoare}</dd>
     </div>
   );
 }

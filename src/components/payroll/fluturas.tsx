@@ -4,6 +4,7 @@
 // (`/portal/salariul-meu`). Pur, fără citiri proprii: primește datele deja
 // autorizate de pagina care o montează.
 
+import { ListaDefinitii } from "@/components/ui/lista-definitii";
 import { formatLei } from "@/lib/format/money";
 import { formatMonthYear } from "@/lib/format/date";
 import { ETICHETE_TIP_PRIMA, ETICHETE_TIP_RETINERE } from "@/domain/payroll/etichete";
@@ -97,26 +98,44 @@ export function Fluturas({ inregistrare, bonusuri, retineri, perioada }: Proprie
         </p>
       </header>
 
-      <section
-        aria-label="Zile și ore"
-        className="border-border rounded-panou grid gap-4 border p-4 sm:grid-cols-4"
-      >
-        <Camp eticheta="Zile lucrătoare lună" valoare={String(inregistrare.zile_lucratoare_luna)} />
-        <Camp eticheta="Zile lucrate" valoare={String(inregistrare.zile_lucrate)} />
-        <Camp eticheta="Zile CO" valoare={String(inregistrare.zile_concediu_odihna)} />
-        <Camp eticheta="Ore suplimentare" valoare={String(inregistrare.ore_suplimentare)} />
-        {inregistrare.zile_concediu_medical > 0 ? (
-          <Camp
-            eticheta="Zile concediu medical"
-            valoare={String(inregistrare.zile_concediu_medical)}
-          />
-        ) : null}
-        {inregistrare.zile_absenta_nemotivata > 0 ? (
-          <Camp
-            eticheta="Zile absență nemotivată"
-            valoare={String(inregistrare.zile_absenta_nemotivata)}
-          />
-        ) : null}
+      <section aria-label="Zile și ore" className="border-border rounded-panou border p-4">
+        {/*
+         * `<Camp>`-ul local randa `<dt>` și `<dd>` într-un `<div>`, iar în tot
+         * fișierul nu exista niciun `<dl>`. Marcaj nevalid, și — mai important
+         * pe un document pe care îl citește fiecare angajat — relația
+         * etichetă–valoare nu exista deloc pentru cititorul de ecran: „Zile
+         * lucrate" și „21" se auzeau ca două texte alăturate, nu ca o pereche.
+         *
+         * Cele două rânduri condiționate rămân condiționate: o zi de concediu
+         * medical care nu există n-are de ce să apară scrisă „0" pe un document
+         * oficial.
+         */}
+        <ListaDefinitii
+          coloane={4}
+          textNecompletat="—"
+          definitii={[
+            { eticheta: "Zile lucrătoare lună", valoare: inregistrare.zile_lucratoare_luna },
+            { eticheta: "Zile lucrate", valoare: inregistrare.zile_lucrate },
+            { eticheta: "Zile CO", valoare: inregistrare.zile_concediu_odihna },
+            { eticheta: "Ore suplimentare", valoare: inregistrare.ore_suplimentare },
+            ...(inregistrare.zile_concediu_medical > 0
+              ? [
+                  {
+                    eticheta: "Zile concediu medical",
+                    valoare: inregistrare.zile_concediu_medical,
+                  },
+                ]
+              : []),
+            ...(inregistrare.zile_absenta_nemotivata > 0
+              ? [
+                  {
+                    eticheta: "Zile absență nemotivată",
+                    valoare: inregistrare.zile_absenta_nemotivata,
+                  },
+                ]
+              : []),
+          ]}
+        />
       </section>
 
       {inregistrare.calc_warnings.length === 0 ? null : (
@@ -198,15 +217,6 @@ export function Fluturas({ inregistrare, bonusuri, retineri, perioada }: Proprie
           </tbody>
         </table>
       </section>
-    </div>
-  );
-}
-
-function Camp({ eticheta, valoare }: { readonly eticheta: string; readonly valoare: string }) {
-  return (
-    <div>
-      <dt className="text-muted-foreground text-nota">{eticheta}</dt>
-      <dd className="text-corp font-medium">{valoare}</dd>
     </div>
   );
 }

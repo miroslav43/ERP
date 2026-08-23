@@ -1,4 +1,5 @@
 // src/app/(app)/flota/[id]/page.tsx
+import { ListaDefinitii } from "@/components/ui/lista-definitii";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
@@ -130,37 +131,54 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
         />
       </div>
 
-      <section
-        aria-label="Date de identificare"
-        className="border-border rounded-panou grid gap-4 border p-4 sm:grid-cols-2 lg:grid-cols-4"
-      >
-        <Camp eticheta="Kilometraj" valoare={`${vehicul.km_curent.toLocaleString("ro-RO")} km`} />
-        <Camp eticheta="VIN" valoare={vehicul.vin ?? "—"} />
-        <Camp eticheta="An fabricație" valoare={vehicul.an_fabricatie?.toString() ?? "—"} />
-        <Camp
-          eticheta="Consum declarat"
-          valoare={
-            vehicul.consum_mediu_declarat === null
-              ? "—"
-              : `${vehicul.consum_mediu_declarat} l/100 km`
-          }
-        />
-        <Camp
-          eticheta="Data achiziției"
-          valoare={vehicul.data_achizitie === null ? "—" : formatDate(vehicul.data_achizitie)}
-        />
-        <Camp
-          eticheta="Valoare"
-          valoare={vehicul.valoare_achizitie === null ? "—" : formatLei(vehicul.valoare_achizitie)}
-        />
-        <Camp eticheta="Culoare" valoare={vehicul.culoare ?? "—"} />
-        <Camp
-          eticheta="Prag salt kilometraj"
-          valoare={
-            vehicul.prag_salt_km === null
-              ? "implicit"
-              : `${vehicul.prag_salt_km.toLocaleString("ro-RO")} km`
-          }
+      <section aria-label="Date de identificare" className="border-border rounded-panou border p-4">
+        {/*
+         * `<Camp>`-ul local randa `<dt>` și `<dd>` într-un `<div>` FĂRĂ niciun
+         * `<dl>` în jur: marcaj nevalid, iar relația etichetă–valoare pur și
+         * simplu nu exista pentru cititorul de ecran — cele două se citeau ca
+         * două texte alăturate.
+         *
+         * În plus, fiecare câmp lipsă trecea prin `?? "—"`. O liniuță nu spune
+         * dacă valoarea nu s-a completat sau nu se aplică; `<ListaDefinitii>`
+         * primește valoarea BRUTĂ și scrie cuvântul, o dată, în locul tuturor
+         * celor șapte `??`.
+         */}
+        <ListaDefinitii
+          coloane={4}
+          textNecompletat="Necompletat"
+          definitii={[
+            { eticheta: "Kilometraj", valoare: `${vehicul.km_curent.toLocaleString("ro-RO")} km` },
+            // VIN-ul e identificator: se compară caracter cu caracter cu talonul,
+            // deci cifre monospațiate, și se rupe oriunde, fiindcă n-are cuvinte.
+            { eticheta: "VIN", valoare: vehicul.vin, identificator: true },
+            { eticheta: "An fabricație", valoare: vehicul.an_fabricatie },
+            {
+              eticheta: "Consum declarat",
+              valoare:
+                vehicul.consum_mediu_declarat === null
+                  ? null
+                  : `${vehicul.consum_mediu_declarat} l/100 km`,
+            },
+            {
+              eticheta: "Data achiziției",
+              valoare: vehicul.data_achizitie === null ? null : formatDate(vehicul.data_achizitie),
+            },
+            {
+              eticheta: "Valoare",
+              valoare:
+                vehicul.valoare_achizitie === null ? null : formatLei(vehicul.valoare_achizitie),
+            },
+            { eticheta: "Culoare", valoare: vehicul.culoare },
+            {
+              // „implicit" NU e o valoare lipsă: pragul chiar se aplică, doar că
+              // vine din setările flotei. De aceea nu se lasă pe `null`.
+              eticheta: "Prag salt kilometraj",
+              valoare:
+                vehicul.prag_salt_km === null
+                  ? "implicit, din setările flotei"
+                  : `${vehicul.prag_salt_km.toLocaleString("ro-RO")} km`,
+            },
+          ]}
         />
       </section>
 
@@ -188,15 +206,6 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
           </p>
         )}
       </section>
-    </div>
-  );
-}
-
-function Camp({ eticheta, valoare }: { readonly eticheta: string; readonly valoare: string }) {
-  return (
-    <div>
-      <dt className="text-muted-foreground text-nota">{eticheta}</dt>
-      <dd className="text-corp font-medium">{valoare}</dd>
     </div>
   );
 }
