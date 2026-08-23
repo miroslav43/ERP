@@ -1,4 +1,6 @@
 // src/app/(app)/inventar/[id]/page.tsx
+import { Callout } from "@/components/ui/callout";
+import { ButonReaduInStoc } from "./buton-readu-in-stoc";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -189,6 +191,27 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
             </div>
           ) : null}
         </section>
+      ) : poateScrie && obiect.status === "in_reparatie" ? (
+        /*
+         * Obiectul e în reparație. Înainte, fișa arăta aici direct formularul de
+         * predare — pentru orice obiect care nu e `casat` — iar formularul
+         * propunea implicit starea „Bun". Drumul de ieșire dintr-o stare de
+         * defect trecea, așadar, prin a preda cuiva un obiect defect declarat
+         * bun, fără niciun cuvânt pe ecran.
+         *
+         * `in_reparatie` era în plus o stare fără ieșire: `status` nu e câmp
+         * editabil, deci nicio acțiune nu-l readucea în stoc. Butonul de mai jos
+         * e ieșirea; predarea rămâne posibilă abia după ea.
+         */
+        <Callout
+          fel="atentie"
+          titlu="Obiectul e în reparație"
+          actiune={<ButonReaduInStoc obiectId={obiect.id} />}
+        >
+          A fost returnat cu starea „defect”, deci nu poate fi predat mai departe până nu confirmă
+          cineva că a revenit din service. Confirmarea îl mută înapoi în stoc și se scrie în
+          jurnalul de audit.
+        </Callout>
       ) : poateScrie && obiect.status !== "casat" ? (
         <section
           aria-labelledby="titlu-predare-noua"
