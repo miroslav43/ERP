@@ -12,7 +12,7 @@ import { RUTA_ALEGE_ORGANIZATIA, RUTA_AUTENTIFICARE } from "@/config/routes";
 import { can } from "@/lib/auth/permissions";
 import { getEnabledFeatures } from "@/lib/auth/features";
 import { getPermissionMap } from "@/lib/auth/permissions";
-import { contoarePanou, PRAG_PANOU_ZILE, type ContoarePanou } from "@/lib/queries/panou";
+import { contoarePanouPentru, PRAG_PANOU_ZILE, type ContoarePanou } from "@/lib/queries/panou";
 import { resolveTenant } from "@/lib/tenant/resolve-tenant";
 
 import { RandCoada } from "./_components/rand-coada";
@@ -126,10 +126,14 @@ export default async function PanouPage() {
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
   ]);
 
-  const contoare = await contoarePanou(tenant.organizationId, {
-    features: module,
-    permissions: permisiuni,
-  });
+  /*
+   * Prin învelișul memoizat, nu direct: `(app)/layout.tsx` cere ACEIAȘI contori
+   * pentru insignele de meniu, iar `React.cache()` compară prin identitate —
+   * un obiect `porti` construit aici ar fi ratat memoizarea, iar cele
+   * unsprezece interogări s-ar fi făcut de două ori pe fiecare încărcare a
+   * panoului.
+   */
+  const contoare = await contoarePanouPentru(tenant.organizationId, tenant.role, tenant.memberId);
 
   const coada = coadaDinContoare(contoare);
   const { scadente, firma } = contoare;

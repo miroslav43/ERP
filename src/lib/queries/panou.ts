@@ -1,4 +1,9 @@
 // src/lib/queries/panou.ts
+import { cache } from "react";
+
+import { getEnabledFeatures } from "@/lib/auth/features";
+import { getPermissionMap } from "@/lib/auth/permissions";
+import type { AppRole } from "@/lib/tenant/types";
 import "server-only";
 
 import type { FeatureKey } from "@/config/features";
@@ -416,4 +421,62 @@ export async function contoarePanou(organizationId: string, porti: Porti): Promi
     // găsește două.
     totalDeRezolvat: Object.values(coada).reduce<number>((s, v) => s + (v ?? 0), 0),
   };
+}
+
+/**
+ * Aceiași contori, dar memoizați pe cerere — pentru meniul lateral.
+ *
+ * ── DE CE EXISTĂ ──────────────────────────────────────────────────────────
+ * `buildNavigation` primea `badges: {}` în amândouă locurile care îl cheamă
+ * (`(app)/layout.tsx` și `topbar.tsx`), deci meniul nu arăta NICIODATĂ vreun
+ * contor, în timp ce panoul îi calcula pe toți. Cele patru surse declarate în
+ * `NAV_ITEMS` — `leave_pending`, `ssm_expiring`, `fleet_expiring`,
+ * `maintenance_due` — erau tip fără implementare.
+ *
+ * Regula pe care o respectă: contorul din meniu se derivă din ACEEAȘI logică
+ * precum lista, nu dintr-un `count()` rapid. E chiar motivul pentru care
+ * `leave_pending` n-avea contor scris — unul naiv ar fi numărat cele 7 sarcini
+ * `in_asteptare` din producție, toate aparținând unor cereri deja anulate sau
+ * aprobate, iar meniul ar fi arătat „7" la nesfârșit.
+ *
+ * ── DE CE ARGUMENTE PRIMITIVE ─────────────────────────────────────────────
+ * `React.cache()` compară argumentele prin IDENTITATE. `contoarePanou` primește
+ * un obiect `porti` construit la fața locului, deci două apeluri din două
+ * componente n-ar fi fost niciodată același apel: layout-ul și pagina ar fi
+ * rulat fiecare cele unsprezece interogări. Cu `(organizationId, role,
+ * memberId)` — trei șiruri — memoizarea prinde, iar `/panou` costă exact cât
+ * costa înainte de a exista insignele. Capcana e documentată deja în
+ * `lib/auth/features.ts:30`; aici e aceeași, cu aceeași dezlegare.
+ */
+export const contoarePanouPentru = cache(
+  async (organizationId: string, role: AppRole, memberId: string): Promise<ContoarePanou> => {
+    const [features, permissions] = await Promise.all([
+      getEnabledFeatures(organizationId),
+      getPermissionMap(organizationId, role, memberId),
+    ]);
+    return contoarePanou(organizationId, { features, permissions });
+  },
+);
+
+/**
+ * Cele patru insigne de meniu, din contorii de mai sus.
+ *
+ * `null` (bloc ascuns de modul sau de permisiune) și `0` se OMIT amândouă:
+ * `buildNavigation` nu afișează un badge zero, iar o cheie lipsă și una cu zero
+ * spun același lucru — „nimic de arătat aici".
+ */
+export function insigneMeniu(
+  contoare: ContoarePanou,
+): Partial<
+  Record<"leave_pending" | "ssm_expiring" | "fleet_expiring" | "maintenance_due", number>
+> {
+  const insigne: Partial<Record<string, number>> = {};
+  const pune = (cheie: string, valoare: Contor): void => {
+    if (valoare !== null && valoare > 0) insigne[cheie] = valoare;
+  };
+  pune("leave_pending", contoare.coada.cereriConcediu);
+  pune("ssm_expiring", contoare.scadente.ssm);
+  pune("fleet_expiring", contoare.scadente.documenteFlota);
+  pune("maintenance_due", contoare.scadente.mentenanta);
+  return insigne;
 }

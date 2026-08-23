@@ -1,4 +1,5 @@
 // src/app/(app)/layout.tsx
+import { contoarePanouPentru, insigneMeniu } from "@/lib/queries/panou";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
@@ -93,7 +94,18 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   // rămâne refuz explicit — dar acum îl tratează `meetsScope` din
   // `buildNavigation`, împreună cu pragul `minScope` al fiecărei intrări, care
   // înainte se pierdea pe drum.
-  const grupuri = buildNavigation({ features, permissions, badges: {} });
+  /*
+   * Insignele veneau goale — `badges: {}` — deci meniul nu arăta niciodată
+   * vreun contor, deși panoul îi calcula pe toți. Se derivă acum din ACEEAȘI
+   * funcție ca panoul, memoizată pe cerere: dacă pagina curentă e chiar
+   * `/panou`, cele unsprezece interogări se fac O SINGURĂ dată pentru ambele.
+   */
+  const contoare = await contoarePanouPentru(tenant.organizationId, tenant.role, tenant.memberId);
+  const grupuri = buildNavigation({
+    features,
+    permissions,
+    badges: insigneMeniu(contoare),
+  });
 
   // Iconițele sunt componente: trec granița server → client ca elemente randate.
   const navigare: readonly NavGroupView[] = grupuri.map((grup) => ({

@@ -1,4 +1,5 @@
 // src/components/layout/topbar.tsx
+import { contoarePanouPentru, insigneMeniu } from "@/lib/queries/panou";
 import Link from "next/link";
 import { Bell, ChevronDown, LogOut, UserRound } from "lucide-react";
 
@@ -69,7 +70,14 @@ export async function Topbar() {
   // explicit) și pragul `minScope` al fiecărei intrări. Paleta de comenzi trebuie
   // să ofere exact ce oferă meniul — o rută găsibilă la ⌘K dar refuzată la
   // deschidere e mai rea decât una ascunsă.
-  const navigatie = buildNavigation({ features: module, permissions: permisiuni, badges: {} });
+  // Aceleași insigne ca în meniul lateral, din aceeași funcție memoizată: două
+  // surse pentru același număr ar diverge în prima săptămână.
+  const contoare = await contoarePanouPentru(tenant.organizationId, tenant.role, tenant.memberId);
+  const navigatie = buildNavigation({
+    features: module,
+    permissions: permisiuni,
+    badges: insigneMeniu(contoare),
+  });
   const elementePaleta: ElementPaleta[] = [];
   aplatizeazaNavigatie(navigatie, "Navigare", elementePaleta);
 
