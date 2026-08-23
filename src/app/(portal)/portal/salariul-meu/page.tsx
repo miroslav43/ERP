@@ -65,7 +65,17 @@ export default async function PaginaSalariulMeu() {
           <p className="text-muted-foreground border-warning/40 bg-warning/8 rounded-panou text-nota border p-3">
             {AVERTISMENT_SALARIZARE}
           </p>
-          <Fluturas inregistrare={inregistrare} bonusuri={bonusuri} retineri={retineri} />
+          {/* `perioada={null}`: luna NU se poate citi din portal. Vezi nota de
+              pe `perioada` din `Fluturas` — `payroll_periods_select` cere
+              `payroll:read = "all"`, iar angajatul are `own`. Nu e o scăpare,
+              e o limită a bazei, iar `null` o spune explicit în loc s-o lase
+              să pară o omisiune. */}
+          <Fluturas
+            inregistrare={inregistrare}
+            bonusuri={bonusuri}
+            retineri={retineri}
+            perioada={null}
+          />
 
           <a
             href={`/api/export/salarizare/fluturas?inregistrare=${inregistrare.id}`}

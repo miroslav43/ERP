@@ -32,6 +32,7 @@ export function RailPortal({
 
   return (
     <nav
+      data-tipar="ascunde"
       aria-label="Navigare portal"
       className="bg-primary sticky top-0 hidden h-dvh w-60 shrink-0 flex-col gap-6 overflow-y-auto border-r border-white/10 p-3 md:flex"
     >

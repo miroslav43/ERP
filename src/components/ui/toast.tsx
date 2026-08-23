@@ -120,6 +120,7 @@ export function ZonaToast(): ReactElement {
   return (
     <div
       ref={invelis}
+      data-tipar="ascunde"
       popover="manual"
       className={cn(
         "z-plutitor fixed inset-x-0 bottom-0 m-0 flex w-full flex-col items-center gap-2 border-0 bg-transparent p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]",

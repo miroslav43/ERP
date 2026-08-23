@@ -38,11 +38,17 @@ interface ProprietatiPagina {
 /**
  * Pagină printabilă — layout propriu, ascuns de meniu la tipărire.
  *
- * Nu putem elimina din markup bara laterală și antetul aplicației: ele
- * trăiesc în `(app)/layout.tsx`, comun tuturor modulelor și în afara
- * fișierelor acestei faze. Le ascundem la tipărire pe selector de element
- * semantic (`aside`, `header` — cele folosite de `Sidebar`/`Topbar`), din
- * `<style>`-ul de mai jos, care se aplică STRICT sub `@media print`.
+ * Ascunderea învelișului la tipărire NU mai stă aici. Pagina avea un `<style>`
+ * propriu care ascundea `aside` și `header:not(.antet-decont)` — pe SELECTOR DE
+ * ELEMENT, fiindcă bara laterală și antetul trăiesc în `(app)/layout.tsx`.
+ * Mergea, dar lega documentul de faptul că bara laterală se întâmplă să fie un
+ * `<aside>`, iar propriul lui antet trebuia exceptat pe nume de clasă, altfel
+ * se tipărea fără titlu.
+ *
+ * Acum învelișul poartă `data-tipar="ascunde"`, iar regula e o singură dată în
+ * `globals.css`. Un antet de document nu poartă atributul, deci nu are ce
+ * excepta — și orice ecran din produs se tipărește curat, nu doar cele două
+ * care și-au reparat singure problema.
  */
 export default async function PaginaDecont({ params }: ProprietatiPagina) {
   const id = idDinRuta((await params).id);
@@ -110,19 +116,6 @@ export default async function PaginaDecont({ params }: ProprietatiPagina) {
 
   return (
     <div className={cn(LATIMI.formular, "space-y-6 print:max-w-none")}>
-      {/* Nu putem elimina din markup bara laterală și antetul aplicației —
-          trăiesc în `(app)/layout.tsx`, comun tuturor modulelor. Le ascundem
-          la tipărire pe selectorul de element semantic pe care îl folosesc
-          `Sidebar` (`aside`) și `Topbar` (`header`), STRICT sub `@media print`.
-          Antetul PROPRIU al decontului e tot un `<header>`, deci se exceptează
-          pe nume — altfel documentul tipărit ar rămâne fără titlu. */}
-      <style>{`
-        @media print {
-          aside, header:not(.antet-decont) { display: none !important; }
-          main { padding: 0 !important; max-width: none !important; }
-        }
-      `}</style>
-
       <div className="flex items-center justify-between print:hidden">
         <Link href={`/diurna/${deplasare.id}`} className="text-corp underline underline-offset-2">
           ← Înapoi la fișa deplasării
@@ -131,7 +124,7 @@ export default async function PaginaDecont({ params }: ProprietatiPagina) {
       </div>
 
       <AntetPagina
-        className="antet-decont border-foreground/60 gap-1 border-b pb-4"
+        className="border-foreground/60 gap-1 border-b pb-4"
         titlu="Decont de deplasare"
         descriere={`Nr. document: ${deplasare.numar_document ?? "(fără număr)"} · Stare: ${ETICHETE_STATUS_DEPLASARE[deplasare.status]}`}
         file={

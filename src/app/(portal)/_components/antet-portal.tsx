@@ -32,7 +32,10 @@ export function AntetPortal({
   readonly organizatiaCurentaId: string;
 }) {
   return (
-    <header className="border-border bg-surface sticky top-0 z-10 border-b pt-[env(safe-area-inset-top)]">
+    <header
+      data-tipar="ascunde"
+      className="border-border bg-surface sticky top-0 z-10 border-b pt-[env(safe-area-inset-top)]"
+    >
       <div className="flex h-14 items-center gap-3 px-4">
         <div className="min-w-0">
           {/* Numele firmei apare doar pe telefon: pe laptop e deja în capul

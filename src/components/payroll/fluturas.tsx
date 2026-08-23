@@ -5,6 +5,7 @@
 // autorizate de pagina care o montează.
 
 import { formatLei } from "@/lib/format/money";
+import { formatMonthYear } from "@/lib/format/date";
 import { ETICHETE_TIP_PRIMA, ETICHETE_TIP_RETINERE } from "@/domain/payroll/etichete";
 import type {
   DetaliuInregistrare,
@@ -49,9 +50,24 @@ interface Proprietati {
   readonly inregistrare: DetaliuInregistrare;
   readonly bonusuri: readonly RandPrimaPerioada[];
   readonly retineri: readonly RandRetinerePerioada[];
+  /**
+   * Luna pentru care e emis fluturașul, sau `null` când nu se poate afla.
+   *
+   * NU e opțional, și asta e toată ideea: un fluturaș fără lună nu e un
+   * document — dintr-un teanc de hârtii identice nu se mai poate spune care e
+   * a cărei luni. Omisiunea a trăit exact fiindcă se putea face TĂCUT.
+   *
+   * `null` nu e o comoditate: în portal chiar nu se poate citi. `payroll_entries`
+   * poartă doar `period_id`, iar `payroll_periods_select` (0026:483) cere
+   * `payroll:read = "all"` — un angajat n-are decât `own`, deci rândul cu `an`
+   * și `luna` îi e refuzat de RLS, fără eroare. Un embed PostgREST ar lovi
+   * exact bug-ul închis în 0027. Se repară cu o migrare (denormalizare pe
+   * `payroll_entries` sau o politică de scop propriu), nu din interfață.
+   */
+  readonly perioada: { readonly an: number; readonly luna: number } | null;
 }
 
-export function Fluturas({ inregistrare, bonusuri, retineri }: Proprietati) {
+export function Fluturas({ inregistrare, bonusuri, retineri, perioada }: Proprietati) {
   /*
    * Feliile nu-și mai aleg culoarea: o iau din paleta categorică a graficelor.
    *
@@ -70,6 +86,17 @@ export function Fluturas({ inregistrare, bonusuri, retineri }: Proprietati) {
 
   return (
     <div className="space-y-6">
+      {/* Antetul documentului. Pe hârtie e singurul lucru care spune CE ține
+          omul în mână; pe ecran, care lună se citește. */}
+      <header className="border-border flex flex-wrap items-baseline justify-between gap-2 border-b pb-3">
+        <h2 className="text-foreground text-sectiune font-semibold">Fluturaș de salariu</h2>
+        <p className="text-muted-foreground text-corp">
+          {perioada === null
+            ? "cel mai recent calculat"
+            : formatMonthYear(perioada.an, perioada.luna)}
+        </p>
+      </header>
+
       <section
         aria-label="Zile și ore"
         className="border-border rounded-panou grid gap-4 border p-4 sm:grid-cols-4"

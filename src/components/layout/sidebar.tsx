@@ -99,6 +99,7 @@ export function Sidebar({
       )}
 
       <aside
+        data-tipar="ascunde"
         id="meniu-principal"
         aria-label="Meniu principal"
         className={cn(

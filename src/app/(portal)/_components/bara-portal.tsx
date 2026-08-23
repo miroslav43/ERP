@@ -31,6 +31,7 @@ export function BaraPortal({
 
   return (
     <nav
+      data-tipar="ascunde"
       aria-label="Navigare portal"
       className="border-border bg-surface fixed inset-x-0 bottom-0 z-20 border-t pb-[env(safe-area-inset-bottom)] md:hidden"
     >

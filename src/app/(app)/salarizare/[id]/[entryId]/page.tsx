@@ -11,7 +11,11 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { idDinRuta } from "@/lib/rute/parametri";
-import { citesteInregistrare, listeazaBonusuriSiRetineri } from "@/lib/queries/payroll";
+import {
+  citesteInregistrare,
+  citestePerioada,
+  listeazaBonusuriSiRetineri,
+} from "@/lib/queries/payroll";
 
 import { AVERTISMENT_SALARIZARE } from "../../etichete";
 
@@ -40,6 +44,10 @@ export default async function PaginaFluturas({ params }: ProprietatiPagina) {
 
   const inregistrare = await citesteInregistrare(tenant.organizationId, idInregistrare);
   if (inregistrare === null) notFound();
+  // Aici perioada CHIAR se poate citi: ecranul cere `payroll:read = "all"`,
+  // adică exact ce cere `payroll_periods_select`. În portal nu se poate — vezi
+  // nota de pe `perioada` din `Fluturas`.
+  const perioada = await citestePerioada(tenant.organizationId, inregistrare.period_id);
   const { bonusuri, retineri } = await listeazaBonusuriSiRetineri(
     tenant.organizationId,
     inregistrare.period_id,
@@ -66,7 +74,12 @@ export default async function PaginaFluturas({ params }: ProprietatiPagina) {
         {AVERTISMENT_SALARIZARE}
       </div>
 
-      <Fluturas inregistrare={inregistrare} bonusuri={bonusuri} retineri={retineri} />
+      <Fluturas
+        inregistrare={inregistrare}
+        bonusuri={bonusuri}
+        retineri={retineri}
+        perioada={perioada === null ? null : { an: perioada.an, luna: perioada.luna }}
+      />
 
       <a
         href={`/api/export/salarizare/fluturas?inregistrare=${inregistrare.id}`}

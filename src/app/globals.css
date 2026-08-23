@@ -688,3 +688,128 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     font-size: 16px;
   }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * TIPĂRIREA
+ *
+ * Nu exista nicio regulă `@media print` în tot proiectul, deși două ecrane sunt
+ * documente destinate hârtiei — decontul de deplasare și dovada de înrolare —
+ * iar fluturașul de salariu e citit de fiecare angajat.
+ *
+ * Consecința: pe hârtie ieșeau rail-ul navy pe toată prima pagină, antetul
+ * lipicios, bara de navigare mobilă și, uneori, o pagină aproape goală. Decontul
+ * își reparase singur o parte, cu un `<style>` scris în pagină care ascundea
+ * `aside` și `header:not(.antet-decont)` — pe SELECTOR DE ELEMENT. Funcționa,
+ * dar lega documentul de faptul că bara laterală e un `<aside>`; iar propriul
+ * lui antet trebuia exceptat pe nume de clasă, altfel documentul se tipărea
+ * fără titlu.
+ *
+ * Aici cârligul e explicit: `data-tipar="ascunde"`, pus o dată pe fiecare
+ * bucată de înveliș. Un antet de document nu-l poartă, deci nu are ce excepta.
+ * ══════════════════════════════════════════════════════════════════════════ */
+@media print {
+  /* Învelișul aplicației: bara laterală, antetul, bara mobilă a portalului,
+     subsolul „Raportează o problemă" și zona de notificări. */
+  [data-tipar="ascunde"] {
+    display: none !important;
+  }
+
+  /*
+   * Pânza devine albă și cerneala neagră. Cremul #faf7f0 tipărit pe hârtie albă
+   * iese ca un dreptunghi gri murdar în jurul textului, iar la imprimantele
+   * alb-negru scade contrastul în loc să-l crească.
+   */
+  :root {
+    --color-background: #ffffff;
+    --color-surface: #ffffff;
+    --color-foreground: #000000;
+    --color-muted-foreground: #333333;
+    --color-border: #999999;
+  }
+
+  body {
+    background: #ffffff;
+  }
+
+  /*
+   * Landmark-ul își pierde lățimea maximă și umplutura: pe ecran ele opresc
+   * rândul să se întindă pe 2400px, pe hârtie doar micșorează pagina.
+   */
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  /*
+   * Marginile aparțin PAGINII, nu conținutului. 15mm e marginea uzuală a unui
+   * document administrativ românesc și încape în zona imprimabilă a oricărei
+   * imprimante de birou.
+   */
+  @page {
+    margin: 15mm;
+  }
+
+  /*
+   * Un rând de tabel rupt între două pagini e ilizibil într-un document cu
+   * valoare juridică — procesul-verbal de predare-primire, decontul, fluturașul.
+   * Antetul se repetă pe fiecare pagină: altfel coloanele de pe pagina a doua
+   * n-au nume.
+   */
+  tr,
+  li,
+  figure {
+    break-inside: avoid;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  h1,
+  h2,
+  h3 {
+    break-after: avoid;
+  }
+
+  /*
+   * Un titlu nu rămâne singur la baza paginii, iar un rând nu pleacă singur pe
+   * următoarea.
+   */
+  p,
+  li {
+    orphans: 3;
+    widows: 3;
+  }
+
+  /*
+   * Umbrele nu se tipăresc oricum, dar consumă cerneală pe imprimantele care
+   * încearcă. Chenarele rămân: ele poartă structura.
+   */
+  * {
+    box-shadow: none !important;
+  }
+
+  /*
+   * Graficele, pastilele de stare și hașura își păstrează culorile: la ele
+   * culoarea E informația. Fără asta, browserul le scoate „ca să economisească
+   * cerneală", iar un grafic ajunge o linie singură pe pagină.
+   */
+  svg,
+  [class*="print-color-adjust"],
+  .hasura {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /*
+   * Un link tipărit e text mort dacă nu-și arată adresa — DAR numai pentru
+   * adrese externe. Într-un document intern, `(/angajati/8f2c…)` după fiecare
+   * nume ar dubla lungimea rândurilor fără să ajute pe nimeni: cine ține hârtia
+   * în mână n-are cum să scrie un UUID în bara de adrese.
+   */
+  a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.75em;
+    word-break: break-all;
+  }
+}

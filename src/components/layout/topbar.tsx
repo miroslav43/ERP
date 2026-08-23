@@ -88,7 +88,10 @@ export async function Topbar() {
       (`z-antet-tabel`, 20) — înainte foaia colectivă de pontaj folosea tot
       z-20, iar la egalitate ar fi câștigat ea, fiind mai jos în DOM.
     */
-    <header className="bg-primary z-antet sticky top-0 flex h-14 items-center gap-3 border-b border-white/10 px-4">
+    <header
+      data-tipar="ascunde"
+      className="bg-primary z-antet sticky top-0 flex h-14 items-center gap-3 border-b border-white/10 px-4"
+    >
       {/*
         Butonul care deschide sertarul pe telefon. `SidebarTrigger` exista de la
         început, cu `md:hidden` pe el, dar nu era montat nicăieri — iar

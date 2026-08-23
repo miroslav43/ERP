@@ -52,7 +52,7 @@ export function RaporteazaProblema({
   }, [cale, caleFormular, zona]);
 
   return (
-    <footer className="border-border mt-8 border-t px-4 py-3 md:px-6">
+    <footer data-tipar="ascunde" className="border-border mt-8 border-t px-4 py-3 md:px-6">
       <Link
         href={href}
         className="text-muted-foreground hover:text-foreground text-nota inline-flex items-center gap-2"
