@@ -16,7 +16,7 @@ export const metadata: Metadata = { title: "Setări pontaj" };
 export default async function PaginaSetariPontaj() {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "attendance");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "attendance:update", "all")) {
     return (

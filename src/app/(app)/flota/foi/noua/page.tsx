@@ -18,7 +18,7 @@ export const metadata: Metadata = { title: "Foaie de parcurs nouă" };
 export default async function PaginaFoaieNoua() {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "fleet");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "trip_sheets:create", "own")) {
     return (

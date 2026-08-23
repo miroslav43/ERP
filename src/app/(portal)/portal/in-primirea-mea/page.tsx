@@ -20,7 +20,7 @@ export const metadata: Metadata = { title: "În primirea mea" };
 export default async function PaginaInPrimireaMea() {
   const { tenant, user } = await requireTenant();
   await requireFeature(tenant.organizationId, "inventory");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "inventory:read", "own")) {
     return (

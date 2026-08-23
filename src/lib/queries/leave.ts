@@ -743,3 +743,61 @@ export async function previzualizeazaDrepturi(
   if (error !== null) throw error;
   return data ?? [];
 }
+
+// ── Coduri de indemnizație pentru concediul medical ───────────────────────────
+
+export interface CodIndemnizatieMedicala {
+  readonly id: string;
+  readonly cod: string;
+  readonly denumire: string;
+  readonly procent: number;
+  readonly zileAngajator: number;
+  readonly platitor: "angajator" | "fnuass" | "mixt";
+}
+
+/**
+ * Nomenclatorul național de coduri de pe certificatul medical, valabile la data
+ * cerută. Tabela `medical_leave_codes` nu are `organization_id` — e seed de
+ * platformă, comun tuturor firmelor (0009:222-266).
+ *
+ * Codul nu e decorativ: el decide procentul (75/85/100%), câte zile suportă
+ * firma din bugetul propriu și de la care începe FNUASS-ul. Motorul
+ * `indemnizatie-cm.ts` îl citește prin `certificateMedicaleLuna`, care filtrează
+ * `medical_code_id is not null` — până în 0064 nimic nu-l scria, deci filtrul
+ * întorcea mereu zero rânduri și indemnizația era 0 lei, fără nicio eroare.
+ *
+ * `valabil_de_la <= laData` cu `valabil_pana_la` deschis sau în viitor:
+ * nomenclatorul are istoric, iar o cerere retroactivă trebuie să primească
+ * procentele valabile ATUNCI, nu pe cele de azi.
+ */
+export async function coduriIndemnizatieMedicala(
+  laData: string,
+): Promise<readonly CodIndemnizatieMedicala[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("medical_leave_codes")
+    .select("id, cod, denumire, procent, zile_angajator, platitor")
+    .lte("valabil_de_la", laData)
+    .or(`valabil_pana_la.is.null,valabil_pana_la.gte.${laData}`)
+    .is("deleted_at", null)
+    .order("cod", { ascending: true })
+    .returns<
+      {
+        id: string;
+        cod: string;
+        denumire: string;
+        procent: number;
+        zile_angajator: number;
+        platitor: "angajator" | "fnuass" | "mixt";
+      }[]
+    >();
+  if (error !== null) throw error;
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    cod: r.cod,
+    denumire: r.denumire,
+    procent: r.procent,
+    zileAngajator: r.zile_angajator,
+    platitor: r.platitor,
+  }));
+}

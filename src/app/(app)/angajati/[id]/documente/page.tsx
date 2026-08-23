@@ -18,7 +18,7 @@ export default async function PaginaDocumenteAngajat({
   const { id } = await params;
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "nucleu");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
   const scopCitire = scopeFor(permisiuni, "employees:read");
   if (scopCitire === null || scopCitire === "none") {
     return <AccesRestrictionat mesaj="Nu ai dreptul de a vedea dosarele de personal." />;

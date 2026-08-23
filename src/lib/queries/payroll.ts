@@ -1412,3 +1412,52 @@ export async function popririActive(
   }
   return rezultat;
 }
+
+// ── Dosare de poprire, pentru ecranul de administrare ─────────────────────────
+
+export interface RandDosarPoprire {
+  readonly id: string;
+  readonly employee_id: string;
+  readonly dosar: string;
+  readonly creditor: string;
+  readonly executor: string | null;
+  readonly tip_creanta: "intretinere" | "alta";
+  readonly suma_totala: number;
+  readonly suma_recuperata: number;
+  readonly suma_lunara: number;
+  readonly sold_ramas: number | null;
+  readonly prioritate: number;
+  readonly data_inceput: string;
+  readonly data_sfarsit: string | null;
+  readonly activa: boolean;
+  readonly observatii: string | null;
+  readonly angajat: Readonly<{ full_name: string | null; marca: string }> | null;
+}
+
+/**
+ * Toate dosarele de poprire ale organizației, active și stinse.
+ *
+ * Spre deosebire de `popririActive` — care servește motorul de calcul și
+ * filtrează pe lună și pe `activa` — asta e vederea de administrare: arată și
+ * dosarele stinse, ca omul să vadă ce s-a recuperat și când s-a închis.
+ *
+ * `sold_ramas` e coloană GENERATĂ din `suma_totala - suma_recuperata` (0059:59),
+ * iar `suma_recuperata` e recalculată de trigger din reținerile efectiv operate
+ * (0065). Niciuna nu se scrie din aplicație.
+ */
+export async function dosarePopriri(organizationId: string): Promise<readonly RandDosarPoprire[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("payroll_garnishments")
+    .select(
+      "id, employee_id, dosar, creditor, executor, tip_creanta, suma_totala, suma_recuperata, suma_lunara, sold_ramas, prioritate, data_inceput, data_sfarsit, activa, observatii, angajat:employees!payroll_garnishments_employee_id_fkey(full_name, marca)",
+    )
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .order("activa", { ascending: false })
+    .order("prioritate", { ascending: true })
+    .order("dosar", { ascending: true })
+    .returns<RandDosarPoprire[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}

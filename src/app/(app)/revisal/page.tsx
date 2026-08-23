@@ -39,7 +39,7 @@ export default async function PaginaRevisal(props: {
 }) {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "nucleu"); // modul dezactivat ⇒ 404
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   const scopCitire = scopeFor(permisiuni, "compliance:read") ?? undefined;
   if (!meetsScope(scopCitire, "all")) {

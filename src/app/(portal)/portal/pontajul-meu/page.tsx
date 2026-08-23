@@ -34,7 +34,7 @@ function lunaDinUrl(valoare: string | string[] | undefined, implicit: number): n
 export default async function PaginaPontajulMeu({ searchParams }: ProprietatiPagina) {
   const { tenant, user } = await requireTenant();
   await requireFeature(tenant.organizationId, "attendance");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "attendance:read", "own")) {
     return (

@@ -17,7 +17,7 @@ export const metadata: Metadata = { title: "Deplasare nouă" };
 export default async function PaginaDeplasareNouaPortal() {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "per_diem");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "per_diem:create", "own")) {
     return (

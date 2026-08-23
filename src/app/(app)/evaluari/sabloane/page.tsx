@@ -32,7 +32,7 @@ interface RandSablon {
 export default async function PaginaSabloaneEvaluare() {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "evaluations");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "employees:read", "team")) {
     return <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta șabloanele de evaluare." />;

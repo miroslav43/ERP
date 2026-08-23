@@ -68,7 +68,7 @@ async function Continut({
 export default async function PaginaCoada({ searchParams }: ProprietatiPagina) {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "ticketing");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   // `team`: coada e pentru cine are oameni în subordine sau răspunde de modul.
   // Un angajat obișnuit are doar `own` și rămâne pe „Tichetele mele”.

@@ -21,7 +21,7 @@ export default async function PaginaEditeazaAngajat({ params }: ProprietatiPagin
   const { id } = await params;
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "nucleu");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (scopeFor(permisiuni, "employees:update") !== "all") {
     return (

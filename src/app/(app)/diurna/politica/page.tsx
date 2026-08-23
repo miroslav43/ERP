@@ -20,7 +20,7 @@ export const metadata: Metadata = { title: "Politica de diurnă" };
 export default async function PaginaPolitica() {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "per_diem");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "per_diem:read", "own")) {
     return (

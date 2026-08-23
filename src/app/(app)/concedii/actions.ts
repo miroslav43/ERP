@@ -6,6 +6,7 @@ import { businessRule, notFound } from "@/lib/actions/errors";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { numaraZileCerere } from "@/domain/leave/zile-cerere";
 import {
+  verificaPlafonAnual,
   verificaSold,
   verificaSuprapunere,
   type IntervalConcediu,
@@ -13,7 +14,10 @@ import {
 import { formatAmount } from "@/lib/format/money";
 import { zileNelucratoare } from "@/lib/queries/leave";
 import { anuleazaCerereSchema, creeazaCerereSchema, decideCerereSchema } from "@/schemas/leave";
-import { sincronizeazaZileleDeConcediu } from "@/app/(app)/pontaj/sincronizare-concediu";
+import {
+  sincronizeazaZileleDeConcediu,
+  type TipZiPontaj,
+} from "@/app/(app)/pontaj/sincronizare-concediu";
 import { traduEroare } from "./erori";
 
 /**
@@ -54,6 +58,11 @@ export const creeazaCerereConcediu = createAction({
       "portiune_inceput",
       "portiune_sfarsit",
       "trimite",
+      // `medical_code_id` NU intră aici, deliberat. Codul de indemnizație
+      // clasifică boala („09 Neoplazii, SIDA”, „10 Tuberculoză”) — e dată
+      // privind sănătatea, categorie specială art. 9 GDPR. Tabela însăși e
+      // proiectată să n-o conțină („FĂRĂ diagnostic”, 0009:362), iar jurnalul de
+      // audit e citibil de oricine are `audit:read`. Nu-l adăuga.
     ],
   },
   revalidate: ["/concedii", "/concedii/sold", ...CAI_PORTAL_CONCEDII],
@@ -94,7 +103,7 @@ export const creeazaCerereConcediu = createAction({
     // ── (2) Tipul de concediu ───────────────────────────────────────────────
     const { data: tip, error: eroareTip } = await ctx.supabase
       .from("leave_types")
-      .select("id, denumire, scade_din_sold, zile_implicite")
+      .select("id, key, denumire, scade_din_sold, zile_implicite, plafon_anual_zile")
       .eq("organization_id", ctx.tenant.organizationId)
       .eq("id", input.leave_type_id)
       .eq("activ", true)
@@ -103,6 +112,22 @@ export const creeazaCerereConcediu = createAction({
     if (eroareTip !== null) throw eroareTip;
     if (tip === null) {
       throw businessRule("Tipul de concediu selectat nu există sau a fost dezactivat.");
+    }
+
+    // Certificatul e obligatoriu DOAR pentru concediul medical, iar schema Zod
+    // nu poate ști asta: ea vede un `leave_type_id`, nu cheia lui. Verificarea
+    // stă aici, singurul loc care a citit deja `leave_types.key`.
+    //
+    // Fără cod de indemnizație, `certificateMedicaleLuna` (queries/payroll.ts:988)
+    // nu vede cererea, iar `indemnizatie_cm_angajator` rămâne 0 — angajatul ar
+    // avea concediu medical aprobat și zero lei indemnizație, fără nicio eroare.
+    if (tip.key === "medical" && input.medical_code_id === null) {
+      throw businessRule(
+        "Concediul medical are nevoie de codul de indemnizație de pe certificat — fără el indemnizația nu se poate calcula.",
+      );
+    }
+    if (tip.key !== "medical" && input.medical_code_id !== null) {
+      throw businessRule("Certificatul medical se atașează doar unei cereri de concediu medical.");
     }
 
     // ── (3)-(5) Pre-verificarea sold + suprapunere ──────────────────────────
@@ -153,6 +178,33 @@ export const creeazaCerereConcediu = createAction({
         }
       }
 
+      // Plafonul anual legal — verificat INDEPENDENT de sold (0064). Cele două
+      // nu sunt același lucru: soldul e dreptul acumulat și reportabil (doar
+      // odihna îl are), plafonul e maximul pe care legea îl acordă într-un an
+      // (paternal 10 zile, îngrijitor 5, căsătorie 5…). Până la 0064, nouă
+      // tipuri din zece nu aveau nicio limită.
+      if (tip.plafon_anual_zile !== null) {
+        const { data: cereriAnul, error: eroareCereriAnul } = await ctx.supabase
+          .from("leave_requests")
+          .select("zile_lucratoare")
+          .eq("organization_id", ctx.tenant.organizationId)
+          .eq("employee_id", employeeId)
+          .eq("leave_type_id", tip.id)
+          .in("status", ["trimisa", "in_aprobare", "aprobata"])
+          .gte("data_inceput", `${String(an)}-01-01`)
+          .lte("data_inceput", `${String(an)}-12-31`)
+          .is("deleted_at", null);
+        if (eroareCereriAnul !== null) throw eroareCereriAnul;
+
+        const zileConsumate = (cereriAnul ?? []).reduce((s, c) => s + c.zile_lucratoare, 0);
+        const plafon = verificaPlafonAnual(zileLucratoare, zileConsumate, tip.plafon_anual_zile);
+        if (!plafon.seIncadreaza) {
+          throw businessRule(
+            `„${tip.denumire}” are un plafon legal de ${formatAmount(tip.plafon_anual_zile)} zile pe an, din care ${formatAmount(zileConsumate)} sunt deja folosite în ${String(an)}. Cererea îl depășește cu ${formatAmount(plafon.zileDepasire)} zile.`,
+          );
+        }
+      }
+
       const { data: existente, error: eroareExistente } = await ctx.supabase
         .from("leave_requests")
         .select("data_inceput, data_sfarsit")
@@ -194,6 +246,9 @@ export const creeazaCerereConcediu = createAction({
         portiune_sfarsit: input.portiune_sfarsit,
         motiv: input.motiv,
         atasament_path: input.atasament_path,
+        medical_code_id: input.medical_code_id,
+        serie_certificat: input.serie_certificat,
+        numar_certificat: input.numar_certificat,
         status: input.trimite ? "trimisa" : "ciorna",
         created_by: ctx.user.id,
       })
@@ -400,13 +455,20 @@ export const decideCerere = createAction({
       // `attendance:create`): un eșec aici (ex. luna nu are încă o perioadă
       // de pontaj deschisă) nu trebuie să anuleze aprobarea concediului.
       try {
+        // `tip_zi_pontaj` decide dacă zilele astea se plătesc sau nu (0064).
+        // Embed-ul poate veni NULL dacă tipul a fost șters logic între timp —
+        // atunci cade pe „concediu", comportamentul de dinainte de 0064.
         const { data: cerere, error: eroareCerere } = await admin
           .from("leave_requests")
-          .select("employee_id")
+          .select("employee_id, tip:leave_types!leave_requests_leave_type_id_fkey(tip_zi_pontaj)")
           .eq("id", sarcina.entity_id)
           .eq("organization_id", ctx.tenant.organizationId)
-          .single();
+          .single<{
+            readonly employee_id: string;
+            readonly tip: { readonly tip_zi_pontaj: TipZiPontaj } | null;
+          }>();
         if (eroareCerere !== null) throw eroareCerere;
+        const tipZi: TipZiPontaj = cerere.tip?.tip_zi_pontaj ?? "concediu";
 
         const { data: zileCerere, error: eroareZile } = await admin
           .from("leave_request_days")
@@ -420,6 +482,7 @@ export const decideCerere = createAction({
           employee_id: cerere.employee_id,
           data: z.data,
           leave_request_id: z.leave_request_id,
+          tip_zi: tipZi,
         }));
         await sincronizeazaZileleDeConcediu(admin, ctx.tenant.organizationId, zile);
       } catch (eroare) {

@@ -121,7 +121,7 @@ function SelectorAn({ an }: { readonly an: number }) {
 export default async function PaginaSoldConcediu({ searchParams }: ProprietatiPagina) {
   const { tenant, user } = await requireTenant();
   await requireFeature(tenant.organizationId, "leave");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "leave:read", "own")) {
     return (

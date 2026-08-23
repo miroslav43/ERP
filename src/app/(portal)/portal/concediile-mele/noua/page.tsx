@@ -10,7 +10,7 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { todayInBucharest } from "@/lib/format/date";
-import { zileNelucratoare } from "@/lib/queries/leave";
+import { coduriIndemnizatieMedicala, zileNelucratoare } from "@/lib/queries/leave";
 import { fisaMea, soldurileMele } from "@/lib/queries/portal";
 
 import { FaraFisa } from "../../fara-fisa";
@@ -20,6 +20,8 @@ export const metadata: Metadata = { title: "Cerere de concediu" };
 
 interface TipPentruFormular {
   readonly id: string;
+  /** Cheia din bază — `medical` deschide secțiunea de certificat. */
+  readonly key: string;
   readonly denumire: string;
   readonly scade_din_sold: boolean;
   readonly necesita_document: boolean;
@@ -28,7 +30,7 @@ interface TipPentruFormular {
 export default async function PaginaCerereNouaPortal() {
   const { tenant, user } = await requireTenant();
   await requireFeature(tenant.organizationId, "leave");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "leave:create", "own")) {
     return (
@@ -47,7 +49,7 @@ export default async function PaginaCerereNouaPortal() {
   const [{ data: tipuri }, { nationale, organizatie }, solduri] = await Promise.all([
     db
       .from("leave_types")
-      .select("id, denumire, scade_din_sold, necesita_document")
+      .select("id, key, denumire, scade_din_sold, necesita_document")
       .eq("organization_id", tenant.organizationId)
       .eq("activ", true)
       .is("deleted_at", null)
@@ -60,6 +62,11 @@ export default async function PaginaCerereNouaPortal() {
     // capul lui `queries/portal.ts`.
     soldurileMele(tenant.organizationId, an, stare.fisa.id),
   ]);
+
+  // Nomenclatorul de coduri de indemnizație medicală, valabil azi. Angajatul e
+  // cel care depune cel mai des concediu medical — fără codul de pe certificat,
+  // indemnizația lui rămâne 0 lei, fără nicio eroare vizibilă.
+  const coduriMedicale = await coduriIndemnizatieMedicala(todayInBucharest());
 
   const soldPeTip = Object.fromEntries(
     solduri.map((s) => [s.leave_type_id, s.ramase ?? 0] as const),
@@ -92,6 +99,7 @@ export default async function PaginaCerereNouaPortal() {
       ) : (
         <FormularCererePortal
           tipuri={tipuri}
+          coduriMedicale={coduriMedicale}
           sarbatoriRo={sarbatoriRo}
           liberSuplimentar={liberSuplimentar}
           zileRecuperare={zileRecuperare}

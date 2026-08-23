@@ -310,6 +310,19 @@ export const calculeazaPerioada = createAction({
       ]);
     }
 
+    // Numărul dosarului, pentru motivul reținerii — `RetinereAplicata` poartă
+    // doar `id`-ul, iar pe fluturaș trebuie să apară dosarul, nu un uuid.
+    const dosarePeId = new Map<string, string>();
+    for (const lista of popriri.values()) {
+      for (const dosar of lista) dosarePeId.set(dosar.id, dosar.dosar);
+    }
+    const randuriPopriri: {
+      employee_id: string;
+      garnishment_id: string;
+      suma: number;
+      motiv: string;
+    }[] = [];
+
     const randuri = angajati.map((angajat) => {
       const pontajAngajat = pontaj.pePersoana.get(angajat.employee_id) ?? PONTAJ_GOL;
       const rezultat = calculatePayrollEntry({
@@ -428,6 +441,19 @@ export const calculeazaPerioada = createAction({
         })),
       });
 
+      // Ce s-a reținut efectiv din fiecare dosar de poprire — plafonat deja de
+      // etapă la 1/3 sau 1/2 din net și la soldul rămas. Reținerile de zero lei
+      // (dosar stins, net epuizat) nu se scriu: `suma > 0` e CHECK în bază.
+      for (const aplicata of rezultat.retineriAplicate) {
+        if (aplicata.tip !== "poprire" || aplicata.aplicata <= 0) continue;
+        randuriPopriri.push({
+          employee_id: angajat.employee_id,
+          garnishment_id: aplicata.id,
+          suma: aplicata.aplicata,
+          motiv: `Poprire — dosar ${dosarePeId.get(aplicata.id) ?? aplicata.id}`,
+        });
+      }
+
       return {
         organization_id: ctx.tenant.organizationId,
         period_id: perioada.id,
@@ -533,6 +559,32 @@ export const calculeazaPerioada = createAction({
       throw businessRule(
         `S-au calculat ${String(randuri.length)} rânduri, dar baza a acceptat doar ${String(scrise.inserate + scrise.actualizate)}. Perioada nu a fost marcată drept calculată.`,
       );
+    }
+
+    // Reținerile de poprire ale lunii, per dosar (0065).
+    //
+    // Până acum, `calculatePayrollEntry` arunca detaliul per dosar și păstra doar
+    // totalul: nimic nu putea ști cât s-a recuperat dintr-o poprire anume, deci
+    // `payroll_garnishments.suma_recuperata` rămânea 0 pe veci și dosarul reținea
+    // și după stingerea datoriei.
+    //
+    // Best-effort deliberat, ca la sincronizarea concediu → pontaj: rândurile de
+    // salariu sunt deja scrise atomic mai sus. Un eșec aici (perioada mutată din
+    // ciornă între timp, de altă sesiune) nu trebuie să anuleze un stat de plată
+    // corect — soldul se reface la următoarea recalculare, fiindcă e RECALCULAT,
+    // nu incrementat.
+    try {
+      const { error: eroarePopriri } = await ctx.supabase.rpc("payroll_scrie_popriri", {
+        p_period_id: perioada.id,
+        p_randuri: randuriPopriri as unknown as Json,
+      });
+      if (eroarePopriri !== null) throw eroarePopriri;
+    } catch (eroare) {
+      console.error("[salarizare] reținerile de poprire nu au putut fi înregistrate", {
+        periodId: perioada.id,
+        requestId: ctx.requestId,
+        eroare,
+      });
     }
 
     const totalBrut = randuri.reduce((s, r) => s + r.brut, 0);

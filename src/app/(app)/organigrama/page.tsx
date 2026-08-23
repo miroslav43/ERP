@@ -83,7 +83,7 @@ export default async function PaginaOrganigrama() {
   const utilizator = await requireUser();
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "nucleu");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
   const scope = scopeFor(permisiuni, "employees:read");
 
   if (scope === null || scope === "none") {

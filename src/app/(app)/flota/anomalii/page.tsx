@@ -92,7 +92,7 @@ async function TabelAnomalii({ organizationId }: { readonly organizationId: stri
 export default async function PaginaAnomalii() {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "fleet");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "vehicles:update", "team")) {
     return (

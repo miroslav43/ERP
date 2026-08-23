@@ -174,7 +174,7 @@ export default async function PaginaInstruiri({ searchParams }: ProprietatiPagin
   const user = await requireUser();
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "ssm");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   // Matricea are nevoie ȘI de dreptul de a citi instruirile, ȘI de dreptul de
   // a citi lista de angajați — fără al doilea, coloana „Angajat" n-ar putea fi

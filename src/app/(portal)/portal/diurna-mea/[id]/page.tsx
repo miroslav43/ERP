@@ -37,7 +37,7 @@ export default async function PaginaDeplasareaMea({
 
   const { tenant, user } = await requireTenant();
   await requireFeature(tenant.organizationId, "per_diem");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "per_diem:read", "own")) {
     return (

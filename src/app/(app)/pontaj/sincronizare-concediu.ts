@@ -11,10 +11,22 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import { traduEroare } from "./erori";
 
+export type TipZiPontaj = Database["public"]["Enums"]["attendance_day_type"];
+
 export interface ZiConcediuDeSincronizat {
   readonly employee_id: string;
   readonly data: string;
   readonly leave_request_id: string;
+  /**
+   * Ce fel de zi de pontaj produce concediul — `leave_types.tip_zi_pontaj`.
+   *
+   * Până în 0064 aici era constanta `"concediu"`, pentru TOATE tipurile. Dar
+   * agregarea de salarizare numără pe `tip_zi` (0049:65-66), iar zilele de
+   * `concediu` intră în `zilePlatite` (calc.ts:324): concediul fără plată se
+   * plătea, iar `zile_concediu_medical` era permanent 0. Apelantul citește
+   * coloana și o trimite aici — nu mai există o a doua sursă de adevăr.
+   */
+  readonly tip_zi: TipZiPontaj;
 }
 
 export interface RezultatSincronizare {
@@ -73,7 +85,7 @@ export async function sincronizeazaZileleDeConcediu(
         ore_lucrate: 0,
         ore_suplimentare: 0,
         ore_noapte: 0,
-        tip_zi: "concediu",
+        tip_zi: zi.tip_zi,
         sursa: "sincronizare_concedii",
         leave_request_id: zi.leave_request_id,
       });
@@ -91,7 +103,7 @@ export async function sincronizeazaZileleDeConcediu(
     const { error } = await db
       .from("attendance_entries")
       .update({
-        tip_zi: "concediu",
+        tip_zi: zi.tip_zi,
         ore_lucrate: 0,
         ore_suplimentare: 0,
         ore_noapte: 0,

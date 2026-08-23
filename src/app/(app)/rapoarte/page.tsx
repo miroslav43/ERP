@@ -29,7 +29,7 @@ function CardTotal({ eticheta, valoare }: { readonly eticheta: string; readonly 
 export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina) {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "payroll");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "payroll:read", "all")) {
     return (

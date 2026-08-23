@@ -29,7 +29,7 @@ export default async function PaginaZiPontaj({
 
   const { tenant, user } = await requireTenant();
   await requireFeature(tenant.organizationId, "attendance");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "attendance:create", "own")) {
     return (

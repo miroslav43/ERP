@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { ChevronRight, FileText, Pencil } from "lucide-react";
+import { ChevronRight, FileText, KeyRound, Pencil } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AvatarAngajat } from "@/components/data/avatar-angajat";
@@ -109,7 +109,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
   const utilizator = await requireUser();
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "nucleu");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
   const scope = scopeFor(permisiuni, "employees:read") ?? undefined;
 
   if (scope === undefined) {
@@ -171,6 +171,9 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
   const esteFisaProprie = angajat.user_id === utilizator.id;
   const poateIncarcaPtOricine = can(permisiuni, "users:update", "all");
   const poateEditaAngajat = can(permisiuni, "employees:update", "all");
+  // Pragul `team` e cel mai mic care deschide ecranul: `org_admin` are `all`
+  // (toată firma), managerul `team` (doar echipa lui, restul îl oprește RLS).
+  const poateAcordaPermisiuni = can(permisiuni, "roles:update", "team");
   const poateVedeaRegulileConcediu = can(permisiuni, "leave:read", "all");
 
   return (
@@ -243,6 +246,15 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
           </div>
 
           <div className="flex items-center gap-3">
+            {poateAcordaPermisiuni ? (
+              <Link
+                href={`/angajati/${angajat.id}/permisiuni`}
+                className="border-border bg-background hover:bg-surface inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
+              >
+                <KeyRound aria-hidden="true" className="size-3.5" />
+                Permisiuni
+              </Link>
+            ) : null}
             {poateEditaAngajat ? (
               <Link
                 href={`/angajati/${angajat.id}/editeaza`}

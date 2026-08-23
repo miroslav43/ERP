@@ -81,7 +81,9 @@ care spune DE CE ocolești RLS și cu filtru explicit pe `organization_id`.
 `super_admin` (NICIODATĂ în `organization_members`; sursa e `platform_admins`) ·
 `org_admin` · `manager` · `hr` · `employee`. Absența unei permisiuni = refuz.
 
-- `employee` are `employees:read = none` — nu-și vede nici propria fișă.
+- `employee` are `employees:read = own` — își vede propria fișă, dar numai pe a
+  lui (mutat de `0023_portal_angajat.sql:51`, de la `none`; CNP/IBAN rămân
+  închise, `hr_read_sensitive` cere `= all` exact).
 - `manager` are `attendance:approve=team` dar **nu** `attendance:create`; are
   `per_diem:approve` dar **nu** `per_diem:update`; **niciun** `vehicles:*`.
 - `hr` administrează SSM dar n-are `compliance:read` — `expirables` îi întoarce

@@ -210,7 +210,7 @@ async function Foaie({
 export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) {
   const { user, tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "attendance");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   // `can(..., "own")` și nu `scopeFor(...) !== null`: scope-ul „none" e refuz
   // explicit ȘI e truthy, deci a doua formă ar lăsa poarta deschisă.

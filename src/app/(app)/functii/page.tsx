@@ -27,7 +27,7 @@ interface RandFunctie {
 export default async function PaginaFunctii() {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "nucleu");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (scopeFor(permisiuni, "departments:read") === "none") {
     return <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta nomenclatorul de funcții." />;

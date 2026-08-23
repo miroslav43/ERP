@@ -33,7 +33,7 @@ export default async function PaginaPerioadaDetaliu({ params }: ProprietatiPagin
 
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "attendance");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   // `attendance_batches_select` cere `attendance:read ≥ team`.
   if (!can(permisiuni, "attendance:read", "team")) {

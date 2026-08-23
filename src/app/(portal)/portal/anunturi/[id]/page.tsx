@@ -24,7 +24,7 @@ export default async function PaginaAnuntPortal({ params }: ProprietatiPagina) {
 
   const { tenant, user } = await requireTenant();
   await requireFeature(tenant.organizationId, "announcements");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "announcements:read", "own")) {
     return (

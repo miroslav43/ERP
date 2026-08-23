@@ -5204,12 +5204,14 @@ export type Database = {
           mod_rotunjire_acumulare: Database["public"]["Enums"]["leave_rounding_mode"]
           necesita_document: boolean
           organization_id: string
+          plafon_anual_zile: number | null
           plafon_reportare_zile: number | null
           reglementat: boolean
           scade_din_sold: boolean
           se_reporteaza: boolean
           temei_legal: string | null
           termen_reportare: number | null
+          tip_zi_pontaj: Database["public"]["Enums"]["attendance_day_type"]
           updated_at: string
           valabil_de_la: string
           zile_implicite: number
@@ -5226,12 +5228,14 @@ export type Database = {
           mod_rotunjire_acumulare?: Database["public"]["Enums"]["leave_rounding_mode"]
           necesita_document?: boolean
           organization_id: string
+          plafon_anual_zile?: number | null
           plafon_reportare_zile?: number | null
           reglementat?: boolean
           scade_din_sold?: boolean
           se_reporteaza?: boolean
           temei_legal?: string | null
           termen_reportare?: number | null
+          tip_zi_pontaj?: Database["public"]["Enums"]["attendance_day_type"]
           updated_at?: string
           valabil_de_la?: string
           zile_implicite?: number
@@ -5248,12 +5252,14 @@ export type Database = {
           mod_rotunjire_acumulare?: Database["public"]["Enums"]["leave_rounding_mode"]
           necesita_document?: boolean
           organization_id?: string
+          plafon_anual_zile?: number | null
           plafon_reportare_zile?: number | null
           reglementat?: boolean
           scade_din_sold?: boolean
           se_reporteaza?: boolean
           temei_legal?: string | null
           termen_reportare?: number | null
+          tip_zi_pontaj?: Database["public"]["Enums"]["attendance_day_type"]
           updated_at?: string
           valabil_de_la?: string
           zile_implicite?: number
@@ -8321,6 +8327,7 @@ export type Database = {
           created_by: string | null
           deleted_at: string | null
           id: string
+          member_id: string | null
           organization_id: string | null
           resource: string
           role: Database["public"]["Enums"]["app_role"]
@@ -8334,6 +8341,7 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           id?: string
+          member_id?: string | null
           organization_id?: string | null
           resource: string
           role: Database["public"]["Enums"]["app_role"]
@@ -8347,6 +8355,7 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           id?: string
+          member_id?: string | null
           organization_id?: string | null
           resource?: string
           role?: Database["public"]["Enums"]["app_role"]
@@ -8355,6 +8364,13 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "role_permissions_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "organization_members"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "role_permissions_organization_id_fkey"
             columns: ["organization_id"]
@@ -10006,6 +10022,13 @@ export type Database = {
         }
         Returns: string
       }
+      payroll_scrie_popriri: {
+        Args: { p_period_id: string; p_randuri: Json }
+        Returns: {
+          inserate: number
+          sterse: number
+        }[]
+      }
       payroll_scrie_rezultate: {
         Args: { p_period_id: string; p_randuri: Json }
         Returns: {
@@ -10029,6 +10052,7 @@ export type Database = {
           zile_absenta_nemotivata: number
           zile_concediu_medical: number
           zile_concediu_odihna: number
+          zile_fara_plata: number
           zile_lucrate: number
           zile_repaus_lucrate: number
           zile_sarbatoare_lucrate: number
@@ -10094,6 +10118,7 @@ export type Database = {
         | "medical"
         | "absenta_nemotivata"
         | "delegatie"
+        | "fara_plata"
       attendance_entry_source: "manuala" | "import" | "sincronizare_concedii"
       attendance_period_status: "deschisa" | "in_aprobare" | "blocata"
       attendance_presence_kind:
@@ -10516,6 +10541,7 @@ export const Constants = {
         "medical",
         "absenta_nemotivata",
         "delegatie",
+        "fara_plata",
       ],
       attendance_entry_source: ["manuala", "import", "sincronizare_concedii"],
       attendance_period_status: ["deschisa", "in_aprobare", "blocata"],

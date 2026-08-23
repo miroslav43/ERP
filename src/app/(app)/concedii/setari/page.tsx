@@ -56,7 +56,7 @@ function SelectorAnAplicare({ an }: { readonly an: number }) {
 export default async function PaginaSetariConcedii({ searchParams }: ProprietatiPagina) {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "leave");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "leave:update", "all")) {
     return (

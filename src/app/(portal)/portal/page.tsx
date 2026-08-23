@@ -36,7 +36,7 @@ export default async function PaginaPortal() {
   const { tenant, user } = await requireTenant();
   const [moduleActive, permisiuni, stare] = await Promise.all([
     getEnabledFeatures(tenant.organizationId),
-    getPermissionMap(tenant.organizationId, tenant.role),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
     fisaMea(tenant.organizationId, user.id),
   ]);
 

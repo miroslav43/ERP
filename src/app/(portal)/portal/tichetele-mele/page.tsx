@@ -26,7 +26,7 @@ export const metadata: Metadata = { title: "Tichetele mele" };
 export default async function PaginaTicheteleMele() {
   const { tenant, user } = await requireTenant();
   await requireFeature(tenant.organizationId, "ticketing");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "tickets:read", "own")) {
     return (

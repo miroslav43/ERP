@@ -146,7 +146,7 @@ async function ContinutAprobare({
 export default async function PaginaAprobarePontaj({ searchParams }: ProprietatiPagina) {
   const { user, tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "attendance");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "attendance:approve", "team")) {
     return (

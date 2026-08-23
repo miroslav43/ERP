@@ -16,7 +16,7 @@ const ZILE_CONCEDIU_IMPLICIT_FALLBACK = 20;
 export default async function PaginaAngajatNou() {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "nucleu");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (scopeFor(permisiuni, "employees:create") !== "all") {
     return (

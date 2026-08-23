@@ -55,7 +55,7 @@ export default async function PortalLayout({ children }: { children: ReactNode }
 
   const [features, permisiuni, profil, necitite, organizatii] = await Promise.all([
     getEnabledFeatures(tenant.organizationId),
-    getPermissionMap(tenant.organizationId, tenant.role),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
     citesteProfilPropriu(user.id),
     numaraNecitite(tenant.organizationId, user.id),
     listUserOrganizations(),

@@ -10,7 +10,7 @@ export const metadata = { title: "Import angajați" };
 export default async function PaginaImportAngajati() {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "nucleu"); // modul dezactivat → 404
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
   const scop = scopeFor(permisiuni, "employees:create");
 
   // Dreptul se verifică și la afișare, nu doar în acțiune: scope „none” = refuz explicit.

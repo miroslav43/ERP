@@ -142,7 +142,7 @@ export function createAction<TSchema extends z.ZodType, TData>(
     // ── 4. PERMISIUNEA ────────────────────────────────────────────────────
     // Absența cheii se tratează ca `none`: refuz. `none` explicit din
     // role_permissions bate implicitul global al platformei.
-    const permissions = await getPermissionMap(tenant.organizationId, tenant.role);
+    const permissions = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
     const scope = permissions.get(def.permission) ?? "none";
     if (RANK[scope] < RANK[def.minScope]) {
       return refuza(

@@ -36,7 +36,8 @@ export type TipZiFoaie =
   | "concediu"
   | "medical"
   | "absenta_nemotivata"
-  | "delegatie";
+  | "delegatie"
+  | "fara_plata";
 
 /**
  * Codul scris în celulă. Ziua lucrătoare și weekendul nu au cod — o foaie
@@ -50,6 +51,7 @@ export const COD_ZI: Readonly<Record<TipZiFoaie, string | null>> = {
   medical: "CM",
   absenta_nemotivata: "AN",
   delegatie: "D",
+  fara_plata: "CFP",
 };
 
 export const LEGENDA: readonly Readonly<{ cod: string; tip: TipZiFoaie; text: string }>[] = [
@@ -58,6 +60,7 @@ export const LEGENDA: readonly Readonly<{ cod: string; tip: TipZiFoaie; text: st
   { cod: "CM", tip: "medical", text: "concediu medical" },
   { cod: "D", tip: "delegatie", text: "delegație" },
   { cod: "AN", tip: "absenta_nemotivata", text: "absență nemotivată" },
+  { cod: "CFP", tip: "fara_plata", text: "concediu fără plată" },
 ];
 
 export type Celula = Readonly<{

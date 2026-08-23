@@ -7,7 +7,7 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { todayInBucharest } from "@/lib/format/date";
-import { soldAnual, zileNelucratoare } from "@/lib/queries/leave";
+import { coduriIndemnizatieMedicala, soldAnual, zileNelucratoare } from "@/lib/queries/leave";
 
 import { NavConcedii } from "../nav-concedii";
 import { FormularCerere } from "./formular-cerere";
@@ -16,6 +16,8 @@ export const metadata: Metadata = { title: "Cerere de concediu nouă" };
 
 interface TipPentruFormular {
   readonly id: string;
+  /** Cheia din bază — `medical` deschide secțiunea de certificat în formular. */
+  readonly key: string;
   readonly denumire: string;
   readonly culoare: string;
   readonly zile_implicite: number;
@@ -26,7 +28,7 @@ interface TipPentruFormular {
 export default async function PaginaCerereNoua() {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "leave");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "leave:create", "own")) {
     return (
@@ -45,7 +47,7 @@ export default async function PaginaCerereNoua() {
   const [{ data: tipuri }, { nationale, organizatie }] = await Promise.all([
     db
       .from("leave_types")
-      .select("id, denumire, culoare, zile_implicite, scade_din_sold, necesita_document")
+      .select("id, key, denumire, culoare, zile_implicite, scade_din_sold, necesita_document")
       .eq("organization_id", tenant.organizationId)
       .eq("activ", true)
       .is("deleted_at", null)
@@ -53,6 +55,11 @@ export default async function PaginaCerereNoua() {
       .returns<TipPentruFormular[]>(),
     zileNelucratoare(tenant.organizationId, anCurent - 1, anCurent + 1),
   ]);
+
+  // Nomenclatorul de coduri de indemnizație, valabil azi. Fără el, o cerere de
+  // concediu medical n-ar avea de unde lua procentul (75/85/100%) și numărul de
+  // zile suportate de firmă — iar indemnizația ar rămâne 0 lei.
+  const coduriMedicale = await coduriIndemnizatieMedicala(todayInBucharest());
 
   let angajati: readonly Readonly<{ id: string; full_name: string; marca: string }>[] = [];
   let soldPropriu: ReadonlyMap<string, number> | null = null;
@@ -112,6 +119,7 @@ export default async function PaginaCerereNoua() {
           sarbatoriRo={sarbatoriRo}
           liberSuplimentar={liberSuplimentar}
           zileRecuperare={zileRecuperare}
+          coduriMedicale={coduriMedicale}
           angajati={poateAlegeAngajat ? angajati : null}
           soldPropriu={soldPropriu === null ? null : Object.fromEntries(soldPropriu)}
         />

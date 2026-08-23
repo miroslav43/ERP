@@ -83,7 +83,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   const [features, permissions, store] = await Promise.all([
     getEnabledFeatures(tenant.organizationId),
-    getPermissionMap(tenant.organizationId, tenant.role),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
     cookies(),
   ]);
 

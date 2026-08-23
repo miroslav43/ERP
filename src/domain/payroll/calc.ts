@@ -32,7 +32,12 @@ import { rotunjesteLaBani } from "../bani";
 import { descriereCompleta, problema, problemaDinEtapa, type CodProblema } from "./erori";
 import { calculeazaCompensarea, type IntrareCompensare } from "./etape/compensare-ore";
 import { calculeazaDiurna, type IntrareDiurna } from "./etape/diurna-plafoane";
-import { calculeazaRetinerile, type Poprire, type RetinereSimpla } from "./etape/retineri-popriri";
+import {
+  calculeazaRetinerile,
+  type Poprire,
+  type RetinereAplicata,
+  type RetinereSimpla,
+} from "./etape/retineri-popriri";
 import { calculeazaIndemnizatieCm, type IntrareIndemnizatieCm } from "./etape/indemnizatie-cm";
 import { calculeazaIndemnizatieCo, type IntrareIndemnizatieCo } from "./etape/indemnizatie-co";
 
@@ -240,6 +245,18 @@ export interface PayrollCalcResult {
   readonly camAngajator: number;
   readonly net: number;
   readonly retineriTotal: number;
+  /**
+   * Ce s-a reținut din FIECARE dosar, nu doar totalul.
+   *
+   * Până în 0065 etapa `calculeazaRetinerile` producea detaliul ăsta — cu 37 de
+   * teste care confirmă plafoanele de 1/3 și 1/2 — iar `calculatePayrollEntry`
+   * păstra numai `totalRetinut` și îl arunca. Consecința: nimic nu putea ști cât
+   * s-a recuperat dintr-o poprire anume, deci `payroll_garnishments.suma_recuperata`
+   * rămânea 0 pe veci și dosarul reținea și după stingerea datoriei.
+   *
+   * Gol când perioada nu are dosare de poprire (calea `deductions` simplă).
+   */
+  readonly retineriAplicate: readonly RetinereAplicata[];
   readonly netDePlata: number;
   readonly avantajeNatura: number;
   readonly diurnaNeimpozabila: number;
@@ -598,6 +615,7 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
 
   let netRamas = net;
   let retineriTotal = 0;
+  let retineriAplicate: readonly RetinereAplicata[] = [];
 
   if (input.popriri !== undefined) {
     // Regulile legale de urmărire silită: o singură poprire ia cel mult o
@@ -614,6 +632,7 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     });
     retineriTotal = r.totalRetinut;
     netRamas = r.netRamas;
+    retineriAplicate = r.aplicate;
     raporteaza(r.probleme);
   } else
     for (const deducere of deductions) {
@@ -686,6 +705,7 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     camAngajator: rotundLeu(camAngajator, r),
     net: rotundLeu(net, r),
     retineriTotal: rotundLeu(retineriTotal, r),
+    retineriAplicate,
     netDePlata: rotundLeu(netDePlata, r),
     avantajeNatura: rotundLeu(avantajeNatura, r),
     diurnaNeimpozabila: rotundLeu(diurnaNeimpozabila, r),

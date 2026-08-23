@@ -25,7 +25,7 @@ export default async function SetariMembriPage() {
   // autentificat al organizației le vedea. Acțiunile refuzau corect (prin
   // `createAction`), deci nu se putea MODIFICA nimic — dar divulgarea rămâne
   // divulgare, iar S2 cere verificarea și la afișare, nu doar la scriere.
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
   if (scopeFor(permisiuni, "users:update") !== "all") {
     return (
       <AccesRestrictionat mesaj="Lista membrilor și invitațiile pot fi consultate doar de administratorii organizației. Cere-i administratorului tău dreptul necesar dacă ai nevoie de el." />

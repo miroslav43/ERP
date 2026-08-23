@@ -176,7 +176,7 @@ async function TabelVehicule({
 export default async function PaginaFlota({ searchParams }: ProprietatiPagina) {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "fleet");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   // `can(..., "own")` și nu `scopeFor(...) !== null`: scope-ul „none" e refuz
   // explicit ȘI e truthy, deci a doua formă ar lăsa poarta deschisă.

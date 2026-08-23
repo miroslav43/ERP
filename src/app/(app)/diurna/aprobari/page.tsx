@@ -110,7 +110,7 @@ async function ListaDeAprobat({ organizationId }: { readonly organizationId: str
 export default async function PaginaAprobari() {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "per_diem");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "per_diem:approve", "team")) {
     return (

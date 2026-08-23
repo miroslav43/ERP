@@ -31,7 +31,7 @@ export default async function PaginaSesizare({ params }: ProprietatiPagina) {
 
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "maintenance");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "maintenance:read", "own")) {
     return (

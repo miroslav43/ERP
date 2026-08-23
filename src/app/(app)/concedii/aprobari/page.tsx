@@ -20,7 +20,7 @@ export const metadata: Metadata = { title: "Aprobări concedii" };
 export default async function PaginaAprobariConcedii() {
   const { tenant, user } = await requireTenant();
   await requireFeature(tenant.organizationId, "leave");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "leave:approve", "team")) {
     return (

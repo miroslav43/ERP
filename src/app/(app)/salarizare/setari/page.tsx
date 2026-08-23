@@ -17,7 +17,7 @@ export const metadata: Metadata = { title: "Setări salarizare" };
 export default async function PaginaSetariSalarizare() {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "payroll");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "payroll:update", "all")) {
     return (

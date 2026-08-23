@@ -31,6 +31,17 @@ export function traduEroare(error: PostgrestError): Error {
       return businessRule(
         "Aveți deja o cerere de concediu care acoperă o parte din perioada aleasă. Anulați-o sau alegeți alte date.",
       );
+    case "23514":
+      // check_violation. Singurul CHECK pe care utilizatorul îl poate atinge de
+      // pe formular e `leave_requests_certificat_ck` (0009:383-386): cod de
+      // indemnizație fără număr de certificat, sau invers. Numele constrângerii
+      // NU se propagă — doar explicația.
+      if (error.message.includes("leave_requests_certificat_ck")) {
+        return businessRule(
+          "Certificatul medical e incomplet: codul de indemnizație și numărul certificatului se completează împreună.",
+        );
+      }
+      return error;
     case "P0001":
       // RAISE EXCEPTION din triggerele de regulă (0009/0017): mesajul e deja
       // scris pentru utilizatorul final, în română. Se propagă DOAR `message`.

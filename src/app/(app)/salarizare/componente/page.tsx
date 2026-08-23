@@ -38,7 +38,7 @@ interface RandSablon {
 export default async function PaginaComponenteSalariale() {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "payroll");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (scopeFor(permisiuni, "payroll:read") === "none") {
     return <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta sporurile și primele." />;

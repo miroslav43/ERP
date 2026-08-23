@@ -20,7 +20,7 @@ import {
 
 import { tipZiAutomat } from "./etichete";
 import { traduEroare } from "./erori";
-import { sincronizeazaZileleDeConcediu } from "./sincronizare-concediu";
+import { sincronizeazaZileleDeConcediu, type TipZiPontaj } from "./sincronizare-concediu";
 
 const CAI_REVALIDARE = [
   "/pontaj",
@@ -519,11 +519,19 @@ export const sincronizeazaConcediile = createAction({
     interface ZiConcediuBruta {
       readonly data: string;
       readonly leave_request_id: string;
-      readonly cerere: Readonly<{ employee_id: string; status: string }> | null;
+      readonly cerere: Readonly<{
+        employee_id: string;
+        status: string;
+        // `tip_zi_pontaj` decide dacă zilele se plătesc (0064). Embed pe două
+        // niveluri: ziua → cererea → tipul de concediu.
+        tip: Readonly<{ tip_zi_pontaj: TipZiPontaj }> | null;
+      }> | null;
     }
     const { data: zileConcediu, error: eroareConcediu } = await db
       .from("leave_request_days")
-      .select("data, leave_request_id, cerere:leave_requests!leave_request_id(employee_id, status)")
+      .select(
+        "data, leave_request_id, cerere:leave_requests!leave_request_id(employee_id, status, tip:leave_types!leave_requests_leave_type_id_fkey(tip_zi_pontaj))",
+      )
       .eq("organization_id", ctx.tenant.organizationId)
       .eq("este_lucratoare", true)
       .gte("data", inceput)
@@ -537,6 +545,8 @@ export const sincronizeazaConcediile = createAction({
         employee_id: (z.cerere as { employee_id: string }).employee_id,
         data: z.data,
         leave_request_id: z.leave_request_id,
+        // Tipul șters logic între timp → „concediu", ca înainte de 0064.
+        tip_zi: z.cerere?.tip?.tip_zi_pontaj ?? ("concediu" as TipZiPontaj),
       }));
     if (zileAprobate.length === 0) {
       return { create: 0, actualizate: 0, pastrate: 0 };

@@ -49,7 +49,7 @@ function parametrulNumeric(valoare: string | string[] | undefined): number | nul
 export default async function PaginaCalendarConcedii({ searchParams }: ProprietatiPagina) {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "leave");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "leave:read", "team")) {
     return (

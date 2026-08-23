@@ -19,7 +19,7 @@ export const metadata: Metadata = { title: "Documentele mele" };
 export default async function PaginaDocumenteleMele() {
   const { tenant, user } = await requireTenant();
   await requireFeature(tenant.organizationId, "employee_portal");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   // Gardul lipsea. Pagina se sprijinea doar pe RLS, ceea ce funcționa — dar
   // preambulul canonic are patru pași tocmai ca refuzul să fie explicit și

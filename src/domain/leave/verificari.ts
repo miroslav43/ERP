@@ -65,6 +65,52 @@ export function verificaSold(
   return { areSoldSuficient: zileLipsa === 0, zileLipsa };
 }
 
+export interface RezultatVerificarePlafon {
+  /** true dacă plafonul anual acoperă zilele deja consumate plus cele cerute. */
+  readonly seIncadreaza: boolean;
+  /** Zilele cu care cererea depășește plafonul; 0 dacă se încadrează. */
+  readonly zileDepasire: number;
+  /** Ce ar mai fi rămas disponibil după cerere; 0 dacă plafonul e depășit. */
+  readonly zileRamase: number;
+}
+
+/**
+ * Plafonul anual legal al unui tip de concediu (`leave_types.plafon_anual_zile`).
+ *
+ * Nu e același lucru cu soldul, și de-aia are funcție proprie. `scade_din_sold`
+ * înseamnă „consumă dreptul acumulat lunar, reportabil în anul următor" — adevărat
+ * DOAR pentru concediul de odihnă. Plafonul înseamnă „legea nu-ți dă mai mult de
+ * atât într-un an", și e adevărat pentru concediul paternal (10 zile), cel de
+ * îngrijitor (5 zile), cel de căsătorie și celelalte.
+ *
+ * Până în 0064 cele două erau confundate într-o singură coloană, iar consecința
+ * era că NOUĂ tipuri din zece nu aveau nicio limită: `zile_implicite` era text
+ * decorativ, iar o cerere de 300 de zile de concediu paternal trecea fără o vorbă.
+ *
+ * `plafonAnual = null` înseamnă „fără plafon" — concediul medical, a cărui durată
+ * o decide medicul prin certificat, și cel fără plată, negociat între părți.
+ */
+export function verificaPlafonAnual(
+  zileSolicitate: number,
+  zileDejaConsumate: number,
+  plafonAnual: number | null,
+): RezultatVerificarePlafon {
+  if (!Number.isFinite(zileSolicitate) || zileSolicitate < 0) {
+    throw new RangeError("Numărul de zile solicitate nu poate fi negativ.");
+  }
+  if (!Number.isFinite(zileDejaConsumate) || zileDejaConsumate < 0) {
+    throw new RangeError("Numărul de zile deja consumate nu poate fi negativ.");
+  }
+  if (plafonAnual === null) {
+    return { seIncadreaza: true, zileDepasire: 0, zileRamase: Number.POSITIVE_INFINITY };
+  }
+  const total = Math.round((zileDejaConsumate + zileSolicitate) * 100) / 100;
+  const diferenta = Math.round((total - plafonAnual) * 100) / 100;
+  return diferenta > 0
+    ? { seIncadreaza: false, zileDepasire: diferenta, zileRamase: 0 }
+    : { seIncadreaza: true, zileDepasire: 0, zileRamase: Math.abs(diferenta) };
+}
+
 export interface CerereEchipa extends IntervalConcediu {
   readonly angajatId: string;
 }

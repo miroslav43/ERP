@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: "Vehicul nou" };
 export default async function PaginaVehiculNou() {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "fleet");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "vehicles:create", "all")) {
     return (

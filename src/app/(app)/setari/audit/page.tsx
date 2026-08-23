@@ -34,7 +34,7 @@ export default async function PaginaAuditOrganizatie({ searchParams }: Props) {
   if (rezolvare.status !== "ok") redirect(RUTA_DUPA_AUTENTIFICARE);
 
   const { tenant } = rezolvare;
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
   const scope = scopeFor(permisiuni, "audit:read");
 
   // `none` este refuz explicit, la fel ca orice scope mai mic decât `all` (S3).

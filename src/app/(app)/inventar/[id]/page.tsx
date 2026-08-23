@@ -53,7 +53,7 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
   const id = idDinRuta((await params).id);
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "inventory");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
   const scope = scopeFor(permisiuni, "inventory:read");
 
   if (scope === null || scope === "none") {

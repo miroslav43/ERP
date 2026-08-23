@@ -58,7 +58,7 @@ export async function Topbar() {
     supabase.auth.getUser(),
     listUserOrganizations(),
     getEnabledFeatures(tenant.organizationId),
-    getPermissionMap(tenant.organizationId, tenant.role),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
   ]);
 
   const utilizator = sesiune.user;

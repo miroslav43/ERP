@@ -18,6 +18,7 @@ import {
   Clock,
   FileText,
   FolderTree,
+  Gavel,
   HardHat,
   House,
   LayoutDashboard,
@@ -347,6 +348,19 @@ export const NAV_ITEMS: readonly NavItem[] = [
     permission: "payroll:read",
     minScope: "team",
     order: 111,
+  },
+  {
+    id: "popriri",
+    label: "Popriri",
+    href: "/salarizare/popriri",
+    icon: Gavel,
+    group: "financiar",
+    featureKey: "payroll",
+    // `all`, nu `team`: un dosar de urmărire silită e o informație despre
+    // situația personală a angajatului, iar reținerea se decide pe toată firma.
+    permission: "payroll:read",
+    minScope: "all",
+    order: 112,
   },
   {
     id: "diurna",

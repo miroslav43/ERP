@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: "Obiect de inventar nou" };
 export default async function PaginaObiectNou() {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "inventory");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (scopeFor(permisiuni, "inventory:update") !== "all") {
     return (

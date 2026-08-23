@@ -21,7 +21,7 @@ interface OptiuneDenumita {
 export default async function PaginaSablonNou() {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "onboarding");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "checklists:create", "all")) {
     return (

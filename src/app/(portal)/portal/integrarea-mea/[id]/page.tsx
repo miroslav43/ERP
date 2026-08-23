@@ -28,7 +28,7 @@ export default async function PaginaParcursulMeu({
 
   const { tenant, user } = await requireTenant();
   await requireFeature(tenant.organizationId, "onboarding");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "checklists:read", "own")) {
     return (
