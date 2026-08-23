@@ -4,9 +4,14 @@ import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { TIPURI_ZI_ALEGERE, type TipZi } from "@/schemas/attendance";
-import { oreLucrateDinInterval, oreSuplimentareDinLucrate } from "@/domain/attendance/calcul-ore";
+import {
+  oreLucrateDinInterval,
+  oreNoapteDinInterval,
+  oreSuplimentareDinLucrate,
+} from "@/domain/attendance/calcul-ore";
+import type { IntervalNoapte } from "./interval-noapte";
 import { ETICHETE_TIP_ZI } from "./etichete";
-import { salveazaZiPontaj, stergeZiPontaj } from "./actions";
+import { decideZiPontaj, salveazaZiPontaj, stergeZiPontaj } from "./actions";
 import type { IntrareZiClient } from "./foaie-colectiva";
 
 interface Proprietati {
@@ -17,6 +22,10 @@ interface Proprietati {
   readonly poateSterge: boolean;
   /** Pragul de ore/zi al organizației (`attendance_settings.ore_pe_zi`) — peste el, orele devin suplimentare automat. */
   readonly orePeZi: number;
+  /** Fereastra de noapte a organizației (`attendance_settings.noapte_start/_sfarsit`). */
+  readonly intervalNoapte: IntervalNoapte;
+  /** Aprobatorul vede secțiunea de decizie pe zi; ceilalți, doar rezultatul ei. */
+  readonly poateAproba: boolean;
   readonly onInchide: () => void;
 }
 
@@ -38,6 +47,8 @@ export function CelulaZi({
   intrare,
   poateSterge,
   orePeZi,
+  intervalNoapte,
+  poateAproba,
   onInchide,
 }: Proprietati) {
   const router = useRouter();
@@ -49,6 +60,8 @@ export function CelulaZi({
   const [oreLucrate, setOreLucrate] = useState(String(intrare?.oreLucrate ?? 8));
   const [oreSuplimentare, setOreSuplimentare] = useState(String(intrare?.oreSuplimentare ?? 0));
   const [oreNoapte, setOreNoapte] = useState(String(intrare?.oreNoapte ?? 0));
+  const [motivRespingere, setMotivRespingere] = useState("");
+  const [ceareMotiv, setCereMotiv] = useState(false);
   const [tipZi, setTipZi] = useState<string>(
     intrare !== null && (TIPURI_ZI_ALEGERE as readonly string[]).includes(intrare.tipZi)
       ? intrare.tipZi
@@ -64,6 +77,7 @@ export function CelulaZi({
   const idOreNoapte = useId();
   const idTipZi = useId();
   const idObservatii = useId();
+  const idMotivRespingere = useId();
 
   useEffect(() => {
     const el = dialogRef.current;
@@ -109,6 +123,17 @@ export function CelulaZi({
     if (calculate !== null) {
       setOreLucrate(String(calculate));
       setOreSuplimentare(String(oreSuplimentareDinLucrate(calculate, orePeZi)));
+      // Orele de noapte se DERIVĂ din interval, nu se mai tastează. Coloanele
+      // `noapte_start`/`noapte_sfarsit` existau din 0013 și nu le citea nimic:
+      // cine uita să completeze pierdea sporul de 25%, cine exagera îl încasa
+      // nemeritat, iar nimic nu compara cifra cu tura efectiv lucrată.
+      const noaptea = oreNoapteDinInterval(
+        nouaInceput,
+        nouaSfarsit,
+        intervalNoapte.start,
+        intervalNoapte.sfarsit,
+      );
+      if (noaptea !== null) setOreNoapte(String(noaptea));
     }
   }
 
@@ -119,6 +144,36 @@ export function CelulaZi({
     if (valoare.trim().length > 0 && Number.isFinite(numar)) {
       setOreSuplimentare(String(oreSuplimentareDinLucrate(numar, orePeZi)));
     }
+  }
+
+  /**
+   * Aprobă sau respinge ziua curentă.
+   *
+   * Până în 0067 exista numai aprobarea în BLOC, pe toată luna, și nicio cale
+   * de respingere: aprobatorul care găsea o zi greșită putea aproba tot,
+   * inclusiv greșeala, sau nimic.
+   */
+  function decide(aproba: boolean): void {
+    if (intrare === null) return;
+    if (!aproba && motivRespingere.trim().length < 5) {
+      setCereMotiv(true);
+      setEroare("Respingerea cere un motiv de cel puțin 5 caractere.");
+      return;
+    }
+    setEroare(null);
+    porneste(async () => {
+      const rezultat = await decideZiPontaj({
+        entry_id: intrare.id,
+        aproba,
+        motiv: aproba ? null : motivRespingere,
+      });
+      if (!rezultat.ok) {
+        setEroare(rezultat.error.message);
+        return;
+      }
+      onInchide();
+      router.refresh();
+    });
   }
 
   function sterge(): void {
@@ -266,6 +321,70 @@ export function CelulaZi({
             className={CLASA_CAMP}
           />
         </div>
+
+        {intrare !== null && intrare.respins ? (
+          <p className="border-danger/40 bg-danger/10 rounded-md border p-3 text-sm">
+            <strong>Zi respinsă.</strong> {intrare.motivRespingere ?? "Fără motiv înregistrat."}{" "}
+            Corectați-o și salvați din nou.
+          </p>
+        ) : null}
+
+        {intrare !== null && poateAproba ? (
+          <fieldset className="border-border rounded-lg border p-3">
+            <legend className="px-1 text-sm font-medium">Decizia pe ziua asta</legend>
+            <p className="text-muted-foreground mb-2 text-sm">
+              {intrare.aprobat
+                ? "Ziua e aprobată. O poți respinge dacă ai găsit o problemă."
+                : "Ziua nu e încă decisă. Aprobarea în bloc, din ecranul de aprobări, decide toată luna deodată."}
+            </p>
+
+            {ceareMotiv ? (
+              <div className="mb-2">
+                <label htmlFor={idMotivRespingere} className="block text-sm font-medium">
+                  Motivul respingerii
+                </label>
+                <input
+                  id={idMotivRespingere}
+                  type="text"
+                  value={motivRespingere}
+                  maxLength={500}
+                  onChange={(e) => {
+                    setMotivRespingere(e.target.value);
+                  }}
+                  placeholder="Ex. orele nu corespund cu foaia de prezență"
+                  className={CLASA_CAMP}
+                />
+              </div>
+            ) : null}
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  decide(true);
+                }}
+                disabled={inCurs || intrare.aprobat}
+                className="border-border rounded-md border px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Aprobă ziua
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!ceareMotiv) {
+                    setCereMotiv(true);
+                    return;
+                  }
+                  decide(false);
+                }}
+                disabled={inCurs}
+                className="border-danger text-danger hover:bg-danger hover:text-danger-foreground rounded-md border px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {ceareMotiv ? "Confirmă respingerea" : "Respinge ziua"}
+              </button>
+            </div>
+          </fieldset>
+        ) : null}
 
         <div aria-live="polite">
           {eroare === null ? null : <p className="text-danger text-sm">{eroare}</p>}

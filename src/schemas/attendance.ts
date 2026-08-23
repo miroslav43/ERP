@@ -138,6 +138,37 @@ export const aprobaPontajBlocSchema = z.object({
 });
 export type AprobaPontajBloc = z.output<typeof aprobaPontajBlocSchema>;
 
+/**
+ * Decizia pe O SINGURĂ zi de pontaj.
+ *
+ * Până în 0067 exista doar aprobarea în bloc, pe toată luna, și NICIO cale de
+ * respingere: aprobatorul care găsea o zi greșită într-o lună de 200 de
+ * angajați putea aproba tot, inclusiv greșeala, sau nimic.
+ */
+export const decideZiPontajSchema = z
+  .object({
+    entry_id: z.uuid("Ziua de pontaj selectată nu este validă."),
+    aproba: z.coerce.boolean(),
+    motiv: z
+      .string()
+      .trim()
+      .max(500, "Motivul nu poate depăși 500 de caractere.")
+      .nullable()
+      .default(null)
+      .transform((v) => (v === null || v.length === 0 ? null : v)),
+  })
+  .superRefine((valoare, ctx) => {
+    // Oglindă a CHECK-ului `attendance_entries_respingere_ck` din 0067.
+    if (!valoare.aproba && (valoare.motiv ?? "").trim().length < 5) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["motiv"],
+        message: "Respingerea cere un motiv de cel puțin 5 caractere.",
+      });
+    }
+  });
+export type DecideZiPontaj = z.output<typeof decideZiPontajSchema>;
+
 export const sincronizeazaConcediileSchema = z.object({
   an: z.coerce.number().int().min(2000).max(2100),
   luna: z.coerce.number().int().min(1).max(12),

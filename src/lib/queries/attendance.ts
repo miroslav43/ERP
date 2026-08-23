@@ -222,12 +222,14 @@ export interface IntrarePontaj {
   readonly leave_request_id: string | null;
   readonly observatii: string | null;
   readonly approved_at: string | null;
+  readonly respins_la: string | null;
+  readonly motiv_respingere: string | null;
   readonly batch_id: string | null;
 }
 
 const COLOANE_INTRARE =
   "id, employee_id, data, ora_inceput, ora_sfarsit, ore_lucrate, ore_suplimentare, " +
-  "ore_noapte, tip_zi, sursa, leave_request_id, observatii, approved_at, batch_id";
+  "ore_noapte, tip_zi, sursa, leave_request_id, observatii, approved_at, batch_id, respins_la, motiv_respingere";
 
 export async function intrariLuna(
   organizationId: string,
@@ -288,6 +290,11 @@ export interface SetariPontaj {
   readonly spor_noapte_procent: number;
   readonly spor_weekend_procent: number;
   readonly spor_sarbatoare_procent: number;
+  /** Fereastra de noapte (`"22:00"` / `"06:00"`), din care se derivă `ore_noapte`. */
+  readonly noapte_start: string;
+  readonly noapte_sfarsit: string;
+  /** Minimul de ore de noapte de la care se acordă sporul (art. 126; 0 = fără prag). */
+  readonly prag_ore_noapte: number;
 }
 
 /** Nu există seed pentru `attendance_settings` — `null` e normal, nu o eroare. */
@@ -300,7 +307,8 @@ export async function setariPontaj(
     .from("attendance_settings")
     .select(
       "ore_pe_zi, ore_pe_saptamana, ore_maxime_saptamanale, pauza_masa_minute, " +
-        "spor_suplimentare_procent, spor_noapte_procent, spor_weekend_procent, spor_sarbatoare_procent",
+        "spor_suplimentare_procent, spor_noapte_procent, spor_weekend_procent, spor_sarbatoare_procent, " +
+        "noapte_start, noapte_sfarsit, prag_ore_noapte",
     )
     .eq("organization_id", organizationId)
     .lte("valabil_de_la", dataInceput)

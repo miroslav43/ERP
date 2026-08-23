@@ -25,6 +25,7 @@ import { zileLucratoareLuna } from "@/lib/queries/payroll";
 import { filtrePontajSchema, type StatusPerioada } from "@/schemas/attendance";
 import type { PermissionScope } from "@/config/permissions";
 
+import type { IntervalNoapte } from "./interval-noapte";
 import { NavPontaj } from "./nav-pontaj";
 import { FiltrePontaj } from "./filtre-pontaj";
 import { FoaieColectiva, type RandFoaie } from "./foaie-colectiva";
@@ -48,6 +49,7 @@ async function Foaie({
   poateEdita,
   poateAproba,
   orePeZi,
+  intervalNoapte,
   oreAsteptateLuna,
   parametri,
 }: {
@@ -63,6 +65,7 @@ async function Foaie({
   readonly poateEdita: boolean;
   readonly poateAproba: boolean;
   readonly orePeZi: number;
+  readonly intervalNoapte: IntervalNoapte;
   readonly oreAsteptateLuna: number;
   readonly parametri: Record<string, string | string[] | undefined>;
 }) {
@@ -95,6 +98,8 @@ async function Foaie({
               tipZi: i.tip_zi,
               esteDinConcediu: i.leave_request_id !== null,
               aprobat: i.approved_at !== null,
+              respins: i.respins_la !== null,
+              motivRespingere: i.motiv_respingere,
               observatii: i.observatii,
             },
           ]),
@@ -115,6 +120,7 @@ async function Foaie({
         poateEdita={poateEdita}
         poateAproba={poateAproba}
         orePeZi={orePeZi}
+        intervalNoapte={intervalNoapte}
         oreAsteptateLuna={oreAsteptateLuna}
       />
     );
@@ -165,6 +171,8 @@ async function Foaie({
             tipZi: i.tip_zi,
             esteDinConcediu: i.leave_request_id !== null,
             aprobat: i.approved_at !== null,
+            respins: i.respins_la !== null,
+            motivRespingere: i.motiv_respingere,
             observatii: i.observatii,
           },
         ]),
@@ -191,6 +199,7 @@ async function Foaie({
         poateEdita={poateEdita}
         poateAproba={poateAproba}
         orePeZi={orePeZi}
+        intervalNoapte={intervalNoapte}
         oreAsteptateLuna={oreAsteptateLuna}
       />
       <nav aria-label="Paginare" className="flex justify-end">
@@ -234,10 +243,16 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
   const listaDepartamente = scope === "own" ? [] : await departamente(tenant.organizationId);
   // Nu există seed pentru `attendance_settings` — 8h e implicitul deja folosit
   // în formular înainte de această modificare (`celula-zi.tsx`).
-  const orePeZi =
-    perioada === null
-      ? 8
-      : ((await setariPontaj(tenant.organizationId, perioada.data_inceput))?.ore_pe_zi ?? 8);
+  const setari =
+    perioada === null ? null : await setariPontaj(tenant.organizationId, perioada.data_inceput);
+  const orePeZi = setari?.ore_pe_zi ?? 8;
+  // Fereastra de noapte, din care celula derivă `ore_noapte` în loc s-o ceară
+  // tastată de mână. Implicitele oglindesc `attendance_settings` (0013:39-40):
+  // fără rând de setări, 22:00–06:00 e tot ce spune Codul Muncii art. 125.
+  const intervalNoapte = {
+    start: setari?.noapte_start?.slice(0, 5) ?? "22:00",
+    sfarsit: setari?.noapte_sfarsit?.slice(0, 5) ?? "06:00",
+  } as const;
   // „Ore așteptate” pentru lună — bază de raportare, NU calculul de salariu
   // (acela rămâne în `salarizare`, care poate citi aceleași cifre mai târziu).
   const oreAsteptateLuna =
@@ -292,6 +307,7 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
             poateEdita={poateEdita}
             poateAproba={poateAproba}
             orePeZi={orePeZi}
+            intervalNoapte={intervalNoapte}
             oreAsteptateLuna={oreAsteptateLuna}
             parametri={parametri}
           />

@@ -26,6 +26,7 @@ export const setariSalarizareSchema = z.object({
   norma_zilnica_ore: z.coerce.number().positive("Norma zilnică trebuie să fie pozitivă.").max(24),
   procent_spor_noapte: z.coerce.number().min(0),
   procent_spor_weekend: z.coerce.number().min(0),
+  procent_spor_sarbatoare: z.coerce.number().min(0).max(5).default(1),
   procent_ore_suplimentare: z.coerce.number().min(0),
   valoare_tichet_masa: z.coerce.number().min(0),
   tichete_impozabile: z.coerce.boolean(),

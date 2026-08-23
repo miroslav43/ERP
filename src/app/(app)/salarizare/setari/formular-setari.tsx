@@ -55,6 +55,8 @@ export function FormularSetari({
   const idCam = useId();
   const idNorma = useId();
   const idSporNoapte = useId();
+  const idSporWeekend = useId();
+  const idSporSarbatoare = useId();
   const idOreSupl = useId();
   const idTichet = useId();
   const idSalariuMinim = useId();
@@ -77,7 +79,8 @@ export function FormularSetari({
         cota_cam_angajator: Number(formular.get("cota_cam_angajator")),
         norma_zilnica_ore: Number(formular.get("norma_zilnica_ore")),
         procent_spor_noapte: Number(formular.get("procent_spor_noapte")),
-        procent_spor_weekend: 0,
+        procent_spor_weekend: Number(formular.get("procent_spor_weekend")),
+        procent_spor_sarbatoare: Number(formular.get("procent_spor_sarbatoare")),
         procent_ore_suplimentare: Number(formular.get("procent_ore_suplimentare")),
         valoare_tichet_masa: Number(formular.get("valoare_tichet_masa")),
         tichete_impozabile: formular.get("tichete_impozabile") === "on",
@@ -211,6 +214,43 @@ export function FormularSetari({
             defaultValue={setariCurente?.procent_spor_noapte ?? 0.25}
             className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
           />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label htmlFor={idSporWeekend} className="text-sm">
+            Spor repaus săptămânal (fracție)
+          </label>
+          <input
+            id={idSporWeekend}
+            name="procent_spor_weekend"
+            type="number"
+            step="0.01"
+            min={0}
+            defaultValue={setariCurente?.procent_spor_weekend ?? 1}
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          />
+          <p className="text-muted-foreground text-xs">
+            Codul Muncii art. 137 alin. (2): minimum 100% (adică 1), dacă munca nu e compensată cu
+            timp liber. Formularul trimitea până acum 0 în locul acestui câmp, iar sâmbăta se plătea
+            la tarif simplu.
+          </p>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label htmlFor={idSporSarbatoare} className="text-sm">
+            Spor sărbătoare legală (fracție)
+          </label>
+          <input
+            id={idSporSarbatoare}
+            name="procent_spor_sarbatoare"
+            type="number"
+            step="0.01"
+            min={0}
+            defaultValue={setariCurente?.procent_spor_sarbatoare ?? 1}
+            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          />
+          <p className="text-muted-foreground text-xs">
+            Codul Muncii art. 142 alin. (2): minimum 100%. Fără el, calculul cădea pe sporul de
+            repaus.
+          </p>
         </div>
         <div className="flex flex-col gap-1">
           <label htmlFor={idOreSupl} className="text-sm">

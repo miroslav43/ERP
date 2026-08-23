@@ -837,3 +837,74 @@ describe("calculatePayrollEntry — avantaje în natură", () => {
     expect(rezultat.avantajeNatura).toBe(1000);
   });
 });
+
+describe("calculatePayrollEntry — pragul orelor de noapte (art. 126)", () => {
+  const cuPrag = (prag: number | undefined): PayrollSettingsSnapshot => ({
+    ...SETARI,
+    procentSporNoapte: 0.25,
+    ...(prag === undefined ? {} : { pragOreNoapte: prag }),
+  });
+
+  const cuOreNoapte = (ore: number) => ({ ...PONTAJ_STANDARD, oreNoapte: ore });
+
+  it("DEFECTUL REPARAT: sub prag, sporul de noapte NU se plătește", () => {
+    // Până la 0066 coloana `prag_ore_noapte` n-avea niciun consumator: sporul
+    // de 25% se acorda pe orice fracțiune de oră de noapte.
+    const rezultat = calculatePayrollEntry({
+      settings: cuPrag(3),
+      contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0 },
+      attendance: cuOreNoapte(2),
+      bonuses: [],
+      deductions: [],
+    });
+    expect(rezultat.sporNoapte).toBe(0);
+    expect(rezultat.warnings.some((w) => w.cod === "SAL_SPOR_NOAPTE_SUB_PRAG")).toBe(true);
+  });
+
+  it("exact la prag, sporul se plătește integral", () => {
+    const rezultat = calculatePayrollEntry({
+      settings: cuPrag(3),
+      contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0 },
+      attendance: cuOreNoapte(3),
+      bonuses: [],
+      deductions: [],
+    });
+    // 3 x (5000 / (21 x 8)) x 0,25 = 22,32 lei.
+    expect(rezultat.sporNoapte).toBeCloseTo(22.32, 2);
+    expect(rezultat.warnings.some((w) => w.cod === "SAL_SPOR_NOAPTE_SUB_PRAG")).toBe(false);
+  });
+
+  it("pragul zero păstrează comportamentul de dinainte — orice oră primește spor", () => {
+    const rezultat = calculatePayrollEntry({
+      settings: cuPrag(0),
+      contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0 },
+      attendance: cuOreNoapte(1),
+      bonuses: [],
+      deductions: [],
+    });
+    expect(rezultat.sporNoapte).toBeGreaterThan(0);
+  });
+
+  it("pragul absent din setări se comportă ca zero — apelanții vechi nu se rup", () => {
+    const rezultat = calculatePayrollEntry({
+      settings: cuPrag(undefined),
+      contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0 },
+      attendance: cuOreNoapte(1),
+      bonuses: [],
+      deductions: [],
+    });
+    expect(rezultat.sporNoapte).toBeGreaterThan(0);
+  });
+
+  it("zero ore de noapte nu ridică avertismentul de prag", () => {
+    const rezultat = calculatePayrollEntry({
+      settings: cuPrag(3),
+      contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0 },
+      attendance: cuOreNoapte(0),
+      bonuses: [],
+      deductions: [],
+    });
+    expect(rezultat.sporNoapte).toBe(0);
+    expect(rezultat.warnings.some((w) => w.cod === "SAL_SPOR_NOAPTE_SUB_PRAG")).toBe(false);
+  });
+});

@@ -559,6 +559,9 @@ export type Database = {
         Row: {
           approved_at: string | null
           approved_by: string | null
+          motiv_respingere: string | null
+          respins_de: string | null
+          respins_la: string | null
           batch_id: string | null
           created_at: string
           created_by: string | null
@@ -583,6 +586,9 @@ export type Database = {
         Insert: {
           approved_at?: string | null
           approved_by?: string | null
+          motiv_respingere?: string | null
+          respins_de?: string | null
+          respins_la?: string | null
           batch_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -607,6 +613,9 @@ export type Database = {
         Update: {
           approved_at?: string | null
           approved_by?: string | null
+          motiv_respingere?: string | null
+          respins_de?: string | null
+          respins_la?: string | null
           batch_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -7138,6 +7147,7 @@ export type Database = {
           plata_avans: boolean
           procent_ore_suplimentare: number
           procent_spor_noapte: number
+          procent_spor_sarbatoare: number
           procent_spor_weekend: number
           rotunjire_lei: boolean
           salariu_minim_brut: number
@@ -7182,6 +7192,7 @@ export type Database = {
           plata_avans?: boolean
           procent_ore_suplimentare?: number
           procent_spor_noapte?: number
+          procent_spor_sarbatoare?: number
           procent_spor_weekend?: number
           rotunjire_lei?: boolean
           salariu_minim_brut?: number
@@ -7226,6 +7237,7 @@ export type Database = {
           plata_avans?: boolean
           procent_ore_suplimentare?: number
           procent_spor_noapte?: number
+          procent_spor_sarbatoare?: number
           procent_spor_weekend?: number
           rotunjire_lei?: boolean
           salariu_minim_brut?: number
@@ -10035,6 +10047,15 @@ export type Database = {
           actualizate: number
           inserate: number
         }[]
+      }
+      decide_zi_pontaj: {
+        Args: {
+          p_aproba: boolean
+          p_entry_id: string
+          p_motiv?: string
+          p_organization_id: string
+        }
+        Returns: string
       }
       peek_invitation: { Args: { p_token: string }; Returns: Json }
       pontaj_agregat_salarizare: {

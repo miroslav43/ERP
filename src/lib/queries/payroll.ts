@@ -25,6 +25,7 @@ export interface SetariSalarizare {
   readonly norma_zilnica_ore: number;
   readonly procent_spor_noapte: number;
   readonly procent_spor_weekend: number;
+  readonly procent_spor_sarbatoare: number;
   readonly procent_ore_suplimentare: number;
   readonly valoare_tichet_masa: number;
   readonly tichete_impozabile: boolean;
@@ -67,7 +68,7 @@ export async function citesteSetariPeId(
   const { data, error } = await db
     .from("payroll_settings")
     .select(
-      "id, valabil_de_la, cota_cas, cota_cass, cota_impozit, cota_cam_angajator, norma_zilnica_ore, procent_spor_noapte, procent_spor_weekend, procent_ore_suplimentare, valoare_tichet_masa, tichete_impozabile, tichete_supuse_cass, rotunjire_lei, salariu_minim_brut, aplica_minim_contributii, mod_calcul_indemnizatie_co, luni_medie_indemnizatie_co, zile_avertizare_termen_compensare, plafon_poprire_unica, plafon_popriri_concurente, verificat_de_contabil, verificat_la, note",
+      "id, valabil_de_la, cota_cas, cota_cass, cota_impozit, cota_cam_angajator, norma_zilnica_ore, procent_spor_noapte, procent_spor_weekend, procent_spor_sarbatoare, procent_ore_suplimentare, valoare_tichet_masa, tichete_impozabile, tichete_supuse_cass, rotunjire_lei, salariu_minim_brut, aplica_minim_contributii, mod_calcul_indemnizatie_co, luni_medie_indemnizatie_co, zile_avertizare_termen_compensare, plafon_poprire_unica, plafon_popriri_concurente, verificat_de_contabil, verificat_la, note",
     )
     .eq("organization_id", organizationId)
     .eq("id", id)
@@ -87,7 +88,7 @@ export async function citesteSetariValabile(
   const { data: randuri, error } = await db
     .from("payroll_settings")
     .select(
-      "id, valabil_de_la, cota_cas, cota_cass, cota_impozit, cota_cam_angajator, norma_zilnica_ore, procent_spor_noapte, procent_spor_weekend, procent_ore_suplimentare, valoare_tichet_masa, tichete_impozabile, tichete_supuse_cass, rotunjire_lei, salariu_minim_brut, aplica_minim_contributii, mod_calcul_indemnizatie_co, luni_medie_indemnizatie_co, zile_avertizare_termen_compensare, plafon_poprire_unica, plafon_popriri_concurente, verificat_de_contabil, verificat_la, note",
+      "id, valabil_de_la, cota_cas, cota_cass, cota_impozit, cota_cam_angajator, norma_zilnica_ore, procent_spor_noapte, procent_spor_weekend, procent_spor_sarbatoare, procent_ore_suplimentare, valoare_tichet_masa, tichete_impozabile, tichete_supuse_cass, rotunjire_lei, salariu_minim_brut, aplica_minim_contributii, mod_calcul_indemnizatie_co, luni_medie_indemnizatie_co, zile_avertizare_termen_compensare, plafon_poprire_unica, plafon_popriri_concurente, verificat_de_contabil, verificat_la, note",
     )
     .eq("organization_id", organizationId)
     .lte("valabil_de_la", data)

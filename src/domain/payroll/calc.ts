@@ -28,6 +28,7 @@
 // NIMIC din modulul ăsta nu e certificat. Fiecare cotă vine din
 // `PayrollSettingsSnapshot`, niciodată hardcodată — vezi banner-ul din UI.
 
+import { sporDeNoapteSeAplica } from "../attendance/calcul-ore";
 import { rotunjesteLaBani } from "../bani";
 import { descriereCompleta, problema, problemaDinEtapa, type CodProblema } from "./erori";
 import { calculeazaCompensarea, type IntrareCompensare } from "./etape/compensare-ore";
@@ -57,6 +58,17 @@ export interface PayrollSettingsSnapshot {
   readonly cotaCamAngajator: number;
   readonly normaZilnicaOre: number;
   readonly procentSporNoapte: number;
+  /**
+   * Minimul de ore de noapte dintr-o zi de la care se acordă sporul.
+   *
+   * Codul Muncii art. 126 îl leagă de „cel puțin 3 ore de muncă de noapte”.
+   * `attendance_settings.prag_ore_noapte` exista din 0057 cu implicitul 0 și
+   * ZERO consumatori aici: sporul de 25% se aplica pe orice fracțiune de oră.
+   *
+   * Opțional pentru compatibilitate cu apelanții existenți; `0` și `undefined`
+   * înseamnă amândouă „fără prag”.
+   */
+  readonly pragOreNoapte?: number;
   readonly procentSporWeekend: number;
   /**
    * Sporul distinct pentru sărbătoare legală. Lipsește din `payroll_settings`;
@@ -370,9 +382,16 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     "sumaOreSuplimentare",
     oreSuplDePlata * oreRata * (1 + settings.procentOreSuplimentare),
   );
+  // Pragul se aplică pe ZI în pontaj, dar aici avem totalul lunii — comparația
+  // rămâne cu totalul, ca aproximare conservatoare declarată: o lună cu o
+  // singură oră de noapte nu primește spor, una cu 30 primește. Distribuția pe
+  // zile ar cere agregarea pontajului pe două axe, ceea ce e o schimbare de
+  // contract a lui `pontaj_agregat_salarizare`, nu de motor.
+  const pragNoapte = settings.pragOreNoapte ?? 0;
+  const sporNoapteSeAplica = sporDeNoapteSeAplica(attendance.oreNoapte, pragNoapte);
   const sporNoapte = inregistreaza(
     "sporNoapte",
-    attendance.oreNoapte * oreRata * settings.procentSporNoapte,
+    sporNoapteSeAplica ? attendance.oreNoapte * oreRata * settings.procentSporNoapte : 0,
   );
 
   // Zilele de repaus săptămânal și de sărbătoare legală.
@@ -414,6 +433,12 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     const p = problema(cod, { detalii });
     warnings.push({ cod: p.cod, mesaj: descriereCompleta(p) });
   };
+  if (attendance.oreNoapte > 0 && !sporNoapteSeAplica) {
+    avertizeaza(
+      "SAL_SPOR_NOAPTE_SUB_PRAG",
+      `${attendance.oreNoapte.toFixed(2)} ore de noapte, sub pragul de ${pragNoapte.toFixed(2)} ore.`,
+    );
+  }
   if (oreSarbatoare > 0 && settings.procentSporSarbatoare === undefined) {
     avertizeaza(
       "SAL_SPOR_SARBATOARE_NECONFIGURAT",

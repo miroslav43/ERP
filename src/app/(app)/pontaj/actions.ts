@@ -11,6 +11,7 @@ import { formatMonthYear } from "@/lib/format/date";
 import { zileNelucratoare } from "@/lib/queries/leave";
 import {
   aprobaPontajBlocSchema,
+  decideZiPontajSchema,
   deschidePerioadaSchema,
   idPerioadaSchema,
   salveazaZiPontajSchema,
@@ -553,5 +554,50 @@ export const sincronizeazaConcediile = createAction({
     }
 
     return sincronizeazaZileleDeConcediu(db, ctx.tenant.organizationId, zileAprobate);
+  },
+});
+
+/**
+ * Aprobă sau respinge o SINGURĂ zi de pontaj.
+ *
+ * Completează `aprobaPontajBloc`, care decide pe toată luna. Până în 0067
+ * bloc-ul era singura opțiune, iar respingerea nu exista deloc: aprobatorul
+ * care găsea o zi greșită într-o lună de 200 de angajați putea aproba tot,
+ * inclusiv greșeala, sau nimic.
+ *
+ * `minScope: "team"` — managerul direct decide pentru echipa lui, patronul
+ * pentru toată firma. HR a ieșit din aprobări în 0067, la fel ca la concedii.
+ *
+ * Decizia trece prin `public.decide_zi_pontaj`, nu printr-un UPDATE direct:
+ * politica de UPDATE ar bloca un rând deja aprobat, iar funcția verifică
+ * explicit dreptul, garda de tenant și starea perioadei.
+ */
+export const decideZiPontaj = createAction({
+  name: "attendance.entry.decide",
+  feature: "attendance",
+  permission: "attendance:approve",
+  minScope: "team",
+  input: decideZiPontajSchema,
+  audit: {
+    action: "update",
+    entityType: "attendance_entry",
+    entityId: (input) => input.entry_id,
+    // `motiv` NU intră în audit: descrie o problemă a unei persoane anume, iar
+    // jurnalul e citibil de oricine are `audit:read`.
+    allow: ["entry_id", "aproba"],
+  },
+  revalidate: [...CAI_REVALIDARE],
+  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    const { data, error } = await ctx.supabase.rpc("decide_zi_pontaj", {
+      p_organization_id: ctx.tenant.organizationId,
+      p_entry_id: input.entry_id,
+      p_aproba: input.aproba,
+      ...(input.motiv === null ? {} : { p_motiv: input.motiv }),
+    });
+    if (error !== null) traduEroare(error);
+    if (data === null) {
+      throw businessRule("Ziua de pontaj nu a putut fi decisă.");
+    }
+    return { id: data };
   },
 });

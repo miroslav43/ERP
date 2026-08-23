@@ -18,6 +18,7 @@ import {
   scutiriActivePerioada,
   zileLucratoareLuna,
 } from "@/lib/queries/payroll";
+import { setariPontaj } from "@/lib/queries/attendance";
 import { calculatePayrollEntry, type PayrollSettingsSnapshot } from "@/domain/payroll/calc";
 import { descriereCompleta, problema } from "@/domain/payroll/erori";
 import {
@@ -54,6 +55,7 @@ export const salveazaSetari = createAction({
         norma_zilnica_ore: input.norma_zilnica_ore,
         procent_spor_noapte: input.procent_spor_noapte,
         procent_spor_weekend: input.procent_spor_weekend,
+        procent_spor_sarbatoare: input.procent_spor_sarbatoare,
         procent_ore_suplimentare: input.procent_ore_suplimentare,
         valoare_tichet_masa: input.valoare_tichet_masa,
         tichete_impozabile: input.tichete_impozabile,
@@ -144,6 +146,13 @@ export const creeazaPerioada = createAction({
 
 function laSetariSnapshot(
   setari: NonNullable<Awaited<ReturnType<typeof citesteSetariPeId>>>,
+  /**
+   * `attendance_settings.prag_ore_noapte` — parametrul trăiește pe setările de
+   * PONTAJ, nu pe cele de salarizare, și rămâne acolo: e unul singur al
+   * organizației, iar o a doua coloană ar fi însemnat două surse de adevăr care
+   * pot diverge tăcut. Intră în snapshot, deci perioada rămâne reproductibilă.
+   */
+  pragOreNoapte: number,
 ): PayrollSettingsSnapshot {
   return {
     valabilDeLa: setari.valabil_de_la,
@@ -154,6 +163,11 @@ function laSetariSnapshot(
     normaZilnicaOre: setari.norma_zilnica_ore,
     procentSporNoapte: setari.procent_spor_noapte,
     procentSporWeekend: setari.procent_spor_weekend,
+    // Coloană proprie din 0066. Până atunci câmpul era opțional în motor și nu-l
+    // popula nimeni, deci `calc.ts:386` cădea pe sporul de weekend — care intra
+    // cu 0, iar munca de 1 Decembrie se plătea la tarif simplu.
+    procentSporSarbatoare: setari.procent_spor_sarbatoare,
+    pragOreNoapte,
     procentOreSuplimentare: setari.procent_ore_suplimentare,
     valoareTichetMasa: setari.valoare_tichet_masa,
     ticheteImpozabile: setari.tichete_impozabile,
@@ -206,9 +220,15 @@ export const calculeazaPerioada = createAction({
 
     const setari = await citesteSetariPeId(ctx.tenant.organizationId, perioada.settings_id);
     if (setari === null) throw notFound("Setările de salarizare ale perioadei nu mai există.");
-    const snapshot = laSetariSnapshot(setari);
 
-    const { ultima: ultimaZiALunii } = marginileLunii(perioada.an, perioada.luna);
+    const { prima: primaZiALunii, ultima: ultimaZiALunii } = marginileLunii(
+      perioada.an,
+      perioada.luna,
+    );
+    // Pragul orelor de noapte (Codul Muncii art. 126). Fără rând de setări de
+    // pontaj, implicitul e 3 — același ca al coloanei din 0066.
+    const setariPontajLuna = await setariPontaj(ctx.tenant.organizationId, primaZiALunii);
+    const snapshot = laSetariSnapshot(setari, setariPontajLuna?.prag_ore_noapte ?? 3);
     const [
       zileLuna,
       personal,
@@ -627,6 +647,46 @@ export const aprobaPerioada = createAction({
   audit: { action: "update", entityType: "payroll_period", allow: ["id"] },
   revalidate: CAI_REVALIDARE,
   handler: async (ctx, input) => {
+    // Poarta indemnizației de concediu de odihnă.
+    //
+    // `mod_calcul_indemnizatie_co = 'baza'` plătește concediul la rata zilnică a
+    // salariului, care poate fi sub minimul din Codul Muncii art. 150 alin. (2)
+    // — media zilnică a drepturilor salariale din ultimele trei luni, când e mai
+    // avantajoasă. Până în 0067 asta era IMPLICITUL și producea doar un
+    // avertisment pe fluturaș, pe care nimic nu-l citea.
+    //
+    // Blocajul e îngust deliberat: se ridică DOAR dacă perioada chiar conține
+    // zile de concediu de odihnă. O firmă fără concedii în luna aia nu e
+    // deranjată, iar una care alege conștient altă metodă are două ieșiri
+    // reale — schimbă setarea, sau recalculează perioada după ce a schimbat-o.
+    const { data: perioadaCo, error: eroarePerioadaCo } = await ctx.supabase
+      .from("payroll_periods")
+      .select("settings_id, an, luna")
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .maybeSingle<{ settings_id: string; an: number; luna: number }>();
+    if (eroarePerioadaCo !== null) traduEroare(eroarePerioadaCo);
+
+    if (perioadaCo !== null) {
+      const setariCo = await citesteSetariPeId(ctx.tenant.organizationId, perioadaCo.settings_id);
+      if (setariCo !== null && setariCo.mod_calcul_indemnizatie_co === "baza") {
+        const { data: cuCo, error: eroareCuCo } = await ctx.supabase
+          .from("payroll_entries")
+          .select("id")
+          .eq("period_id", input.id)
+          .gt("zile_concediu_odihna", 0)
+          .is("deleted_at", null)
+          .limit(1);
+        if (eroareCuCo !== null) traduEroare(eroareCuCo);
+        if ((cuCo ?? []).length > 0) {
+          throw businessRule(
+            "Perioada conține zile de concediu de odihnă, iar indemnizația e setată pe „rata salariului de bază”. Codul Muncii art. 150 alin. (2) cere media ultimelor trei luni când e mai avantajoasă. Schimbați setarea pe „cea mai avantajoasă” și recalculați perioada înainte de aprobare.",
+          );
+        }
+      }
+    }
+
     // Capcana 17: un UPDATE respins de clauza USING a politicii RLS afectează
     // ZERO rânduri, TĂCUT — fără nicio eroare. `.select()` după update e
     // singura dovadă că s-a schimbat ceva; fără el UI-ul raportează succes
