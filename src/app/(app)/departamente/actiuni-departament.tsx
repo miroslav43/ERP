@@ -3,11 +3,16 @@
 
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRightLeft, Ban, Pencil } from "lucide-react";
+import { ArrowRightLeft, Ban, Pencil, Undo2 } from "lucide-react";
 
 import { Buton } from "@/components/ui/buton";
 
-import { actualizeazaDepartament, dezactiveazaDepartament, mutaDepartament } from "./actions";
+import {
+  actualizeazaDepartament,
+  dezactiveazaDepartament,
+  mutaDepartament,
+  reactiveazaDepartament,
+} from "./actions";
 
 interface OptiuneDepartament {
   readonly id: string;
@@ -29,6 +34,7 @@ interface Proprietati {
     manager_employee_id: string | null;
     cost_center: string | null;
     numarAngajati: number;
+    activ: boolean;
   }>;
   readonly departamente: readonly OptiuneDepartament[];
   readonly angajati: readonly OptiuneAngajat[];
@@ -91,10 +97,19 @@ export function ActiuniDepartament({
     });
   }
 
-  function dezactiveaza(): void {
+  /**
+   * Dezactivarea NU cere confirmare, și e o decizie, nu o scăpare: de când
+   * există butonul de mai jos, se poate desface dintr-un clic. Confirmarea se
+   * păstrează pentru ce chiar nu se mai poate lua înapoi — închiderea lunii de
+   * salarizare, trimiterea fluturașilor pe e-mail. Un dialog pus peste tot își
+   * pierde înțelesul exact acolo unde ar trebui să oprească pe cineva.
+   */
+  function comutaActivarea(): void {
     setEroare(null);
     porneste(async () => {
-      const rezultat = await dezactiveazaDepartament({ id: departament.id });
+      const rezultat = departament.activ
+        ? await dezactiveazaDepartament({ id: departament.id })
+        : await reactiveazaDepartament({ id: departament.id });
       if (!rezultat.ok) {
         setEroare(rezultat.error.message);
         return;
@@ -124,8 +139,13 @@ export function ActiuniDepartament({
           <ArrowRightLeft aria-hidden="true" className="size-3.5" />
           Mută
         </Buton>
-        {departament.numarAngajati === 0 ? (
-          <Buton varianta="distructiv" onClick={dezactiveaza} disabled={inCurs}>
+        {!departament.activ ? (
+          <Buton varianta="secundar" onClick={comutaActivarea} disabled={inCurs}>
+            <Undo2 aria-hidden="true" className="size-3.5" />
+            Reactivează
+          </Buton>
+        ) : departament.numarAngajati === 0 ? (
+          <Buton varianta="distructiv" onClick={comutaActivarea} disabled={inCurs}>
             <Ban aria-hidden="true" className="size-3.5" />
             Dezactivează
           </Buton>

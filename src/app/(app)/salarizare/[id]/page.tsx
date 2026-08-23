@@ -161,6 +161,14 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
         poateCalcula={poateCalcula}
         poateAproba={poateAproba}
         poateExporta={poateExporta}
+        // Cifrele din confirmări. O consecință scrisă fără numere e o
+        // avertizare generică; „89 de destinatari" e o decizie.
+        rezumat={{
+          perioada: `${numeLuna(perioada.luna)} ${String(perioada.an)}`,
+          angajati: inregistrari.length,
+          totalNet: formatLei(perioada.total_net),
+          totalBrut: formatLei(perioada.total_brut),
+        }}
       />
 
       {perioada.status !== "aprobat" && perioada.status !== "inchis" ? null : (

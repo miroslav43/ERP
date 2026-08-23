@@ -140,3 +140,46 @@ export const dezactiveazaFunctie = createAction<
     return { id: input.id };
   },
 });
+
+/**
+ * Reactivarea unei funcții dezactivate. Vezi nota din
+ * `src/app/(app)/departamente/actions.ts`: `activ: true` apărea într-un singur
+ * loc în tot modulul — la CREARE — deci o funcție dezactivată din greșeală nu se
+ * mai putea readuce din interfață.
+ *
+ * N-are precondiție, spre deosebire de dezactivare: o funcție activă fără
+ * angajați e o stare legitimă.
+ */
+export const reactiveazaFunctie = createAction<
+  typeof dezactiveazaFunctieSchema,
+  FunctieIdentificata
+>({
+  name: "job_positions.reactivate",
+  permission: "departments:update",
+  minScope: "all",
+  input: dezactiveazaFunctieSchema,
+  audit: {
+    action: "update",
+    entityType: "job_positions",
+    entityId: (input) => input.id,
+    allow: [],
+  },
+  handler: async (ctx, input) => {
+    const db = await createServerSupabase();
+    const { data: reactivata, error } = await db
+      .from("job_positions")
+      .update({ activ: true, updated_by: ctx.user.id })
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle();
+    if (error !== null) throw mapPostgrestError(error, ctx.requestId);
+    if (reactivata === null) {
+      throw businessRule(
+        "Funcția nu a fost reactivată: a fost ștearsă între timp sau nu aveți dreptul de a modifica structura organizatorică. Reîncărcați pagina.",
+      );
+    }
+    revalidatePath("/functii");
+    return { id: input.id };
+  },
+});

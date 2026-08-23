@@ -3,11 +3,11 @@
 
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Ban, Pencil } from "lucide-react";
+import { Ban, Pencil, Undo2 } from "lucide-react";
 
 import { Buton } from "@/components/ui/buton";
 
-import { actualizeazaFunctie, dezactiveazaFunctie } from "./actions";
+import { actualizeazaFunctie, dezactiveazaFunctie, reactiveazaFunctie } from "./actions";
 
 interface Proprietati {
   readonly functie: Readonly<{
@@ -16,6 +16,7 @@ interface Proprietati {
     cod_cor: string | null;
     nivel_studii: string | null;
     descriere: string | null;
+    activ: boolean;
   }>;
   readonly poateEdita: boolean;
 }
@@ -51,10 +52,14 @@ export function ActiuniFunctie({ functie, poateEdita }: Proprietati) {
     });
   }
 
-  function dezactiveaza(): void {
+  /** Vezi nota din `departamente/actiuni-departament.tsx`: dezactivarea e acum
+   *  reversibilă, deci nu cere confirmare. */
+  function comutaActivarea(): void {
     setEroare(null);
     porneste(async () => {
-      const rezultat = await dezactiveazaFunctie({ id: functie.id });
+      const rezultat = functie.activ
+        ? await dezactiveazaFunctie({ id: functie.id })
+        : await reactiveazaFunctie({ id: functie.id });
       if (!rezultat.ok) {
         setEroare(rezultat.error.message);
         return;
@@ -75,10 +80,17 @@ export function ActiuniFunctie({ functie, poateEdita }: Proprietati) {
           <Pencil aria-hidden="true" className="size-3.5" />
           Editează
         </Buton>
-        <Buton varianta="distructiv" onClick={dezactiveaza} disabled={inCurs}>
-          <Ban aria-hidden="true" className="size-3.5" />
-          Dezactivează
-        </Buton>
+        {functie.activ ? (
+          <Buton varianta="distructiv" onClick={comutaActivarea} disabled={inCurs}>
+            <Ban aria-hidden="true" className="size-3.5" />
+            Dezactivează
+          </Buton>
+        ) : (
+          <Buton varianta="secundar" onClick={comutaActivarea} disabled={inCurs}>
+            <Undo2 aria-hidden="true" className="size-3.5" />
+            Reactivează
+          </Buton>
+        )}
       </div>
 
       {eroare === null ? null : (

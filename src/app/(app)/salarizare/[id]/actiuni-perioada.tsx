@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
+import { ConfirmareActiune } from "@/components/ui/dialog";
 
 import { aprobaPerioada, calculeazaPerioada, inchidePerioada, trimiteFluturasii } from "../actions";
 
@@ -13,7 +14,17 @@ interface Proprietati {
   readonly poateCalcula: boolean;
   readonly poateAproba: boolean;
   readonly poateExporta: boolean;
+  /** Cifrele arătate în confirmări: câți oameni și cât se plătește. */
+  readonly rezumat: Readonly<{
+    perioada: string;
+    angajati: number;
+    totalNet: string;
+    totalBrut: string;
+  }>;
 }
+
+/** Care dintre cele trei acțiuni ireversibile așteaptă confirmare. */
+type ActiuneDeConfirmat = "aproba" | "inchide" | "trimite";
 
 /**
  * Un singur buton vizibil per stare, ca să nu existe cale de a apăsa
@@ -26,11 +37,23 @@ export function ActiuniPerioada({
   poateCalcula,
   poateAproba,
   poateExporta,
+  rezumat,
 }: Proprietati) {
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
   const [eroare, setEroare] = useState<string | null>(null);
   const [raportTrimitere, setRaportTrimitere] = useState<string | null>(null);
+  /*
+   * Cele trei acțiuni ireversibile ale ecranului. Produsul avea ZERO confirmări
+   * pentru douăzeci de acțiuni ireversibile, iar astea trei sunt cele mai
+   * costisitoare din tot modulul:
+   *   · aprobarea închide intrările pentru modificare;
+   *   · închiderea lunii nu se mai poate desface;
+   *   · trimiterea fluturașilor pleacă prin e-mail către fiecare angajat, iar
+   *     un e-mail plecat nu se retrage. Aceasta cere și TASTAREA lunii, nu doar
+   *     un clic: e singura din cele trei care iese din sistem.
+   */
+  const [deConfirmat, setDeConfirmat] = useState<ActiuneDeConfirmat | null>(null);
 
   /**
    * Trimiterea fluturașilor nu folosește `ruleaza`: are un rezultat de raportat
@@ -101,7 +124,7 @@ export function ActiuniPerioada({
           inCurs={inCurs}
           textInCurs="Se aprobă…"
           onClick={() => {
-            ruleaza(() => aprobaPerioada({ id }));
+            setDeConfirmat("aproba");
           }}
         >
           Aprobă
@@ -114,7 +137,7 @@ export function ActiuniPerioada({
           inCurs={inCurs}
           textInCurs="Se închide…"
           onClick={() => {
-            ruleaza(() => inchidePerioada({ id }));
+            setDeConfirmat("inchide");
           }}
         >
           Închide perioada
@@ -122,7 +145,14 @@ export function ActiuniPerioada({
       ) : null}
 
       {(status === "aprobat" || status === "inchis") && poateExporta ? (
-        <Buton varianta="secundar" inCurs={inCurs} textInCurs="Se trimit…" onClick={trimite}>
+        <Buton
+          varianta="secundar"
+          inCurs={inCurs}
+          textInCurs="Se trimit…"
+          onClick={() => {
+            setDeConfirmat("trimite");
+          }}
+        >
           Trimite fluturașii pe e-mail
         </Buton>
       ) : null}
@@ -138,6 +168,69 @@ export function ActiuniPerioada({
           {eroare}
         </p>
       )}
+
+      <ConfirmareActiune
+        deschis={deConfirmat === "aproba"}
+        laInchidere={() => {
+          setDeConfirmat(null);
+        }}
+        titlu="Aprobați statul de plată?"
+        consecinta="După aprobare, intrările nu se mai pot modifica și perioada nu se mai poate recalcula. Corecțiile cer o perioadă nouă."
+        cifre={[
+          { eticheta: "Perioada", valoare: rezumat.perioada },
+          { eticheta: "Angajați", valoare: String(rezumat.angajati) },
+          { eticheta: "Total net", valoare: rezumat.totalNet },
+        ]}
+        etichetaConfirmare="Aprobă statul"
+        inCurs={inCurs}
+        laConfirmare={() => {
+          setDeConfirmat(null);
+          ruleaza(() => aprobaPerioada({ id }));
+        }}
+      />
+
+      <ConfirmareActiune
+        deschis={deConfirmat === "inchide"}
+        laInchidere={() => {
+          setDeConfirmat(null);
+        }}
+        titlu="Închideți luna?"
+        consecinta="Luna închisă nu se mai poate redeschide. Pontajul, primele și reținerile ei rămân fixate așa cum sunt acum."
+        cifre={[
+          { eticheta: "Perioada", valoare: rezumat.perioada },
+          { eticheta: "Angajați", valoare: String(rezumat.angajati) },
+          { eticheta: "Total brut", valoare: rezumat.totalBrut },
+        ]}
+        etichetaConfirmare="Închide luna"
+        distructiv
+        inCurs={inCurs}
+        laConfirmare={() => {
+          setDeConfirmat(null);
+          ruleaza(() => inchidePerioada({ id }));
+        }}
+      />
+
+      <ConfirmareActiune
+        deschis={deConfirmat === "trimite"}
+        laInchidere={() => {
+          setDeConfirmat(null);
+        }}
+        titlu="Trimiteți fluturașii pe e-mail?"
+        consecinta="Fiecare angajat cu adresă de e-mail primește fluturașul lui. Un e-mail plecat nu se mai poate retrage, iar retrimiterea nu îl șterge pe cel de dinainte."
+        cifre={[
+          { eticheta: "Perioada", valoare: rezumat.perioada },
+          { eticheta: "Destinatari", valoare: String(rezumat.angajati) },
+        ]}
+        etichetaConfirmare="Trimite fluturașii"
+        // Singura dintre cele trei care iese din sistem: cere tastarea lunii,
+        // nu doar un clic. Un dublu-clic pe „Trimite" nu poate declanșa asta.
+        cereTastare={rezumat.perioada}
+        inCurs={inCurs}
+        laConfirmare={() => {
+          setDeConfirmat(null);
+          trimite();
+        }}
+      />
     </div>
   );
 }

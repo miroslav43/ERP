@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { CheckCheck, RefreshCw } from "lucide-react";
 
 import { Buton } from "@/components/ui/buton";
+import { ConfirmareActiune } from "@/components/ui/dialog";
 
 import { aprobaPontajBloc, sincronizeazaConcediile } from "../actions";
 
@@ -39,6 +40,13 @@ export function AprobareBloc({
   const [eroareSincronizare, setEroareSincronizare] = useState<string | null>(null);
   const [rezultatSincronizare, setRezultatSincronizare] = useState<string | null>(null);
   const idObservatii = useId();
+  /*
+   * Aprobarea în bloc n-avea nicio oprire, deși e ireversibilă: după ea, zilele
+   * nu se mai pot modifica manual, iar redeschiderea cere altă acțiune și alt
+   * rol. Un clic greșit pe „Aprobă în bloc (412 linii)" nu se poate desface
+   * rând cu rând.
+   */
+  const [confirmareDeschisa, setConfirmareDeschisa] = useState(false);
 
   function aproba(): void {
     setEroareAprobare(null);
@@ -91,7 +99,9 @@ export function AprobareBloc({
         />
         <Buton
           varianta="primar"
-          onClick={aproba}
+          onClick={() => {
+            setConfirmareDeschisa(true);
+          }}
           disabled={numarLiniiNeaprobate === 0}
           inCurs={inCursAprobare}
           textInCurs="Se aprobă…"
@@ -105,6 +115,33 @@ export function AprobareBloc({
           </p>
         )}
       </div>
+
+      <ConfirmareActiune
+        deschis={confirmareDeschisa}
+        laInchidere={() => {
+          setConfirmareDeschisa(false);
+        }}
+        titlu="Aprobați lotul de pontaj?"
+        consecinta={
+          departmentId === null
+            ? "Liniile aprobate nu se mai pot modifica manual. Redeschiderea lor cere altă acțiune și alt rol."
+            : "Se aprobă numai liniile departamentului filtrat acum. Liniile aprobate nu se mai pot modifica manual."
+        }
+        cifre={[
+          { eticheta: "Perioada", valoare: `${String(luna).padStart(2, "0")}.${String(an)}` },
+          { eticheta: "Linii aprobate", valoare: String(numarLiniiNeaprobate) },
+          {
+            eticheta: "Cuprindere",
+            valoare: departmentId === null ? "toate departamentele" : "un singur departament",
+          },
+        ]}
+        etichetaConfirmare="Aprobă lotul"
+        inCurs={inCursAprobare}
+        laConfirmare={() => {
+          setConfirmareDeschisa(false);
+          aproba();
+        }}
+      />
 
       {poateSincroniza ? (
         <div className="border-border space-y-2 border-t pt-4">
