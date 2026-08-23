@@ -5,14 +5,14 @@ import type { Metadata } from "next";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { buton } from "@/components/ui/buton";
-import { RandTabel } from "@/components/data/rand-tabel";
 import { StareGoala } from "@/components/ui/stare-goala";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatLei } from "@/lib/format/money";
-import { listeazaPerioade } from "@/lib/queries/payroll";
+import { listeazaPerioade, type RandPerioada } from "@/lib/queries/payroll";
 import { Wallet } from "lucide-react";
 
 import {
@@ -41,6 +41,52 @@ export default async function PaginaSalarizare() {
   const poateCrea = can(permisiuni, "payroll:create", "all");
   const perioade = await listeazaPerioade(tenant.organizationId);
 
+  /*
+   * Lista se citește întreagă (fără cursor keyset), deci antetele nu pretind că
+   * sortează: un antet care pare apăsabil și nu face nimic e mai rău decât unul
+   * care nu pare. Cifrele sunt însă `numeric`, ca să se compare pe verticală —
+   * într-un tabel de bani, coloana nealiniată e o capcană de citire.
+   */
+  const coloane: readonly Coloana<RandPerioada>[] = [
+    {
+      cheie: "perioada",
+      antet: "Perioadă",
+      peTelefon: "titlu",
+      celula: (p) => `${numeLuna(p.luna)} ${String(p.an)}`,
+    },
+    {
+      cheie: "stare",
+      antet: "Stare",
+      peTelefon: "insigna",
+      celula: (p) => (
+        <Badge ton={TONURI_STATUS_PERIOADA[p.status] ?? "neutru"}>
+          {ETICHETE_STATUS_PERIOADA[p.status] ?? p.status}
+        </Badge>
+      ),
+    },
+    {
+      cheie: "total_brut",
+      antet: "Total brut",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (p) => formatLei(p.total_brut),
+    },
+    {
+      cheie: "total_net",
+      antet: "Total net",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (p) => formatLei(p.total_net),
+    },
+    {
+      cheie: "cost_angajator",
+      antet: "Cost angajator",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (p) => formatLei(p.total_cost_angajator),
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <AntetPagina
@@ -67,62 +113,21 @@ export default async function PaginaSalarizare() {
 
       {poateCrea ? <FormularPerioadaNoua /> : null}
 
-      {perioade.length === 0 ? (
-        <StareGoala
-          fel="initiala"
-          pictograma={Wallet}
-          titlu="Nicio perioadă de salarizare"
-          descriere="Configurați setările, apoi creați prima perioadă pentru o lună cu pontajul deschis."
-        />
-      ) : (
-        <div className="border-border rounded-panou overflow-x-auto border">
-          <table className="text-corp w-full">
-            <thead className="bg-surface text-left">
-              <tr>
-                <th scope="col" className="px-4 py-3 font-medium">
-                  Perioadă
-                </th>
-                <th scope="col" className="px-4 py-3 font-medium">
-                  Stare
-                </th>
-                <th scope="col" className="px-4 py-3 text-right font-medium">
-                  Total brut
-                </th>
-                <th scope="col" className="px-4 py-3 text-right font-medium">
-                  Total net
-                </th>
-                <th scope="col" className="px-4 py-3 text-right font-medium">
-                  Cost angajator
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-border divide-y">
-              {perioade.map((p) => (
-                <RandTabel key={p.id} href={`/salarizare/${p.id}`}>
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/salarizare/${p.id}`}
-                      className="underline-offset-2 hover:underline"
-                    >
-                      {numeLuna(p.luna)} {p.an}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge ton={TONURI_STATUS_PERIOADA[p.status] ?? "neutru"}>
-                      {ETICHETE_STATUS_PERIOADA[p.status] ?? p.status}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-right tabular-nums">{formatLei(p.total_brut)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{formatLei(p.total_net)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">
-                    {formatLei(p.total_cost_angajator)}
-                  </td>
-                </RandTabel>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <Tabel
+        caption="Perioadele de salarizare ale organizației"
+        coloane={coloane}
+        randuri={perioade}
+        cheieRand={(p) => p.id}
+        href={(p) => `/salarizare/${p.id}`}
+        gol={
+          <StareGoala
+            fel="initiala"
+            pictograma={Wallet}
+            titlu="Nicio perioadă de salarizare"
+            descriere="Configurați setările, apoi creați prima perioadă pentru o lună cu pontajul deschis."
+          />
+        }
+      />
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { Buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { StareEroare } from "@/components/ui/stare-eroare";
 import { Schelet } from "@/components/ui/schelet";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import type { ActionResult } from "@/lib/actions/types";
 import type { AngajatValidat } from "@/domain/import/validare";
 import { CheckCircle2 } from "lucide-react";
@@ -18,6 +19,8 @@ import {
 } from "./actions";
 
 type EroareRand = { rand: number; camp: string; mesaj: string };
+/** Aceeași eroare poate apărea de două ori identic; cheia poartă și poziția. */
+type RandRespins = EroareRand & { cheie: string };
 type ColoanaRecunoscuta = { coloana: string; camp: string };
 
 // `createAction` (./actions) nu-și poate infera tipul datelor din corpul
@@ -157,6 +160,37 @@ export function ImportAngajatiClient() {
     URL.revokeObjectURL(url);
   }
 
+  /**
+   * Tabelul respinselor n-are sortare și n-are paginare: e o listă scurtă,
+   * citită dintr-un fișier, tăiată la 50 de rânduri — restul se ia din CSV-ul
+   * de mai jos. Numărul rândului e `numeric`, ca să se citească pe verticală.
+   */
+  const coloaneRespinse: readonly Coloana<RandRespins>[] = [
+    {
+      cheie: "rand",
+      antet: "Rând",
+      numeric: true,
+      latime: "ingusta",
+      peTelefon: "meta",
+      celula: (e) => e.rand,
+    },
+    {
+      cheie: "camp",
+      antet: "Câmp",
+      peTelefon: "meta",
+      celula: (e) => e.camp,
+    },
+    {
+      cheie: "mesaj",
+      antet: "Problemă",
+      peTelefon: "titlu",
+      // Rândul întreg era tencuit în `bg-danger/8`; `Tabel` nu colorează rânduri
+      // (și n-ar trebui — o listă în care TOATE rândurile sunt roșii nu spune
+      // nimic). Semnalul rămâne pe text, acolo unde e și problema.
+      celula: (e) => <span className="text-danger">{e.mesaj}</span>,
+    },
+  ];
+
   if (pas === "analiza") return <Schelet forma="tabel" randuri={6} coloane={3} />;
 
   return (
@@ -223,36 +257,16 @@ export function ImportAngajatiClient() {
               compact
             />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="text-corp w-full text-left">
-                <caption className="sr-only">Rânduri respinse la validare</caption>
-                <thead>
-                  <tr>
-                    <th scope="col" className="p-2">
-                      Rând
-                    </th>
-                    <th scope="col" className="p-2">
-                      Câmp
-                    </th>
-                    <th scope="col" className="p-2">
-                      Problemă
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {previzualizare.invalide.slice(0, 50).map((e: EroareRand, i: number) => (
-                    <tr
-                      key={`${e.rand}-${e.camp}-${i}`}
-                      className="border-danger/40 bg-danger/8 border-t"
-                    >
-                      <td className="p-2">{e.rand}</td>
-                      <td className="p-2">{e.camp}</td>
-                      <td className="p-2">{e.mesaj}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <Tabel
+              caption="Rânduri respinse la validare"
+              coloane={coloaneRespinse}
+              randuri={previzualizare.invalide
+                .slice(0, 50)
+                .map((e, i) => ({ ...e, cheie: `${String(e.rand)}-${e.camp}-${String(i)}` }))}
+              cheieRand={(e) => e.cheie}
+              densitate="compact"
+              gol={null}
+            />
           )}
           <div className="flex flex-wrap gap-3">
             <Buton

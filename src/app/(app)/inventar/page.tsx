@@ -9,12 +9,14 @@ import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
 import { buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
-import { RandTabel } from "@/components/data/rand-tabel";
+import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatLei } from "@/lib/format/money";
+import { scrieSortare } from "@/lib/queries/cursor";
 import { alocariDeschise, categorii, listeazaObiecte } from "@/lib/queries/inventory";
 import { filtreInventarSchema } from "@/schemas/inventory";
 
@@ -45,7 +47,10 @@ async function TabelInventar({
   categorii: listaCategorii,
 }: ProprietatiTabel) {
   const filtre = filtreDinUrl(filtreInventarSchema, parametri);
-  const { randuri, urmatorulCursor } = await listeazaObiecte(organizationId, filtre);
+  const { randuri, urmatorulCursor, total, sortare } = await listeazaObiecte(
+    organizationId,
+    filtre,
+  );
 
   if (randuri.length === 0) {
     const areFiltre =
@@ -69,94 +74,112 @@ async function TabelInventar({
   const detinatori = await alocariDeschise(organizationId, idAlocate);
   const numeCategorii = new Map(listaCategorii.map((cat) => [cat.id, cat.denumire]));
 
-  const cautare = new URLSearchParams();
-  for (const [cheie, valoare] of Object.entries(parametri)) {
-    if (typeof valoare === "string" && cheie !== "cursor") cautare.set(cheie, valoare);
+  /**
+   * Adresele se construiesc din parametrii EXISTENȚI, nu dintr-un obiect gol:
+   * altfel o sortare ar șterge filtrele, iar o schimbare de mărime a paginii ar
+   * șterge sortarea.
+   */
+  function adresa(schimba: (p: URLSearchParams) => void): string {
+    const p = new URLSearchParams();
+    for (const [cheie, valoare] of Object.entries(parametri)) {
+      if (typeof valoare === "string" && valoare !== "") p.set(cheie, valoare);
+    }
+    schimba(p);
+    return p.size === 0 ? "/inventar" : `/inventar?${p.toString()}`;
   }
-  if (urmatorulCursor !== null) cautare.set("cursor", urmatorulCursor);
+
+  const coloane: readonly Coloana<(typeof randuri)[number]>[] = [
+    {
+      cheie: "denumire",
+      antet: "Denumire",
+      sortabil: true,
+      peTelefon: "titlu",
+      celula: (rand) => (
+        <>
+          <span className="font-medium">{rand.denumire}</span>
+          {rand.model === null ? null : (
+            <span className="text-muted-foreground text-nota ml-2">({rand.model})</span>
+          )}
+        </>
+      ),
+    },
+    {
+      cheie: "numar",
+      antet: "Număr inventar",
+      sortabil: true,
+      latime: "ingusta",
+      peTelefon: "meta",
+      celula: (rand) => <span className="text-nota font-mono">{rand.numar_inventar}</span>,
+    },
+    {
+      cheie: "categorie",
+      antet: "Categorie",
+      peTelefon: "meta",
+      celula: (rand) =>
+        rand.category_id === null ? "—" : (numeCategorii.get(rand.category_id) ?? "—"),
+    },
+    {
+      cheie: "circuit",
+      antet: "Circuit",
+      peTelefon: "insigna",
+      celula: (rand) => (
+        <Badge ton={TONURI_STATUS[rand.status]}>{ETICHETE_STATUS[rand.status]}</Badge>
+      ),
+    },
+    {
+      cheie: "stare",
+      antet: "Stare",
+      peTelefon: "insigna",
+      celula: (rand) => <Badge ton={TONURI_STARE[rand.stare]}>{ETICHETE_STARE[rand.stare]}</Badge>,
+    },
+    {
+      cheie: "detinut_de",
+      antet: "Deținut de",
+      peTelefon: "meta",
+      celula: (rand) => detinatori.get(rand.id)?.angajatNume ?? "—",
+    },
+    {
+      cheie: "valoare",
+      antet: "Valoare",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (rand) => (rand.valoare === null ? "—" : formatLei(rand.valoare)),
+    },
+  ];
 
   return (
-    <>
-      <div className="border-border rounded-panou overflow-x-auto border">
-        <table className="text-corp w-full text-left">
-          <caption className="sr-only">Lista obiectelor de inventar</caption>
-          <thead className="bg-surface text-foreground">
-            <tr>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Denumire
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Număr inventar
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Categorie
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Circuit
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Stare
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Deținut de
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Valoare
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-border divide-y">
-            {randuri.map((rand) => {
-              const detinator = detinatori.get(rand.id);
-              return (
-                <RandTabel key={rand.id} href={`/inventar/${rand.id}`}>
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/inventar/${rand.id}`}
-                      className="text-primary font-medium underline-offset-2 hover:underline"
-                    >
-                      {rand.denumire}
-                    </Link>
-                    {rand.model !== null ? (
-                      <span className="text-muted-foreground text-nota ml-2">({rand.model})</span>
-                    ) : null}
-                  </td>
-                  <td className="text-nota px-4 py-3 font-mono">{rand.numar_inventar}</td>
-                  <td className="px-4 py-3">
-                    {rand.category_id === null ? "—" : (numeCategorii.get(rand.category_id) ?? "—")}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge ton={TONURI_STATUS[rand.status]}>{ETICHETE_STATUS[rand.status]}</Badge>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge ton={TONURI_STARE[rand.stare]}>{ETICHETE_STARE[rand.stare]}</Badge>
-                  </td>
-                  <td className="px-4 py-3">
-                    {detinator === undefined ? "—" : (detinator.angajatNume ?? "—")}
-                  </td>
-                  <td className="px-4 py-3">
-                    {rand.valoare === null ? "—" : formatLei(rand.valoare)}
-                  </td>
-                </RandTabel>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      <nav aria-label="Paginare" className="mt-4 flex justify-end">
-        {urmatorulCursor === null ? (
-          <p className="text-muted-foreground text-corp">Aceasta este ultima pagină.</p>
-        ) : (
-          <Link
-            href={`/inventar?${cautare.toString()}`}
-            className={buton({ varianta: "secundar" })}
-          >
-            Pagina următoare
-          </Link>
-        )}
-      </nav>
-    </>
+    <div className="flex flex-col gap-4">
+      <Tabel
+        caption="Lista obiectelor de inventar"
+        coloane={coloane}
+        randuri={randuri}
+        cheieRand={(rand) => rand.id}
+        href={(rand) => `/inventar/${rand.id}`}
+        sortare={sortare}
+        hrefSortare={(s) =>
+          adresa((p) => {
+            p.set("sort", scrieSortare(s));
+            // Cursorul nu supraviețuiește unei schimbări de sortare: ar continua
+            // de la un rând care, în noua ordine, nu mai e acolo unde era.
+            p.delete("cursor");
+          })
+        }
+        gol={null}
+      />
+      <Paginare
+        afisate={randuri.length}
+        total={total}
+        cursorUrmator={urmatorulCursor}
+        limita={filtre.limita}
+        construiesteHref={({ cursor, limita }) =>
+          adresa((p) => {
+            p.set("limita", String(limita));
+            if (cursor === null) p.delete("cursor");
+            else p.set("cursor", cursor);
+          })
+        }
+      />
+    </div>
   );
 }
 

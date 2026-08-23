@@ -170,6 +170,27 @@ describe("Tabel — rândul apăsabil", () => {
   });
 });
 
+describe("Tabel — rândul apăsabil, pe desktop", () => {
+  it("celula-titlu e LINK, nu doar un `<tr onClick>`", () => {
+    // Regresie reală, raportată de un agent de migrare: `RandTabel` e strict
+    // comoditate de mouse — propriul lui comentariu spune că „linkul accesibil
+    // pe nume rămâne neatins", adică îl PRESUPUNE pus de apelant. `Tabel` nu-l
+    // punea, deci pe peste 768px rândul nu se putea atinge de la tastatură.
+    const { container } = randeaza({ href: (r) => `/angajati/${r.id}` });
+    const tabel = container.querySelector("div.md\\:block") as HTMLElement;
+    const linkuri = within(tabel).getAllByRole("link");
+    expect(linkuri).toHaveLength(2); // câte unul pe rând, în coloana `titlu`
+    expect(linkuri[0]?.getAttribute("href")).toBe("/angajati/1");
+    expect(linkuri[0]?.textContent).toBe("Ionescu Ana");
+  });
+
+  it("fără `href`, nu apare niciun link în corpul tabelului", () => {
+    const { container } = randeaza();
+    const corp = container.querySelector("tbody") as HTMLElement;
+    expect(within(corp).queryAllByRole("link")).toHaveLength(0);
+  });
+});
+
 describe("Tabel — cifrele", () => {
   it("coloana numerică se aliniază la dreapta, cu cifre de lățime egală", () => {
     const { container } = randeaza();

@@ -6,6 +6,7 @@ import type { Metadata } from "next";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature, getEnabledFeatures } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -165,6 +166,101 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
 
   const planuriActive = planuri.filter((p) => p.activ);
 
+  /*
+   * Fără sortare pe niciunul dintre cele două tabele: ambele citiri sunt
+   * secțiuni ale unei fișe — contoarele se citesc întregi, iar intervențiile cu
+   * o limită fixă de 50. Un antet care pare sortabil și nu face nimic e mai rău
+   * decât unul care nu pare.
+   */
+  const coloaneContoare: readonly Coloana<(typeof contoare)[number]>[] = [
+    {
+      cheie: "tip",
+      antet: "Tip",
+      peTelefon: "titlu",
+      celula: (citire) => (
+        <>
+          {ETICHETE_TIP_CONTOR[citire.tip]}
+          {citire.resetare_contor ? (
+            <span className="text-foreground text-nota ml-1">(resetare)</span>
+          ) : null}
+        </>
+      ),
+    },
+    {
+      cheie: "citire",
+      antet: "Citire",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (citire) => citire.citire,
+    },
+    {
+      cheie: "data",
+      antet: "Data",
+      latime: "ingusta",
+      peTelefon: "meta",
+      celula: (citire) => formatDate(citire.data_citirii),
+    },
+    {
+      cheie: "citit_de",
+      antet: "Citit de",
+      peTelefon: "meta",
+      celula: (citire) => numeleAngajatului(citire.citit_de_employee_id),
+    },
+    {
+      cheie: "observatii",
+      antet: "Observații",
+      peTelefon: "meta",
+      celula: (citire) => citire.observatii ?? "—",
+    },
+  ];
+
+  const coloaneInterventii: readonly Coloana<(typeof interventiiEchipament.randuri)[number]>[] = [
+    {
+      cheie: "data",
+      antet: "Data",
+      latime: "ingusta",
+      peTelefon: "meta",
+      celula: (interventie) => formatDate(interventie.data),
+    },
+    {
+      cheie: "tip",
+      antet: "Tip",
+      peTelefon: "meta",
+      celula: (interventie) => ETICHETE_TIP_MENTENANTA[interventie.tip],
+    },
+    {
+      cheie: "descriere",
+      antet: "Descriere",
+      peTelefon: "titlu",
+      celula: (interventie) => interventie.descriere,
+    },
+    {
+      cheie: "executant",
+      antet: "Executant",
+      peTelefon: "meta",
+      celula: (interventie) =>
+        interventie.executant_extern ?? numeleAngajatului(interventie.executant_employee_id),
+    },
+    {
+      cheie: "cost",
+      antet: "Cost total",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (interventie) =>
+        formatLei(interventie.cost_total ?? interventie.cost_piese + interventie.cost_manopera),
+    },
+    {
+      cheie: "rezultat",
+      antet: "Rezultat",
+      peTelefon: "insigna",
+      celula: (interventie) => (
+        <Badge ton={TONURI_REZULTAT_INTERVENTIE[interventie.rezultat]}>
+          {ETICHETE_REZULTAT_INTERVENTIE[interventie.rezultat]}
+        </Badge>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-8">
       <div className="space-y-2">
@@ -272,52 +368,18 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
         <h2 id="contoare" className="text-sectiune font-semibold">
           Contoare
         </h2>
-        {contoare.length === 0 ? (
-          <p className="text-muted-foreground text-corp">
-            Nicio citire de contor. Prima citire fixează punctul de pornire pentru planurile pe
-            contor.
-          </p>
-        ) : (
-          <div className="border-border rounded-panou overflow-x-auto border">
-            <table className="text-corp w-full">
-              <thead className="bg-surface text-left">
-                <tr>
-                  <th scope="col" className="px-4 py-3 font-medium">
-                    Tip
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-right font-medium">
-                    Citire
-                  </th>
-                  <th scope="col" className="px-4 py-3 font-medium">
-                    Data
-                  </th>
-                  <th scope="col" className="px-4 py-3 font-medium">
-                    Citit de
-                  </th>
-                  <th scope="col" className="px-4 py-3 font-medium">
-                    Observații
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-border divide-y">
-                {contoare.map((citire) => (
-                  <tr key={citire.id}>
-                    <td className="px-4 py-3">
-                      {ETICHETE_TIP_CONTOR[citire.tip]}
-                      {citire.resetare_contor ? (
-                        <span className="text-foreground text-nota ml-1">(resetare)</span>
-                      ) : null}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums">{citire.citire}</td>
-                    <td className="px-4 py-3">{formatDate(citire.data_citirii)}</td>
-                    <td className="px-4 py-3">{numeleAngajatului(citire.citit_de_employee_id)}</td>
-                    <td className="px-4 py-3">{citire.observatii ?? "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <Tabel
+          caption="Citirile de contor ale echipamentului."
+          coloane={coloaneContoare}
+          randuri={contoare}
+          cheieRand={(citire) => citire.id}
+          gol={
+            <p className="text-muted-foreground text-corp">
+              Nicio citire de contor. Prima citire fixează punctul de pornire pentru planurile pe
+              contor.
+            </p>
+          }
+        />
         {poateScrie ? (
           <FormularContor equipmentId={echipament.id} angajati={angajatiGenerali} />
         ) : null}
@@ -408,62 +470,17 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
         <h2 id="interventii" className="text-sectiune font-semibold">
           Istoricul intervențiilor
         </h2>
-        {interventiiEchipament.randuri.length === 0 ? (
-          <p className="text-muted-foreground text-corp">
-            Nicio intervenție înregistrată pentru acest echipament.
-          </p>
-        ) : (
-          <div className="border-border rounded-panou overflow-x-auto border">
-            <table className="text-corp w-full">
-              <thead className="bg-surface text-left">
-                <tr>
-                  <th scope="col" className="px-4 py-3 font-medium">
-                    Data
-                  </th>
-                  <th scope="col" className="px-4 py-3 font-medium">
-                    Tip
-                  </th>
-                  <th scope="col" className="px-4 py-3 font-medium">
-                    Descriere
-                  </th>
-                  <th scope="col" className="px-4 py-3 font-medium">
-                    Executant
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-right font-medium">
-                    Cost total
-                  </th>
-                  <th scope="col" className="px-4 py-3 font-medium">
-                    Rezultat
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-border divide-y">
-                {interventiiEchipament.randuri.map((interventie) => (
-                  <tr key={interventie.id}>
-                    <td className="px-4 py-3">{formatDate(interventie.data)}</td>
-                    <td className="px-4 py-3">{ETICHETE_TIP_MENTENANTA[interventie.tip]}</td>
-                    <td className="px-4 py-3">{interventie.descriere}</td>
-                    <td className="px-4 py-3">
-                      {interventie.executant_extern ??
-                        numeleAngajatului(interventie.executant_employee_id)}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums">
-                      {formatLei(
-                        interventie.cost_total ??
-                          interventie.cost_piese + interventie.cost_manopera,
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge ton={TONURI_REZULTAT_INTERVENTIE[interventie.rezultat]}>
-                        {ETICHETE_REZULTAT_INTERVENTIE[interventie.rezultat]}
-                      </Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <Tabel
+          caption="Intervențiile de mentenanță înregistrate pe acest echipament."
+          coloane={coloaneInterventii}
+          randuri={interventiiEchipament.randuri}
+          cheieRand={(interventie) => interventie.id}
+          gol={
+            <p className="text-muted-foreground text-corp">
+              Nicio intervenție înregistrată pentru acest echipament.
+            </p>
+          }
+        />
         {poateScrie ? (
           <FormularInterventie
             equipmentId={echipament.id}

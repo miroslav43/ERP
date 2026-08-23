@@ -9,13 +9,15 @@ import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
 import { buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
-import { RandTabel } from "@/components/data/rand-tabel";
+import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { todayInBucharest } from "@/lib/format/date";
 import { filtreDinUrl } from "@/lib/rute/parametri";
+import { scrieSortare } from "@/lib/queries/cursor";
 import { listeazaVehicule, scadenteCurente, tipuriDocument } from "@/lib/queries/fleet";
 import { filtreVehiculeSchema } from "@/schemas/fleet";
 
@@ -44,7 +46,10 @@ async function TabelVehicule({
   readonly parametri: Record<string, string | string[] | undefined>;
 }) {
   const filtre = filtreDinUrl(filtreVehiculeSchema, parametri);
-  const { randuri, urmatorulCursor } = await listeazaVehicule(organizationId, filtre);
+  const { randuri, urmatorulCursor, total, sortare } = await listeazaVehicule(
+    organizationId,
+    filtre,
+  );
 
   if (randuri.length === 0) {
     // Mesajul diferă după cauză: „niciun vehicul" cere o acțiune, „niciun
@@ -81,93 +86,134 @@ async function TabelVehicule({
     return aleLui[0] ?? null;
   };
 
-  const cautare = new URLSearchParams();
-  for (const [cheie, valoare] of Object.entries(parametri)) {
-    if (typeof valoare === "string" && cheie !== "cursor") cautare.set(cheie, valoare);
+  /**
+   * Adresele se construiesc din parametrii EXISTENȚI, nu dintr-un obiect gol:
+   * altfel o sortare ar șterge filtrele, iar o schimbare de mărime a paginii ar
+   * șterge sortarea.
+   */
+  function adresa(schimba: (p: URLSearchParams) => void): string {
+    const p = new URLSearchParams();
+    for (const [cheie, valoare] of Object.entries(parametri)) {
+      if (typeof valoare === "string" && valoare !== "") p.set(cheie, valoare);
+    }
+    schimba(p);
+    return p.size === 0 ? "/flota" : `/flota?${p.toString()}`;
   }
-  if (urmatorulCursor !== null) cautare.set("cursor", urmatorulCursor);
+
+  /**
+   * Pastila de scadență, tipul documentului și data lui erau înghesuite într-o
+   * singură celulă. Despărțite, se pot compara pe verticală: cine caută
+   * „ce expiră" citește o coloană, nu trei valori lipite în fiecare rând.
+   */
+  const coloane: readonly Coloana<(typeof randuri)[number]>[] = [
+    {
+      cheie: "numar",
+      antet: "Număr",
+      sortabil: true,
+      peTelefon: "titlu",
+      celula: (v) => <span className="font-medium">{v.nr_inmatriculare}</span>,
+    },
+    {
+      cheie: "marca",
+      antet: "Vehicul",
+      sortabil: true,
+      peTelefon: "meta",
+      celula: (v) => (
+        <>
+          {v.marca} {v.model}
+          {v.an_fabricatie === null ? null : (
+            <span className="text-muted-foreground"> · {v.an_fabricatie}</span>
+          )}
+        </>
+      ),
+    },
+    {
+      cheie: "categorie",
+      antet: "Categorie",
+      peTelefon: "meta",
+      celula: (v) => ETICHETE_CATEGORIE[v.categorie],
+    },
+    {
+      cheie: "km",
+      antet: "Kilometraj",
+      sortabil: true,
+      numeric: true,
+      peTelefon: "meta",
+      celula: (v) => `${v.km_curent.toLocaleString("ro-RO")} km`,
+    },
+    {
+      cheie: "stare",
+      antet: "Stare",
+      sortabil: true,
+      peTelefon: "insigna",
+      celula: (v) => (
+        <Badge ton={TONURI_STATUS_VEHICUL[v.status]}>{ETICHETE_STATUS_VEHICUL[v.status]}</Badge>
+      ),
+    },
+    {
+      cheie: "scadenta",
+      antet: "Prima scadență",
+      peTelefon: "insigna",
+      celula: (v) => {
+        const stare = stareScadenta(celMaiApropiat(v.id)?.expira_la ?? null, azi);
+        return (
+          <Badge ton={TONURI_SCADENTA[stare]} cuAvertisment={stare === "expirat"}>
+            {ETICHETE_SCADENTA[stare]}
+          </Badge>
+        );
+      },
+    },
+    {
+      cheie: "document",
+      antet: "Document",
+      peTelefon: "meta",
+      celula: (v) => {
+        const scadenta = celMaiApropiat(v.id);
+        return scadenta === null ? "—" : (denumireTip.get(scadenta.document_type_id) ?? "document");
+      },
+    },
+    {
+      cheie: "expira",
+      antet: "Expiră",
+      latime: "ingusta",
+      peTelefon: "meta",
+      celula: (v) => celMaiApropiat(v.id)?.expira_la ?? "—",
+    },
+  ];
 
   return (
-    <>
-      <div className="border-border rounded-panou overflow-x-auto border">
-        <table className="text-corp w-full">
-          <caption className="sr-only">
-            Vehiculele organizației, cu starea documentului care expiră primul.
-          </caption>
-          <thead className="bg-surface text-left">
-            <tr>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Număr
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Vehicul
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Categorie
-              </th>
-              <th scope="col" className="px-4 py-3 text-right font-medium">
-                Kilometraj
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Stare
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Prima scadență
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-border divide-y">
-            {randuri.map((v) => {
-              const scadenta = celMaiApropiat(v.id);
-              const stare = stareScadenta(scadenta?.expira_la ?? null, azi);
-              return (
-                <RandTabel key={v.id} href={`/flota/${v.id}`}>
-                  <td className="px-4 py-3 font-medium">
-                    <Link href={`/flota/${v.id}`} className="underline-offset-2 hover:underline">
-                      {v.nr_inmatriculare}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3">
-                    {v.marca} {v.model}
-                    {v.an_fabricatie === null ? null : (
-                      <span className="text-muted-foreground"> · {v.an_fabricatie}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">{ETICHETE_CATEGORIE[v.categorie]}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">
-                    {v.km_curent.toLocaleString("ro-RO")} km
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge ton={TONURI_STATUS_VEHICUL[v.status]}>
-                      {ETICHETE_STATUS_VEHICUL[v.status]}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge ton={TONURI_SCADENTA[stare]} cuAvertisment={stare === "expirat"}>
-                      {ETICHETE_SCADENTA[stare]}
-                    </Badge>
-                    {scadenta === null ? null : (
-                      <span className="text-muted-foreground text-nota ml-2">
-                        {denumireTip.get(scadenta.document_type_id) ?? "document"} ·{" "}
-                        {scadenta.expira_la}
-                      </span>
-                    )}
-                  </td>
-                </RandTabel>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      <nav aria-label="Paginare" className="flex justify-end">
-        {urmatorulCursor === null ? null : (
-          <Link href={`/flota?${cautare.toString()}`} className={buton({ varianta: "secundar" })}>
-            Pagina următoare
-          </Link>
-        )}
-      </nav>
-    </>
+    <div className="flex flex-col gap-4">
+      <Tabel
+        caption="Vehiculele organizației, cu starea documentului care expiră primul."
+        coloane={coloane}
+        randuri={randuri}
+        cheieRand={(v) => v.id}
+        href={(v) => `/flota/${v.id}`}
+        sortare={sortare}
+        hrefSortare={(s) =>
+          adresa((p) => {
+            p.set("sort", scrieSortare(s));
+            // Cursorul nu supraviețuiește unei schimbări de sortare: ar continua
+            // de la un rând care, în noua ordine, nu mai e acolo unde era.
+            p.delete("cursor");
+          })
+        }
+        gol={null}
+      />
+      <Paginare
+        afisate={randuri.length}
+        total={total}
+        cursorUrmator={urmatorulCursor}
+        limita={filtre.limita}
+        construiesteHref={({ cursor, limita }) =>
+          adresa((p) => {
+            p.set("limita", String(limita));
+            if (cursor === null) p.delete("cursor");
+            else p.set("cursor", cursor);
+          })
+        }
+      />
+    </div>
   );
 }
 
@@ -218,7 +264,7 @@ export default async function PaginaFlota({ searchParams }: ProprietatiPagina) {
 
       <FiltreVehicule />
 
-      <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={6} />}>
+      <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={8} />}>
         <TabelVehicule organizationId={tenant.organizationId} parametri={parametri} />
       </Suspense>
     </div>

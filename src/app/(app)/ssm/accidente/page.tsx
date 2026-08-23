@@ -8,8 +8,9 @@ import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
-import { RandTabel } from "@/components/data/rand-tabel";
+import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -17,6 +18,7 @@ import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate } from "@/lib/format/date";
 import { filtreDinUrl } from "@/lib/rute/parametri";
+import { scrieSortare } from "@/lib/queries/cursor";
 import { accidente, angajatiDupaId } from "@/lib/queries/ssm";
 import { filtreAccidenteSchema } from "@/schemas/ssm";
 
@@ -37,7 +39,7 @@ async function TabelAccidente({
   readonly parametri: Record<string, string | string[] | undefined>;
 }) {
   const filtre = filtreDinUrl(filtreAccidenteSchema, parametri);
-  const { randuri, urmatorulCursor } = await accidente(organizationId, filtre);
+  const { randuri, urmatorulCursor, total, sortare } = await accidente(organizationId, filtre);
 
   if (randuri.length === 0) {
     const areFiltre = filtre.tip !== null || filtre.necomunicate !== null;
@@ -65,85 +67,94 @@ async function TabelAccidente({
     randuri.map((a) => a.employee_id).filter((id): id is string => id !== null),
   );
 
-  const cautare = new URLSearchParams();
-  for (const [cheie, valoare] of Object.entries(parametri)) {
-    if (typeof valoare === "string" && cheie !== "cursor") cautare.set(cheie, valoare);
+  /**
+   * Adresele se construiesc din parametrii EXISTENȚI, nu dintr-un obiect gol:
+   * altfel o sortare ar șterge filtrul de tip, iar o schimbare de mărime a
+   * paginii ar șterge sortarea.
+   */
+  function adresa(schimba: (p: URLSearchParams) => void): string {
+    const p = new URLSearchParams();
+    for (const [cheie, valoare] of Object.entries(parametri)) {
+      if (typeof valoare === "string" && valoare !== "") p.set(cheie, valoare);
+    }
+    schimba(p);
+    return p.size === 0 ? "/ssm/accidente" : `/ssm/accidente?${p.toString()}`;
   }
-  if (urmatorulCursor !== null) cautare.set("cursor", urmatorulCursor);
+
+  const coloane: readonly Coloana<(typeof randuri)[number]>[] = [
+    {
+      cheie: "data",
+      antet: "Data",
+      sortabil: true,
+      peTelefon: "titlu",
+      latime: "ingusta",
+      celula: (a) => formatDate(a.data_producerii),
+    },
+    {
+      cheie: "angajat",
+      antet: "Angajat",
+      peTelefon: "meta",
+      celula: (a) => {
+        const angajat = a.employee_id === null ? undefined : angajati.get(a.employee_id);
+        return angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`;
+      },
+    },
+    {
+      cheie: "tip",
+      antet: "Tip",
+      sortabil: true,
+      peTelefon: "insigna",
+      celula: (a) => <Badge ton={TONURI_TIP_ACCIDENT[a.tip]}>{ETICHETE_TIP_ACCIDENT[a.tip]}</Badge>,
+    },
+    {
+      cheie: "comunicat",
+      antet: "Comunicat ITM",
+      peTelefon: "meta",
+      celula: (a) =>
+        a.comunicat_la_itm_la === null ? <span className="text-danger">Nu</span> : "Da",
+    },
+    {
+      cheie: "cercetare",
+      antet: "Cercetare",
+      peTelefon: "meta",
+      celula: (a) =>
+        a.cercetare_finalizata_la === null ? "În curs" : formatDate(a.cercetare_finalizata_la),
+    },
+  ];
 
   return (
-    <>
-      <div className="border-border rounded-panou overflow-x-auto border">
-        <table className="text-corp w-full">
-          <caption className="sr-only">Accidentele de muncă la care aveți acces.</caption>
-          <thead className="bg-surface text-left">
-            <tr>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Data
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Angajat
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Tip
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Comunicat ITM
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Cercetare
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-border divide-y">
-            {randuri.map((a) => {
-              const angajat = a.employee_id === null ? undefined : angajati.get(a.employee_id);
-              return (
-                <RandTabel key={a.id} href={`/ssm/accidente/${a.id}`}>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <Link
-                      href={`/ssm/accidente/${a.id}`}
-                      className="underline-offset-2 hover:underline"
-                    >
-                      {formatDate(a.data_producerii)}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3">
-                    {angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge ton={TONURI_TIP_ACCIDENT[a.tip]}>{ETICHETE_TIP_ACCIDENT[a.tip]}</Badge>
-                  </td>
-                  <td className="px-4 py-3">
-                    {a.comunicat_la_itm_la === null ? (
-                      <span className="text-danger">Nu</span>
-                    ) : (
-                      "Da"
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {a.cercetare_finalizata_la === null
-                      ? "În curs"
-                      : formatDate(a.cercetare_finalizata_la)}
-                  </td>
-                </RandTabel>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      <nav aria-label="Paginare" className="flex justify-end">
-        {urmatorulCursor === null ? null : (
-          <Link
-            href={`/ssm/accidente?${cautare.toString()}`}
-            className={buton({ varianta: "secundar" })}
-          >
-            Pagina următoare
-          </Link>
-        )}
-      </nav>
-    </>
+    <div className="flex flex-col gap-4">
+      <Tabel
+        caption="Accidentele de muncă la care aveți acces."
+        coloane={coloane}
+        randuri={randuri}
+        cheieRand={(a) => a.id}
+        href={(a) => `/ssm/accidente/${a.id}`}
+        sortare={sortare}
+        hrefSortare={(s) =>
+          adresa((p) => {
+            p.set("sort", scrieSortare(s));
+            // Cursorul nu supraviețuiește unei schimbări de sortare: ar continua
+            // de la un rând care, în noua ordine, nu mai e acolo unde era.
+            p.delete("cursor");
+          })
+        }
+        gol={null}
+      />
+      <Paginare
+        afisate={randuri.length}
+        total={total}
+        cursorUrmator={urmatorulCursor}
+        limita={filtre.limita}
+        construiesteHref={({ cursor, limita }) =>
+          adresa((p) => {
+            p.set("limita", String(limita));
+            if (cursor === null) p.delete("cursor");
+            else p.set("cursor", cursor);
+          })
+        }
+      />
+    </div>
   );
 }
 

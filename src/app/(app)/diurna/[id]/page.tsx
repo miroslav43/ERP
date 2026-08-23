@@ -6,6 +6,7 @@ import type { Metadata } from "next";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -88,6 +89,49 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
     can(permisiuni, "per_diem:approve", "team") && deplasare.status === "aprobata";
   const poateAdaugaEtapa = can(permisiuni, "per_diem:update", "own") && editabila;
   const poateAdaugaCheltuiala = can(permisiuni, "per_diem:update", "own");
+
+  const coloaneCheltuieli: readonly Coloana<(typeof cheltuieliTrip)[number]>[] = [
+    {
+      cheie: "tip",
+      antet: "Tip",
+      peTelefon: "titlu",
+      celula: (c) =>
+        `${ETICHETE_TIP_CHELTUIALA[c.tip]}${c.descriere === null ? "" : ` · ${c.descriere}`}`,
+    },
+    {
+      cheie: "data",
+      antet: "Data",
+      peTelefon: "meta",
+      celula: (c) => c.data_cheltuielii,
+    },
+    {
+      cheie: "suma",
+      antet: "Sumă",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (c) => `${String(c.suma)} ${c.moneda}`,
+    },
+    {
+      cheie: "lei",
+      antet: "Lei",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (c) => formatLei(c.suma_lei),
+    },
+    {
+      cheie: "stare",
+      antet: "Stare",
+      peTelefon: "insigna",
+      celula: (c) =>
+        c.aprobata ? (
+          <Badge ton="succes">Aprobată</Badge>
+        ) : c.motiv_respingere !== null ? (
+          <Badge ton="pericol">Respinsă</Badge>
+        ) : (
+          <Badge ton="atentie">În așteptare</Badge>
+        ),
+    },
+  ];
 
   // Aceleași cuvinte ca înainte, doar strânse într-un șir: `descriere` e text,
   // nu JSX. Ordinea și separatorii rămân identici.
@@ -206,63 +250,16 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
         <h2 id="titlu-cheltuieli" className="text-sectiune font-medium">
           Cheltuieli
         </h2>
-        {cheltuieliTrip.length === 0 ? (
-          <p className="text-muted-foreground text-corp">Nicio cheltuială înregistrată încă.</p>
-        ) : (
-          <div className="border-border rounded-panou overflow-x-auto border">
-            <table className="text-corp w-full">
-              <thead className="bg-surface text-left">
-                <tr>
-                  <th scope="col" className="px-3 py-2 font-medium">
-                    Tip
-                  </th>
-                  <th scope="col" className="px-3 py-2 font-medium">
-                    Data
-                  </th>
-                  <th scope="col" className="px-3 py-2 text-right font-medium">
-                    Sumă
-                  </th>
-                  <th scope="col" className="px-3 py-2 text-right font-medium">
-                    Lei
-                  </th>
-                  <th scope="col" className="px-3 py-2 font-medium">
-                    Stare
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-border divide-y">
-                {cheltuieliTrip.map((c) => (
-                  <tr key={c.id}>
-                    <td className="px-3 py-2">
-                      {ETICHETE_TIP_CHELTUIALA[c.tip]}
-                      {c.descriere === null ? "" : ` · ${c.descriere}`}
-                    </td>
-                    <td className="px-3 py-2">{c.data_cheltuielii}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">
-                      {c.suma} {c.moneda}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums">{formatLei(c.suma_lei)}</td>
-                    <td className="px-3 py-2">
-                      {c.aprobata ? (
-                        <span className="bg-surface text-foreground text-nota rounded px-2 py-0.5 font-medium">
-                          Aprobată
-                        </span>
-                      ) : c.motiv_respingere !== null ? (
-                        <span className="bg-danger/8 text-danger text-nota rounded px-2 py-0.5 font-medium">
-                          Respinsă
-                        </span>
-                      ) : (
-                        <span className="bg-surface text-foreground text-nota rounded px-2 py-0.5 font-medium">
-                          În așteptare
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <Tabel
+          caption="Cheltuielile înregistrate pe deplasare, cu starea aprobării."
+          coloane={coloaneCheltuieli}
+          randuri={cheltuieliTrip}
+          cheieRand={(c) => c.id}
+          densitate="compact"
+          gol={
+            <p className="text-muted-foreground text-corp">Nicio cheltuială înregistrată încă.</p>
+          }
+        />
         {poateAdaugaCheltuiala ? <FormularCheltuiala tripId={deplasare.id} /> : null}
       </section>
 

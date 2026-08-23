@@ -1,7 +1,6 @@
 // src/app/(app)/ticketing/tabel-tichete.tsx
-import Link from "next/link";
-
 import { Badge } from "@/components/ui/badge";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { formatDateTime } from "@/lib/format/date";
 import type { RandTichet } from "@/lib/queries/ticketing";
 
@@ -17,76 +16,83 @@ import {
  * Tabelul e același pe „Tichetele mele” și pe „Coada echipei”; diferă doar ce
  * întoarce RLS-ul pentru fiecare. `aratSolicitantul` e singura deosebire de
  * afișare: în lista proprie, coloana ar repeta același nume pe fiecare rând.
+ *
+ * Fără `sortare`: paginarea tichetelor are cursor, dar el trăiește în cele două
+ * pagini care folosesc componenta, nu aici, iar `listeazaTichete` ordonează
+ * fix după `created_at`. Un antet care pare sortabil și nu face nimic e mai rău
+ * decât unul care nu pare.
  */
 export function TabelTichete({
   randuri,
   aratSolicitantul = false,
 }: Readonly<{ randuri: readonly RandTichet[]; aratSolicitantul?: boolean }>) {
+  const coloanaSolicitant: Coloana<RandTichet> = {
+    cheie: "solicitant",
+    antet: "Solicitant",
+    peTelefon: "meta",
+    celula: (tichet) => tichet.solicitant?.full_name ?? "—",
+  };
+
+  const coloane: readonly Coloana<RandTichet>[] = [
+    {
+      cheie: "numar",
+      antet: "Număr",
+      latime: "ingusta",
+      peTelefon: "meta",
+      celula: (tichet) => <span className="text-nota font-mono">{tichet.numar_afisat}</span>,
+    },
+    {
+      cheie: "tip",
+      antet: "Tip",
+      peTelefon: "meta",
+      celula: (tichet) => <span className="text-muted-foreground">{ETICHETE_TIP[tichet.tip]}</span>,
+    },
+    {
+      cheie: "titlu",
+      antet: "Titlu",
+      peTelefon: "titlu",
+      celula: (tichet) => tichet.titlu,
+    },
+    ...(aratSolicitantul ? [coloanaSolicitant] : []),
+    {
+      cheie: "prioritate",
+      antet: "Prioritate",
+      peTelefon: "insigna",
+      celula: (tichet) => (
+        <Badge ton={TONURI_PRIORITATE[tichet.prioritate]}>
+          {ETICHETE_PRIORITATE[tichet.prioritate]}
+        </Badge>
+      ),
+    },
+    {
+      cheie: "stare",
+      antet: "Stare",
+      peTelefon: "insigna",
+      celula: (tichet) => (
+        <Badge ton={TONURI_STATUS[tichet.status]}>{ETICHETE_STATUS[tichet.status]}</Badge>
+      ),
+    },
+    {
+      cheie: "deschis_la",
+      antet: "Deschis la",
+      peTelefon: "meta",
+      celula: (tichet) => (
+        <span className="text-muted-foreground text-nota">{formatDateTime(tichet.created_at)}</span>
+      ),
+    },
+  ];
+
   return (
-    <div className="border-border rounded-panou overflow-x-auto border">
-      <table className="text-corp w-full">
-        <caption className="sr-only">Lista tichetelor, cu starea și prioritatea lor.</caption>
-        <thead className="bg-surface text-left">
-          <tr>
-            <th scope="col" className="px-4 py-3 font-medium">
-              Număr
-            </th>
-            <th scope="col" className="px-4 py-3 font-medium">
-              Tip
-            </th>
-            <th scope="col" className="px-4 py-3 font-medium">
-              Titlu
-            </th>
-            {aratSolicitantul && (
-              <th scope="col" className="px-4 py-3 font-medium">
-                Solicitant
-              </th>
-            )}
-            <th scope="col" className="px-4 py-3 font-medium">
-              Prioritate
-            </th>
-            <th scope="col" className="px-4 py-3 font-medium">
-              Stare
-            </th>
-            <th scope="col" className="px-4 py-3 font-medium">
-              Deschis la
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-border divide-y">
-          {randuri.map((tichet) => (
-            <tr key={tichet.id} className="hover:bg-surface/60">
-              <td className="text-nota px-4 py-3 font-mono">
-                <Link href={`/ticketing/${tichet.id}`} className="text-primary hover:underline">
-                  {tichet.numar_afisat}
-                </Link>
-              </td>
-              <td className="text-muted-foreground px-4 py-3">{ETICHETE_TIP[tichet.tip]}</td>
-              <td className="px-4 py-3">
-                <Link href={`/ticketing/${tichet.id}`} className="hover:underline">
-                  {tichet.titlu}
-                </Link>
-              </td>
-              {aratSolicitantul && (
-                <td className="text-muted-foreground px-4 py-3">
-                  {tichet.solicitant?.full_name ?? "—"}
-                </td>
-              )}
-              <td className="px-4 py-3">
-                <Badge ton={TONURI_PRIORITATE[tichet.prioritate]}>
-                  {ETICHETE_PRIORITATE[tichet.prioritate]}
-                </Badge>
-              </td>
-              <td className="px-4 py-3">
-                <Badge ton={TONURI_STATUS[tichet.status]}>{ETICHETE_STATUS[tichet.status]}</Badge>
-              </td>
-              <td className="text-muted-foreground text-nota px-4 py-3">
-                {formatDateTime(tichet.created_at)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <Tabel
+      caption="Lista tichetelor, cu starea și prioritatea lor."
+      coloane={coloane}
+      randuri={randuri}
+      cheieRand={(tichet) => tichet.id}
+      href={(tichet) => `/ticketing/${tichet.id}`}
+      // Golul e tratat de fiecare dintre cele două pagini care folosesc
+      // componenta, cu propriul text: „Niciun tichet deschis” pe lista proprie,
+      // „Nimic în coadă” pe coada echipei.
+      gol={null}
+    />
   );
 }

@@ -92,10 +92,30 @@ const optional = <T extends z.ZodTypeAny>(schema: T) =>
     .transform((v) => (v === "" || v === undefined ? null : v))
     .default(null as never);
 
+/**
+ * Coloanele după care lista de deplasări se poate sorta.
+ *
+ * Lista e ÎNCHISĂ, nu o validare de formă: numele coloanei ajunge într-un
+ * `.order()` și într-un predicat de cursor construit ca text, deci nu poate
+ * veni liber din query string. `sortareCeruta` din `lib/queries/cursor.ts` cade
+ * tăcut pe implicit pentru orice altceva.
+ */
+export const SORTARI_DEPLASARI = ["plecare", "scop", "stare"] as const;
+export type SortareDeplasari = (typeof SORTARI_DEPLASARI)[number];
+
 export const filtreDeplasariSchema = z.object({
   status: optional(z.enum(STATUSURI_DEPLASARE)),
   cursor: optional(z.string().max(256)),
   limita: z.coerce.number().int().min(5).max(100).default(25),
+  /**
+   * Forma din URL: `plecare` crescător, `-plecare` descrescător.
+   *
+   * `.optional()` simplu, nu helperul `optional()` cu `.default(null)`: câmpul
+   * rămâne OPȚIONAL și în tipul de ieșire, ca apelanții care construiesc
+   * filtrele în cod (ecranul de aprobări) să nu fie rupți de un câmp nou. Un
+   * `sort` absent sau nerecunoscut cade oricum pe sortarea implicită.
+   */
+  sort: z.string().max(40).optional(),
 });
 export type FiltreDeplasari = z.output<typeof filtreDeplasariSchema>;
 

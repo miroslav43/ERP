@@ -7,6 +7,7 @@ import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Schelet } from "@/components/ui/schelet";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -43,68 +44,73 @@ async function TabelAutorizatii({ organizationId }: { readonly organizationId: s
   );
   const azi = todayInBucharest();
 
+  /**
+   * Lista nu are paginare keyset — `autorizatiiNominale` citește nomenclatorul
+   * întreg, ordonat după valabilitate — deci nici antete sortabile: un antet
+   * care pare sortabil și nu face nimic e mai rău decât unul care nu pare.
+   */
+  const coloane: readonly Coloana<(typeof autorizatii)[number]>[] = [
+    {
+      cheie: "angajat",
+      antet: "Angajat",
+      peTelefon: "titlu",
+      celula: (a) => {
+        const angajat = angajati.get(a.employee_id);
+        return angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`;
+      },
+    },
+    {
+      cheie: "tip",
+      antet: "Tip",
+      peTelefon: "meta",
+      celula: (a) => (
+        <>
+          {a.tip}
+          {a.grupa === null ? null : (
+            <span className="text-muted-foreground"> · grupa {a.grupa}</span>
+          )}
+        </>
+      ),
+    },
+    { cheie: "numar", antet: "Număr", peTelefon: "meta", celula: (a) => a.numar },
+    { cheie: "emitent", antet: "Emitent", peTelefon: "meta", celula: (a) => a.emitent },
+    {
+      cheie: "valabil",
+      antet: "Valabilă până la",
+      peTelefon: "meta",
+      latime: "ingusta",
+      celula: (a) => formatDate(a.valabil_pana),
+    },
+    {
+      cheie: "stare",
+      antet: "Stare",
+      peTelefon: "insigna",
+      celula: (a) => {
+        if (a.suspendata_la !== null) {
+          return (
+            <span className="bg-surface text-foreground text-nota rounded px-2 py-0.5 font-medium">
+              Suspendată {formatDate(a.suspendata_la)}
+            </span>
+          );
+        }
+        const stare = stareScadentaSsm(true, a.valabil_pana, azi);
+        return (
+          <Badge ton={TONURI_SCADENTA[stare]} cuAvertisment={stare === "expirat"}>
+            {ETICHETE_SCADENTA[stare]}
+          </Badge>
+        );
+      },
+    },
+  ];
+
   return (
-    <div className="border-border rounded-panou overflow-x-auto border">
-      <table className="text-corp w-full">
-        <caption className="sr-only">Autorizațiile nominale ale angajaților.</caption>
-        <thead className="bg-surface text-left">
-          <tr>
-            <th scope="col" className="px-4 py-3 font-medium">
-              Angajat
-            </th>
-            <th scope="col" className="px-4 py-3 font-medium">
-              Tip
-            </th>
-            <th scope="col" className="px-4 py-3 font-medium">
-              Număr
-            </th>
-            <th scope="col" className="px-4 py-3 font-medium">
-              Emitent
-            </th>
-            <th scope="col" className="px-4 py-3 font-medium">
-              Valabilă până la
-            </th>
-            <th scope="col" className="px-4 py-3 font-medium">
-              Stare
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-border divide-y">
-          {autorizatii.map((a) => {
-            const angajat = angajati.get(a.employee_id);
-            const stare =
-              a.suspendata_la !== null ? null : stareScadentaSsm(true, a.valabil_pana, azi);
-            return (
-              <tr key={a.id} className="hover:bg-surface">
-                <td className="px-4 py-3">
-                  {angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`}
-                </td>
-                <td className="px-4 py-3">
-                  {a.tip}
-                  {a.grupa === null ? null : (
-                    <span className="text-muted-foreground"> · grupa {a.grupa}</span>
-                  )}
-                </td>
-                <td className="px-4 py-3">{a.numar}</td>
-                <td className="px-4 py-3">{a.emitent}</td>
-                <td className="px-4 py-3">{formatDate(a.valabil_pana)}</td>
-                <td className="px-4 py-3">
-                  {a.suspendata_la !== null ? (
-                    <span className="bg-surface text-foreground text-nota rounded px-2 py-0.5 font-medium">
-                      Suspendată {formatDate(a.suspendata_la)}
-                    </span>
-                  ) : stare === null ? null : (
-                    <Badge ton={TONURI_SCADENTA[stare]} cuAvertisment={stare === "expirat"}>
-                      {ETICHETE_SCADENTA[stare]}
-                    </Badge>
-                  )}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+    <Tabel
+      caption="Autorizațiile nominale ale angajaților."
+      coloane={coloane}
+      randuri={autorizatii}
+      cheieRand={(a) => a.id}
+      gol={null}
+    />
   );
 }
 

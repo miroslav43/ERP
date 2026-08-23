@@ -377,6 +377,17 @@ export function FormularSetari({
 
       <div className="space-y-2">
         <p className="text-corp font-medium">Praguri de deducere personală</p>
+        {/*
+          EXCEPȚIE de la migrarea pe `<Tabel>`, deliberată.
+          Nu e o listă de citit, ci o grilă de EDITAT: fiecare celulă e un
+          `<input>` controlat, două dintre ele `required`. `<Tabel>` randează
+          fiecare rând de două ori — tabel peste `md`, carduri sub — și ascunde
+          unul prin CSS. Dublate, câmpurile `required` ascunse blochează
+          trimiterea formularului cu un mesaj de validare pe un element pe care
+          browserul nu-l poate focaliza: formularul refuză să plece, fără nicio
+          eroare vizibilă. Grila rămâne scrisă de mână până când editarea
+          rândurilor primește o componentă proprie.
+        */}
         <div className="overflow-x-auto">
           <table className="text-corp w-full">
             <thead className="text-muted-foreground text-nota text-left">

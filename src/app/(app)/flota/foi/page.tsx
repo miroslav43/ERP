@@ -9,13 +9,15 @@ import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
 import { buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
-import { RandTabel } from "@/components/data/rand-tabel";
+import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime } from "@/lib/format/date";
 import { filtreDinUrl } from "@/lib/rute/parametri";
+import { scrieSortare } from "@/lib/queries/cursor";
 import { angajatiDupaId, listeazaFoi, vehiculeDupaId } from "@/lib/queries/fleet";
 import { filtreFoiSchema } from "@/schemas/fleet";
 
@@ -36,7 +38,7 @@ async function TabelFoi({
   readonly parametri: Record<string, string | string[] | undefined>;
 }) {
   const filtre = filtreDinUrl(filtreFoiSchema, parametri);
-  const { randuri, urmatorulCursor } = await listeazaFoi(organizationId, filtre);
+  const { randuri, urmatorulCursor, total, sortare } = await listeazaFoi(organizationId, filtre);
 
   if (randuri.length === 0) {
     const areFiltre = filtre.status !== null || filtre.vehicul !== null;
@@ -70,93 +72,111 @@ async function TabelFoi({
     ),
   ]);
 
-  const cautare = new URLSearchParams();
-  for (const [cheie, valoare] of Object.entries(parametri)) {
-    if (typeof valoare === "string" && cheie !== "cursor") cautare.set(cheie, valoare);
+  /** Adresele pornesc din parametrii EXISTENȚI: o sortare nu trebuie să șteargă filtrele. */
+  function adresa(schimba: (p: URLSearchParams) => void): string {
+    const p = new URLSearchParams();
+    for (const [cheie, valoare] of Object.entries(parametri)) {
+      if (typeof valoare === "string" && valoare !== "") p.set(cheie, valoare);
+    }
+    schimba(p);
+    return p.size === 0 ? "/flota/foi" : `/flota/foi?${p.toString()}`;
   }
-  if (urmatorulCursor !== null) cautare.set("cursor", urmatorulCursor);
+
+  const coloane: readonly Coloana<(typeof randuri)[number]>[] = [
+    {
+      cheie: "plecare",
+      antet: "Plecare",
+      sortabil: true,
+      latime: "ingusta",
+      peTelefon: "titlu",
+      celula: (f) => formatDateTime(new Date(f.plecare_la)),
+    },
+    {
+      cheie: "vehicul",
+      antet: "Vehicul",
+      peTelefon: "meta",
+      // „—" și nu gol: absența poate însemna și lipsa dreptului de a vedea
+      // vehiculul, nu doar lipsa datei.
+      celula: (f) => vehicule.get(f.vehicle_id)?.nr_inmatriculare ?? "—",
+    },
+    {
+      cheie: "sofer",
+      antet: "Șofer",
+      peTelefon: "meta",
+      celula: (f) => {
+        const sofer = f.employee_id === null ? undefined : soferi.get(f.employee_id);
+        return (
+          <>
+            {sofer?.full_name ?? "—"}
+            {sofer === undefined ? null : (
+              <span className="text-muted-foreground"> · {sofer.marca}</span>
+            )}
+          </>
+        );
+      },
+    },
+    {
+      cheie: "km",
+      antet: "Kilometri",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (f) =>
+        f.km_parcursi === null ? (
+          <span className="text-muted-foreground">în curs</span>
+        ) : (
+          `${f.km_parcursi.toLocaleString("ro-RO")} km`
+        ),
+    },
+    {
+      cheie: "traseu",
+      antet: "Traseu",
+      peTelefon: "meta",
+      celula: (f) => <span className="block max-w-xs truncate">{f.traseu ?? "—"}</span>,
+    },
+    {
+      cheie: "stare",
+      antet: "Stare",
+      sortabil: true,
+      peTelefon: "insigna",
+      celula: (f) => (
+        <Badge ton={TONURI_STATUS_FOAIE[f.status]}>{ETICHETE_STATUS_FOAIE[f.status]}</Badge>
+      ),
+    },
+  ];
 
   return (
-    <>
-      <div className="border-border rounded-panou overflow-x-auto border">
-        <table className="text-corp w-full">
-          <caption className="sr-only">Foile de parcurs la care aveți acces.</caption>
-          <thead className="bg-surface text-left">
-            <tr>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Plecare
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Vehicul
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Șofer
-              </th>
-              <th scope="col" className="px-4 py-3 text-right font-medium">
-                Kilometri
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Traseu
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Stare
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-border divide-y">
-            {randuri.map((f) => {
-              const vehicul = vehicule.get(f.vehicle_id);
-              const sofer = f.employee_id === null ? undefined : soferi.get(f.employee_id);
-              return (
-                <RandTabel key={f.id} href={`/flota/foi/${f.id}`}>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <Link
-                      href={`/flota/foi/${f.id}`}
-                      className="underline-offset-2 hover:underline"
-                    >
-                      {formatDateTime(new Date(f.plecare_la))}
-                    </Link>
-                  </td>
-                  {/* „—" și nu gol: absența poate însemna și lipsa dreptului de a
-                      vedea vehiculul, nu doar lipsa datei. */}
-                  <td className="px-4 py-3">{vehicul?.nr_inmatriculare ?? "—"}</td>
-                  <td className="px-4 py-3">
-                    {sofer?.full_name ?? "—"}
-                    {sofer === undefined ? null : (
-                      <span className="text-muted-foreground"> · {sofer.marca}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right tabular-nums">
-                    {f.km_parcursi === null ? (
-                      <span className="text-muted-foreground">în curs</span>
-                    ) : (
-                      `${f.km_parcursi.toLocaleString("ro-RO")} km`
-                    )}
-                  </td>
-                  <td className="max-w-xs truncate px-4 py-3">{f.traseu ?? "—"}</td>
-                  <td className="px-4 py-3">
-                    <Badge ton={TONURI_STATUS_FOAIE[f.status]}>
-                      {ETICHETE_STATUS_FOAIE[f.status]}
-                    </Badge>
-                  </td>
-                </RandTabel>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      <nav aria-label="Paginare" className="flex justify-end">
-        {urmatorulCursor === null ? null : (
-          <Link
-            href={`/flota/foi?${cautare.toString()}`}
-            className={buton({ varianta: "secundar" })}
-          >
-            Pagina următoare
-          </Link>
-        )}
-      </nav>
-    </>
+    <div className="flex flex-col gap-4">
+      <Tabel
+        caption="Foile de parcurs la care aveți acces."
+        coloane={coloane}
+        randuri={randuri}
+        cheieRand={(f) => f.id}
+        href={(f) => `/flota/foi/${f.id}`}
+        sortare={sortare}
+        hrefSortare={(s) =>
+          adresa((p) => {
+            p.set("sort", scrieSortare(s));
+            // Cursorul nu supraviețuiește unei schimbări de sortare: ar continua
+            // de la un rând care, în noua ordine, nu mai e acolo unde era.
+            p.delete("cursor");
+          })
+        }
+        gol={null}
+      />
+      <Paginare
+        afisate={randuri.length}
+        total={total}
+        cursorUrmator={urmatorulCursor}
+        limita={filtre.limita}
+        construiesteHref={({ cursor, limita }) =>
+          adresa((p) => {
+            p.set("limita", String(limita));
+            if (cursor === null) p.delete("cursor");
+            else p.set("cursor", cursor);
+          })
+        }
+      />
+    </div>
   );
 }
 

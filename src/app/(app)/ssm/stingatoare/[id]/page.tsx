@@ -6,6 +6,7 @@ import type { Metadata } from "next";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { buton } from "@/components/ui/buton";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -72,6 +73,46 @@ export default async function PaginaStingator({ params }: ProprietatiPagina) {
       titlu: "Probă de presiune",
       data: stingator.ultima_proba_presiune,
       scadenta: stingator.scadenta_proba_presiune,
+    },
+  ];
+
+  /**
+   * Istoricul se citește întreg (`verificariStingator` n-are cursor), deci
+   * tabelul n-are nici sortare, nici paginare — doar căderea pe card sub 768px.
+   */
+  const coloaneVerificari: readonly Coloana<(typeof verificari)[number]>[] = [
+    {
+      cheie: "data",
+      antet: "Data",
+      peTelefon: "titlu",
+      latime: "ingusta",
+      celula: (v) => formatDate(v.data),
+    },
+    {
+      cheie: "tip",
+      antet: "Tip",
+      peTelefon: "meta",
+      celula: (v) => ETICHETE_TIP_VERIFICARE_STINGATOR[v.tip_verificare],
+    },
+    {
+      cheie: "firma",
+      antet: "Firmă autorizată",
+      peTelefon: "meta",
+      celula: (v) => v.firma_autorizata ?? v.executant ?? "—",
+    },
+    {
+      cheie: "rezultat",
+      antet: "Rezultat",
+      peTelefon: "meta",
+      celula: (v) => ETICHETE_REZULTAT_VERIFICARE[v.rezultat],
+    },
+    {
+      cheie: "cost",
+      antet: "Cost",
+      numeric: true,
+      peTelefon: "meta",
+      latime: "ingusta",
+      celula: (v) => (v.cost === null ? "—" : formatLei(v.cost)),
     },
   ];
 
@@ -142,44 +183,13 @@ export default async function PaginaStingator({ params }: ProprietatiPagina) {
         {verificari.length === 0 ? (
           <p className="text-muted-foreground text-corp">Nicio verificare înregistrată.</p>
         ) : (
-          <div className="border-border rounded-panou overflow-x-auto border">
-            <table className="text-corp w-full">
-              <thead className="bg-surface text-left">
-                <tr>
-                  <th scope="col" className="px-4 py-3 font-medium">
-                    Data
-                  </th>
-                  <th scope="col" className="px-4 py-3 font-medium">
-                    Tip
-                  </th>
-                  <th scope="col" className="px-4 py-3 font-medium">
-                    Firmă autorizată
-                  </th>
-                  <th scope="col" className="px-4 py-3 font-medium">
-                    Rezultat
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-right font-medium">
-                    Cost
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-border divide-y">
-                {verificari.map((v) => (
-                  <tr key={v.id}>
-                    <td className="px-4 py-3 whitespace-nowrap">{formatDate(v.data)}</td>
-                    <td className="px-4 py-3">
-                      {ETICHETE_TIP_VERIFICARE_STINGATOR[v.tip_verificare]}
-                    </td>
-                    <td className="px-4 py-3">{v.firma_autorizata ?? v.executant ?? "—"}</td>
-                    <td className="px-4 py-3">{ETICHETE_REZULTAT_VERIFICARE[v.rezultat]}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">
-                      {v.cost === null ? "—" : formatLei(v.cost)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Tabel
+            caption={`Istoricul verificărilor stingătorului ${stingator.cod}.`}
+            coloane={coloaneVerificari}
+            randuri={verificari}
+            cheieRand={(v) => v.id}
+            gol={null}
+          />
         )}
       </section>
 

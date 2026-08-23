@@ -3,6 +3,7 @@ import { GraduationCap, HardHat, Stethoscope } from "lucide-react";
 
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { StareGoala } from "@/components/ui/stare-goala";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { Badge } from "@/components/ui/badge";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
 import {
@@ -37,9 +38,9 @@ export async function DosarulMeu({ organizationId }: { readonly organizationId: 
   const [instruiri, fise, restrictii, echipamente, autorizatii, tipuriRezultat] = await Promise.all(
     [
       instruirileMele(organizationId),
-      fiseAptitudine(organizationId, { rezultat: null, cursor: null, limita: 100 }),
+      fiseAptitudine(organizationId, { rezultat: null, cursor: null, limita: 100, sort: null }),
       restrictiiActive(organizationId),
-      eip(organizationId, { cursor: null, limita: 100 }),
+      eip(organizationId, { cursor: null, limita: 100, sort: null }),
       autorizatiiNominale(organizationId),
       nomenclatorInstruiri({}),
     ],
@@ -48,6 +49,55 @@ export async function DosarulMeu({ organizationId }: { readonly organizationId: 
   const tipuri = tipuriRezultat.ok ? tipuriRezultat.data : [];
   const denumireTip = new Map(tipuri.map((t) => [t.id, t]));
   const azi = todayInBucharest();
+
+  /**
+   * `instruirileMele` citește tot dosarul propriu, fără cursor — deci tabelul
+   * n-are nici sortare, nici paginare, doar căderea pe card sub 768px.
+   */
+  const coloaneInstruiri: readonly Coloana<(typeof instruiri)[number]>[] = [
+    {
+      cheie: "domeniu",
+      antet: "Domeniu",
+      peTelefon: "meta",
+      latime: "ingusta",
+      celula: (i) => {
+        const tip = denumireTip.get(i.training_type_id);
+        return tip === undefined ? "—" : ETICHETE_DOMENIU[tip.domeniu];
+      },
+    },
+    {
+      cheie: "tip",
+      antet: "Tip instruire",
+      peTelefon: "titlu",
+      celula: (i) => denumireTip.get(i.training_type_id)?.denumire ?? "—",
+    },
+    {
+      cheie: "data",
+      antet: "Data",
+      peTelefon: "meta",
+      latime: "ingusta",
+      celula: (i) => formatDate(i.data_instruirii),
+    },
+    {
+      cheie: "scadenta",
+      antet: "Scadență",
+      peTelefon: "meta",
+      celula: (i) => {
+        if (i.urmatoarea_scadenta === null) {
+          return <span className="text-muted-foreground">fără scadență</span>;
+        }
+        const stare = stareScadentaSsm(true, i.urmatoarea_scadenta, azi);
+        return (
+          <>
+            <Badge ton={TONURI_SCADENTA[stare]} cuAvertisment={stare === "expirat"}>
+              {ETICHETE_SCADENTA[stare]}
+            </Badge>{" "}
+            <span className="text-muted-foreground">{formatDate(i.urmatoarea_scadenta)}</span>
+          </>
+        );
+      },
+    },
+  ];
 
   return (
     <div className="space-y-8">
@@ -69,55 +119,13 @@ export async function DosarulMeu({ organizationId }: { readonly organizationId: 
             compact
           />
         ) : (
-          <div className="border-border rounded-panou overflow-x-auto border">
-            <table className="text-corp w-full">
-              <thead className="bg-surface text-left">
-                <tr>
-                  <th scope="col" className="px-4 py-3 font-medium">
-                    Domeniu
-                  </th>
-                  <th scope="col" className="px-4 py-3 font-medium">
-                    Tip instruire
-                  </th>
-                  <th scope="col" className="px-4 py-3 font-medium">
-                    Data
-                  </th>
-                  <th scope="col" className="px-4 py-3 font-medium">
-                    Scadență
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-border divide-y">
-                {instruiri.map((i) => {
-                  const tip = denumireTip.get(i.training_type_id);
-                  const stare = stareScadentaSsm(true, i.urmatoarea_scadenta, azi);
-                  return (
-                    <tr key={i.id}>
-                      <td className="px-4 py-3">
-                        {tip === undefined ? "—" : ETICHETE_DOMENIU[tip.domeniu]}
-                      </td>
-                      <td className="px-4 py-3">{tip?.denumire ?? "—"}</td>
-                      <td className="px-4 py-3">{formatDate(i.data_instruirii)}</td>
-                      <td className="px-4 py-3">
-                        {i.urmatoarea_scadenta === null ? (
-                          <span className="text-muted-foreground">fără scadență</span>
-                        ) : (
-                          <>
-                            <Badge ton={TONURI_SCADENTA[stare]} cuAvertisment={stare === "expirat"}>
-                              {ETICHETE_SCADENTA[stare]}
-                            </Badge>{" "}
-                            <span className="text-muted-foreground">
-                              {formatDate(i.urmatoarea_scadenta)}
-                            </span>
-                          </>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <Tabel
+            caption="Instruirile SSM/PSI pe care le-ați efectuat."
+            coloane={coloaneInstruiri}
+            randuri={instruiri}
+            cheieRand={(i) => i.id}
+            gol={null}
+          />
         )}
       </section>
 

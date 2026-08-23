@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -11,7 +12,11 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { anDinUrl } from "@/lib/rute/parametri";
 import { formatAmount } from "@/lib/format/money";
 import { todayInBucharest } from "@/lib/format/date";
-import { configurareConcedii, previzualizeazaDrepturi } from "@/lib/queries/leave";
+import {
+  configurareConcedii,
+  previzualizeazaDrepturi,
+  type RandPrevizualizareDrept,
+} from "@/lib/queries/leave";
 
 import { NavConcedii } from "../nav-concedii";
 import { FormularZileBaza } from "./formular-zile-baza";
@@ -99,6 +104,49 @@ export default async function PaginaSetariConcedii({ searchParams }: Proprietati
 
   const tipuriReglementate = tipuri.filter((t) => t.reglementat);
   const tipuriAdaptabile = tipuri.filter((t) => !t.reglementat);
+
+  const coloaneP: readonly Coloana<RandPrevizualizareDrept>[] = [
+    {
+      cheie: "angajat",
+      antet: "Angajat",
+      peTelefon: "titlu",
+      celula: (rand) => {
+        const angajat = hartaAngajati.get(rand.employee_id);
+        return angajat === undefined ? "Angajat" : `${angajat.full_name} (${angajat.marca})`;
+      },
+    },
+    {
+      cheie: "tip",
+      antet: "Tip de concediu",
+      peTelefon: "meta",
+      celula: (rand) => hartaTipuri.get(rand.leave_type_id) ?? "—",
+    },
+    {
+      cheie: "drept_vechi",
+      antet: "Drept vechi",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (rand) => formatAmount(rand.drept_vechi),
+    },
+    {
+      cheie: "drept_nou",
+      antet: "Drept nou",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (rand) => <span className="font-medium">{formatAmount(rand.drept_nou)}</span>,
+    },
+    {
+      cheie: "ramase_dupa",
+      antet: "Rămase după",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (rand) => (
+        <span className={rand.ramase_dupa < 0 ? "text-danger" : ""}>
+          {formatAmount(rand.ramase_dupa)}
+        </span>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-8">
@@ -203,55 +251,14 @@ export default async function PaginaSetariConcedii({ searchParams }: Proprietati
           </p>
         ) : (
           <>
-            <div className="border-border rounded-panou overflow-x-auto border">
-              <table className="text-corp w-full text-left">
-                <thead className="bg-surface text-foreground">
-                  <tr>
-                    <th scope="col" className="px-4 py-2 font-medium">
-                      Angajat
-                    </th>
-                    <th scope="col" className="px-4 py-2 font-medium">
-                      Tip de concediu
-                    </th>
-                    <th scope="col" className="px-4 py-2 font-medium">
-                      Drept vechi
-                    </th>
-                    <th scope="col" className="px-4 py-2 font-medium">
-                      Drept nou
-                    </th>
-                    <th scope="col" className="px-4 py-2 font-medium">
-                      Rămase după
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-border divide-y">
-                  {previzualizare.map((rand) => {
-                    const angajat = hartaAngajati.get(rand.employee_id);
-                    return (
-                      <tr key={`${rand.employee_id}-${rand.leave_type_id}`}>
-                        <td className="px-4 py-2">
-                          {angajat === undefined
-                            ? "Angajat"
-                            : `${angajat.full_name} (${angajat.marca})`}
-                        </td>
-                        <td className="px-4 py-2">{hartaTipuri.get(rand.leave_type_id) ?? "—"}</td>
-                        <td className="px-4 py-2 tabular-nums">{formatAmount(rand.drept_vechi)}</td>
-                        <td className="px-4 py-2 font-medium tabular-nums">
-                          {formatAmount(rand.drept_nou)}
-                        </td>
-                        <td
-                          className={`px-4 py-2 tabular-nums ${
-                            rand.ramase_dupa < 0 ? "text-danger" : ""
-                          }`}
-                        >
-                          {formatAmount(rand.ramase_dupa)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <Tabel
+              caption={`Diferențele de drept de concediu pentru anul ${String(an)}.`}
+              coloane={coloaneP}
+              randuri={previzualizare}
+              cheieRand={(rand) => `${rand.employee_id}-${rand.leave_type_id}`}
+              densitate="compact"
+              gol={null}
+            />
             <ButonAplicaDrepturi an={an} nrModificari={previzualizare.length} />
           </>
         )}

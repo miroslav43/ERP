@@ -108,6 +108,8 @@ export function Tabel<R>({
   if (randuri.length === 0) return <>{gol}</>;
 
   const celula = densitate === "compact" ? "px-3 py-2" : "px-4 py-3";
+  // Aceeași coloană poartă linkul în ambele marcaje — vezi nota de mai jos.
+  const coloanaTitlu = coloane.find((c) => c.peTelefon === "titlu") ?? coloane[0];
 
   return (
     <div className={cn("flex flex-col gap-2", className)}>
@@ -147,7 +149,21 @@ export function Tabel<R>({
                     c.latime === "ingusta" ? "w-px whitespace-nowrap" : "",
                   )}
                 >
-                  {c.celula(r)}
+                  {href === undefined || c !== coloanaTitlu ? (
+                    c.celula(r)
+                  ) : (
+                    // `RandTabel` face rândul apăsabil, dar e DOAR `onClick` pe
+                    // `<tr>`: fără acest link, marcajul de peste 768px n-are
+                    // nicio țintă pentru tastatură sau cititor de ecran.
+                    // Comentariul din `rand-tabel.tsx` spune chiar el că
+                    // „linkul accesibil pe nume rămâne neatins" — adică îl
+                    // presupune pus de apelant. Aici e apelantul.
+                    // `closest("a, …")` din `RandTabel` oprește navigarea
+                    // dublă la clic.
+                    <Link href={href(r)} className="hover:underline">
+                      {c.celula(r)}
+                    </Link>
+                  )}
                 </td>
               ));
               return href === undefined ? (
@@ -173,6 +189,7 @@ export function Tabel<R>({
             key={cheieRand(r)}
             rand={r}
             coloane={coloane}
+            {...(coloanaTitlu === undefined ? {} : { coloanaTitlu })}
             {...(href === undefined ? {} : { href: href(r) })}
           />
         ))}
@@ -252,13 +269,15 @@ function AntetColoana<R>({
 function CardRand<R>({
   rand,
   coloane,
+  coloanaTitlu,
   href,
 }: {
   rand: R;
   coloane: readonly Coloana<R>[];
+  coloanaTitlu?: Coloana<R>;
   href?: string;
 }): ReactElement {
-  const titlu = coloane.find((c) => c.peTelefon === "titlu") ?? coloane[0];
+  const titlu = coloanaTitlu;
   const insigne = coloane.filter((c) => c.peTelefon === "insigna");
   const meta = coloane.filter(
     (c) => c !== titlu && c.peTelefon !== "insigna" && c.peTelefon !== "ascuns",

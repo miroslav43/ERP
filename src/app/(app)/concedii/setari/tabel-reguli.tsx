@@ -5,6 +5,7 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { formatAmount } from "@/lib/format/money";
 import { formatDate } from "@/lib/format/date";
 import type {
@@ -70,68 +71,81 @@ export function TabelReguli({
 
   const reguliActive = reguli.filter((r) => r.activ);
 
-  if (reguliActive.length === 0) {
-    return (
-      <p className="text-muted-foreground text-corp">
-        Nicio grilă configurată încă — toți angajații primesc doar baza tipului de concediu.
-      </p>
-    );
-  }
+  const coloane: readonly Coloana<RegulaConcediuRand>[] = [
+    {
+      cheie: "tip",
+      antet: "Tip de concediu",
+      peTelefon: "meta",
+      celula: (regula) => hartaTipuri.get(regula.leave_type_id) ?? "—",
+    },
+    {
+      cheie: "denumire",
+      antet: "Denumire",
+      peTelefon: "titlu",
+      celula: (regula) => regula.denumire,
+    },
+    {
+      cheie: "criteriu",
+      antet: "Criteriu",
+      peTelefon: "meta",
+      celula: (regula) => (
+        <span className="text-muted-foreground">
+          {descrieCriteriu(regula, hartaDepartamente, hartaFunctii)}
+        </span>
+      ),
+    },
+    {
+      cheie: "zile",
+      antet: "Zile suplimentare",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (regula) => (
+        <span className="font-medium">+{formatAmount(regula.zile_suplimentare)}</span>
+      ),
+    },
+    {
+      cheie: "valabil",
+      antet: "Valabilă de la",
+      peTelefon: "meta",
+      celula: (regula) => (
+        <span className="text-muted-foreground">
+          {formatDate(regula.valabil_de_la)}
+          {regula.valabil_pana_la === null ? "" : ` – ${formatDate(regula.valabil_pana_la)}`}
+        </span>
+      ),
+    },
+    {
+      cheie: "actiuni",
+      antet: "Acțiuni",
+      antetAscuns: true,
+      latime: "ingusta",
+      peTelefon: "insigna",
+      celula: (regula) => (
+        <Buton
+          varianta="distructiv"
+          disabled={inCurs}
+          onClick={() => {
+            dezactiveaza(regula.id);
+          }}
+        >
+          Dezactivează
+        </Buton>
+      ),
+    },
+  ];
 
   return (
-    <div className="border-border rounded-panou overflow-x-auto border">
-      <table className="text-corp w-full text-left">
-        <caption className="sr-only">Grilele de zile suplimentare configurate.</caption>
-        <thead className="bg-surface text-foreground">
-          <tr>
-            <th scope="col" className="px-4 py-2 font-medium">
-              Tip de concediu
-            </th>
-            <th scope="col" className="px-4 py-2 font-medium">
-              Denumire
-            </th>
-            <th scope="col" className="px-4 py-2 font-medium">
-              Criteriu
-            </th>
-            <th scope="col" className="px-4 py-2 font-medium">
-              Zile suplimentare
-            </th>
-            <th scope="col" className="px-4 py-2 font-medium">
-              Valabilă de la
-            </th>
-            <th scope="col" className="px-4 py-2" />
-          </tr>
-        </thead>
-        <tbody className="divide-border divide-y">
-          {reguliActive.map((regula) => (
-            <tr key={regula.id}>
-              <td className="px-4 py-2">{hartaTipuri.get(regula.leave_type_id) ?? "—"}</td>
-              <td className="px-4 py-2">{regula.denumire}</td>
-              <td className="text-muted-foreground px-4 py-2">
-                {descrieCriteriu(regula, hartaDepartamente, hartaFunctii)}
-              </td>
-              <td className="px-4 py-2 font-medium tabular-nums">
-                +{formatAmount(regula.zile_suplimentare)}
-              </td>
-              <td className="text-muted-foreground px-4 py-2">
-                {formatDate(regula.valabil_de_la)}
-                {regula.valabil_pana_la === null ? "" : ` – ${formatDate(regula.valabil_pana_la)}`}
-              </td>
-              <td className="px-4 py-2 text-right">
-                <Buton
-                  varianta="distructiv"
-                  disabled={inCurs}
-                  onClick={() => {
-                    dezactiveaza(regula.id);
-                  }}
-                >
-                  Dezactivează
-                </Buton>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <Tabel
+      caption="Grilele de zile suplimentare configurate."
+      coloane={coloane}
+      randuri={reguliActive}
+      cheieRand={(regula) => regula.id}
+      densitate="compact"
+      gol={
+        <p className="text-muted-foreground text-corp">
+          Nicio grilă configurată încă — toți angajații primesc doar baza tipului de concediu.
+        </p>
+      }
+    />
   );
 }

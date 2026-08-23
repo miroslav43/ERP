@@ -8,13 +8,15 @@ import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
-import { RandTabel } from "@/components/data/rand-tabel";
+import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate } from "@/lib/format/date";
+import { scrieSortare } from "@/lib/queries/cursor";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 import {
   angajatiActivi,
@@ -45,7 +47,10 @@ async function TabelInstante({
   readonly poateVedeaAngajati: boolean;
 }) {
   const filtre = filtreDinUrl(filtreInstanteSchema, parametri);
-  const { randuri, urmatorulCursor } = await listeazaInstante(organizationId, filtre);
+  const { randuri, urmatorulCursor, total, sortare } = await listeazaInstante(
+    organizationId,
+    filtre,
+  );
 
   if (randuri.length === 0) {
     // Mesajul diferă după cauză: „nimic încă" cere o acțiune (pornirea unui
@@ -81,90 +86,115 @@ async function TabelInstante({
       : Promise.resolve(new Map<string, AngajatRezumat>()),
   ]);
 
-  const cautare = new URLSearchParams();
-  for (const [cheie, valoare] of Object.entries(parametri)) {
-    if (typeof valoare === "string" && cheie !== "cursor") cautare.set(cheie, valoare);
+  /**
+   * Adresele se construiesc din parametrii EXISTENȚI, nu dintr-un obiect gol:
+   * altfel o sortare ar șterge filtrele, iar o schimbare de mărime a paginii ar
+   * șterge sortarea.
+   */
+  function adresa(schimba: (p: URLSearchParams) => void): string {
+    const p = new URLSearchParams();
+    for (const [cheie, valoare] of Object.entries(parametri)) {
+      if (typeof valoare === "string" && valoare !== "") p.set(cheie, valoare);
+    }
+    schimba(p);
+    return p.size === 0 ? "/onboarding" : `/onboarding?${p.toString()}`;
   }
-  if (urmatorulCursor !== null) cautare.set("cursor", urmatorulCursor);
+
+  const coloane: readonly Coloana<(typeof randuri)[number]>[] = [
+    {
+      // Numele vine dintr-o a doua citire, nu din `order by`-ul listei: nu se
+      // poate sorta după el fără să rupă cursorul keyset.
+      cheie: "angajat",
+      antet: "Angajat",
+      peTelefon: "titlu",
+      celula: (r) => {
+        const angajat = angajati.get(r.employee_id);
+        return angajat === undefined
+          ? "—"
+          : `${angajat.full_name ?? angajat.marca} (${angajat.marca})`;
+      },
+    },
+    {
+      cheie: "tip",
+      antet: "Tip",
+      sortabil: true,
+      peTelefon: "meta",
+      celula: (r) => ETICHETE_TIP[r.tip],
+    },
+    {
+      cheie: "data",
+      antet: "Data de referință",
+      sortabil: true,
+      peTelefon: "meta",
+      celula: (r) => formatDate(r.data_referinta),
+    },
+    {
+      cheie: "stare",
+      antet: "Stare",
+      sortabil: true,
+      peTelefon: "insigna",
+      celula: (r) => (
+        <Badge ton={TONURI_STATUS_INSTANTA[r.status]}>{ETICHETE_STATUS_INSTANTA[r.status]}</Badge>
+      ),
+    },
+    {
+      cheie: "progres",
+      antet: "Progres",
+      peTelefon: "meta",
+      celula: (r) => {
+        const p = progres.get(r.id) ?? { total: 0, gata: 0, procent: 0 };
+        return (
+          // `<span>`, nu `<div>`: pe telefon celula ajunge în rândul de meta,
+          // care e un `<p>` — un `<div>` acolo ar fi marcaj nevalid.
+          <span className="inline-flex items-center gap-2">
+            <progress
+              value={p.procent}
+              max={100}
+              aria-label={`${String(p.gata)} din ${String(p.total)} pași finalizați`}
+              className="h-2 w-24 accent-blue-700"
+            />
+            <span className="text-muted-foreground text-nota">
+              {p.gata} din {p.total} pași
+            </span>
+          </span>
+        );
+      },
+    },
+  ];
 
   return (
-    <>
-      <div className="border-border rounded-panou overflow-x-auto border">
-        <table className="text-corp w-full">
-          <caption className="sr-only">Instanțele de checklist la care aveți acces.</caption>
-          <thead className="bg-surface text-left">
-            <tr>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Angajat
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Tip
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Data de referință
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Stare
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Progres
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-border divide-y">
-            {randuri.map((r) => {
-              const angajat = angajati.get(r.employee_id);
-              const p = progres.get(r.id) ?? { total: 0, gata: 0, procent: 0 };
-              return (
-                <RandTabel key={r.id} href={`/onboarding/${r.id}`}>
-                  <td className="px-4 py-3 font-medium">
-                    <Link
-                      href={`/onboarding/${r.id}`}
-                      className="underline-offset-2 hover:underline"
-                    >
-                      {angajat === undefined
-                        ? "—"
-                        : `${angajat.full_name ?? angajat.marca} (${angajat.marca})`}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3">{ETICHETE_TIP[r.tip]}</td>
-                  <td className="px-4 py-3">{formatDate(r.data_referinta)}</td>
-                  <td className="px-4 py-3">
-                    <Badge ton={TONURI_STATUS_INSTANTA[r.status]}>
-                      {ETICHETE_STATUS_INSTANTA[r.status]}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <progress
-                        value={p.procent}
-                        max={100}
-                        aria-label={`${String(p.gata)} din ${String(p.total)} pași finalizați`}
-                        className="h-2 w-24 accent-blue-700"
-                      />
-                      <span className="text-muted-foreground text-nota">
-                        {p.gata} din {p.total} pași
-                      </span>
-                    </div>
-                  </td>
-                </RandTabel>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      <nav aria-label="Paginare" className="flex justify-end">
-        {urmatorulCursor === null ? null : (
-          <Link
-            href={`/onboarding?${cautare.toString()}`}
-            className={buton({ varianta: "secundar" })}
-          >
-            Pagina următoare
-          </Link>
-        )}
-      </nav>
-    </>
+    <div className="flex flex-col gap-4">
+      <Tabel
+        caption="Instanțele de checklist la care aveți acces."
+        coloane={coloane}
+        randuri={randuri}
+        cheieRand={(r) => r.id}
+        href={(r) => `/onboarding/${r.id}`}
+        sortare={sortare}
+        hrefSortare={(s) =>
+          adresa((p) => {
+            p.set("sort", scrieSortare(s));
+            // Cursorul nu supraviețuiește unei schimbări de sortare: ar continua
+            // de la un rând care, în noua ordine, nu mai e acolo unde era.
+            p.delete("cursor");
+          })
+        }
+        gol={null}
+      />
+      <Paginare
+        afisate={randuri.length}
+        total={total}
+        cursorUrmator={urmatorulCursor}
+        limita={filtre.limita}
+        construiesteHref={({ cursor, limita }) =>
+          adresa((p) => {
+            p.set("limita", String(limita));
+            if (cursor === null) p.delete("cursor");
+            else p.set("cursor", cursor);
+          })
+        }
+      />
+    </div>
   );
 }
 

@@ -4,12 +4,19 @@ import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
+import { StareGoala } from "@/components/ui/stare-goala";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatLei } from "@/lib/format/money";
 import { formatMonthYear, todayInBucharest } from "@/lib/format/date";
-import { angajatiActiviCuContract, listeazaIstoricVenit } from "@/lib/queries/payroll";
+import {
+  angajatiActiviCuContract,
+  listeazaIstoricVenit,
+  type RandIstoricVenit,
+} from "@/lib/queries/payroll";
+import { CalendarClock } from "lucide-react";
 
 import { FormularIstoricVenit } from "./formular-istoric-venit";
 
@@ -36,6 +43,47 @@ export default async function PaginaIstoricVenituri() {
     listeazaIstoricVenit(tenant.organizationId),
   ]);
 
+  /*
+   * Citirea ia lista întreagă (fără cursor keyset), deci antetele nu pretind că
+   * sortează. Cele trei coloane de cifre sunt `numeric`: veniturile se compară
+   * pe verticală, nu una câte una.
+   */
+  const coloane: readonly Coloana<RandIstoricVenit>[] = [
+    {
+      cheie: "angajat",
+      antet: "Angajat",
+      peTelefon: "titlu",
+      celula: (rand) => rand.nume || rand.marca,
+    },
+    {
+      cheie: "luna",
+      antet: "Luna",
+      peTelefon: "meta",
+      celula: (rand) => formatMonthYear(rand.an, rand.luna),
+    },
+    {
+      cheie: "venit_brut",
+      antet: "Venit brut",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (rand) => formatLei(rand.venit_brut),
+    },
+    {
+      cheie: "drepturi_salariale",
+      antet: "Drepturi salariale",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (rand) => formatLei(rand.drepturi_salariale),
+    },
+    {
+      cheie: "zile_lucrate",
+      antet: "Zile lucrate",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (rand) => rand.zile_lucrate,
+    },
+  ];
+
   return (
     <div className={`${LATIMI.detaliu} space-y-6`}>
       <div className="space-y-1">
@@ -57,40 +105,26 @@ export default async function PaginaIstoricVenituri() {
 
       <FormularIstoricVenit angajati={personal.angajati} />
 
-      <section aria-label="Rânduri introduse" className="border-border rounded-panou border">
-        {randuri.length === 0 ? (
-          <p className="text-muted-foreground text-corp p-4">
-            Niciun rând încă. Introduceți lunile anterioare pentru angajații care au avut sau ar
-            putea avea concediu medical.
-          </p>
-        ) : (
-          <table className="text-corp w-full">
-            <thead className="text-muted-foreground border-border border-b text-left">
-              <tr>
-                <th className="px-4 py-2 font-medium">Angajat</th>
-                <th className="px-4 py-2 font-medium">Luna</th>
-                <th className="px-4 py-2 text-right font-medium">Venit brut</th>
-                <th className="px-4 py-2 text-right font-medium">Drepturi salariale</th>
-                <th className="px-4 py-2 text-right font-medium">Zile lucrate</th>
-              </tr>
-            </thead>
-            <tbody className="divide-border divide-y">
-              {randuri.map((rand) => (
-                <tr key={rand.id}>
-                  <td className="px-4 py-2">{rand.nume || rand.marca}</td>
-                  <td className="px-4 py-2">{formatMonthYear(rand.an, rand.luna)}</td>
-                  <td className="px-4 py-2 text-right tabular-nums">
-                    {formatLei(rand.venit_brut)}
-                  </td>
-                  <td className="px-4 py-2 text-right tabular-nums">
-                    {formatLei(rand.drepturi_salariale)}
-                  </td>
-                  <td className="px-4 py-2 text-right tabular-nums">{rand.zile_lucrate}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+      <section aria-label="Rânduri introduse">
+        <Tabel
+          caption="Veniturile lunare introduse manual, pentru perioada dinaintea aplicației"
+          coloane={coloane}
+          randuri={randuri}
+          cheieRand={(rand) => rand.id}
+          densitate="compact"
+          // `listeazaIstoricVenit` taie la 500 de rânduri fără să spună. Într-un
+          // modul unde din rândurile astea ies mediile de indemnizație, o listă
+          // tăiată tăcut e o cifră greșită fără eroare.
+          trunchiat={randuri.length >= 500}
+          gol={
+            <StareGoala
+              fel="initiala"
+              pictograma={CalendarClock}
+              titlu="Niciun rând încă"
+              descriere="Introduceți lunile anterioare pentru angajații care au avut sau ar putea avea concediu medical."
+            />
+          }
+        />
       </section>
     </div>
   );

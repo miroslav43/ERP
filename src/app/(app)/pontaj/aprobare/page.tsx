@@ -8,6 +8,7 @@ import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Schelet } from "@/components/ui/schelet";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -28,6 +29,25 @@ import { AprobareBloc } from "./aprobare-bloc";
 import { ListaSaptamaniDeAprobat } from "./lista-saptamani-de-aprobat";
 
 export const metadata: Metadata = { title: "Aprobare pontaj" };
+
+interface RandAprobare {
+  readonly id: string;
+  readonly nume: string;
+  readonly zile: number;
+  readonly ore: number;
+}
+
+const COLOANE_APROBARE: readonly Coloana<RandAprobare>[] = [
+  { cheie: "angajat", antet: "Angajat", peTelefon: "titlu", celula: (r) => r.nume },
+  {
+    cheie: "zile",
+    antet: "Zile neaprobate",
+    numeric: true,
+    peTelefon: "meta",
+    celula: (r) => r.zile,
+  },
+  { cheie: "ore", antet: "Ore lucrate", numeric: true, peTelefon: "meta", celula: (r) => r.ore },
+];
 
 interface ProprietatiPagina {
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -78,6 +98,13 @@ async function ContinutAprobare({
     }
   }
 
+  const randuriAprobare: readonly RandAprobare[] = [...perAngajat.entries()].map(([id, rand]) => ({
+    id,
+    nume: rand.nume,
+    zile: rand.zile,
+    ore: rand.ore,
+  }));
+
   return (
     <div className="space-y-4">
       <AprobareBloc
@@ -106,42 +133,20 @@ async function ContinutAprobare({
         </div>
       ) : null}
 
-      {perAngajat.size === 0 ? (
-        <StareGoala
-          fel="initiala"
-          pictograma={CheckCircle2}
-          titlu="Nimic de aprobat"
-          descriere="Toate liniile de pontaj ale acestei luni au fost deja aprobate."
-        />
-      ) : (
-        <div className="border-border rounded-panou overflow-x-auto border">
-          <table className="text-corp w-full">
-            <caption className="sr-only">Angajații cu linii de pontaj neaprobate.</caption>
-            <thead className="bg-surface text-left">
-              <tr>
-                <th scope="col" className="px-4 py-3 font-medium">
-                  Angajat
-                </th>
-                <th scope="col" className="px-4 py-3 text-right font-medium">
-                  Zile neaprobate
-                </th>
-                <th scope="col" className="px-4 py-3 text-right font-medium">
-                  Ore lucrate
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-border divide-y">
-              {[...perAngajat.entries()].map(([id, rand]) => (
-                <tr key={id}>
-                  <td className="px-4 py-3">{rand.nume}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{rand.zile}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{rand.ore}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <Tabel
+        caption="Angajații cu linii de pontaj neaprobate."
+        coloane={COLOANE_APROBARE}
+        randuri={randuriAprobare}
+        cheieRand={(rand) => rand.id}
+        gol={
+          <StareGoala
+            fel="initiala"
+            pictograma={CheckCircle2}
+            titlu="Nimic de aprobat"
+            descriere="Toate liniile de pontaj ale acestei luni au fost deja aprobate."
+          />
+        }
+      />
     </div>
   );
 }

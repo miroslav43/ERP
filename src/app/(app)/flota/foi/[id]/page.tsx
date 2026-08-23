@@ -6,6 +6,7 @@ import type { Metadata } from "next";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -71,6 +72,45 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
     foaie.km_parcursi !== null && foaie.km_parcursi > 0 && litriTotali > 0
       ? (litriTotali / foaie.km_parcursi) * 100
       : null;
+
+  // Fără sortare: alimentările unei curse se citesc întregi, în ordinea orei, și
+  // n-au cursor keyset.
+  const coloaneAlimentari: readonly Coloana<(typeof alimentari)[number]>[] = [
+    {
+      cheie: "data",
+      antet: "Data",
+      latime: "ingusta",
+      peTelefon: "titlu",
+      celula: (a) => formatDateTime(new Date(a.alimentat_la)),
+    },
+    {
+      cheie: "statie",
+      antet: "Stație",
+      peTelefon: "meta",
+      celula: (a) => a.statie ?? "—",
+    },
+    {
+      cheie: "litri",
+      antet: "Litri",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (a) => a.litri,
+    },
+    {
+      cheie: "cost",
+      antet: "Cost",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (a) => formatLei(a.cost),
+    },
+    {
+      cheie: "pret",
+      antet: "Preț/litru",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (a) => (a.pret_litru === null ? "—" : formatLei(a.pret_litru)),
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -151,60 +191,27 @@ export default async function PaginaFoaie({ params }: ProprietatiPagina) {
         <h2 id="alimentari" className="text-sectiune font-semibold">
           Alimentări
         </h2>
-        {alimentari.length === 0 ? (
-          <p className="text-muted-foreground text-corp">
-            Nicio alimentare înregistrată pe această cursă.
-          </p>
-        ) : (
-          <div className="border-border rounded-panou overflow-x-auto border">
-            <table className="text-corp w-full">
-              <thead className="bg-surface text-left">
-                <tr>
-                  <th scope="col" className="px-4 py-3 font-medium">
-                    Data
-                  </th>
-                  <th scope="col" className="px-4 py-3 font-medium">
-                    Stație
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-right font-medium">
-                    Litri
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-right font-medium">
-                    Cost
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-right font-medium">
-                    Preț/litru
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-border divide-y">
-                {alimentari.map((a) => (
-                  <tr key={a.id}>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      {formatDateTime(new Date(a.alimentat_la))}
-                    </td>
-                    <td className="px-4 py-3">{a.statie ?? "—"}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{a.litri}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{formatLei(a.cost)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">
-                      {a.pret_litru === null ? "—" : formatLei(a.pret_litru)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot className="bg-surface font-medium">
-                <tr>
-                  <td className="px-4 py-3" colSpan={2}>
-                    Total
-                  </td>
-                  <td className="px-4 py-3 text-right tabular-nums">{litriTotali.toFixed(2)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{formatLei(costTotal)}</td>
-                  <td className="px-4 py-3" />
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        )}
+        <Tabel
+          caption="Alimentările înregistrate pe această cursă."
+          coloane={coloaneAlimentari}
+          randuri={alimentari}
+          cheieRand={(a) => a.id}
+          gol={
+            <p className="text-muted-foreground text-corp">
+              Nicio alimentare înregistrată pe această cursă.
+            </p>
+          }
+          subsol={
+            <tr>
+              <td className="px-4 py-3" colSpan={2}>
+                Total
+              </td>
+              <td className="px-4 py-3 text-right tabular-nums">{litriTotali.toFixed(2)}</td>
+              <td className="px-4 py-3 text-right tabular-nums">{formatLei(costTotal)}</td>
+              <td className="px-4 py-3" />
+            </tr>
+          }
+        />
       </section>
 
       {poateScrie ? (

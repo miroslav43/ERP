@@ -6,6 +6,7 @@ import type { Metadata } from "next";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -57,6 +58,58 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
 
   const curente = documente.filter((d) => d.este_curent);
   const dupaTip = new Map(curente.map((d) => [d.document_type_id, d]));
+
+  // Se listează TIPURILE, nu documentele: un tip obligatoriu fără document
+  // trebuie să apară ca „Lipsește", roșu. Altfel absența unui RCA arată identic
+  // cu absența unei rubrici.
+  const randuriDocumente = tipuri.filter((tip) => dupaTip.has(tip.id) || tip.obligatoriu);
+
+  // Fără sortare: lista de tipuri nu are cursor, se citește întreagă și e
+  // ordonată de nomenclator (`ordine`).
+  const coloaneDocumente: readonly Coloana<(typeof randuriDocumente)[number]>[] = [
+    {
+      cheie: "tip",
+      antet: "Tip",
+      peTelefon: "titlu",
+      celula: (tip) => (
+        <>
+          {tip.denumire}
+          {tip.obligatoriu ? (
+            <span className="text-muted-foreground text-nota ml-1">(obligatoriu)</span>
+          ) : null}
+        </>
+      ),
+    },
+    {
+      cheie: "numar",
+      antet: "Număr",
+      peTelefon: "meta",
+      celula: (tip) => dupaTip.get(tip.id)?.numar ?? "—",
+    },
+    {
+      cheie: "expira",
+      antet: "Expiră",
+      latime: "ingusta",
+      peTelefon: "meta",
+      celula: (tip) => {
+        const expira = dupaTip.get(tip.id)?.expira_la;
+        return expira === undefined || expira === null ? "—" : formatDate(expira);
+      },
+    },
+    {
+      cheie: "stare",
+      antet: "Stare",
+      peTelefon: "insigna",
+      celula: (tip) => {
+        const stare = stareScadenta(dupaTip.get(tip.id)?.expira_la ?? null, azi);
+        return (
+          <Badge ton={TONURI_SCADENTA[stare]} cuAvertisment={stare === "expirat"}>
+            {ETICHETE_SCADENTA[stare]}
+          </Badge>
+        );
+      },
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -115,57 +168,17 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
         <h2 id="documente" className="text-sectiune font-semibold">
           Documente
         </h2>
-        <div className="border-border rounded-panou overflow-x-auto border">
-          <table className="text-corp w-full">
-            <thead className="bg-surface text-left">
-              <tr>
-                <th scope="col" className="px-4 py-3 font-medium">
-                  Tip
-                </th>
-                <th scope="col" className="px-4 py-3 font-medium">
-                  Număr
-                </th>
-                <th scope="col" className="px-4 py-3 font-medium">
-                  Expiră
-                </th>
-                <th scope="col" className="px-4 py-3 font-medium">
-                  Stare
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-border divide-y">
-              {/* Se listează TIPURILE, nu documentele: un tip obligatoriu fără
-                  document trebuie să apară ca „Lipsește", roșu. Altfel absența
-                  unui RCA arată identic cu absența unei rubrici. */}
-              {tipuri.map((tip) => {
-                const doc = dupaTip.get(tip.id);
-                const stare = stareScadenta(doc?.expira_la ?? null, azi);
-                if (doc === undefined && !tip.obligatoriu) return null;
-                return (
-                  <tr key={tip.id}>
-                    <td className="px-4 py-3">
-                      {tip.denumire}
-                      {tip.obligatoriu ? (
-                        <span className="text-muted-foreground text-nota ml-1">(obligatoriu)</span>
-                      ) : null}
-                    </td>
-                    <td className="px-4 py-3">{doc?.numar ?? "—"}</td>
-                    <td className="px-4 py-3">
-                      {doc?.expira_la === undefined || doc.expira_la === null
-                        ? "—"
-                        : formatDate(doc.expira_la)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge ton={TONURI_SCADENTA[stare]} cuAvertisment={stare === "expirat"}>
-                        {ETICHETE_SCADENTA[stare]}
-                      </Badge>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <Tabel
+          caption="Documentele vehiculului, cu starea fiecărei scadențe."
+          coloane={coloaneDocumente}
+          randuri={randuriDocumente}
+          cheieRand={(tip) => tip.id}
+          gol={
+            <p className="text-muted-foreground text-corp">
+              Niciun document înregistrat și niciun tip obligatoriu de completat.
+            </p>
+          }
+        />
 
         {poateScrie ? (
           <FormularDocument vehiculId={vehicul.id} tipuri={tipuri} />

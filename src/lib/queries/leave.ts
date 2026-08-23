@@ -8,43 +8,33 @@
 
 import { createServerSupabase } from "@/lib/supabase/server";
 import type { PermissionScope } from "@/config/permissions";
+import { SORTARI_CERERI } from "@/schemas/leave";
 import type {
   CriteriuGrila,
   EvenimentSold,
   FiltreCereri,
   ModRotunjireAcumulare,
   PortiuneZi,
+  SortareCereri,
   StatusCerere,
   StatusSarcinaAprobare,
   TipZiOrganizatie,
 } from "@/schemas/leave";
 
-// ── Cursor keyset (pereche proprie: dată + id, descrescător) ─────────────────
+import {
+  codificaCursor as codificaKeyset,
+  decodificaCursor as decodificaKeyset,
+  predicatKeyset,
+  sortareCeruta,
+  type Directie,
+} from "./cursor";
+
+// ── Cursor keyset ───────────────────────────────────────────────────────
 //
-// Codul este o copie intenționată a tiparului din `queries/employees.ts`, nu
-// un import: cheia de sortare e altă pereche de coloane, iar fișierul acela
-// nu se atinge (lucrează alt agent pe inventar în paralel).
-
-interface CursorCereri {
-  readonly data: string;
-  readonly id: string;
-}
-
-function codificaCursorCereri(cursor: CursorCereri): string {
-  return Buffer.from(`${cursor.data}\u0000${cursor.id}`, "utf8").toString("base64url");
-}
-
-function decodificaCursorCereri(valoare: string): CursorCereri | null {
-  try {
-    const bucati = Buffer.from(valoare, "base64url").toString("utf8").split("\u0000");
-    const data = bucati[0];
-    const id = bucati[1];
-    if (data === undefined || id === undefined || id.length === 0) return null;
-    return { data, id };
-  } catch {
-    return null;
-  }
-}
+// Cursorul propriu (`{ data, id }`, cu coloana încuiată în codificator) a fost
+// înlocuit cu cel comun din `./cursor`: acolo valoarea e opacă, iar coloana o dă
+// apelantul la fiecare citire, deci aceeași structură servește orice sortare.
+// Erau zece copii ale aceluiași codificator în fișierele de citiri.
 
 // ── Listarea cererilor ────────────────────────────────────────────────────────
 
@@ -67,7 +57,23 @@ export interface RandCerere {
 export interface RezultatCereri {
   readonly randuri: readonly RandCerere[];
   readonly urmatorulCursor: string | null;
+  /**
+   * Câte cereri sunt în total, după filtre. Lista nu spunea nimic: „Pagina
+   * următoare” fără un total e o ușă fără indicație — nu știi dacă mai urmează
+   * un ecran sau o sută.
+   */
+  readonly total: number;
+  /** Sortarea EFECTIV aplicată, după îngustarea la coloanele permise. */
+  readonly sortare: Readonly<{ cheie: SortareCereri; directie: Directie }>;
 }
+
+/** Cheia din URL → coloana din bază. Numele coloanei nu vine niciodată liber din query string. */
+const COLOANA_SORTARE: Readonly<Record<SortareCereri, string>> = {
+  perioada: "data_inceput",
+  stare: "status",
+};
+
+const SORTARE_IMPLICITA = { cheie: "perioada", directie: "desc" } as const;
 
 const COLOANE_CERERE =
   "id, employee_id, leave_type_id, data_inceput, data_sfarsit, portiune_inceput, portiune_sfarsit, zile_lucratoare, zile_calendaristice, status, trimisa_la, decis_la, created_at";
@@ -84,13 +90,26 @@ export async function listeazaCereri(
   fisaMea: string | null = null,
 ): Promise<RezultatCereri> {
   const db = await createServerSupabase();
+  const sortare = sortareCeruta(filtre.sort, SORTARI_CERERI, SORTARE_IMPLICITA);
+  const coloana = COLOANA_SORTARE[sortare.cheie];
+  const crescator = sortare.directie === "asc";
+
   let interogare = db
     .from("leave_requests")
-    .select(COLOANE_CERERE)
+    .select(
+      COLOANE_CERERE,
+      // `count: "exact"` pe aceeași interogare: numărătoarea respectă filtrele
+      // ȘI politicile RLS, fără un al doilea drum la bază care le-ar putea
+      // aplica altfel.
+      { count: "exact" },
+    )
     .eq("organization_id", organizationId)
     .is("deleted_at", null)
-    .order("data_inceput", { ascending: false })
-    .order("id", { ascending: false })
+    // Identificatorul e MEREU al doilea criteriu: nici data de început, nici
+    // starea nu sunt unice, iar fără el ordinea dintre două cereri egale e
+    // nedefinită — paginarea ar sări sau ar repeta exact acolo.
+    .order(coloana, { ascending: crescator, nullsFirst: false })
+    .order("id", { ascending: crescator })
     .limit(filtre.limita + 1);
 
   if (fisaMea !== null && filtre.vizualizare === "mele") {
@@ -116,26 +135,33 @@ export async function listeazaCereri(
     interogare = interogare.eq("employee_id", filtre.employee_id);
   }
 
-  const cursor = filtre.cursor === null ? null : decodificaCursorCereri(filtre.cursor);
+  const cursor = filtre.cursor === null ? null : decodificaKeyset(filtre.cursor);
   if (cursor !== null) {
-    interogare = interogare.or(
-      `data_inceput.lt.${cursor.data},and(data_inceput.eq.${cursor.data},id.lt.${cursor.id})`,
-    );
+    interogare = interogare.or(predicatKeyset(coloana, cursor, sortare.directie));
   }
 
-  const { data, error } = await interogare.returns<RandCerere[]>();
+  const { data, error, count } = await interogare.returns<RandCerere[]>();
   if (error !== null) throw error;
 
   const toate = data ?? [];
   const areUrmatoarea = toate.length > filtre.limita;
   const randuri = areUrmatoarea ? toate.slice(0, filtre.limita) : toate;
   const ultimul = randuri.at(-1);
+  const valoareCursor =
+    ultimul === undefined
+      ? null
+      : sortare.cheie === "stare"
+        ? ultimul.status
+        : ultimul.data_inceput;
+
   return {
     randuri,
     urmatorulCursor:
-      areUrmatoarea && ultimul !== undefined
-        ? codificaCursorCereri({ data: ultimul.data_inceput, id: ultimul.id })
+      areUrmatoarea && ultimul !== undefined && valoareCursor !== null
+        ? codificaKeyset({ valoare: valoareCursor, id: ultimul.id })
         : null,
+    total: count ?? randuri.length,
+    sortare,
   };
 }
 

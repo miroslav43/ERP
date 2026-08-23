@@ -7,6 +7,7 @@ import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Schelet } from "@/components/ui/schelet";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -39,55 +40,60 @@ async function TabelAnomalii({ organizationId }: { readonly organizationId: stri
     anomalii.map((a) => a.vehicle_id),
   );
 
+  // Fără sortare și fără paginare: citirea nu are cursor keyset — anomaliile
+  // neconfirmate se citesc întregi, cu o limită fixă. Un antet care pare
+  // sortabil și nu face nimic e mai rău decât unul care nu pare.
+  const coloane: readonly Coloana<(typeof anomalii)[number]>[] = [
+    {
+      cheie: "constatata",
+      antet: "Constatată",
+      latime: "ingusta",
+      peTelefon: "meta",
+      celula: (a) => formatDateTime(new Date(a.created_at)),
+    },
+    {
+      cheie: "vehicul",
+      antet: "Vehicul",
+      peTelefon: "titlu",
+      celula: (a) => vehicule.get(a.vehicle_id)?.nr_inmatriculare ?? "—",
+    },
+    {
+      cheie: "asteptat",
+      antet: "Așteptat",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (a) => `${a.km_asteptat.toLocaleString("ro-RO")} km`,
+    },
+    {
+      cheie: "declarat",
+      antet: "Declarat",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (a) => (
+        <>
+          {a.km_declarat.toLocaleString("ro-RO")} km
+          <span className="text-foreground text-nota ml-2">
+            +{(a.km_declarat - a.km_asteptat).toLocaleString("ro-RO")}
+          </span>
+        </>
+      ),
+    },
+    {
+      cheie: "explicatie",
+      antet: "Explicație",
+      peTelefon: "meta",
+      celula: (a) => <ConfirmaAnomalie id={a.id} />,
+    },
+  ];
+
   return (
-    <div className="border-border rounded-panou overflow-x-auto border">
-      <table className="text-corp w-full">
-        <caption className="sr-only">
-          Discontinuități de kilometraj constatate automat, în așteptarea unei explicații.
-        </caption>
-        <thead className="bg-surface text-left">
-          <tr>
-            <th scope="col" className="px-4 py-3 font-medium">
-              Constatată
-            </th>
-            <th scope="col" className="px-4 py-3 font-medium">
-              Vehicul
-            </th>
-            <th scope="col" className="px-4 py-3 text-right font-medium">
-              Așteptat
-            </th>
-            <th scope="col" className="px-4 py-3 text-right font-medium">
-              Declarat
-            </th>
-            <th scope="col" className="px-4 py-3 font-medium">
-              Explicație
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-border divide-y">
-          {anomalii.map((a) => (
-            <tr key={a.id} className="hover:bg-surface">
-              <td className="px-4 py-3 whitespace-nowrap">
-                {formatDateTime(new Date(a.created_at))}
-              </td>
-              <td className="px-4 py-3">{vehicule.get(a.vehicle_id)?.nr_inmatriculare ?? "—"}</td>
-              <td className="px-4 py-3 text-right tabular-nums">
-                {a.km_asteptat.toLocaleString("ro-RO")} km
-              </td>
-              <td className="px-4 py-3 text-right tabular-nums">
-                {a.km_declarat.toLocaleString("ro-RO")} km
-                <span className="text-foreground text-nota ml-2">
-                  +{(a.km_declarat - a.km_asteptat).toLocaleString("ro-RO")}
-                </span>
-              </td>
-              <td className="px-4 py-3">
-                <ConfirmaAnomalie id={a.id} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <Tabel
+      caption="Discontinuități de kilometraj constatate automat, în așteptarea unei explicații."
+      coloane={coloane}
+      randuri={anomalii}
+      cheieRand={(a) => a.id}
+      gol={null}
+    />
   );
 }
 

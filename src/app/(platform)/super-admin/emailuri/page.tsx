@@ -16,6 +16,7 @@ import {
 import { PreviewEmail } from "./preview-email";
 import Link from "next/link";
 import { Buton, buton } from "@/components/ui/buton";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { cn } from "@/lib/ui/cn";
 
 export const metadata = { title: "Emailuri · Super-Admin" };
@@ -47,6 +48,10 @@ const primaValoare = (v: string | string[] | undefined): string =>
   (Array.isArray(v) ? v[0] : v)?.trim() ?? "";
 
 type Filtre = Readonly<{ status: string; sablon: string; q: string }>;
+
+/** Cheia necunoscută se arată ca atare — baza poate avea șabloane pe care codul nu le știe. */
+const etichetaSablon = (cheie: string): string =>
+  isTemplateKey(cheie) ? TEMPLATE_LABELS[cheie] : cheie;
 
 function Skeleton() {
   return (
@@ -105,67 +110,85 @@ async function TabelEmailuri({ filtre }: { readonly filtre: Filtre }) {
     ),
   );
 
+  type RandEmail = (typeof randuri)[number];
+
+  /*
+   * Jurnalul se citește tăiat la 100 de rânduri, fără cursor keyset, deci
+   * antetele nu pretind că sortează. Butonul de previzualizare stă pe `insigna`,
+   * nu pe `meta`: varianta de card pune metadatele într-un `<p>`, iar dialogul
+   * din `PreviewEmail` e conținut de flux — l-ar închide devreme la parsare.
+   */
+  const coloane: readonly Coloana<RandEmail>[] = [
+    {
+      cheie: "destinatar",
+      antet: "Destinatar",
+      peTelefon: "titlu",
+      celula: (rand) => (
+        <>
+          <span className="text-foreground block">{rand.destinatar}</span>
+          <span className="text-muted-foreground text-nota block">{rand.subiect}</span>
+          {rand.error === null ? null : (
+            <span className="text-danger text-nota mt-1 block">{rand.error}</span>
+          )}
+        </>
+      ),
+    },
+    {
+      cheie: "sablon",
+      antet: "Șablon",
+      peTelefon: "meta",
+      celula: (rand) => (
+        <span className="text-muted-foreground">{etichetaSablon(rand.template)}</span>
+      ),
+    },
+    {
+      cheie: "stare",
+      antet: "Stare",
+      peTelefon: "insigna",
+      celula: (rand) => (
+        <span className={CULORI_STATUS[rand.status] ?? "text-muted-foreground"}>
+          {ETICHETE_STATUS[rand.status] ?? rand.status}
+        </span>
+      ),
+    },
+    {
+      cheie: "moment",
+      antet: "Moment",
+      peTelefon: "meta",
+      celula: (rand) => (
+        <span className="text-muted-foreground">
+          {formatDateTime(new Date(rand.sent_at ?? rand.created_at))}
+        </span>
+      ),
+    },
+    {
+      cheie: "actiuni",
+      antet: "Acțiuni",
+      peTelefon: "insigna",
+      celula: (rand) => {
+        const cheie = isTemplateKey(rand.template) ? rand.template : null;
+        const html = cheie === null ? undefined : previzualizari.get(cheie);
+        return config.mode === "test" && html !== undefined ? (
+          <PreviewEmail subiect={rand.subiect} sablon={etichetaSablon(rand.template)} html={html} />
+        ) : (
+          <span className="text-muted-foreground text-nota">{rand.provider_id ?? "—"}</span>
+        );
+      },
+    },
+  ];
+
   return (
-    <div className="border-border rounded-panou overflow-x-auto border">
-      <table className="text-corp w-full border-collapse text-left">
-        <caption className="sr-only">Emailuri trimise sau pregătite pentru trimitere</caption>
-        <thead className="bg-surface text-muted-foreground text-nota uppercase">
-          <tr>
-            <th scope="col" className="px-3 py-2 font-medium">
-              Destinatar
-            </th>
-            <th scope="col" className="px-3 py-2 font-medium">
-              Șablon
-            </th>
-            <th scope="col" className="px-3 py-2 font-medium">
-              Stare
-            </th>
-            <th scope="col" className="px-3 py-2 font-medium">
-              Moment
-            </th>
-            <th scope="col" className="px-3 py-2 font-medium">
-              Acțiuni
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {randuri.map((rand) => {
-            const cheie = isTemplateKey(rand.template) ? rand.template : null;
-            const html = cheie === null ? undefined : previzualizari.get(cheie);
-            const eticheta = cheie === null ? rand.template : TEMPLATE_LABELS[cheie];
-            return (
-              <tr key={rand.id} className="border-border border-t align-top">
-                <td className="px-3 py-2">
-                  <span className="text-foreground block">{rand.destinatar}</span>
-                  <span className="text-muted-foreground text-nota block">{rand.subiect}</span>
-                  {rand.error === null ? null : (
-                    <span className="text-danger text-nota mt-1 block">{rand.error}</span>
-                  )}
-                </td>
-                <td className="text-muted-foreground px-3 py-2">{eticheta}</td>
-                <td
-                  className={`px-3 py-2 ${CULORI_STATUS[rand.status] ?? "text-muted-foreground"}`}
-                >
-                  {ETICHETE_STATUS[rand.status] ?? rand.status}
-                </td>
-                <td className="text-muted-foreground px-3 py-2">
-                  {formatDateTime(new Date(rand.sent_at ?? rand.created_at))}
-                </td>
-                <td className="px-3 py-2">
-                  {config.mode === "test" && html !== undefined ? (
-                    <PreviewEmail subiect={rand.subiect} sablon={eticheta} html={html} />
-                  ) : (
-                    <span className="text-muted-foreground text-nota">
-                      {rand.provider_id ?? "—"}
-                    </span>
-                  )}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+    <Tabel
+      caption="Emailuri trimise sau pregătite pentru trimitere"
+      coloane={coloane}
+      randuri={randuri}
+      cheieRand={(rand) => rand.id}
+      densitate="compact"
+      // Citirea are `.limit(100)`: la fix o sută de rânduri jurnalul e aproape
+      // sigur tăiat, iar până acum nimic nu o spunea.
+      trunchiat={randuri.length >= 100}
+      gol={null}
+    />
   );
 }
 

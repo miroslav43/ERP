@@ -5,6 +5,8 @@ import { useState, useTransition } from "react";
 import { Copy, MailPlus, ShieldAlert } from "lucide-react";
 
 import { Buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { clientEnv } from "@/config/env";
 import type { ActionResult } from "@/lib/actions/types";
 
@@ -110,6 +112,105 @@ export function PanouMembri({
     });
   }
 
+  /**
+   * Nicio coloană nu e `sortabil`: lista de membri se citește întreagă, fără
+   * cursor — o organizație are zeci de membri, nu mii.
+   *
+   * Selectorul de rol și butonul de dezactivare stau pe `insigna`, nu pe
+   * `meta`: pe telefon, `meta` e un rând mărunt de text separat prin „·”, iar o
+   * comandă îngropată acolo nu se mai vede ca o comandă. Ca `insigna` ajung pe
+   * rândul de sus al cardului, lângă persoana pe care o privesc.
+   */
+  const coloaneMembri: readonly Coloana<RandMembru>[] = [
+    {
+      cheie: "persoana",
+      antet: "Persoană",
+      peTelefon: "titlu",
+      celula: (membru) => (
+        <>
+          <span className="text-foreground block">{membru.email}</span>
+          {membru.jobTitle === null ? null : (
+            <span className="text-muted-foreground text-nota">{membru.jobTitle}</span>
+          )}
+        </>
+      ),
+    },
+    {
+      cheie: "rol",
+      antet: "Rol",
+      peTelefon: "insigna",
+      celula: (membru) =>
+        membru.esteEu ? (
+          <span className="text-muted-foreground">{etichetaRol(membru.role)} (dvs.)</span>
+        ) : (
+          <>
+            <label htmlFor={`rol-${membru.id}`} className="sr-only">
+              Rolul pentru {membru.email}
+            </label>
+            <select
+              id={`rol-${membru.id}`}
+              defaultValue={membru.role}
+              disabled={inCurs}
+              onChange={(eveniment) =>
+                ruleaza(
+                  schimbaRolulMembrului({
+                    memberId: membru.id,
+                    role: eveniment.target.value,
+                  }),
+                  "Rolul a fost actualizat.",
+                )
+              }
+              className="border-border bg-background rounded-control text-corp h-8 border px-2"
+            >
+              {ROLURI.map((element) => (
+                <option key={element.valoare} value={element.valoare}>
+                  {element.eticheta}
+                </option>
+              ))}
+            </select>
+          </>
+        ),
+    },
+    {
+      cheie: "stare",
+      antet: "Stare",
+      peTelefon: "meta",
+      celula: (membru) => (
+        <span className="text-muted-foreground">
+          {ETICHETE_STARE[membru.status] ?? membru.status}
+        </span>
+      ),
+    },
+    {
+      cheie: "actiuni",
+      antet: "Acțiuni",
+      latime: "ingusta",
+      peTelefon: "insigna",
+      celula: (membru) =>
+        membru.esteEu ? (
+          <span className="text-muted-foreground text-nota">—</span>
+        ) : (
+          <Buton
+            varianta="secundar"
+            disabled={inCurs}
+            onClick={() =>
+              ruleaza(
+                seteazaStareaMembrului({
+                  memberId: membru.id,
+                  status: membru.status === "active" ? "inactive" : "active",
+                }),
+                membru.status === "active"
+                  ? "Membrul a fost dezactivat."
+                  : "Membrul a fost reactivat.",
+              )
+            }
+          >
+            {membru.status === "active" ? "Dezactivează" : "Reactivează"}
+          </Buton>
+        ),
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-6">
       <section
@@ -186,99 +287,22 @@ export function PanouMembri({
         <h2 id="titlu-membri" className="text-foreground text-corp mb-2 font-medium">
           Membri ({membri.length})
         </h2>
-        <div className="border-border rounded-panou overflow-x-auto border">
-          <table className="text-corp w-full">
-            <caption className="sr-only">Membrii organizației curente</caption>
-            <thead className="bg-surface text-muted-foreground text-left">
-              <tr>
-                <th scope="col" className="px-3 py-2 font-medium">
-                  Persoană
-                </th>
-                <th scope="col" className="px-3 py-2 font-medium">
-                  Rol
-                </th>
-                <th scope="col" className="px-3 py-2 font-medium">
-                  Stare
-                </th>
-                <th scope="col" className="px-3 py-2 font-medium">
-                  Acțiuni
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {membri.map((membru) => (
-                <tr key={membru.id} className="border-border border-t">
-                  <td className="px-3 py-2">
-                    <span className="text-foreground block">{membru.email}</span>
-                    {membru.jobTitle !== null ? (
-                      <span className="text-muted-foreground text-nota">{membru.jobTitle}</span>
-                    ) : null}
-                  </td>
-                  <td className="px-3 py-2">
-                    {membru.esteEu ? (
-                      <span className="text-muted-foreground">
-                        {etichetaRol(membru.role)} (dvs.)
-                      </span>
-                    ) : (
-                      <>
-                        <label htmlFor={`rol-${membru.id}`} className="sr-only">
-                          Rolul pentru {membru.email}
-                        </label>
-                        <select
-                          id={`rol-${membru.id}`}
-                          defaultValue={membru.role}
-                          disabled={inCurs}
-                          onChange={(eveniment) =>
-                            ruleaza(
-                              schimbaRolulMembrului({
-                                memberId: membru.id,
-                                role: eveniment.target.value,
-                              }),
-                              "Rolul a fost actualizat.",
-                            )
-                          }
-                          className="border-border bg-background rounded-control text-corp h-8 border px-2"
-                        >
-                          {ROLURI.map((element) => (
-                            <option key={element.valoare} value={element.valoare}>
-                              {element.eticheta}
-                            </option>
-                          ))}
-                        </select>
-                      </>
-                    )}
-                  </td>
-                  <td className="text-muted-foreground px-3 py-2">
-                    {ETICHETE_STARE[membru.status] ?? membru.status}
-                  </td>
-                  <td className="px-3 py-2">
-                    {membru.esteEu ? (
-                      <span className="text-muted-foreground text-nota">—</span>
-                    ) : (
-                      <Buton
-                        varianta="secundar"
-                        disabled={inCurs}
-                        onClick={() =>
-                          ruleaza(
-                            seteazaStareaMembrului({
-                              memberId: membru.id,
-                              status: membru.status === "active" ? "inactive" : "active",
-                            }),
-                            membru.status === "active"
-                              ? "Membrul a fost dezactivat."
-                              : "Membrul a fost reactivat.",
-                          )
-                        }
-                      >
-                        {membru.status === "active" ? "Dezactivează" : "Reactivează"}
-                      </Buton>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Tabel
+          caption="Membrii organizației curente"
+          coloane={coloaneMembri}
+          randuri={membri}
+          cheieRand={(membru) => membru.id}
+          densitate="compact"
+          gol={
+            <StareGoala
+              fel="initiala"
+              pictograma={ShieldAlert}
+              titlu="Niciun membru"
+              descriere="Folosiți formularul de mai sus pentru a invita primul coleg."
+              compact
+            />
+          }
+        />
       </section>
 
       <section aria-labelledby="titlu-invitatii">

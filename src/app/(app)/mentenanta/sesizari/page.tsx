@@ -9,13 +9,15 @@ import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
 import { buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
-import { RandTabel } from "@/components/data/rand-tabel";
+import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime } from "@/lib/format/date";
 import { filtreDinUrl } from "@/lib/rute/parametri";
+import { scrieSortare } from "@/lib/queries/cursor";
 import { echipamenteDupaId, sesizari } from "@/lib/queries/maintenance";
 import { filtreSesizariSchema } from "@/schemas/maintenance";
 
@@ -42,7 +44,7 @@ async function TabelSesizari({
   readonly parametri: Record<string, string | string[] | undefined>;
 }) {
   const filtre = filtreDinUrl(filtreSesizariSchema, parametri);
-  const { randuri, urmatorulCursor } = await sesizari(organizationId, filtre);
+  const { randuri, urmatorulCursor, total, sortare } = await sesizari(organizationId, filtre);
 
   if (randuri.length === 0) {
     const areFiltre =
@@ -69,83 +71,101 @@ async function TabelSesizari({
     randuri.map((r) => r.equipment_id),
   );
 
-  const cautare = new URLSearchParams();
-  for (const [cheie, valoare] of Object.entries(parametri)) {
-    if (typeof valoare === "string" && cheie !== "cursor") cautare.set(cheie, valoare);
+  /** Adresele pornesc din parametrii EXISTENȚI: o sortare nu trebuie să șteargă filtrele. */
+  function adresa(schimba: (p: URLSearchParams) => void): string {
+    const p = new URLSearchParams();
+    for (const [cheie, valoare] of Object.entries(parametri)) {
+      if (typeof valoare === "string" && valoare !== "") p.set(cheie, valoare);
+    }
+    schimba(p);
+    return p.size === 0 ? "/mentenanta/sesizari" : `/mentenanta/sesizari?${p.toString()}`;
   }
-  if (urmatorulCursor !== null) cautare.set("cursor", urmatorulCursor);
+
+  const coloane: readonly Coloana<(typeof randuri)[number]>[] = [
+    {
+      cheie: "echipament",
+      antet: "Echipament",
+      peTelefon: "titlu",
+      celula: (s) => {
+        const echipament = echipamente.get(s.equipment_id);
+        return (
+          <span className="font-medium">
+            {echipament === undefined
+              ? "Echipament necunoscut"
+              : `${echipament.cod} — ${echipament.denumire}`}
+          </span>
+        );
+      },
+    },
+    {
+      cheie: "descriere",
+      antet: "Descriere",
+      peTelefon: "meta",
+      celula: (s) => s.descriere,
+    },
+    {
+      cheie: "raportat",
+      antet: "Raportată la",
+      sortabil: true,
+      latime: "ingusta",
+      peTelefon: "meta",
+      celula: (s) => formatDateTime(s.raportat_la),
+    },
+    {
+      cheie: "urgenta",
+      antet: "Urgență",
+      sortabil: true,
+      peTelefon: "insigna",
+      celula: (s) => (
+        <Badge ton={TONURI_URGENTA_SESIZARE[s.urgenta]}>
+          {ETICHETE_URGENTA_SESIZARE[s.urgenta]}
+        </Badge>
+      ),
+    },
+    {
+      cheie: "stare",
+      antet: "Stare",
+      sortabil: true,
+      peTelefon: "insigna",
+      celula: (s) => (
+        <Badge ton={TONURI_STATUS_SESIZARE[s.status]}>{ETICHETE_STATUS_SESIZARE[s.status]}</Badge>
+      ),
+    },
+  ];
 
   return (
-    <>
-      <div className="border-border rounded-panou overflow-x-auto border">
-        <table className="text-corp w-full">
-          <caption className="sr-only">Sesizările de defecțiune ale organizației.</caption>
-          <thead className="bg-surface text-left">
-            <tr>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Echipament
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Descriere
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Raportată la
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Urgență
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Stare
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-border divide-y">
-            {randuri.map((sesizare) => {
-              const echipament = echipamente.get(sesizare.equipment_id);
-              return (
-                <RandTabel key={sesizare.id} href={`/mentenanta/sesizari/${sesizare.id}`}>
-                  <td className="px-4 py-3 font-medium">
-                    {echipament === undefined
-                      ? "Echipament necunoscut"
-                      : `${echipament.cod} — ${echipament.denumire}`}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/mentenanta/sesizari/${sesizare.id}`}
-                      className="underline-offset-2 hover:underline"
-                    >
-                      {sesizare.descriere}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3">{formatDateTime(sesizare.raportat_la)}</td>
-                  <td className="px-4 py-3">
-                    <Badge ton={TONURI_URGENTA_SESIZARE[sesizare.urgenta]}>
-                      {ETICHETE_URGENTA_SESIZARE[sesizare.urgenta]}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge ton={TONURI_STATUS_SESIZARE[sesizare.status]}>
-                      {ETICHETE_STATUS_SESIZARE[sesizare.status]}
-                    </Badge>
-                  </td>
-                </RandTabel>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      <nav aria-label="Paginare" className="flex justify-end">
-        {urmatorulCursor === null ? null : (
-          <Link
-            href={`/mentenanta/sesizari?${cautare.toString()}`}
-            className={buton({ varianta: "secundar" })}
-          >
-            Pagina următoare
-          </Link>
-        )}
-      </nav>
-    </>
+    <div className="flex flex-col gap-4">
+      <Tabel
+        caption="Sesizările de defecțiune ale organizației."
+        coloane={coloane}
+        randuri={randuri}
+        cheieRand={(s) => s.id}
+        href={(s) => `/mentenanta/sesizari/${s.id}`}
+        sortare={sortare}
+        hrefSortare={(s) =>
+          adresa((p) => {
+            p.set("sort", scrieSortare(s));
+            // Cursorul nu supraviețuiește unei schimbări de sortare: ar continua
+            // de la un rând care, în noua ordine, nu mai e acolo unde era.
+            p.delete("cursor");
+          })
+        }
+        gol={null}
+      />
+      <Paginare
+        afisate={randuri.length}
+        total={total}
+        cursorUrmator={urmatorulCursor}
+        limita={filtre.limita}
+        construiesteHref={({ cursor, limita }) =>
+          adresa((p) => {
+            p.set("limita", String(limita));
+            if (cursor === null) p.delete("cursor");
+            else p.set("cursor", cursor);
+          })
+        }
+      />
+    </div>
   );
 }
 

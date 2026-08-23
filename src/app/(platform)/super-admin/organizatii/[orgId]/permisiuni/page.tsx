@@ -135,6 +135,17 @@ export default async function PaginaPermisiuni({ params }: { params: Promise<{ o
         </ul>
       </div>
 
+      {/*
+        EXCEPȚIE de la migrarea pe `<Tabel>`, deliberată.
+        E o MATRICE, nu o listă: coloanele se nasc din `ROLURI_APLICATIE`, deci
+        numărul lor nu e fix, iar prima celulă a fiecărui rând e un
+        `<th scope="row">` — antetul rândului, nu o valoare. `Coloana<R>` descrie
+        coloane declarate una câte una și randează toate celulele ca `<td>`, iar
+        varianta de card („un titlu, o insignă, un rând de metadate”) n-are ce
+        reprezenta când rândul e cinci valori de scope egale între ele.
+        Matricea rămâne scrisă de mână; ecran îngust = derulare orizontală, ca
+        orice tabel încrucișat.
+      */}
       <div className="border-border bg-surface overflow-x-auto rounded-xl border">
         <table className="w-full min-w-[52rem] border-collapse">
           <caption className="sr-only">

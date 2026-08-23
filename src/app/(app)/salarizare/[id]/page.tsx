@@ -7,6 +7,7 @@ import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -18,10 +19,11 @@ import {
   citestePerioada,
   listeazaInregistrari,
   primeSiRetineriPerioada,
+  type RandInregistrare,
   type RandPrimaPerioada,
   type RandRetinerePerioada,
 } from "@/lib/queries/payroll";
-import { Users } from "lucide-react";
+import { Receipt, Users } from "lucide-react";
 
 import { TONURI_STATUS_PERIOADA, ETICHETE_STATUS_PERIOADA, numeLuna } from "../etichete";
 import { ActiuniPerioada } from "./actiuni-perioada";
@@ -74,6 +76,48 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
   for (const r of retineri) {
     retineriPeAngajat.set(r.employee_id, [...(retineriPeAngajat.get(r.employee_id) ?? []), r]);
   }
+
+  /*
+   * Înregistrările se citesc întregi (fără cursor keyset), deci antetele nu
+   * pretind că sortează. Toate cifrele sunt `numeric`: patru coloane de bani una
+   * lângă alta se citesc doar aliniate la dreapta, pe verticală.
+   */
+  const coloane: readonly Coloana<RandInregistrare>[] = [
+    {
+      cheie: "angajat",
+      antet: "Angajat",
+      peTelefon: "titlu",
+      celula: (r) => r.angajat?.full_name ?? r.angajat?.marca ?? "—",
+    },
+    {
+      cheie: "brut",
+      antet: "Brut",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (r) => formatLei(r.brut),
+    },
+    {
+      cheie: "net",
+      antet: "Net",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (r) => formatLei(r.net),
+    },
+    {
+      cheie: "net_de_plata",
+      antet: "Net de plată",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (r) => formatLei(r.net_de_plata),
+    },
+    {
+      cheie: "cost_angajator",
+      antet: "Cost angajator",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (r) => formatLei(r.cost_total_angajator),
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -184,49 +228,21 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
           ) : null}
         </>
       ) : (
-        <div className="border-border rounded-panou overflow-x-auto border">
-          <table className="text-corp w-full">
-            <thead className="bg-surface text-left">
-              <tr>
-                <th scope="col" className="px-4 py-3 font-medium">
-                  Angajat
-                </th>
-                <th scope="col" className="px-4 py-3 text-right font-medium">
-                  Brut
-                </th>
-                <th scope="col" className="px-4 py-3 text-right font-medium">
-                  Net
-                </th>
-                <th scope="col" className="px-4 py-3 text-right font-medium">
-                  Net de plată
-                </th>
-                <th scope="col" className="px-4 py-3 text-right font-medium">
-                  Cost angajator
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-border divide-y">
-              {inregistrari.map((r) => (
-                <tr key={r.id}>
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/salarizare/${perioada.id}/${r.id}`}
-                      className="underline-offset-2 hover:underline"
-                    >
-                      {r.angajat?.full_name ?? r.angajat?.marca ?? "—"}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-right tabular-nums">{formatLei(r.brut)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{formatLei(r.net)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{formatLei(r.net_de_plata)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">
-                    {formatLei(r.cost_total_angajator)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Tabel
+          caption={`Fluturașii perioadei ${numeLuna(perioada.luna)} ${String(perioada.an)}`}
+          coloane={coloane}
+          randuri={inregistrari}
+          cheieRand={(r) => r.id}
+          href={(r) => `/salarizare/${perioada.id}/${r.id}`}
+          gol={
+            <StareGoala
+              fel="initiala"
+              pictograma={Receipt}
+              titlu="Niciun fluturaș în perioadă"
+              descriere="Perioada a fost calculată, dar nu are nicio înregistrare. Verificați dacă există angajați activi cu contract activ în luna respectivă."
+            />
+          }
+        />
       )}
     </div>
   );

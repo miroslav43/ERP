@@ -143,6 +143,17 @@ const listaStatusuriOptionala = z
 export const VIZUALIZARI_CERERI = ["toate", "mele", "echipa"] as const;
 export type VizualizareCereri = (typeof VIZUALIZARI_CERERI)[number];
 
+/**
+ * Coloanele după care lista de cereri se poate sorta.
+ *
+ * Lista e ÎNCHISĂ, nu o validare de formă: numele coloanei ajunge într-un
+ * `.order()` și într-un predicat de cursor construit ca text, deci nu poate
+ * veni liber din query string. `sortareCeruta` din `lib/queries/cursor.ts` cade
+ * tăcut pe implicit pentru orice altceva.
+ */
+export const SORTARI_CERERI = ["perioada", "stare"] as const;
+export type SortareCereri = (typeof SORTARI_CERERI)[number];
+
 export const filtreCereriSchema = z.object({
   vizualizare: z.enum(VIZUALIZARI_CERERI).default("toate"),
   status: listaStatusuriOptionala,
@@ -152,6 +163,8 @@ export const filtreCereriSchema = z.object({
   pana_la: dataOptionala,
   cursor: textOptional(400),
   limita: z.coerce.number().int().min(5).max(100).default(25),
+  /** Forma din URL: `perioada` crescător, `-perioada` descrescător. */
+  sort: textOptional(40),
 });
 
 export type FiltreCereri = z.infer<typeof filtreCereriSchema>;

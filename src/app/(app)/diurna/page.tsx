@@ -10,13 +10,15 @@ import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
 import { buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
-import { RandTabel } from "@/components/data/rand-tabel";
+import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime, todayInBucharest } from "@/lib/format/date";
 import { formatLei } from "@/lib/format/money";
+import { scrieSortare } from "@/lib/queries/cursor";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 import {
   angajatiDupaId,
@@ -97,7 +99,10 @@ async function TabelDeplasari({
   readonly arataAngajat: boolean;
 }) {
   const filtre = filtreDinUrl(filtreDeplasariSchema, parametri);
-  const { randuri, urmatorulCursor } = await listeazaDeplasari(organizationId, filtre);
+  const { randuri, urmatorulCursor, total, sortare } = await listeazaDeplasari(
+    organizationId,
+    filtre,
+  );
 
   if (randuri.length === 0) {
     const areFiltre = filtre.status !== null;
@@ -139,102 +144,121 @@ async function TabelDeplasari({
   ]);
   const politiciDupaData = new Map(politiciListe);
 
-  const cautare = new URLSearchParams();
-  for (const [cheie, valoare] of Object.entries(parametri)) {
-    if (typeof valoare === "string" && cheie !== "cursor") cautare.set(cheie, valoare);
+  /**
+   * Adresele se construiesc din parametrii EXISTENȚI, nu dintr-un obiect gol:
+   * altfel o sortare ar șterge filtrul de stare, iar o schimbare de mărime a
+   * paginii ar șterge sortarea.
+   */
+  function adresa(schimba: (p: URLSearchParams) => void): string {
+    const p = new URLSearchParams();
+    for (const [cheie, valoare] of Object.entries(parametri)) {
+      if (typeof valoare === "string" && valoare !== "") p.set(cheie, valoare);
+    }
+    schimba(p);
+    return p.size === 0 ? "/diurna" : `/diurna?${p.toString()}`;
   }
-  if (urmatorulCursor !== null) cautare.set("cursor", urmatorulCursor);
+
+  const coloanaAngajat: readonly Coloana<(typeof randuri)[number]>[] = arataAngajat
+    ? [
+        {
+          cheie: "angajat",
+          antet: "Angajat",
+          peTelefon: "meta",
+          celula: (r) => {
+            const angajat = angajati.get(r.employee_id);
+            return angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`;
+          },
+        },
+      ]
+    : [];
+
+  const coloane: readonly Coloana<(typeof randuri)[number]>[] = [
+    {
+      cheie: "scop",
+      antet: "Scop",
+      sortabil: true,
+      peTelefon: "titlu",
+      celula: (r) => (
+        <>
+          <span className="font-medium">{r.scop}</span>
+          {r.localitate === null ? null : (
+            <span className="text-muted-foreground"> · {r.localitate}</span>
+          )}
+        </>
+      ),
+    },
+    ...coloanaAngajat,
+    {
+      cheie: "plecare",
+      antet: "Perioada",
+      sortabil: true,
+      peTelefon: "meta",
+      celula: (r) => (
+        <>
+          {formatDateTime(new Date(r.plecare_la))} – {formatDateTime(new Date(r.sosire_la))}
+        </>
+      ),
+    },
+    {
+      cheie: "stare",
+      antet: "Stare",
+      sortabil: true,
+      peTelefon: "insigna",
+      celula: (r) => (
+        <Badge ton={TONURI_STATUS_DEPLASARE[r.status]}>{ETICHETE_STATUS_DEPLASARE[r.status]}</Badge>
+      ),
+    },
+    {
+      cheie: "diurna",
+      antet: "Diurnă",
+      peTelefon: "meta",
+      celula: (r) => {
+        const sumar = sumarDeplasare(r, politiciDupaData, baremuri, salvate.get(r.id));
+        return (
+          <>
+            {sumar.text}
+            {sumar.estimare ? (
+              <span className="text-muted-foreground text-nota ml-1">(estimare)</span>
+            ) : null}
+          </>
+        );
+      },
+    },
+  ];
 
   return (
-    <>
-      <div className="border-border rounded-panou overflow-x-auto border">
-        <table className="text-corp w-full">
-          <caption className="sr-only">
-            Deplasările în interes de serviciu, cu diurna estimată.
-          </caption>
-          <thead className="bg-surface text-left">
-            <tr>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Scop
-              </th>
-              {arataAngajat ? (
-                <th scope="col" className="px-4 py-3 font-medium">
-                  Angajat
-                </th>
-              ) : null}
-              <th scope="col" className="px-4 py-3 font-medium">
-                Perioada
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Stare
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Diurnă
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-border divide-y">
-            {randuri.map((r) => {
-              const angajat = angajati.get(r.employee_id);
-              return (
-                <RandTabel key={r.id} href={`/diurna/${r.id}`}>
-                  <td className="px-4 py-3 font-medium">
-                    <Link href={`/diurna/${r.id}`} className="underline-offset-2 hover:underline">
-                      {r.scop}
-                    </Link>
-                    {r.localitate === null ? null : (
-                      <span className="text-muted-foreground"> · {r.localitate}</span>
-                    )}
-                  </td>
-                  {arataAngajat ? (
-                    <td className="px-4 py-3">
-                      {angajat === undefined
-                        ? "—"
-                        : `${angajat.full_name ?? "—"} (${angajat.marca})`}
-                    </td>
-                  ) : null}
-                  <td className="px-4 py-3">
-                    {formatDateTime(new Date(r.plecare_la))} –{" "}
-                    {formatDateTime(new Date(r.sosire_la))}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge ton={TONURI_STATUS_DEPLASARE[r.status]}>
-                      {ETICHETE_STATUS_DEPLASARE[r.status]}
-                    </Badge>
-                  </td>
-                  <td className="text-corp px-4 py-3">
-                    {(() => {
-                      const sumar = sumarDeplasare(
-                        r,
-                        politiciDupaData,
-                        baremuri,
-                        salvate.get(r.id),
-                      );
-                      return (
-                        <>
-                          {sumar.text}
-                          {sumar.estimare ? (
-                            <span className="text-muted-foreground text-nota ml-1">(estimare)</span>
-                          ) : null}
-                        </>
-                      );
-                    })()}
-                  </td>
-                </RandTabel>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      <nav aria-label="Paginare" className="flex justify-end">
-        {urmatorulCursor === null ? null : (
-          <Link href={`/diurna?${cautare.toString()}`} className={buton({ varianta: "secundar" })}>
-            Pagina următoare
-          </Link>
-        )}
-      </nav>
-    </>
+    <div className="flex flex-col gap-4">
+      <Tabel
+        caption="Deplasările în interes de serviciu, cu diurna estimată."
+        coloane={coloane}
+        randuri={randuri}
+        cheieRand={(r) => r.id}
+        href={(r) => `/diurna/${r.id}`}
+        sortare={sortare}
+        hrefSortare={(s) =>
+          adresa((p) => {
+            p.set("sort", scrieSortare(s));
+            // Cursorul nu supraviețuiește unei schimbări de sortare: ar continua
+            // de la un rând care, în noua ordine, nu mai e acolo unde era.
+            p.delete("cursor");
+          })
+        }
+        gol={null}
+      />
+      <Paginare
+        afisate={randuri.length}
+        total={total}
+        cursorUrmator={urmatorulCursor}
+        limita={filtre.limita}
+        construiesteHref={({ cursor, limita }) =>
+          adresa((p) => {
+            p.set("limita", String(limita));
+            if (cursor === null) p.delete("cursor");
+            else p.set("cursor", cursor);
+          })
+        }
+      />
+    </div>
   );
 }
 

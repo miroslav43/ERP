@@ -9,12 +9,14 @@ import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
 import { buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
-import { RandTabel } from "@/components/data/rand-tabel";
+import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { filtreDinUrl } from "@/lib/rute/parametri";
+import { scrieSortare } from "@/lib/queries/cursor";
 import { listeazaEchipamente } from "@/lib/queries/maintenance";
 import { filtreEchipamenteSchema } from "@/schemas/maintenance";
 
@@ -36,7 +38,10 @@ async function TabelEchipamente({
   readonly parametri: Record<string, string | string[] | undefined>;
 }) {
   const filtre = filtreDinUrl(filtreEchipamenteSchema, parametri);
-  const { randuri, urmatorulCursor } = await listeazaEchipamente(organizationId, filtre);
+  const { randuri, urmatorulCursor, total, sortare } = await listeazaEchipamente(
+    organizationId,
+    filtre,
+  );
 
   if (randuri.length === 0) {
     const areFiltre = filtre.status !== null || filtre.cauta !== null;
@@ -59,81 +64,98 @@ async function TabelEchipamente({
     );
   }
 
-  const cautare = new URLSearchParams();
-  for (const [cheie, valoare] of Object.entries(parametri)) {
-    if (typeof valoare === "string" && cheie !== "cursor") cautare.set(cheie, valoare);
+  /** Adresele pornesc din parametrii EXISTENȚI: o sortare nu trebuie să șteargă filtrele. */
+  function adresa(schimba: (p: URLSearchParams) => void): string {
+    const p = new URLSearchParams();
+    for (const [cheie, valoare] of Object.entries(parametri)) {
+      if (typeof valoare === "string" && valoare !== "") p.set(cheie, valoare);
+    }
+    schimba(p);
+    return p.size === 0 ? "/mentenanta/echipamente" : `/mentenanta/echipamente?${p.toString()}`;
   }
-  if (urmatorulCursor !== null) cautare.set("cursor", urmatorulCursor);
+
+  const coloane: readonly Coloana<(typeof randuri)[number]>[] = [
+    {
+      cheie: "cod",
+      antet: "Cod",
+      sortabil: true,
+      latime: "ingusta",
+      peTelefon: "meta",
+      celula: (e) => <span className="font-medium">{e.cod}</span>,
+    },
+    {
+      cheie: "denumire",
+      antet: "Denumire",
+      sortabil: true,
+      peTelefon: "titlu",
+      celula: (e) => e.denumire,
+    },
+    {
+      cheie: "locatie",
+      antet: "Locație",
+      peTelefon: "meta",
+      celula: (e) => e.locatie ?? "—",
+    },
+    {
+      cheie: "iscir",
+      antet: "ISCIR",
+      latime: "ingusta",
+      // Pictogramă fără text: nu are ce spune pe cardul de telefon, unde
+      // rândul mărunt e o înșiruire de valori citite cu voce tare.
+      peTelefon: "ascuns",
+      celula: (e) =>
+        e.este_iscir ? (
+          <WrenchIcon aria-label="Sub incidența ISCIR" className="text-foreground size-4" />
+        ) : (
+          "—"
+        ),
+    },
+    {
+      cheie: "stare",
+      antet: "Stare",
+      sortabil: true,
+      peTelefon: "insigna",
+      celula: (e) => (
+        <Badge ton={TONURI_STATUS_ECHIPAMENT[e.status]}>
+          {ETICHETE_STATUS_ECHIPAMENT[e.status]}
+        </Badge>
+      ),
+    },
+  ];
 
   return (
-    <>
-      <div className="border-border rounded-panou overflow-x-auto border">
-        <table className="text-corp w-full">
-          <caption className="sr-only">Echipamentele organizației.</caption>
-          <thead className="bg-surface text-left">
-            <tr>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Cod
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Denumire
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Locație
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                ISCIR
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Stare
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-border divide-y">
-            {randuri.map((echipament) => (
-              <RandTabel key={echipament.id} href={`/mentenanta/echipamente/${echipament.id}`}>
-                <td className="px-4 py-3 font-medium">
-                  <Link
-                    href={`/mentenanta/echipamente/${echipament.id}`}
-                    className="underline-offset-2 hover:underline"
-                  >
-                    {echipament.cod}
-                  </Link>
-                </td>
-                <td className="px-4 py-3">{echipament.denumire}</td>
-                <td className="px-4 py-3">{echipament.locatie ?? "—"}</td>
-                <td className="px-4 py-3">
-                  {echipament.este_iscir ? (
-                    <WrenchIcon
-                      aria-label="Sub incidența ISCIR"
-                      className="text-foreground size-4"
-                    />
-                  ) : (
-                    "—"
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  <Badge ton={TONURI_STATUS_ECHIPAMENT[echipament.status]}>
-                    {ETICHETE_STATUS_ECHIPAMENT[echipament.status]}
-                  </Badge>
-                </td>
-              </RandTabel>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <nav aria-label="Paginare" className="flex justify-end">
-        {urmatorulCursor === null ? null : (
-          <Link
-            href={`/mentenanta/echipamente?${cautare.toString()}`}
-            className={buton({ varianta: "secundar" })}
-          >
-            Pagina următoare
-          </Link>
-        )}
-      </nav>
-    </>
+    <div className="flex flex-col gap-4">
+      <Tabel
+        caption="Echipamentele organizației."
+        coloane={coloane}
+        randuri={randuri}
+        cheieRand={(e) => e.id}
+        href={(e) => `/mentenanta/echipamente/${e.id}`}
+        sortare={sortare}
+        hrefSortare={(s) =>
+          adresa((p) => {
+            p.set("sort", scrieSortare(s));
+            // Cursorul nu supraviețuiește unei schimbări de sortare: ar continua
+            // de la un rând care, în noua ordine, nu mai e acolo unde era.
+            p.delete("cursor");
+          })
+        }
+        gol={null}
+      />
+      <Paginare
+        afisate={randuri.length}
+        total={total}
+        cursorUrmator={urmatorulCursor}
+        limita={filtre.limita}
+        construiesteHref={({ cursor, limita }) =>
+          adresa((p) => {
+            p.set("limita", String(limita));
+            if (cursor === null) p.delete("cursor");
+            else p.set("cursor", cursor);
+          })
+        }
+      />
+    </div>
   );
 }
 

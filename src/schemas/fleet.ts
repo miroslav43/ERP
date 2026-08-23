@@ -52,12 +52,34 @@ const optional = <T extends z.ZodTypeAny>(schema: T) =>
     .transform((v) => (v === "" || v === undefined ? null : v))
     .default(null as never);
 
+/**
+ * Coloanele după care se pot sorta cele două liste de flotă.
+ *
+ * Listele sunt ÎNCHISE, nu o validare de formă: numele coloanei ajunge într-un
+ * `.order()` ȘI într-un predicat de cursor construit ca text, deci nu poate
+ * veni liber din query string. `sortareCeruta` din `lib/queries/cursor.ts` cade
+ * tăcut pe implicit pentru orice altceva — un URL copiat greșit nu strică
+ * ecranul, doar îl arată sortat implicit.
+ *
+ * Numai coloane `not null`: cu una care admite NULL, predicatul keyset compară
+ * cu NULL, iar rândurile fără valoare dispar tăcut de la a doua pagină. De aceea
+ * `km_parcursi` (generată din `km_sosire - km_plecare`, deci NULL pe o cursă în
+ * desfășurare) NU e sortabilă.
+ */
+export const SORTARI_VEHICULE = ["numar", "marca", "km", "stare"] as const;
+export type SortareVehicule = (typeof SORTARI_VEHICULE)[number];
+
+export const SORTARI_FOI = ["plecare", "stare"] as const;
+export type SortareFoi = (typeof SORTARI_FOI)[number];
+
 export const filtreVehiculeSchema = z.object({
   status: optional(z.enum(STATUS_VEHICUL)),
   categorie: optional(z.enum(CATEGORII_VEHICUL)),
   cauta: optional(z.string().max(32)),
   cursor: optional(z.string().max(256)),
   limita: z.coerce.number().int().min(5).max(100).default(25),
+  /** Forma din URL: `km` crescător, `-km` descrescător. */
+  sort: optional(z.string().max(40)),
 });
 export type FiltreVehicule = z.output<typeof filtreVehiculeSchema>;
 
@@ -66,6 +88,7 @@ export const filtreFoiSchema = z.object({
   vehicul: optional(z.uuid()),
   cursor: optional(z.string().max(256)),
   limita: z.coerce.number().int().min(5).max(100).default(25),
+  sort: optional(z.string().max(40)),
 });
 export type FiltreFoi = z.output<typeof filtreFoiSchema>;
 

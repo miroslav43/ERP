@@ -6,6 +6,7 @@ import { BarChart3 } from "lucide-react";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { StareGoala } from "@/components/ui/stare-goala";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -46,6 +47,74 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
   const statistici = await statisticiAnuale(tenant.organizationId, an);
 
   const aniDisponibili = Array.from({ length: 5 }, (_, i) => anulCurent - i);
+
+  /**
+   * Toate coloanele de cifre sunt `numeric`: aliniate la dreapta, cu
+   * `tabular-nums`. Fără asta, sumele nu se pot compara pe verticală — și e
+   * singurul ecran din produs unde compararea pe verticală e tot scopul.
+   *
+   * Nicio coloană nu e `sortabil`: `statisticiAnuale` întoarce anul întreg
+   * dintr-o singură citire, fără cursor, deci n-ar avea ce să ordoneze în bază.
+   * Un antet care pare sortabil și nu face nimic e mai rău decât unul care nu
+   * pare.
+   */
+  const coloane: readonly Coloana<(typeof statistici.perAngajat)[number]>[] = [
+    {
+      cheie: "angajat",
+      antet: "Angajat",
+      peTelefon: "titlu",
+      celula: (angajat) => (
+        <>
+          <Link href={`/angajati/${angajat.employeeId}`} className="text-primary hover:underline">
+            {angajat.fullName}
+          </Link>
+          <span className="text-muted-foreground text-nota ml-1.5 font-mono">{angajat.marca}</span>
+        </>
+      ),
+    },
+    {
+      cheie: "venit_brut",
+      antet: "Venit brut",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (angajat) => formatLei(angajat.venitBrutAnual),
+    },
+    {
+      cheie: "venit_net",
+      antet: "Venit net",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (angajat) => formatLei(angajat.venitNetAnual),
+    },
+    {
+      cheie: "tichete",
+      antet: "Tichete",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (angajat) => `${String(angajat.ticheteNumar)} · ${formatLei(angajat.ticheteValoare)}`,
+    },
+    {
+      cheie: "ore_suplimentare",
+      antet: "Ore supl.",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (angajat) => angajat.oreSuplimentare.toFixed(1),
+    },
+    {
+      cheie: "zile_co",
+      antet: "Zile CO",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (angajat) => angajat.zileConcediuOdihna.toFixed(1),
+    },
+    {
+      cheie: "zile_medicale",
+      antet: "Zile medicale",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (angajat) => angajat.zileConcediuMedical.toFixed(1),
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -107,71 +176,38 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
             />
           </div>
 
-          <div className="border-border rounded-panou overflow-x-auto border">
-            <table className="text-corp w-full">
-              <caption className="sr-only">Statistici anuale per angajat, {an}.</caption>
-              <thead className="bg-surface text-left">
-                <tr>
-                  <th scope="col" className="px-4 py-3 font-medium">
-                    Angajat
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-right font-medium">
-                    Venit brut
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-right font-medium">
-                    Venit net
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-right font-medium">
-                    Tichete
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-right font-medium">
-                    Ore supl.
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-right font-medium">
-                    Zile CO
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-right font-medium">
-                    Zile medicale
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-border divide-y">
-                {statistici.perAngajat.map((angajat) => (
-                  <tr key={angajat.employeeId} className="hover:bg-surface">
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/angajati/${angajat.employeeId}`}
-                        className="text-primary hover:underline"
-                      >
-                        {angajat.fullName}
-                      </Link>
-                      <span className="text-muted-foreground text-nota ml-1.5 font-mono">
-                        {angajat.marca}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums">
-                      {formatLei(angajat.venitBrutAnual)}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums">
-                      {formatLei(angajat.venitNetAnual)}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums">
-                      {angajat.ticheteNumar} · {formatLei(angajat.ticheteValoare)}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums">
-                      {angajat.oreSuplimentare.toFixed(1)}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums">
-                      {angajat.zileConcediuOdihna.toFixed(1)}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums">
-                      {angajat.zileConcediuMedical.toFixed(1)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Tabel
+            caption={`Statistici anuale per angajat, ${String(an)}.`}
+            coloane={coloane}
+            randuri={statistici.perAngajat}
+            cheieRand={(angajat) => angajat.employeeId}
+            gol={null}
+            subsol={
+              <tr>
+                <th scope="row" className="px-4 py-3 text-left">
+                  Total organizație
+                </th>
+                <td className="px-4 py-3 text-right tabular-nums">
+                  {formatLei(statistici.totalVenitBrutAnual)}
+                </td>
+                <td className="px-4 py-3 text-right tabular-nums">
+                  {formatLei(statistici.totalVenitNetAnual)}
+                </td>
+                <td className="px-4 py-3 text-right tabular-nums">
+                  {statistici.totalTicheteNumar} · {formatLei(statistici.totalTicheteValoare)}
+                </td>
+                <td className="px-4 py-3 text-right tabular-nums">
+                  {statistici.totalOreSuplimentare.toFixed(1)}
+                </td>
+                <td className="px-4 py-3 text-right tabular-nums">
+                  {statistici.totalZileConcediuOdihna.toFixed(1)}
+                </td>
+                <td className="px-4 py-3 text-right tabular-nums">
+                  {statistici.totalZileConcediuMedical.toFixed(1)}
+                </td>
+              </tr>
+            }
+          />
         </>
       )}
     </div>

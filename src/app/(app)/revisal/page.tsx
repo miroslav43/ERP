@@ -3,8 +3,8 @@ import { FileCheck2 } from "lucide-react";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { buton } from "@/components/ui/buton";
-import { RandTabel } from "@/components/data/rand-tabel";
 import { StareGoala } from "@/components/ui/stare-goala";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { meetsScope } from "@/config/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
@@ -63,6 +63,94 @@ export default async function PaginaRevisal(props: {
     filtre,
   );
 
+  /**
+   * Nicio coloană nu e `sortabil`: citirea REVISAL n-are cursor, ordinea după
+   * termenul de transmitere e chiar rostul registrului, iar un antet care pare
+   * sortabil și nu face nimic e mai rău decât unul care nu pare.
+   *
+   * Coloana de acțiuni e `insigna`, nu `meta`: pe telefon, `meta` randează
+   * într-un `<p>`, iar formularul de marcare e un `<div>` — un `<div>` într-un
+   * `<p>` rupe HTML-ul la parsare și dă nepotrivire de hidratare. Ca `insigna`
+   * stă în afara paragrafului, deasupra linkului care acoperă cardul, deci
+   * rămâne apăsabilă.
+   */
+  const coloane: readonly Coloana<(typeof randuri)[number]>[] = [
+    {
+      cheie: "salariat",
+      antet: "Salariat",
+      peTelefon: "titlu",
+      celula: (rand) => (
+        <>
+          <span className="text-foreground font-medium">{rand.angajatNume}</span>
+          <span className="text-muted-foreground text-nota block">
+            Marca {rand.angajatMarca}
+            {rand.contractNumar === null ? "" : ` · CIM ${rand.contractNumar}`}
+          </span>
+        </>
+      ),
+    },
+    {
+      cheie: "eveniment",
+      antet: "Eveniment",
+      peTelefon: "meta",
+      celula: (rand) => ETICHETE_TIP[rand.tip],
+    },
+    {
+      cheie: "data",
+      antet: "Data",
+      peTelefon: "meta",
+      celula: (rand) => <span className="tabular-nums">{formatDate(rand.dataEvenimentului)}</span>,
+    },
+    {
+      cheie: "termen",
+      antet: "Termen",
+      peTelefon: "meta",
+      celula: (rand) => <span className="tabular-nums">{formatDate(rand.termenTransmitere)}</span>,
+    },
+    {
+      cheie: "stare",
+      antet: "Stare",
+      peTelefon: "insigna",
+      celula: (rand) => (
+        <>
+          <span
+            className={`text-nota inline-block rounded px-2 py-0.5 font-medium ${CLASA_STARE[rand.stare] ?? ""}`}
+          >
+            {rand.stare === "intarziat"
+              ? `Întârziat cu ${rand.zileIntarziere} ${rand.zileIntarziere === 1 ? "zi" : "zile"}`
+              : rand.stare === "astazi"
+                ? "Termen astăzi"
+                : rand.stare === "in_termen"
+                  ? `Mai sunt ${rand.zileRamase} ${rand.zileRamase === 1 ? "zi" : "zile"}`
+                  : ETICHETE_STATUS[rand.status]}
+          </span>
+          {rand.eroare === null ? null : (
+            <span className="text-danger text-nota mt-1 block">{rand.eroare}</span>
+          )}
+        </>
+      ),
+    },
+    {
+      cheie: "itm",
+      antet: "Înregistrare ITM",
+      peTelefon: "meta",
+      celula: (rand) => rand.numarInregistrare ?? "—",
+    },
+    {
+      cheie: "actiuni",
+      antet: "Acțiuni",
+      peTelefon: "insigna",
+      celula: (rand) =>
+        rand.stare === "transmis" || rand.stare === "anulat" ? (
+          <span className="text-muted-foreground text-nota">Nimic de făcut</span>
+        ) : poateActualiza ? (
+          <ActiuniEveniment evenimentId={rand.id} numeAngajat={rand.angajatNume} azi={azi} />
+        ) : (
+          <span className="text-muted-foreground text-nota">Fără drept de marcare</span>
+        ),
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <AntetPagina
@@ -114,88 +202,19 @@ export default async function PaginaRevisal(props: {
           actiune={{ eticheta: "Vezi angajații", href: "/angajati" }}
         />
       ) : (
-        <div className="ring-border rounded-panou overflow-x-auto ring-1">
-          <table className="text-corp w-full min-w-[64rem] text-left">
-            <caption className="sr-only">
-              Evenimente REVISAL, ordonate după termenul de transmitere
-            </caption>
-            <thead className="bg-surface text-foreground">
-              <tr>
-                <th scope="col" className="px-4 py-2">
-                  Salariat
-                </th>
-                <th scope="col" className="px-4 py-2">
-                  Eveniment
-                </th>
-                <th scope="col" className="px-4 py-2">
-                  Data
-                </th>
-                <th scope="col" className="px-4 py-2">
-                  Termen
-                </th>
-                <th scope="col" className="px-4 py-2">
-                  Stare
-                </th>
-                <th scope="col" className="px-4 py-2">
-                  Înregistrare ITM
-                </th>
-                <th scope="col" className="px-4 py-2">
-                  Acțiuni
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-border bg-background divide-y">
-              {randuri.map((rand) => (
-                <RandTabel
-                  key={rand.id}
-                  href={`/angajati/${rand.angajatId}`}
-                  className={rand.stare === "intarziat" ? "bg-danger/8" : ""}
-                >
-                  <td className="px-4 py-3">
-                    <span className="text-foreground font-medium">{rand.angajatNume}</span>
-                    <span className="text-muted-foreground text-nota block">
-                      Marca {rand.angajatMarca}
-                      {rand.contractNumar === null ? "" : ` · CIM ${rand.contractNumar}`}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">{ETICHETE_TIP[rand.tip]}</td>
-                  <td className="px-4 py-3 tabular-nums">{formatDate(rand.dataEvenimentului)}</td>
-                  <td className="px-4 py-3 tabular-nums">{formatDate(rand.termenTransmitere)}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`text-nota inline-block rounded px-2 py-0.5 font-medium ${CLASA_STARE[rand.stare] ?? ""}`}
-                    >
-                      {rand.stare === "intarziat"
-                        ? `Întârziat cu ${rand.zileIntarziere} ${rand.zileIntarziere === 1 ? "zi" : "zile"}`
-                        : rand.stare === "astazi"
-                          ? "Termen astăzi"
-                          : rand.stare === "in_termen"
-                            ? `Mai sunt ${rand.zileRamase} ${rand.zileRamase === 1 ? "zi" : "zile"}`
-                            : ETICHETE_STATUS[rand.status]}
-                    </span>
-                    {rand.eroare === null ? null : (
-                      <span className="text-danger text-nota mt-1 block">{rand.eroare}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">{rand.numarInregistrare ?? "—"}</td>
-                  <td className="px-4 py-3">
-                    {rand.stare === "transmis" || rand.stare === "anulat" ? (
-                      <span className="text-muted-foreground text-nota">Nimic de făcut</span>
-                    ) : poateActualiza ? (
-                      <ActiuniEveniment
-                        evenimentId={rand.id}
-                        numeAngajat={rand.angajatNume}
-                        azi={azi}
-                      />
-                    ) : (
-                      <span className="text-muted-foreground text-nota">Fără drept de marcare</span>
-                    )}
-                  </td>
-                </RandTabel>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Tabel
+          caption="Evenimente REVISAL, ordonate după termenul de transmitere"
+          coloane={coloane}
+          randuri={randuri}
+          cheieRand={(rand) => rand.id}
+          href={(rand) => `/angajati/${rand.angajatId}`}
+          densitate="compact"
+          gol={null}
+          // Citirea taie la `filtre.limita` rânduri, fără să spună. Într-un
+          // registru unde netransmiterea în termen e contravenție per salariat,
+          // un eveniment care nu se vede e mai rău decât o eroare.
+          trunchiat={randuri.length >= filtre.limita}
+        />
       )}
     </div>
   );

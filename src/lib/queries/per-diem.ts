@@ -16,14 +16,24 @@ import {
   type PoliticaDiurna,
   type RezultatDiurna,
 } from "@/domain/per-diem/sume";
-import type {
-  FiltreDeplasari,
-  MijlocTransport,
-  RegulaTrecereFrontiera,
-  StatusDeplasare,
-  TipCheltuiala,
+import {
+  SORTARI_DEPLASARI,
+  type FiltreDeplasari,
+  type MijlocTransport,
+  type RegulaTrecereFrontiera,
+  type SortareDeplasari,
+  type StatusDeplasare,
+  type TipCheltuiala,
 } from "@/schemas/per-diem";
 import { createServerSupabase } from "@/lib/supabase/server";
+
+import {
+  codificaCursor,
+  decodificaCursor,
+  predicatKeyset,
+  sortareCeruta,
+  type Directie,
+} from "./cursor";
 
 // ── Forme de rând ─────────────────────────────────────────────────────────
 
@@ -89,6 +99,13 @@ export interface Deplasare extends RandDeplasare {
 export interface RezultatDeplasari {
   readonly randuri: readonly RandDeplasare[];
   readonly urmatorulCursor: string | null;
+  /**
+   * Câte deplasări sunt în total, după filtre. „Pagina următoare" fără un total
+   * e o ușă fără indicație — nu știi dacă mai urmează un ecran sau o sută.
+   */
+  readonly total: number;
+  /** Sortarea EFECTIV aplicată, după îngustarea la coloanele permise. */
+  readonly sortare: Readonly<{ cheie: SortareDeplasari; directie: Directie }>;
 }
 
 export interface CalculSalvat {
@@ -184,34 +201,25 @@ export async function deplasarileMele(
 
 // ── Cursorul keyset ─────────────────────────────────────────────────────────
 //
-// Separatorul e scris ca SECVENȚĂ DE EVADARE, nu ca octet brut — la fel ca în
-// queries/fleet.ts și queries/leave.ts.
+// Codificarea, ghilimelarea și predicatul trăiau AICI, într-o copie aproape
+// identică cu cele din alte nouă fișiere de citiri. Au fost mutate în
+// `./cursor.ts`, unde cursorul poartă o valoare OPACĂ în loc de un nume fix,
+// deci aceeași funcție servește orice coloană de sortare.
 
-interface CursorText {
-  readonly cheie: string;
-  readonly id: string;
-}
+/**
+ * Cheia din URL → coloana din bază. Traducerea e OBLIGATORIU explicită: numele
+ * coloanei intră într-un predicat construit ca text, deci nu are voie să vină
+ * din afară. Cheile sunt românești fiindcă apar în adresa pe care omul o
+ * copiază; coloanele rămân englezești, ca tot restul schemei.
+ */
+const COLOANA_SORTARE_DEPLASARE: Readonly<Record<SortareDeplasari, string>> = {
+  plecare: "plecare_la",
+  scop: "scop",
+  stare: "status",
+};
 
-function codificaCursor(cursor: CursorText): string {
-  return Buffer.from(`${cursor.cheie}\u0000${cursor.id}`, "utf8").toString("base64url");
-}
-
-function decodificaCursor(valoare: string): CursorText | null {
-  try {
-    const bucati = Buffer.from(valoare, "base64url").toString("utf8").split("\u0000");
-    const cheie = bucati[0];
-    const id = bucati[1];
-    if (cheie === undefined || id === undefined || id.length === 0) return null;
-    return { cheie, id };
-  } catch {
-    return null;
-  }
-}
-
-/** PostgREST desparte filtrele lui `or()` cu virgulă; valoarea trebuie citată. */
-function ghilimeleaza(valoare: string): string {
-  return `"${valoare.replace(/\\/gu, "\\\\").replace(/"/gu, '\\"')}"`;
-}
+/** Cea mai recentă plecare prima — ordinea pe care o avea lista dinainte. */
+const SORTARE_IMPLICITA_DEPLASARI = { cheie: "plecare", directie: "desc" } as const;
 
 // ── Nomenclatoare globale ────────────────────────────────────────────────
 
@@ -341,43 +349,64 @@ export async function listeazaDeplasari(
   filtre: FiltreDeplasari,
 ): Promise<RezultatDeplasari> {
   const db = await createServerSupabase();
+  const sortare = sortareCeruta(
+    filtre.sort ?? null,
+    SORTARI_DEPLASARI,
+    SORTARE_IMPLICITA_DEPLASARI,
+  );
+  const coloana = COLOANA_SORTARE_DEPLASARE[sortare.cheie];
+  const crescator = sortare.directie === "asc";
 
   let interogare = db
     .from("business_trips")
-    .select(COLOANE_DEPLASARE)
+    .select(
+      COLOANE_DEPLASARE,
+      // `count: "exact"` pe aceeași interogare: numărătoarea respectă filtrele
+      // ȘI politicile RLS, fără un al doilea drum la bază care le-ar putea
+      // aplica altfel.
+      { count: "exact" },
+    )
     .eq("organization_id", organizationId)
     .is("deleted_at", null)
-    .order("plecare_la", { ascending: false })
-    .order("id", { ascending: false })
+    // Identificatorul e MEREU al doilea criteriu: nici scopul, nici data
+    // plecării nu sunt unice, iar fără el ordinea dintre două rânduri egale e
+    // nedefinită, deci paginarea poate sări sau repeta exact acolo.
+    .order(coloana, { ascending: crescator, nullsFirst: false })
+    .order("id", { ascending: crescator })
     .limit(filtre.limita + 1);
 
   if (filtre.status !== null) interogare = interogare.eq("status", filtre.status);
 
-  if (filtre.cursor !== null) {
-    const c = decodificaCursor(filtre.cursor);
-    // Un cursor stricat înseamnă prima pagină, nu o eroare.
-    if (c !== null) {
-      interogare = interogare.or(
-        `plecare_la.lt.${ghilimeleaza(c.cheie)},` +
-          `and(plecare_la.eq.${ghilimeleaza(c.cheie)},id.lt.${c.id})`,
-      );
-    }
+  // Un cursor stricat înseamnă prima pagină, nu o eroare.
+  const cursor = filtre.cursor === null ? null : decodificaCursor(filtre.cursor);
+  if (cursor !== null) {
+    interogare = interogare.or(predicatKeyset(coloana, cursor, sortare.directie));
   }
 
-  const { data, error } = await interogare.returns<RandDeplasare[]>();
+  const { data, error, count } = await interogare.returns<RandDeplasare[]>();
   if (error !== null) throw error;
 
   const toate = data ?? [];
   const areUrmatoarea = toate.length > filtre.limita;
   const randuri = areUrmatoarea ? toate.slice(0, filtre.limita) : toate;
   const ultim = randuri.at(-1);
+  const valoareCursor =
+    ultim === undefined
+      ? null
+      : sortare.cheie === "scop"
+        ? ultim.scop
+        : sortare.cheie === "stare"
+          ? ultim.status
+          : ultim.plecare_la;
 
   return {
     randuri,
     urmatorulCursor:
-      areUrmatoarea && ultim !== undefined
-        ? codificaCursor({ cheie: ultim.plecare_la, id: ultim.id })
+      areUrmatoarea && ultim !== undefined && valoareCursor !== null
+        ? codificaCursor({ valoare: valoareCursor, id: ultim.id })
         : null,
+    total: count ?? randuri.length,
+    sortare,
   };
 }
 

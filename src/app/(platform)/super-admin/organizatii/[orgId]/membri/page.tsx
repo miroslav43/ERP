@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { MailPlus, RotateCw, Users } from "lucide-react";
 
 import { buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { requirePlatformAdmin } from "@/lib/auth/platform";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { formatDateTime } from "@/lib/format/date";
@@ -34,6 +36,8 @@ type RandInvitatie = Readonly<{
   expires_at: string;
   created_at: string | null;
 }>;
+
+const ID_INVITATII = "invitatii-in-asteptare";
 
 const CLASA_CELULA = "px-4 py-3 text-corp text-foreground align-top";
 const CLASA_ANTET =
@@ -115,6 +119,53 @@ export default async function PaginaMembri({ params }: { params: Promise<{ orgId
   const activi = membri.filter((membru) => membru.status === "active").length;
   const ocupate = activi + invitatii.length;
 
+  /*
+   * Invitațiile n-au cursor keyset (se citesc toate cele nescadente), deci
+   * antetele nu pretind că sortează. `ActiuniInvitatie` stă pe `insigna`, nu pe
+   * `meta`: varianta de card pune metadatele într-un `<p>`, iar componenta
+   * randează un `<div>` — parserul ar închide paragraful devreme.
+   */
+  const coloaneInvitatii: readonly Coloana<RandInvitatie>[] = [
+    {
+      cheie: "email",
+      antet: "E-mail",
+      peTelefon: "titlu",
+      celula: (invitatie) => invitatie.email,
+    },
+    {
+      cheie: "rol",
+      antet: "Rol",
+      peTelefon: "meta",
+      celula: (invitatie) => ETICHETE_ROL[invitatie.role],
+    },
+    {
+      cheie: "trimisa",
+      antet: "Trimisă",
+      peTelefon: "meta",
+      celula: (invitatie) => (
+        <span className="text-muted-foreground">
+          {invitatie.created_at ? formatDateTime(invitatie.created_at) : "—"}
+        </span>
+      ),
+    },
+    {
+      cheie: "expira",
+      antet: "Expiră",
+      peTelefon: "meta",
+      celula: (invitatie) => (
+        <span className="text-muted-foreground">{formatDateTime(invitatie.expires_at)}</span>
+      ),
+    },
+    {
+      cheie: "actiuni",
+      antet: "Acțiuni",
+      peTelefon: "insigna",
+      celula: (invitatie) => (
+        <ActiuniInvitatie organizationId={org.id} invitationId={invitatie.id} />
+      ),
+    },
+  ];
+
   return (
     <section className="space-y-6">
       <header className="space-y-1">
@@ -128,6 +179,19 @@ export default async function PaginaMembri({ params }: { params: Promise<{ orgId
 
       <FormularInvitatie organizationId={org.id} />
 
+      {/*
+        EXCEPȚIE de la migrarea pe `<Tabel>`, deliberată, nu omisă.
+        `<Tabel>` randează fiecare rând de DOUĂ ori — o dată ca `<tr>`, o dată ca
+        listă de carduri — și ascunde unul prin CSS. Aici fiecare rând conține
+        `<ActiuniMembru>`, care își scrie un identificator FIX în DOM
+        (`id={`rol-${memberId}`}` plus `<label htmlFor>` peste el, în
+        `panou-membri.tsx`). Dublat, identificatorul apare de două ori, iar
+        eticheta se leagă mereu de primul element — cel ascuns pe telefon — deci
+        `<select>`-ul vizibil ar rămâne fără nume accesibil. Exact regresia pe
+        care migrarea vine s-o repare.
+        Prerechizită pentru migrare: `useId()` în loc de `rol-${memberId}` în
+        `panou-membri.tsx` — fișier din afara acestei runde.
+      */}
       <div className="border-border bg-surface rounded-xl border">
         <h2 className="border-border text-foreground text-corp border-b px-4 py-3 font-semibold">
           Membri ({membri.length})
@@ -221,66 +285,26 @@ export default async function PaginaMembri({ params }: { params: Promise<{ orgId
         )}
       </div>
 
-      <div className="border-border bg-surface rounded-xl border">
-        <h2 className="border-border text-foreground text-corp border-b px-4 py-3 font-semibold">
+      <section aria-labelledby={ID_INVITATII} className="space-y-3">
+        <h2 id={ID_INVITATII} className="text-foreground text-corp font-semibold">
           Invitații în așteptare ({invitatii.length})
         </h2>
 
-        {invitatii.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
-            <MailPlus aria-hidden="true" className="text-muted-foreground h-8 w-8" />
-            <p className="text-foreground text-corp font-medium">Nicio invitație în așteptare</p>
-            <p className="text-muted-foreground text-corp max-w-md">
-              Toate invitațiile au fost acceptate, au expirat sau au fost revocate. Poți trimite una
-              nouă din formularul de mai sus.
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[44rem] border-collapse">
-              <caption className="sr-only">
-                Invitații în așteptare pentru organizația {org.name}
-              </caption>
-              <thead className="border-border border-b">
-                <tr>
-                  <th scope="col" className={CLASA_ANTET}>
-                    E-mail
-                  </th>
-                  <th scope="col" className={CLASA_ANTET}>
-                    Rol
-                  </th>
-                  <th scope="col" className={CLASA_ANTET}>
-                    Trimisă
-                  </th>
-                  <th scope="col" className={CLASA_ANTET}>
-                    Expiră
-                  </th>
-                  <th scope="col" className={CLASA_ANTET}>
-                    Acțiuni
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-border divide-y">
-                {invitatii.map((invitatie) => (
-                  <tr key={invitatie.id}>
-                    <td className={CLASA_CELULA}>{invitatie.email}</td>
-                    <td className={CLASA_CELULA}>{ETICHETE_ROL[invitatie.role]}</td>
-                    <td className={`${CLASA_CELULA} text-muted-foreground`}>
-                      {invitatie.created_at ? formatDateTime(invitatie.created_at) : "—"}
-                    </td>
-                    <td className={`${CLASA_CELULA} text-muted-foreground`}>
-                      {formatDateTime(invitatie.expires_at)}
-                    </td>
-                    <td className={CLASA_CELULA}>
-                      <ActiuniInvitatie organizationId={org.id} invitationId={invitatie.id} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+        <Tabel
+          caption={`Invitații în așteptare pentru organizația ${org.name}`}
+          coloane={coloaneInvitatii}
+          randuri={invitatii}
+          cheieRand={(invitatie) => invitatie.id}
+          gol={
+            <StareGoala
+              fel="initiala"
+              pictograma={MailPlus}
+              titlu="Nicio invitație în așteptare"
+              descriere="Toate invitațiile au fost acceptate, au expirat sau au fost revocate. Poți trimite una nouă din formularul de mai sus."
+            />
+          }
+        />
+      </section>
     </section>
   );
 }

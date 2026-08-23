@@ -7,16 +7,17 @@ import { Wrench } from "lucide-react";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
-import { buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
-import { RandTabel } from "@/components/data/rand-tabel";
+import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate } from "@/lib/format/date";
 import { formatLei } from "@/lib/format/money";
 import { filtreDinUrl } from "@/lib/rute/parametri";
+import { scrieSortare } from "@/lib/queries/cursor";
 import { echipamenteDupaId, interventii } from "@/lib/queries/maintenance";
 import { filtreInterventiiSchema } from "@/schemas/maintenance";
 
@@ -42,7 +43,7 @@ async function TabelInterventii({
   readonly parametri: Record<string, string | string[] | undefined>;
 }) {
   const filtre = filtreDinUrl(filtreInterventiiSchema, parametri);
-  const { randuri, urmatorulCursor } = await interventii(organizationId, filtre);
+  const { randuri, urmatorulCursor, total, sortare } = await interventii(organizationId, filtre);
 
   if (randuri.length === 0) {
     const areFiltre = filtre.tip !== null || filtre.rezultat !== null || filtre.echipament !== null;
@@ -70,94 +71,112 @@ async function TabelInterventii({
     randuri.map((r) => r.equipment_id),
   );
 
-  const cautare = new URLSearchParams();
-  for (const [cheie, valoare] of Object.entries(parametri)) {
-    if (typeof valoare === "string" && cheie !== "cursor") cautare.set(cheie, valoare);
+  /** Adresele pornesc din parametrii EXISTENȚI: o sortare nu trebuie să șteargă filtrele. */
+  function adresa(schimba: (p: URLSearchParams) => void): string {
+    const p = new URLSearchParams();
+    for (const [cheie, valoare] of Object.entries(parametri)) {
+      if (typeof valoare === "string" && valoare !== "") p.set(cheie, valoare);
+    }
+    schimba(p);
+    return p.size === 0 ? "/mentenanta/interventii" : `/mentenanta/interventii?${p.toString()}`;
   }
-  if (urmatorulCursor !== null) cautare.set("cursor", urmatorulCursor);
+
+  // Rândul NU e apăsabil în întregime, ca înainte: ținta lui e fișa
+  // echipamentului, iar echipamentul poate lipsi — RLS îl poate ascunde. Linkul
+  // rămâne exact acolo unde există ceva de deschis, în celula de echipament.
+  const coloane: readonly Coloana<(typeof randuri)[number]>[] = [
+    {
+      cheie: "data",
+      antet: "Data",
+      sortabil: true,
+      latime: "ingusta",
+      peTelefon: "meta",
+      celula: (i) => formatDate(i.data),
+    },
+    {
+      cheie: "echipament",
+      antet: "Echipament",
+      peTelefon: "titlu",
+      celula: (i) => {
+        const echipament = echipamente.get(i.equipment_id);
+        return echipament === undefined ? (
+          "—"
+        ) : (
+          <Link
+            href={`/mentenanta/echipamente/${i.equipment_id}`}
+            className="underline-offset-2 hover:underline"
+          >
+            {echipament.cod} — {echipament.denumire}
+          </Link>
+        );
+      },
+    },
+    {
+      cheie: "tip",
+      antet: "Tip",
+      sortabil: true,
+      peTelefon: "meta",
+      celula: (i) => ETICHETE_TIP_MENTENANTA[i.tip],
+    },
+    {
+      cheie: "descriere",
+      antet: "Descriere",
+      peTelefon: "meta",
+      celula: (i) => i.descriere,
+    },
+    {
+      cheie: "cost",
+      antet: "Cost total",
+      sortabil: true,
+      numeric: true,
+      peTelefon: "meta",
+      celula: (i) => formatLei(i.cost_total ?? i.cost_piese + i.cost_manopera),
+    },
+    {
+      cheie: "rezultat",
+      antet: "Rezultat",
+      sortabil: true,
+      peTelefon: "insigna",
+      celula: (i) => (
+        <Badge ton={TONURI_REZULTAT_INTERVENTIE[i.rezultat]}>
+          {ETICHETE_REZULTAT_INTERVENTIE[i.rezultat]}
+        </Badge>
+      ),
+    },
+  ];
 
   return (
-    <>
-      <div className="border-border rounded-panou overflow-x-auto border">
-        <table className="text-corp w-full">
-          <caption className="sr-only">Intervențiile de mentenanță ale organizației.</caption>
-          <thead className="bg-surface text-left">
-            <tr>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Data
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Echipament
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Tip
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Descriere
-              </th>
-              <th scope="col" className="px-4 py-3 text-right font-medium">
-                Cost total
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Rezultat
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-border divide-y">
-            {randuri.map((interventie) => {
-              const echipament = echipamente.get(interventie.equipment_id);
-              return (
-                <RandTabel
-                  key={interventie.id}
-                  href={
-                    echipament === undefined
-                      ? null
-                      : `/mentenanta/echipamente/${interventie.equipment_id}`
-                  }
-                >
-                  <td className="px-4 py-3">{formatDate(interventie.data)}</td>
-                  <td className="px-4 py-3">
-                    {echipament === undefined ? (
-                      "—"
-                    ) : (
-                      <Link
-                        href={`/mentenanta/echipamente/${interventie.equipment_id}`}
-                        className="underline-offset-2 hover:underline"
-                      >
-                        {echipament.cod} — {echipament.denumire}
-                      </Link>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">{ETICHETE_TIP_MENTENANTA[interventie.tip]}</td>
-                  <td className="px-4 py-3">{interventie.descriere}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">
-                    {formatLei(
-                      interventie.cost_total ?? interventie.cost_piese + interventie.cost_manopera,
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge ton={TONURI_REZULTAT_INTERVENTIE[interventie.rezultat]}>
-                      {ETICHETE_REZULTAT_INTERVENTIE[interventie.rezultat]}
-                    </Badge>
-                  </td>
-                </RandTabel>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      <nav aria-label="Paginare" className="flex justify-end">
-        {urmatorulCursor === null ? null : (
-          <Link
-            href={`/mentenanta/interventii?${cautare.toString()}`}
-            className={buton({ varianta: "secundar" })}
-          >
-            Pagina următoare
-          </Link>
-        )}
-      </nav>
-    </>
+    <div className="flex flex-col gap-4">
+      <Tabel
+        caption="Intervențiile de mentenanță ale organizației."
+        coloane={coloane}
+        randuri={randuri}
+        cheieRand={(i) => i.id}
+        sortare={sortare}
+        hrefSortare={(s) =>
+          adresa((p) => {
+            p.set("sort", scrieSortare(s));
+            // Cursorul nu supraviețuiește unei schimbări de sortare: ar continua
+            // de la un rând care, în noua ordine, nu mai e acolo unde era.
+            p.delete("cursor");
+          })
+        }
+        gol={null}
+      />
+      <Paginare
+        afisate={randuri.length}
+        total={total}
+        cursorUrmator={urmatorulCursor}
+        limita={filtre.limita}
+        construiesteHref={({ cursor, limita }) =>
+          adresa((p) => {
+            p.set("limita", String(limita));
+            if (cursor === null) p.delete("cursor");
+            else p.set("cursor", cursor);
+          })
+        }
+      />
+    </div>
   );
 }
 

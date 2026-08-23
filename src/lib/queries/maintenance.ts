@@ -15,43 +15,31 @@ import type {
   FiltreInterventii,
   FiltreSesizari,
   RezultatInterventie,
+  SortareEchipamente,
+  SortareInterventii,
+  SortareSesizari,
   StatusEchipament,
   StatusSesizare,
   TipContor,
   TipMentenanta,
   UrgentaSesizare,
 } from "@/schemas/maintenance";
+import { SORTARI_ECHIPAMENTE, SORTARI_INTERVENTII, SORTARI_SESIZARI } from "@/schemas/maintenance";
+
+import {
+  codificaCursor,
+  decodificaCursor,
+  predicatKeyset,
+  sortareCeruta,
+  type Directie,
+} from "./cursor";
 
 // ── Cursorul keyset ─────────────────────────────────────────────────────────
 //
-// Separatorul e scris ca SECVENȚĂ DE EVADARE, nu ca octet brut — un octet nul
-// literal ar transforma fișierul în binar pentru `grep` și `git grep`.
-
-interface CursorText {
-  readonly cheie: string;
-  readonly id: string;
-}
-
-function codificaCursor(cursor: CursorText): string {
-  return Buffer.from(`${cursor.cheie}\u0000${cursor.id}`, "utf8").toString("base64url");
-}
-
-function decodificaCursor(valoare: string): CursorText | null {
-  try {
-    const bucati = Buffer.from(valoare, "base64url").toString("utf8").split("\u0000");
-    const cheie = bucati[0];
-    const id = bucati[1];
-    if (cheie === undefined || id === undefined || id.length === 0) return null;
-    return { cheie, id };
-  } catch {
-    return null;
-  }
-}
-
-/** PostgREST desparte filtrele lui `or()` cu virgulă; valoarea trebuie citată. */
-function ghilimeleaza(valoare: string): string {
-  return `"${valoare.replace(/\\/gu, "\\\\").replace(/"/gu, '\\"')}"`;
-}
+// Codificarea, ghilimelarea și predicatul trăiau AICI, în copii aproape
+// identice răspândite prin zece fișiere de citiri. Au fost mutate în
+// `./cursor.ts`, unde cursorul poartă o VALOARE opacă în loc de o coloană
+// încuiată în el — deci aceeași structură servește orice sortare.
 
 // ── Tipuri de rând ──────────────────────────────────────────────────────────
 
@@ -75,6 +63,13 @@ export interface RandEchipament {
 export interface RezultatEchipamente {
   readonly randuri: readonly RandEchipament[];
   readonly urmatorulCursor: string | null;
+  /**
+   * Câte echipamente sunt în total, după filtre. „Pagina următoare" fără un
+   * total e o ușă fără indicație: nu știi dacă mai urmează un ecran sau o sută.
+   */
+  readonly total: number;
+  /** Sortarea EFECTIV aplicată, după îngustarea la coloanele permise. */
+  readonly sortare: Readonly<{ cheie: SortareEchipamente; directie: Directie }>;
 }
 
 export interface Echipament extends RandEchipament {
@@ -138,6 +133,8 @@ export interface RandInterventie {
 export interface RezultatInterventii {
   readonly randuri: readonly RandInterventie[];
   readonly urmatorulCursor: string | null;
+  readonly total: number;
+  readonly sortare: Readonly<{ cheie: SortareInterventii; directie: Directie }>;
 }
 
 export interface RandSesizare {
@@ -157,6 +154,8 @@ export interface RandSesizare {
 export interface RezultatSesizari {
   readonly randuri: readonly RandSesizare[];
   readonly urmatorulCursor: string | null;
+  readonly total: number;
+  readonly sortare: Readonly<{ cheie: SortareSesizari; directie: Directie }>;
 }
 
 export interface AutorizatieIscir {
@@ -184,6 +183,83 @@ export interface AngajatRezumat {
   readonly full_name: string | null;
 }
 
+/**
+ * Cheia din URL → coloana din bază. Traducerea e OBLIGATORIU explicită: numele
+ * coloanei intră într-un `.order()` și într-un predicat construit ca text, deci
+ * nu are voie să vină din afară. Cheile sunt românești fiindcă apar în adresa pe
+ * care omul o copiază; coloanele rămân englezești, ca tot restul schemei.
+ */
+const COLOANA_SORTARE_ECHIPAMENT: Readonly<Record<SortareEchipamente, string>> = {
+  cod: "cod",
+  denumire: "denumire",
+  stare: "status",
+};
+
+/** Valoarea de cursor a ultimului rând, pe fiecare sortare posibilă. */
+const VALOARE_CURSOR_ECHIPAMENT: Readonly<
+  Record<SortareEchipamente, (e: RandEchipament) => string>
+> = {
+  cod: (e) => e.cod,
+  denumire: (e) => e.denumire,
+  stare: (e) => e.status,
+};
+
+const SORTARE_IMPLICITA_ECHIPAMENTE = { cheie: "cod", directie: "asc" } as const;
+
+const COLOANA_SORTARE_INTERVENTIE: Readonly<Record<SortareInterventii, string>> = {
+  data: "data",
+  tip: "tip",
+  cost: "cost_total",
+  rezultat: "rezultat",
+};
+
+const VALOARE_CURSOR_INTERVENTIE: Readonly<
+  Record<SortareInterventii, (i: RandInterventie) => string>
+> = {
+  data: (i) => i.data,
+  tip: (i) => i.tip,
+  // `cost_total` e generată din două coloane `not null default 0`, deci nu e
+  // niciodată NULL în bază; `?? 0` acoperă doar tipul, nu un caz real.
+  cost: (i) => String(i.cost_total ?? 0),
+  rezultat: (i) => i.rezultat,
+};
+
+const SORTARE_IMPLICITA_INTERVENTII = { cheie: "data", directie: "desc" } as const;
+
+const COLOANA_SORTARE_SESIZARE: Readonly<Record<SortareSesizari, string>> = {
+  raportat: "raportat_la",
+  urgenta: "urgenta",
+  stare: "status",
+};
+
+const VALOARE_CURSOR_SESIZARE: Readonly<Record<SortareSesizari, (s: RandSesizare) => string>> = {
+  raportat: (s) => s.raportat_la,
+  urgenta: (s) => s.urgenta,
+  stare: (s) => s.status,
+};
+
+const SORTARE_IMPLICITA_SESIZARI = { cheie: "raportat", directie: "desc" } as const;
+
+/**
+ * `sort` e opțional în SEMNĂTURĂ, nu în schemă.
+ *
+ * Ecranele care listează îl parsează din URL și îl trimit întreg; apelanții care
+ * cer o felie fixă — fișa echipamentului, panoul de mentenanță — n-au sortare de
+ * ales și n-ar trebui să scrie `sort: null` doar ca să treacă de verificarea de
+ * tipuri.
+ */
+export type FiltreEchipamenteCitire = Omit<FiltreEchipamente, "sort"> & {
+  readonly sort?: string | null;
+};
+
+export type FiltreInterventiiCitire = Omit<FiltreInterventii, "sort"> & {
+  readonly sort?: string | null;
+};
+
+export type FiltreSesizariCitire = Omit<FiltreSesizari, "sort"> & {
+  readonly sort?: string | null;
+};
+
 const COLOANE_ECHIPAMENT_LISTA =
   "id, cod, denumire, serie, producator, model, an_fabricatie, locatie, department_id, " +
   "responsabil_employee_id, status, este_iscir, tip_autorizare_necesara, data_punerii_in_functiune";
@@ -201,18 +277,33 @@ const COLOANE_SESIZARE =
 
 export async function listeazaEchipamente(
   organizationId: string,
-  filtre: FiltreEchipamente,
+  filtre: FiltreEchipamenteCitire,
 ): Promise<RezultatEchipamente> {
   const db = await createServerSupabase();
+  const sortare = sortareCeruta(
+    filtre.sort ?? null,
+    SORTARI_ECHIPAMENTE,
+    SORTARE_IMPLICITA_ECHIPAMENTE,
+  );
+  const coloana = COLOANA_SORTARE_ECHIPAMENT[sortare.cheie];
+  const crescator = sortare.directie === "asc";
 
   let interogare = db
     .from("equipment")
-    .select(COLOANE_ECHIPAMENT_LISTA)
+    .select(
+      COLOANE_ECHIPAMENT_LISTA,
+      // `count: "exact"` pe ACEEAȘI interogare: numărătoarea respectă filtrele
+      // ȘI politicile RLS, fără un al doilea drum la bază care le-ar putea
+      // aplica altfel.
+      { count: "exact" },
+    )
     .eq("organization_id", organizationId)
     .is("deleted_at", null)
-    // Ordinea urmează indexul unic `equipment_uq` (organization_id, cod).
-    .order("cod", { ascending: true })
-    .order("id", { ascending: true })
+    // Identificatorul e MEREU al doilea criteriu: coloana de sortare nu e unică
+    // (două echipamente pot avea aceeași stare), iar fără el ordinea dintre ele
+    // e nedefinită, deci paginarea poate sări sau repeta exact acolo.
+    .order(coloana, { ascending: crescator, nullsFirst: false })
+    .order("id", { ascending: crescator })
     .limit(filtre.limita + 1);
 
   if (filtre.status !== null) interogare = interogare.eq("status", filtre.status);
@@ -224,14 +315,10 @@ export async function listeazaEchipamente(
   if (filtre.cursor !== null) {
     const c = decodificaCursor(filtre.cursor);
     // Un cursor stricat înseamnă prima pagină, nu o eroare.
-    if (c !== null) {
-      interogare = interogare.or(
-        `cod.gt.${ghilimeleaza(c.cheie)},and(cod.eq.${ghilimeleaza(c.cheie)},id.gt.${c.id})`,
-      );
-    }
+    if (c !== null) interogare = interogare.or(predicatKeyset(coloana, c, sortare.directie));
   }
 
-  const { data, error } = await interogare.returns<RandEchipament[]>();
+  const { data, error, count } = await interogare.returns<RandEchipament[]>();
   if (error !== null) throw error;
 
   const toate = data ?? [];
@@ -243,8 +330,10 @@ export async function listeazaEchipamente(
     randuri,
     urmatorulCursor:
       areUrmatoarea && ultim !== undefined
-        ? codificaCursor({ cheie: ultim.cod, id: ultim.id })
+        ? codificaCursor({ valoare: VALOARE_CURSOR_ECHIPAMENT[sortare.cheie](ultim), id: ultim.id })
         : null,
+    total: count ?? randuri.length,
+    sortare,
   };
 }
 
@@ -349,17 +438,24 @@ export async function planuriScadente(organizationId: string): Promise<readonly 
 
 export async function interventii(
   organizationId: string,
-  filtre: FiltreInterventii,
+  filtre: FiltreInterventiiCitire,
 ): Promise<RezultatInterventii> {
   const db = await createServerSupabase();
+  const sortare = sortareCeruta(
+    filtre.sort ?? null,
+    SORTARI_INTERVENTII,
+    SORTARE_IMPLICITA_INTERVENTII,
+  );
+  const coloana = COLOANA_SORTARE_INTERVENTIE[sortare.cheie];
+  const crescator = sortare.directie === "asc";
 
   let interogare = db
     .from("maintenance_interventions")
-    .select(COLOANE_INTERVENTIE)
+    .select(COLOANE_INTERVENTIE, { count: "exact" })
     .eq("organization_id", organizationId)
     .is("deleted_at", null)
-    .order("data", { ascending: false })
-    .order("id", { ascending: false })
+    .order(coloana, { ascending: crescator, nullsFirst: false })
+    .order("id", { ascending: crescator })
     .limit(filtre.limita + 1);
 
   if (filtre.tip !== null) interogare = interogare.eq("tip", filtre.tip);
@@ -368,14 +464,10 @@ export async function interventii(
 
   if (filtre.cursor !== null) {
     const c = decodificaCursor(filtre.cursor);
-    if (c !== null) {
-      interogare = interogare.or(
-        `data.lt.${ghilimeleaza(c.cheie)},and(data.eq.${ghilimeleaza(c.cheie)},id.lt.${c.id})`,
-      );
-    }
+    if (c !== null) interogare = interogare.or(predicatKeyset(coloana, c, sortare.directie));
   }
 
-  const { data, error } = await interogare.returns<RandInterventie[]>();
+  const { data, error, count } = await interogare.returns<RandInterventie[]>();
   if (error !== null) throw error;
 
   const toate = data ?? [];
@@ -387,8 +479,13 @@ export async function interventii(
     randuri,
     urmatorulCursor:
       areUrmatoarea && ultim !== undefined
-        ? codificaCursor({ cheie: ultim.data, id: ultim.id })
+        ? codificaCursor({
+            valoare: VALOARE_CURSOR_INTERVENTIE[sortare.cheie](ultim),
+            id: ultim.id,
+          })
         : null,
+    total: count ?? randuri.length,
+    sortare,
   };
 }
 
@@ -396,17 +493,20 @@ export async function interventii(
 
 export async function sesizari(
   organizationId: string,
-  filtre: FiltreSesizari,
+  filtre: FiltreSesizariCitire,
 ): Promise<RezultatSesizari> {
   const db = await createServerSupabase();
+  const sortare = sortareCeruta(filtre.sort ?? null, SORTARI_SESIZARI, SORTARE_IMPLICITA_SESIZARI);
+  const coloana = COLOANA_SORTARE_SESIZARE[sortare.cheie];
+  const crescator = sortare.directie === "asc";
 
   let interogare = db
     .from("fault_reports")
-    .select(COLOANE_SESIZARE)
+    .select(COLOANE_SESIZARE, { count: "exact" })
     .eq("organization_id", organizationId)
     .is("deleted_at", null)
-    .order("raportat_la", { ascending: false })
-    .order("id", { ascending: false })
+    .order(coloana, { ascending: crescator, nullsFirst: false })
+    .order("id", { ascending: crescator })
     .limit(filtre.limita + 1);
 
   if (filtre.status !== null) interogare = interogare.eq("status", filtre.status);
@@ -415,14 +515,10 @@ export async function sesizari(
 
   if (filtre.cursor !== null) {
     const c = decodificaCursor(filtre.cursor);
-    if (c !== null) {
-      interogare = interogare.or(
-        `raportat_la.lt.${ghilimeleaza(c.cheie)},and(raportat_la.eq.${ghilimeleaza(c.cheie)},id.lt.${c.id})`,
-      );
-    }
+    if (c !== null) interogare = interogare.or(predicatKeyset(coloana, c, sortare.directie));
   }
 
-  const { data, error } = await interogare.returns<RandSesizare[]>();
+  const { data, error, count } = await interogare.returns<RandSesizare[]>();
   if (error !== null) throw error;
 
   const toate = data ?? [];
@@ -434,8 +530,10 @@ export async function sesizari(
     randuri,
     urmatorulCursor:
       areUrmatoarea && ultim !== undefined
-        ? codificaCursor({ cheie: ultim.raportat_la, id: ultim.id })
+        ? codificaCursor({ valoare: VALOARE_CURSOR_SESIZARE[sortare.cheie](ultim), id: ultim.id })
         : null,
+    total: count ?? randuri.length,
+    sortare,
   };
 }
 

@@ -6,14 +6,17 @@ import { FilePlus2, ListChecks } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
+import { Badge } from "@/components/ui/badge";
 import { Buton, buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
-import { RandTabel } from "@/components/data/rand-tabel";
+import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate } from "@/lib/format/date";
+import { scrieSortare } from "@/lib/queries/cursor";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 import { listeazaSabloane } from "@/lib/queries/checklist";
 import { CHECKLIST_TIP, filtreSabloaneSchema } from "@/schemas/checklist";
@@ -35,7 +38,10 @@ async function TabelSabloane({
   readonly parametri: Record<string, string | string[] | undefined>;
 }) {
   const filtre = filtreDinUrl(filtreSabloaneSchema, parametri);
-  const { randuri, urmatorulCursor } = await listeazaSabloane(organizationId, filtre);
+  const { randuri, urmatorulCursor, total, sortare } = await listeazaSabloane(
+    organizationId,
+    filtre,
+  );
 
   if (randuri.length === 0) {
     const areFiltre = filtre.tip !== null || filtre.cauta !== null;
@@ -56,72 +62,86 @@ async function TabelSabloane({
     );
   }
 
-  const cautare = new URLSearchParams();
-  for (const [cheie, valoare] of Object.entries(parametri)) {
-    if (typeof valoare === "string" && cheie !== "cursor") cautare.set(cheie, valoare);
+  /**
+   * Adresele se construiesc din parametrii EXISTENȚI, nu dintr-un obiect gol:
+   * altfel o sortare ar șterge căutarea și filtrul de tip.
+   */
+  function adresa(schimba: (p: URLSearchParams) => void): string {
+    const p = new URLSearchParams();
+    for (const [cheie, valoare] of Object.entries(parametri)) {
+      if (typeof valoare === "string" && valoare !== "") p.set(cheie, valoare);
+    }
+    schimba(p);
+    return p.size === 0 ? "/onboarding/sabloane" : `/onboarding/sabloane?${p.toString()}`;
   }
-  if (urmatorulCursor !== null) cautare.set("cursor", urmatorulCursor);
+
+  const coloane: readonly Coloana<(typeof randuri)[number]>[] = [
+    {
+      cheie: "denumire",
+      antet: "Denumire",
+      sortabil: true,
+      peTelefon: "titlu",
+      celula: (s) => <span className="font-medium">{s.denumire}</span>,
+    },
+    {
+      cheie: "tip",
+      antet: "Tip",
+      sortabil: true,
+      peTelefon: "meta",
+      celula: (s) => ETICHETE_TIP[s.tip],
+    },
+    {
+      cheie: "valabil",
+      antet: "Valabil de la",
+      sortabil: true,
+      peTelefon: "meta",
+      celula: (s) => formatDate(s.valabil_de_la),
+    },
+    {
+      cheie: "stare",
+      antet: "Stare",
+      peTelefon: "insigna",
+      // Pastila avea AMBELE ramuri identice (`bg-surface text-foreground`), deci
+      // „Activ" și „Dezactivat" arătau la fel. `Badge` le separă prin bulină,
+      // fără să se sprijine doar pe culoare.
+      celula: (s) =>
+        s.activ ? <Badge ton="succes">Activ</Badge> : <Badge ton="neutru">Dezactivat</Badge>,
+    },
+  ];
 
   return (
-    <>
-      <div className="border-border rounded-panou overflow-x-auto border">
-        <table className="text-corp w-full">
-          <caption className="sr-only">Șabloanele de checklist ale organizației.</caption>
-          <thead className="bg-surface text-left">
-            <tr>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Denumire
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Tip
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Valabil de la
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Stare
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-border divide-y">
-            {randuri.map((s) => (
-              <RandTabel key={s.id} href={`/onboarding/sabloane/${s.id}`}>
-                <td className="px-4 py-3 font-medium">
-                  <Link
-                    href={`/onboarding/sabloane/${s.id}`}
-                    className="underline-offset-2 hover:underline"
-                  >
-                    {s.denumire}
-                  </Link>
-                </td>
-                <td className="px-4 py-3">{ETICHETE_TIP[s.tip]}</td>
-                <td className="px-4 py-3">{formatDate(s.valabil_de_la)}</td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`text-nota rounded px-2 py-0.5 font-medium ${
-                      s.activ ? "bg-surface text-foreground" : "bg-surface text-foreground"
-                    }`}
-                  >
-                    {s.activ ? "Activ" : "Dezactivat"}
-                  </span>
-                </td>
-              </RandTabel>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <nav aria-label="Paginare" className="flex justify-end">
-        {urmatorulCursor === null ? null : (
-          <Link
-            href={`/onboarding/sabloane?${cautare.toString()}`}
-            className={buton({ varianta: "secundar" })}
-          >
-            Pagina următoare
-          </Link>
-        )}
-      </nav>
-    </>
+    <div className="flex flex-col gap-4">
+      <Tabel
+        caption="Șabloanele de checklist ale organizației."
+        coloane={coloane}
+        randuri={randuri}
+        cheieRand={(s) => s.id}
+        href={(s) => `/onboarding/sabloane/${s.id}`}
+        sortare={sortare}
+        hrefSortare={(s) =>
+          adresa((p) => {
+            p.set("sort", scrieSortare(s));
+            // Cursorul nu supraviețuiește unei schimbări de sortare: ar continua
+            // de la un rând care, în noua ordine, nu mai e acolo unde era.
+            p.delete("cursor");
+          })
+        }
+        gol={null}
+      />
+      <Paginare
+        afisate={randuri.length}
+        total={total}
+        cursorUrmator={urmatorulCursor}
+        limita={filtre.limita}
+        construiesteHref={({ cursor, limita }) =>
+          adresa((p) => {
+            p.set("limita", String(limita));
+            if (cursor === null) p.delete("cursor");
+            else p.set("cursor", cursor);
+          })
+        }
+      />
+    </div>
   );
 }
 

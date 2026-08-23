@@ -1,5 +1,5 @@
 // src/app/(app)/concedii/page.tsx
-import { Suspense, type ReactNode } from "react";
+import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { CalendarPlus, CalendarRange } from "lucide-react";
@@ -8,9 +8,10 @@ import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
-import { RandTabel } from "@/components/data/rand-tabel";
 import { Badge } from "@/components/ui/badge";
+import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
@@ -18,6 +19,7 @@ import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { formatAmount } from "@/lib/format/money";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
+import { scrieSortare } from "@/lib/queries/cursor";
 import { listeazaCereri, soldAnual, type RandCerere } from "@/lib/queries/leave";
 import { filtreCereriSchema } from "@/schemas/leave";
 import { fisaProprie } from "@/lib/queries/portal";
@@ -63,7 +65,12 @@ async function TabelCereri({
   scope,
 }: ProprietatiTabel) {
   const filtre = filtreDinUrl(filtreCereriSchema, parametri);
-  const { randuri, urmatorulCursor } = await listeazaCereri(organizationId, scope, filtre, fisaMea);
+  const { randuri, urmatorulCursor, total, sortare } = await listeazaCereri(
+    organizationId,
+    scope,
+    filtre,
+    fisaMea,
+  );
 
   if (randuri.length === 0) {
     const areFiltre =
@@ -97,97 +104,114 @@ async function TabelCereri({
     hartaAngajati = new Map((data ?? []).map((a) => [a.id, a]));
   }
 
-  const cautare = new URLSearchParams();
-  for (const [cheie, valoare] of Object.entries(parametri)) {
-    if (typeof valoare === "string" && cheie !== "cursor") cautare.set(cheie, valoare);
+  /**
+   * Adresele se construiesc din parametrii EXISTENȚI, nu dintr-un obiect gol:
+   * altfel o sortare ar șterge filtrele, iar o schimbare de mărime a paginii ar
+   * șterge sortarea.
+   */
+  function adresa(schimba: (p: URLSearchParams) => void): string {
+    const p = new URLSearchParams();
+    for (const [cheie, valoare] of Object.entries(parametri)) {
+      if (typeof valoare === "string" && valoare !== "") p.set(cheie, valoare);
+    }
+    schimba(p);
+    return p.size === 0 ? "/concedii" : `/concedii?${p.toString()}`;
   }
-  if (urmatorulCursor !== null) cautare.set("cursor", urmatorulCursor);
 
-  function randCa(cerere: RandCerere): ReactNode {
-    const tip = hartaTipuri.get(cerere.leave_type_id);
-    const angajat = hartaAngajati.get(cerere.employee_id);
-    return (
-      <RandTabel key={cerere.id} href={`/concedii/${cerere.id}`}>
-        {aratăAngajat ? (
-          <td className="px-4 py-3">
-            {angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`}
-          </td>
-        ) : null}
-        <td className="px-4 py-3">
-          <span
-            className="mr-2 inline-block size-2.5 rounded-full align-middle"
-            style={{ backgroundColor: tip?.culoare ?? "#94a3b8" }}
-            aria-hidden="true"
-          />
-          {tip?.denumire ?? "—"}
-        </td>
-        <td className="px-4 py-3">
-          {formatDate(cerere.data_inceput)} – {formatDate(cerere.data_sfarsit)}
-        </td>
-        <td className="px-4 py-3 tabular-nums">{formatAmount(cerere.zile_lucratoare)} zile</td>
-        <td className="px-4 py-3">
-          <Badge ton={TONURI_STATUS_CERERE[cerere.status]}>
-            {ETICHETE_STATUS_CERERE[cerere.status]}
-          </Badge>
-        </td>
-        <td className="px-4 py-3">
-          <Link
-            href={`/concedii/${cerere.id}`}
-            className="text-primary font-medium underline-offset-2 hover:underline"
-          >
-            Detalii
-          </Link>
-        </td>
-      </RandTabel>
-    );
-  }
+  const coloaneAngajat: readonly Coloana<RandCerere>[] = aratăAngajat
+    ? [
+        {
+          cheie: "angajat",
+          antet: "Angajat",
+          peTelefon: "titlu",
+          celula: (cerere) => {
+            const angajat = hartaAngajati.get(cerere.employee_id);
+            return angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`;
+          },
+        },
+      ]
+    : [];
+
+  const coloane: readonly Coloana<RandCerere>[] = [
+    ...coloaneAngajat,
+    {
+      cheie: "tip",
+      antet: "Tip",
+      peTelefon: aratăAngajat ? "meta" : "titlu",
+      celula: (cerere) => {
+        const tip = hartaTipuri.get(cerere.leave_type_id);
+        return (
+          <>
+            <span
+              className="mr-2 inline-block size-2.5 rounded-full align-middle"
+              style={{ backgroundColor: tip?.culoare ?? "#94a3b8" }}
+              aria-hidden="true"
+            />
+            {tip?.denumire ?? "—"}
+          </>
+        );
+      },
+    },
+    {
+      cheie: "perioada",
+      antet: "Perioadă",
+      sortabil: true,
+      peTelefon: "meta",
+      celula: (cerere) => `${formatDate(cerere.data_inceput)} – ${formatDate(cerere.data_sfarsit)}`,
+    },
+    {
+      cheie: "zile",
+      antet: "Zile lucrătoare",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (cerere) => `${formatAmount(cerere.zile_lucratoare)} zile`,
+    },
+    {
+      cheie: "stare",
+      antet: "Stare",
+      sortabil: true,
+      peTelefon: "insigna",
+      celula: (cerere) => (
+        <Badge ton={TONURI_STATUS_CERERE[cerere.status]}>
+          {ETICHETE_STATUS_CERERE[cerere.status]}
+        </Badge>
+      ),
+    },
+  ];
 
   return (
-    <>
-      <div className="border-border rounded-panou overflow-x-auto border">
-        <table className="text-corp w-full text-left">
-          <caption className="sr-only">Lista cererilor de concediu</caption>
-          <thead className="bg-surface text-foreground">
-            <tr>
-              {aratăAngajat ? (
-                <th scope="col" className="px-4 py-3 font-medium">
-                  Angajat
-                </th>
-              ) : null}
-              <th scope="col" className="px-4 py-3 font-medium">
-                Tip
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Perioadă
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Zile lucrătoare
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Stare
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                <span className="sr-only">Acțiuni</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-border divide-y">{randuri.map(randCa)}</tbody>
-        </table>
-      </div>
-
-      <nav aria-label="Paginare" className="mt-4 flex justify-end">
-        {urmatorulCursor === null ? (
-          <p className="text-muted-foreground text-corp">Aceasta este ultima pagină.</p>
-        ) : (
-          <Link
-            href={`/concedii?${cautare.toString()}`}
-            className={buton({ varianta: "secundar" })}
-          >
-            Pagina următoare
-          </Link>
-        )}
-      </nav>
-    </>
+    <div className="flex flex-col gap-4">
+      <Tabel
+        caption="Lista cererilor de concediu"
+        coloane={coloane}
+        randuri={randuri}
+        cheieRand={(cerere) => cerere.id}
+        href={(cerere) => `/concedii/${cerere.id}`}
+        sortare={sortare}
+        hrefSortare={(s) =>
+          adresa((p) => {
+            p.set("sort", scrieSortare(s));
+            // Cursorul nu supraviețuiește unei schimbări de sortare: ar continua
+            // de la un rând care, în noua ordine, nu mai e acolo unde era.
+            p.delete("cursor");
+          })
+        }
+        gol={null}
+      />
+      <Paginare
+        afisate={randuri.length}
+        total={total}
+        cursorUrmator={urmatorulCursor}
+        limita={filtre.limita}
+        construiesteHref={({ cursor, limita }) =>
+          adresa((p) => {
+            p.set("limita", String(limita));
+            if (cursor === null) p.delete("cursor");
+            else p.set("cursor", cursor);
+          })
+        }
+      />
+    </div>
   );
 }
 
@@ -285,7 +309,7 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
           i-ar sugera că există și altceva. */}
       <FiltreCereri tipuri={tipuri ?? []} aratăVizualizarea={scope !== "own" && fisaMea !== null} />
 
-      <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={6} />}>
+      <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={5} />}>
         <TabelCereri
           organizationId={tenant.organizationId}
           aratăAngajat={scope !== "own"}

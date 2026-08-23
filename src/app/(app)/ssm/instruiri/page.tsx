@@ -8,6 +8,7 @@ import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
+import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
 import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
@@ -106,12 +107,29 @@ async function Matrice({
 
   const azi = todayInBucharest();
 
-  const cautare = new URLSearchParams();
-  for (const [cheie, valoare] of Object.entries(parametri)) {
-    if (typeof valoare === "string" && cheie !== "cursor") cautare.set(cheie, valoare);
+  /**
+   * Adresa se construiește din parametrii EXISTENȚI: matricea are un tab
+   * obligatoriu SSM/PSI, iar o pagină nouă n-are voie să-l piardă.
+   */
+  function adresa(schimba: (p: URLSearchParams) => void): string {
+    const p = new URLSearchParams();
+    for (const [cheie, valoare] of Object.entries(parametri)) {
+      if (typeof valoare === "string" && valoare !== "") p.set(cheie, valoare);
+    }
+    schimba(p);
+    return p.size === 0 ? "/ssm/instruiri" : `/ssm/instruiri?${p.toString()}`;
   }
-  if (urmatorulCursor !== null) cautare.set("cursor", urmatorulCursor);
 
+  /*
+   * Matricea NU trece pe `<Tabel>`: numărul ei de coloane e DINAMIC — o coloană
+   * per tip de instruire configurat pentru domeniul ales — iar `<Tabel>` cere o
+   * listă statică de coloane, cu antet și celulă declarate pentru fiecare. Tot
+   * dinamice sunt și antetele (denumirea tipului plus periodicitatea în luni).
+   * Ce s-a putut împrumuta — paginarea cu numărătoare și mărime de pagină — s-a
+   * împrumutat; căderea pe card sub 768px n-are sens pentru o matrice, care se
+   * citește pe orizontală, deci rămâne derularea orizontală, singura de acest
+   * fel din modul.
+   */
   return (
     <>
       <div className="border-border rounded-panou overflow-x-auto border">
@@ -170,16 +188,18 @@ async function Matrice({
         </table>
       </div>
 
-      <nav aria-label="Paginare" className="flex justify-end">
-        {urmatorulCursor === null ? null : (
-          <Link
-            href={`/ssm/instruiri?${cautare.toString()}`}
-            className={buton({ varianta: "secundar" })}
-          >
-            Pagina următoare
-          </Link>
-        )}
-      </nav>
+      <Paginare
+        afisate={angajati.length}
+        cursorUrmator={urmatorulCursor}
+        limita={filtre.limita}
+        construiesteHref={({ cursor, limita }) =>
+          adresa((p) => {
+            p.set("limita", String(limita));
+            if (cursor === null) p.delete("cursor");
+            else p.set("cursor", cursor);
+          })
+        }
+      />
     </>
   );
 }

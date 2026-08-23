@@ -8,8 +8,9 @@ import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
-import { RandTabel } from "@/components/data/rand-tabel";
+import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -17,6 +18,7 @@ import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
 import { filtreDinUrl } from "@/lib/rute/parametri";
+import { scrieSortare } from "@/lib/queries/cursor";
 import { stingatoare } from "@/lib/queries/ssm";
 import { filtreStingatoareSchema } from "@/schemas/ssm";
 import { stareScadentaSsm } from "@/domain/ssm/scadente";
@@ -36,7 +38,11 @@ interface ProprietatiPagina {
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-function CelulaScadenta({
+/**
+ * Nu mai randează `<td>`-ul, ci doar conținutul lui: `<Tabel>` construiește
+ * celula (și varianta de card de sub 768px) din metadatele coloanei.
+ */
+function Scadenta({
   areInregistrare,
   data,
   scadenta,
@@ -49,14 +55,14 @@ function CelulaScadenta({
 }) {
   const stare = stareScadentaSsm(areInregistrare, scadenta, azi);
   return (
-    <td className="px-4 py-3 whitespace-nowrap">
+    <span className="whitespace-nowrap">
       <Badge ton={TONURI_SCADENTA[stare]} cuAvertisment={stare === "expirat"}>
         {ETICHETE_SCADENTA[stare]}
       </Badge>
       {data === null ? null : (
         <span className="text-muted-foreground text-nota ml-2">{formatDate(data)}</span>
       )}
-    </td>
+    </span>
   );
 }
 
@@ -68,7 +74,7 @@ async function TabelStingatoare({
   readonly parametri: Record<string, string | string[] | undefined>;
 }) {
   const filtre = filtreDinUrl(filtreStingatoareSchema, parametri);
-  const { randuri, urmatorulCursor } = await stingatoare(organizationId, filtre);
+  const { randuri, urmatorulCursor, total, sortare } = await stingatoare(organizationId, filtre);
 
   if (randuri.length === 0) {
     const areFiltre = filtre.status !== null || filtre.cauta !== null;
@@ -93,98 +99,120 @@ async function TabelStingatoare({
 
   const azi = todayInBucharest();
 
-  const cautare = new URLSearchParams();
-  for (const [cheie, valoare] of Object.entries(parametri)) {
-    if (typeof valoare === "string" && cheie !== "cursor") cautare.set(cheie, valoare);
+  /** Adresele pornesc de la parametrii EXISTENȚI — o sortare nu are voie să șteargă căutarea. */
+  function adresa(schimba: (p: URLSearchParams) => void): string {
+    const p = new URLSearchParams();
+    for (const [cheie, valoare] of Object.entries(parametri)) {
+      if (typeof valoare === "string" && valoare !== "") p.set(cheie, valoare);
+    }
+    schimba(p);
+    return p.size === 0 ? "/ssm/stingatoare" : `/ssm/stingatoare?${p.toString()}`;
   }
-  if (urmatorulCursor !== null) cautare.set("cursor", urmatorulCursor);
+
+  const coloane: readonly Coloana<(typeof randuri)[number]>[] = [
+    {
+      cheie: "cod",
+      antet: "Cod",
+      sortabil: true,
+      peTelefon: "titlu",
+      latime: "ingusta",
+      celula: (s) => <span className="font-medium">{s.cod}</span>,
+    },
+    {
+      cheie: "locatie",
+      antet: "Locație",
+      sortabil: true,
+      peTelefon: "meta",
+      celula: (s) => (
+        <>
+          {s.locatie}
+          {s.cladire === null ? null : (
+            <span className="text-muted-foreground"> · {s.cladire}</span>
+          )}
+        </>
+      ),
+    },
+    {
+      cheie: "stare",
+      antet: "Stare",
+      sortabil: true,
+      peTelefon: "insigna",
+      celula: (s) => (
+        <Badge ton={TONURI_STATUS_STINGATOR[s.status]}>{ETICHETE_STATUS_STINGATOR[s.status]}</Badge>
+      ),
+    },
+    {
+      cheie: "verificare",
+      antet: "Verificare",
+      peTelefon: "meta",
+      celula: (s) => (
+        <Scadenta
+          areInregistrare={s.ultima_verificare !== null}
+          data={s.ultima_verificare}
+          scadenta={s.scadenta_verificare}
+          azi={azi}
+        />
+      ),
+    },
+    {
+      cheie: "reincarcare",
+      antet: "Reîncărcare",
+      peTelefon: "meta",
+      celula: (s) => (
+        <Scadenta
+          areInregistrare={s.ultima_reincarcare !== null}
+          data={s.ultima_reincarcare}
+          scadenta={s.scadenta_reincarcare}
+          azi={azi}
+        />
+      ),
+    },
+    {
+      cheie: "proba",
+      antet: "Probă de presiune",
+      peTelefon: "meta",
+      celula: (s) => (
+        <Scadenta
+          areInregistrare={s.ultima_proba_presiune !== null}
+          data={s.ultima_proba_presiune}
+          scadenta={s.scadenta_proba_presiune}
+          azi={azi}
+        />
+      ),
+    },
+  ];
 
   return (
-    <>
-      <div className="border-border rounded-panou overflow-x-auto border">
-        <table className="text-corp w-full">
-          <caption className="sr-only">
-            Stingătoarele organizației, cu cele trei obligații de întreținere pe coloane distincte.
-          </caption>
-          <thead className="bg-surface text-left">
-            <tr>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Cod
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Locație
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Stare
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Verificare
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Reîncărcare
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Probă de presiune
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-border divide-y">
-            {randuri.map((s) => (
-              <RandTabel key={s.id} href={`/ssm/stingatoare/${s.id}`}>
-                <td className="px-4 py-3 font-medium">
-                  <Link
-                    href={`/ssm/stingatoare/${s.id}`}
-                    className="underline-offset-2 hover:underline"
-                  >
-                    {s.cod}
-                  </Link>
-                </td>
-                <td className="px-4 py-3">
-                  {s.locatie}
-                  {s.cladire === null ? null : (
-                    <span className="text-muted-foreground"> · {s.cladire}</span>
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  <Badge ton={TONURI_STATUS_STINGATOR[s.status]}>
-                    {ETICHETE_STATUS_STINGATOR[s.status]}
-                  </Badge>
-                </td>
-                <CelulaScadenta
-                  areInregistrare={s.ultima_verificare !== null}
-                  data={s.ultima_verificare}
-                  scadenta={s.scadenta_verificare}
-                  azi={azi}
-                />
-                <CelulaScadenta
-                  areInregistrare={s.ultima_reincarcare !== null}
-                  data={s.ultima_reincarcare}
-                  scadenta={s.scadenta_reincarcare}
-                  azi={azi}
-                />
-                <CelulaScadenta
-                  areInregistrare={s.ultima_proba_presiune !== null}
-                  data={s.ultima_proba_presiune}
-                  scadenta={s.scadenta_proba_presiune}
-                  azi={azi}
-                />
-              </RandTabel>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <nav aria-label="Paginare" className="flex justify-end">
-        {urmatorulCursor === null ? null : (
-          <Link
-            href={`/ssm/stingatoare?${cautare.toString()}`}
-            className={buton({ varianta: "secundar" })}
-          >
-            Pagina următoare
-          </Link>
-        )}
-      </nav>
-    </>
+    <div className="flex flex-col gap-4">
+      <Tabel
+        caption="Stingătoarele organizației, cu cele trei obligații de întreținere pe coloane distincte."
+        coloane={coloane}
+        randuri={randuri}
+        cheieRand={(s) => s.id}
+        href={(s) => `/ssm/stingatoare/${s.id}`}
+        sortare={sortare}
+        hrefSortare={(s) =>
+          adresa((p) => {
+            p.set("sort", scrieSortare(s));
+            p.delete("cursor");
+          })
+        }
+        gol={null}
+      />
+      <Paginare
+        afisate={randuri.length}
+        total={total}
+        cursorUrmator={urmatorulCursor}
+        limita={filtre.limita}
+        construiesteHref={({ cursor, limita }) =>
+          adresa((p) => {
+            p.set("limita", String(limita));
+            if (cursor === null) p.delete("cursor");
+            else p.set("cursor", cursor);
+          })
+        }
+      />
+    </div>
   );
 }
 
