@@ -1,6 +1,7 @@
 // src/app/(app)/angajati/etichete.ts
 // Etichete de interfață — separate de actions.ts, care poate exporta doar funcții async.
 
+import type { TonStare } from "@/components/ui/badge";
 import type { StatusAngajat, TipScutire } from "@/schemas/employee";
 
 export const ETICHETE_STATUS: Readonly<Record<StatusAngajat, string>> = {
@@ -12,13 +13,18 @@ export const ETICHETE_STATUS: Readonly<Record<StatusAngajat, string>> = {
   arhivat: "Arhivat",
 };
 
-export const CLASE_STATUS: Readonly<Record<StatusAngajat, string>> = {
-  candidat: "bg-slate-100 text-slate-800",
-  activ: "bg-emerald-100 text-emerald-900",
-  suspendat: "bg-amber-100 text-amber-900",
-  preaviz: "bg-orange-100 text-orange-900",
-  incetat: "bg-rose-100 text-rose-900",
-  arhivat: "bg-zinc-200 text-zinc-800",
+export const TONURI_STATUS: Readonly<Record<StatusAngajat, TonStare>> = {
+  // Candidatul e o fișă care nu s-a umplut încă — „neînceput”, deci ciornă.
+  candidat: "ciorna",
+  activ: "succes",
+  // Suspendat și preaviz sunt stări trecătoare care cer o acțiune, nu eșecuri:
+  // atenție, nu pericol.
+  suspendat: "atentie",
+  preaviz: "atentie",
+  // Contractul încetat e o relație închisă, nu o respingere — de aceea neutru,
+  // deși vechea hartă îl colora roșiatic.
+  incetat: "neutru",
+  arhivat: "neutru",
 };
 
 export const ETICHETE_CONTRACT: Readonly<Record<string, string>> = {

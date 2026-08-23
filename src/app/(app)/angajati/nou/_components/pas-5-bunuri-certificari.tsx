@@ -1,14 +1,14 @@
 // src/app/(app)/angajati/nou/_components/pas-5-bunuri-certificari.tsx
 "use client";
 
-import type { UseFormReturn } from "react-hook-form";
+import { useFieldArray, type UseFormReturn } from "react-hook-form";
 
 import { REZULTATE_EXAMEN, TIPURI_EXAMEN } from "@/schemas/ssm";
 import type { InroleazaAngajatInput } from "@/schemas/employee";
 import { claseCamp, claseLabel, Eroare } from "./campuri-comune";
 
 export const CAMPURI_PAS_5 = [
-  "inventory_item_id",
+  "inventory_item_ids",
   "examen_data",
   "examen_tip",
   "examen_rezultat",
@@ -16,10 +16,7 @@ export const CAMPURI_PAS_5 = [
   "examen_medic",
   "examen_unitate_medicala",
   "examen_numar_fisa",
-  "autorizatie_tip",
-  "autorizatie_numar",
-  "autorizatie_emitent",
-  "autorizatie_valabil_pana",
+  "autorizatii",
 ] as const satisfies readonly (keyof InroleazaAngajatInput)[];
 
 const ETICHETE_REZULTAT: Record<(typeof REZULTATE_EXAMEN)[number], string> = {
@@ -51,8 +48,15 @@ interface Proprietati {
 export function Pas5BunuriCertificari({ formular, idFormular, obiecteDisponibile }: Proprietati) {
   const {
     register,
+    control,
     formState: { errors },
   } = formular;
+
+  // `useFieldArray` e tiparul react-hook-form pentru liste de sub-formulare.
+  // Wizardul de înrolare e unul dintre cele patru fișiere din proiect care
+  // folosesc react-hook-form (restul merg pe `useTransition` + `FormData`) —
+  // aici era deja folosit, deci nu introduce o a doua convenție.
+  const autorizatii = useFieldArray({ control, name: "autorizatii" });
 
   return (
     <div className="space-y-6">
@@ -62,17 +66,18 @@ export function Pas5BunuriCertificari({ formular, idFormular, obiecteDisponibile
       </p>
 
       <fieldset className="border-border space-y-4 rounded-lg border p-4">
-        <legend className="text-foreground px-1 text-sm font-medium">Bun alocat</legend>
+        <legend className="text-foreground px-1 text-sm font-medium">Bunuri alocate</legend>
         <div>
           <label htmlFor={`${idFormular}-inventar`} className={claseLabel}>
-            Obiect de inventar
+            Obiecte de inventar
           </label>
           <select
             id={`${idFormular}-inventar`}
-            {...register("inventory_item_id")}
+            multiple
+            size={Math.min(8, Math.max(3, obiecteDisponibile.length))}
+            {...register("inventory_item_ids")}
             className={claseCamp}
           >
-            <option value="">— Niciunul —</option>
             {obiecteDisponibile.map((obiect) => (
               <option key={obiect.id} value={obiect.id}>
                 {obiect.denumire} ({obiect.numar_inventar})
@@ -80,7 +85,8 @@ export function Pas5BunuriCertificari({ formular, idFormular, obiecteDisponibile
             ))}
           </select>
           <p className="text-muted-foreground mt-1 text-xs">
-            Mașina de serviciu se alocă separat, din modulul Parc auto.
+            Se pot alege mai multe, cu Ctrl (Cmd pe Mac). Mașina de serviciu se alocă separat, din
+            modulul Parc auto.
           </p>
         </div>
       </fieldset>
@@ -178,56 +184,110 @@ export function Pas5BunuriCertificari({ formular, idFormular, obiecteDisponibile
       </fieldset>
 
       <fieldset className="border-border space-y-4 rounded-lg border p-4">
-        <legend className="text-foreground px-1 text-sm font-medium">Autorizație nominală</legend>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor={`${idFormular}-autorizatie-tip`} className={claseLabel}>
-              Tip
-            </label>
-            <input
-              id={`${idFormular}-autorizatie-tip`}
-              {...register("autorizatie_tip")}
-              placeholder="ex. ISCIR, lucru la înălțime"
-              className={claseCamp}
-            />
+        <legend className="text-foreground px-1 text-sm font-medium">Autorizații nominale</legend>
+        <p className="text-muted-foreground text-xs">
+          ISCIR, lucru la înălțime, electrician autorizat… Fiecare are propria dată de expirare și
+          intră în tabloul de expirabile, care avertizează înainte să iasă din valabilitate.
+        </p>
+
+        {autorizatii.fields.map((camp, index) => (
+          <div
+            key={camp.id}
+            className="border-border grid gap-4 rounded-md border p-3 sm:grid-cols-2"
+          >
+            <div>
+              <label
+                htmlFor={`${idFormular}-autorizatie-${String(index)}-tip`}
+                className={claseLabel}
+              >
+                Tip
+              </label>
+              <input
+                id={`${idFormular}-autorizatie-${String(index)}-tip`}
+                {...register(`autorizatii.${index}.tip` as const)}
+                placeholder="ex. ISCIR, lucru la înălțime"
+                className={claseCamp}
+              />
+              <Eroare
+                id={`${idFormular}-autorizatie-${String(index)}-tip-eroare`}
+                mesaj={errors.autorizatii?.[index]?.tip?.message}
+              />
+            </div>
+            <div>
+              <label
+                htmlFor={`${idFormular}-autorizatie-${String(index)}-numar`}
+                className={claseLabel}
+              >
+                Număr
+              </label>
+              <input
+                id={`${idFormular}-autorizatie-${String(index)}-numar`}
+                {...register(`autorizatii.${index}.numar` as const)}
+                className={claseCamp}
+              />
+              <Eroare
+                id={`${idFormular}-autorizatie-${String(index)}-numar-eroare`}
+                mesaj={errors.autorizatii?.[index]?.numar?.message}
+              />
+            </div>
+            <div>
+              <label
+                htmlFor={`${idFormular}-autorizatie-${String(index)}-emitent`}
+                className={claseLabel}
+              >
+                Emitent
+              </label>
+              <input
+                id={`${idFormular}-autorizatie-${String(index)}-emitent`}
+                {...register(`autorizatii.${index}.emitent` as const)}
+                className={claseCamp}
+              />
+              <Eroare
+                id={`${idFormular}-autorizatie-${String(index)}-emitent-eroare`}
+                mesaj={errors.autorizatii?.[index]?.emitent?.message}
+              />
+            </div>
+            <div>
+              <label
+                htmlFor={`${idFormular}-autorizatie-${String(index)}-valabil`}
+                className={claseLabel}
+              >
+                Valabilă până la
+              </label>
+              <input
+                id={`${idFormular}-autorizatie-${String(index)}-valabil`}
+                type="date"
+                {...register(`autorizatii.${index}.valabil_pana` as const)}
+                className={claseCamp}
+              />
+              <Eroare
+                id={`${idFormular}-autorizatie-${String(index)}-valabil-eroare`}
+                mesaj={errors.autorizatii?.[index]?.valabil_pana?.message}
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <button
+                type="button"
+                onClick={() => {
+                  autorizatii.remove(index);
+                }}
+                className="border-border rounded-md border px-3 py-1.5 text-sm"
+              >
+                Scoate autorizația
+              </button>
+            </div>
           </div>
-          <div>
-            <label htmlFor={`${idFormular}-autorizatie-numar`} className={claseLabel}>
-              Număr
-            </label>
-            <input
-              id={`${idFormular}-autorizatie-numar`}
-              {...register("autorizatie_numar")}
-              className={claseCamp}
-            />
-          </div>
-          <div>
-            <label htmlFor={`${idFormular}-autorizatie-emitent`} className={claseLabel}>
-              Emitent
-            </label>
-            <input
-              id={`${idFormular}-autorizatie-emitent`}
-              {...register("autorizatie_emitent")}
-              className={claseCamp}
-            />
-          </div>
-          <div>
-            <label htmlFor={`${idFormular}-autorizatie-valabil`} className={claseLabel}>
-              Valabilă până la
-            </label>
-            <input
-              id={`${idFormular}-autorizatie-valabil`}
-              type="date"
-              {...register("autorizatie_valabil_pana")}
-              aria-invalid={Boolean(errors.autorizatie_valabil_pana)}
-              className={claseCamp}
-            />
-            <Eroare
-              id={`${idFormular}-autorizatie-valabil-eroare`}
-              mesaj={errors.autorizatie_valabil_pana?.message}
-            />
-          </div>
-        </div>
+        ))}
+
+        <button
+          type="button"
+          onClick={() => {
+            autorizatii.append({ tip: "", numar: "", emitent: "", valabil_pana: "" });
+          }}
+          className="border-foreground/60 rounded-md border px-3 py-1.5 text-sm"
+        >
+          Adaugă o autorizație
+        </button>
       </fieldset>
     </div>
   );

@@ -2166,6 +2166,57 @@ export type Database = {
           },
         ]
       }
+      employee_dependents: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data_nasterii: string | null
+          deleted_at: string | null
+          employee_id: string
+          id: string
+          in_intretinere_de_la: string
+          in_intretinere_pana_la: string | null
+          nume: string
+          observatii: string | null
+          organization_id: string
+          relatie: Database["public"]["Enums"]["dependent_relation"]
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data_nasterii?: string | null
+          deleted_at?: string | null
+          employee_id: string
+          id?: string
+          in_intretinere_de_la: string
+          in_intretinere_pana_la?: string | null
+          nume: string
+          observatii?: string | null
+          organization_id: string
+          relatie: Database["public"]["Enums"]["dependent_relation"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data_nasterii?: string | null
+          deleted_at?: string | null
+          employee_id?: string
+          id?: string
+          in_intretinere_de_la?: string
+          in_intretinere_pana_la?: string | null
+          nume?: string
+          observatii?: string | null
+          organization_id?: string
+          relatie?: Database["public"]["Enums"]["dependent_relation"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       employee_document_types: {
         Row: {
           activ: boolean
@@ -2901,6 +2952,8 @@ export type Database = {
           moneda: string
           motiv_determinat: string | null
           motiv_incetare: string | null
+          cost_center: string | null
+          nivel_incadrare: string | null
           norma_ore_saptamana: number
           norma_ore_zi: number
           numar: string
@@ -2939,6 +2992,8 @@ export type Database = {
           moneda?: string
           motiv_determinat?: string | null
           motiv_incetare?: string | null
+          cost_center?: string | null
+          nivel_incadrare?: string | null
           norma_ore_saptamana?: number
           norma_ore_zi?: number
           numar: string
@@ -2977,6 +3032,8 @@ export type Database = {
           moneda?: string
           motiv_determinat?: string | null
           motiv_incetare?: string | null
+          cost_center?: string | null
+          nivel_incadrare?: string | null
           norma_ore_saptamana?: number
           norma_ore_zi?: number
           numar?: string
@@ -10214,6 +10271,7 @@ export type Database = {
       conditii_munca: "normale" | "deosebite" | "speciale"
       contract_duration: "nedeterminat" | "determinat"
       contract_status: "proiect" | "activ" | "suspendat" | "incetat" | "anulat"
+      dependent_relation: "copil" | "sot_sotie" | "parinte" | "alta_ruda"
       demo_request_status:
         | "new"
         | "contacted"
@@ -10643,6 +10701,7 @@ export const Constants = {
       conditii_munca: ["normale", "deosebite", "speciale"],
       contract_duration: ["nedeterminat", "determinat"],
       contract_status: ["proiect", "activ", "suspendat", "incetat", "anulat"],
+      dependent_relation: ["copil", "sot_sotie", "parinte", "alta_ruda"],
       demo_request_status: [
         "new",
         "contacted",

@@ -7,6 +7,7 @@ import { ChevronRight, FileText, KeyRound, Pencil } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AvatarAngajat } from "@/components/data/avatar-angajat";
+import { Badge } from "@/components/ui/badge";
 import { IncarcareAvatar } from "@/components/forms/incarcare-avatar";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -28,11 +29,11 @@ import {
 } from "@/lib/queries/employees";
 
 import {
-  CLASE_STATUS,
   ETICHETE_CONTRACT,
   ETICHETE_MOD_LUCRU,
   ETICHETE_SCUTIRE,
   ETICHETE_STATUS,
+  TONURI_STATUS,
 } from "../etichete";
 import { ButonIncheieComponenta } from "./buton-incheie-componenta";
 import { DateSensibile } from "./date-sensibile";
@@ -44,6 +45,7 @@ import { FormularModificaSalariu } from "./formular-modifica-salariu";
 import { FormularScutireFiscala } from "./formular-scutire-fiscala";
 import { IncarcareAvatarAdmin } from "./incarcare-avatar-admin";
 import { SectiuneConcedii } from "./sectiune-concedii";
+import { SectiuneDependenti, type RandDependent } from "./sectiune-dependenti";
 
 const ETICHETE_TIP_COMPONENTA: Readonly<Record<string, string>> = {
   spor_procent: "Spor procentual",
@@ -176,6 +178,19 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
   const poateAcordaPermisiuni = can(permisiuni, "roles:update", "team");
   const poateVedeaRegulileConcediu = can(permisiuni, "leave:read", "all");
 
+  // Persoanele în întreținere (0069). RLS (`employee_dependents_select` →
+  // `app.can_see_employee`) decide singură cine le vede; pagina nu filtrează.
+  const dbFisa = await createServerSupabase();
+  const { data: dependentiBruti } = await dbFisa
+    .from("employee_dependents")
+    .select("id, nume, relatie, data_nasterii, in_intretinere_de_la, in_intretinere_pana_la")
+    .eq("organization_id", tenant.organizationId)
+    .eq("employee_id", angajat.id)
+    .is("deleted_at", null)
+    .order("in_intretinere_de_la", { ascending: true })
+    .returns<RandDependent[]>();
+  const dependenti = dependentiBruti ?? [];
+
   return (
     <main className="space-y-6 p-6">
       <header className={CLASA_SECTIUNE}>
@@ -264,11 +279,9 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                 Editează fișa
               </Link>
             ) : null}
-            <span
-              className={`rounded-full px-3 py-1 text-sm font-medium ${CLASE_STATUS[angajat.status]}`}
-            >
+            <Badge className="px-3 py-1 text-sm" ton={TONURI_STATUS[angajat.status]}>
               {ETICHETE_STATUS[angajat.status]}
-            </span>
+            </Badge>
           </div>
         </div>
       </header>
@@ -314,6 +327,16 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
             />
             <Camp eticheta="Grad de handicap" valoare={angajat.grad_handicap} />
           </GrupCampuri>
+          <div className="sm:col-span-2">
+            <h3 className="text-muted-foreground mb-2 text-xs font-medium tracking-wide uppercase">
+              Persoane în întreținere
+            </h3>
+            <SectiuneDependenti
+              employeeId={angajat.id}
+              dependenti={dependenti}
+              poateEdita={poateEditaAngajat}
+            />
+          </div>
         </div>
       </section>
 

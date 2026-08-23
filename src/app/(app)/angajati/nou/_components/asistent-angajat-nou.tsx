@@ -60,6 +60,7 @@ interface RezultatSucces {
   readonly nume: string;
   readonly documentContractId: string | null;
   readonly documentFisaPostuluiId: string | null;
+  readonly avertismente: readonly string[];
 }
 
 export function AsistentAngajatNou({
@@ -116,6 +117,7 @@ export function AsistentAngajatNou({
         nume: `${valori.first_name} ${valori.last_name}`.trim(),
         documentContractId: raspuns.data.documentContractId,
         documentFisaPostuluiId: raspuns.data.documentFisaPostuluiId,
+        avertismente: raspuns.data.avertismente,
       });
       return;
     }
@@ -170,6 +172,24 @@ export function AsistentAngajatNou({
             </Link>
           ) : null}
         </div>
+
+        {rezultat.avertismente.length > 0 ? (
+          <div
+            role="alert"
+            className="border-warning/40 bg-warning/10 mt-6 rounded-lg border p-4 text-left"
+          >
+            <p className="text-sm font-medium">
+              Angajatul e înrolat, dar{" "}
+              {rezultat.avertismente.length === 1 ? "un pas nu s-a" : "câțiva pași nu s-au"} putut
+              face automat:
+            </p>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
+              {rezultat.avertismente.map((avertisment) => (
+                <li key={avertisment}>{avertisment}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </div>
     );
   }

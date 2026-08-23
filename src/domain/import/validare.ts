@@ -96,11 +96,20 @@ function desparteNumeComplet(text: string): { nume: string; prenume: string } | 
 
 export const schemaAngajatValidat = z.object({
   rand: z.number().int().positive(),
+  /**
+   * OPȚIONALĂ din 0069 — gol înseamnă „atribuie contorul organizației".
+   *
+   * Cerând-o, importul avea propriul regim de numerotare, paralel cu contorul
+   * pe care îl avansează `urmatoarea_marca` la înrolare. Un import cu mărcile
+   * 0001–0200, urmat de o înrolare, producea „0001" a doua oară și lovea
+   * `employees_org_marca_uniq`.
+   */
   marca: z
     .string()
     .trim()
-    .min(1, "Marca este obligatorie.")
-    .max(32, "Marca poate avea cel mult 32 de caractere."),
+    .max(32, "Marca poate avea cel mult 32 de caractere.")
+    .optional()
+    .transform((v) => (v === undefined || v.length === 0 ? undefined : v)),
   last_name: z
     .string()
     .trim()
@@ -400,15 +409,21 @@ export function valideazaRanduri(randuri: readonly RandMapat[]): RezultatValidar
     }
 
     const angajat = rezultat.data;
-    const cheieMarca = angajat.marca.toLowerCase();
-    const randAnterior = marciVazute.get(cheieMarca);
-    if (randAnterior !== undefined) {
-      invalide.push({
-        rand,
-        camp: "Marcă",
-        mesaj: `Marca „${angajat.marca}" apare deja la rândul ${randAnterior}.`,
-      });
-      continue;
+    // Dedublarea privește DOAR mărcile scrise în fișier. Cele lăsate goale le
+    // atribuie contorul organizației la inserție, iar el nu poate produce
+    // duplicate: `urmatoarea_marca` face un singur INSERT … ON CONFLICT DO
+    // UPDATE … RETURNING, deci n-are fereastră de cursă.
+    if (angajat.marca !== undefined) {
+      const cheieMarca = angajat.marca.toLowerCase();
+      const randAnterior = marciVazute.get(cheieMarca);
+      if (randAnterior !== undefined) {
+        invalide.push({
+          rand,
+          camp: "Marcă",
+          mesaj: `Marca „${angajat.marca}" apare deja la rândul ${randAnterior}.`,
+        });
+        continue;
+      }
     }
     if (angajat.cnp !== undefined) {
       const randCnp = cnpVazute.get(angajat.cnp);
@@ -439,7 +454,7 @@ export function valideazaRanduri(randuri: readonly RandMapat[]): RezultatValidar
       }
       cnpVazute.set(angajat.cnp, rand);
     }
-    marciVazute.set(cheieMarca, rand);
+    if (angajat.marca !== undefined) marciVazute.set(angajat.marca.toLowerCase(), rand);
     valide.push(angajat);
   }
 

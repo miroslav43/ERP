@@ -70,9 +70,12 @@ describe("valideazaRanduri", () => {
     ]);
     expect(valide).toEqual([]);
     const campuri = invalide.map((e) => e.camp);
+    // „Marcă" nu mai apare: din 0069 e opțională, iar când lipsește o atribuie
+    // contorul organizației la inserție.
     expect(campuri).toEqual(
-      expect.arrayContaining(["Marcă", "Data angajării", "E-mail personal", "Salariu de bază"]),
+      expect.arrayContaining(["Data angajării", "E-mail personal", "Salariu de bază"]),
     );
+    expect(campuri).not.toContain("Marcă");
     expect(invalide.every((e) => e.rand === 4)).toBe(true);
   });
 
@@ -100,5 +103,35 @@ describe("valideazaRanduri", () => {
       rand(2, { ...BAZA, cnp: CNP_VALID, data_nasterii: "02.05.1990" }),
     ]);
     expect(invalide[0]?.camp).toBe("Data nașterii");
+  });
+});
+
+describe("marca opțională la import (0069)", () => {
+  it("acceptă un rând fără marcă", () => {
+    const { valide, invalide } = valideazaRanduri([
+      rand(2, { marca: "", nume_complet: "Popescu Ana", data_angajarii: "01.03.2024" }),
+    ]);
+    expect(invalide.filter((e) => e.camp === "Marcă")).toEqual([]);
+    expect(valide).toHaveLength(1);
+    expect(valide[0]?.marca).toBeUndefined();
+  });
+
+  it("nu confundă două rânduri fără marcă cu un duplicat", () => {
+    // Dedublarea privește doar mărcile SCRISE în fișier. Două goluri nu sunt
+    // acelasi lucru cu două „0001".
+    const { valide, invalide } = valideazaRanduri([
+      rand(2, { marca: "", nume_complet: "Popescu Ana", data_angajarii: "01.03.2024" }),
+      rand(3, { marca: "", nume_complet: "Ionescu Dan", data_angajarii: "01.03.2024" }),
+    ]);
+    expect(invalide).toEqual([]);
+    expect(valide).toHaveLength(2);
+  });
+
+  it("păstrează dedublarea pentru mărcile scrise explicit", () => {
+    const { invalide } = valideazaRanduri([
+      rand(2, { marca: "A-1", nume_complet: "Popescu Ana", data_angajarii: "01.03.2024" }),
+      rand(3, { marca: "a-1", nume_complet: "Ionescu Dan", data_angajarii: "01.03.2024" }),
+    ]);
+    expect(invalide.some((e) => e.camp === "Marcă")).toBe(true);
   });
 });

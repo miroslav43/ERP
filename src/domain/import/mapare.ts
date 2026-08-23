@@ -15,7 +15,18 @@ export const CAMPURI_IMPORT = [
   {
     camp: "marca",
     eticheta: "Marcă",
-    obligatoriu: true,
+    /**
+     * OPȚIONAL din 0069.
+     *
+     * Cerând-o, importul avea propriul regim de numerotare, paralel cu cel al
+     * înrolării: `urmatoarea_marca` avansa un contor pe care importul nu-l
+     * atingea. Un import cu mărcile 0001–0200, urmat de o înrolare, producea
+     * „0001" a doua oară și lovea `employees_org_marca_uniq`.
+     *
+     * Coloana rămâne acceptată, fiindcă la o migrare dintr-un sistem vechi
+     * mărcile EXISTĂ și trebuie păstrate. Când lipsește, o atribuie contorul.
+     */
+    obligatoriu: false,
     alias: ["marca", "nr matricol", "numar matricol", "cod angajat", "id angajat"],
   },
   {

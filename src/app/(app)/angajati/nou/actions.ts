@@ -21,6 +21,21 @@ interface RezultatInrolare {
   readonly contractId: string;
   readonly documentContractId: string | null;
   readonly documentFisaPostuluiId: string | null;
+  /**
+   * Ce NU s-a putut face, deși înrolarea a reușit.
+   *
+   * Pașii opționali — bunul de inventar, fișa de aptitudine, autorizația,
+   * documentele, evenimentul REVISAL — sunt fiecare într-un `try/catch` care
+   * doar loga, fiindcă fiecare are propriul prag de permisiune, diferit de
+   * `employees:create`. Principiul e corect: un `hr` fără `inventory:update` nu
+   * trebuie să rateze înrolarea din cauza unui laptop.
+   *
+   * Dar până acum utilizatorul NU AFLA NICIODATĂ. Ecranul spunea „angajat
+   * înrolat", iar laptopul rămânea nepredat, fișa medicală neînregistrată și
+   * contractul negenerat — tăcut. Exact „gap-ul care generează muncă în plus"
+   * pe care modulul își propune să-l închidă.
+   */
+  readonly avertismente: readonly string[];
 }
 
 const CAMPURI_ANGAJAT = [
@@ -104,6 +119,7 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
   },
   handler: async (ctx, input): Promise<RezultatInrolare> => {
     const db = ctx.supabase;
+    const avertismente: string[] = [];
 
     const { data: marca, error: eroareMarca } = await db.rpc("urmatoarea_marca", {
       p_organization_id: ctx.tenant.organizationId,
@@ -134,7 +150,7 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
       zile_concediu_anual,
       perioada_proba_zile,
       preaviz_zile,
-      inventory_item_id,
+      inventory_item_ids,
       examen_data,
       examen_tip,
       examen_rezultat,
@@ -142,10 +158,13 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
       examen_medic,
       examen_unitate_medicala,
       examen_numar_fisa,
-      autorizatie_tip,
-      autorizatie_numar,
-      autorizatie_emitent,
-      autorizatie_valabil_pana,
+      autorizatii,
+      permis_tip,
+      permis_numar,
+      permis_emis_de,
+      permis_valabil_de_la,
+      permis_valabil_pana,
+      numar_pasaport,
       ...fisa
     } = input;
 
@@ -260,10 +279,14 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
     // FIECARE propriul prag de permisiune (inventory:update / ssm:create),
     // diferit de employees:create — dacă actorul nu-l are, eșecul nu trebuie
     // să anuleze o înrolare deja reușită (același principiu ca la documente).
-    if (inventory_item_id !== null) {
+    // Fiecare bun se predă SEPARAT, cu propriul try/catch: dacă al doilea din
+    // trei eșuează, primul rămâne predat și al treilea se încearcă oricum.
+    // Un singur try în jurul buclei ar fi transformat un eșec într-o listă
+    // predată pe jumătate, fără să se vadă unde s-a rupt.
+    for (const itemId of inventory_item_ids) {
       try {
         await predaObiect({
-          item_id: inventory_item_id,
+          item_id: itemId,
           employee_id: angajat.id,
           predat_la: null,
           stare_la_predare: "bun",
@@ -271,8 +294,12 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
           pv_document_path: null,
         });
       } catch (eroare) {
+        avertismente.push(
+          "Un bun de inventar nu a putut fi predat. Predați-l manual din fișa angajatului — poate fi nevoie de dreptul „inventar: modificare”.",
+        );
         console.error("[inventar] bunul nu a putut fi predat la înrolare", {
           employeeId: angajat.id,
+          itemId,
           requestId: ctx.requestId,
           eroare,
         });
@@ -293,6 +320,9 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
           cost: null,
         });
       } catch (eroare) {
+        avertismente.push(
+          "Fișa de aptitudine (medicina muncii) nu a putut fi înregistrată. Adăugați-o din SSM → Medicina muncii.",
+        );
         console.error("[ssm] fișa de aptitudine nu a putut fi înregistrată la înrolare", {
           employeeId: angajat.id,
           requestId: ctx.requestId,
@@ -301,22 +331,61 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
       }
     }
 
-    if (autorizatie_numar !== null && autorizatie_tip !== null && autorizatie_emitent !== null) {
+    // Permisul de muncă, pentru cetățenii non-RO. `work_permits` exista din
+    // 0004 cu politici RLS și index de expirare, dar NICIUN cod nu o atingea:
+    // un angajat străin se înrola fără aviz, iar expirarea nu apărea nicăieri.
+    //
+    // Scriere directă, nu printr-o acțiune vecină: nu există una. Pragul e
+    // `employees:create`, deja verificat de `createAction` — iar RLS-ul tabelei
+    // rămâne bariera.
+    if (permis_numar !== null && permis_valabil_de_la !== null && permis_valabil_pana !== null) {
+      try {
+        const { error: eroarePermis } = await db.from("work_permits").insert({
+          organization_id: ctx.tenant.organizationId,
+          employee_id: angajat.id,
+          tip_permis: permis_tip ?? "aviz",
+          numar: permis_numar,
+          emis_de: permis_emis_de,
+          valabil_de_la: permis_valabil_de_la,
+          valabil_pana: permis_valabil_pana,
+          numar_pasaport,
+          cetatenie: (fisa.cetatenie ?? "RO").toUpperCase(),
+          created_by: ctx.user.id,
+          updated_by: ctx.user.id,
+        });
+        if (eroarePermis !== null) throw eroarePermis;
+      } catch (eroare) {
+        avertismente.push(
+          "Permisul de muncă nu a putut fi înregistrat. ATENȚIE: munca fără permis valabil e contravenție pentru angajator.",
+        );
+        console.error("[hr] permisul de muncă nu a putut fi înregistrat la înrolare", {
+          employeeId: angajat.id,
+          requestId: ctx.requestId,
+          eroare,
+        });
+      }
+    }
+
+    for (const autorizatie of autorizatii) {
       try {
         await adaugaAutorizatieNominala({
           employee_id: angajat.id,
-          tip: autorizatie_tip,
+          tip: autorizatie.tip,
           grupa: null,
-          numar: autorizatie_numar,
-          emitent: autorizatie_emitent,
+          numar: autorizatie.numar,
+          emitent: autorizatie.emitent,
           emis_la: null,
-          valabil_pana: autorizatie_valabil_pana ?? valabil_de_la,
+          valabil_pana: autorizatie.valabil_pana,
           suspendata_la: null,
           observatii: null,
         });
       } catch (eroare) {
+        avertismente.push(
+          `Autorizația „${autorizatie.tip}" nu a putut fi înregistrată. Adăugați-o din SSM → Autorizații.`,
+        );
         console.error("[ssm] autorizația nominală nu a putut fi înregistrată la înrolare", {
           employeeId: angajat.id,
+          numar: autorizatie.numar,
           requestId: ctx.requestId,
           eroare,
         });
@@ -365,6 +434,9 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
       });
       documentContractId = documentContract.id;
     } catch (eroare) {
+      avertismente.push(
+        "Contractul de muncă nu a putut fi generat. Îl puteți genera din fișa angajatului, secțiunea Documente.",
+      );
       console.error("[documente] contractul de muncă nu a putut fi generat", {
         employeeId: angajat.id,
         requestId: ctx.requestId,
@@ -388,6 +460,9 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
         });
         documentFisaPostuluiId = documentFisaPost.id;
       } catch (eroare) {
+        avertismente.push(
+          "Fișa postului nu a putut fi generată. O puteți genera din fișa angajatului, secțiunea Documente.",
+        );
         console.error("[documente] fișa postului nu a putut fi generată", {
           employeeId: angajat.id,
           requestId: ctx.requestId,
@@ -416,6 +491,9 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
         ],
       });
     } catch (eroare) {
+      avertismente.push(
+        "Evenimentul REVISAL de angajare nu a fost generat. ATENȚIE: transmiterea la ITM are termen legal — cel târziu în ziua lucrătoare anterioară începerii activității. Verificați în ecranul REVISAL.",
+      );
       console.error("[revisal] evenimentul de angajare nu a putut fi generat", {
         contractId: contract.id,
         requestId: ctx.requestId,
@@ -433,6 +511,7 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
       contractId: contract.id,
       documentContractId,
       documentFisaPostuluiId,
+      avertismente,
     };
   },
 });

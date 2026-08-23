@@ -4,6 +4,7 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { CautaCor } from "./cauta-cor";
 import { creeazaFunctie } from "./actions";
 
 export function FormularFunctieNoua() {
@@ -83,17 +84,9 @@ export function FormularFunctieNoua() {
       </div>
       <div className="flex flex-col gap-1">
         <label htmlFor={idCodCor} className="text-sm font-medium">
-          Cod COR (6 cifre)
+          Cod COR
         </label>
-        <input
-          id={idCodCor}
-          name="cod_cor"
-          type="text"
-          inputMode="numeric"
-          maxLength={6}
-          placeholder="251401"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
-        />
+        <CautaCor idInput={idCodCor} />
       </div>
       <div className="flex flex-col gap-1">
         <label htmlFor={idNivelStudii} className="text-sm font-medium">

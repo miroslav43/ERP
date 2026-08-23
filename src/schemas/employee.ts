@@ -195,17 +195,59 @@ export type CreeazaAngajatInput = z.infer<typeof creeazaAngajatSchema>;
  * nou adăugat la `creeazaAngajatSchema` NU ajunge aici decât dacă e listat
  * explicit, deci formularul trebuie extins înainte ca schema să-l accepte.
  */
+/**
+ * Editarea fișei — PARITATE cu înrolarea, din 0069.
+ *
+ * Până acum acoperea 12 câmpuri din ~40: adresa de reședință, contactul de
+ * muncă, starea civilă, actul de identitate, managerul direct și contactul de
+ * urgență nu se puteau modifica DELOC după înrolare. O mutare sau o căsătorie
+ * însemnau fie o corecție direct în bază, fie o fișă rămasă greșită.
+ *
+ * `nr_persoane_intretinere` rămâne DELIBERAT în afară: din 0069 e recalculat de
+ * trigger din `employee_dependents`. Lăsându-l editabil, cele două valori s-ar
+ * fi putut despărți, iar deducerea personală ar fi rămas pe un număr care nu
+ * mai corespunde nimănui.
+ *
+ * `is_primary` rămâne și el în afară: schimbă care fișă e cea principală a unui
+ * utilizator cu mai multe, ceea ce e o operațiune de administrare, nu o
+ * corecție de date.
+ */
 export const actualizeazaAngajatSchema = creeazaAngajatSchema
   .pick({
     last_name: true,
     first_name: true,
     email_personal: true,
     telefon: true,
+    email_serviciu: true,
+    telefon_serviciu: true,
+    adresa_strada: true,
+    adresa_oras: true,
+    adresa_judet: true,
+    adresa_cod_postal: true,
+    adresa_resedinta_strada: true,
+    adresa_resedinta_oras: true,
+    adresa_resedinta_judet: true,
+    adresa_resedinta_cod_postal: true,
+    stare_civila: true,
     data_nasterii: true,
     gen: true,
+    cetatenie: true,
+    tip_act_identitate: true,
+    serie_act: true,
+    numar_act: true,
+    act_eliberat_de: true,
+    act_valabil_pana: true,
     department_id: true,
     job_position_id: true,
+    manager_employee_id: true,
     hired_on: true,
+    conditii_munca: true,
+    grad_handicap: true,
+    optiune_pilon_ii: true,
+    contact_urgenta_nume: true,
+    contact_urgenta_telefon: true,
+    contact_urgenta_relatie: true,
+    observatii: true,
     cnp: true,
     iban: true,
     banca: true,
@@ -315,11 +357,21 @@ export const inroleazaAngajatSchema = creeazaAngajatSchema
     atributii: textOptional(4000),
     competente: textOptional(4000),
 
-    // Bun de inventar alocat la înrolare — opțional, unul singur (restul se
-    // alocă ulterior din /inventar, ca la mașina de serviciu, neinclusă aici:
-    // flota nu are azi o acțiune de realocare a unui vehicul EXISTENT, doar
-    // de creare cu șofer — reimplementarea ei ar depăși scopul acestei etape).
-    inventory_item_id: uuidOptional,
+    /**
+     * Bunurile de inventar predate la înrolare.
+     *
+     * LISTĂ din 0069, nu un singur obiect: un angajat nou primește tipic
+     * laptop, telefon și monitor deodată, iar limita de unul singur însemna că
+     * restul se predau manual, din alt ecran — exact munca în plus pe care
+     * asistentul de înrolare o elimină.
+     *
+     * Mașina de serviciu rămâne în afară: flota n-are azi o acțiune de
+     * realocare a unui vehicul EXISTENT, doar de creare cu șofer.
+     */
+    inventory_item_ids: z
+      .array(z.uuid("Bunul selectat nu este valid."))
+      .max(20, "Cel mult 20 de bunuri la înrolare.")
+      .default([]),
 
     // Fișă de aptitudine (medicina muncii) deja existentă — opțională;
     // completarea datei examinării declanșează înregistrarea.
@@ -331,22 +383,105 @@ export const inroleazaAngajatSchema = creeazaAngajatSchema
     examen_unitate_medicala: textOptional(160),
     examen_numar_fisa: textOptional(64),
 
-    // Autorizație nominală deja existentă (ex. ISCIR, lucru la înălțime) —
-    // opțională; completarea numărului declanșează înregistrarea.
-    autorizatie_tip: textOptional(80),
-    autorizatie_numar: textOptional(64),
-    autorizatie_emitent: textOptional(160),
-    autorizatie_valabil_pana: dataOptionala,
+    /**
+     * Permisul de muncă, pentru cetățenii non-UE.
+     *
+     * Tabela `work_permits` există din `0004_hr.sql:498`, cu politici RLS și
+     * index de expirare — și NICIO referință în tot `src/`. Era o tabelă moartă:
+     * un angajat din afara UE se înrola fără aviz de angajare, iar termenul de
+     * expirare nu apărea nicăieri, deși munca fără permis valabil e contravenție
+     * pentru angajator.
+     *
+     * `cetatenie` de pe fișă e discriminantul: câmpurile astea se completează
+     * doar când nu e „RO". Acțiunea verifică asta, nu doar formularul.
+     */
+    permis_tip: textOptional(80),
+    permis_numar: textOptional(64),
+    permis_emis_de: textOptional(160),
+    permis_valabil_de_la: dataOptionala,
+    permis_valabil_pana: dataOptionala,
+    numar_pasaport: textOptional(64),
+
+    /**
+     * Autorizațiile nominale deja existente (ISCIR, lucru la înălțime,
+     * electrician autorizat…).
+     *
+     * LISTĂ din 0069. Un stivuitorist care e și electrician autorizat avea
+     * până acum loc pentru o singură autorizație, iar a doua se pierdea — deși
+     * amândouă expiră și amândouă condiționează desemnarea pe echipamente.
+     */
+    autorizatii: z
+      .array(
+        z.object({
+          tip: z.string().trim().min(1, "Tipul autorizației e obligatoriu.").max(80),
+          numar: z.string().trim().min(1, "Numărul autorizației e obligatoriu.").max(64),
+          emitent: z.string().trim().min(1, "Emitentul e obligatoriu.").max(160),
+          valabil_pana: z
+            .string()
+            .trim()
+            .regex(RE_DATA, "Data de expirare trebuie scrisă AAAA-LL-ZZ."),
+        }),
+      )
+      .max(10, "Cel mult 10 autorizații la înrolare.")
+      .default([]),
   })
   .superRefine(valideazaReguliContract)
   .superRefine((valoare, ctx) => {
-    if (valoare.autorizatie_numar !== null && valoare.autorizatie_valabil_pana === null) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["autorizatie_valabil_pana"],
-        message: "O autorizație nominală are nevoie de data până la care e valabilă.",
-      });
+    // Validarea „autorizația are nevoie de dată de expirare" nu mai e nevoie ca
+    // `superRefine`: din 0069 `valabil_pana` e obligatoriu în forma fiecărei
+    // autorizații din listă. Rămâne verificarea unicității numerelor, care
+    // înainte nu se putea face — era o singură autorizație.
+    const numere = new Set<string>();
+    valoare.autorizatii.forEach((autorizatie, index) => {
+      const cheie = autorizatie.numar.trim().toLowerCase();
+      if (numere.has(cheie)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["autorizatii", index, "numar"],
+          message: `Autorizația „${autorizatie.numar}" apare de două ori.`,
+        });
+      }
+      numere.add(cheie);
+    });
+
+    // Permisul de muncă: dacă s-a început completarea lui, trebuie dus până la
+    // capăt. Un permis cu număr dar fără dată de expirare n-ar apărea niciodată
+    // în tabloul de expirabile — adică exact ce trebuie să facă.
+    if (valoare.permis_numar !== null) {
+      if (valoare.permis_tip === null) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["permis_tip"],
+          message: "Alegeți tipul permisului (aviz de angajare, permis unic, detașare).",
+        });
+      }
+      if (valoare.permis_valabil_de_la === null || valoare.permis_valabil_pana === null) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["permis_valabil_pana"],
+          message: "Un permis de muncă are nevoie de intervalul de valabilitate.",
+        });
+      }
+      if (valoare.cetatenie === null || valoare.cetatenie.toUpperCase() === "RO") {
+        ctx.addIssue({
+          code: "custom",
+          path: ["permis_numar"],
+          message: "Permisul de muncă se completează doar pentru cetățenii străini.",
+        });
+      }
     }
+
+    const bunuri = new Set<string>();
+    valoare.inventory_item_ids.forEach((id, index) => {
+      if (bunuri.has(id)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["inventory_item_ids", index],
+          message: "Același bun a fost selectat de două ori.",
+        });
+      }
+      bunuri.add(id);
+    });
   });
 
 /**
@@ -410,3 +545,62 @@ export const creeazaScutireFiscalaSchema = z
       });
     }
   });
+
+// ── Persoane în întreținere ───────────────────────────────────────────────────
+
+export const RELATII_INTRETINERE = ["copil", "sot_sotie", "parinte", "alta_ruda"] as const;
+export type RelatieIntretinere = (typeof RELATII_INTRETINERE)[number];
+
+/**
+ * O persoană în întreținere.
+ *
+ * FĂRĂ CNP, deliberat: deducerea personală depinde de NUMĂRUL persoanelor, nu
+ * de identitatea lor, iar CNP-urile unor minori n-ar servi niciunui calcul.
+ * Vezi nota de proiectare din migrarea 0069.
+ */
+export const persoanaIntretinereSchema = z
+  .object({
+    employee_id: z.uuid("Angajatul selectat nu este valid."),
+    nume: z
+      .string()
+      .trim()
+      .min(2, "Numele trebuie să aibă cel puțin 2 caractere.")
+      .max(200, "Numele nu poate depăși 200 de caractere."),
+    relatie: z.enum(RELATII_INTRETINERE),
+    data_nasterii: z
+      .string()
+      .trim()
+      .nullable()
+      .default(null)
+      .transform((v) => (v === null || v.length === 0 ? null : v))
+      .refine((v) => v === null || RE_DATA.test(v), "Data nașterii trebuie scrisă AAAA-LL-ZZ."),
+    in_intretinere_de_la: z
+      .string()
+      .trim()
+      .regex(RE_DATA, "Data de la care e în întreținere trebuie scrisă AAAA-LL-ZZ."),
+    in_intretinere_pana_la: z
+      .string()
+      .trim()
+      .nullable()
+      .default(null)
+      .transform((v) => (v === null || v.length === 0 ? null : v))
+      .refine((v) => v === null || RE_DATA.test(v), "Data de sfârșit trebuie scrisă AAAA-LL-ZZ."),
+    observatii: z.string().trim().max(500).nullable().default(null),
+  })
+  .superRefine((valoare, ctx) => {
+    if (
+      valoare.in_intretinere_pana_la !== null &&
+      valoare.in_intretinere_pana_la < valoare.in_intretinere_de_la
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["in_intretinere_pana_la"],
+        message: "Data de sfârșit nu poate fi anterioară celei de început.",
+      });
+    }
+  });
+export type IntrarePersoanaIntretinere = z.output<typeof persoanaIntretinereSchema>;
+
+export const stergePersoanaIntretinereSchema = z.object({
+  id: z.uuid("Persoana selectată nu este validă."),
+});

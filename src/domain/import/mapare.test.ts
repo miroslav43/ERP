@@ -36,8 +36,15 @@ describe("mapeazaColoane", () => {
 
   it("semnalează coloanele obligatorii absente", () => {
     expect(mapeazaColoane(["Nume complet"]).campuriLipsa).toEqual(
-      expect.arrayContaining(["marca", "data_angajarii"]),
+      expect.arrayContaining(["data_angajarii"]),
     );
+  });
+
+  it("marca NU mai e obligatorie — contorul o atribuie când lipsește", () => {
+    // Schimbat în 0069. Cerând-o, importul avea un regim de numerotare paralel
+    // cu `urmatoarea_marca`, iar contorul rămânea în urmă: un import de
+    // 0001–0200 urmat de o înrolare producea „0001" a doua oară.
+    expect(mapeazaColoane(["Nume complet", "Data angajării"]).campuriLipsa).not.toContain("marca");
   });
 
   it("ignoră coloanele necunoscute și duplicatele, păstrând prima potrivire", () => {

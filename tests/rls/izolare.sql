@@ -272,6 +272,13 @@ begin
   values (v_alfa, (select val from t_ids where cheie='ang_alfa'), 'it', current_date - 200),
          (v_beta, (select val from t_ids where cheie='ang_beta'), 'constructii', current_date - 200);
 
+  -- Persoanele în întreținere (0069): contorul de deducere personală se
+  -- recalculează din ele prin trigger, deci și izolarea lor contează — un
+  -- dependent văzut din altă firmă ar schimba deducerea altcuiva.
+  insert into public.employee_dependents (organization_id, employee_id, nume, relatie, in_intretinere_de_la)
+  values (v_alfa, (select val from t_ids where cheie='ang_alfa'), 'Copil Alfa', 'copil', current_date - 500),
+         (v_beta, (select val from t_ids where cheie='ang_beta'), 'Copil Beta', 'copil', current_date - 500);
+
   insert into public.work_permits (organization_id, employee_id, tip_permis, numar, valabil_de_la, valabil_pana, cetatenie)
   values (v_alfa, (select val from t_ids where cheie='ang_alfa'), 'aviz', 'A-' || v_sufix, current_date - 100, current_date + 265, 'MD'),
          (v_beta, (select val from t_ids where cheie='ang_beta'), 'aviz', 'B-' || v_sufix, current_date - 100, current_date + 265, 'UA');

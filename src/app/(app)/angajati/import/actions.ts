@@ -179,11 +179,26 @@ async function importaUnRand(ctx: ActionContext, angajat: AngajatProtejat): Prom
     return `Funcția „${angajat.functie}" nu există în nomenclator. Adaug-o întâi din ecranul Funcții (/functii).`;
   }
 
+  // Marca lipsă din fișier o atribuie contorul organizației — același drum ca
+  // la înrolare (`urmatoarea_marca`). Până în 0069 importul cerea marca și avea
+  // deci un regim de numerotare PARALEL cu al contorului: un import de
+  // 0001–0200 urmat de o înrolare producea „0001" a doua oară.
+  let marca = angajat.marca;
+  if (marca === undefined) {
+    const { data: atribuita, error: eroareMarca } = await ctx.supabase.rpc("urmatoarea_marca", {
+      p_organization_id: organizationId,
+    });
+    if (eroareMarca !== null) {
+      return "Marca nu a putut fi atribuită automat. Completați coloana „Marcă” în fișier.";
+    }
+    marca = atribuita;
+  }
+
   const inserare = await ctx.supabase
     .from("employees")
     .insert({
       organization_id: organizationId,
-      marca: angajat.marca,
+      marca,
       last_name: angajat.last_name,
       first_name: angajat.first_name,
       hired_on: angajat.hired_on,
@@ -320,7 +335,12 @@ export const aplicaImportAngajati = createAction({
     for (const angajat of felie) {
       const eroare = await importaUnRand(ctx, angajat);
       if (eroare === null) reusite += 1;
-      else esuate.push({ rand: angajat.rand, marca: angajat.marca, mesaj: eroare });
+      else
+        esuate.push({
+          rand: angajat.rand,
+          marca: angajat.marca ?? "(atribuită automat)",
+          mesaj: eroare,
+        });
     }
     const urmator = input.offset + felie.length;
     return {

@@ -66,9 +66,13 @@ describe("niciun fișier text urmărit nu conține octeți NUL", () => {
         "scripts",
         "docs",
         ".claude",
+        // Binarele urmărite intenționat. `.ttf` s-a adăugat odată cu fonturile
+        // pentru PDF (`src/lib/pdf/fonturi/`): sunt binare, ca `.woff`, iar
+        // verificarea de mai jos caută octeți NUL în fișiere de TEXT.
         ":!:*.ico",
         ":!:*.png",
         ":!:*.woff*",
+        ":!:*.ttf",
       ],
       { cwd: RADACINA, encoding: "buffer", maxBuffer: 8 * 1024 * 1024 },
     );
