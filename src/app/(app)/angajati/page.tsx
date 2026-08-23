@@ -2,7 +2,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { UserPlus, Users } from "lucide-react";
+import { UserPlus, Users, Upload } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
@@ -226,10 +226,30 @@ export default async function PaginaAngajati({ searchParams }: ProprietatiPagina
         {...(poateCrea
           ? {
               actiuni: (
-                <Link href="/angajati/nou" className={buton({ varianta: "primar" })}>
-                  <UserPlus aria-hidden="true" className="size-4" />
-                  Angajat nou
-                </Link>
+                <>
+                  {/*
+                   * `/angajati/import` n-avea NICIUN link în tot codul — o
+                   * căutare după ruta lui în `src/` întorcea zero potriviri.
+                   * Importul în masă din Excel există complet: are mapare de
+                   * antete, validare pe rând, raport de erori și un întreg
+                   * `src/domain/import/`. Se ajungea la el doar tastând adresa.
+                   *
+                   * Apare doar la scop `all`, fiindcă exact asta cere pagina
+                   * („Importul în masă este disponibil doar cu drepturi pe
+                   * întreaga organizație") — un buton care duce într-un refuz e
+                   * mai rău decât unul care lipsește.
+                   */}
+                  {scope === "all" ? (
+                    <Link href="/angajati/import" className={buton({ varianta: "secundar" })}>
+                      <Upload aria-hidden="true" className="size-4" />
+                      Import din Excel
+                    </Link>
+                  ) : null}
+                  <Link href="/angajati/nou" className={buton({ varianta: "primar" })}>
+                    <UserPlus aria-hidden="true" className="size-4" />
+                    Angajat nou
+                  </Link>
+                </>
               ),
             }
           : {})}
