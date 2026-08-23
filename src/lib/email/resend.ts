@@ -8,7 +8,22 @@ import { getEmailConfig } from "@/lib/email/config";
 const ENDPOINT = "https://api.resend.com/emails";
 const TIMEOUT_MS = 10_000;
 
-export type ResendPayload = Readonly<{ to: string; subject: string; html: string; text: string }>;
+/**
+ * Un atașament, cu conținutul deja codat base64.
+ *
+ * Resend acceptă `attachments: [{ filename, content }]`, unde `content` e
+ * base64 pur, fără prefix `data:`. Limita lor e de 40 MB pe mesaj — un fluturaș
+ * PDF are câțiva zeci de kilobytes, deci nu se atinge niciodată.
+ */
+export type AtasamentEmail = Readonly<{ filename: string; contentBase64: string }>;
+
+export type ResendPayload = Readonly<{
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  atasamente?: readonly AtasamentEmail[];
+}>;
 
 export type ResendResult =
   Readonly<{ ok: true; id: string }> | Readonly<{ ok: false; error: string }>;
@@ -48,6 +63,14 @@ export async function trimiteViaResend(
     html: payload.html,
     text: payload.text,
     ...(config.replyTo === null ? {} : { reply_to: config.replyTo }),
+    ...(payload.atasamente === undefined || payload.atasamente.length === 0
+      ? {}
+      : {
+          attachments: payload.atasamente.map((a) => ({
+            filename: a.filename,
+            content: a.contentBase64,
+          })),
+        }),
   };
   try {
     const response = await fetch(ENDPOINT, {

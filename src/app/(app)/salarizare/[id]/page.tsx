@@ -51,6 +51,7 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
   const inregistrari = perioada.status === "draft" ? [] : await listeazaInregistrari(perioada.id);
   const poateCalcula = can(permisiuni, "payroll:create", "all");
   const poateAproba = can(permisiuni, "payroll:approve", "all");
+  const poateExporta = can(permisiuni, "payroll:export", "all");
 
   const personalDraft =
     perioada.status === "draft" && poateCalcula
@@ -114,15 +115,18 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
         status={perioada.status}
         poateCalcula={poateCalcula}
         poateAproba={poateAproba}
+        poateExporta={poateExporta}
       />
 
       {perioada.status !== "aprobat" && perioada.status !== "inchis" ? null : (
         <section aria-label="Livrabile" className="border-border rounded-lg border p-4">
           <h2 className="mb-1 text-sm font-medium">Livrabile</h2>
           <p className="text-muted-foreground mb-3 text-xs">
-            Fișierul bancar plătește restul de plată, nu netul: el scade avantajele primite în
-            natură și adaugă sumele neimpozabile. Generarea lui decriptează IBAN-ul fiecărui angajat
-            și lasă câte un rând de audit.
+            Statul de plată e documentul care se semnează și se arhivează. Fișierul bancar plătește
+            restul de plată, nu netul: el scade avantajele primite în natură și adaugă sumele
+            neimpozabile. Generarea lui decriptează IBAN-ul fiecărui angajat și lasă câte un rând de
+            audit. Declarația 112 conține CNP-ul fiecărui asigurat, deci cere aceleași drepturi;
+            contabilul o validează cu DUKIntegrator înainte de depunere.
           </p>
           <div className="flex flex-wrap gap-2">
             <a
@@ -136,6 +140,18 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
               className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
             >
               Notă contabilă (CSV)
+            </a>
+            <a
+              href={`/api/export/salarizare/stat?perioada=${perioada.id}`}
+              className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
+            >
+              Stat de plată (PDF)
+            </a>
+            <a
+              href={`/api/export/salarizare/d112?perioada=${perioada.id}`}
+              className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
+            >
+              Declarația 112 (XML)
             </a>
           </div>
         </section>

@@ -19,6 +19,18 @@ import {
   zileLucratoareLuna,
 } from "@/lib/queries/payroll";
 import { setariPontaj } from "@/lib/queries/attendance";
+import { antetOrganizatie } from "@/lib/pdf/antet-organizatie";
+import { genereazaFluturas } from "@/lib/pdf/fluturas";
+import { numeFisier } from "@/lib/pdf/document";
+import { numeLuna } from "@/lib/pdf/stat-plata";
+import {
+  castigurileFluturasului,
+  retinerileFluturasului,
+  type SursaFluturas,
+} from "@/lib/pdf/linii-fluturas";
+import { sendEmail } from "@/lib/email/send";
+import { createAdminSupabase } from "@/lib/supabase/admin";
+import { formatDateTime } from "@/lib/format/date";
 import { calculatePayrollEntry, type PayrollSettingsSnapshot } from "@/domain/payroll/calc";
 import { descriereCompleta, problema } from "@/domain/payroll/erori";
 import {
@@ -143,6 +155,37 @@ export const creeazaPerioada = createAction({
     return { id: data.id };
   },
 });
+
+/**
+ * Câmpurile de care are nevoie fluturașul trimis pe e-mail.
+ *
+ * Lista e explicită, nu `select("*")`: un `*` ar aduce și coloanele pe care
+ * `payroll_entries` le are pentru alte scopuri, iar fiecare coloană în plus e
+ * o dată de salariu care circulă fără motiv.
+ */
+interface RandFluturasEmail extends SursaFluturas {
+  readonly id: string;
+  readonly rest_de_plata: number;
+  readonly zile_lucratoare_luna: number;
+  readonly zile_lucrate: number;
+  readonly zile_concediu_odihna: number;
+  readonly zile_concediu_medical: number;
+  readonly ore_lucrate: number;
+  readonly ore_suplimentare: number;
+  readonly ore_noapte: number;
+  readonly calc_warnings: readonly { readonly mesaj: string }[] | null;
+  readonly angajat: {
+    readonly full_name: string | null;
+    readonly marca: string;
+    readonly email_serviciu: string | null;
+    readonly email_personal: string | null;
+    readonly functie: { readonly denumire: string } | null;
+  } | null;
+}
+
+const COLOANE_FLUTURAS_EMAIL =
+  "id, baza_salariu, suma_ore_suplimentare, spor_noapte, prime_total, valoare_tichete, brut, cas, cass, deducere_personala, scutire_fiscala, impozit, net, retineri_total, net_de_plata, rest_de_plata, zile_lucratoare_luna, zile_lucrate, zile_concediu_odihna, zile_concediu_medical, ore_lucrate, ore_suplimentare, ore_noapte, calc_warnings, " +
+  "angajat:employees!employee_id(full_name, marca, email_serviciu, email_personal, functie:job_positions!job_position_id(denumire))";
 
 function laSetariSnapshot(
   setari: NonNullable<Awaited<ReturnType<typeof citesteSetariPeId>>>,
@@ -857,5 +900,139 @@ export const salveazaIstoricVenit = createAction({
       .single<{ id: string }>();
     if (error !== null) traduEroare(error);
     return { id: data.id };
+  },
+});
+
+/**
+ * Trimite fluturașii unei perioade, pe e-mailul fiecărui salariat.
+ *
+ * Obligația legală e ca angajatul să primească un document din care să reiasă
+ * cum s-a ajuns la net. Până acum fluturașul exista doar pe ecran, deci
+ * obligația se acoperea manual, angajat cu angajat.
+ *
+ * CIFRELE NU INTRĂ ÎN CORPUL MESAJULUI, niciodată — stau exclusiv în PDF-ul
+ * atașat. Corpul unui e-mail trece prin providerul de trimitere, prin serverul
+ * de mail al destinatarului și rămâne în arhive peste care nu avem control.
+ *
+ * E-mailul preferat e cel de SERVICIU. Cel personal e o rezervă: un fluturaș pe
+ * adresa privată e legal, dar e o alegere pe care angajatorul o face conștient,
+ * nu una pe care i-o luăm noi.
+ *
+ * Nu aruncă la primul eșec: raportează câți au plecat, câți n-au adresă și câți
+ * au eșuat. Un singur e-mail invalid într-o firmă de 200 de oameni nu trebuie
+ * să oprească restul de 199.
+ */
+export const trimiteFluturasii = createAction({
+  name: "payroll.period.send_payslips",
+  feature: "payroll",
+  permission: "payroll:export",
+  minScope: "all",
+  input: idPerioadaSchema,
+  audit: { action: "update", entityType: "payroll_period", allow: ["id"] },
+  revalidate: CAI_REVALIDARE,
+  handler: async (
+    ctx,
+    input,
+  ): Promise<Readonly<{ trimise: number; faraAdresa: number; esuate: number }>> => {
+    const { data: perioada, error: eroarePerioada } = await ctx.supabase
+      .from("payroll_periods")
+      .select("id, an, luna, status")
+      .eq("organization_id", ctx.tenant.organizationId)
+      .eq("id", input.id)
+      .is("deleted_at", null)
+      .maybeSingle<{ id: string; an: number; luna: number; status: string }>();
+    if (eroarePerioada !== null) traduEroare(eroarePerioada);
+    if (perioada === null) throw notFound("Perioada de salarizare nu a fost găsită.");
+    if (perioada.status !== "aprobat" && perioada.status !== "inchis") {
+      throw businessRule(
+        "Perioada nu e aprobată. Un fluturaș trimis dintr-o ciornă ar da angajatului o cifră care se mai poate schimba.",
+      );
+    }
+
+    const { data: randuri, error: eroareRanduri } = await ctx.supabase
+      .from("payroll_entries")
+      .select(COLOANE_FLUTURAS_EMAIL)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .eq("period_id", perioada.id)
+      .is("deleted_at", null)
+      .returns<RandFluturasEmail[]>();
+    if (eroareRanduri !== null) traduEroare(eroareRanduri);
+
+    const antet = await antetOrganizatie(ctx.supabase, ctx.tenant.organizationId, ctx.tenant.name);
+    // `createAdminSupabase` DOAR pentru jurnalul de e-mail: `email_log` e o
+    // tabelă de platformă, fără politici pentru rolurile de organizație, iar
+    // `sendEmail` are nevoie de un client care poate scrie în ea. Nicio dată de
+    // salariu nu trece prin clientul ăsta — rândurile au fost deja citite mai
+    // sus, prin RLS, cu clientul utilizatorului.
+    const admin = createAdminSupabase();
+    const generatLa = formatDateTime(new Date().toISOString());
+
+    let trimise = 0;
+    let faraAdresa = 0;
+    let esuate = 0;
+
+    for (const rand of randuri ?? []) {
+      const adresa = rand.angajat?.email_serviciu ?? rand.angajat?.email_personal ?? null;
+      if (adresa === null || adresa.trim().length === 0) {
+        faraAdresa += 1;
+        continue;
+      }
+
+      try {
+        const pdf = await genereazaFluturas({
+          organizatie: antet,
+          an: perioada.an,
+          luna: perioada.luna,
+          angajatNume: rand.angajat?.full_name ?? "—",
+          angajatMarca: rand.angajat?.marca ?? "",
+          functie: rand.angajat?.functie?.denumire ?? null,
+          zileLucratoareLuna: rand.zile_lucratoare_luna,
+          zileLucrate: rand.zile_lucrate,
+          zileConcediuOdihna: rand.zile_concediu_odihna,
+          zileConcediuMedical: rand.zile_concediu_medical,
+          oreLucrate: rand.ore_lucrate,
+          oreSuplimentare: rand.ore_suplimentare,
+          oreNoapte: rand.ore_noapte,
+          castiguri: castigurileFluturasului(rand),
+          retineri: retinerileFluturasului(rand),
+          restDePlata: rand.rest_de_plata,
+          avertismente: (rand.calc_warnings ?? []).map((w) => w.mesaj),
+          generatLa,
+        });
+
+        const rezultat = await sendEmail({
+          db: admin,
+          to: adresa,
+          // Cheia de idempotență e rândul de salariu, nu perioada: două apeluri
+          // ale acțiunii nu trimit de două ori același fluturaș, dar fiecare
+          // angajat își primește pe al lui.
+          entityId: rand.id,
+          template: "fluturas",
+          data: {
+            nume: rand.angajat?.full_name ?? "coleg",
+            organizatie: antet.denumire,
+            luna: numeLuna(perioada.luna),
+            an: perioada.an,
+          },
+          atasamente: [
+            {
+              filename: `${numeFisier(`fluturas-${numeLuna(perioada.luna)}-${String(perioada.an)}-${rand.angajat?.marca ?? ""}`)}.pdf`,
+              contentBase64: Buffer.from(pdf).toString("base64"),
+            },
+          ],
+        });
+        if (rezultat.ok) trimise += 1;
+        else esuate += 1;
+      } catch (eroare) {
+        esuate += 1;
+        console.error("[salarizare] fluturașul nu a putut fi trimis", {
+          entryId: rand.id,
+          requestId: ctx.requestId,
+          eroare,
+        });
+      }
+    }
+
+    return { trimise, faraAdresa, esuate };
   },
 });

@@ -6,7 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import { consumeRateLimit } from "@/lib/utils/rate-limit";
 import { getEmailConfig } from "@/lib/email/config";
-import { trimiteViaResend } from "@/lib/email/resend";
+import { trimiteViaResend, type AtasamentEmail } from "@/lib/email/resend";
 import { renderEmail, type EmailMessage } from "@/lib/email/templates";
 
 /**
@@ -26,6 +26,14 @@ export type SendEmailInput = EmailMessage &
     entityId: string;
     subject?: string;
     dedupeWindowSeconds?: number;
+    /**
+     * Atașamente, cu conținutul deja codat base64.
+     *
+     * În modul „test” nu pleacă nicăieri (nu se atinge rețeaua), dar numărul lor
+     * se vede în jurnal — altfel un fluturaș care n-a plecat cu documentul ar
+     * arăta identic cu unul care a plecat.
+     */
+    atasamente?: readonly AtasamentEmail[];
   }>;
 
 export type SendEmailResult =
@@ -147,7 +155,13 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
   }
 
   const rezultat = await trimiteViaResend(
-    { to: adresa.data, subject: subiect, html: randat.html, text: randat.text },
+    {
+      to: adresa.data,
+      subject: subiect,
+      html: randat.html,
+      text: randat.text,
+      ...(input.atasamente === undefined ? {} : { atasamente: input.atasamente }),
+    },
     cheie,
   );
   if (!rezultat.ok) {

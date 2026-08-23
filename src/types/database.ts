@@ -7142,6 +7142,8 @@ export type Database = {
           norma_zilnica_ore: number
           note: string | null
           organization_id: string
+          casa_sanatate_angajator: string | null
+          functie_declarant: string
           plafon_poprire_unica: number
           plafon_popriri_concurente: number
           plata_avans: boolean
@@ -7187,6 +7189,8 @@ export type Database = {
           norma_zilnica_ore?: number
           note?: string | null
           organization_id: string
+          casa_sanatate_angajator?: string | null
+          functie_declarant?: string
           plafon_poprire_unica?: number
           plafon_popriri_concurente?: number
           plata_avans?: boolean
@@ -7232,6 +7236,8 @@ export type Database = {
           norma_zilnica_ore?: number
           note?: string | null
           organization_id?: string
+          casa_sanatate_angajator?: string | null
+          functie_declarant?: string
           plafon_poprire_unica?: number
           plafon_popriri_concurente?: number
           plata_avans?: boolean

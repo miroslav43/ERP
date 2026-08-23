@@ -18,13 +18,20 @@ import { describe, expect, it } from "vitest";
 const RADACINA = join(process.cwd(), "src", "app", "(portal)");
 
 /**
- * Singura ieșire permisă.
+ * Ieșirile permise — amândouă sunt Route Handlers, nu pagini.
  *
- * `documente/[id]` e un Route Handler sub `(app)`, deci NU trece prin layout și
- * nu e prins de poartă. E și singurul drum prin care angajatul își deschide o
- * adeverință: `hr_issued_select` (`0005_hr_rls.sql:872`) are ramură `own`.
+ * Un Route Handler NU trece prin `(app)/layout.tsx`, deci poarta de rol care
+ * redirectează angajatul înapoi la `/portal` nu se aplică. Amândouă își fac
+ * propria verificare, iar RLS rămâne ultima linie.
+ *
+ * · `documente/[id]` — singurul drum prin care angajatul își deschide o
+ *   adeverință: `hr_issued_select` (`0005_hr_rls.sql:872`) are ramură `own`.
+ * · `/api/export/salarizare/fluturas` — fluturașul propriu, în PDF.
+ *   `payroll_entries` are `app.poate_accesa_salariul`, care la scope `own`
+ *   întoarce exact rândul lui; ruta nu face nicio verificare de identitate în
+ *   plus, tocmai ca să nu poată diverge de politică.
  */
-const IESIRI_PERMISE: readonly string[] = ["/documente/"];
+const IESIRI_PERMISE: readonly string[] = ["/documente/", "/api/export/salarizare/fluturas"];
 
 function fisiereSursa(director: string): readonly string[] {
   const rezultat: string[] = [];

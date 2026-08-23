@@ -62,6 +62,13 @@ export default async function PaginaFluturas({ params }: ProprietatiPagina) {
       </div>
 
       <Fluturas inregistrare={inregistrare} bonusuri={bonusuri} retineri={retineri} />
+
+      <a
+        href={`/api/export/salarizare/fluturas?inregistrare=${inregistrare.id}`}
+        className="border-foreground/60 hover:bg-surface inline-flex w-fit rounded-md border px-4 py-2 text-sm"
+      >
+        Descarcă fluturașul (PDF)
+      </a>
     </main>
   );
 }
