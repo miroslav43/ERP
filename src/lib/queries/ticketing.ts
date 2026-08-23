@@ -51,6 +51,13 @@ export async function listeazaTichete(
   organizationId: string,
   filtre: FiltreTichete,
   cursor?: Readonly<{ createdAt: string; id: string }>,
+  /**
+   * Restrânge la tichetele UNUI solicitant. Argument separat, nu câmp în
+   * `FiltreTichete`, și asta e o decizie: filtrele vin din adresă, deci un câmp
+   * omonim ar putea fi schimbat de oricine editează URL-ul. Ecranul „Tichetele
+   * mele" trebuie să însemne „ale mele" indiferent ce scrie în bara de adrese.
+   */
+  doarSolicitant?: string | null,
 ): Promise<PaginaTichete> {
   const db = await createServerSupabase();
 
@@ -63,6 +70,9 @@ export async function listeazaTichete(
     .order("id", { ascending: false })
     .limit(LIMITA_PAGINA + 1);
 
+  if (doarSolicitant !== undefined && doarSolicitant !== null) {
+    interogare = interogare.eq("solicitant_employee_id", doarSolicitant);
+  }
   if (filtre.tip !== undefined) interogare = interogare.eq("tip", filtre.tip);
   if (filtre.status !== undefined) interogare = interogare.eq("status", filtre.status);
   if (filtre.prioritate !== undefined) interogare = interogare.eq("prioritate", filtre.prioritate);

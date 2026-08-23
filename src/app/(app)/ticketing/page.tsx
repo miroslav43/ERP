@@ -9,7 +9,10 @@ import { AntetPagina } from "@/components/ui/antet-pagina";
 import { buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Schelet } from "@/components/ui/schelet";
-import { can, getPermissionMap } from "@/lib/auth/permissions";
+import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
+import type { PermissionScope } from "@/config/permissions";
+import { requireUser } from "@/lib/auth/current-user";
+import { idFisaProprie } from "@/lib/queries/employees";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { listeazaTichete } from "@/lib/queries/ticketing";
@@ -26,15 +29,59 @@ interface ProprietatiPagina {
 
 async function ListaMea({
   organizationId,
+  userId,
+  scope,
   parametri,
 }: {
   readonly organizationId: string;
+  readonly userId: string;
+  readonly scope: PermissionScope | null;
   readonly parametri: Record<string, string | string[] | undefined>;
 }) {
   const filtre = filtreDinUrl(filtreTicheteSchema, parametri);
-  // Nu filtrăm după solicitant: RLS-ul arată deja fiecăruia ce are voie să
-  // vadă. Un angajat obișnuit vede exact tichetele proprii.
-  const { randuri } = await listeazaTichete(organizationId, filtre);
+
+  /*
+   * ECRANUL SE NUMEȘTE „TICHETELE MELE" ȘI TREBUIE SĂ ARATE ALE MELE.
+   *
+   * Înainte, aici se chema `listeazaTichete` fără niciun filtru de solicitant,
+   * cu justificarea că „RLS-ul arată deja fiecăruia ce are voie să vadă". E
+   * adevărat, dar e răspunsul la altă întrebare: RLS decide ce AI VOIE să vezi,
+   * nu ce ai TRIMIS. Pentru un `org_admin`, cele două nu coincid deloc — el
+   * vedea coada întregii firme sub un titlu care spune „Cererile și problemele
+   * pe care le-ai trimis către IT". Coada echipei are ecranul ei,
+   * `/ticketing/coada`, cu `minScope: "team"`; cele două arătau același lucru.
+   *
+   * Avertismentul era scris în chiar stratul de citiri, la `ticheteleMele`
+   * (`queries/ticketing.ts:106`), și n-a fost citit.
+   *
+   * Tiparul de mai jos e cel din `inventar/in-primire`: la scop `own`, RLS
+   * restrânge deja singură, deci nu se mai caută fișa; la `team`/`all` trebuie
+   * aflată explicit, altfel filtrul n-ar avea ce aplica.
+   */
+  let propriaFisaId: string | null = null;
+  let faraFisa = false;
+  if (scope !== "own") {
+    propriaFisaId = await idFisaProprie(organizationId, userId);
+    faraFisa = propriaFisaId === null;
+  }
+
+  const { randuri } = faraFisa
+    ? { randuri: [] }
+    : await listeazaTichete(organizationId, filtre, undefined, propriaFisaId);
+
+  if (faraFisa) {
+    // Un `org_admin` care nu e și angajat n-are fișă de personal, deci n-are cum
+    // să fie solicitantul unui tichet — nici să deschidă unul. „Deschide un
+    // tichet" ar fi fost un sfat care nu funcționează.
+    return (
+      <StareGoala
+        fel="restrictionata"
+        pictograma={LifeBuoy}
+        titlu="Contul nu are fișă de personal"
+        descriere="Tichetele se leagă de fișa de angajat a solicitantului, iar contul dumneavoastră nu are una. Coada echipei rămâne accesibilă din meniu."
+      />
+    );
+  }
 
   if (randuri.length === 0) {
     return (
@@ -54,6 +101,9 @@ export default async function PaginaTichetelorMele({ searchParams }: Proprietati
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "ticketing");
   const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+
+  const utilizator = await requireUser();
+  const scope = scopeFor(permisiuni, "tickets:read");
 
   if (!can(permisiuni, "tickets:read", "own")) {
     return (
@@ -76,7 +126,12 @@ export default async function PaginaTichetelorMele({ searchParams }: Proprietati
       />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={6} />}>
-        <ListaMea organizationId={tenant.organizationId} parametri={parametri} />
+        <ListaMea
+          organizationId={tenant.organizationId}
+          userId={utilizator.id}
+          scope={scope}
+          parametri={parametri}
+        />
       </Suspense>
     </div>
   );
