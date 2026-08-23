@@ -107,7 +107,9 @@ async function TabelPerioade({
       peTelefon: "insigna",
       celula: (rand) =>
         rand.perioada === null ? (
-          <span className="text-muted-foreground text-nota">Neschisă</span>
+          // „Neschisă” era o greșeală de tastare pentru „Nedeschisă”, afișată pe
+          // fiecare lună neîncepută — adică pe majoritatea celor 12 rânduri.
+          <Badge ton="ciorna">Nedeschisă</Badge>
         ) : (
           <Badge ton={TONURI_STATUS_PERIOADA[rand.perioada.status]}>
             {ETICHETE_STATUS_PERIOADA[rand.perioada.status]}

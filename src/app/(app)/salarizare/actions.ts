@@ -1,5 +1,7 @@
 "use server";
 
+import { z } from "zod";
+
 import { createAction } from "@/lib/actions/create-action";
 import { businessRule, notFound } from "@/lib/actions/errors";
 import {
@@ -815,6 +817,173 @@ export const inchidePerioada = createAction({
     if (data === null) {
       throw businessRule(
         "Perioada nu a putut fi închisă. Fie nu mai este în starea aprobat, fie nu aveți dreptul de închidere. Reîmprospătați pagina.",
+      );
+    }
+    return null;
+  },
+});
+
+/**
+ * Întoarcerea unei perioade calculate în ciornă.
+ *
+ * Butonul „Recalculează" exista de la început, dar apăsa pe `calculeazaPerioada`,
+ * care refuză din prima linie orice perioadă care nu mai e în ciornă: singurul
+ * lui efect era mesajul „Recalcularea unei perioade calculate se face din
+ * același ecran" — un buton care nu putea reuși NICIODATĂ. Tranziția
+ * `calculat → draft` era în schimb prevăzută în bază de la 0026:346, unde
+ * triggerul o acceptă și golește `calculat_de`/`calculat_la`; lipsea doar
+ * acțiunea care s-o ceară.
+ *
+ * Fluturașii deja scriși nu se șterg: `payroll_scrie_rezultate` (0051) e un
+ * upsert pe `(organization_id, period_id, employee_id)`, deci recalcularea îi
+ * REscrie. Rămân vizibili până atunci, iar perioada nu se poate aproba cât e
+ * ciornă — exact ce trebuie ca ecranul să nu mintă despre ce e definitiv.
+ */
+export const redeschidePerioada = createAction({
+  name: "payroll.period.reopen",
+  feature: "payroll",
+  permission: "payroll:update",
+  minScope: "all",
+  input: idPerioadaSchema,
+  audit: { action: "update", entityType: "payroll_period", allow: ["id"] },
+  revalidate: CAI_REVALIDARE,
+  handler: async (ctx, input) => {
+    // Capcana 17: un UPDATE respins de USING afectează ZERO rânduri, TĂCUT.
+    // `.eq("status", "calculat")` e a doua plasă: o perioadă aprobată între
+    // timp de altă sesiune nu trebuie să pară redeschisă.
+    const { data, error } = await ctx.supabase
+      .from("payroll_periods")
+      .update({ status: "draft" })
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .eq("status", "calculat")
+      .select("id, status")
+      .maybeSingle<{ id: string; status: string }>();
+    if (error !== null) traduEroare(error);
+    if (data === null) {
+      throw businessRule(
+        "Perioada nu a putut fi redeschisă. Fie a fost între timp aprobată sau închisă, fie nu aveți dreptul de modificare. Reîmprospătați pagina.",
+      );
+    }
+    return null;
+  },
+});
+
+/** O ajustare de perioadă, țintită după id. */
+const idAjustareSchema = z.object({ id: z.uuid("Ajustarea selectată nu este validă.") });
+
+/**
+ * Ștergerea unei prime introduse greșit.
+ *
+ * Soft delete, ca peste tot: nu există GRANT de DELETE pe tabelă (0026:634).
+ * Politica `payroll_bonuses_update` cere în `with check` ca perioada să fie
+ * ÎNCĂ în ciornă, deci o primă dintr-o lună deja calculată nu se poate șterge
+ * pe furiș — UPDATE-ul e respins și, fiindcă respingerea nu produce eroare, se
+ * citește din `.select()` gol.
+ */
+export const stergePrima = createAction({
+  name: "payroll.bonus.delete",
+  feature: "payroll",
+  permission: "payroll:update",
+  minScope: "all",
+  input: idAjustareSchema,
+  audit: { action: "delete", entityType: "payroll_bonus", allow: ["id"] },
+  revalidate: CAI_REVALIDARE,
+  handler: async (ctx, input) => {
+    // Starea perioadei se citește ÎNAINTE de UPDATE, deși politica o verifică
+    // și ea: o respingere din `with check` iese ca 42501, adică „nu aveți
+    // dreptul" — o minciună, fiindcă dreptul există și doar luna s-a închis.
+    const { data: existenta, error: eroareCitire } = await ctx.supabase
+      .from("payroll_bonuses")
+      .select("id, perioada:payroll_periods!period_id(status)")
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .maybeSingle<{ id: string; perioada: { status: string } | null }>();
+    if (eroareCitire !== null) traduEroare(eroareCitire);
+    if (existenta === null) {
+      throw notFound("Prima nu a fost găsită. Poate a fost ștearsă între timp.");
+    }
+    if (existenta.perioada?.status !== "draft") {
+      throw businessRule(
+        "Perioada nu mai e în ciornă, deci primele ei nu se mai pot șterge. Redeschideți perioada pentru corecții, apoi ștergeți prima.",
+      );
+    }
+
+    const { data, error } = await ctx.supabase
+      .from("payroll_bonuses")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle<{ id: string }>();
+    if (error !== null) traduEroare(error);
+    if (data === null) {
+      throw businessRule(
+        "Prima nu a putut fi ștearsă. Fie perioada nu mai e în ciornă, fie a fost ștearsă deja de altcineva. Reîmprospătați pagina.",
+      );
+    }
+    return null;
+  },
+});
+
+/**
+ * Ștergerea unei rețineri introduse greșit.
+ *
+ * Reținerea legată de un dosar de poprire nu se șterge de aici: triggerul
+ * `trg_payroll_deductions_recalc_poprire` (0065:131) recalculează soldul
+ * dosarului la orice UPDATE, inclusiv la marcarea `deleted_at`, deci ștergerea
+ * ar muta datoria fără ca nimeni să vadă pe ce dosar. Popririle se administrează
+ * din ecranul lor.
+ */
+export const stergeRetinere = createAction({
+  name: "payroll.deduction.delete",
+  feature: "payroll",
+  permission: "payroll:update",
+  minScope: "all",
+  input: idAjustareSchema,
+  audit: { action: "delete", entityType: "payroll_deduction", allow: ["id"] },
+  revalidate: CAI_REVALIDARE,
+  handler: async (ctx, input) => {
+    const { data: existenta, error: eroareCitire } = await ctx.supabase
+      .from("payroll_deductions")
+      .select("id, garnishment_id, perioada:payroll_periods!period_id(status)")
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .maybeSingle<{
+        id: string;
+        garnishment_id: string | null;
+        perioada: { status: string } | null;
+      }>();
+    if (eroareCitire !== null) traduEroare(eroareCitire);
+    if (existenta === null) {
+      throw notFound("Reținerea nu a fost găsită. Poate a fost ștearsă între timp.");
+    }
+    if (existenta.perioada?.status !== "draft") {
+      throw businessRule(
+        "Perioada nu mai e în ciornă, deci reținerile ei nu se mai pot șterge. Redeschideți perioada pentru corecții, apoi ștergeți reținerea.",
+      );
+    }
+    if (existenta.garnishment_id !== null) {
+      throw businessRule(
+        "Reținerea vine dintr-un dosar de poprire și se administrează din ecranul de popriri. Ștearsă de aici, soldul dosarului s-ar reface la următorul calcul.",
+      );
+    }
+
+    const { data, error } = await ctx.supabase
+      .from("payroll_deductions")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle<{ id: string }>();
+    if (error !== null) traduEroare(error);
+    if (data === null) {
+      throw businessRule(
+        "Reținerea nu a putut fi ștearsă. Fie perioada nu mai e în ciornă, fie a fost ștearsă deja de altcineva. Reîmprospătați pagina.",
       );
     }
     return null;

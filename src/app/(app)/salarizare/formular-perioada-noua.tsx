@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Buton } from "@/components/ui/buton";
 
 import { creeazaPerioada } from "./actions";
+import { numeLuna } from "./etichete";
 
 const LUNA_CURENTA = new Date();
 
@@ -46,9 +47,12 @@ export function FormularPerioadaNoua() {
           defaultValue={LUNA_CURENTA.getUTCMonth() + 1}
           className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         >
+          {/* Numele lunii, nu cifra: omul alegea „8" și lista de dedesubt îi
+              scria „august 2026" — două limbi pentru aceeași lună, pe același
+              ecran, iar luna greșită înseamnă un stat de plată greșit. */}
           {Array.from({ length: 12 }, (_, i) => i + 1).map((l) => (
             <option key={l} value={l}>
-              {l}
+              {numeLuna(l)}
             </option>
           ))}
         </select>

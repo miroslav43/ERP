@@ -85,6 +85,12 @@ export function FormularFisa({ angajati }: { readonly angajati: readonly Angajat
               >
                 {(a) => (
                   <select {...a} defaultValue={trimise["employee_id"] ?? ""}>
+                    {/* Opțiune goală, PRIMA: fără ea browserul selecta singur
+                        primul om din listă, iar `required` nu bloca nimic —
+                        există o valoare aleasă. O apăsare distrată scria o fișă de aptitudine — date de sănătate, art. 9 GDPR — pe
+                        primul angajat în ordine alfabetică. Alegerea persoanei
+                        trebuie să fie un act explicit. */}
+                    <option value="">— alegeți angajatul —</option>
                     {angajati.map((ang) => (
                       <option key={ang.id} value={ang.id}>
                         {ang.full_name ?? ang.marca} ({ang.marca})

@@ -1,10 +1,13 @@
 // src/app/(app)/concedii/actions.ts
 "use server";
 
+import { z } from "zod";
+
 import { createAction } from "@/lib/actions/create-action";
 import { businessRule, notFound } from "@/lib/actions/errors";
 import { createAdminSupabase } from "@/lib/supabase/admin";
-import { numaraZileCerere } from "@/domain/leave/zile-cerere";
+import type { ActionContext } from "@/lib/actions/types";
+import { numaraZileCerere, type PortiuneZi } from "@/domain/leave/zile-cerere";
 import {
   verificaPlafonAnual,
   verificaSold,
@@ -36,6 +39,133 @@ function laDataUTC(valoare: string): Date {
   const luna = Number(parti[1]);
   const zi = Number(parti[2]);
   return new Date(Date.UTC(an, luna - 1, zi));
+}
+
+/** Ce trebuie știut despre o cerere ca să se poată decide dacă poate pleca. */
+interface CerereDeVerificat {
+  readonly employeeId: string;
+  readonly tip: Readonly<{
+    id: string;
+    denumire: string;
+    scade_din_sold: boolean;
+    zile_implicite: number;
+  }>;
+  /** Plafonul legal EFECTIV — al variantei invocate, dacă există, altfel al tipului. */
+  readonly plafonEfectiv: number | null;
+  readonly denumirePlafon: string;
+  readonly dataInceput: string;
+  readonly dataSfarsit: string;
+  readonly portiuneInceput: PortiuneZi;
+  readonly portiuneSfarsit: PortiuneZi;
+}
+
+/**
+ * Sold, plafon legal anual și suprapunere — verificările care se fac DOAR când
+ * cererea chiar pleacă spre aprobare.
+ *
+ * Stau într-o funcție proprie fiindcă au acum DOI apelanți: crearea cu
+ * `trimite: true` și `trimiteCerere`, care ridică o ciornă existentă. Scrise o
+ * singură dată, în corpul creării, trimiterea unei ciorne ar fi fost un UPDATE
+ * fără ele: baza ar fi respins suprapunerea abia pe constrângerea EXCLUDE
+ * (23P01, mesaj de constrângere), iar depășirea de plafon n-ar fi fost prinsă
+ * DELOC — plafonul se verifică în aplicație, nu în bază.
+ *
+ * O ciornă nu trece pe aici la salvare, deliberat: `leave_request_days` preia
+ * statusul cererii, iar predicatul lui `recalc_sold` numără explicit doar
+ * `trimisa` și `in_aprobare`. A bloca un draft ar fi o regulă inventată.
+ */
+async function verificaInainteDeTrimitere(
+  ctx: ActionContext,
+  cerere: CerereDeVerificat,
+): Promise<void> {
+  const an = Number(cerere.dataInceput.slice(0, 4));
+  const { nationale, organizatie } = await zileNelucratoare(ctx.tenant.organizationId, an, an);
+  const sarbatoriRo = nationale.map((z) => z.data);
+  const liberSuplimentar = organizatie
+    .filter((z) => z.tip === "liber_suplimentar")
+    .map((z) => z.data);
+  const zileRecuperare = organizatie.filter((z) => z.tip === "zi_recuperare").map((z) => z.data);
+
+  const { zileLucratoare } = numaraZileCerere(
+    cerere.dataInceput,
+    cerere.dataSfarsit,
+    cerere.portiuneInceput,
+    cerere.portiuneSfarsit,
+    sarbatoriRo,
+    liberSuplimentar,
+    zileRecuperare,
+  );
+
+  if (cerere.tip.scade_din_sold) {
+    const { data: sold, error: eroareSold } = await ctx.supabase
+      .from("leave_balances")
+      .select("ramase")
+      .eq("organization_id", ctx.tenant.organizationId)
+      .eq("employee_id", cerere.employeeId)
+      .eq("leave_type_id", cerere.tip.id)
+      .eq("an", an)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (eroareSold !== null) throw eroareSold;
+    // Fără rând de sold ⇒ dreptul e încă neatins anul acesta: disponibil = zile_implicite.
+    const zileDisponibile = sold?.ramase ?? cerere.tip.zile_implicite;
+    const verificare = verificaSold(zileLucratoare, zileDisponibile);
+    if (!verificare.areSoldSuficient) {
+      throw businessRule(
+        `Soldul de „${cerere.tip.denumire}” pe anul ${String(an)} nu acoperă zilele solicitate: lipsesc ${formatAmount(verificare.zileLipsa)} zile. Reduceți perioada sau cereți ajustarea dreptului anual.`,
+      );
+    }
+  }
+
+  // Plafonul anual legal — verificat INDEPENDENT de sold (0064). Cele două
+  // nu sunt același lucru: soldul e dreptul acumulat și reportabil (doar
+  // odihna îl are), plafonul e maximul pe care legea îl acordă într-un an
+  // (paternal 10 zile, îngrijitor 5, căsătorie 5…). Până la 0064, nouă
+  // tipuri din zece nu aveau nicio limită.
+  if (cerere.plafonEfectiv !== null) {
+    const { data: cereriAnul, error: eroareCereriAnul } = await ctx.supabase
+      .from("leave_requests")
+      .select("zile_lucratoare")
+      .eq("organization_id", ctx.tenant.organizationId)
+      .eq("employee_id", cerere.employeeId)
+      .eq("leave_type_id", cerere.tip.id)
+      .in("status", ["trimisa", "in_aprobare", "aprobata"])
+      .gte("data_inceput", `${String(an)}-01-01`)
+      .lte("data_inceput", `${String(an)}-12-31`)
+      .is("deleted_at", null);
+    if (eroareCereriAnul !== null) throw eroareCereriAnul;
+
+    const zileConsumate = (cereriAnul ?? []).reduce((s, c) => s + c.zile_lucratoare, 0);
+    const plafon = verificaPlafonAnual(zileLucratoare, zileConsumate, cerere.plafonEfectiv);
+    if (!plafon.seIncadreaza) {
+      throw businessRule(
+        `„${cerere.denumirePlafon}” are un plafon legal de ${formatAmount(cerere.plafonEfectiv)} zile pe an, din care ${formatAmount(zileConsumate)} sunt deja folosite în ${String(an)}. Cererea îl depășește cu ${formatAmount(plafon.zileDepasire)} zile.`,
+      );
+    }
+  }
+
+  const { data: existente, error: eroareExistente } = await ctx.supabase
+    .from("leave_requests")
+    .select("data_inceput, data_sfarsit")
+    .eq("organization_id", ctx.tenant.organizationId)
+    .eq("employee_id", cerere.employeeId)
+    .in("status", ["trimisa", "in_aprobare", "aprobata"])
+    .is("deleted_at", null);
+  if (eroareExistente !== null) throw eroareExistente;
+
+  const cerereNoua: IntervalConcediu = {
+    dataInceput: laDataUTC(cerere.dataInceput),
+    dataSfarsit: laDataUTC(cerere.dataSfarsit),
+  };
+  const intervale: readonly IntervalConcediu[] = (existente ?? []).map((r) => ({
+    dataInceput: laDataUTC(r.data_inceput),
+    dataSfarsit: laDataUTC(r.data_sfarsit),
+  }));
+  if (verificaSuprapunere(cerereNoua, intervale)) {
+    throw businessRule(
+      "Aveți deja o cerere de concediu care acoperă o parte din perioada aleasă. Anulați-o sau alegeți alte date.",
+    );
+  }
 }
 
 export const creeazaCerereConcediu = createAction({
@@ -164,96 +294,16 @@ export const creeazaCerereConcediu = createAction({
     // — predicatul ei filtrează explicit `status in ('trimisa','in_aprobare')`.
     // Blocarea unui simplu draft ar fi o regulă inventată, nu una din bază.
     if (input.trimite) {
-      const an = Number(input.data_inceput.slice(0, 4));
-      const { nationale, organizatie } = await zileNelucratoare(ctx.tenant.organizationId, an, an);
-      const sarbatoriRo = nationale.map((z) => z.data);
-      const liberSuplimentar = organizatie
-        .filter((z) => z.tip === "liber_suplimentar")
-        .map((z) => z.data);
-      const zileRecuperare = organizatie
-        .filter((z) => z.tip === "zi_recuperare")
-        .map((z) => z.data);
-
-      const { zileLucratoare } = numaraZileCerere(
-        input.data_inceput,
-        input.data_sfarsit,
-        input.portiune_inceput,
-        input.portiune_sfarsit,
-        sarbatoriRo,
-        liberSuplimentar,
-        zileRecuperare,
-      );
-
-      if (tip.scade_din_sold) {
-        const { data: sold, error: eroareSold } = await ctx.supabase
-          .from("leave_balances")
-          .select("ramase")
-          .eq("organization_id", ctx.tenant.organizationId)
-          .eq("employee_id", employeeId)
-          .eq("leave_type_id", tip.id)
-          .eq("an", an)
-          .is("deleted_at", null)
-          .maybeSingle();
-        if (eroareSold !== null) throw eroareSold;
-        // Fără rând de sold ⇒ dreptul e încă neatins anul acesta: disponibil = zile_implicite.
-        const zileDisponibile = sold?.ramase ?? tip.zile_implicite;
-        const verificare = verificaSold(zileLucratoare, zileDisponibile);
-        if (!verificare.areSoldSuficient) {
-          throw businessRule(
-            `Soldul de „${tip.denumire}” pe anul ${String(an)} nu acoperă zilele solicitate: lipsesc ${formatAmount(verificare.zileLipsa)} zile. Reduceți perioada sau cereți ajustarea dreptului anual.`,
-          );
-        }
-      }
-
-      // Plafonul anual legal — verificat INDEPENDENT de sold (0064). Cele două
-      // nu sunt același lucru: soldul e dreptul acumulat și reportabil (doar
-      // odihna îl are), plafonul e maximul pe care legea îl acordă într-un an
-      // (paternal 10 zile, îngrijitor 5, căsătorie 5…). Până la 0064, nouă
-      // tipuri din zece nu aveau nicio limită.
-      if (plafonEfectiv !== null) {
-        const { data: cereriAnul, error: eroareCereriAnul } = await ctx.supabase
-          .from("leave_requests")
-          .select("zile_lucratoare")
-          .eq("organization_id", ctx.tenant.organizationId)
-          .eq("employee_id", employeeId)
-          .eq("leave_type_id", tip.id)
-          .in("status", ["trimisa", "in_aprobare", "aprobata"])
-          .gte("data_inceput", `${String(an)}-01-01`)
-          .lte("data_inceput", `${String(an)}-12-31`)
-          .is("deleted_at", null);
-        if (eroareCereriAnul !== null) throw eroareCereriAnul;
-
-        const zileConsumate = (cereriAnul ?? []).reduce((s, c) => s + c.zile_lucratoare, 0);
-        const plafon = verificaPlafonAnual(zileLucratoare, zileConsumate, plafonEfectiv);
-        if (!plafon.seIncadreaza) {
-          throw businessRule(
-            `„${denumirePlafon}” are un plafon legal de ${formatAmount(plafonEfectiv)} zile pe an, din care ${formatAmount(zileConsumate)} sunt deja folosite în ${String(an)}. Cererea îl depășește cu ${formatAmount(plafon.zileDepasire)} zile.`,
-          );
-        }
-      }
-
-      const { data: existente, error: eroareExistente } = await ctx.supabase
-        .from("leave_requests")
-        .select("data_inceput, data_sfarsit")
-        .eq("organization_id", ctx.tenant.organizationId)
-        .eq("employee_id", employeeId)
-        .in("status", ["trimisa", "in_aprobare", "aprobata"])
-        .is("deleted_at", null);
-      if (eroareExistente !== null) throw eroareExistente;
-
-      const cerereNoua: IntervalConcediu = {
-        dataInceput: laDataUTC(input.data_inceput),
-        dataSfarsit: laDataUTC(input.data_sfarsit),
-      };
-      const intervale: readonly IntervalConcediu[] = (existente ?? []).map((r) => ({
-        dataInceput: laDataUTC(r.data_inceput),
-        dataSfarsit: laDataUTC(r.data_sfarsit),
-      }));
-      if (verificaSuprapunere(cerereNoua, intervale)) {
-        throw businessRule(
-          "Aveți deja o cerere de concediu care acoperă o parte din perioada aleasă. Anulați-o sau alegeți alte date.",
-        );
-      }
+      await verificaInainteDeTrimitere(ctx, {
+        employeeId,
+        tip,
+        plafonEfectiv,
+        denumirePlafon,
+        dataInceput: input.data_inceput,
+        dataSfarsit: input.data_sfarsit,
+        portiuneInceput: input.portiune_inceput,
+        portiuneSfarsit: input.portiune_sfarsit,
+      });
     }
 
     // ── (6)-(7) Inserarea ────────────────────────────────────────────────────
@@ -322,6 +372,151 @@ export const anuleazaCerere = createAction({
       );
     }
     return { id: data.id };
+  },
+});
+
+/**
+ * Schema stă AICI, nelocală lui `src/schemas/leave.ts`, dintr-un motiv mecanic:
+ * un fișier `"use server"` poate exporta doar funcții async — o constantă
+ * exportată face Next să refuze build-ul, iar `tsc` tace. Neexportată, e legală.
+ */
+const trimiteCerereSchema = z.object({
+  id: z.uuid("Cererea selectată nu este validă."),
+});
+
+/**
+ * Ridică o CIORNĂ existentă la „trimisă”.
+ *
+ * ── DE CE EXISTĂ ──────────────────────────────────────────────────────────
+ * Formularul de cerere avea de la început două butoane — „Salvează ca ciornă”
+ * și „Trimite spre aprobare” — dar modulul avea exact trei acțiuni
+ * (`creeazaCerereConcediu`, `anuleazaCerere`, `decideCerere`) și niciuna nu
+ * trimitea o ciornă deja salvată. Cine apăsa primul buton ajungea pe fișa
+ * cererii, unde singurul buton oferit era „Anulează cererea”: o funcție
+ * întreagă a produsului se putea începe și nu se putea termina niciodată.
+ * Ieșirea era să anulezi și să reintroduci totul de la zero.
+ *
+ * ── BAZA O PERMITEA DEJA ──────────────────────────────────────────────────
+ * Nu e nevoie de nicio migrare. `leave_requests_update` (0016:384) are ramura
+ * autorului cu `status in ('ciorna','trimisa')` în `USING` și
+ * `status in ('ciorna','trimisa','anulata')` în `WITH CHECK`, iar
+ * `internal.leave_requests_sincronizeaza` (0009:713) generează lanțul de
+ * aprobare pe condiția `new.status = 'trimisa' and old.status is distinct from
+ * 'trimisa'` — scrisă din capul locului pentru UPDATE, nu doar pentru INSERT.
+ * Ce lipsea era exclusiv drumul dinspre ecran.
+ */
+export const trimiteCerere = createAction({
+  name: "leave.request.submit",
+  feature: "leave",
+  permission: "leave:update",
+  minScope: "own",
+  input: trimiteCerereSchema,
+  audit: {
+    action: "update",
+    entityType: "leave_request",
+    entityId: (input) => input.id,
+    allow: ["id"],
+  },
+  revalidate: (input) => [
+    "/concedii",
+    "/concedii/sold",
+    "/concedii/aprobari",
+    ...CAI_PORTAL_CONCEDII,
+    `/portal/concediile-mele/${input.id}`,
+  ],
+  handler: async (ctx, input): Promise<Readonly<{ id: string; zileLucratoare: number }>> => {
+    const { data: cerere, error: eroareCerere } = await ctx.supabase
+      .from("leave_requests")
+      .select(
+        "id, employee_id, leave_type_id, leave_variant_id, data_inceput, data_sfarsit, portiune_inceput, portiune_sfarsit, status",
+      )
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (eroareCerere !== null) throw eroareCerere;
+    if (cerere === null) {
+      throw notFound("Cererea de concediu nu a fost găsită.");
+    }
+    if (cerere.status !== "ciorna") {
+      throw businessRule(
+        "Doar o ciornă se poate trimite spre aprobare; cererea aceasta a plecat deja. Reîncărcați pagina ca să vedeți starea curentă.",
+      );
+    }
+
+    const { data: tip, error: eroareTip } = await ctx.supabase
+      .from("leave_types")
+      .select("id, denumire, scade_din_sold, zile_implicite, plafon_anual_zile")
+      .eq("organization_id", ctx.tenant.organizationId)
+      .eq("id", cerere.leave_type_id)
+      .eq("activ", true)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (eroareTip !== null) throw eroareTip;
+    if (tip === null) {
+      throw businessRule(
+        "Tipul de concediu al acestei ciorne a fost între timp dezactivat. Anulați ciorna și depuneți o cerere nouă.",
+      );
+    }
+
+    // Varianta legală schimbă PLAFONUL, nu tipul: „paternal, cu atestat de
+    // puericultură” are 15 zile, nu 10. Ciorna o poartă de la creare, deci se
+    // recitește aici — altfel trimiterea ar verifica alt plafon decât cel ales.
+    //
+    // O variantă dezactivată între timp NU blochează trimiterea, ci face cererea
+    // să cadă pe plafonul de bază al tipului. Direcția contează: plafonul de
+    // bază e cel mai mic dintre cele două (10 față de 15 la paternal), deci
+    // căderea STRÂNGE verificarea. A refuza trimiterea ar fi construit exact
+    // fundătura pe care acțiunea asta o închide.
+    let plafonEfectiv: number | null = tip.plafon_anual_zile;
+    let denumirePlafon = tip.denumire;
+    if (cerere.leave_variant_id !== null) {
+      const { data: varianta, error: eroareVarianta } = await ctx.supabase
+        .from("leave_type_variants")
+        .select("denumire, zile")
+        .eq("id", cerere.leave_variant_id)
+        .eq("activ", true)
+        .is("deleted_at", null)
+        .maybeSingle<{ denumire: string; zile: number }>();
+      if (eroareVarianta !== null) throw eroareVarianta;
+      if (varianta !== null) {
+        plafonEfectiv = varianta.zile;
+        denumirePlafon = varianta.denumire;
+      }
+    }
+
+    await verificaInainteDeTrimitere(ctx, {
+      employeeId: cerere.employee_id,
+      tip,
+      plafonEfectiv,
+      denumirePlafon,
+      dataInceput: cerere.data_inceput,
+      dataSfarsit: cerere.data_sfarsit,
+      portiuneInceput: cerere.portiune_inceput,
+      portiuneSfarsit: cerere.portiune_sfarsit,
+    });
+
+    // `.eq("status", "ciorna")` NU e redundant cu verificarea de mai sus: între
+    // citire și scriere încape o a doua filă de browser. Iar `.select()` e
+    // obligatoriu — un UPDATE respins de `USING` afectează ZERO rânduri FĂRĂ
+    // eroare (capcana 17), deci fără el ecranul ar anunța o trimitere care nu
+    // s-a produs, iar cererea ar rămâne ciornă la nesfârșit.
+    const { data, error } = await ctx.supabase
+      .from("leave_requests")
+      .update({ status: "trimisa" })
+      .eq("id", cerere.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .eq("status", "ciorna")
+      .select("id, zile_lucratoare")
+      .maybeSingle();
+    if (error !== null) throw traduEroare(error);
+    if (data === null) {
+      throw businessRule(
+        "Cererea nu a putut fi trimisă spre aprobare: fie și-a schimbat starea între timp, fie nu aveți dreptul să o modificați. Reîncărcați pagina.",
+      );
+    }
+
+    return { id: data.id, zileLucratoare: data.zile_lucratoare };
   },
 });
 

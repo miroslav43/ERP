@@ -72,7 +72,7 @@ async function ContinutAprobare({
   readonly poateBloca: boolean;
   readonly poateSincroniza: boolean;
 }) {
-  const linii = await liniiDeAprobat(organizationId, periodId);
+  const { linii, trunchiat } = await liniiDeAprobat(organizationId, periodId);
   const idAngajati = [...new Set(linii.map((l) => l.employee_id))];
   const angajati = await angajatiPontajDupaId(organizationId, idAngajati);
 
@@ -98,15 +98,29 @@ async function ContinutAprobare({
     }
   }
 
-  const randuriAprobare: readonly RandAprobare[] = [...perAngajat.entries()].map(([id, rand]) => ({
-    id,
-    nume: rand.nume,
-    zile: rand.zile,
-    ore: rand.ore,
-  }));
+  /*
+   * Ordinea venea din inserarea în `Map`, adică din ordinea în care PostgREST
+   * întorcea liniile — nealfabetică, nestabilă între două încărcări ale
+   * aceleiași pagini. Pe un ecran unde cauți un anume om înainte să aprobi
+   * luna, un tabel care se rearanjează singur e mai rău decât unul lung.
+   * `localeCompare("ro")` fiindcă „Ș” trebuie să stea după „S”, nu la coadă.
+   */
+  const randuriAprobare: readonly RandAprobare[] = [...perAngajat.entries()]
+    .map(([id, rand]) => ({ id, nume: rand.nume, zile: rand.zile, ore: rand.ore }))
+    .sort((a, b) => a.nume.localeCompare(b.nume, "ro"));
 
   return (
     <div className="space-y-4">
+      {trunchiat ? (
+        <p
+          role="alert"
+          className="border-warning/40 bg-warning/12 text-foreground rounded-panou text-corp border p-3"
+        >
+          Luna are peste {linii.length} de linii neaprobate, iar citirea s-a oprit aici. Cifrele de
+          mai jos sunt sub cele reale. Aprobați pe departamente, apoi reîncărcați ecranul.
+        </p>
+      ) : null}
+
       <AprobareBloc
         periodId={periodId}
         departmentId={departmentId}

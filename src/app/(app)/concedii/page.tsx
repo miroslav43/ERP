@@ -19,13 +19,14 @@ import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { formatAmount } from "@/lib/format/money";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
+import { citesteTot } from "@/lib/queries/citeste-tot";
 import { scrieSortare } from "@/lib/queries/cursor";
 import { listeazaCereri, soldAnual, type RandCerere } from "@/lib/queries/leave";
 import { filtreCereriSchema } from "@/schemas/leave";
 import { fisaProprie } from "@/lib/queries/portal";
 
 import { ETICHETE_STATUS_CERERE, TONURI_STATUS_CERERE } from "./etichete";
-import { FiltreCereri } from "./filtre-cereri";
+import { FiltreCereri, type OptiuneAngajat as OptiuneAngajatFiltru } from "./filtre-cereri";
 import { NavConcedii } from "./nav-concedii";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 
@@ -144,7 +145,7 @@ async function TabelCereri({
           <>
             <span
               className="mr-2 inline-block size-2.5 rounded-full align-middle"
-              style={{ backgroundColor: tip?.culoare ?? "#94a3b8" }}
+              style={{ backgroundColor: tip?.culoare ?? "var(--color-muted-foreground)" }}
               aria-hidden="true"
             />
             {tip?.denumire ?? "—"}
@@ -274,6 +275,36 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
     .order("denumire")
     .returns<OptiuneTip[]>();
 
+  // Angajații pentru filtrul după persoană. Se citesc DOAR peste scope „own”:
+  // acolo lista are un singur element — al lui — iar filtrul n-ar avea ce
+  // îngusta. RLS taie oricum rândurile pe care rolul nu are voie să le vadă,
+  // deci lista e exact cea filtrabilă.
+  //
+  // `citesteTot`, nu o singură cerere: PostgREST taie la `max_rows = 1000` FĂRĂ
+  // eroare, iar într-un combobox tăierea nu se vede — omul caută un nume, nu-l
+  // găsește și trage concluzia că persoana n-are cereri. Cursorul e keyset pe
+  // `id`; ordinea alfabetică se pune după citire, fiindcă `id` e cel care
+  // trebuie să ordoneze paginile.
+  let angajatiFiltrabili: readonly OptiuneAngajatFiltru[] = [];
+  if (scope !== "own") {
+    const angajati = await citesteTot<OptiuneAngajatFiltru>(
+      async (dupa, pas) => {
+        let interogare = db
+          .from("employees")
+          .select("id, full_name, marca")
+          .eq("organization_id", tenant.organizationId)
+          .is("deleted_at", null)
+          .order("id", { ascending: true })
+          .limit(pas);
+        if (dupa !== null) interogare = interogare.gt("id", dupa);
+        return await interogare.returns<OptiuneAngajatFiltru[]>();
+      },
+      (a) => a.id,
+      { nume: "angajații pentru filtrul de concedii" },
+    );
+    angajatiFiltrabili = [...angajati].sort((a, b) => a.full_name.localeCompare(b.full_name, "ro"));
+  }
+
   return (
     <div className="space-y-6">
       <AntetPagina
@@ -311,6 +342,7 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
           i-ar sugera că există și altceva. */}
       <FiltreCereri
         tipuri={tipuri ?? []}
+        angajati={angajatiFiltrabili}
         filtre={filtre}
         parametri={parametri}
         aratăVizualizarea={scope !== "own" && fisaMea !== null}

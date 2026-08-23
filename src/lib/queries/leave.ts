@@ -382,7 +382,31 @@ export interface EvenimentIstoricSold {
   readonly data_eveniment: string;
   readonly created_at: string;
   readonly leave_type_id: string;
+  /**
+   * A CUI e mișcarea. Lipsea din `select`, iar ecranul de sold randează
+   * istoricul TUTUROR angajaților vizibili pentru un `org_admin`: șase coloane
+   * (Data, Tip, Eveniment, Variație, Sold după, Motiv) și niciuna care să spună
+   * a cui e linia. Un extras de cont fără titular.
+   */
+  readonly employee_id: string;
 }
+
+export interface RezultatIstoricSold {
+  readonly randuri: readonly EvenimentIstoricSold[];
+  /** Citirea a fost tăiată: mai există mișcări dincolo de ce s-a întors. */
+  readonly trunchiat: boolean;
+}
+
+/**
+ * Câte mișcări se citesc dintr-un an.
+ *
+ * Nu e o cifră de confort, e una de siguranță: PostgREST are `max_rows = 1000`
+ * și TRUNCHIAZĂ TĂCUT peste el, fără eroare și fără niciun semn în răspuns.
+ * Interogarea n-avea `.limit()` deloc, deci la 200 de angajați × ~6 evenimente
+ * pe an lista se oprea la 1000 și arăta exact ca una completă. Cu limita
+ * declarată aici, plus un rând, ȘTIM dacă s-a tăiat și o putem spune.
+ */
+const LIMITA_ISTORIC_SOLD = 500;
 
 /**
  * `leave_accruals` nu are `deleted_at`. Politica de SELECT e „propriu sau
@@ -393,17 +417,27 @@ export interface EvenimentIstoricSold {
 export async function istoricSold(
   organizationId: string,
   an: number,
-): Promise<readonly EvenimentIstoricSold[]> {
+): Promise<RezultatIstoricSold> {
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("leave_accruals")
-    .select("an, eveniment, delta, sold_dupa, motiv, data_eveniment, created_at, leave_type_id")
+    .select(
+      "an, eveniment, delta, sold_dupa, motiv, data_eveniment, created_at, leave_type_id, employee_id",
+    )
     .eq("organization_id", organizationId)
     .eq("an", an)
     .order("created_at", { ascending: false })
+    // Al doilea criteriu: `created_at` nu e unic (o singură tranzacție scrie
+    // mai multe mișcări cu același `now()`), iar fără el ordinea dintre ele —
+    // deci și granița de tăiere — ar fi nedefinită de la o citire la alta.
+    .order("id", { ascending: false })
+    .limit(LIMITA_ISTORIC_SOLD + 1)
     .returns<EvenimentIstoricSold[]>();
   if (error !== null) throw error;
-  return data ?? [];
+
+  const toate = data ?? [];
+  const trunchiat = toate.length > LIMITA_ISTORIC_SOLD;
+  return { randuri: trunchiat ? toate.slice(0, LIMITA_ISTORIC_SOLD) : toate, trunchiat };
 }
 
 // ── Sarcinile de aprobat ──────────────────────────────────────────────────────
@@ -450,6 +484,31 @@ interface CerereBruta {
   readonly status: StatusCerere;
 }
 
+export interface RezultatDeAprobat {
+  readonly sarcini: readonly SarcinaDeAprobat[];
+  /**
+   * Coada a fost tăiată: mai există sarcini dincolo de ce s-a întors.
+   *
+   * NU e însoțit de un total, deliberat. Un `count: "exact"` pe `approval_tasks`
+   * ar număra și sarcinile a căror cerere a fost între timp decisă de un pas
+   * anterior sau anulată — rândurile pe care funcția asta le ARUNCĂ mai jos.
+   * Contorul ar rămâne atunci mai mare decât lista, pentru totdeauna, iar
+   * ecranul ar promite „143 de cereri” deasupra a 130 de rânduri. Cifra afișată
+   * e lungimea listei; steagul spune doar că lista nu e tot.
+   */
+  readonly trunchiat: boolean;
+}
+
+/**
+ * Câte sarcini se aduc într-o citire a cozii.
+ *
+ * Plafonul exista și înainte (`.limit(100)`), dar nu ieșea nicăieri: un HR al
+ * unei firme de 300 de oameni, în iulie, îl depășea și nu afla niciodată — a
+ * 101-a cerere pur și simplu nu era pe ecran. Se cere acum un rând în plus,
+ * exclusiv ca să se poată spune că s-a tăiat.
+ */
+const LIMITA_COADA_APROBARI = 100;
+
 /**
  * `approval_tasks` NU are cheie străină către `leave_requests` (legătura e
  * polimorfă: `entity_type` + `entity_id`), deci embed-ul PostgREST e imposibil.
@@ -460,7 +519,7 @@ interface CerereBruta {
 export async function deAprobat(
   organizationId: string,
   userId: string,
-): Promise<readonly SarcinaDeAprobat[]> {
+): Promise<RezultatDeAprobat> {
   const db = await createServerSupabase();
 
   const { data: sarciniData, error: eroareSarcini } = await db
@@ -472,11 +531,17 @@ export async function deAprobat(
     .eq("status", "in_asteptare")
     .is("deleted_at", null)
     .order("termen_la", { ascending: true, nullsFirst: false })
-    .limit(100)
+    // Al doilea criteriu: `termen_la` e NULL pe fluxurile fără SLA, deci fără el
+    // ordinea dintre sarcinile fără termen — și implicit granița tăierii — se
+    // schimbă de la o citire la alta.
+    .order("id", { ascending: true })
+    .limit(LIMITA_COADA_APROBARI + 1)
     .returns<SarcinaBruta[]>();
   if (eroareSarcini !== null) throw eroareSarcini;
-  const sarcini = sarciniData ?? [];
-  if (sarcini.length === 0) return [];
+  const brute = sarciniData ?? [];
+  const trunchiat = brute.length > LIMITA_COADA_APROBARI;
+  const sarcini = trunchiat ? brute.slice(0, LIMITA_COADA_APROBARI) : brute;
+  if (sarcini.length === 0) return { sarcini: [], trunchiat: false };
 
   const idCereri = [...new Set(sarcini.map((s) => s.entity_id))];
   const { data: cereriData, error: eroareCereri } = await db
@@ -513,7 +578,7 @@ export async function deAprobat(
   const hartaAngajati = new Map((angajatiRes.data ?? []).map((a) => [a.id, a]));
   const hartaTipuri = new Map((tipuriRes.data ?? []).map((t) => [t.id, t]));
 
-  return sarcini
+  const randuri = sarcini
     .map((sarcina): SarcinaDeAprobat | null => {
       const cerere = hartaCereri.get(sarcina.entity_id);
       if (cerere === undefined) return null;
@@ -539,6 +604,8 @@ export async function deAprobat(
       };
     })
     .filter((rand): rand is SarcinaDeAprobat => rand !== null);
+
+  return { sarcini: randuri, trunchiat };
 }
 
 // ── Calendarul de echipă ──────────────────────────────────────────────────────

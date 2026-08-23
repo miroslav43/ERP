@@ -445,6 +445,124 @@ export async function arboreleManagerial(
   }));
 }
 
+// ── Fișa, pentru ecranul de editare ────────────────────────────────────────
+
+/**
+ * Exact coloanele pe care `actualizeazaAngajatSchema` le acceptă la scriere.
+ *
+ * DE CE O A DOUA CITIRE, ȘI NU `citesteAngajat`: aceea selectează 24 de
+ * coloane, alese pentru ce se AFIȘEAZĂ pe fișă. Schema de actualizare acceptă
+ * 33. Diferența — adresa de reședință, contactul de serviciu, actul de
+ * identitate, starea civilă, managerul direct, relația contactului de urgență —
+ * nu ajungea niciodată în formular, deci formularul nu o retrimitea, deci Zod
+ * îi aplica `.default(null)` și `UPDATE`-ul o ștergea. Măsurat: din 34 de chei
+ * ajunse la `.update()`, formularul trimitea 12; celelalte 22 se scriau ca
+ * `null` (sau reveneau la „RO" / „normale" / `true`) la FIECARE salvare, chiar
+ * și când se corecta doar un număr de telefon.
+ *
+ * Lista de mai jos și `.pick()`-ul din `src/schemas/employee.ts` trebuie să
+ * rămână identice: dacă o coloană se adaugă acolo și nu aici, se pierde din nou.
+ */
+export interface AngajatEditabil {
+  readonly id: string;
+  readonly marca: string;
+  readonly full_name: string;
+  readonly last_name: string;
+  readonly first_name: string;
+  readonly email_personal: string | null;
+  readonly telefon: string | null;
+  readonly email_serviciu: string | null;
+  readonly telefon_serviciu: string | null;
+  readonly adresa_strada: string | null;
+  readonly adresa_oras: string | null;
+  readonly adresa_judet: string | null;
+  readonly adresa_cod_postal: string | null;
+  readonly adresa_resedinta_strada: string | null;
+  readonly adresa_resedinta_oras: string | null;
+  readonly adresa_resedinta_judet: string | null;
+  readonly adresa_resedinta_cod_postal: string | null;
+  readonly stare_civila: string | null;
+  readonly data_nasterii: string | null;
+  readonly gen: string;
+  readonly cetatenie: string;
+  readonly tip_act_identitate: string | null;
+  readonly serie_act: string | null;
+  readonly numar_act: string | null;
+  readonly act_eliberat_de: string | null;
+  readonly act_valabil_pana: string | null;
+  readonly department_id: string | null;
+  readonly job_position_id: string | null;
+  readonly manager_employee_id: string | null;
+  readonly hired_on: string | null;
+  readonly conditii_munca: string;
+  readonly grad_handicap: string | null;
+  readonly optiune_pilon_ii: boolean;
+  readonly contact_urgenta_nume: string | null;
+  readonly contact_urgenta_telefon: string | null;
+  readonly contact_urgenta_relatie: string | null;
+  readonly observatii: string | null;
+}
+
+export async function citesteAngajatPentruEditare(
+  organizationId: string,
+  employeeId: string,
+): Promise<AngajatEditabil | null> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("employees")
+    .select(
+      `id, marca, full_name, last_name, first_name, email_personal, telefon, email_serviciu,
+       telefon_serviciu, adresa_strada, adresa_oras, adresa_judet, adresa_cod_postal,
+       adresa_resedinta_strada, adresa_resedinta_oras, adresa_resedinta_judet,
+       adresa_resedinta_cod_postal, stare_civila, data_nasterii, gen, cetatenie,
+       tip_act_identitate, serie_act, numar_act, act_eliberat_de, act_valabil_pana,
+       department_id, job_position_id, manager_employee_id, hired_on, conditii_munca,
+       grad_handicap, optiune_pilon_ii, contact_urgenta_nume, contact_urgenta_telefon,
+       contact_urgenta_relatie, observatii`,
+    )
+    .eq("organization_id", organizationId)
+    .eq("id", employeeId)
+    .is("deleted_at", null)
+    .maybeSingle<AngajatEditabil>();
+  if (error !== null) throw error;
+  return data;
+}
+
+export interface OptiuneColeg {
+  readonly id: string;
+  readonly full_name: string;
+  readonly marca: string;
+}
+
+/**
+ * Colegii care pot fi aleși ca manager direct, fără fișa editată însăși — o
+ * fișă care se raportează la ea însăși ar face `manager_path` să cicleze.
+ *
+ * Nu exclude subordonații actuali: ierarhia se poate rescrie legitim, iar
+ * verificarea de ciclu aparține bazei (triggerul `tg_employees_manager_path`),
+ * nu unui `<select>`. `max_rows` din PostgREST taie TĂCUT la 1000 de rânduri;
+ * cea mai mare firmă din sistem are 8 angajați, deci limita nu se atinge, dar
+ * `.limit(...)` explicit face tăierea vizibilă în cod dacă vreodată se atinge.
+ */
+export async function colegiPentruManager(
+  organizationId: string,
+  exclusId: string,
+): Promise<readonly OptiuneColeg[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("employees")
+    .select("id, full_name, marca")
+    .eq("organization_id", organizationId)
+    .neq("id", exclusId)
+    .is("deleted_at", null)
+    .in("status", ["candidat", "activ", "suspendat", "preaviz"])
+    .order("full_name", { ascending: true })
+    .limit(500)
+    .returns<OptiuneColeg[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
 /** Doar rezumatul mascat — valorile clare se obțin exclusiv prin acțiunea auditată. */
 export async function citesteRezumatDateSensibile(
   organizationId: string,

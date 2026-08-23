@@ -41,6 +41,25 @@ export const ETICHETE_TIP_ZI: Readonly<Record<TipZi, string>> = {
 };
 
 /**
+ * Codul scris ÎN celula matricei, când ziua n-are ore lucrate.
+ *
+ * Înainte, celula afișa `ETICHETE_TIP_ZI[tip].slice(0, 3)` — o tăiere oarbă
+ * care producea „Wee”, „Săr”, „Con”, „Luc”. „Wee” nu e un cuvânt românesc, iar
+ * „Luc” apărea pe o zi lucrătoare cu 0 ore ÎNREGISTRATE, care e altceva decât
+ * o zi fără nicio intrare (aceea rămâne „—”): cifra `0` spune exact asta.
+ * Restul sunt codurile de pontaj consacrate din practica românească.
+ */
+export const CODURI_TIP_ZI: Readonly<Record<TipZi, string>> = {
+  lucratoare: "0",
+  weekend: "L",
+  sarbatoare: "SL",
+  concediu: "CO",
+  medical: "CM",
+  absenta_nemotivata: "AN",
+  delegatie: "D",
+};
+
+/**
  * Fundal de celulă în matricea foii colective — NU o pastilă, deci nu trece
  * prin `<Badge>`: aici se colorează celula, nu se pune o etichetă în ea.
  *

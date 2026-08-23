@@ -12,6 +12,8 @@ interface AngajatOptiune {
   readonly employee_id: string;
   readonly full_name: string;
   readonly marca: string;
+  /** Lista îi cuprinde și pe cei inactivi — de aceea starea se scrie în opțiune. */
+  readonly status: string;
 }
 
 type RandSalvat = Readonly<{ id: string }>;
@@ -105,6 +107,7 @@ export function FormularIstoricVenit({
                   {angajati.map((angajat) => (
                     <option key={angajat.employee_id} value={angajat.employee_id}>
                       {angajat.full_name || angajat.marca}
+                      {angajat.status === "activ" ? "" : ` (${angajat.status})`}
                     </option>
                   ))}
                 </select>

@@ -28,10 +28,19 @@ const CAI_REVALIDARE = [
   "/pontaj/perioade",
   "/pontaj/aprobare",
   // Aceleași date, celălalt înveliș: fără căile astea, angajatul
-  // salvează o zi și se întoarce pe „Pontajul meu" fără s-o vadă.
+  // salvează o zi și se întoarce pe „Pontajul meu” fără s-o vadă.
   "/portal",
   "/portal/pontajul-meu",
 ] as const;
+
+/**
+ * Cât întoarce PostgREST pe o cerere: `max_rows = 1000`, tăiat TĂCUT.
+ * Constantele NU se exportă: un fișier `"use server"` care exportă altceva
+ * decât funcții asincrone e refuzat la build (`tsc` tace).
+ */
+const PAGINA_APROBARE = 1000;
+/** 20 × 1000 = 20 000 de linii neaprobate într-o lună. Peste, se cere departament. */
+const MAXIM_PAGINI_APROBARE = 20;
 
 /** Prima și ultima zi calendaristică a unei luni, ca șiruri ISO. */
 function intervalulLunii(
@@ -331,14 +340,41 @@ export const aprobaPontajBloc = createAction({
     // (2) ID-urile de aprobat, cu clientul utilizatorului: RLS
     // (`attendance_entries_select` → `app.poate_vedea_pontaj`) le restrânge
     // deja la own/team, în funcție de scope-ul de CITIRE al aprobatorului.
-    const { data: liniiVizibile, error: eroareLinii } = await ctx.supabase
-      .from("attendance_entries")
-      .select("id, employee_id")
-      .eq("organization_id", ctx.tenant.organizationId)
-      .eq("period_id", input.period_id)
-      .is("approved_at", null)
-      .is("deleted_at", null);
-    if (eroareLinii !== null) throw eroareLinii;
+    //
+    // CITITE PAGINAT, nu dintr-o dată: PostgREST taie la `max_rows = 1000`
+    // fără nicio eroare. La 46 de angajați × 22 de zile = 1012 linii, aprobarea
+    // „în bloc” marca primele 1000, scria `linii_aprobate = 1000` pe lot, muta
+    // luna în „în aprobare” și raporta succes — cele 12 rămase nu apăreau
+    // nicăieri ca problemă, iar o blocare ulterioară le îngheța neaprobate,
+    // fără cale de întoarcere în afară de redeschiderea lunii.
+    const liniiVizibile: { readonly id: string; readonly employee_id: string }[] = [];
+    let completCitit = false;
+    for (let pagina = 0; pagina < MAXIM_PAGINI_APROBARE; pagina += 1) {
+      const deLa = pagina * PAGINA_APROBARE;
+      const { data: lot, error: eroareLinii } = await ctx.supabase
+        .from("attendance_entries")
+        .select("id, employee_id")
+        .eq("organization_id", ctx.tenant.organizationId)
+        .eq("period_id", input.period_id)
+        .is("approved_at", null)
+        .is("deleted_at", null)
+        // Ordine TOTALĂ (`id` e unic): fără ea, `.range()` poate întoarce de
+        // două ori același rând și sări peste altul între pagini.
+        .order("id", { ascending: true })
+        .range(deLa, deLa + PAGINA_APROBARE - 1);
+      if (eroareLinii !== null) throw eroareLinii;
+      const randuri = lot ?? [];
+      liniiVizibile.push(...randuri);
+      if (randuri.length < PAGINA_APROBARE) {
+        completCitit = true;
+        break;
+      }
+    }
+    if (!completCitit) {
+      throw businessRule(
+        `Luna are peste ${String(liniiVizibile.length)} de linii neaprobate — mai multe decât poate aproba o singură apăsare. Aprobați pe departamente, unul câte unul.`,
+      );
+    }
 
     // Filtrul de departament, tot cu clientul utilizatorului.
     let idAngajatiDepartament: ReadonlySet<string> | null = null;
@@ -352,7 +388,7 @@ export const aprobaPontajBloc = createAction({
       idAngajatiDepartament = new Set((angajatiDepartament ?? []).map((a) => a.id));
     }
 
-    const idDeAprobat = (liniiVizibile ?? [])
+    const idDeAprobat = liniiVizibile
       .filter((l) => idAngajatiDepartament === null || idAngajatiDepartament.has(l.employee_id))
       .map((l) => l.id);
     if (idDeAprobat.length === 0) {
@@ -417,7 +453,7 @@ export const aprobaPontajBloc = createAction({
       // Un manager cu `attendance:approve = team` NU o poate face — politica cere
       // scope `all` (capcana 9). Respins de `USING`, UPDATE-ul afectează zero
       // rânduri fără eroare (capcana 17): lotul s-ar aproba, dar luna ar rămâne
-      // „deschisă", iar blocarea ulterioară ar eșua fără explicație.
+      // „deschisă”, iar blocarea ulterioară ar eșua fără explicație.
       const { data: perioadaTrecuta, error: eroareStatus } = await ctx.supabase
         .from("attendance_periods")
         .update({ status: "in_aprobare" })
@@ -562,7 +598,7 @@ export const sincronizeazaConcediile = createAction({
         employee_id: (z.cerere as { employee_id: string }).employee_id,
         data: z.data,
         leave_request_id: z.leave_request_id,
-        // Tipul șters logic între timp → „concediu", ca înainte de 0064.
+        // Tipul șters logic între timp → „concediu”, ca înainte de 0064.
         tip_zi: z.cerere?.tip?.tip_zi_pontaj ?? ("concediu" as TipZiPontaj),
       }));
     if (zileAprobate.length === 0) {

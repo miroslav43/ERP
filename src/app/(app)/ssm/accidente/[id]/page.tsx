@@ -10,12 +10,13 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { formatDate } from "@/lib/format/date";
+import { formatDate, formatDateTime } from "@/lib/format/date";
 import { idDinRuta } from "@/lib/rute/parametri";
 import { angajatiDupaId, citesteAccident } from "@/lib/queries/ssm";
-import { momentLimitaComunicareItm, oreRamasePanaLaTermen } from "@/domain/ssm/termen-itm";
+import { momentLimitaComunicareItm } from "@/domain/ssm/termen-itm";
 
 import { ETICHETE_TIP_ACCIDENT, TONURI_TIP_ACCIDENT } from "../../etichete";
+import { BandaTermenItm } from "../../numaratoare-itm";
 import { FormularComunicareItm } from "./formular-comunicare-itm";
 
 export const metadata: Metadata = { title: "Accident de muncă" };
@@ -54,8 +55,7 @@ export default async function PaginaAccident({ params }: ProprietatiPagina) {
     accident.ora_producerii,
     termenOre,
   );
-  const oreRamase =
-    accident.comunicat_la_itm_la === null ? oreRamasePanaLaTermen(momentLimita, new Date()) : null;
+  const acum = new Date().toISOString();
 
   // `titlu` și `descriere` sunt șiruri, nu JSX: componenta le cere așa. Textul
   // rămâne cuvânt cu cuvânt, doar nuanțarea numărului intern se pierde.
@@ -87,20 +87,22 @@ export default async function PaginaAccident({ params }: ProprietatiPagina) {
         }
       />
 
-      {oreRamase === null ? null : (
-        <div
-          role="alert"
-          className={`rounded-panou text-corp border p-4 ${
-            oreRamase >= 0
-              ? "border-warning/40 bg-warning/12 text-foreground"
-              : "border-danger/40 bg-danger/8 text-danger"
-          }`}
-        >
-          {oreRamase >= 0
-            ? `Nu a fost încă comunicat la ITM. Mai sunt ${oreRamase.toFixed(1)} ore până la termenul legal.`
-            : `Nu a fost încă comunicat la ITM. Termenul legal a fost depășit cu ${Math.abs(oreRamase).toFixed(1)} ore.`}
-        </div>
-      )}
+      {accident.comunicat_la_itm_la === null ? (
+        <BandaTermenItm momentLimita={momentLimita.toISOString()} acumInitial={acum} />
+      ) : null}
+
+      {/* Formularul de comunicare urcă IMEDIAT sub bandă: era ultimul lucru de
+          pe pagină, sub împrejurări, deși e singura acțiune cu ceas legal de pe
+          ecran. Numărătoarea și butonul care o oprește stau împreună. */}
+      {poateActualiza ? (
+        <FormularComunicareItm
+          id={accident.id}
+          comunicatLaItm={accident.comunicat_la_itm_la}
+          numarProcesVerbal={accident.numar_proces_verbal}
+          cercetareFinalizata={accident.cercetare_finalizata_la}
+          zileIncapacitate={accident.zile_incapacitate}
+        />
+      ) : null}
 
       <section
         aria-label="Detalii accident"
@@ -110,10 +112,13 @@ export default async function PaginaAccident({ params }: ProprietatiPagina) {
         <Camp eticheta="Zile de incapacitate" valoare={String(accident.zile_incapacitate)} />
         <Camp
           eticheta="Comunicat la ITM"
+          // `comunicat_la_itm_la` e `timestamptz` și se completează cu un
+          // `datetime-local`: se salvează un MOMENT, deci se afișează un moment.
+          // `.slice(0, 10)` arunca exact ora, care e miezul obligației legale.
           valoare={
             accident.comunicat_la_itm_la === null
               ? "Nu"
-              : formatDate(accident.comunicat_la_itm_la.slice(0, 10))
+              : formatDateTime(accident.comunicat_la_itm_la)
           }
         />
         <Camp eticheta="Număr proces verbal" valoare={accident.numar_proces_verbal ?? "—"} />
@@ -137,15 +142,6 @@ export default async function PaginaAccident({ params }: ProprietatiPagina) {
           </>
         )}
       </section>
-
-      {poateActualiza ? (
-        <FormularComunicareItm
-          id={accident.id}
-          comunicatLaItm={accident.comunicat_la_itm_la}
-          cercetareFinalizata={accident.cercetare_finalizata_la}
-          zileIncapacitate={accident.zile_incapacitate}
-        />
-      ) : null}
     </div>
   );
 }

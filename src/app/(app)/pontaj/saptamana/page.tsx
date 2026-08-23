@@ -11,11 +11,12 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { todayInBucharest } from "@/lib/format/date";
 import { idFisaProprie } from "@/lib/queries/employees";
-import { citesteSaptamanaPontaj } from "@/lib/queries/attendance";
+import { citesteSaptamanaPontaj, setariPontaj } from "@/lib/queries/attendance";
+import { zileNelucratoare } from "@/lib/queries/leave";
 import { adaugaZile, esteLuni, lunieaUrmatoare } from "@/domain/attendance/saptamana";
 
 import { NavPontaj } from "../nav-pontaj";
-import { ETICHETE_STARE_SAPTAMANA, TONURI_STARE_SAPTAMANA } from "../etichete";
+import { ETICHETE_STARE_SAPTAMANA, TONURI_STARE_SAPTAMANA, esteZiLucratoare } from "../etichete";
 import { FormularSaptamana } from "./formular-saptamana";
 
 export const metadata: Metadata = { title: "Planul săptămânii" };
@@ -55,13 +56,40 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
     saptamanaStart,
   );
 
+  /*
+   * Implicitul se calcula ca 8 ore „La birou” pentru toate cele ȘAPTE zile,
+   * sâmbăta și duminica incluse: cine deschidea ecranul și apăsa direct
+   * „Trimite spre aprobare” declara 56 de ore planificate pe săptămână, dintre
+   * care 16 într-un weekend pe care nu-l alesese nimeni. Norma zilnică vine
+   * din `attendance_settings` (fără rând de setări, 8 — același implicit ca în
+   * `celula-zi.tsx`), iar zilele nelucrătoare pornesc de la 0: le poate ridica
+   * oricine are nevoie, dar acum e o alegere, nu o valoare moștenită.
+   */
+  const saptamanaSfarsit = adaugaZile(saptamanaStart, 6);
+  const anInceput = Number(saptamanaStart.slice(0, 4));
+  const anSfarsit = Number(saptamanaSfarsit.slice(0, 4));
+  const [setari, { nationale, organizatie }] = await Promise.all([
+    setariPontaj(tenant.organizationId, saptamanaStart),
+    // O săptămână poate călări două ani (28 decembrie – 3 ianuarie).
+    zileNelucratoare(tenant.organizationId, anInceput, anSfarsit),
+  ]);
+  const orePeZi = setari?.ore_pe_zi ?? 8;
+  const setNationale = new Set(nationale.map((z) => z.data));
+  const setRecuperare = new Set(
+    organizatie.filter((z) => z.tip === "zi_recuperare").map((z) => z.data),
+  );
+  const setLiber = new Set(
+    organizatie.filter((z) => z.tip === "liber_suplimentar").map((z) => z.data),
+  );
+
   const zileInitiale = Array.from({ length: 7 }, (_, i) => {
     const data = adaugaZile(saptamanaStart, i);
     const existenta = submisie?.zile.find((z) => z.data === data) ?? null;
+    const lucratoare = esteZiLucratoare(data, setNationale, setRecuperare, setLiber);
     return {
       data,
       tip_prezenta: existenta?.tip_prezenta ?? "birou",
-      ore_planificate: String(existenta?.ore_planificate ?? 8),
+      ore_planificate: String(existenta?.ore_planificate ?? (lucratoare ? orePeZi : 0)),
       observatii: existenta?.observatii ?? "",
     };
   });

@@ -4,11 +4,14 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Trash2 } from "lucide-react";
+
 import { Buton } from "@/components/ui/buton";
+import { ConfirmareActiune } from "@/components/ui/dialog";
 import { formatLei } from "@/lib/format/money";
 import { ETICHETE_TIP_PRIMA, ETICHETE_TIP_RETINERE } from "@/domain/payroll/etichete";
 import type { RandPrimaPerioada, RandRetinerePerioada } from "@/lib/queries/payroll";
-import { adaugaPrima, adaugaRetinere } from "../actions";
+import { adaugaPrima, adaugaRetinere, stergePrima, stergeRetinere } from "../actions";
 
 const TIPURI_PRIMA = Object.keys(ETICHETE_TIP_PRIMA);
 const TIPURI_RETINERE = Object.keys(ETICHETE_TIP_RETINERE);
@@ -20,7 +23,17 @@ interface Proprietati {
   readonly salariuBaza: number;
   readonly prime: readonly RandPrimaPerioada[];
   readonly retineri: readonly RandRetinerePerioada[];
+  /** `payroll:update` — dreptul de a corecta o ajustare introdusă greșit. */
+  readonly poateSterge: boolean;
 }
+
+/** Ajustarea pentru care se așteaptă confirmarea ștergerii. */
+type DeSters = Readonly<{
+  fel: "prima" | "retinere";
+  id: string;
+  eticheta: string;
+  suma: string;
+}>;
 
 export function RandAngajatDraft({
   periodId,
@@ -29,11 +42,19 @@ export function RandAngajatDraft({
   salariuBaza,
   prime,
   retineri,
+  poateSterge,
 }: Proprietati) {
   const router = useRouter();
   const [formular, setFormular] = useState<"prima" | "retinere" | null>(null);
   const [inCurs, porneste] = useTransition();
   const [eroare, setEroare] = useState<string | null>(null);
+  /*
+   * O primă tastată greșit nu se putea nici corecta, nici șterge: modulul avea
+   * `adaugaPrima` și `adaugaRetinere` și nimic altceva, iar suma greșită intra
+   * în calcul așa cum era. Ștergerea e soft delete, iar politica RLS o
+   * acceptă doar cât timp perioada e ÎNCĂ în ciornă.
+   */
+  const [deSters, setDeSters] = useState<DeSters | null>(null);
   const idTip = useId();
   const idSuma = useId();
   const idMotiv = useId();
@@ -81,6 +102,21 @@ export function RandAngajatDraft({
     });
   }
 
+  function confirmaStergerea(tinta: DeSters): void {
+    setEroare(null);
+    porneste(async () => {
+      const rezultat =
+        tinta.fel === "prima"
+          ? await stergePrima({ id: tinta.id })
+          : await stergeRetinere({ id: tinta.id });
+      if (!rezultat.ok) {
+        setEroare(rezultat.error.message);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -115,23 +151,83 @@ export function RandAngajatDraft({
       {prime.length === 0 && retineri.length === 0 ? null : (
         <ul className="text-corp space-y-1">
           {prime.map((p) => (
-            <li key={p.id} className="text-success flex items-center gap-2">
-              <span>+ {formatLei(p.suma)}</span>
-              <span className="text-muted-foreground">
+            <li key={p.id} className="flex items-center gap-2">
+              <span className="text-success">+ {formatLei(p.suma)}</span>
+              <span className="text-muted-foreground min-w-0 flex-1">
                 {ETICHETE_TIP_PRIMA[p.tip] ?? p.tip} — {p.motiv}
               </span>
+              {!poateSterge ? null : (
+                <Buton
+                  varianta="tertiar"
+                  marime="iconita"
+                  aria-label={`Șterge prima de ${formatLei(p.suma)}`}
+                  onClick={() => {
+                    setDeSters({
+                      fel: "prima",
+                      id: p.id,
+                      eticheta: `${ETICHETE_TIP_PRIMA[p.tip] ?? p.tip} — ${p.motiv}`,
+                      suma: formatLei(p.suma),
+                    });
+                  }}
+                >
+                  <Trash2 aria-hidden="true" className="size-4" />
+                </Buton>
+              )}
             </li>
           ))}
           {retineri.map((r) => (
-            <li key={r.id} className="text-danger flex items-center gap-2">
-              <span>− {formatLei(r.suma)}</span>
-              <span className="text-muted-foreground">
+            <li key={r.id} className="flex items-center gap-2">
+              <span className="text-danger">− {formatLei(r.suma)}</span>
+              <span className="text-muted-foreground min-w-0 flex-1">
                 {ETICHETE_TIP_RETINERE[r.tip] ?? r.tip} — {r.motiv}
               </span>
+              {!poateSterge ? null : (
+                <Buton
+                  varianta="tertiar"
+                  marime="iconita"
+                  aria-label={`Șterge reținerea de ${formatLei(r.suma)}`}
+                  onClick={() => {
+                    setDeSters({
+                      fel: "retinere",
+                      id: r.id,
+                      eticheta: `${ETICHETE_TIP_RETINERE[r.tip] ?? r.tip} — ${r.motiv}`,
+                      suma: formatLei(r.suma),
+                    });
+                  }}
+                >
+                  <Trash2 aria-hidden="true" className="size-4" />
+                </Buton>
+              )}
             </li>
           ))}
         </ul>
       )}
+
+      <ConfirmareActiune
+        deschis={deSters !== null}
+        laInchidere={() => {
+          setDeSters(null);
+        }}
+        titlu={deSters?.fel === "retinere" ? "Ștergeți reținerea?" : "Ștergeți prima?"}
+        consecinta="Suma iese din calculul lunii. Ștergerea se poate face doar cât perioada e în ciornă; după calcul, corecția cere o redeschidere."
+        cifre={
+          deSters === null
+            ? []
+            : [
+                { eticheta: "Angajat", valoare: nume },
+                { eticheta: "Ajustare", valoare: deSters.eticheta },
+                { eticheta: "Sumă", valoare: deSters.suma },
+              ]
+        }
+        etichetaConfirmare="Șterge"
+        distructiv
+        inCurs={inCurs}
+        laConfirmare={() => {
+          const tinta = deSters;
+          setDeSters(null);
+          if (tinta !== null) confirmaStergerea(tinta);
+        }}
+      />
 
       {formular === "prima" ? (
         <form

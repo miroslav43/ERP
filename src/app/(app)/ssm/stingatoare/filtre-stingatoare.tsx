@@ -55,7 +55,9 @@ export function FiltreStingatoare({
       <Camp nume="status" eticheta="Stare" fel="select" className="w-full sm:w-48">
         {(atribute) => (
           <select {...atribute} key={status ?? ""} defaultValue={status ?? ""}>
-            <option value="">Toate</option>
+            {/* NU „Toate": fără filtru, citirea exclude stingătoarele casate,
+                exact ca `contorStingatoare`. Eticheta spune ce se vede. */}
+            <option value="">În uz (activ și în service)</option>
             {STATUS_STINGATOR.map((s) => (
               <option key={s} value={s}>
                 {ETICHETE_STATUS_STINGATOR[s]}

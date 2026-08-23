@@ -99,10 +99,23 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
   const poateAnula =
     can(permisiuni, "leave:update", "own") &&
     (cerere.status === "ciorna" || cerere.status === "trimisa");
+  const esteCiorna = cerere.status === "ciorna";
 
   return (
     <div className="space-y-6">
       <AntetPagina
+        // Ecranul cel mai vizitat al modulului era singurul din cele șapte fără
+        // NICIO cale de întoarcere: nici bandă de file, nici firimitură, nici
+        // link „înapoi”. Se ajunge aici din listă, din coada de aprobări și din
+        // portal, iar singura ieșire era butonul de înapoi al browserului.
+        // Firimitura, nu banda de file: pe o fișă, „unde sunt” valorează mai
+        // mult decât „ce alte ecrane mai există”.
+        firimituri={[
+          { eticheta: "Concedii", href: "/concedii" },
+          {
+            eticheta: `${formatDate(cerere.data_inceput)} – ${formatDate(cerere.data_sfarsit)}`,
+          },
+        ]}
         titlu={tip?.denumire ?? "Cerere de concediu"}
         descriere={`${angajat !== null ? `${angajat.full_name} (${angajat.marca}) · ` : ""}${formatDate(
           cerere.data_inceput,
@@ -208,9 +221,10 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
         <h2 id="titlu-aprobare" className="text-sectiune mb-4 font-medium">
           Lanțul de aprobare
         </h2>
-        {cerere.status === "ciorna" ? (
+        {esteCiorna ? (
           <p className="text-muted-foreground text-corp">
-            Cererea este încă o ciornă; lanțul de aprobare se generează la trimitere.
+            Cererea este încă o ciornă: nimeni nu a fost anunțat, iar zilele nu sunt rezervate.
+            Lanțul de aprobare se generează în momentul trimiterii.
           </p>
         ) : lant.length === 0 ? (
           // Solicitantul vede lanțul GOL dacă nu e el însuși aprobator:
@@ -272,7 +286,7 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
         </section>
       ) : null}
 
-      {poateAnula ? <ActiuniCerere cerereId={cerere.id} /> : null}
+      {poateAnula ? <ActiuniCerere cerereId={cerere.id} esteCiorna={esteCiorna} /> : null}
     </div>
   );
 }

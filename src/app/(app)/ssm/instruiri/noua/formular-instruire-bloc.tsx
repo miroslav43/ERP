@@ -54,12 +54,31 @@ interface AngajatOptiune {
  */
 const ID_EROARE_ANGAJATI = "camp-employee_ids-eroare";
 
+/**
+ * Plafonul unei singure înregistrări, ținut în sincron cu
+ * `instruireBlocSchema`: `employee_ids: z.array(z.uuid()).min(1, …).max(200)`.
+ *
+ * ── DE CE E ÎN CONTROL, NU DOAR ÎN SCHEMĂ ─────────────────────────────────
+ * „Selectează toți cei afișați" bifa până la 500 de oameni (atâția încarcă
+ * pagina), iar `.max(200)` respingea apoi ÎNTREAGA trimitere. Formularul nu
+ * scria nimic, nici măcar primii 200: un insert de N rânduri e o singură
+ * instrucțiune, deci totul sau nimic. Omul care tocmai încheiase instruirea cu
+ * tot schimbul primea un refuz sub buton, după ce completase nouă câmpuri.
+ *
+ * Plafonul se vede acum ÎNAINTE de trimitere: butonul spune câți selectează,
+ * bifele nebifate se blochează la limită, iar legenda o scrie cu cifre.
+ */
+const LIMITA_ANGAJATI_PE_INREGISTRARE = 200;
+
 export function FormularInstruireBloc({
   tipuri,
   angajati,
+  totalAngajati,
 }: {
   readonly tipuri: readonly TipOptiune[];
   readonly angajati: readonly AngajatOptiune[];
+  /** Câți angajați activi există CU ADEVĂRAT — lista de sus e tăiată la 500. */
+  readonly totalAngajati: number;
 }) {
   const router = useRouter();
   const [selectati, setSelectati] = useState<ReadonlySet<string>>(new Set());
@@ -79,14 +98,18 @@ export function FormularInstruireBloc({
     setSelectati((prev) => {
       const nou = new Set(prev);
       if (nou.has(id)) nou.delete(id);
-      else nou.add(id);
+      else if (nou.size < LIMITA_ANGAJATI_PE_INREGISTRARE) nou.add(id);
       return nou;
     });
   }
 
   function selecteazaToti(): void {
-    setSelectati(new Set(angajatiFiltrati.map((a) => a.id)));
+    setSelectati(
+      new Set(angajatiFiltrati.slice(0, LIMITA_ANGAJATI_PE_INREGISTRARE).map((a) => a.id)),
+    );
   }
+
+  const deSelectat = Math.min(angajatiFiltrati.length, LIMITA_ANGAJATI_PE_INREGISTRARE);
 
   async function trimite(formular: FormData) {
     const text = (cheie: string) => {
@@ -264,6 +287,20 @@ export function FormularInstruireBloc({
                 Angajați ({selectati.size} selectați din {angajati.length})
               </legend>
 
+              {angajati.length < totalAngajati ? (
+                <p className="text-muted-foreground text-nota">
+                  Lista arată primii {angajati.length} angajați activi din {totalAngajati}.
+                  Restrângeți căutarea ca să ajungeți la ceilalți.
+                </p>
+              ) : null}
+
+              {selectati.size >= LIMITA_ANGAJATI_PE_INREGISTRARE ? (
+                <p role="status" className="text-foreground text-nota">
+                  Ați atins limita de {LIMITA_ANGAJATI_PE_INREGISTRARE} de angajați pe o singură
+                  înregistrare. Debifați pe cineva sau înregistrați restul separat.
+                </p>
+              ) : null}
+
               {eroriAngajati.length > 0 ? (
                 <p id={ID_EROARE_ANGAJATI} role="alert" className="text-danger text-nota">
                   {eroriAngajati.join(" ")}
@@ -285,7 +322,9 @@ export function FormularInstruireBloc({
                   className={cn(clasaControl(), "min-w-56 flex-1")}
                 />
                 <Buton varianta="secundar" onClick={selecteazaToti}>
-                  Selectează toți cei afișați
+                  {angajatiFiltrati.length > LIMITA_ANGAJATI_PE_INREGISTRARE
+                    ? `Selectează primii ${deSelectat}`
+                    : "Selectează toți cei afișați"}
                 </Buton>
                 <Buton
                   varianta="secundar"
@@ -312,6 +351,11 @@ export function FormularInstruireBloc({
                         type="checkbox"
                         className={clasaBifa}
                         checked={selectati.has(a.id)}
+                        // La limită se blochează DOAR bifele nebifate: debifarea
+                        // trebuie să rămână posibilă, altfel selecția se închide.
+                        disabled={
+                          !selectati.has(a.id) && selectati.size >= LIMITA_ANGAJATI_PE_INREGISTRARE
+                        }
                         onChange={() => {
                           comuta(a.id);
                         }}

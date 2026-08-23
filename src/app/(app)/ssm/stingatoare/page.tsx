@@ -44,12 +44,21 @@ function CelulaScadenta({
   data,
   scadenta,
   azi,
+  casat,
 }: {
   readonly areInregistrare: boolean;
   readonly data: string | null;
   readonly scadenta: string | null;
   readonly azi: string;
+  readonly casat: boolean;
 }) {
+  // Un stingător casat nu mai are obligație de verificare, de reîncărcare sau
+  // de probă de presiune. Evaluat ca oricare altul, apărea cu trei „Expirat"
+  // pe care contorul de pe panou nu le număra — două ecrane care se contrazic.
+  if (casat) {
+    return <Scadenta treapta="neaplicabil">Nu se mai urmărește</Scadenta>;
+  }
+
   const stare = stareScadentaSsm(areInregistrare, scadenta, azi);
   return (
     <span className="whitespace-nowrap">
@@ -146,6 +155,7 @@ async function TabelStingatoare({
           data={s.ultima_verificare}
           scadenta={s.scadenta_verificare}
           azi={azi}
+          casat={s.status === "casat"}
         />
       ),
     },
@@ -159,6 +169,7 @@ async function TabelStingatoare({
           data={s.ultima_reincarcare}
           scadenta={s.scadenta_reincarcare}
           azi={azi}
+          casat={s.status === "casat"}
         />
       ),
     },
@@ -172,6 +183,7 @@ async function TabelStingatoare({
           data={s.ultima_proba_presiune}
           scadenta={s.scadenta_proba_presiune}
           azi={azi}
+          casat={s.status === "casat"}
         />
       ),
     },

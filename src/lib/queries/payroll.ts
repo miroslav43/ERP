@@ -188,19 +188,71 @@ export interface RandInregistrare {
   readonly cost_total_angajator: number;
 }
 
-export async function listeazaInregistrari(periodId: string): Promise<readonly RandInregistrare[]> {
+export interface RezultatInregistrari {
+  readonly randuri: readonly RandInregistrare[];
+  /** Citirea a atins plafonul de siguranță — registrul NU e complet. */
+  readonly trunchiat: boolean;
+}
+
+const PAGINA_INREGISTRARI = 500;
+/** 500 × 100 = 50.000 de fluturași într-o lună. Peste atât, ceva e greșit. */
+const MAXIM_PAGINI_INREGISTRARI = 100;
+
+/**
+ * Registrul de fluturași al unei perioade.
+ *
+ * Două defecte reparate față de varianta anterioară:
+ *
+ * 1. Citirea nu avea `.limit()` și nu pagina, deci de la al 1001-lea fluturaș
+ *    PostgREST tăia tăcut (`max_rows = 1000`, supabase/config.toml) — iar
+ *    totalurile perioadei, care se citesc din `payroll_periods`, rămâneau cele
+ *    întregi. Rezultatul: un tabel a cărui sumă nu dă banda de sus, fără nicio
+ *    eroare. Acum se parcurge în pagini după `id`, iar plafonul de siguranță se
+ *    raportează.
+ * 2. Ordonarea era `employee_id`, adică un `uuid`: coloana „Angajat" ieșea în
+ *    ordine aleatoare pentru omul care caută o persoană între două sute de
+ *    rânduri. PostgREST nu poate ordona rândurile părinte după o coloană a
+ *    resursei încorporate, deci ordonarea pe nume se face aici, după citire.
+ */
+export async function listeazaInregistrari(periodId: string): Promise<RezultatInregistrari> {
   const db = await createServerSupabase();
-  const { data, error } = await db
-    .from("payroll_entries")
-    .select(
-      "id, employee_id, brut, net, net_de_plata, cost_total_angajator, angajat:employees!employee_id(full_name, marca)",
-    )
-    .eq("period_id", periodId)
-    .is("deleted_at", null)
-    .order("employee_id", { ascending: true })
-    .returns<RandInregistrare[]>();
-  if (error !== null) throw error;
-  return data ?? [];
+  const randuri: RandInregistrare[] = [];
+  let dupaId: string | null = null;
+  let trunchiat = true;
+
+  for (let pagina = 0; pagina < MAXIM_PAGINI_INREGISTRARI; pagina += 1) {
+    let interogare = db
+      .from("payroll_entries")
+      .select(
+        "id, employee_id, brut, net, net_de_plata, cost_total_angajator, angajat:employees!employee_id(full_name, marca)",
+      )
+      .eq("period_id", periodId)
+      .is("deleted_at", null)
+      .order("id", { ascending: true })
+      .limit(PAGINA_INREGISTRARI);
+    if (dupaId !== null) interogare = interogare.gt("id", dupaId);
+
+    const { data, error } = await interogare.returns<RandInregistrare[]>();
+    if (error !== null) throw error;
+    const lot = data ?? [];
+    randuri.push(...lot);
+
+    if (lot.length < PAGINA_INREGISTRARI) {
+      trunchiat = false;
+      break;
+    }
+    dupaId = lot[lot.length - 1]?.id ?? null;
+    if (dupaId === null) {
+      trunchiat = false;
+      break;
+    }
+  }
+
+  const numeleLui = (r: RandInregistrare): string =>
+    r.angajat?.full_name || (r.angajat?.marca ?? "");
+  randuri.sort((a, b) => numeleLui(a).localeCompare(numeleLui(b), "ro"));
+
+  return { randuri, trunchiat };
 }
 
 export interface DetaliuInregistrare {
@@ -479,6 +531,84 @@ export async function angajatiActiviCuContract(
   }
 
   return { angajati, faraContract, trunchiat };
+}
+
+export interface AngajatDeAles {
+  readonly employee_id: string;
+  readonly full_name: string;
+  readonly marca: string;
+  readonly status: string;
+}
+
+export interface RezultatAngajatiDeAles {
+  readonly angajati: readonly AngajatDeAles[];
+  /** Citirea a atins plafonul de siguranță — lista NU e completă. */
+  readonly trunchiat: boolean;
+}
+
+/**
+ * Toți angajații organizației, pentru alegerile care NU depind de o lună.
+ *
+ * `angajatiActiviCuContract` răspunde la „pe cine calculez luna asta"; ecranul
+ * de istoric de venituri pune însă întrebarea inversă — venituri realizate
+ * ÎNAINTE ca firma să folosească aplicația, adesea la alt angajator. Filtrate
+ * prin luna curentă, tocmai persoanele care au nevoie de istoric (contract
+ * început mai târziu, contract încheiat între timp) lipseau din `<select>`,
+ * deci istoricul lor nu se putea introduce deloc — o fundătură tăcută, nu o
+ * eroare.
+ *
+ * Se întorc și cei inactivi: indemnizația de concediu medical se calculează pe
+ * media ultimelor șase luni, iar un angajat reangajat are nevoie de lunile de
+ * dinainte.
+ */
+export async function totiAngajatiiDeAles(organizationId: string): Promise<RezultatAngajatiDeAles> {
+  const db = await createServerSupabase();
+  const angajati: AngajatDeAles[] = [];
+  let dupaId: string | null = null;
+  let trunchiat = true;
+
+  for (let pagina = 0; pagina < MAXIM_PAGINI; pagina += 1) {
+    let interogare = db
+      .from("employees")
+      .select("id, full_name, marca, status")
+      .eq("organization_id", organizationId)
+      .is("deleted_at", null)
+      .order("id", { ascending: true })
+      .limit(PAGINA_ANGAJATI);
+    if (dupaId !== null) interogare = interogare.gt("id", dupaId);
+
+    const { data, error } =
+      await interogare.returns<
+        { id: string; full_name: string; marca: string; status: string }[]
+      >();
+    if (error !== null) throw error;
+    const lot = data ?? [];
+    for (const a of lot) {
+      angajati.push({
+        employee_id: a.id,
+        full_name: a.full_name,
+        marca: a.marca,
+        status: a.status,
+      });
+    }
+
+    if (lot.length < PAGINA_ANGAJATI) {
+      trunchiat = false;
+      break;
+    }
+    dupaId = lot[lot.length - 1]?.id ?? null;
+    if (dupaId === null) {
+      trunchiat = false;
+      break;
+    }
+  }
+
+  // Ordinea de citire e după `id` (uuid), fiindcă asta cere cursorul keyset;
+  // ordinea de AFIȘARE trebuie să fie alfabetică, altfel lista de nume e o
+  // înșiruire la întâmplare.
+  angajati.sort((a, b) => (a.full_name || a.marca).localeCompare(b.full_name || b.marca, "ro"));
+
+  return { angajati, trunchiat };
 }
 
 /**

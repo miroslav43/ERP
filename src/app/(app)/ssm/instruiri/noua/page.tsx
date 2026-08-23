@@ -44,9 +44,12 @@ export default async function PaginaInstruireNoua() {
   }
 
   const db = await createServerSupabase();
-  const { data: angajati } = await db
+  // `count: "exact"` pe lângă `.limit(500)`: lista de bifat se tăia tăcut la 500,
+  // iar formularul afișa „din {angajati.length}" ca și cum ar fi fost totalul.
+  // Într-o firmă cu 812 activi, 312 oameni lipseau din listă fără niciun semn.
+  const { data: angajati, count: totalAngajati } = await db
     .from("employees")
-    .select("id, full_name, marca")
+    .select("id, full_name, marca", { count: "exact" })
     .eq("organization_id", tenant.organizationId)
     .eq("status", "activ")
     .is("deleted_at", null)
@@ -73,6 +76,7 @@ export default async function PaginaInstruireNoua() {
           full_name: a.full_name,
           marca: a.marca,
         }))}
+        totalAngajati={totalAngajati ?? (angajati ?? []).length}
       />
     </div>
   );

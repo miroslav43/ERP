@@ -207,7 +207,25 @@ export default async function PaginaSoldConcediu({ searchParams }: ProprietatiPa
     .is("deleted_at", null)
     .maybeSingle<{ id: string }>();
 
-  const istoric = await istoricSold(tenant.organizationId, an);
+  const { randuri: istoric, trunchiat: istoricTrunchiat } = await istoricSold(
+    tenant.organizationId,
+    an,
+  );
+
+  // Numele mișcărilor din istoric. Se citesc DOAR peste scope „own”: pentru cine
+  // vede numai propriul sold, toate liniile sunt ale lui și o coloană „Angajat”
+  // ar repeta același nume de N ori.
+  let hartaAngajatiIstoric = new Map<string, AngajatMinim>();
+  if (scope !== "own" && istoric.length > 0) {
+    const idAngajatiIstoric = [...new Set(istoric.map((rand) => rand.employee_id))];
+    const { data: angajatiIstoric } = await db
+      .from("employees")
+      .select("id, full_name, marca")
+      .eq("organization_id", tenant.organizationId)
+      .in("id", idAngajatiIstoric)
+      .returns<AngajatMinim[]>();
+    hartaAngajatiIstoric = new Map((angajatiIstoric ?? []).map((a) => [a.id, a]));
+  }
 
   return (
     <div className="space-y-6">
@@ -271,7 +289,13 @@ export default async function PaginaSoldConcediu({ searchParams }: ProprietatiPa
             }
           />
         ) : (
-          <IstoricTabel randuri={istoric} tipuri={tipuri} an={an} />
+          <IstoricTabel
+            randuri={istoric}
+            tipuri={tipuri}
+            an={an}
+            trunchiat={istoricTrunchiat}
+            angajati={scope === "own" ? null : hartaAngajatiIstoric}
+          />
         )}
       </section>
     </div>
@@ -343,10 +367,15 @@ function IstoricTabel({
   randuri,
   tipuri,
   an,
+  trunchiat,
+  angajati,
 }: {
   readonly randuri: readonly EvenimentIstoricSold[];
   readonly tipuri: readonly TipConcediu[];
   readonly an: number;
+  readonly trunchiat: boolean;
+  /** `null` pentru scope „own”: coloana „Angajat” n-are ce distinge acolo. */
+  readonly angajati: ReadonlyMap<string, AngajatMinim> | null;
 }) {
   const hartaTipuri = new Map(tipuri.map((t) => [t.id, t]));
   const randuriIndexate: readonly RandIstoric[] = randuri.map((rand, index) => ({
@@ -354,11 +383,29 @@ function IstoricTabel({
     cheie: String(index),
   }));
 
+  // Prima coloană, nu ultima: peste scope „own” e singura care spune a cui e
+  // linia, iar pe telefon devine titlul cardului.
+  const coloanaAngajat: readonly Coloana<RandIstoric>[] =
+    angajati === null
+      ? []
+      : [
+          {
+            cheie: "angajat",
+            antet: "Angajat",
+            peTelefon: "titlu",
+            celula: (rand) => {
+              const angajat = angajati.get(rand.employee_id);
+              return angajat === undefined ? "—" : `${angajat.full_name} (${angajat.marca})`;
+            },
+          },
+        ];
+
   const coloane: readonly Coloana<RandIstoric>[] = [
+    ...coloanaAngajat,
     {
       cheie: "eveniment",
       antet: "Eveniment",
-      peTelefon: "titlu",
+      peTelefon: angajati === null ? "titlu" : "meta",
       celula: (rand) => ETICHETE_EVENIMENT[rand.eveniment] ?? rand.eveniment,
     },
     {
@@ -407,6 +454,7 @@ function IstoricTabel({
       randuri={randuriIndexate}
       cheieRand={(rand) => rand.cheie}
       densitate="compact"
+      trunchiat={trunchiat}
       gol={null}
     />
   );

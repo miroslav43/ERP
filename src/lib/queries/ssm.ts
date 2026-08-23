@@ -678,7 +678,17 @@ export async function stingatoare(
     .order("id", { ascending: crescator })
     .limit(filtre.limita + 1);
 
+  // Casatele ies din listă cât timp nu sunt cerute EXPLICIT prin filtru.
+  //
+  // `contorStingatoare` le exclude de la bun început (`.neq` mai jos, în acest
+  // fișier), lista nu le excludea — iar cele trei scadențe li se evaluau ca
+  // oricărui alt stingător. Rezultatul se vedea pe același ecran: panoul spunea
+  // „3 verificări scadente", lista deschisă din el arăta cinci rânduri
+  // „Expirat", două dintre ele pe stingătoare scoase din uz acum doi ani. Un
+  // stingător casat nu mai are obligație de verificare; a-l număra printre
+  // restanțe e o cifră greșită fără nicio eroare.
   if (filtre.status !== null) interogare = interogare.eq("status", filtre.status);
+  else interogare = interogare.neq("status", "casat");
   if (filtre.cauta !== null) interogare = interogare.ilike("cod", `%${filtre.cauta}%`);
 
   const cursor = filtre.cursor === null ? null : decodificaCursor(filtre.cursor);

@@ -30,11 +30,12 @@ import {
   contorInstruiri,
   contorStingatoare,
 } from "@/lib/queries/ssm";
-import { momentLimitaComunicareItm, oreRamasePanaLaTermen } from "@/domain/ssm/termen-itm";
+import { momentLimitaComunicareItm } from "@/domain/ssm/termen-itm";
 
 import { DosarulMeu } from "./dosarul-meu";
 import { ETICHETE_TIP_ACCIDENT, TONURI_TIP_ACCIDENT } from "./etichete";
 import { NavSsm } from "./nav-ssm";
+import { NumaratoareItm } from "./numaratoare-itm";
 
 export const metadata: Metadata = { title: "SSM și PSI" };
 
@@ -75,7 +76,7 @@ async function BandaAccidente({ organizationId }: { readonly organizationId: str
     organizationId,
     accidente.map((a) => a.employee_id).filter((id): id is string => id !== null),
   );
-  const acum = new Date();
+  const acum = new Date().toISOString();
 
   return (
     <section
@@ -83,34 +84,52 @@ async function BandaAccidente({ organizationId }: { readonly organizationId: str
       role="alert"
       className="border-danger/40 bg-danger/8 rounded-panou space-y-3 border p-4"
     >
-      <h2
-        id="accidente-necomunicate"
-        className="text-danger text-corp flex items-center gap-2 font-semibold"
-      >
-        <ShieldAlert aria-hidden="true" className="size-4" />
-        Accidente necomunicate la ITM
-      </h2>
-      <ul className="space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2
+          id="accidente-necomunicate"
+          className="text-danger text-corp flex items-center gap-2 font-semibold"
+        >
+          <ShieldAlert aria-hidden="true" className="size-4" />
+          Accidente necomunicate la ITM
+        </h2>
+        {/* Banda era singurul ceas legal din produs și NU avea niciun link:
+            se vedea că expiră ceva și nu se putea ajunge la el.
+            `accidenteNecomunicate` citește cel mult 50 de rânduri, deci la fix
+            50 nu se poate afirma o cifră — se spune fără ea. */}
+        <Link
+          href="/ssm/accidente?necomunicate=1"
+          className="text-corp underline-offset-2 hover:underline"
+        >
+          {accidente.length === 50
+            ? "Vezi toate accidentele necomunicate"
+            : `Vezi toate cele ${String(accidente.length)} necomunicate`}
+        </Link>
+      </div>
+      <ul className="space-y-1">
         {accidente.map((a) => {
           const ore = a.termen_comunicare_ore ?? 24;
           const limita = momentLimitaComunicareItm(a.data_producerii, a.ora_producerii, ore);
-          const raman = oreRamasePanaLaTermen(limita, acum);
           const angajat = a.employee_id === null ? undefined : angajati.get(a.employee_id);
           return (
-            <li key={a.id} className="text-corp flex flex-wrap items-center justify-between gap-2">
-              <span>
-                <Badge ton={TONURI_TIP_ACCIDENT[a.tip]} className="mr-2">
-                  {ETICHETE_TIP_ACCIDENT[a.tip]}
-                </Badge>
-                {angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`}
-                {" · "}
-                {formatDate(a.data_producerii)}
-              </span>
-              <span className="text-danger font-medium">
-                {raman >= 0
-                  ? `mai sunt ${raman.toFixed(1)} ore`
-                  : `termen depășit cu ${Math.abs(raman).toFixed(1)} ore`}
-              </span>
+            <li key={a.id}>
+              <Link
+                href={`/ssm/accidente/${a.id}`}
+                className="hover:bg-surface rounded-control text-corp -mx-2 flex flex-wrap items-center justify-between gap-2 px-2 py-1.5"
+              >
+                <span>
+                  <Badge ton={TONURI_TIP_ACCIDENT[a.tip]} className="mr-2">
+                    {ETICHETE_TIP_ACCIDENT[a.tip]}
+                  </Badge>
+                  {angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`}
+                  {" · "}
+                  {formatDate(a.data_producerii)}
+                </span>
+                <NumaratoareItm
+                  momentLimita={limita.toISOString()}
+                  acumInitial={acum}
+                  fel="compact"
+                />
+              </Link>
             </li>
           );
         })}

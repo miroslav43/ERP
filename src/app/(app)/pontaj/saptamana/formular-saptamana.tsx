@@ -64,6 +64,17 @@ export function FormularSaptamana({ saptamanaStart, zileInitiale, poateEdita }: 
 
   const randuri: readonly RandZi[] = zile.map((zi, index) => ({ ...zi, index }));
 
+  /*
+   * Omul introduce șapte cifre și, până acum, nu afla niciodată cât a declarat
+   * în total — deși exact totalul e ce citește managerul. Se calculează aici,
+   * nu într-un `<tfoot>`: subsolul tabelului se randează doar peste 768px, iar
+   * ecranul ăsta e singurul din modul deschis de pe telefon.
+   */
+  const totalPlanificat = zile.reduce((suma, zi) => {
+    const ore = Number(zi.ore_planificate);
+    return suma + (Number.isFinite(ore) ? ore : 0);
+  }, 0);
+
   const coloane: readonly Coloana<RandZi>[] = [
     {
       cheie: "zi",
@@ -155,6 +166,13 @@ export function FormularSaptamana({ saptamanaStart, zileInitiale, poateEdita }: 
         densitate="compact"
         gol={null}
       />
+
+      <p className="border-border bg-surface rounded-panou text-corp flex justify-between border px-4 py-2 font-medium">
+        <span>Total planificat pe săptămână</span>
+        <output aria-live="polite" className="tabular-nums">
+          {totalPlanificat} h
+        </output>
+      </p>
 
       <div aria-live="polite">
         {eroare === null ? null : <p className="text-danger text-corp">{eroare}</p>}

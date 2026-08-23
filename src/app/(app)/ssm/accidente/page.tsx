@@ -16,14 +16,16 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { formatDate } from "@/lib/format/date";
+import { formatDate, formatDateTime } from "@/lib/format/date";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 import { scrieSortare } from "@/lib/queries/cursor";
 import { accidente, angajatiDupaId } from "@/lib/queries/ssm";
 import { filtreAccidenteSchema } from "@/schemas/ssm";
+import { momentLimitaComunicareItm } from "@/domain/ssm/termen-itm";
 
 import { ETICHETE_TIP_ACCIDENT, TONURI_TIP_ACCIDENT } from "../etichete";
 import { NavSsm } from "../nav-ssm";
+import { NumaratoareItm } from "../numaratoare-itm";
 
 export const metadata: Metadata = { title: "Accidente de muncă" };
 
@@ -66,6 +68,7 @@ async function TabelAccidente({
     organizationId,
     randuri.map((a) => a.employee_id).filter((id): id is string => id !== null),
   );
+  const acum = new Date().toISOString();
 
   /**
    * Adresele se construiesc din parametrii EXISTENȚI, nu dintr-un obiect gol:
@@ -107,11 +110,29 @@ async function TabelAccidente({
       celula: (a) => <Badge ton={TONURI_TIP_ACCIDENT[a.tip]}>{ETICHETE_TIP_ACCIDENT[a.tip]}</Badge>,
     },
     {
+      // Coloana spunea „Nu" fără să spună cât mai e, deși `ora_producerii` și
+      // `termen_comunicare_ore` erau deja citite de query. Registrul de
+      // accidente e primul loc unde se uită cineva după un eveniment, iar
+      // întrebarea lui nu e „s-a comunicat?", ci „mai am timp?".
       cheie: "comunicat",
-      antet: "Comunicat ITM",
+      antet: "Termen ITM",
       peTelefon: "meta",
       celula: (a) =>
-        a.comunicat_la_itm_la === null ? <span className="text-danger">Nu</span> : "Da",
+        a.comunicat_la_itm_la === null ? (
+          <NumaratoareItm
+            momentLimita={momentLimitaComunicareItm(
+              a.data_producerii,
+              a.ora_producerii,
+              a.termen_comunicare_ore ?? 24,
+            ).toISOString()}
+            acumInitial={acum}
+            fel="compact"
+          />
+        ) : (
+          <span className="text-muted-foreground whitespace-nowrap">
+            comunicat {formatDateTime(a.comunicat_la_itm_la)}
+          </span>
+        ),
     },
     {
       cheie: "cercetare",

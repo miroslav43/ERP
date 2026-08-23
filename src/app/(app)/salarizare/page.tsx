@@ -12,6 +12,7 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatLei } from "@/lib/format/money";
+import { formatDate } from "@/lib/format/date";
 import { listeazaPerioade, type RandPerioada } from "@/lib/queries/payroll";
 import { Wallet } from "lucide-react";
 
@@ -63,6 +64,15 @@ export default async function PaginaSalarizare() {
           {ETICHETE_STATUS_PERIOADA[p.status] ?? p.status}
         </Badge>
       ),
+    },
+    {
+      // Coloana era CITITĂ din bază (`listeazaPerioade` o cere în `select`) și
+      // aruncată de ecran: singurul loc din produs unde scrie când s-a plătit
+      // luna nu o arăta.
+      cheie: "data_plata",
+      antet: "Data plății",
+      peTelefon: "meta",
+      celula: (p) => (p.data_plata === null ? "—" : formatDate(p.data_plata)),
     },
     {
       cheie: "total_brut",

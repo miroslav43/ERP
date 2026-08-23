@@ -6,14 +6,27 @@ import { useRouter } from "next/navigation";
 import { Buton } from "@/components/ui/buton";
 import { ConfirmareActiune } from "@/components/ui/dialog";
 
-import { aprobaPerioada, calculeazaPerioada, inchidePerioada, trimiteFluturasii } from "../actions";
+import {
+  aprobaPerioada,
+  calculeazaPerioada,
+  inchidePerioada,
+  redeschidePerioada,
+  trimiteFluturasii,
+} from "../actions";
 
 interface Proprietati {
   readonly id: string;
   readonly status: string;
   readonly poateCalcula: boolean;
+  readonly poateModifica: boolean;
   readonly poateAproba: boolean;
   readonly poateExporta: boolean;
+  /**
+   * De ce nu se poate calcula acum, dacă nu se poate. Serverul refuză oricum
+   * (angajați fără contract, citire trunchiată), dar refuzul vine DUPĂ clic,
+   * într-un mesaj de eroare; motivul scris lângă buton îl arată înainte.
+   */
+  readonly blocajCalcul?: string | null;
   /** Cifrele arătate în confirmări: câți oameni și cât se plătește. */
   readonly rezumat: Readonly<{
     perioada: string;
@@ -23,8 +36,8 @@ interface Proprietati {
   }>;
 }
 
-/** Care dintre cele trei acțiuni ireversibile așteaptă confirmare. */
-type ActiuneDeConfirmat = "aproba" | "inchide" | "trimite";
+/** Care dintre acțiunile cu urmări așteaptă confirmare. */
+type ActiuneDeConfirmat = "aproba" | "inchide" | "trimite" | "redeschide";
 
 /**
  * Un singur buton vizibil per stare, ca să nu existe cale de a apăsa
@@ -35,8 +48,10 @@ export function ActiuniPerioada({
   id,
   status,
   poateCalcula,
+  poateModifica,
   poateAproba,
   poateExporta,
+  blocajCalcul = null,
   rezumat,
 }: Proprietati) {
   const router = useRouter();
@@ -93,28 +108,34 @@ export function ActiuniPerioada({
   return (
     <div className="flex flex-wrap items-center gap-3">
       {status === "draft" && poateCalcula ? (
-        <Buton
-          varianta="primar"
-          inCurs={inCurs}
-          textInCurs="Se calculează…"
-          onClick={() => {
-            ruleaza(() => calculeazaPerioada({ id }));
-          }}
-        >
-          Calculează
-        </Buton>
+        <>
+          <Buton
+            varianta="primar"
+            inCurs={inCurs}
+            textInCurs="Se calculează…"
+            disabled={blocajCalcul !== null}
+            onClick={() => {
+              ruleaza(() => calculeazaPerioada({ id }));
+            }}
+          >
+            Calculează
+          </Buton>
+          {blocajCalcul === null ? null : (
+            <p className="text-muted-foreground text-corp">{blocajCalcul}</p>
+          )}
+        </>
       ) : null}
 
-      {status === "calculat" && poateCalcula ? (
+      {status === "calculat" && poateModifica ? (
         <Buton
           varianta="secundar"
           inCurs={inCurs}
-          textInCurs="Se recalculează…"
+          textInCurs="Se redeschide…"
           onClick={() => {
-            ruleaza(() => calculeazaPerioada({ id }));
+            setDeConfirmat("redeschide");
           }}
         >
-          Recalculează
+          Redeschide pentru corecții
         </Buton>
       ) : null}
 
@@ -168,6 +189,25 @@ export function ActiuniPerioada({
           {eroare}
         </p>
       )}
+
+      <ConfirmareActiune
+        deschis={deConfirmat === "redeschide"}
+        laInchidere={() => {
+          setDeConfirmat(null);
+        }}
+        titlu="Redeschideți perioada pentru corecții?"
+        consecinta="Perioada se întoarce în ciornă: primele și reținerile se pot corecta, iar aprobarea rămâne blocată până la un nou calcul. Fluturașii deja scriși rămân în bază, dar ies din ecran până la recalculare, când se REGENEREAZĂ integral — orice verificare făcută pe ei se reia."
+        cifre={[
+          { eticheta: "Perioada", valoare: rezumat.perioada },
+          { eticheta: "Fluturași care se regenerează", valoare: String(rezumat.angajati) },
+        ]}
+        etichetaConfirmare="Redeschide perioada"
+        inCurs={inCurs}
+        laConfirmare={() => {
+          setDeConfirmat(null);
+          ruleaza(() => redeschidePerioada({ id }));
+        }}
+      />
 
       <ConfirmareActiune
         deschis={deConfirmat === "aproba"}

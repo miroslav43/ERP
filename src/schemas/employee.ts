@@ -226,6 +226,63 @@ export type CreeazaAngajatInput = z.infer<typeof creeazaAngajatSchema>;
  * utilizator cu mai multe, ceea ce e o operațiune de administrare, nu o
  * corecție de date.
  */
+/**
+ * Aceleași chei ca `.pick()`-ul de mai jos, ca listă parcurgibilă.
+ *
+ * ── DE CE EXISTĂ ──────────────────────────────────────────────────────────
+ * Câmpurile picate își păstrează `.default(...)` din `creeazaAngajatSchema`.
+ * Pentru un UPDATE, asta înseamnă că o cheie LIPSĂ din obiectul trimis nu se
+ * citește „nu schimba", ci „scrie implicitul". Formularul de editare trimitea
+ * 12 chei din 34; celelalte 22 se scriau ca `null` (sau reveneau la „RO",
+ * „normale", `true`) la fiecare salvare, fără nicio eroare — `UPDATE`-ul
+ * reușea perfect, doar că golea coloane pe care ecranul nici măcar nu le
+ * arătase.
+ *
+ * `formular-angajat.tsx` construiește payload-ul parcurgând lista asta, iar
+ * `employee.test.ts` verifică faptul că lista și `.pick()` conțin exact
+ * aceleași chei. Un câmp adăugat într-un singur loc pică testul, în loc să
+ * șteargă date în tăcere.
+ */
+export const CAMPURI_EDITABILE_ANGAJAT = [
+  "last_name",
+  "first_name",
+  "email_personal",
+  "telefon",
+  "email_serviciu",
+  "telefon_serviciu",
+  "adresa_strada",
+  "adresa_oras",
+  "adresa_judet",
+  "adresa_cod_postal",
+  "adresa_resedinta_strada",
+  "adresa_resedinta_oras",
+  "adresa_resedinta_judet",
+  "adresa_resedinta_cod_postal",
+  "stare_civila",
+  "data_nasterii",
+  "gen",
+  "cetatenie",
+  "tip_act_identitate",
+  "serie_act",
+  "numar_act",
+  "act_eliberat_de",
+  "act_valabil_pana",
+  "department_id",
+  "job_position_id",
+  "manager_employee_id",
+  "hired_on",
+  "conditii_munca",
+  "grad_handicap",
+  "optiune_pilon_ii",
+  "contact_urgenta_nume",
+  "contact_urgenta_telefon",
+  "contact_urgenta_relatie",
+  "observatii",
+  "cnp",
+  "iban",
+  "banca",
+] as const;
+
 export const actualizeazaAngajatSchema = creeazaAngajatSchema
   .pick({
     last_name: true,

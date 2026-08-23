@@ -47,7 +47,7 @@ export default async function PaginaPerioadaDetaliu({ params }: ProprietatiPagin
   const perioada = await citestePerioadaDupaId(tenant.organizationId, id);
   if (perioada === null) notFound();
 
-  const [loturi, liniiNeaprobate, departamenteList] = await Promise.all([
+  const [loturi, { linii: liniiNeaprobate, trunchiat }, departamenteList] = await Promise.all([
     loturiPerioadei(tenant.organizationId, id),
     liniiDeAprobat(tenant.organizationId, id),
     departamente(tenant.organizationId),
@@ -56,8 +56,51 @@ export default async function PaginaPerioadaDetaliu({ params }: ProprietatiPagin
   const idManageri = loturi
     .map((l) => l.manager_employee_id)
     .filter((v): v is string => v !== null);
-  const manageri = await angajatiPontajDupaId(tenant.organizationId, idManageri);
+  // O singură citire din `employees` pentru ambele nevoi: managerii loturilor
+  // și angajații liniilor neaprobate, de care depinde defalcarea de mai jos.
+  const angajati = await angajatiPontajDupaId(tenant.organizationId, [
+    ...idManageri,
+    ...liniiNeaprobate.map((l) => l.employee_id),
+  ]);
   const hartaDepartamente = new Map(departamenteList.map((d) => [d.id, d.denumire]));
+
+  /*
+   * Cifra mare era singurul lucru pe care-l spunea ecranul, deși defalcarea
+   * era deja în memorie: `liniiDeAprobat` întoarce `employee_id`, iar
+   * departamentele tocmai s-au citit. Fără ea, drumul de la „37 de linii” la
+   * omul care le are e: alt ecran, alt filtru, altă lună de ales.
+   */
+  const peDepartament = new Map<string, { zile: number; angajati: Set<string> }>();
+  for (const linie of liniiNeaprobate) {
+    const cheie = angajati.get(linie.employee_id)?.department_id ?? "";
+    const existent = peDepartament.get(cheie);
+    if (existent === undefined) {
+      peDepartament.set(cheie, { zile: 1, angajati: new Set([linie.employee_id]) });
+    } else {
+      existent.zile += 1;
+      existent.angajati.add(linie.employee_id);
+    }
+  }
+  const defalcare = [...peDepartament.entries()]
+    .map(([departamentId, valoare]) => ({
+      departamentId,
+      denumire:
+        departamentId === ""
+          ? "Fără departament"
+          : (hartaDepartamente.get(departamentId) ?? "Departament necunoscut"),
+      zile: valoare.zile,
+      angajati: valoare.angajati.size,
+    }))
+    .sort((a, b) => b.zile - a.zile || a.denumire.localeCompare(b.denumire, "ro"));
+
+  const adresaAprobare = (departamentId: string): string => {
+    const parametri = new URLSearchParams({
+      an: String(perioada.an),
+      luna: String(perioada.luna),
+    });
+    if (departamentId !== "") parametri.set("departament", departamentId);
+    return `/pontaj/aprobare?${parametri.toString()}`;
+  };
 
   // Aceleași cuvinte ca înainte, doar mutate din trei noduri într-un singur șir:
   // `descriere` primește text, nu JSX.
@@ -92,12 +135,46 @@ export default async function PaginaPerioadaDetaliu({ params }: ProprietatiPagin
           Linii încă neaprobate
         </h2>
         <p className="text-titlu mt-1 font-semibold tabular-nums">{liniiNeaprobate.length}</p>
-        <p className="text-muted-foreground text-corp mt-1">
-          Aprobarea în bloc se face din{" "}
-          <Link href="/pontaj/aprobare" className="underline-offset-2 hover:underline">
+
+        {trunchiat ? (
+          <p role="alert" className="text-warning text-corp mt-1">
+            Citirea s-a oprit la {liniiNeaprobate.length} de linii, deci cifra de mai sus e sub cea
+            reală. Aprobați pe departamente, apoi reîncărcați ecranul.
+          </p>
+        ) : null}
+
+        {defalcare.length === 0 ? (
+          <p className="text-muted-foreground text-corp mt-1">
+            Toate liniile lunii au fost aprobate.
+          </p>
+        ) : (
+          <ul className="divide-border mt-3 divide-y">
+            {defalcare.map((grup) => (
+              <li
+                key={grup.departamentId}
+                className="flex items-baseline justify-between gap-4 py-2"
+              >
+                <Link
+                  href={adresaAprobare(grup.departamentId)}
+                  className="text-corp underline-offset-2 hover:underline"
+                >
+                  {grup.denumire}
+                </Link>
+                <span className="text-muted-foreground text-nota tabular-nums">
+                  {grup.zile} {grup.zile === 1 ? "zi" : "zile"} · {grup.angajati}{" "}
+                  {grup.angajati === 1 ? "angajat" : "angajați"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <p className="text-muted-foreground text-corp mt-3">
+          Fiecare departament duce în{" "}
+          <Link href={adresaAprobare("")} className="underline-offset-2 hover:underline">
             ecranul de aprobare
           </Link>
-          .
+          , deschis direct pe luna asta.
         </p>
       </section>
 
@@ -120,7 +197,7 @@ export default async function PaginaPerioadaDetaliu({ params }: ProprietatiPagin
               const manager =
                 lot.manager_employee_id === null
                   ? undefined
-                  : manageri.get(lot.manager_employee_id);
+                  : angajati.get(lot.manager_employee_id);
               return (
                 <li key={lot.id} className="border-border rounded-panou border p-4">
                   <div className="flex flex-wrap items-start justify-between gap-4">

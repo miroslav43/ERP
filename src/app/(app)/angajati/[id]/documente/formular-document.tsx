@@ -26,6 +26,7 @@ export function FormularDocument({
   employeeId: string;
   tipuri: readonly TipDocument[];
 }) {
+  const router = useRouter();
   const idTip = useId();
   const idTitlu = useId();
   const idFisier = useId();
@@ -80,11 +81,18 @@ export function FormularDocument({
       confidential: tip?.confidential_implicit ?? true,
       vizibilAngajatului: tip?.vizibil_angajatului_implicit ?? true,
     });
-    setStare(
-      rezultat.ok
-        ? { tip: "succes", mesaj: "Documentul a fost adăugat în dosar." }
-        : { tip: "eroare", mesaj: rezultat.error.message },
-    );
+    if (!rezultat.ok) {
+      setStare({ tip: "eroare", mesaj: rezultat.error.message });
+      return;
+    }
+    setStare({ tip: "succes", mesaj: "Documentul a fost adăugat în dosar." });
+    // Lista de deasupra e randată pe server. Fără `router.refresh()`, ecranul
+    // spunea „a fost adăugat" iar lista rămânea exact aceeași până la o
+    // reîncărcare manuală — situația în care omul încarcă al doilea exemplar
+    // al aceluiași document, crezând că primul s-a pierdut. `ButonStergeDocument`
+    // avea deja apelul; încărcarea, nu.
+    referinta.current?.form?.reset();
+    router.refresh();
   }
 
   return (

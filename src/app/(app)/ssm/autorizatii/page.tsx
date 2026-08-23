@@ -9,6 +9,7 @@ import { AntetPagina } from "@/components/ui/antet-pagina";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Schelet } from "@/components/ui/schelet";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
+import { Badge } from "@/components/ui/badge";
 import { Scadenta } from "@/components/ui/scadenta";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -22,10 +23,17 @@ import { stareScadentaSsm } from "@/domain/ssm/scadente";
 import { ETICHETE_SCADENTA } from "../etichete";
 import { NavSsm } from "../nav-ssm";
 import { FormularAutorizatie } from "./formular-autorizatie";
+import { SuspendareAutorizatie } from "./suspendare-autorizatie";
 
 export const metadata: Metadata = { title: "Autorizații nominale" };
 
-async function TabelAutorizatii({ organizationId }: { readonly organizationId: string }) {
+async function TabelAutorizatii({
+  organizationId,
+  poateActualiza,
+}: {
+  readonly organizationId: string;
+  readonly poateActualiza: boolean;
+}) {
   const autorizatii = await autorizatiiNominale(organizationId);
 
   if (autorizatii.length === 0) {
@@ -87,12 +95,10 @@ async function TabelAutorizatii({ organizationId }: { readonly organizationId: s
       antet: "Stare",
       peTelefon: "insigna",
       celula: (a) => {
+        // Suspendarea acoperă valabilitatea: o autorizație suspendată nu susține
+        // nicio desemnare, oricât ar mai fi valabilă pe hârtie.
         if (a.suspendata_la !== null) {
-          return (
-            <span className="bg-surface text-foreground text-nota rounded px-2 py-0.5 font-medium">
-              Suspendată {formatDate(a.suspendata_la)}
-            </span>
-          );
+          return <Badge ton="pericol">Suspendată {formatDate(a.suspendata_la)}</Badge>;
         }
         const stare = stareScadentaSsm(true, a.valabil_pana, azi);
         return (
@@ -104,10 +110,28 @@ async function TabelAutorizatii({ organizationId }: { readonly organizationId: s
     },
   ];
 
+  // Coloana de acțiune apare DOAR pentru cine are `ssm:update` — un antet care
+  // rămâne gol pe toate rândurile e o promisiune neonorată în plus.
+  const coloaneFinale: readonly Coloana<(typeof autorizatii)[number]>[] = poateActualiza
+    ? [
+        ...coloane,
+        {
+          cheie: "actiuni",
+          antet: "Acțiuni",
+          antetAscuns: true,
+          latime: "ingusta",
+          peTelefon: "meta",
+          celula: (a) => (
+            <SuspendareAutorizatie id={a.id} suspendataLa={a.suspendata_la} azi={azi} />
+          ),
+        },
+      ]
+    : coloane;
+
   return (
     <Tabel
       caption="Autorizațiile nominale ale angajaților."
-      coloane={coloane}
+      coloane={coloaneFinale}
       randuri={autorizatii}
       cheieRand={(a) => a.id}
       gol={null}
@@ -128,6 +152,7 @@ export default async function PaginaAutorizatii() {
   }
 
   const poateCrea = can(permisiuni, "ssm:create", "team");
+  const poateActualiza = can(permisiuni, "ssm:update", "team");
 
   let angajati: readonly {
     readonly id: string;
@@ -169,7 +194,7 @@ export default async function PaginaAutorizatii() {
       {poateCrea ? <FormularAutorizatie angajati={angajati} /> : null}
 
       <Suspense fallback={<Schelet forma="tabel" coloane={6} />}>
-        <TabelAutorizatii organizationId={tenant.organizationId} />
+        <TabelAutorizatii organizationId={tenant.organizationId} poateActualiza={poateActualiza} />
       </Suspense>
     </div>
   );

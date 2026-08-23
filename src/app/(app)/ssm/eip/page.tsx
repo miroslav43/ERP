@@ -9,18 +9,20 @@ import { StareGoala } from "@/components/ui/stare-goala";
 import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
+import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { formatDate } from "@/lib/format/date";
+import { formatDate, todayInBucharest } from "@/lib/format/date";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 import { scrieSortare } from "@/lib/queries/cursor";
 import { angajatiDupaId, eip } from "@/lib/queries/ssm";
 import { filtreEipSchema } from "@/schemas/ssm";
 
 import { NavSsm } from "../nav-ssm";
+import { ConfirmarePrimireEip, ReturnareEip } from "./actiuni-eip";
 import { FormularEip } from "./formular-eip";
 
 export const metadata: Metadata = { title: "Echipament individual de protecție" };
@@ -32,9 +34,11 @@ interface ProprietatiPagina {
 async function TabelEip({
   organizationId,
   parametri,
+  poateActualiza,
 }: {
   readonly organizationId: string;
   readonly parametri: Record<string, string | string[] | undefined>;
+  readonly poateActualiza: boolean;
 }) {
   const filtre = filtreDinUrl(filtreEipSchema, parametri);
   const { randuri, urmatorulCursor, total, sortare } = await eip(organizationId, filtre);
@@ -45,7 +49,7 @@ async function TabelEip({
         fel="initiala"
         pictograma={HardHat}
         titlu="Niciun echipament predat"
-        descriere="Predați primul echipament individual de protecție folosind formularul de mai jos."
+        descriere="Predați primul echipament individual de protecție folosind formularul de mai sus."
       />
     );
   }
@@ -54,6 +58,7 @@ async function TabelEip({
     organizationId,
     randuri.map((e) => e.employee_id),
   );
+  const azi = todayInBucharest();
 
   /** Adresele pornesc de la parametrii EXISTENȚI, ca o sortare să nu piardă mărimea paginii. */
   function adresa(schimba: (p: URLSearchParams) => void): string {
@@ -113,11 +118,35 @@ async function TabelEip({
       celula: (e) => (e.data_inlocuirii === null ? "—" : formatDate(e.data_inlocuirii)),
     },
     {
+      // Coloana se citea din bază și nu se putea scrie de nicăieri: `—` pe toate
+      // rândurile, la infinit. Acum poartă acțiunea care o completează.
       cheie: "returnat",
       antet: "Returnat",
       peTelefon: "meta",
-      latime: "ingusta",
-      celula: (e) => (e.returnat_la === null ? "—" : formatDate(e.returnat_la)),
+      celula: (e) =>
+        poateActualiza ? (
+          <ReturnareEip id={e.id} returnatLa={e.returnat_la} azi={azi} />
+        ) : e.returnat_la === null ? (
+          <span className="text-muted-foreground">În folosință</span>
+        ) : (
+          formatDate(e.returnat_la)
+        ),
+    },
+    {
+      // `semnatura_confirmata` era citită de query, trimisă mereu `false` de
+      // formular și nerandată nicăieri — o coloană care nu putea deveni
+      // adevărată și pe care nimeni n-o vedea. E dovada că EIP-ul a ajuns la om.
+      cheie: "confirmare",
+      antet: "Confirmare",
+      peTelefon: "insigna",
+      celula: (e) =>
+        poateActualiza ? (
+          <ConfirmarePrimireEip id={e.id} confirmata={e.semnatura_confirmata} />
+        ) : (
+          <Badge ton={e.semnatura_confirmata ? "succes" : "ciorna"}>
+            {e.semnatura_confirmata ? "Semnat" : "Nesemnat"}
+          </Badge>
+        ),
     },
   ];
 
@@ -168,6 +197,7 @@ export default async function PaginaEip({ searchParams }: ProprietatiPagina) {
 
   const parametri = await searchParams;
   const poateCrea = can(permisiuni, "ssm:create", "team");
+  const poateActualiza = can(permisiuni, "ssm:update", "team");
 
   let angajati: readonly {
     readonly id: string;
@@ -208,8 +238,12 @@ export default async function PaginaEip({ searchParams }: ProprietatiPagina) {
 
       {poateCrea ? <FormularEip angajati={angajati} /> : null}
 
-      <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={6} />}>
-        <TabelEip organizationId={tenant.organizationId} parametri={parametri} />
+      <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={7} />}>
+        <TabelEip
+          organizationId={tenant.organizationId}
+          parametri={parametri}
+          poateActualiza={poateActualiza}
+        />
       </Suspense>
     </div>
   );

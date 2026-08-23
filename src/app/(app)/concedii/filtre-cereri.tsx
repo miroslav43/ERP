@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { BaraFiltre, type FiltruActiv } from "@/components/ui/bara-filtre";
 import { buton } from "@/components/ui/buton";
+import { Combobox } from "@/components/ui/combobox";
 import { formatDate } from "@/lib/format/date";
 import { cn } from "@/lib/ui/cn";
 import {
@@ -35,6 +36,12 @@ interface OptiuneTip {
   readonly denumire: string;
 }
 
+export interface OptiuneAngajat {
+  readonly id: string;
+  readonly full_name: string;
+  readonly marca: string;
+}
+
 const VIZUALIZARI: readonly { readonly cheie: string; readonly eticheta: string }[] = [
   { cheie: "toate", eticheta: "Toate" },
   { cheie: "mele", eticheta: "Ale mele" },
@@ -47,13 +54,14 @@ const VIZUALIZARI: readonly { readonly cheie: string; readonly eticheta: string 
  * deasupra, iar „Șterge toate filtrele” n-are de ce să-l reseteze. Supraviețuiește
  * oricum, fiindcă bara pornește din adresa curentă.
  */
-const CHEI_PROPRII = ["status", "leave_type_id", "de_la", "pana_la"] as const;
+const CHEI_PROPRII = ["status", "leave_type_id", "de_la", "pana_la", "employee_id"] as const;
 
 // Fără `useId`: componenta e un Server Component și apare o singură dată pe pagină.
 const ID_STATUS = "filtre-cereri-status";
 const ID_TIP = "filtre-cereri-tip";
 const ID_DE_LA = "filtre-cereri-de-la";
 const ID_PANA_LA = "filtre-cereri-pana-la";
+const ID_ANGAJAT = "filtre-cereri-angajat";
 
 type Parametri = Record<string, string | string[] | undefined>;
 
@@ -79,8 +87,21 @@ function ziCitibila(valoare: string): string {
  * eticheta e DENUMIREA tipului, luată din opțiunile pe care componenta le
  * primește oricum: o pastilă care scrie un UUID nu ajută pe nimeni.
  */
-function filtreActive(filtre: ValoriFiltre, tipuri: readonly OptiuneTip[]): readonly FiltruActiv[] {
+function filtreActive(
+  filtre: ValoriFiltre,
+  tipuri: readonly OptiuneTip[],
+  angajati: readonly OptiuneAngajat[],
+): readonly FiltruActiv[] {
   const active: FiltruActiv[] = [];
+
+  if (filtre.employee_id !== null) {
+    const angajat = angajati.find((a) => a.id === filtre.employee_id);
+    active.push({
+      cheie: "employee_id",
+      eticheta:
+        angajat === undefined ? "Angajat ales" : `Angajat: ${angajat.full_name} (${angajat.marca})`,
+    });
+  }
 
   if (filtre.status !== null) {
     const citibile = filtre.status.map((bucata) =>
@@ -129,11 +150,18 @@ function adresaVizualizare(parametri: Parametri, cheie: string): string {
 
 export function FiltreCereri({
   tipuri,
+  angajati,
   filtre,
   parametri,
   aratăVizualizarea = false,
 }: {
   readonly tipuri: readonly OptiuneTip[];
+  /**
+   * Angajații filtrabili. Lista goală pentru scope „own”: acolo RLS restrânge
+   * oricum rezultatul la o singură fișă, iar un filtru cu un singur element ar
+   * sugera că mai există și altceva de văzut.
+   */
+  readonly angajati: readonly OptiuneAngajat[];
   /** Filtrele deja trecute prin `filtreDinUrl` — exact ce a folosit lista. */
   readonly filtre: ValoriFiltre;
   /**
@@ -180,7 +208,7 @@ export function FiltreCereri({
           formularul, iar pastilele fac parte din aceeași treabă. */}
       <div role="search" aria-label="Filtrare cereri de concediu">
         <BaraFiltre
-          active={filtreActive(filtre, tipuri)}
+          active={filtreActive(filtre, tipuri, angajati)}
           cheiProprii={[...CHEI_PROPRII]}
           textAplica="Aplică filtrele"
         >
@@ -207,6 +235,45 @@ export function FiltreCereri({
               ))}
             </select>
           </div>
+
+          {/*
+            Filtrul după angajat era plătit de tot stratul de date și n-avea
+            niciun control: `schemas/leave.ts` îl declară (`employee_id`),
+            `queries/leave.ts` îl aplică (`.eq("employee_id", …)` peste scope
+            „own”), iar interfața nu-l scria nicăieri. Un HR cu 200 de fișe nu
+            putea izola cererile unei persoane.
+
+            Combobox, nu `<select>`: se caută și după marcă, iar `secundar` o
+            face căutabilă fără s-o îngrămădească în etichetă.
+          */}
+          {angajati.length === 0 ? null : (
+            <div className="min-w-56">
+              <label htmlFor={ID_ANGAJAT} className="text-corp block font-medium">
+                Angajat
+              </label>
+              <Combobox
+                // `key` legat de valoarea din adresă, ca la celelalte câmpuri:
+                // un control necontrolat își ia alegerea inițială o singură
+                // dată, deci după „Șterge filtrul” ar fi rămas cu cea veche și
+                // ar fi reaplicat-o la următoarea trimitere.
+                key={filtre.employee_id ?? ""}
+                id={ID_ANGAJAT}
+                name="employee_id"
+                className="mt-1"
+                valoareInitiala={filtre.employee_id ?? ""}
+                placeholder="Toți angajații"
+                textFaraRezultate="Niciun angajat cu numele sau marca aceasta."
+                optiuni={[
+                  { valoare: "", eticheta: "Toți angajații" },
+                  ...angajati.map((angajat) => ({
+                    valoare: angajat.id,
+                    eticheta: angajat.full_name,
+                    secundar: angajat.marca,
+                  })),
+                ]}
+              />
+            </div>
+          )}
 
           <div className="min-w-48">
             <label htmlFor={ID_TIP} className="text-corp block font-medium">

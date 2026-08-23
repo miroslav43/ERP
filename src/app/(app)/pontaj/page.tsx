@@ -124,6 +124,7 @@ async function Foaie({
         orePeZi={orePeZi}
         intervalNoapte={intervalNoapte}
         oreAsteptateLuna={oreAsteptateLuna}
+        azi={todayInBucharest()}
       />
     );
   }
@@ -205,6 +206,7 @@ async function Foaie({
         orePeZi={orePeZi}
         intervalNoapte={intervalNoapte}
         oreAsteptateLuna={oreAsteptateLuna}
+        azi={todayInBucharest()}
       />
       <nav aria-label="Paginare" className="flex justify-end">
         {urmatorulCursor === null ? null : (

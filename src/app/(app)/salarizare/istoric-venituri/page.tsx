@@ -10,10 +10,10 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatLei } from "@/lib/format/money";
-import { formatMonthYear, todayInBucharest } from "@/lib/format/date";
+import { formatMonthYear } from "@/lib/format/date";
 import {
-  angajatiActiviCuContract,
   listeazaIstoricVenit,
+  totiAngajatiiDeAles,
   type RandIstoricVenit,
 } from "@/lib/queries/payroll";
 import { CalendarClock } from "lucide-react";
@@ -35,11 +35,18 @@ export default async function PaginaIstoricVenituri() {
     );
   }
 
-  const azi = todayInBucharest();
-  const an = Number(azi.slice(0, 4));
-  const luna = Number(azi.slice(5, 7));
+  /*
+   * Lista de angajați NU se mai filtrează pe luna curentă.
+   *
+   * Varianta veche cerea `angajatiActiviCuContract(org, anul curent, luna
+   * curentă)`, adică exact oamenii care AU contract acum. Ecranul ăsta e însă
+   * despre veniturile de dinaintea aplicației, adesea de la alt angajator:
+   * angajatul intrat luna trecută, cel cu contractul încheiat între timp și cel
+   * reangajat lipseau din `<select>`, deci istoricul lor nu se putea introduce
+   * deloc — iar fără el media pe șase luni iese mai mică, fără nicio eroare.
+   */
   const [personal, randuri] = await Promise.all([
-    angajatiActiviCuContract(tenant.organizationId, an, luna),
+    totiAngajatiiDeAles(tenant.organizationId),
     listeazaIstoricVenit(tenant.organizationId),
   ]);
 

@@ -91,6 +91,12 @@ export function FormularEip({ angajati }: { readonly angajati: readonly AngajatO
               >
                 {(a) => (
                   <select {...a} defaultValue={trimise["employee_id"] ?? ""}>
+                    {/* Opțiune goală, PRIMA: fără ea browserul selecta singur
+                        primul om din listă, iar `required` nu bloca nimic —
+                        există o valoare aleasă. O apăsare distrată scria predarea de echipament pe
+                        primul angajat în ordine alfabetică. Alegerea persoanei
+                        trebuie să fie un act explicit. */}
+                    <option value="">— alegeți angajatul —</option>
                     {angajati.map((ang) => (
                       <option key={ang.id} value={ang.id}>
                         {ang.full_name ?? ang.marca} ({ang.marca})

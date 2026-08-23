@@ -1,5 +1,6 @@
 // src/app/(app)/angajati/[id]/documente/page.tsx
-import { FileText } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, FileText } from "lucide-react";
 import { requireFeature } from "@/lib/auth/features";
 import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -7,6 +8,7 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format/date";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
+import { Badge } from "@/components/ui/badge";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { cn } from "@/lib/ui/cn";
 import { ButonStergeDocument, FormularDocument, ListaDescarcare } from "./formular-document";
@@ -82,16 +84,22 @@ export default async function PaginaDocumenteAngajat({
 
   return (
     <div className={cn(LATIMI.detaliu, "flex flex-col gap-6")}>
-      <AntetPagina
-        titlu={`Documente — ${angajat.full_name ?? ""}`}
-        descriere={`Marca ${angajat.marca}`}
-      />
+      <div>
+        <Link
+          href={`/angajati/${angajat.id}`}
+          className="text-muted-foreground hover:text-foreground text-corp inline-flex items-center gap-1.5 underline-offset-2 hover:underline"
+        >
+          <ArrowLeft aria-hidden="true" className="size-3.5" />
+          Înapoi la fișa angajatului
+        </Link>
+        <AntetPagina
+          className="mt-1"
+          titlu={`Documente — ${angajat.full_name ?? ""}`}
+          descriere={`Marca ${angajat.marca} · ${String(documente.data.length)} document(e) în dosar`}
+        />
+      </div>
 
-      {poateIncarca ? (
-        <FormularDocument employeeId={angajat.id} tipuri={tipuri.data} />
-      ) : (
-        <p className="text-muted-foreground text-corp">Ai doar drept de consultare a dosarului.</p>
-      )}
+      {poateIncarca ? <FormularDocument employeeId={angajat.id} tipuri={tipuri.data} /> : null}
 
       {documente.data.length === 0 ? (
         <StareGoala
@@ -107,16 +115,25 @@ export default async function PaginaDocumenteAngajat({
               key={document.id}
               className="flex flex-wrap items-center justify-between gap-3 py-3"
             >
-              <div>
-                <p className="font-medium">
+              <div className="min-w-0">
+                <p className="flex flex-wrap items-center gap-2 font-medium">
                   {document.titlu}
-                  {document.confidential && (
-                    <span className="bg-warning/12 text-foreground text-nota ml-2 rounded px-2 py-0.5">
-                      confidențial
-                    </span>
-                  )}
+                  {document.confidential && <Badge ton="atentie">Confidențial</Badge>}
                 </p>
+                {/*
+                 * Tipul documentului se citea din bază („Contract", „Act de
+                 * identitate", „Medicina muncii") și nu se afișa NICĂIERI:
+                 * `employee_document_types(denumire)` intra în `select` și
+                 * ieșea din randare. Într-un dosar cu douăzeci de rânduri,
+                 * titlul singur nu spune dacă lipsește fișa de aptitudine.
+                 */}
                 <p className="text-muted-foreground text-corp">
+                  {document.employee_document_types?.denumire ?? "Tip nedefinit"}
+                  {" · "}
+                  {document.numar_document === null
+                    ? "fără număr"
+                    : `nr. ${document.numar_document}`}
+                  {" · "}
                   {document.data_document === null
                     ? "fără dată"
                     : formatDate(document.data_document)}

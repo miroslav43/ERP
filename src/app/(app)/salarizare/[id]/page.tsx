@@ -13,6 +13,7 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatLei } from "@/lib/format/money";
+import { formatDate, formatDateTime } from "@/lib/format/date";
 import { idDinRuta } from "@/lib/rute/parametri";
 import {
   angajatiActiviCuContract,
@@ -23,7 +24,7 @@ import {
   type RandPrimaPerioada,
   type RandRetinerePerioada,
 } from "@/lib/queries/payroll";
-import { Receipt, Users } from "lucide-react";
+import { AlertTriangle, Receipt, Users } from "lucide-react";
 
 import { TONURI_STATUS_PERIOADA, ETICHETE_STATUS_PERIOADA, numeLuna } from "../etichete";
 import { ActiuniPerioada } from "./actiuni-perioada";
@@ -53,8 +54,13 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
   const perioada = await citestePerioada(tenant.organizationId, id);
   if (perioada === null) notFound();
 
-  const inregistrari = perioada.status === "draft" ? [] : await listeazaInregistrari(perioada.id);
+  const registru =
+    perioada.status === "draft"
+      ? { randuri: [] as readonly RandInregistrare[], trunchiat: false }
+      : await listeazaInregistrari(perioada.id);
+  const inregistrari = registru.randuri;
   const poateCalcula = can(permisiuni, "payroll:create", "all");
+  const poateModifica = can(permisiuni, "payroll:update", "all");
   const poateAproba = can(permisiuni, "payroll:approve", "all");
   const poateExporta = can(permisiuni, "payroll:export", "all");
 
@@ -63,6 +69,25 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
       ? await angajatiActiviCuContract(tenant.organizationId, perioada.an, perioada.luna)
       : { angajati: [], faraContract: [], trunchiat: false };
   const angajatiDraft = personalDraft.angajati;
+  /*
+   * Cele două semnale pe care citirea le calculează anume ca să nu dispară
+   * nimeni tăcut de pe stat — și pe care ecranul le arunca la gunoi.
+   *
+   * `faraContract`: angajați ACTIVI pentru care luna nu are niciun contract
+   * aplicabil. `calculeazaPerioada` (actions.ts) refuză calculul cât timp lista
+   * nu e goală, dar refuzul venea abia după clic; până atunci nimic nu spunea
+   * că patru oameni lipsesc de pe statul de plată.
+   *
+   * `trunchiat`: citirea a atins plafonul de siguranță de 50.000 de angajați,
+   * deci cifrele NU sunt complete. Un stat de plată incomplet care arată
+   * complet e cea mai scumpă clasă de defect din modul.
+   */
+  const faraContract = personalDraft.faraContract;
+  const blocajCalcul = personalDraft.trunchiat
+    ? "Calculul e blocat: citirea angajaților e incompletă."
+    : faraContract.length > 0
+      ? `Calculul e blocat: ${String(faraContract.length)} ${faraContract.length === 1 ? "angajat activ nu are" : "angajați activi nu au"} contract aplicabil lunii.`
+      : null;
   const { prime, retineri } =
     perioada.status === "draft" && poateCalcula
       ? await primeSiRetineriPerioada(tenant.organizationId, perioada.id)
@@ -135,9 +160,36 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
             </Badge>
           }
         />
+        {/* Proveniența. Toate cifrele astea erau deja citite de
+            `citestePerioada` și nu apărea niciuna: ecranul nu spunea nici când
+            s-a calculat luna, nici peste ce pontaj, nici când s-a plătit. */}
+        <p className="text-muted-foreground text-corp">
+          {[
+            perioada.calculat_la === null
+              ? null
+              : `Calculată la ${formatDateTime(perioada.calculat_la)}`,
+            perioada.aprobat_la === null
+              ? null
+              : `aprobată la ${formatDateTime(perioada.aprobat_la)}`,
+            perioada.inchis_la === null ? null : `închisă la ${formatDateTime(perioada.inchis_la)}`,
+            perioada.data_plata === null ? null : `data plății ${formatDate(perioada.data_plata)}`,
+          ]
+            .filter((bucata) => bucata !== null)
+            .join(" · ") || "Perioadă în ciornă, încă necalculată."}
+          {" · "}
+          <Link
+            href={`/pontaj/perioade/${perioada.attendance_period_id}`}
+            className="underline-offset-2 hover:underline"
+          >
+            pontajul lunii
+          </Link>
+        </p>
       </div>
 
-      <section
+      {/* `<dl>`, nu `<section>`: `dt`/`dd` în afara unei liste de definiții nu
+          formează nicio pereche pentru cititorul de ecran — se aud trei
+          etichete și trei sume, fără legătură între ele. */}
+      <dl
         aria-label="Totaluri"
         className="border-border rounded-panou grid gap-4 border p-4 sm:grid-cols-3"
       >
@@ -153,14 +205,16 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
           <dt className="text-muted-foreground text-nota">Cost total angajator</dt>
           <dd className="text-sectiune font-medium">{formatLei(perioada.total_cost_angajator)}</dd>
         </div>
-      </section>
+      </dl>
 
       <ActiuniPerioada
         id={perioada.id}
         status={perioada.status}
         poateCalcula={poateCalcula}
+        poateModifica={poateModifica}
         poateAproba={poateAproba}
         poateExporta={poateExporta}
+        blocajCalcul={blocajCalcul}
         // Cifrele din confirmări. O consecință scrisă fără numere e o
         // avertizare generică; „89 de destinatari" e o decizie.
         rezumat={{
@@ -212,28 +266,91 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
 
       {perioada.status === "draft" ? (
         <>
-          <StareGoala
-            fel="initiala"
-            pictograma={Users}
-            titlu="Perioada nu a fost încă calculată"
-            descriere="Adăugați bonusuri sau rețineri per angajat mai jos, apoi apăsați „Calculează” pentru a genera fluturașii tuturor angajaților activi cu contract activ, pe baza pontajului blocat al lunii."
-          />
-          {poateCalcula && angajatiDraft.length > 0 ? (
-            <ul className="border-border divide-border rounded-panou divide-y border">
-              {angajatiDraft.map((a) => (
-                <li key={a.employee_id} className="p-4">
-                  <RandAngajatDraft
-                    periodId={perioada.id}
-                    employeeId={a.employee_id}
-                    nume={a.full_name || a.marca}
-                    salariuBaza={a.salariu_baza}
-                    prime={primePeAngajat.get(a.employee_id) ?? []}
-                    retineri={retineriPeAngajat.get(a.employee_id) ?? []}
-                  />
-                </li>
-              ))}
-            </ul>
-          ) : null}
+          {!personalDraft.trunchiat ? null : (
+            <div
+              role="alert"
+              className="border-danger/50 bg-danger/10 rounded-panou text-corp border p-4"
+            >
+              <p className="flex items-start gap-2 font-medium">
+                <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+                Citirea angajaților a atins plafonul de siguranță.
+              </p>
+              <p className="mt-1">
+                Lista de mai jos NU e completă, deci nici un stat de plată calculat acum n-ar fi.
+                Calculul rămâne blocat până când citirea încape sub plafon. Anunțați administratorul
+                platformei.
+              </p>
+            </div>
+          )}
+
+          {faraContract.length === 0 ? null : (
+            <section
+              aria-labelledby="fara-contract"
+              className="border-warning/40 bg-warning/12 rounded-panou text-corp border p-4"
+            >
+              <h2 id="fara-contract" className="flex items-start gap-2 font-medium">
+                <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+                {faraContract.length === 1
+                  ? "Un angajat activ nu are contract aplicabil lunii"
+                  : `${String(faraContract.length)} angajați activi nu au contract aplicabil lunii`}
+              </h2>
+              <p className="mt-1">
+                Fără contract valabil în {numeLuna(perioada.luna)} {perioada.an}, oamenii aceștia nu
+                pot intra pe statul de plată, iar calculul refuză să pornească fără ei — altfel ar
+                lipsi de pe stat fără ca nimeni să observe. Deschideți fișa fiecăruia și completați
+                contractul sau actul adițional al lunii.
+              </p>
+              <ul className="mt-3 space-y-1">
+                {faraContract.map((a) => (
+                  <li key={a.employee_id}>
+                    <Link
+                      href={`/angajati/${a.employee_id}`}
+                      className="underline underline-offset-2"
+                    >
+                      {a.full_name || "(fără nume)"}
+                    </Link>{" "}
+                    <span className="text-muted-foreground">marca {a.marca}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {angajatiDraft.length === 0 ? (
+            <StareGoala
+              fel="initiala"
+              pictograma={Users}
+              titlu="Perioada nu a fost încă calculată"
+              descriere="Nu există încă niciun angajat cu contract aplicabil lunii. Completați contractele, apoi apăsați „Calculează” pentru a genera fluturașii pe baza pontajului blocat al lunii."
+            />
+          ) : (
+            <section aria-labelledby="ajustari-ciorna" className="space-y-2">
+              <h2 id="ajustari-ciorna" className="text-sectiune font-medium">
+                {angajatiDraft.length === 1
+                  ? "Un angajat de calculat"
+                  : `${String(angajatiDraft.length)} angajați de calculat`}
+              </h2>
+              <p className="text-muted-foreground text-corp">
+                Adăugați aici bonusurile și reținerile lunii, apoi apăsați „Calculează”. Fluturașii
+                se generează pe baza pontajului blocat al lunii.
+              </p>
+              <ul className="border-border divide-border rounded-panou divide-y border">
+                {angajatiDraft.map((a) => (
+                  <li key={a.employee_id} className="p-4">
+                    <RandAngajatDraft
+                      periodId={perioada.id}
+                      employeeId={a.employee_id}
+                      nume={a.full_name || a.marca}
+                      salariuBaza={a.salariu_baza}
+                      prime={primePeAngajat.get(a.employee_id) ?? []}
+                      retineri={retineriPeAngajat.get(a.employee_id) ?? []}
+                      poateSterge={poateModifica}
+                    />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </>
       ) : (
         <Tabel
@@ -242,6 +359,7 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
           randuri={inregistrari}
           cheieRand={(r) => r.id}
           href={(r) => `/salarizare/${perioada.id}/${r.id}`}
+          trunchiat={registru.trunchiat}
           gol={
             <StareGoala
               fel="initiala"

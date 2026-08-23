@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { ChevronRight, FileText, KeyRound, Pencil } from "lucide-react";
+import { ChevronRight, FileText, FolderOpen, KeyRound, Pencil } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
@@ -36,6 +36,7 @@ import {
   ETICHETE_MOD_LUCRU,
   ETICHETE_SCUTIRE,
   ETICHETE_STATUS,
+  ETICHETE_TIP_COMPONENTA,
   TONURI_STATUS,
 } from "../etichete";
 import { ButonIncheieComponenta } from "./buton-incheie-componenta";
@@ -49,14 +50,6 @@ import { FormularScutireFiscala } from "./formular-scutire-fiscala";
 import { IncarcareAvatarAdmin } from "./incarcare-avatar-admin";
 import { SectiuneConcedii } from "./sectiune-concedii";
 import { SectiuneDependenti, type RandDependent } from "./sectiune-dependenti";
-
-const ETICHETE_TIP_COMPONENTA: Readonly<Record<string, string>> = {
-  spor_procent: "Spor procentual",
-  spor_suma: "Spor — sumă fixă",
-  indemnizatie: "Indemnizație",
-  prima_recurenta: "Primă recurentă",
-  beneficiu_natura: "Beneficiu în natură",
-};
 
 export const metadata: Metadata = { title: "Fișa angajatului" };
 
@@ -168,9 +161,24 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
           return data ?? [];
         })()
       : [];
+  /*
+   * TOATE contractele active, nu doar primul găsit.
+   *
+   * Codul de dinainte lua `find(...)` și băga restul în blocul pliat „Istoric
+   * contracte și acte adiționale". La cumul de funcții — caz pe care lista
+   * chiar îl marchează, prin `is_primary` și eticheta „(cumul de funcții)" —
+   * al doilea contract ACTIV ajungea sub eticheta „istoric", lângă cele
+   * încetate. Că nu era intenționat se vedea chiar acolo: blocul pliat testa
+   * `contract.status === "activ"` ca să ofere butonul de încetare, adică oferea
+   * încetarea unui contract dintr-o secțiune numită istoric.
+   *
+   * `contractPrincipal` rămâne primul activ de bază: el guvernează formularul
+   * de modificare salarială de la baza secțiunii.
+   */
+  const contracteActive = angajat.contracts.filter((c) => c.status === "activ");
   const contractPrincipal =
-    angajat.contracts.find((c) => !c.este_act_aditional && c.status === "activ") ?? null;
-  const contracteIstoric = angajat.contracts.filter((c) => c.id !== contractPrincipal?.id);
+    contracteActive.find((c) => !c.este_act_aditional) ?? contracteActive[0] ?? null;
+  const contracteIstoric = angajat.contracts.filter((c) => c.status !== "activ");
   const lantManageri = await lantulDeManageri(
     tenant.organizationId,
     angajat.manager_path,
@@ -354,47 +362,47 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
           <StareGoala mesaj="Fișa nu are încă niciun contract. Adăugați contractul individual de muncă înainte de transmiterea în REVISAL." />
         ) : (
           <div className="space-y-3">
-            {contractPrincipal === null ? (
+            {contracteActive.length === 0 ? (
               <StareGoala mesaj="Niciun contract activ momentan." />
             ) : (
-              <div className="border-primary/25 bg-primary/5 rounded-control border p-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium">Contract nr. {contractPrincipal.numar}</span>
-                  <span className="bg-success/12 text-success text-nota rounded-full px-2 py-0.5 font-medium">
-                    {ETICHETE_CONTRACT[contractPrincipal.status] ?? contractPrincipal.status}
-                  </span>
-                  {contractPrincipal.este_act_aditional ? (
-                    <span className="bg-background text-nota rounded-full px-2 py-0.5">
-                      Act adițional
+              contracteActive.map((contract) => (
+                <div
+                  key={contract.id}
+                  className="border-primary/25 bg-primary/5 rounded-control border p-3"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium">Contract nr. {contract.numar}</span>
+                    <span className="bg-success/12 text-success text-nota rounded-full px-2 py-0.5 font-medium">
+                      {ETICHETE_CONTRACT[contract.status] ?? contract.status}
                     </span>
+                    {contract.este_act_aditional ? (
+                      <span className="bg-background text-nota rounded-full px-2 py-0.5">
+                        Act adițional
+                      </span>
+                    ) : null}
+                  </div>
+                  <dl className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <Camp
+                      eticheta="Valabil"
+                      valoare={`${formatDate(contract.valabil_de_la)} – ${contract.valabil_pana === null ? "nedeterminat" : formatDate(contract.valabil_pana)}`}
+                    />
+                    <Camp
+                      eticheta="Normă"
+                      valoare={`${String(contract.norma_ore_saptamana)} ore/săptămână`}
+                    />
+                    <Camp eticheta="Salariu de bază" valoare={formatLei(contract.salariu_baza)} />
+                    <Camp
+                      eticheta="Mod de lucru"
+                      valoare={ETICHETE_MOD_LUCRU[contract.work_mode] ?? contract.work_mode}
+                    />
+                  </dl>
+                  {poateEditaAngajat ? (
+                    <div className="mt-3">
+                      <FormularInceteazaContract contractId={contract.id} />
+                    </div>
                   ) : null}
                 </div>
-                <dl className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <Camp
-                    eticheta="Valabil"
-                    valoare={`${formatDate(contractPrincipal.valabil_de_la)} – ${contractPrincipal.valabil_pana === null ? "nedeterminat" : formatDate(contractPrincipal.valabil_pana)}`}
-                  />
-                  <Camp
-                    eticheta="Normă"
-                    valoare={`${String(contractPrincipal.norma_ore_saptamana)} ore/săptămână`}
-                  />
-                  <Camp
-                    eticheta="Salariu de bază"
-                    valoare={formatLei(contractPrincipal.salariu_baza)}
-                  />
-                  <Camp
-                    eticheta="Mod de lucru"
-                    valoare={
-                      ETICHETE_MOD_LUCRU[contractPrincipal.work_mode] ?? contractPrincipal.work_mode
-                    }
-                  />
-                </dl>
-                {poateEditaAngajat ? (
-                  <div className="mt-3">
-                    <FormularInceteazaContract contractId={contractPrincipal.id} />
-                  </div>
-                ) : null}
-              </div>
+              ))
             )}
 
             {contracteIstoric.length > 0 ? (
@@ -404,7 +412,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                     aria-hidden="true"
                     className="size-3.5 shrink-0 transition-transform group-open:rotate-90"
                   />
-                  Istoric contracte și acte adiționale ({contracteIstoric.length})
+                  Contracte încheiate și acte adiționale inactive ({contracteIstoric.length})
                 </summary>
                 <ul className="border-border mt-2 space-y-2 border-l-2 pl-4">
                   {contracteIstoric.map((contract) => (
@@ -444,11 +452,10 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                           <Camp eticheta="Motivul încetării" valoare={contract.motiv_incetare} />
                         ) : null}
                       </dl>
-                      {contract.status === "activ" && poateEditaAngajat ? (
-                        <div className="mt-3">
-                          <FormularInceteazaContract contractId={contract.id} />
-                        </div>
-                      ) : null}
+                      {/* Aici NU mai apare butonul de încetare: blocul conține,
+                          prin construcție, numai contracte care nu mai sunt
+                          active. Când conținea și active, oferea încetarea unui
+                          contract dintr-o secțiune numită „istoric". */}
                     </li>
                   ))}
                 </ul>
@@ -547,14 +554,14 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                 const activa =
                   componenta.valabil_pana === null ||
                   componenta.valabil_pana >= new Date().toISOString().slice(0, 10);
+                const denumireComponenta =
+                  componenta.component_type?.denumire ??
+                  ETICHETE_TIP_COMPONENTA[componenta.kind] ??
+                  componenta.kind;
                 return (
                   <li key={componenta.id} className="border-border rounded-control border p-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-medium">
-                        {componenta.component_type?.denumire ??
-                          ETICHETE_TIP_COMPONENTA[componenta.kind] ??
-                          componenta.kind}
-                      </span>
+                      <span className="font-medium">{denumireComponenta}</span>
                       <span className="bg-primary/10 text-primary text-nota rounded-full px-2 py-0.5 font-medium">
                         {componenta.procent !== null
                           ? `${String(componenta.procent)}%`
@@ -567,7 +574,11 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                       ) : null}
                       {activa && poateAdaugaComponenta ? (
                         <span className="ml-auto">
-                          <ButonIncheieComponenta id={componenta.id} employeeId={angajat.id} />
+                          <ButonIncheieComponenta
+                            id={componenta.id}
+                            employeeId={angajat.id}
+                            denumire={denumireComponenta}
+                          />
                         </span>
                       ) : null}
                     </div>
@@ -643,23 +654,45 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
         ) : null}
       </section>
 
+      {/*
+       * Secțiunea listează documentele, dar descărcarea, încărcarea și
+       * retragerea trăiesc pe `/angajati/[id]/documente` — o pagină completă
+       * către care, până acum, nu ducea NICIUN link din tot `src`. Se ajungea
+       * la ea doar tastând adresa, deci documentele de pe fișă erau o listă
+       * din care nu se putea deschide nimic.
+       */}
       <section aria-labelledby="titlu-documente" className={CLASA_SECTIUNE}>
-        <h2 id="titlu-documente" className="text-sectiune mb-4 font-medium">
-          Documente
-        </h2>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h2 id="titlu-documente" className="text-sectiune font-medium">
+            Documente
+            {angajat.documents.length > 0 ? (
+              <span className="text-muted-foreground ml-2 font-normal">
+                ({angajat.documents.length})
+              </span>
+            ) : null}
+          </h2>
+          <Link
+            href={`/angajati/${angajat.id}/documente`}
+            className={buton({ varianta: "secundar" })}
+          >
+            <FolderOpen aria-hidden="true" className="size-3.5" />
+            Deschide dosarul
+          </Link>
+        </div>
         {angajat.documents.length === 0 ? (
-          <StareGoala mesaj="Nu există documente încărcate pentru acest angajat." />
+          <StareGoala mesaj="Nu există documente încărcate pentru acest angajat. Dosarul se completează din „Deschide dosarul”." />
         ) : (
           <ul className="divide-border text-corp divide-y">
             {angajat.documents.map((document) => (
               <li key={document.id} className="flex flex-wrap items-center gap-3 py-2.5">
                 <FileText aria-hidden="true" className="text-muted-foreground size-4 shrink-0" />
-                <span className="min-w-0 flex-1 font-medium">{document.titlu}</span>
-                {document.confidential ? (
-                  <span className="bg-warning/12 text-foreground text-nota rounded-full px-2 py-0.5 font-medium">
-                    Confidențial
-                  </span>
-                ) : null}
+                <Link
+                  href={`/angajati/${angajat.id}/documente`}
+                  className="min-w-0 flex-1 font-medium underline-offset-2 hover:underline"
+                >
+                  {document.titlu}
+                </Link>
+                {document.confidential ? <Badge ton="atentie">Confidențial</Badge> : null}
                 <span className="text-muted-foreground shrink-0">
                   {document.data_document === null ? "—" : formatDate(document.data_document)}
                   {document.valabil_pana !== null

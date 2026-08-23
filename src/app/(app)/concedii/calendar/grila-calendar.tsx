@@ -2,6 +2,7 @@
 import Link from "next/link";
 
 import { Buton, buton } from "@/components/ui/buton";
+import { celMaiBunContrast, cernealaPentruFundal, PRAG_TEXT_MIC } from "@/domain/leave/contrast";
 import type { StatusCerere } from "@/schemas/leave";
 
 export interface EvenimentZiCalendar {
@@ -50,6 +51,55 @@ const ZILE_SAPTAMANA = [
   "Duminică",
 ] as const;
 
+/**
+ * Aspectul unei pastile de eveniment — calculat, nu estimat.
+ *
+ * ── PROBLEMA ──────────────────────────────────────────────────────────────
+ * Culoarea vine din `leave_types.culoare`, aleasă de administrator dintr-un
+ * `<input type="color">` fără nicio constrângere, și era pusă ca fundal sub o
+ * cerneală FIXĂ, `text-primary-foreground` (cremul #faf7f0). Pe navy-ul
+ * produsului raportul e 15,4:1; pe galbenul implicit al oricărui selector de
+ * culoare e 1,00:1 și numele angajatului dispare de pe ecran. Nimic nu avertiza.
+ *
+ * ── CE FACE ACUM ──────────────────────────────────────────────────────────
+ * Cerneala se alege per culoare, dintre cele două ale produsului, după raportul
+ * WCAG 2.1 mai mare. Când nici cea mai bună nu atinge 4,5:1 (griurile de
+ * mijloc), culoarea NU mai poartă text deloc: pastila devine crem, cu o bară de
+ * 3px în culoarea tipului la stânga. Culoarea rămâne semnalul, fără să fie
+ * suport de text.
+ *
+ * ── STAREA E FORMĂ, NU TRANSPARENȚĂ ───────────────────────────────────────
+ * Distincția „aprobată / în aprobare” era purtată exclusiv de `opacity-60`.
+ * Opacitatea peste un hex arbitrar nu produce un raport previzibil — e exact
+ * motivul pentru care `disabled:opacity-*` e interzis în produs. Acum:
+ * aprobată = umplută, în aprobare = contur ÎNTRERUPT, ambele cu bara de
+ * culoare. Forma se vede și pe o listă tipărită alb-negru.
+ */
+interface StilEveniment {
+  readonly clasa: string;
+  readonly stil: Readonly<Record<string, string>>;
+}
+
+function stilEveniment(culoare: string, aprobata: boolean): StilEveniment {
+  const culoareaTineText = celMaiBunContrast(culoare) >= PRAG_TEXT_MIC;
+
+  if (aprobata && culoareaTineText) {
+    return {
+      clasa:
+        cernealaPentruFundal(culoare) === "crem" ? "text-primary-foreground" : "text-foreground",
+      stil: { backgroundColor: culoare },
+    };
+  }
+
+  // Contur: pentru cererile neaprobate ȘI pentru culorile care n-ar ține text.
+  // Conturul întrerupt rămâne rezervat stării „în aprobare”, ca să nu se
+  // confunde cele două motive.
+  return {
+    clasa: `bg-background text-foreground border ${aprobata ? "border-border" : "border-foreground/60 border-dashed"}`,
+    stil: { borderLeft: `3px solid ${culoare}` },
+  };
+}
+
 function ziIso(an: number, luna: number, zi: number): string {
   return `${String(an)}-${String(luna).padStart(2, "0")}-${String(zi).padStart(2, "0")}`;
 }
@@ -81,9 +131,31 @@ function construiesteSaptamani(an: number, luna: number): readonly (number | nul
   return saptamani;
 }
 
+/**
+ * Tipurile care apar EFECTIV în luna afișată, în ordinea denumirii.
+ *
+ * Legenda se construiește din evenimente, nu din nomenclator: o firmă are 6-10
+ * tipuri configurate și, într-o lună obișnuită, două apar. O legendă cu opt
+ * rânduri din care șase nu sunt pe ecran e zgomot.
+ */
+function tipuriDinLuna(
+  zileHarta: Readonly<Record<string, readonly EvenimentZiCalendar[]>>,
+): readonly Readonly<{ denumire: string; culoare: string }>[] {
+  const harta = new Map<string, string>();
+  for (const evenimente of Object.values(zileHarta)) {
+    for (const eveniment of evenimente) {
+      if (!harta.has(eveniment.tipDenumire)) harta.set(eveniment.tipDenumire, eveniment.tipCuloare);
+    }
+  }
+  return [...harta.entries()]
+    .map(([denumire, culoare]) => ({ denumire, culoare }))
+    .sort((a, b) => a.denumire.localeCompare(b.denumire, "ro"));
+}
+
 export function GrilaCalendar({ an, luna, zileHarta, lunaAnterioara, lunaUrmatoare }: Proprietati) {
   const saptamani = construiesteSaptamani(an, luna);
   const areEvenimente = Object.keys(zileHarta).length > 0;
+  const legenda = tipuriDinLuna(zileHarta);
 
   return (
     <div className="space-y-3">
@@ -187,20 +259,30 @@ export function GrilaCalendar({ an, luna, zileHarta, lunaAnterioara, lunaUrmatoa
                       <div className="p-1.5">
                         <span className="text-muted-foreground text-nota font-medium">{zi}</span>
                         <ul className="mt-1 space-y-0.5">
-                          {evenimente.slice(0, 3).map((eveniment, indexEveniment) => (
-                            <li
-                              key={indexEveniment}
-                              title={`${eveniment.employeeLabel} · ${eveniment.tipDenumire} (${
-                                eveniment.status === "aprobata" ? "aprobată" : "în aprobare"
-                              })`}
-                              className={`text-primary-foreground text-nota truncate rounded px-1 py-0.5 ${
-                                eveniment.status === "aprobata" ? "" : "opacity-60"
-                              }`}
-                              style={{ backgroundColor: eveniment.tipCuloare }}
-                            >
-                              {eveniment.employeeLabel}
-                            </li>
-                          ))}
+                          {evenimente.slice(0, 3).map((eveniment, indexEveniment) => {
+                            const aprobata = eveniment.status === "aprobata";
+                            const stare = aprobata ? "aprobată" : "în aprobare";
+                            const { clasa, stil } = stilEveniment(eveniment.tipCuloare, aprobata);
+                            return (
+                              <li
+                                key={indexEveniment}
+                                title={`${eveniment.employeeLabel} · ${eveniment.tipDenumire} (${stare})`}
+                                className={`text-nota truncate rounded px-1 py-0.5 ${clasa}`}
+                                style={stil}
+                              >
+                                {eveniment.employeeLabel}
+                                {/* `title` nu apare la atingere și nu se citește
+                                    la tastatură: pe telefon, tipul și starea
+                                    erau pur și simplu inaccesibile. Textul
+                                    complet intră în numele accesibil al
+                                    rândului. */}
+                                <span className="sr-only">
+                                  {" "}
+                                  · {eveniment.tipDenumire} ({stare})
+                                </span>
+                              </li>
+                            );
+                          })}
                           {evenimente.length > 3 ? (
                             <li className="text-muted-foreground text-nota">
                               +{evenimente.length - 3} altele
@@ -216,6 +298,30 @@ export function GrilaCalendar({ an, luna, zileHarta, lunaAnterioara, lunaUrmatoa
           </tbody>
         </table>
       </div>
+
+      {/* Legenda lipsea cu totul: culorile din grilă nu erau explicate nicăieri
+          pe ecran, iar singura lor traducere stătea în `title`. */}
+      {legenda.length === 0 ? null : (
+        <div className="text-muted-foreground text-nota flex flex-wrap items-center gap-x-4 gap-y-2">
+          {legenda.map((tip) => (
+            <span key={tip.denumire} className="flex items-center gap-1.5">
+              <span
+                aria-hidden="true"
+                className="inline-block size-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: tip.culoare }}
+              />
+              {tip.denumire}
+            </span>
+          ))}
+          <span className="flex items-center gap-1.5">
+            <span
+              aria-hidden="true"
+              className="border-foreground/60 inline-block h-3 w-5 shrink-0 rounded border border-dashed"
+            />
+            În aprobare
+          </span>
+        </div>
+      )}
     </div>
   );
 }

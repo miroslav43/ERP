@@ -157,7 +157,12 @@ export default async function PaginaCerereaMea({
         </section>
       )}
 
-      {poateAnula ? <ActiuniCerere cerereId={cerere.id} /> : null}
+      {/* `esteCiorna` deschide butonul „Trimite spre aprobare”. Portalul e locul
+          unde ciorna se creează cel mai des (formularul de aici are aceleași
+          două butoane), deci era și locul unde fundătura se atingea cel mai des. */}
+      {poateAnula ? (
+        <ActiuniCerere cerereId={cerere.id} esteCiorna={cerere.status === "ciorna"} />
+      ) : null}
 
       <p>
         <Link href="/portal/concediile-mele" className={buton({ varianta: "link" })}>
