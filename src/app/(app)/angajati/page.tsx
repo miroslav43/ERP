@@ -234,17 +234,18 @@ export default async function PaginaAngajati({ searchParams }: ProprietatiPagina
                    * antete, validare pe rând, raport de erori și un întreg
                    * `src/domain/import/`. Se ajungea la el doar tastând adresa.
                    *
-                   * Apare doar la scop `all`, fiindcă exact asta cere pagina
-                   * („Importul în masă este disponibil doar cu drepturi pe
-                   * întreaga organizație") — un buton care duce într-un refuz e
-                   * mai rău decât unul care lipsește.
+                   * Nu are condiție proprie: pagina cere exact
+                   * `employees:create = "all"`, iar `poateCrea`, care guvernează
+                   * deja blocul de acțiuni, e chiar asta. O verificare în plus
+                   * pe scopul de CITIRE ar fi ascuns butonul cuiva pe care
+                   * pagina l-ar fi primit — un buton care lipsește e la fel de
+                   * greșit ca unul care duce în refuz, doar că se observă mai
+                   * greu.
                    */}
-                  {scope === "all" ? (
-                    <Link href="/angajati/import" className={buton({ varianta: "secundar" })}>
-                      <Upload aria-hidden="true" className="size-4" />
-                      Import din Excel
-                    </Link>
-                  ) : null}
+                  <Link href="/angajati/import" className={buton({ varianta: "secundar" })}>
+                    <Upload aria-hidden="true" className="size-4" />
+                    Import din Excel
+                  </Link>
                   <Link href="/angajati/nou" className={buton({ varianta: "primar" })}>
                     <UserPlus aria-hidden="true" className="size-4" />
                     Angajat nou
