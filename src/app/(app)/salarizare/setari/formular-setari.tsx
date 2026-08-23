@@ -3,6 +3,8 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
+
 import { salveazaSetari } from "../actions";
 import type { SetariSalarizare } from "@/lib/queries/payroll";
 
@@ -57,6 +59,8 @@ export function FormularSetari({
   const idSporNoapte = useId();
   const idSporWeekend = useId();
   const idSporSarbatoare = useId();
+  const idCasaSanatate = useId();
+  const idFunctieDeclarant = useId();
   const idOreSupl = useId();
   const idTichet = useId();
   const idSalariuMinim = useId();
@@ -81,6 +85,8 @@ export function FormularSetari({
         procent_spor_noapte: Number(formular.get("procent_spor_noapte")),
         procent_spor_weekend: Number(formular.get("procent_spor_weekend")),
         procent_spor_sarbatoare: Number(formular.get("procent_spor_sarbatoare")),
+        casa_sanatate_angajator: String(formular.get("casa_sanatate_angajator") ?? ""),
+        functie_declarant: String(formular.get("functie_declarant") ?? "Administrator"),
         procent_ore_suplimentare: Number(formular.get("procent_ore_suplimentare")),
         valoare_tichet_masa: Number(formular.get("valoare_tichet_masa")),
         tichete_impozabile: formular.get("tichete_impozabile") === "on",
@@ -108,10 +114,10 @@ export function FormularSetari({
   }
 
   return (
-    <form action={trimite} className="border-border space-y-6 rounded-lg border p-4">
+    <form action={trimite} className="border-border rounded-panou space-y-6 border p-4">
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="flex flex-col gap-1">
-          <label htmlFor={idValabilDeLa} className="text-sm">
+          <label htmlFor={idValabilDeLa} className="text-corp">
             Valabil de la
           </label>
           <input
@@ -119,11 +125,11 @@ export function FormularSetari({
             name="valabil_de_la"
             type="date"
             required
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={idCas} className="text-sm">
+          <label htmlFor={idCas} className="text-corp">
             Cota CAS (fracție, ex. 0,25)
           </label>
           <input
@@ -135,11 +141,11 @@ export function FormularSetari({
             max={1}
             required
             defaultValue={setariCurente?.cota_cas}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={idCass} className="text-sm">
+          <label htmlFor={idCass} className="text-corp">
             Cota CASS
           </label>
           <input
@@ -151,11 +157,11 @@ export function FormularSetari({
             max={1}
             required
             defaultValue={setariCurente?.cota_cass}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={idImpozit} className="text-sm">
+          <label htmlFor={idImpozit} className="text-corp">
             Cota de impozit
           </label>
           <input
@@ -167,11 +173,11 @@ export function FormularSetari({
             max={1}
             required
             defaultValue={setariCurente?.cota_impozit}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={idCam} className="text-sm">
+          <label htmlFor={idCam} className="text-corp">
             Cota CAM (angajator)
           </label>
           <input
@@ -183,11 +189,11 @@ export function FormularSetari({
             max={1}
             required
             defaultValue={setariCurente?.cota_cam_angajator}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={idNorma} className="text-sm">
+          <label htmlFor={idNorma} className="text-corp">
             Normă zilnică (ore)
           </label>
           <input
@@ -198,11 +204,11 @@ export function FormularSetari({
             min={1}
             required
             defaultValue={setariCurente?.norma_zilnica_ore ?? 8}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={idSporNoapte} className="text-sm">
+          <label htmlFor={idSporNoapte} className="text-corp">
             Spor de noapte (fracție)
           </label>
           <input
@@ -212,11 +218,11 @@ export function FormularSetari({
             step="0.01"
             min={0}
             defaultValue={setariCurente?.procent_spor_noapte ?? 0.25}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={idSporWeekend} className="text-sm">
+          <label htmlFor={idSporWeekend} className="text-corp">
             Spor repaus săptămânal (fracție)
           </label>
           <input
@@ -226,16 +232,16 @@ export function FormularSetari({
             step="0.01"
             min={0}
             defaultValue={setariCurente?.procent_spor_weekend ?? 1}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
-          <p className="text-muted-foreground text-xs">
+          <p className="text-muted-foreground text-nota">
             Codul Muncii art. 137 alin. (2): minimum 100% (adică 1), dacă munca nu e compensată cu
             timp liber. Formularul trimitea până acum 0 în locul acestui câmp, iar sâmbăta se plătea
             la tarif simplu.
           </p>
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={idSporSarbatoare} className="text-sm">
+          <label htmlFor={idSporSarbatoare} className="text-corp">
             Spor sărbătoare legală (fracție)
           </label>
           <input
@@ -245,15 +251,49 @@ export function FormularSetari({
             step="0.01"
             min={0}
             defaultValue={setariCurente?.procent_spor_sarbatoare ?? 1}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
-          <p className="text-muted-foreground text-xs">
+          <p className="text-muted-foreground text-nota">
             Codul Muncii art. 142 alin. (2): minimum 100%. Fără el, calculul cădea pe sporul de
             repaus.
           </p>
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={idOreSupl} className="text-sm">
+          <label htmlFor={idCasaSanatate} className="text-corp">
+            Casa de asigurări de sănătate (D112)
+          </label>
+          <input
+            id={idCasaSanatate}
+            name="casa_sanatate_angajator"
+            type="text"
+            maxLength={10}
+            placeholder="TM"
+            defaultValue={setariCurente?.casa_sanatate_angajator ?? ""}
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2 uppercase"
+          />
+          <p className="text-muted-foreground text-nota">
+            Codul din nomenclatorul CNAS, care trebuie să COINCIDĂ cu județul sediului social — TM
+            pentru Timiș, CJ pentru Cluj. ANAF respinge Declarația 112 fără el.
+          </p>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label htmlFor={idFunctieDeclarant} className="text-corp">
+            Funcția declarantului (D112)
+          </label>
+          <input
+            id={idFunctieDeclarant}
+            name="functie_declarant"
+            type="text"
+            maxLength={50}
+            defaultValue={setariCurente?.functie_declarant ?? "Administrator"}
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
+          />
+          <p className="text-muted-foreground text-nota">
+            Calitatea celui care semnează declarația: administrator, contabil șef, împuternicit.
+          </p>
+        </div>
+        <div className="flex flex-col gap-1">
+          <label htmlFor={idOreSupl} className="text-corp">
             Spor ore suplimentare (fracție)
           </label>
           <input
@@ -263,11 +303,11 @@ export function FormularSetari({
             step="0.01"
             min={0}
             defaultValue={setariCurente?.procent_ore_suplimentare ?? 0.75}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={idTichet} className="text-sm">
+          <label htmlFor={idTichet} className="text-corp">
             Valoare tichet de masă (lei)
           </label>
           <input
@@ -277,11 +317,11 @@ export function FormularSetari({
             step="0.01"
             min={0}
             defaultValue={setariCurente?.valoare_tichet_masa ?? 0}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={idSalariuMinim} className="text-sm">
+          <label htmlFor={idSalariuMinim} className="text-corp">
             Salariu minim brut (lei)
           </label>
           <input
@@ -291,16 +331,16 @@ export function FormularSetari({
             step="0.01"
             min={0}
             defaultValue={setariCurente?.salariu_minim_brut ?? 0}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
-          <p className="text-muted-foreground text-xs">
+          <p className="text-muted-foreground text-nota">
             Pragul minim al bazei de contribuții. Se confirmă cu contabilul — valoarea se schimbă
             prin hotărâre de guvern, iar minimele sectoriale diferă.
           </p>
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-6 text-sm">
+      <div className="text-corp flex flex-wrap gap-6">
         <label className="flex items-center gap-2">
           <input
             type="checkbox"
@@ -336,10 +376,10 @@ export function FormularSetari({
       </div>
 
       <div className="space-y-2">
-        <p className="text-sm font-medium">Praguri de deducere personală</p>
+        <p className="text-corp font-medium">Praguri de deducere personală</p>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-muted-foreground text-left text-xs">
+          <table className="text-corp w-full">
+            <thead className="text-muted-foreground text-nota text-left">
               <tr>
                 <th className="py-1 pr-2 font-medium">Persoane (min)</th>
                 <th className="py-1 pr-2 font-medium">Persoane (max, gol = fără plafon)</th>
@@ -359,7 +399,7 @@ export function FormularSetari({
                       onChange={(e) => {
                         actualizeazaPrag(prag.cheie, "nr_persoane_intretinere_min", e.target.value);
                       }}
-                      className="border-foreground/60 w-24 rounded-md border px-2 py-1"
+                      className="border-foreground/60 rounded-control w-24 border px-2 py-1"
                     />
                   </td>
                   <td className="py-1 pr-2">
@@ -370,7 +410,7 @@ export function FormularSetari({
                       onChange={(e) => {
                         actualizeazaPrag(prag.cheie, "nr_persoane_intretinere_max", e.target.value);
                       }}
-                      className="border-foreground/60 w-24 rounded-md border px-2 py-1"
+                      className="border-foreground/60 rounded-control w-24 border px-2 py-1"
                     />
                   </td>
                   <td className="py-1 pr-2">
@@ -383,7 +423,7 @@ export function FormularSetari({
                         actualizeazaPrag(prag.cheie, "venit_brut_max", e.target.value);
                       }}
                       required
-                      className="border-foreground/60 w-32 rounded-md border px-2 py-1"
+                      className="border-foreground/60 rounded-control w-32 border px-2 py-1"
                     />
                   </td>
                   <td className="py-1 pr-2">
@@ -396,52 +436,46 @@ export function FormularSetari({
                         actualizeazaPrag(prag.cheie, "valoare", e.target.value);
                       }}
                       required
-                      className="border-foreground/60 w-32 rounded-md border px-2 py-1"
+                      className="border-foreground/60 rounded-control w-32 border px-2 py-1"
                     />
                   </td>
                   <td className="py-1">
-                    <button
-                      type="button"
+                    <Buton
+                      varianta="distructiv"
                       onClick={() => {
                         setPraguri((anterior) => anterior.filter((p) => p.cheie !== prag.cheie));
                       }}
                       disabled={praguri.length <= 1}
-                      className="text-danger text-xs disabled:opacity-40"
                     >
                       Șterge
-                    </button>
+                    </Buton>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <button
-          type="button"
+        <Buton
+          varianta="secundar"
           onClick={() => {
             setPraguri((anterior) => [...anterior, pragGol()]);
           }}
-          className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-1.5 text-sm"
         >
           Adaugă prag
-        </button>
+        </Buton>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="submit"
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se salvează…" : "Salvează o versiune nouă"}
-        </button>
+        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+          Salvează o versiune nouă
+        </Buton>
         {eroare === null ? null : (
-          <p role="alert" className="text-danger text-sm">
+          <p role="alert" className="text-danger text-corp">
             {eroare}
           </p>
         )}
         {reusit ? (
-          <p role="status" className="text-foreground text-sm">
+          <p role="status" className="text-foreground text-corp">
             Setările au fost salvate ca versiune nouă.
           </p>
         ) : null}

@@ -27,6 +27,27 @@ export const setariSalarizareSchema = z.object({
   procent_spor_noapte: z.coerce.number().min(0),
   procent_spor_weekend: z.coerce.number().min(0),
   procent_spor_sarbatoare: z.coerce.number().min(0).max(5).default(1),
+  /**
+   * Codul casei de asigurări de sănătate a angajatorului (D112, câmpul `casaAng`).
+   *
+   * ANAF cere să COINCIDĂ cu județul sediului social și respinge declarația dacă
+   * lipsește. Nu se deduce din `organizations.judet`: e nomenclator CNAS, nu cod
+   * de județ — de aceea e un câmp, nu o derivare.
+   */
+  casa_sanatate_angajator: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .max(10, "Codul casei de sănătate nu poate depăși 10 caractere.")
+    .nullable()
+    .default(null)
+    .transform((v) => (v === null || v.length === 0 ? null : v)),
+  functie_declarant: z
+    .string()
+    .trim()
+    .min(1, "Funcția declarantului este obligatorie.")
+    .max(50, "Funcția declarantului nu poate depăși 50 de caractere.")
+    .default("Administrator"),
   procent_ore_suplimentare: z.coerce.number().min(0),
   valoare_tichet_masa: z.coerce.number().min(0),
   tichete_impozabile: z.coerce.boolean(),

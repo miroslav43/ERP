@@ -68,6 +68,8 @@ export const salveazaSetari = createAction({
         procent_spor_noapte: input.procent_spor_noapte,
         procent_spor_weekend: input.procent_spor_weekend,
         procent_spor_sarbatoare: input.procent_spor_sarbatoare,
+        casa_sanatate_angajator: input.casa_sanatate_angajator,
+        functie_declarant: input.functie_declarant,
         procent_ore_suplimentare: input.procent_ore_suplimentare,
         valoare_tichet_masa: input.valoare_tichet_masa,
         tichete_impozabile: input.tichete_impozabile,
