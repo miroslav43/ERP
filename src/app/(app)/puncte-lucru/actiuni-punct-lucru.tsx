@@ -1,13 +1,29 @@
 // src/app/(app)/puncte-lucru/actiuni-punct-lucru.tsx
 "use client";
 
-import { useId, useState, useTransition } from "react";
+import { useCallback, useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Ban, Pencil } from "lucide-react";
 
 import { Buton } from "@/components/ui/buton";
+import { Camp, clasaBifa } from "@/components/ui/camp";
+import { Formular } from "@/components/ui/formular";
 import { JUDETE } from "@/schemas/organization";
 import { actualizeazaPunctLucru, dezactiveazaPunctLucru } from "./actions";
+
+/**
+ * Acțiunile unui rând din lista punctelor de lucru: editarea și dezactivarea.
+ *
+ * Sunt DOUĂ lucruri separate, deci rămân separate. Numai editarea trece prin
+ * `<Formular>`: ea are câmpuri, deci și `fieldErrors` de arătat pe câmp, și
+ * date de pierdut la resetul de după acțiune al lui React 19. Dezactivarea
+ * n-are decât `id`, luat din props — acolo `useTransition` și un mesaj sub
+ * butoane spun tot ce e de spus.
+ *
+ * Identificatorii se prefixează cu `useId()`: componenta se randează o dată per
+ * rând, mai multe rânduri pot fi deschise în același timp, iar `Camp` derivă
+ * `id` din `nume` — `denumire`, `judet` și `oras` s-ar repeta pe pagină.
+ */
 
 interface Proprietati {
   readonly punct: Readonly<{
@@ -28,34 +44,33 @@ export function ActiuniPunctLucru({ punct, poateEdita }: Proprietati) {
   const [editeaza, setEditeaza] = useState(false);
   const [inCurs, porneste] = useTransition();
   const [eroare, setEroare] = useState<string | null>(null);
-  const idDenumire = useId();
-  const idAdresa = useId();
-  const idJudet = useId();
-  const idOras = useId();
-  const idCodPostal = useId();
+  const idFormular = useId();
+  const idc = (sufix: string): string => `${idFormular}-${sufix}`;
+
+  // `useCallback`: `laReusita` intră în dependențele efectului din `Formular`;
+  // o funcție nouă la fiecare randare ar scoate notificarea de două ori.
+  const laReusita = useCallback((): void => {
+    setEditeaza(false);
+    router.refresh();
+  }, [router]);
 
   if (!poateEdita) return null;
 
-  function trimiteEditare(fd: FormData): void {
-    setEroare(null);
-    porneste(async () => {
-      const judet = String(fd.get("judet") ?? "");
-      const rezultat = await actualizeazaPunctLucru({
-        id: punct.id,
-        denumire: String(fd.get("denumire") ?? ""),
-        adresa: String(fd.get("adresa") ?? ""),
-        judet: judet === "" ? null : judet,
-        oras: String(fd.get("oras") ?? ""),
-        cod_postal: String(fd.get("cod_postal") ?? ""),
-        sediu_principal: fd.get("sediu_principal") === "on",
-        observatii: punct.observatii,
-      });
-      if (!rezultat.ok) {
-        setEroare(rezultat.error.message);
-        return;
-      }
-      setEditeaza(false);
-      router.refresh();
+  /** Cheile obiectului sunt EXACT cele din `actualizeazaPunctLucruSchema`. */
+  async function trimiteEditare(date: FormData) {
+    // `judetSchema.nullable()` nu cunoaște șirul gol: „— Alegeți —” devine
+    // `null` aici, nu în schemă.
+    const judet = String(date.get("judet") ?? "");
+    return actualizeazaPunctLucru({
+      id: punct.id,
+      denumire: String(date.get("denumire") ?? ""),
+      adresa: String(date.get("adresa") ?? ""),
+      judet: judet === "" ? null : judet,
+      oras: String(date.get("oras") ?? ""),
+      cod_postal: String(date.get("cod_postal") ?? ""),
+      sediu_principal: date.get("sediu_principal") === "on",
+      // Observațiile n-au câmp în acest formular; se duc înapoi neschimbate.
+      observatii: punct.observatii,
     });
   }
 
@@ -96,99 +111,141 @@ export function ActiuniPunctLucru({ punct, poateEdita }: Proprietati) {
       )}
 
       {editeaza ? (
-        <form
-          action={trimiteEditare}
+        <Formular
+          actiune={trimiteEditare}
+          laReusita={laReusita}
+          mesajReusita="Punctul de lucru a fost salvat."
           className="border-border rounded-control grid gap-2 border p-3 sm:grid-cols-2"
         >
-          <div className="flex flex-col gap-1">
-            <label htmlFor={idDenumire} className="text-nota font-medium">
-              Denumire
-            </label>
-            <input
-              id={idDenumire}
-              name="denumire"
-              type="text"
-              required
-              maxLength={160}
-              defaultValue={punct.denumire}
-              className="border-foreground/60 rounded-control text-corp border px-2 py-1.5"
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor={idJudet} className="text-nota font-medium">
-              Județ
-            </label>
-            <select
-              id={idJudet}
-              name="judet"
-              defaultValue={punct.judet ?? ""}
-              className="border-foreground/60 rounded-control text-corp border px-2 py-1.5"
-            >
-              <option value="">— Alegeți —</option>
-              {JUDETE.map((judet) => (
-                <option key={judet} value={judet}>
-                  {judet}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor={idOras} className="text-nota font-medium">
-              Localitate
-            </label>
-            <input
-              id={idOras}
-              name="oras"
-              type="text"
-              maxLength={80}
-              defaultValue={punct.oras ?? ""}
-              className="border-foreground/60 rounded-control text-corp border px-2 py-1.5"
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor={idCodPostal} className="text-nota font-medium">
-              Cod poștal
-            </label>
-            <input
-              id={idCodPostal}
-              name="cod_postal"
-              type="text"
-              maxLength={10}
-              defaultValue={punct.cod_postal ?? ""}
-              className="border-foreground/60 rounded-control text-corp border px-2 py-1.5"
-            />
-          </div>
-          <div className="flex flex-col gap-1 sm:col-span-2">
-            <label htmlFor={idAdresa} className="text-nota font-medium">
-              Adresă
-            </label>
-            <input
-              id={idAdresa}
-              name="adresa"
-              type="text"
-              maxLength={240}
-              defaultValue={punct.adresa ?? ""}
-              className="border-foreground/60 rounded-control text-corp border px-2 py-1.5"
-            />
-          </div>
-          <div className="flex items-center gap-2 sm:col-span-2">
-            <input
-              id={`${idDenumire}-principal`}
-              name="sediu_principal"
-              type="checkbox"
-              defaultChecked={punct.sediu_principal}
-              className="border-border size-4 rounded"
-            />
-            <label htmlFor={`${idDenumire}-principal`} className="text-nota">
-              Sediu principal
-            </label>
-          </div>
-          <div className="sm:col-span-2">
-            <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
-              Salvează
-            </Buton>
-          </div>
-        </form>
+          {(stare) => {
+            // Într-un `FormData` o bifă NEBIFATĂ lipsește cu totul, deci „încă
+            // nu s-a trimis nimic” și „s-a trimis nebifat” arată identic pe
+            // cheia ei. Se disting uitându-ne dacă formularul a plecat măcar o
+            // dată — altfel o bifă scoasă de om s-ar pune la loc la prima
+            // eroare de validare.
+            const sTrimis = Object.keys(stare.valoriTrimise).length > 0;
+            const sediuPrincipal = sTrimis
+              ? stare.valoriTrimise["sediu_principal"] === "on"
+              : punct.sediu_principal;
+
+            return (
+              <>
+                <Camp
+                  nume="denumire"
+                  id={idc("denumire")}
+                  eticheta="Denumire"
+                  obligatoriu
+                  erori={stare.erori["denumire"] ?? []}
+                >
+                  {(a) => (
+                    <input
+                      {...a}
+                      type="text"
+                      maxLength={160}
+                      defaultValue={stare.valoriTrimise["denumire"] ?? punct.denumire}
+                    />
+                  )}
+                </Camp>
+
+                <Camp
+                  nume="judet"
+                  id={idc("judet")}
+                  eticheta="Județ"
+                  fel="select"
+                  erori={stare.erori["judet"] ?? []}
+                >
+                  {(a) => (
+                    <select {...a} defaultValue={stare.valoriTrimise["judet"] ?? punct.judet ?? ""}>
+                      <option value="">— Alegeți —</option>
+                      {JUDETE.map((judet) => (
+                        <option key={judet} value={judet}>
+                          {judet}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </Camp>
+
+                <Camp
+                  nume="oras"
+                  id={idc("oras")}
+                  eticheta="Localitate"
+                  erori={stare.erori["oras"] ?? []}
+                >
+                  {(a) => (
+                    <input
+                      {...a}
+                      type="text"
+                      maxLength={80}
+                      defaultValue={stare.valoriTrimise["oras"] ?? punct.oras ?? ""}
+                    />
+                  )}
+                </Camp>
+
+                <Camp
+                  nume="cod_postal"
+                  id={idc("cod_postal")}
+                  eticheta="Cod poștal"
+                  erori={stare.erori["cod_postal"] ?? []}
+                >
+                  {(a) => (
+                    <input
+                      {...a}
+                      type="text"
+                      maxLength={10}
+                      defaultValue={stare.valoriTrimise["cod_postal"] ?? punct.cod_postal ?? ""}
+                    />
+                  )}
+                </Camp>
+
+                <Camp
+                  nume="adresa"
+                  id={idc("adresa")}
+                  eticheta="Adresă"
+                  className="sm:col-span-2"
+                  erori={stare.erori["adresa"] ?? []}
+                >
+                  {(a) => (
+                    <input
+                      {...a}
+                      type="text"
+                      maxLength={240}
+                      defaultValue={stare.valoriTrimise["adresa"] ?? punct.adresa ?? ""}
+                    />
+                  )}
+                </Camp>
+
+                {/* Bifa rămâne scrisă de mână: `Camp` pune eticheta ÎNAINTEA
+                    controlului, iar la o casetă de bifat eticheta stă după —
+                    altfel ținta de atingere se rupe în două și rândul se
+                    citește invers. */}
+                <div className="flex items-center gap-2 sm:col-span-2">
+                  <input
+                    id={idc("sediu_principal")}
+                    name="sediu_principal"
+                    type="checkbox"
+                    defaultChecked={sediuPrincipal}
+                    className={clasaBifa}
+                  />
+                  <label htmlFor={idc("sediu_principal")} className="text-foreground text-corp">
+                    Sediu principal
+                  </label>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <Buton
+                    type="submit"
+                    varianta="primar"
+                    inCurs={stare.inCurs}
+                    textInCurs="Se salvează…"
+                  >
+                    Salvează
+                  </Buton>
+                </div>
+              </>
+            );
+          }}
+        </Formular>
       ) : null}
     </div>
   );

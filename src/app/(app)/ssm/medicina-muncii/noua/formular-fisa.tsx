@@ -1,9 +1,11 @@
 "use client";
 
-import { useId, useState, useTransition } from "react";
+import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
+import { Camp } from "@/components/ui/camp";
+import { Formular } from "@/components/ui/formular";
 import { REZULTATE_EXAMEN, TIPURI_EXAMEN } from "@/schemas/ssm";
 
 import { adaugaFisaAptitudine } from "../../actions";
@@ -19,194 +21,171 @@ interface AngajatOptiune {
  * NU are câmp de diagnostic — art. 9 GDPR. Restricțiile de muncă (inapt,
  * inapt temporar, apt condiționat) se generează SINGURE, prin trigger, când
  * se salvează rezultatul; formularul nu le atinge.
+ *
+ * ── CE S-A REPARAT ────────────────────────────────────────────────────────
+ * Fișa de aptitudine are valabilitate: „valabil până la” intră în calculul
+ * scadențelor și în raportul de expirări. Când `valabil_pana` sau
+ * `data_examinarii` erau greșite, `fisaAptitudineSchema` spunea exact care
+ * dintre ele — dar formularul afișa un singur `<p>` roșu sub buton, cu textul
+ * generic al acțiunii, iar după refuz React 19 golea toate cele nouă câmpuri.
+ * `<Formular>` întoarce `valoriTrimise`; `<Camp>` duce mesajul lângă câmp.
+ *
+ * ── CONTRACTUL DE NUME ────────────────────────────────────────────────────
+ * `nume` din fiecare `<Camp>` e cheia din `fisaAptitudineSchema`, literă cu
+ * literă. Schema nu are `observatii` și nu are diagnostic — nici formularul.
  */
 export function FormularFisa({ angajati }: { readonly angajati: readonly AngajatOptiune[] }) {
   const router = useRouter();
-  const [inCurs, porneste] = useTransition();
-  const [eroare, setEroare] = useState<string | null>(null);
-  const id = {
-    angajat: useId(),
-    tip: useId(),
-    data: useId(),
-    medic: useId(),
-    unitate: useId(),
-    rezultat: useId(),
-    valabil: useId(),
-    numar: useId(),
-    cost: useId(),
-  };
 
-  function trimite(formular: FormData): void {
-    setEroare(null);
+  async function trimite(formular: FormData) {
     const text = (cheie: string) => {
       const v = String(formular.get(cheie) ?? "").trim();
       return v.length === 0 ? null : v;
     };
     const cost = text("cost");
 
-    porneste(async () => {
-      const rezultat = await adaugaFisaAptitudine({
-        employee_id: String(formular.get("employee_id") ?? ""),
-        tip: String(formular.get("tip") ?? ""),
-        data_examinarii: String(formular.get("data_examinarii") ?? ""),
-        medic: text("medic"),
-        unitate_medicala: text("unitate_medicala"),
-        rezultat: String(formular.get("rezultat") ?? ""),
-        valabil_pana: text("valabil_pana"),
-        numar_fisa: text("numar_fisa"),
-        cost: cost === null ? null : Number(cost),
-      });
-      if (!rezultat.ok) {
-        setEroare(rezultat.error.message);
-        return;
-      }
-      router.push("/ssm/medicina-muncii");
+    return await adaugaFisaAptitudine({
+      employee_id: String(formular.get("employee_id") ?? ""),
+      tip: String(formular.get("tip") ?? ""),
+      data_examinarii: String(formular.get("data_examinarii") ?? ""),
+      medic: text("medic"),
+      unitate_medicala: text("unitate_medicala"),
+      rezultat: String(formular.get("rezultat") ?? ""),
+      valabil_pana: text("valabil_pana"),
+      numar_fisa: text("numar_fisa"),
+      cost: cost === null ? null : Number(cost),
     });
   }
 
+  // Stabil între randări: `laReusita` intră în lista de dependențe a efectului
+  // din `<Formular>`, iar o funcție nouă la fiecare randare ar relua efectul.
+  const laReusita = useCallback(() => {
+    router.push("/ssm/medicina-muncii");
+    router.refresh();
+  }, [router]);
+
   return (
-    <form action={trimite} className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-1 sm:col-span-2">
-          <label htmlFor={id.angajat} className="text-corp font-medium">
-            Angajat
-          </label>
-          <select
-            id={id.angajat}
-            name="employee_id"
-            required
-            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-          >
-            {angajati.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.full_name ?? a.marca} ({a.marca})
-              </option>
-            ))}
-          </select>
-        </div>
+    <Formular actiune={trimite} laReusita={laReusita} mesajReusita="Fișa a fost salvată.">
+      {(stare) => {
+        // După o salvare reușită formularul repornește gol: `valoriTrimise` se
+        // păstrează DOAR cât timp ultimul răspuns a fost un refuz.
+        const trimise: Readonly<Record<string, string>> =
+          stare.data === null ? stare.valoriTrimise : {};
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor={id.tip} className="text-corp font-medium">
-            Tip examen
-          </label>
-          <select
-            id={id.tip}
-            name="tip"
-            defaultValue="periodic"
-            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-          >
-            {TIPURI_EXAMEN.map((t) => (
-              <option key={t} value={t}>
-                {ETICHETE_TIP_EXAMEN[t]}
-              </option>
-            ))}
-          </select>
-        </div>
+        return (
+          <>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Camp
+                nume="employee_id"
+                eticheta="Angajat"
+                fel="select"
+                obligatoriu
+                className="sm:col-span-2"
+                erori={stare.erori["employee_id"] ?? []}
+              >
+                {(a) => (
+                  <select {...a} defaultValue={trimise["employee_id"] ?? ""}>
+                    {angajati.map((ang) => (
+                      <option key={ang.id} value={ang.id}>
+                        {ang.full_name ?? ang.marca} ({ang.marca})
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </Camp>
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor={id.data} className="text-corp font-medium">
-            Data examinării
-          </label>
-          <input
-            id={id.data}
-            name="data_examinarii"
-            type="date"
-            required
-            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-          />
-        </div>
+              <Camp nume="tip" eticheta="Tip examen" fel="select" erori={stare.erori["tip"] ?? []}>
+                {(a) => (
+                  <select {...a} defaultValue={trimise["tip"] ?? "periodic"}>
+                    {TIPURI_EXAMEN.map((t) => (
+                      <option key={t} value={t}>
+                        {ETICHETE_TIP_EXAMEN[t]}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </Camp>
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor={id.rezultat} className="text-corp font-medium">
-            Rezultat
-          </label>
-          <select
-            id={id.rezultat}
-            name="rezultat"
-            defaultValue="apt"
-            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-          >
-            {REZULTATE_EXAMEN.map((r) => (
-              <option key={r} value={r}>
-                {ETICHETE_REZULTAT_EXAMEN[r]}
-              </option>
-            ))}
-          </select>
-        </div>
+              <Camp
+                nume="data_examinarii"
+                eticheta="Data examinării"
+                obligatoriu
+                erori={stare.erori["data_examinarii"] ?? []}
+              >
+                {(a) => (
+                  <input {...a} type="date" defaultValue={trimise["data_examinarii"] ?? ""} />
+                )}
+              </Camp>
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor={id.valabil} className="text-corp font-medium">
-            Valabilă până la
-          </label>
-          <input
-            id={id.valabil}
-            name="valabil_pana"
-            type="date"
-            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-          />
-        </div>
+              <Camp
+                nume="rezultat"
+                eticheta="Rezultat"
+                fel="select"
+                erori={stare.erori["rezultat"] ?? []}
+              >
+                {(a) => (
+                  <select {...a} defaultValue={trimise["rezultat"] ?? "apt"}>
+                    {REZULTATE_EXAMEN.map((r) => (
+                      <option key={r} value={r}>
+                        {ETICHETE_REZULTAT_EXAMEN[r]}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </Camp>
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor={id.medic} className="text-corp font-medium">
-            Medic
-          </label>
-          <input
-            id={id.medic}
-            name="medic"
-            maxLength={120}
-            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-          />
-        </div>
+              <Camp
+                nume="valabil_pana"
+                eticheta="Valabilă până la"
+                erori={stare.erori["valabil_pana"] ?? []}
+              >
+                {(a) => <input {...a} type="date" defaultValue={trimise["valabil_pana"] ?? ""} />}
+              </Camp>
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor={id.unitate} className="text-corp font-medium">
-            Unitate medicală
-          </label>
-          <input
-            id={id.unitate}
-            name="unitate_medicala"
-            maxLength={160}
-            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-          />
-        </div>
+              <Camp nume="medic" eticheta="Medic" erori={stare.erori["medic"] ?? []}>
+                {(a) => <input {...a} maxLength={120} defaultValue={trimise["medic"] ?? ""} />}
+              </Camp>
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor={id.numar} className="text-corp font-medium">
-            Număr fișă
-          </label>
-          <input
-            id={id.numar}
-            name="numar_fisa"
-            maxLength={64}
-            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-          />
-        </div>
+              <Camp
+                nume="unitate_medicala"
+                eticheta="Unitate medicală"
+                erori={stare.erori["unitate_medicala"] ?? []}
+              >
+                {(a) => (
+                  <input {...a} maxLength={160} defaultValue={trimise["unitate_medicala"] ?? ""} />
+                )}
+              </Camp>
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor={id.cost} className="text-corp font-medium">
-            Cost (lei)
-          </label>
-          <input
-            id={id.cost}
-            name="cost"
-            type="number"
-            min="0"
-            step="0.01"
-            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-          />
-        </div>
-      </div>
+              <Camp nume="numar_fisa" eticheta="Număr fișă" erori={stare.erori["numar_fisa"] ?? []}>
+                {(a) => <input {...a} maxLength={64} defaultValue={trimise["numar_fisa"] ?? ""} />}
+              </Camp>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
-          Salvează fișa
-        </Buton>
-        {eroare === null ? null : (
-          <p role="alert" className="text-danger text-corp">
-            {eroare}
-          </p>
-        )}
-      </div>
-    </form>
+              <Camp nume="cost" eticheta="Cost (lei)" erori={stare.erori["cost"] ?? []}>
+                {(a) => (
+                  <input
+                    {...a}
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    defaultValue={trimise["cost"] ?? ""}
+                  />
+                )}
+              </Camp>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <Buton
+                type="submit"
+                varianta="primar"
+                inCurs={stare.inCurs}
+                textInCurs="Se salvează…"
+              >
+                Salvează fișa
+              </Buton>
+            </div>
+          </>
+        );
+      }}
+    </Formular>
   );
 }

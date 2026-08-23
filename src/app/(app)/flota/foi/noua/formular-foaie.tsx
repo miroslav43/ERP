@@ -1,9 +1,12 @@
 "use client";
 
-import { useId, useState, useTransition } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
+import { Camp } from "@/components/ui/camp";
+import { Formular } from "@/components/ui/formular";
+import type { ActionResult } from "@/lib/actions/types";
 
 import { creeazaFoaie } from "../../actions";
 
@@ -19,6 +22,65 @@ interface AngajatOptiune {
   readonly marca: string;
 }
 
+type FoaieCreata = Readonly<{ id: string }>;
+
+/**
+ * Refuz construit în client, în forma exactă a unui `ActionResult`, ca mesajul
+ * să meargă pe aceeași cale ca al serverului și să ajungă lângă câmp, nu sub
+ * buton.
+ *
+ * Există doar unde schema Zod n-are mesaj propriu în română: `plecare_la` e
+ * `z.iso.datetime({ local: true })`, iar un câmp gol întoarce textul implicit
+ * al lui Zod, în engleză. Schema e un contract cu acțiunea și nu se atinge de
+ * aici — deci golul se prinde înainte de drumul la server.
+ */
+function refuzDeClient(
+  fieldErrors: Readonly<Record<string, readonly string[]>>,
+): ActionResult<never> {
+  return {
+    ok: false,
+    error: {
+      code: "VALIDARE",
+      message: "Datele introduse nu sunt valide.",
+      fieldErrors,
+      requestId: "client",
+    },
+  };
+}
+
+function textSauNull(date: FormData, cheie: string): string | null {
+  const valoare = String(date.get(cheie) ?? "").trim();
+  return valoare.length === 0 ? null : valoare;
+}
+
+/**
+ * Numele din `FormData` sunt EXACT cheile lui `foaieNouaSchema`
+ * (`src/schemas/fleet.ts`): `vehicle_id`, `employee_id`, `plecare_la`,
+ * `km_plecare`, `traseu`, `scop`. Fără potrivirea asta, `fieldErrors` întors de
+ * acțiune n-ar mai găsi niciun câmp, iar mesajul ar dispărea în tăcere.
+ *
+ * `observatii` există în schemă, dar nu și pe ecran: foaia se completează la
+ * plecare, iar observațiile se scriu la închiderea cursei.
+ */
+async function trimiteFoaia(date: FormData): Promise<ActionResult<FoaieCreata>> {
+  const plecareLa = String(date.get("plecare_la") ?? "").trim();
+  if (plecareLa.length === 0) {
+    return refuzDeClient({ plecare_la: ["Completați data și ora plecării."] });
+  }
+
+  return creeazaFoaie({
+    vehicle_id: String(date.get("vehicle_id") ?? ""),
+    employee_id: String(date.get("employee_id") ?? ""),
+    plecare_la: plecareLa,
+    // `km_plecare` pleacă text: `z.coerce.number().int()` îl convertește, exact
+    // ca înainte, iar un `Number()` aici ar transforma golul în 0 mai devreme.
+    km_plecare: String(date.get("km_plecare") ?? ""),
+    traseu: textSauNull(date, "traseu"),
+    scop: textSauNull(date, "scop"),
+    observatii: null,
+  });
+}
+
 export function FormularFoaie({
   vehicule,
   angajati,
@@ -27,167 +89,152 @@ export function FormularFoaie({
   readonly angajati: readonly AngajatOptiune[];
 }) {
   const router = useRouter();
-  const [inCurs, porneste] = useTransition();
-  const [eroare, setEroare] = useState<string | null>(null);
   const [vehiculId, setVehiculId] = useState(vehicule[0]?.id ?? "");
-
-  const id = {
-    vehicul: useId(),
-    sofer: useId(),
-    plecare: useId(),
-    km: useId(),
-    traseu: useId(),
-    scop: useId(),
-  };
 
   /**
    * Kilometrajul sugerat vine din `vehicles.km_curent`, care e ridicat la fiecare
    * aprobare de foaie — adică e chiar ultimul kilometraj cunoscut. Îl arătăm ca
    * valoare implicită editabilă, nu blocată: șoferul poate avea un motiv real să
    * îl corecteze în sus, iar în jos oricum îl refuză baza.
+   *
+   * Câmpul e CONTROLAT, nu remontat cu `key`: starea supraviețuiește unei erori
+   * de validare (formularul nu se mai golește), iar la schimbarea vehiculului
+   * sugestia se rescrie explicit, în același `onChange`.
    */
+  const [kmPlecare, setKmPlecare] = useState(String(vehicule[0]?.km_curent ?? 0));
   const kmSugerat = vehicule.find((v) => v.id === vehiculId)?.km_curent ?? 0;
 
-  function trimite(formular: FormData): void {
-    setEroare(null);
-    const text = (cheie: string) => {
-      const v = String(formular.get(cheie) ?? "").trim();
-      return v.length === 0 ? null : v;
-    };
-
-    porneste(async () => {
-      const rezultat = await creeazaFoaie({
-        vehicle_id: String(formular.get("vehicle_id") ?? ""),
-        employee_id: String(formular.get("employee_id") ?? ""),
-        plecare_la: String(formular.get("plecare_la") ?? ""),
-        km_plecare: Number(formular.get("km_plecare") ?? 0),
-        traseu: text("traseu"),
-        scop: text("scop"),
-        observatii: null,
-      });
-
-      if (!rezultat.ok) {
-        setEroare(rezultat.error.message);
-        return;
-      }
-      router.push(`/flota/foi/${rezultat.data.id}`);
-    });
-  }
+  const laReusita = useCallback(
+    (foaie: Readonly<{ id: string }>) => {
+      router.push(`/flota/foi/${foaie.id}`);
+    },
+    [router],
+  );
 
   return (
-    <form action={trimite} className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-1">
-          <label htmlFor={id.vehicul} className="text-corp font-medium">
-            Vehicul
-          </label>
-          <select
-            id={id.vehicul}
-            name="vehicle_id"
-            required
-            value={vehiculId}
-            onChange={(e) => {
-              setVehiculId(e.target.value);
-            }}
-            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-          >
-            {vehicule.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.nr_inmatriculare}
-              </option>
-            ))}
-          </select>
-        </div>
+    <Formular
+      actiune={trimiteFoaia}
+      laReusita={laReusita}
+      mesajReusita="Foaia de parcurs a fost salvată ca ciornă."
+    >
+      {(stare) => (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Camp
+              nume="vehicle_id"
+              eticheta="Vehicul"
+              fel="select"
+              obligatoriu
+              erori={stare.erori["vehicle_id"] ?? []}
+            >
+              {(a) => (
+                <select
+                  {...a}
+                  value={vehiculId}
+                  onChange={(e) => {
+                    setVehiculId(e.target.value);
+                    setKmPlecare(
+                      String(vehicule.find((v) => v.id === e.target.value)?.km_curent ?? 0),
+                    );
+                  }}
+                >
+                  {vehicule.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.nr_inmatriculare}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Camp>
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor={id.sofer} className="text-corp font-medium">
-            Șofer
-          </label>
-          <select
-            id={id.sofer}
-            name="employee_id"
-            required
-            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-          >
-            {angajati.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.full_name ?? a.marca} ({a.marca})
-              </option>
-            ))}
-          </select>
-        </div>
+            <Camp
+              nume="employee_id"
+              eticheta="Șofer"
+              fel="select"
+              obligatoriu
+              erori={stare.erori["employee_id"] ?? []}
+            >
+              {(a) => (
+                <select {...a} defaultValue={stare.valoriTrimise["employee_id"] ?? ""}>
+                  {angajati.map((ang) => (
+                    <option key={ang.id} value={ang.id}>
+                      {ang.full_name ?? ang.marca} ({ang.marca})
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Camp>
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor={id.plecare} className="text-corp font-medium">
-            Plecare
-          </label>
-          <input
-            id={id.plecare}
-            name="plecare_la"
-            type="datetime-local"
-            required
-            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-          />
-        </div>
+            <Camp
+              nume="plecare_la"
+              eticheta="Plecare"
+              obligatoriu
+              erori={stare.erori["plecare_la"] ?? []}
+            >
+              {(a) => (
+                <input
+                  {...a}
+                  type="datetime-local"
+                  defaultValue={stare.valoriTrimise["plecare_la"] ?? ""}
+                />
+              )}
+            </Camp>
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor={id.km} className="text-corp font-medium">
-            Kilometraj la plecare
-          </label>
-          <input
-            // `key` forțează remontarea la schimbarea vehiculului, ca valoarea
-            // implicită să se actualizeze — un `defaultValue` nou nu ar face-o.
-            key={vehiculId}
-            id={id.km}
-            name="km_plecare"
-            type="number"
-            min={0}
-            required
-            defaultValue={kmSugerat}
-            aria-describedby={`${id.km}-ajutor`}
-            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-          />
-          <p id={`${id.km}-ajutor`} className="text-muted-foreground text-nota">
-            Ultimul kilometraj cunoscut: {kmSugerat.toLocaleString("ro-RO")} km.
-          </p>
-        </div>
+            <Camp
+              nume="km_plecare"
+              eticheta="Kilometraj la plecare"
+              obligatoriu
+              ajutor={`Ultimul kilometraj cunoscut: ${kmSugerat.toLocaleString("ro-RO")} km.`}
+              erori={stare.erori["km_plecare"] ?? []}
+            >
+              {(a) => (
+                <input
+                  {...a}
+                  type="number"
+                  min={0}
+                  value={kmPlecare}
+                  onChange={(e) => {
+                    setKmPlecare(e.target.value);
+                  }}
+                />
+              )}
+            </Camp>
 
-        <div className="flex flex-col gap-1 sm:col-span-2">
-          <label htmlFor={id.traseu} className="text-corp font-medium">
-            Traseu
-          </label>
-          <input
-            id={id.traseu}
-            name="traseu"
-            maxLength={500}
-            placeholder="Cluj-Napoca – Turda – Cluj-Napoca"
-            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-          />
-        </div>
+            <Camp
+              nume="traseu"
+              eticheta="Traseu"
+              className="sm:col-span-2"
+              erori={stare.erori["traseu"] ?? []}
+            >
+              {(a) => (
+                <input
+                  {...a}
+                  maxLength={500}
+                  placeholder="Cluj-Napoca – Turda – Cluj-Napoca"
+                  defaultValue={stare.valoriTrimise["traseu"] ?? ""}
+                />
+              )}
+            </Camp>
 
-        <div className="flex flex-col gap-1 sm:col-span-2">
-          <label htmlFor={id.scop} className="text-corp font-medium">
-            Scopul deplasării
-          </label>
-          <input
-            id={id.scop}
-            name="scop"
-            maxLength={500}
-            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-          />
-        </div>
-      </div>
+            <Camp
+              nume="scop"
+              eticheta="Scopul deplasării"
+              className="sm:col-span-2"
+              erori={stare.erori["scop"] ?? []}
+            >
+              {(a) => (
+                <input {...a} maxLength={500} defaultValue={stare.valoriTrimise["scop"] ?? ""} />
+              )}
+            </Camp>
+          </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
-          Salvează ciorna
-        </Buton>
-        {eroare === null ? null : (
-          <p role="alert" className="text-danger text-corp">
-            {eroare}
-          </p>
-        )}
-      </div>
-    </form>
+          <div>
+            <Buton type="submit" varianta="primar" inCurs={stare.inCurs} textInCurs="Se salvează…">
+              Salvează ciorna
+            </Buton>
+          </div>
+        </>
+      )}
+    </Formular>
   );
 }

@@ -1,9 +1,12 @@
 "use client";
 
-import { useId, useState, useTransition } from "react";
+import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
+import { Camp } from "@/components/ui/camp";
+import { Formular } from "@/components/ui/formular";
+
 import { predaEip } from "../actions";
 
 interface AngajatOptiune {
@@ -12,24 +15,27 @@ interface AngajatOptiune {
   readonly marca: string;
 }
 
-/** NU trimite `data_inlocuirii`: triggerul BEFORE `internal.ssm_ppe_calc` o calculează. */
+/**
+ * NU trimite `data_inlocuirii`: triggerul BEFORE `internal.ssm_ppe_calc` o
+ * calculează.
+ *
+ * ── CE S-A REPARAT ────────────────────────────────────────────────────────
+ * Formular de introdus la rând, direct în listă: se predau zece articole unul
+ * după altul. Vechea variantă afișa un singur `<p>` roșu sub buton, deci
+ * „Articolul este obligatoriu.” arăta la fel ca o cantitate peste 1000 sau ca o
+ * dată de predare nevalidă — iar după refuz React 19 golea toate cele opt
+ * câmpuri, inclusiv angajatul deja ales din listă. `<Formular>` întoarce
+ * `valoriTrimise`, `<Camp>` duce mesajul lângă câmpul lui.
+ *
+ * ── CONTRACTUL DE NUME ────────────────────────────────────────────────────
+ * `nume` din fiecare `<Camp>` e cheia din `eipSchema`, literă cu literă.
+ * `semnatura_confirmata` NU e câmp de formular: predarea se înregistrează
+ * nesemnată, iar confirmarea vine separat.
+ */
 export function FormularEip({ angajati }: { readonly angajati: readonly AngajatOptiune[] }) {
   const router = useRouter();
-  const [inCurs, porneste] = useTransition();
-  const [eroare, setEroare] = useState<string | null>(null);
-  const id = {
-    angajat: useId(),
-    articol: useId(),
-    cod: useId(),
-    cantitate: useId(),
-    unitate: useId(),
-    predare: useId(),
-    durata: useId(),
-    valoare: useId(),
-  };
 
-  function trimite(formular: FormData): void {
-    setEroare(null);
+  async function trimite(formular: FormData) {
     const text = (cheie: string) => {
       const v = String(formular.get(cheie) ?? "").trim();
       return v.length === 0 ? null : v;
@@ -37,154 +43,146 @@ export function FormularEip({ angajati }: { readonly angajati: readonly AngajatO
     const durata = text("durata_utilizare_luni");
     const valoare = text("valoare");
 
-    porneste(async () => {
-      const rezultat = await predaEip({
-        employee_id: String(formular.get("employee_id") ?? ""),
-        articol: String(formular.get("articol") ?? ""),
-        cod_articol: text("cod_articol"),
-        cantitate: Number(formular.get("cantitate") ?? 1),
-        unitate: String(formular.get("unitate") ?? "buc"),
-        data_predarii: String(formular.get("data_predarii") ?? ""),
-        durata_utilizare_luni: durata === null ? null : Number(durata),
-        valoare: valoare === null ? null : Number(valoare),
-        semnatura_confirmata: false,
-      });
-      if (!rezultat.ok) {
-        setEroare(rezultat.error.message);
-        return;
-      }
-      router.refresh();
+    return await predaEip({
+      employee_id: String(formular.get("employee_id") ?? ""),
+      articol: String(formular.get("articol") ?? ""),
+      cod_articol: text("cod_articol"),
+      cantitate: Number(formular.get("cantitate") ?? 1),
+      unitate: String(formular.get("unitate") ?? "buc"),
+      data_predarii: String(formular.get("data_predarii") ?? ""),
+      durata_utilizare_luni: durata === null ? null : Number(durata),
+      valoare: valoare === null ? null : Number(valoare),
+      semnatura_confirmata: false,
     });
   }
 
+  // Stabil între randări: `laReusita` intră în lista de dependențe a efectului
+  // din `<Formular>`, iar o funcție nouă la fiecare randare ar relua efectul —
+  // adică încă o notificare de reușită la fiecare re-randare.
+  const laReusita = useCallback(() => {
+    router.refresh();
+  }, [router]);
+
   return (
-    <form
-      action={trimite}
-      className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-3"
+    <Formular
+      actiune={trimite}
+      laReusita={laReusita}
+      mesajReusita="Echipamentul a fost predat."
+      className="border-border rounded-panou border p-4"
     >
-      <p className="text-corp font-medium sm:col-span-3">Predă echipament</p>
+      {(stare) => {
+        // Formularul se folosește la rând, deci după o predare reușită trebuie
+        // să repornească gol: `valoriTrimise` se păstrează DOAR cât timp
+        // ultimul răspuns a fost un refuz.
+        const trimise: Readonly<Record<string, string>> =
+          stare.data === null ? stare.valoriTrimise : {};
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.angajat} className="text-corp">
-          Angajat
-        </label>
-        <select
-          id={id.angajat}
-          name="employee_id"
-          required
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        >
-          {angajati.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.full_name ?? a.marca} ({a.marca})
-            </option>
-          ))}
-        </select>
-      </div>
+        return (
+          <>
+            <p className="text-corp font-medium">Predă echipament</p>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.articol} className="text-corp">
-          Articol
-        </label>
-        <input
-          id={id.articol}
-          name="articol"
-          required
-          maxLength={160}
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        />
-      </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Camp
+                nume="employee_id"
+                eticheta="Angajat"
+                fel="select"
+                obligatoriu
+                erori={stare.erori["employee_id"] ?? []}
+              >
+                {(a) => (
+                  <select {...a} defaultValue={trimise["employee_id"] ?? ""}>
+                    {angajati.map((ang) => (
+                      <option key={ang.id} value={ang.id}>
+                        {ang.full_name ?? ang.marca} ({ang.marca})
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </Camp>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.cod} className="text-corp">
-          Cod articol
-        </label>
-        <input
-          id={id.cod}
-          name="cod_articol"
-          maxLength={64}
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        />
-      </div>
+              <Camp
+                nume="articol"
+                eticheta="Articol"
+                obligatoriu
+                erori={stare.erori["articol"] ?? []}
+              >
+                {(a) => <input {...a} maxLength={160} defaultValue={trimise["articol"] ?? ""} />}
+              </Camp>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.cantitate} className="text-corp">
-          Cantitate
-        </label>
-        <input
-          id={id.cantitate}
-          name="cantitate"
-          type="number"
-          min="0.01"
-          step="1"
-          defaultValue={1}
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        />
-      </div>
+              <Camp
+                nume="cod_articol"
+                eticheta="Cod articol"
+                erori={stare.erori["cod_articol"] ?? []}
+              >
+                {(a) => <input {...a} maxLength={64} defaultValue={trimise["cod_articol"] ?? ""} />}
+              </Camp>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.unitate} className="text-corp">
-          Unitate
-        </label>
-        <input
-          id={id.unitate}
-          name="unitate"
-          defaultValue="buc"
-          maxLength={20}
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        />
-      </div>
+              <Camp nume="cantitate" eticheta="Cantitate" erori={stare.erori["cantitate"] ?? []}>
+                {(a) => (
+                  <input
+                    {...a}
+                    type="number"
+                    min="0.01"
+                    step="1"
+                    defaultValue={trimise["cantitate"] ?? 1}
+                  />
+                )}
+              </Camp>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.predare} className="text-corp">
-          Data predării
-        </label>
-        <input
-          id={id.predare}
-          name="data_predarii"
-          type="date"
-          required
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        />
-      </div>
+              <Camp nume="unitate" eticheta="Unitate" erori={stare.erori["unitate"] ?? []}>
+                {(a) => <input {...a} maxLength={20} defaultValue={trimise["unitate"] ?? "buc"} />}
+              </Camp>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.durata} className="text-corp">
-          Durată utilizare (luni, opțional)
-        </label>
-        <input
-          id={id.durata}
-          name="durata_utilizare_luni"
-          type="number"
-          min="1"
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        />
-      </div>
+              <Camp
+                nume="data_predarii"
+                eticheta="Data predării"
+                obligatoriu
+                erori={stare.erori["data_predarii"] ?? []}
+              >
+                {(a) => <input {...a} type="date" defaultValue={trimise["data_predarii"] ?? ""} />}
+              </Camp>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.valoare} className="text-corp">
-          Valoare (lei)
-        </label>
-        <input
-          id={id.valoare}
-          name="valoare"
-          type="number"
-          min="0"
-          step="0.01"
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        />
-      </div>
+              <Camp
+                nume="durata_utilizare_luni"
+                eticheta="Durată utilizare (luni, opțional)"
+                erori={stare.erori["durata_utilizare_luni"] ?? []}
+              >
+                {(a) => (
+                  <input
+                    {...a}
+                    type="number"
+                    min="1"
+                    defaultValue={trimise["durata_utilizare_luni"] ?? ""}
+                  />
+                )}
+              </Camp>
 
-      <div className="flex flex-wrap items-center gap-3 sm:col-span-3">
-        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
-          Predă echipamentul
-        </Buton>
-        {eroare === null ? null : (
-          <p role="alert" className="text-danger text-corp">
-            {eroare}
-          </p>
-        )}
-      </div>
-    </form>
+              <Camp nume="valoare" eticheta="Valoare (lei)" erori={stare.erori["valoare"] ?? []}>
+                {(a) => (
+                  <input
+                    {...a}
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    defaultValue={trimise["valoare"] ?? ""}
+                  />
+                )}
+              </Camp>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <Buton
+                type="submit"
+                varianta="primar"
+                inCurs={stare.inCurs}
+                textInCurs="Se salvează…"
+              >
+                Predă echipamentul
+              </Buton>
+            </div>
+          </>
+        );
+      }}
+    </Formular>
   );
 }

@@ -1,9 +1,12 @@
+// src/app/(app)/onboarding/sabloane/[id]/formular-pas.tsx
 "use client";
 
-import { useId, useState, useTransition } from "react";
+import { useCallback, useId, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
+import { Camp, clasaBifa } from "@/components/ui/camp";
+import { Formular } from "@/components/ui/formular";
 import {
   CHECKLIST_RESPONSABIL_TIP,
   CHECKLIST_TIP_DOVADA,
@@ -13,6 +16,22 @@ import {
 
 import { actualizeazaPas, adaugaPas } from "../../actions";
 import { ETICHETE_RESPONSABIL_TIP, ETICHETE_ROL, ETICHETE_TIP_DOVADA } from "../../etichete";
+
+/**
+ * Un pas de șablon — adăugare sau editare.
+ *
+ * Formularul are cele mai multe reguli încrucișate din modul, iar toate cad pe
+ * un câmp anume: `..._responsabil_ck` pune mesajul pe `responsabil_tip`, iar
+ * `..._automat_ck` pe `verificare_automata`. Varianta veche arunca
+ * `fieldErrors` și afișa lângă buton „Datele introduse nu sunt valide.” — omul
+ * afla că ceva e greșit, nu și CE. Cu `<Formular>` + `<Camp>` mesajul ajunge
+ * sub câmpul vinovat, iar `valoriTrimise` opresc golirea formularului la
+ * resetul de după acțiune al lui React 19.
+ *
+ * Identificatorii se prefixează cu `useId()`: `lista-pasi.tsx` poate randa în
+ * același timp formularul de adăugare și pe cel de editare al unui pas, iar
+ * `Camp` derivă `id` din `nume`.
+ */
 
 interface PasInitial {
   readonly id: string;
@@ -36,231 +55,286 @@ interface Proprietati {
 
 export function FormularPas({ templateId, initial, onGata }: Proprietati) {
   const router = useRouter();
-  const [inCurs, porneste] = useTransition();
-  const [eroare, setEroare] = useState<string | null>(null);
   const [responsabilTip, setResponsabilTip] = useState(initial?.responsabil_tip ?? "rol");
+  // Formularul de ADĂUGARE rămâne montat după reușită, iar `valoriTrimise` i-ar
+  // ține pe ecran pasul tocmai adăugat. Generația îl remontează, deci pleacă de
+  // la zero pentru pasul următor. Cel de editare dispare oricum, prin `onGata`.
+  const [generatie, setGeneratie] = useState(0);
+  const idFormular = useId();
+  const idc = (sufix: string): string => `${idFormular}-${sufix}`;
 
-  const id = {
-    titlu: useId(),
-    descriere: useId(),
-    responsabilTip: useId(),
-    responsabilRol: useId(),
-    responsabilAngajat: useId(),
-    termen: useId(),
-    obligatoriu: useId(),
-    tipDovada: useId(),
-    verificare: useId(),
-  };
+  // `useCallback`: `laReusita` intră în dependențele efectului din `Formular`;
+  // o funcție nouă la fiecare randare l-ar reporni după succes.
+  const laReusita = useCallback((): void => {
+    setGeneratie((g) => g + 1);
+    router.refresh();
+    onGata?.();
+  }, [router, onGata]);
 
-  function trimite(formular: FormData): void {
-    setEroare(null);
-    const text = (cheie: string) => {
-      const v = String(formular.get(cheie) ?? "").trim();
-      return v.length === 0 ? null : v;
+  /** Cheile obiectului sunt EXACT cele din `pasCampuriSchema`. */
+  async function trimite(date: FormData) {
+    // Șirul GOL, nu `null`: `optional()` din `schemas/checklist.ts` e o uniune
+    // `schema | "" | undefined`, deci un `null` trimis de client ar cădea pe
+    // câmp cu „Invalid input” — la fiecare pas fără verificare automată.
+    const text = (cheie: string): string => String(date.get(cheie) ?? "").trim();
+
+    const campuri = {
+      titlu: text("titlu"),
+      descriere: text("descriere"),
+      responsabil_tip: text("responsabil_tip"),
+      // Câmpul celuilalt tip de responsabil nici nu e randat; ce a rămas scris
+      // în el înainte de schimbarea selectorului nu trebuie să plece la server,
+      // fiindcă `..._responsabil_ck` cere exact una dintre cele două valori.
+      responsabil_rol: responsabilTip === "rol" ? text("responsabil_rol") : "",
+      responsabil_employee_id: responsabilTip === "angajat" ? text("responsabil_employee_id") : "",
+      termen_zile_relativ: text("termen_zile_relativ"),
+      obligatoriu: date.get("obligatoriu") === "on",
+      tip_dovada: text("tip_dovada"),
+      verificare_automata: text("verificare_automata"),
     };
 
-    porneste(async () => {
-      const campuri = {
-        titlu: String(formular.get("titlu") ?? "").trim(),
-        descriere: text("descriere"),
-        responsabil_tip: String(formular.get("responsabil_tip") ?? "rol"),
-        responsabil_rol: responsabilTip === "rol" ? text("responsabil_rol") : null,
-        responsabil_employee_id:
-          responsabilTip === "angajat" ? text("responsabil_employee_id") : null,
-        termen_zile_relativ: Number(formular.get("termen_zile_relativ") ?? 0),
-        obligatoriu: formular.get("obligatoriu") === "on",
-        tip_dovada: String(formular.get("tip_dovada") ?? "bifa"),
-        verificare_automata: text("verificare_automata"),
-      };
-
-      const rezultat =
-        initial === undefined
-          ? await adaugaPas({ ...campuri, template_id: templateId })
-          : await actualizeazaPas({ ...campuri, id: initial.id });
-
-      if (!rezultat.ok) {
-        setEroare(rezultat.error.message);
-        return;
-      }
-      router.refresh();
-      onGata?.();
-    });
+    return initial === undefined
+      ? adaugaPas({ ...campuri, template_id: templateId })
+      : actualizeazaPas({ ...campuri, id: initial.id });
   }
 
   return (
-    <form action={trimite} className="border-border rounded-panou space-y-3 border p-4">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="flex flex-col gap-1 sm:col-span-2">
-          <label htmlFor={id.titlu} className="text-corp font-medium">
-            Titlu
-          </label>
-          <input
-            id={id.titlu}
-            name="titlu"
-            required
-            minLength={2}
-            maxLength={200}
-            defaultValue={initial?.titlu}
-            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-          />
-        </div>
+    <Formular
+      key={generatie}
+      actiune={trimite}
+      laReusita={laReusita}
+      mesajReusita={initial === undefined ? "Pasul a fost adăugat." : "Pasul a fost salvat."}
+      className="border-border rounded-panou border p-4"
+    >
+      {(stare) => {
+        // Într-un `FormData` o bifă NEBIFATĂ lipsește cu totul, deci „încă nu
+        // s-a trimis nimic” și „s-a trimis nebifat” arată identic pe cheia ei.
+        // Se disting uitându-ne dacă formularul a plecat măcar o dată — altfel
+        // bifa scoasă de om s-ar pune la loc la prima eroare de validare.
+        const sTrimis = Object.keys(stare.valoriTrimise).length > 0;
+        const obligatoriu = sTrimis
+          ? stare.valoriTrimise["obligatoriu"] === "on"
+          : (initial?.obligatoriu ?? true);
 
-        <div className="flex flex-col gap-1 sm:col-span-2">
-          <label htmlFor={id.descriere} className="text-corp font-medium">
-            Descriere
-          </label>
-          <textarea
-            id={id.descriere}
-            name="descriere"
-            rows={2}
-            maxLength={2000}
-            defaultValue={initial?.descriere ?? ""}
-            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-          />
-        </div>
+        return (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Camp
+                nume="titlu"
+                id={idc("titlu")}
+                eticheta="Titlu"
+                obligatoriu
+                className="sm:col-span-2"
+                erori={stare.erori["titlu"] ?? []}
+              >
+                {(a) => (
+                  <input
+                    {...a}
+                    minLength={2}
+                    maxLength={200}
+                    defaultValue={stare.valoriTrimise["titlu"] ?? initial?.titlu ?? ""}
+                  />
+                )}
+              </Camp>
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor={id.responsabilTip} className="text-corp font-medium">
-            Responsabil
-          </label>
-          <select
-            id={id.responsabilTip}
-            name="responsabil_tip"
-            value={responsabilTip}
-            onChange={(e) => {
-              setResponsabilTip(e.target.value as typeof responsabilTip);
-            }}
-            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-          >
-            {CHECKLIST_RESPONSABIL_TIP.map((r) => (
-              <option key={r} value={r}>
-                {ETICHETE_RESPONSABIL_TIP[r]}
-              </option>
-            ))}
-          </select>
-        </div>
+              <Camp
+                nume="descriere"
+                id={idc("descriere")}
+                eticheta="Descriere"
+                fel="textarea"
+                className="sm:col-span-2"
+                erori={stare.erori["descriere"] ?? []}
+              >
+                {(a) => (
+                  <textarea
+                    {...a}
+                    rows={2}
+                    maxLength={2000}
+                    defaultValue={stare.valoriTrimise["descriere"] ?? initial?.descriere ?? ""}
+                  />
+                )}
+              </Camp>
 
-        {responsabilTip === "rol" ? (
-          <div className="flex flex-col gap-1">
-            <label htmlFor={id.responsabilRol} className="text-corp font-medium">
-              Rol
-            </label>
-            <select
-              id={id.responsabilRol}
-              name="responsabil_rol"
-              defaultValue={initial?.responsabil_rol ?? ""}
-              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-            >
-              <option value="">Alegeți rolul</option>
-              {ROLURI_RESPONSABIL.map((r) => (
-                <option key={r} value={r}>
-                  {ETICHETE_ROL[r]}
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : null}
+              <Camp
+                nume="responsabil_tip"
+                id={idc("responsabil_tip")}
+                eticheta="Responsabil"
+                fel="select"
+                erori={stare.erori["responsabil_tip"] ?? []}
+              >
+                {(a) => (
+                  <select
+                    {...a}
+                    value={responsabilTip}
+                    onChange={(e) => {
+                      setResponsabilTip(e.target.value as typeof responsabilTip);
+                    }}
+                  >
+                    {CHECKLIST_RESPONSABIL_TIP.map((r) => (
+                      <option key={r} value={r}>
+                        {ETICHETE_RESPONSABIL_TIP[r]}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </Camp>
 
-        {responsabilTip === "angajat" ? (
-          <div className="flex flex-col gap-1">
-            <label htmlFor={id.responsabilAngajat} className="text-corp font-medium">
-              Id-ul angajatului
-            </label>
-            <input
-              id={id.responsabilAngajat}
-              name="responsabil_employee_id"
-              defaultValue={initial?.responsabil_employee_id ?? ""}
-              placeholder="id-ul angajatului"
-              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-            />
-          </div>
-        ) : null}
+              {responsabilTip === "rol" ? (
+                <Camp
+                  nume="responsabil_rol"
+                  id={idc("responsabil_rol")}
+                  eticheta="Rol"
+                  fel="select"
+                  erori={stare.erori["responsabil_rol"] ?? []}
+                >
+                  {(a) => (
+                    <select
+                      {...a}
+                      defaultValue={
+                        stare.valoriTrimise["responsabil_rol"] ?? initial?.responsabil_rol ?? ""
+                      }
+                    >
+                      <option value="">Alegeți rolul</option>
+                      {ROLURI_RESPONSABIL.map((r) => (
+                        <option key={r} value={r}>
+                          {ETICHETE_ROL[r]}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </Camp>
+              ) : null}
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor={id.termen} className="text-corp font-medium">
-            Termen (zile față de data de referință)
-          </label>
-          <input
-            id={id.termen}
-            name="termen_zile_relativ"
-            type="number"
-            min={-365}
-            max={365}
-            defaultValue={initial?.termen_zile_relativ ?? 0}
-            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-          />
-        </div>
+              {responsabilTip === "angajat" ? (
+                <Camp
+                  nume="responsabil_employee_id"
+                  id={idc("responsabil_employee_id")}
+                  eticheta="Id-ul angajatului"
+                  erori={stare.erori["responsabil_employee_id"] ?? []}
+                >
+                  {(a) => (
+                    <input
+                      {...a}
+                      placeholder="id-ul angajatului"
+                      defaultValue={
+                        stare.valoriTrimise["responsabil_employee_id"] ??
+                        initial?.responsabil_employee_id ??
+                        ""
+                      }
+                    />
+                  )}
+                </Camp>
+              ) : null}
 
-        <div className="flex items-end gap-2 pb-2">
-          <input
-            id={id.obligatoriu}
-            name="obligatoriu"
-            type="checkbox"
-            defaultChecked={initial?.obligatoriu ?? true}
-            className="border-foreground/60 size-4 rounded"
-          />
-          <label htmlFor={id.obligatoriu} className="text-corp font-medium">
-            Obligatoriu
-          </label>
-        </div>
+              <Camp
+                nume="termen_zile_relativ"
+                id={idc("termen_zile_relativ")}
+                eticheta="Termen (zile față de data de referință)"
+                erori={stare.erori["termen_zile_relativ"] ?? []}
+              >
+                {(a) => (
+                  <input
+                    {...a}
+                    type="number"
+                    min={-365}
+                    max={365}
+                    defaultValue={
+                      stare.valoriTrimise["termen_zile_relativ"] ??
+                      String(initial?.termen_zile_relativ ?? 0)
+                    }
+                  />
+                )}
+              </Camp>
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor={id.tipDovada} className="text-corp font-medium">
-            Dovadă cerută
-          </label>
-          <select
-            id={id.tipDovada}
-            name="tip_dovada"
-            defaultValue={initial?.tip_dovada ?? "bifa"}
-            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-          >
-            {CHECKLIST_TIP_DOVADA.map((t) => (
-              <option key={t} value={t}>
-                {ETICHETE_TIP_DOVADA[t]}
-              </option>
-            ))}
-          </select>
-        </div>
+              {/* Bifa rămâne scrisă de mână: `Camp` pune eticheta ÎNAINTEA
+                  controlului, iar la o casetă de bifat eticheta stă după —
+                  altfel ținta de atingere se rupe în două și rândul se citește
+                  invers. */}
+              <div className="flex items-end gap-2 pb-2">
+                <input
+                  id={idc("obligatoriu")}
+                  name="obligatoriu"
+                  type="checkbox"
+                  defaultChecked={obligatoriu}
+                  className={clasaBifa}
+                />
+                <label
+                  htmlFor={idc("obligatoriu")}
+                  className="text-foreground text-corp font-medium"
+                >
+                  Obligatoriu
+                </label>
+              </div>
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor={id.verificare} className="text-corp font-medium">
-            Verificare automată
-          </label>
-          <select
-            id={id.verificare}
-            name="verificare_automata"
-            defaultValue={initial?.verificare_automata ?? ""}
-            aria-describedby={`${id.verificare}-ajutor`}
-            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-          >
-            <option value="">Fără</option>
-            {CHECKLIST_VERIFICARE.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-          <p id={`${id.verificare}-ajutor`} className="text-muted-foreground text-nota">
-            Cere pasul obligatoriu și cu dovadă de tip „bifă”; se bifează singur, de sistem.
-          </p>
-        </div>
-      </div>
+              <Camp
+                nume="tip_dovada"
+                id={idc("tip_dovada")}
+                eticheta="Dovadă cerută"
+                fel="select"
+                erori={stare.erori["tip_dovada"] ?? []}
+              >
+                {(a) => (
+                  <select
+                    {...a}
+                    defaultValue={
+                      stare.valoriTrimise["tip_dovada"] ?? initial?.tip_dovada ?? "bifa"
+                    }
+                  >
+                    {CHECKLIST_TIP_DOVADA.map((t) => (
+                      <option key={t} value={t}>
+                        {ETICHETE_TIP_DOVADA[t]}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </Camp>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
-          {initial === undefined ? "Adaugă pasul" : "Salvează pasul"}
-        </Buton>
-        {onGata === undefined ? null : (
-          <Buton varianta="secundar" onClick={onGata}>
-            Renunță
-          </Buton>
-        )}
-        {eroare === null ? null : (
-          <p role="alert" className="text-danger text-corp">
-            {eroare}
-          </p>
-        )}
-      </div>
-    </form>
+              <Camp
+                nume="verificare_automata"
+                id={idc("verificare_automata")}
+                eticheta="Verificare automată"
+                fel="select"
+                ajutor="Cere pasul obligatoriu și cu dovadă de tip „bifă”; se bifează singur, de sistem."
+                erori={stare.erori["verificare_automata"] ?? []}
+              >
+                {(a) => (
+                  <select
+                    {...a}
+                    defaultValue={
+                      stare.valoriTrimise["verificare_automata"] ??
+                      initial?.verificare_automata ??
+                      ""
+                    }
+                  >
+                    <option value="">Fără</option>
+                    {CHECKLIST_VERIFICARE.map((v) => (
+                      <option key={v} value={v}>
+                        {v}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </Camp>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <Buton
+                type="submit"
+                varianta="primar"
+                inCurs={stare.inCurs}
+                textInCurs="Se salvează…"
+              >
+                {initial === undefined ? "Adaugă pasul" : "Salvează pasul"}
+              </Buton>
+              {onGata === undefined ? null : (
+                <Buton varianta="secundar" disabled={stare.inCurs} onClick={onGata}>
+                  Renunță
+                </Buton>
+              )}
+            </div>
+          </>
+        );
+      }}
+    </Formular>
   );
 }

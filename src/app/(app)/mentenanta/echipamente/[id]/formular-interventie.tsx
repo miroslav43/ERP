@@ -1,9 +1,11 @@
 "use client";
 
-import { useId, useState, useTransition } from "react";
+import { useCallback, useId } from "react";
 import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
+import { Camp } from "@/components/ui/camp";
+import { Formular } from "@/components/ui/formular";
 import { REZULTATE_INTERVENTIE, TIPURI_MENTENANTA } from "@/schemas/maintenance";
 import { ETICHETE_REZULTAT_INTERVENTIE, ETICHETE_TIP_MENTENANTA } from "../../etichete";
 import { inregistreazaInterventie } from "../../actions";
@@ -13,6 +15,27 @@ interface Optiune {
   readonly nume: string;
 }
 
+/**
+ * Intervenția de mentenanță, pe `<Formular>` + `<Camp>`.
+ *
+ * ── CE S-A REPARAT ────────────────────────────────────────────────────────
+ * Cincisprezece câmpuri, `<form action={trimite}>` și controale necontrolate:
+ * React 19 resetează un asemenea formular după ce acțiunea se încheie, deci o
+ * singură eroare de validare — o oră scrisă „9:30” în loc de „09:30” — golea
+ * toate cele cincisprezece. `<Formular>` ține valorile în `useActionState` și le
+ * dă înapoi prin `valoriTrimise`.
+ *
+ * `interventieNouaSchema` are mesaje pe câmp — „Ora trebuie scrisă HH:MM.” pe
+ * `ora_start`, lungimea minimă pe `descriere` — pe care serverul le trimitea în
+ * `fieldErrors`, iar fișierul le arunca, afișând doar `error.message` lângă
+ * buton. Pe un formular atât de lat, mesajul general nu spune care câmp e
+ * vinovat; acum fiecare stă lângă al lui, legat prin `aria-describedby`.
+ *
+ * ── DE CE `id` EXPLICIT ───────────────────────────────────────────────────
+ * `Camp` derivă identificatorul din `nume`, iar fișa echipamentului randează
+ * cinci formulare simultan: `tip` apare în patru dintre ele, `observatii` în
+ * două. Prefixul din `useId()` ține identificatorii distincți.
+ */
 export function FormularInterventie({
   equipmentId,
   planuri,
@@ -23,33 +46,17 @@ export function FormularInterventie({
   readonly angajati: readonly Optiune[];
 }) {
   const router = useRouter();
-  const [inCurs, porneste] = useTransition();
-  const [eroare, setEroare] = useState<string | null>(null);
-  const idPlan = useId();
-  const idTip = useId();
-  const idData = useId();
-  const idOraStart = useId();
-  const idDurata = useId();
-  const idExecutantAngajat = useId();
-  const idExecutantExtern = useId();
-  const idDescriere = useId();
-  const idPiese = useId();
-  const idCostPiese = useId();
-  const idCostManopera = useId();
-  const idRezultat = useId();
-  const idOprireMinute = useId();
-  const idCitireContor = useId();
-  const idObs = useId();
+  const idFormular = useId();
+  const idc = (sufix: string): string => `${idFormular}-${sufix}`;
 
-  function trimite(formular: FormData): void {
-    setEroare(null);
-    const gol = (cheie: string) => {
-      const v = String(formular.get(cheie) ?? "").trim();
-      return v.length === 0 ? null : v;
-    };
+  const trimite = useCallback(
+    async (formular: FormData) => {
+      const gol = (cheie: string): string | null => {
+        const v = String(formular.get(cheie) ?? "").trim();
+        return v.length === 0 ? null : v;
+      };
 
-    porneste(async () => {
-      const rezultat = await inregistreazaInterventie({
+      return await inregistreazaInterventie({
         plan_id: gol("plan_id"),
         equipment_id: equipmentId,
         tip: String(formular.get("tip") ?? "corectiva"),
@@ -67,251 +74,304 @@ export function FormularInterventie({
         citire_contor: gol("citire_contor") === null ? null : Number(gol("citire_contor")),
         observatii: gol("observatii"),
       });
-      if (!rezultat.ok) {
-        setEroare(rezultat.error.message);
-        return;
-      }
-      router.refresh();
-    });
-  }
+    },
+    [equipmentId],
+  );
+
+  // `laReusita` intră în dependențele unui `useEffect` din `<Formular>`: o
+  // funcție creată la fiecare randare ar reîmprospăta ruta la nesfârșit.
+  const reimprospateaza = useCallback(() => {
+    router.refresh();
+  }, [router]);
 
   return (
-    <form
-      action={trimite}
-      className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-2 lg:grid-cols-3"
+    <section
+      aria-labelledby={idc("titlu")}
+      className="border-border rounded-panou space-y-3 border p-4"
     >
-      <p className="text-corp font-medium sm:col-span-2 lg:col-span-3">Intervenție nouă</p>
+      <h3 id={idc("titlu")} className="text-corp font-medium">
+        Intervenție nouă
+      </h3>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idPlan} className="text-corp">
-          Din planul
-        </label>
-        <select
-          id={idPlan}
-          name="plan_id"
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        >
-          <option value="">Fără plan (intervenție corectivă)</option>
-          {planuri.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.nume}
-            </option>
-          ))}
-        </select>
-      </div>
+      <Formular
+        actiune={trimite}
+        laReusita={reimprospateaza}
+        mesajReusita="Intervenția a fost înregistrată."
+      >
+        {(stare) => {
+          // Formularul rămâne pe ecran după salvare, deci trebuie să
+          // repornească gol: React 19 resetează un `<form action>` necontrolat
+          // după acțiune, iar resetul pune înapoi `defaultValue` — adică exact
+          // ce tocmai s-a salvat. `valoriTrimise` se păstrează DOAR cât timp
+          // ultimul răspuns a fost un refuz.
+          const trimise: Readonly<Record<string, string>> =
+            stare.data === null ? stare.valoriTrimise : {};
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idTip} className="text-corp">
-          Tip
-        </label>
-        <select
-          id={idTip}
-          name="tip"
-          defaultValue="corectiva"
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        >
-          {TIPURI_MENTENANTA.map((t) => (
-            <option key={t} value={t}>
-              {ETICHETE_TIP_MENTENANTA[t]}
-            </option>
-          ))}
-        </select>
-      </div>
+          return (
+            <>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <Camp
+                  nume="plan_id"
+                  id={idc("plan")}
+                  eticheta="Din planul"
+                  fel="select"
+                  erori={stare.erori["plan_id"] ?? []}
+                >
+                  {(a) => (
+                    <select {...a} defaultValue={trimise["plan_id"] ?? ""}>
+                      <option value="">Fără plan (intervenție corectivă)</option>
+                      {planuri.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.nume}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </Camp>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idData} className="text-corp">
-          Data
-        </label>
-        <input
-          id={idData}
-          name="data"
-          type="date"
-          required
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        />
-      </div>
+                <Camp
+                  nume="tip"
+                  id={idc("tip")}
+                  eticheta="Tip"
+                  fel="select"
+                  erori={stare.erori["tip"] ?? []}
+                >
+                  {(a) => (
+                    <select {...a} defaultValue={trimise["tip"] ?? "corectiva"}>
+                      {TIPURI_MENTENANTA.map((t) => (
+                        <option key={t} value={t}>
+                          {ETICHETE_TIP_MENTENANTA[t]}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </Camp>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idOraStart} className="text-corp">
-          Ora de început
-        </label>
-        <input
-          id={idOraStart}
-          name="ora_start"
-          type="time"
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        />
-      </div>
+                <Camp
+                  nume="data"
+                  id={idc("data")}
+                  eticheta="Data"
+                  obligatoriu
+                  erori={stare.erori["data"] ?? []}
+                >
+                  {(a) => <input {...a} type="date" defaultValue={trimise["data"] ?? ""} />}
+                </Camp>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idDurata} className="text-corp">
-          Durata (ore)
-        </label>
-        <input
-          id={idDurata}
-          name="durata_ore"
-          type="number"
-          min="0"
-          step="0.5"
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        />
-      </div>
+                <Camp
+                  nume="ora_start"
+                  id={idc("ora-start")}
+                  eticheta="Ora de început"
+                  erori={stare.erori["ora_start"] ?? []}
+                >
+                  {(a) => <input {...a} type="time" defaultValue={trimise["ora_start"] ?? ""} />}
+                </Camp>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idExecutantAngajat} className="text-corp">
-          Executant (angajat)
-        </label>
-        <select
-          id={idExecutantAngajat}
-          name="executant_employee_id"
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        >
-          <option value="">—</option>
-          {angajati.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.nume}
-            </option>
-          ))}
-        </select>
-      </div>
+                <Camp
+                  nume="durata_ore"
+                  id={idc("durata")}
+                  eticheta="Durata (ore)"
+                  erori={stare.erori["durata_ore"] ?? []}
+                >
+                  {(a) => (
+                    <input
+                      {...a}
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      defaultValue={trimise["durata_ore"] ?? ""}
+                    />
+                  )}
+                </Camp>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idExecutantExtern} className="text-corp">
-          Executant (firmă externă)
-        </label>
-        <input
-          id={idExecutantExtern}
-          name="executant_extern"
-          maxLength={200}
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        />
-      </div>
+                <Camp
+                  nume="executant_employee_id"
+                  id={idc("executant-angajat")}
+                  eticheta="Executant (angajat)"
+                  fel="select"
+                  erori={stare.erori["executant_employee_id"] ?? []}
+                >
+                  {(a) => (
+                    <select {...a} defaultValue={trimise["executant_employee_id"] ?? ""}>
+                      <option value="">—</option>
+                      {angajati.map((ang) => (
+                        <option key={ang.id} value={ang.id}>
+                          {ang.nume}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </Camp>
 
-      <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-3">
-        <label htmlFor={idDescriere} className="text-corp">
-          Descriere
-        </label>
-        <textarea
-          id={idDescriere}
-          name="descriere"
-          rows={2}
-          required
-          maxLength={2000}
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        />
-      </div>
+                <Camp
+                  nume="executant_extern"
+                  id={idc("executant-extern")}
+                  eticheta="Executant (firmă externă)"
+                  erori={stare.erori["executant_extern"] ?? []}
+                >
+                  {(a) => (
+                    <input
+                      {...a}
+                      maxLength={200}
+                      defaultValue={trimise["executant_extern"] ?? ""}
+                    />
+                  )}
+                </Camp>
 
-      <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-3">
-        <label htmlFor={idPiese} className="text-corp">
-          Piese folosite
-        </label>
-        <textarea
-          id={idPiese}
-          name="piese"
-          rows={2}
-          maxLength={2000}
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        />
-      </div>
+                <Camp
+                  nume="descriere"
+                  id={idc("descriere")}
+                  eticheta="Descriere"
+                  fel="textarea"
+                  obligatoriu
+                  className="sm:col-span-2 lg:col-span-3"
+                  erori={stare.erori["descriere"] ?? []}
+                >
+                  {(a) => (
+                    <textarea
+                      {...a}
+                      rows={2}
+                      maxLength={2000}
+                      defaultValue={trimise["descriere"] ?? ""}
+                    />
+                  )}
+                </Camp>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idCostPiese} className="text-corp">
-          Cost piese (lei)
-        </label>
-        <input
-          id={idCostPiese}
-          name="cost_piese"
-          type="number"
-          min="0"
-          step="0.01"
-          defaultValue="0"
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        />
-      </div>
+                <Camp
+                  nume="piese"
+                  id={idc("piese")}
+                  eticheta="Piese folosite"
+                  fel="textarea"
+                  className="sm:col-span-2 lg:col-span-3"
+                  erori={stare.erori["piese"] ?? []}
+                >
+                  {(a) => (
+                    <textarea
+                      {...a}
+                      rows={2}
+                      maxLength={2000}
+                      defaultValue={trimise["piese"] ?? ""}
+                    />
+                  )}
+                </Camp>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idCostManopera} className="text-corp">
-          Cost manoperă (lei)
-        </label>
-        <input
-          id={idCostManopera}
-          name="cost_manopera"
-          type="number"
-          min="0"
-          step="0.01"
-          defaultValue="0"
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        />
-      </div>
+                <Camp
+                  nume="cost_piese"
+                  id={idc("cost-piese")}
+                  eticheta="Cost piese (lei)"
+                  erori={stare.erori["cost_piese"] ?? []}
+                >
+                  {(a) => (
+                    <input
+                      {...a}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      defaultValue={trimise["cost_piese"] ?? "0"}
+                    />
+                  )}
+                </Camp>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idRezultat} className="text-corp">
-          Rezultat
-        </label>
-        <select
-          id={idRezultat}
-          name="rezultat"
-          defaultValue="reusita"
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        >
-          {REZULTATE_INTERVENTIE.map((r) => (
-            <option key={r} value={r}>
-              {ETICHETE_REZULTAT_INTERVENTIE[r]}
-            </option>
-          ))}
-        </select>
-      </div>
+                <Camp
+                  nume="cost_manopera"
+                  id={idc("cost-manopera")}
+                  eticheta="Cost manoperă (lei)"
+                  erori={stare.erori["cost_manopera"] ?? []}
+                >
+                  {(a) => (
+                    <input
+                      {...a}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      defaultValue={trimise["cost_manopera"] ?? "0"}
+                    />
+                  )}
+                </Camp>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idOprireMinute} className="text-corp">
-          Oprire (minute)
-        </label>
-        <input
-          id={idOprireMinute}
-          name="oprire_minute"
-          type="number"
-          min="0"
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        />
-      </div>
+                <Camp
+                  nume="rezultat"
+                  id={idc("rezultat")}
+                  eticheta="Rezultat"
+                  fel="select"
+                  erori={stare.erori["rezultat"] ?? []}
+                >
+                  {(a) => (
+                    <select {...a} defaultValue={trimise["rezultat"] ?? "reusita"}>
+                      {REZULTATE_INTERVENTIE.map((r) => (
+                        <option key={r} value={r}>
+                          {ETICHETE_REZULTAT_INTERVENTIE[r]}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </Camp>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idCitireContor} className="text-corp">
-          Citire contor la momentul intervenției
-        </label>
-        <input
-          id={idCitireContor}
-          name="citire_contor"
-          type="number"
-          min="0"
-          step="0.01"
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        />
-      </div>
+                <Camp
+                  nume="oprire_minute"
+                  id={idc("oprire-minute")}
+                  eticheta="Oprire (minute)"
+                  erori={stare.erori["oprire_minute"] ?? []}
+                >
+                  {(a) => (
+                    <input
+                      {...a}
+                      type="number"
+                      min="0"
+                      defaultValue={trimise["oprire_minute"] ?? ""}
+                    />
+                  )}
+                </Camp>
 
-      <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-3">
-        <label htmlFor={idObs} className="text-corp">
-          Observații
-        </label>
-        <textarea
-          id={idObs}
-          name="observatii"
-          rows={2}
-          maxLength={2000}
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        />
-      </div>
+                <Camp
+                  nume="citire_contor"
+                  id={idc("citire-contor")}
+                  eticheta="Citire contor la momentul intervenției"
+                  erori={stare.erori["citire_contor"] ?? []}
+                >
+                  {(a) => (
+                    <input
+                      {...a}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      defaultValue={trimise["citire_contor"] ?? ""}
+                    />
+                  )}
+                </Camp>
 
-      <div className="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-3">
-        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
-          Salvează intervenția
-        </Buton>
-        {eroare === null ? null : (
-          <p role="alert" className="text-danger text-corp">
-            {eroare}
-          </p>
-        )}
-      </div>
-    </form>
+                <Camp
+                  nume="observatii"
+                  id={idc("observatii")}
+                  eticheta="Observații"
+                  fel="textarea"
+                  className="sm:col-span-2 lg:col-span-3"
+                  erori={stare.erori["observatii"] ?? []}
+                >
+                  {(a) => (
+                    <textarea
+                      {...a}
+                      rows={2}
+                      maxLength={2000}
+                      defaultValue={trimise["observatii"] ?? ""}
+                    />
+                  )}
+                </Camp>
+              </div>
+
+              <div>
+                <Buton
+                  type="submit"
+                  varianta="primar"
+                  inCurs={stare.inCurs}
+                  textInCurs="Se salvează…"
+                >
+                  Salvează intervenția
+                </Buton>
+              </div>
+            </>
+          );
+        }}
+      </Formular>
+    </section>
   );
 }

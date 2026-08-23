@@ -55,9 +55,47 @@ export const salveazaSetari = createAction({
   audit: { action: "update", entityType: "payroll_settings", allow: ["valabil_de_la"] },
   revalidate: ["/salarizare/setari"],
   handler: async (ctx, input) => {
+    /*
+     * ── DE CE SE CITEȘTE VERSIUNEA PRECEDENTĂ ─────────────────────────────
+     * Fiecare salvare INSEREAZĂ o versiune nouă; nu actualizează. `payroll_settings`
+     * are 38 de coloane de business, iar formularul administrează 18. Celelalte
+     * 20 nu se moșteneau: cădeau pe DEFAULT-ul coloanei, tăcut, la fiecare
+     * salvare.
+     *
+     * Nu e o pierdere teoretică. `plafon_poprire_unica` și
+     * `plafon_popriri_concurente` ajung în motorul de calcul (mai jos, la
+     * `plafonPoprireUnica`/`plafonPopririConcurente`), deci o firmă care își
+     * ridicase plafonul revenea tăcut la 1/3 și 1/2 după orice modificare de
+     * cotă. Cele opt conturi contabile (`cont_*`) alimentează nota contabilă.
+     * Iar `plata_avans`, `ziua_plata_avans`, `ziua_plata_lichidare` și
+     * `tichete_furnizor` se completează la ÎNROLARE, în asistentul de firmă —
+     * prima salvare de setări le ștergea pe toate patru.
+     *
+     * ── CE NU SE MOȘTENEȘTE, DELIBERAT ────────────────────────────────────
+     * `verificat_de_contabil` și `verificat_la`. O versiune NOUĂ de cote nu e
+     * verificată de nimeni prin faptul că versiunea dinaintea ei era. Purtate
+     * mai departe, ar fi marcat drept confirmate niște cote pe care contabilul
+     * nu le-a văzut — exact tipul de minciună pe care restul fișierului îl
+     * evită. Ele rămân pe DEFAULT (`false`, `null`), adică pe adevăr.
+     */
+    const { data: precedenta, error: eroarePrecedenta } = await ctx.supabase
+      .from("payroll_settings")
+      .select(
+        "cont_cheltuiala_salarii, cont_cheltuiala_contributie_angajator, cont_salarii_datorate, cont_cas_retinut, cont_cass_retinut, cont_impozit, cont_retineri_terti, cont_avansuri, mod_calcul_indemnizatie_co, luni_medie_indemnizatie_co, zile_avertizare_termen_compensare, plafon_poprire_unica, plafon_popriri_concurente, plata_avans, ziua_plata_avans, ziua_plata_lichidare, tichete_furnizor, note",
+      )
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .order("valabil_de_la", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (eroarePrecedenta !== null) traduEroare(eroarePrecedenta);
+
     const { data: setari, error } = await ctx.supabase
       .from("payroll_settings")
       .insert({
+        // Moștenirea vine PRIMA: cele 18 de mai jos o suprascriu pe ce
+        // administrează formularul, iar restul rămâne cum era.
+        ...(precedenta ?? {}),
         organization_id: ctx.tenant.organizationId,
         valabil_de_la: input.valabil_de_la,
         cota_cas: input.cota_cas,

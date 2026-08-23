@@ -1,9 +1,11 @@
 "use client";
 
-import { useId, useState, useTransition } from "react";
+import { useCallback, useId } from "react";
 import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
+import { Camp, clasaBifa } from "@/components/ui/camp";
+import { Formular } from "@/components/ui/formular";
 import { TIPURI_CONTOR } from "@/schemas/maintenance";
 import { ETICHETE_TIP_CONTOR } from "../../etichete";
 import { inregistreazaContor } from "../../actions";
@@ -13,6 +15,27 @@ interface Optiune {
   readonly nume: string;
 }
 
+/**
+ * Citirea de contor, pe `<Formular>` + `<Camp>`.
+ *
+ * ── CE S-A REPARAT ────────────────────────────────────────────────────────
+ * Cu `<form action={trimite}>` și câmpuri necontrolate, React 19 resetează
+ * formularul după ce acțiunea se încheie. Aici pierderea era concretă: garda
+ * `ssm_meter_guard` respinge o citire în regres, iar omul rămânea cu formularul
+ * gol și cu un mesaj sub buton, deci retasta data și valoarea ca să o corecteze.
+ * `<Formular>` întoarce valorile prin `valoriTrimise`.
+ *
+ * `fieldErrors` de la `contorNouSchema` erau aruncate — se afișa doar
+ * `error.message`. Acum mesajul stă lângă câmpul lui.
+ *
+ * `avertismentSalt` nu mai are stare proprie: succesul poartă datele acțiunii
+ * în `stare.data`, deci avertismentul se citește de acolo.
+ *
+ * ── DE CE `id` EXPLICIT ───────────────────────────────────────────────────
+ * Fișa echipamentului randează cinci formulare simultan; `tip` apare în patru
+ * dintre ele, `observatii` în două. `Camp` derivă identificatorul din `nume`,
+ * deci fiecare formular îl prefixează cu un `useId()` propriu.
+ */
 export function FormularContor({
   equipmentId,
   angajati,
@@ -21,26 +44,17 @@ export function FormularContor({
   readonly angajati: readonly Optiune[];
 }) {
   const router = useRouter();
-  const [inCurs, porneste] = useTransition();
-  const [eroare, setEroare] = useState<string | null>(null);
-  const [avertisment, setAvertisment] = useState<string | null>(null);
-  const idTip = useId();
-  const idCitire = useId();
-  const idData = useId();
-  const idReset = useId();
-  const idCititDe = useId();
-  const idObs = useId();
+  const idFormular = useId();
+  const idc = (sufix: string): string => `${idFormular}-${sufix}`;
 
-  function trimite(formular: FormData): void {
-    setEroare(null);
-    setAvertisment(null);
-    const gol = (cheie: string) => {
-      const v = String(formular.get(cheie) ?? "").trim();
-      return v.length === 0 ? null : v;
-    };
+  const trimite = useCallback(
+    async (formular: FormData) => {
+      const gol = (cheie: string): string | null => {
+        const v = String(formular.get(cheie) ?? "").trim();
+        return v.length === 0 ? null : v;
+      };
 
-    porneste(async () => {
-      const rezultat = await inregistreazaContor({
+      return await inregistreazaContor({
         equipment_id: equipmentId,
         tip: String(formular.get("tip") ?? ""),
         citire: Number(formular.get("citire") ?? "0"),
@@ -50,120 +64,165 @@ export function FormularContor({
         citit_de_employee_id: gol("citit_de_employee_id"),
         observatii: gol("observatii"),
       });
-      if (!rezultat.ok) {
-        setEroare(rezultat.error.message);
-        return;
-      }
-      if (rezultat.data.avertismentSalt !== null) setAvertisment(rezultat.data.avertismentSalt);
-      router.refresh();
-    });
-  }
+    },
+    [equipmentId],
+  );
+
+  // `laReusita` intră în dependențele unui `useEffect` din `<Formular>`: o
+  // funcție creată la fiecare randare ar reîmprospăta ruta la nesfârșit.
+  const reimprospateaza = useCallback(() => {
+    router.refresh();
+  }, [router]);
 
   return (
-    <form
-      action={trimite}
-      className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-2 lg:grid-cols-3"
+    <section
+      aria-labelledby={idc("titlu")}
+      className="border-border rounded-panou space-y-3 border p-4"
     >
-      <p className="text-corp font-medium sm:col-span-2 lg:col-span-3">Înregistrează o citire</p>
+      <h3 id={idc("titlu")} className="text-corp font-medium">
+        Înregistrează o citire
+      </h3>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idTip} className="text-corp">
-          Tip contor
-        </label>
-        <select
-          id={idTip}
-          name="tip"
-          required
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        >
-          {TIPURI_CONTOR.map((t) => (
-            <option key={t} value={t}>
-              {ETICHETE_TIP_CONTOR[t]}
-            </option>
-          ))}
-        </select>
-      </div>
+      <Formular
+        actiune={trimite}
+        laReusita={reimprospateaza}
+        mesajReusita="Citirea a fost înregistrată."
+      >
+        {(stare) => {
+          // Formularul rămâne pe ecran după salvare, deci trebuie să
+          // repornească gol: React 19 resetează un `<form action>` necontrolat
+          // după acțiune, iar resetul pune înapoi `defaultValue` — adică exact
+          // citirea tocmai înregistrată, pe care un al doilea clic ar
+          // înregistra-o din nou. `valoriTrimise` se păstrează DOAR cât timp
+          // ultimul răspuns a fost un refuz.
+          const trimise: Readonly<Record<string, string>> =
+            stare.data === null ? stare.valoriTrimise : {};
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idCitire} className="text-corp">
-          Citire
-        </label>
-        <input
-          id={idCitire}
-          name="citire"
-          type="number"
-          min="0"
-          step="0.01"
-          required
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        />
-      </div>
+          // Bifa nu apare deloc în `FormData` când e nebifată, deci
+          // `trimise["resetare_contor"]` nu distinge „nebifat” de „încă
+          // netrimis”. Se întreabă întâi dacă formularul a fost trimis vreodată.
+          const sATrimis = Object.keys(trimise).length > 0;
+          const resetareBifata = sATrimis && trimise["resetare_contor"] === "on";
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idData} className="text-corp">
-          Data citirii
-        </label>
-        <input
-          id={idData}
-          name="data_citirii"
-          type="date"
-          required
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        />
-      </div>
+          return (
+            <>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <Camp
+                  nume="tip"
+                  id={idc("tip")}
+                  eticheta="Tip contor"
+                  fel="select"
+                  obligatoriu
+                  erori={stare.erori["tip"] ?? []}
+                >
+                  {(a) => (
+                    <select {...a} defaultValue={trimise["tip"] ?? ""}>
+                      {TIPURI_CONTOR.map((t) => (
+                        <option key={t} value={t}>
+                          {ETICHETE_TIP_CONTOR[t]}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </Camp>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idCititDe} className="text-corp">
-          Citit de
-        </label>
-        <select
-          id={idCititDe}
-          name="citit_de_employee_id"
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        >
-          <option value="">Nespecificat</option>
-          {angajati.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.nume}
-            </option>
-          ))}
-        </select>
-      </div>
+                <Camp
+                  nume="citire"
+                  id={idc("citire")}
+                  eticheta="Citire"
+                  obligatoriu
+                  erori={stare.erori["citire"] ?? []}
+                >
+                  {(a) => (
+                    <input
+                      {...a}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      defaultValue={trimise["citire"] ?? ""}
+                    />
+                  )}
+                </Camp>
 
-      <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-2">
-        <label htmlFor={idObs} className="text-corp">
-          Observații
-        </label>
-        <input
-          id={idObs}
-          name="observatii"
-          maxLength={500}
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        />
-      </div>
+                <Camp
+                  nume="data_citirii"
+                  id={idc("data-citirii")}
+                  eticheta="Data citirii"
+                  obligatoriu
+                  erori={stare.erori["data_citirii"] ?? []}
+                >
+                  {(a) => <input {...a} type="date" defaultValue={trimise["data_citirii"] ?? ""} />}
+                </Camp>
 
-      <div className="flex items-center gap-2 self-end">
-        <input id={idReset} name="resetare_contor" type="checkbox" className="size-4" />
-        <label htmlFor={idReset} className="text-corp">
-          Resetare contor
-        </label>
-      </div>
+                <Camp
+                  nume="citit_de_employee_id"
+                  id={idc("citit-de")}
+                  eticheta="Citit de"
+                  fel="select"
+                  erori={stare.erori["citit_de_employee_id"] ?? []}
+                >
+                  {(a) => (
+                    <select {...a} defaultValue={trimise["citit_de_employee_id"] ?? ""}>
+                      <option value="">Nespecificat</option>
+                      {angajati.map((ang) => (
+                        <option key={ang.id} value={ang.id}>
+                          {ang.nume}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </Camp>
 
-      <div className="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-3">
-        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
-          Salvează citirea
-        </Buton>
-        {eroare === null ? null : (
-          <p role="alert" className="text-danger text-corp">
-            {eroare}
-          </p>
-        )}
-        {avertisment === null ? null : (
-          <p role="alert" className="text-foreground text-corp">
-            {avertisment}
-          </p>
-        )}
-      </div>
-    </form>
+                <Camp
+                  nume="observatii"
+                  id={idc("observatii")}
+                  eticheta="Observații"
+                  className="sm:col-span-2 lg:col-span-2"
+                  erori={stare.erori["observatii"] ?? []}
+                >
+                  {(a) => (
+                    <input {...a} maxLength={500} defaultValue={trimise["observatii"] ?? ""} />
+                  )}
+                </Camp>
+
+                {/* Bifa rămâne scrisă de mână: `Camp` pune eticheta ÎNAINTEA
+                    controlului, iar la o casetă de bifat eticheta stă după —
+                    altfel ținta de atingere se rupe în două și rândul se
+                    citește invers. */}
+                <div className="flex items-center gap-2 self-end">
+                  <input
+                    id={idc("resetare")}
+                    name="resetare_contor"
+                    type="checkbox"
+                    defaultChecked={resetareBifata}
+                    className={clasaBifa}
+                  />
+                  <label htmlFor={idc("resetare")} className="text-corp">
+                    Resetare contor
+                  </label>
+                </div>
+              </div>
+
+              {stare.data === null || stare.data.avertismentSalt === null ? null : (
+                <p role="alert" className="text-foreground text-corp">
+                  {stare.data.avertismentSalt}
+                </p>
+              )}
+
+              <div>
+                <Buton
+                  type="submit"
+                  varianta="primar"
+                  inCurs={stare.inCurs}
+                  textInCurs="Se salvează…"
+                >
+                  Salvează citirea
+                </Buton>
+              </div>
+            </>
+          );
+        }}
+      </Formular>
+    </section>
   );
 }
