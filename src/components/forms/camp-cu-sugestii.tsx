@@ -1,6 +1,7 @@
 // src/components/forms/camp-cu-sugestii.tsx
 "use client";
 
+import { cheieCautare } from "@/lib/text/diacritice";
 import { useId, useState } from "react";
 import { ChevronDown } from "lucide-react";
 
@@ -18,13 +19,6 @@ import { ChevronDown } from "lucide-react";
 
 const CLASA_CAMP =
   "mt-1 w-full rounded-control border border-border bg-background py-2 pl-3 pr-9 text-corp text-foreground";
-
-function normalizeaza(text: string): string {
-  return text
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLowerCase();
-}
 
 interface Proprietati {
   readonly id: string;
@@ -54,9 +48,9 @@ export function CampCuSugestii({
   const [neatins, setNeatins] = useState(true);
   const idListbox = useId();
 
-  const termen = normalizeaza(value.trim());
+  const termen = cheieCautare(value.trim());
   const rezultate =
-    neatins || termen === "" ? sugestii : sugestii.filter((s) => normalizeaza(s).includes(termen));
+    neatins || termen === "" ? sugestii : sugestii.filter((s) => cheieCautare(s).includes(termen));
 
   function comite(sugestie: string): void {
     onChange(sugestie);

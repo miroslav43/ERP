@@ -21,7 +21,7 @@ import {
   planuriScadente,
   sesizari,
 } from "@/lib/queries/maintenance";
-import { PRAG_AVERTIZARE_ZILE, stareScadentaData } from "@/domain/maintenance/scadente";
+import { PRAG_MENTENANTA_AVERTIZARE_ZILE, stareScadentaData } from "@/domain/maintenance/scadente";
 import { URGENTE_SESIZARE } from "@/schemas/maintenance";
 
 import {
@@ -79,7 +79,7 @@ async function PanouOrganizatie({ organizationId }: { readonly organizationId: s
       }),
       autorizatiiIscir(organizationId),
       echipamenteCuProbleme(organizationId),
-      numarScadenteMentenanta(organizationId, PRAG_AVERTIZARE_ZILE),
+      numarScadenteMentenanta(organizationId, PRAG_MENTENANTA_AVERTIZARE_ZILE),
     ]);
 
   const planuriScadenteAfisate = planuri
@@ -133,7 +133,7 @@ async function PanouOrganizatie({ organizationId }: { readonly organizationId: s
         <p className="text-3xl font-semibold tabular-nums">{numarScadente}</p>
         <p className="text-muted-foreground text-nota">
           Planuri de mentenanță și autorizații ISCIR scadente sau în întârziere, în{" "}
-          {PRAG_AVERTIZARE_ZILE} zile.
+          {PRAG_MENTENANTA_AVERTIZARE_ZILE} zile.
         </p>
       </div>
 

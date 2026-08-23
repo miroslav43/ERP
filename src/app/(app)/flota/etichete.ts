@@ -1,6 +1,7 @@
 // src/app/(app)/flota/etichete.ts
 import type { TonStare } from "@/components/ui/badge";
 import type { CategorieVehicul, Combustibil, StatusFoaie, StatusVehicul } from "@/schemas/fleet";
+import type { StareScadentaFlota } from "@/domain/fleet/scadente";
 
 export const ETICHETE_STATUS_VEHICUL: Readonly<Record<StatusVehicul, string>> = {
   activ: "În parc",
@@ -11,7 +12,7 @@ export const ETICHETE_STATUS_VEHICUL: Readonly<Record<StatusVehicul, string>> = 
 
 export const TONURI_STATUS_VEHICUL: Readonly<Record<StatusVehicul, TonStare>> = {
   activ: "succes",
-  // „În service" nu e o defecțiune, e o indisponibilitate temporară: vehiculul
+  // „În service” nu e o defecțiune, e o indisponibilitate temporară: vehiculul
   // se întoarce în parc. Atenție, nu pericol.
   in_service: "atentie",
   // Vândut și casat sunt sfârșituri de viață, nu probleme — ies din parc și nu
@@ -60,44 +61,32 @@ export const TONURI_STATUS_FOAIE: Readonly<Record<StatusFoaie, TonStare>> = {
   respins: "pericol",
 };
 
-/** Câte zile înainte de expirare scadența devine portocalie. */
-export const PRAG_AVERTIZARE_ZILE = 30;
+/**
+ * Scadențele: aici rămâne doar cum ARATĂ o treaptă, nu cum se calculează.
+ *
+ * `stareScadenta` și pragul de 30 de zile au plecat în `@/domain/fleet/scadente`
+ * (decizia B1 din `docs/design/redesign/0-decizii-de-pornire.md`): un fișier de
+ * rută nu e testabil de proiectul `unit`, iar portalul importă acest `etichete.ts`
+ * fără să aibă nevoie de logică. Numele vechi rămâne exportat de aici cât timp
+ * `page.tsx` și `[id]/page.tsx` îl mai importă sub el.
+ */
+export { stareScadentaFlota as stareScadenta } from "@/domain/fleet/scadente";
+export type { StareScadentaFlota as StareScadenta } from "@/domain/fleet/scadente";
 
-export type StareScadenta = "expirat" | "curand" | "in_regula" | "lipsa";
-
-export const ETICHETE_SCADENTA: Readonly<Record<StareScadenta, string>> = {
+export const ETICHETE_SCADENTA: Readonly<Record<StareScadentaFlota, string>> = {
   expirat: "Expirat",
   curand: "Expiră curând",
   in_regula: "În regulă",
   lipsa: "Lipsește",
 };
 
-export const TONURI_SCADENTA: Readonly<Record<StareScadenta, TonStare>> = {
+export const TONURI_SCADENTA: Readonly<Record<StareScadentaFlota, TonStare>> = {
   expirat: "pericol",
   curand: "atentie",
   in_regula: "succes",
-  // „Lipsește" e MAI GRAV decât „Expirat", nu o stare neutră: documentul nu
+  // „Lipsește” e MAI GRAV decât „Expirat”, nu o stare neutră: documentul nu
   // există deloc, deci nu are nicio dată de la care să se numere și nu se va
-  // aprinde niciodată singur în „Expiră curând". Un RCA absent rămâne absent
+  // aprinde niciodată singur în „Expiră curând”. Un RCA absent rămâne absent
   // tăcut până când îl vede cineva pe listă.
   lipsa: "pericol",
 };
-
-/**
- * Starea unei scadențe, comparând DOAR șiruri de zile calendaristice.
- *
- * `expira_la` e `date` în Postgres, deci vine ca „2026-12-01". Convertit în
- * `Date`, ar deveni miezul nopții UTC, iar în București asta e deja ziua
- * precedentă la ora 02:00 — un document care expiră azi ar apărea expirat de
- * ieri. Comparația lexicografică pe ISO e exactă și nu are fus orar.
- */
-export function stareScadenta(expiraLa: string | null, azi: string): StareScadenta {
-  if (expiraLa === null) return "lipsa";
-  if (expiraLa < azi) return "expirat";
-
-  const prag = new Date(`${azi}T00:00:00Z`);
-  prag.setUTCDate(prag.getUTCDate() + PRAG_AVERTIZARE_ZILE);
-  const pragText = prag.toISOString().slice(0, 10);
-
-  return expiraLa <= pragText ? "curand" : "in_regula";
-}

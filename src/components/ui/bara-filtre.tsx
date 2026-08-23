@@ -35,11 +35,21 @@ export type FiltruActiv = Readonly<{
 }>;
 
 export type PropsBaraFiltre = Readonly<{
-  /** Câmpurile de filtrare. Trimiterea se face de formular, cu `<form>`. */
+  /**
+   * Câmpurile de filtrare. Fiecare are `name` egal cu cheia lui din adresă —
+   * de acolo știe bara ce să scrie. Nu au nevoie de `onChange`, de stare, de
+   * nimic: formularul e sursa.
+   */
   children: ReactNode;
   active: readonly FiltruActiv[];
-  /** Cheile pe care le administrează bara — se șterg la „Șterge tot". */
+  /**
+   * Cheile pe care le administrează bara. Sunt și cheile citite din formular la
+   * trimitere, și cele șterse la „Șterge toate filtrele". O singură listă,
+   * fiindcă două s-ar despărți la prima modificare.
+   */
   cheiProprii: readonly string[];
+  /** Textul butonului de trimitere. */
+  textAplica?: string;
   className?: string;
 }>;
 
@@ -47,6 +57,7 @@ export function BaraFiltre({
   children,
   active,
   cheiProprii,
+  textAplica = "Filtrează",
   className,
 }: PropsBaraFiltre): ReactElement {
   const parametri = useSearchParams();
@@ -66,11 +77,41 @@ export function BaraFiltre({
     });
   }
 
+  /*
+   * Trimiterea stă AICI, nu în fiecare bară de filtre.
+   *
+   * Cele unsprezece componente `filtre-*.tsx` aveau fiecare propriul `aplica()`
+   * care pornea din `new URLSearchParams()` gol și repopula doar cheile lui.
+   * Una singură își amintea să păstreze `vizualizare`, cu un comentariu care
+   * explica de ce — dovada că autorul VĂZUSE problema și o rezolvase pentru un
+   * singur parametru. Odată cu sortarea și mărimea de pagină din tabelele noi,
+   * defectul s-a agravat: orice filtrare arunca acum și `sort`, și `limita`.
+   *
+   * Aici cheile necunoscute supraviețuiesc prin construcție. Bara nu poate
+   * șterge decât ce i s-a spus că administrează.
+   */
+  function trimite(formular: FormData): void {
+    navigheaza((p) => {
+      for (const cheie of cheiProprii) {
+        const brut = formular.get(cheie);
+        const valoare = typeof brut === "string" ? brut.trim() : "";
+        if (valoare.length === 0) p.delete(cheie);
+        else p.set(cheie, valoare);
+      }
+    });
+  }
+
   return (
     <div className={cn("flex flex-col gap-3", className)}>
-      <div className="border-border bg-surface rounded-panou flex flex-wrap items-end gap-4 border p-4">
+      <form
+        action={trimite}
+        className="border-border bg-surface rounded-panou flex flex-wrap items-end gap-4 border p-4"
+      >
         {children}
-      </div>
+        <Buton type="submit" varianta="secundar" disabled={inCurs}>
+          {textAplica}
+        </Buton>
+      </form>
 
       {active.length === 0 ? null : (
         <div className="flex flex-wrap items-center gap-2" aria-live="polite">

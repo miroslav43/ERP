@@ -3,11 +3,8 @@ import "server-only";
 
 import type { FeatureKey } from "@/config/features";
 import { meetsScope, type MinScope, type PermissionKey } from "@/config/permissions";
-// Se importă cu numele actual. Decizia B1 din `docs/design/redesign/` îl
-// redenumește `PRAG_MENTENANTA_AVERTIZARE_ZILE`, ca să nu mai poată fi confundat
-// cu omonimele din SSM (30) și flotă (30) — redenumirea intră în Faza 3, odată
-// cu primitiva `Scadenta`.
-import { PRAG_AVERTIZARE_ZILE as PRAG_MENTENANTA_ZILE } from "@/domain/maintenance/scadente";
+import { PRAG_MENTENANTA_AVERTIZARE_ZILE } from "@/domain/maintenance/scadente";
+import { PRAG_FLOTA_AVERTIZARE_ZILE } from "@/domain/fleet/scadente";
 import type { PermissionMap } from "@/lib/auth/permissions";
 import { createServerSupabase } from "@/lib/supabase/server";
 
@@ -28,7 +25,7 @@ import { numarScadenteSsm } from "./ssm";
  * polimorfă, `entity_type` + `entity_id`), deci starea sarcinii nu urmează
  * starea cererii-părinte.
  *
- * Un `count(*) where status = 'in_asteptare'` ar fi afișat „7 de semnat"
+ * Un `count(*) where status = 'in_asteptare'` ar fi afișat „7 de semnat”
  * PERMANENT, iar la clic utilizatorul n-ar fi găsit nimic de semnat. Panoul e
  * proiectat ca registru care trebuie să se GOLEASCĂ; un contor care nu poate
  * ajunge la zero anulează tot principiul.
@@ -381,8 +378,15 @@ export async function contoarePanou(organizationId: string, porti: Porti): Promi
     vedeFoi ? contorFoiDeParcurs(organizationId) : null,
     vedeTichete ? contorTichete(organizationId) : null,
     vedeSsm ? numarScadenteSsm(organizationId) : null,
-    vedeMentenanta ? numarScadenteMentenanta(organizationId, PRAG_MENTENANTA_ZILE) : null,
-    vedeFlota ? numarScadenteFlota(organizationId, PRAG_PANOU_ZILE) : null,
+    vedeMentenanta
+      ? numarScadenteMentenanta(organizationId, PRAG_MENTENANTA_AVERTIZARE_ZILE)
+      : null,
+    // Pragul flotei vine din domeniu, ca cel al mentenanței de deasupra. Aici
+    // era `PRAG_PANOU_ZILE` — aceeași cifră, altă sursă: în ziua în care una
+    // s-ar fi schimbat, contorul de pe panou și lista de flotă ar fi arătat
+    // cifre diferite, fără nicio eroare. Contractele de mai jos RĂMÂN pe pragul
+    // de panou: nu sunt documente de vehicul, e altă scadență.
+    vedeFlota ? numarScadenteFlota(organizationId, PRAG_FLOTA_AVERTIZARE_ZILE) : null,
     vedeFlota ? contorAnomaliiKm(organizationId) : null,
     vedeContracte ? contorContracteCareExpira(organizationId, PRAG_PANOU_ZILE) : null,
     stareFirmeiAzi(organizationId),

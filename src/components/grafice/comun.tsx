@@ -40,6 +40,14 @@ export type PropsGrafic = Readonly<{
   titlu: string;
   /** Cum se numesc valorile în tabelul ascuns: „Angajați", „Lei". */
   unitate?: string;
+  /**
+   * Antetul primei coloane din tabelul ascuns. Fiecare grafic îl are pe al lui
+   * implicit („Perioadă" la serii de timp, „Categorie" la inel), dar rămâne
+   * prop fiindcă landing-ul de marketing randează ACELEAȘI componente în
+   * engleză — iar un `<th>` scris în componentă ar fi fost singurul cuvânt
+   * românesc dintr-o pagină englezească.
+   */
+  antetCategorie?: string;
   className?: string;
 }>;
 
@@ -52,10 +60,12 @@ export type PropsGrafic = Readonly<{
 export function InvelisGrafic({
   titlu,
   unitate = "Valoare",
+  antetCategorie,
   puncte,
   children,
   className,
 }: PropsGrafic & {
+  antetCategorie: string;
   puncte: readonly Punct[];
   children: ReactNode;
 }): ReactElement {
@@ -68,7 +78,7 @@ export function InvelisGrafic({
         <caption>{titlu}</caption>
         <thead>
           <tr>
-            <th scope="col">Perioadă</th>
+            <th scope="col">{antetCategorie}</th>
             <th scope="col">{unitate}</th>
           </tr>
         </thead>
@@ -86,23 +96,27 @@ export function InvelisGrafic({
 }
 
 /**
- * Paleta categorică a graficelor.
+ * Paleta categorică a graficelor. Definiția și cifrele stau în `globals.css`,
+ * lângă ceilalți tokeni; aici e doar ordinea de folosire.
  *
- * NU sunt tokenii de STARE (`success`, `warning`, `danger`): aceia poartă un
- * verdict — „e bine", „e rău" — iar o serie dintr-un grafic de structură nu e
- * nici bună, nici rea. Folosiți împreună, cele două vocabulare se calcă:
- * o felie verde ar însemna „partea reușită din cost".
+ * Prima versiune a acestei liste era „trepte ale navy-ului, plus auriul", aleasă
+ * la ochi. Calculată, avea două defecte reale:
+ *   · `--color-border` dădea 1,29:1 pe pânza crem — felie invizibilă;
+ *   · `--color-accent` (auriul de brand) dădea 2,26:1 — sub pragul 1.4.11.
+ * Iar seriile 1↔2 aveau între ele 1,54:1, adică nu se deosebeau deloc.
  *
- * Sunt trepte ale navy-ului, plus auriul o singură dată. Pe navy, auriul dă
- * 6,82:1; pe crem ar da 2,26:1 — de aceea apare doar ca umplutură, niciodată
- * ca text sau ca linie subțire pe fundal deschis.
+ * Paleta de acum e verificată: fiecare serie ≥ 3:1 pe pânză. Ce NU promite —
+ * și nici nu poate promite — e 3:1 ÎNTRE serii alăturate; motivul, cu numerele,
+ * e scris în `globals.css`. De aceea inelul desparte feliile cu un contur în
+ * culoarea pânzei, iar identificarea se face prin legendă și prin tabelul
+ * ascuns, nu prin nuanță.
  */
 export const SERII = [
-  "var(--color-primary)",
-  "var(--color-primary-active)",
-  "var(--color-accent)",
-  "var(--color-muted-foreground)",
-  "var(--color-border)",
+  "var(--color-serie-1)",
+  "var(--color-serie-2)",
+  "var(--color-serie-3)",
+  "var(--color-serie-4)",
+  "var(--color-serie-5)",
 ] as const;
 
 /** Culoarea seriei `i`, ciclic. */

@@ -49,6 +49,7 @@ export function Linie({
   formateaza = (v) => String(v),
   titlu,
   unitate,
+  antetCategorie = "Perioadă",
   className,
 }: PropsLinie): ReactElement | null {
   const etichete = serii[0]?.puncte.map((p) => p.eticheta) ?? [];
@@ -89,6 +90,7 @@ export function Linie({
   return (
     <InvelisGrafic
       titlu={titlu}
+      antetCategorie={antetCategorie}
       {...(unitate === undefined ? {} : { unitate })}
       puncte={puncteTabel}
       {...(className === undefined ? {} : { className })}

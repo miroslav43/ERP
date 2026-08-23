@@ -11,7 +11,7 @@ import type {
   RandPrimaPerioada,
   RandRetinerePerioada,
 } from "@/lib/queries/payroll";
-import { TaxePieChart } from "./taxe-pie-chart";
+import { Inel } from "@/components/grafice/inel";
 
 const ETICHETE_PAS: Record<string, string> = {
   bazaSalariu: "Salariu de bază (zile plătite)",
@@ -52,19 +52,20 @@ interface Proprietati {
 }
 
 export function Fluturas({ inregistrare, bonusuri, retineri }: Proprietati) {
+  /*
+   * Feliile nu-și mai aleg culoarea: o iau din paleta categorică a graficelor.
+   *
+   * Înainte foloseau tokeni de STARE — net = `success` (verde), CAS =
+   * `warning`, impozit = `danger` (roșu). Într-un document pe care îl citește
+   * fiecare angajat, asta nu e informație, e o opinie: contribuția la pensie nu
+   * e o avertizare, iar impozitul pe venit nu e o eroare. Cele patru felii sunt
+   * părți dintr-un întreg, nu verdicte.
+   */
   const felii = [
-    {
-      eticheta: "Net (rămas angajatului)",
-      valoare: inregistrare.net,
-      culoareVar: "var(--color-success)",
-    },
-    { eticheta: "CAS (pensie)", valoare: inregistrare.cas, culoareVar: "var(--color-warning)" },
-    { eticheta: "CASS (sănătate)", valoare: inregistrare.cass, culoareVar: "var(--color-accent)" },
-    {
-      eticheta: "Impozit pe venit",
-      valoare: inregistrare.impozit,
-      culoareVar: "var(--color-danger)",
-    },
+    { eticheta: "Net (rămas angajatului)", valoare: inregistrare.net },
+    { eticheta: "CAS (pensie)", valoare: inregistrare.cas },
+    { eticheta: "CASS (sănătate)", valoare: inregistrare.cass },
+    { eticheta: "Impozit pe venit", valoare: inregistrare.impozit },
   ];
 
   return (
@@ -109,7 +110,13 @@ export function Fluturas({ inregistrare, bonusuri, retineri }: Proprietati) {
         aria-label="Împărțirea salariului brut"
         className="border-border rounded-panou border p-4"
       >
-        <TaxePieChart felii={felii} />
+        <Inel
+          titlu="Împărțirea salariului brut pe contribuții"
+          unitate="Lei"
+          felii={felii}
+          formateaza={formatLei}
+          subtitluCentral="din brut"
+        />
         {inregistrare.retineri_total > 0 ? (
           <p className="text-muted-foreground text-corp mt-3">
             Din net, {formatLei(inregistrare.retineri_total)} rețineri → net de plată efectiv:{" "}

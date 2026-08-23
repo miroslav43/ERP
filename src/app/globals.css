@@ -48,6 +48,43 @@
   --color-border: #e3dbc9;
   --color-ring: #2a3d66;
 
+  /*
+   * Paleta CATEGORICĂ a graficelor. Cinci serii.
+   *
+   * NU sunt tokenii de stare (`success`, `warning`, `danger`): aceia poartă un
+   * verdict. O felie verde din împărțirea salariului brut ar însemna „partea
+   * reușită din cost", iar impozitul desenat cu roșu de eroare e o opinie
+   * politică, nu o informație.
+   *
+   * Fiecare culoare a fost aleasă ca să atingă ≥ 3:1 pe pânza crem #faf7f0 —
+   * pragul WCAG 1.4.11 pentru un obiect grafic care poartă informație:
+   *   serie-1 navy   15,41:1 · serie-2 gri     5,55:1 · serie-3 prun 9,70:1
+   *   serie-4 auriu   3,02:1 · serie-5 brun    7,42:1
+   *
+   * Auriul de brand #c9a227 dă doar 2,26:1 și NU poate fi serie; `serie-4` e
+   * el, întunecat exact până la prag. `--color-border` dădea 1,29:1 — o felie
+   * practic invizibilă — și a fost scoasă din paletă.
+   *
+   * Ce NU promite paleta: 3:1 între două serii ALĂTURATE. E imposibil, nu
+   * neglijat. Dacă toate cele cinci trebuie să fie vizibile pe crem, luminanța
+   * fiecăreia e ≤ 0,277; iar două astfel de culori ating 3:1 între ele doar
+   * dacă cea deschisă are L ≥ 3·L_închisă + 0,1, ceea ce lasă loc pentru două
+   * benzi de luminozitate, nu cinci. Căutarea exhaustivă pe toate cele 120 de
+   * ordonări dă un maxim de 2,08:1.
+   *
+   * De aceea feliile alăturate se despart STRUCTURAL — un contur în culoarea
+   * pânzei, care merge la orice pereche — iar identificarea seriei se face prin
+   * legendă și prin tabelul ascuns (WCAG 1.4.1), nu prin nuanță.
+   *
+   * `serie-1` urmează primarul, deci se schimbă odată cu tema firmei. Restul
+   * sunt fixe: sunt un vocabular de citit, nu o alegere de brand.
+   */
+  --color-serie-1: var(--color-primary);
+  --color-serie-2: #5b6478;
+  --color-serie-3: #5a3350;
+  --color-serie-4: #ad8b22;
+  --color-serie-5: #6b4a2f;
+
   --radius: 0.5rem;
 
   /*
@@ -143,6 +180,12 @@
 
   --color-border: var(--color-border);
   --color-ring: var(--color-ring);
+
+  --color-serie-1: var(--color-serie-1);
+  --color-serie-2: var(--color-serie-2);
+  --color-serie-3: var(--color-serie-3);
+  --color-serie-4: var(--color-serie-4);
+  --color-serie-5: var(--color-serie-5);
 
   --font-sans: var(--font-inter);
 

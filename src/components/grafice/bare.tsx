@@ -37,6 +37,7 @@ export function Bare({
   evidentiaza,
   titlu,
   unitate,
+  antetCategorie = "Perioadă",
   className,
 }: PropsBare): ReactElement | null {
   if (puncte.length === 0) return null;
@@ -59,6 +60,7 @@ export function Bare({
   return (
     <InvelisGrafic
       titlu={titlu}
+      antetCategorie={antetCategorie}
       {...(unitate === undefined ? {} : { unitate })}
       puncte={puncte}
       {...(className === undefined ? {} : { className })}

@@ -1,6 +1,6 @@
 // src/domain/ssm/scadente.test.ts
 import { describe, expect, it } from "vitest";
-import { PRAG_AVERTIZARE_ZILE, esteDeAtentionat, stareScadentaSsm } from "./scadente";
+import { PRAG_SSM_AVERTIZARE_ZILE, esteDeAtentionat, stareScadentaSsm } from "./scadente";
 
 describe("stareScadentaSsm", () => {
   it("este „niciodata” când nu există nicio înregistrare, indiferent de dată", () => {
@@ -31,7 +31,7 @@ describe("stareScadentaSsm", () => {
   });
 
   it("respectă exact pragul de avertizare din constantă", () => {
-    expect(PRAG_AVERTIZARE_ZILE).toBe(30);
+    expect(PRAG_SSM_AVERTIZARE_ZILE).toBe(30);
   });
 
   it("nu se lasă indusă în eroare de fusul orar la trecerea peste lună", () => {

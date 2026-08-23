@@ -15,12 +15,18 @@
  * Pragul de preaviz (30 de zile) e constanta din
  * `ssm_legal_parameters.zile_avertizare_scadenta` (seed 0011) — NU se citește
  * din tabelă, fiindcă acolo tabela e sub resursa `compliance`, la care `hr`
- * (care administrează SSM) nu are acces. Pragul „critic" (7 zile) e o
+ * (care administrează SSM) nu are acces. Pragul „critic” (7 zile) e o
  * convenție de interfață, nu una legală.
+ *
+ * Constantele poartă domeniul în nume de la decizia B1 încoace
+ * (`docs/design/redesign/0-decizii-de-pornire.md`): `PRAG_AVERTIZARE_ZILE`
+ * exista de trei ori, cu ACELAȘI nume și două valori — 30 aici, 30 la flotă,
+ * 15 la mentenanță — iar două dintre ele erau fixate de teste. Un import
+ * greșit nu producea nicio eroare, doar alt preaviz.
  */
 
-export const PRAG_AVERTIZARE_ZILE = 30;
-export const PRAG_CRITIC_ZILE = 7;
+export const PRAG_SSM_AVERTIZARE_ZILE = 30;
+export const PRAG_SSM_CRITIC_ZILE = 7;
 
 export type StareScadentaSsm = "niciodata" | "expirat" | "critic" | "atentie" | "ok";
 
@@ -60,8 +66,8 @@ export function stareScadentaSsm(
   if (expiraLa < azi) return "expirat";
 
   const zileRamase = zileIntre(azi, expiraLa);
-  if (zileRamase <= PRAG_CRITIC_ZILE) return "critic";
-  if (zileRamase <= PRAG_AVERTIZARE_ZILE) return "atentie";
+  if (zileRamase <= PRAG_SSM_CRITIC_ZILE) return "critic";
+  if (zileRamase <= PRAG_SSM_AVERTIZARE_ZILE) return "atentie";
   return "ok";
 }
 

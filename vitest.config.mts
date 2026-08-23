@@ -17,9 +17,13 @@ import { defineConfig } from "vitest/config";
  * `test` și `build` nu vedeau, toate patru, două landmark-uri `<main>` pe
  * aceeași pagină, un `aria-describedby` rupt sau o pastilă fără cuvânt.
  *
- * Proiectul acoperă deliberat DOAR primitivele: ele sunt puține, sunt pure și
- * sunt consumate de sute de ecrane, deci un defect în ele se înmulțește. Pentru
- * pagini întregi, unealta potrivită e Playwright, nu un DOM simulat.
+ * Proiectul acoperă deliberat DOAR primitivele — `src/components/ui/` și
+ * graficele din `src/components/grafice/`: sunt puține, sunt pure și sunt
+ * consumate de sute de ecrane, deci un defect în ele se înmulțește. Graficele
+ * intră aici fiindcă geometria lor e aritmetică verificabilă (o bară tăiată de
+ * jos minte, un arc care nu închide cercul e o felie pierdută), iar nimic
+ * altceva din lanț nu se uită la ea. Pentru pagini întregi, unealta potrivită e
+ * Playwright, nu un DOM simulat.
  *
  * `happy-dom`, nu `jsdom`: acesta din urmă, de la versiunea 30, trage `undici`
  * 8, care cere `webidl.util.markAsUncloneable` — o funcție apărută în Node 22.
@@ -76,7 +80,7 @@ export default defineConfig({
         test: {
           name: "ui",
           environment: "happy-dom",
-          include: ["src/components/ui/**/*.test.tsx"],
+          include: ["src/components/ui/**/*.test.tsx", "src/components/grafice/**/*.test.tsx"],
           globals: true,
         },
       },

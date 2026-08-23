@@ -1,6 +1,7 @@
 // src/components/layout/command-palette.tsx
 "use client";
 
+import { cheieCautare } from "@/lib/text/diacritice";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, Command, CornerDownLeft, Search } from "lucide-react";
@@ -18,13 +19,6 @@ export type ElementPaleta = Readonly<{
 type Rezultat =
   | Readonly<{ tip: "navigare"; id: string; eticheta: string; grup: string; href: string }>
   | Readonly<{ tip: "organizatie"; id: string; eticheta: string; grup: string }>;
-
-function normalizeaza(text: string): string {
-  return text
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
-}
 
 type Props = Readonly<{
   elemente: readonly ElementPaleta[];
@@ -73,12 +67,12 @@ export function CommandPalette({ elemente, organizatii }: Props) {
   }, [elemente, organizatii]);
 
   const filtrate = useMemo<readonly Rezultat[]>(() => {
-    const termen = normalizeaza(interogare.trim());
+    const termen = cheieCautare(interogare.trim());
     if (termen.length === 0) {
       return toate.slice(0, 12);
     }
     return toate
-      .filter((rezultat) => normalizeaza(`${rezultat.eticheta} ${rezultat.grup}`).includes(termen))
+      .filter((rezultat) => cheieCautare(`${rezultat.eticheta} ${rezultat.grup}`).includes(termen))
       .slice(0, 12);
   }, [interogare, toate]);
 

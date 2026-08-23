@@ -13,8 +13,18 @@
 export type StareScadentaMentenanta =
   "in_intarziere" | "scadenta_apropiata" | "in_regula" | "fara_scadenta";
 
-/** Câte zile înainte de scadență starea devine „apropiată”. */
-export const PRAG_AVERTIZARE_ZILE = 15;
+/**
+ * Câte zile înainte de scadență starea devine „apropiată”.
+ *
+ * Cincisprezece, nu treizeci ca la SSM și la flotă, iar diferența nu e o
+ * scăpare: mentenanța se PROGRAMEAZĂ, nu se reînnoiește. O revizie se prinde în
+ * graficul echipei în două săptămâni; o autorizație se reînnoiește la o
+ * instituție, cu drum și termen de eliberare. Preavizul măsoară timpul până la
+ * acțiune, iar acțiunile sunt de naturi diferite (decizia B1 din
+ * `docs/design/redesign/0-decizii-de-pornire.md`, care i-a dat și numele cu
+ * domeniu în față — se numeau toate trei `PRAG_AVERTIZARE_ZILE`).
+ */
+export const PRAG_MENTENANTA_AVERTIZARE_ZILE = 15;
 
 /**
  * Cota din periodicitatea contorului sub care starea devine „apropiată”.
@@ -45,12 +55,12 @@ export function maiGravaDintre(
  * `"2026-12-01"` în TypeScript). Comparație lexicografică pe ISO, deliberat:
  * un `Date` ar interpreta miezul nopții ca UTC, iar în București asta cade
  * deja în ziua precedentă — un plan scadent azi ar apărea „în întârziere”
- * de ieri. Vezi aceeași observație în `flota/etichete.ts`.
+ * de ieri. Vezi aceeași observație în `@/domain/fleet/scadente`.
  */
 export function stareScadentaData(
   data: string | null,
   azi: string,
-  pragZile: number = PRAG_AVERTIZARE_ZILE,
+  pragZile: number = PRAG_MENTENANTA_AVERTIZARE_ZILE,
 ): StareScadentaMentenanta {
   if (data === null) return "fara_scadenta";
   if (data < azi) return "in_intarziere";
@@ -103,7 +113,7 @@ export interface IntrareScadentaPlan extends IntrareScadentaContor {
 export function stareScadentaPlan(
   intrare: IntrareScadentaPlan,
   azi: string,
-  pragZile: number = PRAG_AVERTIZARE_ZILE,
+  pragZile: number = PRAG_MENTENANTA_AVERTIZARE_ZILE,
 ): StareScadentaMentenanta {
   const dinZile = stareScadentaData(intrare.urmatoareaScadenta, azi, pragZile);
   const dinContor = stareScadentaContor(intrare);

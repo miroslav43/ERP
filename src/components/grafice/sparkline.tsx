@@ -41,6 +41,7 @@ export function Sparkline({
   ton = "neutru",
   titlu,
   unitate,
+  antetCategorie = "Perioadă",
   className,
 }: PropsSparkline): ReactElement | null {
   if (puncte.length < 2) return null;
@@ -70,6 +71,7 @@ export function Sparkline({
   return (
     <InvelisGrafic
       titlu={titlu}
+      antetCategorie={antetCategorie}
       {...(unitate === undefined ? {} : { unitate })}
       puncte={puncte}
       {...(className === undefined ? {} : { className })}

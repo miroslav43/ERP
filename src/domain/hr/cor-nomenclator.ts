@@ -27,6 +27,8 @@
 // Nu re-generați fără motiv: nomenclatorul se schimbă doar prin ordin comun
 // MMPS/INS.
 
+import { cheieCautare } from "@/lib/text/diacritice";
+
 export type CodCor = Readonly<{
   /** 6 cifre. Prima = grupa majoră, a doua = subgrupa majoră, a treia = grupa minoră. */
   cod: string;
@@ -4484,20 +4486,12 @@ export function codCorExista(cod: string): boolean {
  * omul crede că ocupația nu există. `ș`/`ț` cu sedilă se tratează la fel ca
  * cele cu virgulă — sursa oficială le amestecă.
  */
-function faraDiacritice(text: string): string {
-  return text
-    .normalize("NFD")
-    .replace(/\p{M}+/gu, "")
-    .replace(/[țţ]/gu, "t")
-    .replace(/[șş]/gu, "s")
-    .toLowerCase();
-}
 
 /** Indexul de căutare, normalizat o dată — altfel s-ar renormaliza 4422 de denumiri la fiecare tastă. */
-const NORMALIZAT: readonly string[] = NOMENCLATOR_COR.map((o) => faraDiacritice(o.denumire));
+const NORMALIZAT: readonly string[] = NOMENCLATOR_COR.map((o) => cheieCautare(o.denumire));
 
 export function cautaOcupatii(interogare: string, limita = 25): readonly CodCor[] {
-  const q = faraDiacritice(interogare.trim());
+  const q = cheieCautare(interogare.trim());
   if (q.length < 2) return [];
   const rezultate: CodCor[] = [];
 

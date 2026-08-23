@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { TaxePieChart } from "@/components/payroll/taxe-pie-chart";
+import { Inel } from "@/components/grafice/inel";
 import { formatLei } from "@/lib/format/money";
 
 /**
@@ -130,9 +130,16 @@ export function VinietaPontaj({
 }
 
 /**
- * Fluturașul. Donut-ul e refolosit din `src/components/payroll/taxe-pie-chart.tsx`
- * aproape neatins: Server Component pur, fără JavaScript, cu culorile luate
- * exclusiv prin `var(--color-*)`, ca tema fiecărei firme să se aplice și aici.
+ * Fluturașul. Inelul e cel din `src/components/grafice/inel.tsx` — Server
+ * Component pur, fără JavaScript.
+ *
+ * Aici era un defect VIU: feliile primeau `culoareVar: "--color-primary"`,
+ * adică NUMELE unei proprietăți acolo unde se aștepta o VALOARE CSS (fluturașul
+ * real trimitea corect `var(--color-primary)`). `stroke: --color-primary` e o
+ * declarație invalidă, CSSOM o aruncă, iar `stroke` rămâne `none`: inelul de pe
+ * pagina publică se desena invizibil, fără nicio eroare nicăieri. Acum culoarea
+ * nu se mai dă deloc — vine din paleta categorică — deci greșeala nu se mai
+ * poate repeta.
  */
 const BRUT = 6000;
 const CAS = 1500;
@@ -140,16 +147,34 @@ const CASS = 600;
 const IMPOZIT = 390;
 const NET = BRUT - CAS - CASS - IMPOZIT;
 
-export function VinietaFluturas({ titlu, avertisment }: { titlu: string; avertisment: string }) {
+export function VinietaFluturas({
+  titlu,
+  avertisment,
+  unitate,
+  antetCategorie,
+  etichete,
+}: {
+  titlu: string;
+  avertisment: string;
+  /** Numele coloanei de valori din tabelul ascuns. Pagina e bilingvă. */
+  unitate: string;
+  /** Numele primei coloane din tabelul ascuns. */
+  antetCategorie: string;
+  etichete: { net: string; impozit: string };
+}) {
   return (
     <Vinieta titlu={titlu} subsol={avertisment}>
-      <TaxePieChart
+      <Inel
+        titlu={titlu}
+        unitate={unitate}
+        antetCategorie={antetCategorie}
         felii={[
-          { eticheta: "Net de plată", valoare: NET, culoareVar: "--color-primary" },
-          { eticheta: "CAS", valoare: CAS, culoareVar: "--color-accent" },
-          { eticheta: "CASS", valoare: CASS, culoareVar: "--color-warning" },
-          { eticheta: "Impozit", valoare: IMPOZIT, culoareVar: "--color-muted-foreground" },
+          { eticheta: etichete.net, valoare: NET },
+          { eticheta: "CAS", valoare: CAS },
+          { eticheta: "CASS", valoare: CASS },
+          { eticheta: etichete.impozit, valoare: IMPOZIT },
         ]}
+        formateaza={formatLei}
       />
       <dl className="border-border mt-4 grid grid-cols-2 gap-x-6 gap-y-2 border-t pt-4 text-sm">
         {[

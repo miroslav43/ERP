@@ -12,7 +12,7 @@
 // pe care `hr` (care administrează SSM) nu îl are. Toate scadențele se
 // calculează din tabelele sursă.
 // NU se citește `ssm_legal_parameters`: e sub resursa `compliance`. Pragul de
-// preaviz e constanta `PRAG_AVERTIZARE_ZILE` din `@/domain/ssm/scadente`.
+// preaviz e constanta `PRAG_SSM_AVERTIZARE_ZILE` din `@/domain/ssm/scadente`.
 
 import type { FiltreAngajati } from "@/schemas/employee";
 import { listeazaAngajati, type RandAngajat } from "@/lib/queries/employees";
@@ -203,7 +203,7 @@ export async function matriceInstruiri(intrare: IntrareMatrice): Promise<Rezulta
 
 /**
  * Instruirile PROPRII ale utilizatorului curent, fără niciun filtru pe
- * angajat: RLS (`ssm_acces` cu scope „own") restrânge singur la propria fișă.
+ * angajat: RLS (`ssm_acces` cu scope „own”) restrânge singur la propria fișă.
  * Filtrul pe organizație rămâne explicit, la fel ca peste tot în modul — un
  * utilizator care aparține la mai multe organizații nu trebuie să vadă
  * instruirile amestecate.
@@ -262,9 +262,9 @@ export async function instruirileAngajatului(
  * Restul dosarului SSM propriu — fișe de aptitudine, restricții, EIP,
  * autorizații nominale — cu filtru EXPLICIT pe angajat.
  *
- * Toate variantele „generale" de mai jos trec prin `app.ssm_acces`, a cărei
+ * Toate variantele „generale” de mai jos trec prin `app.ssm_acces`, a cărei
  * primă ramură (`can(..., 'all')`) e adevărată necondiționat pentru `hr` sau
- * `org_admin`. Un ecran „dosarul meu" construit pe ele ar arăta fișele de
+ * `org_admin`. Un ecran „dosarul meu” construit pe ele ar arăta fișele de
  * aptitudine, restricțiile medicale și echipamentul de protecție ale ÎNTREGII
  * firme — la fișe și la restricții, date privind sănătatea (art. 9 GDPR).
  *
@@ -368,7 +368,7 @@ export interface RandFisa {
 export interface RezultatFise {
   readonly randuri: readonly RandFisa[];
   readonly urmatorulCursor: string | null;
-  /** Câte fișe sunt în total, după filtre — „pagina următoare" fără total e o ușă fără indicație. */
+  /** Câte fișe sunt în total, după filtre — „pagina următoare” fără total e o ușă fără indicație. */
   readonly total: number;
   /** Sortarea EFECTIV aplicată, după îngustarea la coloanele permise. */
   readonly sortare: Readonly<{ cheie: SortareFise; directie: Directie }>;
@@ -900,7 +900,7 @@ export async function angajatiDupaId(
 //
 // Contoare de tablou de bord, nu registre legale: reduc istoricul la cea mai
 // recentă înregistrare per pereche relevantă și numără câte ies din starea
-// „ok" (`stareScadentaSsm`). Mărginite cu `.limit(2000)` — panoul e un rezumat,
+// „ok” (`stareScadentaSsm`). Mărginite cu `.limit(2000)` — panoul e un rezumat,
 // nu locul unde se verifică exhaustiv acoperirea; lista completă e ecranul
 // dedicat fiecărui grup.
 
@@ -1064,7 +1064,7 @@ export async function contorAutorizatiiNominale(organizationId: string): Promise
     .from("personnel_authorizations")
     .select("valabil_pana, suspendata_la")
     .eq("organization_id", organizationId)
-    .is("suspendata_la", null) // o autorizație suspendată nu mai e „în uz" — nu cere atenție de reînnoire
+    .is("suspendata_la", null) // o autorizație suspendată nu mai e „în uz” — nu cere atenție de reînnoire
     .is("deleted_at", null)
     .limit(2000)
     .returns<{ valabil_pana: string; suspendata_la: string | null }[]>();
@@ -1079,11 +1079,11 @@ export async function contorAutorizatiiNominale(organizationId: string): Promise
 }
 
 /**
- * `ppe_issuances` nu are o coloană „valabil_pana" — data țintă e derivată:
+ * `ppe_issuances` nu are o coloană „valabil_pana” — data țintă e derivată:
  * `data_inlocuirii` dacă e completată explicit, altfel `data_predarii +
  * durata_utilizare_luni`. Simplificare asumată (ca restul modulului SSM):
  * nu există azi niciun ecran care afișează o scadență calculată pentru EIP,
- * doar datele brute — asta e prima interpretare a lor ca „scadență".
+ * doar datele brute — asta e prima interpretare a lor ca „scadență”.
  */
 function scadentaEip(
   dataPredarii: string,
@@ -1133,7 +1133,7 @@ export async function contorEip(organizationId: string): Promise<number> {
 }
 
 /**
- * Totalul pentru badge-ul de navigare „ssm_expiring" — instruiri, stingătoare,
+ * Totalul pentru badge-ul de navigare „ssm_expiring” — instruiri, stingătoare,
  * fișe de aptitudine, autorizații nominale și EIP. Primele trei erau singurele
  * numărate până acum, deși autorizațiile și EIP au aceleași date de scadență.
  */

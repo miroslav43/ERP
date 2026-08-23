@@ -12,14 +12,12 @@
 // duplicarea pe care o evită.
 "use client";
 
+import { cheieCautare } from "@/lib/text/diacritice";
+
 export type OptiuneCod = Readonly<{
   cod: string;
   denumire: string;
 }>;
-
-export function normalizeaza(text: string): string {
-  return text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-}
 
 /** `RO — România`, `6210 — Activități de realizare a softului la comandă` */
 export function etichetaOptiune(o: OptiuneCod): string {
@@ -46,13 +44,13 @@ export function filtreazaOptiuni(
   exclude: ReadonlySet<string>,
   limita: number,
 ): readonly OptiuneCod[] {
-  const termen = normalizeaza(interogare.trim());
+  const termen = cheieCautare(interogare.trim());
   const sursa =
     termen.length === 0
       ? optiuni
       : optiuni.filter(
           (o) =>
-            normalizeaza(o.cod).startsWith(termen) || normalizeaza(o.denumire).includes(termen),
+            cheieCautare(o.cod).startsWith(termen) || cheieCautare(o.denumire).includes(termen),
         );
   const rezultat: OptiuneCod[] = [];
   for (const o of sursa) {
@@ -93,8 +91,8 @@ export function rezolvaOptiune(
     if (pePrefix !== undefined) return pePrefix;
   }
 
-  const normalizat = normalizeaza(brut);
-  const peDenumire = optiuni.filter((o) => normalizeaza(o.denumire) === normalizat);
+  const normalizat = cheieCautare(brut);
+  const peDenumire = optiuni.filter((o) => cheieCautare(o.denumire) === normalizat);
   if (peDenumire.length === 1) return peDenumire[0];
 
   const filtrate = filtreazaOptiuni(optiuni, brut, exclude, limita);

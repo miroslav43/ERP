@@ -116,6 +116,35 @@ export function todayInBucharest(): DateString {
   return toBucharestDateString(new Date());
 }
 
+/**
+ * Formele scurte, pentru axele graficelor și antetele înguste de tabel.
+ *
+ * `mai` NU are punct: nu e o prescurtare, e cuvântul întreg. Punctul de
+ * prescurtare pus acolo unde nu s-a tăiat nimic e o greșeală de ortografie, nu
+ * o inconsecvență de stil.
+ */
+const LUNI_SCURT = [
+  "ian.",
+  "feb.",
+  "mar.",
+  "apr.",
+  "mai",
+  "iun.",
+  "iul.",
+  "aug.",
+  "sept.",
+  "oct.",
+  "nov.",
+  "dec.",
+] as const;
+
+/** `3` → `"mar."`. Pentru axa unui grafic, unde „martie" n-ar încăpea. */
+export function formatMonthShort(month: number): string {
+  const name = LUNI_SCURT[month - 1];
+  if (name === undefined) throw new RangeError(`Lună invalidă: ${month}`);
+  return name;
+}
+
 /** `(2026, 3)` → `"martie 2026"`. Pentru antetul perioadelor de pontaj și salarizare. */
 export function formatMonthYear(year: number, month: number): string {
   const name = LUNI[month - 1];
