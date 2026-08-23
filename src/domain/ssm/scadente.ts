@@ -25,6 +25,8 @@
  * greșit nu producea nicio eroare, doar alt preaviz.
  */
 
+import type { TreaptaScadenta } from "@/domain/scadente";
+
 export const PRAG_SSM_AVERTIZARE_ZILE = 30;
 export const PRAG_SSM_CRITIC_ZILE = 7;
 
@@ -74,4 +76,35 @@ export function stareScadentaSsm(
 /** `true` pentru orice stare care merită atenție pe un panou / un contor de badge. */
 export function esteDeAtentionat(stare: StareScadentaSsm): boolean {
   return stare === "niciodata" || stare === "expirat" || stare === "critic" || stare === "atentie";
+}
+
+/**
+ * Traducerea vocabularului SSM în cele șase trepte comune.
+ *
+ * Era scrisă de mână, VERBATIM, în șase fișiere de pagină — plus în portal.
+ * B1 s-a născut fiindcă `PRAG_AVERTIZARE_ZILE` exista de trei ori cu două
+ * valori; șase copii ale unui `switch` sunt aceeași capcană, doar mai mare.
+ * Ce ținea traducerea corectă era memoria autorului fiecărui ecran nou.
+ *
+ * Cele două cazuri care nu sunt evidente, ambele scrise deja mai sus în fișier:
+ *   · `niciodata` → `lipsa`, NU `expirat`: o instruire obligatorie pe care
+ *     angajatul n-a făcut-o niciodată e mai gravă decât una expirată de ieri,
+ *     fiindcă nu există istoric din care să se calculeze o scadență;
+ *   · `ok` cu `expiraLa === null` → `neaplicabil`, nu `in_regula`: tipul n-are
+ *     periodicitate legală, deci odată efectuat nu expiră. „În regulă” ar fi
+ *     sugerat un termen care nu există.
+ */
+export function treaptaSsm(stare: StareScadentaSsm, expiraLa: string | null): TreaptaScadenta {
+  switch (stare) {
+    case "niciodata":
+      return "lipsa";
+    case "expirat":
+      return "expirat";
+    case "critic":
+      return "critic";
+    case "atentie":
+      return "curand";
+    case "ok":
+      return expiraLa === null ? "neaplicabil" : "in_regula";
+  }
 }

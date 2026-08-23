@@ -1,97 +1,105 @@
-"use client";
+// src/app/(app)/flota/filtre-vehicule.tsx
+import type { ReactElement } from "react";
 
-import { useId, useTransition } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Search } from "lucide-react";
+import { BaraFiltre, type FiltruActiv } from "@/components/ui/bara-filtre";
+import { Camp } from "@/components/ui/camp";
+import { filtreDinUrl } from "@/lib/rute/parametri";
+import { CATEGORII_VEHICUL, filtreVehiculeSchema, STATUS_VEHICUL } from "@/schemas/fleet";
 
-import { Buton } from "@/components/ui/buton";
-import { CATEGORII_VEHICUL, STATUS_VEHICUL } from "@/schemas/fleet";
 import { ETICHETE_CATEGORIE, ETICHETE_STATUS_VEHICUL } from "./etichete";
 
-export function FiltreVehicule() {
-  const router = useRouter();
-  const cale = usePathname();
-  const parametri = useSearchParams();
-  const [inCurs, porneste] = useTransition();
-  const idCauta = useId();
-  const idStatus = useId();
-  const idCategorie = useId();
+/**
+ * Filtrele parcului auto.
+ *
+ * ── CE ȘTERGEA VECHIUL `aplica()` ─────────────────────────────────────────
+ * Pornea din `new URLSearchParams()` GOL și repunea numai `cauta`, `status` și
+ * `categorie`. `filtreVehiculeSchema` citește din adresă și `sort`, și
+ * `limita`, deci fiecare apăsare pe „Filtrează” arunca ordinea coloanelor și
+ * mărimea paginii. `cursor` pleca și el, dar acela TREBUIE să plece — îl șterge
+ * acum bara, la fiecare schimbare de filtru.
+ *
+ * ── DE CE NU MAI E COMPONENTĂ DE CLIENT ───────────────────────────────────
+ * Trimiterea, pastilele și navigarea stau în `<BaraFiltre>`. Aici nu mai rămâne
+ * nicio stare și niciun handler, doar marcaj.
+ */
+export type PropsFiltreVehicule = Readonly<{
+  /** `await searchParams` din pagină — aceeași sursă pe care o citește tabelul. */
+  parametri: Record<string, string | string[] | undefined>;
+}>;
 
-  function aplica(formular: FormData): void {
-    const noi = new URLSearchParams();
-    const cauta = String(formular.get("cauta") ?? "").trim();
-    const status = String(formular.get("status") ?? "");
-    const categorie = String(formular.get("categorie") ?? "");
-    if (cauta.length > 0) noi.set("cauta", cauta);
-    if (status.length > 0) noi.set("status", status);
-    if (categorie.length > 0) noi.set("categorie", categorie);
-    // `cursor` se pierde intenționat: filtrele noi înseamnă prima pagină.
-    porneste(() => {
-      router.replace(`${cale}?${noi.toString()}`);
+/**
+ * Exact cheile pe care le administra vechiul `aplica()`. Nici una în plus — ar
+ * șterge ce nu e al ei; nici una în minus — ar rămâne lipită în adresă.
+ */
+const CHEI_PROPRII = ["cauta", "status", "categorie"] as const;
+
+export function FiltreVehicule({ parametri }: PropsFiltreVehicule): ReactElement {
+  // Aceeași citire ca a tabelului: dacă adresa e nevalidă, bara și lista de sub
+  // ea arată aceeași interpretare, nu două.
+  const filtre = filtreDinUrl(filtreVehiculeSchema, parametri);
+
+  const active: FiltruActiv[] = [];
+  if (filtre.cauta !== null) {
+    active.push({ cheie: "cauta", eticheta: `Număr: ${filtre.cauta}` });
+  }
+  if (filtre.status !== null) {
+    active.push({
+      cheie: "status",
+      eticheta: `Stare: ${ETICHETE_STATUS_VEHICUL[filtre.status]}`,
+    });
+  }
+  if (filtre.categorie !== null) {
+    // Pastila poartă DENUMIREA, nu valoarea din enum: „Categorie:
+    // Autoutilitară”, nu „categorie=autoutilitara”.
+    active.push({
+      cheie: "categorie",
+      eticheta: `Categorie: ${ETICHETE_CATEGORIE[filtre.categorie]}`,
     });
   }
 
   return (
-    <form
-      action={aplica}
-      className="border-border rounded-panou flex flex-wrap items-end gap-3 border p-4"
-    >
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idCauta} className="text-corp font-medium">
-          Număr de înmatriculare
-        </label>
-        <input
-          id={idCauta}
-          name="cauta"
-          type="search"
-          defaultValue={parametri.get("cauta") ?? ""}
-          placeholder="B 123 ABC"
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        />
-      </div>
+    <BaraFiltre active={active} cheiProprii={CHEI_PROPRII}>
+      <Camp nume="cauta" eticheta="Număr de înmatriculare" className="w-full sm:w-56">
+        {(atribute) => (
+          // `key` legat de valoarea din adresă: un control necontrolat își ia
+          // `defaultValue` doar la montare, deci după „Șterge filtrul” ar fi
+          // rămas cu valoarea veche în câmp — și ar fi reaplicat-o la
+          // următoarea apăsare pe „Filtrează”.
+          <input
+            {...atribute}
+            key={filtre.cauta ?? ""}
+            type="search"
+            defaultValue={filtre.cauta ?? ""}
+            placeholder="B 123 ABC"
+          />
+        )}
+      </Camp>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idStatus} className="text-corp font-medium">
-          Stare
-        </label>
-        <select
-          id={idStatus}
-          name="status"
-          defaultValue={parametri.get("status") ?? ""}
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        >
-          <option value="">Toate</option>
-          {STATUS_VEHICUL.map((s) => (
-            <option key={s} value={s}>
-              {ETICHETE_STATUS_VEHICUL[s]}
-            </option>
-          ))}
-        </select>
-      </div>
+      <Camp nume="status" eticheta="Stare" fel="select" className="w-full sm:w-44">
+        {(atribute) => (
+          <select {...atribute} key={filtre.status ?? ""} defaultValue={filtre.status ?? ""}>
+            <option value="">Toate</option>
+            {STATUS_VEHICUL.map((s) => (
+              <option key={s} value={s}>
+                {ETICHETE_STATUS_VEHICUL[s]}
+              </option>
+            ))}
+          </select>
+        )}
+      </Camp>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idCategorie} className="text-corp font-medium">
-          Categorie
-        </label>
-        <select
-          id={idCategorie}
-          name="categorie"
-          defaultValue={parametri.get("categorie") ?? ""}
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        >
-          <option value="">Toate</option>
-          {CATEGORII_VEHICUL.map((c) => (
-            <option key={c} value={c}>
-              {ETICHETE_CATEGORIE[c]}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <Buton type="submit" varianta="secundar" inCurs={inCurs} textInCurs="Se filtrează…">
-        <Search aria-hidden="true" className="size-4" />
-        Filtrează
-      </Buton>
-    </form>
+      <Camp nume="categorie" eticheta="Categorie" fel="select" className="w-full sm:w-44">
+        {(atribute) => (
+          <select {...atribute} key={filtre.categorie ?? ""} defaultValue={filtre.categorie ?? ""}>
+            <option value="">Toate</option>
+            {CATEGORII_VEHICUL.map((c) => (
+              <option key={c} value={c}>
+                {ETICHETE_CATEGORIE[c]}
+              </option>
+            ))}
+          </select>
+        )}
+      </Camp>
+    </BaraFiltre>
   );
 }

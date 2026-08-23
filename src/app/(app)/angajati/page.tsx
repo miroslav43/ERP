@@ -21,6 +21,7 @@ import { formatDate } from "@/lib/format/date";
 import { scrieSortare } from "@/lib/queries/cursor";
 import { idFisaProprie, listeazaAngajati } from "@/lib/queries/employees";
 import { filtreAngajatiSchema } from "@/schemas/employee";
+import { filtreDinUrl } from "@/lib/rute/parametri";
 
 import { ETICHETE_STATUS, TONURI_STATUS } from "./etichete";
 import { FiltreAngajati } from "./filtre-angajati";
@@ -39,7 +40,10 @@ interface ProprietatiTabel {
 }
 
 async function TabelAngajati({ organizationId, scope, userId, parametri }: ProprietatiTabel) {
-  const filtre = filtreAngajatiSchema.parse(parametri);
+  // `filtreDinUrl`, nu `.parse()`: `/angajati?limita=abc` arunca ZodError
+  // necaptat — un ecran de eroare pentru o adresă editată de mână sau pentru
+  // un link vechi. Comportamentul așteptat e lista nefiltrată.
+  const filtre = filtreDinUrl(filtreAngajatiSchema, parametri);
   const propriaFisaId = scope === "all" ? null : await idFisaProprie(organizationId, userId);
   const { randuri, urmatorulCursor, total, sortare } = await listeazaAngajati({
     organizationId,
@@ -189,6 +193,9 @@ export default async function PaginaAngajati({ searchParams }: ProprietatiPagina
   }
 
   const parametri = await searchParams;
+  // Aceleași filtre pe care le folosește lista: bara și tabelul de sub ea
+  // arată o singură interpretare a adresei, nu două.
+  const filtre = filtreDinUrl(filtreAngajatiSchema, parametri);
   const poateCrea = scopeFor(permisiuni, "employees:create") === "all";
 
   return (
@@ -214,7 +221,9 @@ export default async function PaginaAngajati({ searchParams }: ProprietatiPagina
           : {})}
       />
 
-      <FiltreAngajati />
+      {/* Parametrii vin ca prop: bara de filtre e Server Component, iar
+          `useSearchParams()` e hook de client. */}
+      <FiltreAngajati filtre={filtre} />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={7} />}>
         <TabelAngajati

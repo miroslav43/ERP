@@ -104,8 +104,29 @@ async function TabelDeplasari({
     filtre,
   );
 
+  /**
+   * Adresele se construiesc din parametrii EXISTENȚI, nu dintr-un obiect gol:
+   * altfel o sortare ar șterge filtrul de stare, iar o schimbare de mărime a
+   * paginii ar șterge sortarea.
+   */
+  function adresa(schimba: (p: URLSearchParams) => void): string {
+    const p = new URLSearchParams();
+    for (const [cheie, valoare] of Object.entries(parametri)) {
+      if (typeof valoare === "string" && valoare !== "") p.set(cheie, valoare);
+    }
+    schimba(p);
+    return p.size === 0 ? "/diurna" : `/diurna?${p.toString()}`;
+  }
+
   if (randuri.length === 0) {
     const areFiltre = filtre.status !== null;
+    // „Șterge filtrele” scoate DOAR cheile de filtrare, aceleași pe care le
+    // administrează `<FiltreDeplasari>`. Un `href="/diurna"` sec ar fi luat cu
+    // el și sortarea, și mărimea paginii — exact defectul reparat în bară.
+    const faraFiltre = adresa((p) => {
+      p.delete("status");
+      p.delete("cursor");
+    });
     return (
       <StareGoala
         fel={areFiltre ? "filtrata" : "initiala"}
@@ -116,7 +137,7 @@ async function TabelDeplasari({
             ? "Ștergeți filtrele ca să vedeți toate deplasările."
             : "Adăugați prima deplasare în interes de serviciu ca să urmăriți diurna și decontul."
         }
-        {...(areFiltre ? { actiune: { eticheta: "Șterge filtrele", href: "/diurna" } } : {})}
+        {...(areFiltre ? { actiune: { eticheta: "Șterge filtrele", href: faraFiltre } } : {})}
       />
     );
   }
@@ -143,20 +164,6 @@ async function TabelDeplasari({
       : Promise.resolve(new Map<string, never>()),
   ]);
   const politiciDupaData = new Map(politiciListe);
-
-  /**
-   * Adresele se construiesc din parametrii EXISTENȚI, nu dintr-un obiect gol:
-   * altfel o sortare ar șterge filtrul de stare, iar o schimbare de mărime a
-   * paginii ar șterge sortarea.
-   */
-  function adresa(schimba: (p: URLSearchParams) => void): string {
-    const p = new URLSearchParams();
-    for (const [cheie, valoare] of Object.entries(parametri)) {
-      if (typeof valoare === "string" && valoare !== "") p.set(cheie, valoare);
-    }
-    schimba(p);
-    return p.size === 0 ? "/diurna" : `/diurna?${p.toString()}`;
-  }
 
   const coloanaAngajat: readonly Coloana<(typeof randuri)[number]>[] = arataAngajat
     ? [
@@ -326,7 +333,7 @@ export default async function PaginaDiurna({ searchParams }: ProprietatiPagina) 
         file={<NavDiurna poateAproba={poateAproba} />}
       />
 
-      <FiltreDeplasari />
+      <FiltreDeplasari parametri={parametri} />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={5} />}>
         <TabelDeplasari

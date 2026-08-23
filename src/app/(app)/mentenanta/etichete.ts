@@ -97,12 +97,13 @@ export const ETICHETE_STARE_SCADENTA: Readonly<Record<StareScadentaMentenanta, s
   fara_scadenta: "Fără scadență",
 };
 
-export const TONURI_STARE_SCADENTA: Readonly<Record<StareScadentaMentenanta, TonStare>> = {
-  // În întârziere se randează cu `cuAvertisment` — pictograma îl separă de restul
-  // stărilor de pericol pe o listă tipărită alb-negru.
-  in_intarziere: "pericol",
-  scadenta_apropiata: "atentie",
-  in_regula: "succes",
-  // Fără scadență nu e „în ordine”: scadența n-a putut fi calculată încă.
-  fara_scadenta: "ciorna",
-};
+/*
+ * `TONURI_STARE_SCADENTA` a dispărut odată cu trecerea ultimului ecran de
+ * mentenanță pe `<Scadenta>` — la fel ca perechile ei din
+ * `src/app/(app)/ssm/etichete.ts` și `src/app/(app)/flota/etichete.ts`.
+ * Severitatea vine acum dintr-un singur loc: `TREPTE_MENTENANTA` din
+ * `src/domain/maintenance/scadente.ts`, iar pastila își ia și culoarea, și
+ * forma din treaptă. O hartă de tonuri paralelă ar fi fost a doua sursă pentru
+ * aceeași stare — exact felul de divergență din care s-a născut primitiva.
+ * Rămâne numai CUVÂNTUL, în `ETICHETE_STARE_SCADENTA`.
+ */

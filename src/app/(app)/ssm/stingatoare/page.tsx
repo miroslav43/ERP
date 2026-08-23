@@ -1,4 +1,5 @@
 // src/app/(app)/ssm/stingatoare/page.tsx
+import { treaptaSsm } from "@/domain/ssm/scadente";
 import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
@@ -12,6 +13,7 @@ import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { Badge } from "@/components/ui/badge";
+import { Scadenta } from "@/components/ui/scadenta";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
@@ -23,12 +25,7 @@ import { stingatoare } from "@/lib/queries/ssm";
 import { filtreStingatoareSchema } from "@/schemas/ssm";
 import { stareScadentaSsm } from "@/domain/ssm/scadente";
 
-import {
-  ETICHETE_SCADENTA,
-  ETICHETE_STATUS_STINGATOR,
-  TONURI_SCADENTA,
-  TONURI_STATUS_STINGATOR,
-} from "../etichete";
+import { ETICHETE_SCADENTA, ETICHETE_STATUS_STINGATOR, TONURI_STATUS_STINGATOR } from "../etichete";
 import { NavSsm } from "../nav-ssm";
 import { FiltreStingatoare } from "./filtre-stingatoare";
 
@@ -42,7 +39,7 @@ interface ProprietatiPagina {
  * Nu mai randează `<td>`-ul, ci doar conținutul lui: `<Tabel>` construiește
  * celula (și varianta de card de sub 768px) din metadatele coloanei.
  */
-function Scadenta({
+function CelulaScadenta({
   areInregistrare,
   data,
   scadenta,
@@ -56,9 +53,7 @@ function Scadenta({
   const stare = stareScadentaSsm(areInregistrare, scadenta, azi);
   return (
     <span className="whitespace-nowrap">
-      <Badge ton={TONURI_SCADENTA[stare]} cuAvertisment={stare === "expirat"}>
-        {ETICHETE_SCADENTA[stare]}
-      </Badge>
+      <Scadenta treapta={treaptaSsm(stare, scadenta)}>{ETICHETE_SCADENTA[stare]}</Scadenta>
       {data === null ? null : (
         <span className="text-muted-foreground text-nota ml-2">{formatDate(data)}</span>
       )}
@@ -146,7 +141,7 @@ async function TabelStingatoare({
       antet: "Verificare",
       peTelefon: "meta",
       celula: (s) => (
-        <Scadenta
+        <CelulaScadenta
           areInregistrare={s.ultima_verificare !== null}
           data={s.ultima_verificare}
           scadenta={s.scadenta_verificare}
@@ -159,7 +154,7 @@ async function TabelStingatoare({
       antet: "Reîncărcare",
       peTelefon: "meta",
       celula: (s) => (
-        <Scadenta
+        <CelulaScadenta
           areInregistrare={s.ultima_reincarcare !== null}
           data={s.ultima_reincarcare}
           scadenta={s.scadenta_reincarcare}
@@ -172,7 +167,7 @@ async function TabelStingatoare({
       antet: "Probă de presiune",
       peTelefon: "meta",
       celula: (s) => (
-        <Scadenta
+        <CelulaScadenta
           areInregistrare={s.ultima_proba_presiune !== null}
           data={s.ultima_proba_presiune}
           scadenta={s.scadenta_proba_presiune}
@@ -230,6 +225,9 @@ export default async function PaginaStingatoare({ searchParams }: ProprietatiPag
 
   const parametri = await searchParams;
   const poateCrea = can(permisiuni, "ssm:create", "team");
+  // Bara de filtre nu mai citește singură adresa: primește valorile deja trecute
+  // prin schemă, deci un `?status=inventat` nu mai poate ajunge pe o pastilă.
+  const filtreCurente = filtreDinUrl(filtreStingatoareSchema, parametri);
 
   return (
     <div className="space-y-6">
@@ -260,7 +258,7 @@ export default async function PaginaStingatoare({ searchParams }: ProprietatiPag
         }
       />
 
-      <FiltreStingatoare />
+      <FiltreStingatoare status={filtreCurente.status} cauta={filtreCurente.cauta} />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={6} />}>
         <TabelStingatoare organizationId={tenant.organizationId} parametri={parametri} />

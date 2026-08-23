@@ -262,6 +262,8 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
   const poateConfigura = can(permisiuni, "leave:update", "all");
 
   const parametri = await searchParams;
+  // Aceleași filtre pe care le folosește lista — vezi nota din `FiltreCereri`.
+  const filtre = filtreDinUrl(filtreCereriSchema, parametri);
   const db = await createServerSupabase();
   const { data: tipuri } = await db
     .from("leave_types")
@@ -307,7 +309,12 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
       {/* Comutatorul apare doar cui chiar are două feluri de cereri: un
           angajat cu scope „own” vede numai ale lui, iar un al doilea filtru
           i-ar sugera că există și altceva. */}
-      <FiltreCereri tipuri={tipuri ?? []} aratăVizualizarea={scope !== "own" && fisaMea !== null} />
+      <FiltreCereri
+        tipuri={tipuri ?? []}
+        filtre={filtre}
+        parametri={parametri}
+        aratăVizualizarea={scope !== "own" && fisaMea !== null}
+      />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={5} />}>
         <TabelCereri

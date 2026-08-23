@@ -275,7 +275,13 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
       />
 
       {scope === "own" ? null : (
-        <FiltrePontaj an={an} luna={filtre.luna} departamente={listaDepartamente} />
+        <FiltrePontaj
+          an={an}
+          luna={filtre.luna}
+          departament={filtre.departament}
+          cauta={filtre.cauta}
+          departamente={listaDepartamente}
+        />
       )}
 
       {perioada === null ? (

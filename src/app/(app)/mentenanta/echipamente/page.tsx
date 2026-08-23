@@ -43,6 +43,16 @@ async function TabelEchipamente({
     filtre,
   );
 
+  /** Adresele pornesc din parametrii EXISTENȚI: o sortare nu trebuie să șteargă filtrele. */
+  function adresa(schimba: (p: URLSearchParams) => void): string {
+    const p = new URLSearchParams();
+    for (const [cheie, valoare] of Object.entries(parametri)) {
+      if (typeof valoare === "string" && valoare !== "") p.set(cheie, valoare);
+    }
+    schimba(p);
+    return p.size === 0 ? "/mentenanta/echipamente" : `/mentenanta/echipamente?${p.toString()}`;
+  }
+
   if (randuri.length === 0) {
     const areFiltre = filtre.status !== null || filtre.cauta !== null;
     return (
@@ -58,20 +68,22 @@ async function TabelEchipamente({
             : "Adăugați primul echipament ca să puteți urmări mentenanța și autorizațiile ISCIR."
         }
         {...(areFiltre
-          ? { actiune: { eticheta: "Șterge filtrele", href: "/mentenanta/echipamente" } }
+          ? {
+              actiune: {
+                eticheta: "Șterge filtrele",
+                // Nu `/mentenanta/echipamente` gol: butonul ăsta șterge FILTRELE,
+                // nu ordinea aleasă din antet și nici mărimea de pagină. Aceleași
+                // chei ca ale barei, plus cursorul, care n-are ce continua.
+                href: adresa((p) => {
+                  p.delete("cauta");
+                  p.delete("status");
+                  p.delete("cursor");
+                }),
+              },
+            }
           : {})}
       />
     );
-  }
-
-  /** Adresele pornesc din parametrii EXISTENȚI: o sortare nu trebuie să șteargă filtrele. */
-  function adresa(schimba: (p: URLSearchParams) => void): string {
-    const p = new URLSearchParams();
-    for (const [cheie, valoare] of Object.entries(parametri)) {
-      if (typeof valoare === "string" && valoare !== "") p.set(cheie, valoare);
-    }
-    schimba(p);
-    return p.size === 0 ? "/mentenanta/echipamente" : `/mentenanta/echipamente?${p.toString()}`;
   }
 
   const coloane: readonly Coloana<(typeof randuri)[number]>[] = [
@@ -171,6 +183,10 @@ export default async function PaginaEchipamente({ searchParams }: ProprietatiPag
   }
 
   const parametri = await searchParams;
+  // Aceeași validare ca a tabelului, refăcută aici fiindcă e pură: bara de
+  // filtre are nevoie de valorile CURENTE ca să-și scrie pastilele, iar din
+  // parametrii bruți ar putea scrie o pastilă cu o valoare inventată din URL.
+  const filtre = filtreDinUrl(filtreEchipamenteSchema, parametri);
   const poateAdauga = can(permisiuni, "maintenance:update", "team");
 
   return (
@@ -190,7 +206,7 @@ export default async function PaginaEchipamente({ searchParams }: ProprietatiPag
         file={<NavMentenanta />}
       />
 
-      <FiltreEchipamenteForm />
+      <FiltreEchipamenteForm filtre={filtre} />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={5} />}>
         <TabelEchipamente organizationId={tenant.organizationId} parametri={parametri} />

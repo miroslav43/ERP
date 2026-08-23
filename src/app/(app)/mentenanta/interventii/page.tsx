@@ -45,6 +45,16 @@ async function TabelInterventii({
   const filtre = filtreDinUrl(filtreInterventiiSchema, parametri);
   const { randuri, urmatorulCursor, total, sortare } = await interventii(organizationId, filtre);
 
+  /** Adresele pornesc din parametrii EXISTENȚI: o sortare nu trebuie să șteargă filtrele. */
+  function adresa(schimba: (p: URLSearchParams) => void): string {
+    const p = new URLSearchParams();
+    for (const [cheie, valoare] of Object.entries(parametri)) {
+      if (typeof valoare === "string" && valoare !== "") p.set(cheie, valoare);
+    }
+    schimba(p);
+    return p.size === 0 ? "/mentenanta/interventii" : `/mentenanta/interventii?${p.toString()}`;
+  }
+
   if (randuri.length === 0) {
     const areFiltre = filtre.tip !== null || filtre.rezultat !== null || filtre.echipament !== null;
     return (
@@ -60,7 +70,20 @@ async function TabelInterventii({
             : "Intervențiile se adaugă din fișa fiecărui echipament, sau la rezolvarea unei sesizări."
         }
         {...(areFiltre
-          ? { actiune: { eticheta: "Șterge filtrele", href: "/mentenanta/interventii" } }
+          ? {
+              actiune: {
+                eticheta: "Șterge filtrele",
+                // Nu `/mentenanta/interventii` gol: butonul ăsta șterge FILTRELE,
+                // nu ordinea aleasă din antet și nici mărimea de pagină. `echipament`
+                // intră și el, fiindcă textul promite „toate intervențiile”.
+                href: adresa((p) => {
+                  p.delete("tip");
+                  p.delete("rezultat");
+                  p.delete("echipament");
+                  p.delete("cursor");
+                }),
+              },
+            }
           : {})}
       />
     );
@@ -70,16 +93,6 @@ async function TabelInterventii({
     organizationId,
     randuri.map((r) => r.equipment_id),
   );
-
-  /** Adresele pornesc din parametrii EXISTENȚI: o sortare nu trebuie să șteargă filtrele. */
-  function adresa(schimba: (p: URLSearchParams) => void): string {
-    const p = new URLSearchParams();
-    for (const [cheie, valoare] of Object.entries(parametri)) {
-      if (typeof valoare === "string" && valoare !== "") p.set(cheie, valoare);
-    }
-    schimba(p);
-    return p.size === 0 ? "/mentenanta/interventii" : `/mentenanta/interventii?${p.toString()}`;
-  }
 
   // Rândul NU e apăsabil în întregime, ca înainte: ținta lui e fișa
   // echipamentului, iar echipamentul poate lipsi — RLS îl poate ascunde. Linkul
@@ -192,6 +205,24 @@ export default async function PaginaInterventii({ searchParams }: ProprietatiPag
   }
 
   const parametri = await searchParams;
+  // Aceeași validare ca a tabelului, refăcută aici fiindcă e pură: bara de
+  // filtre are nevoie de valorile CURENTE ca să-și scrie pastilele, iar din
+  // parametrii bruți ar putea scrie o pastilă cu o valoare inventată din URL.
+  const filtre = filtreDinUrl(filtreInterventiiSchema, parametri);
+
+  /*
+   * Denumirea echipamentului filtrat, DOAR ca să existe o pastilă cu ieșire.
+   * `echipament` e cheia pusă de codul QR de pe utilaj: lista deschisă de pe
+   * telefonul cuiva din hală e filtrată la o singură mașină, iar până acum
+   * filtrul era invizibil ȘI de neșters — singura ieșire era linkul din starea
+   * goală, care apare numai când lista chiar e goală.
+   */
+  const etichetaEchipament =
+    filtre.echipament === null
+      ? null
+      : ((await echipamenteDupaId(tenant.organizationId, [filtre.echipament])).get(
+          filtre.echipament,
+        )?.cod ?? null);
 
   return (
     <div className="space-y-6">
@@ -201,7 +232,10 @@ export default async function PaginaInterventii({ searchParams }: ProprietatiPag
         file={<NavMentenanta />}
       />
 
-      <FiltreInterventiiForm />
+      <FiltreInterventiiForm
+        filtre={filtre}
+        {...(etichetaEchipament === null ? {} : { etichetaEchipament })}
+      />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={6} />}>
         <TabelInterventii organizationId={tenant.organizationId} parametri={parametri} />

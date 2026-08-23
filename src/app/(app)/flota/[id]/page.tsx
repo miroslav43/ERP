@@ -6,6 +6,7 @@ import type { Metadata } from "next";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
+import { Scadenta } from "@/components/ui/scadenta";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -21,7 +22,6 @@ import {
   ETICHETE_SCADENTA,
   ETICHETE_STATUS_VEHICUL,
   stareScadenta,
-  TONURI_SCADENTA,
   TONURI_STATUS_VEHICUL,
 } from "../etichete";
 import { FormularDocument } from "./formular-document";
@@ -101,12 +101,12 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
       antet: "Stare",
       peTelefon: "insigna",
       celula: (tip) => {
+        // Un tip obligatoriu fără document dă `null`, iar în flotă `null`
+        // înseamnă `lipsa` — treapta cea mai gravă, fiindcă un document care nu
+        // există n-are dată de la care să numere și nu se aprinde niciodată
+        // singur. Treapta o hotărăște domeniul, nu pastila.
         const stare = stareScadenta(dupaTip.get(tip.id)?.expira_la ?? null, azi);
-        return (
-          <Badge ton={TONURI_SCADENTA[stare]} cuAvertisment={stare === "expirat"}>
-            {ETICHETE_SCADENTA[stare]}
-          </Badge>
-        );
+        return <Scadenta treapta={stare}>{ETICHETE_SCADENTA[stare]}</Scadenta>;
       },
     },
   ];

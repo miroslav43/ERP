@@ -1,10 +1,12 @@
 // src/app/(app)/ssm/dosarul-meu.tsx
+import { treaptaSsm } from "@/domain/ssm/scadente";
 import { GraduationCap, HardHat, Stethoscope } from "lucide-react";
 
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { Badge } from "@/components/ui/badge";
+import { Scadenta } from "@/components/ui/scadenta";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
 import {
   autorizatiiNominale,
@@ -21,7 +23,6 @@ import {
   ETICHETE_REZULTAT_EXAMEN,
   ETICHETE_SCADENTA,
   TONURI_REZULTAT_EXAMEN,
-  TONURI_SCADENTA,
 } from "./etichete";
 
 /**
@@ -83,15 +84,18 @@ export async function DosarulMeu({ organizationId }: { readonly organizationId: 
       antet: "Scadență",
       peTelefon: "meta",
       celula: (i) => {
+        // Fără termen de reînnoire nu e o problemă de rezolvat, deci treapta e
+        // `neaplicabil` — pastilă fără niciun semnal de alarmă, exact ca textul
+        // stins de până acum.
         if (i.urmatoarea_scadenta === null) {
-          return <span className="text-muted-foreground">fără scadență</span>;
+          return <Scadenta treapta="neaplicabil">fără scadență</Scadenta>;
         }
         const stare = stareScadentaSsm(true, i.urmatoarea_scadenta, azi);
         return (
           <>
-            <Badge ton={TONURI_SCADENTA[stare]} cuAvertisment={stare === "expirat"}>
+            <Scadenta treapta={treaptaSsm(stare, i.urmatoarea_scadenta)}>
               {ETICHETE_SCADENTA[stare]}
-            </Badge>{" "}
+            </Scadenta>{" "}
             <span className="text-muted-foreground">{formatDate(i.urmatoarea_scadenta)}</span>
           </>
         );

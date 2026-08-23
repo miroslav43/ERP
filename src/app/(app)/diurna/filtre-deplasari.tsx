@@ -1,58 +1,70 @@
-"use client";
+// src/app/(app)/diurna/filtre-deplasari.tsx
+import type { ReactElement } from "react";
 
-import { useId, useTransition } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Search } from "lucide-react";
+import { BaraFiltre, type FiltruActiv } from "@/components/ui/bara-filtre";
+import { Camp } from "@/components/ui/camp";
+import { filtreDinUrl } from "@/lib/rute/parametri";
+import { filtreDeplasariSchema, STATUSURI_DEPLASARE } from "@/schemas/per-diem";
 
-import { Buton } from "@/components/ui/buton";
-import { STATUSURI_DEPLASARE } from "@/schemas/per-diem";
 import { ETICHETE_STATUS_DEPLASARE } from "./etichete";
 
-export function FiltreDeplasari() {
-  const router = useRouter();
-  const cale = usePathname();
-  const parametri = useSearchParams();
-  const [inCurs, porneste] = useTransition();
-  const idStatus = useId();
+/**
+ * Filtrele listei de deplasări.
+ *
+ * ── CE ȘTERGEA VECHIUL `aplica()` ─────────────────────────────────────────
+ * Pornea din `new URLSearchParams()` GOL și repunea numai `status`. Cum
+ * `filtreDeplasariSchema` citește din adresă și `sort`, și `limita`, orice
+ * apăsare pe „Filtrează” arunca ordinea aleasă din tabel ȘI mărimea paginii,
+ * fără nicio indicație că s-a întâmplat ceva. `cursor` pleca și el, dar acela
+ * TREBUIE să plece — de aceea îl șterge acum bara, la fiecare schimbare.
+ *
+ * ── DE CE NU MAI E COMPONENTĂ DE CLIENT ───────────────────────────────────
+ * Trimiterea, pastilele și navigarea stau în `<BaraFiltre>`. Aici nu mai rămâne
+ * nicio stare și niciun handler, doar marcaj — deci fișierul pleacă din
+ * pachetul de JavaScript al rutei și citește parametrii direct din `page.tsx`.
+ */
+export type PropsFiltreDeplasari = Readonly<{
+  /** `await searchParams` din pagină — aceeași sursă pe care o citește tabelul. */
+  parametri: Record<string, string | string[] | undefined>;
+}>;
 
-  function aplica(formular: FormData): void {
-    const noi = new URLSearchParams();
-    const status = String(formular.get("status") ?? "");
-    if (status.length > 0) noi.set("status", status);
-    // `cursor` se pierde intenționat: un filtru nou înseamnă prima pagină.
-    porneste(() => {
-      router.replace(`${cale}?${noi.toString()}`);
+/**
+ * Exact cheile pe care le administra vechiul `aplica()`. Nici una în plus — ar
+ * șterge ce nu e al ei; nici una în minus — ar rămâne lipită în adresă.
+ */
+const CHEI_PROPRII = ["status"] as const;
+
+export function FiltreDeplasari({ parametri }: PropsFiltreDeplasari): ReactElement {
+  // Aceeași citire ca a tabelului: dacă adresa e nevalidă, bara și lista de sub
+  // ea arată aceeași interpretare, nu două.
+  const filtre = filtreDinUrl(filtreDeplasariSchema, parametri);
+
+  const active: FiltruActiv[] = [];
+  if (filtre.status !== null) {
+    active.push({
+      cheie: "status",
+      eticheta: `Stare: ${ETICHETE_STATUS_DEPLASARE[filtre.status]}`,
     });
   }
 
   return (
-    <form
-      action={aplica}
-      className="border-border rounded-panou flex flex-wrap items-end gap-3 border p-4"
-    >
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idStatus} className="text-corp font-medium">
-          Stare
-        </label>
-        <select
-          id={idStatus}
-          name="status"
-          defaultValue={parametri.get("status") ?? ""}
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        >
-          <option value="">Toate</option>
-          {STATUSURI_DEPLASARE.map((s) => (
-            <option key={s} value={s}>
-              {ETICHETE_STATUS_DEPLASARE[s]}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <Buton type="submit" varianta="secundar" inCurs={inCurs} textInCurs="Se filtrează…">
-        <Search aria-hidden="true" className="size-4" />
-        Filtrează
-      </Buton>
-    </form>
+    <BaraFiltre active={active} cheiProprii={CHEI_PROPRII}>
+      <Camp nume="status" eticheta="Stare" fel="select" className="w-full sm:w-56">
+        {(atribute) => (
+          // `key` legat de valoarea din adresă: un `<select>` necontrolat își
+          // ia `defaultValue` doar la montare, deci după „Șterge filtrul” ar fi
+          // rămas cu opțiunea veche selectată — și ar fi reaplicat-o la
+          // următoarea apăsare pe „Filtrează”.
+          <select {...atribute} key={filtre.status ?? ""} defaultValue={filtre.status ?? ""}>
+            <option value="">Toate</option>
+            {STATUSURI_DEPLASARE.map((s) => (
+              <option key={s} value={s}>
+                {ETICHETE_STATUS_DEPLASARE[s]}
+              </option>
+            ))}
+          </select>
+        )}
+      </Camp>
+    </BaraFiltre>
   );
 }

@@ -1,11 +1,12 @@
 // src/app/(portal)/portal/instruirile-mele/page.tsx
+import { treaptaSsm } from "@/domain/ssm/scadente";
 import type { Metadata } from "next";
 import { GraduationCap } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { StareGoala } from "@/components/ui/stare-goala";
-import { Badge } from "@/components/ui/badge";
+import { Scadenta } from "@/components/ui/scadenta";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -24,7 +25,6 @@ import {
   ETICHETE_REZULTAT_EXAMEN,
   ETICHETE_SCADENTA,
   ETICHETE_TIP_EXAMEN,
-  TONURI_SCADENTA,
 } from "@/app/(app)/ssm/etichete";
 
 import { FaraFisa } from "../fara-fisa";
@@ -68,10 +68,14 @@ export default async function PaginaInstruirileMele() {
   );
 
   const azi = todayInBucharest();
-  const randuri = instruiri.map((instruire) => ({
-    ...instruire,
-    scadenta: stareScadentaSsm(true, instruire.urmatoarea_scadenta, azi),
-  }));
+  const randuri = instruiri.map((instruire) => {
+    const scadenta = stareScadentaSsm(true, instruire.urmatoarea_scadenta, azi);
+    return {
+      ...instruire,
+      scadenta,
+      treapta: treaptaSsm(scadenta, instruire.urmatoarea_scadenta),
+    };
+  });
 
   const totulGol =
     randuri.length === 0 &&
@@ -121,15 +125,11 @@ export default async function PaginaInstruirileMele() {
                     </p>
                   )}
                 </div>
-                {/* Badge cu TEXT, nu doar culoare: culoarea nu poartă niciodată
-                    singură sensul. */}
-                <Badge
-                  ton={TONURI_SCADENTA[instruire.scadenta]}
-                  cuAvertisment={instruire.scadenta === "expirat"}
-                  className="shrink-0"
-                >
+                {/* Pastilă cu TEXT și cu formă proprie, nu doar culoare: culoarea
+                    nu poartă niciodată singură sensul. */}
+                <Scadenta treapta={instruire.treapta} className="shrink-0">
                   {ETICHETE_SCADENTA[instruire.scadenta]}
-                </Badge>
+                </Scadenta>
               </div>
               {instruire.semnatura_confirmata ? null : (
                 <p className="text-muted-foreground border-border text-nota mt-3 border-t pt-3">

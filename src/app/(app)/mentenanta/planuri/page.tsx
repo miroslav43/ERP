@@ -1,11 +1,12 @@
 // src/app/(app)/mentenanta/planuri/page.tsx
+import { TREPTE_MENTENANTA } from "@/domain/maintenance/scadente";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { CalendarClock } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
-import { Badge } from "@/components/ui/badge";
+import { Scadenta } from "@/components/ui/scadenta";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
@@ -15,12 +16,7 @@ import { formatDate, todayInBucharest } from "@/lib/format/date";
 import { angajatiDupaId, echipamenteDupaId, planuriScadente } from "@/lib/queries/maintenance";
 import { stareScadentaData } from "@/domain/maintenance/scadente";
 
-import {
-  ETICHETE_STARE_SCADENTA,
-  ETICHETE_TIP_CONTOR,
-  ETICHETE_TIP_MENTENANTA,
-  TONURI_STARE_SCADENTA,
-} from "../etichete";
+import { ETICHETE_STARE_SCADENTA, ETICHETE_TIP_CONTOR, ETICHETE_TIP_MENTENANTA } from "../etichete";
 import { NavMentenanta } from "../nav-mentenanta";
 
 export const metadata: Metadata = { title: "Planuri de mentenanță" };
@@ -121,9 +117,7 @@ export default async function PaginaPlanuri() {
       celula: (plan) => {
         const stare = stareScadentaData(plan.urmatoarea_scadenta, azi);
         return (
-          <Badge cuAvertisment={stare === "in_intarziere"} ton={TONURI_STARE_SCADENTA[stare]}>
-            {ETICHETE_STARE_SCADENTA[stare]}
-          </Badge>
+          <Scadenta treapta={TREPTE_MENTENANTA[stare]}>{ETICHETE_STARE_SCADENTA[stare]}</Scadenta>
         );
       },
     },

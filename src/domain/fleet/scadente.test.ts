@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 // verificare, de mai jos — vocabularul flotei trebuie să fie o submulțime a
 // celor șase trepte unificate, altfel pastila ar primi o stare pe care n-o
 // cunoaște și ar cădea la randare, nu la compilare.
-import type { TreaptaScadenta } from "@/components/ui/scadenta";
+import type { TreaptaScadenta } from "@/domain/scadente";
 
 import {
   PRAG_FLOTA_AVERTIZARE_ZILE,

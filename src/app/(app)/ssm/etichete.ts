@@ -83,26 +83,30 @@ export const ETICHETE_REZULTAT_VERIFICARE: Readonly<Record<RezultatVerificareSti
   remediat: "Remediat",
 };
 
+/*
+ * Cuvintele urmau ordinea GREȘITĂ a gravității, iar inversiunea s-a văzut abia
+ * când `<Scadenta>` a adăugat forma ca a doua marcă: `critic` (≤ 7 zile) purta
+ * „Expiră în curând" și primea triunghiul de alarmă, în timp ce `atentie`
+ * (≤ 30 de zile) purta „Atenție" și primea ceasul. Treapta mai gravă suna mai
+ * blând decât cea mai puțin gravă, deci cuvântul și forma se contraziceau.
+ *
+ * Acum cuvintele urcă odată cu treapta, iar numărul de zile e în ele: „în
+ * curând" nu spune nimic cuiva care trebuie să programeze o clinică.
+ */
 export const ETICHETE_SCADENTA: Readonly<Record<StareScadentaSsm, string>> = {
   niciodata: "Niciodată efectuată",
   expirat: "Expirat",
-  critic: "Expiră în curând",
-  atentie: "Atenție",
+  critic: "Expiră în mai puțin de o săptămână",
+  atentie: "Expiră în curând",
   ok: "În regulă",
 };
 
-/**
- * „niciodata" e „ciornă", nu „neutru": obligația nu s-a stins, doar nu s-a
- * început niciodată — bulina goală spune exact „există un loc, nu s-a umplut".
- *
- * „expirat" primește pe deasupra `cuAvertisment` la fiecare randare; fără
- * pictogramă e identic cu orice altă stare „pericol" pe o listă tipărită
- * alb-negru.
+/*
+ * `TONURI_SCADENTA` a dispărut odată cu trecerea celor șase ecrane SSM pe
+ * `<Scadenta>` — la fel cum a dispărut perechea ei din
+ * `src/app/(app)/flota/etichete.ts`. Pastila își ia culoarea ȘI forma din
+ * treaptă, iar treapta o dă `stareScadentaSsm` prin `treaptaSsm`. Harta de
+ * tonuri ar fi fost a doua sursă pentru aceeași severitate — exact felul de
+ * divergență din care s-a născut primitiva. Rămâne numai CUVÂNTUL, mai sus:
+ * `<Scadenta>` nu-și scrie niciodată singură conținutul.
  */
-export const TONURI_SCADENTA: Readonly<Record<StareScadentaSsm, TonStare>> = {
-  niciodata: "ciorna",
-  expirat: "pericol",
-  critic: "atentie",
-  atentie: "atentie",
-  ok: "succes",
-};

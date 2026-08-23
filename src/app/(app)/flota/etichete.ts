@@ -73,20 +73,23 @@ export const TONURI_STATUS_FOAIE: Readonly<Record<StatusFoaie, TonStare>> = {
 export { stareScadentaFlota as stareScadenta } from "@/domain/fleet/scadente";
 export type { StareScadentaFlota as StareScadenta } from "@/domain/fleet/scadente";
 
+/**
+ * Doar CUVÂNTUL, nu și tonul.
+ *
+ * `TONURI_SCADENTA` a dispărut odată cu trecerea celor două ecrane pe
+ * `<Scadenta>`: pastila își ia culoarea ȘI forma din treaptă, iar treapta o
+ * calculează `stareScadentaFlota`. Harta de tonuri ar fi fost a doua sursă
+ * pentru aceeași severitate — exact felul de divergență din care s-a născut
+ * primitiva. Textul rămâne aici, fiindcă `<Scadenta>` nu-și scrie niciodată
+ * singură conținutul (marketingul bilingv importă aceleași primitive).
+ *
+ * „Lipsește” e MAI GRAV decât „Expirat”: documentul nu există deloc, deci nu
+ * are nicio dată de la care să se numere și nu se va aprinde niciodată singur
+ * în „Expiră curând”. Ordinea o ține acum `RANG_SCADENTA` din `src/domain/scadente.ts`.
+ */
 export const ETICHETE_SCADENTA: Readonly<Record<StareScadentaFlota, string>> = {
   expirat: "Expirat",
   curand: "Expiră curând",
   in_regula: "În regulă",
   lipsa: "Lipsește",
-};
-
-export const TONURI_SCADENTA: Readonly<Record<StareScadentaFlota, TonStare>> = {
-  expirat: "pericol",
-  curand: "atentie",
-  in_regula: "succes",
-  // „Lipsește” e MAI GRAV decât „Expirat”, nu o stare neutră: documentul nu
-  // există deloc, deci nu are nicio dată de la care să se numere și nu se va
-  // aprinde niciodată singur în „Expiră curând”. Un RCA absent rămâne absent
-  // tăcut până când îl vede cineva pe listă.
-  lipsa: "pericol",
 };

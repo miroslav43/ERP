@@ -24,7 +24,12 @@ import {
   planuriEchipament,
   sesizari,
 } from "@/lib/queries/maintenance";
-import { stareScadentaData, stareScadentaPlan } from "@/domain/maintenance/scadente";
+import {
+  stareScadentaData,
+  stareScadentaPlan,
+  TREPTE_MENTENANTA,
+} from "@/domain/maintenance/scadente";
+import { Scadenta } from "@/components/ui/scadenta";
 
 import {
   ETICHETE_REZULTAT_INTERVENTIE,
@@ -35,7 +40,6 @@ import {
   ETICHETE_TIP_MENTENANTA,
   ETICHETE_URGENTA_SESIZARE,
   TONURI_REZULTAT_INTERVENTIE,
-  TONURI_STARE_SCADENTA,
   TONURI_STATUS_ECHIPAMENT,
   TONURI_STATUS_SESIZARE,
   TONURI_URGENTA_SESIZARE,
@@ -444,12 +448,9 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
                     ) : null}
                   </div>
                   <div className="flex flex-col items-end gap-1 text-right">
-                    <Badge
-                      cuAvertisment={stare === "in_intarziere"}
-                      ton={TONURI_STARE_SCADENTA[stare]}
-                    >
+                    <Scadenta treapta={TREPTE_MENTENANTA[stare]}>
                       {ETICHETE_STARE_SCADENTA[stare]}
-                    </Badge>
+                    </Scadenta>
                     {plan.urmatoarea_scadenta !== null ? (
                       <span className="text-muted-foreground text-nota">
                         {formatDate(plan.urmatoarea_scadenta)}
@@ -517,12 +518,9 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1 text-right">
-                    <Badge
-                      cuAvertisment={stare === "in_intarziere"}
-                      ton={TONURI_STARE_SCADENTA[stare]}
-                    >
+                    <Scadenta treapta={TREPTE_MENTENANTA[stare]}>
                       {ETICHETE_STARE_SCADENTA[stare]}
-                    </Badge>
+                    </Scadenta>
                     <span className="text-muted-foreground text-nota">
                       {formatDate(autorizatie.valabil_pana)}
                     </span>

@@ -46,6 +46,16 @@ async function TabelSesizari({
   const filtre = filtreDinUrl(filtreSesizariSchema, parametri);
   const { randuri, urmatorulCursor, total, sortare } = await sesizari(organizationId, filtre);
 
+  /** Adresele pornesc din parametrii EXISTENȚI: o sortare nu trebuie să șteargă filtrele. */
+  function adresa(schimba: (p: URLSearchParams) => void): string {
+    const p = new URLSearchParams();
+    for (const [cheie, valoare] of Object.entries(parametri)) {
+      if (typeof valoare === "string" && valoare !== "") p.set(cheie, valoare);
+    }
+    schimba(p);
+    return p.size === 0 ? "/mentenanta/sesizari" : `/mentenanta/sesizari?${p.toString()}`;
+  }
+
   if (randuri.length === 0) {
     const areFiltre =
       filtre.status !== null || filtre.urgenta !== null || filtre.echipament !== null;
@@ -60,7 +70,20 @@ async function TabelSesizari({
             : "Sesizările apar aici pe măsură ce echipa raportează defecțiuni."
         }
         {...(areFiltre
-          ? { actiune: { eticheta: "Șterge filtrele", href: "/mentenanta/sesizari" } }
+          ? {
+              actiune: {
+                eticheta: "Șterge filtrele",
+                // Nu `/mentenanta/sesizari` gol: butonul ăsta șterge FILTRELE, nu
+                // ordinea aleasă din antet și nici mărimea de pagină. `echipament`
+                // intră și el, fiindcă textul promite „toate sesizările”.
+                href: adresa((p) => {
+                  p.delete("status");
+                  p.delete("urgenta");
+                  p.delete("echipament");
+                  p.delete("cursor");
+                }),
+              },
+            }
           : {})}
       />
     );
@@ -70,16 +93,6 @@ async function TabelSesizari({
     organizationId,
     randuri.map((r) => r.equipment_id),
   );
-
-  /** Adresele pornesc din parametrii EXISTENȚI: o sortare nu trebuie să șteargă filtrele. */
-  function adresa(schimba: (p: URLSearchParams) => void): string {
-    const p = new URLSearchParams();
-    for (const [cheie, valoare] of Object.entries(parametri)) {
-      if (typeof valoare === "string" && valoare !== "") p.set(cheie, valoare);
-    }
-    schimba(p);
-    return p.size === 0 ? "/mentenanta/sesizari" : `/mentenanta/sesizari?${p.toString()}`;
-  }
 
   const coloane: readonly Coloana<(typeof randuri)[number]>[] = [
     {
@@ -181,6 +194,24 @@ export default async function PaginaSesizari({ searchParams }: ProprietatiPagina
   }
 
   const parametri = await searchParams;
+  // Aceeași validare ca a tabelului, refăcută aici fiindcă e pură: bara de
+  // filtre are nevoie de valorile CURENTE ca să-și scrie pastilele, iar din
+  // parametrii bruți ar putea scrie o pastilă cu o valoare inventată din URL.
+  const filtre = filtreDinUrl(filtreSesizariSchema, parametri);
+
+  /*
+   * Denumirea echipamentului filtrat, DOAR ca să existe o pastilă cu ieșire.
+   * `echipament` e cheia pusă de codul QR de pe utilaj: lista deschisă de pe
+   * telefonul cuiva din hală e filtrată la o singură mașină, iar până acum
+   * filtrul era invizibil ȘI de neșters — singura ieșire era linkul din starea
+   * goală, care apare numai când lista chiar e goală.
+   */
+  const etichetaEchipament =
+    filtre.echipament === null
+      ? null
+      : ((await echipamenteDupaId(tenant.organizationId, [filtre.echipament])).get(
+          filtre.echipament,
+        )?.cod ?? null);
 
   return (
     <div className="space-y-6">
@@ -195,7 +226,10 @@ export default async function PaginaSesizari({ searchParams }: ProprietatiPagina
         file={<NavMentenanta />}
       />
 
-      <FiltreSesizariForm />
+      <FiltreSesizariForm
+        filtre={filtre}
+        {...(etichetaEchipament === null ? {} : { etichetaEchipament })}
+      />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={5} />}>
         <TabelSesizari organizationId={tenant.organizationId} parametri={parametri} />

@@ -219,6 +219,8 @@ export default async function PaginaOnboarding({ searchParams }: ProprietatiPagi
   const poateVedeaAngajati = can(permisiuni, "employees:read", "team");
 
   const angajati = poateVedeaAngajati ? await angajatiActivi(tenant.organizationId) : null;
+  // Aceleași filtre pe care le vede lista: bara le arată în câmpuri și ca pastile.
+  const filtre = filtreDinUrl(filtreInstanteSchema, parametri);
 
   return (
     <div className="space-y-6">
@@ -242,7 +244,7 @@ export default async function PaginaOnboarding({ searchParams }: ProprietatiPagi
         file={<NavOnboarding />}
       />
 
-      <FiltreInstante angajati={angajati} />
+      <FiltreInstante angajati={angajati} filtre={filtre} />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={5} />}>
         <TabelInstante

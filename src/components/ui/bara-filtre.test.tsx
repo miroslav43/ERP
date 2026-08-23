@@ -98,6 +98,35 @@ describe("BaraFiltre — pastilele", () => {
     expect(p.get("limita")).toBe("50");
   });
 
+  it("«Șterge toate filtrele» șterge și cheile EXTERNE, care n-au câmp", () => {
+    // `echipament` e pus de codul QR de pe utilaj, nu de un câmp din bară. Dacă
+    // ar fi stat în `cheiProprii`, prima trimitere l-ar fi ȘTERS singură —
+    // `FormData.get("echipament")` întoarce `null`, iar bara ar fi citit asta
+    // ca „s-a golit câmpul".
+    parametriCurenti = new URLSearchParams("status=activ&echipament=abc&sort=nume");
+    inlocuieste.mockClear();
+    render(
+      <BaraFiltre
+        active={[{ cheie: "status", eticheta: "Stare: activ" }]}
+        cheiProprii={[...CHEI]}
+        cheiExterne={["echipament"]}
+      >
+        <input name="status" aria-label="Stare" defaultValue="activ" />
+      </BaraFiltre>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Șterge toate filtrele" }));
+    const p = ultimaAdresa();
+    expect(p.has("status")).toBe(false);
+    expect(p.has("echipament")).toBe(false);
+    expect(p.get("sort")).toBe("nume");
+  });
+
+  it("o cheie externă supraviețuiește unei trimiteri obișnuite", () => {
+    const { container } = randeaza("status=activ&echipament=abc");
+    fireEvent.submit(container.querySelector("form") as HTMLFormElement);
+    expect(ultimaAdresa().get("echipament")).toBe("abc");
+  });
+
   it("fără filtre active, bara nu arată nici pastile, nici butonul de golire", () => {
     parametriCurenti = new URLSearchParams();
     render(

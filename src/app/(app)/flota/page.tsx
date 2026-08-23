@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Paginare } from "@/components/ui/paginare";
+import { Scadenta } from "@/components/ui/scadenta";
 import { Schelet } from "@/components/ui/schelet";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
@@ -26,7 +27,6 @@ import {
   ETICHETE_SCADENTA,
   ETICHETE_STATUS_VEHICUL,
   stareScadenta,
-  TONURI_SCADENTA,
   TONURI_STATUS_VEHICUL,
 } from "./etichete";
 import { FiltreVehicule } from "./filtre-vehicule";
@@ -51,11 +51,34 @@ async function TabelVehicule({
     filtre,
   );
 
+  /**
+   * Adresele se construiesc din parametrii EXISTENȚI, nu dintr-un obiect gol:
+   * altfel o sortare ar șterge filtrele, iar o schimbare de mărime a paginii ar
+   * șterge sortarea.
+   */
+  function adresa(schimba: (p: URLSearchParams) => void): string {
+    const p = new URLSearchParams();
+    for (const [cheie, valoare] of Object.entries(parametri)) {
+      if (typeof valoare === "string" && valoare !== "") p.set(cheie, valoare);
+    }
+    schimba(p);
+    return p.size === 0 ? "/flota" : `/flota?${p.toString()}`;
+  }
+
   if (randuri.length === 0) {
     // Mesajul diferă după cauză: „niciun vehicul" cere o acțiune, „niciun
     // rezultat" cere doar ștergerea filtrelor. Un singur text pentru amândouă
     // l-ar trimite pe om să adauge un vehicul care există deja.
     const areFiltre = filtre.status !== null || filtre.categorie !== null || filtre.cauta !== null;
+    // „Șterge filtrele” scoate DOAR cheile de filtrare, aceleași pe care le
+    // administrează `<FiltreVehicule>`. Un `href="/flota"` sec ar fi luat cu el
+    // și sortarea coloanelor, și mărimea paginii.
+    const faraFiltre = adresa((p) => {
+      p.delete("cauta");
+      p.delete("status");
+      p.delete("categorie");
+      p.delete("cursor");
+    });
     return (
       <StareGoala
         fel={areFiltre ? "filtrata" : "initiala"}
@@ -66,7 +89,7 @@ async function TabelVehicule({
             ? "Ștergeți filtrele ca să vedeți întregul parc auto."
             : "Adăugați primul vehicul ca să puteți urmări ITP-ul, RCA-ul și foile de parcurs."
         }
-        {...(areFiltre ? { actiune: { eticheta: "Șterge filtrele", href: "/flota" } } : {})}
+        {...(areFiltre ? { actiune: { eticheta: "Șterge filtrele", href: faraFiltre } } : {})}
       />
     );
   }
@@ -85,20 +108,6 @@ async function TabelVehicule({
       .sort((a, b) => (a.expira_la ?? "").localeCompare(b.expira_la ?? ""));
     return aleLui[0] ?? null;
   };
-
-  /**
-   * Adresele se construiesc din parametrii EXISTENȚI, nu dintr-un obiect gol:
-   * altfel o sortare ar șterge filtrele, iar o schimbare de mărime a paginii ar
-   * șterge sortarea.
-   */
-  function adresa(schimba: (p: URLSearchParams) => void): string {
-    const p = new URLSearchParams();
-    for (const [cheie, valoare] of Object.entries(parametri)) {
-      if (typeof valoare === "string" && valoare !== "") p.set(cheie, valoare);
-    }
-    schimba(p);
-    return p.size === 0 ? "/flota" : `/flota?${p.toString()}`;
-  }
 
   /**
    * Pastila de scadență, tipul documentului și data lui erau înghesuite într-o
@@ -155,12 +164,13 @@ async function TabelVehicule({
       antet: "Prima scadență",
       peTelefon: "insigna",
       celula: (v) => {
+        // Treapta o calculează DOMENIUL flotei, nu pastila: aici `null` (niciun
+        // document) înseamnă `lipsa`, mai grav decât `expirat` — la SSM același
+        // `null` înseamnă „nu expiră niciodată”. Cele patru stări ale flotei
+        // sunt patru dintre cele șase trepte unificate, cu aceleași nume, deci
+        // compilatorul e cel care ține traducerea corectă.
         const stare = stareScadenta(celMaiApropiat(v.id)?.expira_la ?? null, azi);
-        return (
-          <Badge ton={TONURI_SCADENTA[stare]} cuAvertisment={stare === "expirat"}>
-            {ETICHETE_SCADENTA[stare]}
-          </Badge>
-        );
+        return <Scadenta treapta={stare}>{ETICHETE_SCADENTA[stare]}</Scadenta>;
       },
     },
     {
@@ -262,7 +272,7 @@ export default async function PaginaFlota({ searchParams }: ProprietatiPagina) {
         }
       />
 
-      <FiltreVehicule />
+      <FiltreVehicule parametri={parametri} />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={8} />}>
         <TabelVehicule organizationId={tenant.organizationId} parametri={parametri} />

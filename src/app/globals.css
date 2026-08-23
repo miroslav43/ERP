@@ -142,7 +142,7 @@
 
   /*
    * ── HAȘURA ─────────────────────────────────────────────────────────────
-   * Notația pentru „nu s-a întâmplat și nu se mai poate scrie aici": zi în
+   * Notația pentru „nu s-a întâmplat și nu se mai poate scrie aici”: zi în
    * afara contractului, lună de pontaj închisă. Stratul de marketing are deja
    * echivalentul (`--mk-hasura`), iar aplicația îl reinventa local de fiecare
    * dată prin culoare — care se pierde la tipărire alb-negru. Un tipar nu se
@@ -344,7 +344,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
  * selector structural e ilizibil ca listă de clase Tailwind arbitrare — rămâne
  * CSS numit, ca autofill-ul și glifa de calendar de mai sus.
  *
- * Mecanism (adaptarea standard „pure CSS org chart"):
+ * Mecanism (adaptarea standard „pure CSS org chart”):
  *  - `.og-ramura` e orice <ul> imbricat (rândul de copii al unui nod) — NU și
  *    rădăcina arborelui. `::before` pe ea trage linia verticală de la nodul
  *    părinte până la bara orizontală a rândului de copii.
@@ -433,7 +433,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
- * STRATUL DE MARKETING — „Foaia care se închide"
+ * STRATUL DE MARKETING — „Foaia care se închide”
  *
  * Tot ce urmează are prefixul `mk-` și NU atinge niciun token al aplicației.
  * Izolarea se obține prin NUME, nu prin excludere: `--color-mk-*` generează
@@ -446,7 +446,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
  * pe douăzeci de secțiuni.
  *
  * Regula cromatică, într-o frază: culoarea nu e niciodată text — cu o singură
- * excepție, semnul „—" al refuzului, și numai pe hârtie. Codurile din foaie
+ * excepție, semnul „—” al refuzului, și numai pe hârtie. Codurile din foaie
  * (CO, CM, SL, AN, D) se scriu în culoarea textului fundalului; culoarea apare
  * doar ca tentă de celulă. Consecință: culoarea nu poartă niciodată singură un
  * înțeles, deci foaia rămâne citibilă și tipărită alb-negru.
@@ -477,7 +477,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   --color-mk-sl: #b4802a;
   --color-mk-sl-apasat: #856020; /* pe hârtie   4,91:1 */
   --color-mk-an: #a8443a;
-  --color-mk-refuz: #a8443a; /* semnul „—", DOAR pe hârtie 5,10:1 */
+  --color-mk-refuz: #a8443a; /* semnul „—”, DOAR pe hârtie 5,10:1 */
 
   /* Tente precalculate și auditate. `color-mix()` e INTERZIS pentru ele:
    * amestecul `in oklab` dă alte valori decât cele verificate mai jos. */
@@ -492,12 +492,12 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   --color-mk-weekend-cerneala: #1b2a2e;
   --color-mk-activ-cerneala: #1b333a;
 
-  /* Ușa. Singurul element navy de pe toată pagina e butonul „Autentificare" —
+  /* Ușa. Singurul element navy de pe toată pagina e butonul „Autentificare” —
    * vopsit în culoarea camerei în care duce. 14,23:1 pe hârtie. */
   --color-mk-usa: #0f1e3d;
   --color-mk-usa-text: #faf7f0;
 
-  /* Hașura: notația pentru „nu s-a întâmplat și nu se mai poate scrie aici".
+  /* Hașura: notația pentru „nu s-a întâmplat și nu se mai poate scrie aici”.
    * Într-o condică, o celulă barată e definitiv barată. */
   --mk-hasura: repeating-linear-gradient(45deg, #93a5a6 0 1px, transparent 1px 7px);
   --mk-hasura-inv: repeating-linear-gradient(45deg, #4a5a5e 0 1px, transparent 1px 7px);
@@ -709,7 +709,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
  * ══════════════════════════════════════════════════════════════════════════ */
 @media print {
   /* Învelișul aplicației: bara laterală, antetul, bara mobilă a portalului,
-     subsolul „Raportează o problemă" și zona de notificări. */
+     subsolul „Raportează o problemă” și zona de notificări. */
   [data-tipar="ascunde"] {
     display: none !important;
   }

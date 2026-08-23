@@ -1,4 +1,5 @@
 // src/app/(app)/ssm/autorizatii/page.tsx
+import { treaptaSsm } from "@/domain/ssm/scadente";
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { BadgeCheck } from "lucide-react";
@@ -8,7 +9,7 @@ import { AntetPagina } from "@/components/ui/antet-pagina";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Schelet } from "@/components/ui/schelet";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
-import { Badge } from "@/components/ui/badge";
+import { Scadenta } from "@/components/ui/scadenta";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
@@ -18,7 +19,7 @@ import { formatDate, todayInBucharest } from "@/lib/format/date";
 import { angajatiDupaId, autorizatiiNominale } from "@/lib/queries/ssm";
 import { stareScadentaSsm } from "@/domain/ssm/scadente";
 
-import { ETICHETE_SCADENTA, TONURI_SCADENTA } from "../etichete";
+import { ETICHETE_SCADENTA } from "../etichete";
 import { NavSsm } from "../nav-ssm";
 import { FormularAutorizatie } from "./formular-autorizatie";
 
@@ -95,9 +96,9 @@ async function TabelAutorizatii({ organizationId }: { readonly organizationId: s
         }
         const stare = stareScadentaSsm(true, a.valabil_pana, azi);
         return (
-          <Badge ton={TONURI_SCADENTA[stare]} cuAvertisment={stare === "expirat"}>
+          <Scadenta treapta={treaptaSsm(stare, a.valabil_pana)}>
             {ETICHETE_SCADENTA[stare]}
-          </Badge>
+          </Scadenta>
         );
       },
     },

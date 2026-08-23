@@ -1,4 +1,5 @@
 // src/app/(app)/ssm/instruiri/page.tsx
+import { treaptaSsm } from "@/domain/ssm/scadente";
 import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
@@ -10,7 +11,7 @@ import { buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
-import { Badge } from "@/components/ui/badge";
+import { Scadenta } from "@/components/ui/scadenta";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
@@ -22,7 +23,7 @@ import { cheieMatrice, matriceInstruiri, periodicitati, tipuriInstruire } from "
 import { filtreInstruiriSchema } from "@/schemas/ssm";
 import { stareScadentaSsm } from "@/domain/ssm/scadente";
 
-import { ETICHETE_DOMENIU, ETICHETE_SCADENTA, TONURI_SCADENTA } from "../etichete";
+import { ETICHETE_DOMENIU, ETICHETE_SCADENTA } from "../etichete";
 import { NavSsm } from "../nav-ssm";
 import { FiltreInstruiri } from "./filtre-instruiri";
 
@@ -164,16 +165,13 @@ async function Matrice({
                 </td>
                 {tipuri.map((tip) => {
                   const rand = celeMaiRecente.get(cheieMatrice(angajat.id, tip.id));
-                  const stare = stareScadentaSsm(
-                    rand !== undefined,
-                    rand?.urmatoarea_scadenta ?? null,
-                    azi,
-                  );
+                  const scadenta = rand?.urmatoarea_scadenta ?? null;
+                  const stare = stareScadentaSsm(rand !== undefined, scadenta, azi);
                   return (
                     <td key={tip.id} className="px-4 py-3 whitespace-nowrap">
-                      <Badge ton={TONURI_SCADENTA[stare]} cuAvertisment={stare === "expirat"}>
+                      <Scadenta treapta={treaptaSsm(stare, scadenta)}>
                         {ETICHETE_SCADENTA[stare]}
-                      </Badge>
+                      </Scadenta>
                       {rand === undefined ? null : (
                         <span className="text-muted-foreground text-nota ml-2">
                           {formatDate(rand.data_instruirii)}

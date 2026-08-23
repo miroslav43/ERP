@@ -10,6 +10,8 @@
  * una. Starea finală a planului este cea mai gravă dintre cele două.
  */
 
+import type { TreaptaScadenta } from "@/domain/scadente";
+
 export type StareScadentaMentenanta =
   "in_intarziere" | "scadenta_apropiata" | "in_regula" | "fara_scadenta";
 
@@ -119,3 +121,18 @@ export function stareScadentaPlan(
   const dinContor = stareScadentaContor(intrare);
   return maiGravaDintre(dinZile, dinContor);
 }
+
+/**
+ * Traducerea vocabularului de mentenanță în cele șase trepte comune.
+ *
+ * Era scrisă de mână în două fișiere de pagină. `fara_scadenta` devine
+ * `neaplicabil` (rang 0), NU `lipsa`: un plan fără scadență calculată e neutru
+ * — spre deosebire de flotă, unde absența documentelor e cazul cel mai grav.
+ * Exact tipul de diferență pe care un implicit unic ar fi șters-o tăcut.
+ */
+export const TREPTE_MENTENANTA: Readonly<Record<StareScadentaMentenanta, TreaptaScadenta>> = {
+  in_intarziere: "expirat",
+  scadenta_apropiata: "curand",
+  in_regula: "in_regula",
+  fara_scadenta: "neaplicabil",
+};

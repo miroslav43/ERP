@@ -1,4 +1,5 @@
 // src/app/(app)/ssm/stingatoare/[id]/page.tsx
+import { treaptaSsm } from "@/domain/ssm/scadente";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
@@ -8,6 +9,7 @@ import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { buton } from "@/components/ui/buton";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { Badge } from "@/components/ui/badge";
+import { Scadenta } from "@/components/ui/scadenta";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
@@ -23,7 +25,6 @@ import {
   ETICHETE_SCADENTA,
   ETICHETE_STATUS_STINGATOR,
   ETICHETE_TIP_VERIFICARE_STINGATOR,
-  TONURI_SCADENTA,
   TONURI_STATUS_STINGATOR,
 } from "../../etichete";
 import { FormularVerificare } from "./formular-verificare";
@@ -159,9 +160,9 @@ export default async function PaginaStingator({ params }: ProprietatiPagina) {
             <div key={o.cheie}>
               <dt className="text-muted-foreground text-nota">{o.titlu}</dt>
               <dd className="mt-1 space-y-1">
-                <Badge ton={TONURI_SCADENTA[stare]} cuAvertisment={stare === "expirat"}>
+                <Scadenta treapta={treaptaSsm(stare, o.scadenta)}>
                   {ETICHETE_SCADENTA[stare]}
-                </Badge>
+                </Scadenta>
                 <p className="text-corp">
                   {o.data === null ? "niciodată" : `ultima: ${formatDate(o.data)}`}
                 </p>

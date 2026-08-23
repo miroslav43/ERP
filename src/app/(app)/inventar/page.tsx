@@ -198,6 +198,8 @@ export default async function PaginaInventar({ searchParams }: ProprietatiPagina
   const parametri = await searchParams;
   const poateScrie = can(permisiuni, "inventory:update", "all");
   const listaCategorii = await categorii();
+  // Aceleași filtre pe care le vede lista: bara le arată în câmpuri și ca pastile.
+  const filtre = filtreDinUrl(filtreInventarSchema, parametri);
 
   return (
     <div className="space-y-6">
@@ -222,7 +224,7 @@ export default async function PaginaInventar({ searchParams }: ProprietatiPagina
           : {})}
       />
 
-      <FiltreInventar categorii={listaCategorii} />
+      <FiltreInventar categorii={listaCategorii} filtre={filtre} />
 
       <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={7} />}>
         <TabelInventar

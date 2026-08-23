@@ -48,6 +48,18 @@ export type PropsBaraFiltre = Readonly<{
    * fiindcă două s-ar despărți la prima modificare.
    */
   cheiProprii: readonly string[];
+  /**
+   * Chei care SUNT filtre, dar nu sunt câmpuri în bară — de obicei puse de un
+   * link din afară. `echipament`, pus de codul QR de pe utilaj, e cazul viu:
+   * lista deschisă de pe telefon arată sesizările unei singure mașini.
+   *
+   * Sunt șterse de „Șterge toate filtrele", dar NU sunt citite din formular. Cele
+   * două liste răspund la întrebări diferite — „ce citesc de la trimitere" și
+   * „ce sunt eu în stare să șterg" — și tocmai de asta nu se pot uni: o cheie
+   * fără câmp omonim pusă în `cheiProprii` ar fi ȘTEARSĂ la prima trimitere,
+   * fiindcă `FormData.get()` întoarce `null` pentru ea.
+   */
+  cheiExterne?: readonly string[];
   /** Textul butonului de trimitere. */
   textAplica?: string;
   className?: string;
@@ -57,6 +69,7 @@ export function BaraFiltre({
   children,
   active,
   cheiProprii,
+  cheiExterne,
   textAplica = "Filtrează",
   className,
 }: PropsBaraFiltre): ReactElement {
@@ -137,6 +150,7 @@ export function BaraFiltre({
             onClick={() =>
               navigheaza((p) => {
                 for (const c of cheiProprii) p.delete(c);
+                for (const c of cheiExterne ?? []) p.delete(c);
               })
             }
           >

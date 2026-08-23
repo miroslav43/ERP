@@ -1,4 +1,5 @@
 // src/app/(app)/mentenanta/page.tsx
+import { TREPTE_MENTENANTA } from "@/domain/maintenance/scadente";
 import Link from "next/link";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
@@ -8,6 +9,7 @@ import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
 import { buton } from "@/components/ui/buton";
+import { Scadenta } from "@/components/ui/scadenta";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -28,7 +30,6 @@ import {
   ETICHETE_STARE_SCADENTA,
   ETICHETE_STATUS_ECHIPAMENT,
   ETICHETE_URGENTA_SESIZARE,
-  TONURI_STARE_SCADENTA,
   TONURI_STATUS_ECHIPAMENT,
   TONURI_URGENTA_SESIZARE,
 } from "./etichete";
@@ -162,12 +163,9 @@ async function PanouOrganizatie({ organizationId }: { readonly organizationId: s
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-1 text-right">
-                  <Badge
-                    cuAvertisment={stare === "in_intarziere"}
-                    ton={TONURI_STARE_SCADENTA[stare]}
-                  >
+                  <Scadenta treapta={TREPTE_MENTENANTA[stare]}>
                     {ETICHETE_STARE_SCADENTA[stare]}
-                  </Badge>
+                  </Scadenta>
                   {plan.urmatoarea_scadenta !== null ? (
                     <span className="text-muted-foreground text-nota">
                       {formatDate(plan.urmatoarea_scadenta)}
@@ -243,12 +241,9 @@ async function PanouOrganizatie({ organizationId }: { readonly organizationId: s
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-1 text-right">
-                  <Badge
-                    cuAvertisment={stare === "in_intarziere"}
-                    ton={TONURI_STARE_SCADENTA[stare]}
-                  >
+                  <Scadenta treapta={TREPTE_MENTENANTA[stare]}>
                     {ETICHETE_STARE_SCADENTA[stare]}
-                  </Badge>
+                  </Scadenta>
                   <span className="text-muted-foreground text-nota">
                     {formatDate(autorizatie.valabil_pana)}
                   </span>

@@ -1,45 +1,75 @@
-"use client";
+// src/app/(app)/mentenanta/sesizari/filtre-sesizari.tsx
+import type { ReactElement } from "react";
 
-import { useId, useTransition } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Search } from "lucide-react";
+import { BaraFiltre, type FiltruActiv } from "@/components/ui/bara-filtre";
+import { STATUSURI_SESIZARE, URGENTE_SESIZARE, type FiltreSesizari } from "@/schemas/maintenance";
 
-import { Buton } from "@/components/ui/buton";
-import { STATUSURI_SESIZARE, URGENTE_SESIZARE } from "@/schemas/maintenance";
 import { ETICHETE_STATUS_SESIZARE, ETICHETE_URGENTA_SESIZARE } from "../etichete";
 
-export function FiltreSesizariForm() {
-  const router = useRouter();
-  const cale = usePathname();
-  const parametri = useSearchParams();
-  const [inCurs, porneste] = useTransition();
-  const idStatus = useId();
-  const idUrgenta = useId();
+/**
+ * Cheile administrate de bară — exact cele pe care le scria vechiul `aplica()`.
+ *
+ * Acela pornea din `new URLSearchParams()` gol și repopula doar `status` și
+ * `urgenta`, deci fiecare apăsare pe „Filtrează” arunca `sort`, `limita` ȘI
+ * `echipament`. Ultimul e cel mai costisitor: e cheia pe care o pune QR-ul de
+ * pe utilaj, iar lista deschisă de pe telefon se lărgea, la prima filtrare, de
+ * la sesizările unui echipament la toate ale organizației.
+ */
+const CHEI_EXTERNE = ["echipament"] as const;
 
-  function aplica(formular: FormData): void {
-    const noi = new URLSearchParams();
-    const status = String(formular.get("status") ?? "");
-    const urgenta = String(formular.get("urgenta") ?? "");
-    if (status.length > 0) noi.set("status", status);
-    if (urgenta.length > 0) noi.set("urgenta", urgenta);
-    porneste(() => {
-      router.replace(`${cale}?${noi.toString()}`);
+const CHEI_PROPRII = ["status", "urgenta"] as const;
+
+export type PropsFiltreSesizari = Readonly<{
+  /** Filtrele DEJA validate de pagină, ca pastilele să nu arate valori inventate. */
+  /** Codul echipamentului filtrat, când filtrul e pus din afara barei. */
+  etichetaEchipament?: string;
+  filtre: Pick<FiltreSesizari, "status" | "urgenta">;
+}>;
+
+/**
+ * Server Component: fără `aplica()`, fără `useRouter`/`usePathname`/
+ * `useSearchParams` și fără `useTransition` nu mai rămâne nici stare, nici
+ * handler, deci nici motiv de `"use client"`.
+ */
+export function FiltreSesizariForm({
+  filtre,
+  etichetaEchipament,
+}: PropsFiltreSesizari): ReactElement {
+  const active: FiltruActiv[] = [];
+  if (filtre.status !== null) {
+    active.push({ cheie: "status", eticheta: `Stare: ${ETICHETE_STATUS_SESIZARE[filtre.status]}` });
+  }
+  if (filtre.urgenta !== null) {
+    active.push({
+      cheie: "urgenta",
+      eticheta: `Urgență: ${ETICHETE_URGENTA_SESIZARE[filtre.urgenta]}`,
     });
   }
 
+  /*
+   * `echipament` NU e în `CHEI_PROPRII`: n-are câmp în bară, deci prima
+   * trimitere l-ar fi șters singură (`FormData.get()` întoarce `null`). Intră
+   * în `cheiExterne` — se șterge la „Șterge toate filtrele" și are pastilă
+   * proprie, dar nu se citește din formular.
+   */
+  if (etichetaEchipament !== undefined) {
+    active.push({ cheie: "echipament", eticheta: `Echipament: ${etichetaEchipament}` });
+  }
+
   return (
-    <form
-      action={aplica}
-      className="border-border rounded-panou flex flex-wrap items-end gap-3 border p-4"
-    >
+    <BaraFiltre active={active} cheiProprii={CHEI_PROPRII} cheiExterne={CHEI_EXTERNE}>
       <div className="flex flex-col gap-1">
-        <label htmlFor={idStatus} className="text-corp font-medium">
+        <label htmlFor="filtru-sesizari-status" className="text-corp font-medium">
           Stare
         </label>
         <select
-          id={idStatus}
+          // `key` legat de valoarea din adresă: ștergerea unei pastile schimbă
+          // adresa fără să atingă formularul, iar un control NECONTROLAT și-ar
+          // păstra în DOM valoarea veche, deja scoasă din listă.
+          key={filtre.status ?? ""}
+          id="filtru-sesizari-status"
           name="status"
-          defaultValue={parametri.get("status") ?? ""}
+          defaultValue={filtre.status ?? ""}
           className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         >
           <option value="">Toate</option>
@@ -52,13 +82,14 @@ export function FiltreSesizariForm() {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idUrgenta} className="text-corp font-medium">
+        <label htmlFor="filtru-sesizari-urgenta" className="text-corp font-medium">
           Urgență
         </label>
         <select
-          id={idUrgenta}
+          key={filtre.urgenta ?? ""}
+          id="filtru-sesizari-urgenta"
           name="urgenta"
-          defaultValue={parametri.get("urgenta") ?? ""}
+          defaultValue={filtre.urgenta ?? ""}
           className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         >
           <option value="">Toate</option>
@@ -69,11 +100,6 @@ export function FiltreSesizariForm() {
           ))}
         </select>
       </div>
-
-      <Buton type="submit" varianta="secundar" inCurs={inCurs} textInCurs="Se filtrează…">
-        <Search aria-hidden="true" className="size-4" />
-        Filtrează
-      </Buton>
-    </form>
+    </BaraFiltre>
   );
 }
