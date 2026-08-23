@@ -9,8 +9,11 @@
  * în pagină, iar un ecran stilat cu clase inexistente arată ca text nud pe fond
  * alb. Stilurile de aici sunt inline, autonome, fără nicio dependență.
  *
- * `reset()` reface doar limita de eroare; când cade rădăcina, cel mai des e
- * nevoie de o încărcare completă a documentului — de aceea butonul face ambele.
+ * Butonul face o încărcare completă a documentului, nu `retry()` sau `reset()`:
+ * când cade layout-ul rădăcină, ce trebuie refăcut e chiar documentul, cu tot
+ * cu foaia de stil care poate să nu fi ajuns niciodată în pagină. `reset()`
+ * era chemat înaintea reîncărcării și nu adăuga nimic — reîncărcarea îl face
+ * oricum, iar dependența de numele prop-ului dispare odată cu el.
  */
 
 import type { CSSProperties } from "react";
@@ -66,13 +69,7 @@ const actiune: CSSProperties = {
   cursor: "pointer",
 };
 
-export default function EroareGlobala({
-  error,
-  reset,
-}: {
-  error: Error & { digest?: string };
-  reset: () => void;
-}) {
+export default function EroareGlobala({ error }: { error: Error & { digest?: string } }) {
   return (
     <html lang="ro">
       <body style={fundal}>
@@ -87,7 +84,6 @@ export default function EroareGlobala({
             type="button"
             style={actiune}
             onClick={() => {
-              reset();
               window.location.reload();
             }}
           >

@@ -5,12 +5,16 @@ import { StareEroare } from "@/components/ui/stare-eroare";
 
 export default function Eroare({
   error,
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  retry: () => void;
 }) {
   return (
-    <StareEroare eroare={error} reset={reset} titlu="Registrul de accidente nu a putut fi afișat" />
+    <StareEroare
+      eroare={error}
+      reincearca={retry}
+      titlu="Registrul de accidente nu a putut fi afișat"
+    />
   );
 }

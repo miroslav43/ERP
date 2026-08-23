@@ -5,10 +5,10 @@ import { StareEroare } from "@/components/ui/stare-eroare";
 
 export default function Eroare({
   error,
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  retry: () => void;
 }) {
-  return <StareEroare eroare={error} reset={reset} titlu="Funcțiile nu au putut fi afișate" />;
+  return <StareEroare eroare={error} reincearca={retry} titlu="Funcțiile nu au putut fi afișate" />;
 }

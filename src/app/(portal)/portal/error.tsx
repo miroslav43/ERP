@@ -5,15 +5,15 @@ import { StareEroare } from "@/components/ui/stare-eroare";
 
 export default function Eroare({
   error,
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  retry: () => void;
 }) {
   return (
     <StareEroare
       eroare={error}
-      reset={reset}
+      reincearca={retry}
       titlu="Portalul nu a putut fi încărcat"
       inapoi={{ eticheta: "Înapoi la pagina de start", href: "/portal" }}
     />

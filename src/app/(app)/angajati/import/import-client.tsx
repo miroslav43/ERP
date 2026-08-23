@@ -199,7 +199,7 @@ export function ImportAngajatiClient() {
         <StareEroare
           titlu="Importul nu a putut continua"
           eroare={new Error(eroare)}
-          reset={() => {
+          reincearca={() => {
             setEroare(null);
             setPas("incarcare");
           }}

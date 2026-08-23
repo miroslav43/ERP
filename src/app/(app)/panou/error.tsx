@@ -5,10 +5,10 @@ import { StareEroare } from "@/components/ui/stare-eroare";
 
 export default function Eroare({
   error,
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  retry: () => void;
 }) {
-  return <StareEroare eroare={error} reset={reset} titlu="Panoul nu s-a putut încărca" />;
+  return <StareEroare eroare={error} reincearca={retry} titlu="Panoul nu s-a putut încărca" />;
 }

@@ -5,15 +5,15 @@ import { StareEroare } from "@/components/ui/stare-eroare";
 
 export default function Eroare({
   error,
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  retry: () => void;
 }) {
   return (
     <StareEroare
       eroare={error}
-      reset={reset}
+      reincearca={retry}
       titlu="Nu am putut încărca această pagină"
       descriere="Datele platformei nu au putut fi citite. Verificați conexiunea și încercați din nou."
     />

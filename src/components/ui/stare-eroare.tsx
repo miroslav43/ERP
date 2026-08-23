@@ -2,7 +2,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { AlertTriangle, RotateCcw } from "lucide-react";
 import { Component, type ErrorInfo, type ReactElement, type ReactNode } from "react";
 
@@ -15,18 +14,26 @@ import { Buton, buton } from "./buton";
  * implementări concurente: `StareEroare` (11 fișiere), `ErrorState` (cod mort,
  * zero importuri) și 39 de copii manuale, octet cu octet, prin `error.tsx`-uri.
  *
- * ── DE CE BUTONUL FACE DOUĂ LUCRURI ───────────────────────────────────────
- * `error.tsx` primește de la Next un `reset()`. Singur, el doar reîncarcă
- * limita de eroare — dar dacă eroarea a venit dintr-o citire de pe server,
- * rezultatul cache-uit e tot cel stricat, deci ecranul se reface identic și
- * butonul „Reîncearcă” pare mut. De aceea aici se cheamă întâi
- * `router.refresh()`, care aruncă rezultatul de pe server, și abia apoi
- * `reset()`.
+ * ── DE CE `retry`, NU `reset` ─────────────────────────────────────────────
+ * Next 16.3 dă lui `error.tsx` DOUĂ funcții, iar diferența dintre ele e chiar
+ * miza butonului. Citat din `node_modules/next/dist/docs/01-app/03-api-reference/
+ * 03-file-conventions/error.md`:
  *
- * Cele 11 fișiere „corecte” trimiteau `reset` direct și aveau exact acest
- * defect; cele 39 de copii „proaste” își scriau propriul handler care făcea
- * ambele lucruri și funcționau. Consolidarea păstrează comportamentul copiilor,
- * nu pe cel al originalului.
+ *   `retry` — „will try to RE-FETCH and re-render the error boundary's children”
+ *   `reset` — „In most cases, you should use retry() instead. However, if you
+ *              have a specific reason to clear the error state and re-render the
+ *              error boundary's children WITHOUT RE-FETCHING…”
+ *
+ * Aproape toate erorile din produs vin dintr-o citire de pe server care a
+ * eșuat. `reset()` singur reface exact aceleași date stricate, deci butonul
+ * pare mut. Componenta asta compensa chemând `router.refresh()` înainte de
+ * `reset()` — adică rescria de mână ce face `retry()`, stabil din v16.3.0
+ * (`error.md:331`).
+ *
+ * Prop-ul se numește acum `reincearca` și nu mai presupune de unde vine:
+ * `error.tsx` îi dă `retry`-ul lui Next, iar `LimitaEroare` de mai jos — o
+ * limită de eroare de CLIENT, unde n-are ce reîncărca de pe server — îi dă
+ * propria golire de stare. Fiecare apelant știe ce înseamnă „încă o dată" la el.
  *
  * ── DE CE CODUL DE INCIDENT E VIZIBIL ─────────────────────────────────────
  * `digest` e singura punte între ce a văzut omul și ce s-a scris în jurnalul
@@ -36,8 +43,11 @@ export type PropsStareEroare = Readonly<{
   titlu?: string;
   descriere?: string;
   eroare: Error & { digest?: string };
-  /** `reset` primit de `error.tsx` de la Next. */
-  reset: () => void;
+  /**
+   * Ce înseamnă „încă o dată" pentru apelant: `retry`-ul lui Next în
+   * `error.tsx`, golirea de stare într-o limită de eroare de client.
+   */
+  reincearca: () => void;
   /** O ieșire în plus, când reîncercarea probabil nu ajută. */
   inapoi?: Readonly<{ eticheta: string; href: string }>;
   className?: string;
@@ -47,12 +57,10 @@ export function StareEroare({
   titlu = "Nu am putut încărca datele",
   descriere = "A apărut o eroare de rețea sau de server. Încercați din nou; dacă se repetă, transmiteți codul de mai jos.",
   eroare,
-  reset,
+  reincearca,
   inapoi,
   className,
 }: PropsStareEroare): ReactElement {
-  const router = useRouter();
-
   return (
     <div
       role="alert"
@@ -69,13 +77,7 @@ export function StareEroare({
       </p>
 
       <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-        <Buton
-          varianta="primar"
-          onClick={() => {
-            router.refresh();
-            reset();
-          }}
-        >
+        <Buton varianta="primar" onClick={reincearca}>
           <RotateCcw aria-hidden="true" className="size-4" />
           Reîncearcă
         </Buton>
@@ -117,7 +119,7 @@ export class LimitaEroare extends Component<PropsLimita, StareLimita> {
     return (
       <StareEroare
         eroare={eroare}
-        reset={() => this.setState({ eroare: null })}
+        reincearca={() => this.setState({ eroare: null })}
         {...(this.props.titlu === undefined ? {} : { titlu: this.props.titlu })}
         {...(this.props.descriere === undefined ? {} : { descriere: this.props.descriere })}
       />

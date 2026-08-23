@@ -5,12 +5,16 @@ import { StareEroare } from "@/components/ui/stare-eroare";
 
 export default function Eroare({
   error,
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  retry: () => void;
 }) {
   return (
-    <StareEroare eroare={error} reset={reset} titlu="Soldul de concediu nu a putut fi încărcat" />
+    <StareEroare
+      eroare={error}
+      reincearca={retry}
+      titlu="Soldul de concediu nu a putut fi încărcat"
+    />
   );
 }

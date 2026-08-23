@@ -5,12 +5,16 @@ import { StareEroare } from "@/components/ui/stare-eroare";
 
 export default function Eroare({
   error,
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  retry: () => void;
 }) {
   return (
-    <StareEroare eroare={error} reset={reset} titlu="Matricea de instruiri nu a putut fi afișată" />
+    <StareEroare
+      eroare={error}
+      reincearca={retry}
+      titlu="Matricea de instruiri nu a putut fi afișată"
+    />
   );
 }

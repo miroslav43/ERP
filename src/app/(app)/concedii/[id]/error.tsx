@@ -5,12 +5,16 @@ import { StareEroare } from "@/components/ui/stare-eroare";
 
 export default function Eroare({
   error,
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  retry: () => void;
 }) {
   return (
-    <StareEroare eroare={error} reset={reset} titlu="Cererea de concediu nu a putut fi încărcată" />
+    <StareEroare
+      eroare={error}
+      reincearca={retry}
+      titlu="Cererea de concediu nu a putut fi încărcată"
+    />
   );
 }

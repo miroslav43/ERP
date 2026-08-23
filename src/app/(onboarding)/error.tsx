@@ -4,12 +4,16 @@ import { StareEroare } from "@/components/ui/stare-eroare";
 
 export default function Eroare({
   error,
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  retry: () => void;
 }) {
   return (
-    <StareEroare eroare={error} reset={reset} titlu="Configurarea firmei nu a putut fi încărcată" />
+    <StareEroare
+      eroare={error}
+      reincearca={retry}
+      titlu="Configurarea firmei nu a putut fi încărcată"
+    />
   );
 }
