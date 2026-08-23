@@ -29,11 +29,12 @@ import {
   Package,
   Percent,
   Receipt,
+  ScrollText,
   Settings,
+  type LucideIcon,
   Users,
   Wallet,
   Wrench,
-  type LucideIcon,
 } from "lucide-react";
 import type { FeatureKey } from "./features";
 import type { MinScope, PermissionKey } from "./permissions";
@@ -140,6 +141,28 @@ export const NAV_ITEMS: readonly NavItem[] = [
     permission: "employees:read",
     minScope: "team",
     order: 40,
+  },
+  /*
+   * REVISAL n-avea NICIUN link în tot codul — `grep -rn 'href="/revisal'` pe
+   * `src/` întorcea zero potriviri, iar `NAV_ITEMS` nu-l pomenea. Ecranul
+   * exista, era complet, și se ajungea la el doar tastând adresa.
+   *
+   * Registrul general de evidență a salariaților are termen legal de
+   * transmitere și contravenție PER SALARIAT la întârziere; e printre puținele
+   * ecrane din produs a căror absență costă bani. `minScope: "all"` fiindcă
+   * pagina însăși cere `compliance:read = "all"` — un element de meniu care duce
+   * într-un refuz e mai rău decât unul care lipsește.
+   */
+  {
+    id: "revisal",
+    label: "REVISAL",
+    href: "/revisal",
+    icon: ScrollText,
+    group: "personal",
+    featureKey: null,
+    permission: "compliance:read",
+    minScope: "all",
+    order: 41,
   },
   {
     id: "functii",
