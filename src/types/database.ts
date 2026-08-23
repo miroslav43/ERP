@@ -5146,6 +5146,7 @@ export type Database = {
           id: string
           intrerupe_alte_concedii: boolean
           leave_type_id: string
+          leave_variant_id: string | null
           medical_code_id: string | null
           motiv: string | null
           motiv_respingere: string | null
@@ -5175,6 +5176,7 @@ export type Database = {
           id?: string
           intrerupe_alte_concedii?: boolean
           leave_type_id: string
+          leave_variant_id?: string | null
           medical_code_id?: string | null
           motiv?: string | null
           motiv_respingere?: string | null
@@ -5204,6 +5206,7 @@ export type Database = {
           id?: string
           intrerupe_alte_concedii?: boolean
           leave_type_id?: string
+          leave_variant_id?: string | null
           medical_code_id?: string | null
           motiv?: string | null
           motiv_respingere?: string | null
@@ -5256,6 +5259,66 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      leave_type_variants: {
+        Row: {
+          activ: boolean
+          cod: string
+          conditie_descriere: string
+          conditie_tip: Database["public"]["Enums"]["leave_variant_condition"]
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          denumire: string
+          id: string
+          leave_type_key: string
+          necesita_document: boolean
+          ordine: number
+          organization_id: string | null
+          temei_legal: string | null
+          updated_at: string
+          updated_by: string | null
+          zile: number
+        }
+        Insert: {
+          activ?: boolean
+          cod: string
+          conditie_descriere: string
+          conditie_tip: Database["public"]["Enums"]["leave_variant_condition"]
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire: string
+          id?: string
+          leave_type_key: string
+          necesita_document?: boolean
+          ordine?: number
+          organization_id?: string | null
+          temei_legal?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          zile: number
+        }
+        Update: {
+          activ?: boolean
+          cod?: string
+          conditie_descriere?: string
+          conditie_tip?: Database["public"]["Enums"]["leave_variant_condition"]
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire?: string
+          id?: string
+          leave_type_key?: string
+          necesita_document?: boolean
+          ordine?: number
+          organization_id?: string | null
+          temei_legal?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          zile?: number
+        }
+        Relationships: []
       }
       leave_types: {
         Row: {
@@ -6564,6 +6627,87 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      payroll_bonus_rules: {
+        Row: {
+          activ: boolean
+          bonus_type: Database["public"]["Enums"]["payroll_bonus_type"]
+          cod: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          denumire: string
+          department_id: string | null
+          id: string
+          impozabil: boolean
+          job_position_id: string | null
+          kind: Database["public"]["Enums"]["bonus_rule_kind"]
+          luni: number[]
+          nivel_incadrare: string | null
+          organization_id: string
+          procent: number | null
+          suma: number | null
+          supus_contributii: boolean
+          tip_criteriu: Database["public"]["Enums"]["bonus_rule_criterion"]
+          updated_at: string
+          updated_by: string | null
+          valabil_de_la: string
+          valabil_pana: string | null
+          vechime_ani_min: number | null
+        }
+        Insert: {
+          activ?: boolean
+          bonus_type?: Database["public"]["Enums"]["payroll_bonus_type"]
+          cod: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire: string
+          department_id?: string | null
+          id?: string
+          impozabil?: boolean
+          job_position_id?: string | null
+          kind: Database["public"]["Enums"]["bonus_rule_kind"]
+          luni?: number[]
+          nivel_incadrare?: string | null
+          organization_id: string
+          procent?: number | null
+          suma?: number | null
+          supus_contributii?: boolean
+          tip_criteriu?: Database["public"]["Enums"]["bonus_rule_criterion"]
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la: string
+          valabil_pana?: string | null
+          vechime_ani_min?: number | null
+        }
+        Update: {
+          activ?: boolean
+          bonus_type?: Database["public"]["Enums"]["payroll_bonus_type"]
+          cod?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire?: string
+          department_id?: string | null
+          id?: string
+          impozabil?: boolean
+          job_position_id?: string | null
+          kind?: Database["public"]["Enums"]["bonus_rule_kind"]
+          luni?: number[]
+          nivel_incadrare?: string | null
+          organization_id?: string
+          procent?: number | null
+          suma?: number | null
+          supus_contributii?: boolean
+          tip_criteriu?: Database["public"]["Enums"]["bonus_rule_criterion"]
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la?: string
+          valabil_pana?: string | null
+          vechime_ani_min?: number | null
+        }
+        Relationships: []
       }
       payroll_deductions: {
         Row: {
@@ -10272,6 +10416,19 @@ export type Database = {
       contract_duration: "nedeterminat" | "determinat"
       contract_status: "proiect" | "activ" | "suspendat" | "incetat" | "anulat"
       dependent_relation: "copil" | "sot_sotie" | "parinte" | "alta_ruda"
+      bonus_rule_criterion:
+        | "toti"
+        | "departament"
+        | "functie"
+        | "vechime"
+        | "nivel_incadrare"
+      bonus_rule_kind: "procent_din_baza" | "suma_fixa"
+      leave_variant_condition:
+        | "atestat"
+        | "grad_handicap"
+        | "grad_rudenie"
+        | "varsta_copil"
+        | "alta"
       demo_request_status:
         | "new"
         | "contacted"
@@ -10702,6 +10859,9 @@ export const Constants = {
       contract_duration: ["nedeterminat", "determinat"],
       contract_status: ["proiect", "activ", "suspendat", "incetat", "anulat"],
       dependent_relation: ["copil", "sot_sotie", "parinte", "alta_ruda"],
+      bonus_rule_criterion: ["toti", "departament", "functie", "vechime", "nivel_incadrare"],
+      bonus_rule_kind: ["procent_din_baza", "suma_fixa"],
+      leave_variant_condition: ["atestat", "grad_handicap", "grad_rudenie", "varsta_copil", "alta"],
       demo_request_status: [
         "new",
         "contacted",

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { ClipboardCheck } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -38,7 +38,8 @@ export default async function PaginaSabloaneEvaluare() {
     return <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta șabloanele de evaluare." />;
   }
 
-  const poateCrea = can(permisiuni, "employees:update", "team");
+  // Șablonul e comun pe firmă (0070): îl creează administratorul sau HR-ul.
+  const poateCrea = can(permisiuni, "evaluations:update", "all");
 
   const db = await createServerSupabase();
   const { data, error } = await db
@@ -54,7 +55,7 @@ export default async function PaginaSabloaneEvaluare() {
   const sabloane = data ?? [];
 
   return (
-    <main className="space-y-6 p-6">
+    <div className="space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold">Șabloane de evaluare</h1>
@@ -67,10 +68,11 @@ export default async function PaginaSabloaneEvaluare() {
       </header>
 
       {sabloane.length === 0 ? (
-        <EmptyState
-          icon={ClipboardCheck}
-          title="Niciun șablon de evaluare"
-          description="Adăugați primul șablon — de exemplu „Evaluare anuală”."
+        <StareGoala
+          fel="initiala"
+          pictograma={ClipboardCheck}
+          titlu="Niciun șablon de evaluare"
+          descriere="Adăugați primul șablon — de exemplu „Evaluare anuală”."
         />
       ) : (
         <ul className="space-y-3">
@@ -115,6 +117,6 @@ export default async function PaginaSabloaneEvaluare() {
           ))}
         </ul>
       )}
-    </main>
+    </div>
   );
 }

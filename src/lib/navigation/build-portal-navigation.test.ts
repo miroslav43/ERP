@@ -65,8 +65,12 @@ describe("buildPortalNavigation", () => {
     });
 
     expect(bara.primare.map((i) => i.id)).toEqual(["portal-acasa"]);
-    expect(bara.secundare, "fără intrări secundare, «Mai multe» nu se randează").toEqual([]);
-    expect(grupuri).toHaveLength(1);
+    // „Echipa mea" (0070) are și ea `featureKey: "nucleu"`, deliberat: ierarhia
+    // e din modulul de bază, iar angajatul e adus în portal de poarta de rol
+    // indiferent dacă firma a activat `employee_portal`. Un portal cu DOUĂ
+    // intrări e mai folosibil decât unul cu una singură.
+    expect(bara.secundare.map((i) => i.id)).toEqual(["portal-echipa"]);
+    expect(grupuri).toHaveLength(2);
   });
 
   it("cu toate modulele, bara are patru sloturi și restul trece în „Mai multe”", () => {
@@ -133,6 +137,8 @@ describe("buildPortalNavigation", () => {
       features: DOAR_NUCLEU,
       permissions: ANGAJAT,
     });
-    expect(grupuri.map((g) => g.id)).toEqual(["munca"]);
+    // „bani" dispare — nicio intrare a lui nu ține de nucleu. „munca" rămâne cu
+    // «Acasă», iar „firma" cu «Echipa mea» (0070), amândouă de nucleu.
+    expect(grupuri.map((g) => g.id)).toEqual(["munca", "firma"]);
   });
 });

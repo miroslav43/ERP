@@ -24,6 +24,21 @@ interface Proprietati {
   readonly lunaUrmatoare: LunaTinta;
 }
 
+const LUNI_AN = [
+  "ianuarie",
+  "februarie",
+  "martie",
+  "aprilie",
+  "mai",
+  "iunie",
+  "iulie",
+  "august",
+  "septembrie",
+  "octombrie",
+  "noiembrie",
+  "decembrie",
+] as const;
+
 const ZILE_SAPTAMANA = [
   "Luni",
   "Marți",
@@ -71,13 +86,60 @@ export function GrilaCalendar({ an, luna, zileHarta, lunaAnterioara, lunaUrmatoa
 
   return (
     <div className="space-y-3">
-      <nav aria-label="Navigare lunară" className="flex items-center justify-between text-sm">
+      <nav
+        aria-label="Navigare lunară"
+        className="flex flex-wrap items-center justify-between gap-3 text-sm"
+      >
         <Link
           href={`/concedii/calendar?an=${String(lunaAnterioara.an)}&luna=${String(lunaAnterioara.luna)}`}
           className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-1.5"
         >
           ← Luna anterioară
         </Link>
+
+        {/*
+          Luna la care te uiți, SCRISĂ, plus salt direct.
+          Cu doar două săgeți, ajungeai din martie în octombrie prin șapte
+          clicuri și nu vedeai nicăieri unde ai ajuns — reclamația „îți e foarte
+          greu să îți dai seama la ce lună te uiți". Formularul e un GET simplu:
+          nu are nevoie de `useState`, iar luna rămâne în URL, ca până acum.
+        */}
+        <form method="get" action="/concedii/calendar" className="flex items-center gap-2">
+          <label htmlFor="calendar-luna" className="sr-only">
+            Luna afișată
+          </label>
+          <select
+            id="calendar-luna"
+            name="luna"
+            defaultValue={String(luna)}
+            className="border-foreground/60 rounded-md border px-2 py-1.5 text-sm"
+          >
+            {LUNI_AN.map((eticheta, index) => (
+              <option key={eticheta} value={String(index + 1)}>
+                {eticheta}
+              </option>
+            ))}
+          </select>
+          <label htmlFor="calendar-an" className="sr-only">
+            Anul afișat
+          </label>
+          <input
+            id="calendar-an"
+            name="an"
+            type="number"
+            min={2000}
+            max={2199}
+            defaultValue={String(an)}
+            className="border-foreground/60 w-20 rounded-md border px-2 py-1.5 text-sm"
+          />
+          <button
+            type="submit"
+            className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-1.5"
+          >
+            Mergi
+          </button>
+        </form>
+
         <Link
           href={`/concedii/calendar?an=${String(lunaUrmatoare.an)}&luna=${String(lunaUrmatoare.luna)}`}
           className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-1.5"

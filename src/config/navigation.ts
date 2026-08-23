@@ -627,6 +627,22 @@ export const PORTAL_NAV_ITEMS: readonly PortalNavItem[] = [
     prioritateBara: null,
   },
   {
+    id: "portal-echipa",
+    label: "Echipa mea",
+    href: "/portal/echipa-mea",
+    icon: Network,
+    group: "firma",
+    // `nucleu`, nu `employee_portal`: ierarhia e din modulul de bază, iar
+    // pagina trebuie să existe și la firmele care n-au activat portalul ca
+    // modul separat — angajatul e adus acolo oricum, de poarta de rol.
+    featureKey: "nucleu",
+    permission: "employees:read",
+    minScope: "own",
+    order: 60,
+    exact: false,
+    prioritateBara: null,
+  },
+  {
     id: "portal-documente",
     label: "Documentele mele",
     href: "/portal/documentele-mele",

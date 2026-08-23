@@ -58,6 +58,7 @@ export const creeazaCerereConcediu = createAction({
       "portiune_inceput",
       "portiune_sfarsit",
       "trimite",
+      "leave_variant_id",
       // `medical_code_id` NU intră aici, deliberat. Codul de indemnizație
       // clasifică boala („09 Neoplazii, SIDA”, „10 Tuberculoză”) — e dată
       // privind sănătatea, categorie specială art. 9 GDPR. Tabela însăși e
@@ -112,6 +113,32 @@ export const creeazaCerereConcediu = createAction({
     if (eroareTip !== null) throw eroareTip;
     if (tip === null) {
       throw businessRule("Tipul de concediu selectat nu există sau a fost dezactivat.");
+    }
+
+    // Varianta legală invocată (0070). Ea îi schimbă PLAFONUL: „paternal, cu
+    // atestat de puericultură" are 15 zile, nu 10. Verificarea că varianta
+    // aparține tipului ales nu e formalitate — altfel s-ar putea invoca
+    // varianta de 1095 de zile a creșterii copilului pentru un concediu de
+    // căsătorie.
+    let plafonEfectiv = tip.plafon_anual_zile;
+    let denumirePlafon = tip.denumire;
+    if (input.leave_variant_id !== null) {
+      const { data: varianta, error: eroareVarianta } = await ctx.supabase
+        .from("leave_type_variants")
+        .select("id, leave_type_key, denumire, zile")
+        .eq("id", input.leave_variant_id)
+        .eq("activ", true)
+        .is("deleted_at", null)
+        .maybeSingle<{ id: string; leave_type_key: string; denumire: string; zile: number }>();
+      if (eroareVarianta !== null) throw eroareVarianta;
+      if (varianta === null) {
+        throw businessRule("Varianta de concediu selectată nu există sau a fost dezactivată.");
+      }
+      if (varianta.leave_type_key !== tip.key) {
+        throw businessRule(`Varianta „${varianta.denumire}" nu aparține tipului de concediu ales.`);
+      }
+      plafonEfectiv = varianta.zile;
+      denumirePlafon = varianta.denumire;
     }
 
     // Certificatul e obligatoriu DOAR pentru concediul medical, iar schema Zod
@@ -183,7 +210,7 @@ export const creeazaCerereConcediu = createAction({
       // odihna îl are), plafonul e maximul pe care legea îl acordă într-un an
       // (paternal 10 zile, îngrijitor 5, căsătorie 5…). Până la 0064, nouă
       // tipuri din zece nu aveau nicio limită.
-      if (tip.plafon_anual_zile !== null) {
+      if (plafonEfectiv !== null) {
         const { data: cereriAnul, error: eroareCereriAnul } = await ctx.supabase
           .from("leave_requests")
           .select("zile_lucratoare")
@@ -197,10 +224,10 @@ export const creeazaCerereConcediu = createAction({
         if (eroareCereriAnul !== null) throw eroareCereriAnul;
 
         const zileConsumate = (cereriAnul ?? []).reduce((s, c) => s + c.zile_lucratoare, 0);
-        const plafon = verificaPlafonAnual(zileLucratoare, zileConsumate, tip.plafon_anual_zile);
+        const plafon = verificaPlafonAnual(zileLucratoare, zileConsumate, plafonEfectiv);
         if (!plafon.seIncadreaza) {
           throw businessRule(
-            `„${tip.denumire}” are un plafon legal de ${formatAmount(tip.plafon_anual_zile)} zile pe an, din care ${formatAmount(zileConsumate)} sunt deja folosite în ${String(an)}. Cererea îl depășește cu ${formatAmount(plafon.zileDepasire)} zile.`,
+            `„${denumirePlafon}” are un plafon legal de ${formatAmount(plafonEfectiv)} zile pe an, din care ${formatAmount(zileConsumate)} sunt deja folosite în ${String(an)}. Cererea îl depășește cu ${formatAmount(plafon.zileDepasire)} zile.`,
           );
         }
       }
@@ -246,6 +273,7 @@ export const creeazaCerereConcediu = createAction({
         portiune_sfarsit: input.portiune_sfarsit,
         motiv: input.motiv,
         atasament_path: input.atasament_path,
+        leave_variant_id: input.leave_variant_id,
         medical_code_id: input.medical_code_id,
         serie_certificat: input.serie_certificat,
         numar_certificat: input.numar_certificat,

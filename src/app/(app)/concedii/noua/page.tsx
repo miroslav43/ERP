@@ -7,7 +7,12 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { todayInBucharest } from "@/lib/format/date";
-import { coduriIndemnizatieMedicala, soldAnual, zileNelucratoare } from "@/lib/queries/leave";
+import {
+  coduriIndemnizatieMedicala,
+  soldAnual,
+  varianteConcediu,
+  zileNelucratoare,
+} from "@/lib/queries/leave";
 
 import { NavConcedii } from "../nav-concedii";
 import { FormularCerere } from "./formular-cerere";
@@ -59,7 +64,10 @@ export default async function PaginaCerereNoua() {
   // Nomenclatorul de coduri de indemnizație, valabil azi. Fără el, o cerere de
   // concediu medical n-ar avea de unde lua procentul (75/85/100%) și numărul de
   // zile suportate de firmă — iar indemnizația ar rămâne 0 lei.
-  const coduriMedicale = await coduriIndemnizatieMedicala(todayInBucharest());
+  const [coduriMedicale, variante] = await Promise.all([
+    coduriIndemnizatieMedicala(todayInBucharest()),
+    varianteConcediu(),
+  ]);
 
   let angajati: readonly Readonly<{ id: string; full_name: string; marca: string }>[] = [];
   let soldPropriu: ReadonlyMap<string, number> | null = null;
@@ -94,7 +102,7 @@ export default async function PaginaCerereNoua() {
   const zileRecuperare = organizatie.filter((z) => z.tip === "zi_recuperare").map((z) => z.data);
 
   return (
-    <main className="space-y-6 p-6">
+    <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-semibold">Cerere de concediu nouă</h1>
         <p className="text-muted-foreground text-sm">
@@ -120,10 +128,11 @@ export default async function PaginaCerereNoua() {
           liberSuplimentar={liberSuplimentar}
           zileRecuperare={zileRecuperare}
           coduriMedicale={coduriMedicale}
+          variante={variante}
           angajati={poateAlegeAngajat ? angajati : null}
           soldPropriu={soldPropriu === null ? null : Object.fromEntries(soldPropriu)}
         />
       )}
-    </main>
+    </div>
   );
 }

@@ -133,7 +133,10 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
     scope === "all" ? await citesteComponenteSalariale(tenant.organizationId, id) : [];
   const poateAdaugaComponenta = can(permisiuni, "payroll:create", "all");
   const evaluari = await citesteEvaluari(tenant.organizationId, id);
-  const poateCreaEvaluare = can(permisiuni, "employees:update", "team");
+  // Cheie proprie din 0070. Cu `employees:update` — pe care managerul nu-l are —
+  // formularul de evaluare era, în fapt, exclusiv al HR-ului și al
+  // administratorului, contrar cerinței „managerul direct".
+  const poateCreaEvaluare = can(permisiuni, "evaluations:create", "team");
   const sabloaneEvaluare = poateCreaEvaluare
     ? await (async () => {
         const db = await createServerSupabase();
@@ -192,7 +195,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
   const dependenti = dependentiBruti ?? [];
 
   return (
-    <main className="space-y-6 p-6">
+    <div className="space-y-6">
       <header className={CLASA_SECTIUNE}>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex flex-wrap items-start gap-4">
@@ -606,15 +609,9 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                     <span className="text-muted-foreground text-sm">
                       {formatDate(evaluare.data_evaluarii)}
                     </span>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        evaluare.status === "finalizat"
-                          ? "bg-success/12 text-success"
-                          : "bg-background text-muted-foreground"
-                      }`}
-                    >
+                    <Badge ton={evaluare.status === "finalizat" ? "succes" : "ciorna"}>
                       {evaluare.status === "finalizat" ? "Finalizată" : "Ciornă"}
-                    </span>
+                    </Badge>
                   </div>
                   <ul className="mt-2 flex flex-wrap gap-2 text-xs">
                     {evaluare.raspunsuri.map((raspuns) => {
@@ -680,6 +677,6 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
           banca={rezumatSensibil.banca}
         />
       ) : null}
-    </main>
+    </div>
   );
 }

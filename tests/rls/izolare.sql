@@ -275,6 +275,21 @@ begin
   -- Persoanele în întreținere (0069): contorul de deducere personală se
   -- recalculează din ele prin trigger, deci și izolarea lor contează — un
   -- dependent văzut din altă firmă ar schimba deducerea altcuiva.
+  -- Variantele proprii de concediu (0070). Cele de PLATFORMĂ au
+  -- organization_id NULL și sunt vizibile tuturor, deliberat — izolarea
+  -- privește doar variantele adăugate de o firmă.
+  insert into public.leave_type_variants
+    (organization_id, leave_type_key, cod, denumire, zile, conditie_tip, conditie_descriere)
+  values (v_alfa, 'casatorie', 'casatorie_alfa', 'Căsătorie — grilă Alfa', 7, 'alta', 'Regulament intern Alfa'),
+         (v_beta, 'casatorie', 'casatorie_beta', 'Căsătorie — grilă Beta', 6, 'alta', 'Regulament intern Beta');
+
+  -- Regulile recurente de bonus (0070): conțin sume și procente, deci o
+  -- scurgere între firme ar arăta politica salarială a concurenței.
+  insert into public.payroll_bonus_rules
+    (organization_id, cod, denumire, kind, procent, tip_criteriu, valabil_de_la)
+  values (v_alfa, 'prima_alfa', 'Primă lunară Alfa', 'procent_din_baza', 10, 'toti', current_date - 100),
+         (v_beta, 'prima_beta', 'Primă lunară Beta', 'procent_din_baza', 15, 'toti', current_date - 100);
+
   insert into public.employee_dependents (organization_id, employee_id, nume, relatie, in_intretinere_de_la)
   values (v_alfa, (select val from t_ids where cheie='ang_alfa'), 'Copil Alfa', 'copil', current_date - 500),
          (v_beta, (select val from t_ids where cheie='ang_beta'), 'Copil Beta', 'copil', current_date - 500);

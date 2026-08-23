@@ -28,8 +28,12 @@ export const creeazaSablonEvaluare = createAction<
 >({
   name: "evaluation_templates.create",
   feature: "evaluations",
-  permission: "employees:update",
-  minScope: "team",
+  // Șablonul e comun pe firmă — îl creează administratorul sau HR-ul, nu un
+  // manager pentru echipa lui. Cerința spune „creat standard de super user sau
+  // poate fi creat și de manager direct" — evaluarea propriu-zisă e cea pe care
+  // o creează managerul, mai jos.
+  permission: "evaluations:update",
+  minScope: "all",
   input: creeazaSablonEvaluareSchema,
   audit: {
     action: "create",
@@ -72,8 +76,11 @@ export const dezactiveazaSablonEvaluare = createAction<
 >({
   name: "evaluation_templates.deactivate",
   feature: "evaluations",
-  permission: "employees:update",
-  minScope: "team",
+  // Dezactivarea unui ȘABLON e o schimbare pe toată firma, nu pe o echipă:
+  // șablonul e comun. De aici `update` cu scope `all`, spre deosebire de
+  // crearea unei evaluări, care e a managerului direct.
+  permission: "evaluations:update",
+  minScope: "all",
   input: dezactiveazaSablonEvaluareSchema,
   audit: {
     action: "update",
@@ -97,7 +104,7 @@ export const creeazaEvaluare = createAction<typeof creeazaEvaluareSchema, Readon
   {
     name: "employee_evaluations.create",
     feature: "evaluations",
-    permission: "employees:update",
+    permission: "evaluations:create",
     minScope: "team",
     input: creeazaEvaluareSchema,
     audit: {

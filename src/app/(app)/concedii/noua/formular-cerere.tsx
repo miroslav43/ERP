@@ -20,6 +20,15 @@ interface TipConcediu {
   readonly necesita_document: boolean;
 }
 
+interface VariantaConcediu {
+  readonly id: string;
+  readonly leave_type_key: string;
+  readonly denumire: string;
+  readonly zile: number;
+  readonly conditie_descriere: string;
+  readonly temei_legal: string | null;
+}
+
 interface CodMedical {
   readonly id: string;
   readonly cod: string;
@@ -38,6 +47,7 @@ interface Angajat {
 interface Proprietati {
   readonly tipuri: readonly TipConcediu[];
   readonly coduriMedicale: readonly CodMedical[];
+  readonly variante: readonly VariantaConcediu[];
   readonly sarbatoriRo: readonly string[];
   readonly liberSuplimentar: readonly string[];
   readonly zileRecuperare: readonly string[];
@@ -58,6 +68,7 @@ const ETICHETE_PLATITOR: Readonly<Record<CodMedical["platitor"], string>> = {
 export function FormularCerere({
   tipuri,
   coduriMedicale,
+  variante,
   sarbatoriRo,
   liberSuplimentar,
   zileRecuperare,
@@ -75,6 +86,7 @@ export function FormularCerere({
   const [portiuneSfarsit, setPortiuneSfarsit] = useState<PortiuneZi>("zi_intreaga");
   const [motiv, setMotiv] = useState("");
   const [atasamentPath, setAtasamentPath] = useState("");
+  const [variantaId, setVariantaId] = useState("");
   const [medicalCodeId, setMedicalCodeId] = useState("");
   const [serieCertificat, setSerieCertificat] = useState("");
   const [numarCertificat, setNumarCertificat] = useState("");
@@ -89,12 +101,17 @@ export function FormularCerere({
   const idPortiuneSfarsit = useId();
   const idMotiv = useId();
   const idAtasament = useId();
+  const idVarianta = useId();
   const idCodMedical = useId();
   const idSerie = useId();
   const idNumar = useId();
 
   const tip = tipuri.find((t) => t.id === leaveTypeId) ?? null;
   const esteMedical = tip?.key === "medical";
+  // Variantele legale ale tipului ales — „paternal 15 zile cu atestat" e o
+  // variantă a lui `paternal`, nu un tip separat.
+  const varianteTip = variante.filter((v) => v.leave_type_key === tip?.key);
+  const variantaAleasa = varianteTip.find((v) => v.id === variantaId) ?? null;
   const codAles = coduriMedicale.find((c) => c.id === medicalCodeId) ?? null;
 
   const previzualizare = useMemo(() => {
@@ -156,6 +173,7 @@ export function FormularCerere({
         atasament_path: atasamentPath.length === 0 ? null : atasamentPath,
         // Certificatul se trimite DOAR pentru concediul medical: acțiunea
         // respinge explicit un certificat atașat altui tip de concediu.
+        leave_variant_id: variantaId.length > 0 ? variantaId : null,
         medical_code_id: esteMedical && medicalCodeId.length > 0 ? medicalCodeId : null,
         serie_certificat: esteMedical && serieCertificat.length > 0 ? serieCertificat : null,
         numar_certificat: esteMedical && numarCertificat.length > 0 ? numarCertificat : null,
@@ -312,6 +330,37 @@ export function FormularCerere({
             className={CLASA_CAMP}
           />
         </div>
+
+        {varianteTip.length > 0 ? (
+          <div className="sm:col-span-2">
+            <label htmlFor={idVarianta} className="block text-sm font-medium">
+              Variantă legală
+            </label>
+            <select
+              id={idVarianta}
+              value={variantaId}
+              onChange={(eveniment) => {
+                setVariantaId(eveniment.target.value);
+              }}
+              className={CLASA_CAMP}
+            >
+              <option value="">
+                Varianta de bază ({formatAmount(tip?.zile_implicite ?? 0)} zile)
+              </option>
+              {varianteTip.map((varianta) => (
+                <option key={varianta.id} value={varianta.id}>
+                  {varianta.denumire} — {formatAmount(varianta.zile)} zile
+                </option>
+              ))}
+            </select>
+            {variantaAleasa !== null ? (
+              <p aria-live="polite" className="text-muted-foreground mt-1 text-sm">
+                {variantaAleasa.conditie_descriere}
+                {variantaAleasa.temei_legal !== null ? ` (${variantaAleasa.temei_legal})` : ""}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
         {esteMedical ? (
           <fieldset className="border-border bg-surface rounded-lg border p-4 sm:col-span-2">

@@ -32,6 +32,14 @@ interface TipConcediu {
   readonly necesita_document: boolean;
 }
 
+interface VariantaConcediu {
+  readonly id: string;
+  readonly leave_type_key: string;
+  readonly denumire: string;
+  readonly zile: number;
+  readonly conditie_descriere: string;
+}
+
 interface CodMedical {
   readonly id: string;
   readonly cod: string;
@@ -55,6 +63,7 @@ const CLASA_CAMP =
 export function FormularCererePortal({
   tipuri,
   coduriMedicale,
+  variante,
   sarbatoriRo,
   liberSuplimentar,
   zileRecuperare,
@@ -62,6 +71,7 @@ export function FormularCererePortal({
 }: {
   readonly tipuri: readonly TipConcediu[];
   readonly coduriMedicale: readonly CodMedical[];
+  readonly variante: readonly VariantaConcediu[];
   readonly sarbatoriRo: readonly string[];
   readonly liberSuplimentar: readonly string[];
   readonly zileRecuperare: readonly string[];
@@ -77,6 +87,7 @@ export function FormularCererePortal({
   const [portiuneSfarsit, setPortiuneSfarsit] = useState<PortiuneZi>("zi_intreaga");
   const [aratăJumatati, setAratăJumatati] = useState(false);
   const [motiv, setMotiv] = useState("");
+  const [variantaId, setVariantaId] = useState("");
   const [medicalCodeId, setMedicalCodeId] = useState("");
   const [serieCertificat, setSerieCertificat] = useState("");
   const [numarCertificat, setNumarCertificat] = useState("");
@@ -89,12 +100,15 @@ export function FormularCererePortal({
   const idPortiuneInceput = useId();
   const idPortiuneSfarsit = useId();
   const idMotiv = useId();
+  const idVarianta = useId();
   const idCodMedical = useId();
   const idSerie = useId();
   const idNumar = useId();
 
   const tip = tipuri.find((t) => t.id === leaveTypeId) ?? null;
   const esteMedical = tip?.key === "medical";
+  const varianteTip = variante.filter((v) => v.leave_type_key === tip?.key);
+  const variantaAleasa = varianteTip.find((v) => v.id === variantaId) ?? null;
   const codAles = coduriMedicale.find((c) => c.id === medicalCodeId) ?? null;
 
   const previzualizare = useMemo(() => {
@@ -154,6 +168,7 @@ export function FormularCererePortal({
         portiune_sfarsit: portiuneSfarsit,
         motiv: motiv.length === 0 ? null : motiv,
         atasament_path: null,
+        leave_variant_id: variantaId.length > 0 ? variantaId : null,
         medical_code_id: esteMedical && medicalCodeId.length > 0 ? medicalCodeId : null,
         serie_certificat: esteMedical && serieCertificat.length > 0 ? serieCertificat : null,
         numar_certificat: esteMedical && numarCertificat.length > 0 ? numarCertificat : null,
@@ -287,6 +302,34 @@ export function FormularCererePortal({
         >
           Am nevoie de jumătăți de zi
         </button>
+      )}
+
+      {varianteTip.length > 0 && (
+        <div>
+          <label htmlFor={idVarianta} className="text-foreground text-sm font-medium">
+            Variantă legală
+          </label>
+          <select
+            id={idVarianta}
+            value={variantaId}
+            onChange={(e) => {
+              setVariantaId(e.target.value);
+            }}
+            className={CLASA_CAMP}
+          >
+            <option value="">Varianta de bază</option>
+            {varianteTip.map((varianta) => (
+              <option key={varianta.id} value={varianta.id}>
+                {varianta.denumire} — {formatAmount(varianta.zile)} zile
+              </option>
+            ))}
+          </select>
+          {variantaAleasa !== null && (
+            <p aria-live="polite" className="text-muted-foreground mt-1 text-sm">
+              {variantaAleasa.conditie_descriere} Va trebui să atașezi documentul justificativ.
+            </p>
+          )}
+        </div>
       )}
 
       {esteMedical && (

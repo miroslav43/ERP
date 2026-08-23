@@ -801,3 +801,47 @@ export async function coduriIndemnizatieMedicala(
     platitor: r.platitor,
   }));
 }
+
+// ── Variantele legale ale tipurilor de concediu ───────────────────────────────
+
+export interface VariantaConcediu {
+  readonly id: string;
+  readonly leave_type_key: string;
+  readonly cod: string;
+  readonly denumire: string;
+  readonly zile: number;
+  readonly conditie_descriere: string;
+  readonly necesita_document: boolean;
+  readonly temei_legal: string | null;
+  /** `null` = variantă de platformă, needitabilă. */
+  readonly organization_id: string | null;
+}
+
+/**
+ * Variantele condiționate ale concediilor — paternal 15 zile cu atestat de
+ * puericultură, creștere copil 3 ani pentru copilul cu handicap, căsătoria unui
+ * copil, decesul unei rude de gradul II.
+ *
+ * Până în 0070 niciuna nu se putea introduce: triggerul din 0035 blochează
+ * modificarea zilelor pe un tip reglementat, iar 0037 interzice și grilele pe
+ * astfel de tipuri. Protecția rămâne — variantele sunt o a treia cale, pe care
+ * angajatorul o ALEGE, nu o editează.
+ *
+ * RLS (`leave_type_variants_select`) le arată pe cele de platformă tuturor și
+ * pe cele proprii doar organizației lor; interogarea nu filtrează.
+ */
+export async function varianteConcediu(): Promise<readonly VariantaConcediu[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("leave_type_variants")
+    .select(
+      "id, leave_type_key, cod, denumire, zile, conditie_descriere, necesita_document, temei_legal, organization_id",
+    )
+    .eq("activ", true)
+    .is("deleted_at", null)
+    .order("leave_type_key", { ascending: true })
+    .order("ordine", { ascending: true })
+    .returns<VariantaConcediu[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}

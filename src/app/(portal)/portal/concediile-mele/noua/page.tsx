@@ -4,13 +4,17 @@ import Link from "next/link";
 import { Settings } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { todayInBucharest } from "@/lib/format/date";
-import { coduriIndemnizatieMedicala, zileNelucratoare } from "@/lib/queries/leave";
+import {
+  coduriIndemnizatieMedicala,
+  varianteConcediu,
+  zileNelucratoare,
+} from "@/lib/queries/leave";
 import { fisaMea, soldurileMele } from "@/lib/queries/portal";
 
 import { FaraFisa } from "../../fara-fisa";
@@ -66,7 +70,10 @@ export default async function PaginaCerereNouaPortal() {
   // Nomenclatorul de coduri de indemnizație medicală, valabil azi. Angajatul e
   // cel care depune cel mai des concediu medical — fără codul de pe certificat,
   // indemnizația lui rămâne 0 lei, fără nicio eroare vizibilă.
-  const coduriMedicale = await coduriIndemnizatieMedicala(todayInBucharest());
+  const [coduriMedicale, variante] = await Promise.all([
+    coduriIndemnizatieMedicala(todayInBucharest()),
+    varianteConcediu(),
+  ]);
 
   const soldPeTip = Object.fromEntries(
     solduri.map((s) => [s.leave_type_id, s.ramase ?? 0] as const),
@@ -88,18 +95,20 @@ export default async function PaginaCerereNouaPortal() {
       </header>
 
       {tipuri === null || tipuri.length === 0 ? (
-        <EmptyState
-          icon={Settings}
-          title="Nu există tipuri de concediu configurate"
+        <StareGoala
+          fel="initiala"
+          pictograma={Settings}
+          titlu="Nu există tipuri de concediu configurate"
           // Fără buton de configurare: `leave:update = all` e al administratorului,
           // iar un buton pe care angajatul îl apasă și primește refuz e mai rău
           // decât absența lui.
-          description="Firma nu are niciun tip de concediu activ, deci nicio cerere nu poate fi depusă. Anunțați administratorul organizației."
+          descriere="Firma nu are niciun tip de concediu activ, deci nicio cerere nu poate fi depusă. Anunțați administratorul organizației."
         />
       ) : (
         <FormularCererePortal
           tipuri={tipuri}
           coduriMedicale={coduriMedicale}
+          variante={variante}
           sarbatoriRo={sarbatoriRo}
           liberSuplimentar={liberSuplimentar}
           zileRecuperare={zileRecuperare}

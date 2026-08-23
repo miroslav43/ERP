@@ -187,6 +187,11 @@ export const creeazaCerereSchema = z
      * Aici se verifică doar coerența internă, în oglindă cu CHECK-ul
      * `leave_requests_certificat_ck` din bază.
      */
+    /**
+     * Varianta legală invocată (0070) — ex. „paternal 15 zile, cu atestat de
+     * puericultură". `null` = varianta de bază a tipului.
+     */
+    leave_variant_id: uuidOptional,
     medical_code_id: uuidOptional,
     serie_certificat: textOptional(20),
     numar_certificat: textOptional(30),
