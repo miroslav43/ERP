@@ -7,6 +7,7 @@ import Link from "next/link";
 import { ArrowRightLeft, Search, UserPlus, Users } from "lucide-react";
 
 import { AvatarAngajat } from "@/components/data/avatar-angajat";
+import { Badge } from "@/components/ui/badge";
 import { Buton } from "@/components/ui/buton";
 import { Callout } from "@/components/ui/callout";
 import { Combobox } from "@/components/ui/combobox";
@@ -42,6 +43,9 @@ export interface PersoanaPanou {
   readonly marca: string;
   readonly avatar_url: string | null;
   readonly functie: string | null;
+  /** `candidat` | `activ` | `suspendat` | `preaviz` | `incetat` | `arhivat`. */
+  readonly status: string;
+  readonly esteActiv: boolean;
   /** Denumirea departamentului curent, pentru lista de candidați. */
   readonly departamentCurent: string | null;
 }
@@ -50,6 +54,7 @@ export interface OptiuneDepartamentPanou {
   readonly id: string;
   readonly denumire: string;
   readonly cod: string;
+  readonly activ: boolean;
 }
 
 export type PropsPanouDepartament = Readonly<{
@@ -121,14 +126,19 @@ export function PanouDepartament({
     setEroare(null);
     porneste(async () => {
       const rezultat = await mutaAngajati({ employee_ids: idUri, department_id: departmentId });
-      if (!rezultat.ok) {
-        setEroare(rezultat.error.message);
-        return;
-      }
+      // Reîmprospătarea se face pe AMÂNDOUĂ căile, iar asta nu e prudență
+      // generică. La un refuz PARȚIAL, rândurile acceptate s-au scris deja, dar
+      // acțiunea aruncă — iar `revalidate:` declarat rulează doar pe calea de
+      // succes. Fără `router.refresh()` aici, ecranul ar rămâne cu datele vechi
+      // și, cum selecția nu s-ar goli, următoarea apăsare ar retrimite exact
+      // aceiași identificatori și ar da aceeași eroare la nesfârșit.
       setSelectate(new Set());
       setTinta("");
       setDeAdaugat("");
       router.refresh();
+      if (!rezultat.ok) {
+        setEroare(rezultat.error.message);
+      }
     });
   }
 
@@ -136,8 +146,10 @@ export function PanouDepartament({
     ...(departament === null
       ? []
       : [{ valoare: FARA_DEPARTAMENT, eticheta: "— fără departament —" }]),
+    // Departamentele dezactivate nu se oferă deloc: acțiunea le refuză oricum,
+    // iar o opțiune care duce garantat la o eroare e mai rea decât absența ei.
     ...departamente
-      .filter((d) => d.id !== departament?.id)
+      .filter((d) => d.id !== departament?.id && d.activ)
       .map((d) => ({ valoare: d.id, eticheta: d.denumire, secundar: d.cod })),
   ];
 
@@ -252,6 +264,18 @@ export function PanouDepartament({
                         <span className="font-mono">{p.marca}</span>
                         {p.functie === null ? "" : ` · ${p.functie}`}
                       </span>
+                      {/*
+                       * Statusul se arată doar când NU e „activ". Persoanele
+                       * astea nu intră în efectivul de pe card, dar trebuie să
+                       * poată fi mutate: `dezactiveazaDepartament` le numără, iar
+                       * până acum nu apăreau nicăieri în interfață — departamentul
+                       * părea gol și refuza totuși închiderea.
+                       */}
+                      {p.esteActiv ? null : (
+                        <span className="mt-0.5 inline-block">
+                          <Badge ton="ciorna">{p.status}</Badge>
+                        </span>
+                      )}
                     </span>
                   </div>
                 </li>

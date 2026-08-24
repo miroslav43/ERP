@@ -25,6 +25,8 @@ export interface OptiuneDepartament {
   readonly id: string;
   readonly denumire: string;
   readonly cod: string;
+  /** Un departament dezactivat nu poate primi oameni — vezi `mutaAngajati`. */
+  readonly activ: boolean;
 }
 
 export interface OptiuneAngajat {

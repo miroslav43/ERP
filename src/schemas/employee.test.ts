@@ -89,6 +89,17 @@ describe("mutaAngajatiSchema", () => {
     ).toBe(false);
   });
 
+  it("deduplică identificatorii repetați", () => {
+    // Handler-ul compară numărul de rânduri întoarse de `.in("id", …)` cu
+    // lungimea listei, ca să prindă un refuz parțial al politicii. Cu `[X, X]`
+    // baza întoarce UN rând iar lungimea e doi, deci o scriere perfect reușită
+    // ar fi raportată drept refuz („nu aveți dreptul"). Din interfață nu se
+    // poate întâmpla — selecția e un `Set` — dar acțiunea e un endpoint POST
+    // invocabil direct.
+    const rezultat = mutaAngajatiSchema.parse({ employee_ids: [UUID, UUID, UUID] });
+    expect(rezultat.employee_ids).toEqual([UUID]);
+  });
+
   it("plafonează mutarea în masă la 200", () => {
     const prea = Array.from({ length: 201 }, () => UUID);
     expect(mutaAngajatiSchema.safeParse({ employee_ids: prea, department_id: null }).success).toBe(

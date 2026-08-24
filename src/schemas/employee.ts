@@ -352,7 +352,14 @@ export const mutaAngajatiSchema = z.object({
   employee_ids: z
     .array(z.uuid("Angajatul selectat nu este valid."))
     .min(1, "Selectați cel puțin o persoană.")
-    .max(200, "Se pot muta cel mult 200 de persoane deodată."),
+    .max(200, "Se pot muta cel mult 200 de persoane deodată.")
+    // Deduplicarea NU e cosmetică. Handler-ul compară numărul de rânduri
+    // întoarse de `.in("id", …)` cu lungimea listei, ca să prindă un refuz
+    // parțial al politicii. Cu `["X","X"]`, baza întoarce UN rând iar lungimea
+    // e doi, deci o scriere perfect reușită ar fi raportată drept refuz. Din
+    // interfață nu se poate întâmpla (selecția e un `Set`), dar acțiunea e un
+    // endpoint POST invocabil direct.
+    .transform((identificatori) => [...new Set(identificatori)]),
   /** `null` = scoaterea din departament, o stare legitimă. */
   department_id: z.uuid("Departamentul selectat nu este valid.").nullable().default(null),
 });

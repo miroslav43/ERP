@@ -294,13 +294,22 @@ export const mutaAngajati = createAction<typeof mutaAngajatiSchema, { mutati: nu
     if (input.department_id !== null) {
       const { data: departament, error: eroareDepartament } = await db
         .from("departments")
-        .select("id")
+        .select("id, activ")
         .eq("id", input.department_id)
         .eq("organization_id", ctx.tenant.organizationId)
         .is("deleted_at", null)
         .maybeSingle();
       if (eroareDepartament !== null) throw mapPostgrestError(eroareDepartament, ctx.requestId);
       if (departament === null) throw notFound("Departamentul selectat nu a fost găsit.");
+      // Un departament dezactivat nu primește oameni. Altfel regula de mai sus
+      // s-ar contrazice singură: `dezactiveazaDepartament` refuză închiderea
+      // până când departamentul e gol, iar imediat după ce reușești l-ai putea
+      // repopula fără niciun avertisment — dezactivarea n-ar mai însemna nimic.
+      if (!departament.activ) {
+        throw businessRule(
+          "Departamentul selectat este dezactivat. Reactivați-l înainte de a repartiza persoane în el.",
+        );
+      }
     }
 
     const { data, error } = await db

@@ -141,6 +141,7 @@ export function StructuraInteractiva({
                 id: nodDeschis.date.id,
                 denumire: nodDeschis.date.denumire,
                 cod: nodDeschis.date.cod,
+                activ: nodDeschis.date.activ,
               }
         }
         persoane={persoanePanou}
