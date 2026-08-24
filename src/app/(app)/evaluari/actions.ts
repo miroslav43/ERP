@@ -2,11 +2,7 @@
 "use server";
 
 import { completeazaCoduri, normalizeazaCriterii } from "@/domain/evaluations/criterii";
-import {
-  aliniazaRaspunsuri,
-  calculeazaScor,
-  noteInAfaraScalei,
-} from "@/domain/evaluations/scor";
+import { aliniazaRaspunsuri, calculeazaScor, noteInAfaraScalei } from "@/domain/evaluations/scor";
 import { businessRule, mapPostgrestError, notFound } from "@/lib/actions/errors";
 import { createAction } from "@/lib/actions/create-action";
 import type { ActionContext } from "@/lib/actions/types";
@@ -63,9 +59,7 @@ interface SablonExistent {
  * rescris ar rupe legătura cu istoricul, iar ecranul ar afișa codul brut acolo
  * unde ar trebui să scrie denumirea.
  */
-function pregatesteCriterii(
-  criterii: readonly CriteriuSablonIntrare[],
-): readonly Readonly<{
+function pregatesteCriterii(criterii: readonly CriteriuSablonIntrare[]): readonly Readonly<{
   cod: string;
   denumire: string;
   descriere: string | null;

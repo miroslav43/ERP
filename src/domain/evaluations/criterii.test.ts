@@ -110,9 +110,9 @@ describe("normalizeazaCriterii", () => {
     expect(normalizeazaCriterii(null)).toStrictEqual([]);
     expect(normalizeazaCriterii("text")).toStrictEqual([]);
     expect(normalizeazaCriterii({ cod: "a" })).toStrictEqual([]);
-    expect(normalizeazaCriterii([42, null, { fara: "denumire" }, { denumire: "   " }])).toStrictEqual(
-      [],
-    );
+    expect(
+      normalizeazaCriterii([42, null, { fara: "denumire" }, { denumire: "   " }]),
+    ).toStrictEqual([]);
   });
 
   it("generează codul când lipsește din jsonb", () => {

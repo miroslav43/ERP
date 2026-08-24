@@ -70,12 +70,16 @@ const SEGMENTE: Readonly<Record<string, string>> = {
  * `NAV_ITEMS` e sursa (părinți + copii), plus cele două ecrane la care se
  * ajunge din antet, nu din meniu. Orice alt prefix se randează ca TEXT.
  *
- * Motivul e concret, nu de principiu: `/setari` și `/evaluari` sunt singurele
- * prefixe din tot `(app)` fără `page.tsx` — și amândouă se parcurg zilnic,
- * fiindcă `href`-ul de meniu pentru Setări e `/setari/organizatie`, iar cel
- * pentru Evaluări e `/evaluari/sabloane`. Firimitura „Setări" era link către
- * `/setari`, adică un 404 garantat — și, cum `(app)` n-are `not-found.tsx`,
- * un 404 care iese cu totul din învelișul navy.
+ * Motivul e concret, nu de principiu: `/setari` e un prefix din `(app)` fără
+ * `page.tsx`, parcurs zilnic, fiindcă `href`-ul lui de meniu e
+ * `/setari/organizatie`. Firimitura „Setări" era link către `/setari`, adică un
+ * 404 garantat — și, cum `(app)` n-are `not-found.tsx`, un 404 care iese cu
+ * totul din învelișul navy.
+ *
+ * `/evaluari` era al doilea astfel de prefix. Are pagină acum, iar `href`-ul lui
+ * de meniu o arată, deci intră aici prin `NAV_ITEMS` ca orice altă rută. Lista
+ * nu s-a scurtat cu o excepție scrisă de mână; s-a scurtat fiindcă excepția a
+ * dispărut.
  */
 const RUTE_CU_PAGINA: ReadonlySet<string> = new Set<string>([
   "/profil",

@@ -48,7 +48,7 @@ import {
 import { cn } from "@/lib/ui/cn";
 
 import { actualizeazaSablonEvaluare, creeazaSablonEvaluare } from "../actions";
-import { CampCriteriu, RASPUNS_GOL } from "./campuri-evaluare";
+import { CampCriteriu, RASPUNS_GOL } from "@/components/evaluari/campuri-evaluare";
 
 const ETICHETE_TIP: Readonly<Record<TipCriteriu, string>> = {
   scala: "Scală",
@@ -126,8 +126,16 @@ export type PropsConstructor = Readonly<{
     versiune: number;
     nrEvaluari: number;
   }>;
-  /** Cum arată butonul care deschide dialogul. */
-  declansator: ReactElement;
+  /**
+   * Butonul care deschide dialogul, randat de apelant.
+   *
+   * Funcție, nu element: un `<span onClick>` care înfășoară un buton primit de
+   * afară ar pune un handler pe un element neinteractiv (ESLint-ul de
+   * accesibilitate îl respinge, pe bună dreptate) și ar depinde de bulele de
+   * evenimente. Așa, apelantul primește `deschide` și îl pune pe propriul lui
+   * buton, care rămâne un `<button>` adevărat.
+   */
+  declansator: (deschide: () => void) => ReactElement;
 }>;
 
 export function ConstructorSablon({ sablon, declansator }: PropsConstructor): ReactElement {
@@ -168,9 +176,7 @@ export function ConstructorSablon({ sablon, declansator }: PropsConstructor): Re
 
   return (
     <>
-      <span onClick={deschide} onKeyDown={undefined} className="contents">
-        {declansator}
-      </span>
+      {declansator(deschide)}
 
       <Dialog
         deschis={deschis}
@@ -243,7 +249,7 @@ export function ConstructorSablon({ sablon, declansator }: PropsConstructor): Re
                     nume="denumire"
                     eticheta="Denumirea șablonului"
                     obligatoriu
-                    erori={stare.erori.denumire}
+                    erori={stare.erori.denumire ?? []}
                   >
                     {(a) => (
                       <input
@@ -260,16 +266,14 @@ export function ConstructorSablon({ sablon, declansator }: PropsConstructor): Re
                     eticheta="Descriere"
                     fel="textarea"
                     ajutor="Când se folosește șablonul. Se vede în lista de șabloane."
-                    erori={stare.erori.descriere}
+                    erori={stare.erori.descriere ?? []}
                   >
                     {(a) => (
                       <textarea
                         {...a}
                         rows={2}
                         maxLength={500}
-                        defaultValue={
-                          stare.valoriTrimise.descriere ?? sablon?.descriere ?? ""
-                        }
+                        defaultValue={stare.valoriTrimise.descriere ?? sablon?.descriere ?? ""}
                       />
                     )}
                   </Camp>
@@ -279,10 +283,10 @@ export function ConstructorSablon({ sablon, declansator }: PropsConstructor): Re
                       Criterii
                     </legend>
 
-                    {stare.erori.criterii === undefined ? null : (
+                    {(stare.erori.criterii ?? []).length === 0 ? null : (
                       <Callout fel="eroare">
                         <ul className="space-y-1">
-                          {stare.erori.criterii.map((m) => (
+                          {(stare.erori.criterii ?? []).map((m) => (
                             <li key={m}>{m}</li>
                           ))}
                         </ul>

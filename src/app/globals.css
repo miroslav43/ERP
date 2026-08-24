@@ -420,6 +420,80 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   border-left: 1px solid var(--color-border);
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+ * DIALOGURILE ȘI PANOURILE — intrarea și ieșirea
+ *
+ * Regula stă AICI, pe selectorul de element, nu în `dialog.tsx`, și asta e
+ * toată ideea: `<dialog>` comută `display`, deci o tranziție cere
+ * `@starting-style` plus `transition-behavior: allow-discrete` — un vocabular
+ * pe care nu-l folosește niciun alt element din depozit. Scris într-un
+ * component, ar fi făcut din el singurul cu mișcare proprie, ceea ce e mai rău
+ * decât opt fără. Scris o dată aici, ridică TOATE cele opt dialoguri, inclusiv
+ * pe cele trei care își cheamă `showModal()` de mână (paleta de comenzi, celula
+ * de pontaj, previzualizarea de e-mail).
+ *
+ * `overlay` e proprietatea care ține elementul în TOP LAYER. Fără ea în lista
+ * de tranziții, dialogul ar fi scos din stratul de sus în prima cadră a
+ * ieșirii, deci ar dispărea brusc de sub `::backdrop` în loc să se stingă.
+ *
+ * Se animă exclusiv `opacity` și `translate`, adică proprietăți compuse pe GPU.
+ * Mișcarea redusă e acoperită de blocul global de mai jos, care taie orice
+ * durată de tranziție.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+dialog {
+  opacity: 0;
+  transition:
+    opacity var(--durata-lent) var(--ease-linistit),
+    translate var(--durata-lent) var(--ease-linistit),
+    overlay var(--durata-lent) allow-discrete,
+    display var(--durata-lent) allow-discrete;
+}
+dialog[open] {
+  opacity: 1;
+  translate: none;
+}
+
+/* Caseta urcă. Pe telefon e foaie lipită de marginea de jos, deci mișcarea de
+   jos în sus e și direcția din care apare. */
+dialog:not([data-panou="lateral"]) {
+  translate: 0 0.5rem;
+}
+@starting-style {
+  dialog[open]:not([data-panou="lateral"]) {
+    opacity: 0;
+    translate: 0 0.5rem;
+  }
+}
+
+/* Panoul lateral vine dinspre marginea lui, nu de jos. `1rem`, nu lățimea
+   întreagă: un panou care traversează tot ecranul la fiecare deschidere obosește
+   după a treia oară. */
+dialog[data-panou="lateral"] {
+  translate: 1rem 0;
+}
+@starting-style {
+  dialog[open][data-panou="lateral"] {
+    opacity: 0;
+    translate: 1rem 0;
+  }
+}
+
+dialog::backdrop {
+  opacity: 0;
+  transition:
+    opacity var(--durata-lent) var(--ease-linistit),
+    overlay var(--durata-lent) allow-discrete,
+    display var(--durata-lent) allow-discrete;
+}
+dialog[open]::backdrop {
+  opacity: 1;
+}
+@starting-style {
+  dialog[open]::backdrop {
+    opacity: 0;
+  }
+}
+
 /* Respectă preferința de mișcare redusă a sistemului. */
 @media (prefers-reduced-motion: reduce) {
   *,

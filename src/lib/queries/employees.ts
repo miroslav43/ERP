@@ -673,48 +673,17 @@ export async function citesteComponenteSalariale(
   return data ?? [];
 }
 
-export interface RaspunsEvaluare {
-  readonly criteriu_cod: string;
-  readonly scor: number;
-  readonly comentariu: string | null;
-}
-
-export interface CriteriuSablonEvaluare {
-  readonly cod: string;
-  readonly denumire: string;
-  readonly scala_max: number;
-}
-
-export interface Evaluare {
-  readonly id: string;
-  readonly data_evaluarii: string;
-  readonly raspunsuri: readonly RaspunsEvaluare[];
-  readonly concluzie: string | null;
-  readonly status: string;
-  readonly template: Readonly<{
-    denumire: string;
-    criterii: readonly CriteriuSablonEvaluare[];
-  }> | null;
-}
-
-export async function citesteEvaluari(
-  organizationId: string,
-  employeeId: string,
-): Promise<readonly Evaluare[]> {
-  const db = await createServerSupabase();
-  const { data, error } = await db
-    .from("employee_evaluations")
-    .select(
-      "id, data_evaluarii, raspunsuri, concluzie, status, template:evaluation_templates!template_id(denumire, criterii)",
-    )
-    .eq("organization_id", organizationId)
-    .eq("employee_id", employeeId)
-    .is("deleted_at", null)
-    .order("data_evaluarii", { ascending: false })
-    .returns<Evaluare[]>();
-  if (error !== null) throw error;
-  return data ?? [];
-}
+/*
+ * `citesteEvaluari`, `Evaluare`, `RaspunsEvaluare` și `CriteriuSablonEvaluare`
+ * au fost mutate în `src/lib/queries/evaluari.ts`, ca `evaluariAngajat`.
+ *
+ * Motivul nu e curățenia, ci corectitudinea: funcția de aici citea criteriile
+ * din ȘABLONUL CURENT (`template:evaluation_templates(criterii)`) și potrivea
+ * răspunsurile după cod. Cât timp șabloanele nu se puteau edita, mergea. De
+ * când se pot, o redenumire de criteriu rescria retroactiv evaluările vechi,
+ * iar o scală schimbată le rescria notele. Varianta nouă citește instantaneul
+ * (`criterii_sablon`) scris la completare.
+ */
 
 // ── Funcții, pentru filtrul listei (0 rânduri ⇒ filtrul se ascunde) ─────────
 

@@ -1,9 +1,16 @@
 "use client";
 
-// src/app/(app)/evaluari/_components/campuri-evaluare.tsx
+// src/components/evaluari/campuri-evaluare.tsx
 
 /**
  * Controalele cu care se completează o evaluare.
+ *
+ * ── DE CE STAU ÎN `src/components/`, NU ÎN RUTĂ ───────────────────────────
+ * Le importă DOUĂ rute: `(app)/evaluari` (previzualizarea din constructor) și
+ * `(app)/angajati/[id]` (formularul real). Proiectul numără azi 13 componente
+ * de client importate dintr-o rută în alta și le numește datorie, cu motivul
+ * scris în `0-decizii-de-pornire.md`: o rută nu e o bibliotecă. A paisprezecea
+ * n-avea de ce să se mai nască.
  *
  * ── DE CE SUNT ÎNTR-UN FIȘIER PROPRIU ─────────────────────────────────────
  * Aceleași componente randează DOUĂ lucruri: formularul real de evaluare și
@@ -49,9 +56,9 @@ export const RASPUNS_GOL = (cod: string): RaspunsCriteriu => ({
 
 const clasaOptiune = (selectat: boolean, dezactivat: boolean): string =>
   cn(
-    "text-corp relative flex min-w-9 flex-1 items-center justify-center rounded-control border px-2",
-    "h-9 pointer-coarse:h-11 font-medium tabular-nums transition-colors",
-    "has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring",
+    "text-corp rounded-control relative flex min-w-9 flex-1 items-center justify-center border px-2",
+    "h-9 font-medium tabular-nums transition-colors pointer-coarse:h-11",
+    "has-[:focus-visible]:outline-ring has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2",
     selectat
       ? "border-primary bg-primary text-primary-foreground"
       : "border-foreground/60 bg-background text-foreground",
@@ -114,16 +121,14 @@ export function ScalaNotare({
             laSchimbare(null);
           }}
           aria-label={`Șterge nota pentru ${eticheta}`}
-          className="text-muted-foreground hover:bg-surface hover:text-foreground active:bg-border rounded-control size-9 pointer-coarse:size-11 inline-flex shrink-0 items-center justify-center transition-colors"
+          className="text-muted-foreground hover:bg-surface hover:text-foreground active:bg-border rounded-control inline-flex size-9 shrink-0 items-center justify-center transition-colors pointer-coarse:size-11"
         >
           <Eraser aria-hidden="true" className="size-4" />
         </button>
       </div>
       {capete === undefined ? null : (
         <p className="text-muted-foreground text-nota flex justify-between gap-4">
-          <span>
-            1 = {capete[0]}
-          </span>
+          <span>1 = {capete[0]}</span>
           <span>
             {maxim} = {capete[1]}
           </span>
@@ -157,7 +162,10 @@ export function AlegereDaNu({
       {optiuni.map((o) => {
         const selectat = valoare === o.valoare;
         return (
-          <label key={o.text} className={cn(clasaOptiune(selectat, dezactivat), "max-w-28 flex-none px-4")}>
+          <label
+            key={o.text}
+            className={cn(clasaOptiune(selectat, dezactivat), "max-w-28 flex-none px-4")}
+          >
             <input
               type="radio"
               name={nume}
@@ -180,7 +188,7 @@ export function AlegereDaNu({
           laSchimbare(null);
         }}
         aria-label={`Șterge răspunsul pentru ${eticheta}`}
-        className="text-muted-foreground hover:bg-surface hover:text-foreground active:bg-border rounded-control size-9 pointer-coarse:size-11 inline-flex shrink-0 items-center justify-center transition-colors"
+        className="text-muted-foreground hover:bg-surface hover:text-foreground active:bg-border rounded-control inline-flex size-9 shrink-0 items-center justify-center transition-colors pointer-coarse:size-11"
       >
         <Eraser aria-hidden="true" className="size-4" />
       </button>
@@ -242,7 +250,10 @@ export function CampCriteriu({
             disabled={dezactivat}
             value={raspuns.raspuns_text ?? ""}
             onChange={(e) => {
-              laSchimbare({ ...raspuns, raspuns_text: e.target.value === "" ? null : e.target.value });
+              laSchimbare({
+                ...raspuns,
+                raspuns_text: e.target.value === "" ? null : e.target.value,
+              });
             }}
           />
         ) : criteriu.tip === "da_nu" ? (
@@ -272,7 +283,7 @@ export function CampCriteriu({
 
       {criteriu.tip === "text" ? null : (
         <details className="mt-2" open={raspuns.comentariu !== null && raspuns.comentariu !== ""}>
-          <summary className="text-muted-foreground hover:text-foreground text-nota marker:content-[''] rounded-control inline-flex min-h-9 cursor-pointer items-center underline decoration-1 underline-offset-4">
+          <summary className="text-muted-foreground hover:text-foreground text-nota rounded-control inline-flex min-h-9 cursor-pointer items-center underline decoration-1 underline-offset-4 marker:content-['']">
             Adaugă notă
           </summary>
           <label htmlFor={idComentariu} className="sr-only">
@@ -287,7 +298,10 @@ export function CampCriteriu({
             disabled={dezactivat}
             value={raspuns.comentariu ?? ""}
             onChange={(e) => {
-              laSchimbare({ ...raspuns, comentariu: e.target.value === "" ? null : e.target.value });
+              laSchimbare({
+                ...raspuns,
+                comentariu: e.target.value === "" ? null : e.target.value,
+              });
             }}
           />
         </details>

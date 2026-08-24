@@ -223,3 +223,26 @@ export const actualizeazaEvaluareSchema = z.object({
 
 export const finalizeazaEvaluareSchema = doarId("Evaluarea selectată nu este validă.");
 export const redeschideEvaluareSchema = doarId("Evaluarea selectată nu este validă.");
+
+// ── Filtrele listei, citite din bara de adrese ────────────────────────────────
+
+/**
+ * Ce vine din URL nu e date, e intrare de la un străin: valorile străine cad
+ * pe implicit, nu pe un ecran de eroare. Vezi `src/lib/rute/parametri.ts`.
+ */
+const optionalUrl = <T extends z.ZodTypeAny>(schema: T) =>
+  z
+    .union([schema, z.literal(""), z.undefined()])
+    .transform((v) => (v === "" || v === undefined ? null : v))
+    .default(null as never);
+
+export const filtreEvaluariSchema = z.object({
+  status: optionalUrl(z.enum(STATUSURI_EVALUARE)),
+  template_id: optionalUrl(z.uuid()),
+  de_la: optionalUrl(dataIso),
+  pana_la: optionalUrl(dataIso),
+  cursor: optionalUrl(z.string().max(256)),
+  limita: z.coerce.number().int().min(5).max(100).default(25),
+  sort: optionalUrl(z.string().max(40)),
+});
+export type FiltreEvaluariUrl = z.output<typeof filtreEvaluariSchema>;

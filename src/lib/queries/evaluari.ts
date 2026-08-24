@@ -160,12 +160,10 @@ export async function listeazaEvaluari(
   };
 
   let interogare = filtreaza(
-    db
-      .from("employee_evaluations")
-      .select(
-        `id, employee_id, data_evaluarii, status, concluzie, criterii_sablon, raspunsuri,
+    db.from("employee_evaluations").select(
+      `id, employee_id, data_evaluarii, status, concluzie, criterii_sablon, raspunsuri,
          versiune_sablon, ${EMBED_ANGAJAT}, ${EMBED_SABLON}`,
-      ),
+    ),
   )
     .order(coloana, { ascending: crescator, nullsFirst: false })
     .order("id", { ascending: crescator })
@@ -459,4 +457,71 @@ export async function indicatoriEvaluari(
     ),
     esantionTrunchiat: esantion.length === ESANTION_MEDIE,
   };
+}
+
+// ── Evaluările unui angajat, pentru fișa lui ──────────────────────────────────
+
+export interface EvaluareAngajat {
+  readonly id: string;
+  readonly data_evaluarii: string;
+  readonly status: StatusEvaluare;
+  readonly concluzie: string | null;
+  readonly sablon: string | null;
+  readonly versiune_sablon: number | null;
+  readonly criterii: readonly CriteriuSablon[];
+  readonly raspunsuri: readonly RaspunsCriteriu[];
+  readonly punctaj: Punctaj;
+}
+
+/**
+ * ── DE CE CRITERIILE VIN DIN INSTANTANEU, NU DIN ȘABLON ───────────────────
+ * Versiunea anterioară a funcției (în `queries/employees.ts`) citea
+ * `template:evaluation_templates(denumire, criterii)`, adică starea CURENTĂ a
+ * șablonului, și potrivea răspunsurile după cod. Cât timp șabloanele nu se
+ * puteau edita, nu se vedea. Din clipa în care se pot:
+ *
+ *   - un criteriu redenumit rescria retroactiv ce scria pe evaluarea de anul
+ *     trecut;
+ *   - un criteriu șters făcea nota să se randeze cu codul brut („lucru_echipa:
+ *     4"), fiindcă denumirea nu mai exista nicăieri;
+ *   - un `scala_max` schimbat de la 5 la 10 transforma un „4 din 5" istoric
+ *     într-un „4 din 10", adică într-o notă proastă. Fără nicio eroare.
+ *
+ * `criterii_sablon` e copia scrisă la completare. Denumirea șablonului rămâne
+ * din embed, fiindcă ea e o etichetă, nu o unitate de măsură.
+ */
+export async function evaluariAngajat(
+  organizationId: string,
+  employeeId: string,
+): Promise<readonly EvaluareAngajat[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("employee_evaluations")
+    .select(
+      `id, employee_id, data_evaluarii, status, concluzie, criterii_sablon, raspunsuri,
+       versiune_sablon, ${EMBED_ANGAJAT}, ${EMBED_SABLON}`,
+    )
+    .eq("organization_id", organizationId)
+    .eq("employee_id", employeeId)
+    .is("deleted_at", null)
+    .order("data_evaluarii", { ascending: false })
+    .order("id", { ascending: false })
+    .returns<RandBrut[]>();
+  if (error !== null) throw error;
+
+  return (data ?? []).map((b) => {
+    const criterii = normalizeazaCriterii(b.criterii_sablon);
+    const raspunsuri = citesteRaspunsuri(b.raspunsuri);
+    return {
+      id: b.id,
+      data_evaluarii: b.data_evaluarii,
+      status: b.status,
+      concluzie: b.concluzie,
+      sablon: b.template?.denumire ?? null,
+      versiune_sablon: b.versiune_sablon,
+      criterii,
+      raspunsuri,
+      punctaj: calculeazaScor(criterii, raspunsuri),
+    };
+  });
 }

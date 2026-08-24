@@ -10,10 +10,7 @@ import {
   type RaspunsCriteriu,
 } from "./scor";
 
-const c = (
-  cod: string,
-  extra: Partial<CriteriuSablon> = {},
-): CriteriuSablon => ({
+const c = (cod: string, extra: Partial<CriteriuSablon> = {}): CriteriuSablon => ({
   cod,
   denumire: cod,
   descriere: null,
@@ -112,7 +109,10 @@ describe("calculeazaScor — tipuri și date stricate", () => {
   it("criteriile de tip text nu intră în niciun numitor", () => {
     const p = calculeazaScor(
       [c("a"), c("obs", { tip: "text", scala_max: 0 })],
-      [r("a", 5), { criteriu_cod: "obs", scor: null, raspuns_text: "merge bine", comentariu: null }],
+      [
+        r("a", 5),
+        { criteriu_cod: "obs", scor: null, raspuns_text: "merge bine", comentariu: null },
+      ],
     );
     expect(p.din).toBe(5);
     expect(p.completate).toBe(1);

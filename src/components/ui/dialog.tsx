@@ -39,10 +39,13 @@ import { Camp } from "./camp";
  * al doilea prag ar fi însemnat o bandă de lățimi în care dialogul e casetă,
  * dar bara lui de acțiuni se poartă ca pe telefon.
  *
- * Fără animație de intrare, deliberat: `<dialog>` comută `display`, deci o
- * tranziție ar cere `@starting-style` plus `transition-behavior: allow-discrete`
- * — un vocabular pe care nu-l folosește niciun alt element din depozit. Un
- * singur component cu mișcare proprie e mai prost decât opt fără.
+ * Intrarea și ieșirea se animă din `globals.css`, pe selectorul de ELEMENT.
+ * Obiecția care ținea animația afară era corectă și rămâne scrisă: un singur
+ * component cu mișcare proprie e mai prost decât opt fără. Răspunsul nu e s-o
+ * scrii aici, ci o dată, global — atunci se mișcă toate opt, inclusiv cele trei
+ * care își cheamă `showModal()` de mână. Aici nu se adaugă nicio clasă de
+ * tranziție; singurul cârlig e `data-panou="lateral"`, care spune din ce parte
+ * intră panoul.
  */
 export type PropsDialog = Readonly<{
   deschis: boolean;
@@ -310,6 +313,8 @@ export function PanouLateral({
     <dialog
       ref={ref}
       aria-labelledby={idTitlu}
+      // Citit de `globals.css`: panoul intră dinspre marginea lui, caseta urcă.
+      data-panou="lateral"
       onCancel={(e) => {
         e.preventDefault();
         laInchidere();
