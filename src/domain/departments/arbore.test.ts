@@ -102,10 +102,7 @@ describe("construiesteArbore", () => {
   });
 
   it("nu duplică nimic nici pe un ciclu de trei", () => {
-    const arbore = construiesteArbore(
-      [rand("x", "z"), rand("y", "x"), rand("z", "y")],
-      new Map(),
-    );
+    const arbore = construiesteArbore([rand("x", "z"), rand("y", "x"), rand("z", "y")], new Map());
     const idUri = toateIdUrile(arbore);
     expect(idUri.length).toBe(new Set(idUri).size);
     expect(idUri.sort()).toEqual(["x", "y", "z"]);
