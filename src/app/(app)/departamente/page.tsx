@@ -52,7 +52,16 @@ export default async function PaginaDepartamente({ searchParams }: ProprietatiPa
   await requireFeature(tenant.organizationId, "nucleu");
   const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
-  if (scopeFor(permisiuni, "departments:read") === "none") {
+  // AMBELE ramuri sunt necesare, și lipsa celei dintâi era un defect real:
+  // `getPermissionMap` scoate `none` din hartă (`permissions.ts:127`), iar
+  // `scopeFor` întoarce `null` pentru o cheie absentă. Comparația doar cu
+  // `"none"` nu putea fi adevărată NICIODATĂ, deci poarta nu refuza pe nimeni.
+  // `manager` n-are niciun rând `departments:*` în seed: până acum vedea o
+  // pagină goală și nu se observa, dar de când există banda nerepartizaților
+  // ar fi primit un ecran de structură funcțional. Aceeași verificare completă
+  // e scrisă corect în `/organigrama`.
+  const scopeDepartamente = scopeFor(permisiuni, "departments:read");
+  if (scopeDepartamente === null || scopeDepartamente === "none") {
     return <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta structura organizatorică." />;
   }
 
@@ -81,6 +90,8 @@ export default async function PaginaDepartamente({ searchParams }: ProprietatiPa
     ...structura.map((d) => d.manager?.user_id ?? null),
   ]);
 
+  const denumirePeDepartament = new Map(structura.map((d) => [d.id, d.denumire]));
+
   const persoane: readonly PersoanaPanou[] = [...angajati]
     .sort((a, b) => a.full_name.localeCompare(b.full_name, "ro"))
     .map((a) => ({
@@ -89,7 +100,15 @@ export default async function PaginaDepartamente({ searchParams }: ProprietatiPa
       marca: a.marca,
       avatar_url: urlAvatar(avataruri.get(a.user_id ?? "") ?? null),
       functie: a.job_position?.denumire ?? null,
-      departamentCurent: structura.find((d) => d.id === a.department_id)?.denumire ?? null,
+      status: a.status,
+      esteActiv: a.status === "activ",
+      departamentCurent:
+        a.department_id === null
+          ? null
+          : // Un departament pe care apelantul NU-l vede prin RLS nu e „niciun
+            // departament": eticheta „nerepartizat" ar fi o minciună despre fișa
+            // altcuiva. Se spune ce se știe.
+            (denumirePeDepartament.get(a.department_id) ?? "alt departament"),
     }));
 
   // Gruparea parcurge `persoane`, care e DEJA sortată pe nume, deci ordinea se
@@ -131,13 +150,25 @@ export default async function PaginaDepartamente({ searchParams }: ProprietatiPa
       persoane: persoanePeDepartament.get(d.id) ?? [],
     }));
 
-  const efectivPeDepartament = new Map(randuri.map((r) => [r.id, r.persoane.length]));
+  // Efectivul numără doar angajații ACTIVI: un `suspendat` sau un `candidat` e
+  // în departament, dar nu lucrează în el. Panoul îi arată totuși pe toți, ca
+  // să poată fi mutați — vezi comentariul din `queries/departments.ts`.
+  const efectivPeDepartament = new Map(
+    randuri.map((r) => [r.id, r.persoane.filter((p) => p.esteActiv).length]),
+  );
   const arbore = construiesteArbore(randuri, efectivPeDepartament);
+
+  // Se numără din ce se AFIȘEAZĂ, nu din `persoane.length - nerepartizati.length`.
+  // Diferența contează când RLS ascunde un departament al cărui angajat e totuși
+  // vizibil: omul acela nu apare pe niciun card și nu e nerepartizat, deci
+  // scăderea l-ar fi numărat drept „repartizat" fără să existe undeva pe ecran.
+  const repartizate = randuri.reduce((total, r) => total + r.persoane.length, 0);
 
   const listaDepartamente: readonly OptiuneDepartament[] = randuri.map((r) => ({
     id: r.id,
     denumire: r.denumire,
     cod: r.cod,
+    activ: r.activ,
   }));
   const optiuniAngajati: readonly OptiuneAngajat[] = persoane.map((p) => ({
     id: p.id,
@@ -183,10 +214,8 @@ export default async function PaginaDepartamente({ searchParams }: ProprietatiPa
             <p className="text-muted-foreground text-nota">
               <span className="tabular-nums">{randuri.length}</span>{" "}
               {randuri.length === 1 ? "departament" : "departamente"} ·{" "}
-              <span className="tabular-nums">{persoane.length - nerepartizati.length}</span>{" "}
-              {persoane.length - nerepartizati.length === 1
-                ? "persoană repartizată"
-                : "persoane repartizate"}
+              <span className="tabular-nums">{repartizate}</span>{" "}
+              {repartizate === 1 ? "persoană repartizată" : "persoane repartizate"}
             </p>
           </div>
 

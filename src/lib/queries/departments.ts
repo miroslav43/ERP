@@ -52,6 +52,8 @@ export interface AngajatStructura {
   readonly marca: string;
   readonly department_id: string | null;
   readonly user_id: string | null;
+  /** `candidat` | `activ` | `suspendat` | `preaviz` | `incetat` | `arhivat`. */
+  readonly status: string;
   readonly job_position: Readonly<{ denumire: string }> | null;
 }
 
@@ -59,7 +61,7 @@ const COLOANE_DEPARTAMENT =
   "id, parent_id, cod, denumire, descriere, activ, manager_employee_id, cost_center, manager:employees!manager_employee_id(full_name, user_id)";
 
 const COLOANE_ANGAJAT =
-  "id, full_name, marca, department_id, user_id, job_position:job_positions!job_position_id(denumire)";
+  "id, full_name, marca, department_id, user_id, status, job_position:job_positions!job_position_id(denumire)";
 
 export async function structuraDepartamentelor(
   organizationId: string,
@@ -82,7 +84,19 @@ export async function structuraDepartamentelor(
 }
 
 /**
- * Angajații activi, cu departamentul lor.
+ * Angajații organizației, cu departamentul lor.
+ *
+ * ── DE CE NU DOAR CEI ACTIVI ──────────────────────────────────────────────
+ * Prima variantă filtra `status = 'activ'`, și crea un blocaj: un angajat
+ * `suspendat` sau `candidat` repartizat undeva NU apărea pe ecran, dar
+ * `dezactiveazaDepartament` îl numără (el filtrează doar `deleted_at is null`,
+ * fără status). Rezultatul era un departament care arăta gol, refuza
+ * dezactivarea cu „Mutați-i în altă structură”, iar persoana de mutat nu se
+ * putea găsi nicăieri în interfață — exact fundătura pe care `mutaAngajati` a
+ * fost construită s-o închidă.
+ *
+ * Deci se aduc toți, cu `status`, iar ecranul decide: efectivul numără doar
+ * activii, lista din panou îi arată pe toți, cu statusul marcat.
  *
  * Întoarce ȘI angajații cu `department_id = null` — nerepartizații. Ecranul îi
  * arăta zero, fiindcă gruparea îi sărea; erau invizibili exact pe pagina de la
@@ -114,7 +128,6 @@ export async function angajatiPentruStructura(
         .from("employees")
         .select(COLOANE_ANGAJAT)
         .eq("organization_id", organizationId)
-        .eq("status", "activ")
         .is("deleted_at", null)
         .order("id", { ascending: true })
         .limit(pas);
