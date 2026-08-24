@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
+import { BaraActiuni } from "@/components/ui/bara-actiuni";
 import { ConfirmareActiune } from "@/components/ui/dialog";
 
 import {
@@ -106,77 +107,95 @@ export function ActiuniPerioada({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-3">
-      {status === "draft" && poateCalcula ? (
-        <>
+    <div className="flex flex-col gap-3">
+      {/*
+       * `<BaraActiuni>` în loc de un `flex` scris de mână: ea ține ordinea
+       * vizuală identică cu ordinea din DOM — deci tabularea nu sare — și
+       * separă singură acțiunea distructivă de restul. Aici distructiva e
+       * închiderea lunii, singura care nu se mai poate desface: aprobarea are
+       * „Redeschide pentru corecții", trimiterea fluturașilor se poate repeta.
+       *
+       * Mesajele de sub bară NU intră în ea: un paragraf de raport sau de
+       * eroare nu e o acțiune, iar `role="group"` peste el l-ar fi anunțat ca
+       * atare.
+       */}
+      <BaraActiuni
+        eticheta="Acțiuni pe perioada de salarizare"
+        {...(status === "aprobat" && poateAproba
+          ? {
+              distructiva: (
+                <Buton
+                  varianta="secundar"
+                  inCurs={inCurs}
+                  textInCurs="Se închide…"
+                  onClick={() => {
+                    setDeConfirmat("inchide");
+                  }}
+                >
+                  Închide perioada
+                </Buton>
+              ),
+            }
+          : {})}
+      >
+        {status === "draft" && poateCalcula ? (
+          <>
+            <Buton
+              varianta="primar"
+              inCurs={inCurs}
+              textInCurs="Se calculează…"
+              disabled={blocajCalcul !== null}
+              onClick={() => {
+                ruleaza(() => calculeazaPerioada({ id }));
+              }}
+            >
+              Calculează
+            </Buton>
+            {blocajCalcul === null ? null : (
+              <p className="text-muted-foreground text-corp">{blocajCalcul}</p>
+            )}
+          </>
+        ) : null}
+
+        {status === "calculat" && poateModifica ? (
+          <Buton
+            varianta="secundar"
+            inCurs={inCurs}
+            textInCurs="Se redeschide…"
+            onClick={() => {
+              setDeConfirmat("redeschide");
+            }}
+          >
+            Redeschide pentru corecții
+          </Buton>
+        ) : null}
+
+        {status === "calculat" && poateAproba ? (
           <Buton
             varianta="primar"
             inCurs={inCurs}
-            textInCurs="Se calculează…"
-            disabled={blocajCalcul !== null}
+            textInCurs="Se aprobă…"
             onClick={() => {
-              ruleaza(() => calculeazaPerioada({ id }));
+              setDeConfirmat("aproba");
             }}
           >
-            Calculează
+            Aprobă
           </Buton>
-          {blocajCalcul === null ? null : (
-            <p className="text-muted-foreground text-corp">{blocajCalcul}</p>
-          )}
-        </>
-      ) : null}
+        ) : null}
 
-      {status === "calculat" && poateModifica ? (
-        <Buton
-          varianta="secundar"
-          inCurs={inCurs}
-          textInCurs="Se redeschide…"
-          onClick={() => {
-            setDeConfirmat("redeschide");
-          }}
-        >
-          Redeschide pentru corecții
-        </Buton>
-      ) : null}
-
-      {status === "calculat" && poateAproba ? (
-        <Buton
-          varianta="primar"
-          inCurs={inCurs}
-          textInCurs="Se aprobă…"
-          onClick={() => {
-            setDeConfirmat("aproba");
-          }}
-        >
-          Aprobă
-        </Buton>
-      ) : null}
-
-      {status === "aprobat" && poateAproba ? (
-        <Buton
-          varianta="secundar"
-          inCurs={inCurs}
-          textInCurs="Se închide…"
-          onClick={() => {
-            setDeConfirmat("inchide");
-          }}
-        >
-          Închide perioada
-        </Buton>
-      ) : null}
-
-      {(status === "aprobat" || status === "inchis") && poateExporta ? (
-        <Buton
-          varianta="secundar"
-          inCurs={inCurs}
-          textInCurs="Se trimit…"
-          onClick={() => {
-            setDeConfirmat("trimite");
-          }}
-        >
-          Trimite fluturașii pe e-mail
-        </Buton>
-      ) : null}
+        {(status === "aprobat" || status === "inchis") && poateExporta ? (
+          <Buton
+            varianta="secundar"
+            inCurs={inCurs}
+            textInCurs="Se trimit…"
+            onClick={() => {
+              setDeConfirmat("trimite");
+            }}
+          >
+            Trimite fluturașii pe e-mail
+          </Buton>
+        ) : null}
+      </BaraActiuni>
 
       {raportTrimitere === null ? null : (
         <p aria-live="polite" className="text-muted-foreground text-corp w-full">
