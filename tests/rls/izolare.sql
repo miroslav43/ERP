@@ -1284,6 +1284,9 @@ declare
   v_pontaj_apr uuid;
   v_esuate     text := '';
   v_reusite    text := '';
+  -- Departamentul de pornire al Anei, ca proba de mutare să-l poată pune la loc
+  -- și să nu schimbe starea văzută de verificările de după ea.
+  v_dep_initial uuid;
 begin
   select id into v_leave_type from public.leave_types
    where organization_id = v_alfa and key = 'odihna' and deleted_at is null;
@@ -1436,6 +1439,50 @@ begin
     v_reusite := v_reusite || E'\n  employee -> business_trips (deplasare proprie)';
   exception when others then
     v_esuate := v_esuate || format(E'\n  employee -> business_trips (deplasare proprie): %s (%s)', sqlerrm, sqlstate);
+  end;
+  reset role;
+
+  -- 10) un `hr` din Alfa MUTĂ un angajat între departamente.
+  --
+  -- E scrierea pe care o face `mutaAngajati`: o singură coloană, `department_id`.
+  -- Contează ca poartă POZITIVĂ din două motive care se adună:
+  --
+  -- · `employees_update` cere în `WITH CHECK` ca `updated_by = auth.uid()`, iar
+  --   refuzul unei politici e ZERO RÂNDURI FĂRĂ EROARE. Un `update` respins ar
+  --   arăta exact ca unul reușit dacă nu se numără rândurile atinse — de aceea
+  --   se verifică `row_count`, nu absența excepției.
+  -- · rolul `hr` n-a fost niciodată dovedit capabil să scrie pe `employees`.
+  --   Scrierile etichetate „hr" din restul fișierului erau făcute de org_admin.
+  --
+  -- Mută la `null` (scoaterea din departament, o stare legitimă), apoi pune la
+  -- loc valoarea inițială: proba nu are voie să schimbe starea pe care se
+  -- sprijină verificările de după ea.
+  select department_id into v_dep_initial from public.employees where id = v_ang_alfa;
+
+  perform set_config('request.jwt.claim.sub', v_hr_user::text, true);
+  set local role authenticated;
+  begin
+    update public.employees
+       set department_id = null, updated_by = v_hr_user
+     where id = v_ang_alfa and organization_id = v_alfa and deleted_at is null;
+    get diagnostics v_randuri = row_count;
+    if v_randuri <> 1 then
+      raise exception using errcode = 'P0001',
+        message = format('scoaterea din departament a atins %s rânduri, nu 1 — politica a refuzat tăcut', v_randuri);
+    end if;
+
+    update public.employees
+       set department_id = v_dep_initial, updated_by = v_hr_user
+     where id = v_ang_alfa and organization_id = v_alfa and deleted_at is null;
+    get diagnostics v_randuri = row_count;
+    if v_randuri <> 1 then
+      raise exception using errcode = 'P0001',
+        message = format('repartizarea înapoi a atins %s rânduri, nu 1 — politica a refuzat tăcut', v_randuri);
+    end if;
+
+    v_reusite := v_reusite || E'\n  hr -> employees.department_id (mută un angajat între departamente)';
+  exception when others then
+    v_esuate := v_esuate || format(E'\n  hr -> employees.department_id (mută un angajat între departamente): %s (%s)', sqlerrm, sqlstate);
   end;
   reset role;
 
