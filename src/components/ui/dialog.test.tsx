@@ -179,3 +179,68 @@ describe("ConfirmareActiune", () => {
     expect(confirma.getAttribute("aria-busy")).toBe("true");
   });
 });
+
+/**
+ * ── DE CE SE VERIFICĂ NIȘTE CLASE ─────────────────────────────────────────
+ * jsdom nu așază nimic: n-are înălțime de fereastră, nu calculează `dvh` și nu
+ * știe ce e o zonă de derulare. Un test „butonul Salvează e vizibil" ar trece
+ * și pe varianta stricată, fiindcă acolo nimic nu era ascuns logic — doar
+ * desenat în afara ecranului.
+ *
+ * Ce se poate verifica deci e CONTRACTUL structural, cel care produce
+ * comportamentul în browser: caseta e o coloană cu înălțime mărginită, corpul e
+ * singura parte care se micșorează și derulează, antetul și subsolul nu. Cele
+ * trei clase de mai jos sunt exact cele a căror lipsă făcea butonul de neatins
+ * pe telefon.
+ */
+describe("Dialog — înălțime mărginită și derulare", () => {
+  it("mărginește înălțimea casetei, ca să nu crească în afara ecranului", () => {
+    render(
+      <Dialog deschis laInchidere={() => {}} titlu="Funcție nouă">
+        <p>Corp.</p>
+      </Dialog>,
+    );
+    const clase = document.querySelector("dialog")?.className ?? "";
+    expect(clase).toContain("flex-col");
+    expect(clase).toMatch(/max-h-\[92dvh\]/u);
+    expect(clase).toMatch(/md:max-h-\[calc\(100dvh-4rem\)\]/u);
+  });
+
+  it("corpul derulează, antetul și subsolul rămân pe loc", () => {
+    render(
+      <Dialog
+        deschis
+        laInchidere={() => {}}
+        titlu="Funcție nouă"
+        subsol={<button type="button">Salvează</button>}
+      >
+        <p>Corp.</p>
+      </Dialog>,
+    );
+
+    const corp = screen.getByText("Corp.").parentElement;
+    expect(corp?.className).toContain("overflow-y-auto");
+    // Fără `min-h-0`, implicitul flexbox `min-height: auto` refuză micșorarea,
+    // iar corpul împinge subsolul în afara casetei în loc să deruleze.
+    expect(corp?.className).toContain("min-h-0");
+    expect(corp?.className).toContain("flex-1");
+
+    const subsol = screen.getByRole("button", { name: "Salvează" }).parentElement;
+    expect(subsol?.className).toContain("shrink-0");
+  });
+
+  it("pe telefon e foaie lipită jos, pe desktop rămâne casetă centrată", () => {
+    render(
+      <Dialog deschis laInchidere={() => {}} titlu="Funcție nouă">
+        <p>Corp.</p>
+      </Dialog>,
+    );
+    const clase = document.querySelector("dialog")?.className ?? "";
+    // `mb-0` anulează doar marginea automată de jos: caseta cade la baza
+    // ecranului fără poziționare absolută.
+    expect(clase).toContain("mb-0");
+    expect(clase).toContain("rounded-b-none");
+    expect(clase).toContain("md:m-auto");
+    expect(clase).toContain("md:rounded-panou");
+  });
+});

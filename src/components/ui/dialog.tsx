@@ -21,6 +21,28 @@ import { Camp } from "./camp";
  * Ce trebuie ținut minte: elementul intră în TOP LAYER, deasupra oricărui
  * `z-index`. De aceea notificările (`toast.tsx`) folosesc API-ul `popover` —
  * altfel „Anulează" dintr-o confirmare n-ar fi vizibil niciodată.
+ *
+ * ── DE CE FOAIE PE TELEFON, CASETĂ PE DESKTOP ─────────────────────────────
+ * Caseta n-avea NICIO limită de înălțime și nicio zonă de derulare. Pe desktop
+ * nu se vedea, fiindcă toate cele opt dialoguri din aplicație au corpul scurt.
+ * Pe un telefon însă, un formular cu cinci câmpuri plus lista de autocomplete a
+ * codului COR depășește ecranul, iar `<dialog>` centrat prin margini automate
+ * NU derulează: crește în ambele direcții deodată, deci antetul iese pe sus și
+ * subsolul pe jos. Butonul „Salvează" devenea de neatins — fără nicio eroare,
+ * fără nimic de apucat cu degetul.
+ *
+ * Sub `md` caseta devine foaie lipită de marginea de jos: acolo ajunge degetul,
+ * și acolo NU ajunge tastatura virtuală. Peste `md` rămâne exact ce era.
+ *
+ * `md`, nu `sm`, fiindcă ăsta e pragul mobil al depozitului: `tabel.tsx` comută
+ * tabel/carduri la 768px, iar `bara-actiuni.tsx` se lipește jos cu `max-md`. Un
+ * al doilea prag ar fi însemnat o bandă de lățimi în care dialogul e casetă,
+ * dar bara lui de acțiuni se poartă ca pe telefon.
+ *
+ * Fără animație de intrare, deliberat: `<dialog>` comută `display`, deci o
+ * tranziție ar cere `@starting-style` plus `transition-behavior: allow-discrete`
+ * — un vocabular pe care nu-l folosește niciun alt element din depozit. Un
+ * singur component cu mișcare proprie e mai prost decât opt fără.
  */
 export type PropsDialog = Readonly<{
   deschis: boolean;
@@ -29,10 +51,21 @@ export type PropsDialog = Readonly<{
   descriere?: string;
   children?: ReactNode;
   subsol?: ReactNode;
-  marime?: "mic" | "mediu" | "mare";
+  marime?: keyof typeof LATIME;
 }>;
 
-const LATIME = { mic: "max-w-sm", mediu: "max-w-lg", mare: "max-w-2xl" } as const;
+/**
+ * `lucru` e treapta pentru dialogurile care nu sunt un formular, ci un ATELIER:
+ * o listă editabilă într-o coloană și rezultatul ei în cealaltă. Constructorul
+ * de șabloane de evaluare e primul. Sub `lg` cele două coloane se stivuiesc, la
+ * fel ca la orice altă mărime, deci lățimea nu schimbă nimic pe telefon.
+ */
+const LATIME = {
+  mic: "max-w-sm",
+  mediu: "max-w-lg",
+  mare: "max-w-2xl",
+  lucru: "max-w-5xl",
+} as const;
 
 export function Dialog({
   deschis,
@@ -71,12 +104,27 @@ export function Dialog({
         if (e.target === ref.current) laInchidere();
       }}
       className={cn(
-        "bg-background text-foreground rounded-panou shadow-plutitor border-border m-auto w-[calc(100vw-2rem)] border p-0",
+        "bg-background text-foreground shadow-plutitor border-border border p-0",
         "backdrop:bg-foreground/50",
+        // Coloană cu înălțime mărginită: antetul și subsolul rămân pe loc,
+        // corpul derulează. Fără `min-h-0` pe corp, un copil mai înalt decât
+        // ecranul ar împinge subsolul în afara casetei — implicitul flexbox
+        // `min-height: auto` refuză să lase elementul să se micșoreze.
+        "flex flex-col",
+        // ── SUB `md`: FOAIE LIPITĂ DE MARGINEA DE JOS ───────────────────────
+        // `mb-0` peste `m-auto`: `<dialog>` se centrează prin marginile
+        // automate, iar anulând-o doar pe cea de jos caseta cade la baza
+        // ecranului fără poziționare absolută. Degetul ajunge la butoane, iar
+        // tastatura virtuală nu mai acoperă câmpul activ.
+        "rounded-t-panou m-auto mb-0 max-h-[92dvh] w-full max-w-none rounded-b-none",
+        // `dvh`, nu `vh`: pe iOS Safari `100vh` include bara de adrese care se
+        // retrage, deci subsolul ar sta sub linia vizibilă exact cât timp bara
+        // e afișată — adică fix când omul deschide dialogul.
+        "md:rounded-panou md:m-auto md:max-h-[calc(100dvh-4rem)] md:w-[calc(100vw-2rem)]",
         LATIME[marime],
       )}
     >
-      <div className="border-border flex items-start justify-between gap-4 border-b p-4">
+      <div className="border-border flex shrink-0 items-start justify-between gap-4 border-b p-4">
         <div className="min-w-0">
           <h2 id={idTitlu} className="text-sectiune font-semibold text-balance">
             {titlu}
@@ -97,9 +145,11 @@ export function Dialog({
         </button>
       </div>
 
-      {children === undefined ? null : <div className="p-4">{children}</div>}
+      {children === undefined ? null : (
+        <div className="min-h-0 flex-1 overflow-y-auto p-4">{children}</div>
+      )}
       {subsol === undefined ? null : (
-        <div className="border-border bg-surface flex flex-wrap justify-end gap-2 border-t p-4">
+        <div className="border-border bg-surface flex shrink-0 flex-wrap justify-end gap-2 border-t p-4">
           {subsol}
         </div>
       )}

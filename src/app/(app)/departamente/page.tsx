@@ -1,9 +1,11 @@
 // src/app/(app)/departamente/page.tsx
 import type { Metadata } from "next";
-import { Users } from "lucide-react";
+import { LayoutList, Network, Users } from "lucide-react";
+import { z } from "zod";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
+import { ComutatorVizualizare } from "@/components/ui/comutator-vizualizare";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { construiesteArbore } from "@/domain/departments/arbore";
@@ -21,7 +23,31 @@ import type { PersoanaPanou } from "./panou-departament";
 
 export const metadata: Metadata = { title: "Departamente" };
 
-export default async function PaginaDepartamente() {
+/**
+ * Vizualizarea stă în ADRESĂ, nu în stare de client: supraviețuiește
+ * reîncărcării, se poate trimite cuiva prin copy-paste și dă un buton „înapoi"
+ * care funcționează.
+ *
+ * `.catch()`, nu `.parse()` strict: o adresă copiată greșit trebuie să cadă pe
+ * implicit, nu să strice ecranul cu o eroare de validare.
+ */
+const VIZUALIZARI = ["lista", "organigrama"] as const;
+const vizualizareSchema = z.enum(VIZUALIZARI).catch("lista");
+
+const OPTIUNI_VIZUALIZARE = [
+  { cheie: "lista", eticheta: "Listă", pictograma: LayoutList },
+  { cheie: "organigrama", eticheta: "Organigramă", pictograma: Network },
+] as const;
+
+interface ProprietatiPagina {
+  /** În Next 16 e o PROMISIUNE, nu un obiect. */
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+export default async function PaginaDepartamente({ searchParams }: ProprietatiPagina) {
+  const parametri = await searchParams;
+  const vizualizare = vizualizareSchema.parse(parametri["vizualizare"]);
+
   const { tenant, user } = await requireTenant();
   await requireFeature(tenant.organizationId, "nucleu");
   const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
@@ -143,15 +169,38 @@ export default async function PaginaDepartamente() {
           descriere="Adăugați primul departament pentru a putea repartiza angajații și a delega drepturile pe echipă."
         />
       ) : (
-        <StructuraInteractiva
-          arbore={arbore}
-          nerepartizati={nerepartizati}
-          toatePersoanele={persoane}
-          departamente={listaDepartamente}
-          angajati={optiuniAngajati}
-          poateEdita={poateEdita}
-          poateMutaPersoane={poateMutaPersoane}
-        />
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <ComutatorVizualizare
+              eticheta="Cum se afișează structura"
+              cheieParametru="vizualizare"
+              optiuni={OPTIUNI_VIZUALIZARE}
+              curenta={vizualizare}
+              implicita="lista"
+              parametri={parametri}
+              cale="/departamente"
+            />
+            <p className="text-muted-foreground text-nota">
+              <span className="tabular-nums">{randuri.length}</span>{" "}
+              {randuri.length === 1 ? "departament" : "departamente"} ·{" "}
+              <span className="tabular-nums">{persoane.length - nerepartizati.length}</span>{" "}
+              {persoane.length - nerepartizati.length === 1
+                ? "persoană repartizată"
+                : "persoane repartizate"}
+            </p>
+          </div>
+
+          <StructuraInteractiva
+            vizualizare={vizualizare}
+            arbore={arbore}
+            nerepartizati={nerepartizati}
+            toatePersoanele={persoane}
+            departamente={listaDepartamente}
+            angajati={optiuniAngajati}
+            poateEdita={poateEdita}
+            poateMutaPersoane={poateMutaPersoane}
+          />
+        </>
       )}
     </div>
   );

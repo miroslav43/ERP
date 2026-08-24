@@ -3,8 +3,11 @@
 
 import { useCallback, useMemo, useState } from "react";
 
+import { UserRoundX } from "lucide-react";
+
 import { PanouDepartament, type PersoanaPanou } from "./panou-departament";
 import { VizualizareLista } from "./vizualizare-lista";
+import { VizualizareOrganigrama } from "./vizualizare-organigrama";
 import type { NodDepartament, OptiuneAngajat, OptiuneDepartament } from "./tipuri";
 
 /**
@@ -36,6 +39,7 @@ export type PropsStructuraInteractiva = Readonly<{
   angajati: readonly OptiuneAngajat[];
   poateEdita: boolean;
   poateMutaPersoane: boolean;
+  vizualizare: "lista" | "organigrama";
 }>;
 
 export function StructuraInteractiva({
@@ -46,6 +50,7 @@ export function StructuraInteractiva({
   angajati,
   poateEdita,
   poateMutaPersoane,
+  vizualizare,
 }: PropsStructuraInteractiva) {
   const [deschisId, setDeschisId] = useState<string | null>(null);
 
@@ -75,15 +80,56 @@ export function StructuraInteractiva({
 
   return (
     <>
-      <VizualizareLista
-        noduri={arbore}
-        nivel={1}
-        departamente={departamente}
-        angajati={angajati}
-        poateEdita={poateEdita}
-        poateMutaPersoane={poateMutaPersoane}
-        laDeschiderePanou={setDeschisId}
-      />
+      {/*
+       * Banda nerepartizaților.
+       *
+       * `department_id is null` era complet invizibil pe ecranul ăsta, deși tot
+       * oamenii ăștia sunt cei pe care `dezactiveazaDepartament` îți cere să-i
+       * muți înainte de a închide un departament. E singurul loc din pagină unde
+       * apare auriul de accent: dacă ar fi folosit și altundeva, n-ar mai însemna
+       * nimic aici.
+       */}
+      {nerepartizati.length === 0 ? null : (
+        <div className="border-accent/40 bg-accent/8 rounded-panou flex flex-wrap items-center gap-3 border px-4 py-3">
+          <span className="bg-background rounded-control flex size-9 shrink-0 items-center justify-center">
+            <UserRoundX aria-hidden="true" className="text-accent-foreground size-4.5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="text-corp block font-medium">
+              <span className="tabular-nums">{nerepartizati.length}</span>{" "}
+              {nerepartizati.length === 1
+                ? "persoană fără departament"
+                : "persoane fără departament"}
+            </span>
+            <span className="text-muted-foreground text-nota block">
+              Nu apar în structură și nu intră în niciun efectiv.
+            </span>
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setDeschisId(NEREPARTIZATI);
+            }}
+            className="border-foreground/60 rounded-control text-nota hover:bg-background inline-flex shrink-0 items-center gap-1.5 border px-2.5 py-1 font-medium transition-colors active:translate-y-px"
+          >
+            {poateMutaPersoane ? "Repartizează" : "Vezi lista"}
+          </button>
+        </div>
+      )}
+
+      {vizualizare === "organigrama" ? (
+        <VizualizareOrganigrama noduri={arbore} laDeschiderePanou={setDeschisId} />
+      ) : (
+        <VizualizareLista
+          noduri={arbore}
+          nivel={1}
+          departamente={departamente}
+          angajati={angajati}
+          poateEdita={poateEdita}
+          poateMutaPersoane={poateMutaPersoane}
+          laDeschiderePanou={setDeschisId}
+        />
+      )}
 
       <PanouDepartament
         deschis={deschisId !== null}

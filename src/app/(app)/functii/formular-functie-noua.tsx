@@ -1,35 +1,39 @@
 // src/app/(app)/functii/formular-functie-noua.tsx
 "use client";
 
+import { Plus } from "lucide-react";
 import { useCallback, useId, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { BaraActiuni } from "@/components/ui/bara-actiuni";
 import { Buton } from "@/components/ui/buton";
-import { Camp } from "@/components/ui/camp";
+import { Dialog } from "@/components/ui/dialog";
 import { Formular } from "@/components/ui/formular";
 
-import { CautaCor } from "./cauta-cor";
+import { CampuriFunctie, VALORI_GOALE } from "./campuri-functie";
 import { creeazaFunctie } from "./actions";
 
 /**
- * Funcție nouă.
+ * Funcție nouă, într-un dialog.
  *
- * Formularul trece prin `<Formular>` + `<Camp>` pentru un defect măsurat, nu
- * pentru consecvență: cu `<form action={fn}>` și câmpuri necontrolate, React 19
- * RESETEAZĂ formularul după ce acțiunea se încheie — inclusiv când acțiunea a
- * eșuat. Aici asta însemna că un cod COR inexistent (singura validare care chiar
- * respinge des: `codCorOptional` cere ca cele șase cifre să EXISTE în
- * Clasificarea Ocupațiilor, nu doar să fie cifre) golea și codul intern, și
- * denumirea, și nivelul de studii, și descrierea. Patru câmpuri corecte
- * pierdute din cauza unuia greșit.
+ * ── DE CE NU MAI CREȘTE ÎN PAGINĂ ─────────────────────────────────────────
+ * Formularul se deschidea inline, sub antet, și împingea nomenclatorul în jos:
+ * cine voia să vadă ce coduri interne sunt deja luate — exact întrebarea de
+ * dinaintea completării câmpului „Cod intern” — trebuia să închidă formularul,
+ * să se uite, și să-l redeschidă gol. `dialog.tsx` numărase deja ~15 formulare
+ * de felul ăsta în aplicație; ăsta era unul dintre ele.
  *
- * `valoriTrimise` le pune înapoi ca `defaultValue`, iar `stare.erori` duce
- * fiecare mesaj lângă câmpul lui — serverul construia deja `fieldErrors`, iar
- * varianta veche le arunca și afișa un singur `<p>` roșu lângă buton.
+ * ── CE PĂSTREAZĂ DIN VARIANTA VECHE ───────────────────────────────────────
+ * Cu `<form action={fn}>` și câmpuri necontrolate, React 19 RESETEAZĂ
+ * formularul după ce acțiunea se încheie — inclusiv când a eșuat. Aici asta
+ * însemna că un cod COR inexistent (singura validare care chiar respinge des:
+ * `codCorOptional` cere ca cele șase cifre să EXISTE în Clasificarea
+ * Ocupațiilor) golea și codul intern, și denumirea, și nivelul de studii, și
+ * descrierea. `valoriTrimise` le pune înapoi ca `defaultValue`, iar
+ * `stare.erori` duce fiecare mesaj lângă câmpul lui.
  *
- * Identificatorii se prefixează cu `useId()`: pe aceeași pagină stau N
- * formulare de editare din `actiuni-functie.tsx`, cu exact aceleași nume de
- * câmp, iar `Camp` derivă `id` din `nume`.
+ * Dialogul NU se închide la refuz — s-ar pierde exact ce a scris omul, cu un
+ * gest în plus față de resetul de dinainte. Se închide doar din `laReusita`.
  */
 
 /** Cheile obiectului sunt EXACT cele din `creeazaFunctieSchema`. */
@@ -57,137 +61,65 @@ export function FormularFunctieNoua() {
     router.refresh();
   }, [router]);
 
-  if (!deschis) {
-    return (
+  const inchide = useCallback((): void => {
+    setDeschis(false);
+  }, []);
+
+  return (
+    <>
       <Buton
         varianta="primar"
         onClick={() => {
           setDeschis(true);
         }}
       >
+        <Plus aria-hidden="true" className="size-4" />
         Funcție nouă
       </Buton>
-    );
-  }
 
-  return (
-    <Formular
-      actiune={trimite}
-      laReusita={laReusita}
-      mesajReusita="Funcția a fost creată."
-      className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-2"
-    >
-      {(stare) => {
-        const eroriCor = stare.erori["cod_cor"] ?? [];
-
-        return (
-          <>
-            <Camp
-              nume="cod"
-              id={idc("cod")}
-              eticheta="Cod intern"
-              obligatoriu
-              erori={stare.erori["cod"] ?? []}
-            >
-              {(a) => (
-                <input
-                  {...a}
-                  type="text"
-                  maxLength={32}
-                  defaultValue={stare.valoriTrimise["cod"] ?? ""}
-                />
-              )}
-            </Camp>
-
-            <Camp
-              nume="denumire"
-              id={idc("denumire")}
-              eticheta="Denumire"
-              obligatoriu
-              erori={stare.erori["denumire"] ?? []}
-            >
-              {(a) => (
-                <input
-                  {...a}
-                  type="text"
-                  maxLength={160}
-                  defaultValue={stare.valoriTrimise["denumire"] ?? ""}
-                />
-              )}
-            </Camp>
-
-            {/* `CautaCor` își desenează propriul `<input name="cod_cor">`, cu
-                stare proprie — de la `Camp` îi trebuie doar identificatorul și
-                marcajul de invaliditate. */}
-            <Camp
-              nume="cod_cor"
-              id={idc("cod_cor")}
-              eticheta="Cod COR"
-              ajutor="Necesar pentru contract și pentru exportul REVISAL."
-              erori={eroriCor}
-            >
-              {(a) => (
-                <CautaCor
-                  idInput={a.id}
-                  valoareInitiala={stare.valoriTrimise["cod_cor"] ?? ""}
-                  invalid={eroriCor.length > 0}
-                  descrisDe={a["aria-describedby"]}
-                />
-              )}
-            </Camp>
-
-            <Camp
-              nume="nivel_studii"
-              id={idc("nivel_studii")}
-              eticheta="Nivel de studii"
-              erori={stare.erori["nivel_studii"] ?? []}
-            >
-              {(a) => (
-                <input
-                  {...a}
-                  type="text"
-                  maxLength={80}
-                  placeholder="Superioare"
-                  defaultValue={stare.valoriTrimise["nivel_studii"] ?? ""}
-                />
-              )}
-            </Camp>
-
-            <Camp
-              nume="descriere"
-              id={idc("descriere")}
-              eticheta="Descriere"
-              fel="textarea"
-              className="sm:col-span-2"
-              erori={stare.erori["descriere"] ?? []}
-            >
-              {(a) => (
-                <textarea
-                  {...a}
-                  maxLength={1000}
-                  rows={2}
-                  defaultValue={stare.valoriTrimise["descriere"] ?? ""}
-                />
-              )}
-            </Camp>
-
-            <div className="flex items-center gap-3 sm:col-span-2">
-              <Buton type="submit" varianta="primar" inCurs={stare.inCurs} textInCurs="Se creează…">
-                Creează funcția
-              </Buton>
-              <Buton
-                varianta="link"
-                disabled={stare.inCurs}
-                onClick={() => {
-                  setDeschis(false);
-                }}
-              >
-                Renunță
-              </Buton>
-            </div>
-          </>
-        );
-      }}
-    </Formular>
+      {/* Dialogul se randează doar cât e deschis: altfel `CautaCor` ar ține
+          nomenclatorul de 4422 de ocupații filtrat în memorie de la prima
+          randare a paginii, pentru un formular pe care poate nimeni nu-l
+          deschide. Montarea îl golește și de valorile rămase dintr-o încercare
+          anterioară. */}
+      {deschis ? (
+        <Dialog
+          deschis
+          laInchidere={inchide}
+          titlu="Funcție nouă"
+          descriere="Codul COR e cel din Clasificarea Ocupațiilor din România. Fără el, funcția nu poate ajunge pe un contract."
+          marime="mare"
+        >
+          {/* Butoanele stau ÎN formular, nu în `subsol`-ul dialogului.
+              Subsolul e frate cu `<form>` în DOM, deci un buton pus acolo
+              n-ar putea nici să trimită, nici să citească `stare.inCurs` —
+              adică s-ar pierde „Se creează…”, singurul semn că apăsarea a fost
+              înregistrată. `BaraActiuni` face aceeași treabă din interior:
+              `aliniere="final"` e documentat exact ca footer de dialog, iar
+              `lipitaPeTelefon` o ține la îndemână sub `md`, peste
+              `env(safe-area-inset-bottom)`. */}
+          <Formular actiune={trimite} laReusita={laReusita} mesajReusita="Funcția a fost creată.">
+            {(stare) => (
+              <>
+                <CampuriFunctie stare={stare} idc={idc} initiale={VALORI_GOALE} cuCodIntern />
+                <BaraActiuni aliniere="final" separata lipitaPeTelefon>
+                  <Buton varianta="secundar" onClick={inchide} disabled={stare.inCurs}>
+                    Renunță
+                  </Buton>
+                  <Buton
+                    type="submit"
+                    varianta="primar"
+                    inCurs={stare.inCurs}
+                    textInCurs="Se creează…"
+                  >
+                    Creează funcția
+                  </Buton>
+                </BaraActiuni>
+              </>
+            )}
+          </Formular>
+        </Dialog>
+      ) : null}
+    </>
   );
 }
