@@ -12,6 +12,7 @@ import {
   dezactiveazaDepartamentSchema,
   mutaDepartamentSchema,
 } from "@/schemas/department";
+import { mutaAngajatiSchema } from "@/schemas/employee";
 
 type DepartamentIdentificat = Readonly<{ id: string }>;
 
@@ -232,5 +233,92 @@ export const reactiveazaDepartament = createAction<
     }
     revalidatePath("/departamente");
     return { id: input.id };
+  },
+});
+
+/**
+ * Mutarea persoanelor între departamente.
+ *
+ * ── DE CE EXISTĂ ──────────────────────────────────────────────────────────
+ * `dezactiveazaDepartament`, mai sus în acest fișier, refuză cu mesajul
+ * „Mutați-i în altă structură înainte de dezactivare". Până acum, unealta la
+ * care trimitea mesajul nu exista nicăieri în aplicație: singura cale de a
+ * schimba departamentul cuiva era formularul complet al fișei, deschis pentru
+ * fiecare om în parte.
+ *
+ * ── CINCI DECIZII CARE NU SE VĂD DIN SEMNĂTURĂ ────────────────────────────
+ * 1. Schemă îngustă, două câmpuri. NU `actualizeazaAngajatSchema`, care are 36
+ *    de câmpuri cu `.default(...)` și ar goli fișa dintr-un payload parțial.
+ *    Motivul lung stă lângă `mutaAngajatiSchema`, în `@/schemas/employee`.
+ * 2. `minScope: "all"`, nu `"team"`. `actualizeazaAngajat` are azi `"team"`
+ *    deși pagina lui cere `"all"` — deci e invocabilă direct, ca endpoint POST,
+ *    de cineva care n-a văzut niciodată ecranul. Discrepanța nu se repetă aici.
+ * 3. Departamentul-țintă se verifică EXPLICIT că e al organizației.
+ *    `employees.department_id` e o cheie străină simplă, fără componentă pe
+ *    `organization_id` și fără trigger — spre deosebire de
+ *    `departments.parent_id` și `departments.manager_employee_id`, care AU
+ *    verificarea, în aceeași migrare. E singura relație din trio-ul HR pe care
+ *    baza n-o păzește, deci o păzim aici.
+ * 4. `.select("id")` după `.update()`, cu lungimea comparată. Politica
+ *    `employees_update` refuză prin `USING` cu ZERO RÂNDURI ȘI FĂRĂ EROARE; la
+ *    o mutare în masă, un refuz parțial ar fi raportat altfel drept reușită
+ *    deplină.
+ * 5. Un refuz parțial NU se poate anula: PostgREST nu deschide o tranzacție
+ *    peste două cereri. Mesajul spune deci exact ce s-a întâmplat, cu cifre —
+ *    nu „a eșuat", ceea ce ar fi o minciună despre rândurile deja scrise.
+ *
+ * `revalidate:` se DECLARĂ aici, spre deosebire de acțiunile de mai sus din
+ * fișier, care cheamă `revalidatePath()` din handler. Tiparul canonic e cel
+ * declarativ: revalidarea se execută după succesul complet al acțiunii,
+ * inclusiv după scrierea jurnalului, nu înaintea lui.
+ */
+export const mutaAngajati = createAction<typeof mutaAngajatiSchema, { mutati: number }>({
+  name: "employees.move_department",
+  permission: "employees:update",
+  minScope: "all",
+  input: mutaAngajatiSchema,
+  audit: {
+    action: "update",
+    entityType: "employee",
+    // Auditul aplicației scrie un rând pe acțiune, deci reține doar prima fișă.
+    // Reconstituirea per persoană vine din triggerul `audit_employees` de pe
+    // tabelă, care scrie rândul întreg before+after pentru fiecare angajat atins.
+    entityId: (input) => input.employee_ids[0] ?? "",
+    allow: ["employee_ids", "department_id"],
+  },
+  // `/organigrama` afișează departamentul fiecărui nod, deci se învechește și ea.
+  revalidate: ["/departamente", "/angajati", "/organigrama"],
+  handler: async (ctx, input) => {
+    const db = await createServerSupabase();
+
+    if (input.department_id !== null) {
+      const { data: departament, error: eroareDepartament } = await db
+        .from("departments")
+        .select("id")
+        .eq("id", input.department_id)
+        .eq("organization_id", ctx.tenant.organizationId)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (eroareDepartament !== null) throw mapPostgrestError(eroareDepartament, ctx.requestId);
+      if (departament === null) throw notFound("Departamentul selectat nu a fost găsit.");
+    }
+
+    const { data, error } = await db
+      .from("employees")
+      .update({ department_id: input.department_id, updated_by: ctx.user.id })
+      .in("id", input.employee_ids)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .select("id");
+    if (error !== null) throw mapPostgrestError(error, ctx.requestId);
+
+    const mutati = data?.length ?? 0;
+    if (mutati !== input.employee_ids.length) {
+      throw businessRule(
+        `Au fost mutate ${String(mutati)} din ${String(input.employee_ids.length)} persoane. Restul au fost refuzate: fișele au fost șterse între timp sau nu aveți dreptul de a le modifica. Reîncărcați pagina.`,
+      );
+    }
+
+    return { mutati };
   },
 });
