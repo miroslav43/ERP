@@ -111,6 +111,7 @@ export default async function PaginaSetariConcedii({ searchParams }: Proprietati
       </header>
 
       <NavConcedii
+        poateVedeaEchipa={poateVedeaCalendar}
         poateAproba={poateAproba}
         poateVedeaCalendar={poateVedeaCalendar}
         poateConfigura={true}

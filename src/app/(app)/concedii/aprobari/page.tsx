@@ -42,9 +42,14 @@ export default async function PaginaAprobariConcedii() {
       </header>
 
       <NavConcedii
+        poateVedeaEchipa={poateVedeaCalendar}
         poateAproba={true}
         poateVedeaCalendar={poateVedeaCalendar}
         poateConfigura={poateConfigura}
+        // Numărul vine din lista deja citită, nu dintr-un `numarDeAprobat`
+        // separat: e aceeași filtrare, iar lungimea listei e prin definiție
+        // exactă pe ecranul care o afișează.
+        deAprobat={sarcini.length}
       />
 
       {sarcini.length === 0 ? (

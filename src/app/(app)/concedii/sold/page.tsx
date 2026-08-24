@@ -174,6 +174,7 @@ export default async function PaginaSoldConcediu({ searchParams }: ProprietatiPa
       </header>
 
       <NavConcedii
+        poateVedeaEchipa={poateVedeaCalendar}
         poateAproba={poateAproba}
         poateVedeaCalendar={poateVedeaCalendar}
         poateConfigura={poateConfigura}

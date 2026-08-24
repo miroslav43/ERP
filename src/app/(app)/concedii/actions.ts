@@ -224,18 +224,53 @@ export const anuleazaCerere = createAction({
     `/portal/concediile-mele/${input.id}`,
   ],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
-    const { data, error } = await ctx.supabase
+    // Politica `leave_requests_update` (0009) acceptă rândul și prin
+    // `app.is_manager_of(organization_id, employee_id)`, INDEPENDENT de scope.
+    // De când managerul are `leave:update = own` (0064), RLS singură l-ar lăsa
+    // să anuleze cererea unui subaltern — adică să ocolească respingerea, care
+    // cere motiv obligatoriu și lasă urmă în lanțul de aprobare. Cine nu are
+    // scope „all” anulează DOAR pe fișa proprie.
+    let doarFisaMea: string | null = null;
+    if (ctx.scope !== "all") {
+      // Fișa proprie via clientul admin, din același motiv ca la creare: rolul
+      // `employee` are `employees:read = none` și nu-și poate citi nici propria
+      // fișă. Filtru explicit pe organizație + utilizator.
+      const admin = createAdminSupabase();
+      const { data: fisa, error: eroareFisa } = await admin
+        .from("employees")
+        .select("id")
+        .eq("organization_id", ctx.tenant.organizationId)
+        .eq("user_id", ctx.user.id)
+        .eq("is_primary", true)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (eroareFisa !== null) throw eroareFisa;
+      if (fisa === null) {
+        throw businessRule(
+          "Contul dvs. nu este legat de o fișă de angajat activă în această organizație. Contactați administratorul.",
+        );
+      }
+      doarFisaMea = fisa.id;
+    }
+
+    // `.select("id")` stă în ACELAȘI lanț cu `.update()`, înaintea filtrului
+    // condiționat: e o tranziție de status, iar capcana 17 cere ca rezultatul
+    // gol să se poată deosebi de succes. Filtrele se pot aplica și după
+    // `.select()` — ordinea lor nu contează pentru PostgREST.
+    let interogare = ctx.supabase
       .from("leave_requests")
       .update({ status: "anulata" })
       .eq("id", input.id)
       .eq("organization_id", ctx.tenant.organizationId)
       .in("status", ["ciorna", "trimisa"])
-      .select("id")
-      .maybeSingle();
+      .select("id");
+    if (doarFisaMea !== null) interogare = interogare.eq("employee_id", doarFisaMea);
+
+    const { data, error } = await interogare.maybeSingle();
     if (error !== null) throw traduEroare(error);
     if (data === null) {
       throw businessRule(
-        "Cererea nu poate fi anulată: fie nu a fost găsită, fie decizia asupra ei a început deja. O cerere se poate anula doar cât timp este „ciornă” sau „trimisă”.",
+        "Cererea nu poate fi anulată: fie nu a fost găsită, fie nu vă aparține, fie decizia asupra ei a început deja. O cerere se poate anula doar cât timp este „ciornă” sau „trimisă”.",
       );
     }
     return { id: data.id };

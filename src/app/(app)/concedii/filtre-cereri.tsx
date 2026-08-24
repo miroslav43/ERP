@@ -13,18 +13,28 @@ interface OptiuneTip {
   readonly denumire: string;
 }
 
-const VIZUALIZARI: readonly { readonly cheie: string; readonly eticheta: string }[] = [
-  { cheie: "toate", eticheta: "Toate" },
-  { cheie: "mele", eticheta: "Ale mele" },
-  { cheie: "echipa", eticheta: "Ale echipei" },
-];
+interface OptiuneAngajat {
+  readonly id: string;
+  readonly full_name: string | null;
+  readonly marca: string;
+}
 
+/**
+ * Fără comutator „Ale mele / Ale echipei”: separarea stă acum în rută
+ * (`/concedii` vs `/concedii/echipa`). Ca filtru, ea se pierdea la fiecare
+ * apăsare pe „Aplică filtrele” — de aceea trebuia recitită din `useSearchParams`
+ * și rescrisă de mână în URL-ul nou, un pas ușor de uitat la următorul filtru
+ * adăugat.
+ *
+ * `angajati` e gol pe „Cererile mele”, unde lista are un singur angajat, și
+ * plin pe „Echipa”.
+ */
 export function FiltreCereri({
   tipuri,
-  aratăVizualizarea = false,
+  angajati = [],
 }: {
   readonly tipuri: readonly OptiuneTip[];
-  readonly aratăVizualizarea?: boolean;
+  readonly angajati?: readonly OptiuneAngajat[];
 }) {
   const router = useRouter();
   const cale = usePathname();
@@ -32,6 +42,7 @@ export function FiltreCereri({
   const [inCurs, porneste] = useTransition();
   const idStatus = useId();
   const idTip = useId();
+  const idAngajat = useId();
   const idDeLa = useId();
   const idPanaLa = useId();
 
@@ -39,29 +50,16 @@ export function FiltreCereri({
     const noi = new URLSearchParams();
     const status = String(formular.get("status") ?? "");
     const leaveTypeId = String(formular.get("leave_type_id") ?? "");
+    const employeeId = String(formular.get("employee_id") ?? "");
     const deLa = String(formular.get("de_la") ?? "");
     const panaLa = String(formular.get("pana_la") ?? "");
     if (status.length > 0) noi.set("status", status);
     if (leaveTypeId.length > 0) noi.set("leave_type_id", leaveTypeId);
+    if (employeeId.length > 0) noi.set("employee_id", employeeId);
     if (deLa.length > 0) noi.set("de_la", deLa);
     if (panaLa.length > 0) noi.set("pana_la", panaLa);
-    // Vizualizarea nu e în formular — se schimbă din butoanele de mai sus — dar
-    // trebuie să supraviețuiască aplicării celorlalte filtre.
-    const vizualizare = parametri.get("vizualizare");
-    if (vizualizare !== null && vizualizare !== "toate") noi.set("vizualizare", vizualizare);
-    porneste(() => {
-      router.replace(`${cale}?${noi.toString()}`);
-    });
-  }
-
-  const vizualizareCurenta = parametri.get("vizualizare") ?? "toate";
-
-  function schimbaVizualizarea(cheie: string): void {
-    const noi = new URLSearchParams(parametri.toString());
-    if (cheie === "toate") noi.delete("vizualizare");
-    else noi.set("vizualizare", cheie);
-    // Cursorul aparține paginii anterioare; păstrat, ar sări rânduri.
-    noi.delete("cursor");
+    // `cursor` NU se copiază: aparține paginii anterioare, iar păstrat peste un
+    // filtru nou ar sări rânduri.
     porneste(() => {
       router.replace(`${cale}?${noi.toString()}`);
     });
@@ -69,31 +67,6 @@ export function FiltreCereri({
 
   return (
     <>
-      {aratăVizualizarea ? (
-        <div
-          role="group"
-          aria-label="Ce cereri se afișează"
-          className="border-border inline-flex rounded-md border p-0.5"
-        >
-          {VIZUALIZARI.map((v) => (
-            <button
-              key={v.cheie}
-              type="button"
-              disabled={inCurs}
-              aria-pressed={vizualizareCurenta === v.cheie}
-              onClick={() => schimbaVizualizarea(v.cheie)}
-              className={`rounded px-3 py-1.5 text-sm font-medium ${
-                vizualizareCurenta === v.cheie
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-surface"
-              }`}
-            >
-              {v.eticheta}
-            </button>
-          ))}
-        </div>
-      ) : null}
-
       <form
         action={aplica}
         role="search"
@@ -137,6 +110,27 @@ export function FiltreCereri({
             ))}
           </select>
         </div>
+
+        {angajati.length > 0 ? (
+          <div className="min-w-56">
+            <label htmlFor={idAngajat} className="block text-sm font-medium">
+              Angajat
+            </label>
+            <select
+              id={idAngajat}
+              name="employee_id"
+              defaultValue={parametri.get("employee_id") ?? ""}
+              className="border-foreground/60 mt-1 w-full rounded-md border px-2 py-2 text-sm"
+            >
+              <option value="">Toți</option>
+              {angajati.map((angajat) => (
+                <option key={angajat.id} value={angajat.id}>
+                  {angajat.full_name ?? "—"} ({angajat.marca})
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
 
         <div>
           <label htmlFor={idDeLa} className="block text-sm font-medium">

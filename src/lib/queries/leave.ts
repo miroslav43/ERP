@@ -17,6 +17,7 @@ import type {
   StatusCerere,
   StatusSarcinaAprobare,
   TipZiOrganizatie,
+  VizualizareCereri,
 } from "@/schemas/leave";
 
 // ── Cursor keyset (pereche proprie: dată + id, descrescător) ─────────────────
@@ -82,7 +83,25 @@ export async function listeazaCereri(
    * selecta, iar „echipa” e tot ce se vede, deci filtrul se ignoră.
    */
   fisaMea: string | null = null,
+  /**
+   * Ce felie se cere. Vine din RUTĂ (`/concedii` vs `/concedii/echipa`), nu din
+   * query-string — vezi comentariul lui `VIZUALIZARI_CERERI` din
+   * `@/schemas/leave`. Implicit „toate”, pentru apelanții care nu fac separarea.
+   *
+   * ATENȚIE: nu e o barieră de securitate. „echipa” exclude fișa proprie, dar
+   * ce se vede dincolo de ea rămâne treaba RLS-ului — un `scope = 'own'` cu
+   * `vizualizare = 'echipa'` întoarce zero rânduri, nu rândurile altcuiva.
+   */
+  vizualizare: VizualizareCereri = "toate",
 ): Promise<RezultatCereri> {
+  // Fără fișă proprie, „ale mele” nu are subiect. Fără ieșirea asta devreme,
+  // filtrul de mai jos s-ar sări tăcut și un manager fără fișă ar primi pe
+  // ecranul „Cererile mele” lista întreagă a echipei — corectă din punctul de
+  // vedere al RLS-ului, greșită față de ce scrie în antet.
+  if (vizualizare === "mele" && fisaMea === null) {
+    return { randuri: [], urmatorulCursor: null };
+  }
+
   const db = await createServerSupabase();
   let interogare = db
     .from("leave_requests")
@@ -93,9 +112,9 @@ export async function listeazaCereri(
     .order("id", { ascending: false })
     .limit(filtre.limita + 1);
 
-  if (fisaMea !== null && filtre.vizualizare === "mele") {
+  if (fisaMea !== null && vizualizare === "mele") {
     interogare = interogare.eq("employee_id", fisaMea);
-  } else if (fisaMea !== null && filtre.vizualizare === "echipa") {
+  } else if (fisaMea !== null && vizualizare === "echipa") {
     interogare = interogare.neq("employee_id", fisaMea);
   }
   if (filtre.status !== null && filtre.status.length > 0) {
@@ -381,6 +400,36 @@ export async function istoricSold(
 }
 
 // ── Sarcinile de aprobat ──────────────────────────────────────────────────────
+
+/**
+ * Câte cereri așteaptă decizia acestui utilizator — doar numărul, pentru
+ * badge-ul din navigația modulului.
+ *
+ * Numără sarcinile, NU cererile: `approval_tasks` are un rând per aprobator, iar
+ * `deAprobat` de mai jos face exact aceeași filtrare. Numărul de aici poate fi
+ * mai mare decât lista afișată acolo — `deAprobat` aruncă sarcinile a căror
+ * cerere a ieșit între timp din `trimisa`/`in_aprobare` (anulată de angajat,
+ * decisă de un coleg înainte ca trigger-ul de anulare a surorilor să ajungă la
+ * ea). Diferența e tranzitorie și de partea sigură: badge-ul cheamă omul la o
+ * filă care poate fi goală, nu invers.
+ *
+ * `head: true` — se cere numai antetul `Content-Range`, fără rânduri. Nu are
+ * nevoie de paginare și nu intră sub `max_rows = 1000`, care numără rânduri
+ * întoarse, nu rânduri potrivite.
+ */
+export async function numarDeAprobat(organizationId: string, userId: string): Promise<number> {
+  const db = await createServerSupabase();
+  const { count, error } = await db
+    .from("approval_tasks")
+    .select("id", { count: "exact", head: true })
+    .eq("organization_id", organizationId)
+    .eq("entity_type", "leave_request")
+    .eq("approver_user_id", userId)
+    .eq("status", "in_asteptare")
+    .is("deleted_at", null);
+  if (error !== null) throw error;
+  return count ?? 0;
+}
 
 export interface SarcinaDeAprobat {
   readonly taskId: string;

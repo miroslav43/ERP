@@ -97,6 +97,7 @@ export default async function PaginaCerereNoua() {
       </header>
 
       <NavConcedii
+        poateVedeaEchipa={poateVedeaCalendar}
         poateAproba={poateAproba}
         poateVedeaCalendar={poateVedeaCalendar}
         poateConfigura={poateConfigura}
