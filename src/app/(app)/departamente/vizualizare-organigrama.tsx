@@ -1,6 +1,4 @@
 // src/app/(app)/departamente/vizualizare-organigrama.tsx
-import { Users } from "lucide-react";
-
 import { AvatarAngajat } from "@/components/data/avatar-angajat";
 
 import type { NodDepartament } from "./tipuri";
@@ -90,9 +88,12 @@ function Patrat({
 
       {d.activ ? null : <span className="text-muted-foreground text-nota">Inactiv</span>}
 
-      <span className="sr-only">
-        <Users aria-hidden="true" /> Deschide lista persoanelor din {d.denumire}.
-      </span>
+      {/*
+       * Butonul își ia numele accesibil din tot textul dinăuntru — cod,
+       * denumire, cifră, manager. Denumirea e deci deja anunțată; aici se
+       * adaugă doar ce NU se poate deduce din conținut: ce face clicul.
+       */}
+      <span className="sr-only">Deschide lista persoanelor.</span>
     </button>
   );
 }
