@@ -94,17 +94,61 @@ export async function listeazaCereri(
   const coloana = COLOANA_SORTARE[sortare.cheie];
   const crescator = sortare.directie === "asc";
 
-  let interogare = db
-    .from("leave_requests")
-    .select(
-      COLOANE_CERERE,
-      // `count: "exact"` pe aceeași interogare: numărătoarea respectă filtrele
-      // ȘI politicile RLS, fără un al doilea drum la bază care le-ar putea
-      // aplica altfel.
-      { count: "exact" },
-    )
-    .eq("organization_id", organizationId)
-    .is("deleted_at", null)
+  /*
+   * ── DE CE NUMĂRĂTOAREA E O A DOUA INTEROGARE ──────────────────────────
+   * Aici stătea `count: "exact"` pe ACEEAȘI interogare, cu argumentul — corect
+   * în sine — că așa numărătoarea respectă filtrele ȘI politicile RLS, fără un
+   * al doilea drum la bază. Argumentul rata un lucru: predicatul KEYSET e și el
+   * un filtru, iar PostgREST n-are de unde ști că e „paginare”. Pus pe aceeași
+   * interogare, `count` numără doar ce a rămas DUPĂ cursor.
+   *
+   * Se vedea de la pagina a doua: `<Paginare>` scria „25 din 30 de rânduri”
+   * acolo unde erau 55, iar totalul SCĂDEA cu fiecare „mai departe”. Lista era
+   * corectă; doar numărul mințea, fără nicio eroare.
+   *
+   * Cele două interogări împart ACELEAȘI filtre, aplicate de aceeași funcție,
+   * ca să nu poată diverge; se deosebesc doar prin cursor, ordine și limită,
+   * care aparțin paginii, nu mulțimii. Merg în paralel, iar numărătoarea e
+   * `head: true`, deci nu aduce niciun rând.
+   */
+  /**
+   * Filtrele mulțimii, aplicate identic pe amândouă interogările.
+   *
+   * Generic peste constructorul de interogare, nu scris de două ori: două copii
+   * ar diverge la primul filtru adăugat, iar divergența s-ar vedea tocmai ca o
+   * numărătoare care nu se potrivește cu lista — defectul reparat aici.
+   */
+  const filtreaza = <
+    Q extends {
+      eq: (c: string, v: string) => Q;
+      neq: (c: string, v: string) => Q;
+      is: (c: string, v: null) => Q;
+      in: (c: string, v: readonly string[]) => Q;
+      gte: (c: string, v: string) => Q;
+      lte: (c: string, v: string) => Q;
+    },
+  >(
+    q: Q,
+  ): Q => {
+    let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
+    if (fisaMea !== null && filtre.vizualizare === "mele") {
+      cu = cu.eq("employee_id", fisaMea);
+    } else if (fisaMea !== null && filtre.vizualizare === "echipa") {
+      cu = cu.neq("employee_id", fisaMea);
+    }
+    if (filtre.status !== null && filtre.status.length > 0) cu = cu.in("status", filtre.status);
+    if (filtre.leave_type_id !== null) cu = cu.eq("leave_type_id", filtre.leave_type_id);
+    if (filtre.de_la !== null) cu = cu.gte("data_sfarsit", filtre.de_la);
+    if (filtre.pana_la !== null) cu = cu.lte("data_inceput", filtre.pana_la);
+    // Filtrul explicit după angajat are sens doar pentru cine vede mai mult decât
+    // fișa proprie — pentru „own”, RLS restrânge deja rezultatul la un singur angajat.
+    if (scope !== "own" && filtre.employee_id !== null) {
+      cu = cu.eq("employee_id", filtre.employee_id);
+    }
+    return cu;
+  };
+
+  let interogare = filtreaza(db.from("leave_requests").select(COLOANE_CERERE))
     // Identificatorul e MEREU al doilea criteriu: nici data de început, nici
     // starea nu sunt unice, iar fără el ordinea dintre două cereri egale e
     // nedefinită — paginarea ar sări sau ar repeta exact acolo.
@@ -112,36 +156,19 @@ export async function listeazaCereri(
     .order("id", { ascending: crescator })
     .limit(filtre.limita + 1);
 
-  if (fisaMea !== null && filtre.vizualizare === "mele") {
-    interogare = interogare.eq("employee_id", fisaMea);
-  } else if (fisaMea !== null && filtre.vizualizare === "echipa") {
-    interogare = interogare.neq("employee_id", fisaMea);
-  }
-  if (filtre.status !== null && filtre.status.length > 0) {
-    interogare = interogare.in("status", filtre.status);
-  }
-  if (filtre.leave_type_id !== null) {
-    interogare = interogare.eq("leave_type_id", filtre.leave_type_id);
-  }
-  if (filtre.de_la !== null) {
-    interogare = interogare.gte("data_sfarsit", filtre.de_la);
-  }
-  if (filtre.pana_la !== null) {
-    interogare = interogare.lte("data_inceput", filtre.pana_la);
-  }
-  // Filtrul explicit după angajat are sens doar pentru cine vede mai mult decât
-  // fișa proprie — pentru „own”, RLS restrânge deja rezultatul la un singur angajat.
-  if (scope !== "own" && filtre.employee_id !== null) {
-    interogare = interogare.eq("employee_id", filtre.employee_id);
-  }
-
   const cursor = filtre.cursor === null ? null : decodificaKeyset(filtre.cursor);
   if (cursor !== null) {
     interogare = interogare.or(predicatKeyset(coloana, cursor, sortare.directie));
   }
 
-  const { data, error, count } = await interogare.returns<RandCerere[]>();
+  const [rezultat, numarare] = await Promise.all([
+    interogare.returns<RandCerere[]>(),
+    filtreaza(db.from("leave_requests").select("id", { count: "exact", head: true })),
+  ]);
+  const { data, error } = rezultat;
   if (error !== null) throw error;
+  if (numarare.error !== null) throw numarare.error;
+  const count = numarare.count;
 
   const toate = data ?? [];
   const areUrmatoarea = toate.length > filtre.limita;

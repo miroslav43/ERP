@@ -1,7 +1,7 @@
 // src/app/(app)/ticketing/nou/formular-tichet.tsx
 "use client";
 
-import { useId, useState, useTransition } from "react";
+import { useId, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
@@ -50,6 +50,41 @@ export function FormularTichet({
   const [erori, setErori] = useState<Readonly<Record<string, readonly string[]>> | null>(null);
   const [eroareGenerala, setEroareGenerala] = useState<string | null>(null);
   const [inCurs, porneste] = useTransition();
+
+  /*
+   * ── PIERDEREA DE DATE PE CARE O OPREȘTE ────────────────────────────────────
+   * „Schimbă tipul" făcea `setTip(null)`. Formularul se demonta cu totul, iar
+   * câmpurile fiind NECONTROLATE, tot ce era tastat dispărea odată cu DOM-ul:
+   * titlul, cele patru câmpuri de bug (până la 4000 de caractere fiecare) și
+   * descrierea (până la 8000). Fără avertisment, fără confirmare, dintr-un link
+   * de 12px — iar „titlu" și „descriere" sunt comune TUTUROR tipurilor, deci
+   * nici măcar nu aveau de ce să se piardă.
+   *
+   * Aici valorile se fotografiază înainte de demontare și se pun înapoi ca
+   * `defaultValue` la remontare. Un utilizator care se răzgândește de două ori
+   * își regăsește și câmpurile specifice primului tip: cheile sunt numele
+   * câmpurilor, iar ele nu se ciocnesc între tipuri.
+   */
+  const formularRef = useRef<HTMLFormElement>(null);
+  const [pastrate, setPastrate] = useState<Readonly<Record<string, string>>>({});
+  const pastrat = (nume: string, implicit = ""): string => pastrate[nume] ?? implicit;
+
+  const schimbaTipul = () => {
+    const formular = formularRef.current;
+    if (formular !== null) {
+      const fotografie: Record<string, string> = {};
+      for (const [cheie, valoare] of new FormData(formular).entries()) {
+        if (typeof valoare === "string") fotografie[cheie] = valoare;
+      }
+      // Bifa NU apare în `FormData` când e nebifată. Fără rândul ăsta, cine
+      // bifează, se răzgândește și apoi schimbă tipul ar regăsi bifa pusă la
+      // loc — adică exact ce a debifat, restaurat tăcut.
+      const bifa = formular.elements.namedItem("blocheaza");
+      if (bifa instanceof HTMLInputElement) fotografie["blocheaza"] = bifa.checked ? "on" : "";
+      setPastrate((vechi) => ({ ...vechi, ...fotografie }));
+    }
+    setTip(null);
+  };
 
   if (tip === null) {
     return (
@@ -108,10 +143,10 @@ export function FormularTichet({
   const e = (camp: string) => erori?.[camp]?.[0];
 
   return (
-    <form action={trimite} className="space-y-5" noValidate>
+    <form ref={formularRef} action={trimite} className="space-y-5" noValidate>
       <div className="flex items-center justify-between gap-4">
         <p className="text-foreground text-corp font-medium">{ETICHETE_TIP[tip]}</p>
-        <Buton varianta="link" onClick={() => setTip(null)}>
+        <Buton varianta="link" onClick={schimbaTipul}>
           Schimbă tipul
         </Buton>
       </div>
@@ -129,7 +164,13 @@ export function FormularTichet({
         <label htmlFor={`${id}-titlu`} className={CLASA_ETICHETA}>
           Titlu *
         </label>
-        <input id={`${id}-titlu`} name="titlu" className={CLASA_CAMP} maxLength={200} />
+        <input
+          id={`${id}-titlu`}
+          name="titlu"
+          defaultValue={pastrat("titlu")}
+          className={CLASA_CAMP}
+          maxLength={200}
+        />
         <Eroare mesaj={e("titlu")} />
       </div>
 
@@ -142,6 +183,7 @@ export function FormularTichet({
             <input
               id={`${id}-aplicatie`}
               name="aplicatie"
+              defaultValue={pastrat("aplicatie")}
               placeholder="Adobe Photoshop"
               className={CLASA_CAMP}
             />
@@ -156,7 +198,7 @@ export function FormularTichet({
               name="numar_licente"
               type="number"
               min={1}
-              defaultValue={1}
+              defaultValue={pastrat("numar_licente", "1")}
               className={CLASA_CAMP}
             />
             <Eroare mesaj={e("numar_licente")} />
@@ -165,7 +207,13 @@ export function FormularTichet({
             <label htmlFor={`${id}-motiv`} className={CLASA_ETICHETA}>
               De ce îți este necesară
             </label>
-            <textarea id={`${id}-motiv`} name="motiv_necesitate" rows={2} className={CLASA_CAMP} />
+            <textarea
+              id={`${id}-motiv`}
+              name="motiv_necesitate"
+              defaultValue={pastrat("motiv_necesitate")}
+              rows={2}
+              className={CLASA_CAMP}
+            />
           </div>
         </>
       )}
@@ -179,6 +227,7 @@ export function FormularTichet({
             <input
               id={`${id}-hw`}
               name="denumire_hardware"
+              defaultValue={pastrat("denumire_hardware")}
               placeholder="Monitor 27 inch"
               className={CLASA_CAMP}
             />
@@ -188,7 +237,12 @@ export function FormularTichet({
             <label htmlFor={`${id}-livrare`} className={CLASA_ETICHETA}>
               Unde se livrează *
             </label>
-            <select id={`${id}-livrare`} name="loc_livrare" className={CLASA_CAMP}>
+            <select
+              id={`${id}-livrare`}
+              name="loc_livrare"
+              defaultValue={pastrat("loc_livrare", "birou")}
+              className={CLASA_CAMP}
+            >
               <option value="birou">La birou</option>
               <option value="domiciliu">La domiciliu</option>
             </select>
@@ -198,7 +252,12 @@ export function FormularTichet({
             <label htmlFor={`${id}-adresa`} className={CLASA_ETICHETA}>
               Adresa de livrare
             </label>
-            <input id={`${id}-adresa`} name="adresa_livrare" className={CLASA_CAMP} />
+            <input
+              id={`${id}-adresa`}
+              name="adresa_livrare"
+              defaultValue={pastrat("adresa_livrare")}
+              className={CLASA_CAMP}
+            />
             <p className="text-muted-foreground text-nota mt-1">
               Obligatorie doar dacă echipamentul se livrează la domiciliu.
             </p>
@@ -219,7 +278,12 @@ export function FormularTichet({
                 aici, cere-i administratorului să-l înregistreze în inventar întâi.
               </p>
             ) : (
-              <select id={`${id}-obiect`} name="inventory_item_id" className={CLASA_CAMP}>
+              <select
+                id={`${id}-obiect`}
+                name="inventory_item_id"
+                defaultValue={pastrat("inventory_item_id")}
+                className={CLASA_CAMP}
+              >
                 <option value="">— Alege —</option>
                 {obiecteAlocate.map((obiect) => (
                   <option key={obiect.id} value={obiect.id}>
@@ -233,7 +297,13 @@ export function FormularTichet({
             <Eroare mesaj={e("inventory_item_id")} />
           </div>
           <div className="flex items-center gap-2">
-            <input id={`${id}-blocheaza`} name="blocheaza" type="checkbox" className="size-4" />
+            <input
+              id={`${id}-blocheaza`}
+              name="blocheaza"
+              type="checkbox"
+              defaultChecked={pastrat("blocheaza") === "on"}
+              className="size-4"
+            />
             <label htmlFor={`${id}-blocheaza`} className="text-foreground text-corp">
               Nu îmi pot face treaba din cauza asta
             </label>
@@ -245,6 +315,7 @@ export function FormularTichet({
             <input
               id={`${id}-locatie`}
               name="locatie"
+              defaultValue={pastrat("locatie")}
               placeholder="Etaj 2, birou 12"
               className={CLASA_CAMP}
             />
@@ -261,7 +332,7 @@ export function FormularTichet({
             <input
               id={`${id}-modul`}
               name="modul"
-              defaultValue={modulCurent}
+              defaultValue={pastrat("modul", modulCurent)}
               className={CLASA_CAMP}
             />
             <Eroare mesaj={e("modul")} />
@@ -270,7 +341,13 @@ export function FormularTichet({
             <label htmlFor={`${id}-pasi`} className={CLASA_ETICHETA}>
               Ce ai făcut *
             </label>
-            <textarea id={`${id}-pasi`} name="pasi_efectuati" rows={3} className={CLASA_CAMP} />
+            <textarea
+              id={`${id}-pasi`}
+              name="pasi_efectuati"
+              defaultValue={pastrat("pasi_efectuati")}
+              rows={3}
+              className={CLASA_CAMP}
+            />
             <Eroare mesaj={e("pasi_efectuati")} />
           </div>
           <div>
@@ -280,6 +357,7 @@ export function FormularTichet({
             <textarea
               id={`${id}-asteptat`}
               name="rezultat_asteptat"
+              defaultValue={pastrat("rezultat_asteptat")}
               rows={2}
               className={CLASA_CAMP}
             />
@@ -292,6 +370,7 @@ export function FormularTichet({
             <textarea
               id={`${id}-obtinut`}
               name="rezultat_obtinut"
+              defaultValue={pastrat("rezultat_obtinut")}
               rows={2}
               className={CLASA_CAMP}
             />
@@ -304,7 +383,13 @@ export function FormularTichet({
         <label htmlFor={`${id}-descriere`} className={CLASA_ETICHETA}>
           Detalii *
         </label>
-        <textarea id={`${id}-descriere`} name="descriere" rows={4} className={CLASA_CAMP} />
+        <textarea
+          id={`${id}-descriere`}
+          name="descriere"
+          defaultValue={pastrat("descriere")}
+          rows={4}
+          className={CLASA_CAMP}
+        />
         <Eroare mesaj={e("descriere")} />
       </div>
 

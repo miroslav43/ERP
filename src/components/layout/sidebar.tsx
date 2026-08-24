@@ -1,7 +1,7 @@
 // src/components/layout/sidebar.tsx
 "use client";
 
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { Building2, Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 
 import { cn } from "@/lib/ui/cn";
@@ -40,6 +40,20 @@ export function SidebarProvider({
 }) {
   const [colapsat, setColapsat] = useState(defaultCollapsed);
   const [mobilDeschis, setMobilDeschis] = useState(false);
+
+  /*
+   * Escape închide. Un panou modal care acoperă tot ecranul și nu răspunde la
+   * Escape e singurul element din produs care nu respectă convenția; sertarul
+   * nu e `<dialog>`, deci comportamentul se scrie de mână.
+   */
+  useEffect(() => {
+    if (!mobilDeschis) return;
+    function laTasta(eveniment: KeyboardEvent): void {
+      if (eveniment.key === "Escape") setMobilDeschis(false);
+    }
+    window.addEventListener("keydown", laTasta);
+    return () => window.removeEventListener("keydown", laTasta);
+  }, [mobilDeschis]);
 
   const comuta = (): void => {
     const urmator = !colapsat;
@@ -104,8 +118,24 @@ export function Sidebar({
         aria-label="Meniu principal"
         className={cn(
           "bg-primary z-sertar fixed inset-y-0 left-0 flex w-64 flex-col border-r border-white/10",
-          "durata-lent transition-transform md:sticky md:top-0 md:h-dvh md:translate-x-0",
-          mobilDeschis ? "translate-x-0" : "-translate-x-full",
+          "durata-lent transition-[transform,visibility] md:sticky md:top-0 md:h-dvh md:translate-x-0",
+          /*
+            `invisible`, nu doar `-translate-x-full`. Translatat în afara
+            ecranului, sertarul rămâne în ordinea de tabulare: pe telefon,
+            Tab-ul de după antet parcurgea toate cele ~20 de destinații
+            invizibile înainte să ajungă la conținut, iar focusul „dispărea"
+            fără nicio explicație vizuală.
+
+            `visibility: hidden` scoate întregul subarbore din focus, spre
+            deosebire de `opacity` sau de transform, și se animă discret: cu
+            `visibility` în lista de tranziție, elementul rămâne vizibil pe
+            toată durata alunecării și abia apoi se stinge. `md:visible` îl
+            readuce pe laptop, unde railul e permanent.
+
+            Nu `inert`: acela n-are variantă responsivă, iar sub `md` și peste
+            el același element joacă două roluri diferite.
+          */
+          mobilDeschis ? "translate-x-0" : "invisible -translate-x-full md:visible",
           colapsat ? "md:w-16" : "md:w-64",
         )}
       >
@@ -137,7 +167,6 @@ export function Sidebar({
           <button
             type="button"
             onClick={comuta}
-            aria-pressed={colapsat}
             className="rounded-control text-corp flex w-full items-center gap-2 px-2 py-2 text-white/60 transition-colors hover:bg-white/5 hover:text-white"
           >
             {colapsat ? (
@@ -145,7 +174,16 @@ export function Sidebar({
             ) : (
               <PanelLeftClose className="size-4 shrink-0" aria-hidden />
             )}
-            <span className={colapsat ? "sr-only" : ""}>Restrânge meniul</span>
+            {/*
+              Eticheta urmează starea. Cu `aria-pressed={colapsat}` și un nume
+              fix, cititorul de ecran anunța „Restrânge meniul, apăsat" pentru
+              un buton care EXTINDE meniul — exact inversul acțiunii. Două nume
+              distincte sunt mai clare aici decât o stare apăsată, deci
+              `aria-pressed` a fost scos odată cu ambiguitatea.
+            */}
+            <span className={colapsat ? "sr-only" : ""}>
+              {colapsat ? "Extinde meniul" : "Restrânge meniul"}
+            </span>
           </button>
         </div>
       </aside>

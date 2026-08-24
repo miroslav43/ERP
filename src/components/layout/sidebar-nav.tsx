@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 
 import { cn } from "@/lib/ui/cn";
 
@@ -25,8 +25,36 @@ export type NavGroupView = Readonly<{
   items: readonly NavItemView[];
 }>;
 
-function esteActiv(cale: string, href: string): boolean {
+function potriveste(cale: string, href: string): boolean {
   return href === "/" ? cale === "/" : cale === href || cale.startsWith(`${href}/`);
+}
+
+/**
+ * Calea activă e A UNEI SINGURE intrări: cea cu cel mai lung `href` care se
+ * potrivește.
+ *
+ * Potrivirea pe prefix, luată intrare cu intrare, aprindea două rânduri
+ * deodată. Trei perechi din `NAV_ITEMS` sunt fiecare prefixul celeilalte:
+ * „Salarizare" (`/salarizare`) cu „Sporuri și prime" (`/salarizare/componente`)
+ * și cu „Popriri" (`/salarizare/popriri`). Pe `/salarizare/popriri` se
+ * randau două bare aurii una sub alta și — mai grav — DOUĂ elemente cu
+ * `aria-current="page"`, adică un cititor de ecran anunța două pagini curente
+ * pe același ecran.
+ *
+ * Nu se compară doar în interiorul grupului: „Salarizare" și „Popriri" sunt
+ * amândouă în „Financiar" azi, dar regula nu trebuie să depindă de asta.
+ */
+function hrefulActiv(groups: readonly NavGroupView[], cale: string): string | null {
+  let castigator: string | null = null;
+  for (const grup of groups) {
+    for (const element of grup.items) {
+      if (!potriveste(cale, element.href)) continue;
+      if (castigator === null || element.href.length > castigator.length) {
+        castigator = element.href;
+      }
+    }
+  }
+  return castigator;
 }
 
 /**
@@ -47,7 +75,21 @@ function esteActiv(cale: string, href: string): boolean {
  */
 export function SidebarNav({ groups }: { groups: readonly NavGroupView[] }) {
   const cale = usePathname();
-  const { colapsat } = useSidebar();
+  const { colapsat, setMobilDeschis } = useSidebar();
+  const activHref = useMemo(() => hrefulActiv(groups, cale), [groups, cale]);
+
+  /*
+   * Pe telefon, sertarul se închide la atingerea unei destinații. Nimic nu-l
+   * închidea: pagina cerută se încărca DEDESUBT, iar meniul rămânea peste ea —
+   * trebuia încă o atingere pe voal sau pe X ca să vezi ce ai cerut.
+   *
+   * Se închide de aici, din handlerul de clic, nu dintr-un `useEffect` pe
+   * `usePathname()`: regula `react-hooks/set-state-in-effect` (compilatorul
+   * React) interzice `setState` sincron în corpul unui efect, și pe bună
+   * dreptate — ar fi o randare în cascadă la fiecare navigare din tot produsul,
+   * ca să repare un caz care are un declanșator direct.
+   */
+  const laNavigare = (): void => setMobilDeschis(false);
 
   return (
     <nav aria-label="Navigare principală" className="flex flex-col gap-5">
@@ -63,7 +105,8 @@ export function SidebarNav({ groups }: { groups: readonly NavGroupView[] }) {
           </h2>
           <ul className="flex flex-col gap-0.5">
             {grup.items.map((element) => {
-              const activ = esteActiv(cale, element.href);
+              const activ = element.href === activHref;
+              const contor = element.badgeCount;
               return (
                 <li key={element.id} className="relative">
                   {/*
@@ -80,6 +123,7 @@ export function SidebarNav({ groups }: { groups: readonly NavGroupView[] }) {
                   ) : null}
                   <Link
                     href={element.href}
+                    onClick={laNavigare}
                     aria-current={activ ? "page" : undefined}
                     title={colapsat ? element.label : undefined}
                     className={cn(
@@ -93,14 +137,34 @@ export function SidebarNav({ groups }: { groups: readonly NavGroupView[] }) {
                     <span className={cn("min-w-0 flex-1 truncate", colapsat ? "md:sr-only" : "")}>
                       {element.label}
                     </span>
-                    {element.badgeCount !== undefined && element.badgeCount > 0 ? (
+                    {contor !== undefined && contor > 0 ? (
+                      /*
+                        Pastila NU e aurie, deși a fost. Două motive, în ordinea
+                        importanței:
+                        1. auriul marchează pagina curentă, la doi pixeli
+                           distanță, pe același rând — două lucruri cu același
+                           semnal înseamnă zero semnale;
+                        2. `docs/design/stari-de-interactiune.md:149` o interzice
+                           explicit („auriu în badge — niciodată").
+                        Cât timp `badges: {}` era literal gol, defectul nu se
+                        vedea. Insignele sunt cablate acum, deci se vede.
+
+                        Când railul e restrâns, cifra NU dispare: se mută peste
+                        pictogramă. O coadă de aprobat care se ascunde odată cu
+                        eticheta e o coadă pe care nimeni n-o mai golește, iar
+                        starea restrânsă e persistată în cookie — cine a
+                        restrâns o dată o găsește așa la fiecare sesiune.
+                      */
                       <span
                         className={cn(
-                          "bg-accent text-accent-foreground text-nota rounded-full px-1.5 font-mono font-semibold tabular-nums",
-                          colapsat ? "md:sr-only" : "",
+                          "text-nota shrink-0 rounded-full bg-white/15 px-1.5 font-mono font-semibold text-white tabular-nums",
+                          colapsat
+                            ? "md:absolute md:top-0.5 md:right-0.5 md:px-1 md:text-[0.625rem] md:leading-4"
+                            : "",
                         )}
                       >
-                        {element.badgeCount}
+                        {contor > 99 ? "99+" : contor}
+                        <span className="sr-only"> de rezolvat</span>
                       </span>
                     ) : null}
                   </Link>
@@ -113,6 +177,7 @@ export function SidebarNav({ groups }: { groups: readonly NavGroupView[] }) {
                           <li key={copil.id}>
                             <Link
                               href={copil.href}
+                              onClick={laNavigare}
                               aria-current={copilActiv ? "page" : undefined}
                               className={cn(
                                 "rounded-control text-corp block px-2 py-1.5 transition-colors",

@@ -1,5 +1,6 @@
 // src/components/audit/tabel-audit.tsx
 import { ShieldAlert } from "lucide-react";
+import { Fragment } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { comparaPayload, formateazaValoare } from "@/lib/audit/diff";
@@ -29,7 +30,11 @@ function Detaliu({ rand }: Readonly<{ rand: RandJurnal }>) {
   const modificari = comparaPayload(rand.before, rand.after);
   return (
     <details className="group">
-      <summary className="text-primary focus: rounded-control text-nota cursor-pointer list-none px-2 py-1 font-medium underline underline-offset-4">
+      {/* Clasa avea `focus:` fără niciun utilitar după prefix — reziduul unui
+          `sed` care a scos `focus-visible:outline-2`. Tailwind o ignoră tăcut,
+          deci rezumatul rămânea fără inel de focus. Se șterge: inelul vine din
+          regula globală `:focus-visible` din `globals.css`. */}
+      <summary className="text-primary rounded-control text-nota cursor-pointer list-none px-2 py-1 font-medium underline underline-offset-4">
         Vezi detaliile evenimentului
       </summary>
       <div className="border-border bg-background rounded-control mt-3 space-y-3 border p-3">
@@ -104,32 +109,64 @@ export function TabelAudit({ randuri, arataOrganizatia }: Props) {
         </caption>
         <thead className="bg-surface">
           <tr>
-            <th scope="col" className="text-muted-foreground text-nota px-3 py-2 font-semibold">
+            <th
+              scope="col"
+              className="text-eticheta text-foreground px-3 py-2 font-semibold tracking-wide uppercase"
+            >
               Moment (ora României)
             </th>
             {arataOrganizatia ? (
-              <th scope="col" className="text-muted-foreground text-nota px-3 py-2 font-semibold">
+              <th
+                scope="col"
+                className="text-eticheta text-foreground px-3 py-2 font-semibold tracking-wide uppercase"
+              >
                 Organizație
               </th>
             ) : null}
-            <th scope="col" className="text-muted-foreground text-nota px-3 py-2 font-semibold">
+            <th
+              scope="col"
+              className="text-eticheta text-foreground px-3 py-2 font-semibold tracking-wide uppercase"
+            >
               Autor
             </th>
-            <th scope="col" className="text-muted-foreground text-nota px-3 py-2 font-semibold">
+            <th
+              scope="col"
+              className="text-eticheta text-foreground px-3 py-2 font-semibold tracking-wide uppercase"
+            >
               Acțiune
             </th>
-            <th scope="col" className="text-muted-foreground text-nota px-3 py-2 font-semibold">
+            <th
+              scope="col"
+              className="text-eticheta text-foreground px-3 py-2 font-semibold tracking-wide uppercase"
+            >
               Entitate
             </th>
-            <th scope="col" className="text-muted-foreground text-nota px-3 py-2 font-semibold">
+            <th
+              scope="col"
+              className="text-eticheta text-foreground px-3 py-2 font-semibold tracking-wide uppercase"
+            >
               Rezultat
             </th>
           </tr>
         </thead>
         <tbody>
+          {/*
+            `<Fragment key>`, nu `<>`: forma scurtă NU acceptă `key`, iar
+            cheile de pe cele două `<tr>` dinăuntru nu contează — React
+            reconciliază lista după elementul ITERAT, adică după fragment, iar
+            un fragment fără cheie se identifică prin poziție.
+
+            Consecința se vede la filtrare și la paginare: `<details>` e
+            necontrolat, deci starea „deschis” trăiește în DOM. Cine deschide
+            detaliul evenimentului al treilea, apoi trece la pagina următoare,
+            găsește deschis detaliul al treilea de acolo — un eveniment pe care
+            nu l-a cerut, cu adresă IP și cod de eroare, într-un jurnal de
+            audit. Cu cheia pe fragment, React desface rândul vechi și îl
+            construiește pe cel nou închis.
+          */}
           {randuri.map((rand) => (
-            <>
-              <tr key={rand.id} className="border-border border-t">
+            <Fragment key={rand.id}>
+              <tr className="border-border border-t">
                 <td className={`${clasaCelula} whitespace-nowrap`}>
                   {formatDateTime(new Date(rand.createdAt))}
                 </td>
@@ -148,12 +185,12 @@ export function TabelAudit({ randuri, arataOrganizatia }: Props) {
                   <Badge ton={tonStatus(rand.status)}>{etichetaStatus(rand.status)}</Badge>
                 </td>
               </tr>
-              <tr key={`${rand.id}-detaliu`} className="border-border/50 border-t">
+              <tr className="border-border/50 border-t">
                 <td colSpan={numarColoane} className="px-3 pb-3">
                   <Detaliu rand={rand} />
                 </td>
               </tr>
-            </>
+            </Fragment>
           ))}
         </tbody>
       </table>

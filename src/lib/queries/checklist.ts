@@ -95,29 +95,56 @@ export async function listeazaInstante(
   const coloana = COLOANA_SORTARE_INSTANTA[sortare.cheie];
   const crescator = sortare.directie === "asc";
 
-  let interogare = db
-    .from("checklist_instances")
-    .select(
-      COLOANE_INSTANTA,
-      // `count: "exact"` pe aceeași interogare: numărătoarea respectă filtrele
-      // ȘI politicile RLS, fără un al doilea drum la bază.
-      { count: "exact" },
-    )
-    .eq("organization_id", organizationId)
-    .is("deleted_at", null)
+  /*
+   * ── DE CE NUMĂRĂTOAREA E O A DOUA INTEROGARE ──────────────────────────
+   * Aici stătea `count: "exact"` pe ACEEAȘI interogare, cu argumentul — corect
+   * în sine — că așa numărătoarea respectă filtrele ȘI politicile RLS, fără un
+   * al doilea drum la bază. Argumentul rata un lucru: predicatul KEYSET e și el
+   * un filtru, iar PostgREST n-are de unde ști că e „paginare”. Pus pe aceeași
+   * interogare, `count` numără doar ce a rămas DUPĂ cursor.
+   *
+   * Se vedea de la pagina a doua: `<Paginare>` scria „25 din 30 de rânduri”
+   * acolo unde erau 55, iar totalul SCĂDEA cu fiecare „mai departe”. Lista era
+   * corectă; doar numărul mințea, fără nicio eroare.
+   *
+   * Cele două interogări împart ACELEAȘI filtre, aplicate de aceeași funcție,
+   * ca să nu poată diverge; se deosebesc doar prin cursor, ordine și limită,
+   * care aparțin paginii, nu mulțimii. Merg în paralel, iar numărătoarea e
+   * `head: true`, deci nu aduce niciun rând.
+   */
+  /**
+   * Filtrele mulțimii, aplicate identic pe amândouă interogările.
+   *
+   * Generic peste constructorul de interogare, nu scris de două ori: două copii
+   * ar diverge la primul filtru adăugat, iar divergența s-ar vedea tocmai ca o
+   * numărătoare care nu se potrivește cu lista — defectul reparat aici.
+   */
+  const filtreaza = <
+    Q extends {
+      eq: (c: string, v: string) => Q;
+      is: (c: string, v: null) => Q;
+      in: (c: string, v: readonly string[]) => Q;
+      gte: (c: string, v: string) => Q;
+      lte: (c: string, v: string) => Q;
+    },
+  >(
+    q: Q,
+  ): Q => {
+    let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
+    if (filtre.tip !== null) cu = cu.eq("tip", filtre.tip);
+    if (filtre.status !== null && filtre.status.length > 0) cu = cu.in("status", filtre.status);
+    if (filtre.angajat !== null) cu = cu.eq("employee_id", filtre.angajat);
+    if (filtre.de_la !== null) cu = cu.gte("data_referinta", filtre.de_la);
+    if (filtre.pana_la !== null) cu = cu.lte("data_referinta", filtre.pana_la);
+    return cu;
+  };
+
+  let interogare = filtreaza(db.from("checklist_instances").select(COLOANE_INSTANTA))
     // Identificatorul e MEREU al doilea criteriu: data de referință nu e unică,
     // iar fără el paginarea poate sări sau repeta exact între rânduri egale.
     .order(coloana, { ascending: crescator, nullsFirst: false })
     .order("id", { ascending: crescator })
     .limit(filtre.limita + 1);
-
-  if (filtre.tip !== null) interogare = interogare.eq("tip", filtre.tip);
-  if (filtre.status !== null && filtre.status.length > 0) {
-    interogare = interogare.in("status", filtre.status);
-  }
-  if (filtre.angajat !== null) interogare = interogare.eq("employee_id", filtre.angajat);
-  if (filtre.de_la !== null) interogare = interogare.gte("data_referinta", filtre.de_la);
-  if (filtre.pana_la !== null) interogare = interogare.lte("data_referinta", filtre.pana_la);
 
   // Un cursor stricat înseamnă prima pagină, nu o eroare.
   const cursor = filtre.cursor === null ? null : decodificaCursor(filtre.cursor);
@@ -125,8 +152,14 @@ export async function listeazaInstante(
     interogare = interogare.or(predicatKeyset(coloana, cursor, sortare.directie));
   }
 
-  const { data, error, count } = await interogare.returns<RandInstanta[]>();
+  const [rezultat, numarare] = await Promise.all([
+    interogare.returns<RandInstanta[]>(),
+    filtreaza(db.from("checklist_instances").select("id", { count: "exact", head: true })),
+  ]);
+  const { data, error } = rezultat;
   if (error !== null) throw error;
+  if (numarare.error !== null) throw numarare.error;
+  const count = numarare.count;
 
   const toate = data ?? [];
   const areUrmatoarea = toate.length > filtre.limita;
@@ -401,17 +434,31 @@ export async function listeazaSabloane(
   const coloana = COLOANA_SORTARE_SABLON[sortare.cheie];
   const crescator = sortare.directie === "asc";
 
-  let interogare = db
-    .from("checklist_templates")
-    .select(COLOANE_SABLON, { count: "exact" })
-    .eq("organization_id", organizationId)
-    .is("deleted_at", null)
+  /**
+   * Filtrele mulțimii, aplicate identic pe amândouă interogările — vezi nota
+   * lungă din `listeazaInstante`: o numărătoare pusă pe interogarea care poartă
+   * și predicatul keyset numără doar rândurile rămase DUPĂ cursor, deci totalul
+   * scade cu fiecare „mai departe”.
+   */
+  const filtreaza = <
+    Q extends {
+      eq: (c: string, v: string) => Q;
+      is: (c: string, v: null) => Q;
+      ilike: (c: string, v: string) => Q;
+    },
+  >(
+    q: Q,
+  ): Q => {
+    let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
+    if (filtre.tip !== null) cu = cu.eq("tip", filtre.tip);
+    if (filtre.cauta !== null) cu = cu.ilike("denumire", `%${filtre.cauta}%`);
+    return cu;
+  };
+
+  let interogare = filtreaza(db.from("checklist_templates").select(COLOANE_SABLON))
     .order(coloana, { ascending: crescator, nullsFirst: false })
     .order("id", { ascending: crescator })
     .limit(filtre.limita + 1);
-
-  if (filtre.tip !== null) interogare = interogare.eq("tip", filtre.tip);
-  if (filtre.cauta !== null) interogare = interogare.ilike("denumire", `%${filtre.cauta}%`);
 
   // Un cursor stricat înseamnă prima pagină, nu o eroare.
   const cursor = filtre.cursor === null ? null : decodificaCursor(filtre.cursor);
@@ -419,8 +466,14 @@ export async function listeazaSabloane(
     interogare = interogare.or(predicatKeyset(coloana, cursor, sortare.directie));
   }
 
-  const { data, error, count } = await interogare.returns<RandSablon[]>();
+  const [rezultat, numarare] = await Promise.all([
+    interogare.returns<RandSablon[]>(),
+    filtreaza(db.from("checklist_templates").select("id", { count: "exact", head: true })),
+  ]);
+  const { data, error } = rezultat;
   if (error !== null) throw error;
+  if (numarare.error !== null) throw numarare.error;
+  const count = numarare.count;
 
   const toate = data ?? [];
   const areUrmatoarea = toate.length > filtre.limita;

@@ -1,10 +1,9 @@
 "use client";
 
-import { useId, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-
 import { IncarcareAvatar } from "@/components/forms/incarcare-avatar";
 import { Buton } from "@/components/ui/buton";
+import { Camp } from "@/components/ui/camp";
+import { Formular } from "@/components/ui/formular";
 import {
   actualizeazaProfilul,
   pregatesteIncarcareAvatarulPropriu,
@@ -23,60 +22,30 @@ interface ProprietatiFormularProfil {
  * fiindcă succesul unuia nu trebuie să depindă de completarea celuilalt, iar
  * un submit accidental pe Enter în câmpul de nume nu trebuie să încerce să
  * schimbe și parola.
+ *
+ * ── CE S-A SCHIMBAT ȘI DE CE ──────────────────────────────────────────────
+ * Ambele formulare erau `useTransition` + `<form action={fn}>` cu câmpuri
+ * necontrolate. React 19 cere resetarea formularului după ce acțiunea se
+ * încheie — INDIFERENT dacă a reușit sau a eșuat. Consecința măsurabilă: un om
+ * își schimba numele afișat, greșea telefonul, primea „Textul nu poate depăși
+ * 30 de caractere." și găsea ambele câmpuri întoarse la valorile de dinainte.
+ * Munca lui dispărea din cauza unei erori de validare.
+ *
+ * `<Formular>` ține rezultatul prin `useActionState` și predă înapoi
+ * `valoriTrimise`, deci după reset câmpurile își reiau exact conținutul trimis.
+ *
+ * A doua pierdere era a MESAJULUI. `schimbaParola` întoarce
+ * `fieldErrors.confirma_parola = ["Parolele nu coincid."]` (vezi
+ * `schemas/profile.ts:32-34`), iar ecranul afișa `error.message`, adică
+ * „Datele introduse nu sunt valide.” — propoziția exactă exista pe fir și se
+ * arunca. `<Camp erori>` o pune lângă câmpul vinovat și o leagă prin
+ * `aria-describedby`.
  */
 export function FormularProfil({
   numeInitial,
   telefonInitial,
   avatarUrlInitial,
 }: ProprietatiFormularProfil) {
-  const router = useRouter();
-  const [inCursDate, porniDate] = useTransition();
-  const [eroareDate, setEroareDate] = useState<string | null>(null);
-  const [reusitDate, setReusitDate] = useState(false);
-  const idNume = useId();
-  const idTelefon = useId();
-
-  const [inCursParola, porniParola] = useTransition();
-  const [eroareParola, setEroareParola] = useState<string | null>(null);
-  const [reusitParola, setReusitParola] = useState(false);
-  const idParolaNoua = useId();
-  const idConfirmaParola = useId();
-
-  function trimiteDate(formular: FormData): void {
-    setEroareDate(null);
-    setReusitDate(false);
-    const telefon = String(formular.get("phone") ?? "").trim();
-    porniDate(async () => {
-      const rezultat = await actualizeazaProfilul({
-        full_name: String(formular.get("full_name") ?? ""),
-        phone: telefon.length === 0 ? null : telefon,
-      });
-      if (!rezultat.ok) {
-        setEroareDate(rezultat.error.message);
-        return;
-      }
-      setReusitDate(true);
-      router.refresh();
-    });
-  }
-
-  function trimiteParola(formular: FormData): void {
-    setEroareParola(null);
-    setReusitParola(false);
-    porniParola(async () => {
-      const rezultat = await schimbaParola({
-        parola_noua: String(formular.get("parola_noua") ?? ""),
-        confirma_parola: String(formular.get("confirma_parola") ?? ""),
-      });
-      if (!rezultat.ok) {
-        setEroareParola(rezultat.error.message);
-        return;
-      }
-      setReusitParola(true);
-      (document.getElementById(idParolaNoua) as HTMLInputElement | null)?.form?.reset();
-    });
-  }
-
   return (
     <div className="space-y-6">
       <div className="border-border rounded-panou border p-4">
@@ -88,109 +57,120 @@ export function FormularProfil({
         />
       </div>
 
-      <form
-        action={trimiteDate}
-        className="border-border rounded-panou grid gap-4 border p-4 sm:grid-cols-2"
+      <Formular
+        className="border-border rounded-panou border p-4"
+        mesajReusita="Datele au fost actualizate."
+        actiune={async (date) => {
+          const telefon = String(date.get("phone") ?? "").trim();
+          return actualizeazaProfilul({
+            full_name: String(date.get("full_name") ?? ""),
+            // Telefonul gol se trimite ca `null`, nu ca "": schema îl
+            // normalizează oricum, dar trimițând `null` explicit ecranul și
+            // baza spun același lucru despre „lipsește”.
+            phone: telefon.length === 0 ? null : telefon,
+          });
+        }}
       >
-        <p className="text-corp font-medium sm:col-span-2">Date de contact</p>
+        {({ inCurs, erori, valoriTrimise }) => (
+          <>
+            <p className="text-corp font-medium">Date de contact</p>
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor={idNume} className="text-corp">
-            Nume afișat
-          </label>
-          <input
-            id={idNume}
-            name="full_name"
-            required
-            maxLength={200}
-            defaultValue={numeInitial}
-            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-          />
-        </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Camp
+                nume="full_name"
+                eticheta="Nume afișat"
+                obligatoriu
+                {...(erori["full_name"] === undefined ? {} : { erori: erori["full_name"] })}
+              >
+                {(a) => (
+                  <input
+                    {...a}
+                    maxLength={200}
+                    autoComplete="name"
+                    defaultValue={valoriTrimise["full_name"] ?? numeInitial}
+                  />
+                )}
+              </Camp>
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor={idTelefon} className="text-corp">
-            Telefon
-          </label>
-          <input
-            id={idTelefon}
-            name="phone"
-            type="tel"
-            maxLength={30}
-            defaultValue={telefonInitial ?? ""}
-            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-          />
-        </div>
+              <Camp
+                nume="phone"
+                eticheta="Telefon"
+                {...(erori["phone"] === undefined ? {} : { erori: erori["phone"] })}
+              >
+                {(a) => (
+                  <input
+                    {...a}
+                    type="tel"
+                    maxLength={30}
+                    autoComplete="tel"
+                    defaultValue={valoriTrimise["phone"] ?? telefonInitial ?? ""}
+                  />
+                )}
+              </Camp>
+            </div>
 
-        <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
-          <Buton varianta="primar" type="submit" inCurs={inCursDate} textInCurs="Se salvează…">
-            Salvează datele
-          </Buton>
-          {eroareDate === null ? null : (
-            <p role="alert" className="text-danger text-corp">
-              {eroareDate}
-            </p>
-          )}
-          {reusitDate ? (
-            <p role="status" className="text-foreground text-corp">
-              Datele au fost actualizate.
-            </p>
-          ) : null}
-        </div>
-      </form>
+            <div>
+              <Buton varianta="primar" type="submit" inCurs={inCurs} textInCurs="Se salvează…">
+                Salvează datele
+              </Buton>
+            </div>
+          </>
+        )}
+      </Formular>
 
-      <form
-        action={trimiteParola}
-        className="border-border rounded-panou grid gap-4 border p-4 sm:grid-cols-2"
+      <Formular
+        className="border-border rounded-panou border p-4"
+        mesajReusita="Parola a fost schimbată."
+        actiune={async (date) =>
+          schimbaParola({
+            parola_noua: String(date.get("parola_noua") ?? ""),
+            confirma_parola: String(date.get("confirma_parola") ?? ""),
+          })
+        }
       >
-        <p className="text-corp font-medium sm:col-span-2">Schimbă parola</p>
+        {({ inCurs, erori }) => (
+          <>
+            <p className="text-corp font-medium">Schimbă parola</p>
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor={idParolaNoua} className="text-corp">
-            Parolă nouă
-          </label>
-          <input
-            id={idParolaNoua}
-            name="parola_noua"
-            type="password"
-            required
-            minLength={8}
-            autoComplete="new-password"
-            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-          />
-        </div>
+            {/*
+              Aici NU se restaurează `valoriTrimise`, spre deosebire de
+              formularul de deasupra. O parolă întoarsă în `defaultValue` ar
+              ajunge într-un atribut din DOM, vizibil oricui inspectează pagina
+              sau face o captură a arborelui; iar retastarea unei parole e
+              gestul normal după o greșeală, nu o pierdere de muncă. Golirea
+              după trimitere e aici efectul dorit, nu defectul.
+            */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Camp
+                nume="parola_noua"
+                eticheta="Parolă nouă"
+                obligatoriu
+                ajutor="Cel puțin 8 caractere."
+                {...(erori["parola_noua"] === undefined ? {} : { erori: erori["parola_noua"] })}
+              >
+                {(a) => <input {...a} type="password" minLength={8} autoComplete="new-password" />}
+              </Camp>
 
-        <div className="flex flex-col gap-1">
-          <label htmlFor={idConfirmaParola} className="text-corp">
-            Confirmă parola
-          </label>
-          <input
-            id={idConfirmaParola}
-            name="confirma_parola"
-            type="password"
-            required
-            minLength={8}
-            autoComplete="new-password"
-            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-          />
-        </div>
+              <Camp
+                nume="confirma_parola"
+                eticheta="Confirmă parola"
+                obligatoriu
+                {...(erori["confirma_parola"] === undefined
+                  ? {}
+                  : { erori: erori["confirma_parola"] })}
+              >
+                {(a) => <input {...a} type="password" minLength={8} autoComplete="new-password" />}
+              </Camp>
+            </div>
 
-        <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
-          <Buton varianta="secundar" type="submit" inCurs={inCursParola} textInCurs="Se schimbă…">
-            Schimbă parola
-          </Buton>
-          {eroareParola === null ? null : (
-            <p role="alert" className="text-danger text-corp">
-              {eroareParola}
-            </p>
-          )}
-          {reusitParola ? (
-            <p role="status" className="text-foreground text-corp">
-              Parola a fost schimbată.
-            </p>
-          ) : null}
-        </div>
-      </form>
+            <div>
+              <Buton varianta="secundar" type="submit" inCurs={inCurs} textInCurs="Se schimbă…">
+                Schimbă parola
+              </Buton>
+            </div>
+          </>
+        )}
+      </Formular>
     </div>
   );
 }

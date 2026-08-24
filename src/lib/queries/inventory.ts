@@ -144,16 +144,51 @@ export async function listeazaObiecte(
   const coloana = COLOANA_SORTARE[sortare.cheie];
   const crescator = sortare.directie === "asc";
 
-  let interogare = db
-    .from("inventory_items")
-    .select(
-      COLOANE_LISTA,
-      // `count: "exact"` pe aceeași interogare: numărătoarea respectă filtrele
-      // ȘI politicile RLS, fără un al doilea drum la bază care le-ar putea
-      // aplica altfel.
-      { count: "exact" },
-    )
-    .eq("organization_id", organizationId)
+  /*
+   * ── DE CE NUMĂRĂTOAREA E O A DOUA INTEROGARE ──────────────────────────
+   * Aici stătea `count: "exact"` pe ACEEAȘI interogare, cu argumentul — corect
+   * în sine — că așa numărătoarea respectă filtrele ȘI politicile RLS din
+   * 0010/0016/0019, fără un al doilea drum la bază. Argumentul rata un lucru:
+   * predicatul KEYSET e și el un filtru, iar PostgREST n-are de unde ști că e
+   * „paginare”. Pus pe aceeași interogare, `count` numără doar ce a rămas DUPĂ
+   * cursor.
+   *
+   * Consecința se vedea de la pagina a doua: `<Paginare>` scria „25 din 30 de
+   * rânduri” acolo unde erau 55, iar totalul scădea cu fiecare „mai departe”.
+   * O cifră greșită fără nicio eroare — lista rămânea corectă.
+   *
+   * Cele două interogări împart ACELEAȘI filtre, aplicate de aceeași funcție,
+   * ca să nu poată diverge; se deosebesc doar prin cursor, ordine și limită,
+   * care aparțin paginii, nu mulțimii. Merg în paralel, iar numărătoarea e
+   * `head: true`, deci nu aduce niciun rând.
+   */
+  /**
+   * Filtrele mulțimii, aplicate identic pe amândouă interogările.
+   *
+   * Generic peste constructorul de interogare, nu scris de două ori: două copii
+   * ar diverge la primul filtru adăugat, iar divergența s-ar vedea tocmai ca o
+   * numărătoare care nu se potrivește cu lista — defectul reparat aici.
+   */
+  const filtreaza = <
+    Q extends {
+      eq: (c: string, v: string) => Q;
+      ilike: (c: string, v: string) => Q;
+    },
+  >(
+    q: Q,
+  ): Q => {
+    let cu = q.eq("organization_id", organizationId);
+    if (filtre.status !== null) cu = cu.eq("status", filtre.status);
+    if (filtre.stare !== null) cu = cu.eq("stare", filtre.stare);
+    if (filtre.category_id !== null) cu = cu.eq("category_id", filtre.category_id);
+    // Filtre separate, NU `.or(...)`: textul utilizatorului nu se interpolează
+    // niciodată în sintaxa `or=()`.
+    if (filtre.q !== null) cu = cu.ilike("denumire", `%${filtre.q}%`);
+    if (filtre.numar !== null) cu = cu.ilike("numar_inventar", `%${filtre.numar}%`);
+    return cu;
+  };
+
+  let interogare = filtreaza(db.from("inventory_items").select(COLOANE_LISTA))
     // Identificatorul e MEREU al doilea criteriu: nici denumirea, nici numărul
     // de inventar nu sunt unice pe organizație, iar fără el ordinea dintre două
     // rânduri egale e nedefinită — exact acolo poate paginarea să sară.
@@ -161,21 +196,19 @@ export async function listeazaObiecte(
     .order("id", { ascending: crescator })
     .limit(filtre.limita + 1);
 
-  if (filtre.status !== null) interogare = interogare.eq("status", filtre.status);
-  if (filtre.stare !== null) interogare = interogare.eq("stare", filtre.stare);
-  if (filtre.category_id !== null) interogare = interogare.eq("category_id", filtre.category_id);
-  // Filtre separate, NU `.or(...)`: textul utilizatorului nu se interpolează
-  // niciodată în sintaxa `or=()`.
-  if (filtre.q !== null) interogare = interogare.ilike("denumire", `%${filtre.q}%`);
-  if (filtre.numar !== null) interogare = interogare.ilike("numar_inventar", `%${filtre.numar}%`);
-
   const cursor = filtre.cursor === null ? null : decodificaKeyset(filtre.cursor);
   if (cursor !== null) {
     interogare = interogare.or(predicatKeyset(coloana, cursor, sortare.directie));
   }
 
-  const { data, error, count } = await interogare.returns<RandInventar[]>();
+  const [rezultat, numarare] = await Promise.all([
+    interogare.returns<RandInventar[]>(),
+    filtreaza(db.from("inventory_items").select("id", { count: "exact", head: true })),
+  ]);
+  const { data, error } = rezultat;
   if (error !== null) throw error;
+  if (numarare.error !== null) throw numarare.error;
+  const count = numarare.count;
 
   const toate = data ?? [];
   const areUrmatoarea = toate.length > filtre.limita;

@@ -398,13 +398,40 @@ export async function fiseAptitudine(
   const coloana = COLOANA_SORTARE_FISE[sortare.cheie];
   const crescator = sortare.directie === "asc";
 
-  let interogare = db
-    .from("occupational_health_exams")
-    // `count: "exact"` pe aceeași interogare: numărătoarea respectă filtrele ȘI
-    // politicile RLS, fără un al doilea drum la bază care le-ar putea aplica altfel.
-    .select(COLOANE_FISA, { count: "exact" })
-    .eq("organization_id", organizationId)
-    .is("deleted_at", null)
+  /*
+   * ── DE CE NUMĂRĂTOAREA E O A DOUA INTEROGARE ───────────────────────────
+   * Numărătoarea exactă stătea pe ACEEAȘI interogare, cu argumentul — corect
+   * în sine — că așa respectă filtrele ȘI politicile RLS, fără un al doilea
+   * drum la bază. Argumentul rata un lucru: predicatul KEYSET e și el un
+   * filtru, iar PostgREST n-are de unde ști că unul dintre filtre e
+   * „paginare”. Pusă pe interogarea de date, numărătoarea numără doar
+   * rândurile rămase DUPĂ cursor.
+   *
+   * Consecința se vedea de la pagina a doua: `<Paginare>` scria „25 din 30 de
+   * rânduri” acolo unde erau 55, iar totalul scădea cu fiecare „mai departe”.
+   * Lista era corectă; doar numărul mințea, fără nicio eroare.
+   *
+   * Cele două interogări împart ACELEAȘI filtre, aplicate de aceeași funcție:
+   * două copii ar diverge la primul filtru adăugat, iar divergența s-ar vedea
+   * tocmai ca o numărătoare care nu se potrivește cu lista — defectul reparat
+   * aici. Se deosebesc doar prin cursor, ordine și limită, care aparțin
+   * paginii, nu mulțimii. Merg în paralel, iar numărătoarea nu aduce niciun
+   * rând (`head: true`).
+   */
+  const filtreaza = <
+    Q extends {
+      eq: (c: string, v: string) => Q;
+      is: (c: string, v: null) => Q;
+    },
+  >(
+    q: Q,
+  ): Q => {
+    let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
+    if (filtre.rezultat !== null) cu = cu.eq("rezultat", filtre.rezultat);
+    return cu;
+  };
+
+  let interogare = filtreaza(db.from("occupational_health_exams").select(COLOANE_FISA))
     // Identificatorul e MEREU al doilea criteriu: data examinării nu e unică,
     // iar fără el ordinea dintre două fișe din aceeași zi e nedefinită, deci
     // paginarea poate sări sau repeta exact acolo.
@@ -412,15 +439,19 @@ export async function fiseAptitudine(
     .order("id", { ascending: crescator })
     .limit(filtre.limita + 1);
 
-  if (filtre.rezultat !== null) interogare = interogare.eq("rezultat", filtre.rezultat);
-
   const cursor = filtre.cursor === null ? null : decodificaCursor(filtre.cursor);
   if (cursor !== null) {
     interogare = interogare.or(predicatKeyset(coloana, cursor, sortare.directie));
   }
 
-  const { data, error, count } = await interogare.returns<RandFisa[]>();
+  const [rezultat, numarare] = await Promise.all([
+    interogare.returns<RandFisa[]>(),
+    filtreaza(db.from("occupational_health_exams").select("id", { count: "exact", head: true })),
+  ]);
+  const { data, error } = rezultat;
   if (error !== null) throw error;
+  if (numarare.error !== null) throw numarare.error;
+  const count = numarare.count;
 
   const toate = data ?? [];
   const areUrmatoarea = toate.length > filtre.limita;
@@ -521,25 +552,40 @@ export async function accidente(
   const coloana = COLOANA_SORTARE_ACCIDENTE[sortare.cheie];
   const crescator = sortare.directie === "asc";
 
-  let interogare = db
-    .from("work_accidents")
-    .select(COLOANE_ACCIDENT, { count: "exact" })
-    .eq("organization_id", organizationId)
-    .is("deleted_at", null)
+  /** Filtrele mulțimii, aplicate identic pe amândouă interogările — vezi `fiseAptitudine`. */
+  const filtreaza = <
+    Q extends {
+      eq: (c: string, v: string) => Q;
+      is: (c: string, v: null) => Q;
+    },
+  >(
+    q: Q,
+  ): Q => {
+    let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
+    if (filtre.tip !== null) cu = cu.eq("tip", filtre.tip);
+    if (filtre.necomunicate !== null) cu = cu.is("comunicat_la_itm_la", null);
+    return cu;
+  };
+
+  let interogare = filtreaza(db.from("work_accidents").select(COLOANE_ACCIDENT))
     .order(coloana, { ascending: crescator, nullsFirst: false })
     .order("id", { ascending: crescator })
     .limit(filtre.limita + 1);
-
-  if (filtre.tip !== null) interogare = interogare.eq("tip", filtre.tip);
-  if (filtre.necomunicate !== null) interogare = interogare.is("comunicat_la_itm_la", null);
 
   const cursor = filtre.cursor === null ? null : decodificaCursor(filtre.cursor);
   if (cursor !== null) {
     interogare = interogare.or(predicatKeyset(coloana, cursor, sortare.directie));
   }
 
-  const { data, error, count } = await interogare.returns<RandAccident[]>();
+  // Numărătoarea NU poartă cursorul: e a mulțimii filtrate, nu a paginii.
+  const [rezultat, numarare] = await Promise.all([
+    interogare.returns<RandAccident[]>(),
+    filtreaza(db.from("work_accidents").select("id", { count: "exact", head: true })),
+  ]);
+  const { data, error } = rezultat;
   if (error !== null) throw error;
+  if (numarare.error !== null) throw numarare.error;
+  const count = numarare.count;
 
   const toate = data ?? [];
   const areUrmatoarea = toate.length > filtre.limita;
@@ -669,35 +715,52 @@ export async function stingatoare(
   const coloana = COLOANA_SORTARE_STINGATOARE[sortare.cheie];
   const crescator = sortare.directie === "asc";
 
-  let interogare = db
-    .from("fire_extinguishers")
-    .select(COLOANE_STINGATOR, { count: "exact" })
-    .eq("organization_id", organizationId)
-    .is("deleted_at", null)
+  /** Filtrele mulțimii, aplicate identic pe amândouă interogările — vezi `fiseAptitudine`. */
+  const filtreaza = <
+    Q extends {
+      eq: (c: string, v: string) => Q;
+      neq: (c: string, v: string) => Q;
+      is: (c: string, v: null) => Q;
+      ilike: (c: string, v: string) => Q;
+    },
+  >(
+    q: Q,
+  ): Q => {
+    let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
+    // Casatele ies din listă cât timp nu sunt cerute EXPLICIT prin filtru.
+    //
+    // `contorStingatoare` le exclude de la bun început (`.neq` mai jos, în acest
+    // fișier), lista nu le excludea — iar cele trei scadențe li se evaluau ca
+    // oricărui alt stingător. Rezultatul se vedea pe același ecran: panoul spunea
+    // „3 verificări scadente”, lista deschisă din el arăta cinci rânduri
+    // „Expirat”, două dintre ele pe stingătoare scoase din uz acum doi ani. Un
+    // stingător casat nu mai are obligație de verificare; a-l număra printre
+    // restanțe e o cifră greșită fără nicio eroare.
+    if (filtre.status !== null) cu = cu.eq("status", filtre.status);
+    else cu = cu.neq("status", "casat");
+    if (filtre.cauta !== null) cu = cu.ilike("cod", `%${filtre.cauta}%`);
+    return cu;
+  };
+
+  let interogare = filtreaza(db.from("fire_extinguishers").select(COLOANE_STINGATOR))
     .order(coloana, { ascending: crescator, nullsFirst: false })
     .order("id", { ascending: crescator })
     .limit(filtre.limita + 1);
-
-  // Casatele ies din listă cât timp nu sunt cerute EXPLICIT prin filtru.
-  //
-  // `contorStingatoare` le exclude de la bun început (`.neq` mai jos, în acest
-  // fișier), lista nu le excludea — iar cele trei scadențe li se evaluau ca
-  // oricărui alt stingător. Rezultatul se vedea pe același ecran: panoul spunea
-  // „3 verificări scadente", lista deschisă din el arăta cinci rânduri
-  // „Expirat", două dintre ele pe stingătoare scoase din uz acum doi ani. Un
-  // stingător casat nu mai are obligație de verificare; a-l număra printre
-  // restanțe e o cifră greșită fără nicio eroare.
-  if (filtre.status !== null) interogare = interogare.eq("status", filtre.status);
-  else interogare = interogare.neq("status", "casat");
-  if (filtre.cauta !== null) interogare = interogare.ilike("cod", `%${filtre.cauta}%`);
 
   const cursor = filtre.cursor === null ? null : decodificaCursor(filtre.cursor);
   if (cursor !== null) {
     interogare = interogare.or(predicatKeyset(coloana, cursor, sortare.directie));
   }
 
-  const { data, error, count } = await interogare.returns<RandStingator[]>();
+  // Numărătoarea NU poartă cursorul: e a mulțimii filtrate, nu a paginii.
+  const [rezultat, numarare] = await Promise.all([
+    interogare.returns<RandStingator[]>(),
+    filtreaza(db.from("fire_extinguishers").select("id", { count: "exact", head: true })),
+  ]);
+  const { data, error } = rezultat;
   if (error !== null) throw error;
+  if (numarare.error !== null) throw numarare.error;
+  const count = numarare.count;
 
   const toate = data ?? [];
   const areUrmatoarea = toate.length > filtre.limita;
@@ -807,11 +870,22 @@ export async function eip(organizationId: string, filtre: FiltreEip): Promise<Re
   const coloana = COLOANA_SORTARE_EIP[sortare.cheie];
   const crescator = sortare.directie === "asc";
 
-  let interogare = db
-    .from("ppe_issuances")
-    .select(COLOANE_EIP, { count: "exact" })
-    .eq("organization_id", organizationId)
-    .is("deleted_at", null)
+  /**
+   * Filtrele mulțimii, aplicate identic pe amândouă interogările — vezi
+   * `fiseAptitudine`. Lista n-are azi niciun filtru din URL, dar funcția
+   * rămâne locul lor: adăugat pe o singură ramură, un filtru ar face
+   * numărătoarea să nu se mai potrivească cu lista, tăcut.
+   */
+  const filtreaza = <
+    Q extends {
+      eq: (c: string, v: string) => Q;
+      is: (c: string, v: null) => Q;
+    },
+  >(
+    q: Q,
+  ): Q => q.eq("organization_id", organizationId).is("deleted_at", null);
+
+  let interogare = filtreaza(db.from("ppe_issuances").select(COLOANE_EIP))
     .order(coloana, { ascending: crescator, nullsFirst: false })
     .order("id", { ascending: crescator })
     .limit(filtre.limita + 1);
@@ -821,8 +895,15 @@ export async function eip(organizationId: string, filtre: FiltreEip): Promise<Re
     interogare = interogare.or(predicatKeyset(coloana, cursor, sortare.directie));
   }
 
-  const { data, error, count } = await interogare.returns<RandEip[]>();
+  // Numărătoarea NU poartă cursorul: e a mulțimii filtrate, nu a paginii.
+  const [rezultat, numarare] = await Promise.all([
+    interogare.returns<RandEip[]>(),
+    filtreaza(db.from("ppe_issuances").select("id", { count: "exact", head: true })),
+  ]);
+  const { data, error } = rezultat;
   if (error !== null) throw error;
+  if (numarare.error !== null) throw numarare.error;
+  const count = numarare.count;
 
   const toate = data ?? [];
   const areUrmatoarea = toate.length > filtre.limita;

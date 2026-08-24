@@ -191,17 +191,58 @@ export async function listeazaAngajati(intrare: IntrareListare): Promise<Rezulta
   const coloana = COLOANA_SORTARE[sortare.cheie];
   const crescator = sortare.directie === "asc";
 
-  let interogare = db
-    .from("employees")
-    .select(
-      `id, marca, full_name, status, hired_on, is_primary, user_id, ${EMBED_DEPARTAMENT}, ${EMBED_FUNCTIE}`,
-      // `count: "exact"` pe aceeași interogare: numărătoarea respectă filtrele
-      // ȘI politicile RLS, fără un al doilea drum la bază care le-ar putea
-      // aplica altfel.
-      { count: "exact" },
-    )
-    .eq("organization_id", organizationId)
-    .is("deleted_at", null)
+  /*
+   * ── DE CE NUMĂRĂTOAREA E O A DOUA INTEROGARE ──────────────────────────
+   * Aici stătea `count: "exact"` pe ACEEAȘI interogare, cu argumentul —
+   * corect în sine — că așa numărătoarea respectă filtrele și politicile RLS.
+   * Argumentul rata un lucru: predicatul KEYSET e și el un filtru. Pus pe
+   * aceeași interogare, `count` numără doar ce a rămas DUPĂ cursor.
+   *
+   * Consecința se vedea de la pagina a doua: `<Paginare>` scria „25 din 30 de
+   * rânduri" acolo unde erau 55, iar totalul scădea cu fiecare „mai departe".
+   * O cifră greșită fără nicio eroare — exact clasa pe care restul stratului o
+   * vânează.
+   *
+   * Cele două interogări împart ACELEAȘI filtre, aplicate de aceeași funcție,
+   * ca să nu poată diverge; se deosebesc doar prin cursor, ordine și limită,
+   * care aparțin paginii, nu mulțimii. Merg în paralel, iar numărătoarea e
+   * `head: true`, deci nu aduce niciun rând.
+   */
+  /**
+   * Filtrele mulțimii, aplicate identic pe amândouă interogările.
+   *
+   * Generic peste constructorul de interogare, nu scris de două ori: două copii
+   * ar diverge la primul filtru adăugat, iar divergența s-ar vedea tocmai ca o
+   * numărătoare care nu se potrivește cu lista — defectul reparat aici.
+   */
+  const filtreaza = <
+    Q extends {
+      eq: (c: string, v: string) => Q;
+      is: (c: string, v: null) => Q;
+      ilike: (c: string, v: string) => Q;
+      contains: (c: string, v: readonly string[]) => Q;
+    },
+  >(
+    q: Q,
+  ): Q => {
+    let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
+    if (scope === "own" && propriaFisaId !== null) cu = cu.eq("id", propriaFisaId);
+    else if (scope === "team" && propriaFisaId !== null)
+      cu = cu.contains("manager_path", [propriaFisaId]);
+    if (filtre.q !== null) cu = cu.ilike("full_name", `%${filtre.q}%`);
+    if (filtre.department_id !== null) cu = cu.eq("department_id", filtre.department_id);
+    if (filtre.job_position_id !== null) cu = cu.eq("job_position_id", filtre.job_position_id);
+    if (filtre.status !== null) cu = cu.eq("status", filtre.status);
+    return cu;
+  };
+
+  let interogare = filtreaza(
+    db
+      .from("employees")
+      .select(
+        `id, marca, full_name, status, hired_on, is_primary, user_id, ${EMBED_DEPARTAMENT}, ${EMBED_FUNCTIE}`,
+      ),
+  )
     // Identificatorul e MEREU al doilea criteriu: numele nu e unic, iar fără el
     // ordinea dintre doi omonimi e nedefinită, deci paginarea poate sări sau
     // repeta exact acolo.
@@ -209,26 +250,19 @@ export async function listeazaAngajati(intrare: IntrareListare): Promise<Rezulta
     .order("id", { ascending: crescator })
     .limit(filtre.limita + 1);
 
-  if (scope === "own" && propriaFisaId !== null) {
-    interogare = interogare.eq("id", propriaFisaId);
-  } else if (scope === "team" && propriaFisaId !== null) {
-    interogare = interogare.contains("manager_path", [propriaFisaId]);
-  }
-
-  if (filtre.q !== null) interogare = interogare.ilike("full_name", `%${filtre.q}%`);
-  if (filtre.department_id !== null)
-    interogare = interogare.eq("department_id", filtre.department_id);
-  if (filtre.job_position_id !== null)
-    interogare = interogare.eq("job_position_id", filtre.job_position_id);
-  if (filtre.status !== null) interogare = interogare.eq("status", filtre.status);
-
   const cursor = filtre.cursor === null ? null : decodificaKeyset(filtre.cursor);
   if (cursor !== null) {
     interogare = interogare.or(predicatKeyset(coloana, cursor, sortare.directie));
   }
 
-  const { data, error, count } = await interogare.returns<RandAngajatBrut[]>();
+  const [rezultat, numarare] = await Promise.all([
+    interogare.returns<RandAngajatBrut[]>(),
+    filtreaza(db.from("employees").select("id", { count: "exact", head: true })),
+  ]);
+  const { data, error } = rezultat;
   if (error !== null) throw error;
+  if (numarare.error !== null) throw numarare.error;
+  const count = numarare.count;
 
   const toate = data ?? [];
   const areUrmatoarea = toate.length > filtre.limita;

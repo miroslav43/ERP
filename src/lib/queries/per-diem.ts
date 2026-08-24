@@ -357,17 +357,44 @@ export async function listeazaDeplasari(
   const coloana = COLOANA_SORTARE_DEPLASARE[sortare.cheie];
   const crescator = sortare.directie === "asc";
 
-  let interogare = db
-    .from("business_trips")
-    .select(
-      COLOANE_DEPLASARE,
-      // `count: "exact"` pe aceeași interogare: numărătoarea respectă filtrele
-      // ȘI politicile RLS, fără un al doilea drum la bază care le-ar putea
-      // aplica altfel.
-      { count: "exact" },
-    )
-    .eq("organization_id", organizationId)
-    .is("deleted_at", null)
+  /*
+   * ── DE CE NUMĂRĂTOAREA E O A DOUA INTEROGARE ──────────────────────────
+   * Aici stătea `count: "exact"` pe ACEEAȘI interogare, cu argumentul — corect
+   * în sine — că așa numărătoarea respectă filtrele ȘI politicile RLS, fără un
+   * al doilea drum la bază. Argumentul rata un lucru: predicatul KEYSET e și el
+   * un filtru, iar PostgREST n-are de unde ști că e „paginare”. Pus pe aceeași
+   * interogare, `count` numără doar ce a rămas DUPĂ cursor.
+   *
+   * Se vedea de la pagina a doua: `<Paginare>` scria „25 din 30 de rânduri”
+   * acolo unde erau 55, iar totalul SCĂDEA cu fiecare „mai departe”. Lista era
+   * corectă; doar numărul mințea, fără nicio eroare.
+   *
+   * Cele două interogări împart ACELEAȘI filtre, aplicate de aceeași funcție,
+   * ca să nu poată diverge; se deosebesc doar prin cursor, ordine și limită,
+   * care aparțin paginii, nu mulțimii. Merg în paralel, iar numărătoarea e
+   * `head: true`, deci nu aduce niciun rând.
+   */
+  /**
+   * Filtrele mulțimii, aplicate identic pe amândouă interogările.
+   *
+   * Generic peste constructorul de interogare, nu scris de două ori: două copii
+   * ar diverge la primul filtru adăugat, iar divergența s-ar vedea tocmai ca o
+   * numărătoare care nu se potrivește cu lista — defectul reparat aici.
+   */
+  const filtreaza = <
+    Q extends {
+      eq: (c: string, v: string) => Q;
+      is: (c: string, v: null) => Q;
+    },
+  >(
+    q: Q,
+  ): Q => {
+    let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
+    if (filtre.status !== null) cu = cu.eq("status", filtre.status);
+    return cu;
+  };
+
+  let interogare = filtreaza(db.from("business_trips").select(COLOANE_DEPLASARE))
     // Identificatorul e MEREU al doilea criteriu: nici scopul, nici data
     // plecării nu sunt unice, iar fără el ordinea dintre două rânduri egale e
     // nedefinită, deci paginarea poate sări sau repeta exact acolo.
@@ -375,16 +402,20 @@ export async function listeazaDeplasari(
     .order("id", { ascending: crescator })
     .limit(filtre.limita + 1);
 
-  if (filtre.status !== null) interogare = interogare.eq("status", filtre.status);
-
   // Un cursor stricat înseamnă prima pagină, nu o eroare.
   const cursor = filtre.cursor === null ? null : decodificaCursor(filtre.cursor);
   if (cursor !== null) {
     interogare = interogare.or(predicatKeyset(coloana, cursor, sortare.directie));
   }
 
-  const { data, error, count } = await interogare.returns<RandDeplasare[]>();
+  const [rezultat, numarare] = await Promise.all([
+    interogare.returns<RandDeplasare[]>(),
+    filtreaza(db.from("business_trips").select("id", { count: "exact", head: true })),
+  ]);
+  const { data, error } = rezultat;
   if (error !== null) throw error;
+  if (numarare.error !== null) throw numarare.error;
+  const count = numarare.count;
 
   const toate = data ?? [];
   const areUrmatoarea = toate.length > filtre.limita;

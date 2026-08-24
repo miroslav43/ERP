@@ -18,6 +18,7 @@ import {
 } from "@/lib/queries/ticketing";
 import { fisaProprie } from "@/lib/queries/portal";
 import { tranzitiiOferite, type StatusTichet } from "@/domain/ticketing/stari";
+import type { Prioritate } from "@/domain/ticketing/prioritate";
 
 import {
   ETICHETE_CAMP,
@@ -27,7 +28,14 @@ import {
   TONURI_PRIORITATE,
   TONURI_STATUS,
 } from "../etichete";
-import { DecizieCerere, FormularComentariu, Macrouri, SchimbaStatus } from "./actiuni-tichet";
+import {
+  DecizieCerere,
+  FormularComentariu,
+  Macrouri,
+  PrioritateManuala,
+  Repartizare,
+  SchimbaStatus,
+} from "./actiuni-tichet";
 
 export const metadata: Metadata = { title: "Tichet" };
 
@@ -43,6 +51,55 @@ function Rand({ eticheta, valoare }: Readonly<{ eticheta: string; valoare: strin
       <dd className="text-foreground text-corp text-right">{valoare}</dd>
     </div>
   );
+}
+
+/**
+ * Traducerea unei valori din `ticket_history`.
+ *
+ * Istoricul scria valorile BRUTE din bază — „din «in_lucru» în «in_asteptare»",
+ * „din «normala» în «critica»" — deși hărțile de traducere sunt importate în
+ * chiar acest fișier și folosite la trei rânduri distanță, pe pastilele din
+ * antet. Numele CÂMPULUI era deja tradus prin `ETICHETE_CAMP`; valoarea lui, nu.
+ * Un câmp necunoscut (adăugat de o migrare mai nouă decât ecranul) își păstrează
+ * valoarea brută: mai bine ceva de citit decât un gol.
+ */
+function traduValoare(camp: string, valoare: string): string {
+  if (camp === "status") return ETICHETE_STATUS[valoare as StatusTichet] ?? valoare;
+  if (camp === "prioritate") return ETICHETE_PRIORITATE[valoare as Prioritate] ?? valoare;
+  return valoare;
+}
+
+/**
+ * Contextul de diagnostic al unui bug, citit din `tickets.context` (jsonb).
+ *
+ * ── DE CE ERA NEVĂZUT DE NIMENI ───────────────────────────────────────────────
+ * Formularul de tichet nou îl capturează SINGUR pentru `bug_erp`
+ * (`nou/formular-tichet.tsx:79-88`): adresa paginii, user agent-ul și versiunea
+ * aplicației, cu comentariul „angajatul nu trebuie să știe ce e un user agent".
+ * Se validează în `tichetBugSchema`, se scrie în bază — și nu se afișa nicăieri.
+ * Cine primea raportul de bug nu vedea nici pe ce ecran s-a întâmplat, nici pe
+ * ce versiune, adică exact cele două lucruri pe care angajatul nu le poate
+ * spune singur.
+ *
+ * Citirea e apărată: `context` e `Json | null` în tipuri, deci poate fi orice —
+ * un obiect scris de o versiune mai veche a formularului, sau un vector. O
+ * formă neașteptată nu are voie să dărâme fișa tichetului.
+ */
+function contextDiagnostic(
+  brut: unknown,
+): readonly Readonly<{ eticheta: string; valoare: string }>[] {
+  if (brut === null || typeof brut !== "object" || Array.isArray(brut)) return [];
+  const inregistrare = brut as Record<string, unknown>;
+  const campuri = [
+    ["Adresa paginii", "url"],
+    ["Browser", "user_agent"],
+    ["Versiunea aplicației", "versiune"],
+  ] as const;
+
+  return campuri.flatMap(([eticheta, cheie]) => {
+    const valoare = inregistrare[cheie];
+    return typeof valoare === "string" && valoare !== "" ? [{ eticheta, valoare }] : [];
+  });
 }
 
 export default async function PaginaTichet({ params }: ProprietatiPagina) {
@@ -84,6 +141,7 @@ export default async function PaginaTichet({ params }: ProprietatiPagina) {
   const drepturi = { esteSolicitant, poateAproba, poateOpera };
   const optiuni = tranzitiiOferite(tichet.status as StatusTichet, drepturi);
   const asteaptaDecizia = tichet.status === "in_aprobare" && poateAproba;
+  const diagnostic = contextDiagnostic(tichet.context);
 
   return (
     <div className={cn(LATIMI.detaliu, "space-y-6")}>
@@ -181,9 +239,52 @@ export default async function PaginaTichet({ params }: ProprietatiPagina) {
             }
           />
         </dl>
+
+        {/* Contextul de diagnostic e pentru cine repară, nu pentru cine
+            raportează: solicitantul l-a produs fără să știe, iar pentru el n-ar
+            fi decât zgomot. */}
+        {poateOpera && diagnostic.length > 0 ? (
+          <div className="border-border mt-4 border-t pt-4">
+            <h3 className="text-foreground text-corp font-medium">Context de diagnostic</h3>
+            <p className="text-muted-foreground text-nota mt-1">
+              Capturat automat de aplicație la trimiterea raportului.
+            </p>
+            <dl className="mt-2">
+              {diagnostic.map((camp) => (
+                <Rand key={camp.eticheta} eticheta={camp.eticheta} valoare={camp.valoare} />
+              ))}
+            </dl>
+          </div>
+        ) : null}
       </section>
 
       <SchimbaStatus ticketId={tichet.id} optiuni={optiuni} />
+
+      {/* Repartizarea și prioritatea sunt acțiunile operatorului, nu ale
+          solicitantului: amândouă cer `tickets:update = all`, exact ce verifică
+          `poateOpera`. Baza le verifică din nou la scriere. */}
+      {poateOpera && (
+        <section
+          aria-labelledby="titlu-operare"
+          className="border-border bg-surface rounded-panou space-y-4 border p-4"
+        >
+          <h2 id="titlu-operare" className="text-foreground text-corp font-semibold">
+            Operare
+          </h2>
+          <Repartizare
+            ticketId={tichet.id}
+            propriaFisaId={fisa?.id ?? null}
+            asignatId={tichet.asignat_employee_id}
+            numeAsignat={tichet.asignat?.full_name ?? null}
+          />
+          <PrioritateManuala
+            ticketId={tichet.id}
+            prioritateCurenta={tichet.prioritate}
+            manuala={tichet.prioritate_manuala === true}
+            motivCurent={tichet.prioritate_motiv}
+          />
+        </section>
+      )}
 
       {/* Macro-urile mută starea, deci se arată doar cui are dreptul s-o mute. */}
       {poateOpera && <Macrouri ticketId={tichet.id} />}
@@ -230,8 +331,12 @@ export default async function PaginaTichet({ params }: ProprietatiPagina) {
             {istoric.map((intrare) => (
               <li key={intrare.id}>
                 {formatDateTime(intrare.created_at)} · {ETICHETE_CAMP[intrare.camp] ?? intrare.camp}
-                {intrare.valoare_veche === null ? "" : ` — din „${intrare.valoare_veche}”`}
-                {intrare.valoare_noua === null ? "" : ` în „${intrare.valoare_noua}”`}
+                {intrare.valoare_veche === null
+                  ? ""
+                  : ` — din „${traduValoare(intrare.camp, intrare.valoare_veche)}”`}
+                {intrare.valoare_noua === null
+                  ? ""
+                  : ` în „${traduValoare(intrare.camp, intrare.valoare_noua)}”`}
                 {intrare.motiv === null ? "" : ` (${intrare.motiv})`}
               </li>
             ))}

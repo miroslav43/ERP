@@ -14,6 +14,7 @@ import type { PermissionMap } from "@/lib/auth/permissions";
 import { createServerSupabase } from "@/lib/supabase/server";
 
 import { numarAngajatiActivi } from "./announcements";
+import { citesteTot } from "./citeste-tot";
 import { numarScadenteMentenanta } from "./maintenance";
 import { numarScadenteSsm } from "./ssm";
 
@@ -55,6 +56,14 @@ export type CoadaPanou = Readonly<{
   deplasari: Contor;
   foiParcurs: Contor;
   tichete: Contor;
+  /**
+   * Anomaliile de kilometraj stăteau printre scadențe, deși n-au termen: un
+   * contor de kilometraj sărit înapoi nu expiră, așteaptă pe cineva să confirme
+   * sau să respingă. Locul lui e coada, care se golește — și, mai important, se
+   * NUMĂRĂ: în `scadente` nu era citit de nicio componentă, deci interogarea se
+   * făcea la fiecare încărcare de panou și rezultatul se arunca.
+   */
+  anomaliiKm: Contor;
 }>;
 
 /** Ce are termen. `lipsa` e o treaptă proprie, mai gravă decât „expiră curând”. */
@@ -63,7 +72,6 @@ export type ScadentePanou = Readonly<{
   mentenanta: Contor;
   documenteFlota: Contor;
   vehiculeFaraDocumente: Contor;
-  anomaliiKm: Contor;
   contracteDeterminate: Contor;
 }>;
 
@@ -192,7 +200,22 @@ export async function numarScadenteFlota(
   const db = await createServerSupabase();
   const limita = peste(pragZile);
 
-  const [expiraRes, vehiculeRes, cuDocumenteRes] = await Promise.all([
+  /*
+   * Cele două liste trec prin `citesteTot`, nu prin `.limit()`.
+   *
+   * Erau `.limit(1000)` pe vehicule și `.limit(5000)` pe documente. Al doilea
+   * era o cifră fără efect: `max_rows = 1000` (supabase/config.toml:18) taie
+   * răspunsul la o mie ORICÂT ar cere clientul, și o face TĂCUT — fără eroare
+   * și fără antet. Consecința nu era o cifră lipsă, ci una INVENTATĂ: mulțimea
+   * `cuDocumente` ieșea incompletă, iar fiecare vehicul ale cărui documente
+   * căzuseră dincolo de a mia poziție era raportat drept „fără niciun
+   * document" — cartela roșie de pe panou, pentru vehicule în regulă.
+   *
+   * Primul prag e la 1000 de documente curente, adică pe la ~250 de vehicule cu
+   * ITP, RCA, asigurare și copie conformă. Bucla nu costă nimic sub prag: se
+   * oprește la prima pagină incompletă.
+   */
+  const [expiraRes, vehicule, documente] = await Promise.all([
     db
       .from("vehicle_documents")
       .select("id", { count: "exact", head: true })
@@ -201,27 +224,43 @@ export async function numarScadenteFlota(
       .eq("este_curent", true)
       .not("expira_la", "is", null)
       .lte("expira_la", limita),
-    db
-      .from("vehicles")
-      .select("id")
-      .eq("organization_id", organizationId)
-      .is("deleted_at", null)
-      .limit(1000),
-    db
-      .from("vehicle_documents")
-      .select("vehicle_id")
-      .eq("organization_id", organizationId)
-      .is("deleted_at", null)
-      .eq("este_curent", true)
-      .limit(5000),
+    citesteTot<{ id: string }>(
+      (dupa, pas) => {
+        const q = db
+          .from("vehicles")
+          .select("id")
+          .eq("organization_id", organizationId)
+          .is("deleted_at", null);
+        return (dupa === null ? q : q.gt("id", dupa))
+          .order("id", { ascending: true })
+          .limit(pas)
+          .returns<{ id: string }[]>();
+      },
+      (v) => v.id,
+      { nume: "vehicule" },
+    ),
+    citesteTot<{ id: string; vehicle_id: string }>(
+      (dupa, pas) => {
+        const q = db
+          .from("vehicle_documents")
+          .select("id, vehicle_id")
+          .eq("organization_id", organizationId)
+          .is("deleted_at", null)
+          .eq("este_curent", true);
+        return (dupa === null ? q : q.gt("id", dupa))
+          .order("id", { ascending: true })
+          .limit(pas)
+          .returns<{ id: string; vehicle_id: string }[]>();
+      },
+      (d) => d.id,
+      { nume: "documente de vehicul" },
+    ),
   ]);
 
   if (expiraRes.error !== null) throw expiraRes.error;
-  if (vehiculeRes.error !== null) throw vehiculeRes.error;
-  if (cuDocumenteRes.error !== null) throw cuDocumenteRes.error;
 
-  const cuDocumente = new Set((cuDocumenteRes.data ?? []).map((d) => d.vehicle_id));
-  const faraDocumente = (vehiculeRes.data ?? []).filter((v) => !cuDocumente.has(v.id)).length;
+  const cuDocumente = new Set(documente.map((d) => d.vehicle_id));
+  const faraDocumente = vehicule.filter((v) => !cuDocumente.has(v.id)).length;
 
   return { expira: expiraRes.count ?? 0, faraDocumente };
 }
@@ -272,6 +311,12 @@ export async function contorContracteCareExpira(
  * nu fac două persoane. `count: "exact"` nu poate face `distinct`, deci se
  * aduc identificatorii — volumul e mărginit de numărul de concedii active
  * într-o singură zi, nu de istoricul lor.
+ *
+ * Lista trece totuși prin `citesteTot`: avea `.limit(1000)`, adică exact
+ * plafonul `max_rows` al PostgREST, deci prima organizație care depășea pragul
+ * ar fi primit o cifră tăiată fără nicio eroare — și tăiată în jos, ceea ce pe
+ * un panou arată ca „mai puțină lume în concediu", cea mai liniștitoare formă a
+ * unei cifre greșite.
  */
 export async function stareFirmeiAzi(organizationId: string): Promise<FirmaAzi> {
   const db = await createServerSupabase();
@@ -279,15 +324,24 @@ export async function stareFirmeiAzi(organizationId: string): Promise<FirmaAzi> 
 
   const [activi, concedii, departamente, functii] = await Promise.all([
     numarAngajatiActivi(organizationId),
-    db
-      .from("leave_requests")
-      .select("employee_id")
-      .eq("organization_id", organizationId)
-      .is("deleted_at", null)
-      .eq("status", "aprobata")
-      .lte("data_inceput", azi)
-      .gte("data_sfarsit", azi)
-      .limit(1000),
+    citesteTot<{ id: string; employee_id: string }>(
+      (dupa, pas) => {
+        const q = db
+          .from("leave_requests")
+          .select("id, employee_id")
+          .eq("organization_id", organizationId)
+          .is("deleted_at", null)
+          .eq("status", "aprobata")
+          .lte("data_inceput", azi)
+          .gte("data_sfarsit", azi);
+        return (dupa === null ? q : q.gt("id", dupa))
+          .order("id", { ascending: true })
+          .limit(pas)
+          .returns<{ id: string; employee_id: string }[]>();
+      },
+      (c) => c.id,
+      { nume: "concedii active azi" },
+    ),
     db
       .from("departments")
       .select("id", { count: "exact", head: true })
@@ -300,13 +354,12 @@ export async function stareFirmeiAzi(organizationId: string): Promise<FirmaAzi> 
       .is("deleted_at", null),
   ]);
 
-  if (concedii.error !== null) throw concedii.error;
   if (departamente.error !== null) throw departamente.error;
   if (functii.error !== null) throw functii.error;
 
   return {
     angajatiActivi: activi,
-    inConcediu: new Set((concedii.data ?? []).map((c) => c.employee_id)).size,
+    inConcediu: new Set(concedii.map((c) => c.employee_id)).size,
     departamente: departamente.count ?? 0,
     functii: functii.count ?? 0,
   };
@@ -353,7 +406,20 @@ function areModul(porti: Porti, cheie: FeatureKey): boolean {
  * în regulă”. `null` spune „nu se aplică”, ceea ce e altceva.
  */
 export async function contoarePanou(organizationId: string, porti: Porti): Promise<ContoarePanou> {
-  const vedeConcedii = areModul(porti, "leave") && are(porti, "leave:read", "all");
+  /*
+   * Poarta era `leave:read = all`, iar asta ținea rândul de concedii ascuns
+   * exact rolului a cărui treabă principală e: `manager` are `leave` pe `team`
+   * (0002_authz.sql:1179 — `{read,approve}`), deci nu atingea pragul, iar
+   * panoul îi spunea „Nimic nu așteaptă semnătura dumneavoastră" în timp ce
+   * cererile echipei lui stăteau netrimise mai departe.
+   *
+   * Pragul coboară la `team`, iar cifra rămâne corectă pentru fiecare rol fără
+   * niciun filtru de aplicație: politica `leave_requests_select` (0009:987) dă
+   * managerului cererile subordonaților (`app.is_manager_of`) și celorlalți tot
+   * ce le revine, iar `count: "exact"` trece prin ACEEAȘI politică. Numărul e
+   * deci întotdeauna „câte văd eu", nu „câte există".
+   */
+  const vedeConcedii = areModul(porti, "leave") && are(porti, "leave:read", "team");
   const vedePontaj = areModul(porti, "attendance") && are(porti, "attendance:approve", "team");
   const vedeDiurna = areModul(porti, "per_diem") && are(porti, "per_diem:approve", "team");
   const vedeFoi = areModul(porti, "fleet") && are(porti, "trip_sheets:approve", "team");
@@ -362,6 +428,16 @@ export async function contoarePanou(organizationId: string, porti: Porti): Promi
   const vedeSsm = areModul(porti, "ssm") && are(porti, "ssm:read", "all");
   const vedeMentenanta = areModul(porti, "maintenance") && are(porti, "maintenance:read", "team");
   const vedeFlota = areModul(porti, "fleet") && are(porti, "vehicles:read", "team");
+  /*
+   * Anomaliile de kilometraj au poartă PROPRIE, mai strictă decât restul flotei:
+   * `/flota/anomalii` se închide pe `vehicles:update = team`
+   * (`flota/anomalii/page.tsx:145`), nu pe `vehicles:read`. Cu poarta comună,
+   * cine avea doar drept de citire primea pe panou un rând care îl trimitea
+   * într-un `AccesRestricționat` — exact defectul pentru care panoul vechi a
+   * fost rescris. Regula fișierului: contorul se derivă din aceeași logică ca
+   * lista către care duce, iar poarta face parte din logică.
+   */
+  const vedeAnomalii = areModul(porti, "fleet") && are(porti, "vehicles:update", "team");
   const vedeContracte = are(porti, "employees:read", "all");
 
   const [
@@ -392,7 +468,7 @@ export async function contoarePanou(organizationId: string, porti: Porti): Promi
     // cifre diferite, fără nicio eroare. Contractele de mai jos RĂMÂN pe pragul
     // de panou: nu sunt documente de vehicul, e altă scadență.
     vedeFlota ? numarScadenteFlota(organizationId, PRAG_FLOTA_AVERTIZARE_ZILE) : null,
-    vedeFlota ? contorAnomaliiKm(organizationId) : null,
+    vedeAnomalii ? contorAnomaliiKm(organizationId) : null,
     vedeContracte ? contorContracteCareExpira(organizationId, PRAG_PANOU_ZILE) : null,
     stareFirmeiAzi(organizationId),
   ]);
@@ -403,6 +479,7 @@ export async function contoarePanou(organizationId: string, porti: Porti): Promi
     deplasari,
     foiParcurs,
     tichete,
+    anomaliiKm: anomalii,
   };
 
   return {
@@ -412,7 +489,6 @@ export async function contoarePanou(organizationId: string, porti: Porti): Promi
       mentenanta,
       documenteFlota: flota === null ? null : flota.expira,
       vehiculeFaraDocumente: flota === null ? null : flota.faraDocumente,
-      anomaliiKm: anomalii,
       contracteDeterminate: contracte,
     },
     firma,

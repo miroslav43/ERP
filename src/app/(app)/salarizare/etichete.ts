@@ -1,14 +1,28 @@
 // src/app/(app)/salarizare/etichete.ts
 import type { TonStare } from "@/components/ui/badge";
+import type { Enums } from "@/types/database";
 
-type StatusPerioada = "draft" | "calculat" | "aprobat" | "inchis";
+/**
+ * Uniunea se ia din tipurile bazei, nu se rescrie de mână. Rescrisă, ea era o
+ * A DOUA definiție a lui `payroll_period_status`, care putea rămâne în urmă
+ * fără ca nimic s-o observe.
+ */
+type StatusPerioada = Enums<"payroll_period_status">;
 
-export const ETICHETE_STATUS_PERIOADA: Record<string, string> = {
+/**
+ * Tipul declarat rămâne larg (`Record<string, string>`) ca `?? p.status` din
+ * `salarizare/page.tsx:64` să rămână o ramură vie când baza o ia înaintea
+ * tipurilor generate; `satisfies` de dedesubt cere însă la COMPILARE un cuvânt
+ * românesc pentru fiecare valoare a enumului. Fără el, o stare nouă ajungea pe
+ * ecran ca identificator brut de Postgres — „in_recalculare” — fără nicio
+ * eroare nicăieri.
+ */
+export const ETICHETE_STATUS_PERIOADA: Readonly<Record<string, string>> = {
   draft: "Ciornă",
   calculat: "Calculat",
   aprobat: "Aprobat",
   inchis: "Închis",
-};
+} satisfies Readonly<Record<StatusPerioada, string>>;
 
 export const TONURI_STATUS_PERIOADA: Readonly<Record<StatusPerioada, TonStare>> = {
   draft: "ciorna",

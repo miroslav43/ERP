@@ -8,6 +8,7 @@ import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
+import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import type { PermissionScope } from "@/config/permissions";
@@ -15,10 +16,11 @@ import { requireUser } from "@/lib/auth/current-user";
 import { idFisaProprie } from "@/lib/queries/employees";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { listeazaTichete } from "@/lib/queries/ticketing";
+import { limitaDinUrl, listeazaTichete } from "@/lib/queries/ticketing";
 import { filtreTicheteSchema } from "@/schemas/ticketing";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 
+import { adresaCu } from "./adresa";
 import { TabelTichete } from "./tabel-tichete";
 
 export const metadata: Metadata = { title: "Tichetele mele" };
@@ -65,9 +67,15 @@ async function ListaMea({
     faraFisa = propriaFisaId === null;
   }
 
-  const { randuri } = faraFisa
-    ? { randuri: [] }
-    : await listeazaTichete(organizationId, filtre, undefined, propriaFisaId);
+  const cursor = typeof parametri["cursor"] === "string" ? parametri["cursor"] : null;
+  const limita = limitaDinUrl(parametri["limita"]);
+  // Paginarea era CALCULATĂ de stratul de citiri și aruncată aici, la
+  // destructurare: `listeazaTichete` întorcea „mai sunt rânduri", nimeni nu
+  // primea cursorul, iar al douăzeci și șaselea tichet al unui om nu se putea
+  // deschide din nicio listă.
+  const { randuri, urmatorulCursor, total } = faraFisa
+    ? { randuri: [], urmatorulCursor: null, total: 0 }
+    : await listeazaTichete(organizationId, filtre, cursor, propriaFisaId, limita);
 
   if (faraFisa) {
     // Un `org_admin` care nu e și angajat n-are fișă de personal, deci n-are cum
@@ -90,11 +98,29 @@ async function ListaMea({
         pictograma={LifeBuoy}
         titlu="Niciun tichet deschis"
         descriere="Când ai nevoie de software, de un echipament, ți s-a stricat ceva sau ai găsit o problemă în aplicație, deschide un tichet."
+        actiune={{ eticheta: "Deschide un tichet", href: "/ticketing/nou" }}
       />
     );
   }
 
-  return <TabelTichete randuri={randuri} />;
+  return (
+    <div className="flex flex-col gap-4">
+      <TabelTichete randuri={randuri} />
+      <Paginare
+        afisate={randuri.length}
+        total={total}
+        cursorUrmator={urmatorulCursor}
+        limita={limita}
+        construiesteHref={({ cursor: nou, limita: marime }) =>
+          adresaCu("/ticketing", parametri, (p) => {
+            p.set("limita", String(marime));
+            if (nou === null) p.delete("cursor");
+            else p.set("cursor", nou);
+          })
+        }
+      />
+    </div>
+  );
 }
 
 export default async function PaginaTichetelorMele({ searchParams }: ProprietatiPagina) {

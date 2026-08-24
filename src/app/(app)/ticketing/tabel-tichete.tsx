@@ -14,8 +14,9 @@ import {
 
 /**
  * Tabelul e același pe „Tichetele mele” și pe „Coada echipei”; diferă doar ce
- * întoarce RLS-ul pentru fiecare. `aratSolicitantul` e singura deosebire de
- * afișare: în lista proprie, coloana ar repeta același nume pe fiecare rând.
+ * întoarce RLS-ul pentru fiecare. `aratSolicitantul` și `aratAsignatul` sunt
+ * singurele deosebiri de afișare: în lista proprie, prima coloană ar repeta
+ * același nume pe fiecare rând, iar a doua nu-l privește pe solicitant.
  *
  * Fără `sortare`: paginarea tichetelor are cursor, dar el trăiește în cele două
  * pagini care folosesc componenta, nu aici, iar `listeazaTichete` ordonează
@@ -25,12 +26,37 @@ import {
 export function TabelTichete({
   randuri,
   aratSolicitantul = false,
-}: Readonly<{ randuri: readonly RandTichet[]; aratSolicitantul?: boolean }>) {
+  aratAsignatul = false,
+}: Readonly<{
+  randuri: readonly RandTichet[];
+  aratSolicitantul?: boolean;
+  aratAsignatul?: boolean;
+}>) {
   const coloanaSolicitant: Coloana<RandTichet> = {
     cheie: "solicitant",
     antet: "Solicitant",
     peTelefon: "meta",
     celula: (tichet) => tichet.solicitant?.full_name ?? "—",
+  };
+
+  /*
+   * `asignat` era CITIT de `listeazaTichete` — e în `COLOANE_LISTA`, cu embed
+   * pe cheia străină, și în tipul `RandTichet` — și nu apărea în niciun tabel.
+   * Pe coadă, asta însemna că un operator nu putea deosebi tichetele lui de ale
+   * colegului, nici pe cele nerepartizate de restul: exact întrebarea pentru
+   * care se deschide ecranul. „Nerepartizat" e scris ca atare, nu „—": e o
+   * stare de lucru, nu o valoare lipsă.
+   */
+  const coloanaAsignat: Coloana<RandTichet> = {
+    cheie: "asignat",
+    antet: "Asignat",
+    peTelefon: "meta",
+    celula: (tichet) =>
+      tichet.asignat === null ? (
+        <span className="text-muted-foreground">Nerepartizat</span>
+      ) : (
+        tichet.asignat.full_name
+      ),
   };
 
   const coloane: readonly Coloana<RandTichet>[] = [
@@ -54,6 +80,7 @@ export function TabelTichete({
       celula: (tichet) => tichet.titlu,
     },
     ...(aratSolicitantul ? [coloanaSolicitant] : []),
+    ...(aratAsignatul ? [coloanaAsignat] : []),
     {
       cheie: "prioritate",
       antet: "Prioritate",

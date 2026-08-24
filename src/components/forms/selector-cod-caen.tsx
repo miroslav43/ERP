@@ -315,7 +315,13 @@ export function SelectorCodCaenSecundare({
               setAvertisment(undefined);
             }
           }}
-          className={CLASA_CAMP + (laLimita ? " cursor-not-allowed opacity-60" : "")}
+          /* `opacity-60` scris de mână măsura 4,34:1 pe textul câmpului, sub
+             pragul de 4,5:1 — starea „limită atinsă” era mai greu de citit
+             tocmai când trebuie citită. Inputul are deja `disabled={laLimita}`,
+             iar `clasaControl()` aduce setul canonic
+             (`disabled:bg-surface disabled:text-muted-foreground`, 5,08:1) fără
+             nicio clasă condiționată aici. */
+          className={CLASA_CAMP}
         />
         {deschis && !laLimita && (
           <ListaRezultate

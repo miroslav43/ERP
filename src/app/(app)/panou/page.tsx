@@ -12,6 +12,7 @@ import { RUTA_ALEGE_ORGANIZATIA, RUTA_AUTENTIFICARE } from "@/config/routes";
 import { can } from "@/lib/auth/permissions";
 import { getEnabledFeatures } from "@/lib/auth/features";
 import { getPermissionMap } from "@/lib/auth/permissions";
+import { buildNavigation } from "@/lib/navigation/build-navigation";
 import { contoarePanouPentru, PRAG_PANOU_ZILE, type ContoarePanou } from "@/lib/queries/panou";
 import { resolveTenant } from "@/lib/tenant/resolve-tenant";
 
@@ -60,13 +61,24 @@ function coadaDinContoare(c: ContoarePanou): readonly IntrareCoada[] {
   const intrari: IntrareCoada[] = [];
 
   if (coada.cereriConcediu !== null && coada.cereriConcediu > 0) {
+    /*
+     * Rândul ducea la `/concedii/aprobari`, dar contorul nu numără același
+     * lucru: ecranul acela listează sarcinile atribuite MIE
+     * (`deAprobat` filtrează `approval_tasks.approver_user_id = userId`), în
+     * timp ce cifra numără CERERILE în curs pe care le văd, oricine ar fi
+     * aprobatorul lor. Un `org_admin` care nu e în lanțul de aprobare citea
+     * „5 cereri" și deschidea un ecran gol — contorul nu urma lista, exact
+     * defectul pe care `queries/panou.ts` îl interzice în capul fișierului.
+     * Acum duce la lista filtrată pe aceleași stări, prin aceeași politică
+     * RLS, deci cifra și rândurile nu se mai pot contrazice.
+     */
     intrari.push({
       cheie: "concedii",
       numar: coada.cereriConcediu,
       titlu: "Cereri de concediu care așteaptă o decizie",
       detaliu: coada.cereriConcediu === 1 ? "cerere trimisă" : "cereri trimise",
-      href: "/concedii/aprobari",
-      actiune: "Aprobă",
+      href: "/concedii?status=trimisa,in_aprobare",
+      actiune: "Deschide",
     });
   }
   if (coada.saptamaniPontaj !== null && coada.saptamaniPontaj > 0) {
@@ -107,6 +119,24 @@ function coadaDinContoare(c: ContoarePanou): readonly IntrareCoada[] {
       detaliu: coada.tichete === 1 ? "tichet" : "tichete",
       href: "/ticketing/coada",
       actiune: "Deschide",
+    });
+  }
+  /*
+   * Anomaliile de kilometraj erau citite la fiecare încărcare de panou și
+   * aruncate: `contorAnomaliiKm` intra în `Promise.all`, ajungea în
+   * `scadente.anomaliiKm` și nicio componentă nu-l citea. Un drum la bază pe
+   * fiecare afișare, pentru o cifră care nu apărea nicăieri — și, în același
+   * timp, singurul semnal că cineva a scris un kilometraj imposibil rămânea
+   * invizibil până când intra cineva anume în `/flota/anomalii`.
+   */
+  if (coada.anomaliiKm !== null && coada.anomaliiKm > 0) {
+    intrari.push({
+      cheie: "anomalii",
+      numar: coada.anomaliiKm,
+      titlu: "Anomalii de kilometraj neconfirmate",
+      detaliu: coada.anomaliiKm === 1 ? "citire de contor" : "citiri de contor",
+      href: "/flota/anomalii",
+      actiune: "Verifică",
     });
   }
   return intrari;
@@ -206,10 +236,41 @@ export default async function PanouPage() {
       ? scadente.vehiculeFaraDocumente
       : null;
 
+  /*
+   * ── SCURTĂTURILE VIN DIN MENIU, NU DINTR-O A DOUA HARTĂ ───────────────────
+   * Erau construite doar din modulele ACTIVE pe firmă, cu rutele scrise într-un
+   * tabel local. Modulul activ nu înseamnă însă că omul are voie înăuntru: un
+   * `manager` n-are niciun `vehicles:*` (CLAUDE.md), deci vedea scurtătura
+   * „Parc auto" și lovea `AccesRestricționat` la `/flota` — în timp ce bara
+   * laterală i-o ascundea corect, fiindcă ea trece prin `buildNavigation`.
+   * Panoul și meniul spuneau lucruri diferite despre același drept.
+   *
+   * Acum trec amândouă prin aceeași funcție și aceeași sursă (`NAV_ITEMS`), deci
+   * nu mai pot diverge; ruta fiecărei scurtături e chiar `href`-ul intrării de
+   * meniu, iar tabelul local de rute a dispărut. Se ia PRIMA intrare vizibilă a
+   * modulului: `buildNavigation` întoarce grupurile în ordinea lor și intrările
+   * sortate după `order`, deci „prima" e cea mai de sus din meniu, nu una la
+   * întâmplare.
+   */
+  const navigatie = buildNavigation({ features: module, permissions: permisiuni });
+  const rutaVizibilaPeModul = new Map<FeatureKey, string>();
+  for (const grup of navigatie) {
+    for (const item of grup.items) {
+      if (item.featureKey === null || rutaVizibilaPeModul.has(item.featureKey)) continue;
+      rutaVizibilaPeModul.set(item.featureKey, item.href);
+    }
+  }
+
   const scurtaturi = [...module]
     .filter((cheie): cheie is FeatureKey => cheie !== "nucleu" && cheie !== "employee_portal")
-    .map((cheie) => ({ cheie, meta: FEATURES[cheie] }))
-    .filter((m) => m.meta !== undefined)
+    .flatMap((cheie) => {
+      const meta = FEATURES[cheie];
+      const href = rutaVizibilaPeModul.get(cheie);
+      // `undefined` = modul pornit pe firmă, dar niciun ecran al lui deschis
+      // pentru rolul acesta. O scurtătură către un refuz e mai rea decât una
+      // absentă.
+      return meta === undefined || href === undefined ? [] : [{ cheie, meta, href }];
+    })
     .sort((a, b) => a.meta.sortOrder - b.meta.sortOrder);
 
   return (
@@ -406,12 +467,12 @@ export default async function PanouPage() {
             Module active
           </h2>
           <ul className="flex flex-wrap gap-2">
-            {scurtaturi.map(({ cheie, meta }) => {
+            {scurtaturi.map(({ cheie, meta, href }) => {
               const Pictograma = meta.icon;
               return (
                 <li key={cheie}>
                   <Link
-                    href={RUTE_MODUL[cheie] ?? "/panou"}
+                    href={href}
                     className="border-border bg-background hover:bg-surface active:bg-border rounded-control text-foreground text-corp flex min-h-11 items-center gap-2 border px-3 transition-colors md:min-h-0 md:py-1.5"
                   >
                     <Pictograma aria-hidden="true" className="text-muted-foreground size-4" />
@@ -426,30 +487,6 @@ export default async function PanouPage() {
     </div>
   );
 }
-
-/**
- * Ruta de intrare a fiecărui modul.
- *
- * Înainte exista o a DOUA hartă modul→rută (`RUTE_IMPLEMENTATE`), divergentă
- * față de `NAV_ITEMS`: îi lipsea `ticketing`, care apărea fals ca „în
- * dezvoltare" deși e livrat. Aici e derivată din aceleași chei de modul, iar
- * `FeatureKey` fiind o uniune închisă, o cheie nouă în bază fără pereche în cod
- * nu mai poate trece tăcut.
- */
-const RUTE_MODUL: Readonly<Partial<Record<FeatureKey, string>>> = {
-  attendance: "/pontaj",
-  leave: "/concedii",
-  onboarding: "/onboarding",
-  payroll: "/salarizare",
-  per_diem: "/diurna",
-  fleet: "/flota",
-  maintenance: "/mentenanta",
-  inventory: "/inventar",
-  ssm: "/ssm",
-  announcements: "/anunturi",
-  evaluations: "/evaluari/sabloane",
-  ticketing: "/ticketing",
-};
 
 function Fapt({ valoare, eticheta }: Readonly<{ valoare: number; eticheta: string }>) {
   return (

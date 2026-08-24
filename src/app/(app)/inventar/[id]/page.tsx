@@ -184,6 +184,18 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
               }
             />
           </dl>
+          {/* Procesul-verbal e singura piesă cu valoare juridică din modul, iar
+              până acum nu se genera nicăieri: coloana `pv_document_path` era
+              citită în șapte locuri și scrisă în niciunul. Linkul e aici, pe
+              predarea deschisă, fiindcă ăsta e momentul în care se semnează. */}
+          <p className="mt-4">
+            <Link
+              href={`/inventar/${obiect.id}/pv/${alocareDeschisa.id}`}
+              className="text-corp underline-offset-2 hover:underline"
+            >
+              Proces-verbal de predare-primire
+            </Link>
+          </p>
           {poateScrie ? (
             <div className="border-border mt-4 border-t pt-4">
               <h3 className="text-corp mb-3 font-medium">Înregistrează returnarea</h3>
@@ -268,6 +280,14 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
                     <Camp eticheta="Observații" valoare={alocare.observatii} />
                   ) : null}
                 </dl>
+                <p className="mt-2">
+                  <Link
+                    href={`/inventar/${obiect.id}/pv/${alocare.id}`}
+                    className="text-nota underline-offset-2 hover:underline"
+                  >
+                    Proces-verbal
+                  </Link>
+                </p>
               </li>
             ))}
           </ul>

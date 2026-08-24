@@ -3,6 +3,7 @@ import { AlertTriangle, Download, FileSearch, RotateCcw } from "lucide-react";
 
 import { FiltreAuditForm } from "@/components/audit/filtre-audit";
 import { TabelAudit } from "@/components/audit/tabel-audit";
+import { buton } from "@/components/ui/buton";
 import {
   interogheazaJurnal,
   listeazaOrganizatiiPentruFiltru,
@@ -18,8 +19,20 @@ type Props = Readonly<{
   mod: "platforma" | "organizatie";
 }>;
 
-const clasaLink =
-  "inline-flex items-center gap-2 rounded-control border border-border px-3 py-2 text-corp text-foreground hover:bg-surface focus:  ";
+/**
+ * Clasa venea scrisă de mână și se termina în `focus:` — un prefix Tailwind
+ * fără utilitar după el. E reziduul unui `sed` care a scos
+ * `focus-visible:outline-2` și a lăsat prefixul: Tailwind ignoră clasa tăcut,
+ * `tsc` nu vede șiruri, ESLint nici atât. Cele patru linkuri de aici („Încearcă
+ * din nou”, „Golește filtrele”, „Descarcă CSV”, paginarea) rămâneau, așadar,
+ * fără inelul de focus pe care clasa pretindea că-l pune.
+ *
+ * `buton({ varianta: "secundar" })` e aceeași formă vizuală, dar cu chenarul de
+ * 4,23:1 în loc de `border-border` (1,29:1, sub pragul WCAG 1.4.11 pentru un
+ * element pe care se apasă) și cu setul `disabled:` canonic. Focusul vine din
+ * regula globală `:focus-visible`, deci nu se mai scrie nicăieri local.
+ */
+const clasaLink = buton({ varianta: "secundar" });
 
 const href = (cale: string, interogare: string): string =>
   interogare === "" ? cale : `${cale}?${interogare}`;
