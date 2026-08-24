@@ -1,87 +1,168 @@
 // src/app/(app)/concedii/filtre-cereri.tsx
-"use client";
+import type { ReactElement } from "react";
 
-import { useId, useTransition } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Search } from "lucide-react";
-
-import { STATUSURI_CERERE } from "@/schemas/leave";
+import { BaraFiltre, type FiltruActiv } from "@/components/ui/bara-filtre";
+import { Combobox } from "@/components/ui/combobox";
+import { formatDate } from "@/lib/format/date";
+import {
+  STATUSURI_CERERE,
+  type StatusCerere,
+  type FiltreCereri as ValoriFiltre,
+} from "@/schemas/leave";
 import { ETICHETE_STATUS_CERERE } from "./etichete";
+
+/**
+ * Filtrele listei de cereri de concediu.
+ *
+ * ── CE REPARĂ MIGRAREA ────────────────────────────────────────────────────
+ * Vechiul `aplica()` pornea dintr-un `new URLSearchParams()` GOL și repopula
+ * doar cele patru chei ale formularului. Un singur parametru era salvat
+ * explicit — `vizualizare`, cu un comentariu care explica de ce — dovada că
+ * autorul văzuse problema și o rezolvase pentru un singur caz. Verificat pe
+ * `status=trimisa&vizualizare=echipa&sort=-perioada&limita=50&employee_id=…`,
+ * o apăsare pe „Aplică filtrele” lăsa `status=trimisa&vizualizare=echipa`:
+ * sortarea, mărimea paginii și angajatul ales dispăreau tăcut.
+ *
+ * `<BaraFiltre>` pornește acum ÎNTOTDEAUNA din adresa curentă și atinge numai
+ * `CHEI_PROPRII`. Fișierul nu mai are stare și niciun handler, deci nu mai e
+ * `"use client"`.
+ *
+ * Comutatorul `Toate / Ale mele / Ale echipei` a dispărut cu totul: separarea
+ * s-a mutat în RUTĂ (`/concedii` vs `/concedii/echipa`). Era ultima cheie pe
+ * care bara trebuia s-o care fără s-o administreze — vezi comentariul lui
+ * `VIZUALIZARI_CERERI` din `@/schemas/leave`.
+ */
 
 interface OptiuneTip {
   readonly id: string;
   readonly denumire: string;
 }
 
-interface OptiuneAngajat {
+export interface OptiuneAngajat {
   readonly id: string;
-  readonly full_name: string | null;
+  readonly full_name: string;
   readonly marca: string;
 }
 
 /**
- * Fără comutator „Ale mele / Ale echipei”: separarea stă acum în rută
- * (`/concedii` vs `/concedii/echipa`). Ca filtru, ea se pierdea la fiecare
- * apăsare pe „Aplică filtrele” — de aceea trebuia recitită din `useSearchParams`
- * și rescrisă de mână în URL-ul nou, un pas ușor de uitat la următorul filtru
- * adăugat.
- *
- * `angajati` e gol pe „Cererile mele”, unde lista are un singur angajat, și
- * plin pe „Echipa”.
+ * Cheile administrate de bară — exact cele pe care le scria vechiul `aplica()`.
+ * Sortarea, mărimea paginii și cursorul NU sunt printre ele: nu-s câmpuri de
+ * formular, iar bara le păstrează oricum, fiindcă pornește din adresa curentă.
  */
-export function FiltreCereri({
-  tipuri,
-  angajati = [],
-}: {
-  readonly tipuri: readonly OptiuneTip[];
-  readonly angajati?: readonly OptiuneAngajat[];
-}) {
-  const router = useRouter();
-  const cale = usePathname();
-  const parametri = useSearchParams();
-  const [inCurs, porneste] = useTransition();
-  const idStatus = useId();
-  const idTip = useId();
-  const idAngajat = useId();
-  const idDeLa = useId();
-  const idPanaLa = useId();
+const CHEI_PROPRII = ["status", "leave_type_id", "de_la", "pana_la", "employee_id"] as const;
 
-  function aplica(formular: FormData): void {
-    const noi = new URLSearchParams();
-    const status = String(formular.get("status") ?? "");
-    const leaveTypeId = String(formular.get("leave_type_id") ?? "");
-    const employeeId = String(formular.get("employee_id") ?? "");
-    const deLa = String(formular.get("de_la") ?? "");
-    const panaLa = String(formular.get("pana_la") ?? "");
-    if (status.length > 0) noi.set("status", status);
-    if (leaveTypeId.length > 0) noi.set("leave_type_id", leaveTypeId);
-    if (employeeId.length > 0) noi.set("employee_id", employeeId);
-    if (deLa.length > 0) noi.set("de_la", deLa);
-    if (panaLa.length > 0) noi.set("pana_la", panaLa);
-    // `cursor` NU se copiază: aparține paginii anterioare, iar păstrat peste un
-    // filtru nou ar sări rânduri.
-    porneste(() => {
-      router.replace(`${cale}?${noi.toString()}`);
+// Fără `useId`: componenta e un Server Component și apare o singură dată pe pagină.
+const ID_STATUS = "filtre-cereri-status";
+const ID_TIP = "filtre-cereri-tip";
+const ID_DE_LA = "filtre-cereri-de-la";
+const ID_PANA_LA = "filtre-cereri-pana-la";
+const ID_ANGAJAT = "filtre-cereri-angajat";
+
+function esteStatus(valoare: string): valoare is StatusCerere {
+  return (STATUSURI_CERERE as readonly string[]).includes(valoare);
+}
+
+/**
+ * Ziua în convenția românească — dar o pastilă nu are voie să dărâme pagina.
+ * `formatDate` aruncă și pe `2026-02-30`, care trece de orice verificare de
+ * format; o adresă editată de mână își arată atunci valoarea brută.
+ */
+function ziCitibila(valoare: string): string {
+  try {
+    return formatDate(valoare);
+  } catch {
+    return valoare;
+  }
+}
+
+/**
+ * Pastilele — filtrele CURENTE, cu etichete citibile. Pentru `leave_type_id`
+ * eticheta e DENUMIREA tipului, luată din opțiunile pe care componenta le
+ * primește oricum: o pastilă care scrie un UUID nu ajută pe nimeni.
+ */
+function filtreActive(
+  filtre: ValoriFiltre,
+  tipuri: readonly OptiuneTip[],
+  angajati: readonly OptiuneAngajat[],
+): readonly FiltruActiv[] {
+  const active: FiltruActiv[] = [];
+
+  if (filtre.employee_id !== null) {
+    const angajat = angajati.find((a) => a.id === filtre.employee_id);
+    active.push({
+      cheie: "employee_id",
+      eticheta:
+        angajat === undefined ? "Angajat ales" : `Angajat: ${angajat.full_name} (${angajat.marca})`,
     });
   }
 
+  if (filtre.status !== null) {
+    const citibile = filtre.status.map((bucata) =>
+      esteStatus(bucata) ? ETICHETE_STATUS_CERERE[bucata] : bucata,
+    );
+    if (citibile.length > 0) {
+      active.push({ cheie: "status", eticheta: `Stare: ${citibile.join(", ")}` });
+    }
+  }
+
+  if (filtre.leave_type_id !== null) {
+    const tip = tipuri.find((t) => t.id === filtre.leave_type_id);
+    // Un tip care nu mai e în listă (dezactivat, șters) rămâne filtrabil, dar
+    // fără denumire nu-l putem numi — atunci pastila spune doar ce filtru e.
+    active.push({
+      cheie: "leave_type_id",
+      eticheta: tip === undefined ? "Tip de concediu ales" : `Tip de concediu: ${tip.denumire}`,
+    });
+  }
+
+  if (filtre.de_la !== null) {
+    active.push({ cheie: "de_la", eticheta: `De la: ${ziCitibila(filtre.de_la)}` });
+  }
+  if (filtre.pana_la !== null) {
+    active.push({ cheie: "pana_la", eticheta: `Până la: ${ziCitibila(filtre.pana_la)}` });
+  }
+
+  return active;
+}
+
+export function FiltreCereri({
+  tipuri,
+  angajati,
+  filtre,
+}: {
+  readonly tipuri: readonly OptiuneTip[];
+  /**
+   * Angajații filtrabili. Lista goală pentru scope „own”: acolo RLS restrânge
+   * oricum rezultatul la o singură fișă, iar un filtru cu un singur element ar
+   * sugera că mai există și altceva de văzut.
+   */
+  readonly angajati: readonly OptiuneAngajat[];
+  /** Filtrele deja trecute prin `filtreDinUrl` — exact ce a folosit lista. */
+  readonly filtre: ValoriFiltre;
+}): ReactElement {
+  // Reperul de căutare stă pe înveliș: `<BaraFiltre>` își randează singură
+  // formularul, iar pastilele fac parte din aceeași treabă.
   return (
-    <>
-      <form
-        action={aplica}
-        role="search"
-        aria-label="Filtrare cereri de concediu"
-        className="border-border flex flex-wrap items-end gap-4 rounded-lg border p-4"
+    <div role="search" aria-label="Filtrare cereri de concediu">
+      <BaraFiltre
+        active={filtreActive(filtre, tipuri, angajati)}
+        cheiProprii={[...CHEI_PROPRII]}
+        textAplica="Aplică filtrele"
       >
         <div>
-          <label htmlFor={idStatus} className="block text-sm font-medium">
+          <label htmlFor={ID_STATUS} className="text-corp block font-medium">
             Stare
           </label>
           <select
-            id={idStatus}
+            // `key` legat de valoarea din adresă: un control NECONTROLAT își ia
+            // `defaultValue` doar la montare, deci după „Șterge filtrul” ar fi
+            // rămas cu valoarea veche în câmp — și ar fi reaplicat-o la
+            // următoarea apăsare pe „Aplică filtrele”.
+            key={filtre.status?.join(",") ?? ""}
+            id={ID_STATUS}
             name="status"
-            defaultValue={parametri.get("status") ?? ""}
-            className="border-foreground/60 mt-1 rounded-md border px-2 py-2 text-sm"
+            defaultValue={filtre.status?.join(",") ?? ""}
+            className="border-foreground/60 rounded-control text-corp mt-1 border px-2 py-2"
           >
             <option value="">Toate</option>
             {STATUSURI_CERERE.map((status) => (
@@ -92,15 +173,55 @@ export function FiltreCereri({
           </select>
         </div>
 
+        {/*
+            Filtrul după angajat era plătit de tot stratul de date și n-avea
+            niciun control: `schemas/leave.ts` îl declară (`employee_id`),
+            `queries/leave.ts` îl aplică (`.eq("employee_id", …)` peste scope
+            „own”), iar interfața nu-l scria nicăieri. Un HR cu 200 de fișe nu
+            putea izola cererile unei persoane.
+
+            Combobox, nu `<select>`: se caută și după marcă, iar `secundar` o
+            face căutabilă fără s-o îngrămădească în etichetă.
+          */}
+        {angajati.length === 0 ? null : (
+          <div className="min-w-56">
+            <label htmlFor={ID_ANGAJAT} className="text-corp block font-medium">
+              Angajat
+            </label>
+            <Combobox
+              // `key` legat de valoarea din adresă, ca la celelalte câmpuri:
+              // un control necontrolat își ia alegerea inițială o singură
+              // dată, deci după „Șterge filtrul” ar fi rămas cu cea veche și
+              // ar fi reaplicat-o la următoarea trimitere.
+              key={filtre.employee_id ?? ""}
+              id={ID_ANGAJAT}
+              name="employee_id"
+              className="mt-1"
+              valoareInitiala={filtre.employee_id ?? ""}
+              placeholder="Toți angajații"
+              textFaraRezultate="Niciun angajat cu numele sau marca aceasta."
+              optiuni={[
+                { valoare: "", eticheta: "Toți angajații" },
+                ...angajati.map((angajat) => ({
+                  valoare: angajat.id,
+                  eticheta: angajat.full_name,
+                  secundar: angajat.marca,
+                })),
+              ]}
+            />
+          </div>
+        )}
+
         <div className="min-w-48">
-          <label htmlFor={idTip} className="block text-sm font-medium">
+          <label htmlFor={ID_TIP} className="text-corp block font-medium">
             Tip de concediu
           </label>
           <select
-            id={idTip}
+            key={filtre.leave_type_id ?? ""}
+            id={ID_TIP}
             name="leave_type_id"
-            defaultValue={parametri.get("leave_type_id") ?? ""}
-            className="border-foreground/60 mt-1 w-full rounded-md border px-2 py-2 text-sm"
+            defaultValue={filtre.leave_type_id ?? ""}
+            className="border-foreground/60 rounded-control text-corp mt-1 w-full border px-2 py-2"
           >
             <option value="">Toate</option>
             {tipuri.map((tip) => (
@@ -111,65 +232,34 @@ export function FiltreCereri({
           </select>
         </div>
 
-        {angajati.length > 0 ? (
-          <div className="min-w-56">
-            <label htmlFor={idAngajat} className="block text-sm font-medium">
-              Angajat
-            </label>
-            <select
-              id={idAngajat}
-              name="employee_id"
-              defaultValue={parametri.get("employee_id") ?? ""}
-              className="border-foreground/60 mt-1 w-full rounded-md border px-2 py-2 text-sm"
-            >
-              <option value="">Toți</option>
-              {angajati.map((angajat) => (
-                <option key={angajat.id} value={angajat.id}>
-                  {angajat.full_name ?? "—"} ({angajat.marca})
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : null}
-
         <div>
-          <label htmlFor={idDeLa} className="block text-sm font-medium">
+          <label htmlFor={ID_DE_LA} className="text-corp block font-medium">
             De la
           </label>
           <input
-            id={idDeLa}
+            key={filtre.de_la ?? ""}
+            id={ID_DE_LA}
             name="de_la"
             type="date"
-            defaultValue={parametri.get("de_la") ?? ""}
-            className="border-foreground/60 mt-1 rounded-md border px-2 py-2 text-sm"
+            defaultValue={filtre.de_la ?? ""}
+            className="border-foreground/60 rounded-control text-corp mt-1 border px-2 py-2"
           />
         </div>
 
         <div>
-          <label htmlFor={idPanaLa} className="block text-sm font-medium">
+          <label htmlFor={ID_PANA_LA} className="text-corp block font-medium">
             Până la
           </label>
           <input
-            id={idPanaLa}
+            key={filtre.pana_la ?? ""}
+            id={ID_PANA_LA}
             name="pana_la"
             type="date"
-            defaultValue={parametri.get("pana_la") ?? ""}
-            className="border-foreground/60 mt-1 rounded-md border px-2 py-2 text-sm"
+            defaultValue={filtre.pana_la ?? ""}
+            className="border-foreground/60 rounded-control text-corp mt-1 border px-2 py-2"
           />
         </div>
-
-        <button
-          type="submit"
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          <Search aria-hidden="true" className="size-4" />
-          {inCurs ? "Se filtrează…" : "Aplică filtrele"}
-        </button>
-        <p aria-live="polite" className="sr-only">
-          {inCurs ? "Se aplică filtrele." : "Filtre aplicate."}
-        </p>
-      </form>
-    </>
+      </BaraFiltre>
+    </div>
   );
 }

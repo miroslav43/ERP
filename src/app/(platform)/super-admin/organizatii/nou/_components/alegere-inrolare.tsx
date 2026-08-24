@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useId, useState, useTransition } from "react";
 import { ArrowRight, ClipboardList, Mail, UserCheck } from "lucide-react";
 
+import { buton } from "@/components/ui/buton";
+
 import { LinkInvitatie } from "../../[orgId]/membri/panou-membri";
 import { creeazaOrganizatieMinima } from "../actions";
 import { AsistentOrganizatieNoua } from "./asistent-organizatie-noua";
@@ -64,11 +66,13 @@ export function AlegereInrolare({ valoriInitiale }: { valoriInitiale?: ValoriIni
 
   if (rezultat !== null) {
     return (
-      <div className="border-border bg-surface flex flex-col gap-4 rounded-lg border p-6">
-        <h2 className="text-foreground text-lg font-semibold">„{rezultat.name}” a fost creată</h2>
+      <div className="border-border bg-surface rounded-panou flex flex-col gap-4 border p-6">
+        <h2 className="text-foreground text-sectiune font-semibold">
+          „{rezultat.name}” a fost creată
+        </h2>
         {rezultat.invitatie.trimisa ? (
           <>
-            <p className="text-muted-foreground text-sm">
+            <p className="text-muted-foreground text-corp">
               {rezultat.invitatie.prinEmail
                 ? "Invitația a plecat pe e-mail. Administratorul completează datele firmei la prima intrare — până atunci firma rămâne „În așteptare”."
                 : "Invitația a fost creată, dar e-mailul nu a plecat. Trimite manual linkul de mai jos; nu mai poate fi recuperat după ce părăsești pagina."}
@@ -78,7 +82,7 @@ export function AlegereInrolare({ valoriInitiale }: { valoriInitiale?: ValoriIni
             )}
           </>
         ) : (
-          <p className="text-danger text-sm">
+          <p className="text-danger text-corp">
             Firma s-a creat, dar invitația nu a putut fi trimisă ({rezultat.invitatie.eroare}).
             Trimite-o din ecranul de membri.
           </p>
@@ -86,14 +90,11 @@ export function AlegereInrolare({ valoriInitiale }: { valoriInitiale?: ValoriIni
         <div className="flex flex-wrap gap-3">
           <Link
             href={`/super-admin/organizatii/${rezultat.id}`}
-            className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-semibold"
+            className={buton({ varianta: "primar" })}
           >
             Deschide fișa firmei
           </Link>
-          <Link
-            href="/super-admin/organizatii"
-            className="border-border text-foreground hover:bg-background rounded-md border px-4 py-2 text-sm font-semibold"
-          >
+          <Link href="/super-admin/organizatii" className={buton({ varianta: "secundar" })}>
             Înapoi la listă
           </Link>
         </div>
@@ -122,16 +123,16 @@ export function AlegereInrolare({ valoriInitiale }: { valoriInitiale?: ValoriIni
 
   const eroareCamp = (camp: string): string | undefined => campuri[camp]?.[0];
   const clasaCamp =
-    "border-border bg-background text-foreground focus-visible:ring-ring w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none";
+    "border-border bg-background text-foreground w-full rounded-control border px-3 py-2 text-corp";
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="border-border bg-surface flex flex-col gap-4 rounded-lg border p-6">
-        <h2 className="text-foreground text-base font-semibold">Cine e clientul</h2>
+      <div className="border-border bg-surface rounded-panou flex flex-col gap-4 border p-6">
+        <h2 className="text-foreground text-sectiune font-semibold">Cine e clientul</h2>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
-            <label htmlFor={`${id}-nume`} className="text-foreground text-sm font-medium">
+            <label htmlFor={`${id}-nume`} className="text-foreground text-corp font-medium">
               Denumire firmă
             </label>
             <input
@@ -142,12 +143,12 @@ export function AlegereInrolare({ valoriInitiale }: { valoriInitiale?: ValoriIni
               autoComplete="organization"
             />
             {eroareCamp("name") ? (
-              <span className="text-danger text-xs">{eroareCamp("name")}</span>
+              <span className="text-danger text-nota">{eroareCamp("name")}</span>
             ) : null}
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label htmlFor={`${id}-cui`} className="text-foreground text-sm font-medium">
+            <label htmlFor={`${id}-cui`} className="text-foreground text-corp font-medium">
               CUI
             </label>
             <input
@@ -158,13 +159,13 @@ export function AlegereInrolare({ valoriInitiale }: { valoriInitiale?: ValoriIni
               inputMode="numeric"
             />
             {eroareCamp("cui") ? (
-              <span className="text-danger text-xs">{eroareCamp("cui")}</span>
+              <span className="text-danger text-nota">{eroareCamp("cui")}</span>
             ) : null}
           </div>
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label htmlFor={`${id}-email`} className="text-foreground text-sm font-medium">
+          <label htmlFor={`${id}-email`} className="text-foreground text-corp font-medium">
             E-mailul administratorului
           </label>
           <input
@@ -175,11 +176,11 @@ export function AlegereInrolare({ valoriInitiale }: { valoriInitiale?: ValoriIni
             className={clasaCamp}
             autoComplete="email"
           />
-          <span className="text-muted-foreground text-xs">
+          <span className="text-muted-foreground text-nota">
             Primește invitația și devine administratorul firmei.
           </span>
           {eroareCamp("admin_email") ? (
-            <span className="text-danger text-xs">{eroareCamp("admin_email")}</span>
+            <span className="text-danger text-nota">{eroareCamp("admin_email")}</span>
           ) : null}
         </div>
       </div>
@@ -188,14 +189,14 @@ export function AlegereInrolare({ valoriInitiale }: { valoriInitiale?: ValoriIni
         <p
           role="alert"
           aria-live="assertive"
-          className="border-border bg-surface text-danger rounded-md border px-4 py-3 text-sm"
+          className="border-border bg-surface text-danger rounded-control text-corp border px-4 py-3"
         >
           {eroare}
         </p>
       ) : null}
 
       <div className="flex flex-col gap-3">
-        <h2 className="text-foreground text-base font-semibold">
+        <h2 className="text-foreground text-sectiune font-semibold">
           Cine completează restul datelor firmei
         </h2>
 
@@ -203,14 +204,14 @@ export function AlegereInrolare({ valoriInitiale }: { valoriInitiale?: ValoriIni
           type="button"
           onClick={predaAdministratorului}
           disabled={inCurs}
-          className="border-border bg-surface hover:border-primary focus-visible:ring-ring flex items-start gap-4 rounded-lg border p-5 text-start transition focus-visible:ring-2 focus-visible:outline-none disabled:opacity-60"
+          className="border-border bg-surface hover:border-primary disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-panou flex items-start gap-4 border p-5 text-start transition disabled:cursor-not-allowed"
         >
           <UserCheck aria-hidden="true" className="text-primary mt-0.5 size-5 shrink-0" />
           <span className="flex flex-col gap-1">
-            <span className="text-foreground text-sm font-semibold">
+            <span className="text-foreground text-corp font-semibold">
               {inCurs ? "Se creează firma…" : "Le completează administratorul"}
             </span>
-            <span className="text-muted-foreground text-sm">
+            <span className="text-muted-foreground text-corp">
               Firma se creează acum, iar invitația pleacă pe e-mail. Adresa, reprezentantul legal,
               datele financiare și SSM le completează el la prima intrare — le știe mai bine.
             </span>
@@ -221,14 +222,14 @@ export function AlegereInrolare({ valoriInitiale }: { valoriInitiale?: ValoriIni
         <button
           type="button"
           onClick={() => setMod("asistent")}
-          className="border-border bg-surface hover:border-primary focus-visible:ring-ring flex items-start gap-4 rounded-lg border p-5 text-start transition focus-visible:ring-2 focus-visible:outline-none"
+          className="border-border bg-surface hover:border-primary rounded-panou flex items-start gap-4 border p-5 text-start transition"
         >
           <ClipboardList aria-hidden="true" className="text-primary mt-0.5 size-5 shrink-0" />
           <span className="flex flex-col gap-1">
-            <span className="text-foreground text-sm font-semibold">
+            <span className="text-foreground text-corp font-semibold">
               Completez eu datele firmei
             </span>
-            <span className="text-muted-foreground text-sm">
+            <span className="text-muted-foreground text-corp">
               Cei 7 pași, ca până acum. Util când ai actele firmei în față și vrei să o predai gata
               configurată.
             </span>

@@ -222,12 +222,14 @@ export interface IntrarePontaj {
   readonly leave_request_id: string | null;
   readonly observatii: string | null;
   readonly approved_at: string | null;
+  readonly respins_la: string | null;
+  readonly motiv_respingere: string | null;
   readonly batch_id: string | null;
 }
 
 const COLOANE_INTRARE =
   "id, employee_id, data, ora_inceput, ora_sfarsit, ore_lucrate, ore_suplimentare, " +
-  "ore_noapte, tip_zi, sursa, leave_request_id, observatii, approved_at, batch_id";
+  "ore_noapte, tip_zi, sursa, leave_request_id, observatii, approved_at, batch_id, respins_la, motiv_respingere";
 
 export async function intrariLuna(
   organizationId: string,
@@ -288,6 +290,11 @@ export interface SetariPontaj {
   readonly spor_noapte_procent: number;
   readonly spor_weekend_procent: number;
   readonly spor_sarbatoare_procent: number;
+  /** Fereastra de noapte (`"22:00"` / `"06:00"`), din care se derivă `ore_noapte`. */
+  readonly noapte_start: string;
+  readonly noapte_sfarsit: string;
+  /** Minimul de ore de noapte de la care se acordă sporul (art. 126; 0 = fără prag). */
+  readonly prag_ore_noapte: number;
 }
 
 /** Nu există seed pentru `attendance_settings` — `null` e normal, nu o eroare. */
@@ -300,7 +307,8 @@ export async function setariPontaj(
     .from("attendance_settings")
     .select(
       "ore_pe_zi, ore_pe_saptamana, ore_maxime_saptamanale, pauza_masa_minute, " +
-        "spor_suplimentare_procent, spor_noapte_procent, spor_weekend_procent, spor_sarbatoare_procent",
+        "spor_suplimentare_procent, spor_noapte_procent, spor_weekend_procent, spor_sarbatoare_procent, " +
+        "noapte_start, noapte_sfarsit, prag_ore_noapte",
     )
     .eq("organization_id", organizationId)
     .lte("valabil_de_la", dataInceput)
@@ -350,21 +358,59 @@ export interface LinieDeAprobat {
   readonly ore_lucrate: number;
 }
 
+export interface RezultatLiniiDeAprobat {
+  readonly linii: readonly LinieDeAprobat[];
+  /** `true` = s-a atins plafonul de mai jos, deci cifra afișată e sub cea reală. */
+  readonly trunchiat: boolean;
+}
+
+/** Cât întoarce PostgREST pe cerere: `max_rows = 1000`, tăiat TĂCUT. */
+const PAGINA_LINII = 1000;
+/** 20 × 1000 = 20 000 de linii neaprobate într-o singură lună. Peste, se spune. */
+const MAXIM_PAGINI_LINII = 20;
+
+/**
+ * Liniile neaprobate ale unei luni, CITITE PÂNĂ LA CAPĂT.
+ *
+ * Interogarea n-avea nici `.limit()`, nici paginare: PostgREST tăia la 1000 de
+ * rânduri fără nicio eroare, iar 46 de angajați × 22 de zile = 1012 linii. Din
+ * rezultatul ăsta se calculau DOUĂ cifre afișate ca autoritative — numărul din
+ * butonul „Aprobă în bloc (N linii)” și cifra mare de pe `/pontaj/perioade/[id]`
+ * — plus defalcarea pe angajat. Toate trei mințeau în jos, fără niciun semn.
+ *
+ * `.order("data").order("id")` nu e cosmetic: fără o ordine TOTALĂ, `.range()`
+ * poate întoarce același rând de două ori și sări peste altul între pagini,
+ * fiindcă ordinea implicită a Postgres nu e stabilă. `id` e unic, deci
+ * perechea ordonează complet.
+ */
 export async function liniiDeAprobat(
   organizationId: string,
   periodId: string,
-): Promise<readonly LinieDeAprobat[]> {
+): Promise<RezultatLiniiDeAprobat> {
   const db = await createServerSupabase();
-  const { data, error } = await db
-    .from("attendance_entries")
-    .select("id, employee_id, data, ore_lucrate")
-    .eq("organization_id", organizationId)
-    .eq("period_id", periodId)
-    .is("approved_at", null)
-    .is("deleted_at", null)
-    .returns<LinieDeAprobat[]>();
-  if (error !== null) throw error;
-  return data ?? [];
+  const adunate: LinieDeAprobat[] = [];
+
+  for (let pagina = 0; pagina < MAXIM_PAGINI_LINII; pagina += 1) {
+    const deLa = pagina * PAGINA_LINII;
+    const { data, error } = await db
+      .from("attendance_entries")
+      .select("id, employee_id, data, ore_lucrate")
+      .eq("organization_id", organizationId)
+      .eq("period_id", periodId)
+      .is("approved_at", null)
+      .is("deleted_at", null)
+      .order("data", { ascending: true })
+      .order("id", { ascending: true })
+      .range(deLa, deLa + PAGINA_LINII - 1)
+      .returns<LinieDeAprobat[]>();
+    if (error !== null) throw error;
+
+    const lot = data ?? [];
+    adunate.push(...lot);
+    if (lot.length < PAGINA_LINII) return { linii: adunate, trunchiat: false };
+  }
+
+  return { linii: adunate, trunchiat: true };
 }
 
 // ── Departamente (pentru filtru — 0 rânduri ⇒ ascunde-l în UI) ──────────────

@@ -4,7 +4,8 @@ import Link from "next/link";
 import { ListChecks } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -18,7 +19,7 @@ export const metadata: Metadata = { title: "Instanță de checklist nouă" };
 export default async function PaginaInstantaNoua() {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "onboarding");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "checklists:create", "all")) {
     return (
@@ -29,14 +30,15 @@ export default async function PaginaInstantaNoua() {
   const sabloane = await sabloaneActive(tenant.organizationId);
   if (sabloane.length === 0) {
     return (
-      <main className="mx-auto w-full max-w-2xl space-y-6 p-6">
-        <EmptyState
-          icon={ListChecks}
-          title="Niciun șablon activ"
-          description="O instanță de checklist pornește dintr-un șablon. Creați întâi unul, în secțiunea Șabloane."
-          action={{ label: "Creează un șablon", href: "/onboarding/sabloane/nou" }}
+      <div className={`${LATIMI.formular} space-y-6`}>
+        <StareGoala
+          fel="initiala"
+          pictograma={ListChecks}
+          titlu="Niciun șablon activ"
+          descriere="O instanță de checklist pornește dintr-un șablon. Creați întâi unul, în secțiunea Șabloane."
+          actiune={{ eticheta: "Creează un șablon", href: "/onboarding/sabloane/nou" }}
         />
-      </main>
+      </div>
     );
   }
 
@@ -46,20 +48,20 @@ export default async function PaginaInstantaNoua() {
   const angajati = poateVedeaAngajati ? await angajatiActivi(tenant.organizationId) : null;
 
   return (
-    <main className="mx-auto w-full max-w-2xl space-y-6 p-6">
-      <header>
-        <p className="text-muted-foreground text-sm">
+    <div className={`${LATIMI.formular} space-y-6`}>
+      <div className="space-y-1">
+        <p className="text-muted-foreground text-corp">
           <Link href="/onboarding" className="underline-offset-2 hover:underline">
             Onboarding
           </Link>
         </p>
-        <h1 className="text-2xl font-semibold">Instanță de checklist nouă</h1>
-        <p className="text-muted-foreground text-sm">
-          Pașii se copiază automat din șablon la salvare, pe baza datei de referință alese.
-        </p>
-      </header>
+        <AntetPagina
+          titlu="Instanță de checklist nouă"
+          descriere="Pașii se copiază automat din șablon la salvare, pe baza datei de referință alese."
+        />
+      </div>
 
       <FormularInstanta sabloane={sabloane} angajati={angajati} astazi={todayInBucharest()} />
-    </main>
+    </div>
   );
 }

@@ -6,6 +6,7 @@ import {
   parseDateRo,
   toBucharestDateString,
   todayInBucharest,
+  formatMonthShort,
 } from "./date";
 
 describe("formatDate", () => {
@@ -94,5 +95,21 @@ describe("parseDateRo", () => {
 describe("todayInBucharest", () => {
   it("întoarce o zi calendaristică în format ISO", () => {
     expect(todayInBucharest()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+});
+
+describe("formatMonthShort", () => {
+  it("dă forma scurtă pentru axa unui grafic", () => {
+    expect(formatMonthShort(1)).toBe("ian.");
+    expect(formatMonthShort(12)).toBe("dec.");
+  });
+
+  it("«mai» n-are punct — nu e prescurtare, e cuvântul întreg", () => {
+    expect(formatMonthShort(5)).toBe("mai");
+  });
+
+  it("respinge o lună inexistentă în loc s-o randeze goală", () => {
+    expect(() => formatMonthShort(0)).toThrow(RangeError);
+    expect(() => formatMonthShort(13)).toThrow(RangeError);
   });
 });

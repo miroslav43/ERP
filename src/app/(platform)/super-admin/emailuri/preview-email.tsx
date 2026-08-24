@@ -28,7 +28,7 @@ export function PreviewEmail({ subiect, sablon, html }: Props) {
       <button
         type="button"
         onClick={deschide}
-        className="border-border text-foreground hover:bg-surface inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium"
+        className="border-border text-foreground hover:bg-surface rounded-control text-nota inline-flex items-center gap-1.5 border px-2.5 py-1.5 font-medium"
       >
         <Eye aria-hidden="true" className="size-3.5" />
         Vezi conținutul
@@ -37,21 +37,21 @@ export function PreviewEmail({ subiect, sablon, html }: Props) {
         ref={dialogRef}
         aria-labelledby={titluId}
         onClose={() => setDeschis(false)}
-        className="border-border bg-surface text-foreground m-auto w-[min(680px,92vw)] rounded-lg border p-0 backdrop:bg-black/50"
+        className="border-border bg-surface text-foreground rounded-panou m-auto w-[min(680px,92vw)] border p-0 backdrop:bg-black/50"
       >
         <div className="border-border flex items-start justify-between gap-4 border-b p-4">
           <div>
-            <h2 id={titluId} className="text-sm font-semibold">
+            <h2 id={titluId} className="text-corp font-semibold">
               {subiect}
             </h2>
-            <p className="text-muted-foreground mt-0.5 text-xs">
+            <p className="text-muted-foreground text-nota mt-0.5">
               Previzualizare a șablonului „{sablon}” cu date exemplu.
             </p>
           </div>
           <button
             type="button"
             onClick={inchide}
-            className="text-muted-foreground hover:bg-background rounded-md p-1"
+            className="text-muted-foreground hover:bg-background rounded-control p-1"
             aria-label="Închide previzualizarea"
           >
             <X aria-hidden="true" className="size-4" />

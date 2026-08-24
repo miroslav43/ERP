@@ -1,177 +1,268 @@
 "use client";
 
-import { useId, useState, useTransition } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
+
+import { Buton } from "@/components/ui/buton";
+import { Camp } from "@/components/ui/camp";
+import { Formular } from "@/components/ui/formular";
+import { formatDateTime } from "@/lib/format/date";
 
 import { comunicaAccidentLaItm, finalizeazaCercetare } from "../../actions";
 
 /**
- * Comunicarea la ITM și finalizarea cercetării — două formulare separate,
- * fiindcă sunt două acțiuni distincte în timp, cu propriile câmpuri.
+ * Comunicarea la ITM și finalizarea cercetării — două acțiuni distincte în
+ * timp, deci două formulare.
+ *
+ * ── FUNDĂTURA CARE S-A ÎNCHIS ─────────────────────────────────────────────
+ * Formularul de comunicare se randa doar cât timp `comunicatLaItm === null` și
+ * DISPĂREA definitiv după prima salvare. Într-un registru legal asta înseamnă
+ * că o oră tastată greșit — 14:20 în loc de 04:20, la un câmp
+ * `datetime-local` — nu se mai putea corecta din aplicație deloc, iar numărul
+ * procesului-verbal primit ulterior de la ITM nu se mai putea adăuga. Acțiunea
+ * `ssm.accident.communicateItm` face de la bun început un UPDATE, deci putea
+ * corecta; ecranul era cel care refuza.
+ *
+ * Acum rândul comunicat rămâne vizibil, cu ora lui, și are „Corectează" pentru
+ * cine are `ssm:update`. Corectarea trece prin aceeași acțiune, deci lasă
+ * aceeași urmă în `audit_logs` — nu e o portiță, e drumul obișnuit parcurs a
+ * doua oară.
+ *
+ * ── DE CE SE RECALCULEAZĂ VALOAREA PENTRU `datetime-local` ────────────────
+ * Coloana e `timestamptz`; controlul cere `AAAA-LL-ZZTHH:MM` în ora de perete.
+ * Conversia se face cu `timeZone: "Europe/Bucharest"` fixat, nu cu ora
+ * browserului: un responsabil aflat în altă țară ar fi văzut, altfel, altă oră
+ * decât cea comunicată la ITM.
  */
+const formatorLocal = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Europe/Bucharest",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+
+function pentruDatetimeLocal(iso: string): string {
+  const parti = formatorLocal.formatToParts(new Date(iso));
+  const ia = (tip: string): string => {
+    const valoare = parti.find((p) => p.type === tip)?.value ?? "00";
+    // Unele versiuni de ICU întorc „24" pentru miezul nopții.
+    return tip === "hour" && valoare === "24" ? "00" : valoare;
+  };
+  return `${ia("year")}-${ia("month")}-${ia("day")}T${ia("hour")}:${ia("minute")}`;
+}
+
 export function FormularComunicareItm({
   id,
   comunicatLaItm,
+  numarProcesVerbal,
   cercetareFinalizata,
   zileIncapacitate,
 }: {
   readonly id: string;
   readonly comunicatLaItm: string | null;
+  readonly numarProcesVerbal: string | null;
   readonly cercetareFinalizata: string | null;
   readonly zileIncapacitate: number;
 }) {
   const router = useRouter();
-  const [inCurs, porneste] = useTransition();
-  const [eroareComunicare, setEroareComunicare] = useState<string | null>(null);
-  const [eroareCercetare, setEroareCercetare] = useState<string | null>(null);
+  const [corecteaza, setCorecteaza] = useState(false);
 
-  const idComunicat = useId();
-  const idPv = useId();
-  const idCercetare = useId();
-  const idUrmari = useId();
-  const idZile = useId();
+  const laReusita = useCallback(() => {
+    setCorecteaza(false);
+    router.refresh();
+  }, [router]);
 
-  function comunica(formular: FormData): void {
-    setEroareComunicare(null);
-    porneste(async () => {
-      const numar = String(formular.get("numar_proces_verbal") ?? "").trim();
-      const rezultat = await comunicaAccidentLaItm({
-        id,
-        comunicat_la_itm_la: String(formular.get("comunicat_la_itm_la") ?? ""),
-        numar_proces_verbal: numar.length > 0 ? numar : null,
-      });
-      if (!rezultat.ok) {
-        setEroareComunicare(rezultat.error.message);
-        return;
-      }
-      router.refresh();
+  async function comunica(formular: FormData) {
+    const numar = String(formular.get("numar_proces_verbal") ?? "").trim();
+    return await comunicaAccidentLaItm({
+      id,
+      comunicat_la_itm_la: String(formular.get("comunicat_la_itm_la") ?? ""),
+      numar_proces_verbal: numar.length > 0 ? numar : null,
     });
   }
 
-  function finalizeaza(formular: FormData): void {
-    setEroareCercetare(null);
-    porneste(async () => {
-      const urmari = String(formular.get("urmari") ?? "").trim();
-      const rezultat = await finalizeazaCercetare({
-        id,
-        cercetare_finalizata_la: String(formular.get("cercetare_finalizata_la") ?? ""),
-        urmari: urmari.length > 0 ? urmari : null,
-        zile_incapacitate: Number(formular.get("zile_incapacitate") ?? 0),
-      });
-      if (!rezultat.ok) {
-        setEroareCercetare(rezultat.error.message);
-        return;
-      }
-      router.refresh();
+  async function finalizeaza(formular: FormData) {
+    const urmari = String(formular.get("urmari") ?? "").trim();
+    return await finalizeazaCercetare({
+      id,
+      cercetare_finalizata_la: String(formular.get("cercetare_finalizata_la") ?? ""),
+      urmari: urmari.length > 0 ? urmari : null,
+      zile_incapacitate: Number(formular.get("zile_incapacitate") ?? 0),
     });
   }
+
+  const arataComunicarea = comunicatLaItm === null || corecteaza;
 
   return (
     <div className="space-y-4">
-      {comunicatLaItm === null ? (
-        <form
-          action={comunica}
-          className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-2"
+      {comunicatLaItm !== null && !corecteaza ? (
+        <div className="border-border rounded-panou text-corp flex flex-wrap items-center justify-between gap-3 border p-4">
+          <p>
+            Comunicat la ITM pe <strong>{formatDateTime(comunicatLaItm)}</strong>
+            {numarProcesVerbal === null ? null : ` · proces-verbal ${numarProcesVerbal}`}
+          </p>
+          <Buton
+            varianta="tertiar"
+            onClick={() => {
+              setCorecteaza(true);
+            }}
+          >
+            Corectează
+          </Buton>
+        </div>
+      ) : null}
+
+      {arataComunicarea ? (
+        <Formular
+          actiune={comunica}
+          laReusita={laReusita}
+          mesajReusita={
+            comunicatLaItm === null
+              ? "Comunicarea la ITM a fost înregistrată."
+              : "Comunicarea la ITM a fost corectată."
+          }
+          className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-2"
         >
-          <p className="text-sm font-medium sm:col-span-2">Comunicare la ITM</p>
-          <div className="flex flex-col gap-1">
-            <label htmlFor={idComunicat} className="text-sm">
-              Comunicat la
-            </label>
-            <input
-              id={idComunicat}
-              name="comunicat_la_itm_la"
-              type="datetime-local"
-              required
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor={idPv} className="text-sm">
-              Număr proces verbal (opțional)
-            </label>
-            <input
-              id={idPv}
-              name="numar_proces_verbal"
-              maxLength={64}
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
-            />
-          </div>
-          <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
-            <button
-              type="submit"
-              disabled={inCurs}
-              className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-            >
-              {inCurs ? "Se salvează…" : "Marchează comunicat"}
-            </button>
-            {eroareComunicare === null ? null : (
-              <p role="alert" className="text-danger text-sm">
-                {eroareComunicare}
+          {(stare) => (
+            <>
+              <p className="text-corp font-medium sm:col-span-2">
+                {comunicatLaItm === null ? "Comunicare la ITM" : "Corectarea comunicării la ITM"}
               </p>
-            )}
-          </div>
-        </form>
+
+              <Camp
+                nume="comunicat_la_itm_la"
+                eticheta="Comunicat la"
+                obligatoriu
+                erori={stare.erori["comunicat_la_itm_la"] ?? []}
+              >
+                {(a) => (
+                  <input
+                    {...a}
+                    type="datetime-local"
+                    defaultValue={
+                      stare.valoriTrimise["comunicat_la_itm_la"] ??
+                      (comunicatLaItm === null ? "" : pentruDatetimeLocal(comunicatLaItm))
+                    }
+                  />
+                )}
+              </Camp>
+
+              <Camp
+                nume="numar_proces_verbal"
+                eticheta="Număr proces verbal (opțional)"
+                erori={stare.erori["numar_proces_verbal"] ?? []}
+              >
+                {(a) => (
+                  <input
+                    {...a}
+                    maxLength={64}
+                    defaultValue={
+                      stare.valoriTrimise["numar_proces_verbal"] ?? numarProcesVerbal ?? ""
+                    }
+                  />
+                )}
+              </Camp>
+
+              <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
+                <Buton
+                  type="submit"
+                  varianta="primar"
+                  inCurs={stare.inCurs}
+                  textInCurs="Se salvează…"
+                >
+                  {comunicatLaItm === null ? "Marchează comunicat" : "Salvează corectura"}
+                </Buton>
+                {comunicatLaItm === null ? null : (
+                  <Buton
+                    varianta="secundar"
+                    disabled={stare.inCurs}
+                    onClick={() => {
+                      setCorecteaza(false);
+                    }}
+                  >
+                    Renunță
+                  </Buton>
+                )}
+              </div>
+            </>
+          )}
+        </Formular>
       ) : null}
 
       {comunicatLaItm === null || cercetareFinalizata !== null ? null : (
-        <form
-          action={finalizeaza}
-          className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-2"
+        <Formular
+          actiune={finalizeaza}
+          laReusita={laReusita}
+          mesajReusita="Cercetarea a fost finalizată."
+          className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-2"
         >
-          <p className="text-sm font-medium sm:col-span-2">Finalizarea cercetării</p>
-          <div className="flex flex-col gap-1">
-            <label htmlFor={idCercetare} className="text-sm">
-              Cercetare finalizată la
-            </label>
-            <input
-              id={idCercetare}
-              name="cercetare_finalizata_la"
-              type="date"
-              required
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor={idZile} className="text-sm">
-              Zile de incapacitate (corectate)
-            </label>
-            <input
-              id={idZile}
-              name="zile_incapacitate"
-              type="number"
-              min={0}
-              defaultValue={zileIncapacitate}
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
-            />
-          </div>
-          <div className="flex flex-col gap-1 sm:col-span-2">
-            <label htmlFor={idUrmari} className="text-sm">
-              Urmări
-            </label>
-            <textarea
-              id={idUrmari}
-              name="urmari"
-              rows={3}
-              maxLength={2000}
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
-            />
-          </div>
-          <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
-            <button
-              type="submit"
-              disabled={inCurs}
-              className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-            >
-              {inCurs ? "Se salvează…" : "Finalizează cercetarea"}
-            </button>
-            {eroareCercetare === null ? null : (
-              <p role="alert" className="text-danger text-sm">
-                {eroareCercetare}
-              </p>
-            )}
-          </div>
-        </form>
+          {(stare) => (
+            <>
+              <p className="text-corp font-medium sm:col-span-2">Finalizarea cercetării</p>
+
+              <Camp
+                nume="cercetare_finalizata_la"
+                eticheta="Cercetare finalizată la"
+                obligatoriu
+                erori={stare.erori["cercetare_finalizata_la"] ?? []}
+              >
+                {(a) => (
+                  <input
+                    {...a}
+                    type="date"
+                    defaultValue={stare.valoriTrimise["cercetare_finalizata_la"] ?? ""}
+                  />
+                )}
+              </Camp>
+
+              <Camp
+                nume="zile_incapacitate"
+                eticheta="Zile de incapacitate (corectate)"
+                erori={stare.erori["zile_incapacitate"] ?? []}
+              >
+                {(a) => (
+                  <input
+                    {...a}
+                    type="number"
+                    min={0}
+                    defaultValue={stare.valoriTrimise["zile_incapacitate"] ?? zileIncapacitate}
+                  />
+                )}
+              </Camp>
+
+              <Camp
+                nume="urmari"
+                eticheta="Urmări"
+                fel="textarea"
+                className="sm:col-span-2"
+                erori={stare.erori["urmari"] ?? []}
+              >
+                {(a) => (
+                  <textarea
+                    {...a}
+                    rows={3}
+                    maxLength={2000}
+                    defaultValue={stare.valoriTrimise["urmari"] ?? ""}
+                  />
+                )}
+              </Camp>
+
+              <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
+                <Buton
+                  type="submit"
+                  varianta="primar"
+                  inCurs={stare.inCurs}
+                  textInCurs="Se salvează…"
+                >
+                  Finalizează cercetarea
+                </Buton>
+              </div>
+            </>
+          )}
+        </Formular>
       )}
     </div>
   );

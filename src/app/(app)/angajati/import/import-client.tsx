@@ -4,9 +4,11 @@ import { useId, useRef, useState } from "react";
 import { getBrowserSupabase } from "@/lib/supabase/browser";
 import { BUCKET_DOCUMENTE } from "@/lib/documents/cale";
 import { LIMITA_FISIER_BYTES, verificaFisierImport } from "@/lib/import/excel";
-import { EmptyState } from "@/components/feedback/empty-state";
-import { StareEroare } from "@/components/feedback/stare-eroare";
-import { SkeletonTable } from "@/components/data/skeleton-table";
+import { Buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
+import { StareEroare } from "@/components/ui/stare-eroare";
+import { Schelet } from "@/components/ui/schelet";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import type { ActionResult } from "@/lib/actions/types";
 import type { AngajatValidat } from "@/domain/import/validare";
 import { CheckCircle2 } from "lucide-react";
@@ -17,6 +19,8 @@ import {
 } from "./actions";
 
 type EroareRand = { rand: number; camp: string; mesaj: string };
+/** Aceeași eroare poate apărea de două ori identic; cheia poartă și poziția. */
+type RandRespins = EroareRand & { cheie: string };
 type ColoanaRecunoscuta = { coloana: string; camp: string };
 
 // `createAction` (./actions) nu-și poate infera tipul datelor din corpul
@@ -156,7 +160,38 @@ export function ImportAngajatiClient() {
     URL.revokeObjectURL(url);
   }
 
-  if (pas === "analiza") return <SkeletonTable rows={6} cols={4} />;
+  /**
+   * Tabelul respinselor n-are sortare și n-are paginare: e o listă scurtă,
+   * citită dintr-un fișier, tăiată la 50 de rânduri — restul se ia din CSV-ul
+   * de mai jos. Numărul rândului e `numeric`, ca să se citească pe verticală.
+   */
+  const coloaneRespinse: readonly Coloana<RandRespins>[] = [
+    {
+      cheie: "rand",
+      antet: "Rând",
+      numeric: true,
+      latime: "ingusta",
+      peTelefon: "meta",
+      celula: (e) => e.rand,
+    },
+    {
+      cheie: "camp",
+      antet: "Câmp",
+      peTelefon: "meta",
+      celula: (e) => e.camp,
+    },
+    {
+      cheie: "mesaj",
+      antet: "Problemă",
+      peTelefon: "titlu",
+      // Rândul întreg era tencuit în `bg-danger/8`; `Tabel` nu colorează rânduri
+      // (și n-ar trebui — o listă în care TOATE rândurile sunt roșii nu spune
+      // nimic). Semnalul rămâne pe text, acolo unde e și problema.
+      celula: (e) => <span className="text-danger">{e.mesaj}</span>,
+    },
+  ];
+
+  if (pas === "analiza") return <Schelet forma="tabel" randuri={6} coloane={3} />;
 
   return (
     <section className="flex flex-col gap-6">
@@ -172,8 +207,8 @@ export function ImportAngajatiClient() {
       )}
 
       {pas === "incarcare" && (
-        <div className="border-border rounded-lg border p-6">
-          <label htmlFor={idFisier} className="text-foreground block text-sm font-medium">
+        <div className="border-border rounded-panou border p-6">
+          <label htmlFor={idFisier} className="text-foreground text-corp block font-medium">
             Fișier Excel (.xlsx), maximum {Math.round(LIMITA_FISIER_BYTES / 1024 / 1024)} MB
           </label>
           <input
@@ -182,113 +217,90 @@ export function ImportAngajatiClient() {
             type="file"
             accept=".xlsx,.xlsm"
             aria-describedby={`${idFisier}-ajutor`}
-            className="mt-2 block w-full text-sm"
+            className="text-corp mt-2 block w-full"
           />
-          <p id={`${idFisier}-ajutor`} className="text-muted-foreground mt-2 text-sm">
+          <p id={`${idFisier}-ajutor`} className="text-muted-foreground text-corp mt-2">
             Primul rând trebuie să conțină antetul coloanelor. Obligatorii: Marcă, Nume (sau Nume
             complet) și Data angajării.
           </p>
-          <button
-            type="button"
-            onClick={() => void incarca()}
-            className="bg-primary text-primary-foreground mt-4 rounded-md px-4 py-2 text-sm font-medium"
+          <Buton
+            varianta="primar"
+            className="mt-4"
+            onClick={() => {
+              void incarca();
+            }}
           >
             Încarcă și previzualizează
-          </button>
+          </Buton>
         </div>
       )}
 
       {pas === "previzualizare" && previzualizare !== null && (
         <div className="flex flex-col gap-4">
-          <p aria-live="polite" className="text-foreground text-sm">
+          <p aria-live="polite" className="text-foreground text-corp">
             {previzualizare.totalRanduri} rânduri citite din foaia „{previzualizare.numeFoaie}”:{" "}
             {previzualizare.numarValide} pot fi importate, {previzualizare.invalide.length} probleme
             de corectat.
             {previzualizare.trunchiat && " Fișierul a fost trunchiat la limita de 1000 de rânduri."}
           </p>
           {previzualizare.coloaneIgnorate.length > 0 && (
-            <p className="text-foreground text-sm">
+            <p className="text-foreground text-corp">
               Coloane ignorate: {previzualizare.coloaneIgnorate.join(", ")}.
             </p>
           )}
           {previzualizare.invalide.length === 0 ? (
-            <EmptyState
-              icon={CheckCircle2}
-              title="Niciun rând respins"
-              description="Toate rândurile trec validarea."
+            <StareGoala
+              fel="initiala"
+              pictograma={CheckCircle2}
+              titlu="Niciun rând respins"
+              descriere="Toate rândurile trec validarea."
+              compact
             />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <caption className="sr-only">Rânduri respinse la validare</caption>
-                <thead>
-                  <tr>
-                    <th scope="col" className="p-2">
-                      Rând
-                    </th>
-                    <th scope="col" className="p-2">
-                      Câmp
-                    </th>
-                    <th scope="col" className="p-2">
-                      Problemă
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {previzualizare.invalide.slice(0, 50).map((e: EroareRand, i: number) => (
-                    <tr
-                      key={`${e.rand}-${e.camp}-${i}`}
-                      className="border-danger/40 bg-danger/8 border-t"
-                    >
-                      <td className="p-2">{e.rand}</td>
-                      <td className="p-2">{e.camp}</td>
-                      <td className="p-2">{e.mesaj}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <Tabel
+              caption="Rânduri respinse la validare"
+              coloane={coloaneRespinse}
+              randuri={previzualizare.invalide
+                .slice(0, 50)
+                .map((e, i) => ({ ...e, cheie: `${String(e.rand)}-${e.camp}-${String(i)}` }))}
+              cheieRand={(e) => e.cheie}
+              densitate="compact"
+              gol={null}
+            />
           )}
           <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
+            <Buton
+              varianta="primar"
               disabled={previzualizare.numarValide === 0}
-              onClick={() => void aplica()}
-              className="bg-primary text-primary-foreground disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
+              onClick={() => {
+                void aplica();
+              }}
             >
               Importă cele {previzualizare.numarValide} rânduri valide
-            </button>
-            <button
-              type="button"
-              onClick={descarcaRaport}
-              className="border-foreground/60 rounded-md border px-4 py-2 text-sm"
-            >
+            </Buton>
+            <Buton varianta="secundar" onClick={descarcaRaport}>
               Descarcă raportul rândurilor respinse
-            </button>
+            </Buton>
           </div>
         </div>
       )}
 
       {pas === "aplicare" && (
-        <p role="status" aria-live="polite" className="text-sm">
+        <p role="status" aria-live="polite" className="text-corp">
           Se importă… {progres.procesate} din {progres.total} rânduri procesate, {progres.reusite}{" "}
           create.
         </p>
       )}
 
       {pas === "gata" && (
-        <div className="border-success/40 bg-surface rounded-lg border p-4">
-          <p role="status" aria-live="polite" className="text-sm font-medium">
+        <div className="border-success/40 bg-surface rounded-panou border p-4">
+          <p role="status" aria-live="polite" className="text-corp font-medium">
             Import încheiat: {progres.reusite} fișe create, {esecuri.length} rânduri respinse la
             scriere.
           </p>
-          <button
-            type="button"
-            onClick={descarcaRaport}
-            className="border-foreground/60 mt-3 rounded-md border px-4 py-2 text-sm"
-          >
+          <Buton varianta="secundar" className="mt-3" onClick={descarcaRaport}>
             Descarcă raportul complet
-          </button>
+          </Buton>
         </div>
       )}
     </section>

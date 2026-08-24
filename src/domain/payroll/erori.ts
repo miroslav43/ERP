@@ -27,6 +27,7 @@ export const CODURI_PROBLEMA = [
   "SAL_ZILE_PESTE_LUNA",
   "SAL_CONTRACT_SCHIMBAT_IN_LUNA",
   "SAL_SPOR_SARBATOARE_NECONFIGURAT",
+  "SAL_SPOR_NOAPTE_SUB_PRAG",
   "SAL_SPOR_REPAUS_NECONFIGURAT",
   "SAL_TICHETE_REGIM_NECONFIRMAT",
   "SAL_CAS_LA_MINIM",
@@ -137,10 +138,20 @@ const CATALOG: Readonly<Record<CodProblema, IntrareCatalog>> = {
     mesaj:
       "S-a lucrat în zile de sărbătoare legală, dar nu există un procent de spor configurat separat pentru ele.",
     cauza:
-      "Setările de salarizare au un singur procent pentru zilele de repaus. Sporul distinct de sărbătoare legală se configurează în setările de pontaj, care încă nu alimentează calculul.",
+      "Perioada a fost calculată cu setări anterioare migrării 0066, care nu aveau un procent distinct pentru sărbătoarea legală. Motorul a căzut pe sporul de repaus.",
     cumSeRepara:
       "Orele au fost plătite cu sporul de repaus, ca să nu rămână neplătite. Verificați cu contabilul dacă procentul aplicat e cel corect pentru sărbători.",
     unde: "/salarizare/setari",
+  },
+  SAL_SPOR_NOAPTE_SUB_PRAG: {
+    severitate: "informativ",
+    mesaj:
+      "S-au lucrat ore de noapte, dar sub pragul de la care se acordă sporul — sporul de noapte nu a fost plătit.",
+    cauza:
+      "Codul Muncii art. 126 leagă sporul de noapte de un minim de ore lucrate în intervalul de noapte (implicit 3). Totalul lunii a rămas sub pragul configurat în setările de pontaj.",
+    cumSeRepara:
+      "Dacă orele de noapte au fost pontate greșit, corectați-le în foaia colectivă. Dacă firma acordă sporul fără prag, puneți pragul pe 0 în setările de pontaj.",
+    unde: "/pontaj/setari",
   },
   SAL_SPOR_REPAUS_NECONFIGURAT: {
     severitate: "avertisment",

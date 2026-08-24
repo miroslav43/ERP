@@ -1,77 +1,71 @@
-"use client";
+import type { ReactElement } from "react";
 
-import { useId, useTransition } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Search } from "lucide-react";
-
-import { STATUS_STINGATOR } from "@/schemas/ssm";
+import { BaraFiltre, type FiltruActiv } from "@/components/ui/bara-filtre";
+import { Camp } from "@/components/ui/camp";
+import { STATUS_STINGATOR, type StatusStingator } from "@/schemas/ssm";
 
 import { ETICHETE_STATUS_STINGATOR } from "../etichete";
 
-export function FiltreStingatoare() {
-  const router = useRouter();
-  const cale = usePathname();
-  const parametri = useSearchParams();
-  const [inCurs, porneste] = useTransition();
-  const idCauta = useId();
-  const idStatus = useId();
-
-  function aplica(formular: FormData): void {
-    const noi = new URLSearchParams();
-    const cauta = String(formular.get("cauta") ?? "").trim();
-    const status = String(formular.get("status") ?? "");
-    if (cauta.length > 0) noi.set("cauta", cauta);
-    if (status.length > 0) noi.set("status", status);
-    porneste(() => {
-      router.replace(`${cale}?${noi.toString()}`);
-    });
-  }
+/**
+ * Filtrele listei de stingătoare.
+ *
+ * ── CE PIERDEA VECHIUL `aplica()` ─────────────────────────────────────────
+ * Pornea din `new URLSearchParams()` GOL și scria înapoi doar `cauta` și
+ * `status`. Din clipa în care lista a primit antete sortabile și mărime de
+ * pagină, orice apăsare pe „Filtrează” arunca `sort` ȘI `limita`: omul sorta
+ * după locație, cerea 100 de rânduri, apoi filtra după stare — și primea
+ * înapoi ordinea implicită, 25 de rânduri, fără nicio explicație.
+ *
+ * `<BaraFiltre>` pornește din `useSearchParams()` și atinge numai
+ * `cheiProprii`, deci `sort` și `limita` supraviețuiesc prin construcție, iar
+ * `cursor` cade la fiecare schimbare de filtru — ar fi continuat de la un rând
+ * ieșit din rezultat.
+ *
+ * ── DE CE NU MAI E COMPONENTĂ DE CLIENT ───────────────────────────────────
+ * Nu mai are nici stare, nici handler, nici `useSearchParams`: valorile curente
+ * vin ca proprietăți, deja validate de `filtreStingatoareSchema` în pagină —
+ * deci o valoare inventată în adresă nu mai poate ajunge nici în `defaultValue`,
+ * nici pe o pastilă. Fără `"use client"`, fișierul iese din pachetul de
+ * JavaScript al rutei.
+ */
+export function FiltreStingatoare({
+  status,
+  cauta,
+}: {
+  readonly status: StatusStingator | null;
+  readonly cauta: string | null;
+}): ReactElement {
+  // Pastilele poartă DENUMIREA stării, nu valoarea din bază: „Stare: În
+  // service”, nu „status=in_service”.
+  const active: readonly FiltruActiv[] = [
+    ...(cauta === null ? [] : [{ cheie: "cauta", eticheta: `Cod: ${cauta}` }]),
+    ...(status === null
+      ? []
+      : [{ cheie: "status", eticheta: `Stare: ${ETICHETE_STATUS_STINGATOR[status]}` }]),
+  ];
 
   return (
-    <form
-      action={aplica}
-      className="border-border flex flex-wrap items-end gap-3 rounded-lg border p-4"
-    >
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idCauta} className="text-sm font-medium">
-          Cod stingător
-        </label>
-        <input
-          id={idCauta}
-          name="cauta"
-          type="search"
-          defaultValue={parametri.get("cauta") ?? ""}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
-        />
-      </div>
+    <BaraFiltre active={active} cheiProprii={["cauta", "status"]}>
+      <Camp nume="cauta" eticheta="Cod stingător" className="w-full sm:w-56">
+        {(atribute) => (
+          <input {...atribute} key={cauta ?? ""} type="search" defaultValue={cauta ?? ""} />
+        )}
+      </Camp>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idStatus} className="text-sm font-medium">
-          Stare
-        </label>
-        <select
-          id={idStatus}
-          name="status"
-          defaultValue={parametri.get("status") ?? ""}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
-        >
-          <option value="">Toate</option>
-          {STATUS_STINGATOR.map((s) => (
-            <option key={s} value={s}>
-              {ETICHETE_STATUS_STINGATOR[s]}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <button
-        type="submit"
-        disabled={inCurs}
-        className="border-foreground/60 hover:bg-surface disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-      >
-        <Search aria-hidden="true" className="size-4" />
-        {inCurs ? "Se filtrează…" : "Filtrează"}
-      </button>
-    </form>
+      <Camp nume="status" eticheta="Stare" fel="select" className="w-full sm:w-48">
+        {(atribute) => (
+          <select {...atribute} key={status ?? ""} defaultValue={status ?? ""}>
+            {/* NU „Toate": fără filtru, citirea exclude stingătoarele casate,
+                exact ca `contorStingatoare`. Eticheta spune ce se vede. */}
+            <option value="">În uz (activ și în service)</option>
+            {STATUS_STINGATOR.map((s) => (
+              <option key={s} value={s}>
+                {ETICHETE_STATUS_STINGATOR[s]}
+              </option>
+            ))}
+          </select>
+        )}
+      </Camp>
+    </BaraFiltre>
   );
 }

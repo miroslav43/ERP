@@ -8,44 +8,34 @@
 
 import { createServerSupabase } from "@/lib/supabase/server";
 import type { PermissionScope } from "@/config/permissions";
+import { SORTARI_CERERI } from "@/schemas/leave";
 import type {
   CriteriuGrila,
   EvenimentSold,
   FiltreCereri,
   ModRotunjireAcumulare,
   PortiuneZi,
+  SortareCereri,
   StatusCerere,
   StatusSarcinaAprobare,
   TipZiOrganizatie,
   VizualizareCereri,
 } from "@/schemas/leave";
 
-// ── Cursor keyset (pereche proprie: dată + id, descrescător) ─────────────────
+import {
+  codificaCursor as codificaKeyset,
+  decodificaCursor as decodificaKeyset,
+  predicatKeyset,
+  sortareCeruta,
+  type Directie,
+} from "./cursor";
+
+// ── Cursor keyset ───────────────────────────────────────────────────────
 //
-// Codul este o copie intenționată a tiparului din `queries/employees.ts`, nu
-// un import: cheia de sortare e altă pereche de coloane, iar fișierul acela
-// nu se atinge (lucrează alt agent pe inventar în paralel).
-
-interface CursorCereri {
-  readonly data: string;
-  readonly id: string;
-}
-
-function codificaCursorCereri(cursor: CursorCereri): string {
-  return Buffer.from(`${cursor.data}\u0000${cursor.id}`, "utf8").toString("base64url");
-}
-
-function decodificaCursorCereri(valoare: string): CursorCereri | null {
-  try {
-    const bucati = Buffer.from(valoare, "base64url").toString("utf8").split("\u0000");
-    const data = bucati[0];
-    const id = bucati[1];
-    if (data === undefined || id === undefined || id.length === 0) return null;
-    return { data, id };
-  } catch {
-    return null;
-  }
-}
+// Cursorul propriu (`{ data, id }`, cu coloana încuiată în codificator) a fost
+// înlocuit cu cel comun din `./cursor`: acolo valoarea e opacă, iar coloana o dă
+// apelantul la fiecare citire, deci aceeași structură servește orice sortare.
+// Erau zece copii ale aceluiași codificator în fișierele de citiri.
 
 // ── Listarea cererilor ────────────────────────────────────────────────────────
 
@@ -68,7 +58,23 @@ export interface RandCerere {
 export interface RezultatCereri {
   readonly randuri: readonly RandCerere[];
   readonly urmatorulCursor: string | null;
+  /**
+   * Câte cereri sunt în total, după filtre. Lista nu spunea nimic: „Pagina
+   * următoare” fără un total e o ușă fără indicație — nu știi dacă mai urmează
+   * un ecran sau o sută.
+   */
+  readonly total: number;
+  /** Sortarea EFECTIV aplicată, după îngustarea la coloanele permise. */
+  readonly sortare: Readonly<{ cheie: SortareCereri; directie: Directie }>;
 }
+
+/** Cheia din URL → coloana din bază. Numele coloanei nu vine niciodată liber din query string. */
+const COLOANA_SORTARE: Readonly<Record<SortareCereri, string>> = {
+  perioada: "data_inceput",
+  stare: "status",
+};
+
+const SORTARE_IMPLICITA = { cheie: "perioada", directie: "desc" } as const;
 
 const COLOANE_CERERE =
   "id, employee_id, leave_type_id, data_inceput, data_sfarsit, portiune_inceput, portiune_sfarsit, zile_lucratoare, zile_calendaristice, status, trimisa_la, decis_la, created_at";
@@ -94,67 +100,115 @@ export async function listeazaCereri(
    */
   vizualizare: VizualizareCereri = "toate",
 ): Promise<RezultatCereri> {
+  const sortare = sortareCeruta(filtre.sort, SORTARI_CERERI, SORTARE_IMPLICITA);
+
   // Fără fișă proprie, „ale mele” nu are subiect. Fără ieșirea asta devreme,
-  // filtrul de mai jos s-ar sări tăcut și un manager fără fișă ar primi pe
+  // filtrul din `filtreaza` s-ar sări tăcut și un manager fără fișă ar primi pe
   // ecranul „Cererile mele” lista întreagă a echipei — corectă din punctul de
   // vedere al RLS-ului, greșită față de ce scrie în antet.
   if (vizualizare === "mele" && fisaMea === null) {
-    return { randuri: [], urmatorulCursor: null };
+    return { randuri: [], urmatorulCursor: null, total: 0, sortare };
   }
 
   const db = await createServerSupabase();
-  let interogare = db
-    .from("leave_requests")
-    .select(COLOANE_CERERE)
-    .eq("organization_id", organizationId)
-    .is("deleted_at", null)
-    .order("data_inceput", { ascending: false })
-    .order("id", { ascending: false })
+  const coloana = COLOANA_SORTARE[sortare.cheie];
+  const crescator = sortare.directie === "asc";
+
+  /*
+   * ── DE CE NUMĂRĂTOAREA E O A DOUA INTEROGARE ──────────────────────────
+   * Aici stătea `count: "exact"` pe ACEEAȘI interogare, cu argumentul — corect
+   * în sine — că așa numărătoarea respectă filtrele ȘI politicile RLS, fără un
+   * al doilea drum la bază. Argumentul rata un lucru: predicatul KEYSET e și el
+   * un filtru, iar PostgREST n-are de unde ști că e „paginare”. Pus pe aceeași
+   * interogare, `count` numără doar ce a rămas DUPĂ cursor.
+   *
+   * Se vedea de la pagina a doua: `<Paginare>` scria „25 din 30 de rânduri”
+   * acolo unde erau 55, iar totalul SCĂDEA cu fiecare „mai departe”. Lista era
+   * corectă; doar numărul mințea, fără nicio eroare.
+   *
+   * Cele două interogări împart ACELEAȘI filtre, aplicate de aceeași funcție,
+   * ca să nu poată diverge; se deosebesc doar prin cursor, ordine și limită,
+   * care aparțin paginii, nu mulțimii. Merg în paralel, iar numărătoarea e
+   * `head: true`, deci nu aduce niciun rând.
+   */
+  /**
+   * Filtrele mulțimii, aplicate identic pe amândouă interogările.
+   *
+   * Generic peste constructorul de interogare, nu scris de două ori: două copii
+   * ar diverge la primul filtru adăugat, iar divergența s-ar vedea tocmai ca o
+   * numărătoare care nu se potrivește cu lista — defectul reparat aici.
+   */
+  const filtreaza = <
+    Q extends {
+      eq: (c: string, v: string) => Q;
+      neq: (c: string, v: string) => Q;
+      is: (c: string, v: null) => Q;
+      in: (c: string, v: readonly string[]) => Q;
+      gte: (c: string, v: string) => Q;
+      lte: (c: string, v: string) => Q;
+    },
+  >(
+    q: Q,
+  ): Q => {
+    let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
+    if (fisaMea !== null && vizualizare === "mele") {
+      cu = cu.eq("employee_id", fisaMea);
+    } else if (fisaMea !== null && vizualizare === "echipa") {
+      cu = cu.neq("employee_id", fisaMea);
+    }
+    if (filtre.status !== null && filtre.status.length > 0) cu = cu.in("status", filtre.status);
+    if (filtre.leave_type_id !== null) cu = cu.eq("leave_type_id", filtre.leave_type_id);
+    if (filtre.de_la !== null) cu = cu.gte("data_sfarsit", filtre.de_la);
+    if (filtre.pana_la !== null) cu = cu.lte("data_inceput", filtre.pana_la);
+    // Filtrul explicit după angajat are sens doar pentru cine vede mai mult decât
+    // fișa proprie — pentru „own”, RLS restrânge deja rezultatul la un singur angajat.
+    if (scope !== "own" && filtre.employee_id !== null) {
+      cu = cu.eq("employee_id", filtre.employee_id);
+    }
+    return cu;
+  };
+
+  let interogare = filtreaza(db.from("leave_requests").select(COLOANE_CERERE))
+    // Identificatorul e MEREU al doilea criteriu: nici data de început, nici
+    // starea nu sunt unice, iar fără el ordinea dintre două cereri egale e
+    // nedefinită — paginarea ar sări sau ar repeta exact acolo.
+    .order(coloana, { ascending: crescator, nullsFirst: false })
+    .order("id", { ascending: crescator })
     .limit(filtre.limita + 1);
 
-  if (fisaMea !== null && vizualizare === "mele") {
-    interogare = interogare.eq("employee_id", fisaMea);
-  } else if (fisaMea !== null && vizualizare === "echipa") {
-    interogare = interogare.neq("employee_id", fisaMea);
-  }
-  if (filtre.status !== null && filtre.status.length > 0) {
-    interogare = interogare.in("status", filtre.status);
-  }
-  if (filtre.leave_type_id !== null) {
-    interogare = interogare.eq("leave_type_id", filtre.leave_type_id);
-  }
-  if (filtre.de_la !== null) {
-    interogare = interogare.gte("data_sfarsit", filtre.de_la);
-  }
-  if (filtre.pana_la !== null) {
-    interogare = interogare.lte("data_inceput", filtre.pana_la);
-  }
-  // Filtrul explicit după angajat are sens doar pentru cine vede mai mult decât
-  // fișa proprie — pentru „own”, RLS restrânge deja rezultatul la un singur angajat.
-  if (scope !== "own" && filtre.employee_id !== null) {
-    interogare = interogare.eq("employee_id", filtre.employee_id);
-  }
-
-  const cursor = filtre.cursor === null ? null : decodificaCursorCereri(filtre.cursor);
+  const cursor = filtre.cursor === null ? null : decodificaKeyset(filtre.cursor);
   if (cursor !== null) {
-    interogare = interogare.or(
-      `data_inceput.lt.${cursor.data},and(data_inceput.eq.${cursor.data},id.lt.${cursor.id})`,
-    );
+    interogare = interogare.or(predicatKeyset(coloana, cursor, sortare.directie));
   }
 
-  const { data, error } = await interogare.returns<RandCerere[]>();
+  const [rezultat, numarare] = await Promise.all([
+    interogare.returns<RandCerere[]>(),
+    filtreaza(db.from("leave_requests").select("id", { count: "exact", head: true })),
+  ]);
+  const { data, error } = rezultat;
   if (error !== null) throw error;
+  if (numarare.error !== null) throw numarare.error;
+  const count = numarare.count;
 
   const toate = data ?? [];
   const areUrmatoarea = toate.length > filtre.limita;
   const randuri = areUrmatoarea ? toate.slice(0, filtre.limita) : toate;
   const ultimul = randuri.at(-1);
+  const valoareCursor =
+    ultimul === undefined
+      ? null
+      : sortare.cheie === "stare"
+        ? ultimul.status
+        : ultimul.data_inceput;
+
   return {
     randuri,
     urmatorulCursor:
-      areUrmatoarea && ultimul !== undefined
-        ? codificaCursorCereri({ data: ultimul.data_inceput, id: ultimul.id })
+      areUrmatoarea && ultimul !== undefined && valoareCursor !== null
+        ? codificaKeyset({ valoare: valoareCursor, id: ultimul.id })
         : null,
+    total: count ?? randuri.length,
+    sortare,
   };
 }
 
@@ -375,7 +429,31 @@ export interface EvenimentIstoricSold {
   readonly data_eveniment: string;
   readonly created_at: string;
   readonly leave_type_id: string;
+  /**
+   * A CUI e mișcarea. Lipsea din `select`, iar ecranul de sold randează
+   * istoricul TUTUROR angajaților vizibili pentru un `org_admin`: șase coloane
+   * (Data, Tip, Eveniment, Variație, Sold după, Motiv) și niciuna care să spună
+   * a cui e linia. Un extras de cont fără titular.
+   */
+  readonly employee_id: string;
 }
+
+export interface RezultatIstoricSold {
+  readonly randuri: readonly EvenimentIstoricSold[];
+  /** Citirea a fost tăiată: mai există mișcări dincolo de ce s-a întors. */
+  readonly trunchiat: boolean;
+}
+
+/**
+ * Câte mișcări se citesc dintr-un an.
+ *
+ * Nu e o cifră de confort, e una de siguranță: PostgREST are `max_rows = 1000`
+ * și TRUNCHIAZĂ TĂCUT peste el, fără eroare și fără niciun semn în răspuns.
+ * Interogarea n-avea `.limit()` deloc, deci la 200 de angajați × ~6 evenimente
+ * pe an lista se oprea la 1000 și arăta exact ca una completă. Cu limita
+ * declarată aici, plus un rând, ȘTIM dacă s-a tăiat și o putem spune.
+ */
+const LIMITA_ISTORIC_SOLD = 500;
 
 /**
  * `leave_accruals` nu are `deleted_at`. Politica de SELECT e „propriu sau
@@ -386,17 +464,27 @@ export interface EvenimentIstoricSold {
 export async function istoricSold(
   organizationId: string,
   an: number,
-): Promise<readonly EvenimentIstoricSold[]> {
+): Promise<RezultatIstoricSold> {
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("leave_accruals")
-    .select("an, eveniment, delta, sold_dupa, motiv, data_eveniment, created_at, leave_type_id")
+    .select(
+      "an, eveniment, delta, sold_dupa, motiv, data_eveniment, created_at, leave_type_id, employee_id",
+    )
     .eq("organization_id", organizationId)
     .eq("an", an)
     .order("created_at", { ascending: false })
+    // Al doilea criteriu: `created_at` nu e unic (o singură tranzacție scrie
+    // mai multe mișcări cu același `now()`), iar fără el ordinea dintre ele —
+    // deci și granița de tăiere — ar fi nedefinită de la o citire la alta.
+    .order("id", { ascending: false })
+    .limit(LIMITA_ISTORIC_SOLD + 1)
     .returns<EvenimentIstoricSold[]>();
   if (error !== null) throw error;
-  return data ?? [];
+
+  const toate = data ?? [];
+  const trunchiat = toate.length > LIMITA_ISTORIC_SOLD;
+  return { randuri: trunchiat ? toate.slice(0, LIMITA_ISTORIC_SOLD) : toate, trunchiat };
 }
 
 // ── Sarcinile de aprobat ──────────────────────────────────────────────────────
@@ -473,6 +561,31 @@ interface CerereBruta {
   readonly status: StatusCerere;
 }
 
+export interface RezultatDeAprobat {
+  readonly sarcini: readonly SarcinaDeAprobat[];
+  /**
+   * Coada a fost tăiată: mai există sarcini dincolo de ce s-a întors.
+   *
+   * NU e însoțit de un total, deliberat. Un `count: "exact"` pe `approval_tasks`
+   * ar număra și sarcinile a căror cerere a fost între timp decisă de un pas
+   * anterior sau anulată — rândurile pe care funcția asta le ARUNCĂ mai jos.
+   * Contorul ar rămâne atunci mai mare decât lista, pentru totdeauna, iar
+   * ecranul ar promite „143 de cereri” deasupra a 130 de rânduri. Cifra afișată
+   * e lungimea listei; steagul spune doar că lista nu e tot.
+   */
+  readonly trunchiat: boolean;
+}
+
+/**
+ * Câte sarcini se aduc într-o citire a cozii.
+ *
+ * Plafonul exista și înainte (`.limit(100)`), dar nu ieșea nicăieri: un HR al
+ * unei firme de 300 de oameni, în iulie, îl depășea și nu afla niciodată — a
+ * 101-a cerere pur și simplu nu era pe ecran. Se cere acum un rând în plus,
+ * exclusiv ca să se poată spune că s-a tăiat.
+ */
+const LIMITA_COADA_APROBARI = 100;
+
 /**
  * `approval_tasks` NU are cheie străină către `leave_requests` (legătura e
  * polimorfă: `entity_type` + `entity_id`), deci embed-ul PostgREST e imposibil.
@@ -483,7 +596,7 @@ interface CerereBruta {
 export async function deAprobat(
   organizationId: string,
   userId: string,
-): Promise<readonly SarcinaDeAprobat[]> {
+): Promise<RezultatDeAprobat> {
   const db = await createServerSupabase();
 
   const { data: sarciniData, error: eroareSarcini } = await db
@@ -495,11 +608,17 @@ export async function deAprobat(
     .eq("status", "in_asteptare")
     .is("deleted_at", null)
     .order("termen_la", { ascending: true, nullsFirst: false })
-    .limit(100)
+    // Al doilea criteriu: `termen_la` e NULL pe fluxurile fără SLA, deci fără el
+    // ordinea dintre sarcinile fără termen — și implicit granița tăierii — se
+    // schimbă de la o citire la alta.
+    .order("id", { ascending: true })
+    .limit(LIMITA_COADA_APROBARI + 1)
     .returns<SarcinaBruta[]>();
   if (eroareSarcini !== null) throw eroareSarcini;
-  const sarcini = sarciniData ?? [];
-  if (sarcini.length === 0) return [];
+  const brute = sarciniData ?? [];
+  const trunchiat = brute.length > LIMITA_COADA_APROBARI;
+  const sarcini = trunchiat ? brute.slice(0, LIMITA_COADA_APROBARI) : brute;
+  if (sarcini.length === 0) return { sarcini: [], trunchiat: false };
 
   const idCereri = [...new Set(sarcini.map((s) => s.entity_id))];
   const { data: cereriData, error: eroareCereri } = await db
@@ -536,7 +655,7 @@ export async function deAprobat(
   const hartaAngajati = new Map((angajatiRes.data ?? []).map((a) => [a.id, a]));
   const hartaTipuri = new Map((tipuriRes.data ?? []).map((t) => [t.id, t]));
 
-  return sarcini
+  const randuri = sarcini
     .map((sarcina): SarcinaDeAprobat | null => {
       const cerere = hartaCereri.get(sarcina.entity_id);
       if (cerere === undefined) return null;
@@ -562,6 +681,8 @@ export async function deAprobat(
       };
     })
     .filter((rand): rand is SarcinaDeAprobat => rand !== null);
+
+  return { sarcini: randuri, trunchiat };
 }
 
 // ── Calendarul de echipă ──────────────────────────────────────────────────────
@@ -789,6 +910,108 @@ export async function previzualizeazaDrepturi(
     p_an: an,
     p_simulare: true,
   });
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+// ── Coduri de indemnizație pentru concediul medical ───────────────────────────
+
+export interface CodIndemnizatieMedicala {
+  readonly id: string;
+  readonly cod: string;
+  readonly denumire: string;
+  readonly procent: number;
+  readonly zileAngajator: number;
+  readonly platitor: "angajator" | "fnuass" | "mixt";
+}
+
+/**
+ * Nomenclatorul național de coduri de pe certificatul medical, valabile la data
+ * cerută. Tabela `medical_leave_codes` nu are `organization_id` — e seed de
+ * platformă, comun tuturor firmelor (0009:222-266).
+ *
+ * Codul nu e decorativ: el decide procentul (75/85/100%), câte zile suportă
+ * firma din bugetul propriu și de la care începe FNUASS-ul. Motorul
+ * `indemnizatie-cm.ts` îl citește prin `certificateMedicaleLuna`, care filtrează
+ * `medical_code_id is not null` — până în 0064 nimic nu-l scria, deci filtrul
+ * întorcea mereu zero rânduri și indemnizația era 0 lei, fără nicio eroare.
+ *
+ * `valabil_de_la <= laData` cu `valabil_pana_la` deschis sau în viitor:
+ * nomenclatorul are istoric, iar o cerere retroactivă trebuie să primească
+ * procentele valabile ATUNCI, nu pe cele de azi.
+ */
+export async function coduriIndemnizatieMedicala(
+  laData: string,
+): Promise<readonly CodIndemnizatieMedicala[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("medical_leave_codes")
+    .select("id, cod, denumire, procent, zile_angajator, platitor")
+    .lte("valabil_de_la", laData)
+    .or(`valabil_pana_la.is.null,valabil_pana_la.gte.${laData}`)
+    .is("deleted_at", null)
+    .order("cod", { ascending: true })
+    .returns<
+      {
+        id: string;
+        cod: string;
+        denumire: string;
+        procent: number;
+        zile_angajator: number;
+        platitor: "angajator" | "fnuass" | "mixt";
+      }[]
+    >();
+  if (error !== null) throw error;
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    cod: r.cod,
+    denumire: r.denumire,
+    procent: r.procent,
+    zileAngajator: r.zile_angajator,
+    platitor: r.platitor,
+  }));
+}
+
+// ── Variantele legale ale tipurilor de concediu ───────────────────────────────
+
+export interface VariantaConcediu {
+  readonly id: string;
+  readonly leave_type_key: string;
+  readonly cod: string;
+  readonly denumire: string;
+  readonly zile: number;
+  readonly conditie_descriere: string;
+  readonly necesita_document: boolean;
+  readonly temei_legal: string | null;
+  /** `null` = variantă de platformă, needitabilă. */
+  readonly organization_id: string | null;
+}
+
+/**
+ * Variantele condiționate ale concediilor — paternal 15 zile cu atestat de
+ * puericultură, creștere copil 3 ani pentru copilul cu handicap, căsătoria unui
+ * copil, decesul unei rude de gradul II.
+ *
+ * Până în 0070 niciuna nu se putea introduce: triggerul din 0035 blochează
+ * modificarea zilelor pe un tip reglementat, iar 0037 interzice și grilele pe
+ * astfel de tipuri. Protecția rămâne — variantele sunt o a treia cale, pe care
+ * angajatorul o ALEGE, nu o editează.
+ *
+ * RLS (`leave_type_variants_select`) le arată pe cele de platformă tuturor și
+ * pe cele proprii doar organizației lor; interogarea nu filtrează.
+ */
+export async function varianteConcediu(): Promise<readonly VariantaConcediu[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("leave_type_variants")
+    .select(
+      "id, leave_type_key, cod, denumire, zile, conditie_descriere, necesita_document, temei_legal, organization_id",
+    )
+    .eq("activ", true)
+    .is("deleted_at", null)
+    .order("leave_type_key", { ascending: true })
+    .order("ordine", { ascending: true })
+    .returns<VariantaConcediu[]>();
   if (error !== null) throw error;
   return data ?? [];
 }

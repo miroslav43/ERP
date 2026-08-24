@@ -3,6 +3,7 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
 import type { StatusFoaie } from "@/schemas/fleet";
 
 import { adaugaAlimentare, trimiteFoaie } from "../../actions";
@@ -28,7 +29,11 @@ export function ActiuniFoaie({
   readonly sosireLa: string | null;
 }) {
   const router = useRouter();
-  const [inCurs, porneste] = useTransition();
+  // Câte o tranziție per formular: una singură pentru amândouă dezactiva butonul
+  // „Adaugă alimentarea” cât timp se trimitea foaia, și invers — două acțiuni
+  // fără nicio legătură care se blocau una pe alta.
+  const [seInchide, porneste] = useTransition();
+  const [seAlimenteaza, pornesteAlimentarea] = useTransition();
   const [eroare, setEroare] = useState<string | null>(null);
   const [avertisment, setAvertisment] = useState<string | null>(null);
 
@@ -63,7 +68,7 @@ export function ActiuniFoaie({
 
   function alimenteaza(formular: FormData): void {
     setEroare(null);
-    porneste(async () => {
+    pornesteAlimentarea(async () => {
       const rezultat = await adaugaAlimentare({
         trip_sheet_id: id,
         litri: Number(formular.get("litri") ?? 0),
@@ -87,7 +92,7 @@ export function ActiuniFoaie({
       {eroare === null ? null : (
         <p
           role="alert"
-          className="border-danger/40 bg-danger/8 text-danger rounded-lg border p-3 text-sm"
+          className="border-danger/40 bg-danger/8 text-danger rounded-panou text-corp border p-3"
         >
           {eroare}
         </p>
@@ -95,7 +100,7 @@ export function ActiuniFoaie({
       {avertisment === null ? null : (
         <p
           role="status"
-          className="border-warning/40 bg-warning/12 text-foreground rounded-lg border p-3 text-sm"
+          className="border-warning/40 bg-warning/12 text-foreground rounded-panou text-corp border p-3"
         >
           {avertisment}
         </p>
@@ -104,13 +109,13 @@ export function ActiuniFoaie({
       {sePoateModifica ? (
         <form
           action={inchide}
-          className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-3"
+          className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-3"
         >
-          <p className="text-sm font-medium sm:col-span-3">
+          <p className="text-corp font-medium sm:col-span-3">
             Închide cursa și trimite spre aprobare
           </p>
           <div className="flex flex-col gap-1">
-            <label htmlFor={idSosire} className="text-sm">
+            <label htmlFor={idSosire} className="text-corp">
               Sosire
             </label>
             <input
@@ -120,11 +125,11 @@ export function ActiuniFoaie({
               required
               min={plecareLa.slice(0, 16)}
               defaultValue={sosireLa?.slice(0, 16)}
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor={idKm} className="text-sm">
+            <label htmlFor={idKm} className="text-corp">
               Kilometraj la sosire
             </label>
             <input
@@ -133,17 +138,13 @@ export function ActiuniFoaie({
               type="number"
               min={kmPlecare}
               required
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
             />
           </div>
           <div className="flex items-end">
-            <button
-              type="submit"
-              disabled={inCurs}
-              className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-            >
-              {inCurs ? "Se trimite…" : "Trimite spre aprobare"}
-            </button>
+            <Buton type="submit" varianta="primar" inCurs={seInchide} textInCurs="Se trimite…">
+              Trimite spre aprobare
+            </Buton>
           </div>
         </form>
       ) : null}
@@ -151,23 +152,30 @@ export function ActiuniFoaie({
       {status === "aprobat" ? null : (
         <form
           action={alimenteaza}
-          className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-4"
+          className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-4"
         >
-          <p className="text-sm font-medium sm:col-span-4">Adaugă o alimentare</p>
+          <p className="text-corp font-medium sm:col-span-4">Adaugă o alimentare</p>
           <div className="flex flex-col gap-1">
-            <label htmlFor={idCand} className="text-sm">
+            <label htmlFor={idCand} className="text-corp">
               Când
             </label>
+            {/* Baza respinge o alimentare din afara intervalului cursei, iar
+                utilizatorul primea eroarea de la server pentru ceva ce browserul
+                putea opri. `max` se pune doar când cursa e închisă: pentru una
+                deschisă, „acum” calculat în client ar diferi de randarea de pe
+                server și ar produce nepotrivire la hidratare. */}
             <input
               id={idCand}
               name="alimentat_la"
               type="datetime-local"
               required
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+              min={plecareLa.slice(0, 16)}
+              {...(sosireLa === null ? {} : { max: sosireLa.slice(0, 16) })}
+              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor={idLitri} className="text-sm">
+            <label htmlFor={idLitri} className="text-corp">
               Litri
             </label>
             <input
@@ -177,11 +185,11 @@ export function ActiuniFoaie({
               min="0.01"
               step="0.01"
               required
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor={idCost} className="text-sm">
+            <label htmlFor={idCost} className="text-corp">
               Cost (lei)
             </label>
             <input
@@ -191,28 +199,29 @@ export function ActiuniFoaie({
               min="0"
               step="0.01"
               required
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor={idStatie} className="text-sm">
+            <label htmlFor={idStatie} className="text-corp">
               Stație
             </label>
             <input
               id={idStatie}
               name="statie"
               maxLength={120}
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
             />
           </div>
           <div className="sm:col-span-4">
-            <button
+            <Buton
               type="submit"
-              disabled={inCurs}
-              className="border-foreground/60 hover:bg-surface disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
+              varianta="secundar"
+              inCurs={seAlimenteaza}
+              textInCurs="Se salvează…"
             >
-              {inCurs ? "Se salvează…" : "Adaugă alimentarea"}
-            </button>
+              Adaugă alimentarea
+            </Buton>
           </div>
         </form>
       )}

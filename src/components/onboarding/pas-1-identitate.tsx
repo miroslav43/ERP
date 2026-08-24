@@ -14,9 +14,44 @@ import {
   SelectorCodCaenPrincipal,
   SelectorCodCaenSecundare,
 } from "@/components/forms/selector-cod-caen";
-import { claseCamp, claseLabel, Eroare } from "./campuri-comune";
+import { Camp, clasaBifa } from "@/components/ui/camp";
+
+import { mesajeEroare } from "./campuri-comune";
 import { CampCuiAnaf } from "./camp-cui-anaf";
 
+/**
+ * Pasul 1 al asistentului de înrolare — identitatea firmei.
+ *
+ * ── CE S-A REPARAT AICI, ȘI DE CE NU SE VEDEA ─────────────────────────────
+ * Fiecare câmp avea eticheta, controlul și mesajul de eroare scrise de mână, cu
+ * identificatori compuși din `idFormular`. Mesajul de eroare avea `id`, dar
+ * `aria-describedby` al controlului arăta — când exista — spre textul de
+ * AJUTOR, niciodată spre eroare:
+ *
+ *     aria-describedby={`${idFormular}-legal-name-ajutor`}
+ *     <Eroare id={`${idFormular}-legal-name-eroare`} … />   ← nereferit
+ *
+ * Consecința: pe cel mai lung formular din produs — șapte pași, primul lucru pe
+ * care îl face un client nou — cine folosește un cititor de ecran auzea „câmp
+ * nevalid" fără să afle NICIODATĂ ce anume e greșit. Câmpurile fără text de
+ * ajutor (`name`, `slug`, `oras`, `email_contact`, `telefon_contact`, `judet`,
+ * `capital_social`) n-aveau `aria-describedby` deloc, deci eroarea lor era pur
+ * și simplu orfană în DOM.
+ *
+ * `<Camp>` compune `aria-describedby` din AMÂNDOUĂ, în ordinea „întâi ce e
+ * greșit, apoi ce se aștepta", și pune `role="alert"` pe mesaj. Legătura nu mai
+ * poate fi uitată la câmpul următor, fiindcă nu se mai scrie.
+ *
+ * ── DE CE RENDER-PROP, NU UN `<Camp>` CARE RANDEAZĂ SINGUR `<input>` ──────
+ * Pasul ăsta are patru feluri de control: `<input>`, `<select>`, o bifă și doi
+ * selectoare de cod CAEN care sunt componente proprii, cu API-ul lor
+ * (`ariaInvalid`, `ariaDescribedBy`). Un `<Camp>` care ar randa el controlul ar
+ * fi servit doar primele două. Aici primește atributele și le duce unde
+ * trebuie — inclusiv într-un component care le numește altfel.
+ *
+ * `register()` se împrăștie DUPĂ atributele lui `Camp`: el aduce `ref`,
+ * `onChange` și `onBlur`, iar `name` e același șir în ambele.
+ */
 export const CAMPURI_PAS_1 = [
   "name",
   "legal_name",
@@ -63,256 +98,246 @@ export function Pas1Identitate({ formular, idFormular }: Proprietati) {
   const codCaenSecundare = useWatch({ control, name: "cod_caen_secundare" }) ?? [];
   const limitaSecundare = maximSecundare(formaJuridicaSelectata);
 
+  /** Identificatorii rămân prefixați: aceiași pași se randează în două zone. */
+  const idc = (sufix: string): string => `${idFormular}-${sufix}`;
+
   return (
     <div className="space-y-6">
-      <fieldset className="border-border space-y-4 rounded-lg border p-4">
-        <legend className="text-foreground px-1 text-sm font-medium">Date de identificare</legend>
+      <fieldset className="border-border rounded-panou space-y-4 border p-4">
+        <legend className="text-foreground text-corp px-1 font-medium">Date de identificare</legend>
 
-        <div>
-          <label htmlFor={`${idFormular}-name`} className={claseLabel}>
-            Denumire *
-          </label>
-          <input
-            id={`${idFormular}-name`}
-            {...register("name")}
-            aria-invalid={Boolean(errors.name)}
-            className={claseCamp}
-          />
-          <Eroare id={`${idFormular}-name-eroare`} mesaj={errors.name?.message} />
-        </div>
+        <Camp
+          nume="name"
+          id={idc("name")}
+          eticheta="Denumire"
+          obligatoriu
+          erori={mesajeEroare(errors.name?.message)}
+        >
+          {(a) => <input {...a} {...register("name")} />}
+        </Camp>
 
-        <div>
-          <label htmlFor={`${idFormular}-legal-name`} className={claseLabel}>
-            Denumire completă (statut) *
-          </label>
-          <input
-            id={`${idFormular}-legal-name`}
-            {...register("legal_name")}
-            placeholder="SC Compania Mea SRL"
-            aria-invalid={Boolean(errors.legal_name)}
-            aria-describedby={`${idFormular}-legal-name-ajutor`}
-            className={claseCamp}
-          />
-          <p id={`${idFormular}-legal-name-ajutor`} className="text-muted-foreground mt-1 text-xs">
-            Forma juridică completă, exact ca în actul constitutiv — apare pe contracte, adeverințe
-            și orice alt document oficial. Denumirea de mai sus rămâne cea afișată în aplicație.
-          </p>
-          <Eroare id={`${idFormular}-legal-name-eroare`} mesaj={errors.legal_name?.message} />
-        </div>
+        <Camp
+          nume="legal_name"
+          id={idc("legal-name")}
+          eticheta="Denumire completă (statut)"
+          obligatoriu
+          ajutor="Forma juridică completă, exact ca în actul constitutiv — apare pe contracte, adeverințe și orice alt document oficial. Denumirea de mai sus rămâne cea afișată în aplicație."
+          erori={mesajeEroare(errors.legal_name?.message)}
+        >
+          {(a) => <input {...a} {...register("legal_name")} placeholder="SC Compania Mea SRL" />}
+        </Camp>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor={`${idFormular}-forma`} className={claseLabel}>
-              Formă de organizare *
-            </label>
-            <select
-              id={`${idFormular}-forma`}
-              {...register("forma_juridica")}
-              className={claseCamp}
-            >
-              {FORME_JURIDICE.map((forma) => (
-                <option key={forma} value={forma}>
-                  {forma}
-                </option>
-              ))}
-            </select>
-            <Eroare id={`${idFormular}-forma-eroare`} mesaj={errors.forma_juridica?.message} />
-          </div>
+          <Camp
+            nume="forma_juridica"
+            id={idc("forma")}
+            eticheta="Formă de organizare"
+            fel="select"
+            obligatoriu
+            erori={mesajeEroare(errors.forma_juridica?.message)}
+          >
+            {(a) => (
+              <select {...a} {...register("forma_juridica")}>
+                {FORME_JURIDICE.map((forma) => (
+                  <option key={forma} value={forma}>
+                    {forma}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Camp>
           <CampCuiAnaf formular={formular} idFormular={idFormular} />
         </div>
 
+        {/* Bifa rămâne scrisă de mână: `Camp` pune eticheta ÎNAINTEA controlului,
+            iar la o casetă de bifat eticheta stă după — altfel ținta de atingere
+            se rupe în două și rândul se citește invers. */}
         <div className="flex items-center gap-2">
           <input
-            id={`${idFormular}-tva`}
+            id={idc("tva")}
             type="checkbox"
             {...register("platitor_tva")}
-            className="border-border size-4 rounded"
+            className={clasaBifa}
           />
-          <label htmlFor={`${idFormular}-tva`} className="text-foreground text-sm">
+          <label htmlFor={idc("tva")} className="text-foreground text-corp">
             Plătitor de TVA
           </label>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor={`${idFormular}-slug`} className={claseLabel}>
-              Identificator *
-            </label>
-            <input
-              id={`${idFormular}-slug`}
-              {...register("slug")}
-              placeholder="firma-mea"
-              aria-invalid={Boolean(errors.slug)}
-              className={claseCamp}
-            />
-            <Eroare id={`${idFormular}-slug-eroare`} mesaj={errors.slug?.message} />
-          </div>
-          <div>
-            <label htmlFor={`${idFormular}-regcom`} className={claseLabel}>
-              Nr. Registrul Comerțului
-            </label>
-            <input
-              id={`${idFormular}-regcom`}
-              {...register("reg_com")}
-              placeholder="J40/1234/2020"
-              className={claseCamp}
-            />
-          </div>
+          <Camp
+            nume="slug"
+            id={idc("slug")}
+            eticheta="Identificator"
+            obligatoriu
+            erori={mesajeEroare(errors.slug?.message)}
+          >
+            {(a) => <input {...a} {...register("slug")} placeholder="firma-mea" />}
+          </Camp>
+          <Camp
+            nume="reg_com"
+            id={idc("regcom")}
+            eticheta="Nr. Registrul Comerțului"
+            erori={mesajeEroare(errors.reg_com?.message)}
+          >
+            {(a) => <input {...a} {...register("reg_com")} placeholder="J40/1234/2020" />}
+          </Camp>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor={`${idFormular}-capital`} className={claseLabel}>
-              Capital social (RON)
-            </label>
-            <input
-              id={`${idFormular}-capital`}
-              type="number"
-              min={0}
-              step="0.01"
-              {...register("capital_social")}
-              aria-invalid={Boolean(errors.capital_social)}
-              className={claseCamp}
-            />
-            <Eroare id={`${idFormular}-capital-eroare`} mesaj={errors.capital_social?.message} />
-          </div>
-          <div>
-            <label htmlFor={`${idFormular}-caen`} className={claseLabel}>
-              Cod CAEN principal *
-            </label>
-            <SelectorCodCaenPrincipal
-              id={`${idFormular}-caen`}
-              value={codCaenPrincipal}
-              onChange={(cod) => setValue("cod_caen", cod, { shouldValidate: true })}
-              ariaInvalid={Boolean(errors.cod_caen)}
-              ariaDescribedBy={`${idFormular}-caen-ajutor`}
-            />
-            <p id={`${idFormular}-caen-ajutor`} className="text-muted-foreground mt-1 text-xs">
-              Anumite coduri (IT, Construcții, Agricultură, Industria Alimentară) permit scutiri
-              fiscale per-angajat în modulul de Salarizare.
-            </p>
-            <Eroare id={`${idFormular}-caen-eroare`} mesaj={errors.cod_caen?.message} />
-          </div>
+          <Camp
+            nume="capital_social"
+            id={idc("capital")}
+            eticheta="Capital social (RON)"
+            erori={mesajeEroare(errors.capital_social?.message)}
+          >
+            {(a) => (
+              <input {...a} type="number" min={0} step="0.01" {...register("capital_social")} />
+            )}
+          </Camp>
+          <Camp
+            nume="cod_caen"
+            id={idc("caen")}
+            eticheta="Cod CAEN principal"
+            obligatoriu
+            ajutor="Anumite coduri (IT, Construcții, Agricultură, Industria Alimentară) permit scutiri fiscale per-angajat în modulul de Salarizare."
+            erori={mesajeEroare(errors.cod_caen?.message)}
+          >
+            {(a) => (
+              <SelectorCodCaenPrincipal
+                id={a.id}
+                value={codCaenPrincipal}
+                onChange={(cod) => setValue("cod_caen", cod, { shouldValidate: true })}
+                ariaInvalid={a["aria-invalid"] === true}
+                {...(a["aria-describedby"] === undefined
+                  ? {}
+                  : { ariaDescribedBy: a["aria-describedby"] })}
+              />
+            )}
+          </Camp>
         </div>
 
-        <div>
-          <label htmlFor={`${idFormular}-caen-secundare`} className={claseLabel}>
-            Coduri CAEN secundare
-          </label>
-          <SelectorCodCaenSecundare
-            id={`${idFormular}-caen-secundare`}
-            value={codCaenSecundare}
-            onChange={(coduri) =>
-              setValue("cod_caen_secundare", [...coduri], { shouldValidate: true })
-            }
-            exclude={codCaenPrincipal}
-            max={limitaSecundare}
-            ariaInvalid={Boolean(errors.cod_caen_secundare)}
-          />
-          {formaJuridicaSelectata === "SRL-D" && (
-            <p className="text-muted-foreground mt-1 text-xs">
-              SRL-D: toate codurile alese trebuie să facă parte din cel mult 5 grupe de activitate
-              (primele 3 cifre ale codului), iar anumite activități sunt excluse prin lege pentru
-              forma debutant.
-            </p>
+        <Camp
+          nume="cod_caen_secundare"
+          id={idc("caen-secundare")}
+          eticheta="Coduri CAEN secundare"
+          {...(formaJuridicaSelectata === "SRL-D"
+            ? {
+                ajutor:
+                  "SRL-D: toate codurile alese trebuie să facă parte din cel mult 5 grupe de activitate (primele 3 cifre ale codului), iar anumite activități sunt excluse prin lege pentru forma debutant.",
+              }
+            : {})}
+          erori={mesajeEroare(errors.cod_caen_secundare?.message)}
+        >
+          {(a) => (
+            <SelectorCodCaenSecundare
+              id={a.id}
+              value={codCaenSecundare}
+              onChange={(coduri) =>
+                setValue("cod_caen_secundare", [...coduri], { shouldValidate: true })
+              }
+              exclude={codCaenPrincipal}
+              max={limitaSecundare}
+              ariaInvalid={a["aria-invalid"] === true}
+            />
           )}
-          <Eroare
-            id={`${idFormular}-caen-secundare-eroare`}
-            mesaj={errors.cod_caen_secundare?.message}
-          />
-        </div>
+        </Camp>
       </fieldset>
 
-      <fieldset className="border-border space-y-4 rounded-lg border p-4">
-        <legend className="text-foreground px-1 text-sm font-medium">
+      <fieldset className="border-border rounded-panou space-y-4 border p-4">
+        <legend className="text-foreground text-corp px-1 font-medium">
           Contact și sediu social
         </legend>
         <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor={`${idFormular}-email`} className={claseLabel}>
-              Email de contact *
-            </label>
-            <input
-              id={`${idFormular}-email`}
-              type="email"
-              {...register("email_contact")}
-              aria-invalid={Boolean(errors.email_contact)}
-              className={claseCamp}
-            />
-            <Eroare id={`${idFormular}-email-eroare`} mesaj={errors.email_contact?.message} />
-          </div>
-          <div>
-            <label htmlFor={`${idFormular}-telefon`} className={claseLabel}>
-              Telefon *
-            </label>
-            <input
-              id={`${idFormular}-telefon`}
-              type="tel"
-              {...register("telefon_contact")}
-              placeholder="0721 234 567"
-              aria-invalid={Boolean(errors.telefon_contact)}
-              className={claseCamp}
-            />
-            <Eroare id={`${idFormular}-telefon-eroare`} mesaj={errors.telefon_contact?.message} />
-          </div>
-          <div>
-            <label htmlFor={`${idFormular}-judet`} className={claseLabel}>
-              Județ *
-            </label>
-            <select id={`${idFormular}-judet`} {...register("judet")} className={claseCamp}>
-              {JUDETE.map((judet) => (
-                <option key={judet} value={judet}>
-                  {judet}
-                </option>
-              ))}
-            </select>
-            <Eroare id={`${idFormular}-judet-eroare`} mesaj={errors.judet?.message} />
-          </div>
-          {judetSelectat === "București" && (
-            <div>
-              <label htmlFor={`${idFormular}-sector`} className={claseLabel}>
-                Sector
-              </label>
-              <select id={`${idFormular}-sector`} {...register("sector")} className={claseCamp}>
-                <option value="">— Alegeți —</option>
-                {SECTOARE_BUCURESTI.map((sector) => (
-                  <option key={sector} value={sector}>
-                    Sectorul {sector}
+          <Camp
+            nume="email_contact"
+            id={idc("email")}
+            eticheta="Email de contact"
+            obligatoriu
+            erori={mesajeEroare(errors.email_contact?.message)}
+          >
+            {(a) => <input {...a} type="email" {...register("email_contact")} />}
+          </Camp>
+          <Camp
+            nume="telefon_contact"
+            id={idc("telefon")}
+            eticheta="Telefon"
+            obligatoriu
+            erori={mesajeEroare(errors.telefon_contact?.message)}
+          >
+            {(a) => (
+              <input
+                {...a}
+                type="tel"
+                {...register("telefon_contact")}
+                placeholder="0721 234 567"
+              />
+            )}
+          </Camp>
+          <Camp
+            nume="judet"
+            id={idc("judet")}
+            eticheta="Județ"
+            fel="select"
+            obligatoriu
+            erori={mesajeEroare(errors.judet?.message)}
+          >
+            {(a) => (
+              <select {...a} {...register("judet")}>
+                {JUDETE.map((judet) => (
+                  <option key={judet} value={judet}>
+                    {judet}
                   </option>
                 ))}
               </select>
-              <Eroare id={`${idFormular}-sector-eroare`} mesaj={errors.sector?.message} />
-            </div>
+            )}
+          </Camp>
+          {judetSelectat === "București" && (
+            <Camp
+              nume="sector"
+              id={idc("sector")}
+              eticheta="Sector"
+              fel="select"
+              erori={mesajeEroare(errors.sector?.message)}
+            >
+              {(a) => (
+                <select {...a} {...register("sector")}>
+                  <option value="">— Alegeți —</option>
+                  {SECTOARE_BUCURESTI.map((sector) => (
+                    <option key={sector} value={sector}>
+                      Sectorul {sector}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Camp>
           )}
-          <div>
-            <label htmlFor={`${idFormular}-oras`} className={claseLabel}>
-              Localitate *
-            </label>
-            <input
-              id={`${idFormular}-oras`}
-              {...register("oras")}
-              aria-invalid={Boolean(errors.oras)}
-              className={claseCamp}
-            />
-            <Eroare id={`${idFormular}-oras-eroare`} mesaj={errors.oras?.message} />
-          </div>
-          <div>
-            <label htmlFor={`${idFormular}-cod-postal`} className={claseLabel}>
-              Cod poștal
-            </label>
-            <input
-              id={`${idFormular}-cod-postal`}
-              {...register("cod_postal")}
-              className={claseCamp}
-            />
-          </div>
+          <Camp
+            nume="oras"
+            id={idc("oras")}
+            eticheta="Localitate"
+            obligatoriu
+            erori={mesajeEroare(errors.oras?.message)}
+          >
+            {(a) => <input {...a} {...register("oras")} />}
+          </Camp>
+          <Camp
+            nume="cod_postal"
+            id={idc("cod-postal")}
+            eticheta="Cod poștal"
+            erori={mesajeEroare(errors.cod_postal?.message)}
+          >
+            {(a) => <input {...a} {...register("cod_postal")} />}
+          </Camp>
         </div>
-        <div>
-          <label htmlFor={`${idFormular}-adresa`} className={claseLabel}>
-            Stradă și număr
-          </label>
-          <input id={`${idFormular}-adresa`} {...register("adresa")} className={claseCamp} />
-        </div>
+        <Camp
+          nume="adresa"
+          id={idc("adresa")}
+          eticheta="Stradă și număr"
+          erori={mesajeEroare(errors.adresa?.message)}
+        >
+          {(a) => <input {...a} {...register("adresa")} />}
+        </Camp>
       </fieldset>
     </div>
   );

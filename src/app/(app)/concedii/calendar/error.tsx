@@ -1,17 +1,20 @@
 // src/app/(app)/concedii/calendar/error.tsx
 "use client";
 
-import { StareEroare } from "@/components/feedback/stare-eroare";
+import { StareEroare } from "@/components/ui/stare-eroare";
 
-export default function EroareCalendarConcedii({
+export default function Eroare({
   error,
-  reset,
-}: Readonly<{ error: Error & { digest?: string }; reset: () => void }>) {
+  retry,
+}: {
+  error: Error & { digest?: string };
+  retry: () => void;
+}) {
   return (
     <StareEroare
-      titlu="Calendarul de concedii nu a putut fi încărcat"
       eroare={error}
-      reincearca={reset}
+      reincearca={retry}
+      titlu="Calendarul de concedii nu a putut fi încărcat"
     />
   );
 }

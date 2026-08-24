@@ -2,6 +2,8 @@
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
+import { cn } from "@/lib/ui/cn";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -19,7 +21,7 @@ interface ProprietatiPagina {
 export default async function PaginaTichetNou({ searchParams }: ProprietatiPagina) {
   const { tenant, user } = await requireTenant();
   await requireFeature(tenant.organizationId, "ticketing");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "tickets:create", "own")) {
     return <AccesRestrictionat mesaj="Nu aveți dreptul de a deschide tichete." />;
@@ -35,16 +37,13 @@ export default async function PaginaTichetNou({ searchParams }: ProprietatiPagin
   const modul = typeof parametri["modul"] === "string" ? parametri["modul"] : "";
 
   return (
-    <main className="mx-auto w-full max-w-2xl space-y-6 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Tichet nou</h1>
-        <p className="text-muted-foreground text-sm">
-          Solicitările merg la managerul tău direct sau la administrator. Problemele din aplicație
-          ajung direct la echipa care o dezvoltă.
-        </p>
-      </header>
+    <div className={cn(LATIMI.formular, "space-y-6")}>
+      <AntetPagina
+        titlu="Tichet nou"
+        descriere="Solicitările merg la managerul tău direct sau la administrator. Problemele din aplicație ajung direct la echipa care o dezvoltă."
+      />
 
       <FormularTichet obiecteAlocate={obiecte} modulCurent={modul} />
-    </main>
+    </div>
   );
 }

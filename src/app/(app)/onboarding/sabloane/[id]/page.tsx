@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -32,7 +33,7 @@ export default async function PaginaSablon({ params }: ProprietatiPagina) {
 
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "onboarding");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "checklists:read", "own")) {
     return (
@@ -76,26 +77,26 @@ export default async function PaginaSablon({ params }: ProprietatiPagina) {
   }
 
   return (
-    <main className="mx-auto w-full max-w-3xl space-y-6 p-6">
-      <header>
-        <p className="text-muted-foreground text-sm">
+    <div className={`${LATIMI.formular} space-y-6`}>
+      <div className="space-y-1">
+        <p className="text-muted-foreground text-corp">
           <Link href="/onboarding/sabloane" className="underline-offset-2 hover:underline">
             Șabloane
           </Link>
         </p>
-        <h1 className="text-2xl font-semibold">{sablon.denumire}</h1>
-        <p className="text-muted-foreground text-sm">
-          {ETICHETE_TIP[sablon.tip]} · Valabil de la {formatDate(sablon.valabil_de_la)}
-          {sablon.valabil_pana_la === null
-            ? ""
-            : ` până la ${formatDate(sablon.valabil_pana_la)}`}{" "}
-          · {sablon.activ ? "Activ" : "Dezactivat"}
-        </p>
-      </header>
+        <AntetPagina
+          titlu={sablon.denumire}
+          descriere={`${ETICHETE_TIP[sablon.tip]} · Valabil de la ${formatDate(
+            sablon.valabil_de_la,
+          )}${
+            sablon.valabil_pana_la === null ? "" : ` până la ${formatDate(sablon.valabil_pana_la)}`
+          } · ${sablon.activ ? "Activ" : "Dezactivat"}`}
+        />
+      </div>
 
       {poateEditareSablon ? (
         <section aria-labelledby="titlu-editare" className="space-y-3">
-          <h2 id="titlu-editare" className="text-lg font-semibold">
+          <h2 id="titlu-editare" className="text-sectiune font-semibold">
             Datele șablonului
           </h2>
           <FormularSablon
@@ -108,7 +109,7 @@ export default async function PaginaSablon({ params }: ProprietatiPagina) {
       ) : null}
 
       <section aria-labelledby="titlu-pasi" className="space-y-3">
-        <h2 id="titlu-pasi" className="text-lg font-semibold">
+        <h2 id="titlu-pasi" className="text-sectiune font-semibold">
           Pași
         </h2>
         <ListaPasi
@@ -118,6 +119,6 @@ export default async function PaginaSablon({ params }: ProprietatiPagina) {
           poateAdauga={poateAdaugaPas}
         />
       </section>
-    </main>
+    </div>
   );
 }

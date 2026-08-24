@@ -101,7 +101,7 @@ Verifică întotdeauna: `node .claude/skills/administrativo/scripts/capcana.mjs 
 
 ## 7. Fișa proprie a angajatului
 
-Rolul `employee` are `employees:read = none` — nu-și vede nici propria fișă
+Rolul `employee` are `employees:read = own` — își vede propria fișă, dar numai pe a lui (`0023_portal_angajat.sql:51` l-a mutat de la `none`)
 (capcana 10). Rezolvarea e legală **doar** în `actions.ts`, cu
 `createAdminSupabase()` și filtru explicit `organization_id + user_id +
 is_primary + deleted_at is null`, plus comentariul care spune de ce.

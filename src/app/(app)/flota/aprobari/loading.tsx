@@ -1,15 +1,8 @@
 // src/app/(app)/flota/aprobari/loading.tsx
-import { SkeletonTable } from "@/components/data/skeleton-table";
+// Aceeași formă ca fallback-ul de Suspense din page.tsx: foile de aprobat sunt
+// o listă de fișe, nu un tabel.
+import { Schelet } from "@/components/ui/schelet";
 
-export default function SeIncarcaFlotaAprobari() {
-  return (
-    <main className="space-y-6 p-6">
-      <div className="space-y-2">
-        <div className="bg-border h-7 w-48 animate-pulse rounded" />
-        <div className="bg-border h-4 w-72 animate-pulse rounded" />
-      </div>
-      <div className="bg-border h-10 w-full animate-pulse rounded" />
-      <SkeletonTable cols={5} />
-    </main>
-  );
+export default function Incarcare() {
+  return <Schelet forma="lista" randuri={5} />;
 }

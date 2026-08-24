@@ -24,7 +24,21 @@ import { join, relative } from "node:path";
 
 const RADACINA = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 const DIR_MIGRARI = join(RADACINA, "supabase/migrations");
+// Seed-ul de permisiuni NU stă într-un singur fișier. `0002_authz.sql` e doar
+// primul: modulele apărute mai târziu își aduc propriile perechi
+// rol×resursă×acțiune în migrarea lor (ticketing, de pildă, în
+// `0046_ticketing_it_reguli.sql`). Citind doar `0002`, verificatorul raporta
+// șase erori „permisiune folosită în cod dar neseedată" pentru chei care
+// EXISTAU — un checker zgomotos se stinge, cum spune chiar antetul de mai sus,
+// iar aici se stingea pe cele mai noi module, adică exact pe cele care au
+// nevoie de el.
 const F_SEED = join(DIR_MIGRARI, "0002_authz.sql");
+/** Toate migrările, în ordine — seed-ul se citește din toate. */
+const FISIERE_SEED = () =>
+  readdirSync(DIR_MIGRARI)
+    .filter((f) => f.endsWith(".sql"))
+    .sort()
+    .map((f) => join(DIR_MIGRARI, f));
 const F_PERMISIUNI = join(RADACINA, "src/config/permissions.ts");
 const F_NAVIGATIE = join(RADACINA, "src/config/navigation.ts");
 const DIR_SRC = join(RADACINA, "src");
@@ -44,7 +58,9 @@ const adauga = (nivel, regula, unde, mesaj) => constatari.push({ nivel, regula, 
 const literale = (bloc) => [...bloc.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
 
 function cheiDinSeed() {
-  const sql = readFileSync(F_SEED, "utf8");
+  const sql = FISIERE_SEED()
+    .map((f) => readFileSync(f, "utf8"))
+    .join("\n;\n");
   const chei = new Set();
   // Forma 1: from unnest(array[resurse]) r cross join unnest(array[acțiuni]) a
   for (const m of sql.matchAll(

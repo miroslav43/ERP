@@ -1,7 +1,11 @@
 "use client";
 
-import { useId, useState, useTransition } from "react";
+import { useCallback } from "react";
 import { useRouter } from "next/navigation";
+
+import { Buton } from "@/components/ui/buton";
+import { Camp } from "@/components/ui/camp";
+import { Formular } from "@/components/ui/formular";
 
 import { adaugaAutorizatieNominala } from "../actions";
 
@@ -11,167 +15,161 @@ interface AngajatOptiune {
   readonly marca: string;
 }
 
+/**
+ * Autorizația nominală — stivuitorist, macaragiu, fochist.
+ *
+ * ── CE S-A REPARAT ────────────────────────────────────────────────────────
+ * Autorizația are `valabil_pana` obligatoriu și intră direct în calculul
+ * scadențelor. `autorizatieNominalaSchema` are mesaje proprii — „Numărul
+ * autorizației este obligatoriu.”, „Emitentul este obligatoriu.” — dar
+ * formularul le înlocuia pe toate cu un singur `<p>` roșu sub buton, iar după
+ * refuz React 19 golea cele șapte câmpuri completate. `<Formular>` întoarce
+ * `valoriTrimise`, `<Camp>` duce mesajul lângă câmpul lui.
+ *
+ * ── CONTRACTUL DE NUME ────────────────────────────────────────────────────
+ * `nume` din fiecare `<Camp>` e cheia din `autorizatieNominalaSchema`, literă
+ * cu literă. `suspendata_la` NU e câmp de formular: o autorizație se adaugă
+ * activă, suspendarea vine mai târziu, din altă parte.
+ */
 export function FormularAutorizatie({
   angajati,
 }: {
   readonly angajati: readonly AngajatOptiune[];
 }) {
   const router = useRouter();
-  const [inCurs, porneste] = useTransition();
-  const [eroare, setEroare] = useState<string | null>(null);
-  const id = {
-    angajat: useId(),
-    tip: useId(),
-    grupa: useId(),
-    numar: useId(),
-    emitent: useId(),
-    emis: useId(),
-    valabil: useId(),
-  };
 
-  function trimite(formular: FormData): void {
-    setEroare(null);
+  async function trimite(formular: FormData) {
     const text = (cheie: string) => {
       const v = String(formular.get(cheie) ?? "").trim();
       return v.length === 0 ? null : v;
     };
 
-    porneste(async () => {
-      const rezultat = await adaugaAutorizatieNominala({
-        employee_id: String(formular.get("employee_id") ?? ""),
-        tip: String(formular.get("tip") ?? ""),
-        grupa: text("grupa"),
-        numar: String(formular.get("numar") ?? ""),
-        emitent: String(formular.get("emitent") ?? ""),
-        emis_la: text("emis_la"),
-        valabil_pana: String(formular.get("valabil_pana") ?? ""),
-        suspendata_la: null,
-        observatii: text("observatii"),
-      });
-      if (!rezultat.ok) {
-        setEroare(rezultat.error.message);
-        return;
-      }
-      router.refresh();
+    return await adaugaAutorizatieNominala({
+      employee_id: String(formular.get("employee_id") ?? ""),
+      tip: String(formular.get("tip") ?? ""),
+      grupa: text("grupa"),
+      numar: String(formular.get("numar") ?? ""),
+      emitent: String(formular.get("emitent") ?? ""),
+      emis_la: text("emis_la"),
+      valabil_pana: String(formular.get("valabil_pana") ?? ""),
+      suspendata_la: null,
+      // `autorizatieNominalaSchema` acceptă `observatii`, dar ecranul n-a avut
+      // niciodată o casetă pentru el, deci citirea din `FormData` întorcea
+      // mereu `null`. Rămâne `null` explicit: câmpul lipsă e de raportat, nu de
+      // inventat aici.
+      observatii: text("observatii"),
     });
   }
 
+  // Stabil între randări: `laReusita` intră în lista de dependențe a efectului
+  // din `<Formular>`, iar o funcție nouă la fiecare randare ar relua efectul —
+  // adică încă o notificare de reușită la fiecare re-randare.
+  const laReusita = useCallback(() => {
+    router.refresh();
+  }, [router]);
+
   return (
-    <form
-      action={trimite}
-      className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-3"
+    <Formular
+      actiune={trimite}
+      laReusita={laReusita}
+      mesajReusita="Autorizația a fost adăugată."
+      className="border-border rounded-panou border p-4"
     >
-      <p className="text-sm font-medium sm:col-span-3">Adaugă o autorizație nominală</p>
+      {(stare) => {
+        // Formularul rămâne pe ecran după salvare, deci trebuie să repornească
+        // gol: `valoriTrimise` se păstrează DOAR cât timp ultimul răspuns a
+        // fost un refuz.
+        const trimise: Readonly<Record<string, string>> =
+          stare.data === null ? stare.valoriTrimise : {};
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.angajat} className="text-sm">
-          Angajat
-        </label>
-        <select
-          id={id.angajat}
-          name="employee_id"
-          required
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
-        >
-          {angajati.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.full_name ?? a.marca} ({a.marca})
-            </option>
-          ))}
-        </select>
-      </div>
+        return (
+          <>
+            <p className="text-corp font-medium">Adaugă o autorizație nominală</p>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.tip} className="text-sm">
-          Tip
-        </label>
-        <input
-          id={id.tip}
-          name="tip"
-          required
-          maxLength={80}
-          placeholder="stivuitorist, macaragiu, fochist…"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
-        />
-      </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Camp
+                nume="employee_id"
+                eticheta="Angajat"
+                fel="select"
+                obligatoriu
+                erori={stare.erori["employee_id"] ?? []}
+              >
+                {(a) => (
+                  <select {...a} defaultValue={trimise["employee_id"] ?? ""}>
+                    {/* Opțiune goală, PRIMA: fără ea browserul selecta singur
+                        primul om din listă, iar `required` nu bloca nimic —
+                        există o valoare aleasă. O apăsare distrată scria autorizația pe
+                        primul angajat în ordine alfabetică. Alegerea persoanei
+                        trebuie să fie un act explicit. */}
+                    <option value="">— alegeți angajatul —</option>
+                    {angajati.map((ang) => (
+                      <option key={ang.id} value={ang.id}>
+                        {ang.full_name ?? ang.marca} ({ang.marca})
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </Camp>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.grupa} className="text-sm">
-          Grupă (opțional)
-        </label>
-        <input
-          id={id.grupa}
-          name="grupa"
-          maxLength={40}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
-        />
-      </div>
+              <Camp nume="tip" eticheta="Tip" obligatoriu erori={stare.erori["tip"] ?? []}>
+                {(a) => (
+                  <input
+                    {...a}
+                    maxLength={80}
+                    placeholder="stivuitorist, macaragiu, fochist…"
+                    defaultValue={trimise["tip"] ?? ""}
+                  />
+                )}
+              </Camp>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.numar} className="text-sm">
-          Număr
-        </label>
-        <input
-          id={id.numar}
-          name="numar"
-          required
-          maxLength={64}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
-        />
-      </div>
+              <Camp nume="grupa" eticheta="Grupă (opțional)" erori={stare.erori["grupa"] ?? []}>
+                {(a) => <input {...a} maxLength={40} defaultValue={trimise["grupa"] ?? ""} />}
+              </Camp>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.emitent} className="text-sm">
-          Emitent
-        </label>
-        <input
-          id={id.emitent}
-          name="emitent"
-          required
-          maxLength={160}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
-        />
-      </div>
+              <Camp nume="numar" eticheta="Număr" obligatoriu erori={stare.erori["numar"] ?? []}>
+                {(a) => <input {...a} maxLength={64} defaultValue={trimise["numar"] ?? ""} />}
+              </Camp>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.emis} className="text-sm">
-          Emisă la (opțional)
-        </label>
-        <input
-          id={id.emis}
-          name="emis_la"
-          type="date"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
-        />
-      </div>
+              <Camp
+                nume="emitent"
+                eticheta="Emitent"
+                obligatoriu
+                erori={stare.erori["emitent"] ?? []}
+              >
+                {(a) => <input {...a} maxLength={160} defaultValue={trimise["emitent"] ?? ""} />}
+              </Camp>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={id.valabil} className="text-sm">
-          Valabilă până la
-        </label>
-        <input
-          id={id.valabil}
-          name="valabil_pana"
-          type="date"
-          required
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
-        />
-      </div>
+              <Camp
+                nume="emis_la"
+                eticheta="Emisă la (opțional)"
+                erori={stare.erori["emis_la"] ?? []}
+              >
+                {(a) => <input {...a} type="date" defaultValue={trimise["emis_la"] ?? ""} />}
+              </Camp>
 
-      <div className="flex flex-wrap items-center gap-3 sm:col-span-3">
-        <button
-          type="submit"
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se salvează…" : "Adaugă autorizația"}
-        </button>
-        {eroare === null ? null : (
-          <p role="alert" className="text-danger text-sm">
-            {eroare}
-          </p>
-        )}
-      </div>
-    </form>
+              <Camp
+                nume="valabil_pana"
+                eticheta="Valabilă până la"
+                obligatoriu
+                erori={stare.erori["valabil_pana"] ?? []}
+              >
+                {(a) => <input {...a} type="date" defaultValue={trimise["valabil_pana"] ?? ""} />}
+              </Camp>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <Buton
+                type="submit"
+                varianta="primar"
+                inCurs={stare.inCurs}
+                textInCurs="Se salvează…"
+              >
+                Adaugă autorizația
+              </Buton>
+            </div>
+          </>
+        );
+      }}
+    </Formular>
   );
 }

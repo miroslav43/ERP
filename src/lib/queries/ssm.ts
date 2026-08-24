@@ -12,20 +12,30 @@
 // pe care `hr` (care administrează SSM) nu îl are. Toate scadențele se
 // calculează din tabelele sursă.
 // NU se citește `ssm_legal_parameters`: e sub resursa `compliance`. Pragul de
-// preaviz e constanta `PRAG_AVERTIZARE_ZILE` din `@/domain/ssm/scadente`.
+// preaviz e constanta `PRAG_SSM_AVERTIZARE_ZILE` din `@/domain/ssm/scadente`.
 
 import type { FiltreAngajati } from "@/schemas/employee";
 import { listeazaAngajati, type RandAngajat } from "@/lib/queries/employees";
 import { esteDeAtentionat, stareScadentaSsm } from "@/domain/ssm/scadente";
 import { todayInBucharest } from "@/lib/format/date";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { DOMENII_SSM } from "@/schemas/ssm";
+import {
+  DOMENII_SSM,
+  SORTARI_ACCIDENTE,
+  SORTARI_EIP,
+  SORTARI_FISE,
+  SORTARI_STINGATOARE,
+} from "@/schemas/ssm";
 import type {
   FiltreAccidente,
   FiltreEip,
   FiltreFise,
   FiltreStingatoare,
   RezultatExamen,
+  SortareAccidente,
+  SortareEip,
+  SortareFise,
+  SortareStingatoare,
   SsmDomain,
   StatusStingator,
   TipAccident,
@@ -34,36 +44,25 @@ import type {
   RezultatVerificareStingator,
 } from "@/schemas/ssm";
 
+import {
+  codificaCursor,
+  decodificaCursor,
+  predicatKeyset,
+  sortareCeruta,
+  type Directie,
+} from "./cursor";
+
 // ── Cursorul keyset ─────────────────────────────────────────────────────────
 //
-// Separatorul e scris ca SECVENȚĂ DE EVADARE, nu ca octet brut — un octet nul
-// literal transformă fișierul în binar pentru `grep` și `git grep`.
-
-interface CursorText {
-  readonly cheie: string;
-  readonly id: string;
-}
-
-function codificaCursor(cursor: CursorText): string {
-  return Buffer.from(`${cursor.cheie}\u0000${cursor.id}`, "utf8").toString("base64url");
-}
-
-function decodificaCursor(valoare: string): CursorText | null {
-  try {
-    const bucati = Buffer.from(valoare, "base64url").toString("utf8").split("\u0000");
-    const cheie = bucati[0];
-    const id = bucati[1];
-    if (cheie === undefined || id === undefined || id.length === 0) return null;
-    return { cheie, id };
-  } catch {
-    return null;
-  }
-}
-
-/** PostgREST desparte filtrele lui `or()` cu virgulă; valoarea trebuie citată. */
-function ghilimeleaza(valoare: string): string {
-  return `"${valoare.replace(/\\/gu, "\\\\").replace(/"/gu, '\\"')}"`;
-}
+// Cursorul, ghilimelarea și predicatul de continuare trăiau AICI, în copii
+// aproape identice — una dintre cele zece răspândite prin fișierele de citiri.
+// Au fost mutate în `./cursor.ts`, unde cursorul poartă o valoare OPACĂ în loc
+// de o coloană încuiată în el, deci aceeași structură servește orice sortare.
+//
+// Cele patru liste paginate de mai jos (fișe, accidente, stingătoare, EIP) își
+// declară fiecare harta `COLOANA_SORTARE_*` — cheia românească din URL →
+// coloana din bază — și își întorc sortarea EFECTIV aplicată, ca ecranul să
+// poată marca `aria-sort` pe antetul corect.
 
 // ── Nomenclatoare ────────────────────────────────────────────────────────────
 
@@ -204,7 +203,7 @@ export async function matriceInstruiri(intrare: IntrareMatrice): Promise<Rezulta
 
 /**
  * Instruirile PROPRII ale utilizatorului curent, fără niciun filtru pe
- * angajat: RLS (`ssm_acces` cu scope „own") restrânge singur la propria fișă.
+ * angajat: RLS (`ssm_acces` cu scope „own”) restrânge singur la propria fișă.
  * Filtrul pe organizație rămâne explicit, la fel ca peste tot în modul — un
  * utilizator care aparține la mai multe organizații nu trebuie să vadă
  * instruirile amestecate.
@@ -263,9 +262,9 @@ export async function instruirileAngajatului(
  * Restul dosarului SSM propriu — fișe de aptitudine, restricții, EIP,
  * autorizații nominale — cu filtru EXPLICIT pe angajat.
  *
- * Toate variantele „generale" de mai jos trec prin `app.ssm_acces`, a cărei
+ * Toate variantele „generale” de mai jos trec prin `app.ssm_acces`, a cărei
  * primă ramură (`can(..., 'all')`) e adevărată necondiționat pentru `hr` sau
- * `org_admin`. Un ecran „dosarul meu" construit pe ele ar arăta fișele de
+ * `org_admin`. Un ecran „dosarul meu” construit pe ele ar arăta fișele de
  * aptitudine, restricțiile medicale și echipamentul de protecție ale ÎNTREGII
  * firme — la fișe și la restricții, date privind sănătatea (art. 9 GDPR).
  *
@@ -369,7 +368,19 @@ export interface RandFisa {
 export interface RezultatFise {
   readonly randuri: readonly RandFisa[];
   readonly urmatorulCursor: string | null;
+  /** Câte fișe sunt în total, după filtre — „pagina următoare” fără total e o ușă fără indicație. */
+  readonly total: number;
+  /** Sortarea EFECTIV aplicată, după îngustarea la coloanele permise. */
+  readonly sortare: Readonly<{ cheie: SortareFise; directie: Directie }>;
 }
+
+const COLOANA_SORTARE_FISE: Readonly<Record<SortareFise, string>> = {
+  data: "data_examinarii",
+  tip: "tip",
+  rezultat: "rezultat",
+};
+
+const SORTARE_IMPLICITA_FISE = { cheie: "data", directie: "desc" } as const;
 
 /**
  * FĂRĂ `observatii`, FĂRĂ `cost` — art. 9 GDPR. Coloanele acestea nici nu se
@@ -383,42 +394,86 @@ export async function fiseAptitudine(
   filtre: FiltreFise,
 ): Promise<RezultatFise> {
   const db = await createServerSupabase();
+  const sortare = sortareCeruta(filtre.sort, SORTARI_FISE, SORTARE_IMPLICITA_FISE);
+  const coloana = COLOANA_SORTARE_FISE[sortare.cheie];
+  const crescator = sortare.directie === "asc";
 
-  let interogare = db
-    .from("occupational_health_exams")
-    .select(COLOANE_FISA)
-    .eq("organization_id", organizationId)
-    .is("deleted_at", null)
-    .order("data_examinarii", { ascending: false })
-    .order("id", { ascending: false })
+  /*
+   * ── DE CE NUMĂRĂTOAREA E O A DOUA INTEROGARE ───────────────────────────
+   * Numărătoarea exactă stătea pe ACEEAȘI interogare, cu argumentul — corect
+   * în sine — că așa respectă filtrele ȘI politicile RLS, fără un al doilea
+   * drum la bază. Argumentul rata un lucru: predicatul KEYSET e și el un
+   * filtru, iar PostgREST n-are de unde ști că unul dintre filtre e
+   * „paginare”. Pusă pe interogarea de date, numărătoarea numără doar
+   * rândurile rămase DUPĂ cursor.
+   *
+   * Consecința se vedea de la pagina a doua: `<Paginare>` scria „25 din 30 de
+   * rânduri” acolo unde erau 55, iar totalul scădea cu fiecare „mai departe”.
+   * Lista era corectă; doar numărul mințea, fără nicio eroare.
+   *
+   * Cele două interogări împart ACELEAȘI filtre, aplicate de aceeași funcție:
+   * două copii ar diverge la primul filtru adăugat, iar divergența s-ar vedea
+   * tocmai ca o numărătoare care nu se potrivește cu lista — defectul reparat
+   * aici. Se deosebesc doar prin cursor, ordine și limită, care aparțin
+   * paginii, nu mulțimii. Merg în paralel, iar numărătoarea nu aduce niciun
+   * rând (`head: true`).
+   */
+  const filtreaza = <
+    Q extends {
+      eq: (c: string, v: string) => Q;
+      is: (c: string, v: null) => Q;
+    },
+  >(
+    q: Q,
+  ): Q => {
+    let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
+    if (filtre.rezultat !== null) cu = cu.eq("rezultat", filtre.rezultat);
+    return cu;
+  };
+
+  let interogare = filtreaza(db.from("occupational_health_exams").select(COLOANE_FISA))
+    // Identificatorul e MEREU al doilea criteriu: data examinării nu e unică,
+    // iar fără el ordinea dintre două fișe din aceeași zi e nedefinită, deci
+    // paginarea poate sări sau repeta exact acolo.
+    .order(coloana, { ascending: crescator, nullsFirst: false })
+    .order("id", { ascending: crescator })
     .limit(filtre.limita + 1);
 
-  if (filtre.rezultat !== null) interogare = interogare.eq("rezultat", filtre.rezultat);
-
-  if (filtre.cursor !== null) {
-    const c = decodificaCursor(filtre.cursor);
-    if (c !== null) {
-      interogare = interogare.or(
-        `data_examinarii.lt.${ghilimeleaza(c.cheie)},` +
-          `and(data_examinarii.eq.${ghilimeleaza(c.cheie)},id.lt.${c.id})`,
-      );
-    }
+  const cursor = filtre.cursor === null ? null : decodificaCursor(filtre.cursor);
+  if (cursor !== null) {
+    interogare = interogare.or(predicatKeyset(coloana, cursor, sortare.directie));
   }
 
-  const { data, error } = await interogare.returns<RandFisa[]>();
+  const [rezultat, numarare] = await Promise.all([
+    interogare.returns<RandFisa[]>(),
+    filtreaza(db.from("occupational_health_exams").select("id", { count: "exact", head: true })),
+  ]);
+  const { data, error } = rezultat;
   if (error !== null) throw error;
+  if (numarare.error !== null) throw numarare.error;
+  const count = numarare.count;
 
   const toate = data ?? [];
   const areUrmatoarea = toate.length > filtre.limita;
   const randuri = areUrmatoarea ? toate.slice(0, filtre.limita) : toate;
   const ultim = randuri.at(-1);
+  const valoareCursor =
+    ultim === undefined
+      ? null
+      : sortare.cheie === "tip"
+        ? ultim.tip
+        : sortare.cheie === "rezultat"
+          ? ultim.rezultat
+          : ultim.data_examinarii;
 
   return {
     randuri,
     urmatorulCursor:
-      areUrmatoarea && ultim !== undefined
-        ? codificaCursor({ cheie: ultim.data_examinarii, id: ultim.id })
+      areUrmatoarea && ultim !== undefined && valoareCursor !== null
+        ? codificaCursor({ valoare: valoareCursor, id: ultim.id })
         : null,
+    total: count ?? randuri.length,
+    sortare,
   };
 }
 
@@ -473,7 +528,16 @@ export interface RandAccident {
 export interface RezultatAccidente {
   readonly randuri: readonly RandAccident[];
   readonly urmatorulCursor: string | null;
+  readonly total: number;
+  readonly sortare: Readonly<{ cheie: SortareAccidente; directie: Directie }>;
 }
+
+const COLOANA_SORTARE_ACCIDENTE: Readonly<Record<SortareAccidente, string>> = {
+  data: "data_producerii",
+  tip: "tip",
+};
+
+const SORTARE_IMPLICITA_ACCIDENTE = { cheie: "data", directie: "desc" } as const;
 
 const COLOANE_ACCIDENT =
   "id, numar_intern, employee_id, data_producerii, ora_producerii, locul, tip, " +
@@ -484,43 +548,60 @@ export async function accidente(
   filtre: FiltreAccidente,
 ): Promise<RezultatAccidente> {
   const db = await createServerSupabase();
+  const sortare = sortareCeruta(filtre.sort, SORTARI_ACCIDENTE, SORTARE_IMPLICITA_ACCIDENTE);
+  const coloana = COLOANA_SORTARE_ACCIDENTE[sortare.cheie];
+  const crescator = sortare.directie === "asc";
 
-  let interogare = db
-    .from("work_accidents")
-    .select(COLOANE_ACCIDENT)
-    .eq("organization_id", organizationId)
-    .is("deleted_at", null)
-    .order("data_producerii", { ascending: false })
-    .order("id", { ascending: false })
+  /** Filtrele mulțimii, aplicate identic pe amândouă interogările — vezi `fiseAptitudine`. */
+  const filtreaza = <
+    Q extends {
+      eq: (c: string, v: string) => Q;
+      is: (c: string, v: null) => Q;
+    },
+  >(
+    q: Q,
+  ): Q => {
+    let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
+    if (filtre.tip !== null) cu = cu.eq("tip", filtre.tip);
+    if (filtre.necomunicate !== null) cu = cu.is("comunicat_la_itm_la", null);
+    return cu;
+  };
+
+  let interogare = filtreaza(db.from("work_accidents").select(COLOANE_ACCIDENT))
+    .order(coloana, { ascending: crescator, nullsFirst: false })
+    .order("id", { ascending: crescator })
     .limit(filtre.limita + 1);
 
-  if (filtre.tip !== null) interogare = interogare.eq("tip", filtre.tip);
-  if (filtre.necomunicate !== null) interogare = interogare.is("comunicat_la_itm_la", null);
-
-  if (filtre.cursor !== null) {
-    const c = decodificaCursor(filtre.cursor);
-    if (c !== null) {
-      interogare = interogare.or(
-        `data_producerii.lt.${ghilimeleaza(c.cheie)},` +
-          `and(data_producerii.eq.${ghilimeleaza(c.cheie)},id.lt.${c.id})`,
-      );
-    }
+  const cursor = filtre.cursor === null ? null : decodificaCursor(filtre.cursor);
+  if (cursor !== null) {
+    interogare = interogare.or(predicatKeyset(coloana, cursor, sortare.directie));
   }
 
-  const { data, error } = await interogare.returns<RandAccident[]>();
+  // Numărătoarea NU poartă cursorul: e a mulțimii filtrate, nu a paginii.
+  const [rezultat, numarare] = await Promise.all([
+    interogare.returns<RandAccident[]>(),
+    filtreaza(db.from("work_accidents").select("id", { count: "exact", head: true })),
+  ]);
+  const { data, error } = rezultat;
   if (error !== null) throw error;
+  if (numarare.error !== null) throw numarare.error;
+  const count = numarare.count;
 
   const toate = data ?? [];
   const areUrmatoarea = toate.length > filtre.limita;
   const randuri = areUrmatoarea ? toate.slice(0, filtre.limita) : toate;
   const ultim = randuri.at(-1);
+  const valoareCursor =
+    ultim === undefined ? null : sortare.cheie === "tip" ? ultim.tip : ultim.data_producerii;
 
   return {
     randuri,
     urmatorulCursor:
-      areUrmatoarea && ultim !== undefined
-        ? codificaCursor({ cheie: ultim.data_producerii, id: ultim.id })
+      areUrmatoarea && ultim !== undefined && valoareCursor !== null
+        ? codificaCursor({ valoare: valoareCursor, id: ultim.id })
         : null,
+    total: count ?? randuri.length,
+    sortare,
   };
 }
 
@@ -603,7 +684,22 @@ export interface RandStingator {
 export interface RezultatStingatoare {
   readonly randuri: readonly RandStingator[];
   readonly urmatorulCursor: string | null;
+  readonly total: number;
+  readonly sortare: Readonly<{ cheie: SortareStingatoare; directie: Directie }>;
 }
+
+/**
+ * Cele trei scadențe NU sunt sortabile: coloanele `scadenta_*` pot fi NULL
+ * (un stingător fără nicio verificare înregistrată), iar o valoare nulă n-are
+ * ce căuta într-un cursor keyset — paginarea ar sări rânduri fără nicio eroare.
+ */
+const COLOANA_SORTARE_STINGATOARE: Readonly<Record<SortareStingatoare, string>> = {
+  cod: "cod",
+  locatie: "locatie",
+  stare: "status",
+};
+
+const SORTARE_IMPLICITA_STINGATOARE = { cheie: "cod", directie: "asc" } as const;
 
 const COLOANE_STINGATOR =
   "id, cod, tip, masa_kg, cladire, locatie, producator, serie, data_punerii_in_functiune, ultima_verificare, " +
@@ -615,42 +711,78 @@ export async function stingatoare(
   filtre: FiltreStingatoare,
 ): Promise<RezultatStingatoare> {
   const db = await createServerSupabase();
+  const sortare = sortareCeruta(filtre.sort, SORTARI_STINGATOARE, SORTARE_IMPLICITA_STINGATOARE);
+  const coloana = COLOANA_SORTARE_STINGATOARE[sortare.cheie];
+  const crescator = sortare.directie === "asc";
 
-  let interogare = db
-    .from("fire_extinguishers")
-    .select(COLOANE_STINGATOR)
-    .eq("organization_id", organizationId)
-    .is("deleted_at", null)
-    .order("cod", { ascending: true })
-    .order("id", { ascending: true })
+  /** Filtrele mulțimii, aplicate identic pe amândouă interogările — vezi `fiseAptitudine`. */
+  const filtreaza = <
+    Q extends {
+      eq: (c: string, v: string) => Q;
+      neq: (c: string, v: string) => Q;
+      is: (c: string, v: null) => Q;
+      ilike: (c: string, v: string) => Q;
+    },
+  >(
+    q: Q,
+  ): Q => {
+    let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
+    // Casatele ies din listă cât timp nu sunt cerute EXPLICIT prin filtru.
+    //
+    // `contorStingatoare` le exclude de la bun început (`.neq` mai jos, în acest
+    // fișier), lista nu le excludea — iar cele trei scadențe li se evaluau ca
+    // oricărui alt stingător. Rezultatul se vedea pe același ecran: panoul spunea
+    // „3 verificări scadente”, lista deschisă din el arăta cinci rânduri
+    // „Expirat”, două dintre ele pe stingătoare scoase din uz acum doi ani. Un
+    // stingător casat nu mai are obligație de verificare; a-l număra printre
+    // restanțe e o cifră greșită fără nicio eroare.
+    if (filtre.status !== null) cu = cu.eq("status", filtre.status);
+    else cu = cu.neq("status", "casat");
+    if (filtre.cauta !== null) cu = cu.ilike("cod", `%${filtre.cauta}%`);
+    return cu;
+  };
+
+  let interogare = filtreaza(db.from("fire_extinguishers").select(COLOANE_STINGATOR))
+    .order(coloana, { ascending: crescator, nullsFirst: false })
+    .order("id", { ascending: crescator })
     .limit(filtre.limita + 1);
 
-  if (filtre.status !== null) interogare = interogare.eq("status", filtre.status);
-  if (filtre.cauta !== null) interogare = interogare.ilike("cod", `%${filtre.cauta}%`);
-
-  if (filtre.cursor !== null) {
-    const c = decodificaCursor(filtre.cursor);
-    if (c !== null) {
-      interogare = interogare.or(
-        `cod.gt.${ghilimeleaza(c.cheie)},and(cod.eq.${ghilimeleaza(c.cheie)},id.gt.${c.id})`,
-      );
-    }
+  const cursor = filtre.cursor === null ? null : decodificaCursor(filtre.cursor);
+  if (cursor !== null) {
+    interogare = interogare.or(predicatKeyset(coloana, cursor, sortare.directie));
   }
 
-  const { data, error } = await interogare.returns<RandStingator[]>();
+  // Numărătoarea NU poartă cursorul: e a mulțimii filtrate, nu a paginii.
+  const [rezultat, numarare] = await Promise.all([
+    interogare.returns<RandStingator[]>(),
+    filtreaza(db.from("fire_extinguishers").select("id", { count: "exact", head: true })),
+  ]);
+  const { data, error } = rezultat;
   if (error !== null) throw error;
+  if (numarare.error !== null) throw numarare.error;
+  const count = numarare.count;
 
   const toate = data ?? [];
   const areUrmatoarea = toate.length > filtre.limita;
   const randuri = areUrmatoarea ? toate.slice(0, filtre.limita) : toate;
   const ultim = randuri.at(-1);
+  const valoareCursor =
+    ultim === undefined
+      ? null
+      : sortare.cheie === "locatie"
+        ? ultim.locatie
+        : sortare.cheie === "stare"
+          ? ultim.status
+          : ultim.cod;
 
   return {
     randuri,
     urmatorulCursor:
-      areUrmatoarea && ultim !== undefined
-        ? codificaCursor({ cheie: ultim.cod, id: ultim.id })
+      areUrmatoarea && ultim !== undefined && valoareCursor !== null
+        ? codificaCursor({ valoare: valoareCursor, id: ultim.id })
         : null,
+    total: count ?? randuri.length,
+    sortare,
   };
 }
 
@@ -717,7 +849,16 @@ export interface RandEip {
 export interface RezultatEip {
   readonly randuri: readonly RandEip[];
   readonly urmatorulCursor: string | null;
+  readonly total: number;
+  readonly sortare: Readonly<{ cheie: SortareEip; directie: Directie }>;
 }
+
+const COLOANA_SORTARE_EIP: Readonly<Record<SortareEip, string>> = {
+  articol: "articol",
+  predat: "data_predarii",
+};
+
+const SORTARE_IMPLICITA_EIP = { cheie: "predat", directie: "desc" } as const;
 
 const COLOANE_EIP =
   "id, employee_id, articol, cod_articol, cantitate, unitate, data_predarii, " +
@@ -725,40 +866,60 @@ const COLOANE_EIP =
 
 export async function eip(organizationId: string, filtre: FiltreEip): Promise<RezultatEip> {
   const db = await createServerSupabase();
+  const sortare = sortareCeruta(filtre.sort, SORTARI_EIP, SORTARE_IMPLICITA_EIP);
+  const coloana = COLOANA_SORTARE_EIP[sortare.cheie];
+  const crescator = sortare.directie === "asc";
 
-  let interogare = db
-    .from("ppe_issuances")
-    .select(COLOANE_EIP)
-    .eq("organization_id", organizationId)
-    .is("deleted_at", null)
-    .order("data_predarii", { ascending: false })
-    .order("id", { ascending: false })
+  /**
+   * Filtrele mulțimii, aplicate identic pe amândouă interogările — vezi
+   * `fiseAptitudine`. Lista n-are azi niciun filtru din URL, dar funcția
+   * rămâne locul lor: adăugat pe o singură ramură, un filtru ar face
+   * numărătoarea să nu se mai potrivească cu lista, tăcut.
+   */
+  const filtreaza = <
+    Q extends {
+      eq: (c: string, v: string) => Q;
+      is: (c: string, v: null) => Q;
+    },
+  >(
+    q: Q,
+  ): Q => q.eq("organization_id", organizationId).is("deleted_at", null);
+
+  let interogare = filtreaza(db.from("ppe_issuances").select(COLOANE_EIP))
+    .order(coloana, { ascending: crescator, nullsFirst: false })
+    .order("id", { ascending: crescator })
     .limit(filtre.limita + 1);
 
-  if (filtre.cursor !== null) {
-    const c = decodificaCursor(filtre.cursor);
-    if (c !== null) {
-      interogare = interogare.or(
-        `data_predarii.lt.${ghilimeleaza(c.cheie)},` +
-          `and(data_predarii.eq.${ghilimeleaza(c.cheie)},id.lt.${c.id})`,
-      );
-    }
+  const cursor = filtre.cursor === null ? null : decodificaCursor(filtre.cursor);
+  if (cursor !== null) {
+    interogare = interogare.or(predicatKeyset(coloana, cursor, sortare.directie));
   }
 
-  const { data, error } = await interogare.returns<RandEip[]>();
+  // Numărătoarea NU poartă cursorul: e a mulțimii filtrate, nu a paginii.
+  const [rezultat, numarare] = await Promise.all([
+    interogare.returns<RandEip[]>(),
+    filtreaza(db.from("ppe_issuances").select("id", { count: "exact", head: true })),
+  ]);
+  const { data, error } = rezultat;
   if (error !== null) throw error;
+  if (numarare.error !== null) throw numarare.error;
+  const count = numarare.count;
 
   const toate = data ?? [];
   const areUrmatoarea = toate.length > filtre.limita;
   const randuri = areUrmatoarea ? toate.slice(0, filtre.limita) : toate;
   const ultim = randuri.at(-1);
+  const valoareCursor =
+    ultim === undefined ? null : sortare.cheie === "articol" ? ultim.articol : ultim.data_predarii;
 
   return {
     randuri,
     urmatorulCursor:
-      areUrmatoarea && ultim !== undefined
-        ? codificaCursor({ cheie: ultim.data_predarii, id: ultim.id })
+      areUrmatoarea && ultim !== undefined && valoareCursor !== null
+        ? codificaCursor({ valoare: valoareCursor, id: ultim.id })
         : null,
+    total: count ?? randuri.length,
+    sortare,
   };
 }
 
@@ -830,7 +991,7 @@ export async function angajatiDupaId(
 //
 // Contoare de tablou de bord, nu registre legale: reduc istoricul la cea mai
 // recentă înregistrare per pereche relevantă și numără câte ies din starea
-// „ok" (`stareScadentaSsm`). Mărginite cu `.limit(2000)` — panoul e un rezumat,
+// „ok” (`stareScadentaSsm`). Mărginite cu `.limit(2000)` — panoul e un rezumat,
 // nu locul unde se verifică exhaustiv acoperirea; lista completă e ecranul
 // dedicat fiecărui grup.
 
@@ -994,7 +1155,7 @@ export async function contorAutorizatiiNominale(organizationId: string): Promise
     .from("personnel_authorizations")
     .select("valabil_pana, suspendata_la")
     .eq("organization_id", organizationId)
-    .is("suspendata_la", null) // o autorizație suspendată nu mai e „în uz" — nu cere atenție de reînnoire
+    .is("suspendata_la", null) // o autorizație suspendată nu mai e „în uz” — nu cere atenție de reînnoire
     .is("deleted_at", null)
     .limit(2000)
     .returns<{ valabil_pana: string; suspendata_la: string | null }[]>();
@@ -1009,11 +1170,11 @@ export async function contorAutorizatiiNominale(organizationId: string): Promise
 }
 
 /**
- * `ppe_issuances` nu are o coloană „valabil_pana" — data țintă e derivată:
+ * `ppe_issuances` nu are o coloană „valabil_pana” — data țintă e derivată:
  * `data_inlocuirii` dacă e completată explicit, altfel `data_predarii +
  * durata_utilizare_luni`. Simplificare asumată (ca restul modulului SSM):
  * nu există azi niciun ecran care afișează o scadență calculată pentru EIP,
- * doar datele brute — asta e prima interpretare a lor ca „scadență".
+ * doar datele brute — asta e prima interpretare a lor ca „scadență”.
  */
 function scadentaEip(
   dataPredarii: string,
@@ -1063,7 +1224,7 @@ export async function contorEip(organizationId: string): Promise<number> {
 }
 
 /**
- * Totalul pentru badge-ul de navigare „ssm_expiring" — instruiri, stingătoare,
+ * Totalul pentru badge-ul de navigare „ssm_expiring” — instruiri, stingătoare,
  * fișe de aptitudine, autorizații nominale și EIP. Primele trei erau singurele
  * numărate până acum, deși autorizațiile și EIP au aceleași date de scadență.
  */

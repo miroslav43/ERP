@@ -3,22 +3,26 @@
 //
 // Ce se vede aici NU e decis de pagina asta: `leave_requests_select` (0009)
 // întoarce rândurile echipei doar cuiva care e ancestor în `manager_path`, ori
-// are `leave:read = all`. Filtrul de mai jos exclude doar fișa proprie —
-// restul e RLS.
+// are `leave:read = all`. Filtrul din `listeazaCereri` exclude doar fișa
+// proprie — restul e RLS.
 import { Suspense } from "react";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { SkeletonTable } from "@/components/data/skeleton-table";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { Schelet } from "@/components/ui/schelet";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { citesteTot } from "@/lib/queries/citeste-tot";
 import { numarDeAprobat } from "@/lib/queries/leave";
+import { filtreCereriSchema } from "@/schemas/leave";
 import { fisaProprie } from "@/lib/queries/portal";
+import { filtreDinUrl } from "@/lib/rute/parametri";
 
-import { FiltreCereri } from "../filtre-cereri";
+import { FiltreCereri, type OptiuneAngajat as OptiuneAngajatFiltru } from "../filtre-cereri";
 import { NavConcedii } from "../nav-concedii";
 import { TabelCereri } from "../tabel-cereri";
 
@@ -34,25 +38,11 @@ interface OptiuneTip {
   readonly culoare: string;
 }
 
-interface OptiuneAngajat {
-  readonly id: string;
-  readonly full_name: string | null;
-  readonly marca: string;
-}
-
-/**
- * Câți angajați intră în selectul de filtrare. PostgREST taie oricum la
- * `max_rows = 1000`, TĂCUT — limita explicită face trunchierea vizibilă în cod
- * și lasă loc mesajului de mai jos. Peste prag, filtrarea pe angajat rămâne
- * posibilă din ecranul de personal, prin link direct.
- */
-const MAXIM_ANGAJATI_FILTRU = 500;
-
 export default async function PaginaConcediiEchipa({ searchParams }: ProprietatiPagina) {
   await requireUser();
   const { tenant, user } = await requireTenant();
   await requireFeature(tenant.organizationId, "leave");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "leave:read", "team")) {
     return (
@@ -61,13 +51,14 @@ export default async function PaginaConcediiEchipa({ searchParams }: Proprietati
   }
 
   const fisaMea = await fisaProprie(tenant.organizationId, user.id);
-  const scope = can(permisiuni, "leave:read", "all") ? "all" : "team";
+  const scope: "team" | "all" = can(permisiuni, "leave:read", "all") ? "all" : "team";
   const poateAproba = can(permisiuni, "leave:approve", "team");
   const poateConfigura = can(permisiuni, "leave:update", "all");
 
   const parametri = await searchParams;
+  const filtre = filtreDinUrl(filtreCereriSchema, parametri);
   const db = await createServerSupabase();
-  const [{ data: tipuri }, { data: angajati }, deAprobat] = await Promise.all([
+  const [{ data: tipuri }, deAprobat] = await Promise.all([
     db
       .from("leave_types")
       .select("id, denumire, culoare")
@@ -76,45 +67,58 @@ export default async function PaginaConcediiEchipa({ searchParams }: Proprietati
       .is("deleted_at", null)
       .order("denumire")
       .returns<OptiuneTip[]>(),
-    // Lista pentru selectul de filtrare. Trece prin RLS: un manager primește
-    // subarborele lui, HR-ul și org_admin-ul primesc tot. Fișa proprie e
-    // exclusă, ca selectul să nu ofere un filtru care golește lista.
-    db
-      .from("employees")
-      .select("id, full_name, marca")
-      .eq("organization_id", tenant.organizationId)
-      .eq("status", "activ")
-      .is("deleted_at", null)
-      .order("full_name")
-      .limit(MAXIM_ANGAJATI_FILTRU)
-      .returns<OptiuneAngajat[]>(),
     poateAproba ? numarDeAprobat(tenant.organizationId, user.id) : Promise.resolve(0),
   ]);
 
-  const angajatiFiltru = (angajati ?? []).filter((a) => a.id !== fisaMea?.id);
+  // Angajații pentru filtrul după persoană. `citesteTot`, nu o singură cerere:
+  // PostgREST taie la `max_rows = 1000` FĂRĂ eroare, iar într-un combobox
+  // tăierea nu se vede — omul caută un nume, nu-l găsește și trage concluzia că
+  // persoana n-are cereri. RLS taie oricum rândurile pe care rolul nu are voie
+  // să le vadă, deci lista e exact cea filtrabilă.
+  const angajati = await citesteTot<OptiuneAngajatFiltru>(
+    async (dupa, pas) => {
+      let interogare = db
+        .from("employees")
+        .select("id, full_name, marca")
+        .eq("organization_id", tenant.organizationId)
+        .is("deleted_at", null)
+        .order("id", { ascending: true })
+        .limit(pas);
+      if (dupa !== null) interogare = interogare.gt("id", dupa);
+      return await interogare.returns<OptiuneAngajatFiltru[]>();
+    },
+    (a) => a.id,
+    { nume: "angajații pentru filtrul de concedii ale echipei" },
+  );
+  // Fișa proprie iese din listă: ecranul ăsta n-o arată oricum, iar un filtru
+  // care golește sigur lista e o capcană, nu o opțiune.
+  const angajatiFiltrabili = [...angajati]
+    .filter((a) => a.id !== fisaMea?.id)
+    .sort((a, b) => a.full_name.localeCompare(b.full_name, "ro"));
 
   return (
-    <main className="space-y-6 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Concediile echipei</h1>
-        <p className="text-muted-foreground text-sm">
-          {scope === "all"
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Concediile echipei"
+        descriere={
+          scope === "all"
             ? "Cererile de concediu ale tuturor angajaților din organizație, mai puțin ale dumneavoastră."
-            : "Cererile de concediu ale angajaților din subordinea dumneavoastră."}
-        </p>
-      </header>
-
-      <NavConcedii
-        poateVedeaEchipa={true}
-        poateAproba={poateAproba}
-        poateVedeaCalendar={true}
-        poateConfigura={poateConfigura}
-        deAprobat={deAprobat}
+            : "Cererile de concediu ale angajaților din subordinea dumneavoastră."
+        }
+        file={
+          <NavConcedii
+            poateVedeaEchipa={true}
+            poateAproba={poateAproba}
+            poateVedeaCalendar={true}
+            poateConfigura={poateConfigura}
+            deAprobat={deAprobat}
+          />
+        }
       />
 
-      <FiltreCereri tipuri={tipuri ?? []} angajati={angajatiFiltru} />
+      <FiltreCereri tipuri={tipuri ?? []} angajati={angajatiFiltrabili} filtre={filtre} />
 
-      <Suspense key={JSON.stringify(parametri)} fallback={<SkeletonTable />}>
+      <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={5} />}>
         <TabelCereri
           organizationId={tenant.organizationId}
           vizualizare="echipa"
@@ -126,10 +130,10 @@ export default async function PaginaConcediiEchipa({ searchParams }: Proprietati
           gol={{
             titlu: "Nicio cerere de la echipă",
             descriere:
-              "Nu există cereri ale altor angajați care să corespundă filtrelor alese. Ștergeți filtrele sau reveniți mai târziu.",
+              "Niciun angajat din subordinea dumneavoastră nu are cereri de concediu înregistrate.",
           }}
         />
       </Suspense>
-    </main>
+    </div>
   );
 }

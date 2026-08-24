@@ -44,20 +44,20 @@ export function MeniuCont({
 
   return (
     <details key={cale} className="relative">
-      <summary className="hover:bg-background flex size-11 cursor-pointer list-none items-center justify-center rounded-md [&::-webkit-details-marker]:hidden">
+      <summary className="hover:bg-background rounded-control flex size-11 cursor-pointer list-none items-center justify-center [&::-webkit-details-marker]:hidden">
         <AvatarAngajat url={avatarUrl} nume={numeAfisat} marime="sm" />
         <span className="sr-only">Contul meu</span>
       </summary>
 
-      <div className="border-border bg-surface absolute right-0 z-30 mt-1 w-64 rounded-md border p-1 shadow-lg">
+      <div className="border-border bg-surface rounded-control shadow-plutitor absolute right-0 z-30 mt-1 w-64 border p-1">
         <div className="border-border border-b px-3 py-2">
-          <p className="text-foreground truncate text-sm font-medium">{numeAfisat}</p>
-          <p className="text-muted-foreground truncate text-xs">{email}</p>
+          <p className="text-foreground text-corp truncate font-medium">{numeAfisat}</p>
+          <p className="text-muted-foreground text-nota truncate">{email}</p>
         </div>
 
         <Link
           href="/portal/profilul-meu"
-          className="text-foreground hover:bg-background flex min-h-11 items-center gap-2 rounded px-3 text-sm"
+          className="text-foreground hover:bg-background text-corp flex min-h-11 items-center gap-2 rounded px-3"
         >
           <UserRound aria-hidden="true" className="size-4 shrink-0" />
           Profilul meu
@@ -70,7 +70,7 @@ export function MeniuCont({
             <input type="hidden" name="organizationId" value={organizatie.id} />
             <button
               type="submit"
-              className="text-foreground hover:bg-background flex min-h-11 w-full items-center gap-2 rounded px-3 text-left text-sm"
+              className="text-foreground hover:bg-background text-corp flex min-h-11 w-full items-center gap-2 rounded px-3 text-left"
             >
               <ArrowLeftRight aria-hidden="true" className="size-4 shrink-0" />
               <span className="min-w-0 truncate">Treci la {organizatie.name}</span>
@@ -81,7 +81,7 @@ export function MeniuCont({
         <form action={deconecteaza}>
           <button
             type="submit"
-            className="text-danger hover:bg-background flex min-h-11 w-full items-center gap-2 rounded px-3 text-left text-sm"
+            className="text-danger hover:bg-background text-corp flex min-h-11 w-full items-center gap-2 rounded px-3 text-left"
           >
             <LogOut aria-hidden="true" className="size-4 shrink-0" />
             Deconectare

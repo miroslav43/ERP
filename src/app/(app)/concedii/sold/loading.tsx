@@ -1,10 +1,7 @@
 // src/app/(app)/concedii/sold/loading.tsx
-import { SkeletonTable } from "@/components/data/skeleton-table";
+// Ambele tabele ale paginii au aceleași șase coloane.
+import { Schelet } from "@/components/ui/schelet";
 
-export default function IncarcareSoldConcedii() {
-  return (
-    <main className="space-y-6 p-6" aria-busy="true" aria-label="Se încarcă soldul de concediu">
-      <SkeletonTable rows={4} cols={6} />
-    </main>
-  );
+export default function Incarcare() {
+  return <Schelet forma="tabel" coloane={6} />;
 }

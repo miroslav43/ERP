@@ -215,6 +215,13 @@ export function PaginaLanding({ text }: { text: ContinutLanding }) {
           <div className="lg:col-span-4">
             <VinietaFluturas
               titlu={text.limba === "ro" ? "Fluturaș de salariu" : "Payslip"}
+              unitate={text.limba === "ro" ? "Lei" : "RON"}
+              antetCategorie={text.limba === "ro" ? "Categorie" : "Category"}
+              etichete={
+                text.limba === "ro"
+                  ? { net: "Net de plată", impozit: "Impozit" }
+                  : { net: "Net pay", impozit: "Income tax" }
+              }
               avertisment={
                 text.limba === "ro"
                   ? "Calcul intern, neverificat de un contabil. Cotele sunt cele configurate pentru firma din exemplu."

@@ -1,10 +1,15 @@
-"use client";
-
-import { useId, useTransition } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+// src/app/(app)/inventar/filtre-inventar.tsx
+// Server Component: fără stare, fără handler, fără JavaScript trimis în browser.
+// Trimiterea și pastilele stau în `BaraFiltre`.
 import { Search } from "lucide-react";
 
-import { STARI_OBIECT, STATUSURI_OBIECT } from "@/schemas/inventory";
+import { BaraFiltre, type FiltruActiv } from "@/components/ui/bara-filtre";
+import {
+  STARI_OBIECT,
+  STATUSURI_OBIECT,
+  type FiltreInventar as ValoriFiltre,
+} from "@/schemas/inventory";
+
 import { ETICHETE_STARE, ETICHETE_STATUS } from "./etichete";
 
 interface OptiuneCategorie {
@@ -14,83 +19,98 @@ interface OptiuneCategorie {
 
 interface Proprietati {
   readonly categorii: readonly OptiuneCategorie[];
+  /**
+   * Filtrele deja trecute prin `filtreDinUrl` — exact valorile pe care le-a
+   * folosit lista. Citite brut din adresă, un `?status=zzz` ar fi arătat în
+   * formular altceva decât ce s-a filtrat de fapt.
+   */
+  readonly filtre: ValoriFiltre;
 }
 
-export function FiltreInventar({ categorii }: Proprietati) {
-  const router = useRouter();
-  const cale = usePathname();
-  const parametri = useSearchParams();
-  const [inCurs, porneste] = useTransition();
-  const idCautare = useId();
-  const idNumar = useId();
-  const idStatus = useId();
-  const idStare = useId();
-  const idCategorie = useId();
+/**
+ * Cheile pe care le administrează bara. `sort`, `limita` și `cursor` NU sunt
+ * aici: nu sunt filtre, iar bara nu are voie să le atingă. Înainte, `aplica()`
+ * pornea dintr-un `URLSearchParams` gol, deci fiecare apăsare pe „Filtrează”
+ * arunca sortarea aleasă din tabel și mărimea de pagină aleasă din paginare.
+ */
+const CHEI_PROPRII = ["q", "numar", "status", "stare", "category_id"] as const;
 
-  function aplica(formular: FormData): void {
-    const noi = new URLSearchParams();
-    const q = String(formular.get("q") ?? "").trim();
-    const numar = String(formular.get("numar") ?? "").trim();
-    const status = String(formular.get("status") ?? "");
-    const stare = String(formular.get("stare") ?? "");
-    const categoryId = String(formular.get("category_id") ?? "");
-    if (q.length > 0) noi.set("q", q);
-    if (numar.length > 0) noi.set("numar", numar);
-    if (status.length > 0) noi.set("status", status);
-    if (stare.length > 0) noi.set("stare", stare);
-    if (categoryId.length > 0) noi.set("category_id", categoryId);
-    porneste(() => {
-      router.replace(`${cale}?${noi.toString()}`);
+const CLASA_SELECT = "border-foreground/60 rounded-control text-corp mt-1 border px-2 py-2";
+
+export function FiltreInventar({ categorii, filtre }: Proprietati) {
+  const numeCategorii = new Map(categorii.map((categorie) => [categorie.id, categorie.denumire]));
+
+  // Pastilele poartă DENUMIREA, nu identificatorul: „Categorie: Scule”, nu un UUID.
+  const active: FiltruActiv[] = [];
+  if (filtre.q !== null) active.push({ cheie: "q", eticheta: `Denumire: ${filtre.q}` });
+  if (filtre.numar !== null) {
+    active.push({ cheie: "numar", eticheta: `Număr de inventar: ${filtre.numar}` });
+  }
+  if (filtre.status !== null) {
+    active.push({
+      cheie: "status",
+      eticheta: `Stare de circuit: ${ETICHETE_STATUS[filtre.status]}`,
+    });
+  }
+  if (filtre.stare !== null) {
+    active.push({ cheie: "stare", eticheta: `Stare fizică: ${ETICHETE_STARE[filtre.stare]}` });
+  }
+  if (filtre.category_id !== null) {
+    active.push({
+      cheie: "category_id",
+      eticheta: `Categorie: ${numeCategorii.get(filtre.category_id) ?? "necunoscută"}`,
     });
   }
 
   return (
-    <form
-      action={aplica}
-      role="search"
-      aria-label="Filtrare inventar"
-      className="border-border flex flex-wrap items-end gap-4 rounded-lg border p-4"
-    >
+    <BaraFiltre active={active} cheiProprii={CHEI_PROPRII} textAplica="Aplică filtrele">
       <div className="min-w-56 flex-1">
-        <label htmlFor={idCautare} className="block text-sm font-medium">
+        <label htmlFor="filtru-inventar-q" className="text-corp block font-medium">
           Caută după denumire
         </label>
-        <div className="border-foreground/60 mt-1 flex items-center gap-2 rounded-md border px-2 focus-within:outline-2">
+        <div className="border-foreground/60 rounded-control mt-1 flex items-center gap-2 border px-2 focus-within:outline-2">
           <Search aria-hidden="true" className="text-muted-foreground size-4" />
           <input
-            id={idCautare}
+            // `key` legat de valoarea din adresă: un control NECONTROLAT își ia
+            // `defaultValue` doar la montare, deci după „Șterge filtrul” ar fi rămas
+            // cu valoarea veche în câmp — și ar fi reaplicat-o la următoarea
+            // apăsare pe „Aplică filtrele”.
+            key={filtre.q ?? ""}
+            id="filtru-inventar-q"
             name="q"
             type="search"
-            defaultValue={parametri.get("q") ?? ""}
+            defaultValue={filtre.q ?? ""}
             placeholder="Ex. Laptop Dell"
-            className="w-full bg-transparent py-2 text-sm"
+            className="text-corp w-full bg-transparent py-2"
           />
         </div>
       </div>
 
       <div className="min-w-40">
-        <label htmlFor={idNumar} className="block text-sm font-medium">
+        <label htmlFor="filtru-inventar-numar" className="text-corp block font-medium">
           Număr de inventar
         </label>
         <input
-          id={idNumar}
+          key={filtre.numar ?? ""}
+          id="filtru-inventar-numar"
           name="numar"
           type="search"
-          defaultValue={parametri.get("numar") ?? ""}
+          defaultValue={filtre.numar ?? ""}
           placeholder="Ex. INV-0042"
-          className="border-foreground/60 mt-1 w-full rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp mt-1 w-full border px-3 py-2"
         />
       </div>
 
       <div>
-        <label htmlFor={idStatus} className="block text-sm font-medium">
+        <label htmlFor="filtru-inventar-status" className="text-corp block font-medium">
           Stare de circuit
         </label>
         <select
-          id={idStatus}
+          key={filtre.status ?? ""}
+          id="filtru-inventar-status"
           name="status"
-          defaultValue={parametri.get("status") ?? ""}
-          className="border-foreground/60 mt-1 rounded-md border px-2 py-2 text-sm"
+          defaultValue={filtre.status ?? ""}
+          className={CLASA_SELECT}
         >
           <option value="">Toate</option>
           {STATUSURI_OBIECT.map((status) => (
@@ -102,14 +122,15 @@ export function FiltreInventar({ categorii }: Proprietati) {
       </div>
 
       <div>
-        <label htmlFor={idStare} className="block text-sm font-medium">
+        <label htmlFor="filtru-inventar-stare" className="text-corp block font-medium">
           Stare fizică
         </label>
         <select
-          id={idStare}
+          key={filtre.stare ?? ""}
+          id="filtru-inventar-stare"
           name="stare"
-          defaultValue={parametri.get("stare") ?? ""}
-          className="border-foreground/60 mt-1 rounded-md border px-2 py-2 text-sm"
+          defaultValue={filtre.stare ?? ""}
+          className={CLASA_SELECT}
         >
           <option value="">Toate</option>
           {STARI_OBIECT.map((stare) => (
@@ -122,14 +143,15 @@ export function FiltreInventar({ categorii }: Proprietati) {
 
       {categorii.length > 0 ? (
         <div>
-          <label htmlFor={idCategorie} className="block text-sm font-medium">
+          <label htmlFor="filtru-inventar-categorie" className="text-corp block font-medium">
             Categorie
           </label>
           <select
-            id={idCategorie}
+            key={filtre.category_id ?? ""}
+            id="filtru-inventar-categorie"
             name="category_id"
-            defaultValue={parametri.get("category_id") ?? ""}
-            className="border-foreground/60 mt-1 rounded-md border px-2 py-2 text-sm"
+            defaultValue={filtre.category_id ?? ""}
+            className={CLASA_SELECT}
           >
             <option value="">Toate</option>
             {categorii.map((optiune) => (
@@ -140,17 +162,6 @@ export function FiltreInventar({ categorii }: Proprietati) {
           </select>
         </div>
       ) : null}
-
-      <button
-        type="submit"
-        disabled={inCurs}
-        className="bg-primary text-primary-foreground disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-      >
-        {inCurs ? "Se filtrează…" : "Aplică filtrele"}
-      </button>
-      <p aria-live="polite" className="sr-only">
-        {inCurs ? "Se aplică filtrele." : "Filtre aplicate."}
-      </p>
-    </form>
+    </BaraFiltre>
   );
 }

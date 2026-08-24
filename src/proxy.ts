@@ -122,10 +122,12 @@ export const config = {
      * favicon-ul. Fără excluderi, fiecare imagine ar declanșa un apel de
      * refresh către GoTrue.
      *
-     * `healthz` e exclusă separat: e sonda de liveness a containerului, iar
-     * trecerea ei prin `updateSession()` ar declara containerul mort ori de
-     * câte ori GoTrue are o sughițare.
+     * `healthz` și `readyz` sunt excluse separat: sunt sondele containerului,
+     * iar trecerea lor prin `updateSession()` ar declara containerul mort ori de
+     * câte ori GoTrue are o sughițare. `readyz` își face oricum propriul apel
+     * către Supabase, cu termen scurt și cu verdict propriu — vezi
+     * `src/app/readyz/route.ts`.
      */
-    "/((?!_next/static|_next/image|healthz|favicon\\.ico|robots\\.txt|sitemap\\.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|css|js|woff|woff2|ttf|otf|map)$).*)",
+    "/((?!_next/static|_next/image|healthz|readyz|favicon\\.ico|robots\\.txt|sitemap\\.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|css|js|woff|woff2|ttf|otf|map)$).*)",
   ],
 };

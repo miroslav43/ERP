@@ -2,17 +2,19 @@
 
 import { Printer } from "lucide-react";
 
+import { Buton } from "@/components/ui/buton";
+
 export function ButonTiparire() {
   return (
-    <button
-      type="button"
+    <Buton
+      varianta="secundar"
+      className="print:hidden"
       onClick={() => {
         window.print();
       }}
-      className="border-foreground/60 hover:bg-surface inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium print:hidden"
     >
       <Printer aria-hidden="true" className="size-4" />
       Tipărește
-    </button>
+    </Buton>
   );
 }

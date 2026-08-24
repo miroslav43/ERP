@@ -4,8 +4,9 @@ import type { Metadata } from "next";
 import { Building2, ChevronRight, Users } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina } from "@/components/ui/antet-pagina";
 import { AvatarAngajat } from "@/components/data/avatar-angajat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -127,23 +128,23 @@ function Arbore({
     >
       {noduri.map((nod) => (
         <li key={nod.id}>
-          <div className="border-border bg-surface overflow-hidden rounded-lg border shadow-sm">
+          <div className="border-border bg-surface rounded-panou shadow-ridicat overflow-hidden border">
             <details className="group">
-              <summary className="focus-visible:outline-ring flex cursor-pointer list-none flex-wrap items-center gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
-                <span className="bg-background flex size-9 shrink-0 items-center justify-center rounded-md">
+              <summary className="flex cursor-pointer list-none flex-wrap items-center gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
+                <span className="bg-background rounded-control flex size-9 shrink-0 items-center justify-center">
                   <Building2 aria-hidden="true" className="text-primary size-4.5" />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">{nod.denumire}</span>
-                    <span className="text-muted-foreground font-mono text-xs">{nod.cod}</span>
+                    <span className="text-muted-foreground text-nota font-mono">{nod.cod}</span>
                     {!nod.activ ? (
-                      <span className="bg-background text-muted-foreground rounded-full px-2 py-0.5 text-xs font-medium">
+                      <span className="bg-background text-muted-foreground text-nota rounded-full px-2 py-0.5 font-medium">
                         Inactiv
                       </span>
                     ) : null}
                   </span>
-                  <span className="mt-1 flex items-center gap-1.5 text-sm">
+                  <span className="text-corp mt-1 flex items-center gap-1.5">
                     {nod.manager !== null ? (
                       <Link
                         href={`/angajati/${nod.manager_employee_id}`}
@@ -161,7 +162,7 @@ function Arbore({
                     )}
                   </span>
                 </span>
-                <span className="bg-background text-muted-foreground inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium">
+                <span className="bg-background text-muted-foreground text-nota inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 font-medium">
                   <Users aria-hidden="true" className="size-3.5" />
                   {nod.angajatiiDepartamentului.length}
                   <span className="sr-only">angajați activi în acest departament</span>
@@ -179,7 +180,7 @@ function Arbore({
                       <li key={angajat.id}>
                         <Link
                           href={`/angajati/${angajat.id}`}
-                          className="border-border bg-background hover:border-primary/30 hover:bg-primary/5 inline-flex items-center gap-1.5 rounded-full border py-1 pr-3 pl-1 text-sm transition-colors"
+                          className="border-border bg-background hover:border-primary/30 hover:bg-primary/5 text-corp inline-flex items-center gap-1.5 rounded-full border py-1 pr-3 pl-1 transition-colors"
                         >
                           <AvatarAngajat
                             url={angajat.avatar_url}
@@ -187,7 +188,7 @@ function Arbore({
                             marime="sm"
                           />
                           <span className="font-medium">{angajat.full_name}</span>
-                          <span className="text-muted-foreground font-mono text-xs">
+                          <span className="text-muted-foreground text-nota font-mono">
                             {angajat.marca}
                           </span>
                           {angajat.job_position !== null ? (
@@ -200,9 +201,13 @@ function Arbore({
                     ))}
                   </ul>
                 ) : (
-                  <p className="border-border text-muted-foreground rounded-md border border-dashed px-3 py-4 text-center text-sm">
-                    Niciun angajat activ repartizat în acest departament.
-                  </p>
+                  <StareGoala
+                    compact
+                    fel="initiala"
+                    pictograma={Users}
+                    titlu="Departament gol"
+                    descriere="Niciun angajat activ repartizat în acest departament."
+                  />
                 )}
               </div>
             </details>
@@ -236,7 +241,7 @@ function Arbore({
 export default async function PaginaDepartamente() {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "nucleu");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (scopeFor(permisiuni, "departments:read") === "none") {
     return <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta structura organizatorică." />;
@@ -319,24 +324,28 @@ export default async function PaginaDepartamente() {
   }));
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Departamente</h1>
-          <p className="text-muted-foreground text-sm">
-            Structura organizatorică, cu managerul și numărul de angajați pe fiecare nivel.
-          </p>
-        </div>
-        {poateCrea ? (
-          <FormularDepartamentNou departamente={listaDepartamente} angajati={optiuniAngajati} />
-        ) : null}
-      </header>
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Departamente"
+        descriere="Structura organizatorică, cu managerul și numărul de angajați pe fiecare nivel."
+        {...(poateCrea
+          ? {
+              actiuni: (
+                <FormularDepartamentNou
+                  departamente={listaDepartamente}
+                  angajati={optiuniAngajati}
+                />
+              ),
+            }
+          : {})}
+      />
 
       {arbore.length === 0 ? (
-        <EmptyState
-          icon={Users}
-          title="Structura organizatorică este goală"
-          description="Adăugați primul departament pentru a putea repartiza angajații și a delega drepturile pe echipă."
+        <StareGoala
+          fel="initiala"
+          pictograma={Users}
+          titlu="Structura organizatorică este goală"
+          descriere="Adăugați primul departament pentru a putea repartiza angajații și a delega drepturile pe echipă."
         />
       ) : (
         <Arbore
@@ -347,6 +356,6 @@ export default async function PaginaDepartamente() {
           poateEdita={poateEdita}
         />
       )}
-    </main>
+    </div>
   );
 }

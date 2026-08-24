@@ -3,6 +3,8 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
+
 import { pornesteInstanta } from "../actions";
 import { ETICHETE_TIP } from "../etichete";
 
@@ -60,14 +62,14 @@ export function FormularInstanta({ sabloane, angajati, astazi }: Proprietati) {
   return (
     <form action={trimite} className="space-y-4">
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.sablon} className="text-sm font-medium">
+        <label htmlFor={id.sablon} className="text-corp font-medium">
           Șablon
         </label>
         <select
           id={id.sablon}
           name="template_id"
           required
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         >
           {sabloane.map((s) => (
             <option key={s.id} value={s.id}>
@@ -78,7 +80,7 @@ export function FormularInstanta({ sabloane, angajati, astazi }: Proprietati) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.angajat} className="text-sm font-medium">
+        <label htmlFor={id.angajat} className="text-corp font-medium">
           Angajat
         </label>
         {angajati === null ? (
@@ -89,9 +91,9 @@ export function FormularInstanta({ sabloane, angajati, astazi }: Proprietati) {
               required
               placeholder="id-ul angajatului"
               aria-describedby={`${id.angajat}-ajutor`}
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
             />
-            <p id={`${id.angajat}-ajutor`} className="text-muted-foreground text-xs">
+            <p id={`${id.angajat}-ajutor`} className="text-muted-foreground text-nota">
               Nu aveți acces la lista de angajați; introduceți identificatorul angajatului (îl
               găsiți pe fișa lui, în modulul Personal).
             </p>
@@ -101,7 +103,7 @@ export function FormularInstanta({ sabloane, angajati, astazi }: Proprietati) {
             id={id.angajat}
             name="employee_id"
             required
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           >
             {angajati.map((a) => (
               <option key={a.id} value={a.id}>
@@ -113,7 +115,7 @@ export function FormularInstanta({ sabloane, angajati, astazi }: Proprietati) {
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.data} className="text-sm font-medium">
+        <label htmlFor={id.data} className="text-corp font-medium">
           Data de referință
         </label>
         <input
@@ -123,16 +125,16 @@ export function FormularInstanta({ sabloane, angajati, astazi }: Proprietati) {
           required
           defaultValue={astazi}
           aria-describedby={`${id.data}-ajutor`}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
-        <p id={`${id.data}-ajutor`} className="text-muted-foreground text-xs">
+        <p id={`${id.data}-ajutor`} className="text-muted-foreground text-nota">
           Prima zi de lucru (integrare) sau ultima zi (ieșire) — termenele pașilor se calculează de
           la ea.
         </p>
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.observatii} className="text-sm font-medium">
+        <label htmlFor={id.observatii} className="text-corp font-medium">
           Observații
         </label>
         <textarea
@@ -140,20 +142,16 @@ export function FormularInstanta({ sabloane, angajati, astazi }: Proprietati) {
           name="observatii"
           rows={3}
           maxLength={2000}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="submit"
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se pornește…" : "Pornește checklistul"}
-        </button>
+        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se pornește…">
+          Pornește checklistul
+        </Buton>
         {eroare === null ? null : (
-          <p role="alert" className="text-danger text-sm">
+          <p role="alert" className="text-danger text-corp">
             {eroare}
           </p>
         )}

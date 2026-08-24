@@ -1,4 +1,5 @@
 // src/app/(app)/diurna/etichete.ts
+import type { TonStare } from "@/components/ui/badge";
 import type {
   MijlocTransport,
   RegulaTrecereFrontiera,
@@ -16,14 +17,21 @@ export const ETICHETE_STATUS_DEPLASARE: Readonly<Record<StatusDeplasare, string>
   decontata: "Decontată",
 };
 
-export const CLASE_STATUS_DEPLASARE: Readonly<Record<StatusDeplasare, string>> = {
-  ciorna: "bg-zinc-200 text-zinc-800",
-  in_aprobare: "bg-amber-100 text-amber-900",
-  aprobata: "bg-emerald-100 text-emerald-900",
-  respinsa: "bg-red-100 text-red-900",
-  anulata: "bg-zinc-200 text-zinc-500",
-  incheiata: "bg-blue-100 text-blue-900",
-  decontata: "bg-violet-100 text-violet-900",
+export const TONURI_STATUS_DEPLASARE: Readonly<Record<StatusDeplasare, TonStare>> = {
+  // Ciornă = deplasare începută, netrimisă încă — bulina goală spune exact asta.
+  ciorna: "ciorna",
+  // Trimisă spre decizie: cere acțiunea altcuiva, deci atenție, nu succes.
+  in_aprobare: "atentie",
+  aprobata: "succes",
+  respinsa: "pericol",
+  anulata: "neutru",
+  // Deplasarea s-a terminat, dar banii n-au fost încă decontați: stare închisă,
+  // fără conotație de reușită.
+  incheiata: "neutru",
+  // Starea finală reușită a fluxului (ciornă → aprobare → aprobată → decontată):
+  // rămâne „succes”, deși culoarea veche era violet, ca să nu retrogradeze vizual
+  // pasul care încheie cu bine dosarul.
+  decontata: "succes",
 };
 
 export const ETICHETE_MIJLOC_TRANSPORT: Readonly<Record<MijlocTransport, string>> = {
@@ -52,3 +60,29 @@ export const ETICHETE_REGULA_TRECERE: Readonly<Record<RegulaTrecereFrontiera, st
   tara_cu_valoare_mai_mare: "Țara cu baremul mai mare",
   durata_maxima: "Țara în care s-au petrecut cele mai multe ore",
 };
+
+/**
+ * Numărul de zile de diurnă, scris ca în limba română.
+ *
+ * Modulul îl scria în trei locuri ca `${String(zile)} zile`: o zi apărea „1
+ * zile”, iar o zi și jumătate — „1.5 zile”, cu PUNCT zecimal, lângă sume
+ * formatate în convenția românească, în același rând de tabel și pe același
+ * document tipărit.
+ *
+ * `de` intră peste 19: „20 de zile”, dar „101 zile” — regula se uită după
+ * ultimele două cifre, nu după mărime.
+ *
+ * Formatorul are `maximumFractionDigits`, dar NU și `minimumFractionDigits`:
+ * `formatAmount` forțează doi zecimali fiindcă e făcut pentru bani, iar cu el
+ * o deplasare de trei zile scria „3,00 zile” pe decontul tipărit. Zilele nu
+ * sunt o sumă — jumătatea de zi apare doar când există.
+ */
+const formatorZile = new Intl.NumberFormat("ro-RO", { maximumFractionDigits: 2 });
+
+export function textZile(zile: number): string {
+  const numar = formatorZile.format(zile);
+  if (zile === 1) return `${numar} zi`;
+  const ultimeleDoua = Math.floor(Math.abs(zile)) % 100;
+  const cereDe = Math.abs(zile) >= 20 && (ultimeleDoua === 0 || ultimeleDoua >= 20);
+  return cereDe ? `${numar} de zile` : `${numar} zile`;
+}

@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   COTA_AVERTIZARE_CONTOR,
   PRAG_AVERTIZARE_CONTOR_IMPLICIT,
-  PRAG_AVERTIZARE_ZILE,
+  PRAG_MENTENANTA_AVERTIZARE_ZILE,
+  cereActiune,
   maiGravaDintre,
   stareScadentaContor,
   stareScadentaData,
@@ -33,12 +34,12 @@ describe("stareScadentaData", () => {
     expect(stareScadentaData("2026-07-01", azi, 15)).toBe("in_regula");
   });
 
-  it("este „in_regula” pentru azi însuși (nu e trecut)", () => {
+  it("cu prag 0, ziua de azi e „scadenta_apropiata” — scadentă, dar nu trecută", () => {
     expect(stareScadentaData(azi, azi, 0)).toBe("scadenta_apropiata");
   });
 
   it("folosește pragul implicit de 15 zile când nu se specifică altul", () => {
-    expect(PRAG_AVERTIZARE_ZILE).toBe(15);
+    expect(PRAG_MENTENANTA_AVERTIZARE_ZILE).toBe(15);
     expect(stareScadentaData("2026-06-29", azi)).toBe("scadenta_apropiata");
     expect(stareScadentaData("2026-07-02", azi)).toBe("in_regula");
   });
@@ -179,5 +180,30 @@ describe("stareScadentaPlan", () => {
         azi,
       ),
     ).toBe("in_intarziere");
+  });
+});
+
+describe("cereActiune", () => {
+  it("cheamă în coadă doar întârzierea și scadența apropiată", () => {
+    expect(cereActiune("in_intarziere")).toBe(true);
+    expect(cereActiune("scadenta_apropiata")).toBe(true);
+    expect(cereActiune("in_regula")).toBe(false);
+    expect(cereActiune("fara_scadenta")).toBe(false);
+  });
+
+  it("un plan scadent DOAR pe contor intră în coadă", () => {
+    // Exact defectul reparat: data e departe în viitor, contorul e depășit.
+    // Cu `stareScadentaData` singură, `cereActiune` ar fi întors `false`.
+    const stare = stareScadentaPlan(
+      {
+        urmatoareaScadenta: "2027-01-01",
+        urmatoareaScadentaContor: 500,
+        periodicitateContor: 500,
+        ultimaCitireContor: 700,
+      },
+      "2026-06-15",
+    );
+    expect(stare).toBe("in_intarziere");
+    expect(cereActiune(stare)).toBe(true);
   });
 });

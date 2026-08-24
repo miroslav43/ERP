@@ -110,3 +110,103 @@ export function momentLimitaComunicareItm(
 export function oreRamasePanaLaTermen(momentLimita: Date, acum: Date): number {
   return (momentLimita.getTime() - acum.getTime()) / 3_600_000;
 }
+
+/**
+ * ── DE CE NU AJUNGE `oreRamasePanaLaTermen` LA AFIȘARE ────────────────────
+ * Funcția de mai sus întoarce ore ZECIMALE, iar ecranele o randau ca atare:
+ * „Mai sunt 11.5 ore până la termenul legal." Nimeni nu transformă mental
+ * „11,5 ore" în „la ce oră trebuie să sun la ITM" — mai ales sub presiune, la
+ * ora 3 dimineața, după un accident. Cifra rămâne pentru comparații (sortare,
+ * praguri); pentru ochi se compun două lucruri: cât a mai rămas, în ore și
+ * minute, și ORA-LIMITĂ ABSOLUTĂ.
+ */
+
+const formatorOraLimita = new Intl.DateTimeFormat("ro-RO", {
+  timeZone: TIMEZONE,
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+
+const formatorZiLimita = new Intl.DateTimeFormat("en-CA", {
+  timeZone: TIMEZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+export type RestTermenItm = Readonly<{
+  /** Termenul a trecut deja. `ore` și `minute` măsoară atunci DEPĂȘIREA. */
+  depasit: boolean;
+  ore: number;
+  minute: number;
+}>;
+
+/**
+ * Cât a mai rămas până la termen, în ore și minute întregi.
+ *
+ * Minutele se rotunjesc în JOS (`Math.floor`) pe ramura rămasă și în SUS pe cea
+ * depășită: în ambele cazuri, rotunjirea merge în defavoarea celui care trebuie
+ * să sune. „Mai sunt 0 minute" e o afirmație pe care o poți crede; „mai este 1
+ * minut" când de fapt au mai rămas 12 secunde nu e.
+ */
+export function restTermenItm(momentLimita: Date, acum: Date): RestTermenItm {
+  const diferentaMs = momentLimita.getTime() - acum.getTime();
+  const depasit = diferentaMs < 0;
+  const minuteTotale = depasit
+    ? Math.ceil(-diferentaMs / 60_000)
+    : Math.floor(diferentaMs / 60_000);
+  return {
+    depasit,
+    ore: Math.floor(minuteTotale / 60),
+    minute: minuteTotale % 60,
+  };
+}
+
+/**
+ * Acordul lui „de" — regula românească: apare de la 20 în sus și la multiplii
+ * de 100. „3 de ore" era una dintre erorile pe care le producea formatarea
+ * naivă cu șablon.
+ */
+function numarCuUnitate(n: number, singular: string, plural: string): string {
+  if (n === 1) return `1 ${singular}`;
+  const rest = n % 100;
+  const cuDe = n !== 0 && (rest === 0 || rest >= 20);
+  return `${n} ${cuDe ? "de " : ""}${plural}`;
+}
+
+/** `{ ore: 7, minute: 12 }` → `"7 ore și 12 minute"`. */
+export function formuleazaRestTermenItm(rest: RestTermenItm): string {
+  const ore = numarCuUnitate(rest.ore, "oră", "ore");
+  const minute = numarCuUnitate(rest.minute, "minut", "minute");
+  if (rest.ore === 0) return minute;
+  if (rest.minute === 0) return ore;
+  return `${ore} și ${minute}`;
+}
+
+/**
+ * Ora-limită, spusă cum ar spune-o un om: `"azi la 18:40"`, `"mâine la 09:00"`,
+ * `"pe 17.01.2026, la 09:00"`.
+ *
+ * Ziua se compară în calendarul ROMÂNESC, nu în UTC: un termen la 01:30 ora
+ * României cade în ziua UTC precedentă, iar „mâine" ar fi devenit „azi" pentru
+ * cinci ore pe zi, iarna, și pentru trei vara.
+ */
+export function oraLimitaInCuvinte(momentLimita: Date, acum: Date): string {
+  const ora = formatorOraLimita.format(momentLimita);
+  const ziLimita = formatorZiLimita.format(momentLimita);
+  const ziAcum = formatorZiLimita.format(acum);
+  if (ziLimita === ziAcum) return `azi la ${ora}`;
+
+  const [aL, lL, zL] = ziLimita.split("-").map(Number);
+  const [aA, lA, zA] = ziAcum.split("-").map(Number);
+  const zile = Math.round(
+    (Date.UTC(aL ?? 0, (lL ?? 1) - 1, zL ?? 1) - Date.UTC(aA ?? 0, (lA ?? 1) - 1, zA ?? 1)) /
+      86_400_000,
+  );
+  if (zile === 1) return `mâine la ${ora}`;
+  if (zile === -1) return `ieri la ${ora}`;
+
+  const zi = `${String(zL).padStart(2, "0")}.${String(lL).padStart(2, "0")}.${String(aL)}`;
+  return `pe ${zi}, la ${ora}`;
+}

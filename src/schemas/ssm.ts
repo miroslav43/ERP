@@ -58,10 +58,40 @@ export const filtreInstruiriSchema = z.object({
 });
 export type FiltreInstruiri = z.output<typeof filtreInstruiriSchema>;
 
+/**
+ * Coloanele după care se poate sorta fiecare listă SSM.
+ *
+ * Listele sunt ÎNCHISE, nu validări de formă: numele coloanei ajunge într-un
+ * `.order()` și într-un predicat de cursor construit ca text, deci nu poate
+ * veni liber din query string. `sortareCeruta` din `lib/queries/cursor.ts` cade
+ * tăcut pe implicit pentru orice altceva.
+ *
+ * Nicio coloană care poate fi NULL nu e sortabilă: valoarea ei ar trebui să
+ * intre și în cursorul keyset, unde `null` n-are cum să fie comparat, iar
+ * paginarea ar sări rânduri fără nicio eroare. La fel, coloanele „Angajat" nu
+ * sunt sortabile: numele vine dintr-o a doua citire (vezi `angajatiDupaId`),
+ * nu din tabela listată, deci baza n-are după ce ordona.
+ */
+export const SORTARI_FISE = ["data", "tip", "rezultat"] as const;
+export type SortareFise = (typeof SORTARI_FISE)[number];
+
+export const SORTARI_ACCIDENTE = ["data", "tip"] as const;
+export type SortareAccidente = (typeof SORTARI_ACCIDENTE)[number];
+
+export const SORTARI_STINGATOARE = ["cod", "locatie", "stare"] as const;
+export type SortareStingatoare = (typeof SORTARI_STINGATOARE)[number];
+
+export const SORTARI_EIP = ["articol", "predat"] as const;
+export type SortareEip = (typeof SORTARI_EIP)[number];
+
+/** Forma din URL: `data` crescător, `-data` descrescător. */
+const sortOptional = optional(z.string().max(40));
+
 export const filtreFiseSchema = z.object({
   rezultat: optional(z.enum(REZULTATE_EXAMEN)),
   cursor: optional(z.string().max(256)),
   limita: z.coerce.number().int().min(5).max(100).default(25),
+  sort: sortOptional,
 });
 export type FiltreFise = z.output<typeof filtreFiseSchema>;
 
@@ -70,6 +100,7 @@ export const filtreAccidenteSchema = z.object({
   necomunicate: optional(z.enum(["1"])),
   cursor: optional(z.string().max(256)),
   limita: z.coerce.number().int().min(5).max(100).default(25),
+  sort: sortOptional,
 });
 export type FiltreAccidente = z.output<typeof filtreAccidenteSchema>;
 
@@ -78,12 +109,14 @@ export const filtreStingatoareSchema = z.object({
   cauta: optional(z.string().max(32)),
   cursor: optional(z.string().max(256)),
   limita: z.coerce.number().int().min(5).max(100).default(25),
+  sort: sortOptional,
 });
 export type FiltreStingatoare = z.output<typeof filtreStingatoareSchema>;
 
 export const filtreEipSchema = z.object({
   cursor: optional(z.string().max(256)),
   limita: z.coerce.number().int().min(5).max(100).default(25),
+  sort: sortOptional,
 });
 export type FiltreEip = z.output<typeof filtreEipSchema>;
 

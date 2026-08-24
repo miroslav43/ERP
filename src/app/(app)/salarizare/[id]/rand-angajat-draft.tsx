@@ -4,10 +4,14 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Trash2 } from "lucide-react";
+
+import { Buton } from "@/components/ui/buton";
+import { ConfirmareActiune } from "@/components/ui/dialog";
 import { formatLei } from "@/lib/format/money";
 import { ETICHETE_TIP_PRIMA, ETICHETE_TIP_RETINERE } from "@/domain/payroll/etichete";
 import type { RandPrimaPerioada, RandRetinerePerioada } from "@/lib/queries/payroll";
-import { adaugaPrima, adaugaRetinere } from "../actions";
+import { adaugaPrima, adaugaRetinere, stergePrima, stergeRetinere } from "../actions";
 
 const TIPURI_PRIMA = Object.keys(ETICHETE_TIP_PRIMA);
 const TIPURI_RETINERE = Object.keys(ETICHETE_TIP_RETINERE);
@@ -19,7 +23,17 @@ interface Proprietati {
   readonly salariuBaza: number;
   readonly prime: readonly RandPrimaPerioada[];
   readonly retineri: readonly RandRetinerePerioada[];
+  /** `payroll:update` — dreptul de a corecta o ajustare introdusă greșit. */
+  readonly poateSterge: boolean;
 }
+
+/** Ajustarea pentru care se așteaptă confirmarea ștergerii. */
+type DeSters = Readonly<{
+  fel: "prima" | "retinere";
+  id: string;
+  eticheta: string;
+  suma: string;
+}>;
 
 export function RandAngajatDraft({
   periodId,
@@ -28,11 +42,19 @@ export function RandAngajatDraft({
   salariuBaza,
   prime,
   retineri,
+  poateSterge,
 }: Proprietati) {
   const router = useRouter();
   const [formular, setFormular] = useState<"prima" | "retinere" | null>(null);
   const [inCurs, porneste] = useTransition();
   const [eroare, setEroare] = useState<string | null>(null);
+  /*
+   * O primă tastată greșit nu se putea nici corecta, nici șterge: modulul avea
+   * `adaugaPrima` și `adaugaRetinere` și nimic altceva, iar suma greșită intra
+   * în calcul așa cum era. Ștergerea e soft delete, iar politica RLS o
+   * acceptă doar cât timp perioada e ÎNCĂ în ciornă.
+   */
+  const [deSters, setDeSters] = useState<DeSters | null>(null);
   const idTip = useId();
   const idSuma = useId();
   const idMotiv = useId();
@@ -80,72 +102,147 @@ export function RandAngajatDraft({
     });
   }
 
+  function confirmaStergerea(tinta: DeSters): void {
+    setEroare(null);
+    porneste(async () => {
+      const rezultat =
+        tinta.fel === "prima"
+          ? await stergePrima({ id: tinta.id })
+          : await stergeRetinere({ id: tinta.id });
+      if (!rezultat.ok) {
+        setEroare(rezultat.error.message);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="font-medium">{nume}</p>
-          <p className="text-muted-foreground text-sm">Salariu de bază: {formatLei(salariuBaza)}</p>
+          <p className="text-muted-foreground text-corp">
+            Salariu de bază: {formatLei(salariuBaza)}
+          </p>
         </div>
         <div className="flex gap-2">
-          <button
-            type="button"
+          <Buton
+            varianta="secundar"
             onClick={() => {
               setEroare(null);
               setFormular(formular === "prima" ? null : "prima");
             }}
-            className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-1.5 text-sm font-medium"
           >
             + Bonus
-          </button>
-          <button
-            type="button"
+          </Buton>
+          <Buton
+            varianta="secundar"
             onClick={() => {
               setEroare(null);
               setFormular(formular === "retinere" ? null : "retinere");
             }}
-            className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-1.5 text-sm font-medium"
           >
             + Reținere
-          </button>
+          </Buton>
         </div>
       </div>
 
       {prime.length === 0 && retineri.length === 0 ? null : (
-        <ul className="space-y-1 text-sm">
+        <ul className="text-corp space-y-1">
           {prime.map((p) => (
-            <li key={p.id} className="text-success flex items-center gap-2">
-              <span>+ {formatLei(p.suma)}</span>
-              <span className="text-muted-foreground">
+            <li key={p.id} className="flex items-center gap-2">
+              <span className="text-success">+ {formatLei(p.suma)}</span>
+              <span className="text-muted-foreground min-w-0 flex-1">
                 {ETICHETE_TIP_PRIMA[p.tip] ?? p.tip} — {p.motiv}
               </span>
+              {!poateSterge ? null : (
+                <Buton
+                  varianta="tertiar"
+                  marime="iconita"
+                  aria-label={`Șterge prima de ${formatLei(p.suma)}`}
+                  onClick={() => {
+                    setDeSters({
+                      fel: "prima",
+                      id: p.id,
+                      eticheta: `${ETICHETE_TIP_PRIMA[p.tip] ?? p.tip} — ${p.motiv}`,
+                      suma: formatLei(p.suma),
+                    });
+                  }}
+                >
+                  <Trash2 aria-hidden="true" className="size-4" />
+                </Buton>
+              )}
             </li>
           ))}
           {retineri.map((r) => (
-            <li key={r.id} className="text-danger flex items-center gap-2">
-              <span>− {formatLei(r.suma)}</span>
-              <span className="text-muted-foreground">
+            <li key={r.id} className="flex items-center gap-2">
+              <span className="text-danger">− {formatLei(r.suma)}</span>
+              <span className="text-muted-foreground min-w-0 flex-1">
                 {ETICHETE_TIP_RETINERE[r.tip] ?? r.tip} — {r.motiv}
               </span>
+              {!poateSterge ? null : (
+                <Buton
+                  varianta="tertiar"
+                  marime="iconita"
+                  aria-label={`Șterge reținerea de ${formatLei(r.suma)}`}
+                  onClick={() => {
+                    setDeSters({
+                      fel: "retinere",
+                      id: r.id,
+                      eticheta: `${ETICHETE_TIP_RETINERE[r.tip] ?? r.tip} — ${r.motiv}`,
+                      suma: formatLei(r.suma),
+                    });
+                  }}
+                >
+                  <Trash2 aria-hidden="true" className="size-4" />
+                </Buton>
+              )}
             </li>
           ))}
         </ul>
       )}
 
+      <ConfirmareActiune
+        deschis={deSters !== null}
+        laInchidere={() => {
+          setDeSters(null);
+        }}
+        titlu={deSters?.fel === "retinere" ? "Ștergeți reținerea?" : "Ștergeți prima?"}
+        consecinta="Suma iese din calculul lunii. Ștergerea se poate face doar cât perioada e în ciornă; după calcul, corecția cere o redeschidere."
+        cifre={
+          deSters === null
+            ? []
+            : [
+                { eticheta: "Angajat", valoare: nume },
+                { eticheta: "Ajustare", valoare: deSters.eticheta },
+                { eticheta: "Sumă", valoare: deSters.suma },
+              ]
+        }
+        etichetaConfirmare="Șterge"
+        distructiv
+        inCurs={inCurs}
+        laConfirmare={() => {
+          const tinta = deSters;
+          setDeSters(null);
+          if (tinta !== null) confirmaStergerea(tinta);
+        }}
+      />
+
       {formular === "prima" ? (
         <form
           action={trimitePrima}
-          className="border-border grid gap-3 rounded-md border p-3 sm:grid-cols-2"
+          className="border-border rounded-control grid gap-3 border p-3 sm:grid-cols-2"
         >
           <div className="flex flex-col gap-1">
-            <label htmlFor={idTip} className="text-sm">
+            <label htmlFor={idTip} className="text-corp">
               Tip primă
             </label>
             <select
               id={idTip}
               name="tip"
               required
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
             >
               {TIPURI_PRIMA.map((tip) => (
                 <option key={tip} value={tip}>
@@ -155,7 +252,7 @@ export function RandAngajatDraft({
             </select>
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor={idSuma} className="text-sm">
+            <label htmlFor={idSuma} className="text-corp">
               Sumă (lei)
             </label>
             <input
@@ -165,11 +262,11 @@ export function RandAngajatDraft({
               step="0.01"
               min={0.01}
               required
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
             />
           </div>
           <div className="flex flex-col gap-1 sm:col-span-2">
-            <label htmlFor={idMotiv} className="text-sm">
+            <label htmlFor={idMotiv} className="text-corp">
               Motiv
             </label>
             <textarea
@@ -178,10 +275,10 @@ export function RandAngajatDraft({
               required
               maxLength={500}
               rows={2}
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
             />
           </div>
-          <div className="flex flex-wrap gap-6 text-sm sm:col-span-2">
+          <div className="text-corp flex flex-wrap gap-6 sm:col-span-2">
             <label className="flex items-center gap-2">
               <input type="checkbox" name="impozabil" defaultChecked />
               Impozabilă
@@ -192,15 +289,11 @@ export function RandAngajatDraft({
             </label>
           </div>
           <div className="flex items-center gap-3 sm:col-span-2">
-            <button
-              type="submit"
-              disabled={inCurs}
-              className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-            >
-              {inCurs ? "Se salvează…" : "Adaugă bonusul"}
-            </button>
+            <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+              Adaugă bonusul
+            </Buton>
             {eroare === null ? null : (
-              <p role="alert" className="text-danger text-sm">
+              <p role="alert" className="text-danger text-corp">
                 {eroare}
               </p>
             )}
@@ -211,17 +304,17 @@ export function RandAngajatDraft({
       {formular === "retinere" ? (
         <form
           action={trimiteRetinere}
-          className="border-border grid gap-3 rounded-md border p-3 sm:grid-cols-2"
+          className="border-border rounded-control grid gap-3 border p-3 sm:grid-cols-2"
         >
           <div className="flex flex-col gap-1">
-            <label htmlFor={idTip} className="text-sm">
+            <label htmlFor={idTip} className="text-corp">
               Tip reținere
             </label>
             <select
               id={idTip}
               name="tip"
               required
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
             >
               {TIPURI_RETINERE.map((tip) => (
                 <option key={tip} value={tip}>
@@ -231,7 +324,7 @@ export function RandAngajatDraft({
             </select>
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor={idSuma} className="text-sm">
+            <label htmlFor={idSuma} className="text-corp">
               Sumă (lei)
             </label>
             <input
@@ -241,11 +334,11 @@ export function RandAngajatDraft({
               step="0.01"
               min={0.01}
               required
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor={idProcent} className="text-sm">
+            <label htmlFor={idProcent} className="text-corp">
               Plafon (fracție din net, gol = fără plafon)
             </label>
             <input
@@ -255,11 +348,11 @@ export function RandAngajatDraft({
               step="0.01"
               min={0}
               max={1}
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
             />
           </div>
           <div className="flex flex-col gap-1 sm:col-span-2">
-            <label htmlFor={idMotiv} className="text-sm">
+            <label htmlFor={idMotiv} className="text-corp">
               Motiv
             </label>
             <textarea
@@ -268,19 +361,15 @@ export function RandAngajatDraft({
               required
               maxLength={500}
               rows={2}
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
             />
           </div>
           <div className="flex items-center gap-3 sm:col-span-2">
-            <button
-              type="submit"
-              disabled={inCurs}
-              className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-            >
-              {inCurs ? "Se salvează…" : "Adaugă reținerea"}
-            </button>
+            <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+              Adaugă reținerea
+            </Buton>
             {eroare === null ? null : (
-              <p role="alert" className="text-danger text-sm">
+              <p role="alert" className="text-danger text-corp">
                 {eroare}
               </p>
             )}

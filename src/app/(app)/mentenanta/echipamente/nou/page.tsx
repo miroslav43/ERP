@@ -15,7 +15,7 @@ export const metadata: Metadata = { title: "Echipament nou" };
 export default async function PaginaEchipamentNou() {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "maintenance");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "maintenance:update", "team")) {
     return (
@@ -41,14 +41,14 @@ export default async function PaginaEchipamentNou() {
   ]);
 
   return (
-    <main className="space-y-6 p-6">
+    <div className="space-y-6">
       <div>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-muted-foreground text-corp">
           <Link href="/mentenanta/echipamente" className="underline-offset-2 hover:underline">
             Echipamente
           </Link>
         </p>
-        <h1 className="text-2xl font-semibold">Echipament nou</h1>
+        <h1 className="text-titlu font-semibold">Echipament nou</h1>
       </div>
 
       <FormularEchipament
@@ -57,6 +57,6 @@ export default async function PaginaEchipamentNou() {
         ssmActiv={features.has("ssm")}
         poateDerogare={can(permisiuni, "maintenance:update", "all")}
       />
-    </main>
+    </div>
   );
 }

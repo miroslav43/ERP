@@ -16,7 +16,10 @@ interface ProprietatiProgres {
 
 export function ProgresAsistent({ pasCurent }: ProprietatiProgres) {
   return (
-    <ol className="flex flex-wrap gap-x-4 gap-y-2 text-sm" aria-label="Pașii înrolării angajatului">
+    <ol
+      className="text-corp flex flex-wrap gap-x-4 gap-y-2"
+      aria-label="Pașii înrolării angajatului"
+    >
       {ETICHETE_PASI.map((eticheta, index) => {
         const numarPas = index + 1;
         const activ = numarPas === pasCurent;
@@ -29,7 +32,7 @@ export function ProgresAsistent({ pasCurent }: ProprietatiProgres) {
           >
             <span
               className={
-                "flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium " +
+                "text-nota flex size-6 shrink-0 items-center justify-center rounded-full font-medium " +
                 (activ
                   ? "bg-primary text-primary-foreground"
                   : parcurs

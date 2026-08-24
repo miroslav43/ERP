@@ -122,7 +122,14 @@ EXPOSE 3000
 
 # 127.0.0.1 explicit, nu `localhost`: wget-ul din busybox rezolvă întâi ::1
 # (IPv6), iar Next ascultă doar pe IPv4 0.0.0.0 → verificarea ar eșua fals.
+#
+# Două sonde, două întrebări. `/healthz` (static, fără I/O): „procesul mai
+# servește?". `/readyz` (apel real către Supabase, termen 2 s): „procesul mai
+# poate ieși în exterior?". Pe 23 august 2026 prima a răspuns 200 douăsprezece
+# minute cât timp aplicația dădea 504 la tot — a doua ar fi dat 503.
+# Ține pasul cu `healthcheck:` din docker-stack.yml, care îl suprascrie pe ăsta.
 HEALTHCHECK --interval=10s --timeout=5s --start-period=40s --retries=6 \
-  CMD wget -q -O /dev/null http://127.0.0.1:3000/healthz || exit 1
+  CMD wget -q -O /dev/null http://127.0.0.1:3000/healthz \
+   && wget -q -O /dev/null http://127.0.0.1:3000/readyz || exit 1
 
 CMD ["node", "server.js"]

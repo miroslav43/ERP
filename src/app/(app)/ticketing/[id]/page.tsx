@@ -3,6 +3,9 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/ui/cn";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -15,16 +18,24 @@ import {
 } from "@/lib/queries/ticketing";
 import { fisaProprie } from "@/lib/queries/portal";
 import { tranzitiiOferite, type StatusTichet } from "@/domain/ticketing/stari";
+import type { Prioritate } from "@/domain/ticketing/prioritate";
 
 import {
-  CLASE_PRIORITATE,
-  CLASE_STATUS,
   ETICHETE_CAMP,
   ETICHETE_PRIORITATE,
   ETICHETE_STATUS,
   ETICHETE_TIP,
+  TONURI_PRIORITATE,
+  TONURI_STATUS,
 } from "../etichete";
-import { DecizieCerere, FormularComentariu, Macrouri, SchimbaStatus } from "./actiuni-tichet";
+import {
+  DecizieCerere,
+  FormularComentariu,
+  Macrouri,
+  PrioritateManuala,
+  Repartizare,
+  SchimbaStatus,
+} from "./actiuni-tichet";
 
 export const metadata: Metadata = { title: "Tichet" };
 
@@ -36,16 +47,65 @@ function Rand({ eticheta, valoare }: Readonly<{ eticheta: string; valoare: strin
   if (valoare === null || valoare === "") return null;
   return (
     <div className="border-border flex items-baseline justify-between gap-4 border-b py-2 last:border-0">
-      <dt className="text-muted-foreground text-sm">{eticheta}</dt>
-      <dd className="text-foreground text-right text-sm">{valoare}</dd>
+      <dt className="text-muted-foreground text-corp">{eticheta}</dt>
+      <dd className="text-foreground text-corp text-right">{valoare}</dd>
     </div>
   );
+}
+
+/**
+ * Traducerea unei valori din `ticket_history`.
+ *
+ * Istoricul scria valorile BRUTE din bază — „din «in_lucru» în «in_asteptare»",
+ * „din «normala» în «critica»" — deși hărțile de traducere sunt importate în
+ * chiar acest fișier și folosite la trei rânduri distanță, pe pastilele din
+ * antet. Numele CÂMPULUI era deja tradus prin `ETICHETE_CAMP`; valoarea lui, nu.
+ * Un câmp necunoscut (adăugat de o migrare mai nouă decât ecranul) își păstrează
+ * valoarea brută: mai bine ceva de citit decât un gol.
+ */
+function traduValoare(camp: string, valoare: string): string {
+  if (camp === "status") return ETICHETE_STATUS[valoare as StatusTichet] ?? valoare;
+  if (camp === "prioritate") return ETICHETE_PRIORITATE[valoare as Prioritate] ?? valoare;
+  return valoare;
+}
+
+/**
+ * Contextul de diagnostic al unui bug, citit din `tickets.context` (jsonb).
+ *
+ * ── DE CE ERA NEVĂZUT DE NIMENI ───────────────────────────────────────────────
+ * Formularul de tichet nou îl capturează SINGUR pentru `bug_erp`
+ * (`nou/formular-tichet.tsx:79-88`): adresa paginii, user agent-ul și versiunea
+ * aplicației, cu comentariul „angajatul nu trebuie să știe ce e un user agent".
+ * Se validează în `tichetBugSchema`, se scrie în bază — și nu se afișa nicăieri.
+ * Cine primea raportul de bug nu vedea nici pe ce ecran s-a întâmplat, nici pe
+ * ce versiune, adică exact cele două lucruri pe care angajatul nu le poate
+ * spune singur.
+ *
+ * Citirea e apărată: `context` e `Json | null` în tipuri, deci poate fi orice —
+ * un obiect scris de o versiune mai veche a formularului, sau un vector. O
+ * formă neașteptată nu are voie să dărâme fișa tichetului.
+ */
+function contextDiagnostic(
+  brut: unknown,
+): readonly Readonly<{ eticheta: string; valoare: string }>[] {
+  if (brut === null || typeof brut !== "object" || Array.isArray(brut)) return [];
+  const inregistrare = brut as Record<string, unknown>;
+  const campuri = [
+    ["Adresa paginii", "url"],
+    ["Browser", "user_agent"],
+    ["Versiunea aplicației", "versiune"],
+  ] as const;
+
+  return campuri.flatMap(([eticheta, cheie]) => {
+    const valoare = inregistrare[cheie];
+    return typeof valoare === "string" && valoare !== "" ? [{ eticheta, valoare }] : [];
+  });
 }
 
 export default async function PaginaTichet({ params }: ProprietatiPagina) {
   const { tenant, user } = await requireTenant();
   await requireFeature(tenant.organizationId, "ticketing");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "tickets:read", "own")) {
     return <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta tichetele." />;
@@ -81,48 +141,47 @@ export default async function PaginaTichet({ params }: ProprietatiPagina) {
   const drepturi = { esteSolicitant, poateAproba, poateOpera };
   const optiuni = tranzitiiOferite(tichet.status as StatusTichet, drepturi);
   const asteaptaDecizia = tichet.status === "in_aprobare" && poateAproba;
+  const diagnostic = contextDiagnostic(tichet.context);
 
   return (
-    <main className="mx-auto w-full max-w-4xl space-y-6 p-6">
-      <header className="space-y-2">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-muted-foreground font-mono text-sm">{tichet.numar_afisat}</span>
-          <span
-            className={`rounded-full px-2 py-0.5 text-xs ${CLASE_STATUS[tichet.status as StatusTichet]}`}
-          >
-            {ETICHETE_STATUS[tichet.status as StatusTichet]}
-          </span>
-          <span
-            className={`rounded-full px-2 py-0.5 text-xs ${CLASE_PRIORITATE[tichet.prioritate]}`}
-          >
-            {ETICHETE_PRIORITATE[tichet.prioritate]}
-          </span>
-        </div>
-        <h1 className="text-2xl font-semibold">{tichet.titlu}</h1>
-        <p className="text-muted-foreground text-sm">
-          {ETICHETE_TIP[tichet.tip]} · deschis de {tichet.solicitant?.full_name ?? "—"} la{" "}
-          {formatDateTime(tichet.created_at)}
-        </p>
-      </header>
+    <div className={cn(LATIMI.detaliu, "space-y-6")}>
+      {/* Numărul și cele două pastile stăteau DEASUPRA titlului; în antetul
+          comun locul lor e slotul de acțiuni, la dreapta — la fel ca pe fișa
+          obiectului de inventar și pe cea a deplasării. */}
+      <AntetPagina
+        titlu={tichet.titlu}
+        descriere={`${ETICHETE_TIP[tichet.tip]} · deschis de ${tichet.solicitant?.full_name ?? "—"} la ${formatDateTime(tichet.created_at)}`}
+        actiuni={
+          <>
+            <span className="text-muted-foreground text-corp font-mono">{tichet.numar_afisat}</span>
+            <Badge ton={TONURI_STATUS[tichet.status as StatusTichet]}>
+              {ETICHETE_STATUS[tichet.status as StatusTichet]}
+            </Badge>
+            <Badge ton={TONURI_PRIORITATE[tichet.prioritate]}>
+              {ETICHETE_PRIORITATE[tichet.prioritate]}
+            </Badge>
+          </>
+        }
+      />
 
       {tichet.status === "in_asteptare" && esteSolicitant && (
-        <p className="rounded-md border border-orange-300 bg-orange-100 p-3 text-sm text-orange-950">
+        <p className="border-warning/40 bg-warning/10 text-foreground rounded-control text-corp border p-3">
           Echipa așteaptă un răspuns de la tine ca să poată continua.
         </p>
       )}
 
       {tichet.status === "respins" && tichet.motiv_respingere !== null && (
-        <div className="border-border bg-surface rounded-md border p-3">
-          <p className="text-foreground text-sm font-medium">Motivul respingerii</p>
-          <p className="text-muted-foreground mt-1 text-sm">{tichet.motiv_respingere}</p>
+        <div className="border-border bg-surface rounded-control border p-3">
+          <p className="text-foreground text-corp font-medium">Motivul respingerii</p>
+          <p className="text-muted-foreground text-corp mt-1">{tichet.motiv_respingere}</p>
         </div>
       )}
 
       {asteaptaDecizia && <DecizieCerere ticketId={tichet.id} />}
 
-      <section className="border-border bg-surface rounded-lg border p-4">
-        <h2 className="text-foreground text-sm font-semibold">Detalii</h2>
-        <p className="text-foreground mt-2 text-sm whitespace-pre-wrap">{tichet.descriere}</p>
+      <section className="border-border bg-surface rounded-panou border p-4">
+        <h2 className="text-foreground text-corp font-semibold">Detalii</h2>
+        <p className="text-foreground text-corp mt-2 whitespace-pre-wrap">{tichet.descriere}</p>
 
         <dl className="mt-4">
           <Rand eticheta="Aplicație" valoare={tichet.aplicatie} />
@@ -180,36 +239,79 @@ export default async function PaginaTichet({ params }: ProprietatiPagina) {
             }
           />
         </dl>
+
+        {/* Contextul de diagnostic e pentru cine repară, nu pentru cine
+            raportează: solicitantul l-a produs fără să știe, iar pentru el n-ar
+            fi decât zgomot. */}
+        {poateOpera && diagnostic.length > 0 ? (
+          <div className="border-border mt-4 border-t pt-4">
+            <h3 className="text-foreground text-corp font-medium">Context de diagnostic</h3>
+            <p className="text-muted-foreground text-nota mt-1">
+              Capturat automat de aplicație la trimiterea raportului.
+            </p>
+            <dl className="mt-2">
+              {diagnostic.map((camp) => (
+                <Rand key={camp.eticheta} eticheta={camp.eticheta} valoare={camp.valoare} />
+              ))}
+            </dl>
+          </div>
+        ) : null}
       </section>
 
       <SchimbaStatus ticketId={tichet.id} optiuni={optiuni} />
+
+      {/* Repartizarea și prioritatea sunt acțiunile operatorului, nu ale
+          solicitantului: amândouă cer `tickets:update = all`, exact ce verifică
+          `poateOpera`. Baza le verifică din nou la scriere. */}
+      {poateOpera && (
+        <section
+          aria-labelledby="titlu-operare"
+          className="border-border bg-surface rounded-panou space-y-4 border p-4"
+        >
+          <h2 id="titlu-operare" className="text-foreground text-corp font-semibold">
+            Operare
+          </h2>
+          <Repartizare
+            ticketId={tichet.id}
+            propriaFisaId={fisa?.id ?? null}
+            asignatId={tichet.asignat_employee_id}
+            numeAsignat={tichet.asignat?.full_name ?? null}
+          />
+          <PrioritateManuala
+            ticketId={tichet.id}
+            prioritateCurenta={tichet.prioritate}
+            manuala={tichet.prioritate_manuala === true}
+            motivCurent={tichet.prioritate_motiv}
+          />
+        </section>
+      )}
 
       {/* Macro-urile mută starea, deci se arată doar cui are dreptul s-o mute. */}
       {poateOpera && <Macrouri ticketId={tichet.id} />}
 
       <section className="space-y-3">
-        <h2 className="text-foreground text-sm font-semibold">Conversație</h2>
+        <h2 className="text-foreground text-corp font-semibold">Conversație</h2>
         {comentarii.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Niciun răspuns încă.</p>
+          <p className="text-muted-foreground text-corp">Niciun răspuns încă.</p>
         ) : (
           <ul className="space-y-3">
             {comentarii.map((comentariu) => (
               <li
                 key={comentariu.id}
-                className={`rounded-lg border p-3 ${comentariu.intern ? "border-amber-300 bg-amber-50" : "border-border bg-surface"}`}
+                className={`rounded-panou border p-3 ${comentariu.intern ? "border-warning/40 bg-warning/8" : "border-border bg-surface"}`}
               >
-                <p className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
+                <p className="text-muted-foreground text-nota flex flex-wrap items-center gap-2">
                   <span className="text-foreground font-medium">
                     {comentariu.autor?.full_name ?? "—"}
                   </span>
                   {formatDateTime(comentariu.created_at)}
                   {comentariu.intern && (
-                    <span className="rounded bg-amber-200 px-1.5 py-0.5 text-amber-950">
+                    <span className="border-warning/40 text-muted-foreground rounded border px-1.5 py-0.5">
                       notă internă
                     </span>
                   )}
                 </p>
-                <p className="text-foreground mt-2 text-sm whitespace-pre-wrap">
+                <p className="text-foreground text-corp mt-2 whitespace-pre-wrap">
                   {comentariu.continut}
                 </p>
               </li>
@@ -221,22 +323,26 @@ export default async function PaginaTichet({ params }: ProprietatiPagina) {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-foreground text-sm font-semibold">Istoric</h2>
+        <h2 className="text-foreground text-corp font-semibold">Istoric</h2>
         {istoric.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Nicio schimbare înregistrată.</p>
+          <p className="text-muted-foreground text-corp">Nicio schimbare înregistrată.</p>
         ) : (
-          <ul className="text-muted-foreground space-y-1 text-xs">
+          <ul className="text-muted-foreground text-nota space-y-1">
             {istoric.map((intrare) => (
               <li key={intrare.id}>
                 {formatDateTime(intrare.created_at)} · {ETICHETE_CAMP[intrare.camp] ?? intrare.camp}
-                {intrare.valoare_veche === null ? "" : ` — din „${intrare.valoare_veche}”`}
-                {intrare.valoare_noua === null ? "" : ` în „${intrare.valoare_noua}”`}
+                {intrare.valoare_veche === null
+                  ? ""
+                  : ` — din „${traduValoare(intrare.camp, intrare.valoare_veche)}”`}
+                {intrare.valoare_noua === null
+                  ? ""
+                  : ` în „${traduValoare(intrare.camp, intrare.valoare_noua)}”`}
                 {intrare.motiv === null ? "" : ` (${intrare.motiv})`}
               </li>
             ))}
           </ul>
         )}
       </section>
-    </main>
+    </div>
   );
 }

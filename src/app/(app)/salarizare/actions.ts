@@ -1,5 +1,7 @@
 "use server";
 
+import { z } from "zod";
+
 import { createAction } from "@/lib/actions/create-action";
 import { businessRule, notFound } from "@/lib/actions/errors";
 import {
@@ -18,6 +20,19 @@ import {
   scutiriActivePerioada,
   zileLucratoareLuna,
 } from "@/lib/queries/payroll";
+import { setariPontaj } from "@/lib/queries/attendance";
+import { antetOrganizatie } from "@/lib/pdf/antet-organizatie";
+import { genereazaFluturas } from "@/lib/pdf/fluturas";
+import { numeFisier } from "@/lib/pdf/document";
+import { numeLuna } from "@/lib/pdf/stat-plata";
+import {
+  castigurileFluturasului,
+  retinerileFluturasului,
+  type SursaFluturas,
+} from "@/lib/pdf/linii-fluturas";
+import { sendEmail } from "@/lib/email/send";
+import { createAdminSupabase } from "@/lib/supabase/admin";
+import { formatDateTime } from "@/lib/format/date";
 import { calculatePayrollEntry, type PayrollSettingsSnapshot } from "@/domain/payroll/calc";
 import { descriereCompleta, problema } from "@/domain/payroll/erori";
 import {
@@ -42,9 +57,47 @@ export const salveazaSetari = createAction({
   audit: { action: "update", entityType: "payroll_settings", allow: ["valabil_de_la"] },
   revalidate: ["/salarizare/setari"],
   handler: async (ctx, input) => {
+    /*
+     * ── DE CE SE CITEȘTE VERSIUNEA PRECEDENTĂ ─────────────────────────────
+     * Fiecare salvare INSEREAZĂ o versiune nouă; nu actualizează. `payroll_settings`
+     * are 38 de coloane de business, iar formularul administrează 18. Celelalte
+     * 20 nu se moșteneau: cădeau pe DEFAULT-ul coloanei, tăcut, la fiecare
+     * salvare.
+     *
+     * Nu e o pierdere teoretică. `plafon_poprire_unica` și
+     * `plafon_popriri_concurente` ajung în motorul de calcul (mai jos, la
+     * `plafonPoprireUnica`/`plafonPopririConcurente`), deci o firmă care își
+     * ridicase plafonul revenea tăcut la 1/3 și 1/2 după orice modificare de
+     * cotă. Cele opt conturi contabile (`cont_*`) alimentează nota contabilă.
+     * Iar `plata_avans`, `ziua_plata_avans`, `ziua_plata_lichidare` și
+     * `tichete_furnizor` se completează la ÎNROLARE, în asistentul de firmă —
+     * prima salvare de setări le ștergea pe toate patru.
+     *
+     * ── CE NU SE MOȘTENEȘTE, DELIBERAT ────────────────────────────────────
+     * `verificat_de_contabil` și `verificat_la`. O versiune NOUĂ de cote nu e
+     * verificată de nimeni prin faptul că versiunea dinaintea ei era. Purtate
+     * mai departe, ar fi marcat drept confirmate niște cote pe care contabilul
+     * nu le-a văzut — exact tipul de minciună pe care restul fișierului îl
+     * evită. Ele rămân pe DEFAULT (`false`, `null`), adică pe adevăr.
+     */
+    const { data: precedenta, error: eroarePrecedenta } = await ctx.supabase
+      .from("payroll_settings")
+      .select(
+        "cont_cheltuiala_salarii, cont_cheltuiala_contributie_angajator, cont_salarii_datorate, cont_cas_retinut, cont_cass_retinut, cont_impozit, cont_retineri_terti, cont_avansuri, mod_calcul_indemnizatie_co, luni_medie_indemnizatie_co, zile_avertizare_termen_compensare, plafon_poprire_unica, plafon_popriri_concurente, plata_avans, ziua_plata_avans, ziua_plata_lichidare, tichete_furnizor, note",
+      )
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .order("valabil_de_la", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (eroarePrecedenta !== null) traduEroare(eroarePrecedenta);
+
     const { data: setari, error } = await ctx.supabase
       .from("payroll_settings")
       .insert({
+        // Moștenirea vine PRIMA: cele 18 de mai jos o suprascriu pe ce
+        // administrează formularul, iar restul rămâne cum era.
+        ...(precedenta ?? {}),
         organization_id: ctx.tenant.organizationId,
         valabil_de_la: input.valabil_de_la,
         cota_cas: input.cota_cas,
@@ -54,6 +107,9 @@ export const salveazaSetari = createAction({
         norma_zilnica_ore: input.norma_zilnica_ore,
         procent_spor_noapte: input.procent_spor_noapte,
         procent_spor_weekend: input.procent_spor_weekend,
+        procent_spor_sarbatoare: input.procent_spor_sarbatoare,
+        casa_sanatate_angajator: input.casa_sanatate_angajator,
+        functie_declarant: input.functie_declarant,
         procent_ore_suplimentare: input.procent_ore_suplimentare,
         valoare_tichet_masa: input.valoare_tichet_masa,
         tichete_impozabile: input.tichete_impozabile,
@@ -142,8 +198,46 @@ export const creeazaPerioada = createAction({
   },
 });
 
+/**
+ * Câmpurile de care are nevoie fluturașul trimis pe e-mail.
+ *
+ * Lista e explicită, nu `select("*")`: un `*` ar aduce și coloanele pe care
+ * `payroll_entries` le are pentru alte scopuri, iar fiecare coloană în plus e
+ * o dată de salariu care circulă fără motiv.
+ */
+interface RandFluturasEmail extends SursaFluturas {
+  readonly id: string;
+  readonly rest_de_plata: number;
+  readonly zile_lucratoare_luna: number;
+  readonly zile_lucrate: number;
+  readonly zile_concediu_odihna: number;
+  readonly zile_concediu_medical: number;
+  readonly ore_lucrate: number;
+  readonly ore_suplimentare: number;
+  readonly ore_noapte: number;
+  readonly calc_warnings: readonly { readonly mesaj: string }[] | null;
+  readonly angajat: {
+    readonly full_name: string | null;
+    readonly marca: string;
+    readonly email_serviciu: string | null;
+    readonly email_personal: string | null;
+    readonly functie: { readonly denumire: string } | null;
+  } | null;
+}
+
+const COLOANE_FLUTURAS_EMAIL =
+  "id, baza_salariu, suma_ore_suplimentare, spor_noapte, prime_total, valoare_tichete, brut, cas, cass, deducere_personala, scutire_fiscala, impozit, net, retineri_total, net_de_plata, rest_de_plata, zile_lucratoare_luna, zile_lucrate, zile_concediu_odihna, zile_concediu_medical, ore_lucrate, ore_suplimentare, ore_noapte, calc_warnings, " +
+  "angajat:employees!employee_id(full_name, marca, email_serviciu, email_personal, functie:job_positions!job_position_id(denumire))";
+
 function laSetariSnapshot(
   setari: NonNullable<Awaited<ReturnType<typeof citesteSetariPeId>>>,
+  /**
+   * `attendance_settings.prag_ore_noapte` — parametrul trăiește pe setările de
+   * PONTAJ, nu pe cele de salarizare, și rămâne acolo: e unul singur al
+   * organizației, iar o a doua coloană ar fi însemnat două surse de adevăr care
+   * pot diverge tăcut. Intră în snapshot, deci perioada rămâne reproductibilă.
+   */
+  pragOreNoapte: number,
 ): PayrollSettingsSnapshot {
   return {
     valabilDeLa: setari.valabil_de_la,
@@ -154,6 +248,11 @@ function laSetariSnapshot(
     normaZilnicaOre: setari.norma_zilnica_ore,
     procentSporNoapte: setari.procent_spor_noapte,
     procentSporWeekend: setari.procent_spor_weekend,
+    // Coloană proprie din 0066. Până atunci câmpul era opțional în motor și nu-l
+    // popula nimeni, deci `calc.ts:386` cădea pe sporul de weekend — care intra
+    // cu 0, iar munca de 1 Decembrie se plătea la tarif simplu.
+    procentSporSarbatoare: setari.procent_spor_sarbatoare,
+    pragOreNoapte,
     procentOreSuplimentare: setari.procent_ore_suplimentare,
     valoareTichetMasa: setari.valoare_tichet_masa,
     ticheteImpozabile: setari.tichete_impozabile,
@@ -206,9 +305,15 @@ export const calculeazaPerioada = createAction({
 
     const setari = await citesteSetariPeId(ctx.tenant.organizationId, perioada.settings_id);
     if (setari === null) throw notFound("Setările de salarizare ale perioadei nu mai există.");
-    const snapshot = laSetariSnapshot(setari);
 
-    const { ultima: ultimaZiALunii } = marginileLunii(perioada.an, perioada.luna);
+    const { prima: primaZiALunii, ultima: ultimaZiALunii } = marginileLunii(
+      perioada.an,
+      perioada.luna,
+    );
+    // Pragul orelor de noapte (Codul Muncii art. 126). Fără rând de setări de
+    // pontaj, implicitul e 3 — același ca al coloanei din 0066.
+    const setariPontajLuna = await setariPontaj(ctx.tenant.organizationId, primaZiALunii);
+    const snapshot = laSetariSnapshot(setari, setariPontajLuna?.prag_ore_noapte ?? 3);
     const [
       zileLuna,
       personal,
@@ -309,6 +414,19 @@ export const calculeazaPerioada = createAction({
         { tip: r.tip, suma: r.suma, procentMaximDinNet: r.procent_maxim_din_net, motiv: r.motiv },
       ]);
     }
+
+    // Numărul dosarului, pentru motivul reținerii — `RetinereAplicata` poartă
+    // doar `id`-ul, iar pe fluturaș trebuie să apară dosarul, nu un uuid.
+    const dosarePeId = new Map<string, string>();
+    for (const lista of popriri.values()) {
+      for (const dosar of lista) dosarePeId.set(dosar.id, dosar.dosar);
+    }
+    const randuriPopriri: {
+      employee_id: string;
+      garnishment_id: string;
+      suma: number;
+      motiv: string;
+    }[] = [];
 
     const randuri = angajati.map((angajat) => {
       const pontajAngajat = pontaj.pePersoana.get(angajat.employee_id) ?? PONTAJ_GOL;
@@ -428,6 +546,19 @@ export const calculeazaPerioada = createAction({
         })),
       });
 
+      // Ce s-a reținut efectiv din fiecare dosar de poprire — plafonat deja de
+      // etapă la 1/3 sau 1/2 din net și la soldul rămas. Reținerile de zero lei
+      // (dosar stins, net epuizat) nu se scriu: `suma > 0` e CHECK în bază.
+      for (const aplicata of rezultat.retineriAplicate) {
+        if (aplicata.tip !== "poprire" || aplicata.aplicata <= 0) continue;
+        randuriPopriri.push({
+          employee_id: angajat.employee_id,
+          garnishment_id: aplicata.id,
+          suma: aplicata.aplicata,
+          motiv: `Poprire — dosar ${dosarePeId.get(aplicata.id) ?? aplicata.id}`,
+        });
+      }
+
       return {
         organization_id: ctx.tenant.organizationId,
         period_id: perioada.id,
@@ -535,6 +666,32 @@ export const calculeazaPerioada = createAction({
       );
     }
 
+    // Reținerile de poprire ale lunii, per dosar (0065).
+    //
+    // Până acum, `calculatePayrollEntry` arunca detaliul per dosar și păstra doar
+    // totalul: nimic nu putea ști cât s-a recuperat dintr-o poprire anume, deci
+    // `payroll_garnishments.suma_recuperata` rămânea 0 pe veci și dosarul reținea
+    // și după stingerea datoriei.
+    //
+    // Best-effort deliberat, ca la sincronizarea concediu → pontaj: rândurile de
+    // salariu sunt deja scrise atomic mai sus. Un eșec aici (perioada mutată din
+    // ciornă între timp, de altă sesiune) nu trebuie să anuleze un stat de plată
+    // corect — soldul se reface la următoarea recalculare, fiindcă e RECALCULAT,
+    // nu incrementat.
+    try {
+      const { error: eroarePopriri } = await ctx.supabase.rpc("payroll_scrie_popriri", {
+        p_period_id: perioada.id,
+        p_randuri: randuriPopriri as unknown as Json,
+      });
+      if (eroarePopriri !== null) throw eroarePopriri;
+    } catch (eroare) {
+      console.error("[salarizare] reținerile de poprire nu au putut fi înregistrate", {
+        periodId: perioada.id,
+        requestId: ctx.requestId,
+        eroare,
+      });
+    }
+
     const totalBrut = randuri.reduce((s, r) => s + r.brut, 0);
     const totalNet = randuri.reduce((s, r) => s + r.net, 0);
     const totalCost = randuri.reduce((s, r) => s + r.cost_total_angajator, 0);
@@ -575,6 +732,46 @@ export const aprobaPerioada = createAction({
   audit: { action: "update", entityType: "payroll_period", allow: ["id"] },
   revalidate: CAI_REVALIDARE,
   handler: async (ctx, input) => {
+    // Poarta indemnizației de concediu de odihnă.
+    //
+    // `mod_calcul_indemnizatie_co = 'baza'` plătește concediul la rata zilnică a
+    // salariului, care poate fi sub minimul din Codul Muncii art. 150 alin. (2)
+    // — media zilnică a drepturilor salariale din ultimele trei luni, când e mai
+    // avantajoasă. Până în 0067 asta era IMPLICITUL și producea doar un
+    // avertisment pe fluturaș, pe care nimic nu-l citea.
+    //
+    // Blocajul e îngust deliberat: se ridică DOAR dacă perioada chiar conține
+    // zile de concediu de odihnă. O firmă fără concedii în luna aia nu e
+    // deranjată, iar una care alege conștient altă metodă are două ieșiri
+    // reale — schimbă setarea, sau recalculează perioada după ce a schimbat-o.
+    const { data: perioadaCo, error: eroarePerioadaCo } = await ctx.supabase
+      .from("payroll_periods")
+      .select("settings_id, an, luna")
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .maybeSingle<{ settings_id: string; an: number; luna: number }>();
+    if (eroarePerioadaCo !== null) traduEroare(eroarePerioadaCo);
+
+    if (perioadaCo !== null) {
+      const setariCo = await citesteSetariPeId(ctx.tenant.organizationId, perioadaCo.settings_id);
+      if (setariCo !== null && setariCo.mod_calcul_indemnizatie_co === "baza") {
+        const { data: cuCo, error: eroareCuCo } = await ctx.supabase
+          .from("payroll_entries")
+          .select("id")
+          .eq("period_id", input.id)
+          .gt("zile_concediu_odihna", 0)
+          .is("deleted_at", null)
+          .limit(1);
+        if (eroareCuCo !== null) traduEroare(eroareCuCo);
+        if ((cuCo ?? []).length > 0) {
+          throw businessRule(
+            "Perioada conține zile de concediu de odihnă, iar indemnizația e setată pe „rata salariului de bază”. Codul Muncii art. 150 alin. (2) cere media ultimelor trei luni când e mai avantajoasă. Schimbați setarea pe „cea mai avantajoasă” și recalculați perioada înainte de aprobare.",
+          );
+        }
+      }
+    }
+
     // Capcana 17: un UPDATE respins de clauza USING a politicii RLS afectează
     // ZERO rânduri, TĂCUT — fără nicio eroare. `.select()` după update e
     // singura dovadă că s-a schimbat ceva; fără el UI-ul raportează succes
@@ -620,6 +817,173 @@ export const inchidePerioada = createAction({
     if (data === null) {
       throw businessRule(
         "Perioada nu a putut fi închisă. Fie nu mai este în starea aprobat, fie nu aveți dreptul de închidere. Reîmprospătați pagina.",
+      );
+    }
+    return null;
+  },
+});
+
+/**
+ * Întoarcerea unei perioade calculate în ciornă.
+ *
+ * Butonul „Recalculează" exista de la început, dar apăsa pe `calculeazaPerioada`,
+ * care refuză din prima linie orice perioadă care nu mai e în ciornă: singurul
+ * lui efect era mesajul „Recalcularea unei perioade calculate se face din
+ * același ecran" — un buton care nu putea reuși NICIODATĂ. Tranziția
+ * `calculat → draft` era în schimb prevăzută în bază de la 0026:346, unde
+ * triggerul o acceptă și golește `calculat_de`/`calculat_la`; lipsea doar
+ * acțiunea care s-o ceară.
+ *
+ * Fluturașii deja scriși nu se șterg: `payroll_scrie_rezultate` (0051) e un
+ * upsert pe `(organization_id, period_id, employee_id)`, deci recalcularea îi
+ * REscrie. Rămân vizibili până atunci, iar perioada nu se poate aproba cât e
+ * ciornă — exact ce trebuie ca ecranul să nu mintă despre ce e definitiv.
+ */
+export const redeschidePerioada = createAction({
+  name: "payroll.period.reopen",
+  feature: "payroll",
+  permission: "payroll:update",
+  minScope: "all",
+  input: idPerioadaSchema,
+  audit: { action: "update", entityType: "payroll_period", allow: ["id"] },
+  revalidate: CAI_REVALIDARE,
+  handler: async (ctx, input) => {
+    // Capcana 17: un UPDATE respins de USING afectează ZERO rânduri, TĂCUT.
+    // `.eq("status", "calculat")` e a doua plasă: o perioadă aprobată între
+    // timp de altă sesiune nu trebuie să pară redeschisă.
+    const { data, error } = await ctx.supabase
+      .from("payroll_periods")
+      .update({ status: "draft" })
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .eq("status", "calculat")
+      .select("id, status")
+      .maybeSingle<{ id: string; status: string }>();
+    if (error !== null) traduEroare(error);
+    if (data === null) {
+      throw businessRule(
+        "Perioada nu a putut fi redeschisă. Fie a fost între timp aprobată sau închisă, fie nu aveți dreptul de modificare. Reîmprospătați pagina.",
+      );
+    }
+    return null;
+  },
+});
+
+/** O ajustare de perioadă, țintită după id. */
+const idAjustareSchema = z.object({ id: z.uuid("Ajustarea selectată nu este validă.") });
+
+/**
+ * Ștergerea unei prime introduse greșit.
+ *
+ * Soft delete, ca peste tot: nu există GRANT de DELETE pe tabelă (0026:634).
+ * Politica `payroll_bonuses_update` cere în `with check` ca perioada să fie
+ * ÎNCĂ în ciornă, deci o primă dintr-o lună deja calculată nu se poate șterge
+ * pe furiș — UPDATE-ul e respins și, fiindcă respingerea nu produce eroare, se
+ * citește din `.select()` gol.
+ */
+export const stergePrima = createAction({
+  name: "payroll.bonus.delete",
+  feature: "payroll",
+  permission: "payroll:update",
+  minScope: "all",
+  input: idAjustareSchema,
+  audit: { action: "delete", entityType: "payroll_bonus", allow: ["id"] },
+  revalidate: CAI_REVALIDARE,
+  handler: async (ctx, input) => {
+    // Starea perioadei se citește ÎNAINTE de UPDATE, deși politica o verifică
+    // și ea: o respingere din `with check` iese ca 42501, adică „nu aveți
+    // dreptul" — o minciună, fiindcă dreptul există și doar luna s-a închis.
+    const { data: existenta, error: eroareCitire } = await ctx.supabase
+      .from("payroll_bonuses")
+      .select("id, perioada:payroll_periods!period_id(status)")
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .maybeSingle<{ id: string; perioada: { status: string } | null }>();
+    if (eroareCitire !== null) traduEroare(eroareCitire);
+    if (existenta === null) {
+      throw notFound("Prima nu a fost găsită. Poate a fost ștearsă între timp.");
+    }
+    if (existenta.perioada?.status !== "draft") {
+      throw businessRule(
+        "Perioada nu mai e în ciornă, deci primele ei nu se mai pot șterge. Redeschideți perioada pentru corecții, apoi ștergeți prima.",
+      );
+    }
+
+    const { data, error } = await ctx.supabase
+      .from("payroll_bonuses")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle<{ id: string }>();
+    if (error !== null) traduEroare(error);
+    if (data === null) {
+      throw businessRule(
+        "Prima nu a putut fi ștearsă. Fie perioada nu mai e în ciornă, fie a fost ștearsă deja de altcineva. Reîmprospătați pagina.",
+      );
+    }
+    return null;
+  },
+});
+
+/**
+ * Ștergerea unei rețineri introduse greșit.
+ *
+ * Reținerea legată de un dosar de poprire nu se șterge de aici: triggerul
+ * `trg_payroll_deductions_recalc_poprire` (0065:131) recalculează soldul
+ * dosarului la orice UPDATE, inclusiv la marcarea `deleted_at`, deci ștergerea
+ * ar muta datoria fără ca nimeni să vadă pe ce dosar. Popririle se administrează
+ * din ecranul lor.
+ */
+export const stergeRetinere = createAction({
+  name: "payroll.deduction.delete",
+  feature: "payroll",
+  permission: "payroll:update",
+  minScope: "all",
+  input: idAjustareSchema,
+  audit: { action: "delete", entityType: "payroll_deduction", allow: ["id"] },
+  revalidate: CAI_REVALIDARE,
+  handler: async (ctx, input) => {
+    const { data: existenta, error: eroareCitire } = await ctx.supabase
+      .from("payroll_deductions")
+      .select("id, garnishment_id, perioada:payroll_periods!period_id(status)")
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .maybeSingle<{
+        id: string;
+        garnishment_id: string | null;
+        perioada: { status: string } | null;
+      }>();
+    if (eroareCitire !== null) traduEroare(eroareCitire);
+    if (existenta === null) {
+      throw notFound("Reținerea nu a fost găsită. Poate a fost ștearsă între timp.");
+    }
+    if (existenta.perioada?.status !== "draft") {
+      throw businessRule(
+        "Perioada nu mai e în ciornă, deci reținerile ei nu se mai pot șterge. Redeschideți perioada pentru corecții, apoi ștergeți reținerea.",
+      );
+    }
+    if (existenta.garnishment_id !== null) {
+      throw businessRule(
+        "Reținerea vine dintr-un dosar de poprire și se administrează din ecranul de popriri. Ștearsă de aici, soldul dosarului s-ar reface la următorul calcul.",
+      );
+    }
+
+    const { data, error } = await ctx.supabase
+      .from("payroll_deductions")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle<{ id: string }>();
+    if (error !== null) traduEroare(error);
+    if (data === null) {
+      throw businessRule(
+        "Reținerea nu a putut fi ștearsă. Fie perioada nu mai e în ciornă, fie a fost ștearsă deja de altcineva. Reîmprospătați pagina.",
       );
     }
     return null;
@@ -745,5 +1109,139 @@ export const salveazaIstoricVenit = createAction({
       .single<{ id: string }>();
     if (error !== null) traduEroare(error);
     return { id: data.id };
+  },
+});
+
+/**
+ * Trimite fluturașii unei perioade, pe e-mailul fiecărui salariat.
+ *
+ * Obligația legală e ca angajatul să primească un document din care să reiasă
+ * cum s-a ajuns la net. Până acum fluturașul exista doar pe ecran, deci
+ * obligația se acoperea manual, angajat cu angajat.
+ *
+ * CIFRELE NU INTRĂ ÎN CORPUL MESAJULUI, niciodată — stau exclusiv în PDF-ul
+ * atașat. Corpul unui e-mail trece prin providerul de trimitere, prin serverul
+ * de mail al destinatarului și rămâne în arhive peste care nu avem control.
+ *
+ * E-mailul preferat e cel de SERVICIU. Cel personal e o rezervă: un fluturaș pe
+ * adresa privată e legal, dar e o alegere pe care angajatorul o face conștient,
+ * nu una pe care i-o luăm noi.
+ *
+ * Nu aruncă la primul eșec: raportează câți au plecat, câți n-au adresă și câți
+ * au eșuat. Un singur e-mail invalid într-o firmă de 200 de oameni nu trebuie
+ * să oprească restul de 199.
+ */
+export const trimiteFluturasii = createAction({
+  name: "payroll.period.send_payslips",
+  feature: "payroll",
+  permission: "payroll:export",
+  minScope: "all",
+  input: idPerioadaSchema,
+  audit: { action: "update", entityType: "payroll_period", allow: ["id"] },
+  revalidate: CAI_REVALIDARE,
+  handler: async (
+    ctx,
+    input,
+  ): Promise<Readonly<{ trimise: number; faraAdresa: number; esuate: number }>> => {
+    const { data: perioada, error: eroarePerioada } = await ctx.supabase
+      .from("payroll_periods")
+      .select("id, an, luna, status")
+      .eq("organization_id", ctx.tenant.organizationId)
+      .eq("id", input.id)
+      .is("deleted_at", null)
+      .maybeSingle<{ id: string; an: number; luna: number; status: string }>();
+    if (eroarePerioada !== null) traduEroare(eroarePerioada);
+    if (perioada === null) throw notFound("Perioada de salarizare nu a fost găsită.");
+    if (perioada.status !== "aprobat" && perioada.status !== "inchis") {
+      throw businessRule(
+        "Perioada nu e aprobată. Un fluturaș trimis dintr-o ciornă ar da angajatului o cifră care se mai poate schimba.",
+      );
+    }
+
+    const { data: randuri, error: eroareRanduri } = await ctx.supabase
+      .from("payroll_entries")
+      .select(COLOANE_FLUTURAS_EMAIL)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .eq("period_id", perioada.id)
+      .is("deleted_at", null)
+      .returns<RandFluturasEmail[]>();
+    if (eroareRanduri !== null) traduEroare(eroareRanduri);
+
+    const antet = await antetOrganizatie(ctx.supabase, ctx.tenant.organizationId, ctx.tenant.name);
+    // `createAdminSupabase` DOAR pentru jurnalul de e-mail: `email_log` e o
+    // tabelă de platformă, fără politici pentru rolurile de organizație, iar
+    // `sendEmail` are nevoie de un client care poate scrie în ea. Nicio dată de
+    // salariu nu trece prin clientul ăsta — rândurile au fost deja citite mai
+    // sus, prin RLS, cu clientul utilizatorului.
+    const admin = createAdminSupabase();
+    const generatLa = formatDateTime(new Date().toISOString());
+
+    let trimise = 0;
+    let faraAdresa = 0;
+    let esuate = 0;
+
+    for (const rand of randuri ?? []) {
+      const adresa = rand.angajat?.email_serviciu ?? rand.angajat?.email_personal ?? null;
+      if (adresa === null || adresa.trim().length === 0) {
+        faraAdresa += 1;
+        continue;
+      }
+
+      try {
+        const pdf = await genereazaFluturas({
+          organizatie: antet,
+          an: perioada.an,
+          luna: perioada.luna,
+          angajatNume: rand.angajat?.full_name ?? "—",
+          angajatMarca: rand.angajat?.marca ?? "",
+          functie: rand.angajat?.functie?.denumire ?? null,
+          zileLucratoareLuna: rand.zile_lucratoare_luna,
+          zileLucrate: rand.zile_lucrate,
+          zileConcediuOdihna: rand.zile_concediu_odihna,
+          zileConcediuMedical: rand.zile_concediu_medical,
+          oreLucrate: rand.ore_lucrate,
+          oreSuplimentare: rand.ore_suplimentare,
+          oreNoapte: rand.ore_noapte,
+          castiguri: castigurileFluturasului(rand),
+          retineri: retinerileFluturasului(rand),
+          restDePlata: rand.rest_de_plata,
+          avertismente: (rand.calc_warnings ?? []).map((w) => w.mesaj),
+          generatLa,
+        });
+
+        const rezultat = await sendEmail({
+          db: admin,
+          to: adresa,
+          // Cheia de idempotență e rândul de salariu, nu perioada: două apeluri
+          // ale acțiunii nu trimit de două ori același fluturaș, dar fiecare
+          // angajat își primește pe al lui.
+          entityId: rand.id,
+          template: "fluturas",
+          data: {
+            nume: rand.angajat?.full_name ?? "coleg",
+            organizatie: antet.denumire,
+            luna: numeLuna(perioada.luna),
+            an: perioada.an,
+          },
+          atasamente: [
+            {
+              filename: `${numeFisier(`fluturas-${numeLuna(perioada.luna)}-${String(perioada.an)}-${rand.angajat?.marca ?? ""}`)}.pdf`,
+              contentBase64: Buffer.from(pdf).toString("base64"),
+            },
+          ],
+        });
+        if (rezultat.ok) trimise += 1;
+        else esuate += 1;
+      } catch (eroare) {
+        esuate += 1;
+        console.error("[salarizare] fluturașul nu a putut fi trimis", {
+          entryId: rand.id,
+          requestId: ctx.requestId,
+          eroare,
+        });
+      }
+    }
+
+    return { trimise, faraAdresa, esuate };
   },
 });

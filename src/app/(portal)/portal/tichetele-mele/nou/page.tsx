@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
+import { buton } from "@/components/ui/buton";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -21,7 +23,7 @@ export default async function PaginaTichetNouPortal({
 }) {
   const { tenant, user } = await requireTenant();
   await requireFeature(tenant.organizationId, "ticketing");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "tickets:create", "own")) {
     return (
@@ -39,14 +41,11 @@ export default async function PaginaTichetNouPortal({
   const modul = typeof parametri["modul"] === "string" ? parametri["modul"] : "";
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 p-4">
-      <header>
-        <h1 className="text-foreground text-xl font-semibold">Tichet nou</h1>
-        <p className="text-muted-foreground text-sm">
-          Solicitările merg la managerul dumneavoastră direct sau la administrator. Problemele din
-          aplicație ajung la echipa care o dezvoltă.
-        </p>
-      </header>
+    <div className={`${LATIMI.formular} space-y-4 p-4`}>
+      <AntetPagina
+        titlu="Tichet nou"
+        descriere="Solicitările merg la managerul dumneavoastră direct sau la administrator. Problemele din aplicație ajung la echipa care o dezvoltă."
+      />
 
       <FormularTichet
         obiecteAlocate={obiecte}
@@ -55,10 +54,7 @@ export default async function PaginaTichetNouPortal({
       />
 
       <p>
-        <Link
-          href="/portal/tichetele-mele"
-          className="text-primary text-sm underline-offset-2 hover:underline"
-        >
+        <Link href="/portal/tichetele-mele" className={buton({ varianta: "link" })}>
           Înapoi la tichetele mele
         </Link>
       </p>

@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 
+import { Buton } from "@/components/ui/buton";
 import { FormularPlan, type PlanExistent } from "./formular-plan";
 
 interface Optiune {
@@ -23,15 +24,14 @@ export function ButonEditeazaPlan({
 
   return (
     <div>
-      <button
-        type="button"
+      <Buton
+        varianta="secundar"
         onClick={() => {
           setDeschis((v) => !v);
         }}
-        className="border-foreground/60 hover:bg-surface rounded-md border px-2 py-1 text-xs"
       >
         {deschis ? "Închide" : "Editează"}
-      </button>
+      </Buton>
       {deschis ? (
         <div className="mt-2">
           <FormularPlan equipmentId={equipmentId} angajati={angajati} planExistent={planExistent} />

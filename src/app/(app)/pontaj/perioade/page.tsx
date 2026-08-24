@@ -4,17 +4,19 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { RandTabel } from "@/components/data/rand-tabel";
-import { SkeletonTable } from "@/components/data/skeleton-table";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { Badge } from "@/components/ui/badge";
+import { Schelet } from "@/components/ui/schelet";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
 import { anDinUrl } from "@/lib/rute/parametri";
-import { listeazaPerioade } from "@/lib/queries/attendance";
+import { listeazaPerioade, type PerioadaPontaj } from "@/lib/queries/attendance";
 
 import { NavPontaj } from "../nav-pontaj";
-import { CLASE_STATUS_PERIOADA, ETICHETE_STATUS_PERIOADA } from "../etichete";
+import { TONURI_STATUS_PERIOADA, ETICHETE_STATUS_PERIOADA } from "../etichete";
 import { ActiuniPerioada } from "./actiuni-perioada";
 
 export const metadata: Metadata = { title: "Perioade de pontaj" };
@@ -38,6 +40,12 @@ interface ProprietatiPagina {
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
+interface RandPerioada {
+  readonly luna: number;
+  readonly eticheta: string;
+  readonly perioada: PerioadaPontaj | null;
+}
+
 async function TabelPerioade({
   organizationId,
   an,
@@ -52,75 +60,99 @@ async function TabelPerioade({
   const perioade = await listeazaPerioade(organizationId, an);
   const dupaLuna = new Map(perioade.map((p) => [p.luna, p]));
 
+  const randuri: readonly RandPerioada[] = LUNI_ETICHETE.map((eticheta, index) => ({
+    luna: index + 1,
+    eticheta,
+    perioada: dupaLuna.get(index + 1) ?? null,
+  }));
+
+  /**
+   * Linkul stă în celula de titlu, nu pe rând: o lună nedeschisă n-are unde
+   * duce, iar `Tabel` nu poate avea un `href` care lipsește doar pe unele
+   * rânduri. În plus, așa destinația e accesibilă și de la tastatură — rândul
+   * apăsabil de dinainte era strict o comoditate de mouse.
+   */
+  const coloane: readonly Coloana<RandPerioada>[] = [
+    {
+      cheie: "luna",
+      antet: "Luna",
+      peTelefon: "titlu",
+      celula: (rand) =>
+        rand.perioada === null ? (
+          <span className="font-medium">{rand.eticheta}</span>
+        ) : (
+          <Link
+            href={`/pontaj/perioade/${rand.perioada.id}`}
+            className="font-medium underline-offset-2 hover:underline"
+          >
+            {rand.eticheta}
+          </Link>
+        ),
+    },
+    {
+      cheie: "interval",
+      antet: "Interval",
+      peTelefon: "meta",
+      celula: (rand) => (
+        <span className="text-muted-foreground">
+          {rand.perioada === null
+            ? "—"
+            : `${formatDate(rand.perioada.data_inceput)} – ${formatDate(rand.perioada.data_sfarsit)}`}
+        </span>
+      ),
+    },
+    {
+      cheie: "stare",
+      antet: "Stare",
+      peTelefon: "insigna",
+      celula: (rand) =>
+        rand.perioada === null ? (
+          // „Neschisă” era o greșeală de tastare pentru „Nedeschisă”, afișată pe
+          // fiecare lună neîncepută — adică pe majoritatea celor 12 rânduri.
+          <Badge ton="ciorna">Nedeschisă</Badge>
+        ) : (
+          <Badge ton={TONURI_STATUS_PERIOADA[rand.perioada.status]}>
+            {ETICHETE_STATUS_PERIOADA[rand.perioada.status]}
+          </Badge>
+        ),
+    },
+    {
+      cheie: "actiuni",
+      antet: "Acțiuni",
+      antetAscuns: true,
+      latime: "ingusta",
+      // „insignă”, nu „meta”: `ActiuniPerioada` randează un `<div>`, iar rândul
+      // mărunt al cardului e un `<p>` — browserul l-ar închide devreme și
+      // hidratarea ar cădea.
+      peTelefon: "insigna",
+      celula: (rand) => (
+        <ActiuniPerioada
+          an={an}
+          luna={rand.luna}
+          periodId={rand.perioada?.id ?? null}
+          status={rand.perioada?.status ?? null}
+          poateDeschide={poateDeschide}
+          poateBloca={poateBloca}
+        />
+      ),
+    },
+  ];
+
   return (
-    <div className="border-border overflow-x-auto rounded-lg border">
-      <table className="w-full text-sm">
-        <caption className="sr-only">Perioadele de pontaj ale anului {an}.</caption>
-        <thead className="bg-surface text-left">
-          <tr>
-            <th scope="col" className="px-4 py-3 font-medium">
-              Luna
-            </th>
-            <th scope="col" className="px-4 py-3 font-medium">
-              Interval
-            </th>
-            <th scope="col" className="px-4 py-3 font-medium">
-              Stare
-            </th>
-            <th scope="col" className="px-4 py-3 font-medium">
-              Acțiuni
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-border divide-y">
-          {LUNI_ETICHETE.map((eticheta, index) => {
-            const luna = index + 1;
-            const perioada = dupaLuna.get(luna) ?? null;
-            return (
-              <RandTabel
-                key={luna}
-                href={perioada === null ? null : `/pontaj/perioade/${perioada.id}`}
-              >
-                <td className="px-4 py-3 font-medium">{eticheta}</td>
-                <td className="text-muted-foreground px-4 py-3">
-                  {perioada === null
-                    ? "—"
-                    : `${formatDate(perioada.data_inceput)} – ${formatDate(perioada.data_sfarsit)}`}
-                </td>
-                <td className="px-4 py-3">
-                  {perioada === null ? (
-                    <span className="text-muted-foreground text-xs">Neschisă</span>
-                  ) : (
-                    <span
-                      className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_STATUS_PERIOADA[perioada.status]}`}
-                    >
-                      {ETICHETE_STATUS_PERIOADA[perioada.status]}
-                    </span>
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  <ActiuniPerioada
-                    an={an}
-                    luna={luna}
-                    periodId={perioada?.id ?? null}
-                    status={perioada?.status ?? null}
-                    poateDeschide={poateDeschide}
-                    poateBloca={poateBloca}
-                  />
-                </td>
-              </RandTabel>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+    <Tabel
+      caption={`Perioadele de pontaj ale anului ${String(an)}.`}
+      coloane={coloane}
+      randuri={randuri}
+      cheieRand={(rand) => String(rand.luna)}
+      gol={null}
+    />
   );
 }
 
 export default async function PaginaPerioadePontaj({ searchParams }: ProprietatiPagina) {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "attendance");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "attendance:read", "own")) {
     return (
@@ -136,34 +168,31 @@ export default async function PaginaPerioadePontaj({ searchParams }: Proprietati
   const an = anDinUrl(parametri["an"], Number(todayInBucharest().slice(0, 4)));
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Perioade de pontaj</h1>
-          <p className="text-muted-foreground text-sm">
-            Deschiderea și blocarea lunilor de pontaj ale anului {String(an)}.
-          </p>
-        </div>
-        <nav aria-label="Anul perioadelor" className="flex items-center gap-3 text-sm">
-          <Link
-            href={`/pontaj/perioade?an=${String(an - 1)}`}
-            className="underline underline-offset-2"
-          >
-            {an - 1}
-          </Link>
-          <span className="font-semibold">{an}</span>
-          <Link
-            href={`/pontaj/perioade?an=${String(an + 1)}`}
-            className="underline underline-offset-2"
-          >
-            {an + 1}
-          </Link>
-        </nav>
-      </header>
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Perioade de pontaj"
+        descriere={`Deschiderea și blocarea lunilor de pontaj ale anului ${String(an)}.`}
+        actiuni={
+          <nav aria-label="Anul perioadelor" className="text-corp flex items-center gap-3">
+            <Link
+              href={`/pontaj/perioade?an=${String(an - 1)}`}
+              className="underline underline-offset-2"
+            >
+              {an - 1}
+            </Link>
+            <span className="font-semibold">{an}</span>
+            <Link
+              href={`/pontaj/perioade?an=${String(an + 1)}`}
+              className="underline underline-offset-2"
+            >
+              {an + 1}
+            </Link>
+          </nav>
+        }
+        file={<NavPontaj poateAproba={poateAproba} />}
+      />
 
-      <NavPontaj poateAproba={poateAproba} />
-
-      <Suspense key={String(an)} fallback={<SkeletonTable cols={4} />}>
+      <Suspense key={String(an)} fallback={<Schelet forma="tabel" coloane={4} />}>
         <TabelPerioade
           organizationId={tenant.organizationId}
           an={an}
@@ -171,6 +200,6 @@ export default async function PaginaPerioadePontaj({ searchParams }: Proprietati
           poateBloca={poateBloca}
         />
       </Suspense>
-    </main>
+    </div>
   );
 }

@@ -4,6 +4,7 @@ import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Wrench, X } from "lucide-react";
 
+import { Buton } from "@/components/ui/buton";
 import { REZULTATE_INTERVENTIE } from "@/schemas/maintenance";
 import { ETICHETE_REZULTAT_INTERVENTIE } from "../../etichete";
 import { rezolvaSesizare, trieazaSesizare } from "../../actions";
@@ -79,13 +80,13 @@ export function ActiuniSesizare({ sesizareId }: { readonly sesizareId: string })
     return (
       <form
         action={rezolva}
-        className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-2"
+        className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-2"
       >
-        <p className="text-sm font-medium sm:col-span-2">
+        <p className="text-corp font-medium sm:col-span-2">
           Rezolvarea creează intervenția care a rezolvat defecțiunea.
         </p>
         <div className="flex flex-col gap-1">
-          <label htmlFor={idData} className="text-sm">
+          <label htmlFor={idData} className="text-corp">
             Data intervenției
           </label>
           <input
@@ -93,18 +94,18 @@ export function ActiuniSesizare({ sesizareId }: { readonly sesizareId: string })
             name="data"
             type="date"
             required
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={idRezultat} className="text-sm">
+          <label htmlFor={idRezultat} className="text-corp">
             Rezultat
           </label>
           <select
             id={idRezultat}
             name="rezultat"
             defaultValue="reusita"
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           >
             {REZULTATE_INTERVENTIE.map((r) => (
               <option key={r} value={r}>
@@ -114,7 +115,7 @@ export function ActiuniSesizare({ sesizareId }: { readonly sesizareId: string })
           </select>
         </div>
         <div className="flex flex-col gap-1 sm:col-span-2">
-          <label htmlFor={idDescriere} className="text-sm">
+          <label htmlFor={idDescriere} className="text-corp">
             Ce s-a făcut
           </label>
           <textarea
@@ -123,11 +124,11 @@ export function ActiuniSesizare({ sesizareId }: { readonly sesizareId: string })
             rows={3}
             required
             minLength={3}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={idCostPiese} className="text-sm">
+          <label htmlFor={idCostPiese} className="text-corp">
             Cost piese (lei)
           </label>
           <input
@@ -137,11 +138,11 @@ export function ActiuniSesizare({ sesizareId }: { readonly sesizareId: string })
             min="0"
             step="0.01"
             defaultValue="0"
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={idCostManopera} className="text-sm">
+          <label htmlFor={idCostManopera} className="text-corp">
             Cost manoperă (lei)
           </label>
           <input
@@ -151,37 +152,32 @@ export function ActiuniSesizare({ sesizareId }: { readonly sesizareId: string })
             min="0"
             step="0.01"
             defaultValue="0"
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
 
         <div aria-live="polite" className="sm:col-span-2">
           {eroare === null ? null : (
-            <p role="alert" className="text-danger text-sm">
+            <p role="alert" className="text-danger text-corp">
               {eroare}
             </p>
           )}
         </div>
 
         <div className="flex gap-2 sm:col-span-2">
-          <button
-            type="submit"
+          <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+            Confirmă rezolvarea
+          </Buton>
+          <Buton
+            varianta="secundar"
             disabled={inCurs}
-            className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-          >
-            {inCurs ? "Se salvează…" : "Confirmă rezolvarea"}
-          </button>
-          <button
-            type="button"
             onClick={() => {
               setPanou("inchis");
               setEroare(null);
             }}
-            disabled={inCurs}
-            className="border-foreground/60 hover:bg-surface disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
           >
             Renunță
-          </button>
+          </Buton>
         </div>
       </form>
     );
@@ -189,9 +185,9 @@ export function ActiuniSesizare({ sesizareId }: { readonly sesizareId: string })
 
   if (panou === "respingere") {
     return (
-      <div className="border-border space-y-2 rounded-md border p-3">
+      <div className="border-border rounded-control space-y-2 border p-3">
         <div>
-          <label htmlFor={idMotiv} className="block text-xs font-medium">
+          <label htmlFor={idMotiv} className="text-nota block font-medium">
             Motivul respingerii *
           </label>
           <input
@@ -200,33 +196,32 @@ export function ActiuniSesizare({ sesizareId }: { readonly sesizareId: string })
             onChange={(eveniment) => {
               setMotivRespingere(eveniment.target.value);
             }}
-            className="border-foreground/60 mt-1 w-full rounded-md border px-2 py-1.5 text-sm"
+            className="border-foreground/60 rounded-control text-corp mt-1 w-full border px-2 py-1.5"
           />
         </div>
         <div aria-live="polite">
-          {eroare === null ? null : <p className="text-danger text-xs">{eroare}</p>}
+          {eroare === null ? null : <p className="text-danger text-nota">{eroare}</p>}
         </div>
         <div className="flex gap-2">
-          <button
-            type="button"
-            disabled={inCurs}
+          <Buton
+            varianta="distructiv"
+            inCurs={inCurs}
+            textInCurs="Se salvează…"
             onClick={() => {
               triaza("respins");
             }}
-            className="bg-danger text-primary-foreground hover:bg-danger disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed"
           >
-            {inCurs ? "Se salvează…" : "Confirmă respingerea"}
-          </button>
-          <button
-            type="button"
+            Confirmă respingerea
+          </Buton>
+          <Buton
+            varianta="secundar"
             onClick={() => {
               setPanou("inchis");
               setEroare(null);
             }}
-            className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-1.5 text-sm font-medium"
           >
             Renunță
-          </button>
+          </Buton>
         </div>
       </div>
     );
@@ -236,55 +231,51 @@ export function ActiuniSesizare({ sesizareId }: { readonly sesizareId: string })
     <div className="space-y-2">
       <div aria-live="polite">
         {eroare === null ? null : (
-          <p role="alert" className="text-danger text-sm">
+          <p role="alert" className="text-danger text-corp">
             {eroare}
           </p>
         )}
       </div>
       <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
+        <Buton
+          varianta="secundar"
           disabled={inCurs}
           onClick={() => {
             triaza("in_analiza");
           }}
-          className="border-foreground/60 hover:bg-surface disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md border px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed"
         >
           În analiză
-        </button>
-        <button
-          type="button"
+        </Buton>
+        <Buton
+          varianta="secundar"
           disabled={inCurs}
           onClick={() => {
             triaza("in_lucru");
           }}
-          className="border-foreground/60 hover:bg-surface disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md border px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed"
         >
-          <Wrench aria-hidden="true" className="mr-1 inline size-3.5" />
+          <Wrench aria-hidden="true" className="size-4" />
           În lucru
-        </button>
-        <button
-          type="button"
+        </Buton>
+        <Buton
+          varianta="primar"
           disabled={inCurs}
           onClick={() => {
             setPanou("rezolvare");
           }}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed"
         >
           <Check aria-hidden="true" className="size-4" />
           Rezolvă
-        </button>
-        <button
-          type="button"
+        </Buton>
+        <Buton
+          varianta="distructiv"
           disabled={inCurs}
           onClick={() => {
             setPanou("respingere");
           }}
-          className="border-danger text-danger hover:bg-danger hover:text-danger-foreground disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed"
         >
           <X aria-hidden="true" className="size-4" />
           Respinge
-        </button>
+        </Buton>
       </div>
     </div>
   );

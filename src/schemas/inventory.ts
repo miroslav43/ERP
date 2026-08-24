@@ -67,6 +67,21 @@ const uuidOptional = z
 
 // ── Filtre de listare (paginare keyset) ────────────────────────────────────
 
+/**
+ * Coloanele după care lista de inventar se poate ordona. Lista e ÎNCHISĂ, nu o
+ * validare de formă: numele coloanei ajunge într-un `.order()` și într-un
+ * predicat de cursor construit ca text, deci nu poate veni liber din query
+ * string. `sortareCeruta` din `lib/queries/cursor.ts` cade tăcut pe implicit
+ * pentru orice altceva.
+ *
+ * Numai coloane NOT NULL: cursorul keyset poartă valoarea ultimului rând, iar
+ * o valoare lipsă (`valoare`, `data_achizitie`) n-are ce să pună în el —
+ * paginarea ar sări peste rânduri exact la granița dintre completate și
+ * necompletate. De aceea „Valoare" și „Achiziționat" rămân coloane nesortabile.
+ */
+export const SORTARI_INVENTAR = ["denumire", "numar"] as const;
+export type SortareInventar = (typeof SORTARI_INVENTAR)[number];
+
 export const filtreInventarSchema = z.object({
   q: textOptional(200),
   numar: textOptional(40),
@@ -75,6 +90,8 @@ export const filtreInventarSchema = z.object({
   category_id: uuidOptional,
   cursor: textOptional(400),
   limita: z.coerce.number().int().min(5).max(100).default(25),
+  /** Forma din URL: `denumire` crescător, `-denumire` descrescător. */
+  sort: textOptional(40),
 });
 
 export type FiltreInventar = z.infer<typeof filtreInventarSchema>;

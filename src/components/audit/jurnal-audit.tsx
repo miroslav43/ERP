@@ -3,6 +3,7 @@ import { AlertTriangle, Download, FileSearch, RotateCcw } from "lucide-react";
 
 import { FiltreAuditForm } from "@/components/audit/filtre-audit";
 import { TabelAudit } from "@/components/audit/tabel-audit";
+import { buton } from "@/components/ui/buton";
 import {
   interogheazaJurnal,
   listeazaOrganizatiiPentruFiltru,
@@ -18,8 +19,20 @@ type Props = Readonly<{
   mod: "platforma" | "organizatie";
 }>;
 
-const clasaLink =
-  "inline-flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-foreground hover:bg-surface focus:  ";
+/**
+ * Clasa venea scrisă de mână și se termina în `focus:` — un prefix Tailwind
+ * fără utilitar după el. E reziduul unui `sed` care a scos
+ * `focus-visible:outline-2` și a lăsat prefixul: Tailwind ignoră clasa tăcut,
+ * `tsc` nu vede șiruri, ESLint nici atât. Cele patru linkuri de aici („Încearcă
+ * din nou”, „Golește filtrele”, „Descarcă CSV”, paginarea) rămâneau, așadar,
+ * fără inelul de focus pe care clasa pretindea că-l pune.
+ *
+ * `buton({ varianta: "secundar" })` e aceeași formă vizuală, dar cu chenarul de
+ * 4,23:1 în loc de `border-border` (1,29:1, sub pragul WCAG 1.4.11 pentru un
+ * element pe care se apasă) și cu setul `disabled:` canonic. Focusul vine din
+ * regula globală `:focus-visible`, deci nu se mai scrie nicăieri local.
+ */
+const clasaLink = buton({ varianta: "secundar" });
 
 const href = (cale: string, interogare: string): string =>
   interogare === "" ? cale : `${cale}?${interogare}`;
@@ -38,9 +51,9 @@ export async function JurnalAudit({ cale, filtre, mod }: Props) {
 
       <div aria-live="polite" className="space-y-4">
         {!rezultat.ok ? (
-          <div className="border-border bg-surface rounded-lg border p-6 text-center">
+          <div className="border-border bg-surface rounded-panou border p-6 text-center">
             <AlertTriangle aria-hidden="true" className="text-danger mx-auto size-6" />
-            <p className="text-foreground mt-2 text-sm">{rezultat.mesaj}</p>
+            <p className="text-foreground text-corp mt-2">{rezultat.mesaj}</p>
             <a
               href={href(cale, `${interogareCurenta}&reincarca=1`)}
               className={`${clasaLink} mt-4`}
@@ -50,12 +63,12 @@ export async function JurnalAudit({ cale, filtre, mod }: Props) {
             </a>
           </div>
         ) : rezultat.randuri.length === 0 ? (
-          <div className="border-border bg-surface rounded-lg border p-8 text-center">
+          <div className="border-border bg-surface rounded-panou border p-8 text-center">
             <FileSearch aria-hidden="true" className="text-muted-foreground mx-auto size-6" />
-            <p className="text-foreground mt-2 text-sm font-medium">
+            <p className="text-foreground text-corp mt-2 font-medium">
               Niciun eveniment pentru filtrele alese
             </p>
-            <p className="text-muted-foreground mt-1 text-sm">
+            <p className="text-muted-foreground text-corp mt-1">
               Încearcă un interval de date mai larg sau renunță la filtre.
             </p>
             <a href={cale} className={`${clasaLink} mt-4`}>
@@ -65,7 +78,7 @@ export async function JurnalAudit({ cale, filtre, mod }: Props) {
         ) : (
           <>
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-muted-foreground text-sm">
+              <p className="text-muted-foreground text-corp">
                 Se afișează {rezultat.randuri.length}{" "}
                 {rezultat.randuri.length === 1 ? "eveniment" : "de evenimente"}, de la cel mai
                 recent. Jurnalul este doar pentru citire.
@@ -92,7 +105,7 @@ export async function JurnalAudit({ cale, filtre, mod }: Props) {
                   Evenimente mai vechi
                 </a>
               ) : (
-                <span className="text-muted-foreground text-sm">Ai ajuns la capătul listei.</span>
+                <span className="text-muted-foreground text-corp">Ai ajuns la capătul listei.</span>
               )}
             </nav>
           </>

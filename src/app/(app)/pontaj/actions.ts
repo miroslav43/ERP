@@ -11,6 +11,7 @@ import { formatMonthYear } from "@/lib/format/date";
 import { zileNelucratoare } from "@/lib/queries/leave";
 import {
   aprobaPontajBlocSchema,
+  decideZiPontajSchema,
   deschidePerioadaSchema,
   idPerioadaSchema,
   salveazaZiPontajSchema,
@@ -20,17 +21,26 @@ import {
 
 import { tipZiAutomat } from "./etichete";
 import { traduEroare } from "./erori";
-import { sincronizeazaZileleDeConcediu } from "./sincronizare-concediu";
+import { sincronizeazaZileleDeConcediu, type TipZiPontaj } from "./sincronizare-concediu";
 
 const CAI_REVALIDARE = [
   "/pontaj",
   "/pontaj/perioade",
   "/pontaj/aprobare",
   // Aceleași date, celălalt înveliș: fără căile astea, angajatul
-  // salvează o zi și se întoarce pe „Pontajul meu" fără s-o vadă.
+  // salvează o zi și se întoarce pe „Pontajul meu” fără s-o vadă.
   "/portal",
   "/portal/pontajul-meu",
 ] as const;
+
+/**
+ * Cât întoarce PostgREST pe o cerere: `max_rows = 1000`, tăiat TĂCUT.
+ * Constantele NU se exportă: un fișier `"use server"` care exportă altceva
+ * decât funcții asincrone e refuzat la build (`tsc` tace).
+ */
+const PAGINA_APROBARE = 1000;
+/** 20 × 1000 = 20 000 de linii neaprobate într-o lună. Peste, se cere departament. */
+const MAXIM_PAGINI_APROBARE = 20;
 
 /** Prima și ultima zi calendaristică a unei luni, ca șiruri ISO. */
 function intervalulLunii(
@@ -330,14 +340,41 @@ export const aprobaPontajBloc = createAction({
     // (2) ID-urile de aprobat, cu clientul utilizatorului: RLS
     // (`attendance_entries_select` → `app.poate_vedea_pontaj`) le restrânge
     // deja la own/team, în funcție de scope-ul de CITIRE al aprobatorului.
-    const { data: liniiVizibile, error: eroareLinii } = await ctx.supabase
-      .from("attendance_entries")
-      .select("id, employee_id")
-      .eq("organization_id", ctx.tenant.organizationId)
-      .eq("period_id", input.period_id)
-      .is("approved_at", null)
-      .is("deleted_at", null);
-    if (eroareLinii !== null) throw eroareLinii;
+    //
+    // CITITE PAGINAT, nu dintr-o dată: PostgREST taie la `max_rows = 1000`
+    // fără nicio eroare. La 46 de angajați × 22 de zile = 1012 linii, aprobarea
+    // „în bloc” marca primele 1000, scria `linii_aprobate = 1000` pe lot, muta
+    // luna în „în aprobare” și raporta succes — cele 12 rămase nu apăreau
+    // nicăieri ca problemă, iar o blocare ulterioară le îngheța neaprobate,
+    // fără cale de întoarcere în afară de redeschiderea lunii.
+    const liniiVizibile: { readonly id: string; readonly employee_id: string }[] = [];
+    let completCitit = false;
+    for (let pagina = 0; pagina < MAXIM_PAGINI_APROBARE; pagina += 1) {
+      const deLa = pagina * PAGINA_APROBARE;
+      const { data: lot, error: eroareLinii } = await ctx.supabase
+        .from("attendance_entries")
+        .select("id, employee_id")
+        .eq("organization_id", ctx.tenant.organizationId)
+        .eq("period_id", input.period_id)
+        .is("approved_at", null)
+        .is("deleted_at", null)
+        // Ordine TOTALĂ (`id` e unic): fără ea, `.range()` poate întoarce de
+        // două ori același rând și sări peste altul între pagini.
+        .order("id", { ascending: true })
+        .range(deLa, deLa + PAGINA_APROBARE - 1);
+      if (eroareLinii !== null) throw eroareLinii;
+      const randuri = lot ?? [];
+      liniiVizibile.push(...randuri);
+      if (randuri.length < PAGINA_APROBARE) {
+        completCitit = true;
+        break;
+      }
+    }
+    if (!completCitit) {
+      throw businessRule(
+        `Luna are peste ${String(liniiVizibile.length)} de linii neaprobate — mai multe decât poate aproba o singură apăsare. Aprobați pe departamente, unul câte unul.`,
+      );
+    }
 
     // Filtrul de departament, tot cu clientul utilizatorului.
     let idAngajatiDepartament: ReadonlySet<string> | null = null;
@@ -351,7 +388,7 @@ export const aprobaPontajBloc = createAction({
       idAngajatiDepartament = new Set((angajatiDepartament ?? []).map((a) => a.id));
     }
 
-    const idDeAprobat = (liniiVizibile ?? [])
+    const idDeAprobat = liniiVizibile
       .filter((l) => idAngajatiDepartament === null || idAngajatiDepartament.has(l.employee_id))
       .map((l) => l.id);
     if (idDeAprobat.length === 0) {
@@ -379,6 +416,11 @@ export const aprobaPontajBloc = createAction({
     // de id-uri e deja mărginită de RLS la pasul (2), cu clientul
     // utilizatorului, deci ocolirea RLS aici e strict pentru scriere, nu
     // pentru vizibilitate.
+    // Rămâne fără `.select()`: scrierea trece cu clientul admin, deci nicio
+    // politică n-o poate refuza tăcut, iar mulțimea de id-uri tocmai a fost
+    // citită la pasul (2) — un rezultat gol n-ar însemna „refuzat”, ci că
+    // rândurile au dispărut fizic, ceea ce nicio tabelă `attendance_*` nu
+    // permite (n-au politică DELETE).
     const admin = createAdminSupabase();
     const { error: eroareMarcare } = await admin
       .from("attendance_entries")
@@ -388,19 +430,30 @@ export const aprobaPontajBloc = createAction({
     if (eroareMarcare !== null) throw eroareMarcare;
 
     // (5) Lotul + statusul perioadei, cu clientul utilizatorului.
-    const { error: eroareActualizareLot } = await ctx.supabase
+    // `attendance_batches_update` cere din nou `attendance:approve = team`
+    // (0013_attendance.sql). Respins de `USING`, UPDATE-ul afectează zero
+    // rânduri fără eroare: liniile ar rămâne aprobate, dar lotul ar arăta la
+    // nesfârșit „0 linii aprobate” — un contor care nu urmează lista.
+    const { data: lotActualizat, error: eroareActualizareLot } = await ctx.supabase
       .from("attendance_approval_batches")
       .update({ linii_aprobate: idDeAprobat.length })
       .eq("id", lot.id)
-      .eq("organization_id", ctx.tenant.organizationId);
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle();
     if (eroareActualizareLot !== null) throw eroareActualizareLot;
+    if (lotActualizat === null) {
+      throw businessRule(
+        "Liniile au fost aprobate, dar numărul lor nu a putut fi înscris pe lotul de aprobare, care rămâne afișat cu 0 linii. Reîncărcați pagina și verificați dacă mai aveți dreptul de aprobare.",
+      );
+    }
 
     if (perioada.status === "deschisa") {
       // Tranziția `deschisa -> in_aprobare` trece prin `attendance_periods_update`.
       // Un manager cu `attendance:approve = team` NU o poate face — politica cere
       // scope `all` (capcana 9). Respins de `USING`, UPDATE-ul afectează zero
       // rânduri fără eroare (capcana 17): lotul s-ar aproba, dar luna ar rămâne
-      // „deschisă", iar blocarea ulterioară ar eșua fără explicație.
+      // „deschisă”, iar blocarea ulterioară ar eșua fără explicație.
       const { data: perioadaTrecuta, error: eroareStatus } = await ctx.supabase
         .from("attendance_periods")
         .update({ status: "in_aprobare" })
@@ -519,11 +572,19 @@ export const sincronizeazaConcediile = createAction({
     interface ZiConcediuBruta {
       readonly data: string;
       readonly leave_request_id: string;
-      readonly cerere: Readonly<{ employee_id: string; status: string }> | null;
+      readonly cerere: Readonly<{
+        employee_id: string;
+        status: string;
+        // `tip_zi_pontaj` decide dacă zilele se plătesc (0064). Embed pe două
+        // niveluri: ziua → cererea → tipul de concediu.
+        tip: Readonly<{ tip_zi_pontaj: TipZiPontaj }> | null;
+      }> | null;
     }
     const { data: zileConcediu, error: eroareConcediu } = await db
       .from("leave_request_days")
-      .select("data, leave_request_id, cerere:leave_requests!leave_request_id(employee_id, status)")
+      .select(
+        "data, leave_request_id, cerere:leave_requests!leave_request_id(employee_id, status, tip:leave_types!leave_requests_leave_type_id_fkey(tip_zi_pontaj))",
+      )
       .eq("organization_id", ctx.tenant.organizationId)
       .eq("este_lucratoare", true)
       .gte("data", inceput)
@@ -537,11 +598,58 @@ export const sincronizeazaConcediile = createAction({
         employee_id: (z.cerere as { employee_id: string }).employee_id,
         data: z.data,
         leave_request_id: z.leave_request_id,
+        // Tipul șters logic între timp → „concediu”, ca înainte de 0064.
+        tip_zi: z.cerere?.tip?.tip_zi_pontaj ?? ("concediu" as TipZiPontaj),
       }));
     if (zileAprobate.length === 0) {
       return { create: 0, actualizate: 0, pastrate: 0 };
     }
 
     return sincronizeazaZileleDeConcediu(db, ctx.tenant.organizationId, zileAprobate);
+  },
+});
+
+/**
+ * Aprobă sau respinge o SINGURĂ zi de pontaj.
+ *
+ * Completează `aprobaPontajBloc`, care decide pe toată luna. Până în 0067
+ * bloc-ul era singura opțiune, iar respingerea nu exista deloc: aprobatorul
+ * care găsea o zi greșită într-o lună de 200 de angajați putea aproba tot,
+ * inclusiv greșeala, sau nimic.
+ *
+ * `minScope: "team"` — managerul direct decide pentru echipa lui, patronul
+ * pentru toată firma. HR a ieșit din aprobări în 0067, la fel ca la concedii.
+ *
+ * Decizia trece prin `public.decide_zi_pontaj`, nu printr-un UPDATE direct:
+ * politica de UPDATE ar bloca un rând deja aprobat, iar funcția verifică
+ * explicit dreptul, garda de tenant și starea perioadei.
+ */
+export const decideZiPontaj = createAction({
+  name: "attendance.entry.decide",
+  feature: "attendance",
+  permission: "attendance:approve",
+  minScope: "team",
+  input: decideZiPontajSchema,
+  audit: {
+    action: "update",
+    entityType: "attendance_entry",
+    entityId: (input) => input.entry_id,
+    // `motiv` NU intră în audit: descrie o problemă a unei persoane anume, iar
+    // jurnalul e citibil de oricine are `audit:read`.
+    allow: ["entry_id", "aproba"],
+  },
+  revalidate: [...CAI_REVALIDARE],
+  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    const { data, error } = await ctx.supabase.rpc("decide_zi_pontaj", {
+      p_organization_id: ctx.tenant.organizationId,
+      p_entry_id: input.entry_id,
+      p_aproba: input.aproba,
+      ...(input.motiv === null ? {} : { p_motiv: input.motiv }),
+    });
+    if (error !== null) traduEroare(error);
+    if (data === null) {
+      throw businessRule("Ziua de pontaj nu a putut fi decisă.");
+    }
+    return { id: data };
   },
 });

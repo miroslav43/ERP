@@ -22,6 +22,8 @@ import { RaporteazaProblema } from "@/components/layout/raporteaza-problema";
 import { AntetPortal } from "./_components/antet-portal";
 import { BaraPortal } from "./_components/bara-portal";
 import { RailPortal } from "./_components/rail-portal";
+import { monoCifre } from "@/lib/ui/fonturi";
+import { ZonaToast } from "@/components/ui/toast";
 
 export const dynamic = "force-dynamic";
 
@@ -55,7 +57,7 @@ export default async function PortalLayout({ children }: { children: ReactNode }
 
   const [features, permisiuni, profil, necitite, organizatii] = await Promise.all([
     getEnabledFeatures(tenant.organizationId),
-    getPermissionMap(tenant.organizationId, tenant.role),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
     citesteProfilPropriu(user.id),
     numaraNecitite(tenant.organizationId, user.id),
     listUserOrganizations(),
@@ -64,10 +66,10 @@ export default async function PortalLayout({ children }: { children: ReactNode }
   const { grupuri, bara } = buildPortalNavigation({ features, permissions: permisiuni });
 
   return (
-    <div data-zona="portal" className="bg-background flex min-h-dvh flex-col md:flex-row">
+    <div className={`${monoCifre.variable} bg-background flex min-h-dvh flex-col md:flex-row`}>
       <a
         href="#continut"
-        className="bg-primary text-primary-foreground sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-50 focus:rounded-md focus:px-3 focus:py-2 focus:text-sm"
+        className="bg-primary text-primary-foreground focus:rounded-control focus:text-corp sr-only focus:not-sr-only focus:absolute focus:top-3 focus:left-3 focus:z-50 focus:px-3 focus:py-2"
       >
         Sari la conținut
       </a>
@@ -91,9 +93,20 @@ export default async function PortalLayout({ children }: { children: ReactNode }
           fiecărei liste rămâne sub degete. Pe laptop bara nu există, deci
           rezerva ar fi spațiu mort — `md:pb-0`.
         */}
+        {/*
+          Lățimea maximă aparține învelișului, ca în `(app)`. Portalul e gândit
+          pentru telefon, unde nu contează — dar pe laptop, fără ea, o listă de
+          concedii se întinde de la rail până în marginea dreaptă a ecranului.
+          Înainte fiecare pagină își punea propriul `max-w-2xl`; erau 21 de
+          copii ale aceleiași valori, iar a 22-a lipsea.
+
+          `max-w-3xl`, nu `2xl`: portalul are acum antete cu acțiuni pe rândul
+          titlului, care la 42rem se rup pe două rânduri.
+        */}
         <main
           id="continut"
-          className="min-w-0 flex-1 pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0"
+          data-zona="portal"
+          className="mx-auto w-full max-w-3xl min-w-0 flex-1 pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0"
         >
           {children}
 
@@ -107,6 +120,9 @@ export default async function PortalLayout({ children }: { children: ReactNode }
       </div>
 
       <BaraPortal primare={bara.primare} secundare={bara.secundare} />
+      {/* Montată o singură dată pe zonă. `arataToast()` se poate chema de
+          oriunde, fără provider — depozitarul e la nivel de modul. */}
+      <ZonaToast />
     </div>
   );
 }

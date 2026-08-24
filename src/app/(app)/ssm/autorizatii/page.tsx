@@ -1,11 +1,16 @@
 // src/app/(app)/ssm/autorizatii/page.tsx
+import { treaptaSsm } from "@/domain/ssm/scadente";
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { BadgeCheck } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
-import { SkeletonTable } from "@/components/data/skeleton-table";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { StareGoala } from "@/components/ui/stare-goala";
+import { Schelet } from "@/components/ui/schelet";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
+import { Badge } from "@/components/ui/badge";
+import { Scadenta } from "@/components/ui/scadenta";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
@@ -15,21 +20,29 @@ import { formatDate, todayInBucharest } from "@/lib/format/date";
 import { angajatiDupaId, autorizatiiNominale } from "@/lib/queries/ssm";
 import { stareScadentaSsm } from "@/domain/ssm/scadente";
 
-import { CLASE_SCADENTA, ETICHETE_SCADENTA } from "../etichete";
+import { ETICHETE_SCADENTA } from "../etichete";
 import { NavSsm } from "../nav-ssm";
 import { FormularAutorizatie } from "./formular-autorizatie";
+import { SuspendareAutorizatie } from "./suspendare-autorizatie";
 
 export const metadata: Metadata = { title: "Autorizații nominale" };
 
-async function TabelAutorizatii({ organizationId }: { readonly organizationId: string }) {
+async function TabelAutorizatii({
+  organizationId,
+  poateActualiza,
+}: {
+  readonly organizationId: string;
+  readonly poateActualiza: boolean;
+}) {
   const autorizatii = await autorizatiiNominale(organizationId);
 
   if (autorizatii.length === 0) {
     return (
-      <EmptyState
-        icon={BadgeCheck}
-        title="Nicio autorizație nominală înregistrată"
-        description="Adăugați prima autorizație (stivuitorist, macaragiu, fochist, electrician autorizat…) folosind formularul de mai sus."
+      <StareGoala
+        fel="initiala"
+        pictograma={BadgeCheck}
+        titlu="Nicio autorizație nominală înregistrată"
+        descriere="Adăugați prima autorizație (stivuitorist, macaragiu, fochist, electrician autorizat…) folosind formularul de mai sus."
       />
     );
   }
@@ -40,70 +53,89 @@ async function TabelAutorizatii({ organizationId }: { readonly organizationId: s
   );
   const azi = todayInBucharest();
 
+  /**
+   * Lista nu are paginare keyset — `autorizatiiNominale` citește nomenclatorul
+   * întreg, ordonat după valabilitate — deci nici antete sortabile: un antet
+   * care pare sortabil și nu face nimic e mai rău decât unul care nu pare.
+   */
+  const coloane: readonly Coloana<(typeof autorizatii)[number]>[] = [
+    {
+      cheie: "angajat",
+      antet: "Angajat",
+      peTelefon: "titlu",
+      celula: (a) => {
+        const angajat = angajati.get(a.employee_id);
+        return angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`;
+      },
+    },
+    {
+      cheie: "tip",
+      antet: "Tip",
+      peTelefon: "meta",
+      celula: (a) => (
+        <>
+          {a.tip}
+          {a.grupa === null ? null : (
+            <span className="text-muted-foreground"> · grupa {a.grupa}</span>
+          )}
+        </>
+      ),
+    },
+    { cheie: "numar", antet: "Număr", peTelefon: "meta", celula: (a) => a.numar },
+    { cheie: "emitent", antet: "Emitent", peTelefon: "meta", celula: (a) => a.emitent },
+    {
+      cheie: "valabil",
+      antet: "Valabilă până la",
+      peTelefon: "meta",
+      latime: "ingusta",
+      celula: (a) => formatDate(a.valabil_pana),
+    },
+    {
+      cheie: "stare",
+      antet: "Stare",
+      peTelefon: "insigna",
+      celula: (a) => {
+        // Suspendarea acoperă valabilitatea: o autorizație suspendată nu susține
+        // nicio desemnare, oricât ar mai fi valabilă pe hârtie.
+        if (a.suspendata_la !== null) {
+          return <Badge ton="pericol">Suspendată {formatDate(a.suspendata_la)}</Badge>;
+        }
+        const stare = stareScadentaSsm(true, a.valabil_pana, azi);
+        return (
+          <Scadenta treapta={treaptaSsm(stare, a.valabil_pana)}>
+            {ETICHETE_SCADENTA[stare]}
+          </Scadenta>
+        );
+      },
+    },
+  ];
+
+  // Coloana de acțiune apare DOAR pentru cine are `ssm:update` — un antet care
+  // rămâne gol pe toate rândurile e o promisiune neonorată în plus.
+  const coloaneFinale: readonly Coloana<(typeof autorizatii)[number]>[] = poateActualiza
+    ? [
+        ...coloane,
+        {
+          cheie: "actiuni",
+          antet: "Acțiuni",
+          antetAscuns: true,
+          latime: "ingusta",
+          peTelefon: "meta",
+          celula: (a) => (
+            <SuspendareAutorizatie id={a.id} suspendataLa={a.suspendata_la} azi={azi} />
+          ),
+        },
+      ]
+    : coloane;
+
   return (
-    <div className="border-border overflow-x-auto rounded-lg border">
-      <table className="w-full text-sm">
-        <caption className="sr-only">Autorizațiile nominale ale angajaților.</caption>
-        <thead className="bg-surface text-left">
-          <tr>
-            <th scope="col" className="px-4 py-3 font-medium">
-              Angajat
-            </th>
-            <th scope="col" className="px-4 py-3 font-medium">
-              Tip
-            </th>
-            <th scope="col" className="px-4 py-3 font-medium">
-              Număr
-            </th>
-            <th scope="col" className="px-4 py-3 font-medium">
-              Emitent
-            </th>
-            <th scope="col" className="px-4 py-3 font-medium">
-              Valabilă până la
-            </th>
-            <th scope="col" className="px-4 py-3 font-medium">
-              Stare
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-border divide-y">
-          {autorizatii.map((a) => {
-            const angajat = angajati.get(a.employee_id);
-            const stare =
-              a.suspendata_la !== null ? null : stareScadentaSsm(true, a.valabil_pana, azi);
-            return (
-              <tr key={a.id} className="hover:bg-surface">
-                <td className="px-4 py-3">
-                  {angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`}
-                </td>
-                <td className="px-4 py-3">
-                  {a.tip}
-                  {a.grupa === null ? null : (
-                    <span className="text-muted-foreground"> · grupa {a.grupa}</span>
-                  )}
-                </td>
-                <td className="px-4 py-3">{a.numar}</td>
-                <td className="px-4 py-3">{a.emitent}</td>
-                <td className="px-4 py-3">{formatDate(a.valabil_pana)}</td>
-                <td className="px-4 py-3">
-                  {a.suspendata_la !== null ? (
-                    <span className="bg-surface text-foreground rounded px-2 py-0.5 text-xs font-medium">
-                      Suspendată {formatDate(a.suspendata_la)}
-                    </span>
-                  ) : stare === null ? null : (
-                    <span
-                      className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_SCADENTA[stare]}`}
-                    >
-                      {ETICHETE_SCADENTA[stare]}
-                    </span>
-                  )}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+    <Tabel
+      caption="Autorizațiile nominale ale angajaților."
+      coloane={coloaneFinale}
+      randuri={autorizatii}
+      cheieRand={(a) => a.id}
+      gol={null}
+    />
   );
 }
 
@@ -111,7 +143,7 @@ export default async function PaginaAutorizatii() {
   await requireUser();
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "ssm");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "ssm:read", "team")) {
     return (
@@ -120,6 +152,7 @@ export default async function PaginaAutorizatii() {
   }
 
   const poateCrea = can(permisiuni, "ssm:create", "team");
+  const poateActualiza = can(permisiuni, "ssm:update", "team");
 
   let angajati: readonly {
     readonly id: string;
@@ -140,31 +173,29 @@ export default async function PaginaAutorizatii() {
   }
 
   return (
-    <main className="space-y-6 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Autorizații nominale</h1>
-        <p className="text-muted-foreground max-w-3xl text-sm">
-          Stivuitorist, macaragiu, fochist, electrician autorizat și altele — condiționează
-          desemnarea unui angajat ca responsabil pe echipamente ISCIR.
-        </p>
-      </header>
-
-      <NavSsm
-        poateVedeaInstruiri={
-          can(permisiuni, "ssm:read", "team") && can(permisiuni, "employees:read", "team")
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Autorizații nominale"
+        descriere="Stivuitorist, macaragiu, fochist, electrician autorizat și altele — condiționează desemnarea unui angajat ca responsabil pe echipamente ISCIR."
+        file={
+          <NavSsm
+            poateVedeaInstruiri={
+              can(permisiuni, "ssm:read", "team") && can(permisiuni, "employees:read", "team")
+            }
+            poateVedeaMedicina={can(permisiuni, "ssm:read", "team")}
+            poateVedeaAccidente={can(permisiuni, "ssm:read", "team")}
+            poateVedeaStingatoare={can(permisiuni, "ssm:read", "team")}
+            poateVedeaEip={can(permisiuni, "ssm:read", "team")}
+            poateVedeaAutorizatii
+          />
         }
-        poateVedeaMedicina={can(permisiuni, "ssm:read", "team")}
-        poateVedeaAccidente={can(permisiuni, "ssm:read", "team")}
-        poateVedeaStingatoare={can(permisiuni, "ssm:read", "team")}
-        poateVedeaEip={can(permisiuni, "ssm:read", "team")}
-        poateVedeaAutorizatii
       />
 
       {poateCrea ? <FormularAutorizatie angajati={angajati} /> : null}
 
-      <Suspense fallback={<SkeletonTable cols={6} />}>
-        <TabelAutorizatii organizationId={tenant.organizationId} />
+      <Suspense fallback={<Schelet forma="tabel" coloane={6} />}>
+        <TabelAutorizatii organizationId={tenant.organizationId} poateActualiza={poateActualiza} />
       </Suspense>
-    </main>
+    </div>
   );
 }

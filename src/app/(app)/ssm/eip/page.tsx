@@ -1,23 +1,28 @@
 // src/app/(app)/ssm/eip/page.tsx
 import { Suspense } from "react";
-import Link from "next/link";
 import type { Metadata } from "next";
 import { HardHat } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
-import { SkeletonTable } from "@/components/data/skeleton-table";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { StareGoala } from "@/components/ui/stare-goala";
+import { Paginare } from "@/components/ui/paginare";
+import { Schelet } from "@/components/ui/schelet";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
+import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { formatDate } from "@/lib/format/date";
+import { formatDate, todayInBucharest } from "@/lib/format/date";
 import { filtreDinUrl } from "@/lib/rute/parametri";
+import { scrieSortare } from "@/lib/queries/cursor";
 import { angajatiDupaId, eip } from "@/lib/queries/ssm";
 import { filtreEipSchema } from "@/schemas/ssm";
 
 import { NavSsm } from "../nav-ssm";
+import { ConfirmarePrimireEip, ReturnareEip } from "./actiuni-eip";
 import { FormularEip } from "./formular-eip";
 
 export const metadata: Metadata = { title: "Echipament individual de protecție" };
@@ -29,19 +34,22 @@ interface ProprietatiPagina {
 async function TabelEip({
   organizationId,
   parametri,
+  poateActualiza,
 }: {
   readonly organizationId: string;
   readonly parametri: Record<string, string | string[] | undefined>;
+  readonly poateActualiza: boolean;
 }) {
   const filtre = filtreDinUrl(filtreEipSchema, parametri);
-  const { randuri, urmatorulCursor } = await eip(organizationId, filtre);
+  const { randuri, urmatorulCursor, total, sortare } = await eip(organizationId, filtre);
 
   if (randuri.length === 0) {
     return (
-      <EmptyState
-        icon={HardHat}
-        title="Niciun echipament predat"
-        description="Predați primul echipament individual de protecție folosind formularul de mai jos."
+      <StareGoala
+        fel="initiala"
+        pictograma={HardHat}
+        titlu="Niciun echipament predat"
+        descriere="Predați primul echipament individual de protecție folosind formularul de mai sus."
       />
     );
   }
@@ -50,82 +58,128 @@ async function TabelEip({
     organizationId,
     randuri.map((e) => e.employee_id),
   );
+  const azi = todayInBucharest();
 
-  const cautare = new URLSearchParams();
-  for (const [cheie, valoare] of Object.entries(parametri)) {
-    if (typeof valoare === "string" && cheie !== "cursor") cautare.set(cheie, valoare);
+  /** Adresele pornesc de la parametrii EXISTENȚI, ca o sortare să nu piardă mărimea paginii. */
+  function adresa(schimba: (p: URLSearchParams) => void): string {
+    const p = new URLSearchParams();
+    for (const [cheie, valoare] of Object.entries(parametri)) {
+      if (typeof valoare === "string" && valoare !== "") p.set(cheie, valoare);
+    }
+    schimba(p);
+    return p.size === 0 ? "/ssm/eip" : `/ssm/eip?${p.toString()}`;
   }
-  if (urmatorulCursor !== null) cautare.set("cursor", urmatorulCursor);
+
+  const coloane: readonly Coloana<(typeof randuri)[number]>[] = [
+    {
+      cheie: "angajat",
+      antet: "Angajat",
+      peTelefon: "titlu",
+      celula: (e) => {
+        const angajat = angajati.get(e.employee_id);
+        return angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`;
+      },
+    },
+    {
+      cheie: "articol",
+      antet: "Articol",
+      sortabil: true,
+      peTelefon: "meta",
+      celula: (e) => (
+        <>
+          {e.articol}
+          {e.cod_articol === null ? null : (
+            <span className="text-muted-foreground"> · {e.cod_articol}</span>
+          )}
+        </>
+      ),
+    },
+    {
+      cheie: "cantitate",
+      antet: "Cantitate",
+      numeric: true,
+      peTelefon: "meta",
+      latime: "ingusta",
+      celula: (e) => `${String(e.cantitate)} ${e.unitate}`,
+    },
+    {
+      cheie: "predat",
+      antet: "Predat la",
+      sortabil: true,
+      peTelefon: "meta",
+      latime: "ingusta",
+      celula: (e) => formatDate(e.data_predarii),
+    },
+    {
+      cheie: "inlocuire",
+      antet: "Înlocuire",
+      peTelefon: "meta",
+      latime: "ingusta",
+      celula: (e) => (e.data_inlocuirii === null ? "—" : formatDate(e.data_inlocuirii)),
+    },
+    {
+      // Coloana se citea din bază și nu se putea scrie de nicăieri: `—` pe toate
+      // rândurile, la infinit. Acum poartă acțiunea care o completează.
+      cheie: "returnat",
+      antet: "Returnat",
+      peTelefon: "meta",
+      celula: (e) =>
+        poateActualiza ? (
+          <ReturnareEip id={e.id} returnatLa={e.returnat_la} azi={azi} />
+        ) : e.returnat_la === null ? (
+          <span className="text-muted-foreground">În folosință</span>
+        ) : (
+          formatDate(e.returnat_la)
+        ),
+    },
+    {
+      // `semnatura_confirmata` era citită de query, trimisă mereu `false` de
+      // formular și nerandată nicăieri — o coloană care nu putea deveni
+      // adevărată și pe care nimeni n-o vedea. E dovada că EIP-ul a ajuns la om.
+      cheie: "confirmare",
+      antet: "Confirmare",
+      peTelefon: "insigna",
+      celula: (e) =>
+        poateActualiza ? (
+          <ConfirmarePrimireEip id={e.id} confirmata={e.semnatura_confirmata} />
+        ) : (
+          <Badge ton={e.semnatura_confirmata ? "succes" : "ciorna"}>
+            {e.semnatura_confirmata ? "Semnat" : "Nesemnat"}
+          </Badge>
+        ),
+    },
+  ];
 
   return (
-    <>
-      <div className="border-border overflow-x-auto rounded-lg border">
-        <table className="w-full text-sm">
-          <caption className="sr-only">Echipamentul individual de protecție predat.</caption>
-          <thead className="bg-surface text-left">
-            <tr>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Angajat
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Articol
-              </th>
-              <th scope="col" className="px-4 py-3 text-right font-medium">
-                Cantitate
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Predat la
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Înlocuire
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Returnat
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-border divide-y">
-            {randuri.map((e) => {
-              const angajat = angajati.get(e.employee_id);
-              return (
-                <tr key={e.id} className="hover:bg-surface">
-                  <td className="px-4 py-3">
-                    {angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`}
-                  </td>
-                  <td className="px-4 py-3">
-                    {e.articol}
-                    {e.cod_articol === null ? null : (
-                      <span className="text-muted-foreground"> · {e.cod_articol}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right tabular-nums">
-                    {e.cantitate} {e.unitate}
-                  </td>
-                  <td className="px-4 py-3">{formatDate(e.data_predarii)}</td>
-                  <td className="px-4 py-3">
-                    {e.data_inlocuirii === null ? "—" : formatDate(e.data_inlocuirii)}
-                  </td>
-                  <td className="px-4 py-3">
-                    {e.returnat_la === null ? "—" : formatDate(e.returnat_la)}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      <nav aria-label="Paginare" className="flex justify-end">
-        {urmatorulCursor === null ? null : (
-          <Link
-            href={`/ssm/eip?${cautare.toString()}`}
-            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
-          >
-            Pagina următoare
-          </Link>
-        )}
-      </nav>
-    </>
+    <div className="flex flex-col gap-4">
+      <Tabel
+        caption="Echipamentul individual de protecție predat."
+        coloane={coloane}
+        randuri={randuri}
+        cheieRand={(e) => e.id}
+        sortare={sortare}
+        hrefSortare={(s) =>
+          adresa((p) => {
+            p.set("sort", scrieSortare(s));
+            p.delete("cursor");
+          })
+        }
+        gol={null}
+      />
+      <Paginare
+        afisate={randuri.length}
+        total={total}
+        cursorUrmator={urmatorulCursor}
+        limita={filtre.limita}
+        construiesteHref={({ cursor, limita }) =>
+          adresa((p) => {
+            p.set("limita", String(limita));
+            if (cursor === null) p.delete("cursor");
+            else p.set("cursor", cursor);
+          })
+        }
+      />
+    </div>
   );
 }
 
@@ -133,7 +187,7 @@ export default async function PaginaEip({ searchParams }: ProprietatiPagina) {
   await requireUser();
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "ssm");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "ssm:read", "team")) {
     return (
@@ -143,6 +197,7 @@ export default async function PaginaEip({ searchParams }: ProprietatiPagina) {
 
   const parametri = await searchParams;
   const poateCrea = can(permisiuni, "ssm:create", "team");
+  const poateActualiza = can(permisiuni, "ssm:update", "team");
 
   let angajati: readonly {
     readonly id: string;
@@ -163,30 +218,33 @@ export default async function PaginaEip({ searchParams }: ProprietatiPagina) {
   }
 
   return (
-    <main className="space-y-6 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Echipament individual de protecție</h1>
-        <p className="text-muted-foreground text-sm">
-          Predările de EIP, cu data de înlocuire calculată automat.
-        </p>
-      </header>
-
-      <NavSsm
-        poateVedeaInstruiri={
-          can(permisiuni, "ssm:read", "team") && can(permisiuni, "employees:read", "team")
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Echipament individual de protecție"
+        descriere="Predările de EIP, cu data de înlocuire calculată automat."
+        file={
+          <NavSsm
+            poateVedeaInstruiri={
+              can(permisiuni, "ssm:read", "team") && can(permisiuni, "employees:read", "team")
+            }
+            poateVedeaMedicina={can(permisiuni, "ssm:read", "team")}
+            poateVedeaAccidente={can(permisiuni, "ssm:read", "team")}
+            poateVedeaStingatoare={can(permisiuni, "ssm:read", "team")}
+            poateVedeaEip
+            poateVedeaAutorizatii={can(permisiuni, "ssm:read", "team")}
+          />
         }
-        poateVedeaMedicina={can(permisiuni, "ssm:read", "team")}
-        poateVedeaAccidente={can(permisiuni, "ssm:read", "team")}
-        poateVedeaStingatoare={can(permisiuni, "ssm:read", "team")}
-        poateVedeaEip
-        poateVedeaAutorizatii={can(permisiuni, "ssm:read", "team")}
       />
 
       {poateCrea ? <FormularEip angajati={angajati} /> : null}
 
-      <Suspense key={JSON.stringify(parametri)} fallback={<SkeletonTable cols={6} />}>
-        <TabelEip organizationId={tenant.organizationId} parametri={parametri} />
+      <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={7} />}>
+        <TabelEip
+          organizationId={tenant.organizationId}
+          parametri={parametri}
+          poateActualiza={poateActualiza}
+        />
       </Suspense>
-    </main>
+    </div>
   );
 }

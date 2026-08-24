@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 
 import { FormularProfil } from "@/components/forms/formular-profil";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { requireUser } from "@/lib/auth/current-user";
 import { urlAvatar } from "@/lib/avatar/cale";
 import { citesteProfilPropriu } from "@/lib/queries/profile";
@@ -14,20 +15,20 @@ export default async function PaginaProfil() {
   const profil = await citesteProfilPropriu(user.id);
 
   return (
-    <main className="max-w-2xl space-y-6 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Profilul meu</h1>
-        <p className="text-muted-foreground text-sm">
-          {profil?.email ?? user.email}
-          {profil === null ? null : ` · cont din ${formatDateTime(profil.created_at)}`}
-        </p>
-      </header>
+    <div className={`${LATIMI.formular} space-y-6`}>
+      <AntetPagina
+        titlu="Profilul meu"
+        descriere={
+          (profil?.email ?? user.email) +
+          (profil === null ? "" : ` · cont din ${formatDateTime(profil.created_at)}`)
+        }
+      />
 
       <FormularProfil
         numeInitial={profil?.full_name ?? user.fullName ?? ""}
         telefonInitial={profil?.phone ?? null}
         avatarUrlInitial={urlAvatar(profil?.avatar_path ?? null)}
       />
-    </main>
+    </div>
   );
 }

@@ -5,7 +5,9 @@ import { useWatch, type UseFormReturn } from "react-hook-form";
 
 import type { OnboardeazaOrganizatieInput } from "@/schemas/organization";
 import { CampCuSugestii } from "@/components/forms/camp-cu-sugestii";
-import { claseCamp, claseLabel, Eroare } from "./campuri-comune";
+import { Camp } from "@/components/ui/camp";
+
+import { mesajeEroare } from "./campuri-comune";
 
 export const CAMPURI_PAS_2 = [
   "reprezentant_legal",
@@ -34,64 +36,53 @@ export function Pas2Reprezentant({ formular, idFormular }: Proprietati) {
   const functie = useWatch({ control, name: "functie_reprezentant_legal" }) ?? "";
 
   return (
-    <fieldset className="border-border space-y-4 rounded-lg border p-4">
-      <legend className="text-foreground px-1 text-sm font-medium">Reprezentantul legal</legend>
-      <p className="text-muted-foreground text-sm">
+    <fieldset className="border-border rounded-panou space-y-4 border p-4">
+      <legend className="text-foreground text-corp px-1 font-medium">Reprezentantul legal</legend>
+      <p className="text-muted-foreground text-corp">
         Apare pe contracte, decizii și fișe generate din HR/SSM.
       </p>
 
-      <div>
-        <label htmlFor={`${idFormular}-repr-nume`} className={claseLabel}>
-          Nume și prenume
-        </label>
-        <input
-          id={`${idFormular}-repr-nume`}
-          {...register("reprezentant_legal")}
-          placeholder="Popescu Ion"
-          className={claseCamp}
-        />
-      </div>
+      <Camp
+        nume="reprezentant_legal"
+        id={`${idFormular}-repr-nume`}
+        eticheta="Nume și prenume"
+        erori={mesajeEroare(errors.reprezentant_legal?.message)}
+      >
+        {(a) => <input {...a} {...register("reprezentant_legal")} placeholder="Popescu Ion" />}
+      </Camp>
 
-      <div>
-        <label htmlFor={`${idFormular}-repr-functie`} className={claseLabel}>
-          Funcția
-        </label>
-        <CampCuSugestii
-          id={`${idFormular}-repr-functie`}
-          value={functie}
-          onChange={(valoare) =>
-            setValue("functie_reprezentant_legal", valoare, { shouldValidate: true })
-          }
-          sugestii={FUNCTII_UZUALE}
-          placeholder="Administrator"
-          maxLength={120}
-          ariaInvalid={Boolean(errors.functie_reprezentant_legal)}
-        />
-        <Eroare
-          id={`${idFormular}-repr-functie-eroare`}
-          mesaj={errors.functie_reprezentant_legal?.message}
-        />
-      </div>
+      <Camp
+        nume="functie_reprezentant_legal"
+        id={`${idFormular}-repr-functie`}
+        eticheta="Funcția"
+        erori={mesajeEroare(errors.functie_reprezentant_legal?.message)}
+      >
+        {(a) => (
+          <CampCuSugestii
+            id={a.id}
+            value={functie}
+            onChange={(valoare) =>
+              setValue("functie_reprezentant_legal", valoare, { shouldValidate: true })
+            }
+            sugestii={FUNCTII_UZUALE}
+            placeholder="Administrator"
+            maxLength={120}
+            ariaInvalid={a["aria-invalid"] === true}
+          />
+        )}
+      </Camp>
 
-      <div>
-        <label htmlFor={`${idFormular}-repr-cnp`} className={claseLabel}>
-          CNP (opțional)
-        </label>
-        <input
-          id={`${idFormular}-repr-cnp`}
-          {...register("reprezentant_cnp")}
-          inputMode="numeric"
-          maxLength={13}
-          aria-invalid={Boolean(errors.reprezentant_cnp)}
-          aria-describedby={`${idFormular}-repr-cnp-ajutor`}
-          className={claseCamp}
-        />
-        <p id={`${idFormular}-repr-cnp-ajutor`} className="text-muted-foreground mt-1 text-xs">
-          Necesar uneori în relația cu instituțiile sau pentru semnături electronice. Se păstrează
-          criptat.
-        </p>
-        <Eroare id={`${idFormular}-repr-cnp-eroare`} mesaj={errors.reprezentant_cnp?.message} />
-      </div>
+      <Camp
+        nume="reprezentant_cnp"
+        id={`${idFormular}-repr-cnp`}
+        eticheta="CNP (opțional)"
+        ajutor="Necesar uneori în relația cu instituțiile sau pentru semnături electronice. Se păstrează criptat."
+        erori={mesajeEroare(errors.reprezentant_cnp?.message)}
+      >
+        {(a) => (
+          <input {...a} {...register("reprezentant_cnp")} inputMode="numeric" maxLength={13} />
+        )}
+      </Camp>
     </fieldset>
   );
 }

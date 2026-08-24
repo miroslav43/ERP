@@ -2,8 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 
+import { Buton } from "@/components/ui/buton";
+import { Callout } from "@/components/ui/callout";
+import { Camp, clasaBifa } from "@/components/ui/camp";
 import { STATUS_ECHIPAMENT } from "@/schemas/maintenance";
 import { ETICHETE_STATUS_ECHIPAMENT } from "../etichete";
 import { actualizeazaEchipament, creeazaEchipament } from "../actions";
@@ -60,8 +63,6 @@ interface ValoriFormular {
   derogare_motiv: string;
 }
 
-const CLASA_CAMP = "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
-
 function laText(valoare: string | null): string {
   return valoare ?? "";
 }
@@ -72,6 +73,40 @@ function laIdOptional(valoare: string): string | null {
   return curatat.length === 0 ? null : curatat;
 }
 
+/** Mesajul lui react-hook-form, în forma de listă cerută de `<Camp erori>`. */
+function mesajeEroare(mesaj: string | undefined): readonly string[] {
+  return mesaj === undefined || mesaj === "" ? [] : [mesaj];
+}
+
+/**
+ * Fișa de echipament — singurul formular de mentenanță pe react-hook-form.
+ *
+ * ── DE CE NU `<Formular>` AICI ────────────────────────────────────────────
+ * `<Formular>` primește o acțiune cu semnătura `(date: FormData) => …` și își
+ * randează singur elementul `<form action={…}>`. Formularul ăsta nu trimite
+ * niciodată `FormData`: `handleSubmit` predă un obiect `ValoriFormular` deja
+ * validat de react-hook-form, iar `trimite` îl transformă în intrarea tipată a
+ * acțiunii (numere din text, `""` → `null` pe `uuid`-uri). Cele două arhitecturi
+ * de formular nu se unifică, iar `Camp` e render-prop tocmai ca să meargă peste
+ * amândouă — deci aici trece DOAR marcajul, cu `{...register("x")}` împrăștiat
+ * DUPĂ atributele lui `Camp`, ca `ref`-ul lui RHF să ajungă la element.
+ *
+ * În plus, `useActionState` (motorul lui `<Formular>`) rezolvă resetarea pe care
+ * React 19 o face formularelor necontrolate cu `<form action>`. Aici problema nu
+ * există: valorile stau în react-hook-form, nu în DOM, iar `handleSubmit` nu
+ * declanșează resetarea.
+ *
+ * ── CE S-A REPARAT TOTUȘI ─────────────────────────────────────────────────
+ * `creeazaEchipament` / `actualizeazaEchipament` întorc `fieldErrors` pe cheile
+ * lui `echipamentSchema`, iar fișierul le arunca: păstra doar `error.message`
+ * într-un singur `<p>` roșu sub buton. Pe șaisprezece câmpuri, „Datele
+ * introduse nu sunt valide.” nu spune nimic. Erorile de server intră acum în
+ * `eroriServer` și ajung pe câmpul lor, prin `Camp`.
+ *
+ * Precedența e cea scrisă în `components/ui/formular.tsx`: **eroarea de server o
+ * suprascrie pe cea de client**, fiindcă serverul a văzut datele întregi și
+ * baza, iar clientul a văzut un câmp.
+ */
 export function FormularEchipament({
   echipament,
   angajati,
@@ -83,7 +118,13 @@ export function FormularEchipament({
   const modEditare = echipament !== undefined;
   const [inCurs, porneste] = useTransition();
   const [eroare, setEroare] = useState<string | null>(null);
-  const { register, handleSubmit, watch } = useForm<ValoriFormular>({
+  const [eroriServer, setEroriServer] = useState<Readonly<Record<string, readonly string[]>>>({});
+  const {
+    register,
+    handleSubmit,
+    control,
+    formState: { errors },
+  } = useForm<ValoriFormular>({
     defaultValues: {
       cod: echipament?.cod ?? "",
       denumire: echipament?.denumire ?? "",
@@ -109,10 +150,24 @@ export function FormularEchipament({
     },
   });
 
-  const esteIscir = watch("este_iscir");
+  // `useWatch`, NU `watch("este_iscir")`. Cu React Compiler activ
+  // (`reactCompiler: true`), `watch` întoarce o funcție care nu se poate
+  // memoiza, iar compilatorul SARE peste tot componentul — regula
+  // `react-hooks/incompatible-library` o semnalează pe linia asta. `useWatch`
+  // creează abonamentul aici, în componenta care are nevoie de valoare, exact
+  // ca în restul formularelor pe react-hook-form din depozit.
+  const esteIscir = useWatch({ control, name: "este_iscir" });
+
+  /** Serverul primul, clientul pe urmă — vezi nota de precedență din docblock. */
+  function eroriCamp(cheie: keyof ValoriFormular): readonly string[] {
+    const dinServer = eroriServer[cheie];
+    if (dinServer !== undefined && dinServer.length > 0) return dinServer;
+    return mesajeEroare(errors[cheie]?.message);
+  }
 
   function trimite(valori: ValoriFormular): void {
     setEroare(null);
+    setEroriServer({});
     const intrare = {
       cod: valori.cod,
       denumire: valori.denumire,
@@ -138,7 +193,17 @@ export function FormularEchipament({
           ? await creeazaEchipament(intrare)
           : await actualizeazaEchipament({ id: echipament.id, ...intrare });
       if (!rezultat.ok) {
-        setEroare(rezultat.error.message);
+        const peCampuri = rezultat.error.fieldErrors ?? {};
+        setEroriServer(peCampuri);
+        // Mesajul general apare DOAR dacă eroarea nu e deja pe un câmp AFIȘAT —
+        // altfel omul citește aceeași propoziție de două ori, o dată lângă câmp
+        // și o dată sub buton, iar cea de sub buton e mereu cea mai vagă.
+        //
+        // Se cere „afișat”, nu „existent”: `actualizeazaEchipamentSchema` are și
+        // cheia `id`, care nu are control în formular. O eroare doar pe ea ar
+        // face ecranul să nu spună NIMIC dacă am număra simplu cheile.
+        const areCampAfisat = Object.keys(peCampuri).some((cheie) => cheie in valori);
+        setEroare(areCampAfisat ? null : rezultat.error.message);
         return;
       }
       router.push(`/mentenanta/echipamente/${rezultat.data.id}`);
@@ -148,214 +213,206 @@ export function FormularEchipament({
 
   return (
     <form onSubmit={handleSubmit(trimite)} className="space-y-6" noValidate>
+      {eroare === null ? null : <Callout fel="eroare">{eroare}</Callout>}
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <div>
-          <label htmlFor="cod" className="block text-sm font-medium">
-            Cod *
-          </label>
-          <input
-            id="cod"
-            type="text"
-            autoComplete="off"
-            className={CLASA_CAMP}
-            {...register("cod", { required: true })}
-          />
-        </div>
-        <div>
-          <label htmlFor="denumire" className="block text-sm font-medium">
-            Denumire *
-          </label>
-          <input
-            id="denumire"
-            type="text"
-            autoComplete="off"
-            className={CLASA_CAMP}
-            {...register("denumire", { required: true })}
-          />
-        </div>
-        <div>
-          <label htmlFor="serie" className="block text-sm font-medium">
-            Serie
-          </label>
-          <input id="serie" type="text" className={CLASA_CAMP} {...register("serie")} />
-        </div>
-        <div>
-          <label htmlFor="producator" className="block text-sm font-medium">
-            Producător
-          </label>
-          <input id="producator" type="text" className={CLASA_CAMP} {...register("producator")} />
-        </div>
-        <div>
-          <label htmlFor="model" className="block text-sm font-medium">
-            Model
-          </label>
-          <input id="model" type="text" className={CLASA_CAMP} {...register("model")} />
-        </div>
-        <div>
-          <label htmlFor="an_fabricatie" className="block text-sm font-medium">
-            An fabricație
-          </label>
-          <input
-            id="an_fabricatie"
-            type="number"
-            min="1900"
-            max="2200"
-            className={CLASA_CAMP}
-            {...register("an_fabricatie")}
-          />
-        </div>
-        <div>
-          <label htmlFor="locatie" className="block text-sm font-medium">
-            Locație
-          </label>
-          <input id="locatie" type="text" className={CLASA_CAMP} {...register("locatie")} />
-        </div>
-        <div>
-          <label htmlFor="department_id" className="block text-sm font-medium">
-            Departament
-          </label>
-          <select id="department_id" className={CLASA_CAMP} {...register("department_id")}>
-            <option value="">Fără departament</option>
-            {departamente.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.nume}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="status" className="block text-sm font-medium">
-            Stare
-          </label>
-          <select id="status" className={CLASA_CAMP} {...register("status")}>
-            {STATUS_ECHIPAMENT.map((s) => (
-              <option key={s} value={s}>
-                {ETICHETE_STATUS_ECHIPAMENT[s]}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="data_punerii_in_functiune" className="block text-sm font-medium">
-            Data punerii în funcțiune
-          </label>
-          <input
-            id="data_punerii_in_functiune"
-            type="date"
-            className={CLASA_CAMP}
-            {...register("data_punerii_in_functiune")}
-          />
-        </div>
-        <div>
-          <label htmlFor="valoare_achizitie" className="block text-sm font-medium">
-            Valoare achiziție (lei)
-          </label>
-          <input
-            id="valoare_achizitie"
-            type="number"
-            step="0.01"
-            min="0"
-            className={CLASA_CAMP}
-            {...register("valoare_achizitie")}
-          />
-        </div>
+        {/* `required` era deja aici, dar fără mesaj: react-hook-form bloca
+            trimiterea și punea `errors.cod` cu `message: ""`, iar formularul nu
+            randa nimic — refuz tăcut. Regula rămâne aceeași, doar că acum are
+            un text de citit. */}
+        <Camp nume="cod" eticheta="Cod" obligatoriu erori={eroriCamp("cod")}>
+          {(a) => (
+            <input
+              {...a}
+              type="text"
+              autoComplete="off"
+              {...register("cod", { required: "Codul echipamentului este obligatoriu." })}
+            />
+          )}
+        </Camp>
+
+        <Camp nume="denumire" eticheta="Denumire" obligatoriu erori={eroriCamp("denumire")}>
+          {(a) => (
+            <input
+              {...a}
+              type="text"
+              autoComplete="off"
+              {...register("denumire", { required: "Denumirea este obligatorie." })}
+            />
+          )}
+        </Camp>
+
+        <Camp nume="serie" eticheta="Serie" erori={eroriCamp("serie")}>
+          {(a) => <input {...a} type="text" {...register("serie")} />}
+        </Camp>
+
+        <Camp nume="producator" eticheta="Producător" erori={eroriCamp("producator")}>
+          {(a) => <input {...a} type="text" {...register("producator")} />}
+        </Camp>
+
+        <Camp nume="model" eticheta="Model" erori={eroriCamp("model")}>
+          {(a) => <input {...a} type="text" {...register("model")} />}
+        </Camp>
+
+        <Camp nume="an_fabricatie" eticheta="An fabricație" erori={eroriCamp("an_fabricatie")}>
+          {(a) => (
+            <input {...a} type="number" min="1900" max="2200" {...register("an_fabricatie")} />
+          )}
+        </Camp>
+
+        <Camp nume="locatie" eticheta="Locație" erori={eroriCamp("locatie")}>
+          {(a) => <input {...a} type="text" {...register("locatie")} />}
+        </Camp>
+
+        <Camp
+          nume="department_id"
+          eticheta="Departament"
+          fel="select"
+          erori={eroriCamp("department_id")}
+        >
+          {(a) => (
+            <select {...a} {...register("department_id")}>
+              <option value="">Fără departament</option>
+              {departamente.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.nume}
+                </option>
+              ))}
+            </select>
+          )}
+        </Camp>
+
+        <Camp nume="status" eticheta="Stare" fel="select" erori={eroriCamp("status")}>
+          {(a) => (
+            <select {...a} {...register("status")}>
+              {STATUS_ECHIPAMENT.map((s) => (
+                <option key={s} value={s}>
+                  {ETICHETE_STATUS_ECHIPAMENT[s]}
+                </option>
+              ))}
+            </select>
+          )}
+        </Camp>
+
+        <Camp
+          nume="data_punerii_in_functiune"
+          eticheta="Data punerii în funcțiune"
+          erori={eroriCamp("data_punerii_in_functiune")}
+        >
+          {(a) => <input {...a} type="date" {...register("data_punerii_in_functiune")} />}
+        </Camp>
+
+        <Camp
+          nume="valoare_achizitie"
+          eticheta="Valoare achiziție (lei)"
+          erori={eroriCamp("valoare_achizitie")}
+        >
+          {(a) => (
+            <input {...a} type="number" step="0.01" min="0" {...register("valoare_achizitie")} />
+          )}
+        </Camp>
       </div>
 
-      <div className="border-border rounded-lg border p-4">
-        <label className="flex items-center gap-2 text-sm font-medium">
-          <input type="checkbox" className="size-4" {...register("este_iscir")} />
+      <div className="border-border rounded-panou border p-4">
+        {/* Bifa rămâne scrisă de mână: `Camp` pune eticheta ÎNAINTEA controlului,
+            iar la o casetă de bifat eticheta stă după — altfel ținta de atingere
+            se rupe în două și rândul se citește invers. */}
+        <label className="text-corp flex items-center gap-2 font-medium">
+          <input type="checkbox" className={clasaBifa} {...register("este_iscir")} />
           Echipament sub incidența ISCIR
         </label>
 
         {esteIscir ? (
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label htmlFor="tip_autorizare_necesara" className="block text-sm font-medium">
-                Tipul de autorizație nominală necesară
-              </label>
-              <input
-                id="tip_autorizare_necesara"
-                type="text"
-                placeholder="Ex. stivuitorist, macaragiu"
-                className={CLASA_CAMP}
-                {...register("tip_autorizare_necesara")}
-              />
-            </div>
-            <div>
-              <label htmlFor="responsabil_employee_id" className="block text-sm font-medium">
-                Responsabil
-              </label>
-              <select
-                id="responsabil_employee_id"
-                className={CLASA_CAMP}
-                {...register("responsabil_employee_id")}
-              >
-                <option value="">Fără responsabil</option>
-                {angajati.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.nume}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <Camp
+              nume="tip_autorizare_necesara"
+              eticheta="Tipul de autorizație nominală necesară"
+              erori={eroriCamp("tip_autorizare_necesara")}
+            >
+              {(a) => (
+                <input
+                  {...a}
+                  type="text"
+                  placeholder="Ex. stivuitorist, macaragiu"
+                  {...register("tip_autorizare_necesara")}
+                />
+              )}
+            </Camp>
 
-            <p className="text-foreground text-xs sm:col-span-2">
+            <Camp
+              nume="responsabil_employee_id"
+              eticheta="Responsabil"
+              fel="select"
+              erori={eroriCamp("responsabil_employee_id")}
+            >
+              {(a) => (
+                <select {...a} {...register("responsabil_employee_id")}>
+                  <option value="">Fără responsabil</option>
+                  {angajati.map((ang) => (
+                    <option key={ang.id} value={ang.id}>
+                      {ang.nume}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Camp>
+
+            <p className="text-foreground text-nota sm:col-span-2">
               {ssmActiv
                 ? "Responsabilul trebuie să aibă o autorizație nominală valabilă pe acest tip, altfel baza va respinge salvarea — verificați-o în modulul SSM."
                 : "Autorizațiile nominale se administrează în modulul SSM; fără el, un responsabil pe echipament ISCIR se poate desemna doar prin derogare motivată."}
             </p>
 
             {poateDerogare ? (
-              <div className="sm:col-span-2">
-                <label htmlFor="derogare_motiv" className="block text-sm font-medium">
-                  Motivul derogării (minimum 20 de caractere)
-                </label>
-                <textarea
-                  id="derogare_motiv"
-                  rows={2}
-                  placeholder="Se completează doar dacă responsabilul nu are (încă) o autorizație nominală valabilă."
-                  className={CLASA_CAMP}
-                  {...register("derogare_motiv")}
-                />
-              </div>
+              <Camp
+                nume="derogare_motiv"
+                eticheta="Motivul derogării"
+                fel="textarea"
+                ajutor="Minimum 20 de caractere."
+                className="sm:col-span-2"
+                erori={eroriCamp("derogare_motiv")}
+              >
+                {(a) => (
+                  <textarea
+                    {...a}
+                    rows={2}
+                    placeholder="Se completează doar dacă responsabilul nu are (încă) o autorizație nominală valabilă."
+                    {...register("derogare_motiv")}
+                  />
+                )}
+              </Camp>
             ) : null}
           </div>
         ) : (
           <div className="mt-4">
-            <label htmlFor="responsabil_employee_id_simplu" className="block text-sm font-medium">
-              Responsabil
-            </label>
-            <select
+            {/* Același câmp, a doua ramură: `id` explicit fiindcă `Camp` derivă
+                identificatorul din `nume`, iar fișa echipamentului mai are un
+                `responsabil_employee_id` — în formularul de plan. */}
+            <Camp
+              nume="responsabil_employee_id"
               id="responsabil_employee_id_simplu"
-              className={CLASA_CAMP}
-              {...register("responsabil_employee_id")}
+              eticheta="Responsabil"
+              fel="select"
+              erori={eroriCamp("responsabil_employee_id")}
             >
-              <option value="">Fără responsabil</option>
-              {angajati.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.nume}
-                </option>
-              ))}
-            </select>
+              {(a) => (
+                <select {...a} {...register("responsabil_employee_id")}>
+                  <option value="">Fără responsabil</option>
+                  {angajati.map((ang) => (
+                    <option key={ang.id} value={ang.id}>
+                      {ang.nume}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Camp>
           </div>
         )}
       </div>
 
-      <div aria-live="polite">
-        {eroare !== null ? (
-          <p className="border-danger bg-danger/8 text-danger rounded-md border p-3 text-sm">
-            {eroare}
-          </p>
-        ) : null}
-      </div>
-
-      <button
-        type="submit"
-        disabled={inCurs}
-        className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-      >
-        {inCurs ? "Se salvează…" : modEditare ? "Salvează modificările" : "Adaugă echipamentul"}
-      </button>
+      <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+        {modEditare ? "Salvează modificările" : "Adaugă echipamentul"}
+      </Buton>
     </form>
   );
 }

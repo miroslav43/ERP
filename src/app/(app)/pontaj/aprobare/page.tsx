@@ -4,8 +4,11 @@ import type { Metadata } from "next";
 import { CalendarClock, CheckCircle2 } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
-import { SkeletonTable } from "@/components/data/skeleton-table";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { Buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
+import { Schelet } from "@/components/ui/schelet";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -26,6 +29,25 @@ import { AprobareBloc } from "./aprobare-bloc";
 import { ListaSaptamaniDeAprobat } from "./lista-saptamani-de-aprobat";
 
 export const metadata: Metadata = { title: "Aprobare pontaj" };
+
+interface RandAprobare {
+  readonly id: string;
+  readonly nume: string;
+  readonly zile: number;
+  readonly ore: number;
+}
+
+const COLOANE_APROBARE: readonly Coloana<RandAprobare>[] = [
+  { cheie: "angajat", antet: "Angajat", peTelefon: "titlu", celula: (r) => r.nume },
+  {
+    cheie: "zile",
+    antet: "Zile neaprobate",
+    numeric: true,
+    peTelefon: "meta",
+    celula: (r) => r.zile,
+  },
+  { cheie: "ore", antet: "Ore lucrate", numeric: true, peTelefon: "meta", celula: (r) => r.ore },
+];
 
 interface ProprietatiPagina {
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -50,7 +72,7 @@ async function ContinutAprobare({
   readonly poateBloca: boolean;
   readonly poateSincroniza: boolean;
 }) {
-  const linii = await liniiDeAprobat(organizationId, periodId);
+  const { linii, trunchiat } = await liniiDeAprobat(organizationId, periodId);
   const idAngajati = [...new Set(linii.map((l) => l.employee_id))];
   const angajati = await angajatiPontajDupaId(organizationId, idAngajati);
 
@@ -76,8 +98,29 @@ async function ContinutAprobare({
     }
   }
 
+  /*
+   * Ordinea venea din inserarea în `Map`, adică din ordinea în care PostgREST
+   * întorcea liniile — nealfabetică, nestabilă între două încărcări ale
+   * aceleiași pagini. Pe un ecran unde cauți un anume om înainte să aprobi
+   * luna, un tabel care se rearanjează singur e mai rău decât unul lung.
+   * `localeCompare("ro")` fiindcă „Ș” trebuie să stea după „S”, nu la coadă.
+   */
+  const randuriAprobare: readonly RandAprobare[] = [...perAngajat.entries()]
+    .map(([id, rand]) => ({ id, nume: rand.nume, zile: rand.zile, ore: rand.ore }))
+    .sort((a, b) => a.nume.localeCompare(b.nume, "ro"));
+
   return (
     <div className="space-y-4">
+      {trunchiat ? (
+        <p
+          role="alert"
+          className="border-warning/40 bg-warning/12 text-foreground rounded-panou text-corp border p-3"
+        >
+          Luna are peste {linii.length} de linii neaprobate, iar citirea s-a oprit aici. Cifrele de
+          mai jos sunt sub cele reale. Aprobați pe departamente, apoi reîncărcați ecranul.
+        </p>
+      ) : null}
+
       <AprobareBloc
         periodId={periodId}
         departmentId={departmentId}
@@ -88,8 +131,8 @@ async function ContinutAprobare({
       />
 
       {poateBloca ? (
-        <div className="border-border rounded-lg border p-4">
-          <p className="text-muted-foreground mb-2 text-sm">
+        <div className="border-border rounded-panou border p-4">
+          <p className="text-muted-foreground text-corp mb-2">
             Blocarea perioadei este aprobarea finală: oprește orice scriere ulterioară asupra lunii,
             inclusiv corecțiile manuale.
           </p>
@@ -104,41 +147,20 @@ async function ContinutAprobare({
         </div>
       ) : null}
 
-      {perAngajat.size === 0 ? (
-        <EmptyState
-          icon={CheckCircle2}
-          title="Nimic de aprobat"
-          description="Toate liniile de pontaj ale acestei luni au fost deja aprobate."
-        />
-      ) : (
-        <div className="border-border overflow-x-auto rounded-lg border">
-          <table className="w-full text-sm">
-            <caption className="sr-only">Angajații cu linii de pontaj neaprobate.</caption>
-            <thead className="bg-surface text-left">
-              <tr>
-                <th scope="col" className="px-4 py-3 font-medium">
-                  Angajat
-                </th>
-                <th scope="col" className="px-4 py-3 text-right font-medium">
-                  Zile neaprobate
-                </th>
-                <th scope="col" className="px-4 py-3 text-right font-medium">
-                  Ore lucrate
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-border divide-y">
-              {[...perAngajat.entries()].map(([id, rand]) => (
-                <tr key={id}>
-                  <td className="px-4 py-3">{rand.nume}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{rand.zile}</td>
-                  <td className="px-4 py-3 text-right tabular-nums">{rand.ore}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <Tabel
+        caption="Angajații cu linii de pontaj neaprobate."
+        coloane={COLOANE_APROBARE}
+        randuri={randuriAprobare}
+        cheieRand={(rand) => rand.id}
+        gol={
+          <StareGoala
+            fel="initiala"
+            pictograma={CheckCircle2}
+            titlu="Nimic de aprobat"
+            descriere="Toate liniile de pontaj ale acestei luni au fost deja aprobate."
+          />
+        }
+      />
     </div>
   );
 }
@@ -146,7 +168,7 @@ async function ContinutAprobare({
 export default async function PaginaAprobarePontaj({ searchParams }: ProprietatiPagina) {
   const { user, tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "attendance");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "attendance:approve", "team")) {
     return (
@@ -168,25 +190,22 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
   const sarciniSaptamana = await saptamaniDeAprobat(tenant.organizationId, user.id);
 
   return (
-    <main className="space-y-6 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Aprobare pontaj</h1>
-        <p className="text-muted-foreground max-w-3xl text-sm">
-          Aprobarea în bloc pentru {formatMonthYear(an, filtre.luna)}.
-        </p>
-      </header>
-
-      <NavPontaj poateAproba={true} />
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Aprobare pontaj"
+        descriere={`Aprobarea în bloc pentru ${formatMonthYear(an, filtre.luna)}.`}
+        file={<NavPontaj poateAproba={true} />}
+      />
 
       <ListaSaptamaniDeAprobat sarcini={sarciniSaptamana} />
 
       {listaDepartamente.length === 0 ? null : (
-        <form className="border-border flex flex-wrap items-end gap-3 rounded-lg border p-4">
+        <form className="border-border rounded-panou flex flex-wrap items-end gap-3 border p-4">
           {/* Formular GET simplu, fără JavaScript: fără câmp explicit, `an` s-ar
               pierde din query string la reîncărcare. */}
           <input type="hidden" name="an" value={an} />
           <div className="flex flex-col gap-1">
-            <label htmlFor="luna" className="text-sm font-medium">
+            <label htmlFor="luna" className="text-corp font-medium">
               Luna
             </label>
             <input
@@ -196,18 +215,18 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
               min={1}
               max={12}
               defaultValue={filtre.luna}
-              className="border-foreground/60 w-20 rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp w-20 border px-3 py-2"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor="departament" className="text-sm font-medium">
+            <label htmlFor="departament" className="text-corp font-medium">
               Departament
             </label>
             <select
               id="departament"
               name="departament"
               defaultValue={filtre.departament ?? ""}
-              className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+              className="border-foreground/60 rounded-control text-corp border px-3 py-2"
             >
               <option value="">Toate</option>
               {listaDepartamente.map((d) => (
@@ -217,25 +236,23 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
               ))}
             </select>
           </div>
-          <button
-            type="submit"
-            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm font-medium"
-          >
+          <Buton type="submit" varianta="secundar">
             Filtrează
-          </button>
+          </Buton>
         </form>
       )}
 
       {perioada === null ? (
-        <EmptyState
-          icon={CalendarClock}
-          title="Luna nu a fost deschisă"
-          description="Nu există nimic de aprobat cât timp luna nu a fost deschisă din „Perioade”."
+        <StareGoala
+          fel="initiala"
+          pictograma={CalendarClock}
+          titlu="Luna nu a fost deschisă"
+          descriere="Nu există nimic de aprobat cât timp luna nu a fost deschisă din „Perioade”."
         />
       ) : (
         <Suspense
           key={`${String(an)}-${String(filtre.luna)}-${filtre.departament ?? ""}`}
-          fallback={<SkeletonTable cols={3} />}
+          fallback={<Schelet forma="tabel" coloane={3} />}
         >
           <ContinutAprobare
             organizationId={tenant.organizationId}
@@ -249,6 +266,6 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
           />
         </Suspense>
       )}
-    </main>
+    </div>
   );
 }

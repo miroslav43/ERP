@@ -1,6 +1,6 @@
 // src/app/(platform)/super-admin/organizatii/[orgId]/membri/loading.tsx
-import { Schelet } from "../../../_lib/schelet";
+import { Schelet } from "@/components/ui/schelet";
 
-export default function IncarcareMembri() {
-  return <Schelet randuri={6} titlu="Se încarcă membrii organizației…" />;
+export default function Incarcare() {
+  return <Schelet forma="tabel" coloane={6} />;
 }

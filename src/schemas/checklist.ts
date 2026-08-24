@@ -85,6 +85,21 @@ const listaStatusuriOptionala = z
 
 // ── Filtre de listare (paginare keyset) ───────────────────────────────────────
 
+/**
+ * Coloanele după care listele de checklist se pot sorta.
+ *
+ * Listele sunt ÎNCHISE, nu validări de formă: numele coloanei ajunge într-un
+ * `.order()` și într-un predicat de cursor construit ca text, deci nu poate
+ * veni liber din query string. `sortareCeruta` din `lib/queries/cursor.ts` cade
+ * tăcut pe implicit pentru orice altceva — un URL copiat greșit nu strică
+ * ecranul, doar îl arată sortat implicit.
+ */
+export const SORTARI_INSTANTE = ["data", "tip", "stare"] as const;
+export type SortareInstante = (typeof SORTARI_INSTANTE)[number];
+
+export const SORTARI_SABLOANE = ["denumire", "tip", "valabil"] as const;
+export type SortareSabloane = (typeof SORTARI_SABLOANE)[number];
+
 export const filtreInstanteSchema = z.object({
   tip: optional(z.enum(CHECKLIST_TIP)),
   status: listaStatusuriOptionala,
@@ -93,6 +108,11 @@ export const filtreInstanteSchema = z.object({
   pana_la: optional(z.iso.date()),
   cursor: optional(z.string().max(256)),
   limita: z.coerce.number().int().min(5).max(50).default(25),
+  /**
+   * Forma din URL: `data` crescător, `-data` descrescător. Rămâne OPȚIONAL și în
+   * tipul de ieșire: portalul construiește filtrele în cod, cu obiect literal.
+   */
+  sort: z.string().max(40).optional(),
 });
 export type FiltreInstante = z.output<typeof filtreInstanteSchema>;
 
@@ -101,6 +121,8 @@ export const filtreSabloaneSchema = z.object({
   cauta: optional(z.string().max(160)),
   cursor: optional(z.string().max(256)),
   limita: z.coerce.number().int().min(5).max(100).default(25),
+  /** Forma din URL: `denumire` crescător, `-denumire` descrescător. */
+  sort: z.string().max(40).optional(),
 });
 export type FiltreSabloane = z.output<typeof filtreSabloaneSchema>;
 

@@ -5,19 +5,25 @@ import type { Metadata } from "next";
 import { ClipboardList, FilePlus2 } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
-import { RandTabel } from "@/components/data/rand-tabel";
-import { SkeletonTable } from "@/components/data/skeleton-table";
-import { can, getPermissionMap } from "@/lib/auth/permissions";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { Badge } from "@/components/ui/badge";
+import { buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
+import { Paginare } from "@/components/ui/paginare";
+import { Schelet } from "@/components/ui/schelet";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
+import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime } from "@/lib/format/date";
 import { filtreDinUrl } from "@/lib/rute/parametri";
-import { angajatiDupaId, listeazaFoi, vehiculeDupaId } from "@/lib/queries/fleet";
+import { scrieSortare } from "@/lib/queries/cursor";
+import { angajatiDupaId, listeazaFoi, listeazaVehicule, vehiculeDupaId } from "@/lib/queries/fleet";
 import { filtreFoiSchema } from "@/schemas/fleet";
 
-import { CLASE_STATUS_FOAIE, ETICHETE_STATUS_FOAIE } from "../etichete";
+import { ETICHETE_STATUS_FOAIE, TONURI_STATUS_FOAIE } from "../etichete";
 import { NavFlota } from "../nav-flota";
+import { FiltreFoi } from "./filtre-foi";
 
 export const metadata: Metadata = { title: "Foi de parcurs" };
 
@@ -33,25 +39,44 @@ async function TabelFoi({
   readonly parametri: Record<string, string | string[] | undefined>;
 }) {
   const filtre = filtreDinUrl(filtreFoiSchema, parametri);
-  const { randuri, urmatorulCursor } = await listeazaFoi(organizationId, filtre);
+  const { randuri, urmatorulCursor, total, sortare } = await listeazaFoi(organizationId, filtre);
+
+  /** Adresele pornesc din parametrii EXISTENȚI: o sortare nu trebuie să șteargă filtrele. */
+  function adresa(schimba: (p: URLSearchParams) => void): string {
+    const p = new URLSearchParams();
+    for (const [cheie, valoare] of Object.entries(parametri)) {
+      if (typeof valoare === "string" && valoare !== "") p.set(cheie, valoare);
+    }
+    schimba(p);
+    return p.size === 0 ? "/flota/foi" : `/flota/foi?${p.toString()}`;
+  }
 
   if (randuri.length === 0) {
     const areFiltre = filtre.status !== null || filtre.vehicul !== null;
+    // Ca la /flota: se scot DOAR cheile de filtrare. Un `href="/flota/foi"` sec
+    // ar fi luat cu el și sortarea coloanelor, și mărimea paginii.
+    const faraFiltre = adresa((p) => {
+      p.delete("status");
+      p.delete("vehicul");
+      p.delete("cursor");
+    });
     return (
-      <EmptyState
-        icon={ClipboardList}
-        title={areFiltre ? "Niciun rezultat pentru filtrele alese" : "Nicio foaie de parcurs"}
-        description={
+      <StareGoala
+        fel={areFiltre ? "filtrata" : "initiala"}
+        pictograma={ClipboardList}
+        titlu={areFiltre ? "Niciun rezultat pentru filtrele alese" : "Nicio foaie de parcurs"}
+        descriere={
           areFiltre
             ? "Ștergeți filtrele ca să vedeți toate foile."
             : "Înregistrați prima cursă ca să puteți justifica consumul de combustibil."
         }
+        {...(areFiltre ? { actiune: { eticheta: "Șterge filtrele", href: faraFiltre } } : {})}
       />
     );
   }
 
   // Numele șoferului și numărul vehiculului se citesc SEPARAT, nu prin embed.
-  // Un manager are `trip_sheets:read` la scope „team" dar niciun drept pe
+  // Un manager are `trip_sheets:read` la scope „team” dar niciun drept pe
   // `vehicles`; un embed refuzat de RLS vine NULL fără nicio eroare, adică o
   // coloană goală pe care nimeni n-o explică.
   const [soferi, vehicule] = await Promise.all([
@@ -65,102 +90,108 @@ async function TabelFoi({
     ),
   ]);
 
-  const cautare = new URLSearchParams();
-  for (const [cheie, valoare] of Object.entries(parametri)) {
-    if (typeof valoare === "string" && cheie !== "cursor") cautare.set(cheie, valoare);
-  }
-  if (urmatorulCursor !== null) cautare.set("cursor", urmatorulCursor);
+  const coloane: readonly Coloana<(typeof randuri)[number]>[] = [
+    {
+      cheie: "plecare",
+      antet: "Plecare",
+      sortabil: true,
+      latime: "ingusta",
+      peTelefon: "titlu",
+      celula: (f) => formatDateTime(new Date(f.plecare_la)),
+    },
+    {
+      cheie: "vehicul",
+      antet: "Vehicul",
+      peTelefon: "meta",
+      // „—” și nu gol: absența poate însemna și lipsa dreptului de a vedea
+      // vehiculul, nu doar lipsa datei.
+      celula: (f) => vehicule.get(f.vehicle_id)?.nr_inmatriculare ?? "—",
+    },
+    {
+      cheie: "sofer",
+      antet: "Șofer",
+      peTelefon: "meta",
+      celula: (f) => {
+        const sofer = f.employee_id === null ? undefined : soferi.get(f.employee_id);
+        return (
+          <>
+            {sofer?.full_name ?? "—"}
+            {sofer === undefined ? null : (
+              <span className="text-muted-foreground"> · {sofer.marca}</span>
+            )}
+          </>
+        );
+      },
+    },
+    {
+      cheie: "km",
+      antet: "Kilometri",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (f) =>
+        f.km_parcursi === null ? (
+          <span className="text-muted-foreground">în curs</span>
+        ) : (
+          `${f.km_parcursi.toLocaleString("ro-RO")} km`
+        ),
+    },
+    {
+      cheie: "traseu",
+      antet: "Traseu",
+      peTelefon: "meta",
+      celula: (f) => <span className="block max-w-xs truncate">{f.traseu ?? "—"}</span>,
+    },
+    {
+      cheie: "stare",
+      antet: "Stare",
+      sortabil: true,
+      peTelefon: "insigna",
+      celula: (f) => (
+        <Badge ton={TONURI_STATUS_FOAIE[f.status]}>{ETICHETE_STATUS_FOAIE[f.status]}</Badge>
+      ),
+    },
+  ];
 
   return (
-    <>
-      <div className="border-border overflow-x-auto rounded-lg border">
-        <table className="w-full text-sm">
-          <caption className="sr-only">Foile de parcurs la care aveți acces.</caption>
-          <thead className="bg-surface text-left">
-            <tr>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Plecare
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Vehicul
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Șofer
-              </th>
-              <th scope="col" className="px-4 py-3 text-right font-medium">
-                Kilometri
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Traseu
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Stare
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-border divide-y">
-            {randuri.map((f) => {
-              const vehicul = vehicule.get(f.vehicle_id);
-              const sofer = f.employee_id === null ? undefined : soferi.get(f.employee_id);
-              return (
-                <RandTabel key={f.id} href={`/flota/foi/${f.id}`}>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <Link
-                      href={`/flota/foi/${f.id}`}
-                      className="underline-offset-2 hover:underline"
-                    >
-                      {formatDateTime(new Date(f.plecare_la))}
-                    </Link>
-                  </td>
-                  {/* „—" și nu gol: absența poate însemna și lipsa dreptului de a
-                      vedea vehiculul, nu doar lipsa datei. */}
-                  <td className="px-4 py-3">{vehicul?.nr_inmatriculare ?? "—"}</td>
-                  <td className="px-4 py-3">
-                    {sofer?.full_name ?? "—"}
-                    {sofer === undefined ? null : (
-                      <span className="text-muted-foreground"> · {sofer.marca}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right tabular-nums">
-                    {f.km_parcursi === null ? (
-                      <span className="text-muted-foreground">în curs</span>
-                    ) : (
-                      `${f.km_parcursi.toLocaleString("ro-RO")} km`
-                    )}
-                  </td>
-                  <td className="max-w-xs truncate px-4 py-3">{f.traseu ?? "—"}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_STATUS_FOAIE[f.status]}`}
-                    >
-                      {ETICHETE_STATUS_FOAIE[f.status]}
-                    </span>
-                  </td>
-                </RandTabel>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      <nav aria-label="Paginare" className="flex justify-end">
-        {urmatorulCursor === null ? null : (
-          <Link
-            href={`/flota/foi?${cautare.toString()}`}
-            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
-          >
-            Pagina următoare
-          </Link>
-        )}
-      </nav>
-    </>
+    <div className="flex flex-col gap-4">
+      <Tabel
+        caption="Foile de parcurs la care aveți acces."
+        coloane={coloane}
+        randuri={randuri}
+        cheieRand={(f) => f.id}
+        href={(f) => `/flota/foi/${f.id}`}
+        sortare={sortare}
+        hrefSortare={(s) =>
+          adresa((p) => {
+            p.set("sort", scrieSortare(s));
+            // Cursorul nu supraviețuiește unei schimbări de sortare: ar continua
+            // de la un rând care, în noua ordine, nu mai e acolo unde era.
+            p.delete("cursor");
+          })
+        }
+        gol={null}
+      />
+      <Paginare
+        afisate={randuri.length}
+        total={total}
+        cursorUrmator={urmatorulCursor}
+        limita={filtre.limita}
+        construiesteHref={({ cursor, limita }) =>
+          adresa((p) => {
+            p.set("limita", String(limita));
+            if (cursor === null) p.delete("cursor");
+            else p.set("cursor", cursor);
+          })
+        }
+      />
+    </div>
   );
 }
 
 export default async function PaginaFoi({ searchParams }: ProprietatiPagina) {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "fleet");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "trip_sheets:read", "own")) {
     return (
@@ -170,36 +201,63 @@ export default async function PaginaFoi({ searchParams }: ProprietatiPagina) {
 
   const parametri = await searchParams;
   const poateCrea = can(permisiuni, "trip_sheets:create", "own");
+  const scope = scopeFor(permisiuni, "trip_sheets:read");
+
+  /*
+   * Vehiculele pentru filtru se citesc AICI, nu în tabel: bara trebuie să fie pe
+   * ecran înainte de rezultate, altfel „niciun rezultat pentru filtrele alese”
+   * apare fără niciun control cu care să le ștergi.
+   *
+   * Lista poate veni GOALĂ, fără nicio eroare: un `manager` are
+   * `trip_sheets:read` la scope „team” și niciun drept pe `vehicles`. Bara nu
+   * randează atunci câmpul de vehicul — un `<select>` cu o singură opțiune,
+   * „Toate”, ar fi arătat ca un filtru stricat.
+   */
+  const { randuri: vehiculeFiltru } = await listeazaVehicule(tenant.organizationId, {
+    status: null,
+    categorie: null,
+    cauta: null,
+    cursor: null,
+    limita: 100,
+  });
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Foi de parcurs</h1>
-          <p className="text-muted-foreground text-sm">
-            Cursele înregistrate, cu kilometrii și starea aprobării.
-          </p>
-        </div>
-        {poateCrea ? (
-          <Link
-            href="/flota/foi/noua"
-            className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
-          >
-            <FilePlus2 aria-hidden="true" className="size-4" />
-            Foaie nouă
-          </Link>
-        ) : null}
-      </header>
-
-      <NavFlota
-        poateVedeaFoi={can(permisiuni, "trip_sheets:read", "own")}
-        poateAproba={can(permisiuni, "trip_sheets:approve", "team")}
-        poateVedeaAnomalii={can(permisiuni, "vehicles:update", "team")}
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Foi de parcurs"
+        // Textul era fix și sugera registrul întregii firme și unui șofer care
+        // își vede doar propriile curse.
+        descriere={
+          scope === "all"
+            ? "Toate cursele organizației, cu kilometrii și starea aprobării."
+            : scope === "team"
+              ? "Cursele echipei dumneavoastră, cu kilometrii și starea aprobării."
+              : "Cursele dumneavoastră, cu kilometrii și starea aprobării."
+        }
+        {...(poateCrea
+          ? {
+              actiuni: (
+                <Link href="/flota/foi/noua" className={buton({ varianta: "primar" })}>
+                  <FilePlus2 aria-hidden="true" className="size-4" />
+                  Foaie nouă
+                </Link>
+              ),
+            }
+          : {})}
+        file={
+          <NavFlota
+            poateVedeaFoi={can(permisiuni, "trip_sheets:read", "own")}
+            poateAproba={can(permisiuni, "trip_sheets:approve", "team")}
+            poateVedeaAnomalii={can(permisiuni, "vehicles:update", "team")}
+          />
+        }
       />
 
-      <Suspense key={JSON.stringify(parametri)} fallback={<SkeletonTable cols={6} />}>
+      <FiltreFoi parametri={parametri} vehicule={vehiculeFiltru} />
+
+      <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={6} />}>
         <TabelFoi organizationId={tenant.organizationId} parametri={parametri} />
       </Suspense>
-    </main>
+    </div>
   );
 }

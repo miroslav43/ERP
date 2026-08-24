@@ -2,11 +2,12 @@
 
 import { useId, useState, useTransition } from "react";
 
+import { Buton } from "@/components/ui/buton";
 import type { SetariPontajComplete } from "@/lib/queries/attendance";
 
 import { salveazaSetariPontaj } from "./actions";
 
-const CAMP = "border-foreground/60 rounded-md border px-3 py-2 text-sm";
+const CAMP = "border-foreground/60 rounded-control border px-3 py-2 text-corp";
 
 /**
  * Fiecare câmp are o descriere sub el, nu doar o etichetă. Sunt parametri de
@@ -33,7 +34,7 @@ function Numeric({
   const id = useId();
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="text-sm">
+      <label htmlFor={id} className="text-corp">
         {eticheta}
       </label>
       <input
@@ -47,7 +48,7 @@ function Numeric({
         required
         className={CAMP}
       />
-      <p className="text-muted-foreground text-xs">{descriere}</p>
+      <p className="text-muted-foreground text-nota">{descriere}</p>
     </div>
   );
 }
@@ -97,19 +98,19 @@ export function FormularSetariPontaj({
   }
 
   return (
-    <form action={trimite} className="border-border space-y-6 rounded-lg border p-4">
+    <form action={trimite} className="border-border rounded-panou space-y-6 border p-4">
       <div className="flex flex-col gap-1">
-        <label htmlFor={idDeLa} className="text-sm">
+        <label htmlFor={idDeLa} className="text-corp">
           În vigoare de la
         </label>
         <input id={idDeLa} name="valabil_de_la" type="date" required className={CAMP} />
-        <p className="text-muted-foreground text-xs">
+        <p className="text-muted-foreground text-nota">
           Lunile calculate înainte de această dată rămân pe versiunea anterioară.
         </p>
       </div>
 
       <fieldset className="space-y-4">
-        <legend className="text-sm font-medium">Timp de lucru</legend>
+        <legend className="text-corp font-medium">Timp de lucru</legend>
         <div className="grid gap-4 sm:grid-cols-2">
           <Numeric
             nume="ore_pe_zi"
@@ -159,8 +160,8 @@ export function FormularSetariPontaj({
       </fieldset>
 
       <fieldset className="space-y-4">
-        <legend className="text-sm font-medium">Sporuri</legend>
-        <p className="text-muted-foreground text-xs">
+        <legend className="text-corp font-medium">Sporuri</legend>
+        <p className="text-muted-foreground text-nota">
           Procente de la 0 la 300, <strong>nu</strong> fracții. Setările de salarizare folosesc
           fracții (0,25 pentru 25%); aici scara e alta, iar confuzia ar înmulți sporurile cu o sută.
         </p>
@@ -197,10 +198,10 @@ export function FormularSetariPontaj({
       </fieldset>
 
       <fieldset className="space-y-4">
-        <legend className="text-sm font-medium">Munca de noapte</legend>
+        <legend className="text-corp font-medium">Munca de noapte</legend>
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="flex flex-col gap-1">
-            <label htmlFor={idNoapteStart} className="text-sm">
+            <label htmlFor={idNoapteStart} className="text-corp">
               Începutul intervalului
             </label>
             <input
@@ -213,7 +214,7 @@ export function FormularSetariPontaj({
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor={idNoapteSfarsit} className="text-sm">
+            <label htmlFor={idNoapteSfarsit} className="text-corp">
               Sfârșitul intervalului
             </label>
             <input
@@ -236,7 +237,7 @@ export function FormularSetariPontaj({
       </fieldset>
 
       <fieldset className="space-y-4">
-        <legend className="text-sm font-medium">Compensare și pauze</legend>
+        <legend className="text-corp font-medium">Compensare și pauze</legend>
         <div className="grid gap-4 sm:grid-cols-2">
           <Numeric
             nume="termen_compensare_suplimentare_zile"
@@ -270,7 +271,7 @@ export function FormularSetariPontaj({
             maxim={24}
           />
         </div>
-        <label className="flex items-center gap-2 text-sm">
+        <label className="text-corp flex items-center gap-2">
           <input
             type="checkbox"
             name="pauza_masa_inclusa_in_program"
@@ -281,7 +282,7 @@ export function FormularSetariPontaj({
       </fieldset>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idObservatii} className="text-sm">
+        <label htmlFor={idObservatii} className="text-corp">
           Observații juridice
         </label>
         <textarea
@@ -291,22 +292,18 @@ export function FormularSetariPontaj({
           defaultValue={setariCurente?.observatii_juridice ?? ""}
           className={CAMP}
         />
-        <p className="text-muted-foreground text-xs">
+        <p className="text-muted-foreground text-nota">
           Cine a confirmat valorile și pe ce temei. Peste un an, cifra fără sursă nu mai poate fi
           apărată.
         </p>
       </div>
 
-      <button
-        type="submit"
-        disabled={seTrimite}
-        className="bg-foreground text-background rounded-md px-4 py-2 text-sm disabled:opacity-50"
-      >
-        {seTrimite ? "Se salvează…" : "Salvează versiunea"}
-      </button>
+      <Buton type="submit" varianta="primar" inCurs={seTrimite} textInCurs="Se salvează…">
+        Salvează versiunea
+      </Buton>
 
-      {mesaj !== null ? <p className="text-success text-sm">{mesaj}</p> : null}
-      {eroare !== null ? <p className="text-danger text-sm">{eroare}</p> : null}
+      {mesaj !== null ? <p className="text-success text-corp">{mesaj}</p> : null}
+      {eroare !== null ? <p className="text-danger text-corp">{eroare}</p> : null}
     </form>
   );
 }

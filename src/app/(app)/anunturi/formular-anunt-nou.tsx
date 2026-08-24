@@ -3,6 +3,8 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
+
 import { creeazaAnunt } from "./actions";
 
 export function FormularAnuntNou() {
@@ -36,11 +38,11 @@ export function FormularAnuntNou() {
   }
 
   return (
-    <form className="border-border space-y-3 rounded-lg border p-4">
-      <p className="text-sm font-medium">Anunț nou</p>
+    <form className="border-border rounded-panou space-y-3 border p-4">
+      <p className="text-corp font-medium">Anunț nou</p>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idTitlu} className="text-sm">
+        <label htmlFor={idTitlu} className="text-corp">
           Titlu
         </label>
         <input
@@ -48,12 +50,12 @@ export function FormularAnuntNou() {
           name="titlu"
           required
           maxLength={200}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idContinut} className="text-sm">
+        <label htmlFor={idContinut} className="text-corp">
           Conținut
         </label>
         <textarea
@@ -62,51 +64,50 @@ export function FormularAnuntNou() {
           required
           rows={4}
           maxLength={10000}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-wrap items-end gap-4">
         <div className="flex flex-col gap-1">
-          <label htmlFor={idExpira} className="text-sm">
+          <label htmlFor={idExpira} className="text-corp">
             Expiră la (opțional)
           </label>
           <input
             id={idExpira}
             name="expira_la"
             type="date"
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
-        <label htmlFor={idFixat} className="flex items-center gap-2 pb-2 text-sm">
+        <label htmlFor={idFixat} className="text-corp flex items-center gap-2 pb-2">
           <input id={idFixat} type="checkbox" name="fixat" />
           Fixează în capul listei
         </label>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          disabled={inCurs}
+        <Buton
+          varianta="primar"
+          inCurs={inCurs}
+          textInCurs="Se publică…"
           onClick={(e) => {
             trimite(new FormData(e.currentTarget.form ?? undefined), true);
           }}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
         >
-          {inCurs ? "Se publică…" : "Publică"}
-        </button>
-        <button
-          type="button"
+          Publică
+        </Buton>
+        <Buton
+          varianta="secundar"
           disabled={inCurs}
           onClick={(e) => {
             trimite(new FormData(e.currentTarget.form ?? undefined), false);
           }}
-          className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
         >
           Salvează ca ciornă
-        </button>
+        </Buton>
         {eroare === null ? null : (
-          <p role="alert" className="text-danger w-full text-sm">
+          <p role="alert" className="text-danger text-corp w-full">
             {eroare}
           </p>
         )}

@@ -4,6 +4,8 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { TIPURI_PREZENTA, type TipPrezenta } from "@/schemas/attendance";
 import { ETICHETE_TIP_PREZENTA } from "../etichete";
 import { trimiteSaptamanaPontaj } from "./actions";
@@ -22,6 +24,11 @@ interface Proprietati {
 }
 
 const ETICHETE_ZI = ["Luni", "Marți", "Miercuri", "Joi", "Vineri", "Sâmbătă", "Duminică"] as const;
+
+/** Eticheta zilei vine din poziție, deci indexul călătorește cu rândul. */
+interface RandZi extends ZiFormular {
+  readonly index: number;
+}
 
 export function FormularSaptamana({ saptamanaStart, zileInitiale, poateEdita }: Proprietati) {
   const router = useRouter();
@@ -55,117 +62,144 @@ export function FormularSaptamana({ saptamanaStart, zileInitiale, poateEdita }: 
     });
   }
 
+  const randuri: readonly RandZi[] = zile.map((zi, index) => ({ ...zi, index }));
+
+  /*
+   * Omul introduce șapte cifre și, până acum, nu afla niciodată cât a declarat
+   * în total — deși exact totalul e ce citește managerul. Se calculează aici,
+   * nu într-un `<tfoot>`: subsolul tabelului se randează doar peste 768px, iar
+   * ecranul ăsta e singurul din modul deschis de pe telefon.
+   */
+  const totalPlanificat = zile.reduce((suma, zi) => {
+    const ore = Number(zi.ore_planificate);
+    return suma + (Number.isFinite(ore) ? ore : 0);
+  }, 0);
+
+  const coloane: readonly Coloana<RandZi>[] = [
+    {
+      cheie: "zi",
+      antet: "Zi",
+      latime: "ingusta",
+      peTelefon: "titlu",
+      celula: (rand) => (
+        <>
+          {ETICHETE_ZI[rand.index]}
+          <span className="text-muted-foreground ml-1.5 font-normal">
+            {new Date(`${rand.data}T00:00:00Z`).toLocaleDateString("ro-RO", {
+              day: "2-digit",
+              month: "2-digit",
+            })}
+          </span>
+        </>
+      ),
+    },
+    {
+      cheie: "tip_prezenta",
+      antet: "Cum vin la lucru",
+      peTelefon: "meta",
+      celula: (rand) => (
+        <select
+          aria-label={`Mod de prezență — ${ETICHETE_ZI[rand.index]}`}
+          value={rand.tip_prezenta}
+          disabled={!poateEdita || inCurs}
+          onChange={(e) => {
+            actualizeazaZi(rand.index, { tip_prezenta: e.target.value as TipPrezenta });
+          }}
+          className="border-foreground/60 disabled:bg-surface rounded-control text-corp border px-2 py-1.5 disabled:cursor-not-allowed"
+        >
+          {TIPURI_PREZENTA.map((t) => (
+            <option key={t} value={t}>
+              {ETICHETE_TIP_PREZENTA[t]}
+            </option>
+          ))}
+        </select>
+      ),
+    },
+    {
+      cheie: "ore_planificate",
+      antet: "Ore planificate",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (rand) => (
+        <input
+          aria-label={`Ore planificate — ${ETICHETE_ZI[rand.index]}`}
+          type="number"
+          min={0}
+          max={24}
+          step={0.5}
+          value={rand.ore_planificate}
+          disabled={!poateEdita || inCurs}
+          onChange={(e) => {
+            actualizeazaZi(rand.index, { ore_planificate: e.target.value });
+          }}
+          className="border-foreground/60 disabled:bg-surface rounded-control text-corp w-20 border px-2 py-1.5 disabled:cursor-not-allowed"
+        />
+      ),
+    },
+    {
+      cheie: "observatii",
+      antet: "Observații",
+      peTelefon: "meta",
+      celula: (rand) => (
+        <input
+          aria-label={`Observații — ${ETICHETE_ZI[rand.index]}`}
+          type="text"
+          maxLength={500}
+          value={rand.observatii}
+          disabled={!poateEdita || inCurs}
+          onChange={(e) => {
+            actualizeazaZi(rand.index, { observatii: e.target.value });
+          }}
+          className="border-foreground/60 disabled:bg-surface rounded-control text-corp w-full min-w-32 border px-2 py-1.5 disabled:cursor-not-allowed"
+        />
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-4">
-      <div className="border-border overflow-x-auto rounded-lg border">
-        <table className="w-full text-sm">
-          <caption className="sr-only">Planul de prezență pentru săptămâna selectată.</caption>
-          <thead className="bg-surface text-left">
-            <tr>
-              <th scope="col" className="px-3 py-2 font-medium">
-                Zi
-              </th>
-              <th scope="col" className="px-3 py-2 font-medium">
-                Cum vin la lucru
-              </th>
-              <th scope="col" className="px-3 py-2 font-medium">
-                Ore planificate
-              </th>
-              <th scope="col" className="px-3 py-2 font-medium">
-                Observații
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-border divide-y">
-            {zile.map((zi, index) => (
-              <tr key={zi.data}>
-                <td className="px-3 py-2 font-medium whitespace-nowrap">
-                  {ETICHETE_ZI[index]}
-                  <span className="text-muted-foreground ml-1.5 font-normal">
-                    {new Date(`${zi.data}T00:00:00Z`).toLocaleDateString("ro-RO", {
-                      day: "2-digit",
-                      month: "2-digit",
-                    })}
-                  </span>
-                </td>
-                <td className="px-3 py-2">
-                  <select
-                    aria-label={`Mod de prezență — ${ETICHETE_ZI[index]}`}
-                    value={zi.tip_prezenta}
-                    disabled={!poateEdita || inCurs}
-                    onChange={(e) => {
-                      actualizeazaZi(index, { tip_prezenta: e.target.value as TipPrezenta });
-                    }}
-                    className="border-foreground/60 disabled:bg-surface rounded-md border px-2 py-1.5 text-sm disabled:cursor-not-allowed"
-                  >
-                    {TIPURI_PREZENTA.map((t) => (
-                      <option key={t} value={t}>
-                        {ETICHETE_TIP_PREZENTA[t]}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td className="px-3 py-2">
-                  <input
-                    aria-label={`Ore planificate — ${ETICHETE_ZI[index]}`}
-                    type="number"
-                    min={0}
-                    max={24}
-                    step={0.5}
-                    value={zi.ore_planificate}
-                    disabled={!poateEdita || inCurs}
-                    onChange={(e) => {
-                      actualizeazaZi(index, { ore_planificate: e.target.value });
-                    }}
-                    className="border-foreground/60 disabled:bg-surface w-20 rounded-md border px-2 py-1.5 text-sm disabled:cursor-not-allowed"
-                  />
-                </td>
-                <td className="px-3 py-2">
-                  <input
-                    aria-label={`Observații — ${ETICHETE_ZI[index]}`}
-                    type="text"
-                    maxLength={500}
-                    value={zi.observatii}
-                    disabled={!poateEdita || inCurs}
-                    onChange={(e) => {
-                      actualizeazaZi(index, { observatii: e.target.value });
-                    }}
-                    className="border-foreground/60 disabled:bg-surface w-full min-w-32 rounded-md border px-2 py-1.5 text-sm disabled:cursor-not-allowed"
-                  />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Tabel
+        caption="Planul de prezență pentru săptămâna selectată."
+        coloane={coloane}
+        randuri={randuri}
+        cheieRand={(rand) => rand.data}
+        densitate="compact"
+        gol={null}
+      />
+
+      <p className="border-border bg-surface rounded-panou text-corp flex justify-between border px-4 py-2 font-medium">
+        <span>Total planificat pe săptămână</span>
+        <output aria-live="polite" className="tabular-nums">
+          {totalPlanificat} h
+        </output>
+      </p>
 
       <div aria-live="polite">
-        {eroare === null ? null : <p className="text-danger text-sm">{eroare}</p>}
+        {eroare === null ? null : <p className="text-danger text-corp">{eroare}</p>}
       </div>
 
       {poateEdita ? (
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
+          <Buton
+            varianta="secundar"
             disabled={inCurs}
             onClick={() => {
               trimite("ciorna");
             }}
-            className="border-foreground/60 hover:bg-surface disabled:text-muted-foreground rounded-md border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
             id={idBaza}
           >
             Salvează ciornă
-          </button>
-          <button
-            type="button"
-            disabled={inCurs}
+          </Buton>
+          <Buton
+            varianta="primar"
+            inCurs={inCurs}
+            textInCurs="Se trimite…"
             onClick={() => {
               trimite("trimisa");
             }}
-            className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
           >
-            {inCurs ? "Se trimite…" : "Trimite spre aprobare"}
-          </button>
+            Trimite spre aprobare
+          </Buton>
         </div>
       ) : null}
     </div>

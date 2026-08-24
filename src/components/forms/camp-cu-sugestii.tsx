@@ -1,8 +1,12 @@
 // src/components/forms/camp-cu-sugestii.tsx
 "use client";
 
+import { cheieCautare } from "@/lib/text/diacritice";
 import { useId, useState } from "react";
 import { ChevronDown } from "lucide-react";
+
+import { clasaControl } from "@/components/ui/camp";
+import { cn } from "@/lib/ui/cn";
 
 /**
  * Câmp text liber cu o listă de sugestii.
@@ -16,15 +20,16 @@ import { ChevronDown } from "lucide-react";
  * sugestiile sunt doar scurtături, orice text scris de mână rămâne valid.
  */
 
-const CLASA_CAMP =
-  "mt-1 w-full rounded-md border border-border bg-background py-2 pl-3 pr-9 text-sm text-foreground";
-
-function normalizeaza(text: string): string {
-  return text
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLowerCase();
-}
+/**
+ * `border-border` = 1,29:1 pe pânză, sub cele 3:1 cerute de WCAG 1.4.11 pentru
+ * conturul unui control. Aceeași reparație ca în `combobox-cod.tsx`, unde e și
+ * motivarea pe larg: `clasaControl()` aduce `border-foreground/60` (4,23:1) și
+ * stările care lipseau (hover, `aria-invalid`, `disabled`).
+ *
+ * `pe-9` peste `px-3`: săgeata de deschidere stă în dreapta, iar textul n-are
+ * voie să treacă pe sub ea. Logic (`pe-`), nu `pr-`, ca la restul primitivelor.
+ */
+const CLASA_CAMP = cn("mt-1 pe-9", clasaControl());
 
 interface Proprietati {
   readonly id: string;
@@ -54,9 +59,9 @@ export function CampCuSugestii({
   const [neatins, setNeatins] = useState(true);
   const idListbox = useId();
 
-  const termen = normalizeaza(value.trim());
+  const termen = cheieCautare(value.trim());
   const rezultate =
-    neatins || termen === "" ? sugestii : sugestii.filter((s) => normalizeaza(s).includes(termen));
+    neatins || termen === "" ? sugestii : sugestii.filter((s) => cheieCautare(s).includes(termen));
 
   function comite(sugestie: string): void {
     onChange(sugestie);
@@ -142,7 +147,12 @@ export function CampCuSugestii({
         <ul
           id={idListbox}
           role="listbox"
-          className="border-border bg-surface absolute z-10 mt-1 max-h-64 w-full overflow-auto rounded-md border shadow-md"
+          /* Aceeași gramatică ca `ListaRezultate` din `combobox-cod.tsx`, și din
+             aceleași motive scrise pe larg acolo: `z-meniu` (30) în loc de
+             `z-10` (treapta coloanei lipite, sub antetul lipit de tabel);
+             panoul pe pânză, ca rândul să aibă unde să se ducă la hover; și o
+             înălțime care nu acoperă un telefon ținut în peisaj. */
+          className="border-border bg-background rounded-control shadow-plutitor z-meniu absolute mt-1 max-h-[min(16rem,50dvh)] w-full overflow-auto border"
         >
           {rezultate.map((sugestie, index) => (
             <li key={sugestie}>
@@ -155,8 +165,10 @@ export function CampCuSugestii({
                   comite(sugestie);
                 }}
                 className={
-                  "text-foreground block w-full px-3 py-2 text-left text-sm " +
-                  (index === indiceActiv ? "bg-primary/10" : "hover:bg-primary/5")
+                  "text-foreground text-corp block w-full border-l-2 px-3 py-2 text-left transition-colors " +
+                  (index === indiceActiv
+                    ? "border-l-primary bg-surface"
+                    : "hover:bg-surface border-l-transparent")
                 }
               >
                 {sugestie}

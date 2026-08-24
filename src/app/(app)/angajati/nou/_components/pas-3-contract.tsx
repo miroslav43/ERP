@@ -81,8 +81,8 @@ export function Pas3Contract({
 
   return (
     <div className="space-y-6">
-      <fieldset className="border-border space-y-4 rounded-lg border p-4">
-        <legend className="text-foreground px-1 text-sm font-medium">Organizare</legend>
+      <fieldset className="border-border rounded-panou space-y-4 border p-4">
+        <legend className="text-foreground text-corp px-1 font-medium">Organizare</legend>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor={`${idFormular}-departament`} className={claseLabel}>
@@ -154,8 +154,8 @@ export function Pas3Contract({
         </div>
       </fieldset>
 
-      <fieldset className="border-border space-y-4 rounded-lg border p-4">
-        <legend className="text-foreground px-1 text-sm font-medium">Contractul de muncă</legend>
+      <fieldset className="border-border rounded-panou space-y-4 border p-4">
+        <legend className="text-foreground text-corp px-1 font-medium">Contractul de muncă</legend>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor={`${idFormular}-numar`} className={claseLabel}>
@@ -372,8 +372,8 @@ export function Pas3Contract({
         </div>
       </fieldset>
 
-      <fieldset className="border-border space-y-4 rounded-lg border p-4">
-        <legend className="text-foreground px-1 text-sm font-medium">Salarizare</legend>
+      <fieldset className="border-border rounded-panou space-y-4 border p-4">
+        <legend className="text-foreground text-corp px-1 font-medium">Salarizare</legend>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor={`${idFormular}-salariu`} className={claseLabel}>
@@ -413,7 +413,7 @@ export function Pas3Contract({
               {...register("zile_concediu_anual")}
               className={claseCamp}
             />
-            <p className="text-muted-foreground mt-1 text-xs">
+            <p className="text-muted-foreground text-nota mt-1">
               Implicit conform politicii organizației — modificabil aici doar pentru acest angajat.
             </p>
           </div>

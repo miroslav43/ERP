@@ -18,7 +18,7 @@ interface ProprietatiPagina {
 export default async function PaginaSesizareNoua({ searchParams }: ProprietatiPagina) {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "maintenance");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "maintenance:create", "own")) {
     return (
@@ -36,15 +36,15 @@ export default async function PaginaSesizareNoua({ searchParams }: ProprietatiPa
   const echipamentIdPrefill = echipamentBrut === undefined ? null : idDinRuta(echipamentBrut);
 
   return (
-    <main className="mx-auto w-full max-w-2xl space-y-6 p-6">
+    <div className="mx-auto w-full max-w-2xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Sesizare nouă</h1>
-        <p className="text-muted-foreground text-sm">
+        <h1 className="text-titlu font-semibold">Sesizare nouă</h1>
+        <p className="text-muted-foreground text-corp">
           Raportați o defecțiune. Căutați echipamentul după cod sau denumire — durează un minut.
         </p>
       </div>
 
       <FormularSesizare echipamentIdPrefill={echipamentIdPrefill} />
-    </main>
+    </div>
   );
 }

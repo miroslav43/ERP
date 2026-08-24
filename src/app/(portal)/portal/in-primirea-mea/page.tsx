@@ -3,7 +3,8 @@ import type { Metadata } from "next";
 import { PackageCheck } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -20,7 +21,7 @@ export const metadata: Metadata = { title: "În primirea mea" };
 export default async function PaginaInPrimireaMea() {
   const { tenant, user } = await requireTenant();
   await requireFeature(tenant.organizationId, "inventory");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "inventory:read", "own")) {
     return (
@@ -41,44 +42,45 @@ export default async function PaginaInPrimireaMea() {
   const neconfirmate = randuri.filter((r) => r.confirmat_de_angajat_la === null).length;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 p-4">
-      <header>
-        <h1 className="text-foreground text-xl font-semibold">În primirea mea</h1>
-        <p className="text-muted-foreground text-sm">
-          {neconfirmate > 0
+    <div className={`${LATIMI.lista} space-y-4 p-4`}>
+      <AntetPagina
+        titlu="În primirea mea"
+        descriere={
+          neconfirmate > 0
             ? `${neconfirmate.toLocaleString("ro-RO")} ${neconfirmate === 1 ? "obiect așteaptă" : "obiecte așteaptă"} confirmarea dumneavoastră.`
-            : "Obiectele pe care le aveți acum în primire. Cele returnate dispar din listă."}
-        </p>
-      </header>
+            : "Obiectele pe care le aveți acum în primire. Cele returnate dispar din listă."
+        }
+      />
 
       {randuri.length === 0 ? (
-        <EmptyState
-          icon={PackageCheck}
-          title="Nu aveți obiecte în primire"
-          description="Momentan nu vă este predat niciun obiect de inventar."
+        <StareGoala
+          fel="initiala"
+          pictograma={PackageCheck}
+          titlu="Nu aveți obiecte în primire"
+          descriere="Momentan nu vă este predat niciun obiect de inventar."
         />
       ) : (
         <ul className="space-y-2">
           {randuri.map((rand) => (
-            <li key={rand.id} className="bg-surface border-border rounded-lg border p-4">
-              <p className="text-foreground text-sm font-medium">{rand.obiect.denumire}</p>
-              <p className="text-muted-foreground mt-0.5 text-xs">
+            <li key={rand.id} className="bg-surface border-border rounded-panou border p-4">
+              <p className="text-foreground text-corp font-medium">{rand.obiect.denumire}</p>
+              <p className="text-muted-foreground text-nota mt-0.5">
                 Nr. inventar <span className="font-mono">{rand.obiect.numar_inventar}</span>
                 {rand.obiect.serie === null ? null : ` · seria ${rand.obiect.serie}`}
               </p>
-              <p className="text-muted-foreground mt-1 text-sm">
+              <p className="text-muted-foreground text-corp mt-1">
                 Predat {formatDateTime(rand.predat_la)} · stare la predare:{" "}
                 {ETICHETE_STARE[rand.stare_la_predare]}
               </p>
               {rand.observatii === null ? null : (
-                <p className="text-muted-foreground mt-1 text-sm">{rand.observatii}</p>
+                <p className="text-muted-foreground text-corp mt-1">{rand.observatii}</p>
               )}
 
               <div className="mt-3">
                 {rand.confirmat_de_angajat_la === null ? (
                   <ButonConfirmare alocareId={rand.id} />
                 ) : (
-                  <span className="border-success text-success inline-block rounded border px-2 py-0.5 text-xs">
+                  <span className="border-success text-success text-nota inline-block rounded border px-2 py-0.5">
                     Confirmat la {formatDateTime(rand.confirmat_de_angajat_la)}
                   </span>
                 )}

@@ -3,10 +3,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { ChevronRight, FileText, Pencil } from "lucide-react";
+import { ChevronRight, FileText, FolderOpen, KeyRound, Pencil } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina } from "@/components/ui/antet-pagina";
 import { AvatarAngajat } from "@/components/data/avatar-angajat";
+import { Badge } from "@/components/ui/badge";
+import { buton } from "@/components/ui/buton";
 import { IncarcareAvatar } from "@/components/forms/incarcare-avatar";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -14,6 +17,7 @@ import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate } from "@/lib/format/date";
 import { formatLei } from "@/lib/format/money";
+import { cn } from "@/lib/ui/cn";
 import { pregatesteIncarcareAvatarulPropriu, salveazaAvatarulPropriu } from "@/lib/actions/profile";
 import { createServerSupabase } from "@/lib/supabase/server";
 import {
@@ -28,11 +32,12 @@ import {
 } from "@/lib/queries/employees";
 
 import {
-  CLASE_STATUS,
   ETICHETE_CONTRACT,
   ETICHETE_MOD_LUCRU,
   ETICHETE_SCUTIRE,
   ETICHETE_STATUS,
+  ETICHETE_TIP_COMPONENTA,
+  TONURI_STATUS,
 } from "../etichete";
 import { ButonIncheieComponenta } from "./buton-incheie-componenta";
 import { DateSensibile } from "./date-sensibile";
@@ -44,14 +49,7 @@ import { FormularModificaSalariu } from "./formular-modifica-salariu";
 import { FormularScutireFiscala } from "./formular-scutire-fiscala";
 import { IncarcareAvatarAdmin } from "./incarcare-avatar-admin";
 import { SectiuneConcedii } from "./sectiune-concedii";
-
-const ETICHETE_TIP_COMPONENTA: Readonly<Record<string, string>> = {
-  spor_procent: "Spor procentual",
-  spor_suma: "Spor — sumă fixă",
-  indemnizatie: "Indemnizație",
-  prima_recurenta: "Primă recurentă",
-  beneficiu_natura: "Beneficiu în natură",
-};
+import { SectiuneDependenti, type RandDependent } from "./sectiune-dependenti";
 
 export const metadata: Metadata = { title: "Fișa angajatului" };
 
@@ -59,7 +57,7 @@ interface ProprietatiPagina {
   readonly params: Promise<{ readonly id: string }>;
 }
 
-const CLASA_SECTIUNE = "rounded-lg border border-border bg-surface p-5 shadow-sm";
+const CLASA_SECTIUNE = "rounded-panou border border-border bg-surface p-5 shadow-ridicat";
 
 function Camp({
   eticheta,
@@ -71,8 +69,8 @@ function Camp({
   const gol = valoare === null || valoare.length === 0;
   return (
     <div>
-      <dt className="text-muted-foreground text-xs tracking-wide uppercase">{eticheta}</dt>
-      <dd className={`mt-0.5 text-sm ${gol ? "text-muted-foreground/70 italic" : ""}`}>
+      <dt className="text-muted-foreground text-nota tracking-wide uppercase">{eticheta}</dt>
+      <dd className={`text-corp mt-0.5 ${gol ? "text-muted-foreground/70 italic" : ""}`}>
         {gol ? "Necompletat" : valoare}
       </dd>
     </div>
@@ -88,7 +86,7 @@ function GrupCampuri({
 }) {
   return (
     <div className="border-border border-t pt-4 first:border-t-0 first:pt-0">
-      <h3 className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase">
+      <h3 className="text-muted-foreground text-nota mb-2 font-semibold tracking-wide uppercase">
         {titlu}
       </h3>
       <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">{children}</dl>
@@ -98,7 +96,7 @@ function GrupCampuri({
 
 function StareGoala({ mesaj }: { readonly mesaj: string }) {
   return (
-    <p className="border-border text-muted-foreground rounded-md border border-dashed px-3 py-4 text-center text-sm">
+    <p className="border-border text-muted-foreground rounded-control text-corp border border-dashed px-3 py-4 text-center">
       {mesaj}
     </p>
   );
@@ -109,7 +107,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
   const utilizator = await requireUser();
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "nucleu");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
   const scope = scopeFor(permisiuni, "employees:read") ?? undefined;
 
   if (scope === undefined) {
@@ -131,7 +129,10 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
     scope === "all" ? await citesteComponenteSalariale(tenant.organizationId, id) : [];
   const poateAdaugaComponenta = can(permisiuni, "payroll:create", "all");
   const evaluari = await citesteEvaluari(tenant.organizationId, id);
-  const poateCreaEvaluare = can(permisiuni, "employees:update", "team");
+  // Cheie proprie din 0070. Cu `employees:update` — pe care managerul nu-l are —
+  // formularul de evaluare era, în fapt, exclusiv al HR-ului și al
+  // administratorului, contrar cerinței „managerul direct".
+  const poateCreaEvaluare = can(permisiuni, "evaluations:create", "team");
   const sabloaneEvaluare = poateCreaEvaluare
     ? await (async () => {
         const db = await createServerSupabase();
@@ -160,9 +161,24 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
           return data ?? [];
         })()
       : [];
+  /*
+   * TOATE contractele active, nu doar primul găsit.
+   *
+   * Codul de dinainte lua `find(...)` și băga restul în blocul pliat „Istoric
+   * contracte și acte adiționale". La cumul de funcții — caz pe care lista
+   * chiar îl marchează, prin `is_primary` și eticheta „(cumul de funcții)" —
+   * al doilea contract ACTIV ajungea sub eticheta „istoric", lângă cele
+   * încetate. Că nu era intenționat se vedea chiar acolo: blocul pliat testa
+   * `contract.status === "activ"` ca să ofere butonul de încetare, adică oferea
+   * încetarea unui contract dintr-o secțiune numită istoric.
+   *
+   * `contractPrincipal` rămâne primul activ de bază: el guvernează formularul
+   * de modificare salarială de la baza secțiunii.
+   */
+  const contracteActive = angajat.contracts.filter((c) => c.status === "activ");
   const contractPrincipal =
-    angajat.contracts.find((c) => !c.este_act_aditional && c.status === "activ") ?? null;
-  const contracteIstoric = angajat.contracts.filter((c) => c.id !== contractPrincipal?.id);
+    contracteActive.find((c) => !c.este_act_aditional) ?? contracteActive[0] ?? null;
+  const contracteIstoric = angajat.contracts.filter((c) => c.status !== "activ");
   const lantManageri = await lantulDeManageri(
     tenant.organizationId,
     angajat.manager_path,
@@ -171,98 +187,121 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
   const esteFisaProprie = angajat.user_id === utilizator.id;
   const poateIncarcaPtOricine = can(permisiuni, "users:update", "all");
   const poateEditaAngajat = can(permisiuni, "employees:update", "all");
+  // Pragul `team` e cel mai mic care deschide ecranul: `org_admin` are `all`
+  // (toată firma), managerul `team` (doar echipa lui, restul îl oprește RLS).
+  const poateAcordaPermisiuni = can(permisiuni, "roles:update", "team");
   const poateVedeaRegulileConcediu = can(permisiuni, "leave:read", "all");
 
-  return (
-    <main className="space-y-6 p-6">
-      <header className={CLASA_SECTIUNE}>
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex flex-wrap items-start gap-4">
-            {esteFisaProprie ? (
-              <IncarcareAvatar
-                urlInitial={angajat.avatar_url}
-                nume={angajat.full_name}
-                pregateste={pregatesteIncarcareAvatarulPropriu}
-                salveaza={salveazaAvatarulPropriu}
-              />
-            ) : poateIncarcaPtOricine && angajat.user_id !== null ? (
-              <IncarcareAvatarAdmin
-                employeeId={angajat.id}
-                urlInitial={angajat.avatar_url}
-                nume={angajat.full_name}
-              />
-            ) : (
-              <AvatarAngajat url={angajat.avatar_url} nume={angajat.full_name} marime="lg" />
-            )}
+  // Persoanele în întreținere (0069). RLS (`employee_dependents_select` →
+  // `app.can_see_employee`) decide singură cine le vede; pagina nu filtrează.
+  const dbFisa = await createServerSupabase();
+  const { data: dependentiBruti } = await dbFisa
+    .from("employee_dependents")
+    .select("id, nume, relatie, data_nasterii, in_intretinere_de_la, in_intretinere_pana_la")
+    .eq("organization_id", tenant.organizationId)
+    .eq("employee_id", angajat.id)
+    .is("deleted_at", null)
+    .order("in_intretinere_de_la", { ascending: true })
+    .returns<RandDependent[]>();
+  const dependenti = dependentiBruti ?? [];
 
-            <div>
-              <h1 className="text-2xl font-semibold">{angajat.full_name}</h1>
-              <p className="text-muted-foreground text-sm">
-                Marca <span className="font-mono">{angajat.marca}</span>
-                {angajat.job_position !== null ? ` · ${angajat.job_position.denumire}` : ""}
-                {angajat.department !== null ? ` · ${angajat.department.denumire}` : ""}
-              </p>
-              {poateIncarcaPtOricine && angajat.user_id === null ? (
-                <p className="text-muted-foreground mt-1 text-xs italic">
-                  Fără cont în portal — nu i se poate atașa o fotografie.
-                </p>
-              ) : null}
-
-              {lantManageri.length > 0 ? (
-                <ol className="mt-2 flex flex-wrap items-center gap-1.5 text-sm">
-                  {lantManageri.map((veriga) => (
-                    <li key={veriga.id} className="flex items-center gap-1.5">
-                      <Link
-                        href={`/angajati/${veriga.id}`}
-                        className="border-border bg-background hover:border-primary/30 hover:bg-primary/5 inline-flex items-center gap-1.5 rounded-full border py-1 pr-3 pl-1 transition-colors"
-                      >
-                        <AvatarAngajat
-                          url={veriga.avatar_url}
-                          nume={veriga.full_name}
-                          marime="sm"
-                        />
-                        <span className="font-medium">{veriga.full_name}</span>
-                      </Link>
-                      <ChevronRight
-                        aria-hidden="true"
-                        className="text-muted-foreground size-4 shrink-0"
-                      />
-                    </li>
-                  ))}
-                  <li className="border-primary/30 bg-primary/5 inline-flex items-center gap-1.5 rounded-full border py-1 pr-3 pl-1">
-                    <AvatarAngajat url={angajat.avatar_url} nume={angajat.full_name} marime="sm" />
-                    <span className="text-primary font-semibold">{angajat.full_name}</span>
-                  </li>
-                </ol>
-              ) : angajat.manager_path.length > 1 ? (
-                <p className="text-muted-foreground mt-2 text-xs">
-                  Lanțul de manageri nu a putut fi determinat.
-                </p>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {poateEditaAngajat ? (
-              <Link
-                href={`/angajati/${angajat.id}/editeaza`}
-                className="border-border bg-background hover:bg-surface inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
-              >
-                <Pencil aria-hidden="true" className="size-3.5" />
-                Editează fișa
-              </Link>
-            ) : null}
-            <span
-              className={`rounded-full px-3 py-1 text-sm font-medium ${CLASE_STATUS[angajat.status]}`}
+  // Nota „fără cont" și lanțul managerial coboară sub titlu, prin prop-ul
+  // `file` al antetului: rămân în același bloc, nu ca frați ai lui.
+  const notaFaraCont =
+    poateIncarcaPtOricine && angajat.user_id === null ? (
+      <p className="text-muted-foreground text-nota italic">
+        Fără cont în portal — nu i se poate atașa o fotografie.
+      </p>
+    ) : null;
+  const lantAfisat =
+    lantManageri.length > 0 ? (
+      <ol className="text-corp flex flex-wrap items-center gap-1.5">
+        {lantManageri.map((veriga) => (
+          <li key={veriga.id} className="flex items-center gap-1.5">
+            <Link
+              href={`/angajati/${veriga.id}`}
+              className="border-border bg-background hover:border-primary/30 hover:bg-primary/5 inline-flex items-center gap-1.5 rounded-full border py-1 pr-3 pl-1 transition-colors"
             >
-              {ETICHETE_STATUS[angajat.status]}
-            </span>
-          </div>
-        </div>
-      </header>
+              <AvatarAngajat url={veriga.avatar_url} nume={veriga.full_name} marime="sm" />
+              <span className="font-medium">{veriga.full_name}</span>
+            </Link>
+            <ChevronRight aria-hidden="true" className="text-muted-foreground size-4 shrink-0" />
+          </li>
+        ))}
+        <li className="border-primary/30 bg-primary/5 inline-flex items-center gap-1.5 rounded-full border py-1 pr-3 pl-1">
+          <AvatarAngajat url={angajat.avatar_url} nume={angajat.full_name} marime="sm" />
+          <span className="text-primary font-semibold">{angajat.full_name}</span>
+        </li>
+      </ol>
+    ) : angajat.manager_path.length > 1 ? (
+      <p className="text-muted-foreground text-nota">
+        Lanțul de manageri nu a putut fi determinat.
+      </p>
+    ) : null;
+  const subAntet =
+    notaFaraCont === null && lantAfisat === null ? null : (
+      <div className="flex flex-col gap-2">
+        {notaFaraCont}
+        {lantAfisat}
+      </div>
+    );
+
+  return (
+    <div className="space-y-6">
+      <div className={cn(CLASA_SECTIUNE, "flex flex-wrap items-start gap-4")}>
+        {esteFisaProprie ? (
+          <IncarcareAvatar
+            urlInitial={angajat.avatar_url}
+            nume={angajat.full_name}
+            pregateste={pregatesteIncarcareAvatarulPropriu}
+            salveaza={salveazaAvatarulPropriu}
+          />
+        ) : poateIncarcaPtOricine && angajat.user_id !== null ? (
+          <IncarcareAvatarAdmin
+            employeeId={angajat.id}
+            urlInitial={angajat.avatar_url}
+            nume={angajat.full_name}
+          />
+        ) : (
+          <AvatarAngajat url={angajat.avatar_url} nume={angajat.full_name} marime="lg" />
+        )}
+        <AntetPagina
+          className="min-w-0 flex-1"
+          titlu={angajat.full_name}
+          descriere={`Marca ${angajat.marca}${
+            angajat.job_position !== null ? ` · ${angajat.job_position.denumire}` : ""
+          }${angajat.department !== null ? ` · ${angajat.department.denumire}` : ""}`}
+          actiuni={
+            <>
+              {poateAcordaPermisiuni ? (
+                <Link
+                  href={`/angajati/${angajat.id}/permisiuni`}
+                  className={buton({ varianta: "secundar" })}
+                >
+                  <KeyRound aria-hidden="true" className="size-3.5" />
+                  Permisiuni
+                </Link>
+              ) : null}
+              {poateEditaAngajat ? (
+                <Link
+                  href={`/angajati/${angajat.id}/editeaza`}
+                  className={buton({ varianta: "secundar" })}
+                >
+                  <Pencil aria-hidden="true" className="size-3.5" />
+                  Editează fișa
+                </Link>
+              ) : null}
+              <Badge className="text-corp px-3 py-1" ton={TONURI_STATUS[angajat.status]}>
+                {ETICHETE_STATUS[angajat.status]}
+              </Badge>
+            </>
+          }
+          {...(subAntet === null ? {} : { file: subAntet })}
+        />
+      </div>
 
       <section aria-labelledby="titlu-date-personale" className={CLASA_SECTIUNE}>
-        <h2 id="titlu-date-personale" className="mb-4 text-lg font-medium">
+        <h2 id="titlu-date-personale" className="text-sectiune mb-4 font-medium">
           Date personale
         </h2>
         <div className="space-y-4">
@@ -302,80 +341,90 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
             />
             <Camp eticheta="Grad de handicap" valoare={angajat.grad_handicap} />
           </GrupCampuri>
+          <div className="sm:col-span-2">
+            <h3 className="text-muted-foreground text-nota mb-2 font-medium tracking-wide uppercase">
+              Persoane în întreținere
+            </h3>
+            <SectiuneDependenti
+              employeeId={angajat.id}
+              dependenti={dependenti}
+              poateEdita={poateEditaAngajat}
+            />
+          </div>
         </div>
       </section>
 
       <section aria-labelledby="titlu-contracte" className={CLASA_SECTIUNE}>
-        <h2 id="titlu-contracte" className="mb-4 text-lg font-medium">
+        <h2 id="titlu-contracte" className="text-sectiune mb-4 font-medium">
           Contracte
         </h2>
         {angajat.contracts.length === 0 ? (
           <StareGoala mesaj="Fișa nu are încă niciun contract. Adăugați contractul individual de muncă înainte de transmiterea în REVISAL." />
         ) : (
           <div className="space-y-3">
-            {contractPrincipal === null ? (
+            {contracteActive.length === 0 ? (
               <StareGoala mesaj="Niciun contract activ momentan." />
             ) : (
-              <div className="border-primary/25 bg-primary/5 rounded-md border p-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium">Contract nr. {contractPrincipal.numar}</span>
-                  <span className="bg-success/12 text-success rounded-full px-2 py-0.5 text-xs font-medium">
-                    {ETICHETE_CONTRACT[contractPrincipal.status] ?? contractPrincipal.status}
-                  </span>
-                  {contractPrincipal.este_act_aditional ? (
-                    <span className="bg-background rounded-full px-2 py-0.5 text-xs">
-                      Act adițional
+              contracteActive.map((contract) => (
+                <div
+                  key={contract.id}
+                  className="border-primary/25 bg-primary/5 rounded-control border p-3"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium">Contract nr. {contract.numar}</span>
+                    <span className="bg-success/12 text-success text-nota rounded-full px-2 py-0.5 font-medium">
+                      {ETICHETE_CONTRACT[contract.status] ?? contract.status}
                     </span>
+                    {contract.este_act_aditional ? (
+                      <span className="bg-background text-nota rounded-full px-2 py-0.5">
+                        Act adițional
+                      </span>
+                    ) : null}
+                  </div>
+                  <dl className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <Camp
+                      eticheta="Valabil"
+                      valoare={`${formatDate(contract.valabil_de_la)} – ${contract.valabil_pana === null ? "nedeterminat" : formatDate(contract.valabil_pana)}`}
+                    />
+                    <Camp
+                      eticheta="Normă"
+                      valoare={`${String(contract.norma_ore_saptamana)} ore/săptămână`}
+                    />
+                    <Camp eticheta="Salariu de bază" valoare={formatLei(contract.salariu_baza)} />
+                    <Camp
+                      eticheta="Mod de lucru"
+                      valoare={ETICHETE_MOD_LUCRU[contract.work_mode] ?? contract.work_mode}
+                    />
+                  </dl>
+                  {poateEditaAngajat ? (
+                    <div className="mt-3">
+                      <FormularInceteazaContract contractId={contract.id} />
+                    </div>
                   ) : null}
                 </div>
-                <dl className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <Camp
-                    eticheta="Valabil"
-                    valoare={`${formatDate(contractPrincipal.valabil_de_la)} – ${contractPrincipal.valabil_pana === null ? "nedeterminat" : formatDate(contractPrincipal.valabil_pana)}`}
-                  />
-                  <Camp
-                    eticheta="Normă"
-                    valoare={`${String(contractPrincipal.norma_ore_saptamana)} ore/săptămână`}
-                  />
-                  <Camp
-                    eticheta="Salariu de bază"
-                    valoare={formatLei(contractPrincipal.salariu_baza)}
-                  />
-                  <Camp
-                    eticheta="Mod de lucru"
-                    valoare={
-                      ETICHETE_MOD_LUCRU[contractPrincipal.work_mode] ?? contractPrincipal.work_mode
-                    }
-                  />
-                </dl>
-                {poateEditaAngajat ? (
-                  <div className="mt-3">
-                    <FormularInceteazaContract contractId={contractPrincipal.id} />
-                  </div>
-                ) : null}
-              </div>
+              ))
             )}
 
             {contracteIstoric.length > 0 ? (
               <details className="group">
-                <summary className="text-muted-foreground flex cursor-pointer list-none items-center gap-1.5 text-sm [&::-webkit-details-marker]:hidden">
+                <summary className="text-muted-foreground text-corp flex cursor-pointer list-none items-center gap-1.5 [&::-webkit-details-marker]:hidden">
                   <ChevronRight
                     aria-hidden="true"
                     className="size-3.5 shrink-0 transition-transform group-open:rotate-90"
                   />
-                  Istoric contracte și acte adiționale ({contracteIstoric.length})
+                  Contracte încheiate și acte adiționale inactive ({contracteIstoric.length})
                 </summary>
                 <ul className="border-border mt-2 space-y-2 border-l-2 pl-4">
                   {contracteIstoric.map((contract) => (
-                    <li key={contract.id} className="border-border rounded-md border p-3">
+                    <li key={contract.id} className="border-border rounded-control border p-3">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-medium">Contract nr. {contract.numar}</span>
                         {contract.este_act_aditional ? (
-                          <span className="bg-surface rounded-full px-2 py-0.5 text-xs">
+                          <span className="bg-surface text-nota rounded-full px-2 py-0.5">
                             Act adițional
                           </span>
                         ) : null}
-                        <span className="text-muted-foreground ml-auto text-xs">
+                        <span className="text-muted-foreground text-nota ml-auto">
                           {ETICHETE_CONTRACT[contract.status] ?? contract.status}
                         </span>
                       </div>
@@ -403,11 +452,10 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                           <Camp eticheta="Motivul încetării" valoare={contract.motiv_incetare} />
                         ) : null}
                       </dl>
-                      {contract.status === "activ" && poateEditaAngajat ? (
-                        <div className="mt-3">
-                          <FormularInceteazaContract contractId={contract.id} />
-                        </div>
-                      ) : null}
+                      {/* Aici NU mai apare butonul de încetare: blocul conține,
+                          prin construcție, numai contracte care nu mai sunt
+                          active. Când conținea și active, oferea încetarea unui
+                          contract dintr-o secțiune numită „istoric". */}
                     </li>
                   ))}
                 </ul>
@@ -444,7 +492,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
 
       {scope === "all" ? (
         <section aria-labelledby="titlu-scutiri" className={CLASA_SECTIUNE}>
-          <h2 id="titlu-scutiri" className="mb-4 text-lg font-medium">
+          <h2 id="titlu-scutiri" className="text-sectiune mb-4 font-medium">
             Scutiri fiscale
           </h2>
           {scutiriFiscale.length === 0 ? (
@@ -452,18 +500,18 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
           ) : (
             <ul className="space-y-3">
               {scutiriFiscale.map((scutire) => (
-                <li key={scutire.id} className="border-border rounded-md border p-3">
+                <li key={scutire.id} className="border-border rounded-control border p-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">
                       {ETICHETE_SCUTIRE[scutire.exemption_type as keyof typeof ETICHETE_SCUTIRE] ??
                         scutire.exemption_type}
                     </span>
                     {scutire.procent_scutire === null ? (
-                      <span className="bg-warning/12 rounded-full px-2 py-0.5 text-xs font-medium">
+                      <span className="bg-warning/12 text-nota rounded-full px-2 py-0.5 font-medium">
                         Fără procent — nu se aplică automat
                       </span>
                     ) : (
-                      <span className="bg-success/12 text-success rounded-full px-2 py-0.5 text-xs font-medium">
+                      <span className="bg-success/12 text-success text-nota rounded-full px-2 py-0.5 font-medium">
                         {scutire.procent_scutire}%
                       </span>
                     )}
@@ -495,7 +543,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
 
       {scope === "all" ? (
         <section aria-labelledby="titlu-componente" className={CLASA_SECTIUNE}>
-          <h2 id="titlu-componente" className="mb-4 text-lg font-medium">
+          <h2 id="titlu-componente" className="text-sectiune mb-4 font-medium">
             Sporuri și prime
           </h2>
           {componenteSalariale.length === 0 ? (
@@ -506,27 +554,31 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                 const activa =
                   componenta.valabil_pana === null ||
                   componenta.valabil_pana >= new Date().toISOString().slice(0, 10);
+                const denumireComponenta =
+                  componenta.component_type?.denumire ??
+                  ETICHETE_TIP_COMPONENTA[componenta.kind] ??
+                  componenta.kind;
                 return (
-                  <li key={componenta.id} className="border-border rounded-md border p-3">
+                  <li key={componenta.id} className="border-border rounded-control border p-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-medium">
-                        {componenta.component_type?.denumire ??
-                          ETICHETE_TIP_COMPONENTA[componenta.kind] ??
-                          componenta.kind}
-                      </span>
-                      <span className="bg-primary/10 text-primary rounded-full px-2 py-0.5 text-xs font-medium">
+                      <span className="font-medium">{denumireComponenta}</span>
+                      <span className="bg-primary/10 text-primary text-nota rounded-full px-2 py-0.5 font-medium">
                         {componenta.procent !== null
                           ? `${String(componenta.procent)}%`
                           : formatLei(componenta.suma ?? 0)}
                       </span>
                       {!activa ? (
-                        <span className="bg-background text-muted-foreground rounded-full px-2 py-0.5 text-xs font-medium">
+                        <span className="bg-background text-muted-foreground text-nota rounded-full px-2 py-0.5 font-medium">
                           Încheiată
                         </span>
                       ) : null}
                       {activa && poateAdaugaComponenta ? (
                         <span className="ml-auto">
-                          <ButonIncheieComponenta id={componenta.id} employeeId={angajat.id} />
+                          <ButonIncheieComponenta
+                            id={componenta.id}
+                            employeeId={angajat.id}
+                            denumire={denumireComponenta}
+                          />
                         </span>
                       ) : null}
                     </div>
@@ -551,7 +603,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
       ) : null}
 
       <section aria-labelledby="titlu-evaluari" className={CLASA_SECTIUNE}>
-        <h2 id="titlu-evaluari" className="mb-4 text-lg font-medium">
+        <h2 id="titlu-evaluari" className="text-sectiune mb-4 font-medium">
           Evaluări
         </h2>
         {evaluari.length === 0 ? (
@@ -563,25 +615,19 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                 (evaluare.template?.criterii ?? []).map((c) => [c.cod, c]),
               );
               return (
-                <li key={evaluare.id} className="border-border rounded-md border p-3">
+                <li key={evaluare.id} className="border-border rounded-control border p-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">
                       {evaluare.template?.denumire ?? "Șablon șters"}
                     </span>
-                    <span className="text-muted-foreground text-sm">
+                    <span className="text-muted-foreground text-corp">
                       {formatDate(evaluare.data_evaluarii)}
                     </span>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        evaluare.status === "finalizat"
-                          ? "bg-success/12 text-success"
-                          : "bg-background text-muted-foreground"
-                      }`}
-                    >
+                    <Badge ton={evaluare.status === "finalizat" ? "succes" : "ciorna"}>
                       {evaluare.status === "finalizat" ? "Finalizată" : "Ciornă"}
-                    </span>
+                    </Badge>
                   </div>
-                  <ul className="mt-2 flex flex-wrap gap-2 text-xs">
+                  <ul className="text-nota mt-2 flex flex-wrap gap-2">
                     {evaluare.raspunsuri.map((raspuns) => {
                       const criteriu = criteriiDupaCod.get(raspuns.criteriu_cod);
                       return (
@@ -596,7 +642,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                     })}
                   </ul>
                   {evaluare.concluzie !== null ? (
-                    <p className="text-muted-foreground mt-2 text-sm">{evaluare.concluzie}</p>
+                    <p className="text-muted-foreground text-corp mt-2">{evaluare.concluzie}</p>
                   ) : null}
                 </li>
               );
@@ -608,23 +654,45 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
         ) : null}
       </section>
 
+      {/*
+       * Secțiunea listează documentele, dar descărcarea, încărcarea și
+       * retragerea trăiesc pe `/angajati/[id]/documente` — o pagină completă
+       * către care, până acum, nu ducea NICIUN link din tot `src`. Se ajungea
+       * la ea doar tastând adresa, deci documentele de pe fișă erau o listă
+       * din care nu se putea deschide nimic.
+       */}
       <section aria-labelledby="titlu-documente" className={CLASA_SECTIUNE}>
-        <h2 id="titlu-documente" className="mb-4 text-lg font-medium">
-          Documente
-        </h2>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h2 id="titlu-documente" className="text-sectiune font-medium">
+            Documente
+            {angajat.documents.length > 0 ? (
+              <span className="text-muted-foreground ml-2 font-normal">
+                ({angajat.documents.length})
+              </span>
+            ) : null}
+          </h2>
+          <Link
+            href={`/angajati/${angajat.id}/documente`}
+            className={buton({ varianta: "secundar" })}
+          >
+            <FolderOpen aria-hidden="true" className="size-3.5" />
+            Deschide dosarul
+          </Link>
+        </div>
         {angajat.documents.length === 0 ? (
-          <StareGoala mesaj="Nu există documente încărcate pentru acest angajat." />
+          <StareGoala mesaj="Nu există documente încărcate pentru acest angajat. Dosarul se completează din „Deschide dosarul”." />
         ) : (
-          <ul className="divide-border divide-y text-sm">
+          <ul className="divide-border text-corp divide-y">
             {angajat.documents.map((document) => (
               <li key={document.id} className="flex flex-wrap items-center gap-3 py-2.5">
                 <FileText aria-hidden="true" className="text-muted-foreground size-4 shrink-0" />
-                <span className="min-w-0 flex-1 font-medium">{document.titlu}</span>
-                {document.confidential ? (
-                  <span className="bg-warning/12 text-foreground rounded-full px-2 py-0.5 text-xs font-medium">
-                    Confidențial
-                  </span>
-                ) : null}
+                <Link
+                  href={`/angajati/${angajat.id}/documente`}
+                  className="min-w-0 flex-1 font-medium underline-offset-2 hover:underline"
+                >
+                  {document.titlu}
+                </Link>
+                {document.confidential ? <Badge ton="atentie">Confidențial</Badge> : null}
                 <span className="text-muted-foreground shrink-0">
                   {document.data_document === null ? "—" : formatDate(document.data_document)}
                   {document.valabil_pana !== null
@@ -645,6 +713,6 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
           banca={rezumatSensibil.banca}
         />
       ) : null}
-    </main>
+    </div>
   );
 }

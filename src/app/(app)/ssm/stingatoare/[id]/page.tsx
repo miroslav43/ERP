@@ -1,9 +1,15 @@
 // src/app/(app)/ssm/stingatoare/[id]/page.tsx
+import { treaptaSsm } from "@/domain/ssm/scadente";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
+import { buton } from "@/components/ui/buton";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
+import { Badge } from "@/components/ui/badge";
+import { Scadenta } from "@/components/ui/scadenta";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
@@ -15,12 +21,11 @@ import { citesteStingator, verificariStingator } from "@/lib/queries/ssm";
 import { stareScadentaSsm } from "@/domain/ssm/scadente";
 
 import {
-  CLASE_SCADENTA,
-  CLASE_STATUS_STINGATOR,
   ETICHETE_REZULTAT_VERIFICARE,
   ETICHETE_SCADENTA,
   ETICHETE_STATUS_STINGATOR,
   ETICHETE_TIP_VERIFICARE_STINGATOR,
+  TONURI_STATUS_STINGATOR,
 } from "../../etichete";
 import { FormularVerificare } from "./formular-verificare";
 
@@ -36,7 +41,7 @@ export default async function PaginaStingator({ params }: ProprietatiPagina) {
   await requireUser();
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "ssm");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "ssm:read", "team")) {
     return (
@@ -72,58 +77,97 @@ export default async function PaginaStingator({ params }: ProprietatiPagina) {
     },
   ];
 
+  /**
+   * Istoricul se citește întreg (`verificariStingator` n-are cursor), deci
+   * tabelul n-are nici sortare, nici paginare — doar căderea pe card sub 768px.
+   */
+  const coloaneVerificari: readonly Coloana<(typeof verificari)[number]>[] = [
+    {
+      cheie: "data",
+      antet: "Data",
+      peTelefon: "titlu",
+      latime: "ingusta",
+      celula: (v) => formatDate(v.data),
+    },
+    {
+      cheie: "tip",
+      antet: "Tip",
+      peTelefon: "meta",
+      celula: (v) => ETICHETE_TIP_VERIFICARE_STINGATOR[v.tip_verificare],
+    },
+    {
+      cheie: "firma",
+      antet: "Firmă autorizată",
+      peTelefon: "meta",
+      celula: (v) => v.firma_autorizata ?? v.executant ?? "—",
+    },
+    {
+      cheie: "rezultat",
+      antet: "Rezultat",
+      peTelefon: "meta",
+      celula: (v) => ETICHETE_REZULTAT_VERIFICARE[v.rezultat],
+    },
+    {
+      cheie: "cost",
+      antet: "Cost",
+      numeric: true,
+      peTelefon: "meta",
+      latime: "ingusta",
+      celula: (v) => (v.cost === null ? "—" : formatLei(v.cost)),
+    },
+  ];
+
+  // `descriere` e șir, nu JSX: componenta o cere așa. Textul rămâne identic.
+  const unde = `${stingator.tip} · ${stingator.locatie}${
+    stingator.cladire === null ? "" : ` · ${stingator.cladire}`
+  }`;
+
   return (
-    <main className="mx-auto w-full max-w-3xl space-y-6 p-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-muted-foreground text-sm">
-            <Link href="/ssm/stingatoare" className="underline-offset-2 hover:underline">
-              Stingătoare
-            </Link>
-          </p>
-          <h1 className="text-2xl font-semibold">{stingator.cod}</h1>
-          <p className="text-muted-foreground text-sm">
-            {stingator.tip} · {stingator.locatie}
-            {stingator.cladire === null ? null : ` · ${stingator.cladire}`}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          {can(permisiuni, "ssm:update", "team") ? (
-            <Link
-              href={`/ssm/stingatoare/${stingator.id}/editeaza`}
-              className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-1.5 text-sm font-medium"
-            >
-              Editează
-            </Link>
-          ) : null}
-          <span
-            className={`rounded px-2 py-1 text-xs font-medium ${CLASE_STATUS_STINGATOR[stingator.status]}`}
-          >
-            {ETICHETE_STATUS_STINGATOR[stingator.status]}
-          </span>
-        </div>
-      </header>
+    <div className={`${LATIMI.detaliu} space-y-6`}>
+      <p className="text-muted-foreground text-corp">
+        <Link href="/ssm/stingatoare" className="underline-offset-2 hover:underline">
+          Stingătoare
+        </Link>
+      </p>
+
+      <AntetPagina
+        titlu={stingator.cod}
+        descriere={unde}
+        actiuni={
+          <>
+            {can(permisiuni, "ssm:update", "team") ? (
+              <Link
+                href={`/ssm/stingatoare/${stingator.id}/editeaza`}
+                className={buton({ varianta: "secundar" })}
+              >
+                Editează
+              </Link>
+            ) : null}
+            <Badge ton={TONURI_STATUS_STINGATOR[stingator.status]}>
+              {ETICHETE_STATUS_STINGATOR[stingator.status]}
+            </Badge>
+          </>
+        }
+      />
 
       <section
         aria-label="Cele trei obligații de întreținere"
-        className="border-border grid gap-4 rounded-lg border p-4 sm:grid-cols-3"
+        className="border-border rounded-panou grid gap-4 border p-4 sm:grid-cols-3"
       >
         {obligatii.map((o) => {
           const stare = stareScadentaSsm(o.data !== null, o.scadenta, azi);
           return (
             <div key={o.cheie}>
-              <dt className="text-muted-foreground text-xs">{o.titlu}</dt>
+              <dt className="text-muted-foreground text-nota">{o.titlu}</dt>
               <dd className="mt-1 space-y-1">
-                <span
-                  className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${CLASE_SCADENTA[stare]}`}
-                >
+                <Scadenta treapta={treaptaSsm(stare, o.scadenta)}>
                   {ETICHETE_SCADENTA[stare]}
-                </span>
-                <p className="text-sm">
+                </Scadenta>
+                <p className="text-corp">
                   {o.data === null ? "niciodată" : `ultima: ${formatDate(o.data)}`}
                 </p>
                 {o.scadenta === null ? null : (
-                  <p className="text-muted-foreground text-xs">
+                  <p className="text-muted-foreground text-nota">
                     scadență: {formatDate(o.scadenta)}
                   </p>
                 )}
@@ -134,54 +178,23 @@ export default async function PaginaStingator({ params }: ProprietatiPagina) {
       </section>
 
       <section aria-labelledby="istoric-verificari" className="space-y-3">
-        <h2 id="istoric-verificari" className="text-lg font-semibold">
+        <h2 id="istoric-verificari" className="text-sectiune font-semibold">
           Istoric verificări
         </h2>
         {verificari.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Nicio verificare înregistrată.</p>
+          <p className="text-muted-foreground text-corp">Nicio verificare înregistrată.</p>
         ) : (
-          <div className="border-border overflow-x-auto rounded-lg border">
-            <table className="w-full text-sm">
-              <thead className="bg-surface text-left">
-                <tr>
-                  <th scope="col" className="px-4 py-3 font-medium">
-                    Data
-                  </th>
-                  <th scope="col" className="px-4 py-3 font-medium">
-                    Tip
-                  </th>
-                  <th scope="col" className="px-4 py-3 font-medium">
-                    Firmă autorizată
-                  </th>
-                  <th scope="col" className="px-4 py-3 font-medium">
-                    Rezultat
-                  </th>
-                  <th scope="col" className="px-4 py-3 text-right font-medium">
-                    Cost
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-border divide-y">
-                {verificari.map((v) => (
-                  <tr key={v.id}>
-                    <td className="px-4 py-3 whitespace-nowrap">{formatDate(v.data)}</td>
-                    <td className="px-4 py-3">
-                      {ETICHETE_TIP_VERIFICARE_STINGATOR[v.tip_verificare]}
-                    </td>
-                    <td className="px-4 py-3">{v.firma_autorizata ?? v.executant ?? "—"}</td>
-                    <td className="px-4 py-3">{ETICHETE_REZULTAT_VERIFICARE[v.rezultat]}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">
-                      {v.cost === null ? "—" : formatLei(v.cost)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Tabel
+            caption={`Istoricul verificărilor stingătorului ${stingator.cod}.`}
+            coloane={coloaneVerificari}
+            randuri={verificari}
+            cheieRand={(v) => v.id}
+            gol={null}
+          />
         )}
       </section>
 
       {poateInregistra ? <FormularVerificare extinguisherId={stingator.id} /> : null}
-    </main>
+    </div>
   );
 }

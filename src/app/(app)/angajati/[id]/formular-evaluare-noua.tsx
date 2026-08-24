@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
+
 import { creeazaEvaluare } from "../../evaluari/actions";
 
 interface Criteriu {
@@ -74,7 +76,7 @@ export function FormularEvaluareNoua({ employeeId, sabloane }: Proprietati) {
 
   if (sabloane.length === 0) {
     return (
-      <p className="text-muted-foreground text-sm">
+      <p className="text-muted-foreground text-corp">
         Niciun șablon de evaluare încă.{" "}
         <Link href="/evaluari/sabloane" className="text-primary underline underline-offset-2">
           Creați unul
@@ -86,23 +88,23 @@ export function FormularEvaluareNoua({ employeeId, sabloane }: Proprietati) {
 
   if (!deschis) {
     return (
-      <button
-        type="button"
+      <Buton
+        varianta="secundar"
+        className="mt-3"
         onClick={() => {
           setDeschis(true);
         }}
-        className="border-foreground/60 hover:bg-surface mt-3 rounded-md border px-3 py-1.5 text-sm font-medium"
       >
         Evaluare nouă
-      </button>
+      </Buton>
     );
   }
 
   return (
-    <form action={trimite} className="border-border mt-3 grid gap-3 rounded-md border p-3">
+    <form action={trimite} className="border-border rounded-control mt-3 grid gap-3 border p-3">
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
-          <label htmlFor={idSablon} className="text-sm">
+          <label htmlFor={idSablon} className="text-corp">
             Șablon
           </label>
           <select
@@ -113,7 +115,7 @@ export function FormularEvaluareNoua({ employeeId, sabloane }: Proprietati) {
               setScoruri({});
               setComentarii({});
             }}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           >
             {sabloane.map((sablon) => (
               <option key={sablon.id} value={sablon.id}>
@@ -123,7 +125,7 @@ export function FormularEvaluareNoua({ employeeId, sabloane }: Proprietati) {
           </select>
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor={idData} className="text-sm">
+          <label htmlFor={idData} className="text-corp">
             Data evaluării
           </label>
           <input
@@ -131,19 +133,19 @@ export function FormularEvaluareNoua({ employeeId, sabloane }: Proprietati) {
             name="data_evaluarii"
             type="date"
             required
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp border px-3 py-2"
           />
         </div>
       </div>
 
       {sablonAles !== null ? (
-        <div className="border-border space-y-3 rounded-md border p-3">
+        <div className="border-border rounded-control space-y-3 border p-3">
           {sablonAles.criterii.map((criteriu) => (
             <div
               key={criteriu.cod}
               className="grid gap-2 sm:grid-cols-[1fr_auto_2fr] sm:items-center"
             >
-              <span className="text-sm font-medium">{criteriu.denumire}</span>
+              <span className="text-corp font-medium">{criteriu.denumire}</span>
               <input
                 type="number"
                 min={0}
@@ -156,7 +158,7 @@ export function FormularEvaluareNoua({ employeeId, sabloane }: Proprietati) {
                   }));
                 }}
                 aria-label={`Scor pentru ${criteriu.denumire} (0-${String(criteriu.scala_max)})`}
-                className="border-foreground/60 w-20 rounded-md border px-2 py-1.5 text-sm"
+                className="border-foreground/60 rounded-control text-corp w-20 border px-2 py-1.5"
               />
               <input
                 type="text"
@@ -169,7 +171,7 @@ export function FormularEvaluareNoua({ employeeId, sabloane }: Proprietati) {
                   }));
                 }}
                 aria-label={`Comentariu pentru ${criteriu.denumire}`}
-                className="border-foreground/60 rounded-md border px-2 py-1.5 text-sm"
+                className="border-foreground/60 rounded-control text-corp border px-2 py-1.5"
               />
             </div>
           ))}
@@ -177,7 +179,7 @@ export function FormularEvaluareNoua({ employeeId, sabloane }: Proprietati) {
       ) : null}
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idConcluzie} className="text-sm">
+        <label htmlFor={idConcluzie} className="text-corp">
           Concluzie generală
         </label>
         <textarea
@@ -185,19 +187,19 @@ export function FormularEvaluareNoua({ employeeId, sabloane }: Proprietati) {
           name="concluzie"
           rows={3}
           maxLength={4000}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={idStatus} className="text-sm">
+        <label htmlFor={idStatus} className="text-corp">
           Stare
         </label>
         <select
           id={idStatus}
           name="status"
           defaultValue="finalizat"
-          className="border-foreground/60 w-40 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp w-40 border px-3 py-2"
         >
           <option value="draft">Ciornă</option>
           <option value="finalizat">Finalizată</option>
@@ -205,26 +207,21 @@ export function FormularEvaluareNoua({ employeeId, sabloane }: Proprietati) {
       </div>
 
       <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se salvează…" : "Salvează evaluarea"}
-        </button>
-        <button
-          type="button"
+        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+          Salvează evaluarea
+        </Buton>
+        <Buton
+          varianta="link"
           onClick={() => {
             setDeschis(false);
             setEroare(null);
           }}
-          className="text-muted-foreground hover:text-foreground text-sm underline underline-offset-4"
         >
           Renunță
-        </button>
+        </Buton>
       </div>
       {eroare === null ? null : (
-        <p role="alert" className="text-danger text-sm">
+        <p role="alert" className="text-danger text-corp">
           {eroare}
         </p>
       )}

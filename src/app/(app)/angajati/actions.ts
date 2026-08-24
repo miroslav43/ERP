@@ -234,6 +234,37 @@ export const creeazaContract = createAction({
       }
     }
 
+    // Soldul de concediu al anului de angajare.
+    //
+    // `inroleazaAngajat` îl semăna deja, dar `creeazaContract` NU — iar el e
+    // singura cale prin care un angajat IMPORTAT în masă ajunge activ. Un import
+    // de 200 de oameni producea 200 de fișe fără drept de concediu, iar soldul
+    // apărea abia la prima cerere, prin crearea leneșă din `asigura_sold` — deci
+    // ecranul „Sold concedii" arăta gol până când cineva cerea concediu.
+    //
+    // Numai la contractul propriu-zis, nu la actele adiționale: un act adițional
+    // modifică un contract deja activ, iar soldul e deja semănat.
+    //
+    // Best-effort, ca la REVISAL mai jos: un contract creat corect nu se anulează
+    // pentru că semănarea soldului a eșuat, iar `asigura_sold` e idempotentă.
+    if (!input.este_act_aditional) {
+      try {
+        const anulAngajarii = Number(input.valabil_de_la.slice(0, 4));
+        const { error: eroareSold } = await db.rpc("seed_leave_balances", {
+          p_employee: input.employee_id,
+          p_an: anulAngajarii,
+          p_zile_odihna_override: input.zile_concediu_anual,
+        });
+        if (eroareSold !== null) throw eroareSold;
+      } catch (eroare) {
+        console.error("[concedii] soldul nu a putut fi semănat la crearea contractului", {
+          employeeId: input.employee_id,
+          requestId: ctx.requestId,
+          eroare,
+        });
+      }
+    }
+
     // REVISAL: angajarea se transmite la Inspecția Muncii într-un termen legal,
     // iar netransmiterea în termen este contravenție PER SALARIAT. Evenimentul
     // se generează AICI, în aceeași acțiune care creează contractul — altfel
@@ -387,12 +418,25 @@ export const modificaSalariulContractului = createAction({
       throw businessRule("Salariul se modifică doar pe contractul principal activ.");
     }
 
-    const { error } = await db
+    // Zero rânduri afectate = clauza USING a politicii `contracts_update` a
+    // respins tranziția, fără nicio eroare (capcana 17) — între citirea de mai
+    // sus și scrierea asta, contractul poate fi încetat sau șters logic de
+    // altcineva. Aici tăcerea e cea mai scumpă din modul: contractul e document
+    // cu efect legal, iar un salariu raportat ca modificat și nescris intră în
+    // statul de plată și în REVISAL cu suma veche, fără ca cineva să afle.
+    const { data: contractModificat, error } = await db
       .from("employment_contracts")
       .update({ salariu_baza: input.salariu_baza, updated_by: ctx.user.id })
       .eq("id", contract.id)
-      .eq("organization_id", ctx.tenant.organizationId);
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle();
     if (error !== null) throw error;
+    if (contractModificat === null) {
+      throw businessRule(
+        "Salariul NU a fost modificat: contractul a fost încetat sau modificat de altcineva între timp, ori nu aveți dreptul asupra lui. Reîncărcați fișa angajatului și verificați suma aflată acum în contract.",
+      );
+    }
 
     revalidatePath("/angajati");
     revalidatePath(`/angajati/${contract.employee_id}`);

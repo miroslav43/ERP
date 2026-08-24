@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina } from "@/components/ui/antet-pagina";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -49,7 +50,7 @@ function parametrulNumeric(valoare: string | string[] | undefined): number | nul
 export default async function PaginaCalendarConcedii({ searchParams }: ProprietatiPagina) {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "leave");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "leave:read", "team")) {
     return (
@@ -125,19 +126,18 @@ export default async function PaginaCalendarConcedii({ searchParams }: Proprieta
     luna === 12 ? { an: anCurent + 1, luna: 1 } : { an: anCurent, luna: luna + 1 };
 
   return (
-    <main className="space-y-6 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Calendarul de concedii</h1>
-        <p className="text-muted-foreground text-sm">
-          Grila lunară a absențelor de echipă, pentru {formatMonthYear(anCurent, luna)}.
-        </p>
-      </header>
-
-      <NavConcedii
-        poateVedeaEchipa={true}
-        poateAproba={poateAproba}
-        poateVedeaCalendar={true}
-        poateConfigura={poateConfigura}
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Calendarul de concedii"
+        descriere={`Grila lunară a absențelor de echipă, pentru ${formatMonthYear(anCurent, luna)}.`}
+        file={
+          <NavConcedii
+            poateVedeaEchipa={true}
+            poateAproba={poateAproba}
+            poateVedeaCalendar={true}
+            poateConfigura={poateConfigura}
+          />
+        }
       />
 
       <GrilaCalendar
@@ -147,6 +147,6 @@ export default async function PaginaCalendarConcedii({ searchParams }: Proprieta
         lunaAnterioara={lunaAnterioara}
         lunaUrmatoare={lunaUrmatoare}
       />
-    </main>
+    </div>
   );
 }

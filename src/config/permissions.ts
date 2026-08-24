@@ -82,6 +82,13 @@ export const PERMISSION_KEYS = [
   "employees:create",
   "employees:update",
   "employees:delete",
+  // Chei proprii din 0070. Până atunci evaluările cereau `employees:update`, pe
+  // care `manager` nu-l are la scope suficient — deci formularul de evaluare era,
+  // în fapt, exclusiv al HR-ului și al administratorului, contrar cerinței
+  // „creat de super user SAU de managerul direct".
+  "evaluations:read",
+  "evaluations:create",
+  "evaluations:update",
   "features:read",
   "features:update",
   "inventory:read",

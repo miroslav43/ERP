@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Lock, LockOpen, PlusCircle } from "lucide-react";
 
+import { Buton } from "@/components/ui/buton";
 import type { StatusPerioada } from "@/schemas/attendance";
 import { blocheazaPerioada, deschidePerioada, redeschidePerioada } from "../actions";
 
@@ -73,20 +74,15 @@ export function ActiuniPerioada({
   }
 
   if (periodId === null) {
-    if (!poateDeschide) return <span className="text-muted-foreground text-xs">—</span>;
+    if (!poateDeschide) return <span className="text-muted-foreground text-nota">—</span>;
     return (
       <div className="space-y-1">
-        <button
-          type="button"
-          onClick={deschide}
-          disabled={inCurs}
-          className="border-foreground/60 hover:bg-surface disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm disabled:cursor-not-allowed"
-        >
+        <Buton varianta="secundar" onClick={deschide} inCurs={inCurs} textInCurs="Se deschide…">
           <PlusCircle aria-hidden="true" className="size-4" />
-          {inCurs ? "Se deschide…" : "Deschide luna"}
-        </button>
+          Deschide luna
+        </Buton>
         {eroare === null ? null : (
-          <p role="alert" className="text-danger max-w-xs text-xs">
+          <p role="alert" className="text-danger text-nota max-w-xs">
             {eroare}
           </p>
         )}
@@ -98,34 +94,24 @@ export function ActiuniPerioada({
     <div className="flex flex-wrap items-center gap-2">
       <Link
         href={`/pontaj/perioade/${periodId}`}
-        className="text-sm underline-offset-2 hover:underline"
+        className="text-corp underline-offset-2 hover:underline"
       >
         Detalii
       </Link>
       {poateBloca && status !== "blocata" ? (
-        <button
-          type="button"
-          onClick={blocheaza}
-          disabled={inCurs}
-          className="border-foreground/60 hover:bg-surface disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm disabled:cursor-not-allowed"
-        >
+        <Buton varianta="secundar" onClick={blocheaza} inCurs={inCurs} textInCurs="Se blochează…">
           <Lock aria-hidden="true" className="size-4" />
-          {inCurs ? "Se blochează…" : "Blochează"}
-        </button>
+          Blochează
+        </Buton>
       ) : null}
       {poateBloca && status === "blocata" ? (
-        <button
-          type="button"
-          onClick={redeschide}
-          disabled={inCurs}
-          className="border-foreground/60 hover:bg-surface disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm disabled:cursor-not-allowed"
-        >
+        <Buton varianta="secundar" onClick={redeschide} inCurs={inCurs} textInCurs="Se redeschide…">
           <LockOpen aria-hidden="true" className="size-4" />
-          {inCurs ? "Se redeschide…" : "Redeschide"}
-        </button>
+          Redeschide
+        </Buton>
       ) : null}
       {eroare === null ? null : (
-        <p role="alert" className="text-danger w-full text-xs">
+        <p role="alert" className="text-danger text-nota w-full">
           {eroare}
         </p>
       )}

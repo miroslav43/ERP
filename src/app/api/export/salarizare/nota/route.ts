@@ -32,7 +32,7 @@ const celula = (valoare: string): string => {
 export async function GET(cerere: Request): Promise<Response> {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "payroll");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "payroll:export", "all")) {
     return raspunsText("Nu aveți dreptul de a exporta salarii.", 403);

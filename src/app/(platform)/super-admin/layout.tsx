@@ -5,8 +5,10 @@ import { createServerSupabase } from "@/lib/supabase/server";
 
 import { AntetPlatforma } from "./_components/antet-platforma";
 import { RailPlatforma } from "./_components/rail-platforma";
-import { plexMono, plexSans } from "./_lib/fonturi";
+import { monoCifre } from "@/lib/ui/fonturi";
+import { plexSans } from "./_lib/fonturi";
 import { sumarPlatforma } from "./organizatii/actions";
+import { ZonaToast } from "@/components/ui/toast";
 
 /**
  * Scheletul consolei de platformă.
@@ -38,7 +40,7 @@ export default async function LayoutSuperAdmin({ children }: { children: ReactNo
 
   return (
     <div
-      className={`${plexSans.variable} ${plexMono.variable} bg-navy-abis flex min-h-dvh flex-col md:flex-row`}
+      className={`${plexSans.variable} ${monoCifre.variable} bg-navy-abis flex min-h-dvh flex-col md:flex-row`}
       style={{ fontFamily: "var(--font-consola)" }}
     >
       <RailPlatforma numarOrganizatii={totalOrganizatii} numarCereriNoi={sumar.cereriDemoNoi} />
@@ -48,10 +50,13 @@ export default async function LayoutSuperAdmin({ children }: { children: ReactNo
           email={utilizator.email}
           areFirme={(apartenente.count ?? 0) > 0}
         />
-        <main id="continut" className="bg-background min-w-0 flex-1 p-5">
+        <main id="continut" data-zona="platforma" className="bg-background min-w-0 flex-1 p-5">
           {children}
         </main>
       </div>
+      {/* Montată o singură dată pe zonă. `arataToast()` se poate chema de
+          oriunde, fără provider — depozitarul e la nivel de modul. */}
+      <ZonaToast />
     </div>
   );
 }

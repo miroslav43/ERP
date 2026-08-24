@@ -10,48 +10,38 @@
 import "server-only";
 
 import { createServerSupabase } from "@/lib/supabase/server";
+import { todayInBucharest } from "@/lib/format/date";
+import { cereActiune, stareScadentaPlan } from "@/domain/maintenance/scadente";
 import type {
   FiltreEchipamente,
   FiltreInterventii,
   FiltreSesizari,
   RezultatInterventie,
+  SortareEchipamente,
+  SortareInterventii,
+  SortareSesizari,
   StatusEchipament,
   StatusSesizare,
   TipContor,
   TipMentenanta,
   UrgentaSesizare,
 } from "@/schemas/maintenance";
+import { SORTARI_ECHIPAMENTE, SORTARI_INTERVENTII, SORTARI_SESIZARI } from "@/schemas/maintenance";
+
+import {
+  codificaCursor,
+  decodificaCursor,
+  predicatKeyset,
+  sortareCeruta,
+  type Directie,
+} from "./cursor";
 
 // ── Cursorul keyset ─────────────────────────────────────────────────────────
 //
-// Separatorul e scris ca SECVENȚĂ DE EVADARE, nu ca octet brut — un octet nul
-// literal ar transforma fișierul în binar pentru `grep` și `git grep`.
-
-interface CursorText {
-  readonly cheie: string;
-  readonly id: string;
-}
-
-function codificaCursor(cursor: CursorText): string {
-  return Buffer.from(`${cursor.cheie}\u0000${cursor.id}`, "utf8").toString("base64url");
-}
-
-function decodificaCursor(valoare: string): CursorText | null {
-  try {
-    const bucati = Buffer.from(valoare, "base64url").toString("utf8").split("\u0000");
-    const cheie = bucati[0];
-    const id = bucati[1];
-    if (cheie === undefined || id === undefined || id.length === 0) return null;
-    return { cheie, id };
-  } catch {
-    return null;
-  }
-}
-
-/** PostgREST desparte filtrele lui `or()` cu virgulă; valoarea trebuie citată. */
-function ghilimeleaza(valoare: string): string {
-  return `"${valoare.replace(/\\/gu, "\\\\").replace(/"/gu, '\\"')}"`;
-}
+// Codificarea, ghilimelarea și predicatul trăiau AICI, în copii aproape
+// identice răspândite prin zece fișiere de citiri. Au fost mutate în
+// `./cursor.ts`, unde cursorul poartă o VALOARE opacă în loc de o coloană
+// încuiată în el — deci aceeași structură servește orice sortare.
 
 // ── Tipuri de rând ──────────────────────────────────────────────────────────
 
@@ -75,6 +65,13 @@ export interface RandEchipament {
 export interface RezultatEchipamente {
   readonly randuri: readonly RandEchipament[];
   readonly urmatorulCursor: string | null;
+  /**
+   * Câte echipamente sunt în total, după filtre. „Pagina următoare” fără un
+   * total e o ușă fără indicație: nu știi dacă mai urmează un ecran sau o sută.
+   */
+  readonly total: number;
+  /** Sortarea EFECTIV aplicată, după îngustarea la coloanele permise. */
+  readonly sortare: Readonly<{ cheie: SortareEchipamente; directie: Directie }>;
 }
 
 export interface Echipament extends RandEchipament {
@@ -138,6 +135,8 @@ export interface RandInterventie {
 export interface RezultatInterventii {
   readonly randuri: readonly RandInterventie[];
   readonly urmatorulCursor: string | null;
+  readonly total: number;
+  readonly sortare: Readonly<{ cheie: SortareInterventii; directie: Directie }>;
 }
 
 export interface RandSesizare {
@@ -157,6 +156,8 @@ export interface RandSesizare {
 export interface RezultatSesizari {
   readonly randuri: readonly RandSesizare[];
   readonly urmatorulCursor: string | null;
+  readonly total: number;
+  readonly sortare: Readonly<{ cheie: SortareSesizari; directie: Directie }>;
 }
 
 export interface AutorizatieIscir {
@@ -184,6 +185,83 @@ export interface AngajatRezumat {
   readonly full_name: string | null;
 }
 
+/**
+ * Cheia din URL → coloana din bază. Traducerea e OBLIGATORIU explicită: numele
+ * coloanei intră într-un `.order()` și într-un predicat construit ca text, deci
+ * nu are voie să vină din afară. Cheile sunt românești fiindcă apar în adresa pe
+ * care omul o copiază; coloanele rămân englezești, ca tot restul schemei.
+ */
+const COLOANA_SORTARE_ECHIPAMENT: Readonly<Record<SortareEchipamente, string>> = {
+  cod: "cod",
+  denumire: "denumire",
+  stare: "status",
+};
+
+/** Valoarea de cursor a ultimului rând, pe fiecare sortare posibilă. */
+const VALOARE_CURSOR_ECHIPAMENT: Readonly<
+  Record<SortareEchipamente, (e: RandEchipament) => string>
+> = {
+  cod: (e) => e.cod,
+  denumire: (e) => e.denumire,
+  stare: (e) => e.status,
+};
+
+const SORTARE_IMPLICITA_ECHIPAMENTE = { cheie: "cod", directie: "asc" } as const;
+
+const COLOANA_SORTARE_INTERVENTIE: Readonly<Record<SortareInterventii, string>> = {
+  data: "data",
+  tip: "tip",
+  cost: "cost_total",
+  rezultat: "rezultat",
+};
+
+const VALOARE_CURSOR_INTERVENTIE: Readonly<
+  Record<SortareInterventii, (i: RandInterventie) => string>
+> = {
+  data: (i) => i.data,
+  tip: (i) => i.tip,
+  // `cost_total` e generată din două coloane `not null default 0`, deci nu e
+  // niciodată NULL în bază; `?? 0` acoperă doar tipul, nu un caz real.
+  cost: (i) => String(i.cost_total ?? 0),
+  rezultat: (i) => i.rezultat,
+};
+
+const SORTARE_IMPLICITA_INTERVENTII = { cheie: "data", directie: "desc" } as const;
+
+const COLOANA_SORTARE_SESIZARE: Readonly<Record<SortareSesizari, string>> = {
+  raportat: "raportat_la",
+  urgenta: "urgenta",
+  stare: "status",
+};
+
+const VALOARE_CURSOR_SESIZARE: Readonly<Record<SortareSesizari, (s: RandSesizare) => string>> = {
+  raportat: (s) => s.raportat_la,
+  urgenta: (s) => s.urgenta,
+  stare: (s) => s.status,
+};
+
+const SORTARE_IMPLICITA_SESIZARI = { cheie: "raportat", directie: "desc" } as const;
+
+/**
+ * `sort` e opțional în SEMNĂTURĂ, nu în schemă.
+ *
+ * Ecranele care listează îl parsează din URL și îl trimit întreg; apelanții care
+ * cer o felie fixă — fișa echipamentului, panoul de mentenanță — n-au sortare de
+ * ales și n-ar trebui să scrie `sort: null` doar ca să treacă de verificarea de
+ * tipuri.
+ */
+export type FiltreEchipamenteCitire = Omit<FiltreEchipamente, "sort"> & {
+  readonly sort?: string | null;
+};
+
+export type FiltreInterventiiCitire = Omit<FiltreInterventii, "sort"> & {
+  readonly sort?: string | null;
+};
+
+export type FiltreSesizariCitire = Omit<FiltreSesizari, "sort"> & {
+  readonly sort?: string | null;
+};
+
 const COLOANE_ECHIPAMENT_LISTA =
   "id, cod, denumire, serie, producator, model, an_fabricatie, locatie, department_id, " +
   "responsabil_employee_id, status, este_iscir, tip_autorizare_necesara, data_punerii_in_functiune";
@@ -201,38 +279,82 @@ const COLOANE_SESIZARE =
 
 export async function listeazaEchipamente(
   organizationId: string,
-  filtre: FiltreEchipamente,
+  filtre: FiltreEchipamenteCitire,
 ): Promise<RezultatEchipamente> {
   const db = await createServerSupabase();
+  const sortare = sortareCeruta(
+    filtre.sort ?? null,
+    SORTARI_ECHIPAMENTE,
+    SORTARE_IMPLICITA_ECHIPAMENTE,
+  );
+  const coloana = COLOANA_SORTARE_ECHIPAMENT[sortare.cheie];
+  const crescator = sortare.directie === "asc";
 
-  let interogare = db
-    .from("equipment")
-    .select(COLOANE_ECHIPAMENT_LISTA)
-    .eq("organization_id", organizationId)
-    .is("deleted_at", null)
-    // Ordinea urmează indexul unic `equipment_uq` (organization_id, cod).
-    .order("cod", { ascending: true })
-    .order("id", { ascending: true })
+  /*
+   * ── DE CE NUMĂRĂTOAREA E O A DOUA INTEROGARE ──────────────────────────
+   * Aici stătea `count: "exact"` pe ACEEAȘI interogare, cu argumentul — corect
+   * în sine — că așa numărătoarea respectă filtrele ȘI politicile RLS
+   * din `app.ssm_acces`, 0011_ssm.sql, fără un al doilea drum la bază.
+   * Argumentul rata un lucru: predicatul KEYSET e și el un filtru, iar
+   * PostgREST n-are de unde ști că e „paginare”. Pus pe aceeași interogare,
+   * `count` numără doar ce a rămas DUPĂ cursor.
+   *
+   * Consecința se vedea de la pagina a doua: `<Paginare>` scria „25 din 30 de
+   * rânduri” acolo unde erau 55, iar totalul scădea cu fiecare „mai departe”.
+   * O cifră greșită fără nicio eroare — lista rămânea corectă.
+   *
+   * Cele două interogări împart ACELEAȘI filtre, aplicate de aceeași funcție,
+   * ca să nu poată diverge; se deosebesc doar prin cursor, ordine și limită,
+   * care aparțin paginii, nu mulțimii. Merg în paralel, iar numărătoarea e
+   * `head: true`, deci nu aduce niciun rând.
+   */
+  /**
+   * Filtrele mulțimii, aplicate identic pe amândouă interogările.
+   *
+   * Generic peste constructorul de interogare, nu scris de două ori: două copii
+   * ar diverge la primul filtru adăugat, iar divergența s-ar vedea tocmai ca o
+   * numărătoare care nu se potrivește cu lista — defectul reparat aici.
+   */
+  const filtreaza = <
+    Q extends {
+      eq: (c: string, v: string) => Q;
+      is: (c: string, v: null) => Q;
+      or: (f: string) => Q;
+    },
+  >(
+    q: Q,
+  ): Q => {
+    let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
+    if (filtre.status !== null) cu = cu.eq("status", filtre.status);
+    if (filtre.cauta !== null) {
+      const termen = filtre.cauta.replace(/[,()*"]/gu, "");
+      cu = cu.or(`cod.ilike.%${termen}%,denumire.ilike.%${termen}%`);
+    }
+    return cu;
+  };
+
+  let interogare = filtreaza(db.from("equipment").select(COLOANE_ECHIPAMENT_LISTA))
+    // Identificatorul e MEREU al doilea criteriu: coloana de sortare nu e unică
+    // (două echipamente pot avea aceeași stare), iar fără el ordinea dintre ele
+    // e nedefinită, deci paginarea poate sări sau repeta exact acolo.
+    .order(coloana, { ascending: crescator, nullsFirst: false })
+    .order("id", { ascending: crescator })
     .limit(filtre.limita + 1);
-
-  if (filtre.status !== null) interogare = interogare.eq("status", filtre.status);
-  if (filtre.cauta !== null) {
-    const termen = filtre.cauta.replace(/[,()*"]/gu, "");
-    interogare = interogare.or(`cod.ilike.%${termen}%,denumire.ilike.%${termen}%`);
-  }
 
   if (filtre.cursor !== null) {
     const c = decodificaCursor(filtre.cursor);
     // Un cursor stricat înseamnă prima pagină, nu o eroare.
-    if (c !== null) {
-      interogare = interogare.or(
-        `cod.gt.${ghilimeleaza(c.cheie)},and(cod.eq.${ghilimeleaza(c.cheie)},id.gt.${c.id})`,
-      );
-    }
+    if (c !== null) interogare = interogare.or(predicatKeyset(coloana, c, sortare.directie));
   }
 
-  const { data, error } = await interogare.returns<RandEchipament[]>();
+  const [rezultat, numarare] = await Promise.all([
+    interogare.returns<RandEchipament[]>(),
+    filtreaza(db.from("equipment").select("id", { count: "exact", head: true })),
+  ]);
+  const { data, error } = rezultat;
   if (error !== null) throw error;
+  if (numarare.error !== null) throw numarare.error;
+  const count = numarare.count;
 
   const toate = data ?? [];
   const areUrmatoarea = toate.length > filtre.limita;
@@ -243,8 +365,10 @@ export async function listeazaEchipamente(
     randuri,
     urmatorulCursor:
       areUrmatoarea && ultim !== undefined
-        ? codificaCursor({ cheie: ultim.cod, id: ultim.id })
+        ? codificaCursor({ valoare: VALOARE_CURSOR_ECHIPAMENT[sortare.cheie](ultim), id: ultim.id })
         : null,
+    total: count ?? randuri.length,
+    sortare,
   };
 }
 
@@ -328,55 +452,192 @@ export async function planuriEchipament(equipmentId: string): Promise<readonly P
   return data ?? [];
 }
 
-/** Planurile ACTIVE ale organizației, sortate cu cea mai apropiată scadență prima. */
-export async function planuriScadente(organizationId: string): Promise<readonly PlanMentenanta[]> {
+/** Câte planuri active se citesc dintr-o dată. Sub `max_rows = 1000` al PostgREST. */
+const LIMITA_PLANURI_SCADENTE = 500;
+
+export interface RezultatPlanuriScadente {
+  readonly randuri: readonly PlanMentenanta[];
+  /** Câte planuri active are organizația DUPĂ politici — nu câte s-au citit. */
+  readonly total: number;
+  /** `true` când limita a tăiat lista; ecranul trebuie s-o spună. */
+  readonly trunchiat: boolean;
+}
+
+/**
+ * Planurile ACTIVE ale organizației, sortate cu cea mai apropiată scadență prima.
+ *
+ * Întoarce și `total`, nu doar rândurile: limita era fixată la 500 și nimic nu
+ * spunea când a tăiat. Panoul de mentenanță NUMĂRĂ rândurile citite ca să scrie
+ * cifra de dimineață, deci o tăiere tăcută nu producea o listă scurtă, ci un
+ * indicator mai mic decât realitatea — cea mai proastă formă de defect, fiindcă
+ * arată corect.
+ */
+export async function planuriScadente(organizationId: string): Promise<RezultatPlanuriScadente> {
   const db = await createServerSupabase();
-  const { data, error } = await db
+  const { data, error, count } = await db
     .from("maintenance_plans")
-    .select(COLOANE_PLAN)
+    .select(COLOANE_PLAN, { count: "exact" })
     .eq("organization_id", organizationId)
     .eq("activ", true)
     .is("deleted_at", null)
     .order("urmatoarea_scadenta", { ascending: true, nullsFirst: false })
-    .limit(500)
+    .limit(LIMITA_PLANURI_SCADENTE)
     .returns<PlanMentenanta[]>();
 
   if (error !== null) throw error;
-  return data ?? [];
+  const randuri = data ?? [];
+  return {
+    randuri,
+    total: count ?? randuri.length,
+    trunchiat: count !== null && count > randuri.length,
+  };
+}
+
+// ── Ultima citire de contor, pe (echipament, tip) ──────────────────────────
+
+/** Cheia hărții întoarse de `ultimeleCitiriContor`. */
+export function cheieContor(equipmentId: string, tip: TipContor): string {
+  return `${equipmentId}:${tip}`;
+}
+
+interface RandUltimaCitire {
+  readonly equipment_id: string;
+  readonly tip: TipContor;
+  readonly citire: number;
+}
+
+/** Cât se citește pe pagină. Sub `max_rows = 1000`, altfel PostgREST taie el, tăcut. */
+const LIMITA_PAGINA_CONTOARE = 1000;
+
+/** Plasă de siguranță: o buclă de citire nu are voie să fie nemărginită. */
+const MAXIM_PAGINI_CONTOARE = 50;
+
+/**
+ * Ultima citire cunoscută a fiecărui contor, pentru un set de echipamente.
+ *
+ * Fără ea, `stareScadentaPlan()` nu se poate chema în afara fișei unui singur
+ * echipament: scadența pe contor se compară cu o citire, iar citirea stă în
+ * altă tabelă. De asta panoul și lista de planuri foloseau `stareScadentaData()`
+ * — și afișau „În regulă” pentru un plan depășit cu 200 de ore.
+ *
+ * ── DE CE O INTEROGARE PE FIECARE TIP DE CONTOR, ȘI NU UNA SINGURĂ ────────
+ * PostgREST nu are `distinct on`, deci ultima citire se alege în JavaScript din
+ * rândurile ordonate. Ordonarea `equipment_id` crescător + `data_citirii`
+ * descrescător grupează rândurile unui echipament la un loc ȘI îi pune primul
+ * rândul cel mai nou — dar numai cu `tip` FIXAT prin `.eq()`. Cu trei tipuri
+ * amestecate, primul rând al unui echipament ar fi cel mai nou al primului tip,
+ * iar celelalte două tipuri ar putea cădea dincolo de tăietură.
+ *
+ * Cu `tip` fixat, orice pagină, chiar tăiată, e CORECTĂ pentru fiecare
+ * `equipment_id` care apare în ea: prima lui apariție e citirea lui cea mai
+ * nouă. Lipsesc doar echipamentele de după tăietură, iar acelea se reiau cu
+ * `.gt("equipment_id", ultimul)`. De aceea bucla de mai jos n-are nevoie de
+ * niciun marcaj de trunchiere: nu poate întoarce o valoare greșită, doar una
+ * lipsă — iar `stareScadentaContor()` tratează lipsa ca „fara_scadenta”.
+ */
+export async function ultimeleCitiriContor(
+  organizationId: string,
+  equipmentIds: readonly string[],
+  tipuri: readonly TipContor[],
+): Promise<ReadonlyMap<string, number>> {
+  const idUnice = [...new Set(equipmentIds)];
+  const tipUnice = [...new Set(tipuri)];
+  if (idUnice.length === 0 || tipUnice.length === 0) return new Map();
+
+  const db = await createServerSupabase();
+  const ultima = new Map<string, number>();
+
+  for (const tip of tipUnice) {
+    let dupaId: string | null = null;
+
+    for (let pagina = 0; pagina < MAXIM_PAGINI_CONTOARE; pagina += 1) {
+      let interogare = db
+        .from("equipment_meters")
+        .select("equipment_id, tip, citire")
+        .eq("organization_id", organizationId)
+        .eq("tip", tip)
+        .in("equipment_id", idUnice)
+        .is("deleted_at", null)
+        .order("equipment_id", { ascending: true })
+        .order("data_citirii", { ascending: false })
+        // Două citiri în aceeași zi: cea introdusă ultima e cea bună.
+        .order("created_at", { ascending: false })
+        .limit(LIMITA_PAGINA_CONTOARE);
+      if (dupaId !== null) interogare = interogare.gt("equipment_id", dupaId);
+
+      const { data, error } = await interogare.returns<RandUltimaCitire[]>();
+      if (error !== null) throw error;
+
+      const randuri = data ?? [];
+      for (const rand of randuri) {
+        const cheie = cheieContor(rand.equipment_id, rand.tip);
+        if (!ultima.has(cheie)) ultima.set(cheie, rand.citire);
+      }
+
+      if (randuri.length < LIMITA_PAGINA_CONTOARE) break;
+      const ultimulRand = randuri.at(-1);
+      if (ultimulRand === undefined) break;
+      dupaId = ultimulRand.equipment_id;
+    }
+  }
+
+  return ultima;
 }
 
 // ── Intervenții ──────────────────────────────────────────────────────────
 
 export async function interventii(
   organizationId: string,
-  filtre: FiltreInterventii,
+  filtre: FiltreInterventiiCitire,
 ): Promise<RezultatInterventii> {
   const db = await createServerSupabase();
+  const sortare = sortareCeruta(
+    filtre.sort ?? null,
+    SORTARI_INTERVENTII,
+    SORTARE_IMPLICITA_INTERVENTII,
+  );
+  const coloana = COLOANA_SORTARE_INTERVENTIE[sortare.cheie];
+  const crescator = sortare.directie === "asc";
 
-  let interogare = db
-    .from("maintenance_interventions")
-    .select(COLOANE_INTERVENTIE)
-    .eq("organization_id", organizationId)
-    .is("deleted_at", null)
-    .order("data", { ascending: false })
-    .order("id", { ascending: false })
+  /**
+   * Filtrele mulțimii, aplicate identic pe interogarea de date și pe cea de
+   * numărare — despărțirea și motivul ei sunt explicate la
+   * `listeazaEchipamente`: pe o singură interogare, `count` numără doar
+   * rândurile de DUPĂ cursor, deci totalul scade cu fiecare pagină.
+   */
+  const filtreaza = <
+    Q extends {
+      eq: (c: string, v: string) => Q;
+      is: (c: string, v: null) => Q;
+    },
+  >(
+    q: Q,
+  ): Q => {
+    let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
+    if (filtre.tip !== null) cu = cu.eq("tip", filtre.tip);
+    if (filtre.rezultat !== null) cu = cu.eq("rezultat", filtre.rezultat);
+    if (filtre.echipament !== null) cu = cu.eq("equipment_id", filtre.echipament);
+    return cu;
+  };
+
+  let interogare = filtreaza(db.from("maintenance_interventions").select(COLOANE_INTERVENTIE))
+    .order(coloana, { ascending: crescator, nullsFirst: false })
+    .order("id", { ascending: crescator })
     .limit(filtre.limita + 1);
-
-  if (filtre.tip !== null) interogare = interogare.eq("tip", filtre.tip);
-  if (filtre.rezultat !== null) interogare = interogare.eq("rezultat", filtre.rezultat);
-  if (filtre.echipament !== null) interogare = interogare.eq("equipment_id", filtre.echipament);
 
   if (filtre.cursor !== null) {
     const c = decodificaCursor(filtre.cursor);
-    if (c !== null) {
-      interogare = interogare.or(
-        `data.lt.${ghilimeleaza(c.cheie)},and(data.eq.${ghilimeleaza(c.cheie)},id.lt.${c.id})`,
-      );
-    }
+    if (c !== null) interogare = interogare.or(predicatKeyset(coloana, c, sortare.directie));
   }
 
-  const { data, error } = await interogare.returns<RandInterventie[]>();
+  const [rezultat, numarare] = await Promise.all([
+    interogare.returns<RandInterventie[]>(),
+    filtreaza(db.from("maintenance_interventions").select("id", { count: "exact", head: true })),
+  ]);
+  const { data, error } = rezultat;
   if (error !== null) throw error;
+  if (numarare.error !== null) throw numarare.error;
+  const count = numarare.count;
 
   const toate = data ?? [];
   const areUrmatoarea = toate.length > filtre.limita;
@@ -387,43 +648,90 @@ export async function interventii(
     randuri,
     urmatorulCursor:
       areUrmatoarea && ultim !== undefined
-        ? codificaCursor({ cheie: ultim.data, id: ultim.id })
+        ? codificaCursor({
+            valoare: VALOARE_CURSOR_INTERVENTIE[sortare.cheie](ultim),
+            id: ultim.id,
+          })
         : null,
+    total: count ?? randuri.length,
+    sortare,
   };
+}
+
+/**
+ * O singură intervenție, după id.
+ *
+ * `fault_reports.intervention_id` era scris de `rezolvaSesizare` și citit de
+ * `citesteSesizare`, dar nu exista nicio funcție care să aducă intervenția
+ * indicată — deci legătura scrisă în bază nu se putea afișa nicăieri.
+ */
+export async function citesteInterventie(
+  organizationId: string,
+  id: string,
+): Promise<RandInterventie | null> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("maintenance_interventions")
+    .select(COLOANE_INTERVENTIE)
+    .eq("organization_id", organizationId)
+    .eq("id", id)
+    .is("deleted_at", null)
+    .maybeSingle<RandInterventie>();
+
+  if (error !== null) throw error;
+  return data;
 }
 
 // ── Sesizări ────────────────────────────────────────────────────────────
 
 export async function sesizari(
   organizationId: string,
-  filtre: FiltreSesizari,
+  filtre: FiltreSesizariCitire,
 ): Promise<RezultatSesizari> {
   const db = await createServerSupabase();
+  const sortare = sortareCeruta(filtre.sort ?? null, SORTARI_SESIZARI, SORTARE_IMPLICITA_SESIZARI);
+  const coloana = COLOANA_SORTARE_SESIZARE[sortare.cheie];
+  const crescator = sortare.directie === "asc";
 
-  let interogare = db
-    .from("fault_reports")
-    .select(COLOANE_SESIZARE)
-    .eq("organization_id", organizationId)
-    .is("deleted_at", null)
-    .order("raportat_la", { ascending: false })
-    .order("id", { ascending: false })
+  /**
+   * Filtrele mulțimii, aplicate identic pe amândouă interogările — vezi
+   * `listeazaEchipamente` pentru motivul despărțirii. Pe o singură interogare,
+   * predicatul keyset intra în aceleași filtre ca `count`, iar coada de
+   * sesizări își anunța totalul din ce în ce mai mic pe măsură ce paginai.
+   */
+  const filtreaza = <
+    Q extends {
+      eq: (c: string, v: string) => Q;
+      is: (c: string, v: null) => Q;
+    },
+  >(
+    q: Q,
+  ): Q => {
+    let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
+    if (filtre.status !== null) cu = cu.eq("status", filtre.status);
+    if (filtre.urgenta !== null) cu = cu.eq("urgenta", filtre.urgenta);
+    if (filtre.echipament !== null) cu = cu.eq("equipment_id", filtre.echipament);
+    return cu;
+  };
+
+  let interogare = filtreaza(db.from("fault_reports").select(COLOANE_SESIZARE))
+    .order(coloana, { ascending: crescator, nullsFirst: false })
+    .order("id", { ascending: crescator })
     .limit(filtre.limita + 1);
-
-  if (filtre.status !== null) interogare = interogare.eq("status", filtre.status);
-  if (filtre.urgenta !== null) interogare = interogare.eq("urgenta", filtre.urgenta);
-  if (filtre.echipament !== null) interogare = interogare.eq("equipment_id", filtre.echipament);
 
   if (filtre.cursor !== null) {
     const c = decodificaCursor(filtre.cursor);
-    if (c !== null) {
-      interogare = interogare.or(
-        `raportat_la.lt.${ghilimeleaza(c.cheie)},and(raportat_la.eq.${ghilimeleaza(c.cheie)},id.lt.${c.id})`,
-      );
-    }
+    if (c !== null) interogare = interogare.or(predicatKeyset(coloana, c, sortare.directie));
   }
 
-  const { data, error } = await interogare.returns<RandSesizare[]>();
+  const [rezultat, numarare] = await Promise.all([
+    interogare.returns<RandSesizare[]>(),
+    filtreaza(db.from("fault_reports").select("id", { count: "exact", head: true })),
+  ]);
+  const { data, error } = rezultat;
   if (error !== null) throw error;
+  if (numarare.error !== null) throw numarare.error;
+  const count = numarare.count;
 
   const toate = data ?? [];
   const areUrmatoarea = toate.length > filtre.limita;
@@ -434,9 +742,61 @@ export async function sesizari(
     randuri,
     urmatorulCursor:
       areUrmatoarea && ultim !== undefined
-        ? codificaCursor({ cheie: ultim.raportat_la, id: ultim.id })
+        ? codificaCursor({ valoare: VALOARE_CURSOR_SESIZARE[sortare.cheie](ultim), id: ultim.id })
         : null,
+    total: count ?? randuri.length,
+    sortare,
   };
+}
+
+/**
+ * Statusurile care ÎNCĂ cer o acțiune — complementul lui `rezolvat`/`respins`.
+ * Scris ca listă, nu ca negație, ca să fie o alegere explicită: un status nou
+ * adăugat în `fault_status` n-ar trebui să intre tăcut în coada de dimineață.
+ */
+const STATUSURI_DESCHISE: readonly StatusSesizare[] = ["nou", "in_analiza", "in_lucru"];
+
+export interface RezultatSesizariDeschise {
+  readonly randuri: readonly RandSesizare[];
+  /** Câte sesizări deschise are organizația — nu câte încap în panou. */
+  readonly total: number;
+}
+
+/**
+ * Coada de dimineață: sesizările NEÎNCHISE, în ordinea în care trebuie luate.
+ *
+ * Panoul de mentenanță citea cele mai recente 50 de sesizări și abia apoi le
+ * filtra în JavaScript. Ordinea de citire fiind `raportat_la` descrescător, o
+ * organizație care închide 50 de sesizări într-o săptămână scotea din pagină
+ * exact sesizarea critică de acum o lună, iar panoul anunța senin „Nicio
+ * sesizare deschisă”. Filtrul intră în interogare, deci nu mai există fereastră
+ * din care ceva să cadă.
+ *
+ * Ordinea: utilaj oprit întâi, apoi urgența, apoi vechimea CRESCĂTOARE — o
+ * coadă se golește de la capătul vechi. `fault_urgency` e declarat crescător ca
+ * gravitate în `0011_ssm.sql:17` (`scazuta` → `critica`), deci `ascending:
+ * false` pe el înseamnă „critica prima”; enumul, nu un `case` scris de mână.
+ */
+export async function sesizariDeschise(
+  organizationId: string,
+  limita: number,
+): Promise<RezultatSesizariDeschise> {
+  const db = await createServerSupabase();
+  const { data, error, count } = await db
+    .from("fault_reports")
+    .select(COLOANE_SESIZARE, { count: "exact" })
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .in("status", STATUSURI_DESCHISE)
+    .order("opreste_functionarea", { ascending: false })
+    .order("urgenta", { ascending: false })
+    .order("raportat_la", { ascending: true })
+    .limit(limita)
+    .returns<RandSesizare[]>();
+
+  if (error !== null) throw error;
+  const randuri = data ?? [];
+  return { randuri, total: count ?? randuri.length };
 }
 
 export async function citesteSesizare(
@@ -534,45 +894,105 @@ export async function angajatiDupaId(
 // ── Badge de navigare ────────────────────────────────────────────────────
 
 /**
- * Numărul de scadențe de mentenanță pentru badge-ul „maintenance_due” din
- * meniu (`config/navigation.ts`).
+ * Numărul de scadențe de mentenanță pentru badge-ul „maintenance_due” din meniu
+ * (`config/navigation.ts`).
  *
- * Simplificare asumată: contorizează planurile active scadente pe ZILE în
- * următoarele `pragZile` zile (sau deja depășite) și autorizațiile ISCIR
- * nesuspendate care expiră în același interval. Scadența pe CONTOR nu intră
- * în numărătoare — necesită, per plan, ultima citire cunoscută a fiecărui
- * contor, adică un calcul pe rând, nu un simplu `count`; ecranul
- * `/mentenanta` afișează starea exactă (zile ȘI contor) pentru fiecare plan.
+ * Numărătoarea trece prin `stareScadentaPlan` și `cereActiune`, exact regulile
+ * după care ecranul `/mentenanta` își construiește coada. Varianta veche era o
+ * pereche de `count(head)` în bază și, tocmai de asta, nu putea vedea decât
+ * `urmatoarea_scadenta`: scadența pe CONTOR cere, per plan, ultima citire a
+ * contorului, adică un calcul pe rând, nu un `count`. Rezultatul era o cifră
+ * mai mică decât adevărul, fără nicio eroare — un plan depășit cu 200 de ore nu
+ * intra în ea. Odată ce ecranele au trecut pe starea combinată, un `count` pe
+ * zile ar fi rămas ca a doua sursă, care contrazice prima.
+ *
+ * Costul: se citesc rândurile, nu doar numărul lor. La volumele reale ale
+ * produsului (zeci de echipamente pe organizație) e sub o interogare de listă;
+ * dacă vreodată nu mai e, locul reparației e o vedere materializată în bază, nu
+ * întoarcerea la o cifră greșită.
+ *
+ * Limita rămasă, asumată: dacă `planuriScadente` taie la 500, badge-ul e un
+ * MINIM. Semnătura întoarce un `number` pentru `lib/queries/panou.ts`, deci n-are
+ * unde purta marcajul; ecranul `/mentenanta`, care poate, îl arată.
  */
+/**
+ * Câte autorizații ISCIR cer acțiune — NUMĂRATE în bază, nu citite și filtrate.
+ *
+ * ── DE CE NU SE REFOLOSEȘTE `autorizatiiIscir()` ──────────────────────────
+ * Fiindcă ea n-are `.limit()`: se sprijină pe `max_rows = 1000` din PostgREST,
+ * care TAIE TĂCUT. Pentru o listă afișată, tăierea se vede (utilizatorul dă mai
+ * departe); pentru un CONTOR, ea produce pur și simplu un număr mai mic, fără
+ * nimic care s-o semnaleze — exact clasa de defect pe care restul modulului o
+ * repară.
+ *
+ * Contează dublu aici: contorul alimentează insigna din meniul lateral, prin
+ * `contoarePanou`, iar aceea se calculează în `(app)/layout.tsx`, adică la
+ * FIECARE navigare din aplicație. O citire de listă neplafonată pe calea aia e
+ * și greșită, și scumpă.
+ *
+ * ── DE CE PREDICATUL E ECHIVALENT ─────────────────────────────────────────
+ * `cereActiune(stareScadentaData(d, azi, prag))` e adevărat exact când
+ * `d < azi` (în întârziere) sau `d <= azi + prag` (scadență apropiată) —
+ * adică, împreună, `d <= azi + prag`. Cazul `d === null` dă `fara_scadenta`,
+ * pe care `cereActiune` îl respinge, iar `.lte()` îl exclude oricum: în SQL,
+ * `null <= orice` nu e adevărat. Deci o singură comparație acoperă tot.
+ */
+async function numarAutorizatiiIscirScadente(
+  organizationId: string,
+  azi: string,
+  pragZile: number,
+): Promise<number> {
+  const limita = new Date(`${azi}T00:00:00Z`);
+  limita.setUTCDate(limita.getUTCDate() + pragZile);
+
+  const db = await createServerSupabase();
+  const { count, error } = await db
+    .from("iscir_authorizations")
+    .select("id", { count: "exact", head: true })
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .is("suspendata_la", null)
+    .lte("valabil_pana", limita.toISOString().slice(0, 10));
+  if (error !== null) throw error;
+  return count ?? 0;
+}
+
 export async function numarScadenteMentenanta(
   organizationId: string,
   pragZile: number,
 ): Promise<number> {
-  const db = await createServerSupabase();
-  const limita = new Date();
-  limita.setUTCDate(limita.getUTCDate() + pragZile);
-  const limitaText = limita.toISOString().slice(0, 10);
-
-  const [planuriRes, iscirRes] = await Promise.all([
-    db
-      .from("maintenance_plans")
-      .select("id", { count: "exact", head: true })
-      .eq("organization_id", organizationId)
-      .eq("activ", true)
-      .is("deleted_at", null)
-      .not("urmatoarea_scadenta", "is", null)
-      .lte("urmatoarea_scadenta", limitaText),
-    db
-      .from("iscir_authorizations")
-      .select("id", { count: "exact", head: true })
-      .eq("organization_id", organizationId)
-      .is("deleted_at", null)
-      .is("suspendata_la", null)
-      .lte("valabil_pana", limitaText),
+  const azi = todayInBucharest();
+  const [rezultatPlanuri, iscir] = await Promise.all([
+    planuriScadente(organizationId),
+    numarAutorizatiiIscirScadente(organizationId, azi, pragZile),
   ]);
 
-  if (planuriRes.error !== null) throw planuriRes.error;
-  if (iscirRes.error !== null) throw iscirRes.error;
+  const planuriCuContor = rezultatPlanuri.randuri.filter(
+    (p) => p.tip_contor !== null && p.urmatoarea_scadenta_contor !== null,
+  );
+  const citiri = await ultimeleCitiriContor(
+    organizationId,
+    planuriCuContor.map((p) => p.equipment_id),
+    planuriCuContor.map((p) => p.tip_contor).filter((tip): tip is TipContor => tip !== null),
+  );
 
-  return (planuriRes.count ?? 0) + (iscirRes.count ?? 0);
+  const planuri = rezultatPlanuri.randuri.filter((plan) =>
+    cereActiune(
+      stareScadentaPlan(
+        {
+          urmatoareaScadenta: plan.urmatoarea_scadenta,
+          urmatoareaScadentaContor: plan.urmatoarea_scadenta_contor,
+          periodicitateContor: plan.periodicitate_contor,
+          ultimaCitireContor:
+            plan.tip_contor === null
+              ? null
+              : (citiri.get(cheieContor(plan.equipment_id, plan.tip_contor)) ?? null),
+        },
+        azi,
+        pragZile,
+      ),
+    ),
+  ).length;
+
+  return planuri + iscir;
 }

@@ -2,6 +2,7 @@
 // Etichete de interfață — separate de actions.ts, care poate exporta doar
 // funcții async.
 
+import type { TonStare } from "@/components/ui/badge";
 import type {
   ChecklistInstantaStatus,
   ChecklistItemStatus,
@@ -24,10 +25,12 @@ export const ETICHETE_STATUS_INSTANTA: Readonly<Record<ChecklistInstantaStatus, 
   anulata: "Anulată",
 };
 
-export const CLASE_STATUS_INSTANTA: Readonly<Record<ChecklistInstantaStatus, string>> = {
-  in_curs: "bg-amber-100 text-amber-900",
-  finalizata: "bg-emerald-100 text-emerald-900",
-  anulata: "bg-zinc-200 text-zinc-800",
+export const TONURI_STATUS_INSTANTA: Readonly<Record<ChecklistInstantaStatus, TonStare>> = {
+  // „În curs” cere atenție, nu e o reușită: checklistul e deschis și are pași neterminați.
+  in_curs: "atentie",
+  finalizata: "succes",
+  // Anulată = s-a încheiat fără urmări; nu e nici pericol, nici ciornă.
+  anulata: "neutru",
 };
 
 export const ETICHETE_STATUS_ITEM: Readonly<Record<ChecklistItemStatus, string>> = {
@@ -37,11 +40,14 @@ export const ETICHETE_STATUS_ITEM: Readonly<Record<ChecklistItemStatus, string>>
   neaplicabil: "Neaplicabil",
 };
 
-export const CLASE_STATUS_ITEM: Readonly<Record<ChecklistItemStatus, string>> = {
-  de_facut: "bg-zinc-200 text-zinc-800",
-  in_lucru: "bg-blue-100 text-blue-900",
-  bifat: "bg-emerald-100 text-emerald-900",
-  neaplicabil: "bg-zinc-100 text-zinc-500",
+export const TONURI_STATUS_ITEM: Readonly<Record<ChecklistItemStatus, TonStare>> = {
+  // Pasul există și nu s-a atins încă — ciornă, nu neutru: bulina goală spune exact asta.
+  de_facut: "ciorna",
+  // „În lucru” e început, dar nu terminat — atenție, nu succes.
+  in_lucru: "atentie",
+  bifat: "succes",
+  // Neaplicabil = pas scos din calcul; nuanța veche de gri pe gri pica WCAG (4,46:1).
+  neaplicabil: "neutru",
 };
 
 export const ETICHETE_TIP_DOVADA: Readonly<Record<ChecklistTipDovada, string>> = {

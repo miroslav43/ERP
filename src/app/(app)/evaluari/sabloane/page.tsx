@@ -3,7 +3,8 @@ import type { Metadata } from "next";
 import { ClipboardCheck } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -32,13 +33,14 @@ interface RandSablon {
 export default async function PaginaSabloaneEvaluare() {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "evaluations");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "employees:read", "team")) {
     return <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta șabloanele de evaluare." />;
   }
 
-  const poateCrea = can(permisiuni, "employees:update", "team");
+  // Șablonul e comun pe firmă (0070): îl creează administratorul sau HR-ul.
+  const poateCrea = can(permisiuni, "evaluations:update", "all");
 
   const db = await createServerSupabase();
   const { data, error } = await db
@@ -54,50 +56,49 @@ export default async function PaginaSabloaneEvaluare() {
   const sabloane = data ?? [];
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Șabloane de evaluare</h1>
-          <p className="text-muted-foreground text-sm">
-            Un set de criterii reutilizabil, aplicat apoi angajaților de pe fișa fiecăruia. Poate fi
-            creat de manageri, nu doar de administratori.
-          </p>
-        </div>
-        {poateCrea ? <FormularSablonEvaluareNou /> : null}
-      </header>
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Șabloane de evaluare"
+        descriere="Un set de criterii reutilizabil, aplicat apoi angajaților de pe fișa fiecăruia. Poate fi creat de manageri, nu doar de administratori."
+        {...(poateCrea ? { actiuni: <FormularSablonEvaluareNou /> } : {})}
+      />
 
       {sabloane.length === 0 ? (
-        <EmptyState
-          icon={ClipboardCheck}
-          title="Niciun șablon de evaluare"
-          description="Adăugați primul șablon — de exemplu „Evaluare anuală”."
+        <StareGoala
+          fel="initiala"
+          pictograma={ClipboardCheck}
+          titlu="Niciun șablon de evaluare"
+          descriere="Adăugați primul șablon — de exemplu „Evaluare anuală”."
         />
       ) : (
         <ul className="space-y-3">
           {sabloane.map((sablon) => (
-            <li key={sablon.id} className="border-border bg-surface rounded-lg border shadow-sm">
+            <li
+              key={sablon.id}
+              className="border-border bg-surface rounded-panou shadow-ridicat border"
+            >
               <div className="flex flex-wrap items-start gap-3 px-4 py-3">
-                <span className="bg-background flex size-9 shrink-0 items-center justify-center rounded-md">
+                <span className="bg-background rounded-control flex size-9 shrink-0 items-center justify-center">
                   <ClipboardCheck aria-hidden="true" className="text-primary size-4.5" />
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">{sablon.denumire}</span>
                     {sablon.organization_id === null ? (
-                      <span className="bg-background text-muted-foreground rounded-full px-2 py-0.5 text-xs font-medium">
+                      <span className="bg-background text-muted-foreground text-nota rounded-full px-2 py-0.5 font-medium">
                         Șablon platformă
                       </span>
                     ) : null}
                     {!sablon.activ ? (
-                      <span className="bg-background text-muted-foreground rounded-full px-2 py-0.5 text-xs font-medium">
+                      <span className="bg-background text-muted-foreground text-nota rounded-full px-2 py-0.5 font-medium">
                         Inactiv
                       </span>
                     ) : null}
                   </div>
                   {sablon.descriere !== null ? (
-                    <p className="text-muted-foreground mt-1 text-sm">{sablon.descriere}</p>
+                    <p className="text-muted-foreground text-corp mt-1">{sablon.descriere}</p>
                   ) : null}
-                  <ul className="text-muted-foreground mt-2 flex flex-wrap gap-1.5 text-xs">
+                  <ul className="text-muted-foreground text-nota mt-2 flex flex-wrap gap-1.5">
                     {sablon.criterii.map((criteriu) => (
                       <li key={criteriu.cod} className="bg-background rounded-full px-2 py-0.5">
                         {criteriu.denumire}
@@ -106,15 +107,21 @@ export default async function PaginaSabloaneEvaluare() {
                   </ul>
                 </div>
               </div>
-              {poateCrea && sablon.organization_id !== null ? (
+              {/*
+                Un șablon deja inactiv păstra butonul „Dezactivează”: acțiunea
+                trecea (UPDATE-ul atinge rândul și îl lasă tot pe `false`) și
+                ecranul raporta o schimbare care nu se producea. Subsolul dispare
+                când nu mai are ce comanda.
+              */}
+              {poateCrea && sablon.organization_id !== null && sablon.activ ? (
                 <div className="border-border bg-background border-t px-4 py-2">
-                  <ActiuniSablonEvaluare id={sablon.id} />
+                  <ActiuniSablonEvaluare id={sablon.id} denumire={sablon.denumire} />
                 </div>
               ) : null}
             </li>
           ))}
         </ul>
       )}
-    </main>
+    </div>
   );
 }

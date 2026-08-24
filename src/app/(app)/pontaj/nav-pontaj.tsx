@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { BandaFile, Fila } from "@/components/ui/file";
 
-interface Fila {
+interface IntrareFila {
   readonly href: string;
   readonly eticheta: string;
 }
@@ -27,7 +27,7 @@ interface Proprietati {
 export function NavPontaj({ poateAproba }: Proprietati) {
   const cale = usePathname();
 
-  const file: readonly Fila[] = [
+  const file: readonly IntrareFila[] = [
     { href: "/pontaj", eticheta: "Foaie" },
     { href: "/pontaj/saptamana", eticheta: "Planul săptămânii" },
     { href: "/pontaj/perioade", eticheta: "Perioade" },
@@ -35,24 +35,15 @@ export function NavPontaj({ poateAproba }: Proprietati) {
   ];
 
   return (
-    <nav aria-label="Navigare pontaj" className="border-border flex flex-wrap gap-1 border-b">
+    <BandaFile eticheta="Navigare pontaj">
       {file.map((fila) => {
         const activ = fila.href === "/pontaj" ? cale === fila.href : cale.startsWith(fila.href);
         return (
-          <Link
-            key={fila.href}
-            href={fila.href}
-            aria-current={activ ? "page" : undefined}
-            className={
-              activ
-                ? "border-primary text-primary border-b-2 px-4 py-2 text-sm font-medium"
-                : "text-muted-foreground hover:text-foreground border-b-2 border-transparent px-4 py-2 text-sm"
-            }
-          >
+          <Fila key={fila.href} href={fila.href} activ={activ}>
             {fila.eticheta}
-          </Link>
+          </Fila>
         );
       })}
-    </nav>
+    </BandaFile>
   );
 }

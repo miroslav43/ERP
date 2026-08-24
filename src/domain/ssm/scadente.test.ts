@@ -1,6 +1,11 @@
 // src/domain/ssm/scadente.test.ts
 import { describe, expect, it } from "vitest";
-import { PRAG_AVERTIZARE_ZILE, esteDeAtentionat, stareScadentaSsm } from "./scadente";
+import {
+  PRAG_SSM_AVERTIZARE_ZILE,
+  PRAG_SSM_CRITIC_ZILE,
+  esteDeAtentionat,
+  stareScadentaSsm,
+} from "./scadente";
 
 describe("stareScadentaSsm", () => {
   it("este „niciodata” când nu există nicio înregistrare, indiferent de dată", () => {
@@ -31,7 +36,12 @@ describe("stareScadentaSsm", () => {
   });
 
   it("respectă exact pragul de avertizare din constantă", () => {
-    expect(PRAG_AVERTIZARE_ZILE).toBe(30);
+    expect(PRAG_SSM_AVERTIZARE_ZILE).toBe(30);
+    // Pragul critic era singurul din cele patru care NU era fixat de niciun
+    // test — deci singurul care se putea muta tăcut. Și e exact cel care
+    // separă `curand` de `critic` în primitiva `<Scadenta>`, adică pragul de
+    // la care un ecran începe să strige.
+    expect(PRAG_SSM_CRITIC_ZILE).toBe(7);
   });
 
   it("nu se lasă indusă în eroare de fusul orar la trecerea peste lună", () => {

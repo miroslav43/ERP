@@ -20,7 +20,7 @@ export function ModuleMini({ active, total }: Props) {
           className={`size-2 rounded-[2px] ${i < active ? "bg-primary" : "bg-border"}`}
         />
       ))}
-      <span className="text-muted-foreground ms-1.5 font-mono text-xs tabular-nums">
+      <span className="text-muted-foreground text-nota ms-1.5 font-mono tabular-nums">
         {active}/{total}
       </span>
     </span>

@@ -1,11 +1,14 @@
 // src/app/(app)/panou/error.tsx
 "use client";
 
-import { StareEroare } from "@/components/feedback/stare-eroare";
+import { StareEroare } from "@/components/ui/stare-eroare";
 
-export default function Error({
+export default function Eroare({
   error,
-  reset,
-}: Readonly<{ error: Error & { digest?: string }; reset: () => void }>) {
-  return <StareEroare titlu="Panoul nu s-a putut încărca" eroare={error} reincearca={reset} />;
+  retry,
+}: {
+  error: Error & { digest?: string };
+  retry: () => void;
+}) {
+  return <StareEroare eroare={error} reincearca={retry} titlu="Panoul nu s-a putut încărca" />;
 }

@@ -5,8 +5,10 @@ import type { Metadata } from "next";
 import { CalendarClock, Users } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
-import { SkeletonTable } from "@/components/data/skeleton-table";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
+import { Schelet } from "@/components/ui/schelet";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -25,6 +27,7 @@ import { zileLucratoareLuna } from "@/lib/queries/payroll";
 import { filtrePontajSchema, type StatusPerioada } from "@/schemas/attendance";
 import type { PermissionScope } from "@/config/permissions";
 
+import type { IntervalNoapte } from "./interval-noapte";
 import { NavPontaj } from "./nav-pontaj";
 import { FiltrePontaj } from "./filtre-pontaj";
 import { FoaieColectiva, type RandFoaie } from "./foaie-colectiva";
@@ -48,6 +51,7 @@ async function Foaie({
   poateEdita,
   poateAproba,
   orePeZi,
+  intervalNoapte,
   oreAsteptateLuna,
   parametri,
 }: {
@@ -63,6 +67,7 @@ async function Foaie({
   readonly poateEdita: boolean;
   readonly poateAproba: boolean;
   readonly orePeZi: number;
+  readonly intervalNoapte: IntervalNoapte;
   readonly oreAsteptateLuna: number;
   readonly parametri: Record<string, string | string[] | undefined>;
 }) {
@@ -95,6 +100,8 @@ async function Foaie({
               tipZi: i.tip_zi,
               esteDinConcediu: i.leave_request_id !== null,
               aprobat: i.approved_at !== null,
+              respins: i.respins_la !== null,
+              motivRespingere: i.motiv_respingere,
               observatii: i.observatii,
             },
           ]),
@@ -115,7 +122,9 @@ async function Foaie({
         poateEdita={poateEdita}
         poateAproba={poateAproba}
         orePeZi={orePeZi}
+        intervalNoapte={intervalNoapte}
         oreAsteptateLuna={oreAsteptateLuna}
+        azi={todayInBucharest()}
       />
     );
   }
@@ -128,14 +137,16 @@ async function Foaie({
   if (angajati.length === 0) {
     const areFiltre = filtre.departament !== null || filtre.cauta !== null;
     return (
-      <EmptyState
-        icon={Users}
-        title={areFiltre ? "Niciun rezultat pentru filtrele alese" : "Niciun angajat de pontat"}
-        description={
+      <StareGoala
+        fel={areFiltre ? "filtrata" : "initiala"}
+        pictograma={Users}
+        titlu={areFiltre ? "Niciun rezultat pentru filtrele alese" : "Niciun angajat de pontat"}
+        descriere={
           areFiltre
             ? "Ștergeți filtrele ca să vedeți toți angajații."
             : "Nu există angajați activi în organizație pentru luna selectată."
         }
+        {...(areFiltre ? { actiune: { eticheta: "Șterge filtrele", href: "/pontaj" } } : {})}
       />
     );
   }
@@ -165,6 +176,8 @@ async function Foaie({
             tipZi: i.tip_zi,
             esteDinConcediu: i.leave_request_id !== null,
             aprobat: i.approved_at !== null,
+            respins: i.respins_la !== null,
+            motivRespingere: i.motiv_respingere,
             observatii: i.observatii,
           },
         ]),
@@ -191,14 +204,13 @@ async function Foaie({
         poateEdita={poateEdita}
         poateAproba={poateAproba}
         orePeZi={orePeZi}
+        intervalNoapte={intervalNoapte}
         oreAsteptateLuna={oreAsteptateLuna}
+        azi={todayInBucharest()}
       />
       <nav aria-label="Paginare" className="flex justify-end">
         {urmatorulCursor === null ? null : (
-          <Link
-            href={`/pontaj?${cautare.toString()}`}
-            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
-          >
+          <Link href={`/pontaj?${cautare.toString()}`} className={buton({ varianta: "secundar" })}>
             Pagina următoare
           </Link>
         )}
@@ -210,7 +222,7 @@ async function Foaie({
 export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) {
   const { user, tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "attendance");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   // `can(..., "own")` și nu `scopeFor(...) !== null`: scope-ul „none" e refuz
   // explicit ȘI e truthy, deci a doua formă ar lăsa poarta deschisă.
@@ -234,10 +246,16 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
   const listaDepartamente = scope === "own" ? [] : await departamente(tenant.organizationId);
   // Nu există seed pentru `attendance_settings` — 8h e implicitul deja folosit
   // în formular înainte de această modificare (`celula-zi.tsx`).
-  const orePeZi =
-    perioada === null
-      ? 8
-      : ((await setariPontaj(tenant.organizationId, perioada.data_inceput))?.ore_pe_zi ?? 8);
+  const setari =
+    perioada === null ? null : await setariPontaj(tenant.organizationId, perioada.data_inceput);
+  const orePeZi = setari?.ore_pe_zi ?? 8;
+  // Fereastra de noapte, din care celula derivă `ore_noapte` în loc s-o ceară
+  // tastată de mână. Implicitele oglindesc `attendance_settings` (0013:39-40):
+  // fără rând de setări, 22:00–06:00 e tot ce spune Codul Muncii art. 125.
+  const intervalNoapte = {
+    start: setari?.noapte_start?.slice(0, 5) ?? "22:00",
+    sfarsit: setari?.noapte_sfarsit?.slice(0, 5) ?? "06:00",
+  } as const;
   // „Ore așteptate” pentru lună — bază de raportare, NU calculul de salariu
   // (acela rămâne în `salarizare`, care poate citi aceleași cifre mai târziu).
   const oreAsteptateLuna =
@@ -246,39 +264,40 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
       : orePeZi * (await zileLucratoareLuna(tenant.organizationId, an, filtre.luna));
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Pontaj</h1>
-          <p className="text-muted-foreground text-sm">
-            Foaia colectivă pentru {formatMonthYear(an, filtre.luna)}.
-          </p>
-        </div>
-        <Link
-          href="/pontaj/setari"
-          className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm font-medium"
-        >
-          Setări
-        </Link>
-      </header>
-
-      <NavPontaj poateAproba={poateAproba} />
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Pontaj"
+        descriere={`Foaia colectivă pentru ${formatMonthYear(an, filtre.luna)}.`}
+        actiuni={
+          <Link href="/pontaj/setari" className={buton({ varianta: "secundar" })}>
+            Setări
+          </Link>
+        }
+        file={<NavPontaj poateAproba={poateAproba} />}
+      />
 
       {scope === "own" ? null : (
-        <FiltrePontaj an={an} luna={filtre.luna} departamente={listaDepartamente} />
+        <FiltrePontaj
+          an={an}
+          luna={filtre.luna}
+          departament={filtre.departament}
+          cauta={filtre.cauta}
+          departamente={listaDepartamente}
+        />
       )}
 
       {perioada === null ? (
-        <EmptyState
-          icon={CalendarClock}
-          title="Luna nu a fost deschisă"
-          description="Deschideți perioada din „Perioade” înainte de a înregistra pontaj."
+        <StareGoala
+          fel="initiala"
+          pictograma={CalendarClock}
+          titlu="Luna nu a fost deschisă"
+          descriere="Deschideți perioada din „Perioade” înainte de a înregistra pontaj."
           {...(poateDeschide
-            ? { action: { label: "Mergi la Perioade", href: "/pontaj/perioade" } }
+            ? { actiune: { eticheta: "Mergi la Perioade", href: "/pontaj/perioade" } }
             : {})}
         />
       ) : (
-        <Suspense key={JSON.stringify(parametri)} fallback={<SkeletonTable cols={10} />}>
+        <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={10} />}>
           <Foaie
             organizationId={tenant.organizationId}
             scope={scope}
@@ -292,11 +311,12 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
             poateEdita={poateEdita}
             poateAproba={poateAproba}
             orePeZi={orePeZi}
+            intervalNoapte={intervalNoapte}
             oreAsteptateLuna={oreAsteptateLuna}
             parametri={parametri}
           />
         </Suspense>
       )}
-    </main>
+    </div>
   );
 }

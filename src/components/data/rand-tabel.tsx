@@ -38,7 +38,10 @@ export function RandTabel({
   }
 
   return (
-    <tr onClick={gestioneazaClick} className={`hover:bg-background cursor-pointer ${className}`}>
+    // `hover:bg-background` era `bg-background` peste `bg-background`: DELTA
+    // ZERO. Rândul avea `cursor-pointer` și niciun răspuns vizual la trecerea
+    // mouse-ului. `surface` (#f2ede1) pe `background` (#faf7f0) se vede.
+    <tr onClick={gestioneazaClick} className={`hover:bg-surface cursor-pointer ${className}`}>
       {children}
     </tr>
   );

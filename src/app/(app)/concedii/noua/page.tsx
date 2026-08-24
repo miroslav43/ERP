@@ -2,12 +2,18 @@
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina } from "@/components/ui/antet-pagina";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { todayInBucharest } from "@/lib/format/date";
-import { soldAnual, zileNelucratoare } from "@/lib/queries/leave";
+import {
+  coduriIndemnizatieMedicala,
+  soldAnual,
+  varianteConcediu,
+  zileNelucratoare,
+} from "@/lib/queries/leave";
 
 import { NavConcedii } from "../nav-concedii";
 import { FormularCerere } from "./formular-cerere";
@@ -16,6 +22,8 @@ export const metadata: Metadata = { title: "Cerere de concediu nouă" };
 
 interface TipPentruFormular {
   readonly id: string;
+  /** Cheia din bază — `medical` deschide secțiunea de certificat în formular. */
+  readonly key: string;
   readonly denumire: string;
   readonly culoare: string;
   readonly zile_implicite: number;
@@ -26,7 +34,7 @@ interface TipPentruFormular {
 export default async function PaginaCerereNoua() {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "leave");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "leave:create", "own")) {
     return (
@@ -45,13 +53,21 @@ export default async function PaginaCerereNoua() {
   const [{ data: tipuri }, { nationale, organizatie }] = await Promise.all([
     db
       .from("leave_types")
-      .select("id, denumire, culoare, zile_implicite, scade_din_sold, necesita_document")
+      .select("id, key, denumire, culoare, zile_implicite, scade_din_sold, necesita_document")
       .eq("organization_id", tenant.organizationId)
       .eq("activ", true)
       .is("deleted_at", null)
       .order("denumire")
       .returns<TipPentruFormular[]>(),
     zileNelucratoare(tenant.organizationId, anCurent - 1, anCurent + 1),
+  ]);
+
+  // Nomenclatorul de coduri de indemnizație, valabil azi. Fără el, o cerere de
+  // concediu medical n-ar avea de unde lua procentul (75/85/100%) și numărul de
+  // zile suportate de firmă — iar indemnizația ar rămâne 0 lei.
+  const [coduriMedicale, variante] = await Promise.all([
+    coduriIndemnizatieMedicala(todayInBucharest()),
+    varianteConcediu(),
   ]);
 
   let angajati: readonly Readonly<{ id: string; full_name: string; marca: string }>[] = [];
@@ -87,24 +103,22 @@ export default async function PaginaCerereNoua() {
   const zileRecuperare = organizatie.filter((z) => z.tip === "zi_recuperare").map((z) => z.data);
 
   return (
-    <main className="space-y-6 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Cerere de concediu nouă</h1>
-        <p className="text-muted-foreground text-sm">
-          Previzualizarea zilelor consumate se calculează pe măsură ce completați formularul; soldul
-          se verifică din nou, exact, la trimitere.
-        </p>
-      </header>
-
-      <NavConcedii
-        poateVedeaEchipa={poateVedeaCalendar}
-        poateAproba={poateAproba}
-        poateVedeaCalendar={poateVedeaCalendar}
-        poateConfigura={poateConfigura}
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Cerere de concediu nouă"
+        descriere="Previzualizarea zilelor consumate se calculează pe măsură ce completați formularul; soldul se verifică din nou, exact, la trimitere."
+        file={
+          <NavConcedii
+            poateVedeaEchipa={poateVedeaCalendar}
+            poateAproba={poateAproba}
+            poateVedeaCalendar={poateVedeaCalendar}
+            poateConfigura={poateConfigura}
+          />
+        }
       />
 
       {tipuri === null || tipuri.length === 0 ? (
-        <p className="border-warning/40 bg-warning/12 text-foreground rounded-lg border p-4 text-sm">
+        <p className="border-warning/40 bg-warning/12 text-foreground rounded-panou text-corp border p-4">
           Organizația nu are niciun tip de concediu activ configurat. Contactați administratorul.
         </p>
       ) : (
@@ -113,10 +127,12 @@ export default async function PaginaCerereNoua() {
           sarbatoriRo={sarbatoriRo}
           liberSuplimentar={liberSuplimentar}
           zileRecuperare={zileRecuperare}
+          coduriMedicale={coduriMedicale}
+          variante={variante}
           angajati={poateAlegeAngajat ? angajati : null}
           soldPropriu={soldPropriu === null ? null : Object.fromEntries(soldPropriu)}
         />
       )}
-    </main>
+    </div>
   );
 }

@@ -4,13 +4,19 @@ import Link from "next/link";
 import { Settings } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
+import { buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { todayInBucharest } from "@/lib/format/date";
-import { zileNelucratoare } from "@/lib/queries/leave";
+import {
+  coduriIndemnizatieMedicala,
+  varianteConcediu,
+  zileNelucratoare,
+} from "@/lib/queries/leave";
 import { fisaMea, soldurileMele } from "@/lib/queries/portal";
 
 import { FaraFisa } from "../../fara-fisa";
@@ -20,6 +26,8 @@ export const metadata: Metadata = { title: "Cerere de concediu" };
 
 interface TipPentruFormular {
   readonly id: string;
+  /** Cheia din bază — `medical` deschide secțiunea de certificat. */
+  readonly key: string;
   readonly denumire: string;
   readonly scade_din_sold: boolean;
   readonly necesita_document: boolean;
@@ -28,7 +36,7 @@ interface TipPentruFormular {
 export default async function PaginaCerereNouaPortal() {
   const { tenant, user } = await requireTenant();
   await requireFeature(tenant.organizationId, "leave");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "leave:create", "own")) {
     return (
@@ -47,7 +55,7 @@ export default async function PaginaCerereNouaPortal() {
   const [{ data: tipuri }, { nationale, organizatie }, solduri] = await Promise.all([
     db
       .from("leave_types")
-      .select("id, denumire, scade_din_sold, necesita_document")
+      .select("id, key, denumire, scade_din_sold, necesita_document")
       .eq("organization_id", tenant.organizationId)
       .eq("activ", true)
       .is("deleted_at", null)
@@ -61,6 +69,14 @@ export default async function PaginaCerereNouaPortal() {
     soldurileMele(tenant.organizationId, an, stare.fisa.id),
   ]);
 
+  // Nomenclatorul de coduri de indemnizație medicală, valabil azi. Angajatul e
+  // cel care depune cel mai des concediu medical — fără codul de pe certificat,
+  // indemnizația lui rămâne 0 lei, fără nicio eroare vizibilă.
+  const [coduriMedicale, variante] = await Promise.all([
+    coduriIndemnizatieMedicala(todayInBucharest()),
+    varianteConcediu(),
+  ]);
+
   const soldPeTip = Object.fromEntries(
     solduri.map((s) => [s.leave_type_id, s.ramase ?? 0] as const),
   );
@@ -72,26 +88,27 @@ export default async function PaginaCerereNouaPortal() {
   const zileRecuperare = organizatie.filter((z) => z.tip === "zi_recuperare").map((z) => z.data);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 p-4">
-      <header>
-        <h1 className="text-foreground text-xl font-semibold">Cerere de concediu</h1>
-        <p className="text-muted-foreground text-sm">
-          Alegeți perioada; zilele lucrătoare se numără automat, fără sărbători legale.
-        </p>
-      </header>
+    <div className={`${LATIMI.formular} space-y-4 p-4`}>
+      <AntetPagina
+        titlu="Cerere de concediu"
+        descriere="Alegeți perioada; zilele lucrătoare se numără automat, fără sărbători legale."
+      />
 
       {tipuri === null || tipuri.length === 0 ? (
-        <EmptyState
-          icon={Settings}
-          title="Nu există tipuri de concediu configurate"
+        <StareGoala
+          fel="initiala"
+          pictograma={Settings}
+          titlu="Nu există tipuri de concediu configurate"
           // Fără buton de configurare: `leave:update = all` e al administratorului,
           // iar un buton pe care angajatul îl apasă și primește refuz e mai rău
           // decât absența lui.
-          description="Firma nu are niciun tip de concediu activ, deci nicio cerere nu poate fi depusă. Anunțați administratorul organizației."
+          descriere="Firma nu are niciun tip de concediu activ, deci nicio cerere nu poate fi depusă. Anunțați administratorul organizației."
         />
       ) : (
         <FormularCererePortal
           tipuri={tipuri}
+          coduriMedicale={coduriMedicale}
+          variante={variante}
           sarbatoriRo={sarbatoriRo}
           liberSuplimentar={liberSuplimentar}
           zileRecuperare={zileRecuperare}
@@ -100,10 +117,7 @@ export default async function PaginaCerereNouaPortal() {
       )}
 
       <p>
-        <Link
-          href="/portal/concediile-mele"
-          className="text-primary text-sm underline-offset-2 hover:underline"
-        >
+        <Link href="/portal/concediile-mele" className={buton({ varianta: "link" })}>
           Înapoi la concediile mele
         </Link>
       </p>

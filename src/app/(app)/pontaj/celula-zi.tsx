@@ -3,10 +3,16 @@
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
 import { TIPURI_ZI_ALEGERE, type TipZi } from "@/schemas/attendance";
-import { oreLucrateDinInterval, oreSuplimentareDinLucrate } from "@/domain/attendance/calcul-ore";
+import {
+  oreLucrateDinInterval,
+  oreNoapteDinInterval,
+  oreSuplimentareDinLucrate,
+} from "@/domain/attendance/calcul-ore";
+import type { IntervalNoapte } from "./interval-noapte";
 import { ETICHETE_TIP_ZI } from "./etichete";
-import { salveazaZiPontaj, stergeZiPontaj } from "./actions";
+import { decideZiPontaj, salveazaZiPontaj, stergeZiPontaj } from "./actions";
 import type { IntrareZiClient } from "./foaie-colectiva";
 
 interface Proprietati {
@@ -17,10 +23,14 @@ interface Proprietati {
   readonly poateSterge: boolean;
   /** Pragul de ore/zi al organizației (`attendance_settings.ore_pe_zi`) — peste el, orele devin suplimentare automat. */
   readonly orePeZi: number;
+  /** Fereastra de noapte a organizației (`attendance_settings.noapte_start/_sfarsit`). */
+  readonly intervalNoapte: IntervalNoapte;
+  /** Aprobatorul vede secțiunea de decizie pe zi; ceilalți, doar rezultatul ei. */
+  readonly poateAproba: boolean;
   readonly onInchide: () => void;
 }
 
-const CLASA_CAMP = "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
+const CLASA_CAMP = "mt-1 w-full rounded-control border border-foreground/60 px-3 py-2 text-corp";
 
 /**
  * Editorul unei zile de pontaj, ca `<dialog>` nativ — focus trap și Escape
@@ -38,6 +48,8 @@ export function CelulaZi({
   intrare,
   poateSterge,
   orePeZi,
+  intervalNoapte,
+  poateAproba,
   onInchide,
 }: Proprietati) {
   const router = useRouter();
@@ -49,6 +61,8 @@ export function CelulaZi({
   const [oreLucrate, setOreLucrate] = useState(String(intrare?.oreLucrate ?? 8));
   const [oreSuplimentare, setOreSuplimentare] = useState(String(intrare?.oreSuplimentare ?? 0));
   const [oreNoapte, setOreNoapte] = useState(String(intrare?.oreNoapte ?? 0));
+  const [motivRespingere, setMotivRespingere] = useState("");
+  const [ceareMotiv, setCereMotiv] = useState(false);
   const [tipZi, setTipZi] = useState<string>(
     intrare !== null && (TIPURI_ZI_ALEGERE as readonly string[]).includes(intrare.tipZi)
       ? intrare.tipZi
@@ -64,6 +78,7 @@ export function CelulaZi({
   const idOreNoapte = useId();
   const idTipZi = useId();
   const idObservatii = useId();
+  const idMotivRespingere = useId();
 
   useEffect(() => {
     const el = dialogRef.current;
@@ -109,6 +124,17 @@ export function CelulaZi({
     if (calculate !== null) {
       setOreLucrate(String(calculate));
       setOreSuplimentare(String(oreSuplimentareDinLucrate(calculate, orePeZi)));
+      // Orele de noapte se DERIVĂ din interval, nu se mai tastează. Coloanele
+      // `noapte_start`/`noapte_sfarsit` existau din 0013 și nu le citea nimic:
+      // cine uita să completeze pierdea sporul de 25%, cine exagera îl încasa
+      // nemeritat, iar nimic nu compara cifra cu tura efectiv lucrată.
+      const noaptea = oreNoapteDinInterval(
+        nouaInceput,
+        nouaSfarsit,
+        intervalNoapte.start,
+        intervalNoapte.sfarsit,
+      );
+      if (noaptea !== null) setOreNoapte(String(noaptea));
     }
   }
 
@@ -119,6 +145,36 @@ export function CelulaZi({
     if (valoare.trim().length > 0 && Number.isFinite(numar)) {
       setOreSuplimentare(String(oreSuplimentareDinLucrate(numar, orePeZi)));
     }
+  }
+
+  /**
+   * Aprobă sau respinge ziua curentă.
+   *
+   * Până în 0067 exista numai aprobarea în BLOC, pe toată luna, și nicio cale
+   * de respingere: aprobatorul care găsea o zi greșită putea aproba tot,
+   * inclusiv greșeala, sau nimic.
+   */
+  function decide(aproba: boolean): void {
+    if (intrare === null) return;
+    if (!aproba && motivRespingere.trim().length < 5) {
+      setCereMotiv(true);
+      setEroare("Respingerea cere un motiv de cel puțin 5 caractere.");
+      return;
+    }
+    setEroare(null);
+    porneste(async () => {
+      const rezultat = await decideZiPontaj({
+        entry_id: intrare.id,
+        aproba,
+        motiv: aproba ? null : motivRespingere,
+      });
+      if (!rezultat.ok) {
+        setEroare(rezultat.error.message);
+        return;
+      }
+      onInchide();
+      router.refresh();
+    });
   }
 
   function sterge(): void {
@@ -140,16 +196,16 @@ export function CelulaZi({
       ref={dialogRef}
       aria-labelledby={idTitlu}
       onClose={onInchide}
-      className="border-border bg-surface text-foreground w-full max-w-md rounded-lg border p-0 backdrop:bg-black/40"
+      className="border-border bg-surface text-foreground rounded-panou w-full max-w-md border p-0 backdrop:bg-black/40"
     >
       <form onSubmit={trimite} className="space-y-4 p-5" noValidate>
-        <h2 id={idTitlu} className="text-base font-semibold">
+        <h2 id={idTitlu} className="text-sectiune font-semibold">
           {eticheta}
         </h2>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label htmlFor={idOraInceput} className="block text-sm font-medium">
+            <label htmlFor={idOraInceput} className="text-corp block font-medium">
               Ora început
             </label>
             <input
@@ -164,7 +220,7 @@ export function CelulaZi({
             />
           </div>
           <div>
-            <label htmlFor={idOraSfarsit} className="block text-sm font-medium">
+            <label htmlFor={idOraSfarsit} className="text-corp block font-medium">
               Ora sfârșit
             </label>
             <input
@@ -179,7 +235,7 @@ export function CelulaZi({
             />
           </div>
           <div>
-            <label htmlFor={idOreLucrate} className="block text-sm font-medium">
+            <label htmlFor={idOreLucrate} className="text-corp block font-medium">
               Ore lucrate
             </label>
             <input
@@ -196,7 +252,7 @@ export function CelulaZi({
             />
           </div>
           <div>
-            <label htmlFor={idOreSuplimentare} className="block text-sm font-medium">
+            <label htmlFor={idOreSuplimentare} className="text-corp block font-medium">
               Ore suplimentare
             </label>
             <input
@@ -213,7 +269,7 @@ export function CelulaZi({
             />
           </div>
           <div>
-            <label htmlFor={idOreNoapte} className="block text-sm font-medium">
+            <label htmlFor={idOreNoapte} className="text-corp block font-medium">
               Ore noapte
             </label>
             <input
@@ -230,7 +286,7 @@ export function CelulaZi({
             />
           </div>
           <div>
-            <label htmlFor={idTipZi} className="block text-sm font-medium">
+            <label htmlFor={idTipZi} className="text-corp block font-medium">
               Tip special
             </label>
             <select
@@ -252,7 +308,7 @@ export function CelulaZi({
         </div>
 
         <div>
-          <label htmlFor={idObservatii} className="block text-sm font-medium">
+          <label htmlFor={idObservatii} className="text-corp block font-medium">
             Observații
           </label>
           <textarea
@@ -267,35 +323,84 @@ export function CelulaZi({
           />
         </div>
 
+        {intrare !== null && intrare.respins ? (
+          <p className="border-danger/40 bg-danger/10 rounded-control text-corp border p-3">
+            <strong>Zi respinsă.</strong> {intrare.motivRespingere ?? "Fără motiv înregistrat."}{" "}
+            Corectați-o și salvați din nou.
+          </p>
+        ) : null}
+
+        {intrare !== null && poateAproba ? (
+          <fieldset className="border-border rounded-panou border p-3">
+            <legend className="text-corp px-1 font-medium">Decizia pe ziua asta</legend>
+            <p className="text-muted-foreground text-corp mb-2">
+              {intrare.aprobat
+                ? "Ziua e aprobată. O poți respinge dacă ai găsit o problemă."
+                : "Ziua nu e încă decisă. Aprobarea în bloc, din ecranul de aprobări, decide toată luna deodată."}
+            </p>
+
+            {ceareMotiv ? (
+              <div className="mb-2">
+                <label htmlFor={idMotivRespingere} className="text-corp block font-medium">
+                  Motivul respingerii
+                </label>
+                <input
+                  id={idMotivRespingere}
+                  type="text"
+                  value={motivRespingere}
+                  maxLength={500}
+                  onChange={(e) => {
+                    setMotivRespingere(e.target.value);
+                  }}
+                  placeholder="Ex. orele nu corespund cu foaia de prezență"
+                  className={CLASA_CAMP}
+                />
+              </div>
+            ) : null}
+
+            <div className="flex flex-wrap gap-2">
+              <Buton
+                varianta="secundar"
+                onClick={() => {
+                  decide(true);
+                }}
+                disabled={inCurs || intrare.aprobat}
+              >
+                Aprobă ziua
+              </Buton>
+              <Buton
+                varianta="distructiv"
+                onClick={() => {
+                  if (!ceareMotiv) {
+                    setCereMotiv(true);
+                    return;
+                  }
+                  decide(false);
+                }}
+                disabled={inCurs}
+              >
+                {ceareMotiv ? "Confirmă respingerea" : "Respinge ziua"}
+              </Buton>
+            </div>
+          </fieldset>
+        ) : null}
+
         <div aria-live="polite">
-          {eroare === null ? null : <p className="text-danger text-sm">{eroare}</p>}
+          {eroare === null ? null : <p className="text-danger text-corp">{eroare}</p>}
         </div>
 
         <div className="flex flex-wrap justify-end gap-2">
           {intrare !== null && poateSterge ? (
-            <button
-              type="button"
-              onClick={sterge}
-              disabled={inCurs}
-              className="border-danger text-danger hover:bg-danger hover:text-danger-foreground disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md border px-3 py-2 text-sm disabled:cursor-not-allowed"
-            >
+            <Buton varianta="distructiv" onClick={sterge} disabled={inCurs}>
               Șterge ziua
-            </button>
+            </Buton>
           ) : null}
-          <button
-            type="button"
-            onClick={onInchide}
-            className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
-          >
+          <Buton varianta="secundar" onClick={onInchide}>
             Renunță
-          </button>
-          <button
-            type="submit"
-            disabled={inCurs}
-            className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-          >
-            {inCurs ? "Se salvează…" : "Salvează"}
-          </button>
+          </Buton>
+          <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+            Salvează
+          </Buton>
         </div>
       </form>
     </dialog>

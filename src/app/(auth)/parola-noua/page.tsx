@@ -1,6 +1,7 @@
 // src/app/(auth)/parola-noua/page.tsx
 import type { Metadata } from "next";
 import Link from "next/link";
+import { buton, Buton } from "@/components/ui/buton";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { param } from "@/schemas/auth";
 import { seteazaParolaNoua } from "./actions";
@@ -14,8 +15,9 @@ const MESAJE: Record<string, string> = {
   refuzata: "Parola nu a putut fi schimbată. Solicitați un link nou de resetare.",
 };
 
+/** `pointer-coarse:text-sectiune` — vezi comentariul din `autentificare/page.tsx`. */
 const CLASA_CAMP =
-  "border-border bg-background focus:border-ring w-full rounded-md border px-3 py-2 text-sm";
+  "border-border bg-background focus:border-ring rounded-control text-corp w-full border px-3 py-2 pointer-coarse:text-sectiune";
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
@@ -29,14 +31,12 @@ export default async function PaginaParolaNoua({ searchParams }: Props) {
   if (!data.user) {
     return (
       <>
-        <h1 className="text-primary text-xl font-semibold">Link expirat</h1>
-        <p className="text-muted-foreground mt-2 text-sm">
+        <h1 className="text-primary text-sectiune font-semibold">Link expirat</h1>
+        <p className="text-muted-foreground text-corp mt-2">
           Linkul de resetare nu mai este valid sau a fost deja folosit. Solicitați unul nou.
         </p>
-        <Link
-          href="/resetare-parola"
-          className="bg-primary text-primary-foreground hover:bg-primary-hover mt-6 inline-block rounded-md px-4 py-2 text-sm font-medium"
-        >
+        {/* `<Link>` nu e `<button>`, deci ia clasele prin `buton()`, nu componenta. */}
+        <Link href="/resetare-parola" className={`${buton({ varianta: "primar" })} mt-6`}>
           Cere un link nou
         </Link>
       </>
@@ -45,15 +45,15 @@ export default async function PaginaParolaNoua({ searchParams }: Props) {
 
   return (
     <>
-      <h1 className="text-primary text-xl font-semibold">Alegeți o parolă nouă</h1>
-      <p className="text-muted-foreground mt-1 text-sm">
+      <h1 className="text-primary text-sectiune font-semibold">Alegeți o parolă nouă</h1>
+      <p className="text-muted-foreground text-corp mt-1">
         Minimum 12 caractere. Nu refolosiți o parolă de pe alt site.
       </p>
 
       {eroare !== null && (
         <p
           role="alert"
-          className="text-danger border-danger/40 bg-danger/5 mt-4 rounded-md border px-3 py-2 text-sm"
+          className="text-danger border-danger/40 bg-danger/5 rounded-control text-corp mt-4 border px-3 py-2"
         >
           {eroare}
         </p>
@@ -61,7 +61,7 @@ export default async function PaginaParolaNoua({ searchParams }: Props) {
 
       <form action={seteazaParolaNoua} className="mt-6 flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="parola" className="text-sm font-medium">
+          <label htmlFor="parola" className="text-corp font-medium">
             Parolă nouă
           </label>
           <input
@@ -74,12 +74,12 @@ export default async function PaginaParolaNoua({ searchParams }: Props) {
             aria-describedby="ajutor-parola"
             className={CLASA_CAMP}
           />
-          <p id="ajutor-parola" className="text-muted-foreground text-xs">
+          <p id="ajutor-parola" className="text-muted-foreground text-nota">
             Cel puțin 12 caractere.
           </p>
         </div>
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="confirmare" className="text-sm font-medium">
+          <label htmlFor="confirmare" className="text-corp font-medium">
             Confirmarea parolei
           </label>
           <input
@@ -91,12 +91,9 @@ export default async function PaginaParolaNoua({ searchParams }: Props) {
             className={CLASA_CAMP}
           />
         </div>
-        <button
-          type="submit"
-          className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium transition-colors"
-        >
+        <Buton type="submit" varianta="primar">
           Salvează parola
-        </button>
+        </Buton>
       </form>
     </>
   );

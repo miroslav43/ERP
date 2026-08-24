@@ -71,7 +71,7 @@ export function RailPlatforma({ numarOrganizatii, numarCereriNoi }: Props) {
                   <Link
                     href={href}
                     aria-current={activ ? "page" : undefined}
-                    className={`relative flex items-center gap-2.5 rounded-md px-2 py-2 text-sm font-medium transition ${
+                    className={`rounded-control text-corp relative flex items-center gap-2.5 px-2 py-2 font-medium transition ${
                       activ
                         ? "bg-white/10 text-white"
                         : "text-white/55 hover:bg-white/5 hover:text-white/90"

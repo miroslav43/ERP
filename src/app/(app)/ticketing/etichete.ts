@@ -1,4 +1,5 @@
 // src/app/(app)/ticketing/etichete.ts
+import type { TonStare } from "@/components/ui/badge";
 import type { StatusTichet, TipTichet } from "@/domain/ticketing/stari";
 import type { Prioritate } from "@/domain/ticketing/prioritate";
 
@@ -29,18 +30,23 @@ export const ETICHETE_STATUS: Readonly<Record<StatusTichet, string>> = {
   redeschis: "Redeschis",
 };
 
-export const CLASE_STATUS: Readonly<Record<StatusTichet, string>> = {
-  nou: "bg-sky-100 text-sky-900",
-  in_aprobare: "bg-amber-100 text-amber-900",
-  respins: "bg-rose-100 text-rose-900",
-  in_lucru: "bg-indigo-100 text-indigo-900",
-  // Deliberat cel mai vizibil: e singurul status în care mingea e la
-  // solicitant, iar cerința era să se distingă clar în listă.
-  in_asteptare: "bg-orange-200 text-orange-950 font-medium",
-  rezolvat: "bg-emerald-100 text-emerald-900",
-  inchis: "bg-zinc-200 text-zinc-800",
-  anulat: "bg-zinc-200 text-zinc-600 line-through",
-  redeschis: "bg-violet-100 text-violet-900",
+export const TONURI_STATUS: Readonly<Record<StatusTichet, TonStare>> = {
+  // Tichet deschis, dar neluat încă de nimeni — „neînceput”, nu „în lucru”.
+  nou: "ciorna",
+  in_aprobare: "atentie",
+  respins: "pericol",
+  // „În lucru” e atenție, nu succes: lucrul e început, nu terminat.
+  in_lucru: "atentie",
+  // Era deliberat cel mai vizibil status, fiindcă e singurul în care mingea e la
+  // solicitant. Distincția o poartă acum CUVÂNTUL („Așteaptă răspunsul tău”), nu
+  // o nuanță proprie de portocaliu.
+  in_asteptare: "atentie",
+  rezolvat: "succes",
+  inchis: "neutru",
+  anulat: "neutru",
+  // Redeschis e o stare activă — munca s-a întors la echipă —, deci atenție, nu
+  // neutru, deși vechea culoare era violet.
+  redeschis: "atentie",
 };
 
 export const ETICHETE_PRIORITATE: Readonly<Record<Prioritate, string>> = {
@@ -50,11 +56,11 @@ export const ETICHETE_PRIORITATE: Readonly<Record<Prioritate, string>> = {
   critica: "Critică",
 };
 
-export const CLASE_PRIORITATE: Readonly<Record<Prioritate, string>> = {
-  scazuta: "bg-zinc-100 text-zinc-700",
-  normala: "bg-zinc-100 text-zinc-800",
-  ridicata: "bg-amber-100 text-amber-900",
-  critica: "bg-rose-200 text-rose-950 font-medium",
+export const TONURI_PRIORITATE: Readonly<Record<Prioritate, TonStare>> = {
+  scazuta: "neutru",
+  normala: "neutru",
+  ridicata: "atentie",
+  critica: "pericol",
 };
 
 /** Cum se numesc câmpurile în istoricul tichetului. */

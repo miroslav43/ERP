@@ -12,6 +12,7 @@ import { Pas3Financiar, CAMPURI_PAS_3 } from "@/components/onboarding/pas-3-fina
 import { Pas4Structura, CAMPURI_PAS_4 } from "@/components/onboarding/pas-4-structura";
 import { Pas5Ssm, CAMPURI_PAS_5 } from "@/components/onboarding/pas-5-ssm";
 import { Pas7Confirmare } from "@/components/onboarding/pas-7-confirmare";
+import { Buton } from "@/components/ui/buton";
 import { RUTA_DUPA_AUTENTIFICARE } from "@/config/routes";
 import type { OnboardeazaOrganizatieInput } from "@/schemas/organization";
 import { completeazaFirmaSchema } from "@/schemas/organization";
@@ -142,8 +143,8 @@ export function AsistentFirma({ numeFirma, valoriInitiale }: Props) {
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-2">
-        <h1 className="text-foreground text-2xl font-semibold">Bun venit</h1>
-        <p className="text-muted-foreground text-sm">
+        <h1 className="text-foreground text-titlu font-semibold">Bun venit</h1>
+        <p className="text-muted-foreground text-corp">
           Înainte de a folosi aplicația, completează datele firmei{" "}
           <strong className="text-foreground font-medium">{numeFirma}</strong>. Sunt necesare pentru
           contracte, adeverințe și state de plată — fără ele, modulele care le folosesc nu pot
@@ -157,14 +158,24 @@ export function AsistentFirma({ numeFirma, valoriInitiale }: Props) {
         <p
           role="alert"
           aria-live="assertive"
-          className="border-border bg-surface text-danger rounded-md border px-4 py-3 text-sm"
+          className="border-border bg-surface text-danger rounded-control text-corp border px-4 py-3"
         >
           {eroareServer}
         </p>
       ) : null}
 
+      {/* `noValidate`, ca în asistentul din consolă. Pașii sunt ACELEAȘI
+          componente în ambele zone; de când câmpurile obligatorii poartă
+          `required` (prin `<Camp obligatoriu>`), un formular fără `noValidate`
+          ar fi fost oprit de validarea nativă a browserului ÎNAINTE ca
+          `onSubmit` să se declanșeze — cu bula browserului, în limba
+          browserului, în locul mesajelor românești din Zod. Aceleași câmpuri
+          s-ar fi comportat diferit în cele două zone. Validarea rămâne
+          `zodResolver`; `required` rămâne în DOM fiindcă cititoarele de ecran
+          îl anunță. */}
       <form
         id={idFormular}
+        noValidate
         onSubmit={(eveniment) => {
           eveniment.preventDefault();
           if (pasCurent === PAS_CONFIRMARE) void trimite();
@@ -179,31 +190,22 @@ export function AsistentFirma({ numeFirma, valoriInitiale }: Props) {
         {pasCurent === PAS_CONFIRMARE ? <Pas7Confirmare formular={formular} /> : null}
 
         <div className="border-border flex items-center justify-between gap-3 border-t pt-4">
-          <button
-            type="button"
+          <Buton
+            varianta="secundar"
             onClick={() => setPasCurent(anteriorul(pasCurent))}
             disabled={pasCurent === 1}
-            className="border-border text-foreground hover:bg-surface rounded-md border px-4 py-2 text-sm font-medium transition disabled:opacity-40"
           >
             Înapoi
-          </button>
+          </Buton>
 
           {pasCurent === PAS_CONFIRMARE ? (
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-5 py-2 text-sm font-semibold transition disabled:opacity-60"
-            >
-              {isSubmitting ? "Se salvează…" : "Finalizează configurarea"}
-            </button>
+            <Buton varianta="primar" type="submit" inCurs={isSubmitting} textInCurs="Se salvează…">
+              Finalizează configurarea
+            </Buton>
           ) : (
-            <button
-              type="button"
-              onClick={() => void mergiInainte()}
-              className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-5 py-2 text-sm font-semibold transition"
-            >
+            <Buton varianta="primar" onClick={() => void mergiInainte()}>
               Continuă
-            </button>
+            </Buton>
           )}
         </div>
       </form>

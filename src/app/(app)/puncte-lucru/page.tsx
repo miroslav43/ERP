@@ -3,7 +3,8 @@ import type { Metadata } from "next";
 import { MapPin } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -29,7 +30,7 @@ interface RandPunctLucru {
 export default async function PaginaPuncteLucru() {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "nucleu");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (scopeFor(permisiuni, "departments:read") === "none") {
     return <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta punctele de lucru." />;
@@ -52,51 +53,56 @@ export default async function PaginaPuncteLucru() {
   const puncte = data ?? [];
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Puncte de lucru</h1>
-          <p className="text-muted-foreground text-sm">
-            Locațiile fizice ale companiei — sedii, fabrici, birouri. Relevante pentru pontaj
-            (geofencing/terminale per locație) și parc auto.
-          </p>
-        </div>
-        {poateCrea ? <FormularPunctLucruNou /> : null}
-      </header>
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Puncte de lucru"
+        descriere="Locațiile fizice ale companiei — sedii, fabrici, birouri. Relevante pentru pontaj (geofencing/terminale per locație) și parc auto."
+        {...(poateCrea ? { actiuni: <FormularPunctLucruNou /> } : {})}
+      />
 
       {puncte.length === 0 ? (
-        <EmptyState
-          icon={MapPin}
-          title="Niciun punct de lucru înregistrat"
-          description="Adăugați primul punct de lucru — de obicei sediul principal."
+        <StareGoala
+          fel="initiala"
+          pictograma={MapPin}
+          titlu="Niciun punct de lucru înregistrat"
+          descriere="Adăugați primul punct de lucru — de obicei sediul principal."
         />
       ) : (
         <ul className="space-y-3">
           {puncte.map((punct) => (
-            <li key={punct.id} className="border-border bg-surface rounded-lg border shadow-sm">
+            <li
+              key={punct.id}
+              className="border-border bg-surface rounded-panou shadow-ridicat border"
+            >
               <div className="flex flex-wrap items-start gap-3 px-4 py-3">
-                <span className="bg-background flex size-9 shrink-0 items-center justify-center rounded-md">
+                <span className="bg-background rounded-control flex size-9 shrink-0 items-center justify-center">
                   <MapPin aria-hidden="true" className="text-primary size-4.5" />
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">{punct.denumire}</span>
                     {punct.sediu_principal ? (
-                      <span className="bg-primary/10 text-primary rounded-full px-2 py-0.5 text-xs font-medium">
+                      <span className="bg-primary/10 text-primary text-nota rounded-full px-2 py-0.5 font-medium">
                         Sediu principal
                       </span>
                     ) : null}
                     {!punct.activ ? (
-                      <span className="bg-background text-muted-foreground rounded-full px-2 py-0.5 text-xs font-medium">
+                      <span className="bg-background text-muted-foreground text-nota rounded-full px-2 py-0.5 font-medium">
                         Inactiv
                       </span>
                     ) : null}
                   </div>
-                  <p className="text-muted-foreground mt-1 text-sm">
+                  <p className="text-muted-foreground text-corp mt-1">
                     {[punct.adresa, punct.oras, punct.judet, punct.cod_postal]
                       .filter(Boolean)
                       .join(", ") || "Fără adresă completată."}
                   </p>
+                  {/* `observatii` se citea din bază de la început și nu se
+                      randa nicăieri, iar formularul de creare trimitea `null`
+                      fix — coloana era moartă în ambele sensuri. */}
+                  {punct.observatii === null ? null : (
+                    <p className="text-foreground text-nota mt-1">{punct.observatii}</p>
+                  )}
                 </div>
               </div>
               {poateEdita ? (
@@ -108,6 +114,6 @@ export default async function PaginaPuncteLucru() {
           ))}
         </ul>
       )}
-    </main>
+    </div>
   );
 }

@@ -1,4 +1,4 @@
-import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
+import { IBM_Plex_Sans } from "next/font/google";
 
 /**
  * Fonturile consolei de platformă. Aplicația de firmă rămâne pe Inter.
@@ -10,20 +10,17 @@ import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
  * mijlocul cuvintelor.
  *
  * De ce Plex și nu Inter: Inter e alegerea implicită a tuturor, iar consola de
- * platformă e locul unde diferența dintre planuri trebuie să se simtă. Mono
- * poartă cifrele — CUI, plafoane, ore, ID-uri de cerere — împreună cu
- * `tabular-nums`, ca să se alinieze în coloane la scanare.
+ * platformă e locul unde diferența dintre planuri trebuie să se simtă.
+ *
+ * Mono NU se mai declară aici. Instanța locală (`--font-consola-mono`) era
+ * descărcată și neconsumată de nimeni — variabila nu era înregistrată în
+ * `@theme`, deci toate `font-mono` din consolă cădeau tot pe stiva sistemului.
+ * Cifrele vin acum din `monoCifre` (`src/lib/ui/fonturi.ts`), comun celor trei
+ * zone care afișează date.
  */
 export const plexSans = IBM_Plex_Sans({
   variable: "--font-consola",
   subsets: ["latin", "latin-ext"],
   weight: ["400", "500", "600", "700"],
-  display: "swap",
-});
-
-export const plexMono = IBM_Plex_Mono({
-  variable: "--font-consola-mono",
-  subsets: ["latin", "latin-ext"],
-  weight: ["400", "500", "600"],
   display: "swap",
 });

@@ -18,6 +18,7 @@ import {
   Clock,
   FileText,
   FolderTree,
+  Gavel,
   HardHat,
   House,
   LayoutDashboard,
@@ -28,11 +29,12 @@ import {
   Package,
   Percent,
   Receipt,
+  ScrollText,
   Settings,
+  type LucideIcon,
   Users,
   Wallet,
   Wrench,
-  type LucideIcon,
 } from "lucide-react";
 import type { FeatureKey } from "./features";
 import type { MinScope, PermissionKey } from "./permissions";
@@ -139,6 +141,28 @@ export const NAV_ITEMS: readonly NavItem[] = [
     permission: "employees:read",
     minScope: "team",
     order: 40,
+  },
+  /*
+   * REVISAL n-avea NICIUN link în tot codul — `grep -rn 'href="/revisal'` pe
+   * `src/` întorcea zero potriviri, iar `NAV_ITEMS` nu-l pomenea. Ecranul
+   * exista, era complet, și se ajungea la el doar tastând adresa.
+   *
+   * Registrul general de evidență a salariaților are termen legal de
+   * transmitere și contravenție PER SALARIAT la întârziere; e printre puținele
+   * ecrane din produs a căror absență costă bani. `minScope: "all"` fiindcă
+   * pagina însăși cere `compliance:read = "all"` — un element de meniu care duce
+   * într-un refuz e mai rău decât unul care lipsește.
+   */
+  {
+    id: "revisal",
+    label: "REVISAL",
+    href: "/revisal",
+    icon: ScrollText,
+    group: "personal",
+    featureKey: null,
+    permission: "compliance:read",
+    minScope: "all",
+    order: 41,
   },
   {
     id: "functii",
@@ -347,6 +371,19 @@ export const NAV_ITEMS: readonly NavItem[] = [
     permission: "payroll:read",
     minScope: "team",
     order: 111,
+  },
+  {
+    id: "popriri",
+    label: "Popriri",
+    href: "/salarizare/popriri",
+    icon: Gavel,
+    group: "financiar",
+    featureKey: "payroll",
+    // `all`, nu `team`: un dosar de urmărire silită e o informație despre
+    // situația personală a angajatului, iar reținerea se decide pe toată firma.
+    permission: "payroll:read",
+    minScope: "all",
+    order: 112,
   },
   {
     id: "diurna",
@@ -609,6 +646,22 @@ export const PORTAL_NAV_ITEMS: readonly PortalNavItem[] = [
     permission: "tickets:read",
     minScope: "own",
     order: 95,
+    exact: false,
+    prioritateBara: null,
+  },
+  {
+    id: "portal-echipa",
+    label: "Echipa mea",
+    href: "/portal/echipa-mea",
+    icon: Network,
+    group: "firma",
+    // `nucleu`, nu `employee_portal`: ierarhia e din modulul de bază, iar
+    // pagina trebuie să existe și la firmele care n-au activat portalul ca
+    // modul separat — angajatul e adus acolo oricum, de poarta de rol.
+    featureKey: "nucleu",
+    permission: "employees:read",
+    minScope: "own",
+    order: 60,
     exact: false,
     prioritateBara: null,
   },

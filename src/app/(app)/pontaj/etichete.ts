@@ -1,4 +1,5 @@
 // src/app/(app)/pontaj/etichete.ts
+import type { TonStare } from "@/components/ui/badge";
 import type {
   StareSaptamanaPontaj,
   StatusPerioada,
@@ -21,11 +22,12 @@ export const ETICHETE_STARE_SAPTAMANA: Readonly<Record<StareSaptamanaPontaj, str
   respinsa: "Respinsă",
 };
 
-export const CLASE_STARE_SAPTAMANA: Readonly<Record<StareSaptamanaPontaj, string>> = {
-  ciorna: "bg-zinc-200 text-zinc-800",
-  trimisa: "bg-amber-100 text-amber-900",
-  aprobata: "bg-emerald-100 text-emerald-900",
-  respinsa: "bg-danger/12 text-danger",
+export const TONURI_STARE_SAPTAMANA: Readonly<Record<StareSaptamanaPontaj, TonStare>> = {
+  ciorna: "ciorna",
+  // Trimisă = se așteaptă decizia altcuiva, nu e încă un succes.
+  trimisa: "atentie",
+  aprobata: "succes",
+  respinsa: "pericol",
 };
 
 export const ETICHETE_TIP_ZI: Readonly<Record<TipZi, string>> = {
@@ -38,15 +40,43 @@ export const ETICHETE_TIP_ZI: Readonly<Record<TipZi, string>> = {
   delegatie: "Delegație",
 };
 
-/** Marcaj de fundal per tip de zi — folosit ÎMPREUNĂ cu text, niciodată singur. */
+/**
+ * Codul scris ÎN celula matricei, când ziua n-are ore lucrate.
+ *
+ * Înainte, celula afișa `ETICHETE_TIP_ZI[tip].slice(0, 3)` — o tăiere oarbă
+ * care producea „Wee”, „Săr”, „Con”, „Luc”. „Wee” nu e un cuvânt românesc, iar
+ * „Luc” apărea pe o zi lucrătoare cu 0 ore ÎNREGISTRATE, care e altceva decât
+ * o zi fără nicio intrare (aceea rămâne „—”): cifra `0` spune exact asta.
+ * Restul sunt codurile de pontaj consacrate din practica românească.
+ */
+export const CODURI_TIP_ZI: Readonly<Record<TipZi, string>> = {
+  lucratoare: "0",
+  weekend: "L",
+  sarbatoare: "SL",
+  concediu: "CO",
+  medical: "CM",
+  absenta_nemotivata: "AN",
+  delegatie: "D",
+};
+
+/**
+ * Fundal de celulă în matricea foii colective — NU o pastilă, deci nu trece
+ * prin `<Badge>`: aici se colorează celula, nu se pune o etichetă în ea.
+ *
+ * Șirurile goale sunt intenționate (docs/design/stari-de-interactiune.md,
+ * tabelul 1b): codul de trei litere din celulă e deja purtătorul înțelesului,
+ * culoarea doar îl repeta — și se pierdea oricum la tipărire. Rămân colorate
+ * doar sărbătoarea (singura apariție a auriului din tot sistemul, `bg-accent/25`)
+ * și absența nemotivată, singura care merită alarmă.
+ */
 export const CLASE_TIP_ZI: Readonly<Record<TipZi, string>> = {
   lucratoare: "",
   weekend: "bg-surface",
-  sarbatoare: "bg-warning/12",
-  concediu: "bg-surface",
-  medical: "bg-purple-50",
+  sarbatoare: "bg-accent/25",
+  concediu: "",
+  medical: "",
   absenta_nemotivata: "bg-danger/8",
-  delegatie: "bg-surface",
+  delegatie: "",
 };
 
 export const ETICHETE_STATUS_PERIOADA: Readonly<Record<StatusPerioada, string>> = {
@@ -55,10 +85,12 @@ export const ETICHETE_STATUS_PERIOADA: Readonly<Record<StatusPerioada, string>> 
   blocata: "Blocată",
 };
 
-export const CLASE_STATUS_PERIOADA: Readonly<Record<StatusPerioada, string>> = {
-  deschisa: "bg-emerald-100 text-emerald-900",
-  in_aprobare: "bg-amber-100 text-amber-900",
-  blocata: "bg-zinc-200 text-zinc-800",
+export const TONURI_STATUS_PERIOADA: Readonly<Record<StatusPerioada, TonStare>> = {
+  deschisa: "succes",
+  // În aprobare = luna se închide, dar nu s-a închis încă.
+  in_aprobare: "atentie",
+  // Blocată = perioadă încheiată, nu eroare — de aceea neutru, nu pericol.
+  blocata: "neutru",
 };
 
 export const ETICHETE_SURSA: Readonly<Record<SursaIntrare, string>> = {

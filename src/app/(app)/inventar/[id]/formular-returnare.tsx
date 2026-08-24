@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 
+import { Buton } from "@/components/ui/buton";
 import { STARI_OBIECT } from "@/schemas/inventory";
 import { ETICHETE_STARE } from "../etichete";
 import { returneazaObiect } from "../actions";
@@ -17,7 +18,7 @@ interface ValoriFormular {
   observatii: string;
 }
 
-const CLASA_CAMP = "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
+const CLASA_CAMP = "mt-1 w-full rounded-control border border-foreground/60 px-3 py-2 text-corp";
 
 export function FormularReturnare({ alocareId }: Proprietati) {
   const router = useRouter();
@@ -52,7 +53,7 @@ export function FormularReturnare({ alocareId }: Proprietati) {
     <form onSubmit={handleSubmit(trimite)} className="space-y-4" noValidate>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <label htmlFor="stare_la_returnare" className="block text-sm font-medium">
+          <label htmlFor="stare_la_returnare" className="text-corp block font-medium">
             Stare la returnare <span aria-hidden="true">*</span>
           </label>
           <select
@@ -71,7 +72,7 @@ export function FormularReturnare({ alocareId }: Proprietati) {
       </div>
 
       <div>
-        <label htmlFor="observatii-returnare" className="block text-sm font-medium">
+        <label htmlFor="observatii-returnare" className="text-corp block font-medium">
           Observații
         </label>
         <textarea
@@ -84,24 +85,26 @@ export function FormularReturnare({ alocareId }: Proprietati) {
 
       <div aria-live="polite">
         {eroare !== null ? (
-          <p className="border-danger bg-danger/8 text-danger rounded-md border p-3 text-sm">
+          <p className="border-danger bg-danger/8 text-danger rounded-control text-corp border p-3">
             {eroare}
           </p>
         ) : null}
         {mesajSucces !== null ? (
-          <p className="border-success/40 bg-surface text-foreground rounded-md border p-3 text-sm">
+          <p className="border-success/40 bg-surface text-foreground rounded-control text-corp border p-3">
             {mesajSucces}
           </p>
         ) : null}
       </div>
 
-      <button
+      <Buton
         type="submit"
-        disabled={inCurs || mesajSucces !== null}
-        className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
+        varianta="primar"
+        disabled={mesajSucces !== null}
+        inCurs={inCurs}
+        textInCurs="Se înregistrează…"
       >
-        {inCurs ? "Se înregistrează…" : "Înregistrează returnarea"}
-      </button>
+        Înregistrează returnarea
+      </Buton>
     </form>
   );
 }

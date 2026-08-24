@@ -4,11 +4,16 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { Badge } from "@/components/ui/badge";
+import { buton } from "@/components/ui/buton";
+import { Callout } from "@/components/ui/callout";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { formatDateTime } from "@/lib/format/date";
-import { formatLei } from "@/lib/format/money";
+import { formatDate, formatDateTime } from "@/lib/format/date";
+import { formatAmount, formatLei } from "@/lib/format/money";
 import { idDinRuta } from "@/lib/rute/parametri";
 import {
   angajatiDupaId,
@@ -21,17 +26,28 @@ import {
 } from "@/lib/queries/per-diem";
 
 import {
-  CLASE_STATUS_DEPLASARE,
   ETICHETE_MIJLOC_TRANSPORT,
   ETICHETE_STATUS_DEPLASARE,
   ETICHETE_TIP_CHELTUIALA,
+  TONURI_STATUS_DEPLASARE,
 } from "../etichete";
+import { ActiuniCheltuiala } from "./actiuni-cheltuiala";
 import { ActiuniDeplasare } from "./actiuni-deplasare";
 import { Etape } from "./etape";
 import { FormularCheltuiala } from "./formular-cheltuiala";
 import { FormularEtapa } from "./formular-etapa";
 
 export const metadata: Metadata = { title: "Fișa deplasării" };
+
+/**
+ * Cursul NU trece prin `formatAmount`: acela rotunjește la doi zecimali, iar
+ * `curs_diurna` e `numeric(14,6)`. Un curs BNR de 4,9765 afișat „4,98” schimbă
+ * suma în lei cu ~0,07% — invizibil pe o zi, vizibil pe un decont de mie.
+ */
+const formatorCurs = new Intl.NumberFormat("ro-RO", {
+  minimumFractionDigits: 4,
+  maximumFractionDigits: 6,
+});
 
 interface ProprietatiPagina {
   readonly params: Promise<{ readonly id: string }>;
@@ -42,7 +58,7 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
 
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "per_diem");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "per_diem:read", "own")) {
     return (
@@ -80,39 +96,159 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
   const angajat = angajati.get(deplasare.employee_id);
 
   const editabila = deplasare.status === "ciorna" || deplasare.status === "respinsa";
-  const poateTrimite = can(permisiuni, "per_diem:update", "own") && editabila;
+  const inchisa = deplasare.status === "decontata" || deplasare.status === "anulata";
+  const poateScrie = can(permisiuni, "per_diem:update", "own");
+  const poateTrimite = poateScrie && editabila;
+  const poateCorecta = poateScrie && editabila;
   const poateSterge = can(permisiuni, "per_diem:delete", "own") && deplasare.status === "ciorna";
-  const poateDeconta =
-    can(permisiuni, "per_diem:approve", "team") && deplasare.status === "aprobata";
-  const poateAdaugaEtapa = can(permisiuni, "per_diem:update", "own") && editabila;
-  const poateAdaugaCheltuiala = can(permisiuni, "per_diem:update", "own");
+  const poateAproba = can(permisiuni, "per_diem:approve", "team");
+  const poateDeconta = poateAproba && deplasare.status === "aprobata";
+  const poateAdaugaEtapa = poateScrie && editabila;
+  // Cheltuielile sosesc DUPĂ deplasare, deci nu se leagă de „editabilă”. Din
+  // „decontată” și „anulată” însă nu se mai iese (trigger P0001): un rând
+  // adăugat acolo n-ar mai putea fi nici aprobat, nici decontat.
+  const poateAdaugaCheltuiala = poateScrie && !inchisa;
+  /**
+   * Decizia pe cheltuială cere ambele drepturi, nu doar `approve`: politica
+   * `trip_expenses_update` are `per_diem:approve` în USING, dar `per_diem:update`
+   * în WITH CHECK. Un `manager` (seed: `per_diem = team {read, approve}`, fără
+   * `update`) trece de USING și cade pe WITH CHECK — zero rânduri, fără eroare.
+   * Butonul nu se arată cui baza îl va refuza tăcut; explicația apare în locul lui.
+   */
+  const poateDecideCheltuiala = poateAproba && poateScrie;
+  const aprobaDarNuPoateScrie = poateAproba && !poateScrie;
+
+  const arataActiuniCheltuiala = poateDecideCheltuiala || (poateScrie && !inchisa);
+
+  const coloaneCheltuieli: readonly Coloana<(typeof cheltuieliTrip)[number]>[] = [
+    {
+      cheie: "tip",
+      antet: "Tip",
+      peTelefon: "titlu",
+      celula: (c) => (
+        <>
+          <span>
+            {ETICHETE_TIP_CHELTUIALA[c.tip]}
+            {c.descriere === null ? "" : ` · ${c.descriere}`}
+          </span>
+          {/* Motivul respingerii era CITIT din bază (`cheltuielile`, în
+              queries/per-diem.ts) și nu se randa nicăieri: angajatul vedea
+              cuvântul „Respinsă” și niciun cuvânt despre de ce. */}
+          {c.motiv_respingere === null ? null : (
+            <span className="text-muted-foreground text-nota block">
+              Motivul respingerii: {c.motiv_respingere}
+            </span>
+          )}
+        </>
+      ),
+    },
+    {
+      cheie: "data",
+      antet: "Data",
+      peTelefon: "meta",
+      celula: (c) => formatDate(c.data_cheltuielii),
+    },
+    {
+      cheie: "suma",
+      antet: "Sumă",
+      numeric: true,
+      peTelefon: "meta",
+      // `numeric` sosește din PostgREST ca ȘIR: `String(c.suma)` dădea
+      // „1200.5 EUR” lângă un `formatLei` în convenție românească, în același
+      // tabel.
+      celula: (c) => formatAmount(c.suma, c.moneda),
+    },
+    {
+      cheie: "lei",
+      antet: "Lei",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (c) => formatLei(c.suma_lei),
+    },
+    {
+      cheie: "stare",
+      antet: "Stare",
+      peTelefon: "insigna",
+      celula: (c) =>
+        c.aprobata ? (
+          <Badge ton="succes">Aprobată</Badge>
+        ) : c.motiv_respingere !== null ? (
+          <Badge ton="pericol">Respinsă</Badge>
+        ) : (
+          <Badge ton="atentie">În așteptare</Badge>
+        ),
+    },
+    ...(arataActiuniCheltuiala
+      ? [
+          {
+            cheie: "actiuni",
+            antet: "Acțiuni",
+            antetAscuns: true,
+            latime: "ingusta" as const,
+            peTelefon: "meta" as const,
+            celula: (c: (typeof cheltuieliTrip)[number]) => (
+              <ActiuniCheltuiala
+                id={c.id}
+                aprobata={c.aprobata}
+                descriere={`${ETICHETE_TIP_CHELTUIALA[c.tip]}${c.descriere === null ? "" : ` · ${c.descriere}`}`}
+                sumaLei={formatLei(c.suma_lei)}
+                poateDecide={poateDecideCheltuiala}
+                poateSterge={poateScrie && !inchisa}
+              />
+            ),
+          },
+        ]
+      : []),
+  ];
+
+  // Aceleași cuvinte ca înainte, doar strânse într-un șir: `descriere` e text,
+  // nu JSX. Ordinea și separatorii rămân identici.
+  const descriereDeplasare = `${
+    angajat === undefined ? "" : `${angajat.full_name ?? "—"} (${angajat.marca}) · `
+  }${formatDateTime(new Date(deplasare.plecare_la))} – ${formatDateTime(
+    new Date(deplasare.sosire_la),
+  )}${deplasare.localitate === null ? "" : ` · ${deplasare.localitate}`}`;
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-muted-foreground text-sm">
-            <Link href="/diurna" className="underline-offset-2 hover:underline">
-              Deplasări
-            </Link>
-          </p>
-          <h1 className="text-2xl font-semibold">{deplasare.scop}</h1>
-          <p className="text-muted-foreground text-sm">
-            {angajat === undefined ? "" : `${angajat.full_name ?? "—"} (${angajat.marca}) · `}
-            {formatDateTime(new Date(deplasare.plecare_la))} –{" "}
-            {formatDateTime(new Date(deplasare.sosire_la))}
-            {deplasare.localitate === null ? "" : ` · ${deplasare.localitate}`}
-          </p>
-        </div>
-        <span
-          className={`rounded-full px-3 py-1 text-sm font-medium ${CLASE_STATUS_DEPLASARE[deplasare.status]}`}
-        >
-          {ETICHETE_STATUS_DEPLASARE[deplasare.status]}
-        </span>
-      </header>
+    <div className="space-y-6">
+      <div className="space-y-1">
+        <p className="text-muted-foreground text-corp">
+          <Link href="/diurna" className="underline-offset-2 hover:underline">
+            Deplasări
+          </Link>
+        </p>
+        <AntetPagina
+          titlu={deplasare.scop}
+          descriere={descriereDeplasare}
+          actiuni={
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge ton={TONURI_STATUS_DEPLASARE[deplasare.status]}>
+                {ETICHETE_STATUS_DEPLASARE[deplasare.status]}
+              </Badge>
+              {/* Punctul de intrare care lipsea: acțiunea de corectare există
+                  acum în `actions.ts`, iar fără linkul ăsta ar fi rămas o
+                  acțiune pe care niciun ecran n-o cheamă. */}
+              {poateCorecta ? (
+                <Link
+                  href={`/diurna/${deplasare.id}/editeaza`}
+                  className={buton({ varianta: "secundar" })}
+                >
+                  Corectează
+                </Link>
+              ) : null}
+              <Link
+                href={`/diurna/${deplasare.id}/decont`}
+                className={buton({ varianta: "secundar" })}
+              >
+                Decontul
+              </Link>
+            </div>
+          }
+        />
+      </div>
 
-      <section aria-labelledby="titlu-rezumat" className="border-border rounded-lg border p-4">
-        <h2 id="titlu-rezumat" className="mb-4 text-lg font-medium">
+      <section aria-labelledby="titlu-rezumat" className="border-border rounded-panou border p-4">
+        <h2 id="titlu-rezumat" className="text-sectiune mb-4 font-medium">
           Rezumat
         </h2>
         <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -130,7 +266,11 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
           />
           <Camp
             eticheta="Curs diurnă"
-            valoare={deplasare.curs_diurna === null ? "—" : String(deplasare.curs_diurna)}
+            valoare={
+              deplasare.curs_diurna === null
+                ? "—"
+                : formatorCurs.format(Number(deplasare.curs_diurna))
+            }
           />
           <Camp
             eticheta="Kilometri parcurși"
@@ -142,10 +282,10 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
           />
           {deplasare.detasare_transnationala ? (
             <div className="col-span-2 sm:col-span-4">
-              <dt className="text-muted-foreground text-xs tracking-wide uppercase">
+              <dt className="text-muted-foreground text-nota tracking-wide uppercase">
                 Detașare transnațională
               </dt>
-              <dd className="mt-0.5 text-sm">
+              <dd className="text-corp mt-0.5">
                 Stat gazdă:{" "}
                 {deplasare.stat_gazda_country_id === null
                   ? "—"
@@ -153,14 +293,19 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
                     deplasare.stat_gazda_country_id)}
                 {deplasare.salariu_minim_stat_gazda === null
                   ? ""
-                  : ` · Salariu minim: ${String(deplasare.salariu_minim_stat_gazda)} ${deplasare.moneda_salariu_minim ?? ""}`}
+                  : ` · Salariu minim: ${formatAmount(
+                      deplasare.salariu_minim_stat_gazda,
+                      deplasare.moneda_salariu_minim ?? undefined,
+                    )}`}
               </dd>
             </div>
           ) : null}
           {deplasare.observatii === null ? null : (
             <div className="col-span-2 sm:col-span-4">
-              <dt className="text-muted-foreground text-xs tracking-wide uppercase">Observații</dt>
-              <dd className="mt-0.5 text-sm">{deplasare.observatii}</dd>
+              <dt className="text-muted-foreground text-nota tracking-wide uppercase">
+                Observații
+              </dt>
+              <dd className="text-corp mt-0.5">{deplasare.observatii}</dd>
             </div>
           )}
         </dl>
@@ -174,7 +319,7 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
       />
 
       <section aria-labelledby="titlu-traseu" className="space-y-3">
-        <h2 id="titlu-traseu" className="text-lg font-medium">
+        <h2 id="titlu-traseu" className="text-sectiune font-medium">
           Traseu și calculul diurnei
         </h2>
         <Etape
@@ -183,96 +328,60 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
           politica={politica}
           baremuri={baremuri}
           tari={hartaTari}
+          poateSterge={poateAdaugaEtapa}
         />
         {poateAdaugaEtapa ? (
           <FormularEtapa tripId={deplasare.id} tari={listaTari} />
         ) : (
-          <p className="text-muted-foreground text-sm">
+          /* Ramura asta randa un `<p>` GOL când deplasarea era editabilă dar
+             cititorul n-avea drept de scriere: un paragraf care ocupa loc și
+             nu spunea nimic. Cele două cauze sunt diferite și se scriu ca atare. */
+          <p className="text-muted-foreground text-corp">
             {editabila
-              ? ""
+              ? "Nu aveți dreptul de a modifica traseul acestei deplasări."
               : "Traseul nu mai poate fi modificat — deplasarea a ieșit din starea editabilă."}
           </p>
         )}
       </section>
 
       <section aria-labelledby="titlu-cheltuieli" className="space-y-3">
-        <h2 id="titlu-cheltuieli" className="text-lg font-medium">
+        <h2 id="titlu-cheltuieli" className="text-sectiune font-medium">
           Cheltuieli
         </h2>
-        {cheltuieliTrip.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Nicio cheltuială înregistrată încă.</p>
-        ) : (
-          <div className="border-border overflow-x-auto rounded-lg border">
-            <table className="w-full text-sm">
-              <thead className="bg-surface text-left">
-                <tr>
-                  <th scope="col" className="px-3 py-2 font-medium">
-                    Tip
-                  </th>
-                  <th scope="col" className="px-3 py-2 font-medium">
-                    Data
-                  </th>
-                  <th scope="col" className="px-3 py-2 text-right font-medium">
-                    Sumă
-                  </th>
-                  <th scope="col" className="px-3 py-2 text-right font-medium">
-                    Lei
-                  </th>
-                  <th scope="col" className="px-3 py-2 font-medium">
-                    Stare
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-border divide-y">
-                {cheltuieliTrip.map((c) => (
-                  <tr key={c.id}>
-                    <td className="px-3 py-2">
-                      {ETICHETE_TIP_CHELTUIALA[c.tip]}
-                      {c.descriere === null ? "" : ` · ${c.descriere}`}
-                    </td>
-                    <td className="px-3 py-2">{c.data_cheltuielii}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">
-                      {c.suma} {c.moneda}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums">{formatLei(c.suma_lei)}</td>
-                    <td className="px-3 py-2">
-                      {c.aprobata ? (
-                        <span className="bg-surface text-foreground rounded px-2 py-0.5 text-xs font-medium">
-                          Aprobată
-                        </span>
-                      ) : c.motiv_respingere !== null ? (
-                        <span className="bg-danger/8 text-danger rounded px-2 py-0.5 text-xs font-medium">
-                          Respinsă
-                        </span>
-                      ) : (
-                        <span className="bg-surface text-foreground rounded px-2 py-0.5 text-xs font-medium">
-                          În așteptare
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <Tabel
+          caption="Cheltuielile înregistrate pe deplasare, cu starea aprobării."
+          coloane={coloaneCheltuieli}
+          randuri={cheltuieliTrip}
+          cheieRand={(c) => c.id}
+          densitate="compact"
+          gol={
+            <p className="text-muted-foreground text-corp">Nicio cheltuială înregistrată încă.</p>
+          }
+        />
+        {aprobaDarNuPoateScrie ? (
+          <Callout fel="atentie" titlu="Nu puteți decide asupra cheltuielilor">
+            Aprobarea unei cheltuieli cere, pe lângă dreptul de aprobare, și dreptul de modificare a
+            deplasărilor — așa e scrisă politica din bază. Rugați un administrator al organizației
+            să decidă, altfel decontul rămâne fără suma cheltuielilor.
+          </Callout>
+        ) : null}
         {poateAdaugaCheltuiala ? <FormularCheltuiala tripId={deplasare.id} /> : null}
+        {!poateAdaugaCheltuiala && poateScrie ? (
+          <p className="text-muted-foreground text-corp">
+            Deplasarea e {ETICHETE_STATUS_DEPLASARE[deplasare.status].toLocaleLowerCase("ro-RO")} —
+            nu se mai pot adăuga cheltuieli.
+          </p>
+        ) : null}
       </section>
-
-      <p className="text-sm">
-        <Link href={`/diurna/${deplasare.id}/decont`} className="underline underline-offset-2">
-          Deschide decontul printabil
-        </Link>
-      </p>
-    </main>
+    </div>
   );
 }
 
 function Camp({ eticheta, valoare }: { readonly eticheta: string; readonly valoare: string }) {
   return (
     <div>
-      <dt className="text-muted-foreground text-xs tracking-wide uppercase">{eticheta}</dt>
-      <dd className="mt-0.5 text-sm">{valoare}</dd>
+      <dt className="text-muted-foreground text-nota tracking-wide uppercase">{eticheta}</dt>
+      <dd className="text-corp mt-0.5">{valoare}</dd>
     </div>
   );
 }

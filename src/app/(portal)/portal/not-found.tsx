@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { Compass } from "lucide-react";
 
-import { EmptyState } from "@/components/feedback/empty-state";
+import { StareGoala } from "@/components/ui/stare-goala";
 
 /**
  * 404-ul portalului.
@@ -15,13 +15,14 @@ import { EmptyState } from "@/components/feedback/empty-state";
 export default function NegasitPortal() {
   return (
     <div className="mx-auto max-w-2xl p-4">
-      <EmptyState
-        icon={Compass}
-        title="Pagina nu există"
-        description="Fie adresa e greșită, fie secțiunea nu e activată pentru firma dumneavoastră."
+      <StareGoala
+        fel="restrictionata"
+        pictograma={Compass}
+        titlu="Pagina nu există"
+        descriere="Fie adresa e greșită, fie secțiunea nu e activată pentru firma dumneavoastră."
       />
       <p className="mt-4">
-        <Link href="/portal" className="text-primary text-sm underline-offset-2 hover:underline">
+        <Link href="/portal" className="text-primary text-corp underline-offset-2 hover:underline">
           Înapoi la pagina de start
         </Link>
       </p>

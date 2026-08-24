@@ -559,6 +559,9 @@ export type Database = {
         Row: {
           approved_at: string | null
           approved_by: string | null
+          motiv_respingere: string | null
+          respins_de: string | null
+          respins_la: string | null
           batch_id: string | null
           created_at: string
           created_by: string | null
@@ -583,6 +586,9 @@ export type Database = {
         Insert: {
           approved_at?: string | null
           approved_by?: string | null
+          motiv_respingere?: string | null
+          respins_de?: string | null
+          respins_la?: string | null
           batch_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -607,6 +613,9 @@ export type Database = {
         Update: {
           approved_at?: string | null
           approved_by?: string | null
+          motiv_respingere?: string | null
+          respins_de?: string | null
+          respins_la?: string | null
           batch_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -2157,6 +2166,57 @@ export type Database = {
           },
         ]
       }
+      employee_dependents: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          data_nasterii: string | null
+          deleted_at: string | null
+          employee_id: string
+          id: string
+          in_intretinere_de_la: string
+          in_intretinere_pana_la: string | null
+          nume: string
+          observatii: string | null
+          organization_id: string
+          relatie: Database["public"]["Enums"]["dependent_relation"]
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          data_nasterii?: string | null
+          deleted_at?: string | null
+          employee_id: string
+          id?: string
+          in_intretinere_de_la: string
+          in_intretinere_pana_la?: string | null
+          nume: string
+          observatii?: string | null
+          organization_id: string
+          relatie: Database["public"]["Enums"]["dependent_relation"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          data_nasterii?: string | null
+          deleted_at?: string | null
+          employee_id?: string
+          id?: string
+          in_intretinere_de_la?: string
+          in_intretinere_pana_la?: string | null
+          nume?: string
+          observatii?: string | null
+          organization_id?: string
+          relatie?: Database["public"]["Enums"]["dependent_relation"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       employee_document_types: {
         Row: {
           activ: boolean
@@ -2892,6 +2952,8 @@ export type Database = {
           moneda: string
           motiv_determinat: string | null
           motiv_incetare: string | null
+          cost_center: string | null
+          nivel_incadrare: string | null
           norma_ore_saptamana: number
           norma_ore_zi: number
           numar: string
@@ -2930,6 +2992,8 @@ export type Database = {
           moneda?: string
           motiv_determinat?: string | null
           motiv_incetare?: string | null
+          cost_center?: string | null
+          nivel_incadrare?: string | null
           norma_ore_saptamana?: number
           norma_ore_zi?: number
           numar: string
@@ -2968,6 +3032,8 @@ export type Database = {
           moneda?: string
           motiv_determinat?: string | null
           motiv_incetare?: string | null
+          cost_center?: string | null
+          nivel_incadrare?: string | null
           norma_ore_saptamana?: number
           norma_ore_zi?: number
           numar?: string
@@ -5080,6 +5146,7 @@ export type Database = {
           id: string
           intrerupe_alte_concedii: boolean
           leave_type_id: string
+          leave_variant_id: string | null
           medical_code_id: string | null
           motiv: string | null
           motiv_respingere: string | null
@@ -5109,6 +5176,7 @@ export type Database = {
           id?: string
           intrerupe_alte_concedii?: boolean
           leave_type_id: string
+          leave_variant_id?: string | null
           medical_code_id?: string | null
           motiv?: string | null
           motiv_respingere?: string | null
@@ -5138,6 +5206,7 @@ export type Database = {
           id?: string
           intrerupe_alte_concedii?: boolean
           leave_type_id?: string
+          leave_variant_id?: string | null
           medical_code_id?: string | null
           motiv?: string | null
           motiv_respingere?: string | null
@@ -5191,6 +5260,66 @@ export type Database = {
           },
         ]
       }
+      leave_type_variants: {
+        Row: {
+          activ: boolean
+          cod: string
+          conditie_descriere: string
+          conditie_tip: Database["public"]["Enums"]["leave_variant_condition"]
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          denumire: string
+          id: string
+          leave_type_key: string
+          necesita_document: boolean
+          ordine: number
+          organization_id: string | null
+          temei_legal: string | null
+          updated_at: string
+          updated_by: string | null
+          zile: number
+        }
+        Insert: {
+          activ?: boolean
+          cod: string
+          conditie_descriere: string
+          conditie_tip: Database["public"]["Enums"]["leave_variant_condition"]
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire: string
+          id?: string
+          leave_type_key: string
+          necesita_document?: boolean
+          ordine?: number
+          organization_id?: string | null
+          temei_legal?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          zile: number
+        }
+        Update: {
+          activ?: boolean
+          cod?: string
+          conditie_descriere?: string
+          conditie_tip?: Database["public"]["Enums"]["leave_variant_condition"]
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire?: string
+          id?: string
+          leave_type_key?: string
+          necesita_document?: boolean
+          ordine?: number
+          organization_id?: string | null
+          temei_legal?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          zile?: number
+        }
+        Relationships: []
+      }
       leave_types: {
         Row: {
           activ: boolean
@@ -5204,12 +5333,14 @@ export type Database = {
           mod_rotunjire_acumulare: Database["public"]["Enums"]["leave_rounding_mode"]
           necesita_document: boolean
           organization_id: string
+          plafon_anual_zile: number | null
           plafon_reportare_zile: number | null
           reglementat: boolean
           scade_din_sold: boolean
           se_reporteaza: boolean
           temei_legal: string | null
           termen_reportare: number | null
+          tip_zi_pontaj: Database["public"]["Enums"]["attendance_day_type"]
           updated_at: string
           valabil_de_la: string
           zile_implicite: number
@@ -5226,12 +5357,14 @@ export type Database = {
           mod_rotunjire_acumulare?: Database["public"]["Enums"]["leave_rounding_mode"]
           necesita_document?: boolean
           organization_id: string
+          plafon_anual_zile?: number | null
           plafon_reportare_zile?: number | null
           reglementat?: boolean
           scade_din_sold?: boolean
           se_reporteaza?: boolean
           temei_legal?: string | null
           termen_reportare?: number | null
+          tip_zi_pontaj?: Database["public"]["Enums"]["attendance_day_type"]
           updated_at?: string
           valabil_de_la?: string
           zile_implicite?: number
@@ -5248,12 +5381,14 @@ export type Database = {
           mod_rotunjire_acumulare?: Database["public"]["Enums"]["leave_rounding_mode"]
           necesita_document?: boolean
           organization_id?: string
+          plafon_anual_zile?: number | null
           plafon_reportare_zile?: number | null
           reglementat?: boolean
           scade_din_sold?: boolean
           se_reporteaza?: boolean
           temei_legal?: string | null
           termen_reportare?: number | null
+          tip_zi_pontaj?: Database["public"]["Enums"]["attendance_day_type"]
           updated_at?: string
           valabil_de_la?: string
           zile_implicite?: number
@@ -6493,6 +6628,87 @@ export type Database = {
           },
         ]
       }
+      payroll_bonus_rules: {
+        Row: {
+          activ: boolean
+          bonus_type: Database["public"]["Enums"]["payroll_bonus_type"]
+          cod: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          denumire: string
+          department_id: string | null
+          id: string
+          impozabil: boolean
+          job_position_id: string | null
+          kind: Database["public"]["Enums"]["bonus_rule_kind"]
+          luni: number[]
+          nivel_incadrare: string | null
+          organization_id: string
+          procent: number | null
+          suma: number | null
+          supus_contributii: boolean
+          tip_criteriu: Database["public"]["Enums"]["bonus_rule_criterion"]
+          updated_at: string
+          updated_by: string | null
+          valabil_de_la: string
+          valabil_pana: string | null
+          vechime_ani_min: number | null
+        }
+        Insert: {
+          activ?: boolean
+          bonus_type?: Database["public"]["Enums"]["payroll_bonus_type"]
+          cod: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire: string
+          department_id?: string | null
+          id?: string
+          impozabil?: boolean
+          job_position_id?: string | null
+          kind: Database["public"]["Enums"]["bonus_rule_kind"]
+          luni?: number[]
+          nivel_incadrare?: string | null
+          organization_id: string
+          procent?: number | null
+          suma?: number | null
+          supus_contributii?: boolean
+          tip_criteriu?: Database["public"]["Enums"]["bonus_rule_criterion"]
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la: string
+          valabil_pana?: string | null
+          vechime_ani_min?: number | null
+        }
+        Update: {
+          activ?: boolean
+          bonus_type?: Database["public"]["Enums"]["payroll_bonus_type"]
+          cod?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire?: string
+          department_id?: string | null
+          id?: string
+          impozabil?: boolean
+          job_position_id?: string | null
+          kind?: Database["public"]["Enums"]["bonus_rule_kind"]
+          luni?: number[]
+          nivel_incadrare?: string | null
+          organization_id?: string
+          procent?: number | null
+          suma?: number | null
+          supus_contributii?: boolean
+          tip_criteriu?: Database["public"]["Enums"]["bonus_rule_criterion"]
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la?: string
+          valabil_pana?: string | null
+          vechime_ani_min?: number | null
+        }
+        Relationships: []
+      }
       payroll_deductions: {
         Row: {
           created_at: string
@@ -7127,11 +7343,14 @@ export type Database = {
           norma_zilnica_ore: number
           note: string | null
           organization_id: string
+          casa_sanatate_angajator: string | null
+          functie_declarant: string
           plafon_poprire_unica: number
           plafon_popriri_concurente: number
           plata_avans: boolean
           procent_ore_suplimentare: number
           procent_spor_noapte: number
+          procent_spor_sarbatoare: number
           procent_spor_weekend: number
           rotunjire_lei: boolean
           salariu_minim_brut: number
@@ -7171,11 +7390,14 @@ export type Database = {
           norma_zilnica_ore?: number
           note?: string | null
           organization_id: string
+          casa_sanatate_angajator?: string | null
+          functie_declarant?: string
           plafon_poprire_unica?: number
           plafon_popriri_concurente?: number
           plata_avans?: boolean
           procent_ore_suplimentare?: number
           procent_spor_noapte?: number
+          procent_spor_sarbatoare?: number
           procent_spor_weekend?: number
           rotunjire_lei?: boolean
           salariu_minim_brut?: number
@@ -7215,11 +7437,14 @@ export type Database = {
           norma_zilnica_ore?: number
           note?: string | null
           organization_id?: string
+          casa_sanatate_angajator?: string | null
+          functie_declarant?: string
           plafon_poprire_unica?: number
           plafon_popriri_concurente?: number
           plata_avans?: boolean
           procent_ore_suplimentare?: number
           procent_spor_noapte?: number
+          procent_spor_sarbatoare?: number
           procent_spor_weekend?: number
           rotunjire_lei?: boolean
           salariu_minim_brut?: number
@@ -8321,6 +8546,7 @@ export type Database = {
           created_by: string | null
           deleted_at: string | null
           id: string
+          member_id: string | null
           organization_id: string | null
           resource: string
           role: Database["public"]["Enums"]["app_role"]
@@ -8334,6 +8560,7 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           id?: string
+          member_id?: string | null
           organization_id?: string | null
           resource: string
           role: Database["public"]["Enums"]["app_role"]
@@ -8347,6 +8574,7 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           id?: string
+          member_id?: string | null
           organization_id?: string | null
           resource?: string
           role?: Database["public"]["Enums"]["app_role"]
@@ -8355,6 +8583,13 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "role_permissions_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "organization_members"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "role_permissions_organization_id_fkey"
             columns: ["organization_id"]
@@ -10006,12 +10241,28 @@ export type Database = {
         }
         Returns: string
       }
+      payroll_scrie_popriri: {
+        Args: { p_period_id: string; p_randuri: Json }
+        Returns: {
+          inserate: number
+          sterse: number
+        }[]
+      }
       payroll_scrie_rezultate: {
         Args: { p_period_id: string; p_randuri: Json }
         Returns: {
           actualizate: number
           inserate: number
         }[]
+      }
+      decide_zi_pontaj: {
+        Args: {
+          p_aproba: boolean
+          p_entry_id: string
+          p_motiv?: string
+          p_organization_id: string
+        }
+        Returns: string
       }
       peek_invitation: { Args: { p_token: string }; Returns: Json }
       pontaj_agregat_salarizare: {
@@ -10029,6 +10280,7 @@ export type Database = {
           zile_absenta_nemotivata: number
           zile_concediu_medical: number
           zile_concediu_odihna: number
+          zile_fara_plata: number
           zile_lucrate: number
           zile_repaus_lucrate: number
           zile_sarbatoare_lucrate: number
@@ -10094,6 +10346,7 @@ export type Database = {
         | "medical"
         | "absenta_nemotivata"
         | "delegatie"
+        | "fara_plata"
       attendance_entry_source: "manuala" | "import" | "sincronizare_concedii"
       attendance_period_status: "deschisa" | "in_aprobare" | "blocata"
       attendance_presence_kind:
@@ -10162,6 +10415,20 @@ export type Database = {
       conditii_munca: "normale" | "deosebite" | "speciale"
       contract_duration: "nedeterminat" | "determinat"
       contract_status: "proiect" | "activ" | "suspendat" | "incetat" | "anulat"
+      dependent_relation: "copil" | "sot_sotie" | "parinte" | "alta_ruda"
+      bonus_rule_criterion:
+        | "toti"
+        | "departament"
+        | "functie"
+        | "vechime"
+        | "nivel_incadrare"
+      bonus_rule_kind: "procent_din_baza" | "suma_fixa"
+      leave_variant_condition:
+        | "atestat"
+        | "grad_handicap"
+        | "grad_rudenie"
+        | "varsta_copil"
+        | "alta"
       demo_request_status:
         | "new"
         | "contacted"
@@ -10516,6 +10783,7 @@ export const Constants = {
         "medical",
         "absenta_nemotivata",
         "delegatie",
+        "fara_plata",
       ],
       attendance_entry_source: ["manuala", "import", "sincronizare_concedii"],
       attendance_period_status: ["deschisa", "in_aprobare", "blocata"],
@@ -10590,6 +10858,10 @@ export const Constants = {
       conditii_munca: ["normale", "deosebite", "speciale"],
       contract_duration: ["nedeterminat", "determinat"],
       contract_status: ["proiect", "activ", "suspendat", "incetat", "anulat"],
+      dependent_relation: ["copil", "sot_sotie", "parinte", "alta_ruda"],
+      bonus_rule_criterion: ["toti", "departament", "functie", "vechime", "nivel_incadrare"],
+      bonus_rule_kind: ["procent_din_baza", "suma_fixa"],
+      leave_variant_condition: ["atestat", "grad_handicap", "grad_rudenie", "varsta_copil", "alta"],
       demo_request_status: [
         "new",
         "contacted",

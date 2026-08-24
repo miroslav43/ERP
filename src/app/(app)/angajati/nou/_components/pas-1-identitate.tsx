@@ -1,7 +1,7 @@
 // src/app/(app)/angajati/nou/_components/pas-1-identitate.tsx
 "use client";
 
-import type { UseFormReturn } from "react-hook-form";
+import { useWatch, type UseFormReturn } from "react-hook-form";
 
 import { GENURI, STARI_CIVILE, type InroleazaAngajatInput } from "@/schemas/employee";
 import { claseCamp, claseLabel, Eroare } from "./campuri-comune";
@@ -22,6 +22,12 @@ export const CAMPURI_PAS_1 = [
   "grad_handicap",
   "nr_persoane_intretinere",
   "optiune_pilon_ii",
+  "permis_tip",
+  "permis_numar",
+  "permis_emis_de",
+  "permis_valabil_de_la",
+  "permis_valabil_pana",
+  "numar_pasaport",
 ] as const satisfies readonly (keyof InroleazaAngajatInput)[];
 
 const ETICHETE_STARE_CIVILA: Record<(typeof STARI_CIVILE)[number], string> = {
@@ -39,13 +45,23 @@ interface Proprietati {
 export function Pas1Identitate({ formular, idFormular }: Proprietati) {
   const {
     register,
+    control,
     formState: { errors },
   } = formular;
 
+  // `useWatch`, nu `formular.watch`: watch-ul re-randează TOT formularul la
+  // fiecare tastă — defectul reparat în f88d419, „pașii asistenților se
+  // re-randau".
+  const cetatenie = useWatch({ control, name: "cetatenie" });
+  const esteStrain =
+    typeof cetatenie === "string" &&
+    cetatenie.trim().toUpperCase() !== "RO" &&
+    cetatenie.trim().length > 0;
+
   return (
     <div className="space-y-6">
-      <fieldset className="border-border space-y-4 rounded-lg border p-4">
-        <legend className="text-foreground px-1 text-sm font-medium">Identitate</legend>
+      <fieldset className="border-border rounded-panou space-y-4 border p-4">
+        <legend className="text-foreground text-corp px-1 font-medium">Identitate</legend>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor={`${idFormular}-prenume`} className={claseLabel}>
@@ -126,8 +142,8 @@ export function Pas1Identitate({ formular, idFormular }: Proprietati) {
         </div>
       </fieldset>
 
-      <fieldset className="border-border space-y-4 rounded-lg border p-4">
-        <legend className="text-foreground px-1 text-sm font-medium">Act de identitate</legend>
+      <fieldset className="border-border rounded-panou space-y-4 border p-4">
+        <legend className="text-foreground text-corp px-1 font-medium">Act de identitate</legend>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor={`${idFormular}-tip-act`} className={claseLabel}>
@@ -198,8 +214,8 @@ export function Pas1Identitate({ formular, idFormular }: Proprietati) {
         </div>
       </fieldset>
 
-      <fieldset className="border-border space-y-4 rounded-lg border p-4">
-        <legend className="text-foreground px-1 text-sm font-medium">Situație personală</legend>
+      <fieldset className="border-border rounded-panou space-y-4 border p-4">
+        <legend className="text-foreground text-corp px-1 font-medium">Situație personală</legend>
         <div className="grid gap-4 sm:grid-cols-3">
           <div>
             <label htmlFor={`${idFormular}-handicap`} className={claseLabel}>
@@ -233,13 +249,105 @@ export function Pas1Identitate({ formular, idFormular }: Proprietati) {
                 {...register("optiune_pilon_ii")}
                 className="border-border size-4 rounded"
               />
-              <label htmlFor={`${idFormular}-pilon-ii`} className="text-foreground text-sm">
+              <label htmlFor={`${idFormular}-pilon-ii`} className="text-foreground text-corp">
                 Optează pentru Pilonul II
               </label>
             </div>
           </div>
         </div>
       </fieldset>
+
+      {esteStrain ? (
+        <fieldset className="border-border rounded-panou space-y-4 border p-4">
+          <legend className="text-foreground text-corp px-1 font-medium">
+            Dreptul de muncă (cetățean străin)
+          </legend>
+          <p className="text-muted-foreground text-corp">
+            Munca fără permis valabil e contravenție pentru angajator. Completat aici, permisul
+            intră în tabloul de expirabile și avertizează înainte de termen.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor={`${idFormular}-permis-tip`} className={claseLabel}>
+                Tipul permisului
+              </label>
+              <select
+                id={`${idFormular}-permis-tip`}
+                {...register("permis_tip")}
+                className={claseCamp}
+              >
+                <option value="">— Alegeți —</option>
+                <option value="aviz">Aviz de angajare</option>
+                <option value="permis_unic">Permis unic</option>
+                <option value="detasare">Detașare</option>
+                <option value="sezonier">Lucrător sezonier</option>
+              </select>
+              <Eroare id={`${idFormular}-permis-tip-eroare`} mesaj={errors.permis_tip?.message} />
+            </div>
+            <div>
+              <label htmlFor={`${idFormular}-permis-numar`} className={claseLabel}>
+                Numărul permisului
+              </label>
+              <input
+                id={`${idFormular}-permis-numar`}
+                {...register("permis_numar")}
+                className={claseCamp}
+              />
+              <Eroare
+                id={`${idFormular}-permis-numar-eroare`}
+                mesaj={errors.permis_numar?.message}
+              />
+            </div>
+            <div>
+              <label htmlFor={`${idFormular}-permis-emitent`} className={claseLabel}>
+                Emis de
+              </label>
+              <input
+                id={`${idFormular}-permis-emitent`}
+                {...register("permis_emis_de")}
+                placeholder="ex. IGI"
+                className={claseCamp}
+              />
+            </div>
+            <div>
+              <label htmlFor={`${idFormular}-pasaport`} className={claseLabel}>
+                Număr pașaport
+              </label>
+              <input
+                id={`${idFormular}-pasaport`}
+                {...register("numar_pasaport")}
+                className={claseCamp}
+              />
+            </div>
+            <div>
+              <label htmlFor={`${idFormular}-permis-de-la`} className={claseLabel}>
+                Valabil de la
+              </label>
+              <input
+                id={`${idFormular}-permis-de-la`}
+                type="date"
+                {...register("permis_valabil_de_la")}
+                className={claseCamp}
+              />
+            </div>
+            <div>
+              <label htmlFor={`${idFormular}-permis-pana`} className={claseLabel}>
+                Valabil până la
+              </label>
+              <input
+                id={`${idFormular}-permis-pana`}
+                type="date"
+                {...register("permis_valabil_pana")}
+                className={claseCamp}
+              />
+              <Eroare
+                id={`${idFormular}-permis-pana-eroare`}
+                mesaj={errors.permis_valabil_pana?.message}
+              />
+            </div>
+          </div>
+        </fieldset>
+      ) : null}
     </div>
   );
 }

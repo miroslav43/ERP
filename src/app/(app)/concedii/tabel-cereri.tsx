@@ -1,23 +1,25 @@
 // src/app/(app)/concedii/tabel-cereri.tsx
 // Tabelul de cereri, comun celor două rute care îl arată: `/concedii`
 // („Cererile mele”) și `/concedii/echipa`. Diferă prin `vizualizare`, prin
-// coloana „Angajat” și prin calea de paginare — restul e identic, iar o a doua
-// copie ar fi divergat la primul câmp adăugat.
-import type { ReactNode } from "react";
-import Link from "next/link";
+// coloana „Angajat” și prin calea pe care se construiesc adresele de sortare și
+// paginare — restul e identic, iar o a doua copie ar fi divergat la primul câmp
+// adăugat.
 import { CalendarRange } from "lucide-react";
 
-import { EmptyState } from "@/components/feedback/empty-state";
-import { RandTabel } from "@/components/data/rand-tabel";
+import { StareGoala, type ActiuneStareGoala } from "@/components/ui/stare-goala";
+import { Badge } from "@/components/ui/badge";
+import { Paginare } from "@/components/ui/paginare";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { formatAmount } from "@/lib/format/money";
 import { formatDate } from "@/lib/format/date";
+import { scrieSortare } from "@/lib/queries/cursor";
 import { listeazaCereri, type RandCerere } from "@/lib/queries/leave";
 import { filtreCereriSchema, type VizualizareCereri } from "@/schemas/leave";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 import type { PermissionScope } from "@/config/permissions";
 
-import { CLASE_STATUS_CERERE, ETICHETE_STATUS_CERERE } from "./etichete";
+import { ETICHETE_STATUS_CERERE, TONURI_STATUS_CERERE } from "./etichete";
 
 interface OptiuneTip {
   readonly id: string;
@@ -38,10 +40,12 @@ interface Proprietati {
   readonly parametri: Record<string, string | string[] | undefined>;
   readonly scope: PermissionScope;
   readonly fisaMea: string | null;
-  /** Calea pe care se construiește linkul de paginare — ruta curentă. */
+  /** Ruta curentă — pe ea se construiesc adresele de sortare și de paginare. */
   readonly caleBaza: string;
+  /** Textul stării goale când NU e niciun filtru pus. */
   readonly gol: Readonly<{ titlu: string; descriere: string }>;
-  readonly actiuneGol?: Readonly<{ label: string; href: string }> | undefined;
+  /** Acțiunea stării goale inițiale. Absentă = fără buton. */
+  readonly actiuneGol?: ActiuneStareGoala | undefined;
 }
 
 export async function TabelCereri({
@@ -56,7 +60,7 @@ export async function TabelCereri({
   actiuneGol,
 }: Proprietati) {
   const filtre = filtreDinUrl(filtreCereriSchema, parametri);
-  const { randuri, urmatorulCursor } = await listeazaCereri(
+  const { randuri, urmatorulCursor, total, sortare } = await listeazaCereri(
     organizationId,
     scope,
     filtre,
@@ -64,20 +68,35 @@ export async function TabelCereri({
     vizualizare,
   );
 
+  const aratăAngajat = vizualizare !== "mele";
+
   if (randuri.length === 0) {
+    // `vizualizare` NU intră în socoteală: nu mai e un filtru din adresă, ci
+    // ruta însăși. „Șterge filtrele” duce înapoi pe aceeași rută, curată.
+    const areFiltre =
+      filtre.status !== null ||
+      filtre.leave_type_id !== null ||
+      filtre.employee_id !== null ||
+      filtre.de_la !== null ||
+      filtre.pana_la !== null;
     return (
-      <EmptyState
-        icon={CalendarRange}
-        title={gol.titlu}
-        description={gol.descriere}
-        // `exactOptionalPropertyTypes` cere ca proprietatea opțională să
-        // LIPSEASCĂ, nu să fie `undefined` — de aici răspândirea condiționată.
-        {...(actiuneGol === undefined ? {} : { action: actiuneGol })}
+      <StareGoala
+        fel={areFiltre ? "filtrata" : "initiala"}
+        pictograma={CalendarRange}
+        titlu={areFiltre ? "Nicio cerere pe filtrele alese" : gol.titlu}
+        descriere={
+          areFiltre
+            ? "Nu există cereri care să corespundă filtrelor alese. Ștergeți filtrele sau lărgiți intervalul."
+            : gol.descriere
+        }
+        {...(areFiltre
+          ? { actiune: { eticheta: "Șterge filtrele", href: caleBaza } }
+          : actiuneGol === undefined
+            ? {}
+            : { actiune: actiuneGol })}
       />
     );
   }
-
-  const aratăAngajat = vizualizare !== "mele";
 
   const hartaTipuri = new Map(tipuri.map((t) => [t.id, t]));
   let hartaAngajati = new Map<string, OptiuneAngajat>();
@@ -88,100 +107,113 @@ export async function TabelCereri({
     hartaAngajati = new Map((data ?? []).map((a) => [a.id, a]));
   }
 
-  const cautare = new URLSearchParams();
-  for (const [cheie, valoare] of Object.entries(parametri)) {
-    if (typeof valoare === "string" && cheie !== "cursor") cautare.set(cheie, valoare);
+  /**
+   * Adresele se construiesc din parametrii EXISTENȚI, nu dintr-un obiect gol:
+   * altfel o sortare ar șterge filtrele, iar o schimbare de mărime a paginii ar
+   * șterge sortarea.
+   */
+  function adresa(schimba: (p: URLSearchParams) => void): string {
+    const p = new URLSearchParams();
+    for (const [cheie, valoare] of Object.entries(parametri)) {
+      if (typeof valoare === "string" && valoare !== "") p.set(cheie, valoare);
+    }
+    schimba(p);
+    return p.size === 0 ? caleBaza : `${caleBaza}?${p.toString()}`;
   }
-  if (urmatorulCursor !== null) cautare.set("cursor", urmatorulCursor);
 
-  function randCa(cerere: RandCerere): ReactNode {
-    const tip = hartaTipuri.get(cerere.leave_type_id);
-    const angajat = hartaAngajati.get(cerere.employee_id);
-    return (
-      <RandTabel key={cerere.id} href={`/concedii/${cerere.id}`}>
-        {aratăAngajat ? (
-          <td className="px-4 py-3">
-            {angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`}
-          </td>
-        ) : null}
-        <td className="px-4 py-3">
-          <span
-            className="mr-2 inline-block size-2.5 rounded-full align-middle"
-            style={{ backgroundColor: tip?.culoare ?? "#94a3b8" }}
-            aria-hidden="true"
-          />
-          {tip?.denumire ?? "—"}
-        </td>
-        <td className="px-4 py-3">
-          {formatDate(cerere.data_inceput)} – {formatDate(cerere.data_sfarsit)}
-        </td>
-        <td className="px-4 py-3 tabular-nums">{formatAmount(cerere.zile_lucratoare)} zile</td>
-        <td className="px-4 py-3">
-          <span
-            className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${CLASE_STATUS_CERERE[cerere.status]}`}
-          >
-            {ETICHETE_STATUS_CERERE[cerere.status]}
-          </span>
-        </td>
-        <td className="px-4 py-3">
-          <Link
-            href={`/concedii/${cerere.id}`}
-            className="text-primary font-medium underline-offset-2 hover:underline"
-          >
-            Detalii
-          </Link>
-        </td>
-      </RandTabel>
-    );
-  }
+  const coloaneAngajat: readonly Coloana<RandCerere>[] = aratăAngajat
+    ? [
+        {
+          cheie: "angajat",
+          antet: "Angajat",
+          peTelefon: "titlu",
+          celula: (cerere) => {
+            const angajat = hartaAngajati.get(cerere.employee_id);
+            return angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`;
+          },
+        },
+      ]
+    : [];
+
+  const coloane: readonly Coloana<RandCerere>[] = [
+    ...coloaneAngajat,
+    {
+      cheie: "tip",
+      antet: "Tip",
+      peTelefon: aratăAngajat ? "meta" : "titlu",
+      celula: (cerere) => {
+        const tip = hartaTipuri.get(cerere.leave_type_id);
+        return (
+          <>
+            <span
+              className="mr-2 inline-block size-2.5 rounded-full align-middle"
+              style={{ backgroundColor: tip?.culoare ?? "var(--color-muted-foreground)" }}
+              aria-hidden="true"
+            />
+            {tip?.denumire ?? "—"}
+          </>
+        );
+      },
+    },
+    {
+      cheie: "perioada",
+      antet: "Perioadă",
+      sortabil: true,
+      peTelefon: "meta",
+      celula: (cerere) => `${formatDate(cerere.data_inceput)} – ${formatDate(cerere.data_sfarsit)}`,
+    },
+    {
+      cheie: "zile",
+      antet: "Zile lucrătoare",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (cerere) => `${formatAmount(cerere.zile_lucratoare)} zile`,
+    },
+    {
+      cheie: "stare",
+      antet: "Stare",
+      sortabil: true,
+      peTelefon: "insigna",
+      celula: (cerere) => (
+        <Badge ton={TONURI_STATUS_CERERE[cerere.status]}>
+          {ETICHETE_STATUS_CERERE[cerere.status]}
+        </Badge>
+      ),
+    },
+  ];
 
   return (
-    <>
-      <div className="border-border overflow-x-auto rounded-lg border">
-        <table className="w-full text-left text-sm">
-          <caption className="sr-only">
-            {aratăAngajat ? "Cererile de concediu ale echipei" : "Cererile mele de concediu"}
-          </caption>
-          <thead className="bg-surface text-foreground">
-            <tr>
-              {aratăAngajat ? (
-                <th scope="col" className="px-4 py-3 font-medium">
-                  Angajat
-                </th>
-              ) : null}
-              <th scope="col" className="px-4 py-3 font-medium">
-                Tip
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Perioadă
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Zile lucrătoare
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Stare
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                <span className="sr-only">Acțiuni</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-border divide-y">{randuri.map(randCa)}</tbody>
-        </table>
-      </div>
-
-      <nav aria-label="Paginare" className="mt-4 flex justify-end">
-        {urmatorulCursor === null ? (
-          <p className="text-muted-foreground text-sm">Aceasta este ultima pagină.</p>
-        ) : (
-          <Link
-            href={`${caleBaza}?${cautare.toString()}`}
-            className="border-foreground/60 hover:bg-surface rounded-md border px-3 py-2 text-sm font-medium"
-          >
-            Pagina următoare
-          </Link>
-        )}
-      </nav>
-    </>
+    <div className="flex flex-col gap-4">
+      <Tabel
+        caption={aratăAngajat ? "Cererile de concediu ale echipei" : "Cererile mele de concediu"}
+        coloane={coloane}
+        randuri={randuri}
+        cheieRand={(cerere) => cerere.id}
+        href={(cerere) => `/concedii/${cerere.id}`}
+        sortare={sortare}
+        hrefSortare={(s) =>
+          adresa((p) => {
+            p.set("sort", scrieSortare(s));
+            // Cursorul nu supraviețuiește unei schimbări de sortare: ar continua
+            // de la un rând care, în noua ordine, nu mai e acolo unde era.
+            p.delete("cursor");
+          })
+        }
+        gol={null}
+      />
+      <Paginare
+        afisate={randuri.length}
+        total={total}
+        cursorUrmator={urmatorulCursor}
+        limita={filtre.limita}
+        construiesteHref={({ cursor, limita }) =>
+          adresa((p) => {
+            p.set("limita", String(limita));
+            if (cursor === null) p.delete("cursor");
+            else p.set("cursor", cursor);
+          })
+        }
+      />
+    </div>
   );
 }

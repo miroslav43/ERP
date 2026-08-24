@@ -1,5 +1,5 @@
 // src/lib/queries/announcements.ts
-// Citirile avizierului. Filtrarea „doar publicate, doar pentru toată lumea"
+// Citirile avizierului. Filtrarea „doar publicate, doar pentru toată lumea”
 // e impusă de RLS (`announcements_select`), nu reprodusă aici — un
 // administrator vede și ciornele, un angajat obișnuit doar ce e publicat.
 
@@ -14,7 +14,27 @@ export interface RandAnunt {
   readonly created_at: string;
 }
 
-export async function listeazaAnunturi(organizationId: string): Promise<readonly RandAnunt[]> {
+/**
+ * Câte anunțuri aduce ecranul de administrare într-o pagină.
+ *
+ * Interogarea nu avea NICIUN `.limit()`, deci se sprijinea pe `max_rows = 1000`
+ * al PostgREST — care taie TĂCUT: nicio eroare, niciun antet, doar mai puține
+ * rânduri. Un avizier vechi de câțiva ani trece de 1000 fără să anunțe pe
+ * nimeni, iar anunțurile lipsă erau exact cele mai vechi. Limita explicită e
+ * mai mică și, mai ales, CUNOSCUTĂ de ecran, care poate spune că lista e tăiată.
+ */
+export const LIMITA_ANUNTURI = 200;
+
+export interface ListaAnunturi {
+  readonly randuri: readonly RandAnunt[];
+  /** Adevărat când s-a atins limita, deci pe disc mai există anunțuri neafișate. */
+  readonly trunchiat: boolean;
+}
+
+export async function listeazaAnunturi(
+  organizationId: string,
+  limita: number = LIMITA_ANUNTURI,
+): Promise<ListaAnunturi> {
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("announcements")
@@ -23,9 +43,11 @@ export async function listeazaAnunturi(organizationId: string): Promise<readonly
     .is("deleted_at", null)
     .order("fixat", { ascending: false })
     .order("publicat_la", { ascending: false, nullsFirst: true })
+    .limit(limita)
     .returns<RandAnunt[]>();
   if (error !== null) throw error;
-  return data ?? [];
+  const randuri = data ?? [];
+  return { randuri, trunchiat: randuri.length >= limita };
 }
 
 /**
@@ -35,7 +57,7 @@ export async function listeazaAnunturi(organizationId: string): Promise<readonly
  * anunțurile expirate oricui are `announcements:update = all`. Portalul e al
  * angajatului, dar filtrul stă AICI, nu în politică: e regula scrisă în capul
  * lui `queries/portal.ts` — citirile portalului nu se sprijină pe scope-ul
- * cititorului, fiindcă „ale mele" trebuie să însemne același lucru indiferent
+ * cititorului, fiindcă „ale mele” trebuie să însemne același lucru indiferent
  * cine deschide ecranul.
  *
  * `acum` vine ca argument: o citire nu atinge ceasul, ca să rămână determinsită
@@ -86,7 +108,7 @@ export async function citesteAnunt(
   return data;
 }
 
-/** ID-urile anunțurilor deja citite de angajatul curent — pentru marcaje „nou". */
+/** ID-urile anunțurilor deja citite de angajatul curent — pentru marcaje „nou”. */
 export async function idAnunturiCitite(
   organizationId: string,
   employeeId: string,
@@ -119,6 +141,31 @@ export async function cititoriAnunt(announcementId: string): Promise<readonly Ci
     .returns<CititorAnunt[]>();
   if (error !== null) throw error;
   return data ?? [];
+}
+
+/**
+ * Numitorul confirmărilor de citire: angajații activi care AU cont.
+ *
+ * `numarAngajatiActivi` (mai jos, folosit de panou) numără toți angajații
+ * activi — inclusiv pe cei fără `user_id`, care nu se pot autentifica, deci nu
+ * pot confirma niciodată nimic. Cu el ca numitor, „3 / 47” era un raport
+ * imposibil de dus la 47/47, iar ecranul spunea despre firmă că nu-și citește
+ * anunțurile când, de fapt, 40 de oameni nici măcar nu aveau unde.
+ *
+ * `announcement_reads.employee_id` se completează din `idFisaProprie`, care
+ * caută fișa după `user_id` — de aici filtrul.
+ */
+export async function numarAngajatiCuCont(organizationId: string): Promise<number> {
+  const db = await createServerSupabase();
+  const { count, error } = await db
+    .from("employees")
+    .select("id", { count: "exact", head: true })
+    .eq("organization_id", organizationId)
+    .eq("status", "activ")
+    .not("user_id", "is", null)
+    .is("deleted_at", null);
+  if (error !== null) throw error;
+  return count ?? 0;
 }
 
 export async function numarAngajatiActivi(organizationId: string): Promise<number> {

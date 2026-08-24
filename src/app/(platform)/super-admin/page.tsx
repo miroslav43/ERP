@@ -22,8 +22,8 @@ export default async function PaginaPanouPlatforma() {
   return (
     <div className="flex flex-col gap-6">
       <header>
-        <h1 className="text-foreground text-2xl font-semibold">Panou de platformă</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
+        <h1 className="text-foreground text-titlu font-semibold">Panou de platformă</h1>
+        <p className="text-muted-foreground text-corp mt-1">
           Firme, module și înregistrări. Operarea fiecărei firme se face din contul ei.
         </p>
       </header>
@@ -40,8 +40,8 @@ export default async function PaginaPanouPlatforma() {
       </dl>
 
       <div className="grid items-start gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-        <section className="border-border bg-surface overflow-hidden rounded-lg border">
-          <h2 className="border-border bg-background border-b px-4 py-2.5 text-sm font-semibold">
+        <section className="border-border bg-surface rounded-panou overflow-hidden border">
+          <h2 className="border-border bg-background text-corp border-b px-4 py-2.5 font-semibold">
             De rezolvat
           </h2>
           {sarcini.length > 0 ? (
@@ -58,14 +58,14 @@ export default async function PaginaPanouPlatforma() {
               ))}
             </ul>
           ) : (
-            <p className="text-muted-foreground px-4 py-10 text-center text-sm">
+            <p className="text-muted-foreground text-corp px-4 py-10 text-center">
               Nimic de rezolvat. Panoul se golește când totul e în regulă.
             </p>
           )}
         </section>
 
-        <section className="border-border bg-surface overflow-hidden rounded-lg border">
-          <h2 className="border-border bg-background border-b px-4 py-2.5 text-sm font-semibold">
+        <section className="border-border bg-surface rounded-panou overflow-hidden border">
+          <h2 className="border-border bg-background text-corp border-b px-4 py-2.5 font-semibold">
             Ce s-a schimbat
           </h2>
           {activitate.length > 0 ? (
@@ -77,14 +77,14 @@ export default async function PaginaPanouPlatforma() {
                 >
                   <time
                     dateTime={intrare.created_at}
-                    className="text-muted-foreground font-mono text-xs"
+                    className="text-muted-foreground text-nota font-mono"
                   >
                     {new Date(intrare.created_at).toLocaleDateString("ro-RO", {
                       day: "2-digit",
                       month: "short",
                     })}
                   </time>
-                  <span className="min-w-0 text-sm">
+                  <span className="text-corp min-w-0">
                     <span className="font-semibold">
                       {ETICHETE_ACTIUNE[intrare.action] ?? intrare.action}
                     </span>
@@ -94,14 +94,14 @@ export default async function PaginaPanouPlatforma() {
               ))}
             </ul>
           ) : (
-            <p className="text-muted-foreground px-4 py-10 text-center text-sm">
+            <p className="text-muted-foreground text-corp px-4 py-10 text-center">
               Nicio activitate înregistrată încă.
             </p>
           )}
           <div className="border-border border-t px-4 py-2.5">
             <Link
               href="/super-admin/jurnal-audit"
-              className="text-primary text-sm font-semibold underline-offset-4 hover:underline"
+              className="text-primary text-corp font-semibold underline-offset-4 hover:underline"
             >
               Vezi jurnalul complet
             </Link>

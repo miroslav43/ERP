@@ -1,6 +1,7 @@
 // src/app/(app)/angajati/[id]/documente/formular-document.tsx
 "use client";
 import { useId, useRef, useState } from "react";
+import { Buton } from "@/components/ui/buton";
 import { getBrowserSupabase } from "@/lib/supabase/browser";
 import { BUCKET_DOCUMENTE, verificaDocument } from "@/lib/documents/cale";
 import { useRouter } from "next/navigation";
@@ -25,6 +26,7 @@ export function FormularDocument({
   employeeId: string;
   tipuri: readonly TipDocument[];
 }) {
+  const router = useRouter();
   const idTip = useId();
   const idTitlu = useId();
   const idFisier = useId();
@@ -79,27 +81,34 @@ export function FormularDocument({
       confidential: tip?.confidential_implicit ?? true,
       vizibilAngajatului: tip?.vizibil_angajatului_implicit ?? true,
     });
-    setStare(
-      rezultat.ok
-        ? { tip: "succes", mesaj: "Documentul a fost adăugat în dosar." }
-        : { tip: "eroare", mesaj: rezultat.error.message },
-    );
+    if (!rezultat.ok) {
+      setStare({ tip: "eroare", mesaj: rezultat.error.message });
+      return;
+    }
+    setStare({ tip: "succes", mesaj: "Documentul a fost adăugat în dosar." });
+    // Lista de deasupra e randată pe server. Fără `router.refresh()`, ecranul
+    // spunea „a fost adăugat" iar lista rămânea exact aceeași până la o
+    // reîncărcare manuală — situația în care omul încarcă al doilea exemplar
+    // al aceluiași document, crezând că primul s-a pierdut. `ButonStergeDocument`
+    // avea deja apelul; încărcarea, nu.
+    referinta.current?.form?.reset();
+    router.refresh();
   }
 
   return (
     <form
       action={(formular) => void trimite(formular)}
-      className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-3"
+      className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-3"
     >
       <div className="flex flex-col gap-1">
-        <label htmlFor={idTip} className="text-sm font-medium">
+        <label htmlFor={idTip} className="text-corp font-medium">
           Tip document
         </label>
         <select
           id={idTip}
           name="tip"
           required
-          className="border-foreground/60 rounded-md border p-2"
+          className="border-foreground/60 rounded-control border p-2"
         >
           {tipuri.map((tip) => (
             <option key={tip.id} value={tip.id}>
@@ -109,7 +118,7 @@ export function FormularDocument({
         </select>
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={idTitlu} className="text-sm font-medium">
+        <label htmlFor={idTitlu} className="text-corp font-medium">
           Titlu
         </label>
         <input
@@ -117,27 +126,28 @@ export function FormularDocument({
           name="titlu"
           required
           maxLength={200}
-          className="border-foreground/60 rounded-md border p-2"
+          className="border-foreground/60 rounded-control border p-2"
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={idFisier} className="text-sm font-medium">
+        <label htmlFor={idFisier} className="text-corp font-medium">
           Fișier (max. 20 MB)
         </label>
-        <input ref={referinta} id={idFisier} type="file" required className="text-sm" />
+        <input ref={referinta} id={idFisier} type="file" required className="text-corp" />
       </div>
       <div className="flex items-center gap-4 sm:col-span-3">
-        <button
+        <Buton
           type="submit"
-          disabled={stare.tip === "lucru"}
-          className="bg-primary text-primary-foreground disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
+          varianta="primar"
+          inCurs={stare.tip === "lucru"}
+          textInCurs="Se încarcă…"
         >
-          {stare.tip === "lucru" ? "Se încarcă…" : "Adaugă documentul"}
-        </button>
+          Adaugă documentul
+        </Buton>
         <p
           role="status"
           aria-live="polite"
-          className={stare.tip === "eroare" ? "text-danger text-sm" : "text-foreground text-sm"}
+          className={stare.tip === "eroare" ? "text-danger text-corp" : "text-foreground text-corp"}
         >
           {stare.mesaj}
         </p>
@@ -165,17 +175,18 @@ export function ListaDescarcare({
   return (
     <span className="flex items-center gap-2">
       {eroare !== null && (
-        <span role="alert" className="text-danger text-sm">
+        <span role="alert" className="text-danger text-corp">
           {eroare}
         </span>
       )}
-      <button
-        type="button"
-        onClick={() => void descarca()}
-        className="border-foreground/60 rounded-md border px-3 py-1.5 text-sm"
+      <Buton
+        varianta="secundar"
+        onClick={() => {
+          void descarca();
+        }}
       >
         Descarcă <span className="sr-only">{numeFisier}</span>
-      </button>
+      </Buton>
     </span>
   );
 }
@@ -211,15 +222,14 @@ export function ButonStergeDocument({
 
   if (!deschis) {
     return (
-      <button
-        type="button"
+      <Buton
+        varianta="distructiv"
         onClick={() => {
           setDeschis(true);
         }}
-        className="border-danger/40 text-danger hover:bg-danger/8 rounded-md border px-3 py-1.5 text-sm"
       >
         Retrage din dosar
-      </button>
+      </Buton>
     );
   }
 
@@ -235,28 +245,30 @@ export function ButonStergeDocument({
           setMotiv(eveniment.target.value);
         }}
         placeholder="Motivul retragerii (min. 3 caractere)"
-        className="border-foreground/60 rounded-md border px-2 py-1.5 text-sm"
+        className="border-foreground/60 rounded-control text-corp border px-2 py-1.5"
       />
-      <button
-        type="button"
-        onClick={() => void confirma()}
-        disabled={inCurs || motiv.trim().length < 3}
-        className="bg-danger text-danger-foreground rounded-md px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50"
+      <Buton
+        varianta="distructiv"
+        inCurs={inCurs}
+        textInCurs="Se retrage…"
+        disabled={motiv.trim().length < 3}
+        onClick={() => {
+          void confirma();
+        }}
       >
-        {inCurs ? "Se retrage…" : "Confirmă"}
-      </button>
-      <button
-        type="button"
+        Confirmă
+      </Buton>
+      <Buton
+        varianta="link"
         onClick={() => {
           setDeschis(false);
           setEroare(null);
         }}
-        className="text-muted-foreground hover:text-foreground text-sm underline underline-offset-4"
       >
         Renunță
-      </button>
+      </Buton>
       {eroare !== null && (
-        <span role="alert" className="text-danger text-sm">
+        <span role="alert" className="text-danger text-corp">
           {eroare}
         </span>
       )}

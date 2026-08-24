@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
+import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
@@ -28,11 +30,12 @@ import {
   contorInstruiri,
   contorStingatoare,
 } from "@/lib/queries/ssm";
-import { momentLimitaComunicareItm, oreRamasePanaLaTermen } from "@/domain/ssm/termen-itm";
+import { momentLimitaComunicareItm } from "@/domain/ssm/termen-itm";
 
 import { DosarulMeu } from "./dosarul-meu";
-import { ETICHETE_TIP_ACCIDENT, CLASE_TIP_ACCIDENT } from "./etichete";
+import { ETICHETE_TIP_ACCIDENT, TONURI_TIP_ACCIDENT } from "./etichete";
 import { NavSsm } from "./nav-ssm";
+import { NumaratoareItm } from "./numaratoare-itm";
 
 export const metadata: Metadata = { title: "SSM și PSI" };
 
@@ -47,18 +50,18 @@ function Card({ href, icon: Icon, titlu, numar }: CardPanou) {
   return (
     <Link
       href={href}
-      className="border-border hover:bg-surface flex flex-col gap-3 rounded-lg border p-4"
+      className="border-border hover:bg-surface rounded-panou flex flex-col gap-3 border p-4"
     >
       <div className="flex items-center justify-between">
         <Icon aria-hidden="true" className="text-muted-foreground size-5" />
         {numar > 0 ? (
-          <span className="bg-warning/12 text-foreground rounded-full px-2 py-0.5 text-xs font-semibold">
+          <span className="bg-warning/12 text-foreground text-nota rounded-full px-2 py-0.5 font-semibold">
             {numar}
           </span>
         ) : null}
       </div>
-      <p className="text-sm font-medium">{titlu}</p>
-      <p className="text-muted-foreground text-xs">
+      <p className="text-corp font-medium">{titlu}</p>
+      <p className="text-muted-foreground text-nota">
         {numar === 0 ? "Nimic de atenționat" : `${numar} de atenționat`}
       </p>
     </Link>
@@ -73,44 +76,60 @@ async function BandaAccidente({ organizationId }: { readonly organizationId: str
     organizationId,
     accidente.map((a) => a.employee_id).filter((id): id is string => id !== null),
   );
-  const acum = new Date();
+  const acum = new Date().toISOString();
 
   return (
     <section
       aria-labelledby="accidente-necomunicate"
       role="alert"
-      className="border-danger/40 bg-danger/8 space-y-3 rounded-lg border p-4"
+      className="border-danger/40 bg-danger/8 rounded-panou space-y-3 border p-4"
     >
-      <h2
-        id="accidente-necomunicate"
-        className="text-danger flex items-center gap-2 text-sm font-semibold"
-      >
-        <ShieldAlert aria-hidden="true" className="size-4" />
-        Accidente necomunicate la ITM
-      </h2>
-      <ul className="space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2
+          id="accidente-necomunicate"
+          className="text-danger text-corp flex items-center gap-2 font-semibold"
+        >
+          <ShieldAlert aria-hidden="true" className="size-4" />
+          Accidente necomunicate la ITM
+        </h2>
+        {/* Banda era singurul ceas legal din produs și NU avea niciun link:
+            se vedea că expiră ceva și nu se putea ajunge la el.
+            `accidenteNecomunicate` citește cel mult 50 de rânduri, deci la fix
+            50 nu se poate afirma o cifră — se spune fără ea. */}
+        <Link
+          href="/ssm/accidente?necomunicate=1"
+          className="text-corp underline-offset-2 hover:underline"
+        >
+          {accidente.length === 50
+            ? "Vezi toate accidentele necomunicate"
+            : `Vezi toate cele ${String(accidente.length)} necomunicate`}
+        </Link>
+      </div>
+      <ul className="space-y-1">
         {accidente.map((a) => {
           const ore = a.termen_comunicare_ore ?? 24;
           const limita = momentLimitaComunicareItm(a.data_producerii, a.ora_producerii, ore);
-          const raman = oreRamasePanaLaTermen(limita, acum);
           const angajat = a.employee_id === null ? undefined : angajati.get(a.employee_id);
           return (
-            <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-              <span>
-                <span
-                  className={`mr-2 rounded px-2 py-0.5 text-xs font-medium ${CLASE_TIP_ACCIDENT[a.tip]}`}
-                >
-                  {ETICHETE_TIP_ACCIDENT[a.tip]}
+            <li key={a.id}>
+              <Link
+                href={`/ssm/accidente/${a.id}`}
+                className="hover:bg-surface rounded-control text-corp -mx-2 flex flex-wrap items-center justify-between gap-2 px-2 py-1.5"
+              >
+                <span>
+                  <Badge ton={TONURI_TIP_ACCIDENT[a.tip]} className="mr-2">
+                    {ETICHETE_TIP_ACCIDENT[a.tip]}
+                  </Badge>
+                  {angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`}
+                  {" · "}
+                  {formatDate(a.data_producerii)}
                 </span>
-                {angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`}
-                {" · "}
-                {formatDate(a.data_producerii)}
-              </span>
-              <span className="text-danger font-medium">
-                {raman >= 0
-                  ? `mai sunt ${raman.toFixed(1)} ore`
-                  : `termen depășit cu ${Math.abs(raman).toFixed(1)} ore`}
-              </span>
+                <NumaratoareItm
+                  momentLimita={limita.toISOString()}
+                  acumInitial={acum}
+                  fel="compact"
+                />
+              </Link>
             </li>
           );
         })}
@@ -123,7 +142,7 @@ export default async function PaginaSsm() {
   await requireUser();
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "ssm");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   // `can(..., "own")` și nu `scopeFor(...) !== null`: scope-ul „none" e refuz
   // explicit ȘI e truthy, deci a doua formă ar lăsa poarta deschisă.
@@ -135,9 +154,9 @@ export default async function PaginaSsm() {
 
   if (!can(permisiuni, "ssm:read", "team")) {
     return (
-      <main className="mx-auto w-full max-w-3xl p-6">
+      <div className={LATIMI.detaliu}>
         <DosarulMeu organizationId={tenant.organizationId} />
-      </main>
+      </div>
     );
   }
 
@@ -152,23 +171,22 @@ export default async function PaginaSsm() {
   const psi = instruiri.find((c) => c.domeniu === "psi")?.deAtentionat ?? 0;
 
   return (
-    <main className="space-y-6 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold">SSM și PSI</h1>
-        <p className="text-muted-foreground text-sm">
-          Situația la zi a instruirilor, medicinei muncii și apărării împotriva incendiilor.
-        </p>
-      </header>
-
-      <NavSsm
-        poateVedeaInstruiri={
-          can(permisiuni, "ssm:read", "team") && can(permisiuni, "employees:read", "team")
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="SSM și PSI"
+        descriere="Situația la zi a instruirilor, medicinei muncii și apărării împotriva incendiilor."
+        file={
+          <NavSsm
+            poateVedeaInstruiri={
+              can(permisiuni, "ssm:read", "team") && can(permisiuni, "employees:read", "team")
+            }
+            poateVedeaMedicina={can(permisiuni, "ssm:read", "team")}
+            poateVedeaAccidente={can(permisiuni, "ssm:read", "team")}
+            poateVedeaStingatoare={can(permisiuni, "ssm:read", "team")}
+            poateVedeaEip={can(permisiuni, "ssm:read", "team")}
+            poateVedeaAutorizatii={can(permisiuni, "ssm:read", "team")}
+          />
         }
-        poateVedeaMedicina={can(permisiuni, "ssm:read", "team")}
-        poateVedeaAccidente={can(permisiuni, "ssm:read", "team")}
-        poateVedeaStingatoare={can(permisiuni, "ssm:read", "team")}
-        poateVedeaEip={can(permisiuni, "ssm:read", "team")}
-        poateVedeaAutorizatii={can(permisiuni, "ssm:read", "team")}
       />
 
       <BandaAccidente organizationId={tenant.organizationId} />
@@ -215,6 +233,6 @@ export default async function PaginaSsm() {
         />
         <Card href="/ssm/eip" icon={HardHat} titlu="Echipament de protecție (EIP)" numar={eip} />
       </div>
-    </main>
+    </div>
   );
 }

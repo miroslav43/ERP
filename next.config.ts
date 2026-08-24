@@ -22,7 +22,18 @@ const nextConfig: NextConfig = {
    * 01-next-config-js/output.md
    */
   outputFileTracingIncludes: {
-    "/*": ["./node_modules/.pnpm/@swc+helpers@*/node_modules/@swc/helpers/**/*"],
+    "/*": [
+      "./node_modules/.pnpm/@swc+helpers@*/node_modules/@swc/helpers/**/*",
+      /**
+       * Fonturile pentru PDF (`src/lib/pdf/fonturi/`).
+       *
+       * Trasarea importurilor urmărește `import`-uri statice; fonturile se
+       * citesc cu `readFileSync` pe o cale construită la rulare, deci ea nu le
+       * vede. Fără regula asta, containerul pornește corect și cade abia la
+       * primul stat de plată, cu ENOENT — adică exact în momentul cel mai prost.
+       */
+      "./src/lib/pdf/fonturi/*.ttf",
+    ],
   },
 
   reactCompiler: true,

@@ -6,6 +6,7 @@ import { useId, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
+import { Buton, buton } from "@/components/ui/buton";
 import { inroleazaAngajatSchema, type InroleazaAngajatInput } from "@/schemas/employee";
 import { inroleazaAngajat } from "../actions";
 import { ProgresAsistent, ETICHETE_PASI } from "./progres-asistent";
@@ -60,6 +61,7 @@ interface RezultatSucces {
   readonly nume: string;
   readonly documentContractId: string | null;
   readonly documentFisaPostuluiId: string | null;
+  readonly avertismente: readonly string[];
 }
 
 export function AsistentAngajatNou({
@@ -116,6 +118,7 @@ export function AsistentAngajatNou({
         nume: `${valori.first_name} ${valori.last_name}`.trim(),
         documentContractId: raspuns.data.documentContractId,
         documentFisaPostuluiId: raspuns.data.documentFisaPostuluiId,
+        avertismente: raspuns.data.avertismente,
       });
       return;
     }
@@ -134,19 +137,16 @@ export function AsistentAngajatNou({
 
   if (rezultat !== null) {
     return (
-      <div className="border-border bg-surface space-y-4 rounded-lg border p-6">
-        <h2 className="text-foreground text-lg font-semibold">
+      <div className="border-border bg-surface rounded-panou space-y-4 border p-6">
+        <h2 className="text-foreground text-sectiune font-semibold">
           „{rezultat.nume}” a fost înrolat(ă)
         </h2>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-muted-foreground text-corp">
           Marca a fost atribuită automat, contractul e activ, iar soldul de concediu a fost
           însămânțat pentru toate tipurile organizației.
         </p>
         <div className="flex flex-wrap gap-3">
-          <Link
-            href={`/angajati/${rezultat.id}`}
-            className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium"
-          >
+          <Link href={`/angajati/${rezultat.id}`} className={buton({ varianta: "primar" })}>
             Deschide fișa angajatului
           </Link>
           {rezultat.documentContractId !== null ? (
@@ -154,7 +154,7 @@ export function AsistentAngajatNou({
               href={`/documente/${rezultat.documentContractId}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="border-border text-foreground rounded-md border px-4 py-2 text-sm font-medium"
+              className={buton({ varianta: "secundar" })}
             >
               Vezi contractul de muncă
             </Link>
@@ -164,12 +164,30 @@ export function AsistentAngajatNou({
               href={`/documente/${rezultat.documentFisaPostuluiId}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="border-border text-foreground rounded-md border px-4 py-2 text-sm font-medium"
+              className={buton({ varianta: "secundar" })}
             >
               Vezi fișa postului
             </Link>
           ) : null}
         </div>
+
+        {rezultat.avertismente.length > 0 ? (
+          <div
+            role="alert"
+            className="border-warning/40 bg-warning/10 rounded-panou mt-6 border p-4 text-left"
+          >
+            <p className="text-corp font-medium">
+              Angajatul e înrolat, dar{" "}
+              {rezultat.avertismente.length === 1 ? "un pas nu s-a" : "câțiva pași nu s-au"} putut
+              face automat:
+            </p>
+            <ul className="text-corp mt-2 list-disc space-y-1 pl-5">
+              {rezultat.avertismente.map((avertisment) => (
+                <li key={avertisment}>{avertisment}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -182,7 +200,7 @@ export function AsistentAngajatNou({
         {eroareServer && (
           <p
             role="alert"
-            className="border-border bg-surface text-danger rounded-md border p-3 text-sm"
+            className="border-border bg-surface text-danger rounded-control text-corp border p-3"
           >
             {eroareServer}
           </p>
@@ -212,32 +230,20 @@ export function AsistentAngajatNou({
 
       <div className="flex items-center gap-3">
         {pasCurent > 1 && (
-          <button
-            type="button"
-            onClick={mergiInapoi}
-            className="border-border text-foreground rounded-md border px-4 py-2 text-sm font-medium"
-          >
+          <Buton varianta="secundar" onClick={mergiInapoi}>
             Înapoi
-          </button>
+          </Buton>
         )}
         {pasCurent < TOTAL_PASI ? (
-          <button
-            type="button"
-            onClick={mergiInainte}
-            className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium"
-          >
+          <Buton varianta="primar" onClick={mergiInainte}>
             Continuă
-          </button>
+          </Buton>
         ) : (
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-          >
-            {isSubmitting ? "Se înrolează…" : "Înrolează angajatul"}
-          </button>
+          <Buton type="submit" varianta="primar" inCurs={isSubmitting} textInCurs="Se înrolează…">
+            Înrolează angajatul
+          </Buton>
         )}
-        <p aria-live="polite" className="text-muted-foreground text-sm">
+        <p aria-live="polite" className="text-muted-foreground text-corp">
           {isSubmitting ? "Se salvează datele…" : ""}
         </p>
       </div>

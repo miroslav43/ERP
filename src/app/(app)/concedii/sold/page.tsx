@@ -1,10 +1,13 @@
 // src/app/(app)/concedii/sold/page.tsx
 import Link from "next/link";
 import type { Metadata } from "next";
-import { PiggyBank } from "lucide-react";
+import { History, PiggyBank } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { StareGoala } from "@/components/ui/stare-goala";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
+import { Nivel } from "@/components/ui/nivel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -48,65 +51,112 @@ const ETICHETE_EVENIMENT: Readonly<Record<string, string>> = {
   corectie_incadrare: "Corecție de încadrare",
 };
 
-function TabelTipuri({ randuri }: { readonly randuri: readonly RandSold[] }) {
+const COLOANE_SOLD: readonly Coloana<RandSold>[] = [
+  {
+    cheie: "tip",
+    antet: "Tip de concediu",
+    peTelefon: "titlu",
+    celula: ({ tip }) => (
+      <>
+        <span
+          className="mr-2 inline-block size-2.5 rounded-full align-middle"
+          style={{ backgroundColor: tip.culoare }}
+          aria-hidden="true"
+        />
+        {tip.denumire}
+      </>
+    ),
+  },
+  {
+    cheie: "drept_anual",
+    antet: "Drept anual",
+    numeric: true,
+    peTelefon: "meta",
+    celula: ({ tip, sold }) => formatAmount(sold?.drept_anual ?? tip.zile_implicite),
+  },
+  {
+    cheie: "reportate",
+    antet: "Reportate",
+    numeric: true,
+    peTelefon: "meta",
+    celula: ({ sold }) => formatAmount(sold?.reportate ?? 0),
+  },
+  {
+    cheie: "folosite",
+    antet: "Folosite",
+    numeric: true,
+    peTelefon: "meta",
+    celula: ({ sold }) => formatAmount(sold?.folosite ?? 0),
+  },
+  {
+    cheie: "in_asteptare",
+    antet: "În așteptare",
+    numeric: true,
+    peTelefon: "meta",
+    celula: ({ sold }) => formatAmount(sold?.in_asteptare ?? 0),
+  },
+  {
+    cheie: "consum",
+    antet: "Consum",
+    // Ascunsă pe telefon: cifrele sunt oricum în rândul de metadate al cardului,
+    // iar o bară de 4px într-o listă separată prin „·" n-ar fi lizibilă.
+    peTelefon: "ascuns",
+    celula: ({ tip, sold }) => {
+      const cuvenite = (sold?.drept_anual ?? tip.zile_implicite) + (sold?.reportate ?? 0);
+      const angajate = (sold?.folosite ?? 0) + (sold?.in_asteptare ?? 0);
+      if (cuvenite <= 0 && angajate <= 0) return null;
+      return (
+        <Nivel
+          valoare={angajate}
+          din={cuvenite}
+          marime="subtire"
+          eticheta={`Zile angajate din ${tip.denumire}`}
+          // `ton="neutru"`, nu „rău": la zile de concediu LUATE, mult nu e rău —
+          // e chiar scopul concediului. Doar depășirea se distinge, și o face
+          // primitiva prin formă, nu prin culoare.
+          ton="neutru"
+          text={`${formatAmount(angajate)} zile angajate din ${formatAmount(cuvenite)} cuvenite`}
+        />
+      );
+    },
+  },
+  {
+    cheie: "ramase",
+    antet: "Rămase",
+    numeric: true,
+    peTelefon: "meta",
+    celula: ({ sold }) => (
+      <span className="font-medium">
+        {sold === null || sold === undefined
+          ? "fără mișcări în acest an"
+          : formatAmount(sold.ramase ?? 0)}
+      </span>
+    ),
+  },
+];
+
+function TabelTipuri({
+  randuri,
+  caption,
+}: {
+  readonly randuri: readonly RandSold[];
+  readonly caption: string;
+}) {
   return (
-    <div className="border-border overflow-x-auto rounded-lg border">
-      <table className="w-full text-left text-sm">
-        <thead className="bg-surface text-foreground">
-          <tr>
-            <th scope="col" className="px-4 py-2 font-medium">
-              Tip de concediu
-            </th>
-            <th scope="col" className="px-4 py-2 font-medium">
-              Drept anual
-            </th>
-            <th scope="col" className="px-4 py-2 font-medium">
-              Reportate
-            </th>
-            <th scope="col" className="px-4 py-2 font-medium">
-              Folosite
-            </th>
-            <th scope="col" className="px-4 py-2 font-medium">
-              În așteptare
-            </th>
-            <th scope="col" className="px-4 py-2 font-medium">
-              Rămase
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-border divide-y">
-          {randuri.map(({ tip, sold }) => (
-            <tr key={tip.id}>
-              <td className="px-4 py-2">
-                <span
-                  className="mr-2 inline-block size-2.5 rounded-full align-middle"
-                  style={{ backgroundColor: tip.culoare }}
-                  aria-hidden="true"
-                />
-                {tip.denumire}
-              </td>
-              <td className="px-4 py-2 tabular-nums">
-                {formatAmount(sold?.drept_anual ?? tip.zile_implicite)}
-              </td>
-              <td className="px-4 py-2 tabular-nums">{formatAmount(sold?.reportate ?? 0)}</td>
-              <td className="px-4 py-2 tabular-nums">{formatAmount(sold?.folosite ?? 0)}</td>
-              <td className="px-4 py-2 tabular-nums">{formatAmount(sold?.in_asteptare ?? 0)}</td>
-              <td className="px-4 py-2 font-medium tabular-nums">
-                {sold === null || sold === undefined
-                  ? "fără mișcări în acest an"
-                  : formatAmount(sold.ramase ?? 0)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <Tabel
+      caption={caption}
+      coloane={COLOANE_SOLD}
+      randuri={randuri}
+      cheieRand={({ tip }) => tip.id}
+      densitate="compact"
+      gol={null}
+    />
   );
 }
 
 function SelectorAn({ an }: { readonly an: number }) {
   return (
-    <nav aria-label="Anul soldului" className="flex items-center gap-3 text-sm">
+    <nav aria-label="Anul soldului" className="text-corp flex items-center gap-3">
       <Link href={`/concedii/sold?an=${String(an - 1)}`} className="underline underline-offset-2">
         {an - 1}
       </Link>
@@ -121,7 +171,7 @@ function SelectorAn({ an }: { readonly an: number }) {
 export default async function PaginaSoldConcediu({ searchParams }: ProprietatiPagina) {
   const { tenant, user } = await requireTenant();
   await requireFeature(tenant.organizationId, "leave");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "leave:read", "own")) {
     return (
@@ -157,37 +207,58 @@ export default async function PaginaSoldConcediu({ searchParams }: ProprietatiPa
     .is("deleted_at", null)
     .maybeSingle<{ id: string }>();
 
-  const istoric = await istoricSold(tenant.organizationId, an);
+  const { randuri: istoric, trunchiat: istoricTrunchiat } = await istoricSold(
+    tenant.organizationId,
+    an,
+  );
+
+  // Numele mișcărilor din istoric. Se citesc DOAR peste scope „own”: pentru cine
+  // vede numai propriul sold, toate liniile sunt ale lui și o coloană „Angajat”
+  // ar repeta același nume de N ori.
+  let hartaAngajatiIstoric = new Map<string, AngajatMinim>();
+  if (scope !== "own" && istoric.length > 0) {
+    const idAngajatiIstoric = [...new Set(istoric.map((rand) => rand.employee_id))];
+    const { data: angajatiIstoric } = await db
+      .from("employees")
+      .select("id, full_name, marca")
+      .eq("organization_id", tenant.organizationId)
+      .in("id", idAngajatiIstoric)
+      .returns<AngajatMinim[]>();
+    hartaAngajatiIstoric = new Map((angajatiIstoric ?? []).map((a) => [a.id, a]));
+  }
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Soldul de concediu</h1>
-          <p className="text-muted-foreground text-sm">
-            {scope === "own"
-              ? "Soldul dumneavoastră de zile de concediu, pe tip."
-              : "Soldul de zile de concediu al angajaților vizibili pentru dvs., pe tip."}
-          </p>
-        </div>
-        <SelectorAn an={an} />
-      </header>
-
-      <NavConcedii
-        poateVedeaEchipa={poateVedeaCalendar}
-        poateAproba={poateAproba}
-        poateVedeaCalendar={poateVedeaCalendar}
-        poateConfigura={poateConfigura}
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Soldul de concediu"
+        descriere={
+          scope === "own"
+            ? "Soldul dumneavoastră de zile de concediu, pe tip."
+            : "Soldul de zile de concediu al angajaților vizibili pentru dvs., pe tip."
+        }
+        actiuni={<SelectorAn an={an} />}
+        file={
+          <NavConcedii
+            poateVedeaEchipa={poateVedeaCalendar}
+            poateAproba={poateAproba}
+            poateVedeaCalendar={poateVedeaCalendar}
+            poateConfigura={poateConfigura}
+          />
+        }
       />
 
       {tipuri.length === 0 ? (
-        <EmptyState
-          icon={PiggyBank}
-          title="Niciun tip de concediu configurat"
-          description="Organizația nu are încă niciun tip de concediu activ. Contactați administratorul."
+        <StareGoala
+          fel="initiala"
+          pictograma={PiggyBank}
+          titlu="Niciun tip de concediu configurat"
+          descriere="Organizația nu are încă niciun tip de concediu activ. Contactați administratorul."
         />
       ) : scope === "own" ? (
-        <TabelTipuri randuri={imperecheazaSold(tipuri, solduri)} />
+        <TabelTipuri
+          randuri={imperecheazaSold(tipuri, solduri)}
+          caption="Soldul de zile de concediu, pe tip."
+        />
       ) : (
         <SectiuniPeAngajat
           organizationId={tenant.organizationId}
@@ -196,21 +267,39 @@ export default async function PaginaSoldConcediu({ searchParams }: ProprietatiPa
         />
       )}
 
-      <section aria-labelledby="titlu-istoric" className="border-border rounded-lg border p-4">
-        <h2 id="titlu-istoric" className="mb-4 text-lg font-medium">
+      <section aria-labelledby="titlu-istoric" className="border-border rounded-panou border p-4">
+        <h2 id="titlu-istoric" className="text-sectiune mb-4 font-medium">
           Istoricul soldului {String(an)}
         </h2>
         {istoric.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            {scope === "all" || fisaProprie !== null
-              ? "Fără mișcări de sold înregistrate în acest an."
-              : "Istoricul detaliat este vizibil doar pentru soldul propriu sau pentru rolurile cu citire extinsă asupra concediilor."}
-          </p>
+          <StareGoala
+            compact
+            // Aceeași listă goală, două cauze diferite: ori nu s-a mișcat nimic,
+            // ori nu aveți dreptul să vedeți mișcările.
+            fel={scope === "all" || fisaProprie !== null ? "initiala" : "restrictionata"}
+            pictograma={History}
+            titlu={
+              scope === "all" || fisaProprie !== null
+                ? "Niciun rând de istoric"
+                : "Istoric indisponibil"
+            }
+            descriere={
+              scope === "all" || fisaProprie !== null
+                ? "Fără mișcări de sold înregistrate în acest an."
+                : "Istoricul detaliat este vizibil doar pentru soldul propriu sau pentru rolurile cu citire extinsă asupra concediilor."
+            }
+          />
         ) : (
-          <IstoricTabel randuri={istoric} tipuri={tipuri} />
+          <IstoricTabel
+            randuri={istoric}
+            tipuri={tipuri}
+            an={an}
+            trunchiat={istoricTrunchiat}
+            angajati={scope === "own" ? null : hartaAngajatiIstoric}
+          />
         )}
       </section>
-    </main>
+    </div>
   );
 }
 
@@ -226,10 +315,13 @@ async function SectiuniPeAngajat({
   const grupuri = grupeazaSoldDupaAngajat(solduri);
   if (grupuri.size === 0) {
     return (
-      <p className="text-muted-foreground text-sm">
-        Nu există încă niciun rând de sold pentru anul acesta, pentru angajații vizibili
-        dumneavoastră.
-      </p>
+      <StareGoala
+        compact
+        fel="initiala"
+        pictograma={PiggyBank}
+        titlu="Niciun sold pentru anul acesta"
+        descriere="Nu există încă niciun rând de sold pentru anul acesta, pentru angajații vizibili dumneavoastră."
+      />
     );
   }
 
@@ -250,10 +342,15 @@ async function SectiuniPeAngajat({
         const randuri = imperecheazaSold(tipuri, grupuri.get(employeeId) ?? []);
         return (
           <div key={employeeId}>
-            <h3 className="mb-2 text-sm font-semibold">
+            <h3 className="text-corp mb-2 font-semibold">
               {angajat === undefined ? "Angajat" : `${angajat.full_name} (${angajat.marca})`}
             </h3>
-            <TabelTipuri randuri={randuri} />
+            <TabelTipuri
+              randuri={randuri}
+              caption={`Soldul de zile de concediu al angajatului ${
+                angajat === undefined ? "necunoscut" : angajat.full_name
+              }, pe tip.`}
+            />
           </div>
         );
       })}
@@ -261,58 +358,105 @@ async function SectiuniPeAngajat({
   );
 }
 
+/**
+ * Rândurile append-only nu au `id` în select (plan de interogare), iar `Tabel`
+ * cere o cheie stabilă — se atașează indexul, stabil pentru o listă needitabilă.
+ */
+type RandIstoric = EvenimentIstoricSold & { readonly cheie: string };
+
 function IstoricTabel({
   randuri,
   tipuri,
+  an,
+  trunchiat,
+  angajati,
 }: {
   readonly randuri: readonly EvenimentIstoricSold[];
   readonly tipuri: readonly TipConcediu[];
+  readonly an: number;
+  readonly trunchiat: boolean;
+  /** `null` pentru scope „own”: coloana „Angajat” n-are ce distinge acolo. */
+  readonly angajati: ReadonlyMap<string, AngajatMinim> | null;
 }) {
   const hartaTipuri = new Map(tipuri.map((t) => [t.id, t]));
+  const randuriIndexate: readonly RandIstoric[] = randuri.map((rand, index) => ({
+    ...rand,
+    cheie: String(index),
+  }));
+
+  // Prima coloană, nu ultima: peste scope „own” e singura care spune a cui e
+  // linia, iar pe telefon devine titlul cardului.
+  const coloanaAngajat: readonly Coloana<RandIstoric>[] =
+    angajati === null
+      ? []
+      : [
+          {
+            cheie: "angajat",
+            antet: "Angajat",
+            peTelefon: "titlu",
+            celula: (rand) => {
+              const angajat = angajati.get(rand.employee_id);
+              return angajat === undefined ? "—" : `${angajat.full_name} (${angajat.marca})`;
+            },
+          },
+        ];
+
+  const coloane: readonly Coloana<RandIstoric>[] = [
+    ...coloanaAngajat,
+    {
+      cheie: "eveniment",
+      antet: "Eveniment",
+      peTelefon: angajati === null ? "titlu" : "meta",
+      celula: (rand) => ETICHETE_EVENIMENT[rand.eveniment] ?? rand.eveniment,
+    },
+    {
+      cheie: "data",
+      antet: "Data",
+      peTelefon: "meta",
+      celula: (rand) => formatDate(rand.data_eveniment),
+    },
+    {
+      cheie: "tip",
+      antet: "Tip",
+      peTelefon: "meta",
+      celula: (rand) => hartaTipuri.get(rand.leave_type_id)?.denumire ?? "—",
+    },
+    {
+      cheie: "delta",
+      antet: "Variație",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (rand) => (
+        <span className={rand.delta < 0 ? "text-danger" : ""}>
+          {rand.delta > 0 ? "+" : ""}
+          {formatAmount(rand.delta)}
+        </span>
+      ),
+    },
+    {
+      cheie: "sold_dupa",
+      antet: "Sold după",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (rand) => (rand.sold_dupa === null ? "—" : formatAmount(rand.sold_dupa)),
+    },
+    {
+      cheie: "motiv",
+      antet: "Motiv",
+      peTelefon: "meta",
+      celula: (rand) => rand.motiv,
+    },
+  ];
+
   return (
-    <div className="border-border overflow-x-auto rounded-lg border">
-      <table className="w-full text-left text-sm">
-        <thead className="bg-surface text-foreground">
-          <tr>
-            <th scope="col" className="px-4 py-2 font-medium">
-              Data
-            </th>
-            <th scope="col" className="px-4 py-2 font-medium">
-              Tip
-            </th>
-            <th scope="col" className="px-4 py-2 font-medium">
-              Eveniment
-            </th>
-            <th scope="col" className="px-4 py-2 font-medium">
-              Variație
-            </th>
-            <th scope="col" className="px-4 py-2 font-medium">
-              Sold după
-            </th>
-            <th scope="col" className="px-4 py-2 font-medium">
-              Motiv
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-border divide-y">
-          {randuri.map((rand, index) => (
-            // Rândurile append-only nu au `id` în select (plan de interogare) — indexul e stabil pentru o listă needitabilă.
-            <tr key={index}>
-              <td className="px-4 py-2">{formatDate(rand.data_eveniment)}</td>
-              <td className="px-4 py-2">{hartaTipuri.get(rand.leave_type_id)?.denumire ?? "—"}</td>
-              <td className="px-4 py-2">{ETICHETE_EVENIMENT[rand.eveniment] ?? rand.eveniment}</td>
-              <td className={`px-4 py-2 tabular-nums ${rand.delta < 0 ? "text-danger" : ""}`}>
-                {rand.delta > 0 ? "+" : ""}
-                {formatAmount(rand.delta)}
-              </td>
-              <td className="px-4 py-2 tabular-nums">
-                {rand.sold_dupa === null ? "—" : formatAmount(rand.sold_dupa)}
-              </td>
-              <td className="px-4 py-2">{rand.motiv}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <Tabel
+      caption={`Istoricul mișcărilor de sold din anul ${String(an)}.`}
+      coloane={coloane}
+      randuri={randuriIndexate}
+      cheieRand={(rand) => rand.cheie}
+      densitate="compact"
+      trunchiat={trunchiat}
+      gol={null}
+    />
   );
 }

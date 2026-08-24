@@ -4,6 +4,8 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
+
 import { TIPURI_SCUTIRE } from "@/schemas/employee";
 import { ETICHETE_SCUTIRE } from "../etichete";
 import { adaugaScutireFiscala } from "./scutiri-actions";
@@ -51,32 +53,32 @@ export function FormularScutireFiscala({ employeeId }: Proprietati) {
 
   if (!deschis) {
     return (
-      <button
-        type="button"
+      <Buton
+        varianta="secundar"
+        className="mt-3"
         onClick={() => {
           setDeschis(true);
         }}
-        className="border-foreground/60 hover:bg-surface mt-3 rounded-md border px-3 py-1.5 text-sm font-medium"
       >
         Scutire fiscală nouă
-      </button>
+      </Buton>
     );
   }
 
   return (
     <form
       action={trimite}
-      className="border-border mt-3 grid gap-3 rounded-md border p-3 sm:grid-cols-2"
+      className="border-border rounded-control mt-3 grid gap-3 border p-3 sm:grid-cols-2"
     >
       <div className="flex flex-col gap-1">
-        <label htmlFor={idTip} className="text-sm">
+        <label htmlFor={idTip} className="text-corp">
           Tip scutire
         </label>
         <select
           id={idTip}
           name="exemption_type"
           required
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         >
           {TIPURI_SCUTIRE.map((tip) => (
             <option key={tip} value={tip}>
@@ -86,7 +88,7 @@ export function FormularScutireFiscala({ employeeId }: Proprietati) {
         </select>
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={idValabilDeLa} className="text-sm">
+        <label htmlFor={idValabilDeLa} className="text-corp">
           Valabil de la
         </label>
         <input
@@ -94,22 +96,22 @@ export function FormularScutireFiscala({ employeeId }: Proprietati) {
           name="valabil_de_la"
           type="date"
           required
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={idValabilPana} className="text-sm">
+        <label htmlFor={idValabilPana} className="text-corp">
           Valabil până la (opțional)
         </label>
         <input
           id={idValabilPana}
           name="valabil_pana"
           type="date"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={idProcent} className="text-sm">
+        <label htmlFor={idProcent} className="text-corp">
           Procent scutire (%)
         </label>
         <input
@@ -120,11 +122,11 @@ export function FormularScutireFiscala({ employeeId }: Proprietati) {
           min={0}
           max={100}
           placeholder="ex. 10"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={idPlafon} className="text-sm">
+        <label htmlFor={idPlafon} className="text-corp">
           Plafon lunar (lei, opțional)
         </label>
         <input
@@ -133,11 +135,11 @@ export function FormularScutireFiscala({ employeeId }: Proprietati) {
           type="number"
           step="0.01"
           min={0}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
       <div className="flex flex-col gap-1 sm:col-span-2">
-        <label htmlFor={idTemei} className="text-sm">
+        <label htmlFor={idTemei} className="text-corp">
           Temei legal
         </label>
         <input
@@ -145,34 +147,29 @@ export function FormularScutireFiscala({ employeeId }: Proprietati) {
           name="temei_legal"
           type="text"
           maxLength={500}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
-      <p className="text-muted-foreground text-xs sm:col-span-2">
+      <p className="text-muted-foreground text-nota sm:col-span-2">
         Fără procent completat, scutirea rămâne înregistrată dar nu se aplică automat la calculul
         salarizării.
       </p>
       <div className="flex items-center gap-3 sm:col-span-2">
-        <button
-          type="submit"
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se salvează…" : "Adaugă scutirea"}
-        </button>
-        <button
-          type="button"
+        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+          Adaugă scutirea
+        </Buton>
+        <Buton
+          varianta="link"
           onClick={() => {
             setDeschis(false);
             setEroare(null);
           }}
-          className="text-muted-foreground hover:text-foreground text-sm underline underline-offset-4"
         >
           Renunță
-        </button>
+        </Buton>
       </div>
       {eroare === null ? null : (
-        <p role="alert" className="text-danger text-sm sm:col-span-2">
+        <p role="alert" className="text-danger text-corp sm:col-span-2">
           {eroare}
         </p>
       )}

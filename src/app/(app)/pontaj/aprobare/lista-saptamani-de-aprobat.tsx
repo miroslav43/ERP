@@ -4,6 +4,8 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
+
 import { ETICHETE_TIP_PREZENTA } from "../etichete";
 import { decideSaptamanaPontaj } from "../saptamana/actions";
 import type { SarcinaSaptamanaDeAprobat } from "@/lib/queries/attendance";
@@ -40,18 +42,18 @@ function RandSarcina({ sarcina }: { readonly sarcina: SarcinaSaptamanaDeAprobat 
   }
 
   return (
-    <li className="border-border space-y-3 rounded-lg border p-4">
+    <li className="border-border rounded-panou space-y-3 border p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="font-medium">{sarcina.angajat?.fullName ?? "Angajat necunoscut"}</p>
-          <p className="text-muted-foreground text-xs">
+          <p className="text-muted-foreground text-nota">
             Săptămâna din{" "}
             {new Date(`${sarcina.submisie.saptamanaStart}T00:00:00Z`).toLocaleDateString("ro-RO")}
           </p>
         </div>
       </div>
 
-      <ul className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-4">
+      <ul className="text-corp grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-4">
         {sarcina.zile.map((zi, index) => (
           <li key={zi.data} className="text-muted-foreground flex justify-between gap-2">
             <span>{ETICHETE_ZI[index]}</span>
@@ -63,12 +65,12 @@ function RandSarcina({ sarcina }: { readonly sarcina: SarcinaSaptamanaDeAprobat 
       </ul>
 
       <div aria-live="polite">
-        {eroare === null ? null : <p className="text-danger text-sm">{eroare}</p>}
+        {eroare === null ? null : <p className="text-danger text-corp">{eroare}</p>}
       </div>
 
       {respingere ? (
         <div className="space-y-2">
-          <label htmlFor={idMotiv} className="block text-sm font-medium">
+          <label htmlFor={idMotiv} className="text-corp block font-medium">
             Motivul respingerii
           </label>
           <textarea
@@ -79,52 +81,48 @@ function RandSarcina({ sarcina }: { readonly sarcina: SarcinaSaptamanaDeAprobat 
             onChange={(e) => {
               setMotiv(e.target.value);
             }}
-            className="border-foreground/60 w-full rounded-md border px-3 py-2 text-sm"
+            className="border-foreground/60 rounded-control text-corp w-full border px-3 py-2"
           />
           <div className="flex gap-2">
-            <button
-              type="button"
+            <Buton
+              varianta="distructiv"
               disabled={inCurs || motiv.trim().length < 5}
               onClick={() => {
                 decide("respinsa");
               }}
-              className="border-danger text-danger hover:bg-danger hover:text-danger-foreground disabled:border-border disabled:text-muted-foreground rounded-md border px-3 py-1.5 text-sm disabled:cursor-not-allowed"
             >
               Confirmă respingerea
-            </button>
-            <button
-              type="button"
+            </Buton>
+            <Buton
+              varianta="secundar"
               onClick={() => {
                 setRespingere(false);
               }}
-              className="border-foreground/60 rounded-md border px-3 py-1.5 text-sm"
             >
               Renunță
-            </button>
+            </Buton>
           </div>
         </div>
       ) : (
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
+          <Buton
+            varianta="primar"
             disabled={inCurs}
             onClick={() => {
               decide("aprobata");
             }}
-            className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
           >
             Aprobă săptămâna
-          </button>
-          <button
-            type="button"
+          </Buton>
+          <Buton
+            varianta="distructiv"
             disabled={inCurs}
             onClick={() => {
               setRespingere(true);
             }}
-            className="border-danger text-danger hover:bg-danger hover:text-danger-foreground disabled:border-border disabled:text-muted-foreground rounded-md border px-4 py-2 text-sm disabled:cursor-not-allowed"
           >
             Respinge
-          </button>
+          </Buton>
         </div>
       )}
     </li>
@@ -136,7 +134,7 @@ export function ListaSaptamaniDeAprobat({ sarcini }: Proprietati) {
 
   return (
     <div className="space-y-2">
-      <h2 className="text-lg font-semibold">Planuri săptămânale de aprobat</h2>
+      <h2 className="text-sectiune font-semibold">Planuri săptămânale de aprobat</h2>
       <ul className="space-y-3">
         {sarcini.map((sarcina) => (
           <RandSarcina key={sarcina.taskId} sarcina={sarcina} />

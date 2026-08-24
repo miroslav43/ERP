@@ -3,13 +3,14 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
 import type { Tara } from "@/lib/queries/per-diem";
 import { MIJLOACE_TRANSPORT } from "@/schemas/per-diem";
 
 import { adaugaEtapa } from "../actions";
 import { ETICHETE_MIJLOC_TRANSPORT } from "../etichete";
 
-const CLASA_CAMP = "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
+const CLASA_CAMP = "mt-1 w-full rounded-control border border-foreground/60 px-3 py-2 text-corp";
 
 /**
  * Adaugă o etapă a traseului (`business_trip_legs`). Doar cât deplasarea e
@@ -77,11 +78,13 @@ export function FormularEtapa({
   }
 
   return (
-    <div className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-3">
-      <p className="text-sm font-medium sm:col-span-2 lg:col-span-3">Adaugă o etapă a traseului</p>
+    <div className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-2 lg:grid-cols-3">
+      <p className="text-corp font-medium sm:col-span-2 lg:col-span-3">
+        Adaugă o etapă a traseului
+      </p>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.from} className="text-sm">
+        <label htmlFor={id.from} className="text-corp">
           Din țara
         </label>
         <select
@@ -102,7 +105,7 @@ export function FormularEtapa({
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.to} className="text-sm">
+        <label htmlFor={id.to} className="text-corp">
           În țara
         </label>
         <select
@@ -123,7 +126,7 @@ export function FormularEtapa({
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.mijloc} className="text-sm">
+        <label htmlFor={id.mijloc} className="text-corp">
           Mijloc de transport (opțional)
         </label>
         <select
@@ -144,7 +147,7 @@ export function FormularEtapa({
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.plecare} className="text-sm">
+        <label htmlFor={id.plecare} className="text-corp">
           Plecarea etapei
         </label>
         <input
@@ -159,7 +162,7 @@ export function FormularEtapa({
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.sosire} className="text-sm">
+        <label htmlFor={id.sosire} className="text-corp">
           Sosirea etapei
         </label>
         <input
@@ -174,7 +177,7 @@ export function FormularEtapa({
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={id.localitate} className="text-sm">
+        <label htmlFor={id.localitate} className="text-corp">
           Localitatea de sosire (opțional)
         </label>
         <input
@@ -190,16 +193,11 @@ export function FormularEtapa({
       </div>
 
       <div className="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-3">
-        <button
-          type="button"
-          disabled={inCurs}
-          onClick={trimite}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se salvează…" : "Adaugă etapa"}
-        </button>
+        <Buton varianta="primar" inCurs={inCurs} textInCurs="Se salvează…" onClick={trimite}>
+          Adaugă etapa
+        </Buton>
         {eroare === null ? null : (
-          <p role="alert" className="text-danger text-sm">
+          <p role="alert" className="text-danger text-corp">
             {eroare}
           </p>
         )}

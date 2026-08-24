@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -13,10 +15,11 @@ import { citesteCerere, lantulAprobarii, zileleCererii } from "@/lib/queries/lea
 import { grupeazaPeTrepte } from "@/domain/leave/lant-aprobare";
 
 import {
-  CLASE_STATUS_CERERE,
   ETICHETE_PORTIUNE,
   ETICHETE_STATUS_CERERE,
   ETICHETE_STATUS_SARCINA,
+  TONURI_STATUS_SARCINA,
+  TONURI_STATUS_CERERE,
 } from "../etichete";
 import { ActiuniCerere } from "./actiuni-cerere";
 import { DecizieAprobare } from "../aprobari/decizie-aprobare";
@@ -43,7 +46,7 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
   const id = idDinRuta(idBrut);
   const { tenant, user } = await requireTenant();
   await requireFeature(tenant.organizationId, "leave");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "leave:read", "own")) {
     return (
@@ -96,51 +99,54 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
   const poateAnula =
     can(permisiuni, "leave:update", "own") &&
     (cerere.status === "ciorna" || cerere.status === "trimisa");
+  const esteCiorna = cerere.status === "ciorna";
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold">
-            <span
-              className="inline-block size-3 rounded-full"
-              style={{ backgroundColor: tip?.culoare ?? "#94a3b8" }}
-              aria-hidden="true"
-            />
-            {tip?.denumire ?? "Cerere de concediu"}
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            {angajat !== null ? `${angajat.full_name} (${angajat.marca}) · ` : ""}
-            {formatDate(cerere.data_inceput)} – {formatDate(cerere.data_sfarsit)}
-          </p>
-        </div>
-        <span
-          className={`rounded-full px-3 py-1 text-sm font-medium ${CLASE_STATUS_CERERE[cerere.status]}`}
-        >
-          {ETICHETE_STATUS_CERERE[cerere.status]}
-        </span>
-      </header>
+    <div className="space-y-6">
+      <AntetPagina
+        // Ecranul cel mai vizitat al modulului era singurul din cele șapte fără
+        // NICIO cale de întoarcere: nici bandă de file, nici firimitură, nici
+        // link „înapoi”. Se ajunge aici din listă, din coada de aprobări și din
+        // portal, iar singura ieșire era butonul de înapoi al browserului.
+        // Firimitura, nu banda de file: pe o fișă, „unde sunt” valorează mai
+        // mult decât „ce alte ecrane mai există”.
+        firimituri={[
+          { eticheta: "Concedii", href: "/concedii" },
+          {
+            eticheta: `${formatDate(cerere.data_inceput)} – ${formatDate(cerere.data_sfarsit)}`,
+          },
+        ]}
+        titlu={tip?.denumire ?? "Cerere de concediu"}
+        descriere={`${angajat !== null ? `${angajat.full_name} (${angajat.marca}) · ` : ""}${formatDate(
+          cerere.data_inceput,
+        )} – ${formatDate(cerere.data_sfarsit)}`}
+        actiuni={
+          <Badge ton={TONURI_STATUS_CERERE[cerere.status]}>
+            {ETICHETE_STATUS_CERERE[cerere.status]}
+          </Badge>
+        }
+      />
 
-      <section aria-labelledby="titlu-rezumat" className="border-border rounded-lg border p-4">
-        <h2 id="titlu-rezumat" className="mb-4 text-lg font-medium">
+      <section aria-labelledby="titlu-rezumat" className="border-border rounded-panou border p-4">
+        <h2 id="titlu-rezumat" className="text-sectiune mb-4 font-medium">
           Rezumat
         </h2>
         <dl className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
-            <dt className="text-muted-foreground text-xs tracking-wide uppercase">
+            <dt className="text-muted-foreground text-nota tracking-wide uppercase">
               Zile lucrătoare
             </dt>
-            <dd className="mt-0.5 text-sm">{formatAmount(cerere.zile_lucratoare)}</dd>
+            <dd className="text-corp mt-0.5">{formatAmount(cerere.zile_lucratoare)}</dd>
           </div>
           <div>
-            <dt className="text-muted-foreground text-xs tracking-wide uppercase">
+            <dt className="text-muted-foreground text-nota tracking-wide uppercase">
               Zile calendaristice
             </dt>
-            <dd className="mt-0.5 text-sm">{cerere.zile_calendaristice}</dd>
+            <dd className="text-corp mt-0.5">{cerere.zile_calendaristice}</dd>
           </div>
           <div>
-            <dt className="text-muted-foreground text-xs tracking-wide uppercase">Porțiuni</dt>
-            <dd className="mt-0.5 text-sm">
+            <dt className="text-muted-foreground text-nota tracking-wide uppercase">Porțiuni</dt>
+            <dd className="text-corp mt-0.5">
               {ETICHETE_PORTIUNE[cerere.portiune_inceput]}
               {cerere.portiune_inceput !== cerere.portiune_sfarsit
                 ? ` → ${ETICHETE_PORTIUNE[cerere.portiune_sfarsit]}`
@@ -149,57 +155,61 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
           </div>
           {cerere.trimisa_la !== null ? (
             <div>
-              <dt className="text-muted-foreground text-xs tracking-wide uppercase">Trimisă la</dt>
-              <dd className="mt-0.5 text-sm">{formatDateTime(cerere.trimisa_la)}</dd>
+              <dt className="text-muted-foreground text-nota tracking-wide uppercase">
+                Trimisă la
+              </dt>
+              <dd className="text-corp mt-0.5">{formatDateTime(cerere.trimisa_la)}</dd>
             </div>
           ) : null}
           {cerere.decis_la !== null ? (
             <div>
-              <dt className="text-muted-foreground text-xs tracking-wide uppercase">Decisă la</dt>
-              <dd className="mt-0.5 text-sm">{formatDateTime(cerere.decis_la)}</dd>
+              <dt className="text-muted-foreground text-nota tracking-wide uppercase">Decisă la</dt>
+              <dd className="text-corp mt-0.5">{formatDateTime(cerere.decis_la)}</dd>
             </div>
           ) : null}
           {cerere.motiv !== null && cerere.motiv.length > 0 ? (
             <div className="sm:col-span-3">
-              <dt className="text-muted-foreground text-xs tracking-wide uppercase">Motiv</dt>
-              <dd className="mt-0.5 text-sm">{cerere.motiv}</dd>
+              <dt className="text-muted-foreground text-nota tracking-wide uppercase">Motiv</dt>
+              <dd className="text-corp mt-0.5">{cerere.motiv}</dd>
             </div>
           ) : null}
           {cerere.atasament_path !== null ? (
             <div className="sm:col-span-3">
-              <dt className="text-muted-foreground text-xs tracking-wide uppercase">
+              <dt className="text-muted-foreground text-nota tracking-wide uppercase">
                 Document justificativ
               </dt>
-              <dd className="mt-0.5 font-mono text-sm">{cerere.atasament_path}</dd>
+              <dd className="text-corp mt-0.5 font-mono">{cerere.atasament_path}</dd>
             </div>
           ) : null}
           {cerere.motiv_respingere !== null ? (
             <div className="sm:col-span-3">
-              <dt className="text-danger text-xs tracking-wide uppercase">Motivul respingerii</dt>
-              <dd className="mt-0.5 text-sm">{cerere.motiv_respingere}</dd>
+              <dt className="text-danger text-nota tracking-wide uppercase">Motivul respingerii</dt>
+              <dd className="text-corp mt-0.5">{cerere.motiv_respingere}</dd>
             </div>
           ) : null}
         </dl>
       </section>
 
-      <section aria-labelledby="titlu-zile" className="border-border rounded-lg border p-4">
-        <h2 id="titlu-zile" className="mb-4 text-lg font-medium">
+      <section aria-labelledby="titlu-zile" className="border-border rounded-panou border p-4">
+        <h2 id="titlu-zile" className="text-sectiune mb-4 font-medium">
           Zilele cererii
         </h2>
         {zile.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Zilele cererii nu au fost încă generate.</p>
+          <p className="text-muted-foreground text-corp">
+            Zilele cererii nu au fost încă generate.
+          </p>
         ) : (
-          <ul className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4 lg:grid-cols-7">
+          <ul className="text-corp grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
             {zile.map((zi) => (
               <li
                 key={zi.data}
-                className={`rounded-md border px-2 py-1.5 text-center ${
+                className={`rounded-control border px-2 py-1.5 text-center ${
                   zi.este_lucratoare ? "border-border" : "border-border text-muted-foreground"
                 }`}
               >
                 <div className="font-medium">{formatDate(zi.data)}</div>
                 {zi.portiune !== "zi_intreaga" ? (
-                  <div className="text-xs">{ETICHETE_PORTIUNE[zi.portiune]}</div>
+                  <div className="text-nota">{ETICHETE_PORTIUNE[zi.portiune]}</div>
                 ) : null}
               </li>
             ))}
@@ -207,28 +217,29 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
         )}
       </section>
 
-      <section aria-labelledby="titlu-aprobare" className="border-border rounded-lg border p-4">
-        <h2 id="titlu-aprobare" className="mb-4 text-lg font-medium">
+      <section aria-labelledby="titlu-aprobare" className="border-border rounded-panou border p-4">
+        <h2 id="titlu-aprobare" className="text-sectiune mb-4 font-medium">
           Lanțul de aprobare
         </h2>
-        {cerere.status === "ciorna" ? (
-          <p className="text-muted-foreground text-sm">
-            Cererea este încă o ciornă; lanțul de aprobare se generează la trimitere.
+        {esteCiorna ? (
+          <p className="text-muted-foreground text-corp">
+            Cererea este încă o ciornă: nimeni nu a fost anunțat, iar zilele nu sunt rezervate.
+            Lanțul de aprobare se generează în momentul trimiterii.
           </p>
         ) : lant.length === 0 ? (
           // Solicitantul vede lanțul GOL dacă nu e el însuși aprobator:
           // `approval_tasks_select` arată doar sarcinile proprii. Nu se
           // randează un tabel gol — mesajul explică ce urmează.
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground text-corp">
             Cererea a fost trimisă spre aprobare; rezultatul apare aici după decizie.
           </p>
         ) : (
-          <ol className="space-y-2 text-sm">
+          <ol className="text-corp space-y-2">
             {/* Grupat pe trepte: `approval_tasks` are o sarcină per aprobator
                 posibil, nu per treaptă. Negrupate, cei patru aprobatori ai unei
                 singure trepte apăreau ca „Pasul 1” de patru ori. */}
             {grupeazaPeTrepte(lant).map((pas) => (
-              <li key={pas.ordine} className="border-border rounded-md border p-3">
+              <li key={pas.ordine} className="border-border rounded-control border p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-medium">
                     Pasul {pas.ordine}
@@ -238,27 +249,22 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
                       </span>
                     ) : null}
                   </span>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                      pas.status === "aprobata"
-                        ? "bg-surface text-foreground"
-                        : pas.status === "respinsa"
-                          ? "bg-danger/8 text-danger"
-                          : "bg-warning/12 text-foreground"
-                    }`}
+                  <Badge
+                    ton={TONURI_STATUS_SARCINA[pas.status]}
+                    cuAvertisment={pas.status === "expirata"}
                   >
                     {ETICHETE_STATUS_SARCINA[pas.status]}
-                  </span>
+                  </Badge>
                 </div>
                 {pas.comentariu !== null && pas.comentariu.length > 0 ? (
                   <p className="text-muted-foreground mt-1">{pas.comentariu}</p>
                 ) : null}
                 {pas.decis_la !== null ? (
-                  <p className="text-muted-foreground mt-1 text-xs">
+                  <p className="text-muted-foreground text-nota mt-1">
                     Decis la {formatDateTime(pas.decis_la)}
                   </p>
                 ) : pas.termen_la !== null ? (
-                  <p className="text-muted-foreground mt-1 text-xs">
+                  <p className="text-muted-foreground text-nota mt-1">
                     Termen: {formatDateTime(pas.termen_la)}
                   </p>
                 ) : null}
@@ -271,16 +277,16 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
       {sarcinaMea !== null ? (
         <section
           aria-labelledby="titlu-decizie"
-          className="border-border bg-surface rounded-lg border p-4"
+          className="border-border bg-surface rounded-panou border p-4"
         >
-          <h2 id="titlu-decizie" className="mb-3 text-lg font-medium">
+          <h2 id="titlu-decizie" className="text-sectiune mb-3 font-medium">
             Cererea așteaptă decizia dumneavoastră
           </h2>
           <DecizieAprobare taskId={sarcinaMea.id} />
         </section>
       ) : null}
 
-      {poateAnula ? <ActiuniCerere cerereId={cerere.id} /> : null}
-    </main>
+      {poateAnula ? <ActiuniCerere cerereId={cerere.id} esteCiorna={esteCiorna} /> : null}
+    </div>
   );
 }

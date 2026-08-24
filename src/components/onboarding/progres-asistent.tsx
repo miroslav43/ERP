@@ -37,14 +37,14 @@ export function ProgresAsistent({ pasCurent, onSalt, pasiAscunsi = [] }: Proprie
   })).filter((pas) => !pasiAscunsi.includes(pas.numarReal));
 
   return (
-    <ol className="flex flex-wrap gap-x-4 gap-y-2 text-sm" aria-label="Pașii înrolării">
+    <ol className="text-corp flex flex-wrap gap-x-4 gap-y-2" aria-label="Pașii înrolării">
       {vizibili.map((pas, indexAfisat) => {
         const activ = pas.numarReal === pasCurent;
         const parcurs = pas.numarReal < pasCurent;
         const numarAfisat = indexAfisat + 1;
 
         const bulina =
-          "flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium " +
+          "flex size-6 shrink-0 items-center justify-center rounded-full text-nota font-medium " +
           (activ
             ? "bg-primary text-primary-foreground"
             : parcurs
@@ -68,7 +68,7 @@ export function ProgresAsistent({ pasCurent, onSalt, pasiAscunsi = [] }: Proprie
                 // `button`, nu `div` cu onClick: primește focus din tastatură,
                 // e anunțat ca acțiune de cititoarele de ecran și răspunde la
                 // Enter și Space fără cod suplimentar.
-                className="focus-visible:ring-ring flex items-center gap-2 rounded-md px-1 py-0.5 transition hover:opacity-80 focus-visible:ring-2 focus-visible:outline-none"
+                className="rounded-control flex items-center gap-2 px-1 py-0.5 transition hover:opacity-80"
               >
                 {continut}
               </button>

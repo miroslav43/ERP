@@ -335,6 +335,98 @@ export const predaEip = createAction({
   },
 });
 
+/**
+ * Cele două coloane ale registrului EIP care se CITEAU și nu se puteau scrie
+ * din nicio parte a aplicației.
+ *
+ * `ppe_issuances.returnat_la` și `ppe_issuances.semnatura_confirmata` intră
+ * amândouă în `COLOANE_EIP` (`src/lib/queries/ssm.ts`) și se randau în listă,
+ * dar singura acțiune pe tabelă era `ssm.ppe.issue`, care trimite mereu
+ * `semnatura_confirmata: false` și nu atinge `returnat_la`. Rezultatul: două
+ * coloane care rămâneau „—" și „Nesemnat" pe toate rândurile, la infinit.
+ *
+ * Amândouă primesc valoarea ca INTRARE, nu ca fapt implicit („azi", „true"):
+ * o predare se returnează la data reală de pe bon, iar o bifă pusă din greșeală
+ * pe omul greșit trebuie să se poată da înapoi. De aceea `returnat_la` acceptă
+ * `null` și `confirmata` e boolean, nu un simplu „marchează".
+ */
+const returnareEipSchema = z.object({
+  id: z.uuid(),
+  returnat_la: z
+    .union([z.iso.date(), z.literal(""), z.null()])
+    .transform((v) => (v === "" ? null : v))
+    .default(null),
+});
+
+export const marcheazaEipReturnat = createAction({
+  name: "ssm.ppe.return",
+  feature: "ssm",
+  permission: "ssm:update",
+  minScope: "team",
+  input: returnareEipSchema,
+  audit: {
+    action: "update",
+    entityType: "ppe_issuance",
+    entityId: (input) => input.id,
+    allow: ["id", "returnat_la"],
+  },
+  revalidate: ["/ssm", "/ssm/eip"],
+  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    const db = await createServerSupabase();
+    const { data, error } = await db
+      .from("ppe_issuances")
+      .update({ returnat_la: input.returnat_la })
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle();
+    if (error !== null) traduEroare(error);
+    // Un UPDATE respins de USING-ul politicii afectează ZERO rânduri, fără
+    // eroare: fără `.select()` ecranul ar anunța o returnare care nu s-a scris.
+    if (data === null) {
+      throw notFound("Predarea de echipament nu a fost găsită sau nu aveți acces la ea.");
+    }
+
+    return { id: data.id };
+  },
+});
+
+const confirmarePrimireEipSchema = z.object({
+  id: z.uuid(),
+  confirmata: z.boolean(),
+});
+
+export const confirmaPrimireaEip = createAction({
+  name: "ssm.ppe.confirmSignature",
+  feature: "ssm",
+  permission: "ssm:update",
+  minScope: "team",
+  input: confirmarePrimireEipSchema,
+  audit: {
+    action: "update",
+    entityType: "ppe_issuance",
+    entityId: (input) => input.id,
+    allow: ["id", "confirmata"],
+  },
+  revalidate: ["/ssm", "/ssm/eip"],
+  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    const db = await createServerSupabase();
+    const { data, error } = await db
+      .from("ppe_issuances")
+      .update({ semnatura_confirmata: input.confirmata })
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle();
+    if (error !== null) traduEroare(error);
+    if (data === null) {
+      throw notFound("Predarea de echipament nu a fost găsită sau nu aveți acces la ea.");
+    }
+
+    return { id: data.id };
+  },
+});
+
 export const adaugaAutorizatieNominala = createAction({
   name: "ssm.personnelAuth.create",
   feature: "ssm",
@@ -356,6 +448,60 @@ export const adaugaAutorizatieNominala = createAction({
       .select("id")
       .single();
     if (error !== null) traduEroare(error);
+
+    return { id: data.id };
+  },
+});
+
+/**
+ * Suspendarea unei autorizații nominale și ridicarea ei.
+ *
+ * `personnel_authorizations.suspendata_la` se citea în listă („Suspendată
+ * 12.05.2026") și nu se putea scrie de nicăieri: formularul de adăugare trimite
+ * mereu `null`, iar altă acțiune pe tabelă nu exista. O autorizație suspendată
+ * e o interdicție de lucru — și e folosită ca atare de baza de date: funcția
+ * `app.iscir_valid` din 0011 cere `a.suspendata_la is null` ca să accepte
+ * desemnarea unui angajat pe un echipament ISCIR. Cât timp coloana nu se putea
+ * scrie, interdicția nu se putea pune.
+ *
+ * O singură acțiune pentru amândouă sensurile, cu data ca intrare: ridicarea e
+ * `suspendata_la: null`. Două acțiuni ar fi însemnat două locuri de ținut în
+ * sincron pentru aceeași coloană.
+ */
+const suspendareAutorizatieSchema = z.object({
+  id: z.uuid(),
+  suspendata_la: z
+    .union([z.iso.date(), z.literal(""), z.null()])
+    .transform((v) => (v === "" ? null : v))
+    .default(null),
+});
+
+export const schimbaSuspendareaAutorizatiei = createAction({
+  name: "ssm.personnelAuth.suspend",
+  feature: "ssm",
+  permission: "ssm:update",
+  minScope: "team",
+  input: suspendareAutorizatieSchema,
+  audit: {
+    action: "update",
+    entityType: "personnel_authorization",
+    entityId: (input) => input.id,
+    allow: ["id", "suspendata_la"],
+  },
+  revalidate: ["/ssm", "/ssm/autorizatii"],
+  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    const db = await createServerSupabase();
+    const { data, error } = await db
+      .from("personnel_authorizations")
+      .update({ suspendata_la: input.suspendata_la })
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle();
+    if (error !== null) traduEroare(error);
+    if (data === null) {
+      throw notFound("Autorizația nu a fost găsită sau nu aveți acces la ea.");
+    }
 
     return { id: data.id };
   },

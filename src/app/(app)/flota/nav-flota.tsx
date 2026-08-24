@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { BandaFile, Fila } from "@/components/ui/file";
 
-interface Fila {
+interface IntrareFila {
   readonly href: string;
   readonly eticheta: string;
 }
@@ -32,7 +32,7 @@ interface Proprietati {
 export function NavFlota({ poateVedeaFoi, poateAproba, poateVedeaAnomalii }: Proprietati) {
   const cale = usePathname();
 
-  const file: readonly Fila[] = [
+  const file: readonly IntrareFila[] = [
     { href: "/flota", eticheta: "Vehicule" },
     ...(poateVedeaFoi ? [{ href: "/flota/foi", eticheta: "Foi de parcurs" }] : []),
     ...(poateAproba ? [{ href: "/flota/aprobari", eticheta: "De aprobat" }] : []),
@@ -42,24 +42,15 @@ export function NavFlota({ poateVedeaFoi, poateAproba, poateVedeaAnomalii }: Pro
   ];
 
   return (
-    <nav aria-label="Navigare parc auto" className="border-border flex flex-wrap gap-1 border-b">
+    <BandaFile eticheta="Navigare parc auto">
       {file.map((fila) => {
         const activ = cale === fila.href;
         return (
-          <Link
-            key={fila.href}
-            href={fila.href}
-            aria-current={activ ? "page" : undefined}
-            className={
-              activ
-                ? "border-primary text-primary border-b-2 px-4 py-2 text-sm font-medium"
-                : "text-muted-foreground hover:text-foreground border-b-2 border-transparent px-4 py-2 text-sm"
-            }
-          >
+          <Fila key={fila.href} href={fila.href} activ={activ}>
             {fila.eticheta}
-          </Link>
+          </Fila>
         );
       })}
-    </nav>
+    </BandaFile>
   );
 }

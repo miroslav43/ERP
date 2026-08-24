@@ -1,149 +1,193 @@
 // src/app/(app)/functii/formular-functie-noua.tsx
 "use client";
 
-import { useId, useState, useTransition } from "react";
+import { useCallback, useId, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
+import { Camp } from "@/components/ui/camp";
+import { Formular } from "@/components/ui/formular";
+
+import { CautaCor } from "./cauta-cor";
 import { creeazaFunctie } from "./actions";
+
+/**
+ * Funcție nouă.
+ *
+ * Formularul trece prin `<Formular>` + `<Camp>` pentru un defect măsurat, nu
+ * pentru consecvență: cu `<form action={fn}>` și câmpuri necontrolate, React 19
+ * RESETEAZĂ formularul după ce acțiunea se încheie — inclusiv când acțiunea a
+ * eșuat. Aici asta însemna că un cod COR inexistent (singura validare care chiar
+ * respinge des: `codCorOptional` cere ca cele șase cifre să EXISTE în
+ * Clasificarea Ocupațiilor, nu doar să fie cifre) golea și codul intern, și
+ * denumirea, și nivelul de studii, și descrierea. Patru câmpuri corecte
+ * pierdute din cauza unuia greșit.
+ *
+ * `valoriTrimise` le pune înapoi ca `defaultValue`, iar `stare.erori` duce
+ * fiecare mesaj lângă câmpul lui — serverul construia deja `fieldErrors`, iar
+ * varianta veche le arunca și afișa un singur `<p>` roșu lângă buton.
+ *
+ * Identificatorii se prefixează cu `useId()`: pe aceeași pagină stau N
+ * formulare de editare din `actiuni-functie.tsx`, cu exact aceleași nume de
+ * câmp, iar `Camp` derivă `id` din `nume`.
+ */
+
+/** Cheile obiectului sunt EXACT cele din `creeazaFunctieSchema`. */
+async function trimite(date: FormData) {
+  return creeazaFunctie({
+    cod: String(date.get("cod") ?? ""),
+    denumire: String(date.get("denumire") ?? ""),
+    cod_cor: String(date.get("cod_cor") ?? ""),
+    nivel_studii: String(date.get("nivel_studii") ?? ""),
+    descriere: String(date.get("descriere") ?? ""),
+  });
+}
 
 export function FormularFunctieNoua() {
   const router = useRouter();
   const [deschis, setDeschis] = useState(false);
-  const [inCurs, porneste] = useTransition();
-  const [eroare, setEroare] = useState<string | null>(null);
-  const idCod = useId();
-  const idDenumire = useId();
-  const idCodCor = useId();
-  const idNivelStudii = useId();
-  const idDescriere = useId();
+  const idFormular = useId();
+  const idc = (sufix: string): string => `${idFormular}-${sufix}`;
 
-  function trimite(fd: FormData): void {
-    setEroare(null);
-    porneste(async () => {
-      const rezultat = await creeazaFunctie({
-        cod: String(fd.get("cod") ?? ""),
-        denumire: String(fd.get("denumire") ?? ""),
-        cod_cor: String(fd.get("cod_cor") ?? ""),
-        nivel_studii: String(fd.get("nivel_studii") ?? ""),
-        descriere: String(fd.get("descriere") ?? ""),
-      });
-      if (!rezultat.ok) {
-        setEroare(rezultat.error.message);
-        return;
-      }
-      setDeschis(false);
-      router.refresh();
-    });
-  }
+  // `useCallback`: `laReusita` intră în lista de dependențe a efectului din
+  // `Formular`. O funcție nouă la fiecare randare ar reporni efectul după
+  // succes, deci notificarea ar apărea de două ori.
+  const laReusita = useCallback((): void => {
+    setDeschis(false);
+    router.refresh();
+  }, [router]);
 
   if (!deschis) {
     return (
-      <button
-        type="button"
+      <Buton
+        varianta="primar"
         onClick={() => {
           setDeschis(true);
         }}
-        className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium"
       >
         Funcție nouă
-      </button>
+      </Buton>
     );
   }
 
   return (
-    <form
-      action={trimite}
-      className="border-border grid gap-3 rounded-lg border p-4 sm:grid-cols-2"
+    <Formular
+      actiune={trimite}
+      laReusita={laReusita}
+      mesajReusita="Funcția a fost creată."
+      className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-2"
     >
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idCod} className="text-sm font-medium">
-          Cod intern *
-        </label>
-        <input
-          id={idCod}
-          name="cod"
-          type="text"
-          required
-          maxLength={32}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idDenumire} className="text-sm font-medium">
-          Denumire *
-        </label>
-        <input
-          id={idDenumire}
-          name="denumire"
-          type="text"
-          required
-          maxLength={160}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idCodCor} className="text-sm font-medium">
-          Cod COR (6 cifre)
-        </label>
-        <input
-          id={idCodCor}
-          name="cod_cor"
-          type="text"
-          inputMode="numeric"
-          maxLength={6}
-          placeholder="251401"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idNivelStudii} className="text-sm font-medium">
-          Nivel de studii
-        </label>
-        <input
-          id={idNivelStudii}
-          name="nivel_studii"
-          type="text"
-          maxLength={80}
-          placeholder="Superioare"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
-        />
-      </div>
-      <div className="flex flex-col gap-1 sm:col-span-2">
-        <label htmlFor={idDescriere} className="text-sm font-medium">
-          Descriere
-        </label>
-        <textarea
-          id={idDescriere}
-          name="descriere"
-          maxLength={1000}
-          rows={2}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
-        />
-      </div>
-      <div className="flex items-center gap-3 sm:col-span-2">
-        <button
-          type="submit"
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se creează…" : "Creează funcția"}
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setDeschis(false);
-            setEroare(null);
-          }}
-          className="text-muted-foreground hover:text-foreground text-sm underline underline-offset-4"
-        >
-          Renunță
-        </button>
-        {eroare === null ? null : (
-          <p role="alert" className="text-danger text-sm">
-            {eroare}
-          </p>
-        )}
-      </div>
-    </form>
+      {(stare) => {
+        const eroriCor = stare.erori["cod_cor"] ?? [];
+
+        return (
+          <>
+            <Camp
+              nume="cod"
+              id={idc("cod")}
+              eticheta="Cod intern"
+              obligatoriu
+              erori={stare.erori["cod"] ?? []}
+            >
+              {(a) => (
+                <input
+                  {...a}
+                  type="text"
+                  maxLength={32}
+                  defaultValue={stare.valoriTrimise["cod"] ?? ""}
+                />
+              )}
+            </Camp>
+
+            <Camp
+              nume="denumire"
+              id={idc("denumire")}
+              eticheta="Denumire"
+              obligatoriu
+              erori={stare.erori["denumire"] ?? []}
+            >
+              {(a) => (
+                <input
+                  {...a}
+                  type="text"
+                  maxLength={160}
+                  defaultValue={stare.valoriTrimise["denumire"] ?? ""}
+                />
+              )}
+            </Camp>
+
+            {/* `CautaCor` își desenează propriul `<input name="cod_cor">`, cu
+                stare proprie — de la `Camp` îi trebuie doar identificatorul și
+                marcajul de invaliditate. */}
+            <Camp
+              nume="cod_cor"
+              id={idc("cod_cor")}
+              eticheta="Cod COR"
+              ajutor="Necesar pentru contract și pentru exportul REVISAL."
+              erori={eroriCor}
+            >
+              {(a) => (
+                <CautaCor
+                  idInput={a.id}
+                  valoareInitiala={stare.valoriTrimise["cod_cor"] ?? ""}
+                  invalid={eroriCor.length > 0}
+                  descrisDe={a["aria-describedby"]}
+                />
+              )}
+            </Camp>
+
+            <Camp
+              nume="nivel_studii"
+              id={idc("nivel_studii")}
+              eticheta="Nivel de studii"
+              erori={stare.erori["nivel_studii"] ?? []}
+            >
+              {(a) => (
+                <input
+                  {...a}
+                  type="text"
+                  maxLength={80}
+                  placeholder="Superioare"
+                  defaultValue={stare.valoriTrimise["nivel_studii"] ?? ""}
+                />
+              )}
+            </Camp>
+
+            <Camp
+              nume="descriere"
+              id={idc("descriere")}
+              eticheta="Descriere"
+              fel="textarea"
+              className="sm:col-span-2"
+              erori={stare.erori["descriere"] ?? []}
+            >
+              {(a) => (
+                <textarea
+                  {...a}
+                  maxLength={1000}
+                  rows={2}
+                  defaultValue={stare.valoriTrimise["descriere"] ?? ""}
+                />
+              )}
+            </Camp>
+
+            <div className="flex items-center gap-3 sm:col-span-2">
+              <Buton type="submit" varianta="primar" inCurs={stare.inCurs} textInCurs="Se creează…">
+                Creează funcția
+              </Buton>
+              <Buton
+                varianta="link"
+                disabled={stare.inCurs}
+                onClick={() => {
+                  setDeschis(false);
+                }}
+              >
+                Renunță
+              </Buton>
+            </div>
+          </>
+        );
+      }}
+    </Formular>
   );
 }

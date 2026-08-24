@@ -2,10 +2,23 @@
 // Citirile de personal, cu paginare keyset și restrângere după scope (self / team).
 
 import type { PermissionScope } from "@/config/permissions";
-import type { FiltreAngajati, StatusAngajat } from "@/schemas/employee";
+import {
+  SORTARI_ANGAJATI,
+  type FiltreAngajati,
+  type SortareAngajati,
+  type StatusAngajat,
+} from "@/schemas/employee";
 import { urlAvatar } from "@/lib/avatar/cale";
 import { avataturiPeUtilizatori } from "@/lib/queries/profile";
 import { createServerSupabase } from "@/lib/supabase/server";
+
+import {
+  codificaCursor as codificaKeyset,
+  decodificaCursor as decodificaKeyset,
+  predicatKeyset,
+  sortareCeruta,
+  type Directie,
+} from "./cursor";
 
 const EMBED_DEPARTAMENT = "department:departments!department_id(id, denumire)";
 const EMBED_FUNCTIE = "job_position:job_positions!job_position_id(id, denumire)";
@@ -29,7 +42,17 @@ interface RandAngajatBrut extends Omit<RandAngajat, "avatar_url"> {
 export interface RezultatAngajati {
   readonly randuri: readonly RandAngajat[];
   readonly urmatorulCursor: string | null;
+  /**
+   * Câte rânduri sunt în total, după filtre. Nicio listă din produs n-o spunea:
+   * „Pagina următoare" fără un total e o ușă fără indicație — nu știi dacă mai
+   * urmează un ecran sau o sută.
+   */
+  readonly total: number;
+  /** Sortarea EFECTIV aplicată, după îngustarea la coloanele permise. */
+  readonly sortare: Readonly<{ cheie: SortareAngajati; directie: Directie }>;
 }
+
+const SORTARE_IMPLICITA = { cheie: "nume", directie: "asc" } as const;
 
 export interface ContractAngajat {
   readonly id: string;
@@ -111,36 +134,13 @@ export interface RezumatDateSensibile {
   readonly banca: string | null;
 }
 
-interface Cursor {
-  readonly nume: string;
-  readonly id: string;
-}
-
-export function codificaCursor(cursor: Cursor): string {
-  return Buffer.from(`${cursor.nume}\u0000${cursor.id}`, "utf8").toString("base64url");
-}
-
-export function decodificaCursor(valoare: string): Cursor | null {
-  try {
-    const bucati = Buffer.from(valoare, "base64url").toString("utf8").split("\u0000");
-    const nume = bucati[0];
-    const id = bucati[1];
-    if (nume === undefined || id === undefined || id.length === 0) return null;
-    return { nume, id };
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Exportată pentru test: capcana 11 o declară OBLIGATORIE pe orice cursor de
- * text, fiindcă o virgulă sau o ghilimea într-un nume rupe filtrul
- * `or=(...)` al lui PostgREST. O funcție de care depinde corectitudinea unei
- * interogări merită verificată direct, nu prin efect.
+/*
+ * Cursorul, ghilimelarea și predicatul keyset trăiau AICI, în copii aproape
+ * identice răspândite prin zece fișiere de citiri — fiecare cu propriul
+ * `ghilimeleaza`. Au fost mutate în `./cursor.ts`, unde structura poartă o
+ * valoare opacă în loc de un nume, deci aceeași funcție servește orice coloană
+ * de sortare. Testele lor sunt în `cursor.test.ts`.
  */
-export function ghilimeleaza(valoare: string): string {
-  return `"${valoare.replace(/\\/gu, "\\\\").replace(/"/gu, '\\"')}"`;
-}
 
 /** Fișa proprie a utilizatorului curent — necesară pentru scope „self” și „team”. */
 export async function idFisaProprie(
@@ -161,6 +161,18 @@ export async function idFisaProprie(
   return data?.id ?? null;
 }
 
+/**
+ * Cheia din URL → coloana din bază. Traducerea e OBLIGATORIU explicită: numele
+ * coloanei intră într-un predicat construit ca text, deci nu are voie să vină
+ * din afară. Cheile sunt românești fiindcă apar în adresa pe care omul o
+ * copiază; coloanele rămân englezești, ca tot restul schemei.
+ */
+const COLOANA_SORTARE: Readonly<Record<SortareAngajati, string>> = {
+  nume: "full_name",
+  marca: "marca",
+  angajat_din: "hired_on",
+};
+
 export interface IntrareListare {
   readonly organizationId: string;
   readonly scope: PermissionScope;
@@ -171,42 +183,86 @@ export interface IntrareListare {
 export async function listeazaAngajati(intrare: IntrareListare): Promise<RezultatAngajati> {
   const { organizationId, scope, propriaFisaId, filtre } = intrare;
   if (scope !== "all" && propriaFisaId === null) {
-    return { randuri: [], urmatorulCursor: null };
+    return { randuri: [], urmatorulCursor: null, total: 0, sortare: SORTARE_IMPLICITA };
   }
 
   const db = await createServerSupabase();
-  let interogare = db
-    .from("employees")
-    .select(
-      `id, marca, full_name, status, hired_on, is_primary, user_id, ${EMBED_DEPARTAMENT}, ${EMBED_FUNCTIE}`,
-    )
-    .eq("organization_id", organizationId)
-    .is("deleted_at", null)
-    .order("full_name", { ascending: true })
-    .order("id", { ascending: true })
+  const sortare = sortareCeruta(filtre.sort, SORTARI_ANGAJATI, SORTARE_IMPLICITA);
+  const coloana = COLOANA_SORTARE[sortare.cheie];
+  const crescator = sortare.directie === "asc";
+
+  /*
+   * ── DE CE NUMĂRĂTOAREA E O A DOUA INTEROGARE ──────────────────────────
+   * Aici stătea `count: "exact"` pe ACEEAȘI interogare, cu argumentul —
+   * corect în sine — că așa numărătoarea respectă filtrele și politicile RLS.
+   * Argumentul rata un lucru: predicatul KEYSET e și el un filtru. Pus pe
+   * aceeași interogare, `count` numără doar ce a rămas DUPĂ cursor.
+   *
+   * Consecința se vedea de la pagina a doua: `<Paginare>` scria „25 din 30 de
+   * rânduri" acolo unde erau 55, iar totalul scădea cu fiecare „mai departe".
+   * O cifră greșită fără nicio eroare — exact clasa pe care restul stratului o
+   * vânează.
+   *
+   * Cele două interogări împart ACELEAȘI filtre, aplicate de aceeași funcție,
+   * ca să nu poată diverge; se deosebesc doar prin cursor, ordine și limită,
+   * care aparțin paginii, nu mulțimii. Merg în paralel, iar numărătoarea e
+   * `head: true`, deci nu aduce niciun rând.
+   */
+  /**
+   * Filtrele mulțimii, aplicate identic pe amândouă interogările.
+   *
+   * Generic peste constructorul de interogare, nu scris de două ori: două copii
+   * ar diverge la primul filtru adăugat, iar divergența s-ar vedea tocmai ca o
+   * numărătoare care nu se potrivește cu lista — defectul reparat aici.
+   */
+  const filtreaza = <
+    Q extends {
+      eq: (c: string, v: string) => Q;
+      is: (c: string, v: null) => Q;
+      ilike: (c: string, v: string) => Q;
+      contains: (c: string, v: readonly string[]) => Q;
+    },
+  >(
+    q: Q,
+  ): Q => {
+    let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
+    if (scope === "own" && propriaFisaId !== null) cu = cu.eq("id", propriaFisaId);
+    else if (scope === "team" && propriaFisaId !== null)
+      cu = cu.contains("manager_path", [propriaFisaId]);
+    if (filtre.q !== null) cu = cu.ilike("full_name", `%${filtre.q}%`);
+    if (filtre.department_id !== null) cu = cu.eq("department_id", filtre.department_id);
+    if (filtre.job_position_id !== null) cu = cu.eq("job_position_id", filtre.job_position_id);
+    if (filtre.status !== null) cu = cu.eq("status", filtre.status);
+    return cu;
+  };
+
+  let interogare = filtreaza(
+    db
+      .from("employees")
+      .select(
+        `id, marca, full_name, status, hired_on, is_primary, user_id, ${EMBED_DEPARTAMENT}, ${EMBED_FUNCTIE}`,
+      ),
+  )
+    // Identificatorul e MEREU al doilea criteriu: numele nu e unic, iar fără el
+    // ordinea dintre doi omonimi e nedefinită, deci paginarea poate sări sau
+    // repeta exact acolo.
+    .order(coloana, { ascending: crescator, nullsFirst: false })
+    .order("id", { ascending: crescator })
     .limit(filtre.limita + 1);
 
-  if (scope === "own" && propriaFisaId !== null) {
-    interogare = interogare.eq("id", propriaFisaId);
-  } else if (scope === "team" && propriaFisaId !== null) {
-    interogare = interogare.contains("manager_path", [propriaFisaId]);
-  }
-
-  if (filtre.q !== null) interogare = interogare.ilike("full_name", `%${filtre.q}%`);
-  if (filtre.department_id !== null)
-    interogare = interogare.eq("department_id", filtre.department_id);
-  if (filtre.job_position_id !== null)
-    interogare = interogare.eq("job_position_id", filtre.job_position_id);
-  if (filtre.status !== null) interogare = interogare.eq("status", filtre.status);
-
-  const cursor = filtre.cursor === null ? null : decodificaCursor(filtre.cursor);
+  const cursor = filtre.cursor === null ? null : decodificaKeyset(filtre.cursor);
   if (cursor !== null) {
-    const nume = ghilimeleaza(cursor.nume);
-    interogare = interogare.or(`full_name.gt.${nume},and(full_name.eq.${nume},id.gt.${cursor.id})`);
+    interogare = interogare.or(predicatKeyset(coloana, cursor, sortare.directie));
   }
 
-  const { data, error } = await interogare.returns<RandAngajatBrut[]>();
+  const [rezultat, numarare] = await Promise.all([
+    interogare.returns<RandAngajatBrut[]>(),
+    filtreaza(db.from("employees").select("id", { count: "exact", head: true })),
+  ]);
+  const { data, error } = rezultat;
   if (error !== null) throw error;
+  if (numarare.error !== null) throw numarare.error;
+  const count = numarare.count;
 
   const toate = data ?? [];
   const areUrmatoarea = toate.length > filtre.limita;
@@ -217,12 +273,23 @@ export async function listeazaAngajati(intrare: IntrareListare): Promise<Rezulta
     avatar_url: urlAvatar(avataruri.get(user_id ?? "") ?? null),
   }));
   const ultimul = randuri.at(-1);
+  const valoareCursor =
+    ultimul === undefined
+      ? null
+      : sortare.cheie === "marca"
+        ? ultimul.marca
+        : sortare.cheie === "angajat_din"
+          ? (ultimul.hired_on ?? "")
+          : ultimul.full_name;
+
   return {
     randuri,
     urmatorulCursor:
-      areUrmatoarea && ultimul !== undefined
-        ? codificaCursor({ nume: ultimul.full_name, id: ultimul.id })
+      areUrmatoarea && ultimul !== undefined && valoareCursor !== null
+        ? codificaKeyset({ valoare: valoareCursor, id: ultimul.id })
         : null,
+    total: count ?? randuri.length,
+    sortare,
   };
 }
 
@@ -412,6 +479,124 @@ export async function arboreleManagerial(
   }));
 }
 
+// ── Fișa, pentru ecranul de editare ────────────────────────────────────────
+
+/**
+ * Exact coloanele pe care `actualizeazaAngajatSchema` le acceptă la scriere.
+ *
+ * DE CE O A DOUA CITIRE, ȘI NU `citesteAngajat`: aceea selectează 24 de
+ * coloane, alese pentru ce se AFIȘEAZĂ pe fișă. Schema de actualizare acceptă
+ * 33. Diferența — adresa de reședință, contactul de serviciu, actul de
+ * identitate, starea civilă, managerul direct, relația contactului de urgență —
+ * nu ajungea niciodată în formular, deci formularul nu o retrimitea, deci Zod
+ * îi aplica `.default(null)` și `UPDATE`-ul o ștergea. Măsurat: din 34 de chei
+ * ajunse la `.update()`, formularul trimitea 12; celelalte 22 se scriau ca
+ * `null` (sau reveneau la „RO" / „normale" / `true`) la FIECARE salvare, chiar
+ * și când se corecta doar un număr de telefon.
+ *
+ * Lista de mai jos și `.pick()`-ul din `src/schemas/employee.ts` trebuie să
+ * rămână identice: dacă o coloană se adaugă acolo și nu aici, se pierde din nou.
+ */
+export interface AngajatEditabil {
+  readonly id: string;
+  readonly marca: string;
+  readonly full_name: string;
+  readonly last_name: string;
+  readonly first_name: string;
+  readonly email_personal: string | null;
+  readonly telefon: string | null;
+  readonly email_serviciu: string | null;
+  readonly telefon_serviciu: string | null;
+  readonly adresa_strada: string | null;
+  readonly adresa_oras: string | null;
+  readonly adresa_judet: string | null;
+  readonly adresa_cod_postal: string | null;
+  readonly adresa_resedinta_strada: string | null;
+  readonly adresa_resedinta_oras: string | null;
+  readonly adresa_resedinta_judet: string | null;
+  readonly adresa_resedinta_cod_postal: string | null;
+  readonly stare_civila: string | null;
+  readonly data_nasterii: string | null;
+  readonly gen: string;
+  readonly cetatenie: string;
+  readonly tip_act_identitate: string | null;
+  readonly serie_act: string | null;
+  readonly numar_act: string | null;
+  readonly act_eliberat_de: string | null;
+  readonly act_valabil_pana: string | null;
+  readonly department_id: string | null;
+  readonly job_position_id: string | null;
+  readonly manager_employee_id: string | null;
+  readonly hired_on: string | null;
+  readonly conditii_munca: string;
+  readonly grad_handicap: string | null;
+  readonly optiune_pilon_ii: boolean;
+  readonly contact_urgenta_nume: string | null;
+  readonly contact_urgenta_telefon: string | null;
+  readonly contact_urgenta_relatie: string | null;
+  readonly observatii: string | null;
+}
+
+export async function citesteAngajatPentruEditare(
+  organizationId: string,
+  employeeId: string,
+): Promise<AngajatEditabil | null> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("employees")
+    .select(
+      `id, marca, full_name, last_name, first_name, email_personal, telefon, email_serviciu,
+       telefon_serviciu, adresa_strada, adresa_oras, adresa_judet, adresa_cod_postal,
+       adresa_resedinta_strada, adresa_resedinta_oras, adresa_resedinta_judet,
+       adresa_resedinta_cod_postal, stare_civila, data_nasterii, gen, cetatenie,
+       tip_act_identitate, serie_act, numar_act, act_eliberat_de, act_valabil_pana,
+       department_id, job_position_id, manager_employee_id, hired_on, conditii_munca,
+       grad_handicap, optiune_pilon_ii, contact_urgenta_nume, contact_urgenta_telefon,
+       contact_urgenta_relatie, observatii`,
+    )
+    .eq("organization_id", organizationId)
+    .eq("id", employeeId)
+    .is("deleted_at", null)
+    .maybeSingle<AngajatEditabil>();
+  if (error !== null) throw error;
+  return data;
+}
+
+export interface OptiuneColeg {
+  readonly id: string;
+  readonly full_name: string;
+  readonly marca: string;
+}
+
+/**
+ * Colegii care pot fi aleși ca manager direct, fără fișa editată însăși — o
+ * fișă care se raportează la ea însăși ar face `manager_path` să cicleze.
+ *
+ * Nu exclude subordonații actuali: ierarhia se poate rescrie legitim, iar
+ * verificarea de ciclu aparține bazei (triggerul `tg_employees_manager_path`),
+ * nu unui `<select>`. `max_rows` din PostgREST taie TĂCUT la 1000 de rânduri;
+ * cea mai mare firmă din sistem are 8 angajați, deci limita nu se atinge, dar
+ * `.limit(...)` explicit face tăierea vizibilă în cod dacă vreodată se atinge.
+ */
+export async function colegiPentruManager(
+  organizationId: string,
+  exclusId: string,
+): Promise<readonly OptiuneColeg[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("employees")
+    .select("id, full_name, marca")
+    .eq("organization_id", organizationId)
+    .neq("id", exclusId)
+    .is("deleted_at", null)
+    .in("status", ["candidat", "activ", "suspendat", "preaviz"])
+    .order("full_name", { ascending: true })
+    .limit(500)
+    .returns<OptiuneColeg[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
 /** Doar rezumatul mascat — valorile clare se obțin exclusiv prin acțiunea auditată. */
 export async function citesteRezumatDateSensibile(
   organizationId: string,
@@ -527,6 +712,37 @@ export async function citesteEvaluari(
     .is("deleted_at", null)
     .order("data_evaluarii", { ascending: false })
     .returns<Evaluare[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+// ── Funcții, pentru filtrul listei (0 rânduri ⇒ filtrul se ascunde) ─────────
+
+export interface OptiuneFunctie {
+  readonly id: string;
+  readonly denumire: string;
+}
+
+/**
+ * Funcțiile active, pentru `<select>`-ul din bara de filtre.
+ *
+ * `listeazaAngajati` filtrează după `job_position_id` de la bun început
+ * (`employees.ts:221`) — dar niciun control din interfață nu punea vreodată
+ * cheia în adresă, iar un `grep` pe tot depozitul găsea o singură apariție, și
+ * aceea într-un comentariu. Capacitatea era implementată complet pe server și
+ * inaccesibilă. Perechea ei pentru departamente există de mai demult, în
+ * `attendance.ts` (`departamente()`), scrisă pentru filtrul de pontaj.
+ */
+export async function functiiActive(organizationId: string): Promise<readonly OptiuneFunctie[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("job_positions")
+    .select("id, denumire")
+    .eq("organization_id", organizationId)
+    .eq("activ", true)
+    .is("deleted_at", null)
+    .order("denumire", { ascending: true })
+    .returns<OptiuneFunctie[]>();
   if (error !== null) throw error;
   return data ?? [];
 }

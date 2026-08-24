@@ -7,6 +7,8 @@ import { cookies } from "next/headers";
 import { clientEnv } from "@/config/env";
 import type { Database } from "@/types/database";
 
+import { fetchCuTermen } from "./fetch-cu-termen";
+
 /**
  * Clientul folosit în Server Components și Server Actions. Rulează cu cheia
  * `anon` și cu sesiunea utilizatorului, deci fiecare interogare trece prin RLS.
@@ -44,7 +46,13 @@ export async function createServerSupabase(): Promise<ServerSupabase> {
           }
         },
       },
-      global: { headers: { "x-application-name": "administrativo" } },
+      // `fetch` cu termen pe antet: fără el, un socket agățat spre Supabase
+      // blochează cererea la infinit. Vezi `fetch-cu-termen.ts` pentru
+      // incidentul care a impus-o.
+      global: {
+        headers: { "x-application-name": "administrativo" },
+        fetch: fetchCuTermen(),
+      },
     },
   );
 }

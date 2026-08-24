@@ -11,10 +11,13 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
+import { buton } from "@/components/ui/buton";
 import { getEnabledFeatures } from "@/lib/auth/features";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
+import { cn } from "@/lib/ui/cn";
 import { anunturiPublicate, idAnunturiCitite } from "@/lib/queries/announcements";
 import {
   cererileMele,
@@ -24,7 +27,7 @@ import {
   tipuriConcediu,
 } from "@/lib/queries/portal";
 
-import { ETICHETE_STATUS_CERERE, CLASE_STATUS_CERERE, ETICHETE_TIP_ZI } from "./etichete";
+import { ETICHETE_STATUS_CERERE, ETICHETE_TIP_ZI, TONURI_STATUS_CERERE } from "./etichete";
 import { FaraFisa } from "./fara-fisa";
 
 export const metadata: Metadata = { title: "Portalul meu" };
@@ -36,7 +39,7 @@ export default async function PaginaPortal() {
   const { tenant, user } = await requireTenant();
   const [moduleActive, permisiuni, stare] = await Promise.all([
     getEnabledFeatures(tenant.organizationId),
-    getPermissionMap(tenant.organizationId, tenant.role),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
     fisaMea(tenant.organizationId, user.id),
   ]);
 
@@ -95,10 +98,10 @@ export default async function PaginaPortal() {
     // iar nimeni nu întreține două.
     <div className="mx-auto max-w-6xl space-y-3 p-4 lg:grid lg:grid-cols-3 lg:items-start lg:gap-4 lg:space-y-0">
       <div className="space-y-3 lg:sticky lg:top-20">
-        <section className="bg-surface border-border rounded-lg border p-4">
-          <p className="text-muted-foreground text-xs">Bună ziua,</p>
-          <p className="text-foreground text-xl font-semibold">{fisa.full_name ?? fisa.marca}</p>
-          <p className="text-muted-foreground mt-1 text-sm">
+        <section className="bg-surface border-border rounded-panou border p-4">
+          <p className="text-muted-foreground text-nota">Bună ziua,</p>
+          <p className="text-foreground text-titlu font-semibold">{fisa.full_name ?? fisa.marca}</p>
+          <p className="text-muted-foreground text-corp mt-1">
             Marca {fisa.marca}
             {fisa.hired_on === null ? null : ` · angajat din ${formatDate(fisa.hired_on)}`}
           </p>
@@ -107,15 +110,15 @@ export default async function PaginaPortal() {
         {soldPrincipal === null ? null : (
           <section
             aria-labelledby="sold"
-            className="bg-primary text-primary-foreground rounded-lg p-4"
+            className="bg-primary text-primary-foreground rounded-panou p-4"
           >
-            <h2 id="sold" className="text-sm font-medium opacity-90">
+            <h2 id="sold" className="text-corp font-medium opacity-90">
               Zile de concediu rămase în {an}
             </h2>
             <p className="mt-1 text-4xl font-semibold tabular-nums">
               {(soldPrincipal.ramase ?? 0).toLocaleString("ro-RO")}
             </p>
-            <p className="mt-2 text-sm opacity-90">
+            <p className="text-corp mt-2 opacity-90">
               din {soldPrincipal.drept_anual.toLocaleString("ro-RO")} · folosite{" "}
               {soldPrincipal.folosite.toLocaleString("ro-RO")}
               {soldPrincipal.in_asteptare > 0
@@ -128,7 +131,12 @@ export default async function PaginaPortal() {
             {poateCereConcediu ? (
               <Link
                 href="/portal/concediile-mele/noua"
-                className="bg-primary-foreground text-primary mt-4 inline-flex min-h-11 items-center gap-2 rounded-md px-4 text-sm font-medium"
+                className={cn(
+                  buton({ varianta: "primar" }),
+                  // Cardul e deja `bg-primary`: paleta butonului se INVERSEAZĂ,
+                  // altfel ar dispărea în fundal.
+                  "bg-primary-foreground text-primary hover:bg-primary-foreground mt-4",
+                )}
               >
                 <Plus aria-hidden="true" className="size-4" />
                 Cerere nouă
@@ -140,31 +148,34 @@ export default async function PaginaPortal() {
 
       <div className="space-y-3">
         {vedePontaj ? (
-          <section aria-labelledby="azi" className="bg-surface border-border rounded-lg border p-4">
-            <h2 id="azi" className="text-foreground text-sm font-semibold">
+          <section
+            aria-labelledby="azi"
+            className="bg-surface border-border rounded-panou border p-4"
+          >
+            <h2 id="azi" className="text-foreground text-corp font-semibold">
               Astăzi
             </h2>
             {ziDeAzi === null ? (
               <>
-                <p className="text-muted-foreground mt-1 text-sm">
+                <p className="text-muted-foreground text-corp mt-1">
                   Nu e pontat nimic pe ziua de azi.
                 </p>
                 {poatePontaZiua ? (
                   <Link
                     href={`/portal/pontajul-meu/zi/${azi}`}
-                    className="text-primary mt-2 inline-block text-sm underline-offset-2 hover:underline"
+                    className="text-primary text-corp mt-2 inline-block underline-offset-2 hover:underline"
                   >
                     Completează ziua
                   </Link>
                 ) : null}
               </>
             ) : ziDeAzi.tip_zi !== "lucratoare" ? (
-              <p className="text-foreground mt-1 text-sm">
+              <p className="text-foreground text-corp mt-1">
                 {ETICHETE_TIP_ZI[ziDeAzi.tip_zi] ?? ziDeAzi.tip_zi}
               </p>
             ) : (
-              <p className="text-foreground mt-1 text-sm">
-                <span className="text-2xl font-semibold tabular-nums">
+              <p className="text-foreground text-corp mt-1">
+                <span className="text-titlu font-semibold tabular-nums">
                   {(ziDeAzi.ore_lucrate ?? 0).toLocaleString("ro-RO")}
                 </span>{" "}
                 ore pontate
@@ -173,7 +184,7 @@ export default async function PaginaPortal() {
                   : null}
               </p>
             )}
-            <p className="text-muted-foreground border-border mt-3 border-t pt-3 text-sm">
+            <p className="text-muted-foreground border-border text-corp mt-3 border-t pt-3">
               Luna aceasta:{" "}
               <span className="text-foreground font-medium tabular-nums">
                 {oreLuna.toLocaleString("ro-RO")}
@@ -188,7 +199,7 @@ export default async function PaginaPortal() {
 
         {inAsteptare.length === 0 ? null : (
           <section aria-labelledby="asteapta" className="space-y-2">
-            <h2 id="asteapta" className="text-foreground text-sm font-semibold">
+            <h2 id="asteapta" className="text-foreground text-corp font-semibold">
               Așteaptă răspuns
             </h2>
             <ul className="space-y-2">
@@ -198,24 +209,25 @@ export default async function PaginaPortal() {
                       îngust într-un card de trei rânduri se ratează. */}
                   <Link
                     href={`/portal/concediile-mele/${cerere.id}`}
-                    className="bg-surface border-border hover:border-ring flex items-start justify-between gap-3 rounded-lg border p-3 transition-colors"
+                    className="bg-surface border-border hover:border-ring rounded-panou flex items-start justify-between gap-3 border p-3 transition-colors"
                   >
                     <div className="min-w-0">
-                      <p className="text-foreground text-sm font-medium">
+                      <p className="text-foreground text-corp font-medium">
                         {tipuri.get(cerere.leave_type_id)?.denumire ?? "Concediu"}
                       </p>
-                      <p className="text-muted-foreground text-sm">
+                      <p className="text-muted-foreground text-corp">
                         {formatDate(cerere.data_inceput)} – {formatDate(cerere.data_sfarsit)}
                         {cerere.zile_lucratoare === null
                           ? null
                           : ` · ${cerere.zile_lucratoare.toLocaleString("ro-RO")} zile`}
                       </p>
                     </div>
-                    <span
-                      className={`shrink-0 rounded border px-2 py-0.5 text-xs ${CLASE_STATUS_CERERE[cerere.status] ?? "border-border text-muted-foreground"}`}
+                    <Badge
+                      className="shrink-0"
+                      ton={TONURI_STATUS_CERERE[cerere.status] ?? "neutru"}
                     >
                       {ETICHETE_STATUS_CERERE[cerere.status] ?? cerere.status}
-                    </span>
+                    </Badge>
                   </Link>
                 </li>
               ))}
@@ -223,7 +235,7 @@ export default async function PaginaPortal() {
             {inAsteptare.length > 3 ? (
               <Link
                 href="/portal/concediile-mele"
-                className="text-primary text-xs underline-offset-2 hover:underline"
+                className="text-primary text-nota underline-offset-2 hover:underline"
               >
                 și încă {(inAsteptare.length - 3).toLocaleString("ro-RO")}
               </Link>
@@ -236,13 +248,13 @@ export default async function PaginaPortal() {
         {necitite.length === 0 ? null : (
           <section aria-labelledby="anunturi" className="space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <h2 id="anunturi" className="text-foreground text-sm font-semibold">
+              <h2 id="anunturi" className="text-foreground text-corp font-semibold">
                 {necitite.length.toLocaleString("ro-RO")}{" "}
                 {necitite.length === 1 ? "anunț necitit" : "anunțuri necitite"}
               </h2>
               <Link
                 href="/portal/anunturi"
-                className="text-primary text-xs underline-offset-2 hover:underline"
+                className="text-primary text-nota underline-offset-2 hover:underline"
               >
                 Toate
               </Link>
@@ -252,9 +264,9 @@ export default async function PaginaPortal() {
                 <li key={anunt.id}>
                   <Link
                     href={`/portal/anunturi/${anunt.id}`}
-                    className="bg-surface border-border hover:border-ring flex min-h-11 items-center justify-between gap-3 rounded-lg border p-3 transition-colors"
+                    className="bg-surface border-border hover:border-ring rounded-panou flex min-h-11 items-center justify-between gap-3 border p-3 transition-colors"
                   >
-                    <span className="text-foreground min-w-0 truncate text-sm font-medium">
+                    <span className="text-foreground text-corp min-w-0 truncate font-medium">
                       {anunt.titlu}
                     </span>
                     <span
@@ -332,12 +344,12 @@ function Scurtatura({
   return (
     <Link
       href={href}
-      className="bg-surface border-border hover:border-ring flex min-h-16 items-center gap-3 rounded-lg border p-4 transition-colors"
+      className="bg-surface border-border hover:border-ring rounded-panou flex min-h-16 items-center gap-3 border p-4 transition-colors"
     >
       <Iconita aria-hidden="true" className="text-primary size-5 shrink-0" />
       <span className="min-w-0">
-        <span className="text-foreground block text-sm font-medium">{eticheta}</span>
-        <span className="text-muted-foreground block text-xs">{descriere}</span>
+        <span className="text-foreground text-corp block font-medium">{eticheta}</span>
+        <span className="text-muted-foreground text-nota block">{descriere}</span>
       </span>
     </Link>
   );

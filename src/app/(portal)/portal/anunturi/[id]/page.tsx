@@ -24,7 +24,7 @@ export default async function PaginaAnuntPortal({ params }: ProprietatiPagina) {
 
   const { tenant, user } = await requireTenant();
   await requireFeature(tenant.organizationId, "announcements");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "announcements:read", "own")) {
     return (
@@ -42,13 +42,13 @@ export default async function PaginaAnuntPortal({ params }: ProprietatiPagina) {
   return (
     <div className="space-y-4 p-4">
       <div>
-        <h1 className="text-foreground text-xl font-semibold">{anunt.titlu}</h1>
-        <p className="text-muted-foreground mt-1 text-xs">
+        <h1 className="text-foreground text-titlu font-semibold">{anunt.titlu}</h1>
+        <p className="text-muted-foreground text-nota mt-1">
           {anunt.publicat_la === null ? "" : `Publicat ${formatDateTime(anunt.publicat_la)}`}
         </p>
       </div>
 
-      <div className="bg-surface border-border rounded-lg border p-4 text-sm whitespace-pre-wrap">
+      <div className="bg-surface border-border rounded-panou text-corp border p-4 whitespace-pre-wrap">
         {anunt.continut}
       </div>
 

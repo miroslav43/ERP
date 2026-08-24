@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
 import { Search } from "lucide-react";
 
+import { Buton } from "@/components/ui/buton";
 import { STATUSURI_ORGANIZATIE } from "@/schemas/organization";
 
 const ETICHETE: Record<(typeof STATUSURI_ORGANIZATIE)[number], string> = {
@@ -46,10 +47,10 @@ export function FiltreOrganizatii({
         eveniment.preventDefault();
         navigheaza(cautare, status);
       }}
-      className="border-border bg-surface flex flex-wrap items-end gap-3 rounded-lg border p-4"
+      className="border-border bg-surface rounded-panou flex flex-wrap items-end gap-3 border p-4"
     >
       <div className="min-w-56 flex-1">
-        <label htmlFor={idCautare} className="text-foreground block text-sm font-medium">
+        <label htmlFor={idCautare} className="text-foreground text-corp block font-medium">
           Caută după denumire sau CUI
         </label>
         <input
@@ -58,12 +59,12 @@ export function FiltreOrganizatii({
           value={cautare}
           onChange={(eveniment) => setCautare(eveniment.target.value)}
           placeholder="ex. Firma Mea sau RO 14399840"
-          className="border-border bg-background text-foreground mt-1 w-full rounded-md border px-3 py-2 text-sm"
+          className="border-border bg-background text-foreground rounded-control text-corp mt-1 w-full border px-3 py-2"
         />
       </div>
 
       <div>
-        <label htmlFor={idStatus} className="text-foreground block text-sm font-medium">
+        <label htmlFor={idStatus} className="text-foreground text-corp block font-medium">
           Status
         </label>
         <select
@@ -73,7 +74,7 @@ export function FiltreOrganizatii({
             setStatus(eveniment.target.value);
             navigheaza(cautare, eveniment.target.value);
           }}
-          className="border-border bg-background text-foreground mt-1 rounded-md border px-3 py-2 text-sm"
+          className="border-border bg-background text-foreground rounded-control text-corp mt-1 border px-3 py-2"
         >
           <option value="">Toate</option>
           {STATUSURI_ORGANIZATIE.map((valoare) => (
@@ -84,13 +85,10 @@ export function FiltreOrganizatii({
         </select>
       </div>
 
-      <button
-        type="submit"
-        className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
-      >
+      <Buton type="submit" varianta="primar">
         <Search aria-hidden="true" className="size-4" />
         Caută
-      </button>
+      </Buton>
 
       <p aria-live="polite" className="sr-only">
         {inCurs ? "Se aplică filtrele…" : ""}

@@ -2,6 +2,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { AlertCircle, Building2, Inbox, Mail, Phone, Users } from "lucide-react";
+import { buton } from "@/components/ui/buton";
+import { cn } from "@/lib/ui/cn";
 import { formatDateTime } from "@/lib/format/date";
 import { citesteCereriDemo } from "./actions";
 import { ETICHETE_STATUS, STATUSURI_CERERE, type StatusCerere } from "./constante";
@@ -38,22 +40,25 @@ export default async function PaginaCereriDemo({
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Cereri de demo</h1>
-        <p className="text-muted-foreground mt-2 text-sm">
+        <h1 className="text-titlu font-semibold tracking-tight">Cereri de demo</h1>
+        <p className="text-muted-foreground text-corp mt-2">
           Cererile trimise din pagina publică, cele mai noi primele. Mesajele sunt afișate ca text
           simplu, exact cum au fost scrise.
         </p>
       </header>
 
       {!rezultat.ok ? (
-        <div role="alert" className="border-border bg-surface mt-8 rounded-lg border p-6 text-sm">
+        <div
+          role="alert"
+          className="border-border bg-surface rounded-panou text-corp mt-8 border p-6"
+        >
           <p className="text-danger flex items-start gap-2">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
             <span>{rezultat.error.message}</span>
           </p>
           <Link
             href={statusActiv ? `${RUTA}?status=${statusActiv}` : RUTA}
-            className="border-border hover:border-primary mt-4 inline-flex rounded-md border px-4 py-2 text-sm font-medium transition-colors"
+            className={cn(buton({ varianta: "secundar" }), "mt-4")}
           >
             Încearcă din nou
           </Link>
@@ -66,7 +71,7 @@ export default async function PaginaCereriDemo({
                 <Link
                   href={RUTA}
                   aria-current={statusActiv === null ? "page" : undefined}
-                  className={`inline-flex rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                  className={`text-corp inline-flex rounded-full border px-3 py-1.5 transition-colors ${
                     statusActiv === null
                       ? "border-primary bg-primary text-primary-foreground"
                       : "border-border text-muted-foreground hover:text-foreground"
@@ -80,7 +85,7 @@ export default async function PaginaCereriDemo({
                   <Link
                     href={`${RUTA}?status=${status}`}
                     aria-current={statusActiv === status ? "page" : undefined}
-                    className={`inline-flex rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                    className={`text-corp inline-flex rounded-full border px-3 py-1.5 transition-colors ${
                       statusActiv === status
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-border text-muted-foreground hover:text-foreground"
@@ -95,21 +100,21 @@ export default async function PaginaCereriDemo({
           </nav>
 
           {rezultat.data.cereri.length === 0 ? (
-            <div className="border-border mt-8 rounded-lg border border-dashed p-10 text-center">
+            <div className="border-border rounded-panou mt-8 border border-dashed p-10 text-center">
               <Inbox className="text-muted-foreground mx-auto h-6 w-6" aria-hidden="true" />
-              <h2 className="mt-4 text-base font-semibold">
+              <h2 className="text-sectiune mt-4 font-semibold">
                 {statusActiv === null
                   ? "Nicio cerere de demo deocamdată"
                   : `Nicio cerere cu statusul „${ETICHETE_STATUS[statusActiv]}”`}
               </h2>
-              <p className="text-muted-foreground mx-auto mt-2 max-w-md text-sm">
+              <p className="text-muted-foreground text-corp mx-auto mt-2 max-w-md">
                 {statusActiv === null
                   ? "Cererile apar aici imediat ce cineva completează formularul public. Verifică pagina de prezentare și butonul „Cere demo”."
                   : "Schimbă filtrul pentru a vedea celelalte cereri."}
               </p>
               <Link
                 href={statusActiv === null ? "/" : RUTA}
-                className="border-border hover:border-primary mt-6 inline-flex rounded-md border px-4 py-2 text-sm font-medium transition-colors"
+                className={cn(buton({ varianta: "secundar" }), "mt-6")}
               >
                 {statusActiv === null ? "Deschide pagina publică" : "Vezi toate cererile"}
               </Link>
@@ -117,20 +122,20 @@ export default async function PaginaCereriDemo({
           ) : (
             <ul className="mt-8 space-y-4">
               {rezultat.data.cereri.map((cerere) => (
-                <li key={cerere.id} className="border-border bg-surface rounded-lg border p-6">
+                <li key={cerere.id} className="border-border bg-surface rounded-panou border p-6">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <h2 className="text-base font-semibold">{cerere.firma}</h2>
-                      <p className="text-muted-foreground mt-1 text-sm">{cerere.nume}</p>
+                      <h2 className="text-sectiune font-semibold">{cerere.firma}</h2>
+                      <p className="text-muted-foreground text-corp mt-1">{cerere.nume}</p>
                     </div>
                     <span
-                      className={`border-border rounded-full border px-2.5 py-0.5 text-xs font-medium ${CULOARE_STATUS[cerere.status]}`}
+                      className={`border-border text-nota rounded-full border px-2.5 py-0.5 font-medium ${CULOARE_STATUS[cerere.status]}`}
                     >
                       {ETICHETE_STATUS[cerere.status]}
                     </span>
                   </div>
 
-                  <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                  <dl className="text-corp mt-4 grid gap-3 sm:grid-cols-2">
                     <div className="flex items-center gap-2">
                       <Mail className="text-muted-foreground h-4 w-4" aria-hidden="true" />
                       <dt className="sr-only">E-mail</dt>
@@ -157,7 +162,7 @@ export default async function PaginaCereriDemo({
                   </dl>
 
                   {cerere.mesaj ? (
-                    <p className="border-border bg-background mt-4 rounded-md border p-4 text-sm leading-relaxed break-words whitespace-pre-wrap">
+                    <p className="border-border bg-background rounded-control text-corp mt-4 border p-4 leading-relaxed break-words whitespace-pre-wrap">
                       {cerere.mesaj}
                     </p>
                   ) : null}
@@ -166,7 +171,7 @@ export default async function PaginaCereriDemo({
                     <SchimbaStatus cerereId={cerere.id} statusCurent={cerere.status} />
                     <Link
                       href={`/super-admin/organizatii/nou?cerere=${cerere.id}`}
-                      className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors"
+                      className={buton({ varianta: "primar" })}
                     >
                       <Building2 className="h-4 w-4" aria-hidden="true" />
                       Creează organizație din această cerere

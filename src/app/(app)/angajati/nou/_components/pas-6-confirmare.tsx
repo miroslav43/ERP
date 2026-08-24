@@ -12,7 +12,7 @@ interface Proprietati {
 function Rand({ eticheta, valoare }: { eticheta: string; valoare: string | undefined | null }) {
   if (valoare === undefined || valoare === null || valoare === "") return null;
   return (
-    <div className="flex justify-between gap-4 py-1 text-sm">
+    <div className="text-corp flex justify-between gap-4 py-1">
       <dt className="text-muted-foreground">{eticheta}</dt>
       <dd className="text-foreground text-right font-medium">{valoare}</dd>
     </div>
@@ -30,19 +30,19 @@ export function Pas6Confirmare({ formular }: Proprietati) {
 
   return (
     <div className="space-y-6">
-      <p className="text-muted-foreground text-sm">
+      <p className="text-muted-foreground text-corp">
         Verificați datele înainte de a înrola angajatul. Marca se atribuie automat la trimitere.
         Puteți reveni la orice pas anterior.
       </p>
 
-      <dl className="border-border divide-border divide-y rounded-lg border p-4">
+      <dl className="border-border divide-border rounded-panou divide-y border p-4">
         <Rand eticheta="Nume complet" valoare={`${valori.first_name} ${valori.last_name}`.trim()} />
         <Rand eticheta="CNP" valoare={valori.cnp} />
         <Rand eticheta="Telefon" valoare={valori.telefon} />
         <Rand eticheta="E-mail personal" valoare={valori.email_personal} />
       </dl>
 
-      <dl className="border-border divide-border divide-y rounded-lg border p-4">
+      <dl className="border-border divide-border rounded-panou divide-y border p-4">
         <Rand eticheta="Număr contract" valoare={valori.numar} />
         <Rand eticheta="Valabil de la" valoare={valori.valabil_de_la} />
         <Rand
@@ -67,7 +67,7 @@ export function Pas6Confirmare({ formular }: Proprietati) {
         />
       </dl>
 
-      <dl className="border-border divide-border divide-y rounded-lg border p-4">
+      <dl className="border-border divide-border rounded-panou divide-y border p-4">
         <Rand
           eticheta="Fișa postului"
           valoare={

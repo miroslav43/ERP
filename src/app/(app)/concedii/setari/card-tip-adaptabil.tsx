@@ -4,13 +4,14 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
 import type { TipConcediuConfigurabil } from "@/lib/queries/leave";
 import { MODURI_ROTUNJIRE_ACUMULARE, type ModRotunjireAcumulare } from "@/schemas/leave";
 
 import { actualizeazaTipConcediu, comutaActivTipConcediu } from "./actions";
 import { ETICHETE_MOD_ROTUNJIRE } from "../etichete";
 
-const CLASA_CAMP = "w-full rounded-md border border-foreground/60 px-2 py-1.5 text-sm";
+const CLASA_CAMP = "w-full rounded-control border border-foreground/60 px-2 py-1.5 text-corp";
 
 /** O regulă a companiei — editabilă direct, câmp cu câmp, salvată dintr-o dată. */
 export function CardTipAdaptabil({ tip }: { readonly tip: TipConcediuConfigurabil }) {
@@ -74,9 +75,9 @@ export function CardTipAdaptabil({ tip }: { readonly tip: TipConcediuConfigurabi
   }
 
   return (
-    <div className="border-border space-y-3 rounded-lg border p-4">
+    <div className="border-border rounded-panou space-y-3 border p-4">
       <div className="flex items-center justify-between gap-2">
-        <p className="flex items-center gap-2 text-sm font-medium">
+        <p className="text-corp flex items-center gap-2 font-medium">
           <span
             className="inline-block size-2.5 rounded-full"
             style={{ backgroundColor: culoare }}
@@ -84,7 +85,7 @@ export function CardTipAdaptabil({ tip }: { readonly tip: TipConcediuConfigurabi
           />
           {tip.denumire}
         </p>
-        <label className="text-muted-foreground flex items-center gap-2 text-xs">
+        <label className="text-muted-foreground text-nota flex items-center gap-2">
           <input
             type="checkbox"
             checked={tip.activ}
@@ -99,7 +100,7 @@ export function CardTipAdaptabil({ tip }: { readonly tip: TipConcediuConfigurabi
 
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.zile} className="text-muted-foreground text-xs">
+          <label htmlFor={id.zile} className="text-muted-foreground text-nota">
             Zile / an
           </label>
           <input
@@ -116,7 +117,7 @@ export function CardTipAdaptabil({ tip }: { readonly tip: TipConcediuConfigurabi
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.culoare} className="text-muted-foreground text-xs">
+          <label htmlFor={id.culoare} className="text-muted-foreground text-nota">
             Culoare (calendar)
           </label>
           <input
@@ -126,12 +127,12 @@ export function CardTipAdaptabil({ tip }: { readonly tip: TipConcediuConfigurabi
             onChange={(e) => {
               setCuloare(e.target.value);
             }}
-            className="border-foreground/60 h-9 w-full rounded-md border"
+            className="border-foreground/60 rounded-control h-9 w-full border"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.termen} className="text-muted-foreground text-xs">
+          <label htmlFor={id.termen} className="text-muted-foreground text-nota">
             Termen de reportare (luni)
           </label>
           <input
@@ -150,7 +151,7 @@ export function CardTipAdaptabil({ tip }: { readonly tip: TipConcediuConfigurabi
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor={id.plafon} className="text-muted-foreground text-xs">
+          <label htmlFor={id.plafon} className="text-muted-foreground text-nota">
             Plafon de reportare (zile)
           </label>
           <input
@@ -169,7 +170,7 @@ export function CardTipAdaptabil({ tip }: { readonly tip: TipConcediuConfigurabi
         </div>
 
         <div className="col-span-2 flex flex-col gap-1">
-          <label htmlFor={id.rotunjire} className="text-muted-foreground text-xs">
+          <label htmlFor={id.rotunjire} className="text-muted-foreground text-nota">
             Rotunjirea acumulării proporționale
           </label>
           <select
@@ -189,7 +190,7 @@ export function CardTipAdaptabil({ tip }: { readonly tip: TipConcediuConfigurabi
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4 text-sm">
+      <div className="text-corp flex flex-wrap items-center gap-4">
         <label className="flex items-center gap-2">
           <input
             type="checkbox"
@@ -213,21 +214,16 @@ export function CardTipAdaptabil({ tip }: { readonly tip: TipConcediuConfigurabi
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          disabled={inCurs}
-          onClick={trimite}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se salvează…" : "Salvează"}
-        </button>
+        <Buton varianta="primar" inCurs={inCurs} textInCurs="Se salvează…" onClick={trimite}>
+          Salvează
+        </Buton>
         {eroare === null ? null : (
-          <p role="alert" className="text-danger text-sm">
+          <p role="alert" className="text-danger text-corp">
             {eroare}
           </p>
         )}
         {reusit ? (
-          <p role="status" className="text-foreground text-sm">
+          <p role="status" className="text-foreground text-corp">
             Salvat.
           </p>
         ) : null}

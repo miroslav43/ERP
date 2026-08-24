@@ -4,12 +4,18 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
+import { buton } from "@/components/ui/buton";
 import { Fluturas } from "@/components/payroll/fluturas";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { idDinRuta } from "@/lib/rute/parametri";
-import { citesteInregistrare, listeazaBonusuriSiRetineri } from "@/lib/queries/payroll";
+import {
+  citesteInregistrare,
+  citestePerioada,
+  listeazaBonusuriSiRetineri,
+} from "@/lib/queries/payroll";
 
 import { AVERTISMENT_SALARIZARE } from "../../etichete";
 
@@ -26,18 +32,22 @@ export default async function PaginaFluturas({ params }: ProprietatiPagina) {
 
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "payroll");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "payroll:read", "all")) {
     return (
-      <main className="p-6">
+      <div>
         <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta salarizarea." />
-      </main>
+      </div>
     );
   }
 
   const inregistrare = await citesteInregistrare(tenant.organizationId, idInregistrare);
   if (inregistrare === null) notFound();
+  // Aici perioada CHIAR se poate citi: ecranul cere `payroll:read = "all"`,
+  // adică exact ce cere `payroll_periods_select`. În portal nu se poate — vezi
+  // nota de pe `perioada` din `Fluturas`.
+  const perioada = await citestePerioada(tenant.organizationId, inregistrare.period_id);
   const { bonusuri, retineri } = await listeazaBonusuriSiRetineri(
     tenant.organizationId,
     inregistrare.period_id,
@@ -45,23 +55,38 @@ export default async function PaginaFluturas({ params }: ProprietatiPagina) {
   );
 
   return (
-    <main className="max-w-3xl space-y-6 p-6">
-      <header>
-        <p className="text-muted-foreground text-sm">
+    <div className={`${LATIMI.detaliu} space-y-6`}>
+      <div className="space-y-1">
+        <p className="text-muted-foreground text-corp">
           <Link href={`/salarizare/${id}`} className="underline-offset-2 hover:underline">
             Perioada de salarizare
           </Link>
         </p>
-        <h1 className="text-2xl font-semibold">
-          {inregistrare.angajat?.full_name ?? inregistrare.angajat?.marca ?? "Angajat"}
-        </h1>
-      </header>
+        <AntetPagina
+          titlu={inregistrare.angajat?.full_name ?? inregistrare.angajat?.marca ?? "Angajat"}
+        />
+      </div>
 
-      <div role="note" className="border-warning/40 bg-warning/8 rounded-lg border p-4 text-xs">
+      <div
+        role="note"
+        className="border-warning/40 bg-warning/8 rounded-panou text-nota border p-4"
+      >
         {AVERTISMENT_SALARIZARE}
       </div>
 
-      <Fluturas inregistrare={inregistrare} bonusuri={bonusuri} retineri={retineri} />
-    </main>
+      <Fluturas
+        inregistrare={inregistrare}
+        bonusuri={bonusuri}
+        retineri={retineri}
+        perioada={perioada === null ? null : { an: perioada.an, luna: perioada.luna }}
+      />
+
+      <a
+        href={`/api/export/salarizare/fluturas?inregistrare=${inregistrare.id}`}
+        className={buton({ varianta: "secundar" })}
+      >
+        Descarcă fluturașul (PDF)
+      </a>
+    </div>
   );
 }

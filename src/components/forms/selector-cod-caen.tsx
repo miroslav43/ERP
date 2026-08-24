@@ -315,7 +315,13 @@ export function SelectorCodCaenSecundare({
               setAvertisment(undefined);
             }
           }}
-          className={CLASA_CAMP + (laLimita ? " cursor-not-allowed opacity-60" : "")}
+          /* `opacity-60` scris de mână măsura 4,34:1 pe textul câmpului, sub
+             pragul de 4,5:1 — starea „limită atinsă” era mai greu de citit
+             tocmai când trebuie citită. Inputul are deja `disabled={laLimita}`,
+             iar `clasaControl()` aduce setul canonic
+             (`disabled:bg-surface disabled:text-muted-foreground`, 5,08:1) fără
+             nicio clasă condiționată aici. */
+          className={CLASA_CAMP}
         />
         {deschis && !laLimita && (
           <ListaRezultate
@@ -328,15 +334,15 @@ export function SelectorCodCaenSecundare({
         )}
       </div>
       <Avertisment id={idAvertisment} mesaj={avertisment} />
-      <p className="text-muted-foreground text-xs">
+      <p className="text-muted-foreground text-nota">
         {value.length} {max === null ? "coduri (nelimitat)" : `din ${max} coduri folosite`}
       </p>
       {value.length > 0 && (
-        <ul className="border-border divide-border divide-y rounded-md border">
+        <ul className="border-border divide-border rounded-control divide-y border">
           {value.map((cod) => {
             const info = NOMENCLATOR_CAEN.find((c) => c.cod === cod);
             return (
-              <li key={cod} className="flex items-baseline gap-3 px-3 py-2 text-sm">
+              <li key={cod} className="text-corp flex items-baseline gap-3 px-3 py-2">
                 <span className="text-foreground shrink-0 font-mono font-medium">{cod}</span>
                 <span className="text-muted-foreground flex-1">
                   {info?.denumire ?? "Cod necunoscut în nomenclator"}
@@ -346,7 +352,7 @@ export function SelectorCodCaenSecundare({
                   onClick={() => elimina(cod)}
                   aria-label={`Elimină codul ${cod}`}
                   title={`Elimină codul ${cod}`}
-                  className="text-muted-foreground hover:text-danger shrink-0 text-base leading-none"
+                  className="text-muted-foreground hover:text-danger text-sectiune shrink-0 leading-none"
                 >
                   ×
                 </button>

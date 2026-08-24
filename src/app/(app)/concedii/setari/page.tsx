@@ -3,6 +3,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -10,7 +12,11 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { anDinUrl } from "@/lib/rute/parametri";
 import { formatAmount } from "@/lib/format/money";
 import { todayInBucharest } from "@/lib/format/date";
-import { configurareConcedii, previzualizeazaDrepturi } from "@/lib/queries/leave";
+import {
+  configurareConcedii,
+  previzualizeazaDrepturi,
+  type RandPrevizualizareDrept,
+} from "@/lib/queries/leave";
 
 import { NavConcedii } from "../nav-concedii";
 import { FormularZileBaza } from "./formular-zile-baza";
@@ -35,7 +41,7 @@ interface AngajatMinim {
 /** Ancorat pe `#aplicare`, ca schimbarea anului să nu sară pagina la vârf. */
 function SelectorAnAplicare({ an }: { readonly an: number }) {
   return (
-    <nav aria-label="Anul de aplicat" className="flex items-center gap-3 text-sm">
+    <nav aria-label="Anul de aplicat" className="text-corp flex items-center gap-3">
       <Link
         href={`/concedii/setari?an=${String(an - 1)}#aplicare`}
         className="underline underline-offset-2"
@@ -56,7 +62,7 @@ function SelectorAnAplicare({ an }: { readonly an: number }) {
 export default async function PaginaSetariConcedii({ searchParams }: ProprietatiPagina) {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "leave");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "leave:update", "all")) {
     return (
@@ -99,32 +105,72 @@ export default async function PaginaSetariConcedii({ searchParams }: Proprietati
   const tipuriReglementate = tipuri.filter((t) => t.reglementat);
   const tipuriAdaptabile = tipuri.filter((t) => !t.reglementat);
 
-  return (
-    <main className="space-y-8 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Setări concedii</h1>
-        <p className="text-muted-foreground max-w-3xl text-sm">
-          Regulile de mai jos se aplică AUTOMAT tuturor angajaților organizației. Tipurile
-          reglementate legal (medical, maternitate, creștere copil, paternal, îngrijitor, donator de
-          sânge) nu pot fi modificate din aplicație — durata lor vine direct din lege.
-        </p>
-      </header>
+  const coloaneP: readonly Coloana<RandPrevizualizareDrept>[] = [
+    {
+      cheie: "angajat",
+      antet: "Angajat",
+      peTelefon: "titlu",
+      celula: (rand) => {
+        const angajat = hartaAngajati.get(rand.employee_id);
+        return angajat === undefined ? "Angajat" : `${angajat.full_name} (${angajat.marca})`;
+      },
+    },
+    {
+      cheie: "tip",
+      antet: "Tip de concediu",
+      peTelefon: "meta",
+      celula: (rand) => hartaTipuri.get(rand.leave_type_id) ?? "—",
+    },
+    {
+      cheie: "drept_vechi",
+      antet: "Drept vechi",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (rand) => formatAmount(rand.drept_vechi),
+    },
+    {
+      cheie: "drept_nou",
+      antet: "Drept nou",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (rand) => <span className="font-medium">{formatAmount(rand.drept_nou)}</span>,
+    },
+    {
+      cheie: "ramase_dupa",
+      antet: "Rămase după",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (rand) => (
+        <span className={rand.ramase_dupa < 0 ? "text-danger" : ""}>
+          {formatAmount(rand.ramase_dupa)}
+        </span>
+      ),
+    },
+  ];
 
-      <NavConcedii
-        poateVedeaEchipa={poateVedeaCalendar}
-        poateAproba={poateAproba}
-        poateVedeaCalendar={poateVedeaCalendar}
-        poateConfigura={true}
+  return (
+    <div className="space-y-8">
+      <AntetPagina
+        titlu="Setări concedii"
+        descriere="Regulile de mai jos se aplică AUTOMAT tuturor angajaților organizației. Tipurile reglementate legal (medical, maternitate, creștere copil, paternal, îngrijitor, donator de sânge) nu pot fi modificate din aplicație — durata lor vine direct din lege."
+        file={
+          <NavConcedii
+            poateVedeaEchipa={poateVedeaCalendar}
+            poateAproba={poateAproba}
+            poateVedeaCalendar={poateVedeaCalendar}
+            poateConfigura={true}
+          />
+        }
       />
 
       <section
         aria-labelledby="titlu-zile-baza"
-        className="border-border space-y-3 rounded-lg border p-4"
+        className="border-border rounded-panou space-y-3 border p-4"
       >
-        <h2 id="titlu-zile-baza" className="text-lg font-medium">
+        <h2 id="titlu-zile-baza" className="text-sectiune font-medium">
           Zile de bază — concediu de odihnă
         </h2>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-muted-foreground text-corp">
           Minimul legal e de 20 de zile lucrătoare/an (Codul Muncii, art. 145 — de verificat de
           jurist). Valoarea se propagă automat spre tipul „Concediu de odihnă” de mai jos.
         </p>
@@ -132,23 +178,23 @@ export default async function PaginaSetariConcedii({ searchParams }: Proprietati
       </section>
 
       <section aria-labelledby="titlu-tipuri" className="space-y-4">
-        <h2 id="titlu-tipuri" className="text-lg font-medium">
+        <h2 id="titlu-tipuri" className="text-sectiune font-medium">
           Tipuri de concediu
         </h2>
 
         <div className="space-y-2">
-          <h3 className="text-muted-foreground text-sm font-semibold">
+          <h3 className="text-muted-foreground text-corp font-semibold">
             Reglementate legal — doar activare/dezactivare
           </h3>
           <TabelTipuriReglementate tipuri={tipuriReglementate} />
         </div>
 
         <div className="space-y-3">
-          <h3 className="text-muted-foreground text-sm font-semibold">
+          <h3 className="text-muted-foreground text-corp font-semibold">
             Stabilite de companie — editabile
           </h3>
           {tipuriAdaptabile.length === 0 ? (
-            <p className="text-muted-foreground text-sm">Niciun tip adaptabil configurat.</p>
+            <p className="text-muted-foreground text-corp">Niciun tip adaptabil configurat.</p>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
               {tipuriAdaptabile.map((tip) => (
@@ -160,10 +206,10 @@ export default async function PaginaSetariConcedii({ searchParams }: Proprietati
       </section>
 
       <section aria-labelledby="titlu-grile" className="space-y-4">
-        <h2 id="titlu-grile" className="text-lg font-medium">
+        <h2 id="titlu-grile" className="text-sectiune font-medium">
           Grile de zile suplimentare
         </h2>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-muted-foreground text-corp">
           Zilele se ADUNĂ la baza tipului de concediu — un angajat poate întruni mai multe grile
           simultan (ex. vechime + condiții deosebite). Nu se pot adăuga grile pe tipurile
           reglementate legal.
@@ -184,14 +230,14 @@ export default async function PaginaSetariConcedii({ searchParams }: Proprietati
       <section
         id="aplicare"
         aria-labelledby="titlu-aplicare"
-        className="border-border space-y-4 rounded-lg border p-4"
+        className="border-border rounded-panou space-y-4 border p-4"
       >
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h2 id="titlu-aplicare" className="text-lg font-medium">
+            <h2 id="titlu-aplicare" className="text-sectiune font-medium">
               Aplicarea drepturilor pe angajați
             </h2>
-            <p className="text-muted-foreground max-w-2xl text-sm">
+            <p className="text-muted-foreground text-corp max-w-2xl">
               Salvarea unei reguli de mai sus NU schimbă automat soldurile angajaților existenți.
               Alegeți anul, verificați diferențele, apoi aplicați.
             </p>
@@ -200,65 +246,24 @@ export default async function PaginaSetariConcedii({ searchParams }: Proprietati
         </div>
 
         {previzualizare.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground text-corp">
             Nicio diferență pentru anul {String(an)} — soldurile existente sunt deja aliniate cu
             regulile curente.
           </p>
         ) : (
           <>
-            <div className="border-border overflow-x-auto rounded-lg border">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-surface text-foreground">
-                  <tr>
-                    <th scope="col" className="px-4 py-2 font-medium">
-                      Angajat
-                    </th>
-                    <th scope="col" className="px-4 py-2 font-medium">
-                      Tip de concediu
-                    </th>
-                    <th scope="col" className="px-4 py-2 font-medium">
-                      Drept vechi
-                    </th>
-                    <th scope="col" className="px-4 py-2 font-medium">
-                      Drept nou
-                    </th>
-                    <th scope="col" className="px-4 py-2 font-medium">
-                      Rămase după
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-border divide-y">
-                  {previzualizare.map((rand) => {
-                    const angajat = hartaAngajati.get(rand.employee_id);
-                    return (
-                      <tr key={`${rand.employee_id}-${rand.leave_type_id}`}>
-                        <td className="px-4 py-2">
-                          {angajat === undefined
-                            ? "Angajat"
-                            : `${angajat.full_name} (${angajat.marca})`}
-                        </td>
-                        <td className="px-4 py-2">{hartaTipuri.get(rand.leave_type_id) ?? "—"}</td>
-                        <td className="px-4 py-2 tabular-nums">{formatAmount(rand.drept_vechi)}</td>
-                        <td className="px-4 py-2 font-medium tabular-nums">
-                          {formatAmount(rand.drept_nou)}
-                        </td>
-                        <td
-                          className={`px-4 py-2 tabular-nums ${
-                            rand.ramase_dupa < 0 ? "text-danger" : ""
-                          }`}
-                        >
-                          {formatAmount(rand.ramase_dupa)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <Tabel
+              caption={`Diferențele de drept de concediu pentru anul ${String(an)}.`}
+              coloane={coloaneP}
+              randuri={previzualizare}
+              cheieRand={(rand) => `${rand.employee_id}-${rand.leave_type_id}`}
+              densitate="compact"
+              gol={null}
+            />
             <ButonAplicaDrepturi an={an} nrModificari={previzualizare.length} />
           </>
         )}
       </section>
-    </main>
+    </div>
   );
 }

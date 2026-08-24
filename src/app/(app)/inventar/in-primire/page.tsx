@@ -1,9 +1,11 @@
 // src/app/(app)/inventar/in-primire/page.tsx
+import Link from "next/link";
 import type { Metadata } from "next";
 import { PackageCheck } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
@@ -21,7 +23,7 @@ export default async function PaginaInPrimire() {
   const utilizator = await requireUser();
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "inventory");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
   const scope = scopeFor(permisiuni, "inventory:read");
 
   if (scope === null || scope === "none") {
@@ -43,46 +45,68 @@ export default async function PaginaInPrimire() {
   const randuri = araNimic ? [] : await inPrimireaMea(tenant.organizationId, propriaFisaId);
 
   return (
-    <main className="space-y-6 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold">În primirea mea</h1>
-        <p className="text-muted-foreground text-sm">
-          Obiectele pe care le aveți acum în primire. Un obiect returnat dispare din această listă —
-          istoricul complet rămâne pe fișa fiecărui obiect.
-        </p>
-      </header>
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="În primirea mea"
+        descriere="Obiectele pe care le aveți acum în primire. Un obiect returnat dispare din această listă — istoricul complet rămâne pe fișa fiecărui obiect."
+      />
 
       {randuri.length === 0 ? (
-        <EmptyState
-          icon={PackageCheck}
-          title="Nu aveți obiecte în primire"
-          description="Momentan nu vă este predat niciun obiect de inventar."
+        <StareGoala
+          fel="initiala"
+          pictograma={PackageCheck}
+          titlu="Nu aveți obiecte în primire"
+          descriere="Momentan nu vă este predat niciun obiect de inventar."
         />
       ) : (
         <ul className="space-y-3">
           {randuri.map((rand) => (
-            <li key={rand.id} className="border-border rounded-lg border p-4">
+            /*
+             * Cardul era FUNDĂTURĂ: numele obiectului era text simplu, deci din
+             * „ce am în primire" nu se putea ajunge la fișa obiectului — nici la
+             * istoricul lui, nici la tichetele legate de el, nici la starea în
+             * care a fost predat altcuiva înainte.
+             *
+             * Fișa acceptă orice scop de citire nenul (`[id]/page.tsx:63`), iar
+             * politica RLS arată obiectul oricui are o alocare pe el — verificat,
+             * nu presupus. Deci linkul nu duce într-un refuz.
+             *
+             * Linkul e întins peste tot cardul (`after:inset-0`), ca la varianta
+             * de card din `<Tabel>`: o singură oprire de tabulare, o țintă de
+             * dimensiunea rândului. Butonul de confirmare primește `relative`,
+             * altfel ar rămâne SUB stratul linkului și n-ar mai putea fi apăsat.
+             */
+            <li key={rand.id} className="border-border rounded-panou relative border p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="font-medium">{rand.obiect.denumire}</p>
-                  <p className="text-muted-foreground text-xs">
+                  <p className="font-medium">
+                    <Link
+                      href={`/inventar/${rand.obiect.id}`}
+                      className="after:absolute after:inset-0 hover:underline"
+                    >
+                      {rand.obiect.denumire}
+                    </Link>
+                  </p>
+                  <p className="text-muted-foreground text-nota">
                     Nr. inventar <span className="font-mono">{rand.obiect.numar_inventar}</span>
                     {rand.obiect.serie !== null ? ` · Serie ${rand.obiect.serie}` : ""}
                   </p>
-                  <p className="text-muted-foreground mt-1 text-sm">
+                  <p className="text-muted-foreground text-corp mt-1">
                     Predat la {formatDateTime(rand.predat_la)} · Stare la predare:{" "}
                     {ETICHETE_STARE[rand.stare_la_predare]}
                   </p>
                   {rand.observatii !== null ? (
-                    <p className="text-muted-foreground mt-1 text-sm">
+                    <p className="text-muted-foreground text-corp mt-1">
                       Observații: {rand.observatii}
                     </p>
                   ) : null}
                 </div>
                 {rand.confirmat_de_angajat_la === null ? (
-                  <ButonConfirmare alocareId={rand.id} />
+                  <span className="relative">
+                    <ButonConfirmare alocareId={rand.id} />
+                  </span>
                 ) : (
-                  <span className="bg-surface text-foreground rounded-full px-3 py-1 text-xs font-medium">
+                  <span className="bg-surface text-foreground text-nota relative rounded-full px-3 py-1 font-medium">
                     Confirmat la {formatDateTime(rand.confirmat_de_angajat_la)}
                   </span>
                 )}
@@ -91,6 +115,6 @@ export default async function PaginaInPrimire() {
           ))}
         </ul>
       )}
-    </main>
+    </div>
   );
 }

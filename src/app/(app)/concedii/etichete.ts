@@ -1,6 +1,7 @@
 // src/app/(app)/concedii/etichete.ts
 // Etichete de interfață — separate de actions.ts, care poate exporta doar funcții async.
 
+import type { TonStare } from "@/components/ui/badge";
 import type {
   CriteriuGrila,
   ModRotunjireAcumulare,
@@ -19,14 +20,22 @@ export const ETICHETE_STATUS_CERERE: Readonly<Record<StatusCerere, string>> = {
   intrerupta: "Întreruptă",
 };
 
-export const CLASE_STATUS_CERERE: Readonly<Record<StatusCerere, string>> = {
-  ciorna: "bg-slate-100 text-slate-800",
-  trimisa: "bg-amber-100 text-amber-900",
-  in_aprobare: "bg-amber-100 text-amber-900",
-  aprobata: "bg-emerald-100 text-emerald-900",
-  respinsa: "bg-rose-100 text-rose-900",
-  anulata: "bg-zinc-200 text-zinc-800",
-  intrerupta: "bg-orange-100 text-orange-900",
+/**
+ * Tonul pastilei de stare — nu culoarea. Cuvântul din `ETICHETE_STATUS_CERERE`
+ * poartă înțelesul; tonul doar îl repetă, pentru cine îl poate percepe.
+ */
+export const TONURI_STATUS_CERERE: Readonly<Record<StatusCerere, TonStare>> = {
+  ciorna: "ciorna",
+  // „Trimisă” și „În aprobare” așteaptă un răspuns de la altcineva: atenție, nu
+  // succes — cererea încă nu i-a dat omului nimic.
+  trimisa: "atentie",
+  in_aprobare: "atentie",
+  aprobata: "succes",
+  respinsa: "pericol",
+  anulata: "neutru",
+  // Rechemarea din concediu e un eveniment care cere atenție, nu o încheiere
+  // liniștită ca „Anulată” — de aceea nu e „neutru”.
+  intrerupta: "atentie",
 };
 
 export const ETICHETE_STATUS_SARCINA: Readonly<Record<StatusSarcinaAprobare, string>> = {
@@ -36,6 +45,21 @@ export const ETICHETE_STATUS_SARCINA: Readonly<Record<StatusSarcinaAprobare, str
   delegata: "Delegată",
   expirata: "Expirată",
   anulata: "Anulată",
+};
+
+/**
+ * Pașii unui lanț de aprobare. „Expirată" e singura care primește pictogramă la
+ * randare: altfel, pe o listă tipărită alb-negru, nu se distinge de „Respinsă".
+ * Înainte, cele șase stări erau turtite într-un ternar cu trei ramuri scris în
+ * pagină, iar `expirata` cădea pe ramura `else`, la egalitate cu „În așteptare".
+ */
+export const TONURI_STATUS_SARCINA: Readonly<Record<StatusSarcinaAprobare, TonStare>> = {
+  in_asteptare: "atentie",
+  aprobata: "succes",
+  respinsa: "pericol",
+  delegata: "atentie",
+  expirata: "pericol",
+  anulata: "neutru",
 };
 
 export const ETICHETE_PORTIUNE: Readonly<Record<PortiuneZi, string>> = {

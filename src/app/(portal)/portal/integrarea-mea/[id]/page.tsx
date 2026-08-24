@@ -4,6 +4,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
+import { buton } from "@/components/ui/buton";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -28,7 +30,7 @@ export default async function PaginaParcursulMeu({
 
   const { tenant, user } = await requireTenant();
   await requireFeature(tenant.organizationId, "onboarding");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "checklists:read", "own")) {
     return (
@@ -69,25 +71,21 @@ export default async function PaginaParcursulMeu({
   const facute = pasi.filter((pas) => pas.status !== "de_facut").length;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 p-4">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-foreground text-xl font-semibold">{ETICHETE_TIP[instanta.tip]}</h1>
-          <p className="text-muted-foreground text-sm">
-            Din {formatDate(instanta.data_referinta)} ·{" "}
-            <span className="tabular-nums">
-              {facute.toLocaleString("ro-RO")} din {pasi.length.toLocaleString("ro-RO")}
-            </span>{" "}
-            pași
-          </p>
-        </div>
-        <span className="border-border text-muted-foreground shrink-0 rounded border px-2 py-0.5 text-xs">
-          {ETICHETE_STATUS_INSTANTA[instanta.status]}
-        </span>
-      </header>
+    <div className={`${LATIMI.detaliu} space-y-4 p-4`}>
+      <AntetPagina
+        titlu={ETICHETE_TIP[instanta.tip]}
+        descriere={`Din ${formatDate(instanta.data_referinta)} · ${facute.toLocaleString(
+          "ro-RO",
+        )} din ${pasi.length.toLocaleString("ro-RO")} pași`}
+        actiuni={
+          <span className="border-border text-muted-foreground text-nota shrink-0 rounded border px-2 py-0.5">
+            {ETICHETE_STATUS_INSTANTA[instanta.status]}
+          </span>
+        }
+      />
 
       {idPasuriBifabile.length === 0 && pasi.length > 0 ? (
-        <p className="bg-surface border-border text-muted-foreground rounded-lg border p-3 text-sm">
+        <p className="bg-surface border-border text-muted-foreground rounded-panou text-corp border p-3">
           Niciun pas nu vă revine acum. Îi puteți urmări mai jos pe cei în lucru la colegi.
         </p>
       ) : null}
@@ -99,10 +97,7 @@ export default async function PaginaParcursulMeu({
           Parcursul îl închide resursele umane. */}
 
       <p>
-        <Link
-          href="/portal/integrarea-mea"
-          className="text-primary text-sm underline-offset-2 hover:underline"
-        >
+        <Link href="/portal/integrarea-mea" className={buton({ varianta: "link" })}>
           Înapoi la integrarea mea
         </Link>
       </p>

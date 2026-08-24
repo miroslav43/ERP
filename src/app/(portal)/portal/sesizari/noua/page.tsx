@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
+import { buton } from "@/components/ui/buton";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -18,7 +20,7 @@ export default async function PaginaSesizareNouaPortal({
 }) {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "maintenance");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "maintenance:create", "own")) {
     return (
@@ -38,13 +40,11 @@ export default async function PaginaSesizareNouaPortal({
   const echipamentIdPrefill = brut === undefined ? null : idDinRuta(brut);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 p-4">
-      <header>
-        <h1 className="text-foreground text-xl font-semibold">Sesizare nouă</h1>
-        <p className="text-muted-foreground text-sm">
-          Raportați o defecțiune. Căutați echipamentul după cod sau denumire — durează un minut.
-        </p>
-      </header>
+    <div className={`${LATIMI.formular} space-y-4 p-4`}>
+      <AntetPagina
+        titlu="Sesizare nouă"
+        descriere="Raportați o defecțiune. Căutați echipamentul după cod sau denumire — durează un minut."
+      />
 
       <FormularSesizare
         echipamentIdPrefill={echipamentIdPrefill}
@@ -52,10 +52,7 @@ export default async function PaginaSesizareNouaPortal({
       />
 
       <p>
-        <Link
-          href="/portal/sesizari"
-          className="text-primary text-sm underline-offset-2 hover:underline"
-        >
+        <Link href="/portal/sesizari" className={buton({ varianta: "link" })}>
           Înapoi la sesizările mele
         </Link>
       </p>

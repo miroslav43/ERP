@@ -2,9 +2,15 @@
 import type { Metadata } from "next";
 import { Bell } from "lucide-react";
 
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
+import { Buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { listeazaNotificarile } from "@/lib/queries/notifications";
+import {
+  LIMITA_LISTA_NOTIFICARI,
+  listeazaNotificarile,
+  numaraNecitite,
+} from "@/lib/queries/notifications";
 import { trimiteMarcheazaToateCitite } from "./actions";
 import { RandNotificare } from "./rand-notificare";
 
@@ -12,47 +18,63 @@ export const metadata: Metadata = { title: "Notificări" };
 
 export default async function PaginaNotificari() {
   const { user, tenant } = await requireTenant();
-  const notificari = await listeazaNotificarile(tenant.organizationId, user.id);
-  const numarNecitite = notificari.filter((n) => n.read_at === null).length;
+  // Numărul de necitite se NUMĂRĂ în bază, nu se deduce din lista afișată.
+  // Lista se oprește la 100 de rânduri, deci la 150 de necitite antetul scria
+  // „100 necitite din 100” în timp ce pastila din bara de sus — care folosea
+  // dintotdeauna `numaraNecitite` — scria 150. Două cifre pentru același lucru,
+  // pe același ecran, iar cea mai mică era cea liniștitoare.
+  const [notificari, numarNecitite] = await Promise.all([
+    listeazaNotificarile(tenant.organizationId, user.id),
+    numaraNecitite(tenant.organizationId, user.id),
+  ]);
+  const trunchiat = notificari.length >= LIMITA_LISTA_NOTIFICARI;
 
   return (
-    <main className="mx-auto max-w-2xl space-y-6 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Notificări</h1>
-          <p className="text-muted-foreground text-sm">
-            {numarNecitite > 0
-              ? `${numarNecitite} necitite din ${notificari.length}.`
-              : "Toate notificările sunt citite."}
-          </p>
-        </div>
-        {numarNecitite > 0 ? (
-          <form action={trimiteMarcheazaToateCitite}>
-            <button
-              type="submit"
-              className="border-border hover:border-primary rounded-md border px-3 py-1.5 text-sm font-medium transition-colors"
-            >
-              Marchează tot ca citit
-            </button>
-          </form>
-        ) : null}
-      </header>
+    <div className={`${LATIMI.formular} space-y-6`}>
+      <AntetPagina
+        titlu="Notificări"
+        descriere={
+          numarNecitite > 0
+            ? `${numarNecitite} ${numarNecitite === 1 ? "necitită" : "necitite"}.`
+            : "Toate notificările sunt citite."
+        }
+        {...(numarNecitite > 0
+          ? {
+              actiuni: (
+                <form action={trimiteMarcheazaToateCitite}>
+                  <Buton varianta="secundar" type="submit">
+                    Marchează tot ca citit
+                  </Buton>
+                </form>
+              ),
+            }
+          : {})}
+      />
 
       {notificari.length === 0 ? (
-        <EmptyState
-          icon={Bell}
-          title="Nicio notificare"
-          description="Notificările despre aprobări, sarcini și anunțuri apar aici."
+        <StareGoala
+          fel="initiala"
+          pictograma={Bell}
+          titlu="Nicio notificare"
+          descriere="Notificările despre aprobări, sarcini și anunțuri apar aici."
         />
       ) : (
-        <ul className="divide-border border-border divide-y rounded-lg border">
-          {notificari.map((notificare) => (
-            <li key={notificare.id}>
-              <RandNotificare notificare={notificare} />
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="divide-border border-border rounded-panou divide-y border">
+            {notificari.map((notificare) => (
+              <li key={notificare.id}>
+                <RandNotificare notificare={notificare} />
+              </li>
+            ))}
+          </ul>
+          {trunchiat ? (
+            <p role="status" className="text-muted-foreground text-nota mt-3">
+              Lista se oprește la cele mai recente {LIMITA_LISTA_NOTIFICARI} de notificări. Cele mai
+              vechi nu apar aici, dar intră în numărătoarea de mai sus.
+            </p>
+          ) : null}
+        </>
       )}
-    </main>
+    </div>
   );
 }

@@ -12,22 +12,39 @@
 // duplicarea pe care o evită.
 "use client";
 
+import { AlertTriangle } from "lucide-react";
+
+import { clasaControl } from "@/components/ui/camp";
+import { cheieCautare } from "@/lib/text/diacritice";
+import { cn } from "@/lib/ui/cn";
+
 export type OptiuneCod = Readonly<{
   cod: string;
   denumire: string;
 }>;
-
-export function normalizeaza(text: string): string {
-  return text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-}
 
 /** `RO — România`, `6210 — Activități de realizare a softului la comandă` */
 export function etichetaOptiune(o: OptiuneCod): string {
   return `${o.cod} — ${o.denumire}`;
 }
 
-export const CLASA_CAMP =
-  "mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground";
+/**
+ * Chenarul celor patru comboboxuri (CAEN principal, CAEN secundare, țară,
+ * câmpul cu sugestii) era `border-border` = #e3dbc9 pe #faf7f0, adică
+ * **1,29:1**. WCAG 1.4.11 cere 3:1 pentru conturul unui control cu care se
+ * interacționează: câmpul era, practic, invizibil ca formă — se ghicea din
+ * text și din cursorul care se schimbă.
+ *
+ * `clasaControl()` din `ui/camp.tsx` e aceeași formă cu `border-foreground/60`
+ * (4,23:1), plus ce lipsea cu totul: `hover:border-foreground`,
+ * `aria-invalid:border-danger` și setul `disabled:` canonic — ultimul
+ * înlocuiește `opacity-60` scris de mână în `selector-cod-caen.tsx`, care
+ * măsura 4,34:1, tot sub prag.
+ *
+ * `mt-1` rămâne în afara clasei de control: e distanța față de etichetă, nu o
+ * proprietate a câmpului.
+ */
+export const CLASA_CAMP = cn("mt-1", clasaControl());
 
 /** Niciun rând evidențiat: Enter nu alege din listă, ci interpretează textul. */
 export const FARA_RAND_ACTIV = -1;
@@ -46,13 +63,13 @@ export function filtreazaOptiuni(
   exclude: ReadonlySet<string>,
   limita: number,
 ): readonly OptiuneCod[] {
-  const termen = normalizeaza(interogare.trim());
+  const termen = cheieCautare(interogare.trim());
   const sursa =
     termen.length === 0
       ? optiuni
       : optiuni.filter(
           (o) =>
-            normalizeaza(o.cod).startsWith(termen) || normalizeaza(o.denumire).includes(termen),
+            cheieCautare(o.cod).startsWith(termen) || cheieCautare(o.denumire).includes(termen),
         );
   const rezultat: OptiuneCod[] = [];
   for (const o of sursa) {
@@ -93,19 +110,33 @@ export function rezolvaOptiune(
     if (pePrefix !== undefined) return pePrefix;
   }
 
-  const normalizat = normalizeaza(brut);
-  const peDenumire = optiuni.filter((o) => normalizeaza(o.denumire) === normalizat);
+  const normalizat = cheieCautare(brut);
+  const peDenumire = optiuni.filter((o) => cheieCautare(o.denumire) === normalizat);
   if (peDenumire.length === 1) return peDenumire[0];
 
   const filtrate = filtreazaOptiuni(optiuni, brut, exclude, limita);
   return filtrate.length === 1 ? filtrate[0] : undefined;
 }
 
+/**
+ * Avertismentul de sub combobox — „«6210x» nu corespunde niciunui cod din
+ * nomenclator".
+ *
+ * Textul era `text-warning`, adică #b7791f pe pânză: 3,40:1, sub pragul de
+ * 4,5:1 al WCAG 1.4.3 pentru text sub 18,66px bold, iar aici e `text-nota`.
+ * Mesajul spune singurul lucru care explică de ce codul tastat nu se salvează,
+ * și era cel mai slab vizibil element din câmp.
+ *
+ * Regula, o dată: PICTOGRAMA poartă tonul, CUVÂNTUL poartă sensul, culoarea nu
+ * poartă nimic singură. `text-foreground` cu triunghi dă 13,67:1 și rămâne
+ * lizibil și tipărit alb-negru.
+ */
 export function Avertisment({ id, mesaj }: Readonly<{ id: string; mesaj: string | undefined }>) {
   if (mesaj === undefined) return null;
   return (
-    <p id={id} role="status" className="text-warning mt-1 text-xs">
-      {mesaj}
+    <p id={id} role="status" className="text-foreground text-nota mt-1 flex items-start gap-1.5">
+      <AlertTriangle aria-hidden="true" className="text-warning size-3.5 shrink-0 translate-y-px" />
+      <span>{mesaj}</span>
     </p>
   );
 }
@@ -125,7 +156,7 @@ export function ListaRezultate({
 }>) {
   if (rezultate.length === 0) {
     return (
-      <div className="border-border bg-surface text-muted-foreground absolute z-10 mt-1 w-full rounded-md border p-2 text-sm shadow-md">
+      <div className="border-border bg-background text-muted-foreground rounded-control text-corp shadow-plutitor z-meniu absolute mt-1 w-full border p-2">
         {mesajGol}
       </div>
     );
@@ -134,7 +165,27 @@ export function ListaRezultate({
     <ul
       id={idListbox}
       role="listbox"
-      className="border-border bg-surface absolute z-10 mt-1 max-h-64 w-full overflow-auto rounded-md border shadow-md"
+      /*
+        ── DE CE `z-meniu` ȘI NU `z-10` ────────────────────────────────────
+        `z-10` e treapta `--z-coloana` din `globals.css:122`, adică a coloanei
+        lipite dintr-o matrice. Antetul lipit al unui tabel e 20, deci lista
+        deschisă într-un ecran cu tabel intra SUB antet: cine caută un cod cu
+        pagina derulată vedea primele rânduri ale listei acoperite, fără nicio
+        eroare. `z-meniu` (30) e treapta declarată exact pentru „liste
+        derulante și meniuri deschise în pagină”.
+
+        ── DE CE PANOUL E `bg-background`, NU `bg-surface` ─────────────────
+        Panoul era `bg-surface` (#f2ede1) și rândurile încercau `bg-primary/10`
+        peste `hover:bg-primary/5` — două fundaluri TRANSLUCIDE una peste alta,
+        cu delta aproape nulă. Cu panoul pe pânză (`background`), rândul are din
+        nou unde să se ducă: `bg-surface` e treapta următoare, opacă, aceeași pe
+        care o folosește rândul de tabel. Un singur fundal, două stări, iar
+        „rândul navigat cu săgețile” se distinge prin BARĂ, nu prin nuanță.
+
+        `min(16rem, 50dvh)`: 16rem fixe acoperă tot ecranul unui telefon ținut
+        în peisaj, iar lista nu mai lasă loc câmpului din care se caută.
+      */
+      className="border-border bg-background rounded-control shadow-plutitor z-meniu absolute mt-1 max-h-[min(16rem,50dvh)] w-full overflow-auto border"
     >
       {rezultate.map((o, index) => (
         <li key={o.cod}>
@@ -147,8 +198,10 @@ export function ListaRezultate({
               onAlege(o);
             }}
             className={
-              "flex w-full items-baseline gap-2 px-3 py-2 text-left text-sm " +
-              (index === indiceActiv ? "bg-primary/10" : "hover:bg-primary/5")
+              "text-corp flex w-full items-baseline gap-2 border-l-2 px-3 py-2 text-left transition-colors " +
+              (index === indiceActiv
+                ? "border-l-primary bg-surface"
+                : "hover:bg-surface border-l-transparent")
             }
           >
             <span className="text-foreground font-mono font-medium">{o.cod}</span>

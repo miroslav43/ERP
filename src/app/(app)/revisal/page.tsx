@@ -1,8 +1,10 @@
 // src/app/(app)/revisal/page.tsx
 import { FileCheck2 } from "lucide-react";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { RandTabel } from "@/components/data/rand-tabel";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { meetsScope } from "@/config/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
@@ -39,7 +41,7 @@ export default async function PaginaRevisal(props: {
 }) {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "nucleu"); // modul dezactivat ⇒ 404
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   const scopCitire = scopeFor(permisiuni, "compliance:read") ?? undefined;
   if (!meetsScope(scopCitire, "all")) {
@@ -61,32 +63,138 @@ export default async function PaginaRevisal(props: {
     filtre,
   );
 
-  return (
-    <main className="space-y-6 p-6">
-      <header className="space-y-1">
-        <h1 className="text-foreground text-2xl font-semibold">REVISAL</h1>
-        <p className="text-muted-foreground text-sm">
-          Registrul general de evidență a salariaților. Netransmiterea în termen a unui eveniment
-          este contravenție, separat pentru fiecare salariat. Situația la {formatDate(azi)}.
-        </p>
-      </header>
+  /**
+   * Nicio coloană nu e `sortabil`: citirea REVISAL n-are cursor, ordinea după
+   * termenul de transmitere e chiar rostul registrului, iar un antet care pare
+   * sortabil și nu face nimic e mai rău decât unul care nu pare.
+   *
+   * Coloana de acțiuni e `insigna`, nu `meta`: pe telefon, `meta` randează
+   * într-un `<p>`, iar formularul de marcare e un `<div>` — un `<div>` într-un
+   * `<p>` rupe HTML-ul la parsare și dă nepotrivire de hidratare. Ca `insigna`
+   * stă în afara paragrafului, deasupra linkului care acoperă cardul, deci
+   * rămâne apăsabilă.
+   */
+  const coloane: readonly Coloana<(typeof randuri)[number]>[] = [
+    {
+      cheie: "salariat",
+      antet: "Salariat",
+      peTelefon: "titlu",
+      celula: (rand) => (
+        <>
+          <span className="text-foreground font-medium">{rand.angajatNume}</span>
+          <span className="text-muted-foreground text-nota block">
+            Marca {rand.angajatMarca}
+            {rand.contractNumar === null ? "" : ` · CIM ${rand.contractNumar}`}
+          </span>
+        </>
+      ),
+    },
+    {
+      cheie: "eveniment",
+      antet: "Eveniment",
+      peTelefon: "meta",
+      celula: (rand) => ETICHETE_TIP[rand.tip],
+    },
+    {
+      cheie: "data",
+      antet: "Data",
+      peTelefon: "meta",
+      celula: (rand) => <span className="tabular-nums">{formatDate(rand.dataEvenimentului)}</span>,
+    },
+    {
+      cheie: "termen",
+      antet: "Termen",
+      peTelefon: "meta",
+      celula: (rand) => <span className="tabular-nums">{formatDate(rand.termenTransmitere)}</span>,
+    },
+    {
+      cheie: "stare",
+      antet: "Stare",
+      peTelefon: "insigna",
+      celula: (rand) => (
+        <>
+          <span
+            className={`text-nota inline-block rounded px-2 py-0.5 font-medium ${CLASA_STARE[rand.stare] ?? ""}`}
+          >
+            {rand.stare === "intarziat"
+              ? `Întârziat cu ${rand.zileIntarziere} ${rand.zileIntarziere === 1 ? "zi" : "zile"}`
+              : rand.stare === "astazi"
+                ? "Termen astăzi"
+                : rand.stare === "in_termen"
+                  ? `Mai sunt ${rand.zileRamase} ${rand.zileRamase === 1 ? "zi" : "zile"}`
+                  : ETICHETE_STATUS[rand.status]}
+          </span>
+          {rand.eroare === null ? null : (
+            <span className="text-danger text-nota mt-1 block">{rand.eroare}</span>
+          )}
+        </>
+      ),
+    },
+    {
+      cheie: "itm",
+      antet: "Înregistrare ITM",
+      peTelefon: "meta",
+      celula: (rand) => rand.numarInregistrare ?? "—",
+    },
+    {
+      cheie: "actiuni",
+      antet: "Acțiuni",
+      peTelefon: "insigna",
+      celula: (rand) =>
+        rand.stare === "transmis" || rand.stare === "anulat" ? (
+          <span className="text-muted-foreground text-nota">Nimic de făcut</span>
+        ) : poateActualiza ? (
+          <ActiuniEveniment evenimentId={rand.id} numeAngajat={rand.angajatNume} azi={azi} />
+        ) : (
+          <span className="text-muted-foreground text-nota">Fără drept de marcare</span>
+        ),
+    },
+  ];
 
-      <section aria-label="Situația termenelor" className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        {[
-          {
-            eticheta: "Întârziate",
-            valoare: statistici.intarziate,
-            clasa: CLASA_STARE["intarziat"],
-          },
-          { eticheta: "Cu termen azi", valoare: statistici.astazi, clasa: CLASA_STARE["astazi"] },
-          { eticheta: "În termen", valoare: statistici.inTermen, clasa: CLASA_STARE["in_termen"] },
-          { eticheta: "Transmise", valoare: statistici.transmise, clasa: CLASA_STARE["transmis"] },
-        ].map((fisa) => (
-          <div key={fisa.eticheta} className={`rounded-lg p-4 ${fisa.clasa ?? ""}`}>
-            <p className="text-sm font-medium">{fisa.eticheta}</p>
-            <p className="text-3xl font-semibold tabular-nums">{fisa.valoare}</p>
-          </div>
-        ))}
+  return (
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="REVISAL"
+        descriere={`Registrul general de evidență a salariaților. Netransmiterea în termen a unui eveniment este contravenție, separat pentru fiecare salariat. Situația la ${formatDate(azi)}.`}
+      />
+
+      {/*
+        Cifrele se numără în bază, pe tot registrul, nu peste rândurile afișate:
+        pe filtrul „Transmise” fișa „Întârziate” arăta 0, iar peste 100 de
+        evenimente toate patru erau mai mici decât realitatea. De aceea, când un
+        filtru e activ, se spune explicit că sinteza nu-l urmează.
+      */}
+      <section aria-label="Situația întregului registru" className="space-y-2">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          {[
+            {
+              eticheta: "Întârziate",
+              valoare: statistici.intarziate,
+              clasa: CLASA_STARE["intarziat"],
+            },
+            { eticheta: "Cu termen azi", valoare: statistici.astazi, clasa: CLASA_STARE["astazi"] },
+            {
+              eticheta: "În termen",
+              valoare: statistici.inTermen,
+              clasa: CLASA_STARE["in_termen"],
+            },
+            {
+              eticheta: "Transmise",
+              valoare: statistici.transmise,
+              clasa: CLASA_STARE["transmis"],
+            },
+          ].map((fisa) => (
+            <div key={fisa.eticheta} className={`rounded-panou p-4 ${fisa.clasa ?? ""}`}>
+              <p className="text-corp font-medium">{fisa.eticheta}</p>
+              <p className="text-cifra font-semibold tabular-nums">{fisa.valoare}</p>
+            </div>
+          ))}
+        </div>
+        {filtre.stare === "toate" ? null : (
+          <p className="text-muted-foreground text-nota">
+            Cifrele de mai sus privesc întregul registru, nu filtrul ales.
+          </p>
+        )}
       </section>
 
       <nav aria-label="Filtrare după stare" className="flex flex-wrap gap-2">
@@ -97,11 +205,7 @@ export default async function PaginaRevisal(props: {
               key={optiune.valoare}
               href={`/revisal?stare=${optiune.valoare}`}
               aria-current={activ ? "page" : undefined}
-              className={`rounded-md px-3 py-1.5 text-sm focus-visible:outline ${
-                activ
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-background text-foreground ring-border ring-1"
-              }`}
+              className={buton({ varianta: activ ? "primar" : "secundar" })}
             >
               {optiune.eticheta}
             </a>
@@ -111,96 +215,28 @@ export default async function PaginaRevisal(props: {
       </nav>
 
       {randuri.length === 0 ? (
-        <EmptyState
-          icon={FileCheck2}
-          title="Niciun eveniment pentru filtrul ales"
-          description="Evenimentele REVISAL se creează automat la înregistrarea unui contract, la modificarea salariului, a funcției sau a normei, la suspendare și la încetare."
-          action={{ label: "Vezi angajații", href: "/angajati" }}
+        <StareGoala
+          fel="filtrata"
+          pictograma={FileCheck2}
+          titlu="Niciun eveniment pentru filtrul ales"
+          descriere="Evenimentele REVISAL se creează automat la înregistrarea unui contract, la modificarea salariului, a funcției sau a normei, la suspendare și la încetare."
+          actiune={{ eticheta: "Vezi angajații", href: "/angajati" }}
         />
       ) : (
-        <div className="ring-border overflow-x-auto rounded-lg ring-1">
-          <table className="w-full min-w-[64rem] text-left text-sm">
-            <caption className="sr-only">
-              Evenimente REVISAL, ordonate după termenul de transmitere
-            </caption>
-            <thead className="bg-surface text-foreground">
-              <tr>
-                <th scope="col" className="px-4 py-2">
-                  Salariat
-                </th>
-                <th scope="col" className="px-4 py-2">
-                  Eveniment
-                </th>
-                <th scope="col" className="px-4 py-2">
-                  Data
-                </th>
-                <th scope="col" className="px-4 py-2">
-                  Termen
-                </th>
-                <th scope="col" className="px-4 py-2">
-                  Stare
-                </th>
-                <th scope="col" className="px-4 py-2">
-                  Înregistrare ITM
-                </th>
-                <th scope="col" className="px-4 py-2">
-                  Acțiuni
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-border bg-background divide-y">
-              {randuri.map((rand) => (
-                <RandTabel
-                  key={rand.id}
-                  href={`/angajati/${rand.angajatId}`}
-                  className={rand.stare === "intarziat" ? "bg-danger/8" : ""}
-                >
-                  <td className="px-4 py-3">
-                    <span className="text-foreground font-medium">{rand.angajatNume}</span>
-                    <span className="text-muted-foreground block text-xs">
-                      Marca {rand.angajatMarca}
-                      {rand.contractNumar === null ? "" : ` · CIM ${rand.contractNumar}`}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">{ETICHETE_TIP[rand.tip]}</td>
-                  <td className="px-4 py-3 tabular-nums">{formatDate(rand.dataEvenimentului)}</td>
-                  <td className="px-4 py-3 tabular-nums">{formatDate(rand.termenTransmitere)}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${CLASA_STARE[rand.stare] ?? ""}`}
-                    >
-                      {rand.stare === "intarziat"
-                        ? `Întârziat cu ${rand.zileIntarziere} ${rand.zileIntarziere === 1 ? "zi" : "zile"}`
-                        : rand.stare === "astazi"
-                          ? "Termen astăzi"
-                          : rand.stare === "in_termen"
-                            ? `Mai sunt ${rand.zileRamase} ${rand.zileRamase === 1 ? "zi" : "zile"}`
-                            : ETICHETE_STATUS[rand.status]}
-                    </span>
-                    {rand.eroare === null ? null : (
-                      <span className="text-danger mt-1 block text-xs">{rand.eroare}</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">{rand.numarInregistrare ?? "—"}</td>
-                  <td className="px-4 py-3">
-                    {rand.stare === "transmis" || rand.stare === "anulat" ? (
-                      <span className="text-muted-foreground text-xs">Nimic de făcut</span>
-                    ) : poateActualiza ? (
-                      <ActiuniEveniment
-                        evenimentId={rand.id}
-                        numeAngajat={rand.angajatNume}
-                        azi={azi}
-                      />
-                    ) : (
-                      <span className="text-muted-foreground text-xs">Fără drept de marcare</span>
-                    )}
-                  </td>
-                </RandTabel>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Tabel
+          caption="Evenimente REVISAL, ordonate după termenul de transmitere"
+          coloane={coloane}
+          randuri={randuri}
+          cheieRand={(rand) => rand.id}
+          href={(rand) => `/angajati/${rand.angajatId}`}
+          densitate="compact"
+          gol={null}
+          // Citirea taie la `filtre.limita` rânduri, fără să spună. Într-un
+          // registru unde netransmiterea în termen e contravenție per salariat,
+          // un eveniment care nu se vede e mai rău decât o eroare.
+          trunchiat={randuri.length >= filtre.limita}
+        />
       )}
-    </main>
+    </div>
   );
 }

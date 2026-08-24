@@ -15,6 +15,9 @@ import {
 } from "@/lib/email/templates";
 import { PreviewEmail } from "./preview-email";
 import Link from "next/link";
+import { Buton, buton } from "@/components/ui/buton";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
+import { cn } from "@/lib/ui/cn";
 
 export const metadata = { title: "Emailuri · Super-Admin" };
 export const dynamic = "force-dynamic";
@@ -46,11 +49,15 @@ const primaValoare = (v: string | string[] | undefined): string =>
 
 type Filtre = Readonly<{ status: string; sablon: string; q: string }>;
 
+/** Cheia necunoscută se arată ca atare — baza poate avea șabloane pe care codul nu le știe. */
+const etichetaSablon = (cheie: string): string =>
+  isTemplateKey(cheie) ? TEMPLATE_LABELS[cheie] : cheie;
+
 function Skeleton() {
   return (
     <div className="space-y-2" aria-hidden="true">
       {[0, 1, 2, 3, 4].map((i) => (
-        <div key={i} className="bg-surface h-14 animate-pulse rounded-md" />
+        <div key={i} className="bg-surface rounded-control h-14 animate-pulse" />
       ))}
     </div>
   );
@@ -71,13 +78,10 @@ async function TabelEmailuri({ filtre }: { readonly filtre: Filtre }) {
   const { data, error } = await cerere;
   if (error !== null) {
     return (
-      <div role="alert" className="border-border bg-surface rounded-lg border p-6 text-center">
+      <div role="alert" className="border-border bg-surface rounded-panou border p-6 text-center">
         <AlertTriangle aria-hidden="true" className="text-danger mx-auto size-6" />
-        <p className="text-foreground mt-2 text-sm">Nu am putut încărca jurnalul de emailuri.</p>
-        <a
-          href="/super-admin/emailuri"
-          className="bg-primary text-primary-foreground hover:bg-primary-hover mt-3 inline-block rounded-md px-3 py-1.5 text-sm"
-        >
+        <p className="text-foreground text-corp mt-2">Nu am putut încărca jurnalul de emailuri.</p>
+        <a href="/super-admin/emailuri" className={cn(buton({ varianta: "primar" }), "mt-3")}>
           Reîncearcă
         </a>
       </div>
@@ -86,17 +90,14 @@ async function TabelEmailuri({ filtre }: { readonly filtre: Filtre }) {
   const randuri = data ?? [];
   if (randuri.length === 0) {
     return (
-      <div className="border-border bg-surface rounded-lg border p-8 text-center">
+      <div className="border-border bg-surface rounded-panou border p-8 text-center">
         <Inbox aria-hidden="true" className="text-muted-foreground mx-auto size-6" />
-        <p className="text-foreground mt-2 text-sm font-medium">Niciun email înregistrat</p>
-        <p className="text-muted-foreground mt-1 text-sm">
+        <p className="text-foreground text-corp mt-2 font-medium">Niciun email înregistrat</p>
+        <p className="text-muted-foreground text-corp mt-1">
           Trimite o invitație dintr-o organizație sau completează formularul de demo — mesajele apar
           aici imediat.
         </p>
-        <Link
-          href="/super-admin/organizatii"
-          className="bg-primary text-primary-foreground hover:bg-primary-hover mt-4 inline-block rounded-md px-3 py-1.5 text-sm"
-        >
+        <Link href="/super-admin/organizatii" className={cn(buton({ varianta: "primar" }), "mt-4")}>
           Mergi la organizații
         </Link>
       </div>
@@ -109,65 +110,85 @@ async function TabelEmailuri({ filtre }: { readonly filtre: Filtre }) {
     ),
   );
 
+  type RandEmail = (typeof randuri)[number];
+
+  /*
+   * Jurnalul se citește tăiat la 100 de rânduri, fără cursor keyset, deci
+   * antetele nu pretind că sortează. Butonul de previzualizare stă pe `insigna`,
+   * nu pe `meta`: varianta de card pune metadatele într-un `<p>`, iar dialogul
+   * din `PreviewEmail` e conținut de flux — l-ar închide devreme la parsare.
+   */
+  const coloane: readonly Coloana<RandEmail>[] = [
+    {
+      cheie: "destinatar",
+      antet: "Destinatar",
+      peTelefon: "titlu",
+      celula: (rand) => (
+        <>
+          <span className="text-foreground block">{rand.destinatar}</span>
+          <span className="text-muted-foreground text-nota block">{rand.subiect}</span>
+          {rand.error === null ? null : (
+            <span className="text-danger text-nota mt-1 block">{rand.error}</span>
+          )}
+        </>
+      ),
+    },
+    {
+      cheie: "sablon",
+      antet: "Șablon",
+      peTelefon: "meta",
+      celula: (rand) => (
+        <span className="text-muted-foreground">{etichetaSablon(rand.template)}</span>
+      ),
+    },
+    {
+      cheie: "stare",
+      antet: "Stare",
+      peTelefon: "insigna",
+      celula: (rand) => (
+        <span className={CULORI_STATUS[rand.status] ?? "text-muted-foreground"}>
+          {ETICHETE_STATUS[rand.status] ?? rand.status}
+        </span>
+      ),
+    },
+    {
+      cheie: "moment",
+      antet: "Moment",
+      peTelefon: "meta",
+      celula: (rand) => (
+        <span className="text-muted-foreground">
+          {formatDateTime(new Date(rand.sent_at ?? rand.created_at))}
+        </span>
+      ),
+    },
+    {
+      cheie: "actiuni",
+      antet: "Acțiuni",
+      peTelefon: "insigna",
+      celula: (rand) => {
+        const cheie = isTemplateKey(rand.template) ? rand.template : null;
+        const html = cheie === null ? undefined : previzualizari.get(cheie);
+        return config.mode === "test" && html !== undefined ? (
+          <PreviewEmail subiect={rand.subiect} sablon={etichetaSablon(rand.template)} html={html} />
+        ) : (
+          <span className="text-muted-foreground text-nota">{rand.provider_id ?? "—"}</span>
+        );
+      },
+    },
+  ];
+
   return (
-    <div className="border-border overflow-x-auto rounded-lg border">
-      <table className="w-full border-collapse text-left text-sm">
-        <caption className="sr-only">Emailuri trimise sau pregătite pentru trimitere</caption>
-        <thead className="bg-surface text-muted-foreground text-xs uppercase">
-          <tr>
-            <th scope="col" className="px-3 py-2 font-medium">
-              Destinatar
-            </th>
-            <th scope="col" className="px-3 py-2 font-medium">
-              Șablon
-            </th>
-            <th scope="col" className="px-3 py-2 font-medium">
-              Stare
-            </th>
-            <th scope="col" className="px-3 py-2 font-medium">
-              Moment
-            </th>
-            <th scope="col" className="px-3 py-2 font-medium">
-              Acțiuni
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {randuri.map((rand) => {
-            const cheie = isTemplateKey(rand.template) ? rand.template : null;
-            const html = cheie === null ? undefined : previzualizari.get(cheie);
-            const eticheta = cheie === null ? rand.template : TEMPLATE_LABELS[cheie];
-            return (
-              <tr key={rand.id} className="border-border border-t align-top">
-                <td className="px-3 py-2">
-                  <span className="text-foreground block">{rand.destinatar}</span>
-                  <span className="text-muted-foreground block text-xs">{rand.subiect}</span>
-                  {rand.error === null ? null : (
-                    <span className="text-danger mt-1 block text-xs">{rand.error}</span>
-                  )}
-                </td>
-                <td className="text-muted-foreground px-3 py-2">{eticheta}</td>
-                <td
-                  className={`px-3 py-2 ${CULORI_STATUS[rand.status] ?? "text-muted-foreground"}`}
-                >
-                  {ETICHETE_STATUS[rand.status] ?? rand.status}
-                </td>
-                <td className="text-muted-foreground px-3 py-2">
-                  {formatDateTime(new Date(rand.sent_at ?? rand.created_at))}
-                </td>
-                <td className="px-3 py-2">
-                  {config.mode === "test" && html !== undefined ? (
-                    <PreviewEmail subiect={rand.subiect} sablon={eticheta} html={html} />
-                  ) : (
-                    <span className="text-muted-foreground text-xs">{rand.provider_id ?? "—"}</span>
-                  )}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+    <Tabel
+      caption="Emailuri trimise sau pregătite pentru trimitere"
+      coloane={coloane}
+      randuri={randuri}
+      cheieRand={(rand) => rand.id}
+      densitate="compact"
+      // Citirea are `.limit(100)`: la fix o sută de rânduri jurnalul e aproape
+      // sigur tăiat, iar până acum nimic nu o spunea.
+      trunchiat={randuri.length >= 100}
+      gol={null}
+    />
   );
 }
 
@@ -186,12 +207,12 @@ export default async function PaginaEmailuri({
   const config = getEmailConfig();
 
   return (
-    <main className="space-y-6 p-6">
+    <div className="space-y-6">
       <header className="flex items-start gap-3">
         <Mail aria-hidden="true" className="text-primary mt-0.5 size-5" />
         <div>
-          <h1 className="text-foreground text-xl font-semibold">Emailuri</h1>
-          <p className="text-muted-foreground text-sm">
+          <h1 className="text-foreground text-titlu font-semibold">Emailuri</h1>
+          <p className="text-muted-foreground text-corp">
             {config.mode === "test"
               ? "Modul test: mesajele sunt doar înregistrate, nu pleacă spre destinatari."
               : "Modul live: mesajele sunt trimise prin Resend."}
@@ -201,10 +222,10 @@ export default async function PaginaEmailuri({
 
       <form
         method="get"
-        className="border-border bg-surface flex flex-wrap items-end gap-3 rounded-lg border p-4"
+        className="border-border bg-surface rounded-panou flex flex-wrap items-end gap-3 border p-4"
       >
         <div className="flex flex-col gap-1">
-          <label htmlFor="q" className="text-muted-foreground text-xs font-medium">
+          <label htmlFor="q" className="text-muted-foreground text-nota font-medium">
             Destinatar
           </label>
           <input
@@ -213,18 +234,18 @@ export default async function PaginaEmailuri({
             type="search"
             defaultValue={filtre.q}
             placeholder="ana@exemplu.ro"
-            className="border-border bg-background text-foreground rounded-md border px-2.5 py-1.5 text-sm"
+            className="border-border bg-background text-foreground rounded-control text-corp border px-2.5 py-1.5"
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor="status" className="text-muted-foreground text-xs font-medium">
+          <label htmlFor="status" className="text-muted-foreground text-nota font-medium">
             Stare
           </label>
           <select
             id="status"
             name="status"
             defaultValue={filtre.status}
-            className="border-border bg-background text-foreground rounded-md border px-2.5 py-1.5 text-sm"
+            className="border-border bg-background text-foreground rounded-control text-corp border px-2.5 py-1.5"
           >
             <option value="">Toate</option>
             {STATUSURI.map((s) => (
@@ -235,14 +256,14 @@ export default async function PaginaEmailuri({
           </select>
         </div>
         <div className="flex flex-col gap-1">
-          <label htmlFor="sablon" className="text-muted-foreground text-xs font-medium">
+          <label htmlFor="sablon" className="text-muted-foreground text-nota font-medium">
             Șablon
           </label>
           <select
             id="sablon"
             name="sablon"
             defaultValue={filtre.sablon}
-            className="border-border bg-background text-foreground rounded-md border px-2.5 py-1.5 text-sm"
+            className="border-border bg-background text-foreground rounded-control text-corp border px-2.5 py-1.5"
           >
             <option value="">Toate</option>
             {EMAIL_TEMPLATE_KEYS.map((k) => (
@@ -252,12 +273,9 @@ export default async function PaginaEmailuri({
             ))}
           </select>
         </div>
-        <button
-          type="submit"
-          className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-3 py-1.5 text-sm"
-        >
+        <Buton type="submit" varianta="primar">
           Filtrează
-        </button>
+        </Buton>
       </form>
 
       <div aria-live="polite">
@@ -265,6 +283,6 @@ export default async function PaginaEmailuri({
           <TabelEmailuri filtre={filtre} />
         </Suspense>
       </div>
-    </main>
+    </div>
   );
 }

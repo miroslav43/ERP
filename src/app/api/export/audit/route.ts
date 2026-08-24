@@ -89,7 +89,7 @@ const autorizeaza = async (url: URL): Promise<Autorizare> => {
     return { ok: false, raspuns: raspunsText("Alege mai întâi o organizație.", 403) };
   }
   const { tenant } = rezolvare;
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
   if (scopeFor(permisiuni, "audit:read") !== "all") {
     return { ok: false, raspuns: raspunsText("Nu ai dreptul să exporți acest jurnal.", 403) };
   }

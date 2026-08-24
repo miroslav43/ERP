@@ -4,9 +4,18 @@
 // în Postgres. Un filtru duplicat aici ar fi cod care pare să apere ceva, dar
 // care poate diverge tăcut de regula reală.
 
-import type { FiltreFoi, FiltreVehicule } from "@/schemas/fleet";
+import type { FiltreFoi, FiltreVehicule, SortareFoi, SortareVehicule } from "@/schemas/fleet";
 import type { CategorieVehicul, Combustibil, StatusFoaie, StatusVehicul } from "@/schemas/fleet";
+import { SORTARI_FOI, SORTARI_VEHICULE } from "@/schemas/fleet";
 import { createServerSupabase } from "@/lib/supabase/server";
+
+import {
+  codificaCursor,
+  decodificaCursor,
+  predicatKeyset,
+  sortareCeruta,
+  type Directie,
+} from "./cursor";
 
 export interface RandVehicul {
   readonly id: string;
@@ -22,11 +31,25 @@ export interface RandVehicul {
   readonly status: StatusVehicul;
   readonly prag_salt_km: number | null;
   readonly data_iesire: string | null;
+  /**
+   * Urcat din `Vehicul` în rândul de LISTĂ fiindcă e termenul de comparație al
+   * consumului real: coada de aprobare arată „9,4 l/100 km” fără el ca pe o
+   * cifră fără verdict. Costă o coloană în plus la fiecare citire de listă și
+   * scutește un al doilea drum la bază pe ecranul unde se semnează.
+   */
+  readonly consum_mediu_declarat: number | null;
 }
 
 export interface RezultatVehicule {
   readonly randuri: readonly RandVehicul[];
   readonly urmatorulCursor: string | null;
+  /**
+   * Câte vehicule sunt în total, după filtre. „Pagina următoare” fără un total
+   * e o ușă fără indicație: nu știi dacă mai urmează un ecran sau o sută.
+   */
+  readonly total: number;
+  /** Sortarea EFECTIV aplicată, după îngustarea la coloanele permise. */
+  readonly sortare: Readonly<{ cheie: SortareVehicule; directie: Directie }>;
 }
 
 export interface Vehicul extends RandVehicul {
@@ -35,7 +58,6 @@ export interface Vehicul extends RandVehicul {
   readonly capacitate_cilindrica: number | null;
   readonly masa_maxima_kg: number | null;
   readonly numar_locuri: number | null;
-  readonly consum_mediu_declarat: number | null;
   readonly valoare_achizitie: number | null;
   readonly data_achizitie: string | null;
   readonly motiv_iesire: string | null;
@@ -91,9 +113,26 @@ export interface RandFoaie {
   readonly aprobat_la: string | null;
 }
 
+/**
+ * Foaia CITITĂ ÎNTREAGĂ — rândul de listă plus cele două câmpuri lungi.
+ *
+ * `citesteFoaie` le selecta dintotdeauna, dar întorcea `RandFoaie`, iar pagina
+ * de detaliu ajungea la `motiv_respingere` printr-un cast scris de mână
+ * (`(foaie as { motiv_respingere?: string | null })`). Un cast e o promisiune
+ * neverificată: dacă selectul ar fi pierdut coloana, tipul ar fi tăcut și
+ * ecranul ar fi arătat „Nu a fost consemnat niciun motiv.” pentru o respingere
+ * motivată. Acum semnătura spune ce citește interogarea.
+ */
+export interface Foaie extends RandFoaie {
+  readonly observatii: string | null;
+  readonly motiv_respingere: string | null;
+}
+
 export interface RezultatFoi {
   readonly randuri: readonly RandFoaie[];
   readonly urmatorulCursor: string | null;
+  readonly total: number;
+  readonly sortare: Readonly<{ cheie: SortareFoi; directie: Directie }>;
 }
 
 export interface Alimentare {
@@ -130,39 +169,65 @@ export interface AngajatRezumat {
 
 // ── Cursorul keyset ─────────────────────────────────────────────────────────
 //
-// Separatorul e scris ca SECVENȚĂ DE EVADARE, nu ca octet brut. Scris brut,
-// fișierul devine binar pentru `grep` și `git grep` — s-a întâmplat deja o dată,
-// în queries/leave.ts și inventory.ts.
+// Codificarea, ghilimelarea și predicatul trăiau AICI, în copii aproape
+// identice răspândite prin zece fișiere de citiri. Au fost mutate în
+// `./cursor.ts`, unde cursorul poartă o VALOARE opacă în loc de o coloană
+// încuiată în el — deci aceeași structură servește orice sortare, nu doar cea
+// implicită. Testele lor sunt în `cursor.test.ts`.
 
-interface CursorText {
-  readonly cheie: string;
-  readonly id: string;
-}
+/**
+ * Cheia din URL → coloana din bază. Traducerea e OBLIGATORIU explicită: numele
+ * coloanei intră într-un `.order()` și într-un predicat construit ca text, deci
+ * nu are voie să vină din afară. Cheile sunt românești fiindcă apar în adresa pe
+ * care omul o copiază; coloanele rămân englezești, ca tot restul schemei.
+ */
+const COLOANA_SORTARE_VEHICUL: Readonly<Record<SortareVehicule, string>> = {
+  numar: "nr_inmatriculare",
+  marca: "marca",
+  km: "km_curent",
+  stare: "status",
+};
 
-function codificaCursor(cursor: CursorText): string {
-  return Buffer.from(`${cursor.cheie}\u0000${cursor.id}`, "utf8").toString("base64url");
-}
+/** Valoarea de cursor a ultimului rând, pe fiecare sortare posibilă. */
+const VALOARE_CURSOR_VEHICUL: Readonly<Record<SortareVehicule, (v: RandVehicul) => string>> = {
+  numar: (v) => v.nr_inmatriculare,
+  marca: (v) => v.marca,
+  km: (v) => String(v.km_curent),
+  stare: (v) => v.status,
+};
 
-function decodificaCursor(valoare: string): CursorText | null {
-  try {
-    const bucati = Buffer.from(valoare, "base64url").toString("utf8").split("\u0000");
-    const cheie = bucati[0];
-    const id = bucati[1];
-    if (cheie === undefined || id === undefined || id.length === 0) return null;
-    return { cheie, id };
-  } catch {
-    return null;
-  }
-}
+const SORTARE_IMPLICITA_VEHICULE = { cheie: "numar", directie: "asc" } as const;
 
-/** PostgREST desparte filtrele lui `or()` cu virgulă; valoarea trebuie citată. */
-function ghilimeleaza(valoare: string): string {
-  return `"${valoare.replace(/\\/gu, "\\\\").replace(/"/gu, '\\"')}"`;
-}
+const COLOANA_SORTARE_FOAIE: Readonly<Record<SortareFoi, string>> = {
+  plecare: "plecare_la",
+  stare: "status",
+};
+
+const VALOARE_CURSOR_FOAIE: Readonly<Record<SortareFoi, (f: RandFoaie) => string>> = {
+  plecare: (f) => f.plecare_la,
+  stare: (f) => f.status,
+};
+
+const SORTARE_IMPLICITA_FOI = { cheie: "plecare", directie: "desc" } as const;
+
+/**
+ * `sort` e opțional în SEMNĂTURĂ, nu în schemă.
+ *
+ * Ecranele care listează îl parsează din URL și îl trimit întreg; apelanții care
+ * cer o felie fixă — selectorul de vehicule din foaia nouă, lista de aprobat —
+ * n-au sortare de ales și n-ar trebui să scrie `sort: null` doar ca să treacă de
+ * verificarea de tipuri.
+ */
+export type FiltreVehiculeCitire = Omit<FiltreVehicule, "sort"> & {
+  readonly sort?: string | null;
+};
+
+export type FiltreFoiCitire = Omit<FiltreFoi, "sort"> & { readonly sort?: string | null };
 
 const COLOANE_VEHICUL_LISTA =
   "id, nr_inmatriculare, marca, model, categorie, tip_combustibil, an_fabricatie, " +
-  "km_curent, employee_id, department_id, status, prag_salt_km, data_iesire";
+  "km_curent, employee_id, department_id, status, prag_salt_km, data_iesire, " +
+  "consum_mediu_declarat";
 
 const COLOANE_FOAIE =
   "id, vehicle_id, employee_id, numar, plecare_la, sosire_la, km_plecare, km_sosire, " +
@@ -172,41 +237,75 @@ const COLOANE_FOAIE =
 
 export async function listeazaVehicule(
   organizationId: string,
-  filtre: FiltreVehicule,
+  filtre: FiltreVehiculeCitire,
 ): Promise<RezultatVehicule> {
   const db = await createServerSupabase();
+  const sortare = sortareCeruta(filtre.sort ?? null, SORTARI_VEHICULE, SORTARE_IMPLICITA_VEHICULE);
+  const coloana = COLOANA_SORTARE_VEHICUL[sortare.cheie];
+  const crescator = sortare.directie === "asc";
 
-  let interogare = db
-    .from("vehicles")
-    .select(COLOANE_VEHICUL_LISTA)
-    .eq("organization_id", organizationId)
-    .is("deleted_at", null)
-    // Ordinea urmează indexul unic `vehicles_org_nr_uq`, deci paginarea nu cere
-    // sortare suplimentară.
-    .order("nr_inmatriculare", { ascending: true })
-    .order("id", { ascending: true })
+  /*
+   * ── DE CE NUMĂRĂTOAREA E O A DOUA INTEROGARE ────────────────────────────
+   * Aici stătea `count: "exact"` pe ACEEAȘI interogare, cu argumentul — corect
+   * în sine — că așa numărătoarea respectă filtrele ȘI politicile RLS, fără un
+   * al doilea drum la bază. Argumentul rata un lucru: predicatul KEYSET e și el
+   * un filtru, iar PostgREST n-are de unde ști că e „paginare”. Pusă acolo,
+   * numărătoarea întorcea doar câte rânduri au rămas DUPĂ cursor.
+   *
+   * Se vedea de la pagina a doua: `<Paginare>` scria „25 din 30 de rânduri”
+   * acolo unde erau 55, iar totalul scădea cu fiecare „mai departe”. Lista era
+   * corectă; doar numărul mințea, fără nicio eroare.
+   *
+   * Cele două interogări se deosebesc DOAR prin cursor, ordine și limită — ele
+   * aparțin paginii, nu mulțimii. Merg în paralel, iar numărătoarea e
+   * `head: true`, deci nu aduce niciun rând.
+   */
+  /**
+   * Filtrele mulțimii, aplicate identic pe amândouă interogările.
+   *
+   * Generică peste constructorul de interogare, nu scrisă de două ori: două
+   * copii ar diverge la primul filtru adăugat, iar divergența s-ar vedea tocmai
+   * ca o numărătoare care nu se potrivește cu lista — defectul reparat aici.
+   */
+  const filtreaza = <
+    Q extends {
+      eq: (c: string, v: string) => Q;
+      is: (c: string, v: null) => Q;
+      ilike: (c: string, v: string) => Q;
+    },
+  >(
+    q: Q,
+  ): Q => {
+    let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
+    if (filtre.status !== null) cu = cu.eq("status", filtre.status);
+    if (filtre.categorie !== null) cu = cu.eq("categorie", filtre.categorie);
+    if (filtre.cauta !== null) cu = cu.ilike("nr_inmatriculare", `%${filtre.cauta}%`);
+    return cu;
+  };
+
+  let interogare = filtreaza(db.from("vehicles").select(COLOANE_VEHICUL_LISTA))
+    // Identificatorul e MEREU al doilea criteriu: coloana de sortare nu e unică
+    // (două vehicule pot avea aceeași marcă), iar fără el ordinea dintre ele e
+    // nedefinită, deci paginarea poate sări sau repeta exact acolo.
+    .order(coloana, { ascending: crescator, nullsFirst: false })
+    .order("id", { ascending: crescator })
     .limit(filtre.limita + 1);
-
-  if (filtre.status !== null) interogare = interogare.eq("status", filtre.status);
-  if (filtre.categorie !== null) interogare = interogare.eq("categorie", filtre.categorie);
-  if (filtre.cauta !== null) {
-    interogare = interogare.ilike("nr_inmatriculare", `%${filtre.cauta}%`);
-  }
 
   if (filtre.cursor !== null) {
     const c = decodificaCursor(filtre.cursor);
     // Un cursor stricat înseamnă prima pagină, nu o eroare: cel mai probabil
     // vine dintr-un link vechi sau trunchiat la copiere.
-    if (c !== null) {
-      interogare = interogare.or(
-        `nr_inmatriculare.gt.${ghilimeleaza(c.cheie)},` +
-          `and(nr_inmatriculare.eq.${ghilimeleaza(c.cheie)},id.gt.${c.id})`,
-      );
-    }
+    if (c !== null) interogare = interogare.or(predicatKeyset(coloana, c, sortare.directie));
   }
 
-  const { data, error } = await interogare.returns<RandVehicul[]>();
+  const [rezultat, numarare] = await Promise.all([
+    interogare.returns<RandVehicul[]>(),
+    filtreaza(db.from("vehicles").select("id", { count: "exact", head: true })),
+  ]);
+  const { data, error } = rezultat;
   if (error !== null) throw error;
+  if (numarare.error !== null) throw numarare.error;
+  const count = numarare.count;
 
   const toate = data ?? [];
   const areUrmatoarea = toate.length > filtre.limita;
@@ -217,8 +316,10 @@ export async function listeazaVehicule(
     randuri,
     urmatorulCursor:
       areUrmatoarea && ultim !== undefined
-        ? codificaCursor({ cheie: ultim.nr_inmatriculare, id: ultim.id })
+        ? codificaCursor({ valoare: VALOARE_CURSOR_VEHICUL[sortare.cheie](ultim), id: ultim.id })
         : null,
+    total: count ?? randuri.length,
+    sortare,
   };
 }
 
@@ -228,7 +329,7 @@ export async function citesteVehicul(organizationId: string, id: string): Promis
     .from("vehicles")
     .select(
       `${COLOANE_VEHICUL_LISTA}, vin, culoare, capacitate_cilindrica, masa_maxima_kg, ` +
-        "numar_locuri, consum_mediu_declarat, valoare_achizitie, data_achizitie, " +
+        "numar_locuri, valoare_achizitie, data_achizitie, " +
         "motiv_iesire, observatii, created_at",
     )
     .eq("organization_id", organizationId)
@@ -310,33 +411,53 @@ export async function tipuriDocument(): Promise<readonly TipDocument[]> {
 
 // ── Foi de parcurs ──────────────────────────────────────────────────────────
 
-export async function listeazaFoi(organizationId: string, filtre: FiltreFoi): Promise<RezultatFoi> {
+export async function listeazaFoi(
+  organizationId: string,
+  filtre: FiltreFoiCitire,
+): Promise<RezultatFoi> {
   const db = await createServerSupabase();
+  const sortare = sortareCeruta(filtre.sort ?? null, SORTARI_FOI, SORTARE_IMPLICITA_FOI);
+  const coloana = COLOANA_SORTARE_FOAIE[sortare.cheie];
+  const crescator = sortare.directie === "asc";
 
-  let interogare = db
-    .from("trip_sheets")
-    .select(COLOANE_FOAIE)
-    .eq("organization_id", organizationId)
-    .is("deleted_at", null)
-    .order("plecare_la", { ascending: false })
-    .order("id", { ascending: false })
+  /**
+   * Filtrele mulțimii, aplicate identic pe amândouă interogările — aceeași
+   * reparație ca la `listeazaVehicule`, din același motiv: predicatul keyset e
+   * un filtru ca oricare altul, deci numărătoarea pusă pe interogarea de date
+   * număra doar ce rămâne DUPĂ cursor, iar totalul scădea la fiecare pagină.
+   */
+  const filtreaza = <
+    Q extends {
+      eq: (c: string, v: string) => Q;
+      is: (c: string, v: null) => Q;
+    },
+  >(
+    q: Q,
+  ): Q => {
+    let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
+    if (filtre.status !== null) cu = cu.eq("status", filtre.status);
+    if (filtre.vehicul !== null) cu = cu.eq("vehicle_id", filtre.vehicul);
+    return cu;
+  };
+
+  let interogare = filtreaza(db.from("trip_sheets").select(COLOANE_FOAIE))
+    .order(coloana, { ascending: crescator, nullsFirst: false })
+    .order("id", { ascending: crescator })
     .limit(filtre.limita + 1);
-
-  if (filtre.status !== null) interogare = interogare.eq("status", filtre.status);
-  if (filtre.vehicul !== null) interogare = interogare.eq("vehicle_id", filtre.vehicul);
 
   if (filtre.cursor !== null) {
     const c = decodificaCursor(filtre.cursor);
-    if (c !== null) {
-      interogare = interogare.or(
-        `plecare_la.lt.${ghilimeleaza(c.cheie)},` +
-          `and(plecare_la.eq.${ghilimeleaza(c.cheie)},id.lt.${c.id})`,
-      );
-    }
+    if (c !== null) interogare = interogare.or(predicatKeyset(coloana, c, sortare.directie));
   }
 
-  const { data, error } = await interogare.returns<RandFoaie[]>();
+  const [rezultat, numarare] = await Promise.all([
+    interogare.returns<RandFoaie[]>(),
+    filtreaza(db.from("trip_sheets").select("id", { count: "exact", head: true })),
+  ]);
+  const { data, error } = rezultat;
   if (error !== null) throw error;
+  if (numarare.error !== null) throw numarare.error;
+  const count = numarare.count;
 
   const toate = data ?? [];
   const areUrmatoarea = toate.length > filtre.limita;
@@ -347,12 +468,14 @@ export async function listeazaFoi(organizationId: string, filtre: FiltreFoi): Pr
     randuri,
     urmatorulCursor:
       areUrmatoarea && ultim !== undefined
-        ? codificaCursor({ cheie: ultim.plecare_la, id: ultim.id })
+        ? codificaCursor({ valoare: VALOARE_CURSOR_FOAIE[sortare.cheie](ultim), id: ultim.id })
         : null,
+    total: count ?? randuri.length,
+    sortare,
   };
 }
 
-export async function citesteFoaie(organizationId: string, id: string): Promise<RandFoaie | null> {
+export async function citesteFoaie(organizationId: string, id: string): Promise<Foaie | null> {
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("trip_sheets")
@@ -360,7 +483,7 @@ export async function citesteFoaie(organizationId: string, id: string): Promise<
     .eq("organization_id", organizationId)
     .eq("id", id)
     .is("deleted_at", null)
-    .maybeSingle<RandFoaie & { observatii: string | null; motiv_respingere: string | null }>();
+    .maybeSingle<Foaie>();
 
   if (error !== null) throw error;
   return data;
@@ -409,6 +532,64 @@ export async function kmDePlecareSugerat(
   return Math.max(dinFoaie ?? 0, dinVehicul ?? 0);
 }
 
+/** Litrii și costul unei foi, adunate. Cifrele pe care le semnează aprobatorul. */
+export interface CombustibilFoaie {
+  readonly litri: number;
+  readonly cost: number;
+  readonly alimentari: number;
+}
+
+export interface RezultatCombustibil {
+  readonly perFoaie: ReadonlyMap<string, CombustibilFoaie>;
+  /**
+   * Citirea a atins plafonul, deci unele alimentări lipsesc din totaluri.
+   * Se raportează pe ecran: un total de litri prea mic, fără nicio eroare, e
+   * exact felul de cifră greșită care trece de o aprobare.
+   */
+  readonly trunchiat: boolean;
+}
+
+/**
+ * Combustibilul unui LOT de foi, într-o singură citire.
+ *
+ * Coada de aprobare avea nevoie de litri, cost și consum pentru fiecare rând;
+ * `alimentarileFoii` per foaie ar fi însemnat o sută de drumuri la bază pe un
+ * ecran care se deschide de zeci de ori pe zi. Agregarea se face în TypeScript,
+ * nu în Postgres, fiindcă `.rpc()` nu ajunge la schema `app` și o vedere nouă ar
+ * fi cerut o migrare.
+ */
+export async function combustibilPeFoi(idFoi: readonly string[]): Promise<RezultatCombustibil> {
+  const unice = [...new Set(idFoi)];
+  if (unice.length === 0) return { perFoaie: new Map(), trunchiat: false };
+
+  const db = await createServerSupabase();
+  // 20 de alimentări pe foaie e generos pentru o cursă; plafonul rămâne sub
+  // `max_rows = 1000`, care ar tăia TĂCUT dacă l-am depăși.
+  const plafon = Math.min(unice.length * 20, PLAFON_POSTGREST);
+  const { data, error } = await db
+    .from("fuel_entries")
+    .select("trip_sheet_id, litri, cost")
+    .in("trip_sheet_id", unice)
+    .is("deleted_at", null)
+    .limit(plafon)
+    .returns<{ trip_sheet_id: string; litri: number; cost: number }[]>();
+
+  if (error !== null) throw error;
+  const randuri = data ?? [];
+
+  const perFoaie = new Map<string, CombustibilFoaie>();
+  for (const r of randuri) {
+    const pana_acum = perFoaie.get(r.trip_sheet_id) ?? { litri: 0, cost: 0, alimentari: 0 };
+    perFoaie.set(r.trip_sheet_id, {
+      litri: pana_acum.litri + r.litri,
+      cost: pana_acum.cost + r.cost,
+      alimentari: pana_acum.alimentari + 1,
+    });
+  }
+
+  return { perFoaie, trunchiat: randuri.length >= plafon };
+}
+
 export async function alimentarileFoii(foaieId: string): Promise<readonly Alimentare[]> {
   const db = await createServerSupabase();
   const { data, error } = await db
@@ -423,23 +604,69 @@ export async function alimentarileFoii(foaieId: string): Promise<readonly Alimen
   return data ?? [];
 }
 
+const COLOANE_ANOMALIE =
+  "id, vehicle_id, trip_sheet_id, km_asteptat, km_declarat, diferenta, tip, " +
+  "explicatie, confirmat_la, nota, created_at";
+
+/** Plafonul tăcut al PostgREST. O citire care îl atinge e trunchiată, fără eroare. */
+const PLAFON_POSTGREST = 1000;
+
+/** Câte anomalii se citesc deodată în coada de explicat. */
+export const PLAFON_ANOMALII = 200;
+
 export async function anomaliiNeconfirmate(organizationId: string): Promise<readonly Anomalie[]> {
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("odometer_anomalies")
-    .select(
-      "id, vehicle_id, trip_sheet_id, km_asteptat, km_declarat, diferenta, tip, " +
-        "explicatie, confirmat_la, nota, created_at",
-    )
+    .select(COLOANE_ANOMALIE)
     .eq("organization_id", organizationId)
     .is("deleted_at", null)
     .is("confirmat_la", null)
     .order("created_at", { ascending: false })
-    .limit(200)
+    .limit(PLAFON_ANOMALII)
     .returns<Anomalie[]>();
 
   if (error !== null) throw error;
   return data ?? [];
+}
+
+/**
+ * Anomaliile produse de un lot de foi de parcurs, grupate pe foaie.
+ *
+ * Există fiindcă anomalia trăia doar în `useState`-ul formularului care a
+ * declanșat-o, iar `router.refresh()` de pe rândul următor o ștergea: o foaie cu
+ * un salt de 3 000 km neexplicat arăta, la reîncărcare și în coada de aprobare,
+ * exact ca una curată. Se citesc și cele CONFIRMATE — o anomalie explicată tot
+ * schimbă felul în care se citește foaia, doar că nu mai cere o acțiune.
+ */
+export async function anomaliiPeFoi(
+  organizationId: string,
+  idFoi: readonly string[],
+): Promise<ReadonlyMap<string, readonly Anomalie[]>> {
+  const unice = [...new Set(idFoi)];
+  if (unice.length === 0) return new Map();
+
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("odometer_anomalies")
+    .select(COLOANE_ANOMALIE)
+    .eq("organization_id", organizationId)
+    .in("trip_sheet_id", unice)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false })
+    .limit(Math.min(unice.length * 5, PLAFON_POSTGREST))
+    .returns<Anomalie[]>();
+
+  if (error !== null) throw error;
+
+  const perFoaie = new Map<string, Anomalie[]>();
+  for (const a of data ?? []) {
+    if (a.trip_sheet_id === null) continue;
+    const aleFoii = perFoaie.get(a.trip_sheet_id);
+    if (aleFoii === undefined) perFoaie.set(a.trip_sheet_id, [a]);
+    else aleFoii.push(a);
+  }
+  return perFoaie;
 }
 
 /**

@@ -1,17 +1,20 @@
 // src/app/(app)/concedii/echipa/error.tsx
 "use client";
 
-import { StareEroare } from "@/components/feedback/stare-eroare";
+import { StareEroare } from "@/components/ui/stare-eroare";
 
-export default function EroareConcediiEchipa({
+export default function Eroare({
   error,
-  reset,
-}: Readonly<{ error: Error & { digest?: string }; reset: () => void }>) {
+  retry,
+}: {
+  error: Error & { digest?: string };
+  retry: () => void;
+}) {
   return (
     <StareEroare
-      titlu="Cererile de concediu ale echipei nu au putut fi încărcate"
       eroare={error}
-      reincearca={reset}
+      reincearca={retry}
+      titlu="Cererile de concediu ale echipei nu au putut fi încărcate"
     />
   );
 }

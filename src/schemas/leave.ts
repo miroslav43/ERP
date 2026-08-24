@@ -149,6 +149,17 @@ const listaStatusuriOptionala = z
 export const VIZUALIZARI_CERERI = ["mele", "echipa", "toate"] as const;
 export type VizualizareCereri = (typeof VIZUALIZARI_CERERI)[number];
 
+/**
+ * Coloanele după care lista de cereri se poate sorta.
+ *
+ * Lista e ÎNCHISĂ, nu o validare de formă: numele coloanei ajunge într-un
+ * `.order()` și într-un predicat de cursor construit ca text, deci nu poate
+ * veni liber din query string. `sortareCeruta` din `lib/queries/cursor.ts` cade
+ * tăcut pe implicit pentru orice altceva.
+ */
+export const SORTARI_CERERI = ["perioada", "stare"] as const;
+export type SortareCereri = (typeof SORTARI_CERERI)[number];
+
 export const filtreCereriSchema = z.object({
   status: listaStatusuriOptionala,
   leave_type_id: uuidOptional,
@@ -157,6 +168,8 @@ export const filtreCereriSchema = z.object({
   pana_la: dataOptionala,
   cursor: textOptional(400),
   limita: z.coerce.number().int().min(5).max(100).default(25),
+  /** Forma din URL: `perioada` crescător, `-perioada` descrescător. */
+  sort: textOptional(40),
 });
 
 export type FiltreCereri = z.infer<typeof filtreCereriSchema>;
@@ -177,6 +190,29 @@ export const creeazaCerereSchema = z
     portiune_sfarsit: z.enum(PORTIUNI_ZI).default("zi_intreaga"),
     motiv: textOptional(1000),
     atasament_path: textOptional(500),
+    /**
+     * Certificatul medical — codul de indemnizație (01 boală obișnuită 75%,
+     * 05 boală profesională 100%, 11 sarcină și lăuzie 100%…), seria și numărul.
+     *
+     * Până în 0064 aceste câmpuri existau în bază (`0009_leave.sql:363-366`) și
+     * în motorul de calcul (`indemnizatie-cm.ts`, 23 de teste), dar NICIUN drum
+     * din aplicație nu le scria. `certificateMedicaleLuna` filtrează
+     * `medical_code_id is not null`, deci întorcea mereu zero rânduri și
+     * indemnizația de concediu medical era permanent 0 lei.
+     *
+     * Obligativitatea reală („tipul e medical ⇒ codul e obligatoriu”) se
+     * verifică în acțiune, care e singura care cunoaște `leave_types.key`.
+     * Aici se verifică doar coerența internă, în oglindă cu CHECK-ul
+     * `leave_requests_certificat_ck` din bază.
+     */
+    /**
+     * Varianta legală invocată (0070) — ex. „paternal 15 zile, cu atestat de
+     * puericultură". `null` = varianta de bază a tipului.
+     */
+    leave_variant_id: uuidOptional,
+    medical_code_id: uuidOptional,
+    serie_certificat: textOptional(20),
+    numar_certificat: textOptional(30),
     trimite: z.coerce.boolean().default(false),
   })
   .superRefine((valoare, ctx) => {
@@ -197,6 +233,22 @@ export const creeazaCerereSchema = z
         message: "Data de sfârșit nu poate fi anterioară datei de început.",
       });
       return;
+    }
+    // Oglindă exactă a lui `leave_requests_certificat_ck` (0009:383-386): seria
+    // e opțională (unele certificate n-au), numărul nu.
+    if (valoare.medical_code_id !== null && valoare.numar_certificat === null) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["numar_certificat"],
+        message: "Numărul certificatului medical trebuie completat.",
+      });
+    }
+    if (valoare.medical_code_id === null && valoare.numar_certificat !== null) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["medical_code_id"],
+        message: "Alegeți codul de indemnizație de pe certificatul medical.",
+      });
     }
     if (anInceput !== anSfarsit) {
       ctx.addIssue({

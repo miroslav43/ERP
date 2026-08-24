@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina } from "@/components/ui/antet-pagina";
 import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -14,7 +15,7 @@ export const metadata: Metadata = { title: "Obiect de inventar nou" };
 export default async function PaginaObiectNou() {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "inventory");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (scopeFor(permisiuni, "inventory:update") !== "all") {
     return (
@@ -25,15 +26,12 @@ export default async function PaginaObiectNou() {
   const listaCategorii = await categorii();
 
   return (
-    <main className="space-y-6 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Obiect de inventar nou</h1>
-        <p className="text-muted-foreground text-sm">
-          Obiectul se înregistrează cu starea de circuit „În stoc”. Predarea către un angajat se
-          face separat, din fișa obiectului.
-        </p>
-      </header>
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Obiect de inventar nou"
+        descriere="Obiectul se înregistrează cu starea de circuit „În stoc”. Predarea către un angajat se face separat, din fișa obiectului."
+      />
       <FormularObiect categorii={listaCategorii} />
-    </main>
+    </div>
   );
 }

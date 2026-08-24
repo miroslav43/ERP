@@ -179,11 +179,26 @@ async function importaUnRand(ctx: ActionContext, angajat: AngajatProtejat): Prom
     return `Funcția „${angajat.functie}" nu există în nomenclator. Adaug-o întâi din ecranul Funcții (/functii).`;
   }
 
+  // Marca lipsă din fișier o atribuie contorul organizației — același drum ca
+  // la înrolare (`urmatoarea_marca`). Până în 0069 importul cerea marca și avea
+  // deci un regim de numerotare PARALEL cu al contorului: un import de
+  // 0001–0200 urmat de o înrolare producea „0001" a doua oară.
+  let marca = angajat.marca;
+  if (marca === undefined) {
+    const { data: atribuita, error: eroareMarca } = await ctx.supabase.rpc("urmatoarea_marca", {
+      p_organization_id: organizationId,
+    });
+    if (eroareMarca !== null) {
+      return "Marca nu a putut fi atribuită automat. Completați coloana „Marcă” în fișier.";
+    }
+    marca = atribuita;
+  }
+
   const inserare = await ctx.supabase
     .from("employees")
     .insert({
       organization_id: organizationId,
-      marca: angajat.marca,
+      marca,
       last_name: angajat.last_name,
       first_name: angajat.first_name,
       hired_on: angajat.hired_on,
@@ -216,11 +231,28 @@ async function importaUnRand(ctx: ActionContext, angajat: AngajatProtejat): Prom
   const employeeId = inserare.data.id;
 
   // Compensare: orice pas ulterior eșuat anulează logic fișa, eliberând marca.
+  //
+  // `.select()` fiindcă și compensarea poate fi respinsă TĂCUT: `employees_update`
+  // cere `employees:update`, pe când importul rulează pe `employees:create` — un
+  // rol care are creare fără modificare anula fișa cu zero rânduri și fără nicio
+  // eroare. Fișa rămânea în bază cu marca ocupată, iar reimportul aceluiași rând,
+  // după corectură, cădea pe 23505 „marca există deja”, mesaj care nu spune nimic
+  // despre fișa fantomă. `employees_select` NU filtrează `deleted_at`, deci rândul
+  // proaspăt anulat rămâne vizibil pentru `.select()` (vezi nota din 0018).
+  //
+  // Aici NU se aruncă: importul raportează erorile PE RÂND, iar un `throw` ar opri
+  // restul lotului și ar trimite clientul să reia același offset peste rândurile
+  // deja scrise. Tăcerea se rupe în mesajul rândului, nu în fluxul lotului.
   const anuleaza = async (motiv: string): Promise<string> => {
-    await ctx.supabase
+    const { data: anulata } = await ctx.supabase
       .from("employees")
       .update({ deleted_at: new Date().toISOString() })
-      .eq("id", employeeId);
+      .eq("id", employeeId)
+      .select("id")
+      .maybeSingle();
+    if (anulata === null) {
+      return `${motiv} Atenție: fișa creată pentru acest rând NU a putut fi anulată și a rămas în bază cu marca „${marca}” ocupată — ștergeți-o din ecranul Angajați înainte de a reimporta rândul.`;
+    }
     return motiv;
   };
 
@@ -320,7 +352,12 @@ export const aplicaImportAngajati = createAction({
     for (const angajat of felie) {
       const eroare = await importaUnRand(ctx, angajat);
       if (eroare === null) reusite += 1;
-      else esuate.push({ rand: angajat.rand, marca: angajat.marca, mesaj: eroare });
+      else
+        esuate.push({
+          rand: angajat.rand,
+          marca: angajat.marca ?? "(atribuită automat)",
+          mesaj: eroare,
+        });
     }
     const urmator = input.offset + felie.length;
     return {

@@ -4,6 +4,7 @@
 import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
 
+import { Buton } from "@/components/ui/buton";
 import { exportaEvenimente, marcheazaTransmis } from "./actions";
 
 export function ActiuniEveniment(props: {
@@ -39,20 +40,19 @@ export function ActiuniEveniment(props: {
 
   return (
     <div className="space-y-2">
-      <button
-        type="button"
+      <Buton
+        varianta="primar"
         onClick={() => setDeschis((valoare) => !valoare)}
         aria-expanded={deschis}
-        className="bg-primary text-primary-foreground rounded-md px-3 py-1.5 text-xs font-medium focus-visible:outline"
       >
         Marchează transmis
-      </button>
+      </Buton>
 
       {deschis ? (
-        <form action={trimite} className="bg-surface space-y-2 rounded-md p-3">
-          <p className="text-muted-foreground text-xs">Transmitere pentru {props.numeAngajat}</p>
+        <form action={trimite} className="bg-surface rounded-control space-y-2 p-3">
+          <p className="text-muted-foreground text-nota">Transmitere pentru {props.numeAngajat}</p>
           <div>
-            <label htmlFor={idData} className="text-foreground block text-xs font-medium">
+            <label htmlFor={idData} className="text-foreground text-nota block font-medium">
               Data transmiterii
             </label>
             <input
@@ -62,11 +62,11 @@ export function ActiuniEveniment(props: {
               required
               max={props.azi}
               defaultValue={props.azi}
-              className="border-foreground/60 mt-1 w-full rounded border px-2 py-1 text-sm"
+              className="border-foreground/60 text-corp mt-1 w-full rounded border px-2 py-1"
             />
           </div>
           <div>
-            <label htmlFor={idNumar} className="text-foreground block text-xs font-medium">
+            <label htmlFor={idNumar} className="text-foreground text-nota block font-medium">
               Număr de înregistrare ITM
             </label>
             <input
@@ -75,22 +75,18 @@ export function ActiuniEveniment(props: {
               type="text"
               required
               maxLength={60}
-              className="border-foreground/60 mt-1 w-full rounded border px-2 py-1 text-sm"
+              className="border-foreground/60 text-corp mt-1 w-full rounded border px-2 py-1"
             />
           </div>
-          <button
-            type="submit"
-            disabled={inCurs}
-            className="bg-primary text-primary-foreground disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded px-3 py-1.5 text-xs font-medium disabled:cursor-not-allowed"
-          >
-            {inCurs ? "Se salvează…" : "Confirmă transmiterea"}
-          </button>
+          <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+            Confirmă transmiterea
+          </Buton>
         </form>
       ) : null}
 
       <p
         aria-live="polite"
-        className={`text-xs ${mesaj?.tip === "eroare" ? "text-danger" : "text-foreground"}`}
+        className={`text-nota ${mesaj?.tip === "eroare" ? "text-danger" : "text-foreground"}`}
       >
         {mesaj?.text ?? ""}
       </p>
@@ -126,15 +122,10 @@ export function ButonExport() {
 
   return (
     <span className="ml-auto flex items-center gap-3">
-      <button
-        type="button"
-        onClick={descarca}
-        disabled={inCurs}
-        className="bg-background text-foreground ring-border disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-3 py-1.5 text-sm ring-1 disabled:cursor-not-allowed"
-      >
-        {inCurs ? "Se pregătește…" : "Descarcă listing (CSV)"}
-      </button>
-      <span aria-live="polite" className="text-muted-foreground text-xs">
+      <Buton varianta="secundar" onClick={descarca} inCurs={inCurs} textInCurs="Se pregătește…">
+        Descarcă listing (CSV)
+      </Buton>
+      <span aria-live="polite" className="text-muted-foreground text-nota">
         {mesaj}
       </span>
     </span>

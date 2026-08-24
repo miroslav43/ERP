@@ -10,6 +10,30 @@ import { defineConfig } from "vitest/config";
  * costisitoare la greșeală (zile lucrătoare, sold de concediu, ore de pontaj,
  * salariu, diurnă).
  *
+ * `ui` randează primitivele din `src/components/ui/` într-un DOM. Până acum
+ * NU exista niciun test care să randeze o componentă — și nici nu putea exista:
+ * ambele proiecte rulau în `node`, iar `unit` include doar `*.test.ts`, deci
+ * `.tsx` nu era luat în seamă deloc. Consecința era că `typecheck`, `lint`,
+ * `test` și `build` nu vedeau, toate patru, două landmark-uri `<main>` pe
+ * aceeași pagină, un `aria-describedby` rupt sau o pastilă fără cuvânt.
+ *
+ * Proiectul acoperă `src/components/` — componentele partajate, nu paginile.
+ * Criteriul nu e „e o primitivă", ci: e consumată din multe locuri, n-are I/O,
+ * și defectele ei sunt invizibile pentru celelalte porți. Trei familii îl
+ * îndeplinesc:
+ *   · `ui/` — primitivele, consumate de sute de ecrane;
+ *   · `grafice/` — geometria e aritmetică verificabilă (o bară tăiată de jos
+ *     minte, un arc care nu închide cercul e o felie pierdută);
+ *   · `onboarding/` — cei șapte pași ai asistentului, randați în DOUĂ zone
+ *     (înrolarea clientului și consola de platformă), deci un defect în ei se
+ *     vede în amândouă. Acolo `aria-describedby` a arătat luni de zile spre
+ *     textul de ajutor în loc de eroare, fără ca nimic să semnaleze.
+ * Pentru pagini întregi, unealta potrivită e Playwright, nu un DOM simulat.
+ *
+ * `happy-dom`, nu `jsdom`: acesta din urmă, de la versiunea 30, trage `undici`
+ * 8, care cere `webidl.util.markAsUncloneable` — o funcție apărută în Node 22.
+ * Depozitul rulează pe Node 20, deci jsdom nici nu pornea procesul de test.
+ *
  * `rls` verifică izolarea între tenanți pe un proiect Supabase real, dedicat
  * testelor. Rulează serial: testele își resetează baza între ele, iar
  * paralelismul le-ar face să și-o tragă de sub picioare reciproc.
@@ -54,6 +78,15 @@ export default defineConfig({
             TENANT_COOKIE_SECRET: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
             EMAIL_MODE: "test",
           },
+        },
+      },
+      {
+        resolve: { tsconfigPaths: true },
+        test: {
+          name: "ui",
+          environment: "happy-dom",
+          include: ["src/components/**/*.test.tsx"],
+          globals: true,
         },
       },
       {

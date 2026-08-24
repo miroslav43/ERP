@@ -4,72 +4,57 @@
 // 0014_checklist.sql restrâng rândurile direct în Postgres.
 
 import { createServerSupabase } from "@/lib/supabase/server";
-import type {
-  ChecklistInstantaStatus,
-  ChecklistItemStatus,
-  ChecklistResponsabilTip,
-  ChecklistTip,
-  ChecklistTipDovada,
-  ChecklistVerificare,
-  FiltreInstante,
-  FiltreSabloane,
-  RolResponsabil,
+import {
+  SORTARI_INSTANTE,
+  SORTARI_SABLOANE,
+  type ChecklistInstantaStatus,
+  type ChecklistItemStatus,
+  type ChecklistResponsabilTip,
+  type ChecklistTip,
+  type ChecklistTipDovada,
+  type ChecklistVerificare,
+  type FiltreInstante,
+  type FiltreSabloane,
+  type RolResponsabil,
+  type SortareInstante,
+  type SortareSabloane,
 } from "@/schemas/checklist";
 
-// ── Cursorul keyset ─────────────────────────────────────────────────────────
+import {
+  codificaCursor,
+  decodificaCursor,
+  predicatKeyset,
+  sortareCeruta,
+  type Directie,
+} from "./cursor";
+
+// ── Cursorul keyset și sortarea ─────────────────────────────────────────────
 //
-// Separatorul e scris ca SECVENȚĂ DE EVADARE, nu ca octet brut — scris brut,
-// fișierul devine binar pentru `grep` și `git grep` (vezi queries/fleet.ts).
-// Două perechi distincte: (data_referinta, id) DESC pentru instanțe,
-// (denumire, id) ASC pentru șabloane — nu se pot amesteca într-un tip comun,
-// fiindcă direcția de comparație diferă.
+// Cele DOUĂ codificări locale (una pentru instanțe, alta pentru șabloane) plus
+// `ghilimeleaza` au fost înlocuite de cursorul comun din `./cursor.ts`: acolo
+// cursorul poartă o valoare OPACĂ, nu un nume fix, deci aceeași structură
+// servește orice coloană și orice direcție.
+//
+// Cheia din URL → coloana din bază. Traducerea e OBLIGATORIU explicită: numele
+// coloanei intră într-un `.order()` și într-un predicat construit ca text, deci
+// nu are voie să vină din query string.
 
-interface CursorInstante {
-  readonly data: string;
-  readonly id: string;
-}
+const COLOANA_SORTARE_INSTANTA: Readonly<Record<SortareInstante, string>> = {
+  data: "data_referinta",
+  tip: "tip",
+  stare: "status",
+};
 
-function codificaCursorInstante(cursor: CursorInstante): string {
-  return Buffer.from(`${cursor.data}\u0000${cursor.id}`, "utf8").toString("base64url");
-}
+/** Cea mai recentă dată de referință prima — ordinea pe care o avea lista. */
+const SORTARE_IMPLICITA_INSTANTE = { cheie: "data", directie: "desc" } as const;
 
-function decodificaCursorInstante(valoare: string): CursorInstante | null {
-  try {
-    const bucati = Buffer.from(valoare, "base64url").toString("utf8").split("\u0000");
-    const data = bucati[0];
-    const id = bucati[1];
-    if (data === undefined || id === undefined || id.length === 0) return null;
-    return { data, id };
-  } catch {
-    return null;
-  }
-}
+const COLOANA_SORTARE_SABLON: Readonly<Record<SortareSabloane, string>> = {
+  denumire: "denumire",
+  tip: "tip",
+  valabil: "valabil_de_la",
+};
 
-interface CursorText {
-  readonly cheie: string;
-  readonly id: string;
-}
-
-function codificaCursorText(cursor: CursorText): string {
-  return Buffer.from(`${cursor.cheie}\u0000${cursor.id}`, "utf8").toString("base64url");
-}
-
-function decodificaCursorText(valoare: string): CursorText | null {
-  try {
-    const bucati = Buffer.from(valoare, "base64url").toString("utf8").split("\u0000");
-    const cheie = bucati[0];
-    const id = bucati[1];
-    if (cheie === undefined || id === undefined || id.length === 0) return null;
-    return { cheie, id };
-  } catch {
-    return null;
-  }
-}
-
-/** PostgREST desparte filtrele lui `or()` cu virgulă; valoarea trebuie citată. */
-function ghilimeleaza(valoare: string): string {
-  return `"${valoare.replace(/\\/gu, "\\\\").replace(/"/gu, '\\"')}"`;
-}
+const SORTARE_IMPLICITA_SABLOANE = { cheie: "denumire", directie: "asc" } as const;
 
 // ── Instanțe ───────────────────────────────────────────────────────────────
 
@@ -89,6 +74,13 @@ export interface RandInstanta {
 export interface RezultatInstante {
   readonly randuri: readonly RandInstanta[];
   readonly urmatorulCursor: string | null;
+  /**
+   * Câte instanțe sunt în total, după filtre. „Pagina următoare" fără un total
+   * e o ușă fără indicație — nu știi dacă mai urmează un ecran sau o sută.
+   */
+  readonly total: number;
+  /** Sortarea EFECTIV aplicată, după îngustarea la coloanele permise. */
+  readonly sortare: Readonly<{ cheie: SortareInstante; directie: Directie }>;
 }
 
 const COLOANE_INSTANTA =
@@ -99,48 +91,97 @@ export async function listeazaInstante(
   filtre: FiltreInstante,
 ): Promise<RezultatInstante> {
   const db = await createServerSupabase();
+  const sortare = sortareCeruta(filtre.sort ?? null, SORTARI_INSTANTE, SORTARE_IMPLICITA_INSTANTE);
+  const coloana = COLOANA_SORTARE_INSTANTA[sortare.cheie];
+  const crescator = sortare.directie === "asc";
 
-  let interogare = db
-    .from("checklist_instances")
-    .select(COLOANE_INSTANTA)
-    .eq("organization_id", organizationId)
-    .is("deleted_at", null)
-    .order("data_referinta", { ascending: false })
-    .order("id", { ascending: false })
+  /*
+   * ── DE CE NUMĂRĂTOAREA E O A DOUA INTEROGARE ──────────────────────────
+   * Aici stătea `count: "exact"` pe ACEEAȘI interogare, cu argumentul — corect
+   * în sine — că așa numărătoarea respectă filtrele ȘI politicile RLS, fără un
+   * al doilea drum la bază. Argumentul rata un lucru: predicatul KEYSET e și el
+   * un filtru, iar PostgREST n-are de unde ști că e „paginare”. Pus pe aceeași
+   * interogare, `count` numără doar ce a rămas DUPĂ cursor.
+   *
+   * Se vedea de la pagina a doua: `<Paginare>` scria „25 din 30 de rânduri”
+   * acolo unde erau 55, iar totalul SCĂDEA cu fiecare „mai departe”. Lista era
+   * corectă; doar numărul mințea, fără nicio eroare.
+   *
+   * Cele două interogări împart ACELEAȘI filtre, aplicate de aceeași funcție,
+   * ca să nu poată diverge; se deosebesc doar prin cursor, ordine și limită,
+   * care aparțin paginii, nu mulțimii. Merg în paralel, iar numărătoarea e
+   * `head: true`, deci nu aduce niciun rând.
+   */
+  /**
+   * Filtrele mulțimii, aplicate identic pe amândouă interogările.
+   *
+   * Generic peste constructorul de interogare, nu scris de două ori: două copii
+   * ar diverge la primul filtru adăugat, iar divergența s-ar vedea tocmai ca o
+   * numărătoare care nu se potrivește cu lista — defectul reparat aici.
+   */
+  const filtreaza = <
+    Q extends {
+      eq: (c: string, v: string) => Q;
+      is: (c: string, v: null) => Q;
+      in: (c: string, v: readonly string[]) => Q;
+      gte: (c: string, v: string) => Q;
+      lte: (c: string, v: string) => Q;
+    },
+  >(
+    q: Q,
+  ): Q => {
+    let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
+    if (filtre.tip !== null) cu = cu.eq("tip", filtre.tip);
+    if (filtre.status !== null && filtre.status.length > 0) cu = cu.in("status", filtre.status);
+    if (filtre.angajat !== null) cu = cu.eq("employee_id", filtre.angajat);
+    if (filtre.de_la !== null) cu = cu.gte("data_referinta", filtre.de_la);
+    if (filtre.pana_la !== null) cu = cu.lte("data_referinta", filtre.pana_la);
+    return cu;
+  };
+
+  let interogare = filtreaza(db.from("checklist_instances").select(COLOANE_INSTANTA))
+    // Identificatorul e MEREU al doilea criteriu: data de referință nu e unică,
+    // iar fără el paginarea poate sări sau repeta exact între rânduri egale.
+    .order(coloana, { ascending: crescator, nullsFirst: false })
+    .order("id", { ascending: crescator })
     .limit(filtre.limita + 1);
 
-  if (filtre.tip !== null) interogare = interogare.eq("tip", filtre.tip);
-  if (filtre.status !== null && filtre.status.length > 0) {
-    interogare = interogare.in("status", filtre.status);
-  }
-  if (filtre.angajat !== null) interogare = interogare.eq("employee_id", filtre.angajat);
-  if (filtre.de_la !== null) interogare = interogare.gte("data_referinta", filtre.de_la);
-  if (filtre.pana_la !== null) interogare = interogare.lte("data_referinta", filtre.pana_la);
-
-  if (filtre.cursor !== null) {
-    const c = decodificaCursorInstante(filtre.cursor);
-    // Un cursor stricat înseamnă prima pagină, nu o eroare.
-    if (c !== null) {
-      interogare = interogare.or(
-        `data_referinta.lt.${c.data},and(data_referinta.eq.${c.data},id.lt.${c.id})`,
-      );
-    }
+  // Un cursor stricat înseamnă prima pagină, nu o eroare.
+  const cursor = filtre.cursor === null ? null : decodificaCursor(filtre.cursor);
+  if (cursor !== null) {
+    interogare = interogare.or(predicatKeyset(coloana, cursor, sortare.directie));
   }
 
-  const { data, error } = await interogare.returns<RandInstanta[]>();
+  const [rezultat, numarare] = await Promise.all([
+    interogare.returns<RandInstanta[]>(),
+    filtreaza(db.from("checklist_instances").select("id", { count: "exact", head: true })),
+  ]);
+  const { data, error } = rezultat;
   if (error !== null) throw error;
+  if (numarare.error !== null) throw numarare.error;
+  const count = numarare.count;
 
   const toate = data ?? [];
   const areUrmatoarea = toate.length > filtre.limita;
   const randuri = areUrmatoarea ? toate.slice(0, filtre.limita) : toate;
   const ultim = randuri.at(-1);
+  const valoareCursor =
+    ultim === undefined
+      ? null
+      : sortare.cheie === "tip"
+        ? ultim.tip
+        : sortare.cheie === "stare"
+          ? ultim.status
+          : ultim.data_referinta;
 
   return {
     randuri,
     urmatorulCursor:
-      areUrmatoarea && ultim !== undefined
-        ? codificaCursorInstante({ data: ultim.data_referinta, id: ultim.id })
+      areUrmatoarea && ultim !== undefined && valoareCursor !== null
+        ? codificaCursor({ valoare: valoareCursor, id: ultim.id })
         : null,
+    total: count ?? randuri.length,
+    sortare,
   };
 }
 
@@ -375,6 +416,10 @@ export interface RandSablon {
 export interface RezultatSabloane {
   readonly randuri: readonly RandSablon[];
   readonly urmatorulCursor: string | null;
+  /** Câte șabloane sunt în total, după filtre. */
+  readonly total: number;
+  /** Sortarea EFECTIV aplicată, după îngustarea la coloanele permise. */
+  readonly sortare: Readonly<{ cheie: SortareSabloane; directie: Directie }>;
 }
 
 const COLOANE_SABLON =
@@ -385,43 +430,72 @@ export async function listeazaSabloane(
   filtre: FiltreSabloane,
 ): Promise<RezultatSabloane> {
   const db = await createServerSupabase();
+  const sortare = sortareCeruta(filtre.sort ?? null, SORTARI_SABLOANE, SORTARE_IMPLICITA_SABLOANE);
+  const coloana = COLOANA_SORTARE_SABLON[sortare.cheie];
+  const crescator = sortare.directie === "asc";
 
-  let interogare = db
-    .from("checklist_templates")
-    .select(COLOANE_SABLON)
-    .eq("organization_id", organizationId)
-    .is("deleted_at", null)
-    .order("denumire", { ascending: true })
-    .order("id", { ascending: true })
+  /**
+   * Filtrele mulțimii, aplicate identic pe amândouă interogările — vezi nota
+   * lungă din `listeazaInstante`: o numărătoare pusă pe interogarea care poartă
+   * și predicatul keyset numără doar rândurile rămase DUPĂ cursor, deci totalul
+   * scade cu fiecare „mai departe”.
+   */
+  const filtreaza = <
+    Q extends {
+      eq: (c: string, v: string) => Q;
+      is: (c: string, v: null) => Q;
+      ilike: (c: string, v: string) => Q;
+    },
+  >(
+    q: Q,
+  ): Q => {
+    let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
+    if (filtre.tip !== null) cu = cu.eq("tip", filtre.tip);
+    if (filtre.cauta !== null) cu = cu.ilike("denumire", `%${filtre.cauta}%`);
+    return cu;
+  };
+
+  let interogare = filtreaza(db.from("checklist_templates").select(COLOANE_SABLON))
+    .order(coloana, { ascending: crescator, nullsFirst: false })
+    .order("id", { ascending: crescator })
     .limit(filtre.limita + 1);
 
-  if (filtre.tip !== null) interogare = interogare.eq("tip", filtre.tip);
-  if (filtre.cauta !== null) interogare = interogare.ilike("denumire", `%${filtre.cauta}%`);
-
-  if (filtre.cursor !== null) {
-    const c = decodificaCursorText(filtre.cursor);
-    if (c !== null) {
-      interogare = interogare.or(
-        `denumire.gt.${ghilimeleaza(c.cheie)},` +
-          `and(denumire.eq.${ghilimeleaza(c.cheie)},id.gt.${c.id})`,
-      );
-    }
+  // Un cursor stricat înseamnă prima pagină, nu o eroare.
+  const cursor = filtre.cursor === null ? null : decodificaCursor(filtre.cursor);
+  if (cursor !== null) {
+    interogare = interogare.or(predicatKeyset(coloana, cursor, sortare.directie));
   }
 
-  const { data, error } = await interogare.returns<RandSablon[]>();
+  const [rezultat, numarare] = await Promise.all([
+    interogare.returns<RandSablon[]>(),
+    filtreaza(db.from("checklist_templates").select("id", { count: "exact", head: true })),
+  ]);
+  const { data, error } = rezultat;
   if (error !== null) throw error;
+  if (numarare.error !== null) throw numarare.error;
+  const count = numarare.count;
 
   const toate = data ?? [];
   const areUrmatoarea = toate.length > filtre.limita;
   const randuri = areUrmatoarea ? toate.slice(0, filtre.limita) : toate;
   const ultim = randuri.at(-1);
+  const valoareCursor =
+    ultim === undefined
+      ? null
+      : sortare.cheie === "tip"
+        ? ultim.tip
+        : sortare.cheie === "valabil"
+          ? ultim.valabil_de_la
+          : ultim.denumire;
 
   return {
     randuri,
     urmatorulCursor:
-      areUrmatoarea && ultim !== undefined
-        ? codificaCursorText({ cheie: ultim.denumire, id: ultim.id })
+      areUrmatoarea && ultim !== undefined && valoareCursor !== null
+        ? codificaCursor({ valoare: valoareCursor, id: ultim.id })
         : null,
+    total: count ?? randuri.length,
+    sortare,
   };
 }
 

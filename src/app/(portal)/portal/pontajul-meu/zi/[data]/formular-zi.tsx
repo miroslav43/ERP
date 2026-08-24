@@ -4,6 +4,7 @@ import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { salveazaZiPontaj } from "@/app/(app)/pontaj/actions";
+import { Buton } from "@/components/ui/buton";
 
 /**
  * Completarea unei singure zile de pontaj, pentru telefon.
@@ -18,7 +19,7 @@ import { salveazaZiPontaj } from "@/app/(app)/pontaj/actions";
  */
 
 const CLASA_CAMP =
-  "mt-1 min-h-11 w-full rounded-md border border-foreground/60 bg-background px-3 py-2 text-sm";
+  "mt-1 min-h-11 w-full rounded-control border border-foreground/60 bg-background px-3 py-2 text-corp";
 
 export function FormularZi({
   data,
@@ -77,7 +78,7 @@ export function FormularZi({
     >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
-          <label htmlFor={idOre} className="text-foreground text-sm font-medium">
+          <label htmlFor={idOre} className="text-foreground text-corp font-medium">
             Ore lucrate
           </label>
           <input
@@ -95,7 +96,7 @@ export function FormularZi({
           />
         </div>
         <div>
-          <label htmlFor={idSuplimentare} className="text-foreground text-sm font-medium">
+          <label htmlFor={idSuplimentare} className="text-foreground text-corp font-medium">
             Din care suplimentare
           </label>
           <input
@@ -115,7 +116,7 @@ export function FormularZi({
       </div>
 
       <div>
-        <label htmlFor={idObservatii} className="text-foreground text-sm font-medium">
+        <label htmlFor={idObservatii} className="text-foreground text-corp font-medium">
           Observații <span className="text-muted-foreground font-normal">(opțional)</span>
         </label>
         <textarea
@@ -134,20 +135,21 @@ export function FormularZi({
         <p
           role="alert"
           aria-live="assertive"
-          className="border-danger/40 bg-danger/10 text-foreground rounded-md border p-3 text-sm"
+          className="border-danger/40 bg-danger/10 text-foreground rounded-control text-corp border p-3"
         >
           {eroare}
         </p>
       )}
 
-      <button
-        type="button"
-        disabled={inCurs}
+      <Buton
+        varianta="primar"
+        className="w-full"
+        inCurs={inCurs}
+        textInCurs="Se salvează…"
         onClick={salveaza}
-        className="bg-primary text-primary-foreground hover:bg-primary-hover min-h-11 w-full rounded-md px-4 text-sm font-medium transition-colors disabled:opacity-60"
       >
-        {inCurs ? "Se salvează…" : "Salvează ziua"}
-      </button>
+        Salvează ziua
+      </Buton>
     </form>
   );
 }

@@ -4,6 +4,7 @@
 import { useState, useTransition, type ReactNode } from "react";
 import { Save } from "lucide-react";
 
+import { Buton } from "@/components/ui/buton";
 import { maximSecundare } from "@/domain/organization/caen-reguli";
 import { SelectorTara } from "@/components/forms/selector-tara";
 import {
@@ -112,12 +113,12 @@ function Camp({
 }>) {
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="text-foreground text-sm font-medium">
+      <label htmlFor={id} className="text-foreground text-corp font-medium">
         {eticheta}
       </label>
       {children}
       {erori !== undefined && erori.length > 0 ? (
-        <p id={`${id}-eroare`} className="text-danger text-sm">
+        <p id={`${id}-eroare`} className="text-danger text-corp">
           {erori.join(" ")}
         </p>
       ) : null}
@@ -190,7 +191,7 @@ export function FormularOrganizatie({ initiale }: Readonly<{ initiale: ValoriOrg
                 aria-describedby={
                   erori !== undefined && erori.length > 0 ? `${id}-eroare` : undefined
                 }
-                className="border-border bg-surface text-foreground h-9 rounded-md border px-3 text-sm"
+                className="border-border bg-surface text-foreground rounded-control text-corp h-9 border px-3"
               />
             </Camp>
           );
@@ -229,25 +230,21 @@ export function FormularOrganizatie({ initiale }: Readonly<{ initiale: ValoriOrg
             }
             className="border-border h-4 w-4 rounded"
           />
-          <label htmlFor="org-platitor-tva" className="text-foreground text-sm">
+          <label htmlFor="org-platitor-tva" className="text-foreground text-corp">
             Plătitor de TVA
           </label>
         </div>
       </div>
 
       <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={seSalveaza}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex h-9 items-center gap-2 rounded-md px-4 text-sm font-medium disabled:cursor-not-allowed"
-        >
+        <Buton type="submit" varianta="primar" inCurs={seSalveaza} textInCurs="Se salvează…">
           <Save aria-hidden="true" className="h-4 w-4" />
-          {seSalveaza ? "Se salvează…" : "Salvează modificările"}
-        </button>
+          Salvează modificările
+        </Buton>
         <p
           role="status"
           aria-live="polite"
-          className={`text-sm ${stare.esteEroare ? "text-danger" : "text-success"}`}
+          className={`text-corp ${stare.esteEroare ? "text-danger" : "text-success"}`}
         >
           {stare.mesaj ?? ""}
         </p>

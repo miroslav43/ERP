@@ -10,6 +10,7 @@ import { formatDate } from "@/lib/format/date";
 import { RUTA_ALEGE_ORGANIZATIA, RUTA_AUTENTIFICARE } from "@/config/routes";
 import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina } from "@/components/ui/antet-pagina";
 export const metadata: Metadata = { title: "Datele firmei" };
 
 const ETICHETE_PLAN: Readonly<Record<string, string>> = {
@@ -52,7 +53,11 @@ export default async function SetariOrganizatiePage() {
   // Acțiunile refuzau corect (prin `createAction`), deci nu se putea MODIFICA
   // nimic — dar divulgarea rămâne divulgare, iar S2 cere verificarea și la
   // afișare, nu doar la scriere.
-  const permisiuni = await getPermissionMap(rezolvare.tenant.organizationId, rezolvare.tenant.role);
+  const permisiuni = await getPermissionMap(
+    rezolvare.tenant.organizationId,
+    rezolvare.tenant.role,
+    rezolvare.tenant.memberId,
+  );
   if (scopeFor(permisiuni, "organizations:update") !== "all") {
     return (
       <AccesRestrictionat mesaj="Datele firmei pot fi consultate doar de administratorii organizației. Cere-i administratorului tău dreptul necesar dacă ai nevoie de el." />
@@ -73,12 +78,12 @@ export default async function SetariOrganizatiePage() {
   }
   if (data === null) {
     return (
-      <main className="p-6">
-        <h1 className="text-foreground text-xl font-semibold">Datele firmei</h1>
-        <p className="text-muted-foreground mt-2 text-sm">
+      <div>
+        <h1 className="text-foreground text-titlu font-semibold">Datele firmei</h1>
+        <p className="text-muted-foreground text-corp mt-2">
           Organizația nu mai este disponibilă. Comutați pe altă organizație din bara de sus.
         </p>
-      </main>
+      </div>
     );
   }
 
@@ -123,21 +128,19 @@ export default async function SetariOrganizatiePage() {
   ];
 
   return (
-    <main className="flex flex-col gap-6 p-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-foreground text-xl font-semibold">Datele firmei</h1>
-        <p className="text-muted-foreground text-sm">
-          Informațiile de identificare folosite în documente, facturi și rapoarte.
-        </p>
-      </header>
+    <div className="flex flex-col gap-6">
+      <AntetPagina
+        titlu="Datele firmei"
+        descriere="Informațiile de identificare folosite în documente, facturi și rapoarte."
+      />
 
       <section
         aria-labelledby="titlu-contract"
-        className="border-border bg-surface rounded-lg border p-4"
+        className="border-border bg-surface rounded-panou border p-4"
       >
         <h2
           id="titlu-contract"
-          className="text-foreground flex items-center gap-2 text-sm font-medium"
+          className="text-foreground text-corp flex items-center gap-2 font-medium"
         >
           <Lock aria-hidden="true" className="text-muted-foreground h-4 w-4" />
           Date de contract (nu se modifică din aplicație)
@@ -145,20 +148,20 @@ export default async function SetariOrganizatiePage() {
         <dl className="mt-3 grid gap-3 sm:grid-cols-3">
           {contract.map((linie) => (
             <div key={linie.eticheta}>
-              <dt className="text-muted-foreground text-xs tracking-wide uppercase">
+              <dt className="text-muted-foreground text-nota tracking-wide uppercase">
                 {linie.eticheta}
               </dt>
-              <dd className="text-foreground text-sm font-medium">{linie.valoare}</dd>
+              <dd className="text-foreground text-corp font-medium">{linie.valoare}</dd>
             </div>
           ))}
         </dl>
-        <p className="text-muted-foreground mt-3 text-sm">
+        <p className="text-muted-foreground text-corp mt-3">
           Planul, numărul de locuri și starea abonamentului se schimbă prin contract. Scrieți-ne
           dacă aveți nevoie de mai multe locuri sau de alt plan.
         </p>
       </section>
 
       <FormularOrganizatie initiale={initiale} />
-    </main>
+    </div>
   );
 }

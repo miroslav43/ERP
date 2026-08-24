@@ -4,6 +4,8 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
+
 import { creeazaSablonEvaluare } from "../actions";
 
 export function FormularSablonEvaluareNou() {
@@ -34,22 +36,21 @@ export function FormularSablonEvaluareNou() {
 
   if (!deschis) {
     return (
-      <button
-        type="button"
+      <Buton
+        varianta="primar"
         onClick={() => {
           setDeschis(true);
         }}
-        className="bg-primary text-primary-foreground hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium"
       >
         Șablon nou
-      </button>
+      </Buton>
     );
   }
 
   return (
-    <form action={trimite} className="border-border grid gap-3 rounded-lg border p-4">
+    <form action={trimite} className="border-border rounded-panou grid gap-3 border p-4">
       <div className="flex flex-col gap-1">
-        <label htmlFor={idDenumire} className="text-sm font-medium">
+        <label htmlFor={idDenumire} className="text-corp font-medium">
           Denumire *
         </label>
         <input
@@ -59,11 +60,11 @@ export function FormularSablonEvaluareNou() {
           required
           maxLength={160}
           placeholder="Evaluare anuală — echipa de vânzări"
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={idDescriere} className="text-sm font-medium">
+        <label htmlFor={idDescriere} className="text-corp font-medium">
           Descriere
         </label>
         <input
@@ -71,11 +72,11 @@ export function FormularSablonEvaluareNou() {
           name="descriere"
           type="text"
           maxLength={500}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={idCriterii} className="text-sm font-medium">
+        <label htmlFor={idCriterii} className="text-corp font-medium">
           Criterii (câte unul pe linie) *
         </label>
         <textarea
@@ -84,32 +85,27 @@ export function FormularSablonEvaluareNou() {
           required
           rows={6}
           placeholder={"Calitatea muncii\nPunctualitate\nLucru în echipă"}
-          className="border-foreground/60 rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
         />
-        <p className="text-muted-foreground text-xs">
+        <p className="text-muted-foreground text-nota">
           Fiecare criteriu se notează de la 0 la 5 la completarea evaluării.
         </p>
       </div>
       <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={inCurs}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se creează…" : "Creează șablonul"}
-        </button>
-        <button
-          type="button"
+        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se creează…">
+          Creează șablonul
+        </Buton>
+        <Buton
+          varianta="link"
           onClick={() => {
             setDeschis(false);
             setEroare(null);
           }}
-          className="text-muted-foreground hover:text-foreground text-sm underline underline-offset-4"
         >
           Renunță
-        </button>
+        </Buton>
         {eroare === null ? null : (
-          <p role="alert" className="text-danger text-sm">
+          <p role="alert" className="text-danger text-corp">
             {eroare}
           </p>
         )}

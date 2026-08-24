@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
@@ -17,7 +18,7 @@ export default async function PaginaAccidentNou() {
   await requireUser();
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "ssm");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "ssm:create", "team")) {
     return (
@@ -36,19 +37,17 @@ export default async function PaginaAccidentNou() {
     .limit(500);
 
   return (
-    <main className="mx-auto w-full max-w-2xl space-y-6 p-6">
-      <header>
-        <p className="text-muted-foreground text-sm">
-          <Link href="/ssm/accidente" className="underline-offset-2 hover:underline">
-            Accidente de muncă
-          </Link>
-        </p>
-        <h1 className="text-2xl font-semibold">Accident nou</h1>
-        <p className="text-muted-foreground text-sm">
-          Termenul de comunicare la ITM se calculează automat, din parametrii legali ai
-          organizației.
-        </p>
-      </header>
+    <div className={`${LATIMI.formular} space-y-6`}>
+      <p className="text-muted-foreground text-corp">
+        <Link href="/ssm/accidente" className="underline-offset-2 hover:underline">
+          Accidente de muncă
+        </Link>
+      </p>
+
+      <AntetPagina
+        titlu="Accident nou"
+        descriere="Termenul de comunicare la ITM se calculează automat, din parametrii legali ai organizației."
+      />
 
       <FormularAccident
         angajati={(angajati ?? []).map((a) => ({
@@ -57,6 +56,6 @@ export default async function PaginaAccidentNou() {
           marca: a.marca,
         }))}
       />
-    </main>
+    </div>
   );
 }

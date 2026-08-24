@@ -15,8 +15,28 @@ import type { StatusTichet, TipTichet } from "@/domain/ticketing/stari";
 import type { Prioritate } from "@/domain/ticketing/prioritate";
 import type { FiltreTichete } from "@/schemas/ticketing";
 
-/** Câte rânduri se cer într-o pagină de listă. */
+import { codificaCursor, decodificaCursor, predicatKeyset } from "./cursor";
+
+/** Câte rânduri se cer într-o pagină de listă, când nimeni nu cere altfel. */
 export const LIMITA_PAGINA = 25;
+
+/** Mărimile de pagină oferite de `<Paginare>` pe cele două liste de tichete. */
+export const MARIMI_PAGINA = [25, 50, 100] as const;
+
+/**
+ * Mărimea de pagină cerută din adresă, îngustată la valorile oferite.
+ *
+ * Nu stă în `filtreTicheteSchema` fiindcă acolo nu e un filtru: nu schimbă CE se
+ * vede, ci cât. Iar o valoare liberă din URL ajunge direct în `.limit()`, deci
+ * nu are voie să treacă neverificată — `?limita=100000` ar cere bazei toată
+ * coada într-o singură citire.
+ */
+export function limitaDinUrl(brut: string | string[] | undefined): number {
+  const valoare = Array.isArray(brut) ? brut[0] : brut;
+  if (valoare === undefined) return LIMITA_PAGINA;
+  const numar = Number(valoare);
+  return (MARIMI_PAGINA as readonly number[]).includes(numar) ? numar : LIMITA_PAGINA;
+}
 
 const COLOANE_LISTA = `
   id, numar_afisat, tip, titlu, status, prioritate, created_at, updated_at,
@@ -39,8 +59,29 @@ export type RandTichet = Readonly<{
 
 export type PaginaTichete = Readonly<{
   randuri: readonly RandTichet[];
-  /** `true` dacă mai există rânduri dincolo de pagina curentă. */
-  maiSunt: boolean;
+  /**
+   * Cursorul paginii următoare, sau `null` la ultima pagină.
+   *
+   * ── DE CE NU MAI E UN BOOLEAN ─────────────────────────────────────────────
+   * Câmpul se numea `maiSunt` și spunea DOAR că mai există rânduri. Amândouă
+   * paginile care cheamă funcția destructurau `const { randuri } = …`, deci
+   * răspunsul se pierdea la destructurare, iar `cursor` nu era trimis niciodată
+   * de nimeni: tichetul 26 nu putea fi deschis din nicio listă. Un cursor
+   * opac, ca la inventar, e și răspunsul la „mai sunt?", și mijlocul de a
+   * ajunge acolo.
+   */
+  urmatorulCursor: string | null;
+  /**
+   * Câte tichete corespund filtrelor, pe TOATE paginile.
+   *
+   * Se numără într-o a doua interogare, fără predicatul de cursor. Numărată pe
+   * aceeași interogare cu rândurile, numărătoarea exactă ar fi respectat și
+   * predicatul keyset — care e un filtru ca oricare altul — deci totalul ar fi
+   * scăzut la fiecare pagină: pe pagina a doua dintr-o coadă de 55 de tichete,
+   * `<Paginare>` ar fi scris „25 din 30 de rânduri”. O cifră greșită, fără
+   * nicio eroare, exact sub tabelul pe care îl descrie.
+   */
+  total: number;
 }>;
 
 /**
@@ -50,47 +91,101 @@ export type PaginaTichete = Readonly<{
 export async function listeazaTichete(
   organizationId: string,
   filtre: FiltreTichete,
-  cursor?: Readonly<{ createdAt: string; id: string }>,
+  /** Cursorul opac primit din adresă. Orice text stricat se ignoră tăcut. */
+  cursorBrut?: string | null,
+  /**
+   * Restrânge la tichetele UNUI solicitant. Argument separat, nu câmp în
+   * `FiltreTichete`, și asta e o decizie: filtrele vin din adresă, deci un câmp
+   * omonim ar putea fi schimbat de oricine editează URL-ul. Ecranul „Tichetele
+   * mele" trebuie să însemne „ale mele" indiferent ce scrie în bara de adrese.
+   */
+  doarSolicitant?: string | null,
+  limita: number = LIMITA_PAGINA,
 ): Promise<PaginaTichete> {
   const db = await createServerSupabase();
 
-  let interogare = db
-    .from("tickets")
-    .select(COLOANE_LISTA)
-    .eq("organization_id", organizationId)
-    .is("deleted_at", null)
+  // Numărul afișat e cel pe care omul îl are la îndemână („IT-2026-00042”),
+  // deci căutarea îl acoperă alături de titlu.
+  const cautare =
+    filtre.cauta !== undefined && filtre.cauta !== ""
+      ? `titlu.ilike.%${filtre.cauta}%,numar_afisat.ilike.%${filtre.cauta}%`
+      : null;
+
+  /**
+   * Filtrele mulțimii, aplicate identic pe amândouă interogările de mai jos.
+   *
+   * O SINGURĂ funcție, generică peste constructorul de interogare, nu două
+   * lanțuri paralele: două copii ar fi ținut o vreme și apoi ar fi divergat
+   * tăcut la primul filtru nou — iar simptomul ar fi fost tocmai un total care
+   * nu se potrivește cu tabelul de sub el.
+   */
+  const filtreaza = <
+    Q extends {
+      eq: (c: string, v: string) => Q;
+      is: (c: string, v: null) => Q;
+      or: (f: string) => Q;
+    },
+  >(
+    q: Q,
+  ): Q => {
+    let cu = q.eq("organization_id", organizationId).is("deleted_at", null);
+    if (doarSolicitant !== undefined && doarSolicitant !== null) {
+      cu = cu.eq("solicitant_employee_id", doarSolicitant);
+    }
+    if (filtre.tip !== undefined) cu = cu.eq("tip", filtre.tip);
+    if (filtre.status !== undefined) cu = cu.eq("status", filtre.status);
+    if (filtre.prioritate !== undefined) cu = cu.eq("prioritate", filtre.prioritate);
+    if (filtre.asignat_employee_id !== undefined) {
+      cu = cu.eq("asignat_employee_id", filtre.asignat_employee_id);
+    }
+    if (filtre.department_id !== undefined) cu = cu.eq("department_id", filtre.department_id);
+    if (cautare !== null) cu = cu.or(cautare);
+    return cu;
+  };
+
+  const cursor =
+    cursorBrut === undefined || cursorBrut === null ? null : decodificaCursor(cursorBrut);
+
+  let interogare = filtreaza(db.from("tickets").select(COLOANE_LISTA))
     .order("created_at", { ascending: false })
     .order("id", { ascending: false })
-    .limit(LIMITA_PAGINA + 1);
+    .limit(limita + 1);
 
-  if (filtre.tip !== undefined) interogare = interogare.eq("tip", filtre.tip);
-  if (filtre.status !== undefined) interogare = interogare.eq("status", filtre.status);
-  if (filtre.prioritate !== undefined) interogare = interogare.eq("prioritate", filtre.prioritate);
-  if (filtre.asignat_employee_id !== undefined) {
-    interogare = interogare.eq("asignat_employee_id", filtre.asignat_employee_id);
-  }
-  if (filtre.department_id !== undefined) {
-    interogare = interogare.eq("department_id", filtre.department_id);
-  }
-  if (filtre.cauta !== undefined && filtre.cauta !== "") {
-    // Numărul afișat e cel pe care omul îl are la îndemână („IT-2026-00042”),
-    // deci căutarea îl acoperă alături de titlu.
-    const termen = `%${filtre.cauta}%`;
-    interogare = interogare.or(`titlu.ilike.${termen},numar_afisat.ilike.${termen}`);
-  }
-  if (cursor !== undefined) {
-    interogare = interogare.or(
-      `created_at.lt.${cursor.createdAt},and(created_at.eq.${cursor.createdAt},id.lt.${cursor.id})`,
-    );
+  if (cursor !== null) {
+    interogare = interogare.or(predicatKeyset("created_at", cursor, "desc"));
   }
 
-  const { data, error } = await interogare.returns<RandTichet[]>();
+  /*
+   * Totalul se numără SEPARAT, cu aceleași filtre dar FĂRĂ cursor.
+   *
+   * Pe aceeași interogare cu rândurile, numărătoarea exactă cuprinde tot ce
+   * rămâne după TOATE filtrele — iar predicatul keyset e un filtru, nu o
+   * instrucțiune de paginare. Verificat pe bază: `count(*) over ()` peste
+   * `where id > 25` întoarce 30 acolo unde există 55 de rânduri. Totalul ar fi
+   * scăzut cu fiecare pagină, sub un tabel care arată exact aceleași rânduri.
+   *
+   * `head: true` nu aduce niciun rând, iar numărătoarea trece prin ACELEAȘI
+   * politici RLS ca lista: cifra rămâne „câte văd eu”, nu „câte există”.
+   */
+  const [{ data, error }, { count, error: eroareNumaratoare }] = await Promise.all([
+    interogare.returns<RandTichet[]>(),
+    filtreaza(db.from("tickets").select("id", { count: "exact", head: true })),
+  ]);
   if (error !== null) throw error;
+  if (eroareNumaratoare !== null) throw eroareNumaratoare;
 
-  const randuri = data ?? [];
+  const toate = data ?? [];
+  const areUrmatoarea = toate.length > limita;
+  const randuri = areUrmatoarea ? toate.slice(0, limita) : toate;
+  const ultimul = randuri.at(-1);
+
   return {
-    randuri: randuri.slice(0, LIMITA_PAGINA),
-    maiSunt: randuri.length > LIMITA_PAGINA,
+    randuri,
+    urmatorulCursor:
+      areUrmatoarea && ultimul !== undefined
+        ? codificaCursor({ valoare: ultimul.created_at, id: ultimul.id })
+        : null,
+    total: count ?? randuri.length,
   };
 }
 
@@ -240,7 +335,18 @@ export type RezumatCoada = Readonly<{
   deschise: number;
   deAprobat: number;
   asteaptaSolicitantul: number;
-  restanteste7Zile: number;
+  /**
+   * Tichete deschise pe care nu s-a mai atins nimeni de șapte zile.
+   *
+   * ── DE CE `updated_at` ȘI NU `created_at` ─────────────────────────────────
+   * Cifra se calcula pe data DESCHIDERII, sub eticheta „Mai vechi de 7 zile".
+   * Consecința: un tichet deschis acum trei săptămâni, la care echipa a lucrat
+   * ieri, era numărat ca restanță, iar cifra creștea singură pe măsură ce
+   * modulul îmbătrânea — devenind, în câteva luni, egală cu „Deschise". Ce
+   * caută operatorul e ce a rămas NEATINS, iar asta se citește din ultima
+   * modificare a tichetului (stare, prioritate, repartizare), nu din vârsta lui.
+   */
+  faraMiscareDe7Zile: number;
 }>;
 
 /**
@@ -279,7 +385,7 @@ export async function rezumatCoada(organizationId: string): Promise<RezumatCoada
       .eq("organization_id", organizationId)
       .is("deleted_at", null)
       .in("status", deschise)
-      .lt("created_at", acumMinus7),
+      .lt("updated_at", acumMinus7),
   ]);
 
   for (const rezultat of [totalDeschise, deAprobat, asteapta, restante]) {
@@ -290,6 +396,6 @@ export async function rezumatCoada(organizationId: string): Promise<RezumatCoada
     deschise: totalDeschise.count ?? 0,
     deAprobat: deAprobat.count ?? 0,
     asteaptaSolicitantul: asteapta.count ?? 0,
-    restanteste7Zile: restante.count ?? 0,
+    faraMiscareDe7Zile: restante.count ?? 0,
   };
 }

@@ -518,35 +518,61 @@ export const mutaPas = createAction({
       );
     }
 
-    const { error: eroareParcare } = await db
+    // `.select()` pe fiecare dintre cele trei scrieri: un UPDATE respins de
+    // clauza USING a politicii (pasul șters între timp, drept de scriere
+    // pierdut) atinge ZERO rânduri și NU ridică eroare. Fără el, parcarea
+    // „reușea” tăcut, iar mutarea vecinului cădea imediat pe 23505 cu mesajul
+    // greșit — sau, mai rău, reordonarea raporta succes fără să miște nimic.
+    const { data: parcat, error: eroareParcare } = await db
       .from("checklist_template_items")
       .update({ ordine: parcare })
       .eq("id", curent.id)
-      .eq("organization_id", organizationId);
+      .eq("organization_id", organizationId)
+      .select("id")
+      .maybeSingle();
     if (eroareParcare !== null) traduEroare(eroareParcare);
+    if (parcat === null) {
+      throw businessRule(
+        "Pasul nu a putut fi mutat: fie a fost șters între timp, fie nu mai aveți dreptul asupra acestui șablon. Ordinea listei a rămas neschimbată; reîmprospătați pagina.",
+      );
+    }
 
     // Cele trei actualizări NU sunt într-o tranzacție (PostgREST): dacă una
     // din următoarele două eșuează, pasul rămâne la coadă. Mesajul o spune
     // explicit — revalidarea arată starea reală, nu una presupusă.
-    const { error: eroareB } = await db
+    const { data: vecinMutat, error: eroareB } = await db
       .from("checklist_template_items")
       .update({ ordine: curent.ordine })
       .eq("id", vecin.id)
-      .eq("organization_id", organizationId);
+      .eq("organization_id", organizationId)
+      .select("id")
+      .maybeSingle();
     if (eroareB !== null) {
       throw businessRule(
         "Pasul a rămas temporar la coada listei: mutarea vecinului a eșuat. Reîmprospătați pagina și încercați din nou.",
       );
     }
+    if (vecinMutat === null) {
+      throw businessRule(
+        "Pasul a rămas la coada listei: pasul vecin nu a putut fi mutat, fiindcă a fost șters între timp sau nu mai aveți dreptul asupra lui. Reîmprospătați pagina și reluați mutarea.",
+      );
+    }
 
-    const { error: eroareA } = await db
+    const { data: revenit, error: eroareA } = await db
       .from("checklist_template_items")
       .update({ ordine: vecin.ordine })
       .eq("id", curent.id)
-      .eq("organization_id", organizationId);
+      .eq("organization_id", organizationId)
+      .select("id")
+      .maybeSingle();
     if (eroareA !== null) {
       throw businessRule(
         "Pasul a rămas temporar la coada listei: revenirea pe poziția nouă a eșuat. Reîmprospătați pagina și încercați din nou.",
+      );
+    }
+    if (revenit === null) {
+      throw businessRule(
+        "Pasul a rămas la coada listei: revenirea pe poziția nouă a fost respinsă. Reîmprospătați pagina și reluați mutarea.",
       );
     }
 

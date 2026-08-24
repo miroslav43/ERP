@@ -7,7 +7,9 @@ import type { Metadata } from "next";
 import { CalendarPlus } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { SkeletonTable } from "@/components/data/skeleton-table";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { buton } from "@/components/ui/buton";
+import { Schelet } from "@/components/ui/schelet";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
@@ -16,7 +18,9 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { formatAmount } from "@/lib/format/money";
 import { todayInBucharest } from "@/lib/format/date";
 import { numarDeAprobat, soldAnual } from "@/lib/queries/leave";
+import { filtreCereriSchema } from "@/schemas/leave";
 import { fisaProprie } from "@/lib/queries/portal";
+import { filtreDinUrl } from "@/lib/rute/parametri";
 
 import { FiltreCereri } from "./filtre-cereri";
 import { NavConcedii } from "./nav-concedii";
@@ -43,7 +47,7 @@ async function RezumatSoldPropriu({ organizationId }: { readonly organizationId:
   const ramase = sold?.ramase ?? tipOdihna.zile_implicite;
 
   return (
-    <p className="border-border bg-surface text-foreground rounded-lg border px-4 py-2 text-sm">
+    <p className="border-border bg-surface text-foreground rounded-panou text-corp border px-4 py-2">
       Aveți <strong>{formatAmount(ramase)}</strong> zile rămase din „{tipOdihna.denumire}” pentru
       anul {String(an)}.{" "}
       <Link href="/concedii/sold" className="underline underline-offset-2">
@@ -58,7 +62,7 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
   await requireUser();
   const { tenant, user } = await requireTenant();
   await requireFeature(tenant.organizationId, "leave");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "leave:read", "own")) {
     return (
@@ -70,7 +74,7 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
   // administrator invitat e membru fără să fie angajat.
   const fisaMea = await fisaProprie(tenant.organizationId, user.id);
 
-  const scope = can(permisiuni, "leave:read", "all")
+  const scope: "own" | "team" | "all" = can(permisiuni, "leave:read", "all")
     ? "all"
     : can(permisiuni, "leave:read", "team")
       ? "team"
@@ -81,6 +85,8 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
   const poateConfigura = can(permisiuni, "leave:update", "all");
 
   const parametri = await searchParams;
+  // Aceleași filtre pe care le folosește lista — vezi nota din `FiltreCereri`.
+  const filtre = filtreDinUrl(filtreCereriSchema, parametri);
   const db = await createServerSupabase();
   const [{ data: tipuri }, deAprobat] = await Promise.all([
     db
@@ -95,29 +101,29 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
   ]);
 
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Concedii</h1>
-          <p className="text-muted-foreground text-sm">Cererile dumneavoastră de concediu.</p>
-        </div>
-        {poateCrea ? (
-          <Link
-            href="/concedii/noua"
-            className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
-          >
-            <CalendarPlus aria-hidden="true" className="size-4" />
-            Cerere nouă
-          </Link>
-        ) : null}
-      </header>
-
-      <NavConcedii
-        poateVedeaEchipa={poateVedeaEchipa}
-        poateAproba={poateAproba}
-        poateVedeaCalendar={poateVedeaEchipa}
-        poateConfigura={poateConfigura}
-        deAprobat={deAprobat}
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Concedii"
+        descriere="Cererile dumneavoastră de concediu."
+        {...(poateCrea
+          ? {
+              actiuni: (
+                <Link href="/concedii/noua" className={buton({ varianta: "primar" })}>
+                  <CalendarPlus aria-hidden="true" className="size-4" />
+                  Cerere nouă
+                </Link>
+              ),
+            }
+          : {})}
+        file={
+          <NavConcedii
+            poateVedeaEchipa={poateVedeaEchipa}
+            poateAproba={poateAproba}
+            poateVedeaCalendar={poateVedeaEchipa}
+            poateConfigura={poateConfigura}
+            deAprobat={deAprobat}
+          />
+        }
       />
 
       {/* Soldul apare pentru ORICINE are fișă, nu doar pentru scope „own”:
@@ -125,9 +131,10 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
           exact pe ecranul de unde depune cererea. */}
       {fisaMea !== null ? <RezumatSoldPropriu organizationId={tenant.organizationId} /> : null}
 
-      <FiltreCereri tipuri={tipuri ?? []} />
+      {/* Fără filtru după angajat: lista are un singur angajat — chiar el. */}
+      <FiltreCereri tipuri={tipuri ?? []} angajati={[]} filtre={filtre} />
 
-      <Suspense key={JSON.stringify(parametri)} fallback={<SkeletonTable />}>
+      <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={4} />}>
         <TabelCereri
           organizationId={tenant.organizationId}
           vizualizare="mele"
@@ -146,18 +153,16 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
               : {
                   titlu: "Nicio cerere de concediu",
                   descriere:
-                    "Nu aveți cereri care să corespundă filtrelor alese. Ștergeți filtrele sau depuneți o cerere nouă.",
+                    "Nu ați depus încă nicio cerere de concediu. Depuneți una și veți vedea aici starea ei.",
                 }
           }
-          actiuneGol={
-            poateCrea && fisaMea !== null
-              ? { label: "Cerere nouă", href: "/concedii/noua" }
-              : poateVedeaEchipa && fisaMea === null
-                ? { label: "Vezi cererile echipei", href: "/concedii/echipa" }
-                : undefined
-          }
+          {...(poateCrea && fisaMea !== null
+            ? { actiuneGol: { eticheta: "Cerere nouă", href: "/concedii/noua" } }
+            : poateVedeaEchipa && fisaMea === null
+              ? { actiuneGol: { eticheta: "Vezi cererile echipei", href: "/concedii/echipa" } }
+              : {})}
         />
       </Suspense>
-    </main>
+    </div>
   );
 }

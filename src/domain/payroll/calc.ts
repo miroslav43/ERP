@@ -28,11 +28,17 @@
 // NIMIC din modulul ăsta nu e certificat. Fiecare cotă vine din
 // `PayrollSettingsSnapshot`, niciodată hardcodată — vezi banner-ul din UI.
 
+import { sporDeNoapteSeAplica } from "../attendance/calcul-ore";
 import { rotunjesteLaBani } from "../bani";
 import { descriereCompleta, problema, problemaDinEtapa, type CodProblema } from "./erori";
 import { calculeazaCompensarea, type IntrareCompensare } from "./etape/compensare-ore";
 import { calculeazaDiurna, type IntrareDiurna } from "./etape/diurna-plafoane";
-import { calculeazaRetinerile, type Poprire, type RetinereSimpla } from "./etape/retineri-popriri";
+import {
+  calculeazaRetinerile,
+  type Poprire,
+  type RetinereAplicata,
+  type RetinereSimpla,
+} from "./etape/retineri-popriri";
 import { calculeazaIndemnizatieCm, type IntrareIndemnizatieCm } from "./etape/indemnizatie-cm";
 import { calculeazaIndemnizatieCo, type IntrareIndemnizatieCo } from "./etape/indemnizatie-co";
 
@@ -52,6 +58,17 @@ export interface PayrollSettingsSnapshot {
   readonly cotaCamAngajator: number;
   readonly normaZilnicaOre: number;
   readonly procentSporNoapte: number;
+  /**
+   * Minimul de ore de noapte dintr-o zi de la care se acordă sporul.
+   *
+   * Codul Muncii art. 126 îl leagă de „cel puțin 3 ore de muncă de noapte”.
+   * `attendance_settings.prag_ore_noapte` exista din 0057 cu implicitul 0 și
+   * ZERO consumatori aici: sporul de 25% se aplica pe orice fracțiune de oră.
+   *
+   * Opțional pentru compatibilitate cu apelanții existenți; `0` și `undefined`
+   * înseamnă amândouă „fără prag”.
+   */
+  readonly pragOreNoapte?: number;
   readonly procentSporWeekend: number;
   /**
    * Sporul distinct pentru sărbătoare legală. Lipsește din `payroll_settings`;
@@ -240,6 +257,18 @@ export interface PayrollCalcResult {
   readonly camAngajator: number;
   readonly net: number;
   readonly retineriTotal: number;
+  /**
+   * Ce s-a reținut din FIECARE dosar, nu doar totalul.
+   *
+   * Până în 0065 etapa `calculeazaRetinerile` producea detaliul ăsta — cu 37 de
+   * teste care confirmă plafoanele de 1/3 și 1/2 — iar `calculatePayrollEntry`
+   * păstra numai `totalRetinut` și îl arunca. Consecința: nimic nu putea ști cât
+   * s-a recuperat dintr-o poprire anume, deci `payroll_garnishments.suma_recuperata`
+   * rămânea 0 pe veci și dosarul reținea și după stingerea datoriei.
+   *
+   * Gol când perioada nu are dosare de poprire (calea `deductions` simplă).
+   */
+  readonly retineriAplicate: readonly RetinereAplicata[];
   readonly netDePlata: number;
   readonly avantajeNatura: number;
   readonly diurnaNeimpozabila: number;
@@ -353,9 +382,16 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     "sumaOreSuplimentare",
     oreSuplDePlata * oreRata * (1 + settings.procentOreSuplimentare),
   );
+  // Pragul se aplică pe ZI în pontaj, dar aici avem totalul lunii — comparația
+  // rămâne cu totalul, ca aproximare conservatoare declarată: o lună cu o
+  // singură oră de noapte nu primește spor, una cu 30 primește. Distribuția pe
+  // zile ar cere agregarea pontajului pe două axe, ceea ce e o schimbare de
+  // contract a lui `pontaj_agregat_salarizare`, nu de motor.
+  const pragNoapte = settings.pragOreNoapte ?? 0;
+  const sporNoapteSeAplica = sporDeNoapteSeAplica(attendance.oreNoapte, pragNoapte);
   const sporNoapte = inregistreaza(
     "sporNoapte",
-    attendance.oreNoapte * oreRata * settings.procentSporNoapte,
+    sporNoapteSeAplica ? attendance.oreNoapte * oreRata * settings.procentSporNoapte : 0,
   );
 
   // Zilele de repaus săptămânal și de sărbătoare legală.
@@ -397,6 +433,12 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     const p = problema(cod, { detalii });
     warnings.push({ cod: p.cod, mesaj: descriereCompleta(p) });
   };
+  if (attendance.oreNoapte > 0 && !sporNoapteSeAplica) {
+    avertizeaza(
+      "SAL_SPOR_NOAPTE_SUB_PRAG",
+      `${attendance.oreNoapte.toFixed(2)} ore de noapte, sub pragul de ${pragNoapte.toFixed(2)} ore.`,
+    );
+  }
   if (oreSarbatoare > 0 && settings.procentSporSarbatoare === undefined) {
     avertizeaza(
       "SAL_SPOR_SARBATOARE_NECONFIGURAT",
@@ -598,6 +640,7 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
 
   let netRamas = net;
   let retineriTotal = 0;
+  let retineriAplicate: readonly RetinereAplicata[] = [];
 
   if (input.popriri !== undefined) {
     // Regulile legale de urmărire silită: o singură poprire ia cel mult o
@@ -614,6 +657,7 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     });
     retineriTotal = r.totalRetinut;
     netRamas = r.netRamas;
+    retineriAplicate = r.aplicate;
     raporteaza(r.probleme);
   } else
     for (const deducere of deductions) {
@@ -686,6 +730,7 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     camAngajator: rotundLeu(camAngajator, r),
     net: rotundLeu(net, r),
     retineriTotal: rotundLeu(retineriTotal, r),
+    retineriAplicate,
     netDePlata: rotundLeu(netDePlata, r),
     avantajeNatura: rotundLeu(avantajeNatura, r),
     diurnaNeimpozabila: rotundLeu(diurnaNeimpozabila, r),

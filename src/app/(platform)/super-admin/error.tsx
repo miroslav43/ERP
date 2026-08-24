@@ -1,28 +1,21 @@
 // src/app/(platform)/super-admin/error.tsx
 "use client";
 
-import { RotateCcw } from "lucide-react";
+import { StareEroare } from "@/components/ui/stare-eroare";
 
-export default function EroarePlatforma({
-  reset,
+export default function Eroare({
+  error,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  retry: () => void;
 }) {
   return (
-    <div role="alert" className="border-border bg-surface rounded-lg border p-6">
-      <h2 className="text-foreground text-lg font-semibold">Nu am putut încărca această pagină</h2>
-      <p className="text-muted-foreground mt-1 text-sm">
-        Datele platformei nu au putut fi citite. Verificați conexiunea și încercați din nou.
-      </p>
-      <button
-        type="button"
-        onClick={reset}
-        className="bg-primary text-primary-foreground hover:bg-primary-hover mt-4 inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium"
-      >
-        <RotateCcw aria-hidden="true" className="size-4" />
-        Reîncearcă
-      </button>
-    </div>
+    <StareEroare
+      eroare={error}
+      reincearca={retry}
+      titlu="Nu am putut încărca această pagină"
+      descriere="Datele platformei nu au putut fi citite. Verificați conexiunea și încercați din nou."
+    />
   );
 }

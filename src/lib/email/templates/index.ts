@@ -2,18 +2,20 @@
 // Registrul de șabloane: funcții pure, fără acces la rețea, DB sau process.env.
 import { renderBunVenit, type BunVenitData } from "./bun-venit";
 import { renderCerereDemoPrimita, type CerereDemoData } from "./cerere-demo-primita";
+import { renderFluturas, type FluturasData } from "./fluturas";
 import { renderInvitatie, type InvitatieData } from "./invitatie";
 import { renderResetareParola, type ResetareParolaData } from "./resetare-parola";
 import type { RenderedEmail, TemplateContext } from "./layout";
 
 export type { RenderedEmail, TemplateContext };
-export type { BunVenitData, CerereDemoData, InvitatieData, ResetareParolaData };
+export type { BunVenitData, CerereDemoData, FluturasData, InvitatieData, ResetareParolaData };
 
 export const EMAIL_TEMPLATE_KEYS = [
   "invitatie",
   "resetare-parola",
   "bun-venit",
   "cerere-demo-primita",
+  "fluturas",
 ] as const;
 export type EmailTemplateKey = (typeof EMAIL_TEMPLATE_KEYS)[number];
 
@@ -21,7 +23,8 @@ export type EmailMessage =
   | Readonly<{ template: "invitatie"; data: InvitatieData }>
   | Readonly<{ template: "resetare-parola"; data: ResetareParolaData }>
   | Readonly<{ template: "bun-venit"; data: BunVenitData }>
-  | Readonly<{ template: "cerere-demo-primita"; data: CerereDemoData }>;
+  | Readonly<{ template: "cerere-demo-primita"; data: CerereDemoData }>
+  | Readonly<{ template: "fluturas"; data: FluturasData }>;
 
 export const renderEmail = (message: EmailMessage, ctx: TemplateContext): RenderedEmail => {
   switch (message.template) {
@@ -33,6 +36,8 @@ export const renderEmail = (message: EmailMessage, ctx: TemplateContext): Render
       return renderBunVenit(message.data, ctx);
     case "cerere-demo-primita":
       return renderCerereDemoPrimita(message.data, ctx);
+    case "fluturas":
+      return renderFluturas(message.data, ctx);
   }
 };
 
@@ -41,6 +46,7 @@ export const TEMPLATE_LABELS: Readonly<Record<EmailTemplateKey, string>> = {
   "resetare-parola": "Resetare parolă",
   "bun-venit": "Bun venit",
   "cerere-demo-primita": "Cerere demo (echipă)",
+  fluturas: "Fluturaș de salariu",
 };
 
 export const isTemplateKey = (value: string): value is EmailTemplateKey =>
@@ -65,6 +71,15 @@ export const SAMPLE_MESSAGES: Readonly<Record<EmailTemplateKey, EmailMessage>> =
   "bun-venit": {
     template: "bun-venit",
     data: { nume: "Ioana Țîrlea", organizatie: "Șantierul Mureș SRL", rolEticheta: "Angajat" },
+  },
+  fluturas: {
+    template: "fluturas",
+    data: {
+      nume: "Ioana Țîrlea",
+      organizatie: "Șantierul Mureș SRL",
+      luna: "septembrie",
+      an: 2026,
+    },
   },
   "cerere-demo-primita": {
     template: "cerere-demo-primita",

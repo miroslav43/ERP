@@ -4,6 +4,9 @@ import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCheck, RefreshCw } from "lucide-react";
 
+import { Buton } from "@/components/ui/buton";
+import { ConfirmareActiune } from "@/components/ui/dialog";
+
 import { aprobaPontajBloc, sincronizeazaConcediile } from "../actions";
 
 interface Proprietati {
@@ -37,6 +40,13 @@ export function AprobareBloc({
   const [eroareSincronizare, setEroareSincronizare] = useState<string | null>(null);
   const [rezultatSincronizare, setRezultatSincronizare] = useState<string | null>(null);
   const idObservatii = useId();
+  /*
+   * Aprobarea în bloc n-avea nicio oprire, deși e ireversibilă: după ea, zilele
+   * nu se mai pot modifica manual, iar redeschiderea cere altă acțiune și alt
+   * rol. Un clic greșit pe „Aprobă în bloc (412 linii)" nu se poate desface
+   * rând cu rând.
+   */
+  const [confirmareDeschisa, setConfirmareDeschisa] = useState(false);
 
   function aproba(): void {
     setEroareAprobare(null);
@@ -72,9 +82,9 @@ export function AprobareBloc({
   }
 
   return (
-    <div className="border-border space-y-4 rounded-lg border p-4">
+    <div className="border-border rounded-panou space-y-4 border p-4">
       <div className="space-y-2">
-        <label htmlFor={idObservatii} className="block text-sm font-medium">
+        <label htmlFor={idObservatii} className="text-corp block font-medium">
           Observații lot (opțional)
         </label>
         <textarea
@@ -85,46 +95,76 @@ export function AprobareBloc({
           onChange={(e) => {
             setObservatii(e.target.value);
           }}
-          className="border-foreground/60 w-full rounded-md border px-3 py-2 text-sm"
+          className="border-foreground/60 rounded-control text-corp w-full border px-3 py-2"
         />
-        <button
-          type="button"
-          onClick={aproba}
-          disabled={inCursAprobare || numarLiniiNeaprobate === 0}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
+        <Buton
+          varianta="primar"
+          onClick={() => {
+            setConfirmareDeschisa(true);
+          }}
+          disabled={numarLiniiNeaprobate === 0}
+          inCurs={inCursAprobare}
+          textInCurs="Se aprobă…"
         >
           <CheckCheck aria-hidden="true" className="size-4" />
-          {inCursAprobare ? "Se aprobă…" : `Aprobă în bloc (${String(numarLiniiNeaprobate)} linii)`}
-        </button>
+          {`Aprobă în bloc (${String(numarLiniiNeaprobate)} linii)`}
+        </Buton>
         {eroareAprobare === null ? null : (
-          <p role="alert" className="text-danger text-sm">
+          <p role="alert" className="text-danger text-corp">
             {eroareAprobare}
           </p>
         )}
       </div>
 
+      <ConfirmareActiune
+        deschis={confirmareDeschisa}
+        laInchidere={() => {
+          setConfirmareDeschisa(false);
+        }}
+        titlu="Aprobați lotul de pontaj?"
+        consecinta={
+          departmentId === null
+            ? "Liniile aprobate nu se mai pot modifica manual. Redeschiderea lor cere altă acțiune și alt rol."
+            : "Se aprobă numai liniile departamentului filtrat acum. Liniile aprobate nu se mai pot modifica manual."
+        }
+        cifre={[
+          { eticheta: "Perioada", valoare: `${String(luna).padStart(2, "0")}.${String(an)}` },
+          { eticheta: "Linii aprobate", valoare: String(numarLiniiNeaprobate) },
+          {
+            eticheta: "Cuprindere",
+            valoare: departmentId === null ? "toate departamentele" : "un singur departament",
+          },
+        ]}
+        etichetaConfirmare="Aprobă lotul"
+        inCurs={inCursAprobare}
+        laConfirmare={() => {
+          setConfirmareDeschisa(false);
+          aproba();
+        }}
+      />
+
       {poateSincroniza ? (
         <div className="border-border space-y-2 border-t pt-4">
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground text-corp">
             Completează automat zilele de concediu aprobat lipsă din foaie, fără să atingă vreo zi
             introdusă manual.
           </p>
-          <button
-            type="button"
+          <Buton
+            varianta="secundar"
             onClick={sincronizeaza}
-            disabled={inCursSincronizare}
-            className="border-foreground/60 hover:bg-surface disabled:border-border disabled:bg-surface disabled:text-muted-foreground inline-flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
+            inCurs={inCursSincronizare}
+            textInCurs="Se sincronizează…"
           >
             <RefreshCw aria-hidden="true" className="size-4" />
-            {inCursSincronizare ? "Se sincronizează…" : "Sincronizează cu concediile aprobate"}
-          </button>
+            Sincronizează cu concediile aprobate
+          </Buton>
           <div aria-live="polite">
             {eroareSincronizare !== null ? (
-              <p role="alert" className="text-danger text-sm">
+              <p role="alert" className="text-danger text-corp">
                 {eroareSincronizare}
               </p>
             ) : rezultatSincronizare !== null ? (
-              <p className="text-muted-foreground text-sm">{rezultatSincronizare}</p>
+              <p className="text-muted-foreground text-corp">{rezultatSincronizare}</p>
             ) : null}
           </div>
         </div>

@@ -2,18 +2,24 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Plane, PlaneTakeoff, Settings } from "lucide-react";
+import { Plane, PlaneTakeoff } from "lucide-react";
 
 import type { BaremTara } from "@/domain/per-diem/sume";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
-import { RandTabel } from "@/components/data/rand-tabel";
-import { SkeletonTable } from "@/components/data/skeleton-table";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { Badge } from "@/components/ui/badge";
+import { buton } from "@/components/ui/buton";
+import { Callout } from "@/components/ui/callout";
+import { StareGoala } from "@/components/ui/stare-goala";
+import { Paginare } from "@/components/ui/paginare";
+import { Schelet } from "@/components/ui/schelet";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDateTime, todayInBucharest } from "@/lib/format/date";
 import { formatLei } from "@/lib/format/money";
+import { scrieSortare } from "@/lib/queries/cursor";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 import {
   angajatiDupaId,
@@ -28,7 +34,7 @@ import {
 } from "@/lib/queries/per-diem";
 import { filtreDeplasariSchema } from "@/schemas/per-diem";
 
-import { CLASE_STATUS_DEPLASARE, ETICHETE_STATUS_DEPLASARE } from "./etichete";
+import { ETICHETE_STATUS_DEPLASARE, TONURI_STATUS_DEPLASARE, textZile } from "./etichete";
 import { FiltreDeplasari } from "./filtre-deplasari";
 import { NavDiurna } from "./nav-diurna";
 
@@ -56,7 +62,7 @@ function sumarDeplasare(
 ) {
   if (salvat !== undefined) {
     return {
-      text: `${String(salvat.zile_total)} zile${salvat.valoare_lei === null ? "" : ` · ${formatLei(salvat.valoare_lei)}`}`,
+      text: `${textZile(salvat.zile_total)}${salvat.valoare_lei === null ? "" : ` · ${formatLei(salvat.valoare_lei)}`}`,
       estimare: false,
     };
   }
@@ -79,7 +85,7 @@ function sumarDeplasare(
   );
 
   return {
-    text: `${String(rezultat.zileTotal)} zile${rezultat.valoareLei === null ? "" : ` · ${formatLei(rezultat.valoareLei)}`}`,
+    text: `${textZile(rezultat.zileTotal)}${rezultat.valoareLei === null ? "" : ` · ${formatLei(rezultat.valoareLei)}`}`,
     estimare: true,
   };
 }
@@ -94,19 +100,45 @@ async function TabelDeplasari({
   readonly arataAngajat: boolean;
 }) {
   const filtre = filtreDinUrl(filtreDeplasariSchema, parametri);
-  const { randuri, urmatorulCursor } = await listeazaDeplasari(organizationId, filtre);
+  const { randuri, urmatorulCursor, total, sortare } = await listeazaDeplasari(
+    organizationId,
+    filtre,
+  );
+
+  /**
+   * Adresele se construiesc din parametrii EXISTENȚI, nu dintr-un obiect gol:
+   * altfel o sortare ar șterge filtrul de stare, iar o schimbare de mărime a
+   * paginii ar șterge sortarea.
+   */
+  function adresa(schimba: (p: URLSearchParams) => void): string {
+    const p = new URLSearchParams();
+    for (const [cheie, valoare] of Object.entries(parametri)) {
+      if (typeof valoare === "string" && valoare !== "") p.set(cheie, valoare);
+    }
+    schimba(p);
+    return p.size === 0 ? "/diurna" : `/diurna?${p.toString()}`;
+  }
 
   if (randuri.length === 0) {
     const areFiltre = filtre.status !== null;
+    // „Șterge filtrele” scoate DOAR cheile de filtrare, aceleași pe care le
+    // administrează `<FiltreDeplasari>`. Un `href="/diurna"` sec ar fi luat cu
+    // el și sortarea, și mărimea paginii — exact defectul reparat în bară.
+    const faraFiltre = adresa((p) => {
+      p.delete("status");
+      p.delete("cursor");
+    });
     return (
-      <EmptyState
-        icon={Plane}
-        title={areFiltre ? "Niciun rezultat pentru filtrele alese" : "Nicio deplasare înregistrată"}
-        description={
+      <StareGoala
+        fel={areFiltre ? "filtrata" : "initiala"}
+        pictograma={Plane}
+        titlu={areFiltre ? "Niciun rezultat pentru filtrele alese" : "Nicio deplasare înregistrată"}
+        descriere={
           areFiltre
             ? "Ștergeți filtrele ca să vedeți toate deplasările."
             : "Adăugați prima deplasare în interes de serviciu ca să urmăriți diurna și decontul."
         }
+        {...(areFiltre ? { actiune: { eticheta: "Șterge filtrele", href: faraFiltre } } : {})}
       />
     );
   }
@@ -134,114 +166,114 @@ async function TabelDeplasari({
   ]);
   const politiciDupaData = new Map(politiciListe);
 
-  const cautare = new URLSearchParams();
-  for (const [cheie, valoare] of Object.entries(parametri)) {
-    if (typeof valoare === "string" && cheie !== "cursor") cautare.set(cheie, valoare);
-  }
-  if (urmatorulCursor !== null) cautare.set("cursor", urmatorulCursor);
+  const coloanaAngajat: readonly Coloana<(typeof randuri)[number]>[] = arataAngajat
+    ? [
+        {
+          cheie: "angajat",
+          antet: "Angajat",
+          peTelefon: "meta",
+          celula: (r) => {
+            const angajat = angajati.get(r.employee_id);
+            return angajat === undefined ? "—" : `${angajat.full_name ?? "—"} (${angajat.marca})`;
+          },
+        },
+      ]
+    : [];
+
+  const coloane: readonly Coloana<(typeof randuri)[number]>[] = [
+    {
+      cheie: "scop",
+      antet: "Scop",
+      sortabil: true,
+      peTelefon: "titlu",
+      celula: (r) => (
+        <>
+          <span className="font-medium">{r.scop}</span>
+          {r.localitate === null ? null : (
+            <span className="text-muted-foreground"> · {r.localitate}</span>
+          )}
+        </>
+      ),
+    },
+    ...coloanaAngajat,
+    {
+      cheie: "plecare",
+      antet: "Perioada",
+      sortabil: true,
+      peTelefon: "meta",
+      celula: (r) => (
+        <>
+          {formatDateTime(new Date(r.plecare_la))} – {formatDateTime(new Date(r.sosire_la))}
+        </>
+      ),
+    },
+    {
+      cheie: "stare",
+      antet: "Stare",
+      sortabil: true,
+      peTelefon: "insigna",
+      celula: (r) => (
+        <Badge ton={TONURI_STATUS_DEPLASARE[r.status]}>{ETICHETE_STATUS_DEPLASARE[r.status]}</Badge>
+      ),
+    },
+    {
+      cheie: "diurna",
+      antet: "Diurnă",
+      peTelefon: "meta",
+      celula: (r) => {
+        const sumar = sumarDeplasare(r, politiciDupaData, baremuri, salvate.get(r.id));
+        return (
+          <>
+            {sumar.text}
+            {sumar.estimare ? (
+              <span className="text-muted-foreground text-nota ml-1">(estimare)</span>
+            ) : null}
+          </>
+        );
+      },
+    },
+  ];
 
   return (
-    <>
-      <div className="border-border overflow-x-auto rounded-lg border">
-        <table className="w-full text-sm">
-          <caption className="sr-only">
-            Deplasările în interes de serviciu, cu diurna estimată.
-          </caption>
-          <thead className="bg-surface text-left">
-            <tr>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Scop
-              </th>
-              {arataAngajat ? (
-                <th scope="col" className="px-4 py-3 font-medium">
-                  Angajat
-                </th>
-              ) : null}
-              <th scope="col" className="px-4 py-3 font-medium">
-                Perioada
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Stare
-              </th>
-              <th scope="col" className="px-4 py-3 font-medium">
-                Diurnă
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-border divide-y">
-            {randuri.map((r) => {
-              const angajat = angajati.get(r.employee_id);
-              return (
-                <RandTabel key={r.id} href={`/diurna/${r.id}`}>
-                  <td className="px-4 py-3 font-medium">
-                    <Link href={`/diurna/${r.id}`} className="underline-offset-2 hover:underline">
-                      {r.scop}
-                    </Link>
-                    {r.localitate === null ? null : (
-                      <span className="text-muted-foreground"> · {r.localitate}</span>
-                    )}
-                  </td>
-                  {arataAngajat ? (
-                    <td className="px-4 py-3">
-                      {angajat === undefined
-                        ? "—"
-                        : `${angajat.full_name ?? "—"} (${angajat.marca})`}
-                    </td>
-                  ) : null}
-                  <td className="px-4 py-3">
-                    {formatDateTime(new Date(r.plecare_la))} –{" "}
-                    {formatDateTime(new Date(r.sosire_la))}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`rounded px-2 py-0.5 text-xs font-medium ${CLASE_STATUS_DEPLASARE[r.status]}`}
-                    >
-                      {ETICHETE_STATUS_DEPLASARE[r.status]}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm">
-                    {(() => {
-                      const sumar = sumarDeplasare(
-                        r,
-                        politiciDupaData,
-                        baremuri,
-                        salvate.get(r.id),
-                      );
-                      return (
-                        <>
-                          {sumar.text}
-                          {sumar.estimare ? (
-                            <span className="text-muted-foreground ml-1 text-xs">(estimare)</span>
-                          ) : null}
-                        </>
-                      );
-                    })()}
-                  </td>
-                </RandTabel>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      <nav aria-label="Paginare" className="flex justify-end">
-        {urmatorulCursor === null ? null : (
-          <Link
-            href={`/diurna?${cautare.toString()}`}
-            className="border-foreground/60 hover:bg-surface rounded-md border px-4 py-2 text-sm"
-          >
-            Pagina următoare
-          </Link>
-        )}
-      </nav>
-    </>
+    <div className="flex flex-col gap-4">
+      <Tabel
+        caption="Deplasările în interes de serviciu, cu diurna estimată."
+        coloane={coloane}
+        randuri={randuri}
+        cheieRand={(r) => r.id}
+        href={(r) => `/diurna/${r.id}`}
+        sortare={sortare}
+        hrefSortare={(s) =>
+          adresa((p) => {
+            p.set("sort", scrieSortare(s));
+            // Cursorul nu supraviețuiește unei schimbări de sortare: ar continua
+            // de la un rând care, în noua ordine, nu mai e acolo unde era.
+            p.delete("cursor");
+          })
+        }
+        gol={null}
+      />
+      <Paginare
+        afisate={randuri.length}
+        total={total}
+        cursorUrmator={urmatorulCursor}
+        limita={filtre.limita}
+        construiesteHref={({ cursor, limita }) =>
+          adresa((p) => {
+            p.set("limita", String(limita));
+            if (cursor === null) p.delete("cursor");
+            else p.set("cursor", cursor);
+          })
+        }
+      />
+    </div>
   );
 }
 
 export default async function PaginaDiurna({ searchParams }: ProprietatiPagina) {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "per_diem");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "per_diem:read", "own")) {
     return (
@@ -256,64 +288,70 @@ export default async function PaginaDiurna({ searchParams }: ProprietatiPagina) 
 
   const azi = todayInBucharest();
   const politicaCurenta = await politicaLaData(tenant.organizationId, azi);
-
-  if (politicaCurenta === null) {
-    return (
-      <main className="space-y-6 p-6">
-        <header>
-          <h1 className="text-2xl font-semibold">Deplasări</h1>
-        </header>
-        <NavDiurna poateAproba={poateAproba} />
-        <EmptyState
-          icon={Settings}
-          title="Politica de diurnă nu este configurată"
-          description={
-            poateConfiguraPolitica
-              ? "Fără o politică valabilă la data plecării, nicio deplasare nu poate fi salvată. Configurați pragurile și baremul firmei."
-              : "Fără o politică valabilă la data plecării, nicio deplasare nu poate fi salvată. Cereți administratorului organizației să configureze politica firmei."
-          }
-          {...(poateConfiguraPolitica
-            ? { action: { label: "Configurează politica", href: "/diurna/politica" } }
-            : {})}
-        />
-      </main>
-    );
-  }
-
   const parametri = await searchParams;
 
+  /**
+   * Lipsa unei politici valabile AZI e un avertisment, nu o poartă.
+   *
+   * Ecranul returna aici un `StareGoala` și NU mai randa deloc tabelul: o firmă
+   * a cărei politică s-a încheiat ieri își pierdea accesul la tot istoricul de
+   * deplasări deja înregistrate — o problemă de configurare ascundea datele.
+   * Politica lipsește doar pentru deplasările NOI (triggerul de inserare o cere
+   * la data plecării), deci exact butonul de adăugare e cel care se închide.
+   */
+  const faraPolitica = politicaCurenta === null;
+
   return (
-    <main className="space-y-6 p-6">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Deplasări</h1>
-          <p className="text-muted-foreground text-sm">
-            {scope === "own"
-              ? "Deplasările dumneavoastră în interes de serviciu, cu diurna estimată."
-              : "Deplasările la care aveți acces, cu diurna estimată."}
-          </p>
-        </div>
-        {poateAdauga ? (
-          <Link
-            href="/diurna/noua"
-            className="bg-primary text-primary-foreground hover:bg-primary-hover inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium"
-          >
-            <PlaneTakeoff aria-hidden="true" className="size-4" />
-            Deplasare nouă
-          </Link>
-        ) : null}
-      </header>
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Deplasări"
+        descriere={
+          scope === "own"
+            ? "Deplasările dumneavoastră în interes de serviciu, cu diurna estimată."
+            : "Deplasările la care aveți acces, cu diurna estimată."
+        }
+        {...(poateAdauga && !faraPolitica
+          ? {
+              actiuni: (
+                <Link href="/diurna/noua" className={buton({ varianta: "primar" })}>
+                  <PlaneTakeoff aria-hidden="true" className="size-4" />
+                  Deplasare nouă
+                </Link>
+              ),
+            }
+          : {})}
+        file={<NavDiurna poateAproba={poateAproba} />}
+      />
 
-      <NavDiurna poateAproba={poateAproba} />
-      <FiltreDeplasari />
+      {faraPolitica ? (
+        <Callout
+          fel="atentie"
+          titlu="Politica de diurnă nu e valabilă astăzi"
+          {...(poateConfiguraPolitica
+            ? {
+                actiune: (
+                  <Link href="/diurna/politica" className={buton({ varianta: "secundar" })}>
+                    Configurează politica
+                  </Link>
+                ),
+              }
+            : {})}
+        >
+          {poateConfiguraPolitica
+            ? "Deplasările deja înregistrate se văd mai jos, calculate cu politica valabilă la data lor. O deplasare NOUĂ nu se poate salva până nu există o versiune valabilă la data plecării."
+            : "Deplasările deja înregistrate se văd mai jos, calculate cu politica valabilă la data lor. Pentru o deplasare nouă, cereți administratorului organizației să configureze politica firmei."}
+        </Callout>
+      ) : null}
 
-      <Suspense key={JSON.stringify(parametri)} fallback={<SkeletonTable cols={5} />}>
+      <FiltreDeplasari parametri={parametri} />
+
+      <Suspense key={JSON.stringify(parametri)} fallback={<Schelet forma="tabel" coloane={5} />}>
         <TabelDeplasari
           organizationId={tenant.organizationId}
           parametri={parametri}
           arataAngajat={scope === "team" || scope === "all"}
         />
       </Suspense>
-    </main>
+    </div>
   );
 }

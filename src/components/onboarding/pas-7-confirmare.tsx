@@ -12,7 +12,7 @@ interface Proprietati {
 function Rand({ eticheta, valoare }: { eticheta: string; valoare: string | undefined }) {
   if (valoare === undefined || valoare === "") return null;
   return (
-    <div className="flex justify-between gap-4 py-1 text-sm">
+    <div className="text-corp flex justify-between gap-4 py-1">
       <dt className="text-muted-foreground">{eticheta}</dt>
       <dd className="text-foreground text-right font-medium">{valoare}</dd>
     </div>
@@ -30,11 +30,11 @@ export function Pas7Confirmare({ formular }: Proprietati) {
 
   return (
     <div className="space-y-6">
-      <p className="text-muted-foreground text-sm">
+      <p className="text-muted-foreground text-corp">
         Verificați datele înainte de a crea organizația. Puteți reveni la orice pas anterior.
       </p>
 
-      <dl className="border-border divide-border divide-y rounded-lg border p-4">
+      <dl className="border-border divide-border rounded-panou divide-y border p-4">
         <Rand eticheta="Denumire" valoare={valori.name} />
         <Rand eticheta="CUI" valoare={valori.cui} />
         <Rand eticheta="Formă de organizare" valoare={valori.forma_juridica} />
@@ -45,7 +45,7 @@ export function Pas7Confirmare({ formular }: Proprietati) {
         />
       </dl>
 
-      <dl className="border-border divide-border divide-y rounded-lg border p-4">
+      <dl className="border-border divide-border rounded-panou divide-y border p-4">
         <Rand eticheta="Reprezentant legal" valoare={valori.reprezentant_legal} />
         <Rand eticheta="Funcție" valoare={valori.functie_reprezentant_legal} />
         <Rand
@@ -54,14 +54,14 @@ export function Pas7Confirmare({ formular }: Proprietati) {
         />
       </dl>
 
-      <dl className="border-border divide-border divide-y rounded-lg border p-4">
+      <dl className="border-border divide-border rounded-panou divide-y border p-4">
         <Rand eticheta="Bancă" valoare={valori.banca_nume} />
         <Rand eticheta="IBAN" valoare={valori.banca_iban} />
         <Rand eticheta="Avans" valoare={valori.plata_avans ? "Da" : "Nu"} />
         <Rand eticheta="Tichete de masă" valoare={valori.tichete_furnizor} />
       </dl>
 
-      <dl className="border-border divide-border divide-y rounded-lg border p-4">
+      <dl className="border-border divide-border rounded-panou divide-y border p-4">
         <Rand eticheta="Punct de lucru principal" valoare={valori.punct_lucru_denumire} />
         <Rand
           eticheta="Zile concediu implicit"
@@ -75,7 +75,7 @@ export function Pas7Confirmare({ formular }: Proprietati) {
         <Rand eticheta="Serviciu SSM/PSI" valoare={valori.ssm_persoana_responsabila} />
       </dl>
 
-      <dl className="border-border divide-border divide-y rounded-lg border p-4">
+      <dl className="border-border divide-border rounded-panou divide-y border p-4">
         <Rand
           eticheta="Proprietar"
           valoare={[valori.owner_prenume, valori.owner_nume].filter(Boolean).join(" ") || undefined}

@@ -3,6 +3,7 @@
 // pornind de la el — motorul PUR din `@/domain/per-diem`, cu datele reale ale
 // deplasării, nu previzualizarea cu o singură țară de la creare.
 
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { formatDateTime } from "@/lib/format/date";
 import { formatAmount, formatLei } from "@/lib/format/money";
 import {
@@ -14,6 +15,8 @@ import {
 } from "@/lib/queries/per-diem";
 import type { BaremTara } from "@/domain/per-diem/sume";
 
+import { ActiuniEtapa } from "./actiuni-etapa";
+
 function numeTara(tari: ReadonlyMap<string, Tara>, id: string): string {
   return tari.get(id)?.denumire ?? id;
 }
@@ -24,29 +27,40 @@ export function Etape({
   politica,
   baremuri,
   tari,
+  poateSterge = false,
 }: {
   readonly deplasare: Deplasare;
   readonly etape: readonly EtapaDeplasare[];
   readonly politica: PoliticaRand | null;
   readonly baremuri: readonly BaremTara[];
   readonly tari: ReadonlyMap<string, Tara>;
+  /** Implicit `false`: fișa decide, nu componenta. Portalul o randează fără. */
+  readonly poateSterge?: boolean;
 }) {
   return (
     <div className="space-y-6">
       {etape.length === 0 ? (
-        <p className="text-muted-foreground text-sm">
+        <p className="text-muted-foreground text-corp">
           Deplasarea nu are încă nicio etapă înregistrată — calculul de mai jos folosește o singură
           țară, cea a deplasării.
         </p>
       ) : (
-        <ol className="space-y-2 text-sm">
+        <ol className="text-corp space-y-2">
           {etape.map((e) => (
-            <li key={e.id} className="border-border rounded-md border p-3">
+            <li key={e.id} className="border-border rounded-control border p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-medium">
                   {numeTara(tari, e.from_country_id)} → {numeTara(tari, e.to_country_id)}
                 </span>
-                <span className="text-muted-foreground text-xs">Etapa {e.ordine}</span>
+                <span className="flex items-center gap-1">
+                  <span className="text-muted-foreground text-nota">Etapa {e.ordine}</span>
+                  {poateSterge ? (
+                    <ActiuniEtapa
+                      id={e.id}
+                      descriere={`${numeTara(tari, e.from_country_id)} → ${numeTara(tari, e.to_country_id)}`}
+                    />
+                  ) : null}
+                </span>
               </div>
               <p className="text-muted-foreground">
                 {formatDateTime(new Date(e.plecare_la))} – {formatDateTime(new Date(e.sosire_la))}
@@ -58,7 +72,7 @@ export function Etape({
       )}
 
       {politica === null ? (
-        <p className="text-foreground text-sm">
+        <p className="text-foreground text-corp">
           Nu există o politică de diurnă valabilă la data plecării — calculul nu poate fi afișat.
         </p>
       ) : (
@@ -108,89 +122,98 @@ function CalculDiurna({
 
   if (ferestre.length === 0) {
     return (
-      <p className="text-foreground text-sm">
+      <p className="text-foreground text-corp">
         <strong>0 zile de diurnă</strong> — deplasarea a durat {formatAmount(durataOre)} ore, sub
         pragul de {formatAmount(politica.prag_ore_minim)} ore din politică.
       </p>
     );
   }
 
+  /**
+   * Ferestrele se calculează în memorie, nu se citesc paginat — nu există
+   * cursor, deci niciun antet nu e sortabil.
+   */
+  const coloane: readonly Coloana<(typeof ferestre)[number]>[] = [
+    {
+      cheie: "numar",
+      antet: "#",
+      numeric: true,
+      latime: "ingusta",
+      peTelefon: "meta",
+      celula: (f) => f.numarFereastra,
+    },
+    {
+      cheie: "interval",
+      antet: "Interval",
+      peTelefon: "titlu",
+      celula: (f) => `${formatDateTime(f.deLa)} – ${formatDateTime(f.panaLa)}`,
+    },
+    {
+      cheie: "tara",
+      antet: "Țară",
+      peTelefon: "meta",
+      celula: (f) => numeTara(tari, f.taraId),
+    },
+    {
+      cheie: "fractiune",
+      antet: "Fracțiune",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (f) => formatAmount(f.fractiune),
+    },
+    {
+      cheie: "motiv",
+      antet: "Motiv",
+      peTelefon: "meta",
+      celula: (f) => <span className="text-muted-foreground">{f.motiv}</span>,
+    },
+  ];
+
   return (
     <div className="space-y-3">
-      <div className="border-border overflow-x-auto rounded-lg border">
-        <table className="w-full text-sm">
-          <caption className="sr-only">
-            Ferestrele de 24 de ore ale diurnei și fracțiunea acordată fiecăreia.
-          </caption>
-          <thead className="bg-surface text-left">
-            <tr>
-              <th scope="col" className="px-3 py-2 font-medium">
-                #
-              </th>
-              <th scope="col" className="px-3 py-2 font-medium">
-                Interval
-              </th>
-              <th scope="col" className="px-3 py-2 font-medium">
-                Țară
-              </th>
-              <th scope="col" className="px-3 py-2 font-medium">
-                Fracțiune
-              </th>
-              <th scope="col" className="px-3 py-2 font-medium">
-                Motiv
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-border divide-y">
-            {ferestre.map((f) => (
-              <tr key={f.numarFereastra}>
-                <td className="px-3 py-2 tabular-nums">{f.numarFereastra}</td>
-                <td className="px-3 py-2">
-                  {formatDateTime(f.deLa)} – {formatDateTime(f.panaLa)}
-                </td>
-                <td className="px-3 py-2">{numeTara(tari, f.taraId)}</td>
-                <td className="px-3 py-2 tabular-nums">{formatAmount(f.fractiune)}</td>
-                <td className="text-muted-foreground px-3 py-2">{f.motiv}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Tabel
+        caption="Ferestrele de 24 de ore ale diurnei și fracțiunea acordată fiecăreia."
+        coloane={coloane}
+        randuri={ferestre}
+        cheieRand={(f) => String(f.numarFereastra)}
+        densitate="compact"
+        gol={null}
+      />
 
-      <dl className="border-border grid grid-cols-2 gap-4 rounded-lg border p-4 sm:grid-cols-4">
+      <dl className="border-border rounded-panou grid grid-cols-2 gap-4 border p-4 sm:grid-cols-4">
         <div>
-          <dt className="text-muted-foreground text-xs tracking-wide uppercase">Zile total</dt>
-          <dd className="mt-0.5 text-sm font-medium">{formatAmount(rezultat.zileTotal)}</dd>
+          <dt className="text-muted-foreground text-nota tracking-wide uppercase">Zile total</dt>
+          <dd className="text-corp mt-0.5 font-medium">{formatAmount(rezultat.zileTotal)}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground text-xs tracking-wide uppercase">Valoare</dt>
-          <dd className="mt-0.5 text-sm font-medium">
+          <dt className="text-muted-foreground text-nota tracking-wide uppercase">Valoare</dt>
+          <dd className="text-corp mt-0.5 font-medium">
             {rezultat.valoareLei === null ? "necunoscută" : formatLei(rezultat.valoareLei)}
           </dd>
         </div>
         <div>
-          <dt className="text-muted-foreground text-xs tracking-wide uppercase">Neimpozabil</dt>
-          <dd className="mt-0.5 text-sm font-medium">
+          <dt className="text-muted-foreground text-nota tracking-wide uppercase">Neimpozabil</dt>
+          <dd className="text-corp mt-0.5 font-medium">
             {rezultat.parteNeimpozabilaLei === null
               ? "—"
               : formatLei(rezultat.parteNeimpozabilaLei)}
           </dd>
         </div>
         <div>
-          <dt className="text-muted-foreground text-xs tracking-wide uppercase">Impozabil</dt>
-          <dd className="mt-0.5 text-sm font-medium">
+          <dt className="text-muted-foreground text-nota tracking-wide uppercase">Impozabil</dt>
+          <dd className="text-corp mt-0.5 font-medium">
             {rezultat.parteImpozabilaLei === null ? "—" : formatLei(rezultat.parteImpozabilaLei)}
           </dd>
         </div>
       </dl>
 
       {rezultat.baremLipsa ? (
-        <p className="text-foreground text-sm">
+        <p className="text-foreground text-corp">
           Lipsește baremul de diurnă pentru cel puțin o țară din traseu, la data respectivă — sumele
           nu pot fi calculate integral.
         </p>
       ) : rezultat.cursIncomplet ? (
-        <p className="text-foreground text-sm">
+        <p className="text-foreground text-corp">
           Zilele sunt calculate; suma în lei necesită cursul valutar (curs diurnă).
         </p>
       ) : null}

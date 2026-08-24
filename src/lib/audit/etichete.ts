@@ -1,3 +1,5 @@
+import type { TonStare } from "@/components/ui/badge";
+
 // src/lib/audit/etichete.ts
 /**
  * Traduceri în română pentru valorile enum-ului `audit_action`, pentru numele
@@ -123,10 +125,19 @@ const STATUSURI: Readonly<Record<string, string>> = {
   denied: "Refuzat",
 };
 
-const CLASE_STATUS: Readonly<Record<string, string>> = {
-  success: "text-success",
-  failure: "text-danger",
-  denied: "text-warning",
+/**
+ * Tonurile rezultatului unei acțiuni auditate.
+ *
+ * Erau culori de text: `text-success`, `text-danger` și `text-warning`. Ultima
+ * dă **3,40:1** pe crem și e interzisă ca text la orice dimensiune sub 18,66px
+ * bold — adică exact „Refuzat", cuvântul cel mai important din jurnal, era cel
+ * mai greu de citit. Ca ton, cuvântul rămâne în cerneală și semnalul îl poartă
+ * bulina.
+ */
+const TONURI_STATUS: Readonly<Record<string, TonStare>> = {
+  success: "succes",
+  failure: "pericol",
+  denied: "atentie",
 };
 
 export const etichetaActiune = (valoare: string): string => ACTIUNI[valoare] ?? umanizeaza(valoare);
@@ -140,8 +151,7 @@ export const etichetaCamp = (cale: readonly string[]): string =>
 export const etichetaStatus = (valoare: string): string =>
   STATUSURI[valoare] ?? umanizeaza(valoare);
 
-export const clasaStatus = (valoare: string): string =>
-  CLASE_STATUS[valoare] ?? "text-muted-foreground";
+export const tonStatus = (valoare: string): TonStare => TONURI_STATUS[valoare] ?? "neutru";
 
 const spreOptiuni = (
   valori: readonly string[],

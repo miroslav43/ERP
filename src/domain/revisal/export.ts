@@ -1,12 +1,35 @@
 // src/domain/revisal/export.ts
 //
-// ⚠ FORMATUL FIȘIERULUI REVISAL NU ESTE CONFIRMAT.
-// Aplicația oficială ReviSal a Inspecției Muncii importă un format binar/XML propriu,
-// a cărui specificație se obține de la ITM. NU inventăm serializarea și NU o prezentăm
-// ca fiind corectă. Modulul livrează STRUCTURA DE DATE completă (`RezultatExport`), care
-// este stabilă și verificabilă, plus un CSV lizibil ca soluție INTERIMARĂ, pentru ca
-// operatorul de personal să poată introduce/controla evenimentele în ReviSal.
-// Serializarea finală (`serializeazaOficial`) rămâne DE CONFIRMAT cu ITM.
+// ⚠ FIȘIERUL `.rvs` NU POATE FI PRODUS DE ACEASTĂ APLICAȚIE. Verificat, nu presupus.
+//
+// Ghidul oficial al Inspecției Muncii („Generarea registrului utilizând aplicația
+// Revisal conform HG nr. 500/2011", inspectiamuncii.ro) spune literal că
+// „fișierul cu extensia .rvs este codificat și prin urmare conținutul acestuia
+// nu poate fi vizualizat, așa cum era cazul fișierelor .xml". Iar din 10 aprilie
+// 2023, transmiterea la ITM se face DOAR cu fișiere .rvs generate sau validate
+// prin aplicația Revisal 6.0.8/6.0.9.
+//
+// Cu alte cuvinte, `.rvs` e formatul de IEȘIRE al aplicației Revisal, nu unul pe
+// care o aplicație terță îl poate scrie. Drumul real pentru un ERP e altul:
+//
+//   ERP → XML conform XSD-ului din HG 500/2011 → import în Revisal → .rvs → ITM
+//
+// XSD-ul acela se obține de la Inspecția Muncii (specificațiile tehnice publicate
+// pe inspectiamuncii.ro, plus suportregistru@inspectiamuncii.ro). NU îl avem, deci
+// NU inventăm serializarea: un fișier care arată plauzibil dar are un element
+// greșit e mai rău decât unul care lipsește, fiindcă e descoperit abia la import.
+//
+// Ce livrează modulul, și e stabil și verificabil:
+//   · `RezultatExport` — structura completă a evenimentelor, cu toate câmpurile
+//     cerute de registru (contract, funcție cu cod COR, normă, salariu, temei de
+//     încetare), gata de mapat pe XSD în ziua în care îl avem;
+//   · `laCsv` — un CSV lizibil, ca operatorul de personal să controleze și să
+//     introducă evenimentele în Revisal fără să le recitească din alt ecran.
+//
+// Funcția `serializeazaOficial` era menționată într-o versiune anterioară a
+// acestui antet ca „de confirmat cu ITM". Nu a existat niciodată în cod, iar
+// acum se știe de ce: nu putea exista. Mențiunea s-a scos, ca nimeni să n-o mai
+// caute.
 
 import type { TipEvenimentRevisal, ZiIso } from "./evenimente";
 

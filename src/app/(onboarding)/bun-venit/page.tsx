@@ -107,9 +107,5 @@ export default async function PaginaBunVenit() {
     seats_limit: 10,
   } as Partial<OnboardeazaOrganizatieInput>;
 
-  return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-10">
-      <AsistentFirma numeFirma={tenant.name} valoriInitiale={valoriInitiale} />
-    </main>
-  );
+  return <AsistentFirma numeFirma={tenant.name} valoriInitiale={valoriInitiale} />;
 }

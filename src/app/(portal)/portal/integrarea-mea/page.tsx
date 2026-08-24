@@ -4,7 +4,8 @@ import Link from "next/link";
 import { ClipboardList } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -20,7 +21,7 @@ export const metadata: Metadata = { title: "Integrarea mea" };
 export default async function PaginaIntegrareaMea() {
   const { tenant, user } = await requireTenant();
   await requireFeature(tenant.organizationId, "onboarding");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "checklists:read", "own")) {
     return (
@@ -50,19 +51,18 @@ export default async function PaginaIntegrareaMea() {
     randuri.length === 0 ? new Map() : await progresInstante(randuri.map((r) => r.id));
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 p-4">
-      <header>
-        <h1 className="text-foreground text-xl font-semibold">Integrarea mea</h1>
-        <p className="text-muted-foreground text-sm">
-          Pașii de parcurs la angajare, la schimbarea funcției sau la plecare.
-        </p>
-      </header>
+    <div className={`${LATIMI.lista} space-y-4 p-4`}>
+      <AntetPagina
+        titlu="Integrarea mea"
+        descriere="Pașii de parcurs la angajare, la schimbarea funcției sau la plecare."
+      />
 
       {randuri.length === 0 ? (
-        <EmptyState
-          icon={ClipboardList}
-          title="Niciun parcurs pornit"
-          description="Pașii de integrare îi pornește departamentul de resurse umane; apar aici imediat ce încep."
+        <StareGoala
+          fel="initiala"
+          pictograma={ClipboardList}
+          titlu="Niciun parcurs pornit"
+          descriere="Pașii de integrare îi pornește departamentul de resurse umane; apar aici imediat ce încep."
         />
       ) : (
         <ul className="space-y-2">
@@ -74,23 +74,23 @@ export default async function PaginaIntegrareaMea() {
               <li key={instanta.id}>
                 <Link
                   href={`/portal/integrarea-mea/${instanta.id}`}
-                  className="bg-surface border-border hover:border-ring block rounded-lg border p-4 transition-colors"
+                  className="bg-surface border-border hover:border-ring rounded-panou block border p-4 transition-colors"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-foreground text-sm font-medium">
+                      <p className="text-foreground text-corp font-medium">
                         {ETICHETE_TIP[instanta.tip]}
                       </p>
-                      <p className="text-muted-foreground mt-0.5 text-sm">
+                      <p className="text-muted-foreground text-corp mt-0.5">
                         Din {formatDate(instanta.data_referinta)}
                       </p>
                     </div>
-                    <span className="border-border text-muted-foreground shrink-0 rounded border px-2 py-0.5 text-xs">
+                    <span className="border-border text-muted-foreground text-nota shrink-0 rounded border px-2 py-0.5">
                       {ETICHETE_STATUS_INSTANTA[instanta.status]}
                     </span>
                   </div>
                   {total === 0 ? null : (
-                    <p className="text-muted-foreground mt-2 text-xs tabular-nums">
+                    <p className="text-muted-foreground text-nota mt-2 tabular-nums">
                       {facute.toLocaleString("ro-RO")} din {total.toLocaleString("ro-RO")} pași
                     </p>
                   )}

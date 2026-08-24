@@ -4,7 +4,8 @@ import Link from "next/link";
 import { Megaphone, Pin } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -17,7 +18,7 @@ export const metadata: Metadata = { title: "Anunțuri" };
 export default async function PaginaAnunturiPortal() {
   const { tenant, user } = await requireTenant();
   await requireFeature(tenant.organizationId, "announcements");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "announcements:read", "own")) {
     return (
@@ -37,17 +38,15 @@ export default async function PaginaAnunturiPortal() {
       : new Set<string>();
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 p-4">
-      <header>
-        <h1 className="text-foreground text-xl font-semibold">Anunțuri</h1>
-        <p className="text-muted-foreground text-sm">Avizierul firmei.</p>
-      </header>
+    <div className={`${LATIMI.lista} space-y-4 p-4`}>
+      <AntetPagina titlu="Anunțuri" descriere="Avizierul firmei." />
 
       {anunturi.length === 0 ? (
-        <EmptyState
-          icon={Megaphone}
-          title="Niciun anunț publicat"
-          description="Comunicările firmei apar aici, iar cele importante rămân fixate sus."
+        <StareGoala
+          fel="initiala"
+          pictograma={Megaphone}
+          titlu="Niciun anunț publicat"
+          descriere="Comunicările firmei apar aici, iar cele importante rămân fixate sus."
         />
       ) : (
         <ul className="space-y-2">
@@ -57,15 +56,17 @@ export default async function PaginaAnunturiPortal() {
               <li key={anunt.id}>
                 <Link
                   href={`/portal/anunturi/${anunt.id}`}
-                  className="bg-surface border-border hover:border-ring flex min-h-16 items-start gap-3 rounded-lg border p-4 transition-colors"
+                  className="bg-surface border-border hover:border-ring rounded-panou flex min-h-16 items-start gap-3 border p-4 transition-colors"
                 >
                   {anunt.fixat ? (
                     <Pin aria-label="Fixat" className="text-accent mt-0.5 size-4 shrink-0" />
                   ) : null}
                   <span className="min-w-0 flex-1">
-                    <span className="text-foreground block text-sm font-medium">{anunt.titlu}</span>
+                    <span className="text-foreground text-corp block font-medium">
+                      {anunt.titlu}
+                    </span>
                     {anunt.publicat_la === null ? null : (
-                      <span className="text-muted-foreground mt-0.5 block text-xs">
+                      <span className="text-muted-foreground text-nota mt-0.5 block">
                         {formatDate(anunt.publicat_la)}
                       </span>
                     )}

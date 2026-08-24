@@ -1,9 +1,13 @@
 "use client";
 
-import { useId, useState, useTransition } from "react";
+import { useCallback, useId, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import type { BaremTara } from "@/domain/per-diem/sume";
+import { Buton } from "@/components/ui/buton";
+import { Camp, clasaBifa } from "@/components/ui/camp";
+import { Formular } from "@/components/ui/formular";
+import type { ActionResult } from "@/lib/actions/types";
+import { gasesteRandValabil, type BaremTara } from "@/domain/per-diem/sume";
 import { MIJLOACE_TRANSPORT } from "@/schemas/per-diem";
 import type { PoliticaRand, Tara } from "@/lib/queries/per-diem";
 
@@ -17,419 +21,489 @@ interface Angajat {
   readonly marca: string;
 }
 
-const CLASA_CAMP = "mt-1 w-full rounded-md border border-foreground/60 px-3 py-2 text-sm";
+type DeplasareCreata = Readonly<{ id: string }>;
+
+/**
+ * Refuz construit în client, în forma exactă a unui `ActionResult`, ca mesajul
+ * să meargă pe aceeași cale ca al serverului și să ajungă lângă câmp, nu sub
+ * buton.
+ *
+ * Există doar unde schema Zod n-are mesaj propriu în română: `plecare_la` și
+ * `sosire_la` sunt `z.iso.datetime({ local: true })`, iar un câmp gol întoarce
+ * textul implicit al lui Zod, în engleză. Schema e un contract cu acțiunea și
+ * nu se atinge de aici — deci golul se prinde înainte de drumul la server.
+ */
+function refuzDeClient(
+  fieldErrors: Readonly<Record<string, readonly string[]>>,
+): ActionResult<never> {
+  return {
+    ok: false,
+    error: {
+      code: "VALIDARE",
+      message: "Datele introduse nu sunt valide.",
+      fieldErrors,
+      requestId: "client",
+    },
+  };
+}
+
+/**
+ * Gol ⇒ `null`, nu șirul vid.
+ *
+ * Pentru `curs_diurna`, `salariu_minim_stat_gazda` și cele două monede,
+ * diferența e vizibilă: `z.coerce.number()` transformă `""` în 0, iar un curs
+ * de 0 pică apoi pe intervalul acceptat cu un mesaj despre limite, în loc să
+ * fie tratat drept „necompletat”. Regexul monedei ar refuza la fel șirul vid,
+ * ascunzând regula reală — moneda e obligatorie doar dacă există avans.
+ */
+function textSauNull(date: FormData, cheie: string): string | null {
+  const valoare = String(date.get(cheie) ?? "").trim();
+  return valoare.length === 0 ? null : valoare;
+}
+
+/**
+ * Numele din `FormData` sunt EXACT cheile lui `deplasareNouaSchema`
+ * (`src/schemas/per-diem.ts`): `employee_id`, `scop`, `country_id`,
+ * `localitate`, `plecare_la`, `sosire_la`, `mijloc_transport`, `avans_acordat`,
+ * `moneda_avans`, `curs_diurna`, `observatii`, `detasare_transnationala`,
+ * `stat_gazda_country_id`, `salariu_minim_stat_gazda`, `moneda_salariu_minim`.
+ * Fără potrivirea asta, `fieldErrors` întors de acțiune n-ar mai găsi niciun
+ * câmp, iar mesajul ar dispărea în tăcere.
+ *
+ * `km_parcursi` există în schemă, dar nu și pe ecran: kilometrii se completează
+ * pe fișa deplasării, din foaia de parcurs.
+ */
+async function trimiteDeplasarea(date: FormData): Promise<ActionResult<DeplasareCreata>> {
+  const plecareLa = String(date.get("plecare_la") ?? "").trim();
+  const sosireLa = String(date.get("sosire_la") ?? "").trim();
+  const lipsa: Record<string, readonly string[]> = {};
+  if (plecareLa.length === 0) lipsa["plecare_la"] = ["Completați data plecării."];
+  if (sosireLa.length === 0) lipsa["sosire_la"] = ["Completați data sosirii."];
+  if (Object.keys(lipsa).length > 0) return refuzDeClient(lipsa);
+
+  return creeazaDeplasare({
+    employee_id: textSauNull(date, "employee_id"),
+    scop: String(date.get("scop") ?? ""),
+    country_id: textSauNull(date, "country_id"),
+    localitate: textSauNull(date, "localitate"),
+    plecare_la: plecareLa,
+    sosire_la: sosireLa,
+    mijloc_transport: String(date.get("mijloc_transport") ?? ""),
+    km_parcursi: null,
+    avans_acordat: String(date.get("avans_acordat") ?? ""),
+    moneda_avans: textSauNull(date, "moneda_avans"),
+    curs_diurna: textSauNull(date, "curs_diurna"),
+    observatii: textSauNull(date, "observatii"),
+    // Bifa nebifată nu apare deloc în `FormData`; absența ei ESTE răspunsul.
+    detasare_transnationala: date.get("detasare_transnationala") !== null,
+    stat_gazda_country_id: textSauNull(date, "stat_gazda_country_id"),
+    salariu_minim_stat_gazda: textSauNull(date, "salariu_minim_stat_gazda"),
+    moneda_salariu_minim: textSauNull(date, "moneda_salariu_minim"),
+  });
+}
 
 /**
  * `prefixCale` există pentru portal: aceeași deplasare, dar deschisă apoi în
  * `/portal/diurna-mea/<id>`. Parametrizare, nu copie — calculul de zile și
  * bareme e partea grea, iar două exemplare ale lui ar diverge la primul barem
  * schimbat. `angajati: null` scoate singura diferență de randare: selectorul
- * „pentru angajatul", care în portal n-are sens.
+ * „pentru angajatul”, care în portal n-are sens.
+ *
+ * Câmpurile care hrănesc previzualizarea din dreapta sau deschid alte câmpuri
+ * (țara, datele, cursul, avansul, detașarea) rămân CONTROLATE: starea lor
+ * supraviețuiește oricum unei erori de validare. Restul sunt necontrolate și
+ * își reiau valoarea din `stare.valoriTrimise`.
  */
 export function FormularDeplasare({
   tari,
   politica,
+  politici,
   baremuri,
   angajati,
   prefixCale = "/diurna",
 }: {
   readonly tari: readonly Tara[];
+  /** Versiunea de referință: dă țara internă implicită și rămâne rezerva. */
   readonly politica: PoliticaRand;
+  /**
+   * TOATE versiunile politicii firmei. Opțional pentru compatibilitate cu
+   * portalul, care randează același formular fără ele.
+   */
+  readonly politici?: readonly PoliticaRand[];
   readonly baremuri: readonly BaremTara[];
   readonly angajati: readonly Angajat[] | null;
   readonly prefixCale?: string;
 }) {
   const router = useRouter();
-  const [inCurs, porneste] = useTransition();
-  const [eroare, setEroare] = useState<string | null>(null);
+  const idDetasare = useId();
 
-  const [employeeId, setEmployeeId] = useState("");
-  const [scop, setScop] = useState("");
   const [countryId, setCountryId] = useState(politica.country_id_intern);
-  const [localitate, setLocalitate] = useState("");
   const [plecareLa, setPlecareLa] = useState("");
   const [sosireLa, setSosireLa] = useState("");
-  const [mijlocTransport, setMijlocTransport] =
-    useState<(typeof MIJLOACE_TRANSPORT)[number]>("auto_serviciu");
   const [avansAcordat, setAvansAcordat] = useState("0");
-  const [monedaAvans, setMonedaAvans] = useState("");
   const [cursDiurna, setCursDiurna] = useState("");
-  const [observatii, setObservatii] = useState("");
   const [detasare, setDetasare] = useState(false);
-  const [statGazdaId, setStatGazdaId] = useState("");
-  const [salariuMinim, setSalariuMinim] = useState("");
-  const [monedaSalariuMinim, setMonedaSalariuMinim] = useState("");
 
-  const id = {
-    angajat: useId(),
-    scop: useId(),
-    tara: useId(),
-    localitate: useId(),
-    plecare: useId(),
-    sosire: useId(),
-    mijloc: useId(),
-    avans: useId(),
-    monedaAvans: useId(),
-    curs: useId(),
-    observatii: useId(),
-    detasare: useId(),
-    statGazda: useId(),
-    salariuMinim: useId(),
-    monedaSalariuMinim: useId(),
-  };
+  /**
+   * Versiunea de politică folosită la previzualizare se alege după DATA
+   * PLECĂRII, nu după ziua de azi.
+   *
+   * Ecranul primea până acum `politicaLaData(org, todayInBucharest())` și
+   * calcula cu ea orice deplasare, inclusiv una planificată după o schimbare de
+   * praguri — contrazicând planul propriu al modulului
+   * (`docs/design/ecrane/diurna.md`: „dataISO = plecare_la::date A DEPLASĂRII,
+   * nu ziua de azi”). Fișa deplasării, care folosește data corectă, arăta apoi
+   * altă sumă decât previzualizarea de la care omul plecase.
+   */
+  const politicaAplicabila = useMemo<PoliticaRand | null>(() => {
+    if (politici === undefined) return politica;
+    const dataPlecare = plecareLa.slice(0, 10);
+    if (dataPlecare.length < 10) return politica;
+    const potrivita = gasesteRandValabil(
+      politici.map((p) => ({
+        valabilDeLa: p.valabil_de_la,
+        valabilPana: p.valabil_pana,
+        politica: p,
+      })),
+      dataPlecare,
+    );
+    return potrivita === null ? null : potrivita.politica;
+  }, [politici, politica, plecareLa]);
 
   const taraEsteInterna = countryId === politica.country_id_intern;
 
-  function trimite(): void {
-    if (scop.trim().length < 3) {
-      setEroare("Scopul deplasării trebuie să aibă cel puțin 3 caractere.");
-      return;
-    }
-    if (plecareLa.length === 0 || sosireLa.length === 0) {
-      setEroare("Completați data de plecare și data de sosire.");
-      return;
-    }
-    setEroare(null);
-    porneste(async () => {
-      const rezultat = await creeazaDeplasare({
-        employee_id: employeeId.length === 0 ? null : employeeId,
-        scop,
-        country_id: countryId.length === 0 ? null : countryId,
-        localitate: localitate.length === 0 ? null : localitate,
-        plecare_la: plecareLa,
-        sosire_la: sosireLa,
-        mijloc_transport: mijlocTransport,
-        km_parcursi: null,
-        avans_acordat: avansAcordat.length === 0 ? 0 : Number(avansAcordat),
-        moneda_avans: monedaAvans.length === 0 ? null : monedaAvans,
-        curs_diurna: cursDiurna.length === 0 ? null : Number(cursDiurna),
-        observatii: observatii.length === 0 ? null : observatii,
-        detasare_transnationala: detasare,
-        stat_gazda_country_id: detasare && statGazdaId.length > 0 ? statGazdaId : null,
-        salariu_minim_stat_gazda: detasare && salariuMinim.length > 0 ? Number(salariuMinim) : null,
-        moneda_salariu_minim: detasare && monedaSalariuMinim.length > 0 ? monedaSalariuMinim : null,
-      });
-      if (!rezultat.ok) {
-        setEroare(rezultat.error.message);
-        return;
-      }
-      router.push(`${prefixCale}/${rezultat.data.id}`);
-    });
-  }
+  const laReusita = useCallback(
+    (deplasare: Readonly<{ id: string }>) => {
+      router.push(`${prefixCale}/${deplasare.id}`);
+    },
+    [router, prefixCale],
+  );
 
   return (
     <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-      <form
-        onSubmit={(eveniment) => {
-          eveniment.preventDefault();
-        }}
-        className="space-y-4"
-        noValidate
+      <Formular
+        actiune={trimiteDeplasarea}
+        laReusita={laReusita}
+        mesajReusita="Deplasarea a fost salvată ca ciornă."
       >
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {angajati !== null ? (
-            <div className="sm:col-span-2">
-              <label htmlFor={id.angajat} className="block text-sm font-medium">
-                Pentru angajatul
-              </label>
-              <select
-                id={id.angajat}
-                value={employeeId}
-                onChange={(e) => {
-                  setEmployeeId(e.target.value);
-                }}
-                className={CLASA_CAMP}
-              >
-                <option value="">Eu însumi</option>
-                {angajati.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.full_name} ({a.marca})
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : null}
-
-          <div className="sm:col-span-2">
-            <label htmlFor={id.scop} className="block text-sm font-medium">
-              Scopul deplasării *
-            </label>
-            <input
-              id={id.scop}
-              type="text"
-              required
-              maxLength={500}
-              value={scop}
-              onChange={(e) => {
-                setScop(e.target.value);
-              }}
-              className={CLASA_CAMP}
-            />
-          </div>
-
-          <div>
-            <label htmlFor={id.tara} className="block text-sm font-medium">
-              Țara
-            </label>
-            <select
-              id={id.tara}
-              value={countryId}
-              onChange={(e) => {
-                setCountryId(e.target.value);
-              }}
-              className={CLASA_CAMP}
-            >
-              {tari.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.denumire}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor={id.localitate} className="block text-sm font-medium">
-              Localitatea (opțional)
-            </label>
-            <input
-              id={id.localitate}
-              type="text"
-              maxLength={200}
-              value={localitate}
-              onChange={(e) => {
-                setLocalitate(e.target.value);
-              }}
-              className={CLASA_CAMP}
-            />
-          </div>
-
-          <div>
-            <label htmlFor={id.plecare} className="block text-sm font-medium">
-              Plecarea *
-            </label>
-            <input
-              id={id.plecare}
-              type="datetime-local"
-              required
-              value={plecareLa}
-              onChange={(e) => {
-                setPlecareLa(e.target.value);
-              }}
-              className={CLASA_CAMP}
-            />
-          </div>
-
-          <div>
-            <label htmlFor={id.sosire} className="block text-sm font-medium">
-              Sosirea *
-            </label>
-            <input
-              id={id.sosire}
-              type="datetime-local"
-              required
-              value={sosireLa}
-              onChange={(e) => {
-                setSosireLa(e.target.value);
-              }}
-              className={CLASA_CAMP}
-            />
-          </div>
-
-          <div>
-            <label htmlFor={id.mijloc} className="block text-sm font-medium">
-              Mijloc de transport
-            </label>
-            <select
-              id={id.mijloc}
-              value={mijlocTransport}
-              onChange={(e) => {
-                setMijlocTransport(e.target.value as (typeof MIJLOACE_TRANSPORT)[number]);
-              }}
-              className={CLASA_CAMP}
-            >
-              {MIJLOACE_TRANSPORT.map((m) => (
-                <option key={m} value={m}>
-                  {ETICHETE_MIJLOC_TRANSPORT[m]}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {taraEsteInterna ? null : (
-            <div>
-              <label htmlFor={id.curs} className="block text-sm font-medium">
-                Curs valutar diurnă (opțional)
-              </label>
-              <input
-                id={id.curs}
-                type="number"
-                min="0"
-                step="0.000001"
-                value={cursDiurna}
-                onChange={(e) => {
-                  setCursDiurna(e.target.value);
-                }}
-                className={CLASA_CAMP}
-              />
-              <p className="text-muted-foreground mt-1 text-xs">
-                Fără curs, zilele se văd, dar suma în lei rămâne necunoscută.
-              </p>
-            </div>
-          )}
-
-          <div>
-            <label htmlFor={id.avans} className="block text-sm font-medium">
-              Avans acordat
-            </label>
-            <input
-              id={id.avans}
-              type="number"
-              min="0"
-              step="0.01"
-              value={avansAcordat}
-              onChange={(e) => {
-                setAvansAcordat(e.target.value);
-              }}
-              className={CLASA_CAMP}
-            />
-          </div>
-
-          {Number(avansAcordat) > 0 ? (
-            <div>
-              <label htmlFor={id.monedaAvans} className="block text-sm font-medium">
-                Moneda avansului *
-              </label>
-              <input
-                id={id.monedaAvans}
-                type="text"
-                maxLength={3}
-                placeholder="RON"
-                value={monedaAvans}
-                onChange={(e) => {
-                  setMonedaAvans(e.target.value);
-                }}
-                className={CLASA_CAMP}
-              />
-            </div>
-          ) : null}
-
-          <div className="sm:col-span-2">
-            <label htmlFor={id.observatii} className="block text-sm font-medium">
-              Observații (opțional)
-            </label>
-            <textarea
-              id={id.observatii}
-              rows={2}
-              maxLength={2000}
-              value={observatii}
-              onChange={(e) => {
-                setObservatii(e.target.value);
-              }}
-              className={CLASA_CAMP}
-            />
-          </div>
-
-          <div className="flex items-center gap-2 sm:col-span-2">
-            <input
-              id={id.detasare}
-              type="checkbox"
-              checked={detasare}
-              onChange={(e) => {
-                setDetasare(e.target.checked);
-              }}
-            />
-            <label htmlFor={id.detasare} className="text-sm font-medium">
-              Detașare transnațională (Directiva 96/71/CE)
-            </label>
-          </div>
-
-          {detasare ? (
-            <>
-              <div>
-                <label htmlFor={id.statGazda} className="block text-sm font-medium">
-                  Statul gazdă *
-                </label>
-                <select
-                  id={id.statGazda}
-                  value={statGazdaId}
-                  onChange={(e) => {
-                    setStatGazdaId(e.target.value);
-                  }}
-                  className={CLASA_CAMP}
+        {(stare) => (
+          <>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {angajati !== null ? (
+                <Camp
+                  nume="employee_id"
+                  eticheta="Pentru angajatul"
+                  fel="select"
+                  className="sm:col-span-2"
+                  erori={stare.erori["employee_id"] ?? []}
                 >
-                  <option value="">Alegeți statul</option>
-                  {tari.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.denumire}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor={id.salariuMinim} className="block text-sm font-medium">
-                  Salariul minim în statul gazdă *
-                </label>
-                <input
-                  id={id.salariuMinim}
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={salariuMinim}
-                  onChange={(e) => {
-                    setSalariuMinim(e.target.value);
-                  }}
-                  className={CLASA_CAMP}
-                />
-              </div>
-              <div>
-                <label htmlFor={id.monedaSalariuMinim} className="block text-sm font-medium">
-                  Moneda salariului minim *
-                </label>
-                <input
-                  id={id.monedaSalariuMinim}
-                  type="text"
-                  maxLength={3}
-                  value={monedaSalariuMinim}
-                  onChange={(e) => {
-                    setMonedaSalariuMinim(e.target.value);
-                  }}
-                  className={CLASA_CAMP}
-                />
-              </div>
-            </>
-          ) : null}
-        </div>
+                  {(a) => (
+                    <select {...a} defaultValue={stare.valoriTrimise["employee_id"] ?? ""}>
+                      <option value="">Eu însumi</option>
+                      {angajati.map((ang) => (
+                        <option key={ang.id} value={ang.id}>
+                          {ang.full_name} ({ang.marca})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </Camp>
+              ) : null}
 
-        <div aria-live="polite">
-          {eroare !== null ? (
-            <p className="border-danger bg-danger/8 text-danger rounded-md border p-3 text-sm">
-              {eroare}
+              <Camp
+                nume="scop"
+                eticheta="Scopul deplasării"
+                obligatoriu
+                className="sm:col-span-2"
+                erori={stare.erori["scop"] ?? []}
+              >
+                {(a) => (
+                  <input
+                    {...a}
+                    type="text"
+                    maxLength={500}
+                    defaultValue={stare.valoriTrimise["scop"] ?? ""}
+                  />
+                )}
+              </Camp>
+
+              <Camp
+                nume="country_id"
+                eticheta="Țara"
+                fel="select"
+                erori={stare.erori["country_id"] ?? []}
+              >
+                {(a) => (
+                  <select
+                    {...a}
+                    value={countryId}
+                    onChange={(e) => {
+                      setCountryId(e.target.value);
+                    }}
+                  >
+                    {tari.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.denumire}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </Camp>
+
+              <Camp
+                nume="localitate"
+                eticheta="Localitatea (opțional)"
+                erori={stare.erori["localitate"] ?? []}
+              >
+                {(a) => (
+                  <input
+                    {...a}
+                    type="text"
+                    maxLength={200}
+                    defaultValue={stare.valoriTrimise["localitate"] ?? ""}
+                  />
+                )}
+              </Camp>
+
+              <Camp
+                nume="plecare_la"
+                eticheta="Plecarea"
+                obligatoriu
+                erori={stare.erori["plecare_la"] ?? []}
+              >
+                {(a) => (
+                  <input
+                    {...a}
+                    type="datetime-local"
+                    value={plecareLa}
+                    onChange={(e) => {
+                      setPlecareLa(e.target.value);
+                    }}
+                  />
+                )}
+              </Camp>
+
+              <Camp
+                nume="sosire_la"
+                eticheta="Sosirea"
+                obligatoriu
+                erori={stare.erori["sosire_la"] ?? []}
+              >
+                {(a) => (
+                  <input
+                    {...a}
+                    type="datetime-local"
+                    value={sosireLa}
+                    onChange={(e) => {
+                      setSosireLa(e.target.value);
+                    }}
+                  />
+                )}
+              </Camp>
+
+              <Camp
+                nume="mijloc_transport"
+                eticheta="Mijloc de transport"
+                fel="select"
+                erori={stare.erori["mijloc_transport"] ?? []}
+              >
+                {(a) => (
+                  <select
+                    {...a}
+                    defaultValue={stare.valoriTrimise["mijloc_transport"] ?? "auto_serviciu"}
+                  >
+                    {MIJLOACE_TRANSPORT.map((m) => (
+                      <option key={m} value={m}>
+                        {ETICHETE_MIJLOC_TRANSPORT[m]}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </Camp>
+
+              {taraEsteInterna ? null : (
+                <Camp
+                  nume="curs_diurna"
+                  eticheta="Curs valutar diurnă (opțional)"
+                  ajutor="Fără curs, zilele se văd, dar suma în lei rămâne necunoscută."
+                  erori={stare.erori["curs_diurna"] ?? []}
+                >
+                  {(a) => (
+                    <input
+                      {...a}
+                      type="number"
+                      min="0"
+                      step="0.000001"
+                      value={cursDiurna}
+                      onChange={(e) => {
+                        setCursDiurna(e.target.value);
+                      }}
+                    />
+                  )}
+                </Camp>
+              )}
+
+              <Camp
+                nume="avans_acordat"
+                eticheta="Avans acordat"
+                erori={stare.erori["avans_acordat"] ?? []}
+              >
+                {(a) => (
+                  <input
+                    {...a}
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={avansAcordat}
+                    onChange={(e) => {
+                      setAvansAcordat(e.target.value);
+                    }}
+                  />
+                )}
+              </Camp>
+
+              {Number(avansAcordat) > 0 ? (
+                <Camp
+                  nume="moneda_avans"
+                  eticheta="Moneda avansului"
+                  obligatoriu
+                  erori={stare.erori["moneda_avans"] ?? []}
+                >
+                  {(a) => (
+                    <input
+                      {...a}
+                      type="text"
+                      maxLength={3}
+                      placeholder="RON"
+                      defaultValue={stare.valoriTrimise["moneda_avans"] ?? ""}
+                    />
+                  )}
+                </Camp>
+              ) : null}
+
+              <Camp
+                nume="observatii"
+                eticheta="Observații (opțional)"
+                fel="textarea"
+                className="sm:col-span-2"
+                erori={stare.erori["observatii"] ?? []}
+              >
+                {(a) => (
+                  <textarea
+                    {...a}
+                    rows={2}
+                    maxLength={2000}
+                    defaultValue={stare.valoriTrimise["observatii"] ?? ""}
+                  />
+                )}
+              </Camp>
+
+              {/* Bifa rămâne scrisă de mână: `Camp` pune eticheta ÎNAINTEA
+                  controlului, iar la o casetă de bifat eticheta stă după —
+                  altfel ținta de atingere se rupe în două și rândul se citește
+                  invers. */}
+              <div className="flex items-center gap-2 sm:col-span-2">
+                <input
+                  id={idDetasare}
+                  name="detasare_transnationala"
+                  type="checkbox"
+                  checked={detasare}
+                  onChange={(e) => {
+                    setDetasare(e.target.checked);
+                  }}
+                  className={clasaBifa}
+                />
+                <label htmlFor={idDetasare} className="text-corp font-medium">
+                  Detașare transnațională (Directiva 96/71/CE)
+                </label>
+              </div>
+
+              {detasare ? (
+                <>
+                  <Camp
+                    nume="stat_gazda_country_id"
+                    eticheta="Statul gazdă"
+                    fel="select"
+                    obligatoriu
+                    erori={stare.erori["stat_gazda_country_id"] ?? []}
+                  >
+                    {(a) => (
+                      <select
+                        {...a}
+                        defaultValue={stare.valoriTrimise["stat_gazda_country_id"] ?? ""}
+                      >
+                        <option value="">Alegeți statul</option>
+                        {tari.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.denumire}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </Camp>
+
+                  <Camp
+                    nume="salariu_minim_stat_gazda"
+                    eticheta="Salariul minim în statul gazdă"
+                    obligatoriu
+                    erori={stare.erori["salariu_minim_stat_gazda"] ?? []}
+                  >
+                    {(a) => (
+                      <input
+                        {...a}
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        defaultValue={stare.valoriTrimise["salariu_minim_stat_gazda"] ?? ""}
+                      />
+                    )}
+                  </Camp>
+
+                  <Camp
+                    nume="moneda_salariu_minim"
+                    eticheta="Moneda salariului minim"
+                    obligatoriu
+                    erori={stare.erori["moneda_salariu_minim"] ?? []}
+                  >
+                    {(a) => (
+                      <input
+                        {...a}
+                        type="text"
+                        maxLength={3}
+                        defaultValue={stare.valoriTrimise["moneda_salariu_minim"] ?? ""}
+                      />
+                    )}
+                  </Camp>
+                </>
+              ) : null}
+            </div>
+
+            <div>
+              <Buton
+                type="submit"
+                varianta="primar"
+                inCurs={stare.inCurs}
+                textInCurs="Se salvează…"
+              >
+                Salvează ciorna
+              </Buton>
+            </div>
+            <p className="text-muted-foreground text-nota">
+              Deplasarea se salvează ca ciornă; traseul pe etape și trimiterea spre aprobare se fac
+              pe fișa deplasării, după salvare.
             </p>
-          ) : null}
-        </div>
+          </>
+        )}
+      </Formular>
 
-        <button
-          type="button"
-          disabled={inCurs}
-          onClick={trimite}
-          className="bg-primary text-primary-foreground hover:bg-primary-hover disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md px-4 py-2 text-sm font-medium disabled:cursor-not-allowed"
-        >
-          {inCurs ? "Se salvează…" : "Salvează ciorna"}
-        </button>
-        <p className="text-muted-foreground text-xs">
-          Deplasarea se salvează ca ciornă; traseul pe etape și trimiterea spre aprobare se fac pe
-          fișa deplasării, după salvare.
-        </p>
-      </form>
-
-      <aside aria-live="polite" className="border-border bg-surface h-fit rounded-lg border p-4">
-        <h2 className="mb-2 text-sm font-semibold">Previzualizare diurnă</h2>
+      <aside aria-live="polite" className="border-border bg-surface rounded-panou h-fit border p-4">
+        <h2 className="text-corp mb-2 font-semibold">Previzualizare diurnă</h2>
         <PrevizualizareDiurna
           plecareLa={plecareLa}
           sosireLa={sosireLa}
           countryId={countryId.length === 0 ? null : countryId}
           cursDiurna={cursDiurna.length === 0 ? null : Number(cursDiurna)}
-          politica={politica}
+          politica={politicaAplicabila}
           baremuri={baremuri}
         />
       </aside>

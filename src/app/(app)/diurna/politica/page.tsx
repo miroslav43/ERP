@@ -3,7 +3,9 @@ import type { Metadata } from "next";
 import { Settings } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { StareGoala } from "@/components/ui/stare-goala";
+import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -20,7 +22,7 @@ export const metadata: Metadata = { title: "Politica de diurnă" };
 export default async function PaginaPolitica() {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "per_diem");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "per_diem:read", "own")) {
     return (
@@ -37,82 +39,83 @@ export default async function PaginaPolitica() {
   ]);
   const hartaTari = new Map(listaTari.map((t) => [t.id, t.denumire]));
 
+  /**
+   * Lista se citește ÎNTREAGĂ — `politiciOrganizatie` n-are cursor, fiindcă o
+   * firmă are câteva versiuni de politică, nu mii. Fără cursor nu există nici
+   * sortare pe antet: un antet care pare sortabil și nu face nimic e mai rău
+   * decât unul care nu pare.
+   */
+  const coloane: readonly Coloana<(typeof politici)[number]>[] = [
+    {
+      cheie: "denumire",
+      antet: "Denumire",
+      peTelefon: "titlu",
+      celula: (p) => <span className="font-medium">{p.denumire}</span>,
+    },
+    {
+      cheie: "valabila",
+      antet: "Valabilă",
+      peTelefon: "meta",
+      celula: (p) =>
+        `${formatDate(p.valabil_de_la)}${
+          p.valabil_pana === null ? " – prezent" : ` – ${formatDate(p.valabil_pana)}`
+        }`,
+    },
+    {
+      cheie: "tara_interna",
+      antet: "Țara internă",
+      peTelefon: "meta",
+      celula: (p) => hartaTari.get(p.country_id_intern) ?? p.country_id_intern,
+    },
+    {
+      cheie: "diurna_interna",
+      antet: "Diurnă internă",
+      numeric: true,
+      peTelefon: "meta",
+      celula: (p) => formatLei(p.diurna_interna_zi),
+    },
+    {
+      cheie: "trecere",
+      antet: "Trecere frontieră",
+      peTelefon: "meta",
+      celula: (p) => ETICHETE_REGULA_TRECERE[p.regula_tara_trecere],
+    },
+  ];
+
   return (
-    <main className="space-y-6 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Politica de diurnă</h1>
-        <p className="text-muted-foreground max-w-3xl text-sm">
-          Politica e versionată: fiecare deplasare se calculează cu versiunea valabilă la data
-          plecării, nu cu cea curentă. Adăugarea unei versiuni noi nu schimbă istoricul.
-        </p>
-      </header>
+    <div className="space-y-6">
+      <AntetPagina
+        titlu="Politica de diurnă"
+        descriere="Politica e versionată: fiecare deplasare se calculează cu versiunea valabilă la data plecării, nu cu cea curentă. Adăugarea unei versiuni noi nu schimbă istoricul."
+        file={<NavDiurna poateAproba={poateAproba} />}
+      />
 
-      <NavDiurna poateAproba={poateAproba} />
-
-      {politici.length === 0 ? (
-        <EmptyState
-          icon={Settings}
-          title="Nicio versiune de politică încă"
-          description={
-            poateEdita
-              ? "Fără o politică valabilă la data plecării, nicio deplasare nu poate fi salvată. Configurați prima versiune mai jos."
-              : "Organizația nu are încă nicio versiune de politică de diurnă. Cereți administratorului să o configureze."
-          }
-        />
-      ) : (
-        <div className="border-border overflow-x-auto rounded-lg border">
-          <table className="w-full text-sm">
-            <caption className="sr-only">
-              Versiunile politicii de diurnă, cea mai recentă primă.
-            </caption>
-            <thead className="bg-surface text-left">
-              <tr>
-                <th scope="col" className="px-4 py-3 font-medium">
-                  Denumire
-                </th>
-                <th scope="col" className="px-4 py-3 font-medium">
-                  Valabilă
-                </th>
-                <th scope="col" className="px-4 py-3 font-medium">
-                  Țara internă
-                </th>
-                <th scope="col" className="px-4 py-3 text-right font-medium">
-                  Diurnă internă
-                </th>
-                <th scope="col" className="px-4 py-3 font-medium">
-                  Trecere frontieră
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-border divide-y">
-              {politici.map((p) => (
-                <tr key={p.id}>
-                  <td className="px-4 py-3 font-medium">{p.denumire}</td>
-                  <td className="px-4 py-3">
-                    {formatDate(p.valabil_de_la)}
-                    {p.valabil_pana === null ? " – prezent" : ` – ${formatDate(p.valabil_pana)}`}
-                  </td>
-                  <td className="px-4 py-3">
-                    {hartaTari.get(p.country_id_intern) ?? p.country_id_intern}
-                  </td>
-                  <td className="px-4 py-3 text-right tabular-nums">
-                    {formatLei(p.diurna_interna_zi)}
-                  </td>
-                  <td className="px-4 py-3">{ETICHETE_REGULA_TRECERE[p.regula_tara_trecere]}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <Tabel
+        caption="Versiunile politicii de diurnă, cea mai recentă primă."
+        coloane={coloane}
+        randuri={politici}
+        cheieRand={(p) => p.id}
+        gol={
+          <StareGoala
+            fel="initiala"
+            pictograma={Settings}
+            titlu="Nicio versiune de politică încă"
+            descriere={
+              poateEdita
+                ? "Fără o politică valabilă la data plecării, nicio deplasare nu poate fi salvată. Configurați prima versiune mai jos."
+                : "Organizația nu are încă nicio versiune de politică de diurnă. Cereți administratorului să o configureze."
+            }
+          />
+        }
+      />
 
       {poateEdita ? (
         <FormularPolitica tari={listaTari} />
       ) : (
-        <p className="text-muted-foreground text-sm">
+        <p className="text-muted-foreground text-corp">
           Politica se configurează de administratorii organizației.
         </p>
       )}
-    </main>
+    </div>
   );
 }

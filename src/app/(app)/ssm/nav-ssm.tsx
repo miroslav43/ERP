@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { BandaFile, Fila } from "@/components/ui/file";
 
 /**
  * File în pagină, nu intrări noi de meniu — la fel ca `NavFlota`.
@@ -24,7 +24,7 @@ interface Proprietati {
   readonly poateVedeaAutorizatii: boolean;
 }
 
-interface Fila {
+interface IntrareFila {
   readonly href: string;
   readonly eticheta: string;
 }
@@ -39,7 +39,7 @@ export function NavSsm({
 }: Proprietati) {
   const cale = usePathname();
 
-  const file: readonly Fila[] = [
+  const file: readonly IntrareFila[] = [
     { href: "/ssm", eticheta: "Panou" },
     ...(poateVedeaInstruiri ? [{ href: "/ssm/instruiri", eticheta: "Instruiri" }] : []),
     ...(poateVedeaMedicina ? [{ href: "/ssm/medicina-muncii", eticheta: "Medicina muncii" }] : []),
@@ -52,24 +52,15 @@ export function NavSsm({
   ];
 
   return (
-    <nav aria-label="Navigare SSM și PSI" className="border-border flex flex-wrap gap-1 border-b">
+    <BandaFile eticheta="Navigare SSM și PSI">
       {file.map((fila) => {
         const activ = fila.href === "/ssm" ? cale === "/ssm" : cale.startsWith(fila.href);
         return (
-          <Link
-            key={fila.href}
-            href={fila.href}
-            aria-current={activ ? "page" : undefined}
-            className={
-              activ
-                ? "border-primary text-primary border-b-2 px-4 py-2 text-sm font-medium"
-                : "text-muted-foreground hover:text-foreground border-b-2 border-transparent px-4 py-2 text-sm"
-            }
-          >
+          <Fila key={fila.href} href={fila.href} activ={activ}>
             {fila.eticheta}
-          </Link>
+          </Fila>
         );
       })}
-    </nav>
+    </BandaFile>
   );
 }

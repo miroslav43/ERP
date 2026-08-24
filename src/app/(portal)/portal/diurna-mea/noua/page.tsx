@@ -4,7 +4,9 @@ import Link from "next/link";
 import { Settings } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
+import { buton } from "@/components/ui/buton";
+import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -17,7 +19,7 @@ export const metadata: Metadata = { title: "Deplasare nouă" };
 export default async function PaginaDeplasareNouaPortal() {
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "per_diem");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "per_diem:create", "own")) {
     return (
@@ -31,15 +33,16 @@ export default async function PaginaDeplasareNouaPortal() {
 
   if (politica === null) {
     return (
-      <div className="mx-auto max-w-2xl space-y-4 p-4">
-        <h1 className="text-foreground text-xl font-semibold">Deplasare nouă</h1>
+      <div className={`${LATIMI.formular} space-y-4 p-4`}>
+        <AntetPagina titlu="Deplasare nouă" />
         {/* Fără buton de configurare: `per_diem:update = all` e al
             administratorului. Un buton care duce la refuz e mai rău decât
             absența lui. */}
-        <EmptyState
-          icon={Settings}
-          title="Politica de diurnă nu este configurată"
-          description="Fără o politică valabilă la data plecării, nicio deplasare nu poate fi salvată. Cereți administratorului organizației să configureze politica firmei."
+        <StareGoala
+          fel="initiala"
+          pictograma={Settings}
+          titlu="Politica de diurnă nu este configurată"
+          descriere="Fără o politică valabilă la data plecării, nicio deplasare nu poate fi salvată. Cereți administratorului organizației să configureze politica firmei."
         />
       </div>
     );
@@ -49,14 +52,11 @@ export default async function PaginaDeplasareNouaPortal() {
   const baremuri = await baremeleTarilor(listaTari.map((t) => t.id));
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 p-4">
-      <header>
-        <h1 className="text-foreground text-xl font-semibold">Deplasare nouă</h1>
-        <p className="text-muted-foreground text-sm">
-          Zilele și suma se calculează pe măsură ce completați. Suma finală se stabilește pe fișa
-          deplasării, după ce adăugați etapele reale ale traseului.
-        </p>
-      </header>
+    <div className={`${LATIMI.formular} space-y-4 p-4`}>
+      <AntetPagina
+        titlu="Deplasare nouă"
+        descriere="Zilele și suma se calculează pe măsură ce completați. Suma finală se stabilește pe fișa deplasării, după ce adăugați etapele reale ale traseului."
+      />
 
       {/* `angajati: null` — în portal deplasarea e mereu a mea. Acțiunea rezolvă
           fișa pe server, din sesiune. */}
@@ -69,10 +69,7 @@ export default async function PaginaDeplasareNouaPortal() {
       />
 
       <p>
-        <Link
-          href="/portal/diurna-mea"
-          className="text-primary text-sm underline-offset-2 hover:underline"
-        >
+        <Link href="/portal/diurna-mea" className={buton({ varianta: "link" })}>
           Înapoi la diurna mea
         </Link>
       </p>

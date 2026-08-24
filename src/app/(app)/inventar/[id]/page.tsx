@@ -1,9 +1,13 @@
 // src/app/(app)/inventar/[id]/page.tsx
+import { Callout } from "@/components/ui/callout";
+import { ButonReaduInStoc } from "./buton-readu-in-stoc";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina } from "@/components/ui/antet-pagina";
+import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -18,10 +22,10 @@ import {
 } from "@/lib/queries/inventory";
 import { listeazaTicheteleObiectului } from "@/lib/queries/ticketing";
 
-import { CLASE_STARE, CLASE_STATUS, ETICHETE_STARE, ETICHETE_STATUS } from "../etichete";
+import { ETICHETE_STARE, ETICHETE_STATUS, TONURI_STARE, TONURI_STATUS } from "../etichete";
 import {
-  CLASE_STATUS as CLASE_STATUS_TICHET,
   ETICHETE_STATUS as ETICHETE_STATUS_TICHET,
+  TONURI_STATUS as TONURI_STATUS_TICHET,
 } from "../../ticketing/etichete";
 import { ActiuniObiect } from "./actiuni-obiect";
 import { FormularPredare } from "./formular-predare";
@@ -43,8 +47,10 @@ function Camp({
 }) {
   return (
     <div>
-      <dt className="text-muted-foreground text-xs tracking-wide uppercase">{eticheta}</dt>
-      <dd className="mt-0.5 text-sm">{valoare === null || valoare.length === 0 ? "—" : valoare}</dd>
+      <dt className="text-muted-foreground text-nota tracking-wide uppercase">{eticheta}</dt>
+      <dd className="text-corp mt-0.5">
+        {valoare === null || valoare.length === 0 ? "—" : valoare}
+      </dd>
     </div>
   );
 }
@@ -53,7 +59,7 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
   const id = idDinRuta((await params).id);
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "inventory");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
   const scope = scopeFor(permisiuni, "inventory:read");
 
   if (scope === null || scope === "none") {
@@ -103,34 +109,31 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
   }
 
   return (
-    <main className="space-y-8 p-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">{obiect.denumire}</h1>
-          <p className="text-muted-foreground text-sm">
+    <div className="space-y-8">
+      {/* Numărul de inventar rămâne monospațiat, deci subtitlul merge prin
+          `file`, nu prin `descriere` — `descriere` primește doar text. */}
+      <AntetPagina
+        className="gap-1"
+        titlu={obiect.denumire}
+        actiuni={
+          <>
+            <Badge ton={TONURI_STATUS[obiect.status]}>{ETICHETE_STATUS[obiect.status]}</Badge>
+            <Badge ton={TONURI_STARE[obiect.stare]}>{ETICHETE_STARE[obiect.stare]}</Badge>
+          </>
+        }
+        file={
+          <p className="text-muted-foreground text-corp">
             Nr. inventar <span className="font-mono">{obiect.numar_inventar}</span>
             {categorieNume !== null ? ` · ${categorieNume}` : ""}
           </p>
-        </div>
-        <div className="flex gap-2">
-          <span
-            className={`rounded-full px-3 py-1 text-sm font-medium ${CLASE_STATUS[obiect.status]}`}
-          >
-            {ETICHETE_STATUS[obiect.status]}
-          </span>
-          <span
-            className={`rounded-full px-3 py-1 text-sm font-medium ${CLASE_STARE[obiect.stare]}`}
-          >
-            {ETICHETE_STARE[obiect.stare]}
-          </span>
-        </div>
-      </header>
+        }
+      />
 
       <section
         aria-labelledby="titlu-date-generale"
-        className="border-border rounded-lg border p-4"
+        className="border-border rounded-panou border p-4"
       >
-        <h2 id="titlu-date-generale" className="mb-4 text-lg font-medium">
+        <h2 id="titlu-date-generale" className="text-sectiune mb-4 font-medium">
           Date generale
         </h2>
         <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -157,9 +160,9 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
       {alocareDeschisa !== null ? (
         <section
           aria-labelledby="titlu-predare-curenta"
-          className="border-border bg-surface rounded-lg border p-4"
+          className="border-border bg-surface rounded-panou border p-4"
         >
-          <h2 id="titlu-predare-curenta" className="mb-4 text-lg font-medium">
+          <h2 id="titlu-predare-curenta" className="text-sectiune mb-4 font-medium">
             Predare curentă
           </h2>
           <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -181,43 +184,76 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
               }
             />
           </dl>
+          {/* Procesul-verbal e singura piesă cu valoare juridică din modul, iar
+              până acum nu se genera nicăieri: coloana `pv_document_path` era
+              citită în șapte locuri și scrisă în niciunul. Linkul e aici, pe
+              predarea deschisă, fiindcă ăsta e momentul în care se semnează. */}
+          <p className="mt-4">
+            <Link
+              href={`/inventar/${obiect.id}/pv/${alocareDeschisa.id}`}
+              className="text-corp underline-offset-2 hover:underline"
+            >
+              Proces-verbal de predare-primire
+            </Link>
+          </p>
           {poateScrie ? (
             <div className="border-border mt-4 border-t pt-4">
-              <h3 className="mb-3 text-sm font-medium">Înregistrează returnarea</h3>
+              <h3 className="text-corp mb-3 font-medium">Înregistrează returnarea</h3>
               <FormularReturnare alocareId={alocareDeschisa.id} />
             </div>
           ) : null}
         </section>
+      ) : poateScrie && obiect.status === "in_reparatie" ? (
+        /*
+         * Obiectul e în reparație. Înainte, fișa arăta aici direct formularul de
+         * predare — pentru orice obiect care nu e `casat` — iar formularul
+         * propunea implicit starea „Bun". Drumul de ieșire dintr-o stare de
+         * defect trecea, așadar, prin a preda cuiva un obiect defect declarat
+         * bun, fără niciun cuvânt pe ecran.
+         *
+         * `in_reparatie` era în plus o stare fără ieșire: `status` nu e câmp
+         * editabil, deci nicio acțiune nu-l readucea în stoc. Butonul de mai jos
+         * e ieșirea; predarea rămâne posibilă abia după ea.
+         */
+        <Callout
+          fel="atentie"
+          titlu="Obiectul e în reparație"
+          actiune={<ButonReaduInStoc obiectId={obiect.id} />}
+        >
+          A fost returnat cu starea „defect”, deci nu poate fi predat mai departe până nu confirmă
+          cineva că a revenit din service. Confirmarea îl mută înapoi în stoc și se scrie în
+          jurnalul de audit.
+        </Callout>
       ) : poateScrie && obiect.status !== "casat" ? (
         <section
           aria-labelledby="titlu-predare-noua"
-          className="border-border rounded-lg border p-4"
+          className="border-border rounded-panou border p-4"
         >
-          <h2 id="titlu-predare-noua" className="mb-4 text-lg font-medium">
+          <h2 id="titlu-predare-noua" className="text-sectiune mb-4 font-medium">
             Predă obiectul unui angajat
           </h2>
           <FormularPredare itemId={obiect.id} angajati={optiuniAngajati} />
         </section>
       ) : null}
 
-      <section aria-labelledby="titlu-istoric" className="border-border rounded-lg border p-4">
-        <h2 id="titlu-istoric" className="mb-4 text-lg font-medium">
+      <section aria-labelledby="titlu-istoric" className="border-border rounded-panou border p-4">
+        <h2 id="titlu-istoric" className="text-sectiune mb-4 font-medium">
           Istoric predări-primiri
         </h2>
         {istoric.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground text-corp">
             Obiectul nu a fost încă predat niciunui angajat.
           </p>
         ) : (
           <ul className="space-y-3">
             {istoric.map((alocare) => (
-              <li key={alocare.id} className="border-border rounded-md border p-3">
+              <li key={alocare.id} className="border-border rounded-control border p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium">
                     {angajati.get(alocare.employee_id)?.full_name ?? "Angajat"}
                   </span>
                   {alocare.returnat_la === null ? (
-                    <span className="bg-surface text-foreground rounded px-2 py-0.5 text-xs font-medium">
+                    <span className="bg-surface text-foreground text-nota rounded px-2 py-0.5 font-medium">
                       În curs
                     </span>
                   ) : null}
@@ -244,6 +280,14 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
                     <Camp eticheta="Observații" valoare={alocare.observatii} />
                   ) : null}
                 </dl>
+                <p className="mt-2">
+                  <Link
+                    href={`/inventar/${obiect.id}/pv/${alocare.id}`}
+                    className="text-nota underline-offset-2 hover:underline"
+                  >
+                    Proces-verbal
+                  </Link>
+                </p>
               </li>
             ))}
           </ul>
@@ -254,12 +298,12 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
           defecțiunile raportate pe el. Secțiunea apare doar dacă modulul e
           activ la organizația respectivă. */}
       {tichete !== null && (
-        <section aria-labelledby="titlu-tichete" className="border-border rounded-lg border p-4">
-          <h2 id="titlu-tichete" className="mb-4 text-lg font-medium">
+        <section aria-labelledby="titlu-tichete" className="border-border rounded-panou border p-4">
+          <h2 id="titlu-tichete" className="text-sectiune mb-4 font-medium">
             Tichete pe acest obiect
           </h2>
           {tichete.length === 0 ? (
-            <p className="text-muted-foreground text-sm">
+            <p className="text-muted-foreground text-corp">
               Nu s-a raportat nicio defecțiune pe acest obiect.
             </p>
           ) : (
@@ -267,21 +311,19 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
               {tichete.map((tichet) => (
                 <li
                   key={tichet.id}
-                  className="border-border flex flex-wrap items-center gap-3 rounded-md border p-3"
+                  className="border-border rounded-control flex flex-wrap items-center gap-3 border p-3"
                 >
                   <Link
                     href={`/ticketing/${tichet.id}`}
-                    className="text-primary font-mono text-xs hover:underline"
+                    className="text-primary text-nota font-mono hover:underline"
                   >
                     {tichet.numar_afisat}
                   </Link>
-                  <span className="flex-1 text-sm">{tichet.titlu}</span>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs ${CLASE_STATUS_TICHET[tichet.status]}`}
-                  >
+                  <span className="text-corp flex-1">{tichet.titlu}</span>
+                  <Badge ton={TONURI_STATUS_TICHET[tichet.status]} className="shrink-0">
                     {ETICHETE_STATUS_TICHET[tichet.status]}
-                  </span>
-                  <span className="text-muted-foreground text-xs">
+                  </Badge>
+                  <span className="text-muted-foreground text-nota">
                     {formatDate(tichet.created_at)}
                   </span>
                 </li>
@@ -292,8 +334,8 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
       )}
 
       {poateScrie ? (
-        <section aria-labelledby="titlu-actiuni" className="border-border rounded-lg border p-4">
-          <h2 id="titlu-actiuni" className="mb-4 text-lg font-medium">
+        <section aria-labelledby="titlu-actiuni" className="border-border rounded-panou border p-4">
+          <h2 id="titlu-actiuni" className="text-sectiune mb-4 font-medium">
             Acțiuni
           </h2>
           <ActiuniObiect
@@ -317,6 +359,6 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
           />
         </section>
       ) : null}
-    </main>
+    </div>
   );
 }

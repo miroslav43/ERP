@@ -239,7 +239,14 @@ export const returneazaObiect = createAction({
     // `internal.inventory_alloc_imutabile` acceptă exact aceste coloane la
     // UPDATE. Returnare cu starea „defect” mută obiectul în „in_reparatie”,
     // nu în „in_stoc” (0019/V1b) — mesajul de succes trebuie să o spună.
-    const { error } = await db
+    // Citirea de mai sus vede STRICT mai mult decât poate scrie UPDATE-ul:
+    // `inventory_allocations_select_checklist` (0014) deschide alocările oricui
+    // are `checklists:update=team` — cine conduce offboardingul citește aloca-
+    // rea, dar `inventory_allocations_update` îi cere `inventory:update=all` sau
+    // să fie chiar angajatul de pe rând. Refuzul e ZERO rânduri, FĂRĂ eroare, iar
+    // fără `.select()` ecranul ar anunța obiectul returnat în timp ce baza îl
+    // ține mai departe în primirea angajatului.
+    const { data: alocareInchisa, error } = await db
       .from("inventory_allocations")
       .update({
         returnat_la: input.returnat_la ?? ctx.now.toISOString(),
@@ -248,8 +255,15 @@ export const returneazaObiect = createAction({
         updated_by: ctx.user.id,
       })
       .eq("id", input.id)
-      .eq("organization_id", ctx.tenant.organizationId);
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle();
     if (error !== null) traduEroare(error);
+    if (alocareInchisa === null) {
+      throw businessRule(
+        "Returnarea nu a fost înregistrată: predarea-primirea a fost închisă de altcineva între timp sau nu aveți dreptul de a opera inventarul. Reîncărcați pagina și verificați cine are obiectul în primire.",
+      );
+    }
 
     return { id: input.id, item_id: alocare.item_id };
   },
@@ -318,6 +332,65 @@ export const caseazaObiect = createAction({
     if (error !== null) traduEroare(error);
     if (data === null) {
       throw notFound("Obiectul de inventar nu a fost găsit sau nu vă este accesibil.");
+    }
+
+    return { id: data.id };
+  },
+});
+
+/**
+ * Readucerea în stoc a unui obiect ieșit din reparație.
+ *
+ * ── FUNDĂTURA PE CARE O ÎNCHIDE ───────────────────────────────────────────
+ * `in_reparatie` era o stare FĂRĂ IEȘIRE. Se intra în ea automat, la returnarea
+ * unui obiect cu starea „defect" (`0019_fix_inventar.sql:105-107`), iar
+ * `status` nu e câmp editabil — `campuriObiect` din `schemas/inventory.ts:101`
+ * n-are `status`, deci nici `actualizeazaObiect` nu-l poate schimba. Nicio
+ * acțiune din modul nu-l muta înapoi.
+ *
+ * Singura ieșire era predarea mai departe: fișa arăta formularul de predare
+ * pentru orice obiect care nu e `casat`, iar formularul propunea implicit
+ * starea „Bun". Adică drumul de ieșire dintr-o stare de defect trecea prin a
+ * preda cuiva un obiect defect, declarat bun.
+ *
+ * ── DE CE NU E O SIMPLĂ EDITARE DE CÂMP ───────────────────────────────────
+ * Fiindcă e o TRANZIȚIE, nu o corectură de date: cine o face confirmă că
+ * obiectul a revenit din service și poate fi dat mai departe. De aceea are
+ * acțiune proprie, cu nume propriu în jurnalul de audit
+ * (`inventory.item.restock`), nu se strecoară printre celelalte opt câmpuri.
+ *
+ * Nicio pre-verificare separată de stare: `internal.inventory_items_valideaza`
+ * păzește deja tranzițiile, iar un refuz al politicii înseamnă zero rânduri
+ * fără eroare — de aceea `.select().maybeSingle()`.
+ */
+export const readuInStoc = createAction({
+  name: "inventory.item.restock",
+  feature: "inventory",
+  permission: "inventory:update",
+  minScope: "all",
+  input: caseazaObiectSchema,
+  audit: {
+    action: "update",
+    entityType: "inventory_item",
+    entityId: (input) => input.id,
+    allow: ["id"],
+  },
+  revalidate: (input) => ["/inventar", `/inventar/${input.id}`],
+  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    const db = await createServerSupabase();
+    const { data, error } = await db
+      .from("inventory_items")
+      .update({ status: "in_stoc", updated_by: ctx.user.id })
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .eq("status", "in_reparatie")
+      .select("id")
+      .maybeSingle();
+    if (error !== null) traduEroare(error);
+    if (data === null) {
+      throw notFound(
+        "Obiectul nu a fost readus în stoc: nu mai este în reparație sau nu vă este accesibil. Reîncărcați pagina.",
+      );
     }
 
     return { id: data.id };

@@ -6,6 +6,8 @@ import { createClient } from "@supabase/supabase-js";
 import { clientEnv, serverEnv } from "@/config/env";
 import type { Database } from "@/types/database";
 
+import { fetchCuTermen } from "./fetch-cu-termen";
+
 /**
  * ⚠️ CLIENT CU `service_role`. OCOLEȘTE COMPLET RLS ȘI TOATE POLITICILE.
  *
@@ -51,7 +53,12 @@ export function createAdminSupabase(): AdminSupabase {
         autoRefreshToken: false,
         detectSessionInUrl: false,
       },
-      global: { headers: { "x-application-name": "administrativo-admin" } },
+      // Termenul limitează ANTETUL, nu corpul: exporturile de salarii și
+      // descărcările din `org-documents` curg mai departe fără plafon.
+      global: {
+        headers: { "x-application-name": "administrativo-admin" },
+        fetch: fetchCuTermen(),
+      },
     },
   );
 }

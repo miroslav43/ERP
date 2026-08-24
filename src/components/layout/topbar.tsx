@@ -1,49 +1,48 @@
 // src/components/layout/topbar.tsx
+import { contoarePanouPentru, insigneMeniu } from "@/lib/queries/panou";
 import Link from "next/link";
-import { Bell, ChevronDown, LogOut, UserRound } from "lucide-react";
+import { Bell } from "lucide-react";
 
-import { deconecteaza } from "@/app/(app)/actions";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
 import { CommandPalette, type ElementPaleta } from "@/components/layout/command-palette";
-import { OrgSwitcher, type OrganizatieComutator } from "@/components/layout/org-switcher";
+import { MeniuCont, type OrganizatieComutator } from "@/components/layout/meniu-cont";
 import { SidebarTrigger } from "@/components/layout/sidebar";
-import { buildNavigation } from "@/lib/navigation/build-navigation";
+import { buildNavigation, type NavGroupResult } from "@/lib/navigation/build-navigation";
 import { getEnabledFeatures } from "@/lib/auth/features";
 import { getPermissionMap } from "@/lib/auth/permissions";
-import { createServerSupabase } from "@/lib/supabase/server";
 import { numaraNecitite } from "@/lib/queries/notifications";
 import { listUserOrganizations } from "@/lib/queries/organizations";
 import { resolveTenant } from "@/lib/tenant/resolve-tenant";
-function esteObiect(valoare: unknown): valoare is Readonly<Record<string, unknown>> {
-  return typeof valoare === "object" && valoare !== null;
-}
 
-/** Aplatizează rezultatul lui buildNavigation fără a presupune o formă rigidă și fără `any`. */
-function aplatizeazaNavigatie(nod: unknown, grup: string, acumulator: ElementPaleta[]): void {
-  if (Array.isArray(nod)) {
-    for (const copil of nod) {
-      aplatizeazaNavigatie(copil, grup, acumulator);
-    }
-    return;
-  }
-  if (!esteObiect(nod)) {
-    return;
-  }
-  const eticheta =
-    typeof nod["label"] === "string"
-      ? nod["label"]
-      : typeof nod["title"] === "string"
-        ? nod["title"]
-        : null;
-  const href = typeof nod["href"] === "string" ? nod["href"] : null;
-
-  if (eticheta !== null && href !== null && !acumulator.some((element) => element.href === href)) {
+/**
+ * Aplatizează meniul pentru paleta de comenzi.
+ *
+ * Era o traversare prin reflexie — `esteObiect(valoare)`, apoi `nod["label"]`,
+ * `nod["title"]`, `nod["items"] ?? nod["children"] ?? nod["sections"]` — peste o
+ * valoare care are tip explicit (`readonly NavGroupResult[]`). `title` și
+ * `sections` nu există în niciun tip din proiect: erau câmpuri inventate, deci
+ * ramuri moarte care ascundeau faptul că forma e cunoscută la compilare. Dacă
+ * `NavGroupResult` se schimbă, varianta de mai jos NU compilează; cea prin
+ * reflexie ar fi tăcut și ar fi întors o paletă goală.
+ *
+ * Dedublarea pe `href` rămâne: „Concedii" e și părinte, și copil („Cereri"),
+ * spre aceeași rută.
+ */
+function elementePentruPaleta(grupuri: readonly NavGroupResult[]): readonly ElementPaleta[] {
+  const acumulator: ElementPaleta[] = [];
+  const adauga = (eticheta: string, href: string, grup: string): void => {
+    if (acumulator.some((element) => element.href === href)) return;
     acumulator.push({ id: href, eticheta, grup, href });
+  };
+  for (const grup of grupuri) {
+    for (const element of grup.items) {
+      adauga(element.label, element.href, grup.label);
+      for (const copil of element.children ?? []) {
+        adauga(copil.label, copil.href, element.label);
+      }
+    }
   }
-  const copii = nod["items"] ?? nod["children"] ?? nod["sections"];
-  if (copii !== undefined) {
-    aplatizeazaNavigatie(copii, eticheta ?? grup, acumulator);
-  }
+  return acumulator;
 }
 
 export async function Topbar() {
@@ -51,27 +50,37 @@ export async function Topbar() {
   if (rezolvare.status !== "ok") {
     return null;
   }
-  const { tenant } = rezolvare;
+  const { tenant, user: utilizator } = rezolvare;
 
-  const supabase = await createServerSupabase();
-  const [{ data: sesiune }, organizatii, module, permisiuni] = await Promise.all([
-    supabase.auth.getUser(),
+  /*
+   * Utilizatorul vine din `resolveTenant()`, nu dintr-un al doilea
+   * `supabase.auth.getUser()`. `AuthUser` are deja `id`, `email` și `fullName`
+   * — exact cele trei câmpuri folosite aici — iar `getCurrentUser()` e memoizat
+   * pe cerere, deci apelul separat era un drum în plus la GoTrue pe FIECARE
+   * navigare, doar ca să afle ce era deja în mână. În plus, ramura
+   * `utilizator === null` era moartă: `rezolvare.status === "ok"` o exclude.
+   */
+  const [organizatii, module, permisiuni] = await Promise.all([
     listUserOrganizations(),
     getEnabledFeatures(tenant.organizationId),
-    getPermissionMap(tenant.organizationId, tenant.role),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
   ]);
 
-  const utilizator = sesiune.user;
-  const necitite =
-    utilizator === null ? 0 : await numaraNecitite(tenant.organizationId, utilizator.id);
+  const necitite = await numaraNecitite(tenant.organizationId, utilizator.id);
 
   // Harta se predă întreagă: `buildNavigation` aplică și `scope = 'none'` (refuz
   // explicit) și pragul `minScope` al fiecărei intrări. Paleta de comenzi trebuie
   // să ofere exact ce oferă meniul — o rută găsibilă la ⌘K dar refuzată la
   // deschidere e mai rea decât una ascunsă.
-  const navigatie = buildNavigation({ features: module, permissions: permisiuni, badges: {} });
-  const elementePaleta: ElementPaleta[] = [];
-  aplatizeazaNavigatie(navigatie, "Navigare", elementePaleta);
+  // Aceleași insigne ca în meniul lateral, din aceeași funcție memoizată: două
+  // surse pentru același număr ar diverge în prima săptămână.
+  const contoare = await contoarePanouPentru(tenant.organizationId, tenant.role, tenant.memberId);
+  const navigatie = buildNavigation({
+    features: module,
+    permissions: permisiuni,
+    badges: insigneMeniu(contoare),
+  });
+  const elementePaleta = elementePentruPaleta(navigatie);
 
   const organizatiiComutator: readonly OrganizatieComutator[] = organizatii.map((organizatie) => ({
     id: organizatie.id,
@@ -81,7 +90,26 @@ export async function Topbar() {
   }));
 
   return (
-    <header className="border-border bg-surface flex h-14 items-center gap-3 border-b px-4">
+    /*
+      Antetul e navy, ca railul, și e LIPIT: pe o listă lungă, comutatorul de
+      organizație și clopoțelul trebuie să rămână la îndemână fără derulare
+      înapoi. `z-antet` (40) îl ține peste antetul lipit al unui tabel
+      (`z-antet-tabel`, 20) — înainte foaia colectivă de pontaj folosea tot
+      z-20, iar la egalitate ar fi câștigat ea, fiind mai jos în DOM.
+
+      ── CE ÎNCAPE PE 375 px ────────────────────────────────────────────────
+      Antetul avea șase controale și nu ascundea decât unul. Numai comutatorul
+      de organizație (un `<select max-w-56>` plus un buton „Comută") lua ~314
+      px, peste declanșatorul sertarului, firimituri, clopoțel și e-mail: suma
+      depășea lățimea ecranului, iar ce era la dreapta se tăia. Acum, sub `md`
+      rămân patru ținte: sertar, lupa de căutare, clopoțel, cont. Firimiturile
+      se ascund (railul spune deja unde ești), iar comutarea de firmă a intrat
+      în meniul de cont, unde e o alegere rară.
+    */
+    <header
+      data-tipar="ascunde"
+      className="bg-primary z-antet sticky top-0 flex h-14 items-center gap-2 border-b border-white/10 px-2 sm:gap-3 sm:px-4"
+    >
       {/*
         Butonul care deschide sertarul pe telefon. `SidebarTrigger` exista de la
         început, cu `md:hidden` pe el, dar nu era montat nicăieri — iar
@@ -95,56 +123,39 @@ export async function Topbar() {
         server.
       */}
       <SidebarTrigger />
-      <Breadcrumb />
+      {/* Firimiturile repetă pe telefon ceea ce `<h1>`-ul paginii spune 40 px
+          mai jos, și consumă exact lățimea care lipsește. */}
+      <div className="hidden min-w-0 md:flex">
+        <Breadcrumb />
+      </div>
 
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex items-center gap-1 sm:gap-2">
         <CommandPalette elemente={elementePaleta} organizatii={organizatiiComutator} />
-
-        <OrgSwitcher
-          organizatii={organizatiiComutator}
-          organizatiaCurentaId={tenant.organizationId}
-        />
 
         <Link
           href="/notificari"
           aria-label={
             necitite > 0 ? `Notificări: ${necitite} necitite` : "Notificări: niciuna necitită"
           }
-          className="text-muted-foreground hover:bg-background hover:text-foreground relative inline-flex h-9 w-9 items-center justify-center rounded-md"
+          className="rounded-control relative inline-flex size-11 items-center justify-center text-white/70 transition-colors hover:bg-white/10 hover:text-white"
         >
           <Bell aria-hidden="true" className="h-5 w-5" />
           {necitite > 0 ? (
-            <span className="bg-danger text-primary-foreground absolute -top-0.5 -right-0.5 min-w-4 rounded-full px-1 text-[10px] leading-4 font-semibold">
+            /* `text-danger-foreground`, nu `text-primary-foreground`: cele două
+               au azi aceeași valoare (#faf7f0), deci greșeala nu se vedea — dar
+               tokenul spune pe ce fundal stă textul, iar acesta stă pe roșu. */
+            <span className="bg-danger text-danger-foreground absolute top-1.5 right-1.5 min-w-4 rounded-full px-1 font-mono text-[10px] leading-4 font-semibold tabular-nums">
               {necitite > 99 ? "99+" : necitite}
             </span>
           ) : null}
         </Link>
 
-        <details className="relative">
-          <summary className="text-foreground hover:bg-background flex h-9 cursor-pointer list-none items-center gap-1.5 rounded-md px-2 text-sm">
-            <UserRound aria-hidden="true" className="text-muted-foreground h-4 w-4" />
-            <span className="max-w-40 truncate">{utilizator?.email ?? "Contul meu"}</span>
-            <ChevronDown aria-hidden="true" className="text-muted-foreground h-4 w-4" />
-          </summary>
-          <div className="border-border bg-surface absolute right-0 z-20 mt-1 w-56 rounded-md border p-1 shadow-lg">
-            <Link
-              href="/profil"
-              className="text-foreground hover:bg-background flex items-center gap-2 rounded px-2 py-2 text-sm"
-            >
-              <UserRound aria-hidden="true" className="h-4 w-4" />
-              Profilul meu
-            </Link>
-            <form action={deconecteaza}>
-              <button
-                type="submit"
-                className="text-danger hover:bg-background flex w-full items-center gap-2 rounded px-2 py-2 text-left text-sm"
-              >
-                <LogOut aria-hidden="true" className="h-4 w-4" />
-                Deconectare
-              </button>
-            </form>
-          </div>
-        </details>
+        <MeniuCont
+          utilizator={utilizator}
+          rol={tenant.role}
+          organizatii={organizatiiComutator}
+          organizatiaCurentaId={tenant.organizationId}
+        />
       </div>
     </header>
   );

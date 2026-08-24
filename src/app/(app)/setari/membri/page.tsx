@@ -9,6 +9,7 @@ import { formatDateTime } from "@/lib/format/date";
 import { RUTA_ALEGE_ORGANIZATIA, RUTA_AUTENTIFICARE } from "@/config/routes";
 import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
+import { AntetPagina } from "@/components/ui/antet-pagina";
 export const metadata: Metadata = { title: "Membri și invitații" };
 
 export default async function SetariMembriPage() {
@@ -25,7 +26,7 @@ export default async function SetariMembriPage() {
   // autentificat al organizației le vedea. Acțiunile refuzau corect (prin
   // `createAction`), deci nu se putea MODIFICA nimic — dar divulgarea rămâne
   // divulgare, iar S2 cere verificarea și la afișare, nu doar la scriere.
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
   if (scopeFor(permisiuni, "users:update") !== "all") {
     return (
       <AccesRestrictionat mesaj="Lista membrilor și invitațiile pot fi consultate doar de administratorii organizației. Cere-i administratorului tău dreptul necesar dacă ai nevoie de el." />
@@ -41,7 +42,7 @@ export default async function SetariMembriPage() {
     // trimite la `auth.users(id)`, nu la `public.profiles(id)`. Profilul are
     // ACEEAȘI valoare de id, dar relația nu e declarată nicăieri, iar PostgREST
     // răspunde PGRST200 „Could not find a relationship between
-    // 'organization_members' and 'profiles' in the schema cache".
+    // 'organization_members' and 'profiles' in the schema cache”.
     //
     // Efectul era că `throw` de mai jos se declanșa DE FIECARE DATĂ: pagina nu a
     // funcționat niciodată. Nu s-a văzut fiindcă mesajul aruncat vorbește despre
@@ -72,10 +73,13 @@ export default async function SetariMembriPage() {
     .map((rand) => rand.user_id)
     .filter((id): id is string => id !== null);
 
+  // `full_name` intra deja în `profiles` la înrolare și nu era citit niciodată:
+  // ecranul care administrează OAMENII îi identifica exclusiv prin adresa de
+  // e-mail, deci „cine e contabil.02@…” se afla întrebând pe cineva.
   const profiluriRezultat =
     idUtilizatori.length === 0
       ? { data: [], error: null }
-      : await supabase.from("profiles").select("id, email").in("id", idUtilizatori);
+      : await supabase.from("profiles").select("id, email, full_name").in("id", idUtilizatori);
 
   if (profiluriRezultat.error !== null) {
     throw new Error(
@@ -83,18 +87,23 @@ export default async function SetariMembriPage() {
     );
   }
 
-  const emailDupaId = new Map((profiluriRezultat.data ?? []).map((p) => [p.id, p.email] as const));
+  const profilDupaId = new Map((profiluriRezultat.data ?? []).map((p) => [p.id, p] as const));
 
-  const membri: readonly RandMembru[] = (membriRezultat.data ?? []).map((rand) => ({
-    id: rand.id,
-    email:
-      (rand.user_id === null ? null : (emailDupaId.get(rand.user_id) ?? null)) ??
-      "Adresă indisponibilă",
-    role: rand.role,
-    status: rand.status,
-    jobTitle: rand.job_title,
-    esteEu: rand.id === tenant.memberId,
-  }));
+  const membri: readonly RandMembru[] = (membriRezultat.data ?? []).map((rand) => {
+    const profil = rand.user_id === null ? undefined : profilDupaId.get(rand.user_id);
+    // `full_name` e opțional în `profiles`: un membru invitat care nu și-a
+    // completat încă profilul rămâne identificat prin e-mail, ca până acum.
+    const nume = profil?.full_name?.trim();
+    return {
+      id: rand.id,
+      nume: nume === undefined || nume.length === 0 ? null : nume,
+      email: profil?.email ?? "Adresă indisponibilă",
+      role: rand.role,
+      status: rand.status,
+      jobTitle: rand.job_title,
+      esteEu: rand.id === tenant.memberId,
+    };
+  });
 
   const invitatii: readonly RandInvitatie[] = (invitatiiRezultat.data ?? []).map((rand) => ({
     id: rand.id,
@@ -104,15 +113,12 @@ export default async function SetariMembriPage() {
   }));
 
   return (
-    <main className="flex flex-col gap-6 p-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-foreground text-xl font-semibold">Membri și invitații</h1>
-        <p className="text-muted-foreground text-sm">
-          Persoanele care au acces la {tenant.name}. Rolul stabilește ce module și ce date poate
-          vedea fiecare.
-        </p>
-      </header>
+    <div className="flex flex-col gap-6">
+      <AntetPagina
+        titlu="Membri și invitații"
+        descriere={`Persoanele care au acces la ${tenant.name}. Rolul stabilește ce module și ce date poate vedea fiecare.`}
+      />
       <PanouMembri membri={membri} invitatii={invitatii} />
-    </main>
+    </div>
   );
 }

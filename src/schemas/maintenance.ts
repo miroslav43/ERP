@@ -49,11 +49,35 @@ const optional = <T extends z.ZodTypeAny>(schema: T) =>
     .transform((v) => (v === "" || v === undefined ? null : v))
     .default(null as never);
 
+/**
+ * Coloanele după care se pot sorta cele trei liste de mentenanță.
+ *
+ * Listele sunt ÎNCHISE, nu o validare de formă: numele coloanei ajunge într-un
+ * `.order()` ȘI într-un predicat de cursor construit ca text, deci nu poate
+ * veni liber din query string. `sortareCeruta` din `lib/queries/cursor.ts` cade
+ * tăcut pe implicit pentru orice altceva.
+ *
+ * Numai coloane `not null`: cu una care admite NULL, predicatul keyset compară
+ * cu NULL, iar rândurile fără valoare dispar tăcut de la a doua pagină. `cost`
+ * e sortabil tocmai fiindcă `cost_total` e generată din două coloane `not null
+ * default 0`, deci nu e niciodată NULL; `locatie`, în schimb, nu e.
+ */
+export const SORTARI_ECHIPAMENTE = ["cod", "denumire", "stare"] as const;
+export type SortareEchipamente = (typeof SORTARI_ECHIPAMENTE)[number];
+
+export const SORTARI_INTERVENTII = ["data", "tip", "cost", "rezultat"] as const;
+export type SortareInterventii = (typeof SORTARI_INTERVENTII)[number];
+
+export const SORTARI_SESIZARI = ["raportat", "urgenta", "stare"] as const;
+export type SortareSesizari = (typeof SORTARI_SESIZARI)[number];
+
 export const filtreEchipamenteSchema = z.object({
   status: optional(z.enum(STATUS_ECHIPAMENT)),
   cauta: optional(z.string().max(80)),
   cursor: optional(z.string().max(256)),
   limita: z.coerce.number().int().min(5).max(100).default(25),
+  /** Forma din URL: `cod` crescător, `-cod` descrescător. */
+  sort: optional(z.string().max(40)),
 });
 export type FiltreEchipamente = z.output<typeof filtreEchipamenteSchema>;
 
@@ -63,6 +87,7 @@ export const filtreInterventiiSchema = z.object({
   echipament: optional(z.uuid()),
   cursor: optional(z.string().max(256)),
   limita: z.coerce.number().int().min(5).max(100).default(25),
+  sort: optional(z.string().max(40)),
 });
 export type FiltreInterventii = z.output<typeof filtreInterventiiSchema>;
 
@@ -72,6 +97,7 @@ export const filtreSesizariSchema = z.object({
   echipament: optional(z.uuid()),
   cursor: optional(z.string().max(256)),
   limita: z.coerce.number().int().min(5).max(100).default(25),
+  sort: optional(z.string().max(40)),
 });
 export type FiltreSesizari = z.output<typeof filtreSesizariSchema>;
 

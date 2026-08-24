@@ -49,6 +49,13 @@ export async function marcheazaNotificareaCitita(rawInput: unknown): Promise<Act
   }
 
   const db = await createServerSupabase();
+  // Deliberat FĂRĂ `.select()`: aici zero rânduri nu înseamnă refuz, ci
+  // idempotență. `.is("read_at", null)` face ca al doilea clic pe aceeași
+  // notificare să nu atingă niciun rând, iar singurele alte căi spre gol —
+  // notificare ștearsă sau a altcuiva (`notifications_update using (user_id =
+  // auth.uid() and deleted_at is null)`) — n-au nimic de comunicat celui care
+  // și-a golit cutia. Un `throw` pe rezultat gol ar transforma dublul clic
+  // într-o eroare, deci ar fi o regresie de folosire.
   const { error } = await db
     .from("notifications")
     .update({ read_at: new Date().toISOString() })
@@ -83,6 +90,10 @@ export async function marcheazaToateNotificarileCitite(): Promise<ActionResult<n
   const user = await requireUser();
 
   const db = await createServerSupabase();
+  // Tot idempotent, și cu atât mai evident: „marchează toate citite” pe o
+  // cutie fără necitite atinge zero rânduri, iar ăsta e rezultatul corect, nu
+  // un conflict. Numărul de rânduri nici nu e cunoscut dinainte, deci nu are
+  // ce verifica un `.select()`.
   const { error } = await db
     .from("notifications")
     .update({ read_at: new Date().toISOString() })

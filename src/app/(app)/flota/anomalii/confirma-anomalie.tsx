@@ -3,6 +3,8 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { Buton } from "@/components/ui/buton";
+
 import { confirmaAnomalie } from "../actions";
 
 /**
@@ -41,17 +43,13 @@ export function ConfirmaAnomalie({ id }: { readonly id: string }) {
         type="text"
         maxLength={500}
         placeholder="Ex. cursă necompletată pe 14 septembrie"
-        className="border-foreground/60 min-w-56 flex-1 rounded-md border px-3 py-1.5 text-sm"
+        className="border-foreground/60 rounded-control text-corp min-w-40 flex-1 border px-3 py-1.5"
       />
-      <button
-        type="submit"
-        disabled={inCurs}
-        className="border-foreground/60 hover:bg-surface disabled:border-border disabled:bg-surface disabled:text-muted-foreground rounded-md border px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed"
-      >
-        {inCurs ? "Se salvează…" : "Confirmă"}
-      </button>
+      <Buton type="submit" varianta="secundar" inCurs={inCurs} textInCurs="Se salvează…">
+        Confirmă
+      </Buton>
       {eroare === null ? null : (
-        <p role="alert" className="text-danger w-full text-xs">
+        <p role="alert" className="text-danger text-nota w-full">
           {eroare}
         </p>
       )}

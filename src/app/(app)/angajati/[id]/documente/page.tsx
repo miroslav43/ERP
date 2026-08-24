@@ -1,13 +1,16 @@
 // src/app/(app)/angajati/[id]/documente/page.tsx
-import { FileText } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, FileText } from "lucide-react";
 import { requireFeature } from "@/lib/auth/features";
 import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format/date";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { EmptyState } from "@/components/feedback/empty-state";
-import { StareEroare } from "@/components/feedback/stare-eroare";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
+import { Badge } from "@/components/ui/badge";
+import { StareGoala } from "@/components/ui/stare-goala";
+import { cn } from "@/lib/ui/cn";
 import { ButonStergeDocument, FormularDocument, ListaDescarcare } from "./formular-document";
 
 export default async function PaginaDocumenteAngajat({
@@ -18,7 +21,7 @@ export default async function PaginaDocumenteAngajat({
   const { id } = await params;
   const { tenant } = await requireTenant();
   await requireFeature(tenant.organizationId, "nucleu");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role);
+  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
   const scopCitire = scopeFor(permisiuni, "employees:read");
   if (scopCitire === null || scopCitire === "none") {
     return <AccesRestrictionat mesaj="Nu ai dreptul de a vedea dosarele de personal." />;
@@ -38,10 +41,14 @@ export default async function PaginaDocumenteAngajat({
     .maybeSingle();
   if (angajat === null) {
     return (
-      <StareEroare
-        titlu="Fișa de angajat nu există sau nu îți este accesibilă."
-        eroare={new Error("Fișa de angajat nu există sau nu îți este accesibilă.")}
-        reincearca={() => {}}
+      // Nu e o eroare care se poate reîncerca — e un refuz. Un buton
+      // „Reîncearcă" pe un rând pe care RLS îl ascunde ar promite ceva ce nu
+      // se poate întâmpla; înainte era chiar un `() => {}` gol.
+      <StareGoala
+        fel="restrictionata"
+        titlu="Fișa nu e accesibilă"
+        descriere="Fișa de angajat nu există sau nu vă este accesibilă. Dacă ar trebui să o vedeți, cereți acces administratorului organizației."
+        actiune={{ eticheta: "Înapoi la angajați", href: "/angajati" }}
       />
     );
   }
@@ -66,34 +73,40 @@ export default async function PaginaDocumenteAngajat({
       .order("ordine"),
   ]);
 
+  // Se ARUNCĂ, nu se randează un panou de eroare în pagină. Pagina e Server
+  // Component, deci nu poate primi o funcție de reîncercare — vechiul cod
+  // trimitea un `() => {}` gol, adică un buton „Reîncearcă" care nu făcea
+  // nimic. Aruncat, eroarea ajunge la `angajati/error.tsx`, unde butonul chiar
+  // reîmprospătează datele de pe server.
   if (documente.error !== null || tipuri.error !== null) {
-    return (
-      <StareEroare
-        titlu="Nu am putut încărca dosarul. Reîncarcă pagina."
-        eroare={new Error("Nu am putut încărca dosarul.")}
-        reincearca={() => {}}
-      />
-    );
+    throw new Error("Nu am putut încărca dosarul de documente al angajatului.");
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold">Documente — {angajat.full_name}</h1>
-        <p className="text-muted-foreground text-sm">Marca {angajat.marca}</p>
-      </header>
+    <div className={cn(LATIMI.detaliu, "flex flex-col gap-6")}>
+      <div>
+        <Link
+          href={`/angajati/${angajat.id}`}
+          className="text-muted-foreground hover:text-foreground text-corp inline-flex items-center gap-1.5 underline-offset-2 hover:underline"
+        >
+          <ArrowLeft aria-hidden="true" className="size-3.5" />
+          Înapoi la fișa angajatului
+        </Link>
+        <AntetPagina
+          className="mt-1"
+          titlu={`Documente — ${angajat.full_name ?? ""}`}
+          descriere={`Marca ${angajat.marca} · ${String(documente.data.length)} document(e) în dosar`}
+        />
+      </div>
 
-      {poateIncarca ? (
-        <FormularDocument employeeId={angajat.id} tipuri={tipuri.data} />
-      ) : (
-        <p className="text-muted-foreground text-sm">Ai doar drept de consultare a dosarului.</p>
-      )}
+      {poateIncarca ? <FormularDocument employeeId={angajat.id} tipuri={tipuri.data} /> : null}
 
       {documente.data.length === 0 ? (
-        <EmptyState
-          icon={FileText}
-          title="Dosarul este gol"
-          description="Încarcă primul document: contractul individual de muncă sau actul de identitate."
+        <StareGoala
+          fel="initiala"
+          pictograma={FileText}
+          titlu="Dosarul este gol"
+          descriere="Încarcă primul document: contractul individual de muncă sau actul de identitate."
         />
       ) : (
         <ul className="divide-border divide-y">
@@ -102,16 +115,25 @@ export default async function PaginaDocumenteAngajat({
               key={document.id}
               className="flex flex-wrap items-center justify-between gap-3 py-3"
             >
-              <div>
-                <p className="font-medium">
+              <div className="min-w-0">
+                <p className="flex flex-wrap items-center gap-2 font-medium">
                   {document.titlu}
-                  {document.confidential && (
-                    <span className="bg-warning/12 text-foreground ml-2 rounded px-2 py-0.5 text-xs">
-                      confidențial
-                    </span>
-                  )}
+                  {document.confidential && <Badge ton="atentie">Confidențial</Badge>}
                 </p>
-                <p className="text-muted-foreground text-sm">
+                {/*
+                 * Tipul documentului se citea din bază („Contract", „Act de
+                 * identitate", „Medicina muncii") și nu se afișa NICĂIERI:
+                 * `employee_document_types(denumire)` intra în `select` și
+                 * ieșea din randare. Într-un dosar cu douăzeci de rânduri,
+                 * titlul singur nu spune dacă lipsește fișa de aptitudine.
+                 */}
+                <p className="text-muted-foreground text-corp">
+                  {document.employee_document_types?.denumire ?? "Tip nedefinit"}
+                  {" · "}
+                  {document.numar_document === null
+                    ? "fără număr"
+                    : `nr. ${document.numar_document}`}
+                  {" · "}
                   {document.data_document === null
                     ? "fără dată"
                     : formatDate(document.data_document)}
@@ -127,6 +149,6 @@ export default async function PaginaDocumenteAngajat({
           ))}
         </ul>
       )}
-    </main>
+    </div>
   );
 }
