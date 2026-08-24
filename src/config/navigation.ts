@@ -211,11 +211,17 @@ export const NAV_ITEMS: readonly NavItem[] = [
   {
     id: "evaluari",
     label: "Evaluări",
-    href: "/evaluari/sabloane",
+    // `/evaluari` avea o singură sub-pagină și niciun `page.tsx`, deci meniul
+    // trimitea direct la șabloane. Gazda modulului există acum, iar șabloanele
+    // sunt o filă în ea.
+    href: "/evaluari",
     icon: ClipboardCheck,
     group: "personal",
     featureKey: "evaluations",
-    permission: "employees:read",
+    // Poarta modulului e cheia lui, nu cea a fișelor de angajat: `0070` a mutat
+    // acțiunile pe `evaluations:*`, iar `0071` a mutat și politicile. Meniul era
+    // ultimul loc rămas pe `employees:read`.
+    permission: "evaluations:read",
     minScope: "team",
     order: 48,
   },

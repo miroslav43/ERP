@@ -2,8 +2,15 @@
 -- Redenumită din 0071 la integrarea ramurii `feat/departamente-vizualizari`:
 -- 0071 fusese între timp ocupat pe `main` de `0071_manager_cere_concediu.sql`,
 -- care e DEJA aplicată pe baza de dezvoltare. Conținutul de mai jos e
--- neschimbat și NU a fost încă rulat nicăieri — `evaluation_templates` n-are
--- încă nici `versiune`, nici `criterii_sablon`.
+-- neschimbat față de forma aplicată.
+--
+-- APLICATĂ pe baza de dezvoltare la 2026-08-24, prin `psql` (NOTES.md §1), sub
+-- numele vechi `0071_evaluari_sabloane_editabile.sql`. Antetul redenumirii
+-- spunea „NU a fost încă rulat nicăieri"; era adevărat când s-a scris și a
+-- încetat să fie în aceeași zi. Verificat după aplicare: cele două tabele
+-- au `versiune`, `criterii_sablon` și `versiune_sablon`, toate cele șase
+-- politici comută pe `evaluations`, iar tipurile regenerate din cloud sunt
+-- identice cu cele din `src/types/database.ts`.
 -- Șabloanele de evaluare devin editabile, iar evaluările își păstrează
 -- criteriile de la momentul completării.
 --

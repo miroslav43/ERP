@@ -1,9 +1,16 @@
 "use client";
 
-// src/app/(app)/evaluari/_components/campuri-evaluare.tsx
+// src/components/evaluari/campuri-evaluare.tsx
 
 /**
  * Controalele cu care se completează o evaluare.
+ *
+ * ── DE CE STAU ÎN `src/components/`, NU ÎN RUTĂ ───────────────────────────
+ * Le importă DOUĂ rute: `(app)/evaluari` (previzualizarea din constructor) și
+ * `(app)/angajati/[id]` (formularul real). Proiectul numără azi 13 componente
+ * de client importate dintr-o rută în alta și le numește datorie, cu motivul
+ * scris în `0-decizii-de-pornire.md`: o rută nu e o bibliotecă. A paisprezecea
+ * n-avea de ce să se mai nască.
  *
  * ── DE CE SUNT ÎNTR-UN FIȘIER PROPRIU ─────────────────────────────────────
  * Aceleași componente randează DOUĂ lucruri: formularul real de evaluare și

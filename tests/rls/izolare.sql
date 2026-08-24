@@ -1287,6 +1287,10 @@ declare
   -- Departamentul de pornire al Anei, ca proba de mutare să-l poată pune la loc
   -- și să nu schimbe starea văzută de verificările de după ea.
   v_dep_initial uuid;
+  -- Evaluări (0071): șablonul creat de HR și cele două evaluări ale probei.
+  v_sablon_firma uuid;
+  v_eval_sub     uuid;
+  v_eval_ana     uuid;
 begin
   select id into v_leave_type from public.leave_types
    where organization_id = v_alfa and key = 'odihna' and deleted_at is null;
@@ -1759,6 +1763,264 @@ begin
     v_esuate := v_esuate || format(E'\n  manager -> trip_sheets (foaia subordonatului): %s (%s)', sqlerrm, sqlstate);
   end;
   reset role;
+
+  -- ───────────────────────────────────────────────────────────────────────
+  -- EVALUĂRI (0071) — cele două direcții, pe lanțul manager → subordonat
+  --
+  -- Motivul pentru care blocul ăsta există, scris ca să nu se redescopere:
+  -- `0070` a mutat ACȚIUNILE modulului pe cheile `evaluations:*`, dar a lăsat
+  -- POLITICILE din `0038` pe `employees:update`. În `role_permissions`, rolul
+  -- `manager` are `evaluations:{read,create,update} = team` și NICIUN
+  -- `employees:update`, la niciun scope. Rezultatul, timp de o livrare
+  -- întreagă: managerul trecea de preambulul lui `createAction` și era respins
+  -- de bază cu 42501 — un refuz pe care nicio verificare nu-l vedea, fiindcă
+  -- (a)-(k) demonstrează doar că nimeni nu vede ce nu are voie.
+  --
+  -- Lanțul folosit e `mgr2_alfa` (Mircea, user `v_mgr_user`, rol `manager`)
+  -- → `sub_alfa` (Sorin). Ana (`ang_alfa`) raportează la `mgr_alfa`, deci e
+  -- deliberat ÎN AFARA echipei lui Mircea: pe ea se probează refuzul.
+  -- ───────────────────────────────────────────────────────────────────────
+
+  -- 1) `hr` creează un șablon al firmei. Scope-ul cerut de politică e `all`,
+  --    iar hr îl are; șablonul e artefact pe toată firma, nu pe o echipă.
+  perform set_config('request.jwt.claim.sub', v_hr_user::text, true);
+  set local role authenticated;
+  begin
+    insert into public.evaluation_templates (organization_id, denumire, descriere, criterii)
+    values (v_alfa, 'Probă (l) ' || v_rand, 'Șablon de probă pentru verificarea (l)',
+            jsonb_build_array(
+              jsonb_build_object('cod', 'calitate', 'denumire', 'Calitatea muncii',
+                                 'descriere', null, 'tip', 'scala', 'scala_max', 5, 'pondere', null),
+              jsonb_build_object('cod', 'punctualitate', 'denumire', 'Punctualitate',
+                                 'descriere', null, 'tip', 'scala', 'scala_max', 5, 'pondere', null)))
+    returning id into v_sablon_firma;
+    v_reusite := v_reusite || E'\n  hr -> evaluation_templates (creează un șablon al firmei)';
+  exception when others then
+    v_esuate := v_esuate || format(E'\n  hr -> evaluation_templates (creează un șablon): %s (%s)', sqlerrm, sqlstate);
+  end;
+  reset role;
+
+  -- 2) `manager` NU are voie să atingă un șablon: e comun pe firmă, iar politica
+  --    cere `evaluations:update = all`, pe care managerul nu-l are.
+  perform set_config('request.jwt.claim.sub', v_mgr_user::text, true);
+  set local role authenticated;
+  begin
+    insert into public.evaluation_templates (organization_id, denumire, criterii)
+    values (v_alfa, 'Șablon interzis (l) ' || v_rand, '[]'::jsonb);
+    v_scapate := v_scapate || E'\n  manager -> evaluation_templates (INSERT): a trecut, deși cere scope `all`';
+  exception when others then
+    v_reusite := v_reusite || format(E'\n  manager -> evaluation_templates: refuzat corect (%s)', sqlstate);
+  end;
+  reset role;
+
+  -- 3) PROBA DE FOND: managerul evaluează un subordonat AL LUI. Înainte de 0071
+  --    asta pica cu 42501, fiindcă politica cerea `employees:update`.
+  if v_sablon_firma is not null then
+    perform set_config('request.jwt.claim.sub', v_mgr_user::text, true);
+    set local role authenticated;
+    begin
+      insert into public.employee_evaluations
+        (organization_id, employee_id, template_id, evaluator_id, data_evaluarii,
+         raspunsuri, criterii_sablon, versiune_sablon, status)
+      values (v_alfa, v_sub_alfa, v_sablon_firma, v_mgr_user, current_date,
+              jsonb_build_array(
+                jsonb_build_object('criteriu_cod', 'calitate', 'scor', 4,
+                                   'raspuns_text', null, 'comentariu', null),
+                -- Criteriu NENOTAT, deliberat: `scor` null trebuie să treacă de
+                -- CHECK și de politică. Vechiul formular trimitea 0 aici.
+                jsonb_build_object('criteriu_cod', 'punctualitate', 'scor', null,
+                                   'raspuns_text', null, 'comentariu', null)),
+              (select criterii from public.evaluation_templates where id = v_sablon_firma),
+              1, 'draft')
+      returning id into v_eval_sub;
+      v_reusite := v_reusite || E'\n  manager -> employee_evaluations (evaluează un subordonat al lui)';
+    exception when others then
+      v_esuate := v_esuate || format(E'\n  manager -> employee_evaluations (subordonat propriu): %s (%s)', sqlerrm, sqlstate);
+    end;
+    reset role;
+  end if;
+
+  -- 4) Același manager, un angajat din AFARA echipei lui: `team` înseamnă
+  --    `app.is_manager_of`, nu „toată firma".
+  if v_sablon_firma is not null then
+    perform set_config('request.jwt.claim.sub', v_mgr_user::text, true);
+    set local role authenticated;
+    begin
+      insert into public.employee_evaluations
+        (organization_id, employee_id, template_id, data_evaluarii, criterii_sablon)
+      values (v_alfa, v_ang_alfa, v_sablon_firma, current_date, '[]'::jsonb);
+      v_scapate := v_scapate || E'\n  manager -> employee_evaluations (angajat din afara echipei): a trecut';
+    exception when others then
+      v_reusite := v_reusite || format(E'\n  manager -> employee_evaluations (afara echipei): refuzat corect (%s)', sqlstate);
+    end;
+    reset role;
+  end if;
+
+  -- 5) Managerul își corectează ciorna. Zero rânduri = refuz TĂCUT (capcana 17).
+  if v_eval_sub is not null then
+    perform set_config('request.jwt.claim.sub', v_mgr_user::text, true);
+    set local role authenticated;
+    begin
+      update public.employee_evaluations
+         set concluzie = 'Corectată în proba (l)'
+       where id = v_eval_sub;
+      get diagnostics v_randuri = row_count;
+      if v_randuri = 0 then
+        raise exception using errcode = 'P0001',
+          message = 'zero rânduri — refuz TĂCUT al politicii, exact capcana 17';
+      end if;
+      v_reusite := v_reusite || E'\n  manager -> employee_evaluations (corectează propria ciornă)';
+    exception when others then
+      v_esuate := v_esuate || format(E'\n  manager -> employee_evaluations (corectează ciorna): %s (%s)', sqlerrm, sqlstate);
+    end;
+    reset role;
+  end if;
+
+  -- 6) Managerul finalizează. Tranziția draft → finalizat e permisă de `USING`,
+  --    fiindcă starea VECHE a rândului e încă `draft`.
+  if v_eval_sub is not null then
+    perform set_config('request.jwt.claim.sub', v_mgr_user::text, true);
+    set local role authenticated;
+    begin
+      update public.employee_evaluations set status = 'finalizat' where id = v_eval_sub;
+      get diagnostics v_randuri = row_count;
+      if v_randuri = 0 then
+        raise exception using errcode = 'P0001', message = 'zero rânduri la finalizare';
+      end if;
+      v_reusite := v_reusite || E'\n  manager -> employee_evaluations (finalizează ciorna)';
+    exception when others then
+      v_esuate := v_esuate || format(E'\n  manager -> employee_evaluations (finalizează): %s (%s)', sqlerrm, sqlstate);
+    end;
+    reset role;
+  end if;
+
+  -- 7) După finalizare, ACELAȘI manager nu mai poate rescrie nimic: garda
+  --    `status = 'draft' or evaluations:update = all` din 0071. O evaluare
+  --    semnată nu se corectează pe ascuns de cel care a semnat-o.
+  if v_eval_sub is not null then
+    perform set_config('request.jwt.claim.sub', v_mgr_user::text, true);
+    set local role authenticated;
+    begin
+      update public.employee_evaluations
+         set concluzie = 'Rescrisă după finalizare' where id = v_eval_sub;
+      get diagnostics v_randuri = row_count;
+      if v_randuri > 0 then
+        v_scapate := v_scapate || E'\n  manager -> employee_evaluations (rescrie o evaluare FINALIZATĂ): a trecut';
+      else
+        v_reusite := v_reusite || E'\n  manager -> employee_evaluations (rescrie finalizata): refuzat corect, zero rânduri';
+      end if;
+    exception when others then
+      v_reusite := v_reusite || format(E'\n  manager -> employee_evaluations (rescrie finalizata): refuzat corect (%s)', sqlstate);
+    end;
+    reset role;
+  end if;
+
+  -- 8) `hr` (scope `all`) o poate redeschide. Corectura după semnare rămâne
+  --    posibilă, dar numai pentru cine răspunde de toată firma, și trece prin
+  --    acțiunea `redeschideEvaluare`, care lasă urmă în jurnalul de audit.
+  if v_eval_sub is not null then
+    perform set_config('request.jwt.claim.sub', v_hr_user::text, true);
+    set local role authenticated;
+    begin
+      update public.employee_evaluations set status = 'draft' where id = v_eval_sub;
+      get diagnostics v_randuri = row_count;
+      if v_randuri = 0 then
+        raise exception using errcode = 'P0001',
+          message = 'zero rânduri — hr nu poate redeschide, deși are scope all';
+      end if;
+      v_reusite := v_reusite || E'\n  hr -> employee_evaluations (redeschide o evaluare finalizată)';
+    exception when others then
+      v_esuate := v_esuate || format(E'\n  hr -> employee_evaluations (redeschide): %s (%s)', sqlerrm, sqlstate);
+    end;
+    reset role;
+  end if;
+
+  -- 9) `employee` are `evaluations:read = own` și NICIUN drept de scriere: nu
+  --    se poate autoevalua. (Autoevaluarea, dacă se cere vreodată, e un modul,
+  --    nu o gaură în politica asta.)
+  if v_sablon_firma is not null then
+    perform set_config('request.jwt.claim.sub', v_emp_user::text, true);
+    set local role authenticated;
+    begin
+      insert into public.employee_evaluations
+        (organization_id, employee_id, template_id, data_evaluarii, criterii_sablon)
+      values (v_alfa, v_ang_alfa, v_sablon_firma, current_date, '[]'::jsonb);
+      v_scapate := v_scapate || E'\n  employee -> employee_evaluations (autoevaluare): a trecut';
+    exception when others then
+      v_reusite := v_reusite || format(E'\n  employee -> employee_evaluations (autoevaluare): refuzat corect (%s)', sqlstate);
+    end;
+    reset role;
+  end if;
+
+  -- 10) `employee` ÎȘI vede propria evaluare. Cheia lui e `read = own`, iar
+  --     ecranul de portal care s-o arate încă nu există — dar politica trebuie
+  --     să fie gata înaintea ecranului, nu invers. HR-ul scrie evaluarea Anei.
+  if v_sablon_firma is not null then
+    perform set_config('request.jwt.claim.sub', v_hr_user::text, true);
+    set local role authenticated;
+    begin
+      insert into public.employee_evaluations
+        (organization_id, employee_id, template_id, data_evaluarii, criterii_sablon, status)
+      values (v_alfa, v_ang_alfa, v_sablon_firma, current_date,
+              (select criterii from public.evaluation_templates where id = v_sablon_firma), 'finalizat')
+      returning id into v_eval_ana;
+      v_reusite := v_reusite || E'\n  hr -> employee_evaluations (evaluează orice angajat, scope all)';
+    exception when others then
+      v_esuate := v_esuate || format(E'\n  hr -> employee_evaluations (orice angajat): %s (%s)', sqlerrm, sqlstate);
+    end;
+    reset role;
+  end if;
+
+  if v_eval_ana is not null then
+    perform set_config('request.jwt.claim.sub', v_emp_user::text, true);
+    set local role authenticated;
+    begin
+      select count(*) into v_randuri from public.employee_evaluations where id = v_eval_ana;
+      if v_randuri = 0 then
+        raise exception using errcode = 'P0001',
+          message = 'lista e goală — angajatul nu-și vede propria evaluare, deși are read=own';
+      end if;
+      v_reusite := v_reusite || E'\n  employee -> employee_evaluations (își vede propria evaluare)';
+    exception when others then
+      v_esuate := v_esuate || format(E'\n  employee -> employee_evaluations (propria evaluare): %s (%s)', sqlerrm, sqlstate);
+    end;
+    reset role;
+  end if;
+
+  -- 11) `employee` NU vede evaluarea altcuiva. `own` înseamnă own.
+  if v_eval_sub is not null then
+    perform set_config('request.jwt.claim.sub', v_emp_user::text, true);
+    set local role authenticated;
+    begin
+      select count(*) into v_randuri from public.employee_evaluations where id = v_eval_sub;
+      if v_randuri > 0 then
+        v_scapate := v_scapate || E'\n  employee -> employee_evaluations (evaluarea altui angajat): e vizibilă';
+      else
+        v_reusite := v_reusite || E'\n  employee -> employee_evaluations (evaluarea altuia): zero rânduri, ca așteptat';
+      end if;
+    end;
+    reset role;
+  end if;
+
+  -- 12) `super_admin` nu scrie evaluări într-o firmă-client, și e corect așa:
+  --     `app.current_org_ids()` citește exclusiv `organization_members`, iar un
+  --     administrator de platformă nu e niciodată acolo (CHECK în 0001_kernel).
+  --     Consola de platformă administrează module și locuri, nu date de HR ale
+  --     clientului. Proba fixează comportamentul, ca o lărgire viitoare a
+  --     politicii să fie o decizie, nu un accident.
+  if v_sablon_firma is not null then
+    perform set_config('request.jwt.claim.sub', v_sa_user::text, true);
+    set local role authenticated;
+    begin
+      insert into public.employee_evaluations
+        (organization_id, employee_id, template_id, data_evaluarii, criterii_sablon)
+      values (v_alfa, v_sub_alfa, v_sablon_firma, current_date, '[]'::jsonb);
+      v_scapate := v_scapate || E'\n  super_admin -> employee_evaluations (date de HR ale clientului): a trecut';
+    exception when others then
+      v_reusite := v_reusite || format(E'\n  super_admin -> employee_evaluations: refuzat corect (%s)', sqlstate);
+    end;
+    reset role;
+  end if;
 
   if v_scapate <> '' then
     perform pg_temp.esueaza(format(

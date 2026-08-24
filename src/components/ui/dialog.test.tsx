@@ -2,7 +2,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { ConfirmareActiune, Dialog } from "./dialog";
+import { ConfirmareActiune, Dialog, PanouLateral } from "./dialog";
 
 /**
  * Regula pe care o apără fișierul: **o confirmare care nu spune consecința nu e
@@ -242,5 +242,52 @@ describe("Dialog — înălțime mărginită și derulare", () => {
     expect(clase).toContain("rounded-b-none");
     expect(clase).toContain("md:m-auto");
     expect(clase).toContain("md:rounded-panou");
+  });
+});
+
+/**
+ * ── DE CE SE VERIFICĂ MĂRIMEA ȘI CÂRLIGUL DE DIRECȚIE ─────────────────────
+ * `LATIME` e o hartă: o mărime adăugată acolo fără să ajungă pe element ar
+ * trece neobservată, fiindcă dialogul s-ar randa oricum, doar îngust. Iar
+ * `data-panou="lateral"` e singura legătură dintre `PanouLateral` și regula din
+ * `globals.css` care îi dă direcția de intrare; ștearsă, panoul ar continua să
+ * funcționeze și ar intra de jos, ca o casetă — o regresie pe care niciun alt
+ * test n-ar prinde-o.
+ */
+describe("Dialog — mărimi și cârligul de mișcare", () => {
+  it("mărimea „lucru” pune lățimea de atelier pe element", () => {
+    render(
+      <Dialog deschis laInchidere={() => {}} titlu="Constructor" marime="lucru">
+        <p>Corp.</p>
+      </Dialog>,
+    );
+    expect(document.querySelector("dialog")?.className).toContain("max-w-5xl");
+  });
+
+  it("mărimea implicită rămâne cea medie", () => {
+    render(
+      <Dialog deschis laInchidere={() => {}} titlu="Ceva">
+        <p>Corp.</p>
+      </Dialog>,
+    );
+    expect(document.querySelector("dialog")?.className).toContain("max-w-lg");
+  });
+
+  it("panoul lateral se declară ca lateral, ca să intre dinspre marginea lui", () => {
+    render(
+      <PanouLateral deschis laInchidere={() => {}} titlu="Evaluare nouă">
+        <p>Corp.</p>
+      </PanouLateral>,
+    );
+    expect(document.querySelector("dialog")?.getAttribute("data-panou")).toBe("lateral");
+  });
+
+  it("caseta obișnuită NU e marcată ca panou", () => {
+    render(
+      <Dialog deschis laInchidere={() => {}} titlu="Ceva">
+        <p>Corp.</p>
+      </Dialog>,
+    );
+    expect(document.querySelector("dialog")?.hasAttribute("data-panou")).toBe(false);
   });
 });
