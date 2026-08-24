@@ -102,6 +102,27 @@ export function CommandPalette({ elemente, organizatii }: Props) {
     }
   }, [deschis]);
 
+  /*
+   * O pagină restaurată din bfcache (utilizatorul a plecat de aici și s-a
+   * întors cu „Înapoi") își aduce DOM-ul exact cum a rămas la plecare — dacă
+   * paleta era deschisă, `<dialog>` revine cu atributul `open` prezent, dar
+   * FĂRĂ promovarea reală în top layer: fără `::backdrop`, în afara fluxului
+   * ei modal obișnuit. Vizual rămâne o listă „înțepenită" sus în pagină, peste
+   * conținut, nedimensionat — și nici Escape, nici clicul din afară nu mai
+   * ajung la ea, fiindcă nu mai e cu adevărat modală. Singura reparație sigură
+   * e închiderea forțată, direct pe element, la orice revenire din bfcache.
+   */
+  useEffect(() => {
+    function laRevenire(eveniment: PageTransitionEvent): void {
+      if (!eveniment.persisted) return;
+      dialogRef.current?.close();
+      setDeschis(false);
+      setInterogare("");
+    }
+    window.addEventListener("pageshow", laRevenire);
+    return () => window.removeEventListener("pageshow", laRevenire);
+  }, []);
+
   useEffect(() => {
     function laTasta(eveniment: KeyboardEvent): void {
       if ((eveniment.metaKey || eveniment.ctrlKey) && eveniment.key.toLowerCase() === "k") {
@@ -215,7 +236,31 @@ export function CommandPalette({ elemente, organizatii }: Props) {
           setDeschis(false);
           setInterogare("");
         }}
-        className="border-border bg-background text-foreground shadow-plutitor z-meniu sm:rounded-panou m-0 flex h-dvh max-h-none w-full max-w-none flex-col border-0 p-0 backdrop:bg-black/40 sm:mx-auto sm:mt-16 sm:mb-auto sm:h-auto sm:max-h-[70dvh] sm:max-w-lg sm:border"
+        /*
+          Clic pe `::backdrop` nu are propriul nod DOM — un clic care ajunge
+          efectiv pe `<dialog>` (nu pe vreun copil din panou) e prin definiție
+          un clic ÎN AFARA panoului. Pe telefon `<dialog>` ocupă tot ecranul
+          (`h-dvh`), deci nu există zonă de fundal vizibilă acolo — verificarea
+          e inofensivă, doar nu se declanșează niciodată sub `sm`.
+        */
+        onClick={(eveniment) => {
+          if (eveniment.target === dialogRef.current) {
+            inchide();
+          }
+        }}
+        /*
+          `hidden open:flex`, NU `flex` simplu. `dialog:not([open]) { display:
+          none }` e stabilit de foaia de stil a browserului — iar CSS-ul
+          autorului o bate ÎNTOTDEAUNA, indiferent de specificitate. O clasă
+          `flex` necondiționată aici anula acea regulă definitiv: panoul
+          rămânea `display: flex` chiar și cu `open === false`, poziționat
+          absolut, în afara stivei modale — vizibil pe orice pagină, pentru
+          orice utilizator, dus parțial deasupra ecranului. Verificat live cu
+          `getComputedStyle`. Varianta `open:flex` din Tailwind leagă randarea
+          strict de atributul `open`, exact ca regula UA pe care trebuia s-o
+          respecte.
+        */
+        className="border-border bg-background text-foreground shadow-plutitor z-meniu sm:rounded-panou m-0 hidden h-dvh max-h-none w-full max-w-none flex-col border-0 p-0 backdrop:bg-black/40 open:flex sm:mx-auto sm:mt-16 sm:mb-auto sm:h-auto sm:max-h-[70dvh] sm:max-w-lg sm:border"
       >
         <div className="border-border flex shrink-0 items-center gap-2 border-b px-3">
           <Search aria-hidden="true" className="text-muted-foreground h-4 w-4 shrink-0" />

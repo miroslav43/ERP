@@ -5,27 +5,39 @@ import { useCallback, useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Ban, Pencil, Undo2 } from "lucide-react";
 
+import { BaraActiuni } from "@/components/ui/bara-actiuni";
 import { Buton } from "@/components/ui/buton";
-import { Camp } from "@/components/ui/camp";
+import { Dialog } from "@/components/ui/dialog";
 import { Formular } from "@/components/ui/formular";
 
-import { CautaCor } from "./cauta-cor";
+import { CampuriFunctie } from "./campuri-functie";
 import { actualizeazaFunctie, dezactiveazaFunctie, reactiveazaFunctie } from "./actions";
 
 /**
- * Acțiunile unui rând din nomenclatorul de funcții: editarea și comutarea
- * activării.
+ * Acțiunile unui rând din nomenclator: editarea și comutarea activării.
  *
- * Numai editarea trece prin `<Formular>` — ea are câmpuri, deci și `fieldErrors`
+ * ── DE CE DEZACTIVAREA E BLOCATĂ ÎNAINTE DE CLIC, NU DUPĂ ─────────────────
+ * `dezactiveazaFunctie` numără angajații alocați și refuză cu „Funcția are
+ * angajați alocați. Mutați-i pe altă funcție înainte de dezactivare.” Refuzul e
+ * corect, dar sosea DUPĂ apăsare: omul afla că nu se poate abia după ce
+ * încercase, iar cifra care explică refuzul — câți angajați — nu apărea nicăieri.
+ *
+ * Acum numărul e deja în rând, deci butonul se poate opri singur și poate spune
+ * de ce. Precondiția din `actions.ts` NU dispare: ea rămâne adevărul, fiindcă
+ * între citirea paginii și apăsare altcineva poate muta un angajat pe funcție.
+ * Ecranul doar nu mai lasă refuzul să fie o surpriză.
+ *
+ * `numarAngajati === null` înseamnă „nu s-a numărat”, nu „zero”: acolo butonul
+ * rămâne deschis și decide serverul. Vezi nota din `queries/job-positions.ts` —
+ * cine n-are `employees:read = all` n-ar număra decât o parte.
+ *
+ * ── CE PĂSTREAZĂ DIN VARIANTA VECHE ───────────────────────────────────────
+ * Numai editarea trece prin `<Formular>`: ea are câmpuri, deci și `fieldErrors`
  * de arătat pe câmp, și date de pierdut la resetul de după acțiune al lui React
- * 19. Comutarea activării n-are decât `id`, luat din props; acolo
- * `useTransition` și un mesaj sub butoane spun tot ce e de spus.
- *
- * Ce se pierdea înainte, concret: `codCorOptional` respinge un cod care nu
- * există în Clasificarea Ocupațiilor (nu doar unul cu alt număr de cifre). La
- * refuz, formularul necontrolat se reseta, deci denumirea, nivelul de studii și
- * descrierea rescrise se întorceau la valorile din bază — fără niciun semn că
- * s-a pierdut ceva.
+ * 19 — `codCorOptional` respinge un cod care nu există în Clasificarea
+ * Ocupațiilor, iar la refuz denumirea și descrierea rescrise se întorceau la
+ * valorile din bază, fără niciun semn că s-a pierdut ceva. Comutarea activării
+ * n-are decât `id`; acolo `useTransition` și un mesaj sub butoane spun tot.
  */
 
 interface Proprietati {
@@ -36,6 +48,7 @@ interface Proprietati {
     nivel_studii: string | null;
     descriere: string | null;
     activ: boolean;
+    numarAngajati: number | null;
   }>;
   readonly poateEdita: boolean;
 }
@@ -55,7 +68,13 @@ export function ActiuniFunctie({ functie, poateEdita }: Proprietati) {
     router.refresh();
   }, [router]);
 
+  const inchide = useCallback((): void => {
+    setEditeaza(false);
+  }, []);
+
   if (!poateEdita) return null;
+
+  const ocupata = functie.numarAngajati !== null && functie.numarAngajati > 0;
 
   /** Cheile obiectului sunt EXACT cele din `actualizeazaFunctieSchema`. */
   async function trimiteEditare(date: FormData) {
@@ -68,7 +87,7 @@ export function ActiuniFunctie({ functie, poateEdita }: Proprietati) {
     });
   }
 
-  /** Vezi nota din `departamente/actiuni-departament.tsx`: dezactivarea e acum
+  /** Vezi nota din `departamente/actiuni-departament.tsx`: dezactivarea e
    *  reversibilă, deci nu cere confirmare. */
   function comutaActivarea(): void {
     setEroare(null);
@@ -85,113 +104,86 @@ export function ActiuniFunctie({ functie, poateEdita }: Proprietati) {
   }
 
   return (
-    <div className="space-y-2">
-      <div className="text-nota flex flex-wrap gap-1">
+    // Numai `<span>`-uri, cu `display` schimbat din clase. `pontaj/perioade`
+    // alesese slotul de „insignă" tocmai fiindcă randează un `<div>`, care în
+    // rândul mărunt al cardului (un `<p>`) ar fi închis paragraful devreme și ar
+    // fi rupt hidratarea. Slotul de insignă e însă tot un `<span>`, deci un
+    // `<div>` rămâne conținut invalid și acolo — doar unul pe care browserul îl
+    // tolerează. Aici nu e nevoie nici de toleranța aia.
+    <span className="flex flex-col items-start gap-1">
+      <span className="flex flex-wrap items-center gap-1">
         <Buton
           varianta="tertiar"
           onClick={() => {
-            setEditeaza((v) => !v);
+            setEditeaza(true);
           }}
         >
           <Pencil aria-hidden="true" className="size-3.5" />
           Editează
+          <span className="sr-only"> funcția {functie.denumire}</span>
         </Buton>
+
         {functie.activ ? (
-          <Buton varianta="distructiv" onClick={comutaActivarea} disabled={inCurs}>
+          <Buton
+            varianta="distructiv"
+            onClick={comutaActivarea}
+            disabled={inCurs || ocupata}
+            // Motivul refuzului stă pe buton, nu doar în mesajul de după clic:
+            // un buton blocat fără explicație e la fel de opac ca unul care
+            // eșuează.
+            title={
+              ocupata ? `Funcția are ${String(functie.numarAngajati)} angajați alocați.` : undefined
+            }
+          >
             <Ban aria-hidden="true" className="size-3.5" />
             Dezactivează
+            <span className="sr-only"> funcția {functie.denumire}</span>
           </Buton>
         ) : (
           <Buton varianta="secundar" onClick={comutaActivarea} disabled={inCurs}>
             <Undo2 aria-hidden="true" className="size-3.5" />
             Reactivează
+            <span className="sr-only"> funcția {functie.denumire}</span>
           </Buton>
         )}
-      </div>
+      </span>
+
+      {/* Explicația însoțește butonul blocat. `aria-describedby` ar fi cerut ca
+          textul să existe și când butonul e liber; aici apare doar când chiar
+          există o piedică. */}
+      {ocupata && functie.activ ? (
+        <span className="text-muted-foreground text-nota block">
+          Nu se poate dezactiva: are {functie.numarAngajati}{" "}
+          {functie.numarAngajati === 1 ? "angajat alocat" : "angajați alocați"}.
+        </span>
+      ) : null}
 
       {eroare === null ? null : (
-        <p role="alert" className="text-danger text-nota">
+        <span role="alert" className="text-danger text-nota block">
           {eroare}
-        </p>
+        </span>
       )}
 
       {editeaza ? (
-        <Formular
-          actiune={trimiteEditare}
-          laReusita={laReusita}
-          mesajReusita="Funcția a fost salvată."
-          className="border-border rounded-control grid gap-2 border p-3 sm:grid-cols-2"
+        <Dialog
+          deschis
+          laInchidere={inchide}
+          titlu={`Editează „${functie.denumire}”`}
+          descriere="Codul intern nu se schimbă: funcția apare sub el pe contractele deja emise."
+          marime="mare"
         >
-          {(stare) => {
-            const eroriCor = stare.erori["cod_cor"] ?? [];
-
-            return (
+          <Formular
+            actiune={trimiteEditare}
+            laReusita={laReusita}
+            mesajReusita="Funcția a fost salvată."
+          >
+            {(stare) => (
               <>
-                <Camp
-                  nume="denumire"
-                  id={idc("denumire")}
-                  eticheta="Denumire"
-                  obligatoriu
-                  erori={stare.erori["denumire"] ?? []}
-                >
-                  {(a) => (
-                    <input
-                      {...a}
-                      type="text"
-                      maxLength={160}
-                      defaultValue={stare.valoriTrimise["denumire"] ?? functie.denumire}
-                    />
-                  )}
-                </Camp>
-
-                <Camp nume="cod_cor" id={idc("cod_cor")} eticheta="Cod COR" erori={eroriCor}>
-                  {(a) => (
-                    <CautaCor
-                      idInput={a.id}
-                      valoareInitiala={stare.valoriTrimise["cod_cor"] ?? functie.cod_cor ?? ""}
-                      invalid={eroriCor.length > 0}
-                      descrisDe={a["aria-describedby"]}
-                    />
-                  )}
-                </Camp>
-
-                <Camp
-                  nume="nivel_studii"
-                  id={idc("nivel_studii")}
-                  eticheta="Nivel de studii"
-                  erori={stare.erori["nivel_studii"] ?? []}
-                >
-                  {(a) => (
-                    <input
-                      {...a}
-                      type="text"
-                      maxLength={80}
-                      defaultValue={
-                        stare.valoriTrimise["nivel_studii"] ?? functie.nivel_studii ?? ""
-                      }
-                    />
-                  )}
-                </Camp>
-
-                <Camp
-                  nume="descriere"
-                  id={idc("descriere")}
-                  eticheta="Descriere"
-                  fel="textarea"
-                  className="sm:col-span-2"
-                  erori={stare.erori["descriere"] ?? []}
-                >
-                  {(a) => (
-                    <textarea
-                      {...a}
-                      maxLength={1000}
-                      rows={2}
-                      defaultValue={stare.valoriTrimise["descriere"] ?? functie.descriere ?? ""}
-                    />
-                  )}
-                </Camp>
-
-                <div className="sm:col-span-2">
+                <CampuriFunctie stare={stare} idc={idc} initiale={functie} cuCodIntern={false} />
+                <BaraActiuni aliniere="final" separata lipitaPeTelefon>
+                  <Buton varianta="secundar" onClick={inchide} disabled={stare.inCurs}>
+                    Renunță
+                  </Buton>
                   <Buton
                     type="submit"
                     varianta="primar"
@@ -200,12 +192,12 @@ export function ActiuniFunctie({ functie, poateEdita }: Proprietati) {
                   >
                     Salvează
                   </Buton>
-                </div>
+                </BaraActiuni>
               </>
-            );
-          }}
-        </Formular>
+            )}
+          </Formular>
+        </Dialog>
       ) : null}
-    </div>
+    </span>
   );
 }

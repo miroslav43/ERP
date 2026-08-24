@@ -58,6 +58,15 @@ type StareInterna<TData> = Readonly<{
 
 export type PropsFormular<TData> = Readonly<{
   actiune: (date: FormData) => Promise<ActionResult<TData>>;
+  /**
+   * Identificatorul elementului `<form>`.
+   *
+   * Necesar când butonul de trimitere NU e copil al formularului — cazul unui
+   * dialog cu subsol lipit, unde corpul derulează și butoanele rămân pe loc.
+   * Atributul `form="…"` de pe buton leagă cele două subarbori; fără el,
+   * butonul din subsol n-ar trimite nimic.
+   */
+  id?: string;
   laReusita?: (data: TData) => void;
   /** Textul notificării de confirmare. Fără el, nu apare nicio notificare. */
   mesajReusita?: string;
@@ -67,6 +76,7 @@ export type PropsFormular<TData> = Readonly<{
 
 export function Formular<TData>({
   actiune,
+  id,
   laReusita,
   mesajReusita,
   className,
@@ -120,6 +130,7 @@ export function Formular<TData>({
   return (
     <form
       ref={ref}
+      id={id}
       action={trimite}
       // `noValidate`: validarea nativă a browserului afișează bule în engleză,
       // cu texte pe care nu le controlăm, și oprește trimiterea înainte ca Zod

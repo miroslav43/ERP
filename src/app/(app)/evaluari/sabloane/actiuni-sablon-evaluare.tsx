@@ -8,7 +8,7 @@ import { Buton } from "@/components/ui/buton";
 import { ConfirmareActiune } from "@/components/ui/dialog";
 import { arataToast } from "@/components/ui/toast";
 
-import { dezactiveazaSablonEvaluare } from "../actions";
+import { arhiveazaSablonEvaluare } from "../actions";
 
 /**
  * Butonul ignora complet rezultatul acțiunii: `await …; router.refresh()`.
@@ -18,9 +18,15 @@ import { dezactiveazaSablonEvaluare } from "../actions";
  * reușită, iar șablonul rămânea activ. Acțiunea întoarce deja refuzul; ecranul
  * trebuie să îl și SPUNĂ.
  *
- * Confirmarea prealabilă e aici fiindcă dezactivarea n-are pereche: nicio
- * acțiune nu pune `activ` înapoi pe `true`. Din interfață, un clic greșit e
- * definitiv — deci merită întrebarea.
+ * Confirmarea prealabilă a rămas deși dezactivarea are ACUM pereche
+ * (`reactiveazaSablonEvaluare`, adus de ramura `feat/departamente-vizualizari`):
+ * ecranul ăsta încă nu oferă reactivarea, deci din interfața de aici un clic
+ * greșit tot e fără drum înapoi.
+ *
+ * Acțiunea s-a redenumit `dezactiveaza…` → `arhiveaza…` pe aceeași ramură;
+ * semantica e neschimbată (`comutaActiv(false)`, `evaluations:update` cu scope
+ * `all`). Textele din interfață rămân „dezactivează”, fiindcă asta înțelege
+ * utilizatorul — „arhivare” ar promite o listă de arhivă care nu există.
  */
 export function ActiuniSablonEvaluare({
   id,
@@ -51,7 +57,7 @@ export function ActiuniSablonEvaluare({
         inCurs={inCurs}
         laConfirmare={() => {
           porneste(async () => {
-            const rezultat = await dezactiveazaSablonEvaluare({ id });
+            const rezultat = await arhiveazaSablonEvaluare({ id });
             if (!rezultat.ok) {
               arataToast({ fel: "eroare", text: rezultat.error.message });
               return;

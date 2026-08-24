@@ -325,6 +325,40 @@ export const actualizeazaAngajatSchema = creeazaAngajatSchema
   })
   .extend({ id: z.uuid("Angajatul selectat nu este valid.") });
 
+/**
+ * Mutarea între departamente — o schemă ÎNGUSTĂ, cu două câmpuri.
+ *
+ * ── DE CE NU SE REFOLOSEȘTE `actualizeazaAngajatSchema` ───────────────────
+ * Aceea are 36 de câmpuri, aproape toate cu `.default(...)`. Un payload
+ * `{ id, department_id }` ar trece de validare, iar handler-ul ar trimite 34 de
+ * coloane la `.update()`: adresa, reședința, actul de identitate, contactul de
+ * urgență, CNP-ul și IBAN-ul s-ar scrie `null`, iar `gen`, `cetatenie`,
+ * `conditii_munca` și `optiune_pilon_ii` ar reveni la implicit. Exact defectul
+ * pe care îl apără poarta din `employee.test.ts`, de la câțiva pași mai sus.
+ *
+ * Cea mai scumpă pierdere ar fi `manager_employee_id → null`: declanșează
+ * `tg_employees_manager_path`, care rescrie `manager_path` la TOȚI subordonații.
+ * Cum scope-ul „team" se rezolvă peste tot pe `manager_path`, o singură salvare
+ * parțială ar face o ramură întreagă invizibilă pentru managerul ei — fără
+ * eroare, și fără urmă în jurnalul aplicației, fiindcă `manager_employee_id` nu
+ * e în lista de câmpuri auditate.
+ *
+ * Cu două câmpuri, schema asta n-are ce goli.
+ *
+ * Plafonul de 200 nu e o limită de produs, e o plasă: cea mai mare firmă din
+ * sistem are opt angajați.
+ */
+export const mutaAngajatiSchema = z.object({
+  employee_ids: z
+    .array(z.uuid("Angajatul selectat nu este valid."))
+    .min(1, "Selectați cel puțin o persoană.")
+    .max(200, "Se pot muta cel mult 200 de persoane deodată."),
+  /** `null` = scoaterea din departament, o stare legitimă. */
+  department_id: z.uuid("Departamentul selectat nu este valid.").nullable().default(null),
+});
+
+export type MutaAngajatiInput = z.infer<typeof mutaAngajatiSchema>;
+
 // ── Contract ──────────────────────────────────────────────────────────────────
 
 const corpContractSchema = z.object({

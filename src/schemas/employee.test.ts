@@ -1,7 +1,11 @@
 // src/schemas/employee.test.ts
 import { describe, expect, it } from "vitest";
 
-import { actualizeazaAngajatSchema, CAMPURI_EDITABILE_ANGAJAT } from "./employee";
+import {
+  actualizeazaAngajatSchema,
+  CAMPURI_EDITABILE_ANGAJAT,
+  mutaAngajatiSchema,
+} from "./employee";
 
 /**
  * Poarta care apără fișa de personal de o ștergere tăcută.
@@ -43,5 +47,56 @@ describe("actualizeazaAngajatSchema", () => {
     expect(rezultat.data.contact_urgenta_nume).toBeNull();
     expect(rezultat.data.cetatenie).toBe("RO");
     expect(rezultat.data.conditii_munca).toBe("normale");
+  });
+});
+
+/**
+ * Schema mutării între departamente.
+ *
+ * Contrastul cu testele de mai sus e chiar ideea ei: `actualizeazaAngajatSchema`
+ * are 36 de câmpuri și trebuie apărată cu o poartă care numără mulțimi, fiindcă
+ * orice cheie lipsă golește o coloană. Schema asta are DOUĂ câmpuri, deci nu are
+ * ce goli — și de-asta mutarea nu trece prin cealaltă.
+ */
+describe("mutaAngajatiSchema", () => {
+  const UUID = "11111111-1111-4111-8111-111111111111";
+
+  it("respinge lista goală de angajați", () => {
+    expect(mutaAngajatiSchema.safeParse({ employee_ids: [], department_id: null }).success).toBe(
+      false,
+    );
+  });
+
+  it("respinge un identificator care nu e UUID", () => {
+    expect(
+      mutaAngajatiSchema.safeParse({ employee_ids: ["nu-e-uuid"], department_id: null }).success,
+    ).toBe(false);
+  });
+
+  it("acceptă department_id null — scoaterea din departament", () => {
+    expect(
+      mutaAngajatiSchema.safeParse({ employee_ids: [UUID], department_id: null }).success,
+    ).toBe(true);
+  });
+
+  it("pune department_id pe null când lipsește din intrare", () => {
+    expect(mutaAngajatiSchema.parse({ employee_ids: [UUID] }).department_id).toBeNull();
+  });
+
+  it("respinge un department_id care nu e UUID", () => {
+    expect(
+      mutaAngajatiSchema.safeParse({ employee_ids: [UUID], department_id: "primul" }).success,
+    ).toBe(false);
+  });
+
+  it("plafonează mutarea în masă la 200", () => {
+    const prea = Array.from({ length: 201 }, () => UUID);
+    expect(mutaAngajatiSchema.safeParse({ employee_ids: prea, department_id: null }).success).toBe(
+      false,
+    );
+    const exact = Array.from({ length: 200 }, () => UUID);
+    expect(mutaAngajatiSchema.safeParse({ employee_ids: exact, department_id: null }).success).toBe(
+      true,
+    );
   });
 });

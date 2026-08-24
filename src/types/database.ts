@@ -2388,6 +2388,7 @@ export type Database = {
           concluzie: string | null
           created_at: string
           created_by: string | null
+          criterii_sablon: Json
           data_evaluarii: string
           deleted_at: string | null
           employee_id: string
@@ -2399,11 +2400,13 @@ export type Database = {
           template_id: string
           updated_at: string
           updated_by: string | null
+          versiune_sablon: number | null
         }
         Insert: {
           concluzie?: string | null
           created_at?: string
           created_by?: string | null
+          criterii_sablon?: Json
           data_evaluarii: string
           deleted_at?: string | null
           employee_id: string
@@ -2415,11 +2418,13 @@ export type Database = {
           template_id: string
           updated_at?: string
           updated_by?: string | null
+          versiune_sablon?: number | null
         }
         Update: {
           concluzie?: string | null
           created_at?: string
           created_by?: string | null
+          criterii_sablon?: Json
           data_evaluarii?: string
           deleted_at?: string | null
           employee_id?: string
@@ -2431,6 +2436,7 @@ export type Database = {
           template_id?: string
           updated_at?: string
           updated_by?: string | null
+          versiune_sablon?: number | null
         }
         Relationships: [
           {
@@ -3423,6 +3429,7 @@ export type Database = {
           organization_id: string | null
           updated_at: string
           updated_by: string | null
+          versiune: number
         }
         Insert: {
           activ?: boolean
@@ -3436,6 +3443,7 @@ export type Database = {
           organization_id?: string | null
           updated_at?: string
           updated_by?: string | null
+          versiune?: number
         }
         Update: {
           activ?: boolean
@@ -3449,6 +3457,7 @@ export type Database = {
           organization_id?: string | null
           updated_at?: string
           updated_by?: string | null
+          versiune?: number
         }
         Relationships: [
           {

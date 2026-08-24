@@ -50,3 +50,38 @@ export const actualizeazaFunctieSchema = creeazaFunctieSchema
 export const dezactiveazaFunctieSchema = z.object({
   id: z.uuid("Funcția selectată nu este validă."),
 });
+
+// ── Filtrele nomenclatorului ─────────────────────────────────────────────────
+
+/**
+ * Coloanele după care se poate sorta lista de funcții.
+ *
+ * `cor` și `angajati` NU sunt coloane în bază: prima e denumirea ocupației,
+ * care trăiește în nomenclatorul COR din `src/domain/hr/`, a doua e o
+ * numărătoare peste `employees`. Amândouă se sortează în memorie — vezi nota
+ * din `src/lib/queries/job-positions.ts` despre de ce nomenclatorul se citește
+ * întreg.
+ */
+export const SORTARI_FUNCTII = ["denumire", "cod", "cor", "angajati"] as const;
+export type SortareFunctii = (typeof SORTARI_FUNCTII)[number];
+
+/**
+ * Fiecare câmp are `.default(...)`: `filtreDinUrl` cade pe `schema.parse({})`
+ * când adresa conține o valoare invalidă, iar fără implicite acolo n-ar avea pe
+ * ce cădea și ar arunca.
+ *
+ * `stare` NU e implicit „activă". Ar ascunde tăcut funcțiile dezactivate, iar
+ * omul care caută una și n-o găsește n-ar avea niciun indiciu că lista e
+ * filtrată — exact felul de gol fără explicație pe care îl documentează
+ * `docs/design/ecrane/capcane.md`.
+ */
+export const filtreFunctiiSchema = z.object({
+  q: textOptional(120),
+  stare: z.enum(["activa", "inactiva"]).nullable().default(null),
+  /** `lipsa` — doar funcțiile fără cod COR, cele care blochează REVISAL-ul. */
+  cor: z.enum(["lipsa"]).nullable().default(null),
+  /** Forma din URL: `denumire` crescător, `-denumire` descrescător. */
+  sort: textOptional(40),
+});
+
+export type FiltreFunctii = z.infer<typeof filtreFunctiiSchema>;
