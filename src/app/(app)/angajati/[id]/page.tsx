@@ -3,13 +3,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { ChevronRight, FileText, FolderOpen, KeyRound, Pencil, Plus } from "lucide-react";
+import { ChevronRight, FileText, FolderOpen, KeyRound, Pencil } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { AvatarAngajat } from "@/components/data/avatar-angajat";
 import { Badge } from "@/components/ui/badge";
-import { Buton, buton } from "@/components/ui/buton";
+import { buton } from "@/components/ui/buton";
 import { IncarcareAvatar } from "@/components/forms/incarcare-avatar";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -48,7 +48,11 @@ import { ButonIncheieComponenta } from "./buton-incheie-componenta";
 import { DateSensibile } from "./date-sensibile";
 import { FormularContractNou } from "./formular-contract-nou";
 import { FormularComponentaSalariala } from "./formular-componenta-salariala";
-import { FormularEvaluareNoua } from "./formular-evaluare-noua";
+import {
+  ButonContinuaCiorna,
+  ButonEvaluareNoua,
+  FormularEvaluareNoua,
+} from "./formular-evaluare-noua";
 import { FormularInceteazaContract } from "./formular-inceteaza-contract";
 import { FormularModificaSalariu } from "./formular-modifica-salariu";
 import { FormularScutireFiscala } from "./formular-scutire-fiscala";
@@ -612,16 +616,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
             Evaluări
           </h2>
           {poateCreaEvaluare && sabloaneEvaluare.length > 0 ? (
-            <FormularEvaluareNoua
-              employeeId={angajat.id}
-              sabloane={sabloaneEvaluare}
-              declansator={(deschide) => (
-                <Buton varianta="secundar" onClick={deschide}>
-                  <Plus aria-hidden="true" className="size-3.5" />
-                  Evaluare nouă
-                </Buton>
-              )}
-            />
+            <ButonEvaluareNoua employeeId={angajat.id} sabloane={sabloaneEvaluare} />
           ) : null}
         </div>
 
@@ -705,7 +700,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                       pentru scope-ul de echipă, prin politica din 0071. */}
                   {evaluare.status === "draft" && poateEditaEvaluare ? (
                     <div className="mt-3">
-                      <FormularEvaluareNoua
+                      <ButonContinuaCiorna
                         employeeId={angajat.id}
                         sabloane={sabloaneEvaluare}
                         ciorna={{
@@ -716,12 +711,6 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                           raspunsuri: evaluare.raspunsuri,
                           sablon: evaluare.sablon,
                         }}
-                        declansator={(deschide) => (
-                          <Buton varianta="tertiar" onClick={deschide}>
-                            <Pencil aria-hidden="true" className="size-3.5" />
-                            Continuă ciorna
-                          </Buton>
-                        )}
                       />
                     </div>
                   ) : null}

@@ -27,6 +27,7 @@
  *    „2 din 5" la cititorul de ecran.
  */
 
+import { Pencil, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useState, type ReactElement } from "react";
@@ -324,5 +325,61 @@ export function FormularEvaluareNoua({
         </Formular>
       </PanouLateral>
     </>
+  );
+}
+
+/**
+ * Cele două declanșatoare ale panoului, gata legate.
+ *
+ * ── DE CE NU MAI PRIMESC `declansator` DIN PAGINĂ ─────────────────────────
+ * `declansator` e o FUNCȚIE, iar fișa angajatului e Componentă de Server. RSC
+ * serializează props-urile trecute spre client și o funcție n-are reprezentare:
+ * Next aruncă „Functions cannot be passed directly to Client Components”, iar
+ * fișa cade ÎNTREAGĂ în `error.tsx`. Aceeași cauză a scos și `/evaluari/sabloane`
+ * din funcțiune pe producție.
+ *
+ * Prop-ul rămâne pe componentă — apelanții de pe client îl folosesc curat —
+ * dar paginile de server cheamă butoanele astea, ale căror props sunt toate
+ * serializabile. Poarta e `src/config/granita-rsc.test.ts`.
+ */
+export function ButonEvaluareNoua({
+  employeeId,
+  sabloane,
+}: Readonly<{ employeeId: string; sabloane: readonly SablonEvaluare[] }>): ReactElement {
+  return (
+    <FormularEvaluareNoua
+      employeeId={employeeId}
+      sabloane={sabloane}
+      declansator={(deschide) => (
+        <Buton varianta="secundar" onClick={deschide}>
+          <Plus aria-hidden="true" className="size-3.5" />
+          Evaluare nouă
+        </Buton>
+      )}
+    />
+  );
+}
+
+export function ButonContinuaCiorna({
+  employeeId,
+  sabloane,
+  ciorna,
+}: Readonly<{
+  employeeId: string;
+  sabloane: readonly SablonEvaluare[];
+  ciorna: CiornaEvaluare;
+}>): ReactElement {
+  return (
+    <FormularEvaluareNoua
+      employeeId={employeeId}
+      sabloane={sabloane}
+      ciorna={ciorna}
+      declansator={(deschide) => (
+        <Buton varianta="tertiar" onClick={deschide}>
+          <Pencil aria-hidden="true" className="size-3.5" />
+          Continuă ciorna
+        </Buton>
+      )}
+    />
   );
 }

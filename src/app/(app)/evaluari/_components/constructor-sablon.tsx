@@ -588,3 +588,32 @@ export function ConstructorSablon({ sablon, declansator }: PropsConstructor): Re
     </>
   );
 }
+
+/**
+ * Butonul „Șablon nou”, gata legat de constructor.
+ *
+ * ── DE CE TRĂIEȘTE AICI, NU ÎN PAGINĂ ─────────────────────────────────────
+ * `declansator` e o FUNCȚIE, iar `/evaluari/sabloane/page.tsx` e Componentă de
+ * Server. RSC serializează props-urile trecute spre client, iar o funcție n-are
+ * reprezentare: Next aruncă „Functions cannot be passed directly to Client
+ * Components” și pagina cade ÎNTREAGĂ în `error.tsx` — nu doar butonul, ci și
+ * lista de șabloane de sub el. Așa a ajuns pe producție, cu digest `1277356878`.
+ *
+ * Niciuna dintre porți n-o vede: tipul e corect pentru `tsc`, ESLint n-are
+ * noțiunea de graniță RSC, iar `build` nu prerandează o pagină care citește
+ * cookie-uri. Poarta e `src/config/granita-rsc.test.ts`.
+ *
+ * Aici, funcția nu mai traversează nimic: ambele capete sunt pe client.
+ */
+export function ButonSablonNou(): ReactElement {
+  return (
+    <ConstructorSablon
+      declansator={(deschide) => (
+        <Buton varianta="primar" onClick={deschide}>
+          <Plus aria-hidden="true" className="size-4" />
+          Șablon nou
+        </Buton>
+      )}
+    />
+  );
+}

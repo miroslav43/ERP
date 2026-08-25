@@ -1,11 +1,10 @@
 // src/app/(app)/evaluari/sabloane/page.tsx
 import type { Metadata } from "next";
-import { ClipboardCheck, Plus } from "lucide-react";
+import { ClipboardCheck } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
-import { Buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { valideazaPonderi, type CriteriuSablon } from "@/domain/evaluations/criterii";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
@@ -13,7 +12,7 @@ import { requireFeature } from "@/lib/auth/features";
 import { listeazaSabloane } from "@/lib/queries/evaluari";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 
-import { ConstructorSablon } from "../_components/constructor-sablon";
+import { ButonSablonNou } from "../_components/constructor-sablon";
 import { FileEvaluari } from "../_components/file-evaluari";
 import { ActiuniSablonEvaluare } from "./actiuni-sablon-evaluare";
 
@@ -51,20 +50,7 @@ export default async function PaginaSabloaneEvaluare() {
         titlu="Șabloane de evaluare"
         descriere="Seturi de criterii reutilizabile. Se aplică unui angajat de pe fișa lui, iar evaluarea păstrează criteriile de la momentul completării."
         file={<FileEvaluari activa="sabloane" nrSabloane={sabloane.length} />}
-        {...(poateScrie
-          ? {
-              actiuni: (
-                <ConstructorSablon
-                  declansator={(deschide) => (
-                    <Buton varianta="primar" onClick={deschide}>
-                      <Plus aria-hidden="true" className="size-4" />
-                      Șablon nou
-                    </Buton>
-                  )}
-                />
-              ),
-            }
-          : {})}
+        {...(poateScrie ? { actiuni: <ButonSablonNou /> } : {})}
       />
 
       {sabloane.length === 0 ? (
