@@ -9,6 +9,7 @@
  * iar RLS respinge rândul chiar dacă primele trei sunt ocolite.
  */
 import {
+  GraduationCap,
   BarChart3,
   Briefcase,
   CalendarDays,
@@ -235,6 +236,19 @@ export const NAV_ITEMS: readonly NavItem[] = [
     permission: "checklists:read",
     minScope: "team",
     order: 50,
+  },
+  {
+    id: "cursuri",
+    label: "Cursuri",
+    href: "/cursuri",
+    icon: GraduationCap,
+    group: "personal",
+    featureKey: "courses",
+    permission: "courses:read",
+    // `team`, exact pragul cerut de /cursuri. Un element de meniu care duce
+    // într-un refuz e mai rău decât unul care lipsește.
+    minScope: "team",
+    order: 55,
   },
   {
     id: "ssm",
@@ -589,6 +603,22 @@ export const PORTAL_NAV_ITEMS: readonly PortalNavItem[] = [
     order: 38,
     exact: false,
     prioritateBara: null,
+  },
+  {
+    id: "portal-cursuri",
+    label: "Cursurile mele",
+    href: "/portal/cursurile-mele",
+    icon: GraduationCap,
+    group: "munca",
+    featureKey: "courses",
+    permission: "courses:read",
+    minScope: "own",
+    order: 39,
+    exact: false,
+    // Prioritatea 5 pe o bară cu patru sloturi: cursurile nu retrogradează
+    // salariul sau pontajul. Punctul de intrare real e cardul promovat din
+    // /portal, care apare doar cât timp există restanțe.
+    prioritateBara: 5,
   },
   {
     id: "portal-anunturi",

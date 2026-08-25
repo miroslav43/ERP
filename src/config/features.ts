@@ -8,6 +8,7 @@
  * Dacă cele două diverg, `isFeatureKey` taie cheile necunoscute la citire.
  */
 import {
+  GraduationCap,
   CalendarDays,
   Car,
   ClipboardCheck,
@@ -40,6 +41,7 @@ export const FEATURE_KEYS = [
   "attendance",
   "leave",
   "onboarding",
+  "courses",
   "payroll",
   "per_diem",
   "fleet",
@@ -73,6 +75,13 @@ export const FEATURES: Readonly<Record<FeatureKey, FeatureMeta>> = {
     grup: "hr",
     isCore: false,
     sortOrder: 40,
+  },
+  courses: {
+    denumire: "Cursuri",
+    icon: GraduationCap,
+    grup: "hr",
+    isCore: false,
+    sortOrder: 45,
   },
   payroll: { denumire: "Salarizare", icon: Wallet, grup: "finance", isCore: false, sortOrder: 50 },
   per_diem: {

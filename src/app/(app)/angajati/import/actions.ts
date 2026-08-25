@@ -43,7 +43,7 @@ export const pregatesteIncarcareaImportului = createAction({
     const batchId = crypto.randomUUID();
     const cale = construiesteCaleDocument({
       organizationId: ctx.tenant.organizationId,
-      entitate: "import",
+      entitate: "employees",
       entitateId: batchId,
       numeFisier: input.numeFisier,
     });

@@ -4,7 +4,12 @@ import { z } from "zod";
 import { createAction } from "@/lib/actions/create-action";
 import { businessRule, invalidInput, notFound } from "@/lib/actions/errors";
 import { readRequestMeta, writeAuditLog } from "@/lib/actions/audit";
-import { BUCKET_DOCUMENTE, construiesteCaleDocument, verificaDocument } from "@/lib/documents/cale";
+import {
+  BUCKET_DOCUMENTE,
+  construiesteCaleDocument,
+  prefixCaleDocument,
+  verificaDocument,
+} from "@/lib/documents/cale";
 import type { ActionContext } from "@/lib/actions/types";
 
 const idAngajat = z.object({ employeeId: z.uuid() });
@@ -40,7 +45,7 @@ export const pregatesteIncarcareDocument = createAction({
     await verificaAngajatul(ctx, input.employeeId);
     const cale = construiesteCaleDocument({
       organizationId: ctx.tenant.organizationId,
-      entitate: "angajati",
+      entitate: "employees",
       entitateId: input.employeeId,
       numeFisier: input.numeFisier,
     });
@@ -95,7 +100,7 @@ export const salveazaDocument = createAction({
   }),
   handler: async (ctx: ActionContext, input) => {
     await verificaAngajatul(ctx, input.employeeId);
-    const prefix = `${ctx.tenant.organizationId}/angajati/${input.employeeId}/`;
+    const prefix = prefixCaleDocument(ctx.tenant.organizationId, "employees", input.employeeId);
     if (!input.cale.startsWith(prefix)) {
       const mesaj = "Calea fișierului nu corespunde acestui angajat.";
       throw invalidInput(mesaj, { cale: [mesaj] });

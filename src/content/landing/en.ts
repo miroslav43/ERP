@@ -218,6 +218,15 @@ export const EN: ContinutLanding = {
             puncte: ["Templates with reorderable steps", "A printable record of completion"],
           },
           {
+            cheie: "courses",
+            titlu: "Courses",
+            text: "A library of PDF and video material, taken inside the app. Each item sets how strong its own proof is: a tick, a measured percentage watched, or a signed declaration.",
+            puncte: [
+              "Videos and documents are viewed in the ERP, and never leave it",
+              "Recertification on schedule, reappearing in the person's list on its own",
+            ],
+          },
+          {
             cheie: "evaluations",
             titlu: "Reviews",
             text: "Templates built from your own criteria. A review opens from the person's file and stays in it.",

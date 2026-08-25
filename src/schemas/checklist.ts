@@ -19,6 +19,11 @@ export const CHECKLIST_VERIFICARE = [
   "inventar_returnat",
   "acces_revocat",
   "documente_semnate",
+  // 0076: pasul se bifează singur când angajatul termină cursul din `curs_id`.
+  // Spre deosebire de `acces_revocat` și `documente_semnate` — seedate în enum
+  // din 0014 și fără nicio implementare, deci pași imposibil de închis — asta
+  // are trigger, index și ecran. Vezi `internal.cursuri_sincronizeaza_checklist`.
+  "curs_finalizat",
 ] as const;
 export type ChecklistVerificare = (typeof CHECKLIST_VERIFICARE)[number];
 
@@ -209,6 +214,7 @@ const pasCampuriSchema = z.object({
   obligatoriu: z.coerce.boolean().default(true),
   tip_dovada: z.enum(CHECKLIST_TIP_DOVADA).default("bifa"),
   verificare_automata: optional(z.enum(CHECKLIST_VERIFICARE)),
+  curs_id: optional(z.uuid()),
 });
 
 /**
@@ -224,6 +230,7 @@ function validareResponsabilSiAutomat(
     obligatoriu: boolean;
     tip_dovada: ChecklistTipDovada;
     verificare_automata: ChecklistVerificare | null;
+    curs_id: string | null;
   }>,
   ctx: z.RefinementCtx,
 ): void {
@@ -256,6 +263,31 @@ function validareResponsabilSiAutomat(
       path: ["verificare_automata"],
       message:
         "Un pas cu verificare automată trebuie să fie obligatoriu și cu dovadă de tip «bifă».",
+    });
+  }
+
+  /*
+   * Oglinda lui `checklist_template_items_curs_ck` (0076). Perechea trebuie să
+   * cadă în FORMULAR, nu în bază: un CHECK încălcat iese ca 23514, un cod pe
+   * care nu-l poți traduce într-un mesaj pe câmp.
+   *
+   * Ramura inversă contează la fel de mult: un `curs_id` rămas completat după
+   * ce omul schimbă verificarea pe altceva ar fi o legătură care nu declanșează
+   * nimic — tipul de defect care se descoperă abia când cineva se întreabă de
+   * ce nu s-a bifat pasul.
+   */
+  if (valoare.verificare_automata === "curs_finalizat" && valoare.curs_id === null) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["curs_id"],
+      message: "Alegeți cursul care bifează acest pas.",
+    });
+  }
+  if (valoare.verificare_automata !== "curs_finalizat" && valoare.curs_id !== null) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["curs_id"],
+      message: "Cursul se alege doar pentru verificarea «curs finalizat».",
     });
   }
 }

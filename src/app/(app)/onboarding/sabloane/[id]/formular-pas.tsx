@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Buton } from "@/components/ui/buton";
 import { Camp, clasaBifa } from "@/components/ui/camp";
 import { Formular } from "@/components/ui/formular";
+import type { ChecklistVerificare } from "@/schemas/checklist";
 import {
   CHECKLIST_RESPONSABIL_TIP,
   CHECKLIST_TIP_DOVADA,
@@ -15,7 +16,13 @@ import {
 } from "@/schemas/checklist";
 
 import { actualizeazaPas, adaugaPas } from "../../actions";
-import { ETICHETE_RESPONSABIL_TIP, ETICHETE_ROL, ETICHETE_TIP_DOVADA } from "../../etichete";
+import {
+  ETICHETE_RESPONSABIL_TIP,
+  ETICHETE_ROL,
+  ETICHETE_TIP_DOVADA,
+  ETICHETE_VERIFICARE,
+  VERIFICARI_IMPLEMENTATE,
+} from "../../etichete";
 
 /**
  * Un pas de șablon — adăugare sau editare.
@@ -43,19 +50,29 @@ interface PasInitial {
   readonly termen_zile_relativ: number;
   readonly obligatoriu: boolean;
   readonly tip_dovada: "niciuna" | "bifa" | "document" | "semnatura";
-  readonly verificare_automata: "inventar_returnat" | "acces_revocat" | "documente_semnate" | null;
+  // Legat de sursă: uniunea scrisă de mână a rămas în urmă la 0076.
+  readonly verificare_automata: ChecklistVerificare | null;
+  readonly curs_id: string | null;
+}
+
+export interface OptiuneCurs {
+  readonly id: string;
+  readonly denumire: string;
 }
 
 interface Proprietati {
   readonly templateId: string;
+  /** Cursurile publicate ale firmei. Gol când modulul e stins — selectorul dispare. */
+  readonly cursuri: readonly OptiuneCurs[];
   /** Prezent ⇒ formularul editează un pas existent, în loc să adauge unul. */
   readonly initial?: PasInitial;
   readonly onGata?: () => void;
 }
 
-export function FormularPas({ templateId, initial, onGata }: Proprietati) {
+export function FormularPas({ templateId, cursuri, initial, onGata }: Proprietati) {
   const router = useRouter();
   const [responsabilTip, setResponsabilTip] = useState(initial?.responsabil_tip ?? "rol");
+  const [verificare, setVerificare] = useState<string>(initial?.verificare_automata ?? "");
   // Formularul de ADĂUGARE rămâne montat după reușită, iar `valoriTrimise` i-ar
   // ține pe ecran pasul tocmai adăugat. Generația îl remontează, deci pleacă de
   // la zero pentru pasul următor. Cel de editare dispare oricum, prin `onGata`.
@@ -91,6 +108,9 @@ export function FormularPas({ templateId, initial, onGata }: Proprietati) {
       obligatoriu: date.get("obligatoriu") === "on",
       tip_dovada: text("tip_dovada"),
       verificare_automata: text("verificare_automata"),
+      // Ca la `responsabil_rol`: ce a rămas în selector înainte de schimbare
+      // nu pleacă la server, fiindcă `..._curs_ck` cere exact perechea.
+      curs_id: verificare === "curs_finalizat" ? text("curs_id") : "",
     };
 
     return initial === undefined
@@ -300,21 +320,61 @@ export function FormularPas({ templateId, initial, onGata }: Proprietati) {
                 {(a) => (
                   <select
                     {...a}
-                    defaultValue={
-                      stare.valoriTrimise["verificare_automata"] ??
-                      initial?.verificare_automata ??
-                      ""
-                    }
+                    value={verificare}
+                    onChange={(e) => {
+                      setVerificare(e.target.value);
+                    }}
                   >
                     <option value="">Fără</option>
                     {CHECKLIST_VERIFICARE.map((v) => (
-                      <option key={v} value={v}>
-                        {v}
+                      <option
+                        key={v}
+                        value={v}
+                        // `acces_revocat` și `documente_semnate` există în enum
+                        // din 0014 fără nicio implementare: un pas pus pe ele nu
+                        // se bifează niciodată singur și, fiind obligatoriu prin
+                        // CHECK, face instanța imposibil de finalizat. Se văd,
+                        // ca să nu pară că au dispărut, dar nu se pot alege.
+                        disabled={
+                          !VERIFICARI_IMPLEMENTATE.includes(v) ||
+                          (v === "curs_finalizat" && cursuri.length === 0)
+                        }
+                      >
+                        {ETICHETE_VERIFICARE[v]}
+                        {v === "curs_finalizat" && cursuri.length === 0
+                          ? " — niciun curs publicat"
+                          : ""}
                       </option>
                     ))}
                   </select>
                 )}
               </Camp>
+
+              {verificare === "curs_finalizat" ? (
+                <Camp
+                  nume="curs_id"
+                  id={idc("curs_id")}
+                  eticheta="Cursul care bifează pasul"
+                  fel="select"
+                  obligatoriu
+                  ajutor="Când angajatul termină cursul, pasul se bifează singur."
+                  erori={stare.erori["curs_id"] ?? []}
+                >
+                  {(a) => (
+                    <select
+                      {...a}
+                      defaultValue={stare.valoriTrimise["curs_id"] ?? initial?.curs_id ?? ""}
+                    >
+                      <option value="">— alegeți —</option>
+                      {cursuri.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.denumire}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </Camp>
+              ) : null}
             </div>
 
             <div className="flex flex-wrap items-center gap-3">

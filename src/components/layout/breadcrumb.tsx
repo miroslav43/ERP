@@ -23,14 +23,21 @@ import { NAV_ITEMS } from "@/config/navigation";
  */
 const SEGMENTE: Readonly<Record<string, string>> = {
   accidente: "Accidente",
+  adeverinta: "Adeverință",
   anomalii: "Anomalii",
   aprobare: "Aprobare",
   aprobari: "Aprobări",
+  atribuire: "Atribuire",
   audit: "Jurnal de audit",
   autorizatii: "Autorizații",
+  biblioteca: "Bibliotecă",
   calendar: "Calendar",
   coada: "Coada echipei",
   componente: "Sporuri și prime",
+  conformitate: "Conformitate",
+  cursuri: "Cursuri",
+  "cursurile-mele": "Cursurile mele",
+  declaratie: "Declarație",
   decont: "Decont",
   documente: "Documente",
   dovada: "Dovadă",
@@ -41,6 +48,7 @@ const SEGMENTE: Readonly<Record<string, string>> = {
   foi: "Foi de parcurs",
   import: "Import",
   "in-primire": "Ce am în primire",
+  inrolari: "Înrolări",
   instruiri: "Instruiri",
   interventii: "Intervenții",
   "istoric-venituri": "Istoric de venituri",
@@ -61,6 +69,7 @@ const SEGMENTE: Readonly<Record<string, string>> = {
   sesizari: "Sesizări",
   setari: "Setări",
   sold: "Soldul zilelor",
+  stadiu: "Stadiu",
   stingatoare: "Stingătoare",
 };
 

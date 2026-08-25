@@ -558,6 +558,8 @@ export interface PasSablon {
   readonly obligatoriu: boolean;
   readonly tip_dovada: ChecklistTipDovada;
   readonly verificare_automata: ChecklistVerificare | null;
+  /** Cursul care bifează pasul, când `verificare_automata = 'curs_finalizat'` (0076). */
+  readonly curs_id: string | null;
 }
 
 export async function pasiiSablonului(
@@ -569,7 +571,7 @@ export async function pasiiSablonului(
     .from("checklist_template_items")
     .select(
       "id, ordine, titlu, descriere, responsabil_tip, responsabil_rol, responsabil_employee_id, " +
-        "termen_zile_relativ, obligatoriu, tip_dovada, verificare_automata",
+        "termen_zile_relativ, obligatoriu, tip_dovada, verificare_automata, curs_id",
     )
     .eq("organization_id", organizationId)
     .eq("template_id", templateId)

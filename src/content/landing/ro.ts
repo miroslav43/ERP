@@ -213,6 +213,15 @@ export const RO: ContinutLanding = {
             puncte: ["Șabloane cu pași reordonabili", "Dovadă printabilă a parcurgerii"],
           },
           {
+            cheie: "courses",
+            titlu: "Cursuri",
+            text: "Bibliotecă de materiale PDF și video, parcurse direct în aplicație. Fiecare material își alege singur cât de serioasă e dovada: bifă, procent urmărit sau declarație asumată.",
+            puncte: [
+              "Filmele și documentele se văd în ERP, fără să plece nicăieri",
+              "Recertificare la termen, care reapare singură în lista omului",
+            ],
+          },
+          {
             cheie: "evaluations",
             titlu: "Evaluări",
             text: "Șabloane pe criterii. Evaluarea se deschide din fișa omului și rămâne în dosarul lui.",

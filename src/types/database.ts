@@ -1,17 +1,18 @@
 // GENERAT AUTOMAT — nu edita manual.
 //
-// Regenerare: mcp__supabase__generate_typescript_types (proiectul e conectat prin
-// MCP, nu prin Supabase CLI — vezi NOTES.md §1). Odată autentificat CLI-ul local:
-//   pnpm db:types
+// Regenerare: `.claude/.../altoieste-tipuri.py` peste ieșirea lui
+// `supabase gen types typescript --db-url <bancul local>`. Bancul se ridică cu
+// `banc-migrare.sh --pastreaza`, deci tipurile ies din MIGRĂRILE din repo, nu
+// din starea cloud-ului — care poate avea drift.
 //
 // Trei funcții RPC (hr_write_sensitive, log_audit_event, submit_demo_request)
-// au primit înapoi manual `| null` pe argumentele opționale: generatorul curent
-// le tipează doar `?: T` (omisibil), dar parametrii SQL au `default null` —
+// primesc înapoi `| null` pe argumentele opționale: generatorul curent le
+// tipează doar `?: T` (omisibil), dar parametrii SQL au `default null` —
 // apelanții existenți trimit explicit `null`, nu omit cheia. Fără patch,
 // regenerarea rupe fișierele care apelează aceste RPC-uri fără nicio schimbare
-// reală de schemă.
+// reală de schemă. Patch-ul e mecanic, aplicat de script.
 //
-// Generatorul CLI adaugă și schema `graphql_public`; e eliminată tot aici,
+// Generatorul CLI adaugă și schema `graphql_public`; e eliminată tot acolo,
 // pentru că `src/lib/supabase/server.ts` tipează clientul strict pe `public`.
 
 export type Json =
@@ -23,11 +24,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.15"
-  }
   public: {
     Tables: {
       alert_notifications: {
@@ -559,9 +555,6 @@ export type Database = {
         Row: {
           approved_at: string | null
           approved_by: string | null
-          motiv_respingere: string | null
-          respins_de: string | null
-          respins_la: string | null
           batch_id: string | null
           created_at: string
           created_by: string | null
@@ -570,6 +563,7 @@ export type Database = {
           employee_id: string
           id: string
           leave_request_id: string | null
+          motiv_respingere: string | null
           observatii: string | null
           ora_inceput: string | null
           ora_sfarsit: string | null
@@ -578,6 +572,8 @@ export type Database = {
           ore_suplimentare: number
           organization_id: string
           period_id: string
+          respins_de: string | null
+          respins_la: string | null
           sursa: Database["public"]["Enums"]["attendance_entry_source"]
           tip_zi: Database["public"]["Enums"]["attendance_day_type"]
           updated_at: string
@@ -586,9 +582,6 @@ export type Database = {
         Insert: {
           approved_at?: string | null
           approved_by?: string | null
-          motiv_respingere?: string | null
-          respins_de?: string | null
-          respins_la?: string | null
           batch_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -597,6 +590,7 @@ export type Database = {
           employee_id: string
           id?: string
           leave_request_id?: string | null
+          motiv_respingere?: string | null
           observatii?: string | null
           ora_inceput?: string | null
           ora_sfarsit?: string | null
@@ -605,6 +599,8 @@ export type Database = {
           ore_suplimentare?: number
           organization_id: string
           period_id: string
+          respins_de?: string | null
+          respins_la?: string | null
           sursa?: Database["public"]["Enums"]["attendance_entry_source"]
           tip_zi: Database["public"]["Enums"]["attendance_day_type"]
           updated_at?: string
@@ -613,9 +609,6 @@ export type Database = {
         Update: {
           approved_at?: string | null
           approved_by?: string | null
-          motiv_respingere?: string | null
-          respins_de?: string | null
-          respins_la?: string | null
           batch_id?: string | null
           created_at?: string
           created_by?: string | null
@@ -624,6 +617,7 @@ export type Database = {
           employee_id?: string
           id?: string
           leave_request_id?: string | null
+          motiv_respingere?: string | null
           observatii?: string | null
           ora_inceput?: string | null
           ora_sfarsit?: string | null
@@ -632,6 +626,8 @@ export type Database = {
           ore_suplimentare?: number
           organization_id?: string
           period_id?: string
+          respins_de?: string | null
+          respins_la?: string | null
           sursa?: Database["public"]["Enums"]["attendance_entry_source"]
           tip_zi?: Database["public"]["Enums"]["attendance_day_type"]
           updated_at?: string
@@ -1346,6 +1342,7 @@ export type Database = {
           bifat_la: string | null
           created_at: string
           created_by: string | null
+          curs_id: string | null
           deleted_at: string | null
           descriere: string | null
           dovada: string | null
@@ -1377,6 +1374,7 @@ export type Database = {
           bifat_la?: string | null
           created_at?: string
           created_by?: string | null
+          curs_id?: string | null
           deleted_at?: string | null
           descriere?: string | null
           dovada?: string | null
@@ -1408,6 +1406,7 @@ export type Database = {
           bifat_la?: string | null
           created_at?: string
           created_by?: string | null
+          curs_id?: string | null
           deleted_at?: string | null
           descriere?: string | null
           dovada?: string | null
@@ -1434,6 +1433,13 @@ export type Database = {
             | null
         }
         Relationships: [
+          {
+            foreignKeyName: "checklist_instance_items_curs_fk"
+            columns: ["curs_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id", "organization_id"]
+          },
           {
             foreignKeyName: "checklist_instance_items_dovada_document_id_fkey"
             columns: ["dovada_document_id"]
@@ -1567,6 +1573,7 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string | null
+          curs_id: string | null
           deleted_at: string | null
           descriere: string | null
           id: string
@@ -1589,6 +1596,7 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by?: string | null
+          curs_id?: string | null
           deleted_at?: string | null
           descriere?: string | null
           id?: string
@@ -1611,6 +1619,7 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string | null
+          curs_id?: string | null
           deleted_at?: string | null
           descriere?: string | null
           id?: string
@@ -1631,6 +1640,13 @@ export type Database = {
             | null
         }
         Relationships: [
+          {
+            foreignKeyName: "checklist_template_items_curs_fk"
+            columns: ["curs_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id", "organization_id"]
+          },
           {
             foreignKeyName: "checklist_template_items_organization_id_fkey"
             columns: ["organization_id"]
@@ -1857,6 +1873,840 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: []
+      }
+      course_answer_keys: {
+        Row: {
+          chei: Json
+          created_at: string
+          created_by: string | null
+          id: string
+          organization_id: string
+          updated_at: string
+          updated_by: string | null
+          version_id: string
+        }
+        Insert: {
+          chei: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          organization_id: string
+          updated_at?: string
+          updated_by?: string | null
+          version_id: string
+        }
+        Update: {
+          chei?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          organization_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_answer_keys_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_answer_keys_version_id_organization_id_fkey"
+            columns: ["version_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "course_material_versions"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
+      }
+      course_assignment_rules: {
+        Row: {
+          activ: boolean
+          course_id: string
+          created_at: string
+          created_by: string | null
+          criteriu: Database["public"]["Enums"]["curs_criteriu"]
+          decalaj_zile: number
+          deleted_at: string | null
+          department_id: string | null
+          employee_id: string | null
+          id: string
+          job_position_id: string | null
+          organization_id: string
+          rol: Database["public"]["Enums"]["app_role"] | null
+          termen_zile: number | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          activ?: boolean
+          course_id: string
+          created_at?: string
+          created_by?: string | null
+          criteriu: Database["public"]["Enums"]["curs_criteriu"]
+          decalaj_zile?: number
+          deleted_at?: string | null
+          department_id?: string | null
+          employee_id?: string | null
+          id?: string
+          job_position_id?: string | null
+          organization_id: string
+          rol?: Database["public"]["Enums"]["app_role"] | null
+          termen_zile?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          activ?: boolean
+          course_id?: string
+          created_at?: string
+          created_by?: string | null
+          criteriu?: Database["public"]["Enums"]["curs_criteriu"]
+          decalaj_zile?: number
+          deleted_at?: string | null
+          department_id?: string | null
+          employee_id?: string | null
+          id?: string
+          job_position_id?: string | null
+          organization_id?: string
+          rol?: Database["public"]["Enums"]["app_role"] | null
+          termen_zile?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_assignment_rules_course_id_organization_id_fkey"
+            columns: ["course_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "course_assignment_rules_department_id_organization_id_fkey"
+            columns: ["department_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "course_assignment_rules_employee_id_organization_id_fkey"
+            columns: ["employee_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "course_assignment_rules_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_completion_records: {
+        Row: {
+          ciclu: number
+          continut: Json
+          continut_checksum: string
+          course_id: string
+          created_at: string
+          created_by: string | null
+          employee_id: string
+          enrollment_id: string
+          expira_la: string | null
+          finalizat_la: string
+          id: string
+          materiale_finalizate: number
+          organization_id: string
+          total_materiale: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          ciclu: number
+          continut: Json
+          continut_checksum: string
+          course_id: string
+          created_at?: string
+          created_by?: string | null
+          employee_id: string
+          enrollment_id: string
+          expira_la?: string | null
+          finalizat_la: string
+          id?: string
+          materiale_finalizate: number
+          organization_id: string
+          total_materiale: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          ciclu?: number
+          continut?: Json
+          continut_checksum?: string
+          course_id?: string
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string
+          enrollment_id?: string
+          expira_la?: string | null
+          finalizat_la?: string
+          id?: string
+          materiale_finalizate?: number
+          organization_id?: string
+          total_materiale?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_completion_records_enrollment_id_organization_id_fkey"
+            columns: ["enrollment_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "course_enrollments"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "course_completion_records_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_enrollment_items: {
+        Row: {
+          course_item_id: string | null
+          created_at: string
+          created_by: string | null
+          declaratie_text: string | null
+          deleted_at: string | null
+          deschis_la: string | null
+          durata_secunde: number | null
+          employee_id: string
+          enrollment_id: string
+          fel: Database["public"]["Enums"]["curs_material_fel"]
+          finalizat_la: string | null
+          heartbeat_la: string | null
+          id: string
+          material_id: string
+          obligatoriu: boolean
+          observatii: string | null
+          ordine: number
+          organization_id: string
+          pozitie_secunde: number
+          prag_test: number | null
+          procent_minim: number | null
+          secunde_vizionate: number
+          semnat_la: string | null
+          semnatura_ip: unknown
+          semnatura_nume: string | null
+          status: Database["public"]["Enums"]["curs_item_status"]
+          titlu: string
+          treapta_dovada: Database["public"]["Enums"]["curs_treapta_dovada"]
+          updated_at: string
+          updated_by: string | null
+          version_id: string | null
+        }
+        Insert: {
+          course_item_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          declaratie_text?: string | null
+          deleted_at?: string | null
+          deschis_la?: string | null
+          durata_secunde?: number | null
+          employee_id: string
+          enrollment_id: string
+          fel: Database["public"]["Enums"]["curs_material_fel"]
+          finalizat_la?: string | null
+          heartbeat_la?: string | null
+          id?: string
+          material_id: string
+          obligatoriu?: boolean
+          observatii?: string | null
+          ordine: number
+          organization_id: string
+          pozitie_secunde?: number
+          prag_test?: number | null
+          procent_minim?: number | null
+          secunde_vizionate?: number
+          semnat_la?: string | null
+          semnatura_ip?: unknown
+          semnatura_nume?: string | null
+          status?: Database["public"]["Enums"]["curs_item_status"]
+          titlu: string
+          treapta_dovada: Database["public"]["Enums"]["curs_treapta_dovada"]
+          updated_at?: string
+          updated_by?: string | null
+          version_id?: string | null
+        }
+        Update: {
+          course_item_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          declaratie_text?: string | null
+          deleted_at?: string | null
+          deschis_la?: string | null
+          durata_secunde?: number | null
+          employee_id?: string
+          enrollment_id?: string
+          fel?: Database["public"]["Enums"]["curs_material_fel"]
+          finalizat_la?: string | null
+          heartbeat_la?: string | null
+          id?: string
+          material_id?: string
+          obligatoriu?: boolean
+          observatii?: string | null
+          ordine?: number
+          organization_id?: string
+          pozitie_secunde?: number
+          prag_test?: number | null
+          procent_minim?: number | null
+          secunde_vizionate?: number
+          semnat_la?: string | null
+          semnatura_ip?: unknown
+          semnatura_nume?: string | null
+          status?: Database["public"]["Enums"]["curs_item_status"]
+          titlu?: string
+          treapta_dovada?: Database["public"]["Enums"]["curs_treapta_dovada"]
+          updated_at?: string
+          updated_by?: string | null
+          version_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_enrollment_items_course_item_id_organization_id_fkey"
+            columns: ["course_item_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "course_items"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "course_enrollment_items_employee_id_organization_id_fkey"
+            columns: ["employee_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "course_enrollment_items_enrollment_id_organization_id_fkey"
+            columns: ["enrollment_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "course_enrollments"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "course_enrollment_items_material_id_organization_id_fkey"
+            columns: ["material_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "course_materials"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "course_enrollment_items_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_enrollment_items_version_id_organization_id_fkey"
+            columns: ["version_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "course_material_versions"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
+      }
+      course_enrollments: {
+        Row: {
+          anulat_la: string | null
+          atribuit_la: string
+          ciclu: number
+          course_id: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          employee_id: string
+          expira_la: string | null
+          finalizat_la: string | null
+          id: string
+          inceput_la: string | null
+          materiale_finalizate: number
+          materiale_total: number
+          motiv: Database["public"]["Enums"]["curs_motiv"]
+          motiv_anulare: string | null
+          organization_id: string
+          status: Database["public"]["Enums"]["curs_status"]
+          termen: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          anulat_la?: string | null
+          atribuit_la?: string
+          ciclu?: number
+          course_id: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          employee_id: string
+          expira_la?: string | null
+          finalizat_la?: string | null
+          id?: string
+          inceput_la?: string | null
+          materiale_finalizate?: number
+          materiale_total?: number
+          motiv?: Database["public"]["Enums"]["curs_motiv"]
+          motiv_anulare?: string | null
+          organization_id: string
+          status?: Database["public"]["Enums"]["curs_status"]
+          termen?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          anulat_la?: string | null
+          atribuit_la?: string
+          ciclu?: number
+          course_id?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          employee_id?: string
+          expira_la?: string | null
+          finalizat_la?: string | null
+          id?: string
+          inceput_la?: string | null
+          materiale_finalizate?: number
+          materiale_total?: number
+          motiv?: Database["public"]["Enums"]["curs_motiv"]
+          motiv_anulare?: string | null
+          organization_id?: string
+          status?: Database["public"]["Enums"]["curs_status"]
+          termen?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_enrollments_course_id_organization_id_fkey"
+            columns: ["course_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "course_enrollments_employee_id_organization_id_fkey"
+            columns: ["employee_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "course_enrollments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_items: {
+        Row: {
+          course_id: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          material_id: string
+          obligatoriu: boolean
+          ordine: number
+          organization_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          course_id: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          material_id: string
+          obligatoriu?: boolean
+          ordine: number
+          organization_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          course_id?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          material_id?: string
+          obligatoriu?: boolean
+          ordine?: number
+          organization_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_items_course_id_organization_id_fkey"
+            columns: ["course_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "course_items_material_id_organization_id_fkey"
+            columns: ["material_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "course_materials"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "course_items_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_material_versions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          durata_secunde: number | null
+          fisier_checksum: string | null
+          fisier_marime_bytes: number | null
+          fisier_mime: string | null
+          fisier_nume: string | null
+          fisier_path: string | null
+          id: string
+          intrebari: Json | null
+          link_cod_privat: string | null
+          link_furnizor:
+            | Database["public"]["Enums"]["curs_link_furnizor"]
+            | null
+          link_id: string | null
+          material_id: string
+          nota_versiune: string | null
+          numar_pagini: number | null
+          organization_id: string
+          publicata_la: string | null
+          retrasa_la: string | null
+          subtitrare_path: string | null
+          updated_at: string
+          updated_by: string | null
+          versiune: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          durata_secunde?: number | null
+          fisier_checksum?: string | null
+          fisier_marime_bytes?: number | null
+          fisier_mime?: string | null
+          fisier_nume?: string | null
+          fisier_path?: string | null
+          id?: string
+          intrebari?: Json | null
+          link_cod_privat?: string | null
+          link_furnizor?:
+            | Database["public"]["Enums"]["curs_link_furnizor"]
+            | null
+          link_id?: string | null
+          material_id: string
+          nota_versiune?: string | null
+          numar_pagini?: number | null
+          organization_id: string
+          publicata_la?: string | null
+          retrasa_la?: string | null
+          subtitrare_path?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          versiune: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          durata_secunde?: number | null
+          fisier_checksum?: string | null
+          fisier_marime_bytes?: number | null
+          fisier_mime?: string | null
+          fisier_nume?: string | null
+          fisier_path?: string | null
+          id?: string
+          intrebari?: Json | null
+          link_cod_privat?: string | null
+          link_furnizor?:
+            | Database["public"]["Enums"]["curs_link_furnizor"]
+            | null
+          link_id?: string | null
+          material_id?: string
+          nota_versiune?: string | null
+          numar_pagini?: number | null
+          organization_id?: string
+          publicata_la?: string | null
+          retrasa_la?: string | null
+          subtitrare_path?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          versiune?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_material_versions_material_id_organization_id_fkey"
+            columns: ["material_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "course_materials"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "course_material_versions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_materials: {
+        Row: {
+          activ: boolean
+          cod: string
+          created_at: string
+          created_by: string | null
+          declaratie_text: string | null
+          deleted_at: string | null
+          descriere: string | null
+          fel: Database["public"]["Enums"]["curs_material_fel"]
+          id: string
+          organization_id: string
+          prag_test: number | null
+          procent_minim: number | null
+          sursa: Database["public"]["Enums"]["curs_material_sursa"]
+          titlu: string
+          transcriere: string | null
+          treapta_dovada: Database["public"]["Enums"]["curs_treapta_dovada"]
+          updated_at: string
+          updated_by: string | null
+          versiune_curenta_id: string | null
+        }
+        Insert: {
+          activ?: boolean
+          cod: string
+          created_at?: string
+          created_by?: string | null
+          declaratie_text?: string | null
+          deleted_at?: string | null
+          descriere?: string | null
+          fel: Database["public"]["Enums"]["curs_material_fel"]
+          id?: string
+          organization_id: string
+          prag_test?: number | null
+          procent_minim?: number | null
+          sursa: Database["public"]["Enums"]["curs_material_sursa"]
+          titlu: string
+          transcriere?: string | null
+          treapta_dovada?: Database["public"]["Enums"]["curs_treapta_dovada"]
+          updated_at?: string
+          updated_by?: string | null
+          versiune_curenta_id?: string | null
+        }
+        Update: {
+          activ?: boolean
+          cod?: string
+          created_at?: string
+          created_by?: string | null
+          declaratie_text?: string | null
+          deleted_at?: string | null
+          descriere?: string | null
+          fel?: Database["public"]["Enums"]["curs_material_fel"]
+          id?: string
+          organization_id?: string
+          prag_test?: number | null
+          procent_minim?: number | null
+          sursa?: Database["public"]["Enums"]["curs_material_sursa"]
+          titlu?: string
+          transcriere?: string | null
+          treapta_dovada?: Database["public"]["Enums"]["curs_treapta_dovada"]
+          updated_at?: string
+          updated_by?: string | null
+          versiune_curenta_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_materials_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_materials_versiune_curenta_fk"
+            columns: ["versiune_curenta_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "course_material_versions"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
+      }
+      course_quiz_attempts: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          employee_id: string
+          enrollment_item_id: string
+          id: string
+          numar: number
+          organization_id: string
+          promovat: boolean
+          raspunsuri: Json
+          scor: number
+          trimis_la: string
+          version_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          employee_id: string
+          enrollment_item_id: string
+          id?: string
+          numar?: number
+          organization_id: string
+          promovat?: boolean
+          raspunsuri: Json
+          scor?: number
+          trimis_la?: string
+          version_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string
+          enrollment_item_id?: string
+          id?: string
+          numar?: number
+          organization_id?: string
+          promovat?: boolean
+          raspunsuri?: Json
+          scor?: number
+          trimis_la?: string
+          version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_quiz_attempts_employee_id_organization_id_fkey"
+            columns: ["employee_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "course_quiz_attempts_enrollment_item_id_organization_id_fkey"
+            columns: ["enrollment_item_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "course_enrollment_items"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "course_quiz_attempts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_quiz_attempts_version_id_organization_id_fkey"
+            columns: ["version_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "course_material_versions"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
+      }
+      courses: {
+        Row: {
+          activ: boolean
+          cod: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          denumire: string
+          descriere: string | null
+          id: string
+          obligatoriu: boolean
+          organization_id: string
+          prag_avertizare_zile: number
+          publicat: boolean
+          publicat_la: string | null
+          termen_zile: number
+          updated_at: string
+          updated_by: string | null
+          valabilitate_luni: number | null
+        }
+        Insert: {
+          activ?: boolean
+          cod: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire: string
+          descriere?: string | null
+          id?: string
+          obligatoriu?: boolean
+          organization_id: string
+          prag_avertizare_zile?: number
+          publicat?: boolean
+          publicat_la?: string | null
+          termen_zile?: number
+          updated_at?: string
+          updated_by?: string | null
+          valabilitate_luni?: number | null
+        }
+        Update: {
+          activ?: boolean
+          cod?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire?: string
+          descriere?: string | null
+          id?: string
+          obligatoriu?: boolean
+          organization_id?: string
+          prag_avertizare_zile?: number
+          publicat?: boolean
+          publicat_la?: string | null
+          termen_zile?: number
+          updated_at?: string
+          updated_by?: string | null
+          valabilitate_luni?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courses_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       dangerous_incidents: {
         Row: {
@@ -2215,7 +3065,22 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "employee_dependents_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_dependents_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       employee_document_types: {
         Row: {
@@ -2942,6 +3807,7 @@ export type Database = {
           cod_revisal: string | null
           conditii_munca: Database["public"]["Enums"]["conditii_munca"]
           contract_duration: Database["public"]["Enums"]["contract_duration"]
+          cost_center: string | null
           created_at: string
           created_by: string | null
           data_contract: string
@@ -2958,7 +3824,6 @@ export type Database = {
           moneda: string
           motiv_determinat: string | null
           motiv_incetare: string | null
-          cost_center: string | null
           nivel_incadrare: string | null
           norma_ore_saptamana: number
           norma_ore_zi: number
@@ -2982,6 +3847,7 @@ export type Database = {
           cod_revisal?: string | null
           conditii_munca?: Database["public"]["Enums"]["conditii_munca"]
           contract_duration?: Database["public"]["Enums"]["contract_duration"]
+          cost_center?: string | null
           created_at?: string
           created_by?: string | null
           data_contract: string
@@ -2998,7 +3864,6 @@ export type Database = {
           moneda?: string
           motiv_determinat?: string | null
           motiv_incetare?: string | null
-          cost_center?: string | null
           nivel_incadrare?: string | null
           norma_ore_saptamana?: number
           norma_ore_zi?: number
@@ -3022,6 +3887,7 @@ export type Database = {
           cod_revisal?: string | null
           conditii_munca?: Database["public"]["Enums"]["conditii_munca"]
           contract_duration?: Database["public"]["Enums"]["contract_duration"]
+          cost_center?: string | null
           created_at?: string
           created_by?: string | null
           data_contract?: string
@@ -3038,7 +3904,6 @@ export type Database = {
           moneda?: string
           motiv_determinat?: string | null
           motiv_incetare?: string | null
-          cost_center?: string | null
           nivel_incadrare?: string | null
           norma_ore_saptamana?: number
           norma_ore_zi?: number
@@ -5254,6 +6119,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "leave_requests_leave_variant_id_fkey"
+            columns: ["leave_variant_id"]
+            isOneToOne: false
+            referencedRelation: "leave_type_variants"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "leave_requests_medical_code_id_fkey"
             columns: ["medical_code_id"]
             isOneToOne: false
@@ -5327,7 +6199,15 @@ export type Database = {
           updated_by?: string | null
           zile?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "leave_type_variants_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       leave_types: {
         Row: {
@@ -6564,79 +7444,6 @@ export type Database = {
           },
         ]
       }
-      payroll_bonuses: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          deleted_at: string | null
-          employee_id: string
-          id: string
-          impozabil: boolean
-          motiv: string
-          organization_id: string
-          period_id: string
-          suma: number
-          supus_contributii: boolean
-          tip: Database["public"]["Enums"]["payroll_bonus_type"]
-          updated_at: string
-          updated_by: string | null
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          deleted_at?: string | null
-          employee_id: string
-          id?: string
-          impozabil?: boolean
-          motiv: string
-          organization_id: string
-          period_id: string
-          suma: number
-          supus_contributii?: boolean
-          tip: Database["public"]["Enums"]["payroll_bonus_type"]
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          deleted_at?: string | null
-          employee_id?: string
-          id?: string
-          impozabil?: boolean
-          motiv?: string
-          organization_id?: string
-          period_id?: string
-          suma?: number
-          supus_contributii?: boolean
-          tip?: Database["public"]["Enums"]["payroll_bonus_type"]
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "payroll_bonuses_employee_id_fkey"
-            columns: ["employee_id"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payroll_bonuses_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payroll_bonuses_period_id_fkey"
-            columns: ["period_id"]
-            isOneToOne: false
-            referencedRelation: "payroll_periods"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       payroll_bonus_rules: {
         Row: {
           activ: boolean
@@ -6716,7 +7523,102 @@ export type Database = {
           valabil_pana?: string | null
           vechime_ani_min?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "payroll_bonus_rules_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_bonus_rules_job_position_id_fkey"
+            columns: ["job_position_id"]
+            isOneToOne: false
+            referencedRelation: "job_positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_bonus_rules_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_bonuses: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          employee_id: string
+          id: string
+          impozabil: boolean
+          motiv: string
+          organization_id: string
+          period_id: string
+          suma: number
+          supus_contributii: boolean
+          tip: Database["public"]["Enums"]["payroll_bonus_type"]
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          employee_id: string
+          id?: string
+          impozabil?: boolean
+          motiv: string
+          organization_id: string
+          period_id: string
+          suma: number
+          supus_contributii?: boolean
+          tip: Database["public"]["Enums"]["payroll_bonus_type"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          employee_id?: string
+          id?: string
+          impozabil?: boolean
+          motiv?: string
+          organization_id?: string
+          period_id?: string
+          suma?: number
+          supus_contributii?: boolean
+          tip?: Database["public"]["Enums"]["payroll_bonus_type"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_bonuses_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_bonuses_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_bonuses_period_id_fkey"
+            columns: ["period_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_periods"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payroll_deductions: {
         Row: {
@@ -6773,6 +7675,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_deductions_garnishment_id_fkey"
+            columns: ["garnishment_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_garnishments"
             referencedColumns: ["id"]
           },
           {
@@ -7331,6 +8240,7 @@ export type Database = {
       payroll_settings: {
         Row: {
           aplica_minim_contributii: boolean
+          casa_sanatate_angajator: string | null
           cont_avansuri: string
           cont_cas_retinut: string
           cont_cass_retinut: string
@@ -7346,14 +8256,13 @@ export type Database = {
           created_at: string
           created_by: string | null
           deleted_at: string | null
+          functie_declarant: string
           id: string
           luni_medie_indemnizatie_co: number
           mod_calcul_indemnizatie_co: string
           norma_zilnica_ore: number
           note: string | null
           organization_id: string
-          casa_sanatate_angajator: string | null
-          functie_declarant: string
           plafon_poprire_unica: number
           plafon_popriri_concurente: number
           plata_avans: boolean
@@ -7378,6 +8287,7 @@ export type Database = {
         }
         Insert: {
           aplica_minim_contributii?: boolean
+          casa_sanatate_angajator?: string | null
           cont_avansuri?: string
           cont_cas_retinut?: string
           cont_cass_retinut?: string
@@ -7393,14 +8303,13 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
+          functie_declarant?: string
           id?: string
           luni_medie_indemnizatie_co?: number
           mod_calcul_indemnizatie_co?: string
           norma_zilnica_ore?: number
           note?: string | null
           organization_id: string
-          casa_sanatate_angajator?: string | null
-          functie_declarant?: string
           plafon_poprire_unica?: number
           plafon_popriri_concurente?: number
           plata_avans?: boolean
@@ -7425,6 +8334,7 @@ export type Database = {
         }
         Update: {
           aplica_minim_contributii?: boolean
+          casa_sanatate_angajator?: string | null
           cont_avansuri?: string
           cont_cas_retinut?: string
           cont_cass_retinut?: string
@@ -7440,14 +8350,13 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
+          functie_declarant?: string
           id?: string
           luni_medie_indemnizatie_co?: number
           mod_calcul_indemnizatie_co?: string
           norma_zilnica_ore?: number
           note?: string | null
           organization_id?: string
-          casa_sanatate_angajator?: string | null
-          functie_declarant?: string
           plafon_poprire_unica?: number
           plafon_popriri_concurente?: number
           plata_avans?: boolean
@@ -9299,6 +10208,7 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string | null
+          deleted_at: string | null
           employee_id: string
           id: string
           organization_id: string
@@ -9307,6 +10217,7 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
           employee_id: string
           id?: string
           organization_id: string
@@ -9315,6 +10226,7 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
           employee_id?: string
           id?: string
           organization_id?: string
@@ -10174,6 +11086,15 @@ export type Database = {
         Args: { p_key: string; p_limit: number; p_window_seconds: number }
         Returns: boolean
       }
+      decide_zi_pontaj: {
+        Args: {
+          p_aproba: boolean
+          p_entry_id: string
+          p_motiv?: string
+          p_organization_id: string
+        }
+        Returns: string
+      }
       hr_read_sensitive: {
         Args: { p_employee: string }
         Returns: {
@@ -10263,15 +11184,6 @@ export type Database = {
           actualizate: number
           inserate: number
         }[]
-      }
-      decide_zi_pontaj: {
-        Args: {
-          p_aproba: boolean
-          p_entry_id: string
-          p_motiv?: string
-          p_organization_id: string
-        }
-        Returns: string
       }
       peek_invitation: { Args: { p_token: string }; Returns: Json }
       pontaj_agregat_salarizare: {
@@ -10395,6 +11307,13 @@ export type Database = {
         | "impersonation_start"
         | "impersonation_end"
       audit_status: "success" | "failure" | "denied"
+      bonus_rule_criterion:
+        | "toti"
+        | "departament"
+        | "functie"
+        | "vechime"
+        | "nivel_incadrare"
+      bonus_rule_kind: "procent_din_baza" | "suma_fixa"
       business_trip_status:
         | "ciorna"
         | "in_aprobare"
@@ -10421,23 +11340,18 @@ export type Database = {
         | "inventar_returnat"
         | "acces_revocat"
         | "documente_semnate"
+        | "curs_finalizat"
       conditii_munca: "normale" | "deosebite" | "speciale"
       contract_duration: "nedeterminat" | "determinat"
       contract_status: "proiect" | "activ" | "suspendat" | "incetat" | "anulat"
-      dependent_relation: "copil" | "sot_sotie" | "parinte" | "alta_ruda"
-      bonus_rule_criterion:
-        | "toti"
-        | "departament"
-        | "functie"
-        | "vechime"
-        | "nivel_incadrare"
-      bonus_rule_kind: "procent_din_baza" | "suma_fixa"
-      leave_variant_condition:
-        | "atestat"
-        | "grad_handicap"
-        | "grad_rudenie"
-        | "varsta_copil"
-        | "alta"
+      curs_criteriu: "toti" | "departament" | "functie" | "rol" | "angajat"
+      curs_item_status: "neinceput" | "in_curs" | "finalizat"
+      curs_link_furnizor: "youtube" | "vimeo" | "loom"
+      curs_material_fel: "pdf" | "video"
+      curs_material_sursa: "fisier" | "link"
+      curs_motiv: "manual" | "regula" | "recertificare"
+      curs_status: "neinceput" | "in_curs" | "finalizat" | "expirat" | "anulat"
+      curs_treapta_dovada: "bifa" | "parcurgere" | "test" | "declaratie"
       demo_request_status:
         | "new"
         | "contacted"
@@ -10445,6 +11359,7 @@ export type Database = {
         | "converted"
         | "rejected"
         | "spam"
+      dependent_relation: "copil" | "sot_sotie" | "parinte" | "alta_ruda"
       email_status:
         | "queued"
         | "sent"
@@ -10491,6 +11406,7 @@ export type Database = {
         | "hibrid"
         | "hibrid_plugin"
         | "altul"
+      garnishment_claim_type: "intretinere" | "alta"
       gen: "masculin" | "feminin" | "nedeclarat"
       holiday_compensation_type: "zi_libera" | "spor"
       holiday_type: "fix" | "mobil"
@@ -10530,6 +11446,12 @@ export type Database = {
         | "varsta_sub_18"
         | "departament"
         | "functie"
+      leave_variant_condition:
+        | "atestat"
+        | "grad_handicap"
+        | "grad_rudenie"
+        | "varsta_copil"
+        | "alta"
       locale_code: "ro-RO" | "en-US"
       maintenance_kind: "preventiva" | "predictiva" | "corectiva"
       maintenance_result: "reusita" | "partiala" | "esuata" | "amanata"
@@ -10562,7 +11484,6 @@ export type Database = {
         | "retinere_sindicat"
         | "alta"
       payroll_entry_status: "draft" | "calculat"
-      garnishment_claim_type: "alta" | "intretinere"
       payroll_period_status: "draft" | "calculat" | "aprobat" | "inchis"
       per_diem_border_rule:
         | "tara_plecare"
@@ -10835,6 +11756,14 @@ export const Constants = {
         "impersonation_end",
       ],
       audit_status: ["success", "failure", "denied"],
+      bonus_rule_criterion: [
+        "toti",
+        "departament",
+        "functie",
+        "vechime",
+        "nivel_incadrare",
+      ],
+      bonus_rule_kind: ["procent_din_baza", "suma_fixa"],
       business_trip_status: [
         "ciorna",
         "in_aprobare",
@@ -10863,14 +11792,19 @@ export const Constants = {
         "inventar_returnat",
         "acces_revocat",
         "documente_semnate",
+        "curs_finalizat",
       ],
       conditii_munca: ["normale", "deosebite", "speciale"],
       contract_duration: ["nedeterminat", "determinat"],
       contract_status: ["proiect", "activ", "suspendat", "incetat", "anulat"],
-      dependent_relation: ["copil", "sot_sotie", "parinte", "alta_ruda"],
-      bonus_rule_criterion: ["toti", "departament", "functie", "vechime", "nivel_incadrare"],
-      bonus_rule_kind: ["procent_din_baza", "suma_fixa"],
-      leave_variant_condition: ["atestat", "grad_handicap", "grad_rudenie", "varsta_copil", "alta"],
+      curs_criteriu: ["toti", "departament", "functie", "rol", "angajat"],
+      curs_item_status: ["neinceput", "in_curs", "finalizat"],
+      curs_link_furnizor: ["youtube", "vimeo", "loom"],
+      curs_material_fel: ["pdf", "video"],
+      curs_material_sursa: ["fisier", "link"],
+      curs_motiv: ["manual", "regula", "recertificare"],
+      curs_status: ["neinceput", "in_curs", "finalizat", "expirat", "anulat"],
+      curs_treapta_dovada: ["bifa", "parcurgere", "test", "declaratie"],
       demo_request_status: [
         "new",
         "contacted",
@@ -10879,6 +11813,7 @@ export const Constants = {
         "rejected",
         "spam",
       ],
+      dependent_relation: ["copil", "sot_sotie", "parinte", "alta_ruda"],
       email_status: [
         "queued",
         "sent",
@@ -10931,6 +11866,7 @@ export const Constants = {
         "hibrid_plugin",
         "altul",
       ],
+      garnishment_claim_type: ["intretinere", "alta"],
       gen: ["masculin", "feminin", "nedeclarat"],
       holiday_compensation_type: ["zi_libera", "spor"],
       holiday_type: ["fix", "mobil"],
@@ -10973,6 +11909,13 @@ export const Constants = {
         "varsta_sub_18",
         "departament",
         "functie",
+      ],
+      leave_variant_condition: [
+        "atestat",
+        "grad_handicap",
+        "grad_rudenie",
+        "varsta_copil",
+        "alta",
       ],
       locale_code: ["ro-RO", "en-US"],
       maintenance_kind: ["preventiva", "predictiva", "corectiva"],
@@ -11105,3 +12048,4 @@ export const Constants = {
     },
   },
 } as const
+

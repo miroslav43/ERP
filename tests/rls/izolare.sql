@@ -110,7 +110,11 @@ begin
          -- ca un defect de politică, deși e doar un modul stins în fixture.
          (v_alfa, 'announcements', true), (v_alfa, 'payroll', true),
          (v_alfa, 'employee_portal', true), (v_alfa, 'ticketing', true),
-         (v_beta, 'ticketing', true);
+         (v_beta, 'ticketing', true),
+         -- Activat pentru AMBELE: dacă Beta ar avea modulul stins, un rând
+         -- invizibil pentru Alfa n-ar dovedi izolarea, ci doar că `feature_on`
+         -- a refuzat mai devreme.
+         (v_alfa, 'courses', true), (v_beta, 'courses', true);
 
   insert into public.organization_branding (organization_id, denumire_afisata)
   values (v_alfa, 'Alfa'), (v_beta, 'Beta');
@@ -662,6 +666,70 @@ begin
 
   update public.checklist_instances set status = 'finalizata'
    where organization_id in (v_alfa, v_beta) and status = 'in_curs';
+
+  -- ── Migrarea 0075: cursuri, materiale, înrolări, dovadă ───────────────────
+  -- Un singur flux populează toate cele șapte tabele: înrolarea materializează
+  -- lecțiile prin `cursuri_materializeaza`, bifarea lor declanșează
+  -- `cursuri_recalculeaza`, iar închiderea înrolării scrie dovada imutabilă
+  -- prin `cursuri_dovada`. Dacă vreun trigger se strică, fixture-ul cade aici,
+  -- nu într-un test care ar arăta ca o problemă de politică.
+  insert into t_ids
+  select k || '_' || e, gen_random_uuid()
+  from unnest(array['curs','cmat','cver']) k, unnest(array['alfa','beta']) e;
+
+  insert into public.courses (id, organization_id, cod, denumire, publicat, publicat_la)
+  values ((select val from t_ids where cheie='curs_alfa'), v_alfa, 'ssm_baza', 'Curs de test ' || v_sufix, true, now()),
+         ((select val from t_ids where cheie='curs_beta'), v_beta, 'ssm_baza', 'Curs de test ' || v_sufix, true, now());
+
+  insert into public.course_materials (id, organization_id, cod, titlu, fel, sursa, treapta_dovada)
+  values ((select val from t_ids where cheie='cmat_alfa'), v_alfa, 'regulament', 'Regulament intern', 'pdf', 'fisier', 'bifa'),
+         ((select val from t_ids where cheie='cmat_beta'), v_beta, 'regulament', 'Regulament intern', 'pdf', 'fisier', 'bifa');
+
+  insert into public.course_material_versions (id, organization_id, material_id, versiune, fisier_path, fisier_nume, fisier_mime, publicata_la)
+  values ((select val from t_ids where cheie='cver_alfa'), v_alfa, (select val from t_ids where cheie='cmat_alfa'), 1,
+          v_alfa::text || '/courses/' || (select val from t_ids where cheie='cmat_alfa')::text || '/v1-regulament.pdf',
+          'regulament.pdf', 'application/pdf', now()),
+         ((select val from t_ids where cheie='cver_beta'), v_beta, (select val from t_ids where cheie='cmat_beta'), 1,
+          v_beta::text || '/courses/' || (select val from t_ids where cheie='cmat_beta')::text || '/v1-regulament.pdf',
+          'regulament.pdf', 'application/pdf', now());
+
+  update public.course_materials m
+     set versiune_curenta_id = (select v.id from public.course_material_versions v where v.material_id = m.id)
+   where m.organization_id in (v_alfa, v_beta);
+
+  insert into public.course_items (organization_id, course_id, material_id, ordine)
+  values (v_alfa, (select val from t_ids where cheie='curs_alfa'), (select val from t_ids where cheie='cmat_alfa'), 1),
+         (v_beta, (select val from t_ids where cheie='curs_beta'), (select val from t_ids where cheie='cmat_beta'), 1);
+
+  insert into public.course_enrollments (organization_id, course_id, employee_id)
+  values (v_alfa, (select val from t_ids where cheie='curs_alfa'), (select val from t_ids where cheie='ang_alfa')),
+         (v_beta, (select val from t_ids where cheie='curs_beta'), (select val from t_ids where cheie='ang_beta'));
+
+  update public.course_enrollment_items set status = 'finalizat'
+   where organization_id in (v_alfa, v_beta) and status <> 'finalizat';
+
+  -- Testul grilă (0077): cheia de răspuns și o încercare, prin motorul real.
+  -- Nota NU se scrie de aici: triggerul `cursuri_evalueaza_incercarea` o
+  -- calculează din cheie, deci fixture-ul probează și evaluarea, nu doar
+  -- existența rândurilor.
+  update public.course_material_versions
+     set intrebari = '[{"id":"q1","text":"Purtați cască pe șantier?","optiuni":[{"id":"a","text":"Da"},{"id":"b","text":"Nu"}]}]'::jsonb
+   where organization_id in (v_alfa, v_beta);
+
+  insert into public.course_answer_keys (organization_id, version_id, chei)
+  values (v_alfa, (select val from t_ids where cheie='cver_alfa'), '{"q1":"a"}'::jsonb),
+         (v_beta, (select val from t_ids where cheie='cver_beta'), '{"q1":"a"}'::jsonb);
+
+  insert into public.course_quiz_attempts (organization_id, enrollment_item_id, employee_id, version_id, raspunsuri)
+  select i.organization_id, i.id, i.employee_id, i.version_id, '{"q1":"a"}'::jsonb
+  from public.course_enrollment_items i
+  where i.organization_id in (v_alfa, v_beta) and i.version_id is not null;
+
+  -- Regulile de atribuire (0078). Criteriul `toti` e cel mai simplu care nu
+  -- cere alte rânduri; CHECK-ul disjunct e verificat implicit prin inserare.
+  insert into public.course_assignment_rules (organization_id, course_id, criteriu)
+  values (v_alfa, (select val from t_ids where cheie='curs_alfa'), 'toti'),
+         (v_beta, (select val from t_ids where cheie='curs_beta'), 'toti');
 
   -- ── Faza 10 (migrarea 0015): diurne și deplasări ────────────────────────────
   -- `countries` și `per_diem_country_rates` sunt nomenclatoare GLOBALE (fără
@@ -1610,6 +1678,51 @@ begin
       -- `user_id = auth.uid()`. Un membru fără fișă primește 42501.
       ('employee', 'announcement_reads (confirmare)',      'PERMIS',
        'insert into public.announcement_reads (organization_id, announcement_id, employee_id, user_id) values ($1,$8,$6,auth.uid())'),
+
+      -- ── Modulul de cursuri (0075) ────────────────────────────────────────
+      -- Poarta POZITIVĂ a modulului: dacă asta se rupe, angajatul nu-și mai
+      -- poate parcurge niciun curs, iar toate verificările de izolare rămân
+      -- verzi. `grant update` e pe COLOANE, deci exact astea două trec.
+      ('employee', 'course_enrollment_items (progres)',    'PERMIS_RAND',
+       'update public.course_enrollment_items set secunde_vizionate = 5, pozitie_secunde = 5 where organization_id = $1 and employee_id = $6'),
+
+      -- PATCH-ul OSTIL. Fără grantul pe coloane, ramura `own` din politică ar
+      -- deschide rândul ÎNTREG: cineva și-ar rescrie `treapta_dovada` din
+      -- `parcurgere` în `bifa` și s-ar declara singur „parcurs" — nu ocolești
+      -- măsurătoarea, schimbi unitatea de măsură. Aici pică cu 42501.
+      ('employee', 'course_enrollment_items (rescrie treapta)', 'REFUZAT',
+       'update public.course_enrollment_items set treapta_dovada = ''bifa'' where organization_id = $1 and employee_id = $6'),
+
+      -- Starea înrolării e derivată, scrisă de triggerul `security definer`.
+      -- Angajatul are `grant update` pe tabelă, dar NICIO ramură în politică:
+      -- `courses:update` îi e `own`, iar politica cere `all` sau `team`.
+      --
+      -- De aceea așteptarea e ZERO, nu REFUZAT — și distincția e chiar lecția.
+      -- Un UPDATE respins de clauza `USING` NU aruncă: afectează zero rânduri și
+      -- TACE (capcana 17). Dacă ecranul ar crede răspunsul „a mers", omul ar
+      -- vedea succes fără ca nimic să se fi schimbat. Verificat empiric aici,
+      -- nu dedus: prima scriere a testului aștepta REFUZAT și a picat.
+      ('employee', 'course_enrollments (se declară gata)',  'ZERO',
+       'update public.course_enrollments set status = ''finalizat'' where organization_id = $1 and employee_id = $6'),
+
+      -- Dovada o scrie tot baza. Fără `grant insert`, încercarea cade zgomotos.
+      ('employee', 'course_completion_records (dovadă falsă)', 'REFUZAT',
+       'insert into public.course_completion_records (organization_id, enrollment_id, employee_id, course_id, ciclu, finalizat_la, total_materiale, materiale_finalizate, continut, continut_checksum) select $1, e.id, e.employee_id, e.course_id, 99, now(), 1, 1, ''{}''::jsonb, ''x'' from public.course_enrollments e where e.organization_id = $1 and e.employee_id = $6 limit 1'),
+
+      -- Cheia de răspuns a testului: zero rânduri la citire, refuz la scriere.
+      ('employee', 'course_answer_keys (cheia testului)',   'REFUZAT',
+       'insert into public.course_answer_keys (organization_id, version_id, chei) select $1, v.id, ''{}''::jsonb from public.course_material_versions v where v.organization_id = $1 limit 1'),
+
+      -- Managerul TREBUIE să poată construi cursuri: seed-ul îi dă `team` pe
+      -- toate cele patru acțiuni tocmai ca ramurile `team` din politici să nu
+      -- fie cod mort — defectul `checklists`, unde politicile au ramuri pe care
+      -- seed-ul nu le poate atinge.
+      ('manager', 'courses (curs nou)',                     'PERMIS',
+       'insert into public.courses (organization_id, cod, denumire) values ($1,''l_mg_'' || lower(left($5,4)),''Curs (l) manager'')'),
+      ('manager', 'course_materials (material nou)',        'PERMIS',
+       'insert into public.course_materials (organization_id, cod, titlu, fel, sursa) values ($1,''l_mgm_'' || lower(left($5,4)),''Material (l)'',''pdf'',''fisier'')'),
+      ('hr',      'courses (curs nou)',                     'PERMIS',
+       'insert into public.courses (organization_id, cod, denumire) values ($1,''l_hr_'' || lower(left($5,4)),''Curs (l) hr'')'),
 
       -- Bifează pasul al cărui responsabil e chiar el (0014:865).
       ('employee', 'checklist_instance_items (pasul meu)', 'PERMIS_RAND',

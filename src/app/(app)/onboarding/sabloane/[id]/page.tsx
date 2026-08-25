@@ -6,12 +6,13 @@ import type { Metadata } from "next";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { requireFeature } from "@/lib/auth/features";
+import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format/date";
 import { idDinRuta } from "@/lib/rute/parametri";
 import { citesteSablon, pasiiSablonului } from "@/lib/queries/checklist";
+import { listeazaCursuri } from "@/lib/queries/cursuri";
 
 import { ETICHETE_TIP } from "../../etichete";
 import { FormularSablon } from "../nou/formular-sablon";
@@ -45,6 +46,24 @@ export default async function PaginaSablon({ params }: ProprietatiPagina) {
   if (sablon === null) notFound();
 
   const pasi = await pasiiSablonului(tenant.organizationId, sablon.id);
+
+  /*
+   * Cursurile publicate, pentru pasul cu verificare `curs_finalizat` (0076).
+   *
+   * `getEnabledFeatures` decide, nu un try/catch: `requireFeature` ar da 404 pe
+   * TOATĂ pagina dacă modulul de cursuri e stins, iar șabloanele de integrare
+   * n-au nicio treabă cu asta. Lista goală face opțiunea să apară dezactivată,
+   * cu motivul scris — nu să dispară fără explicație.
+   */
+  const moduleActive = await getEnabledFeatures(tenant.organizationId);
+  const cursuri = moduleActive.has("courses")
+    ? await listeazaCursuri(tenant.organizationId, {
+        doar_publicate: "da",
+        cauta: null,
+        cursor: null,
+        limita: 100,
+      }).then((r) => r.randuri.map((c) => ({ id: c.id, denumire: c.denumire })))
+    : [];
 
   const poateEditareSablon = can(permisiuni, "checklists:update", "all");
   const poateEditarePasi = can(permisiuni, "checklists:update", "all");
@@ -114,6 +133,7 @@ export default async function PaginaSablon({ params }: ProprietatiPagina) {
         </h2>
         <ListaPasi
           templateId={sablon.id}
+          cursuri={cursuri}
           pasi={pasi}
           poateEditare={poateEditarePasi}
           poateAdauga={poateAdaugaPas}

@@ -30,8 +30,17 @@ const RADACINA = join(process.cwd(), "src", "app", "(portal)");
  *   `payroll_entries` are `app.poate_accesa_salariul`, care la scope `own`
  *   întoarce exact rândul lui; ruta nu face nicio verificare de identitate în
  *   plus, tocmai ca să nu poată diverge de politică.
+ * · `/api/materiale/` — conținutul unei lecții (PDF, film, subtitrare), servit
+ *   ca flux cu suport de `Range`. Nu poate sta sub `/portal/`: e adresa pusă în
+ *   `<video src>` și în `<iframe src>`, cerută de zeci de ori pe vizionare, nu
+ *   navigată de om. Ruta rezolvă tenantul și citește versiunea SUB RLS; dacă
+ *   rândul nu vine, răspunde 404, nu 403.
  */
-const IESIRI_PERMISE: readonly string[] = ["/documente/", "/api/export/salarizare/fluturas"];
+const IESIRI_PERMISE: readonly string[] = [
+  "/documente/",
+  "/api/export/salarizare/fluturas",
+  "/api/materiale/",
+];
 
 function fisiereSursa(director: string): readonly string[] {
   const rezultat: string[] = [];

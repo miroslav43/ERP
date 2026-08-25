@@ -10,6 +10,7 @@ import type {
   ChecklistTip,
   ChecklistTipDovada,
   RolResponsabil,
+  ChecklistVerificare,
 } from "@/schemas/checklist";
 
 export const ETICHETE_TIP: Readonly<Record<ChecklistTip, string>> = {
@@ -56,6 +57,26 @@ export const ETICHETE_TIP_DOVADA: Readonly<Record<ChecklistTipDovada, string>> =
   document: "Document justificativ",
   semnatura: "Semnătură",
 };
+
+/**
+ * Selectorul afișa până acum valorile brute din enum („inventar_returnat").
+ * Trei dintre cele patru sunt oricum de evitat: `acces_revocat` și
+ * `documente_semnate` există în enum din 0014 dar n-au NICIO implementare —
+ * un pas pus pe ele nu se bifează niciodată singur și, fiind obligatoriu prin
+ * CHECK, face instanța imposibil de finalizat. Le numim ca atare.
+ */
+export const ETICHETE_VERIFICARE: Readonly<Record<ChecklistVerificare, string>> = {
+  inventar_returnat: "Toate bunurile returnate",
+  curs_finalizat: "Un curs a fost parcurs",
+  acces_revocat: "Acces revocat (neimplementat)",
+  documente_semnate: "Documente semnate (neimplementat)",
+};
+
+/** Care verificări chiar au un mecanism în spate. Restul se oferă dezactivate. */
+export const VERIFICARI_IMPLEMENTATE: readonly ChecklistVerificare[] = [
+  "inventar_returnat",
+  "curs_finalizat",
+];
 
 export const ETICHETE_RESPONSABIL_TIP: Readonly<Record<ChecklistResponsabilTip, string>> = {
   rol: "Un rol anume",

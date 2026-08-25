@@ -46,7 +46,7 @@ export function meetsScope(granted: PermissionScope | undefined, min: MinScope):
  * compară acum cele două liste și eșuează dacă diverg din nou.
  *
  * Resurse: announcements, attendance, audit, branding, checklists, compliance,
- * departments, employees, features, inventory, leave, maintenance,
+ * courses, departments, employees, features, inventory, leave, maintenance,
  * organizations, payroll, per_diem, reports, roles, ssm, trip_sheets, users,
  * vehicles. Acțiuni: read, create, update, delete, approve, export.
  */
@@ -74,6 +74,14 @@ export const PERMISSION_KEYS = [
   "compliance:create",
   "compliance:update",
   "compliance:export",
+  // Modulul de cursuri (0075). Exact patru chei: nu există politică DELETE
+  // (ștergerea e `deleted_at`, deci `update`) și nu există flux de aprobare.
+  // Absența e forma corectă a lui „nu" — un rând decorativ ar produce exact
+  // `checklists:approve`, seedat în 0002 și mort de atunci.
+  "courses:read",
+  "courses:create",
+  "courses:update",
+  "courses:export",
   "departments:read",
   "departments:create",
   "departments:update",

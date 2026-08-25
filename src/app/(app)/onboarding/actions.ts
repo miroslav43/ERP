@@ -322,7 +322,7 @@ export const adaugaPas = createAction({
     action: "create",
     entityType: "checklist_template_item",
     entityId: (_input, data: Readonly<{ id: string }>) => data.id,
-    allow: ["template_id", "titlu", "obligatoriu", "tip_dovada", "verificare_automata"],
+    allow: ["template_id", "titlu", "obligatoriu", "tip_dovada", "verificare_automata", "curs_id"],
   },
   revalidate: (input) => [`/onboarding/sabloane/${input.template_id}`],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
@@ -362,6 +362,7 @@ export const adaugaPas = createAction({
         obligatoriu: input.obligatoriu,
         tip_dovada: input.tip_dovada,
         verificare_automata: input.verificare_automata,
+        curs_id: input.curs_id,
       })
       .select("id")
       .single();
@@ -381,7 +382,7 @@ export const actualizeazaPas = createAction({
     action: "update",
     entityType: "checklist_template_item",
     entityId: (input) => input.id,
-    allow: ["id", "titlu", "obligatoriu", "tip_dovada", "verificare_automata"],
+    allow: ["id", "titlu", "obligatoriu", "tip_dovada", "verificare_automata", "curs_id"],
   },
   revalidate: (_input, data: Readonly<{ id: string; template_id: string }>) => [
     `/onboarding/sabloane/${data.template_id}`,
@@ -402,6 +403,7 @@ export const actualizeazaPas = createAction({
         obligatoriu: input.obligatoriu,
         tip_dovada: input.tip_dovada,
         verificare_automata: input.verificare_automata,
+        curs_id: input.curs_id,
       })
       .eq("id", input.id)
       .eq("organization_id", ctx.tenant.organizationId)

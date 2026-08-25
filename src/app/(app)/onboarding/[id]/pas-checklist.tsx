@@ -10,7 +10,7 @@ import { Camp, clasaBifa } from "@/components/ui/camp";
 import { Formular } from "@/components/ui/formular";
 import { cn } from "@/lib/ui/cn";
 import { formatDate, formatDateTime } from "@/lib/format/date";
-import type { ChecklistItemStatus } from "@/schemas/checklist";
+import type { ChecklistItemStatus, ChecklistVerificare } from "@/schemas/checklist";
 import { CHECKLIST_ITEM_STATUS } from "@/schemas/checklist";
 
 import { bifeazaPas } from "../actions";
@@ -56,7 +56,14 @@ export interface PasAfisat {
   readonly termen: string | null;
   readonly obligatoriu: boolean;
   readonly tip_dovada: "niciuna" | "bifa" | "document" | "semnatura";
-  readonly verificare_automata: "inventar_returnat" | "acces_revocat" | "documente_semnate" | null;
+  /*
+   * Tipul vine din `@/schemas/checklist`, nu scris de mână. Uniunea literală de
+   * dinainte a rămas în urmă cu o valoare când 0076 a adăugat `curs_finalizat`,
+   * iar `tsc` a prins-o doar pentru că era o INCOMPATIBILITATE, nu o lipsă: o
+   * uniune mai largă atribuită uneia mai înguste. Legată de sursă, nu mai poate
+   * rămâne în urmă deloc.
+   */
+  readonly verificare_automata: ChecklistVerificare | null;
   readonly status: ChecklistItemStatus;
   readonly bifat_de: string | null;
   readonly bifat_la: string | null;

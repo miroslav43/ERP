@@ -19,6 +19,7 @@ import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
 import { cn } from "@/lib/ui/cn";
 import { anunturiPublicate, idAnunturiCitite } from "@/lib/queries/announcements";
+import { cursurileMele, restanteDinCursuri } from "@/lib/queries/cursuri";
 import {
   cererileMele,
   fisaMea,
@@ -57,11 +58,12 @@ export default async function PaginaPortal() {
   const vedePontaj = moduleActive.has("attendance") && can(permisiuni, "attendance:read", "own");
   const vedeAnunturi =
     moduleActive.has("announcements") && can(permisiuni, "announcements:read", "own");
+  const vedeCursuri = moduleActive.has("courses") && can(permisiuni, "courses:read", "own");
   const poateCereConcediu = moduleActive.has("leave") && can(permisiuni, "leave:create", "own");
   const poatePontaZiua =
     moduleActive.has("attendance") && can(permisiuni, "attendance:create", "own");
 
-  const [solduri, cereri, tipuri, zile, anunturi, citite] = await Promise.all([
+  const [solduri, cereri, tipuri, zile, anunturi, citite, cursuri] = await Promise.all([
     vedeConcedii ? soldurileMele(tenant.organizationId, an, fisa.id) : Promise.resolve([]),
     vedeConcedii ? cererileMele(tenant.organizationId, fisa.id, 20) : Promise.resolve([]),
     vedeConcedii
@@ -74,6 +76,7 @@ export default async function PaginaPortal() {
     vedeAnunturi
       ? idAnunturiCitite(tenant.organizationId, fisa.id)
       : Promise.resolve(new Set<string>()),
+    vedeCursuri ? cursurileMele(tenant.organizationId, fisa.id) : Promise.resolve([]),
   ]);
 
   // Soldul despre care se întreabă e cel de odihnă: dintre tipurile care SCAD
@@ -88,6 +91,14 @@ export default async function PaginaPortal() {
   const ziDeAzi = zile.find((z) => z.data === azi) ?? null;
   const oreLuna = zile.reduce((total, z) => total + (z.ore_lucrate ?? 0), 0);
   const suplimentareLuna = zile.reduce((total, z) => total + (z.ore_suplimentare ?? 0), 0);
+
+  /*
+   * Contorul de cursuri vine din ACEEAȘI listă pe care o afișează ecranul, nu
+   * dintr-un `count()` separat. O interogare care numără și una care listează
+   * diverg întotdeauna, la momentul cel mai prost — în acest repo, contorul de
+   * sarcini de aprobare a afișat „7 de semnat" la nesfârșit.
+   */
+  const restante = restanteDinCursuri(cursuri, azi);
 
   const inAsteptare = cereri.filter((c) => IN_ASTEPTARE.has(c.status));
   const necitite = anunturi.filter((a) => !citite.has(a.id));
@@ -106,6 +117,37 @@ export default async function PaginaPortal() {
             {fisa.hired_on === null ? null : ` · angajat din ${formatDate(fisa.hired_on)}`}
           </p>
         </section>
+
+        {/*
+          Cardul promovat al cursurilor. DISPARE complet când nu e nimic de
+          făcut — nu devine „0 cursuri". Un contor pe zero e zgomot care învață
+          omul să nu se mai uite.
+        */}
+        {restante.deFacut === 0 ? null : (
+          <section
+            aria-labelledby="cursuri-restante"
+            className="border-primary bg-surface rounded-panou border p-4"
+          >
+            <h2 id="cursuri-restante" className="text-foreground font-semibold">
+              {restante.deFacut === 1
+                ? "Aveți un curs de parcurs"
+                : `Aveți ${String(restante.deFacut)} cursuri de parcurs`}
+            </h2>
+            {restante.celMaiApropiatTermen === null ? null : (
+              <p className="text-muted-foreground text-corp mt-1">
+                {restante.celMaiApropiatTermen < azi
+                  ? `Unul are termenul depășit din ${formatDate(restante.celMaiApropiatTermen)}.`
+                  : `Cel mai apropiat termen: ${formatDate(restante.celMaiApropiatTermen)}.`}
+              </p>
+            )}
+            <Link
+              href="/portal/cursurile-mele"
+              className={cn(buton({ varianta: "primar" }), "mt-3")}
+            >
+              Începeți acum
+            </Link>
+          </section>
+        )}
 
         {soldPrincipal === null ? null : (
           <section

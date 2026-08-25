@@ -1,5 +1,9 @@
 "use client";
 
+import type { ChecklistVerificare } from "@/schemas/checklist";
+
+import type { OptiuneCurs } from "./formular-pas";
+
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, Pencil, Trash2 } from "lucide-react";
@@ -21,10 +25,13 @@ export interface PasSablonAfisat {
   readonly termen_zile_relativ: number;
   readonly obligatoriu: boolean;
   readonly tip_dovada: "niciuna" | "bifa" | "document" | "semnatura";
-  readonly verificare_automata: "inventar_returnat" | "acces_revocat" | "documente_semnate" | null;
+  // Legat de sursă: uniunea scrisă de mână a rămas în urmă la 0076.
+  readonly verificare_automata: ChecklistVerificare | null;
+  readonly curs_id: string | null;
 }
 
 interface Proprietati {
+  readonly cursuri: readonly OptiuneCurs[];
   readonly templateId: string;
   readonly pasi: readonly PasSablonAfisat[];
   readonly poateEditare: boolean;
@@ -40,7 +47,7 @@ function responsabilText(pas: PasSablonAfisat): string {
   return ETICHETE_RESPONSABIL_TIP[pas.responsabil_tip];
 }
 
-export function ListaPasi({ templateId, pasi, poateEditare, poateAdauga }: Proprietati) {
+export function ListaPasi({ templateId, cursuri, pasi, poateEditare, poateAdauga }: Proprietati) {
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
   const [eroare, setEroare] = useState<string | null>(null);
@@ -99,6 +106,7 @@ export function ListaPasi({ templateId, pasi, poateEditare, poateAdauga }: Propr
               <li key={pas.id}>
                 <FormularPas
                   templateId={templateId}
+                  cursuri={cursuri}
                   initial={pas}
                   onGata={() => {
                     setIdInEditare(null);
@@ -182,7 +190,7 @@ export function ListaPasi({ templateId, pasi, poateEditare, poateAdauga }: Propr
         </ol>
       )}
 
-      {poateAdauga ? <FormularPas templateId={templateId} /> : null}
+      {poateAdauga ? <FormularPas templateId={templateId} cursuri={cursuri} /> : null}
     </div>
   );
 }
