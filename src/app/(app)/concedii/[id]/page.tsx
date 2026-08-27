@@ -10,9 +10,11 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { formatAmount } from "@/lib/format/money";
-import { formatDate, formatDateTime } from "@/lib/format/date";
+import { formatDate, formatDateTime, todayInBucharest } from "@/lib/format/date";
 import { citesteCerere, lantulAprobarii, zileleCererii } from "@/lib/queries/leave";
+import { fisaMea } from "@/lib/queries/portal";
 import { grupeazaPeTrepte } from "@/domain/leave/lant-aprobare";
+import { autorulPoateRetrage } from "@/domain/leave/verificari";
 
 import {
   ETICHETE_PORTIUNE,
@@ -96,10 +98,30 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
     angajat = data;
   }
 
+  // ── CINE POATE ANULA, ȘI DE CE E NEVOIE DE FIȘA PROPRIE ────────────────────
+  // Ecranul ăsta nu e „cererea mea", ca în portal: aici ajung și managerul, și
+  // HR-ul, pe cererea altcuiva. `can(..., "leave:update", "own")` e adevărat și
+  // pentru `hr`, care are scope `all` — deci singur nu deosebește cererea
+  // proprie de a altcuiva.
+  //
+  // Distincția contează abia de la 0079: retragerea unui concediu APROBAT e
+  // dreptul angajatului asupra propriului concediu, nu o unealtă
+  // administrativă. Fără `esteAMea`, butonul ar apărea HR-ului pe concediul
+  // aprobat al oricui — iar `anuleazaCerere` l-ar refuza oricum, ceea ce e cea
+  // mai proastă combinație: un buton care se vede și nu funcționează.
+  //
+  // Ciorna și cererea trimisă rămân exact ca înainte, pentru oricine are
+  // dreptul — nu se restrânge nimic din ce mergea.
+  const stareFisa = await fisaMea(tenant.organizationId, user.id);
+  const esteAMea = stareFisa.stare === "ok" && stareFisa.fisa.id === cerere.employee_id;
+
   const poateAnula =
     can(permisiuni, "leave:update", "own") &&
-    (cerere.status === "ciorna" || cerere.status === "trimisa");
+    (esteAMea
+      ? autorulPoateRetrage(cerere.status, cerere.data_inceput, todayInBucharest())
+      : cerere.status === "ciorna" || cerere.status === "trimisa");
   const esteCiorna = cerere.status === "ciorna";
+  const esteAprobata = cerere.status === "aprobata";
 
   return (
     <div className="space-y-6">
@@ -286,7 +308,9 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
         </section>
       ) : null}
 
-      {poateAnula ? <ActiuniCerere cerereId={cerere.id} esteCiorna={esteCiorna} /> : null}
+      {poateAnula ? (
+        <ActiuniCerere cerereId={cerere.id} esteCiorna={esteCiorna} esteAprobata={esteAprobata} />
+      ) : null}
     </div>
   );
 }

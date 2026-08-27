@@ -164,3 +164,38 @@ export function conflictDeEchipa(
   }
   return false;
 }
+
+/** Statusurile din care autorul își poate retrage singur cererea. */
+const STATUSURI_RETRAGERE: ReadonlySet<string> = new Set(["ciorna", "trimisa", "aprobata"]);
+
+/**
+ * Poate AUTORUL cererii să o retragă acum?
+ *
+ * Regula are două jumătăți inegale. Ciorna și cererea trimisă se retrag oricând
+ * — nimeni nu s-a bazat încă pe ele. Un concediu APROBAT se retrage doar cât
+ * timp nu a început: din prima lui zi, omul l-a consumat, iar zilele nu se mai
+ * pot întoarce în sold fără să mintă. Comparația e `>`, nu `>=`.
+ *
+ * ── DE CE PE ȘIRURI, NU PE `Date` ─────────────────────────────────────────
+ * `leave_requests.data_inceput` e o coloană `date`: baza o trimite ca
+ * `"2026-08-30"`, fără oră și fără fus. Trecută prin `new Date(...)`, ar căpăta
+ * miezul nopții UTC și s-ar compara cu un „acum” în fusul procesului Node —
+ * două ceasuri diferite care se despart exact în noaptea în care contează.
+ * Pe `YYYY-MM-DD`, ordinea lexicografică ESTE ordinea cronologică, iar `azi`
+ * vine din `todayInBucharest()`: aceeași zi pe care o vede și
+ * `internal.leave_requests_anulare_de_autor`, care face `(now() at time zone
+ * 'Europe/Bucharest')::date`.
+ *
+ * Funcția asta decide DOAR ce se afișează. Poarta adevărată e în bază: dacă
+ * ecranul rămâne deschis peste miezul nopții și butonul e apăsat a doua zi,
+ * triggerul refuză cu P0001 și cu data în clar.
+ *
+ * @param status       `leave_requests.status`.
+ * @param dataInceput  `leave_requests.data_inceput`, ISO `YYYY-MM-DD`.
+ * @param azi          Ziua curentă în Europe/Bucharest, din `todayInBucharest()`.
+ */
+export function autorulPoateRetrage(status: string, dataInceput: string, azi: string): boolean {
+  if (!STATUSURI_RETRAGERE.has(status)) return false;
+  if (status !== "aprobata") return true;
+  return dataInceput > azi;
+}
