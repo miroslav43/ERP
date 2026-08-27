@@ -186,7 +186,6 @@ export default async function PaginaSoldConcediu({ searchParams }: ProprietatiPa
       : "own";
   const poateAproba = can(permisiuni, "leave:approve", "team");
   const poateVedeaCalendar = can(permisiuni, "leave:read", "team");
-  const poateConfigura = can(permisiuni, "leave:update", "all");
 
   const parametri = await searchParams;
   const an = anDinUrl(parametri["an"], Number(todayInBucharest().slice(0, 4)));
@@ -242,7 +241,6 @@ export default async function PaginaSoldConcediu({ searchParams }: ProprietatiPa
             poateVedeaEchipa={poateVedeaCalendar}
             poateAproba={poateAproba}
             poateVedeaCalendar={poateVedeaCalendar}
-            poateConfigura={poateConfigura}
           />
         }
       />

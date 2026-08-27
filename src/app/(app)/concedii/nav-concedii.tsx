@@ -14,7 +14,6 @@ interface Proprietati {
   readonly poateVedeaEchipa: boolean;
   readonly poateAproba: boolean;
   readonly poateVedeaCalendar: boolean;
-  readonly poateConfigura: boolean;
   /** Sarcini în așteptarea deciziei celui care se uită. `0` nu se afișează. */
   readonly deAprobat?: number;
 }
@@ -45,7 +44,6 @@ export function NavConcedii({
   poateVedeaEchipa,
   poateAproba,
   poateVedeaCalendar,
-  poateConfigura,
   deAprobat = 0,
 }: Proprietati) {
   const cale = usePathname();
@@ -74,7 +72,6 @@ export function NavConcedii({
     ...(poateVedeaCalendar
       ? [{ href: `/concedii/calendar${contextLuna}`, eticheta: "Calendar echipă" }]
       : []),
-    ...(poateConfigura ? [{ href: "/concedii/setari", eticheta: "Setări" }] : []),
   ];
 
   return (

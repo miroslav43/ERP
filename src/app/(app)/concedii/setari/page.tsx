@@ -158,7 +158,6 @@ export default async function PaginaSetariConcedii({ searchParams }: Proprietati
             poateVedeaEchipa={poateVedeaCalendar}
             poateAproba={poateAproba}
             poateVedeaCalendar={poateVedeaCalendar}
-            poateConfigura={true}
           />
         }
       />

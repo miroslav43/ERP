@@ -59,7 +59,6 @@ export default async function PaginaCalendarConcedii({ searchParams }: Proprieta
   }
 
   const poateAproba = can(permisiuni, "leave:approve", "team");
-  const poateConfigura = can(permisiuni, "leave:update", "all");
   const parametri = await searchParams;
   const azi = todayInBucharest();
   const anCurent = parametrulNumeric(parametri["an"]) ?? Number(azi.slice(0, 4));
@@ -135,7 +134,6 @@ export default async function PaginaCalendarConcedii({ searchParams }: Proprieta
             poateVedeaEchipa={true}
             poateAproba={poateAproba}
             poateVedeaCalendar={true}
-            poateConfigura={poateConfigura}
           />
         }
       />
