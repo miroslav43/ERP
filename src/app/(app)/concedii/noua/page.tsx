@@ -45,7 +45,6 @@ export default async function PaginaCerereNoua() {
   const poateAlegeAngajat = can(permisiuni, "leave:create", "all");
   const poateVedeaCalendar = can(permisiuni, "leave:read", "team");
   const poateAproba = can(permisiuni, "leave:approve", "team");
-  const poateConfigura = can(permisiuni, "leave:update", "all");
 
   const anCurent = Number(todayInBucharest().slice(0, 4));
   const db = await createServerSupabase();
@@ -112,7 +111,6 @@ export default async function PaginaCerereNoua() {
             poateVedeaEchipa={poateVedeaCalendar}
             poateAproba={poateAproba}
             poateVedeaCalendar={poateVedeaCalendar}
-            poateConfigura={poateConfigura}
           />
         }
       />

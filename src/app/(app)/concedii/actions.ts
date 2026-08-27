@@ -16,7 +16,12 @@ import {
 } from "@/domain/leave/verificari";
 import { formatAmount } from "@/lib/format/money";
 import { zileNelucratoare } from "@/lib/queries/leave";
-import { anuleazaCerereSchema, creeazaCerereSchema, decideCerereSchema } from "@/schemas/leave";
+import {
+  anuleazaCerereSchema,
+  creeazaCerereSchema,
+  decideCerereSchema,
+  type StatusCerere,
+} from "@/schemas/leave";
 import {
   sincronizeazaZileleDeConcediu,
   type TipZiPontaj,
@@ -350,9 +355,20 @@ export const anuleazaCerere = createAction({
     entityId: (input) => input.id,
     allow: ["id"],
   },
+  // `/concedii/aprobari` și `/pontaj`: de la 0079 încoace anularea poate porni
+  // dintr-un concediu APROBAT, deci scoate cererea din lista de aprobări și
+  // retrage zilele deja scrise în pontaj (triggerul
+  // `trg_zleave_requests_retrage_pontajul`). Fără ele, ambele ecrane arată
+  // starea de dinainte până la următoarea navigare completă — tăcut, ca la
+  // rutele de portal de mai sus. `/concedii/calendar` și `/concedii/echipa` din
+  // același motiv: zilele dispar din grilă.
   revalidate: (input) => [
     "/concedii",
     "/concedii/sold",
+    "/concedii/aprobari",
+    "/concedii/calendar",
+    "/concedii/echipa",
+    "/pontaj",
     ...CAI_PORTAL_CONCEDII,
     `/portal/concediile-mele/${input.id}`,
   ],
@@ -363,39 +379,82 @@ export const anuleazaCerere = createAction({
     // să anuleze cererea unui subaltern — adică să ocolească respingerea, care
     // cere motiv obligatoriu și lasă urmă în lanțul de aprobare. Cine nu are
     // scope „all” anulează DOAR pe fișa proprie.
-    let doarFisaMea: string | null = null;
-    if (ctx.scope !== "all") {
-      // Fișa proprie via clientul admin, din același motiv ca la creare: rolul
-      // `employee` are `employees:read = none` și nu-și poate citi nici propria
-      // fișă. Filtru explicit pe organizație + utilizator.
-      const admin = createAdminSupabase();
-      const { data: fisa, error: eroareFisa } = await admin
-        .from("employees")
-        .select("id")
-        .eq("organization_id", ctx.tenant.organizationId)
-        .eq("user_id", ctx.user.id)
-        .eq("is_primary", true)
-        .is("deleted_at", null)
-        .maybeSingle();
-      if (eroareFisa !== null) throw eroareFisa;
-      if (fisa === null) {
-        throw businessRule(
-          "Contul dvs. nu este legat de o fișă de angajat activă în această organizație. Contactați administratorul.",
-        );
-      }
-      doarFisaMea = fisa.id;
+    //
+    // Fișa proprie se rezolvă ACUM ÎNTOTDEAUNA, nu doar sub scope restrâns: de
+    // la 0073 încoace ea decide și dacă un concediu APROBAT poate pleca (vezi
+    // mai jos). Cu scope „all” lipsa ei nu e o eroare — un `super_admin` sau un
+    // `org_admin` fără fișă de angajat rămâne cu drepturile de dinainte.
+    //
+    // Via clientul admin, din același motiv ca la creare: rolul `employee` are
+    // `employees:read = own` și oricum nu vede fișa altcuiva, dar citirea prin
+    // RLS ar depinde de un scope pe care nu-l putem presupune. Filtru explicit
+    // pe organizație + utilizator.
+    const admin = createAdminSupabase();
+    const { data: fisa, error: eroareFisa } = await admin
+      .from("employees")
+      .select("id")
+      .eq("organization_id", ctx.tenant.organizationId)
+      .eq("user_id", ctx.user.id)
+      .eq("is_primary", true)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (eroareFisa !== null) throw eroareFisa;
+    if (fisa === null && ctx.scope !== "all") {
+      throw businessRule(
+        "Contul dvs. nu este legat de o fișă de angajat activă în această organizație. Contactați administratorul.",
+      );
+    }
+    const fisaProprie: string | null = fisa?.id ?? null;
+    const doarFisaMea: string | null = ctx.scope === "all" ? null : fisaProprie;
+
+    // Cererea, citită PRIN RLS: dacă nu o vede, nu o poate anula. Serveşte o
+    // singură decizie — dacă e a lui sau a altcuiva — fiindcă de ea depinde
+    // lista de statusuri permise mai jos. Regulile propriu-zise rămân în bază.
+    const { data: cerereTinta, error: eroareTinta } = await ctx.supabase
+      .from("leave_requests")
+      .select("employee_id, status")
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .maybeSingle<{ readonly employee_id: string; readonly status: StatusCerere }>();
+    if (eroareTinta !== null) throw traduEroare(eroareTinta);
+    if (cerereTinta === null) throw notFound("Cererea de concediu nu a fost găsită.");
+
+    const esteAMea = fisaProprie !== null && cerereTinta.employee_id === fisaProprie;
+
+    // Retragerea unui concediu APROBAT e dreptul angajatului asupra propriului
+    // concediu, nu o unealtă administrativă. `hr` și `org_admin` au
+    // `leave:update = all`, deci fără distincția asta ar fi primit tăcut, pe
+    // aceeași acțiune, puterea de a anula concediul aprobat al oricui — cu
+    // zilele întoarse în sold și pontajul retras, peste capul aprobatorului și
+    // fără motiv scris nicăieri. Pe cererea PROPRIE o au ca oricine altcineva.
+    const statusuriPermise: readonly StatusCerere[] = esteAMea
+      ? ["ciorna", "trimisa", "aprobata"]
+      : ["ciorna", "trimisa"];
+
+    if (cerereTinta.status === "aprobata" && !esteAMea) {
+      throw businessRule(
+        "Un concediu deja aprobat poate fi retras doar de angajatul căruia îi aparține. Pentru o corecție administrativă, ajustați cererea din fișa angajatului.",
+      );
     }
 
     // `.select("id")` stă în ACELAȘI lanț cu `.update()`, înaintea filtrului
     // condiționat: e o tranziție de status, iar capcana 17 cere ca rezultatul
     // gol să se poată deosebi de succes. Filtrele se pot aplica și după
     // `.select()` — ordinea lor nu contează pentru PostgREST.
+    //
+    // `aprobata` intră în listă doar pentru cererea proprie. FEREASTRA — „numai
+    // înainte de prima zi” — NU se verifică aici: o ține
+    // `internal.leave_requests_anulare_de_autor` (0079), care compară cu
+    // `old.data_inceput` și răspunde cu P0001 și cu data în clar. Dublată în
+    // TypeScript ar fi a doua sursă de adevăr pentru „azi”: aici e fusul
+    // procesului Node, acolo `Europe/Bucharest` — iar cele două se despart
+    // exact în noaptea în care contează.
     let interogare = ctx.supabase
       .from("leave_requests")
       .update({ status: "anulata" })
       .eq("id", input.id)
       .eq("organization_id", ctx.tenant.organizationId)
-      .in("status", ["ciorna", "trimisa"])
+      .in("status", statusuriPermise)
       .select("id");
     if (doarFisaMea !== null) interogare = interogare.eq("employee_id", doarFisaMea);
 
@@ -403,7 +462,7 @@ export const anuleazaCerere = createAction({
     if (error !== null) throw traduEroare(error);
     if (data === null) {
       throw businessRule(
-        "Cererea nu poate fi anulată: fie nu a fost găsită, fie nu vă aparține, fie decizia asupra ei a început deja. O cerere se poate anula doar cât timp este „ciornă” sau „trimisă”.",
+        "Cererea nu poate fi anulată: fie nu a fost găsită, fie nu vă aparține, fie a fost deja respinsă, anulată sau întreruptă.",
       );
     }
     return { id: data.id };

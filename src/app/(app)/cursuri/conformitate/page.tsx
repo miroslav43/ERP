@@ -136,7 +136,10 @@ export default async function PaginaConformitate() {
               </caption>
               <thead>
                 <tr>
-                  <th scope="col" className="border-border text-eticheta border-b p-2 text-start uppercase">
+                  <th
+                    scope="col"
+                    className="border-border text-eticheta border-b p-2 text-start uppercase"
+                  >
                     Persoană
                   </th>
                   {cursuri.map((curs) => (
@@ -181,7 +184,10 @@ export default async function PaginaConformitate() {
                   {cursuri.map((curs) => {
                     const celula = celule.get(cheieCelula(angajat.id, curs.id));
                     return (
-                      <li key={curs.id} className="flex flex-wrap items-center justify-between gap-2">
+                      <li
+                        key={curs.id}
+                        className="flex flex-wrap items-center justify-between gap-2"
+                      >
                         <span className="text-corp">{curs.denumire}</span>
                         <Scadenta treapta={treaptaCelula(celula, azi)}>
                           {textCelula(celula)}

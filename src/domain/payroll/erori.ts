@@ -29,6 +29,7 @@ export const CODURI_PROBLEMA = [
   "SAL_SPOR_SARBATOARE_NECONFIGURAT",
   "SAL_SPOR_NOAPTE_SUB_PRAG",
   "SAL_SPOR_REPAUS_NECONFIGURAT",
+  "SAL_ORE_IN_MOD_NEDECLARAT",
   "SAL_TICHETE_REGIM_NECONFIRMAT",
   "SAL_CAS_LA_MINIM",
   "SAL_AVANTAJ_NATURA_PESTE_NET",
@@ -151,6 +152,16 @@ const CATALOG: Readonly<Record<CodProblema, IntrareCatalog>> = {
       "Codul Muncii art. 126 leagă sporul de noapte de un minim de ore lucrate în intervalul de noapte (implicit 3). Totalul lunii a rămas sub pragul configurat în setările de pontaj.",
     cumSeRepara:
       "Dacă orele de noapte au fost pontate greșit, corectați-le în foaia colectivă. Dacă firma acordă sporul fără prag, puneți pragul pe 0 în setările de pontaj.",
+    unde: "/pontaj/setari",
+  },
+  SAL_ORE_IN_MOD_NEDECLARAT: {
+    severitate: "avertisment",
+    mesaj:
+      "S-au înregistrat ore într-un fel de muncă pe care firma l-a declarat inexistent în setările de pontaj.",
+    cauza:
+      "Setările de pontaj declară ce feluri de muncă are firma (tură de noapte, repaus săptămânal, sărbători, ore suplimentare). Luna asta conține ore într-unul dintre felurile debifate. Ori pontajul e greșit, ori declarația a rămas în urmă față de realitate.",
+    cumSeRepara:
+      "Verificați orele în foaia colectivă. Dacă sunt corecte, bifați felul de muncă respectiv în setările de pontaj și configurați-i sporul — dreptul la spor nu se stinge fiindcă o căsuță e debifată.",
     unde: "/pontaj/setari",
   },
   SAL_SPOR_REPAUS_NECONFIGURAT: {

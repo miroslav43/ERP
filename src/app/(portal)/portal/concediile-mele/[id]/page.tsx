@@ -11,7 +11,8 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { idDinRuta } from "@/lib/rute/parametri";
-import { formatDate, formatDateTime } from "@/lib/format/date";
+import { formatDate, formatDateTime, todayInBucharest } from "@/lib/format/date";
+import { autorulPoateRetrage } from "@/domain/leave/verificari";
 import { citesteCerere, zileleCererii } from "@/lib/queries/leave";
 import { fisaMea, tipuriConcediu } from "@/lib/queries/portal";
 import { ActiuniCerere } from "@/app/(app)/concedii/[id]/actiuni-cerere";
@@ -21,9 +22,6 @@ import { FaraFisa } from "../../fara-fisa";
 import { ETICHETE_STATUS_CERERE, TONURI_STATUS_CERERE } from "../../etichete";
 
 export const metadata: Metadata = { title: "Cererea mea" };
-
-/** Statusurile în care cererea mai poate fi retrasă de autorul ei. */
-const SE_POATE_ANULA: ReadonlySet<string> = new Set(["ciorna", "trimisa"]);
 
 export default async function PaginaCerereaMea({
   params,
@@ -64,7 +62,12 @@ export default async function PaginaCerereaMea({
   ]);
 
   const denumireTip = tipuri.get(cerere.leave_type_id)?.denumire ?? "Concediu";
-  const poateAnula = SE_POATE_ANULA.has(cerere.status) && can(permisiuni, "leave:update", "own");
+  // Garda de proprietate de mai sus (404 pentru cererea altcuiva) face ca aici
+  // „autorul" să fie mereu cel care privește — de aceea predicatul se poate
+  // aplica direct. Include și concediul APROBAT care nu a început încă (0079).
+  const poateAnula =
+    can(permisiuni, "leave:update", "own") &&
+    autorulPoateRetrage(cerere.status, cerere.data_inceput, todayInBucharest());
 
   return (
     <div className={`${LATIMI.detaliu} space-y-4 p-4`}>
@@ -161,7 +164,11 @@ export default async function PaginaCerereaMea({
           unde ciorna se creează cel mai des (formularul de aici are aceleași
           două butoane), deci era și locul unde fundătura se atingea cel mai des. */}
       {poateAnula ? (
-        <ActiuniCerere cerereId={cerere.id} esteCiorna={cerere.status === "ciorna"} />
+        <ActiuniCerere
+          cerereId={cerere.id}
+          esteCiorna={cerere.status === "ciorna"}
+          esteAprobata={cerere.status === "aprobata"}
+        />
       ) : null}
 
       <p>

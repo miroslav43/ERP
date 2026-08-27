@@ -76,7 +76,7 @@ export function ReguliCurs({
         case "functie":
           return functii.find((f) => f.id === regula.job_position_id)?.denumire ?? "—";
         case "rol":
-          return ETICHETE_ROL[regula.rol ?? ""] ?? (regula.rol ?? "—");
+          return ETICHETE_ROL[regula.rol ?? ""] ?? regula.rol ?? "—";
         case "angajat":
           return angajati.find((a) => a.id === regula.employee_id)?.nume ?? "—";
       }
@@ -138,9 +138,9 @@ export function ReguliCurs({
       )}
 
       <Callout fel="informativ" titlu="Când se aplică">
-        Regulile rulează automat în fiecare noapte și prind și angajații care
-        apar între timp — de asta există: un om nou primește instructajul fără să
-        și-l amintească nimeni. Cine are deja cursul nu se re-înrolează.
+        Regulile rulează automat în fiecare noapte și prind și angajații care apar între timp — de
+        asta există: un om nou primește instructajul fără să și-l amintească nimeni. Cine are deja
+        cursul nu se re-înrolează.
       </Callout>
 
       {reguli.length === 0 ? (

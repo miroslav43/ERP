@@ -29,10 +29,21 @@ import { anuleazaCerere, trimiteCerere } from "../actions";
 export function ActiuniCerere({
   cerereId,
   esteCiorna = false,
+  esteAprobata = false,
 }: {
   readonly cerereId: string;
   /** Numai o ciornă se poate trimite; restul stărilor n-au buton de trimitere. */
   readonly esteCiorna?: boolean;
+  /**
+   * Cererea e deja APROBATĂ, iar angajatul o retrage (0079).
+   *
+   * Schimbă numai cuvintele, nu comportamentul: acțiunea e aceeași, dar
+   * consecințele nu sunt. La o ciornă nu s-a bazat nimeni pe nimic; aici
+   * cineva a decis, pontajul e deja scris, iar aprobatorii vor fi anunțați.
+   * Un ecran care numește la fel două lucruri diferite îl învață pe om să nu
+   * mai citească avertismentul.
+   */
+  readonly esteAprobata?: boolean;
 }) {
   const router = useRouter();
   const [eroare, setEroare] = useState<string | null>(null);
@@ -92,7 +103,7 @@ export function ActiuniCerere({
             }}
           >
             <Ban aria-hidden="true" className="size-4" />
-            Anulează cererea
+            {esteAprobata ? "Renunț la concediu" : "Anulează cererea"}
           </Buton>
         )}
       </div>
@@ -100,7 +111,7 @@ export function ActiuniCerere({
       {confirmareCeruta ? (
         <Callout
           fel="atentie"
-          titlu="Anulați cererea?"
+          titlu={esteAprobata ? "Renunțați la concediul aprobat?" : "Anulați cererea?"}
           actiune={
             <div className="flex flex-wrap gap-2">
               <Buton
@@ -109,7 +120,7 @@ export function ActiuniCerere({
                 textInCurs="Se anulează…"
                 onClick={anuleaza}
               >
-                Da, anulează
+                {esteAprobata ? "Da, renunț" : "Da, anulează"}
               </Buton>
               <Buton
                 varianta="tertiar"
@@ -123,8 +134,18 @@ export function ActiuniCerere({
             </div>
           }
         >
-          Anularea e definitivă: cererea nu mai poate fi trimisă după aceea, iar zilele ei se întorc
-          în sold. Pentru aceeași perioadă va trebui depusă o cerere nouă.
+          {esteAprobata ? (
+            <>
+              Concediul e aprobat, iar renunțarea e definitivă: zilele se întorc în sold, zilele de
+              pontaj generate se retrag, iar cei care au aprobat cererea vor fi anunțați. Pentru
+              aceeași perioadă va trebui depusă o cerere nouă, care se aprobă de la capăt.
+            </>
+          ) : (
+            <>
+              Anularea e definitivă: cererea nu mai poate fi trimisă după aceea, iar zilele ei se
+              întorc în sold. Pentru aceeași perioadă va trebui depusă o cerere nouă.
+            </>
+          )}
         </Callout>
       ) : null}
 

@@ -108,8 +108,12 @@ describe("esteFinalizabila — oglinda triggerului internal.cursuri_progres", ()
   });
 
   it("declarația cere o semnătură reală, nu spații", () => {
-    expect(esteFinalizabila(lectie({ treaptaDovada: "declaratie", semnaturaNume: "   " })).poate).toBe(false);
-    expect(esteFinalizabila(lectie({ treaptaDovada: "declaratie", semnaturaNume: "Ion Popescu" }))).toEqual({
+    expect(
+      esteFinalizabila(lectie({ treaptaDovada: "declaratie", semnaturaNume: "   " })).poate,
+    ).toBe(false);
+    expect(
+      esteFinalizabila(lectie({ treaptaDovada: "declaratie", semnaturaNume: "Ion Popescu" })),
+    ).toEqual({
       poate: true,
     });
   });

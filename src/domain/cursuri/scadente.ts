@@ -89,9 +89,7 @@ export type Lectie = Readonly<{
   semnaturaNume: string | null;
 }>;
 
-export type Finalizabila =
-  | Readonly<{ poate: true }>
-  | Readonly<{ poate: false; motiv: string }>;
+export type Finalizabila = Readonly<{ poate: true }> | Readonly<{ poate: false; motiv: string }>;
 
 /**
  * Poate angajatul închide lecția acum? Oglinda lui `internal.cursuri_progres`.
@@ -100,7 +98,8 @@ export type Finalizabila =
  * dezactivat mut e la fel de rău ca unul care eșuează.
  */
 export function esteFinalizabila(lectie: Lectie): Finalizabila {
-  if (lectie.status === "finalizat") return { poate: false, motiv: "Ați parcurs deja această lecție." };
+  if (lectie.status === "finalizat")
+    return { poate: false, motiv: "Ați parcurs deja această lecție." };
 
   switch (lectie.treaptaDovada) {
     case "bifa":

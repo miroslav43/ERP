@@ -46,7 +46,8 @@ export async function GET(
   const { id } = await params;
 
   const rezolvare = await resolveTenant();
-  if (rezolvare.status === "neautentificat") return raspunsText("Trebuie să vă autentificați.", 401);
+  if (rezolvare.status === "neautentificat")
+    return raspunsText("Trebuie să vă autentificați.", 401);
   if (rezolvare.status !== "ok") return raspunsText("Alegeți mai întâi o organizație.", 403);
 
   const db = await createServerSupabase();
@@ -54,7 +55,9 @@ export async function GET(
   // pe ea ar da 42703. Deliberat, ca la dovada de integrare.
   const { data: dovada, error } = await db
     .from("course_completion_records")
-    .select("ciclu, finalizat_la, expira_la, total_materiale, materiale_finalizate, continut, continut_checksum")
+    .select(
+      "ciclu, finalizat_la, expira_la, total_materiale, materiale_finalizate, continut, continut_checksum",
+    )
     .eq("enrollment_id", id)
     .eq("organization_id", rezolvare.tenant.organizationId)
     .maybeSingle();

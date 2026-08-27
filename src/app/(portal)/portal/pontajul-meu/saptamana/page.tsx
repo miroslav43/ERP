@@ -11,8 +11,10 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
-import { citesteSaptamanaPontaj } from "@/lib/queries/attendance";
+import { citesteSaptamanaPontaj, setariPontaj } from "@/lib/queries/attendance";
+import { zileNelucratoare } from "@/lib/queries/leave";
 import { fisaMea } from "@/lib/queries/portal";
+import type { ConfigZi } from "@/domain/attendance/calcul-ore";
 import {
   adaugaZile,
   esteLuni,
@@ -20,7 +22,11 @@ import {
   zileleSaptamanii,
 } from "@/domain/attendance/saptamana";
 import { FormularSaptamana } from "@/app/(app)/pontaj/saptamana/formular-saptamana";
-import { TONURI_STARE_SAPTAMANA, ETICHETE_STARE_SAPTAMANA } from "@/app/(app)/pontaj/etichete";
+import {
+  TONURI_STARE_SAPTAMANA,
+  ETICHETE_STARE_SAPTAMANA,
+  esteZiLucratoare,
+} from "@/app/(app)/pontaj/etichete";
 
 import { FaraFisa } from "../../fara-fisa";
 
@@ -59,15 +65,56 @@ export default async function PaginaSaptamanaPortal({
     saptamanaStart,
   );
 
+  /*
+   * DEFECT REPARAT: implicitul era `?? 8` pentru TOATE cele șapte zile, deci
+   * sâmbăta și duminica veneau precompletate cu 8 ore. Cine deschidea ecranul
+   * și apăsa direct „Trimite spre aprobare” declara 56 de ore pe săptămână,
+   * dintre care 16 într-un weekend pe care nu-l alesese nimeni.
+   *
+   * Pagina de admin (`(app)/pontaj/saptamana/page.tsx`) primise deja reparatția
+   * asta; portalul rămăsese în urmă, deși e ecranul deschis de pe telefon,
+   * adică exact acela unde nimeni nu verifică șapte câmpuri înainte de a trimite.
+   */
+  const saptamanaSfarsit = adaugaZile(saptamanaStart, 6);
+  const [setari, { nationale, organizatie }] = await Promise.all([
+    setariPontaj(tenant.organizationId, saptamanaStart),
+    // O săptămână poate călări două ani (28 decembrie – 3 ianuarie).
+    zileNelucratoare(
+      tenant.organizationId,
+      Number(saptamanaStart.slice(0, 4)),
+      Number(saptamanaSfarsit.slice(0, 4)),
+    ),
+  ]);
+  const setNationale = new Set(nationale.map((z) => z.data));
+  const setRecuperare = new Set(
+    organizatie.filter((z) => z.tip === "zi_recuperare").map((z) => z.data),
+  );
+  const setLiber = new Set(
+    organizatie.filter((z) => z.tip === "liber_suplimentar").map((z) => z.data),
+  );
+
   const zileInitiale = zileleSaptamanii(saptamanaStart).map((data) => {
     const existenta = submisie?.zile.find((z) => z.data === data) ?? null;
+    const lucratoare = esteZiLucratoare(data, setNationale, setRecuperare, setLiber);
     return {
       data,
       tip_prezenta: existenta?.tip_prezenta ?? "birou",
-      ore_planificate: String(existenta?.ore_planificate ?? 8),
+      ora_inceput: lucratoare ? (existenta?.ora_inceput?.slice(0, 5) ?? "") : "",
+      ora_sfarsit: lucratoare ? (existenta?.ora_sfarsit?.slice(0, 5) ?? "") : "",
       observatii: existenta?.observatii ?? "",
     };
   });
+
+  const config: ConfigZi = {
+    orePeZi: setari?.ore_pe_zi ?? 8,
+    noapteStart: setari?.noapte_start.slice(0, 5) ?? "22:00",
+    noapteSfarsit: setari?.noapte_sfarsit.slice(0, 5) ?? "06:00",
+    pauzaMinute: setari?.pauza_masa_minute ?? 0,
+    pauzaInclusaInProgram: setari?.pauza_masa_inclusa_in_program ?? true,
+    pauzaObligatoriePesteOre: setari?.pauza_obligatorie_peste_ore ?? 0,
+  };
+
+  const lucreazaWeekendInitial = submisie?.lucreazaWeekend ?? setari?.lucreaza_weekend ?? false;
 
   // O săptămână aprobată nu se mai retrage: `attendance_week_submissions_update`
   // (`0041:388`) n-are ramură pentru autor, deci un UPDATE ar afecta zero rânduri,
@@ -80,7 +127,7 @@ export default async function PaginaSaptamanaPortal({
         titlu="Planul săptămânii"
         descriere={`Săptămâna care începe ${formatDate(
           saptamanaStart,
-        )}: cum veniți la lucru și câte ore planificați.`}
+        )}: cum veniți la lucru și în ce interval.`}
       />
 
       <nav aria-label="Alege săptămâna" className="flex flex-wrap items-center gap-2">
@@ -113,10 +160,22 @@ export default async function PaginaSaptamanaPortal({
         </p>
       ) : null}
 
+      {/*
+        `key` pe săptămână, nu decor: formularul ține zilele în `useState`,
+        inițializat din props. La navigarea pe client către altă săptămână, React
+        găsește același tip de componență în aceeași poziție și REUTILIZEAZĂ
+        instanța — argumentul lui `useState` se citește doar la montare, deci
+        tabelul rămânea pe zilele săptămânii precedente. Antetul se schimba (e
+        randat pe server), tabelul nu, iar butoanele „Anterioară"/„Următoarea"
+        păreau moarte. Cheia schimbată forțează remontarea.
+      */}
       <FormularSaptamana
+        key={saptamanaStart}
         saptamanaStart={saptamanaStart}
         zileInitiale={zileInitiale}
         poateEdita={poateEdita}
+        config={config}
+        lucreazaWeekendInitial={lucreazaWeekendInitial}
       />
 
       <p>

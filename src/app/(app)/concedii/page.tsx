@@ -105,13 +105,30 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
       <AntetPagina
         titlu="Concedii"
         descriere="Cererile dumneavoastră de concediu."
-        {...(poateCrea
+        // Configurarea modulului stă în dreapta sus, ca la pontaj și la
+        // salarizare, nu ca ultimă filă în bandă. Banda e pentru VIZUALIZĂRI
+        // ale acelorași cereri — „ale mele”, „ale echipei”, sold, aprobări,
+        // calendar; o filă către un ecran de administrare stătea în același
+        // rând cu ele și se citea ca o a șasea vizualizare.
+        //
+        // `secundar` înaintea lui `primar`: acțiunea zilnică rămâne „Cerere
+        // nouă”, iar setările se ating de câteva ori pe an.
+        {...(poateConfigura || poateCrea
           ? {
               actiuni: (
-                <Link href="/concedii/noua" className={buton({ varianta: "primar" })}>
-                  <CalendarPlus aria-hidden="true" className="size-4" />
-                  Cerere nouă
-                </Link>
+                <>
+                  {poateConfigura ? (
+                    <Link href="/concedii/setari" className={buton({ varianta: "secundar" })}>
+                      Setări
+                    </Link>
+                  ) : null}
+                  {poateCrea ? (
+                    <Link href="/concedii/noua" className={buton({ varianta: "primar" })}>
+                      <CalendarPlus aria-hidden="true" className="size-4" />
+                      Cerere nouă
+                    </Link>
+                  ) : null}
+                </>
               ),
             }
           : {})}
@@ -120,7 +137,6 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
             poateVedeaEchipa={poateVedeaEchipa}
             poateAproba={poateAproba}
             poateVedeaCalendar={poateVedeaEchipa}
-            poateConfigura={poateConfigura}
             deAprobat={deAprobat}
           />
         }

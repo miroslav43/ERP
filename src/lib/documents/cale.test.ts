@@ -68,11 +68,7 @@ describe("contractul de cale din Storage", () => {
       entitateId: "emp-1",
       numeFisier: "adeverință.pdf",
     };
-    const prefix = prefixCaleDocument(
-      intrare.organizationId,
-      intrare.entitate,
-      intrare.entitateId,
-    );
+    const prefix = prefixCaleDocument(intrare.organizationId, intrare.entitate, intrare.entitateId);
     expect(construiesteCaleDocument(intrare).startsWith(prefix)).toBe(true);
   });
 });

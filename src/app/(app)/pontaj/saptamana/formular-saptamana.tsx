@@ -6,14 +6,18 @@ import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
+import { oreleZilei, type ConfigZi } from "@/domain/attendance/calcul-ore";
+import { INDICI_WEEKEND, intervalDeTrimis } from "@/domain/attendance/saptamana";
 import { TIPURI_PREZENTA, type TipPrezenta } from "@/schemas/attendance";
 import { ETICHETE_TIP_PREZENTA } from "../etichete";
 import { trimiteSaptamanaPontaj } from "./actions";
 
-interface ZiFormular {
+export interface ZiFormular {
   readonly data: string;
   readonly tip_prezenta: TipPrezenta;
-  readonly ore_planificate: string;
+  /** `"08:30"` sau `""` pentru o zi nelucrată. */
+  readonly ora_inceput: string;
+  readonly ora_sfarsit: string;
   readonly observatii: string;
 }
 
@@ -21,6 +25,18 @@ interface Proprietati {
   readonly saptamanaStart: string;
   readonly zileInitiale: readonly ZiFormular[];
   readonly poateEdita: boolean;
+  /** Parametrii firmei după care se derivă orele — aceiași ca la ziua individuală. */
+  readonly config: ConfigZi;
+  /** Starea inițială a casetei de weekend: din săptămână, sau din setările firmei. */
+  readonly lucreazaWeekendInitial: boolean;
+  /**
+   * Fișa pentru care se completează; `null` sau lipsă = a celui care privește.
+   *
+   * OPȚIONALĂ deliberat: portalul (`/portal/pontajul-meu/saptamana`) folosește
+   * același formular și e prin definiție „săptămâna mea" — n-are ce alege și
+   * nu trebuie să afle că alegerea există.
+   */
+  readonly employeeId?: string | null;
 }
 
 const ETICHETE_ZI = ["Luni", "Marți", "Miercuri", "Joi", "Vineri", "Sâmbătă", "Duminică"] as const;
@@ -30,15 +46,41 @@ interface RandZi extends ZiFormular {
   readonly index: number;
 }
 
-export function FormularSaptamana({ saptamanaStart, zileInitiale, poateEdita }: Proprietati) {
+export function FormularSaptamana({
+  saptamanaStart,
+  zileInitiale,
+  poateEdita,
+  config,
+  lucreazaWeekendInitial,
+  employeeId = null,
+}: Proprietati) {
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
   const [eroare, setEroare] = useState<string | null>(null);
   const [zile, setZile] = useState<readonly ZiFormular[]>(zileInitiale);
+  const [lucreazaWeekend, setLucreazaWeekend] = useState(lucreazaWeekendInitial);
   const idBaza = useId();
+  const idWeekend = useId();
 
   function actualizeazaZi(index: number, campuri: Partial<ZiFormular>): void {
     setZile((curent) => curent.map((zi, i) => (i === index ? { ...zi, ...campuri } : zi)));
+  }
+
+  /**
+   * Intervalul primei zile completate, copiat pe restul zilelor VIZIBILE și
+   * goale. Fără el, un program fix înseamnă zece câmpuri de oră tastate identic
+   * în fiecare săptămână — iar ecranul ăsta se deschide de pe telefon.
+   */
+  function copiazaPeSaptamana(): void {
+    const sursa = zile.find((z) => z.ora_inceput.length > 0 && z.ora_sfarsit.length > 0);
+    if (sursa === undefined) return;
+    setZile((curent) =>
+      curent.map((zi, i) => {
+        if (!lucreazaWeekend && INDICI_WEEKEND.has(i)) return zi;
+        if (zi.ora_inceput.length > 0 || zi.ora_sfarsit.length > 0) return zi;
+        return { ...zi, ora_inceput: sursa.ora_inceput, ora_sfarsit: sursa.ora_sfarsit };
+      }),
+    );
   }
 
   function trimite(status: "ciorna" | "trimisa"): void {
@@ -47,10 +89,19 @@ export function FormularSaptamana({ saptamanaStart, zileInitiale, poateEdita }: 
       const rezultat = await trimiteSaptamanaPontaj({
         saptamana_start: saptamanaStart,
         status,
-        zile: zile.map((zi) => ({
+        lucreaza_weekend: lucreazaWeekend,
+        // `null` = fișa mea. Diferit de null doar când patronul sau un manager
+        // a ales pe altcineva din selectorul de sus (0084).
+        employee_id: employeeId,
+        // Zilele de weekend ascunse pleacă FĂRĂ interval, deci serverul le scrie
+        // cu zero ore. Nu se omit din listă: rândul trebuie să existe, ca
+        // aprobatorul să vadă săptămâna întreagă.
+        zile: zile.map((zi, i) => ({
           data: zi.data,
           tip_prezenta: zi.tip_prezenta,
-          ore_planificate: Number(zi.ore_planificate),
+          ...intervalDeTrimis(zi, i, lucreazaWeekend),
+          // Rescrisă pe server din interval; trimisă doar fiindcă schema o cere.
+          ore_planificate: 0,
           observatii: zi.observatii.length === 0 ? null : zi.observatii,
         })),
       });
@@ -62,7 +113,9 @@ export function FormularSaptamana({ saptamanaStart, zileInitiale, poateEdita }: 
     });
   }
 
-  const randuri: readonly RandZi[] = zile.map((zi, index) => ({ ...zi, index }));
+  const randuri: readonly RandZi[] = zile
+    .map((zi, index) => ({ ...zi, index }))
+    .filter((rand) => lucreazaWeekend || !INDICI_WEEKEND.has(rand.index));
 
   /*
    * Omul introduce șapte cifre și, până acum, nu afla niciodată cât a declarat
@@ -70,10 +123,13 @@ export function FormularSaptamana({ saptamanaStart, zileInitiale, poateEdita }: 
    * nu într-un `<tfoot>`: subsolul tabelului se randează doar peste 768px, iar
    * ecranul ăsta e singurul din modul deschis de pe telefon.
    */
-  const totalPlanificat = zile.reduce((suma, zi) => {
-    const ore = Number(zi.ore_planificate);
-    return suma + (Number.isFinite(ore) ? ore : 0);
-  }, 0);
+  const totalPlanificat = randuri.reduce((suma, rand) => suma + (oreZi(rand) ?? 0), 0);
+
+  /** Orele unei zile, derivate — aceeași funcție pe care o rulează serverul. */
+  function oreZi(zi: ZiFormular): number | null {
+    if (zi.ora_inceput.length === 0 || zi.ora_sfarsit.length === 0) return null;
+    return oreleZilei(zi.ora_inceput, zi.ora_sfarsit, config)?.lucrate ?? null;
+  }
 
   const coloane: readonly Coloana<RandZi>[] = [
     {
@@ -116,25 +172,60 @@ export function FormularSaptamana({ saptamanaStart, zileInitiale, poateEdita }: 
       ),
     },
     {
-      cheie: "ore_planificate",
-      antet: "Ore planificate",
-      numeric: true,
+      cheie: "interval",
+      antet: "De la – până la",
       peTelefon: "meta",
       celula: (rand) => (
-        <input
-          aria-label={`Ore planificate — ${ETICHETE_ZI[rand.index]}`}
-          type="number"
-          min={0}
-          max={24}
-          step={0.5}
-          value={rand.ore_planificate}
-          disabled={!poateEdita || inCurs}
-          onChange={(e) => {
-            actualizeazaZi(rand.index, { ore_planificate: e.target.value });
-          }}
-          className="border-foreground/60 disabled:bg-surface rounded-control text-corp w-20 border px-2 py-1.5 disabled:cursor-not-allowed"
-        />
+        <div className="flex items-center gap-1">
+          <input
+            aria-label={`Ora de intrare — ${ETICHETE_ZI[rand.index]}`}
+            type="time"
+            value={rand.ora_inceput}
+            disabled={!poateEdita || inCurs}
+            onChange={(e) => {
+              actualizeazaZi(rand.index, { ora_inceput: e.target.value });
+            }}
+            className="border-foreground/60 disabled:bg-surface rounded-control text-corp border px-2 py-1.5 disabled:cursor-not-allowed"
+          />
+          <span aria-hidden="true" className="text-muted-foreground">
+            –
+          </span>
+          <input
+            aria-label={`Ora de ieșire — ${ETICHETE_ZI[rand.index]}`}
+            type="time"
+            value={rand.ora_sfarsit}
+            disabled={!poateEdita || inCurs}
+            onChange={(e) => {
+              actualizeazaZi(rand.index, { ora_sfarsit: e.target.value });
+            }}
+            className="border-foreground/60 disabled:bg-surface rounded-control text-corp border px-2 py-1.5 disabled:cursor-not-allowed"
+          />
+        </div>
       ),
+    },
+    {
+      /*
+        Cifra e o OGLINDĂ, nu un câmp: serverul o recalculează din interval prin
+        același `oreleZilei`, cu pauza de masă a firmei scăzută. Un câmp
+        editabil aici ar lăsa cifra să se depărteze de interval, exact ce s-a
+        închis pe ecranul zilei.
+      */
+      cheie: "ore_planificate",
+      antet: "Ore",
+      numeric: true,
+      latime: "ingusta",
+      peTelefon: "meta",
+      celula: (rand) => {
+        const ore = oreZi(rand);
+        if (ore === null) {
+          return (
+            <span className="text-muted-foreground">
+              {rand.ora_inceput.length > 0 || rand.ora_sfarsit.length > 0 ? "—" : "0,00"}
+            </span>
+          );
+        }
+        return <span>{ore.toLocaleString("ro-RO", { minimumFractionDigits: 2 })}</span>;
+      },
     },
     {
       cheie: "observatii",
@@ -158,6 +249,32 @@ export function FormularSaptamana({ saptamanaStart, zileInitiale, poateEdita }: 
 
   return (
     <div className="space-y-4">
+      {poateEdita ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex gap-2">
+            <input
+              id={idWeekend}
+              type="checkbox"
+              checked={lucreazaWeekend}
+              disabled={inCurs}
+              onChange={(e) => {
+                setLucreazaWeekend(e.target.checked);
+              }}
+              className="mt-1 size-4 shrink-0"
+            />
+            <label htmlFor={idWeekend} className="text-corp">
+              Lucrez în weekend
+              <span className="text-muted-foreground text-nota block">
+                Debifat, sâmbăta și duminica nu apar în plan și pleacă spre aprobare cu zero ore.
+              </span>
+            </label>
+          </div>
+          <Buton varianta="tertiar" disabled={inCurs} onClick={copiazaPeSaptamana}>
+            Copiază pe toată săptămâna
+          </Buton>
+        </div>
+      ) : null}
+
       <Tabel
         caption="Planul de prezență pentru săptămâna selectată."
         coloane={coloane}
@@ -170,7 +287,7 @@ export function FormularSaptamana({ saptamanaStart, zileInitiale, poateEdita }: 
       <p className="border-border bg-surface rounded-panou text-corp flex justify-between border px-4 py-2 font-medium">
         <span>Total planificat pe săptămână</span>
         <output aria-live="polite" className="tabular-nums">
-          {totalPlanificat} h
+          {totalPlanificat.toLocaleString("ro-RO", { minimumFractionDigits: 2 })} h
         </output>
       </p>
 

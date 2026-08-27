@@ -25,7 +25,11 @@ interface Proprietati {
   readonly inrolareId: string;
   readonly lectie: Lectie;
   readonly versiuneId: string | null;
-  readonly link: Readonly<{ furnizor: FurnizorLink; adresaIncorporare: string; adresaPublica: string }> | null;
+  readonly link: Readonly<{
+    furnizor: FurnizorLink;
+    adresaIncorporare: string;
+    adresaPublica: string;
+  }> | null;
   /** Textul declarației. Stă în afara tipului de domeniu: `esteFinalizabila` nu are nevoie de el, doar ecranul. */
   readonly declaratieText: string | null;
   readonly transcriere: string | null;
@@ -186,7 +190,10 @@ export function VizualizatorSimplu({
           O puteți revedea oricând.
         </Callout>
       ) : lectie.treaptaDovada === "declaratie" ? (
-        <section aria-labelledby="titlu-declaratie" className="border-border rounded-panou space-y-3 border p-4">
+        <section
+          aria-labelledby="titlu-declaratie"
+          className="border-border rounded-panou space-y-3 border p-4"
+        >
           <h2 id="titlu-declaratie" className="text-sectiune font-medium">
             Declarație
           </h2>

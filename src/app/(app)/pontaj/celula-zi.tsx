@@ -6,11 +6,10 @@ import { useRouter } from "next/navigation";
 import { Buton } from "@/components/ui/buton";
 import { TIPURI_ZI_ALEGERE, type TipZi } from "@/schemas/attendance";
 import {
-  oreLucrateDinInterval,
-  oreNoapteDinInterval,
+  oreleZilei,
+  type ConfigZi,
   oreSuplimentareDinLucrate,
 } from "@/domain/attendance/calcul-ore";
-import type { IntervalNoapte } from "./interval-noapte";
 import { ETICHETE_TIP_ZI } from "./etichete";
 import { decideZiPontaj, salveazaZiPontaj, stergeZiPontaj } from "./actions";
 import type { IntrareZiClient } from "./foaie-colectiva";
@@ -22,9 +21,9 @@ interface Proprietati {
   readonly intrare: IntrareZiClient | null;
   readonly poateSterge: boolean;
   /** Pragul de ore/zi al organizației (`attendance_settings.ore_pe_zi`) — peste el, orele devin suplimentare automat. */
-  readonly orePeZi: number;
   /** Fereastra de noapte a organizației (`attendance_settings.noapte_start/_sfarsit`). */
-  readonly intervalNoapte: IntervalNoapte;
+  /** Parametrii de derivare — aceiași pentru tot produsul. */
+  readonly config: ConfigZi;
   /** Aprobatorul vede secțiunea de decizie pe zi; ceilalți, doar rezultatul ei. */
   readonly poateAproba: boolean;
   readonly onInchide: () => void;
@@ -47,8 +46,7 @@ export function CelulaZi({
   eticheta,
   intrare,
   poateSterge,
-  orePeZi,
-  intervalNoapte,
+  config,
   poateAproba,
   onInchide,
 }: Proprietati) {
@@ -110,9 +108,18 @@ export function CelulaZi({
   }
 
   /**
-   * Recalculează ore lucrate + ore suplimentare la fiecare modificare a
-   * intervalului — doar o SUGESTIE: ambele câmpuri rămân editabile manual
-   * pentru corecții (pauze neplătite, ture peste miezul nopții etc.).
+   * Recalculează orele la fiecare modificare a intervalului — doar o SUGESTIE:
+   * câmpurile rămân editabile manual pentru corecții (ture peste miezul nopții,
+   * pauze neobișnuite). Ce se schimbă e sugestia însăși.
+   *
+   * ── PAUZA DE MASĂ SE SCADE ȘI AICI ─────────────────────────────────────
+   * Până acum, ecranul ăsta chema `oreLucrateDinInterval`, care dă intervalul
+   * BRUT, în timp ce portalul angajatului chema `oreleZilei`, care scade pauza
+   * configurată de firmă. Aceeași zi, 08:30–17:00, ieșea cu 8,00 ore când o
+   * ponta angajatul și cu 8,50 când o ponta responsabilul de pontaj — iar
+   * jumătatea de oră diferență devenea oră suplimentară, cu spor, în fiecare zi
+   * completată de aici. O regulă a firmei nu se poate aplica pe jumătate de
+   * produs.
    */
   function actualizeazaInterval(capat: "inceput" | "sfarsit", valoare: string): void {
     const nouaInceput = capat === "inceput" ? valoare : oraInceput;
@@ -120,21 +127,14 @@ export function CelulaZi({
     if (capat === "inceput") setOraInceput(valoare);
     else setOraSfarsit(valoare);
 
-    const calculate = oreLucrateDinInterval(nouaInceput, nouaSfarsit);
-    if (calculate !== null) {
-      setOreLucrate(String(calculate));
-      setOreSuplimentare(String(oreSuplimentareDinLucrate(calculate, orePeZi)));
-      // Orele de noapte se DERIVĂ din interval, nu se mai tastează. Coloanele
-      // `noapte_start`/`noapte_sfarsit` existau din 0013 și nu le citea nimic:
-      // cine uita să completeze pierdea sporul de 25%, cine exagera îl încasa
-      // nemeritat, iar nimic nu compara cifra cu tura efectiv lucrată.
-      const noaptea = oreNoapteDinInterval(
-        nouaInceput,
-        nouaSfarsit,
-        intervalNoapte.start,
-        intervalNoapte.sfarsit,
-      );
-      if (noaptea !== null) setOreNoapte(String(noaptea));
+    // Un singur apel pentru toate cele trei cifre: lucrate (cu pauza scăzută),
+    // suplimentare (peste normă, DUPĂ pauză) și de noapte (din fereastra
+    // firmei, plafonate la orele lucrate).
+    const derivate = oreleZilei(nouaInceput, nouaSfarsit, config);
+    if (derivate !== null) {
+      setOreLucrate(String(derivate.lucrate));
+      setOreSuplimentare(String(derivate.suplimentare));
+      setOreNoapte(String(derivate.noapte));
     }
   }
 
@@ -143,7 +143,7 @@ export function CelulaZi({
     setOreLucrate(valoare);
     const numar = Number(valoare);
     if (valoare.trim().length > 0 && Number.isFinite(numar)) {
-      setOreSuplimentare(String(oreSuplimentareDinLucrate(numar, orePeZi)));
+      setOreSuplimentare(String(oreSuplimentareDinLucrate(numar, config.orePeZi)));
     }
   }
 

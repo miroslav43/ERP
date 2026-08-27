@@ -56,7 +56,6 @@ export default async function PaginaAprobariConcedii() {
   }
 
   const poateVedeaCalendar = can(permisiuni, "leave:read", "team");
-  const poateConfigura = can(permisiuni, "leave:update", "all");
   const { sarcini, trunchiat } = await deAprobat(tenant.organizationId, user.id);
   const acum = new Date();
 
@@ -80,7 +79,6 @@ export default async function PaginaAprobariConcedii() {
             poateVedeaEchipa={poateVedeaCalendar}
             poateAproba={true}
             poateVedeaCalendar={poateVedeaCalendar}
-            poateConfigura={poateConfigura}
             deAprobat={sarcini.length}
           />
         }

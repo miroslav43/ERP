@@ -74,7 +74,12 @@ export const raporteazaProgres = createAction({
   // Fără audit pe fiecare bătaie: la o vizionare de 20 de minute ar însemna
   // zeci de rânduri fără nicio valoare de investigație. Ce contează —
   // finalizarea și semnătura — se auditează mai jos.
-  audit: { action: "update", entityType: "course_enrollment_items", entityId: (i) => i.id, allow: [] },
+  audit: {
+    action: "update",
+    entityType: "course_enrollment_items",
+    entityId: (i) => i.id,
+    allow: [],
+  },
   handler: async (ctx: ActionContext, input) => {
     const fisa = await fisaProprie(ctx);
     const { data, error } = await ctx.supabase

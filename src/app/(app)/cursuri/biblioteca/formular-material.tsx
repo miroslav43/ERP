@@ -89,13 +89,29 @@ export function FormularMaterialNou() {
                 erori={stare.erori["titlu"] ?? []}
               >
                 {(a) => (
-                  <input {...a} type="text" maxLength={200} defaultValue={stare.valoriTrimise["titlu"] ?? ""} />
+                  <input
+                    {...a}
+                    type="text"
+                    maxLength={200}
+                    defaultValue={stare.valoriTrimise["titlu"] ?? ""}
+                  />
                 )}
               </Camp>
 
-              <Camp nume="cod" id={idc("cod")} eticheta="Cod" obligatoriu erori={stare.erori["cod"] ?? []}>
+              <Camp
+                nume="cod"
+                id={idc("cod")}
+                eticheta="Cod"
+                obligatoriu
+                erori={stare.erori["cod"] ?? []}
+              >
                 {(a) => (
-                  <input {...a} type="text" maxLength={40} defaultValue={stare.valoriTrimise["cod"] ?? ""} />
+                  <input
+                    {...a}
+                    type="text"
+                    maxLength={40}
+                    defaultValue={stare.valoriTrimise["cod"] ?? ""}
+                  />
                 )}
               </Camp>
 
@@ -115,7 +131,8 @@ export function FormularMaterialNou() {
                       // Parcurgerea măsurată există doar la filme; dacă omul
                       // trece pe document, treapta se retrage singură, ca să nu
                       // trimită o combinație pe care baza o refuză.
-                      if (e.target.value !== "video" && treapta === "parcurgere") setTreapta("bifa");
+                      if (e.target.value !== "video" && treapta === "parcurgere")
+                        setTreapta("bifa");
                     }}
                   >
                     <option value="pdf">Document (PDF)</option>
@@ -176,7 +193,13 @@ export function FormularMaterialNou() {
                   erori={stare.erori["procent_minim"] ?? []}
                 >
                   {(a) => (
-                    <input {...a} type="number" min={1} max={100} defaultValue={stare.valoriTrimise["procent_minim"] ?? "80"} />
+                    <input
+                      {...a}
+                      type="number"
+                      min={1}
+                      max={100}
+                      defaultValue={stare.valoriTrimise["procent_minim"] ?? "80"}
+                    />
                   )}
                 </Camp>
               ) : null}
@@ -234,11 +257,23 @@ export function FormularMaterialNou() {
                 className="sm:col-span-2"
                 erori={stare.erori["descriere"] ?? []}
               >
-                {(a) => <textarea {...a} rows={2} maxLength={2000} defaultValue={stare.valoriTrimise["descriere"] ?? ""} />}
+                {(a) => (
+                  <textarea
+                    {...a}
+                    rows={2}
+                    maxLength={2000}
+                    defaultValue={stare.valoriTrimise["descriere"] ?? ""}
+                  />
+                )}
               </Camp>
 
               <BaraActiuni className="sm:col-span-2">
-                <Buton type="submit" varianta="primar" inCurs={stare.inCurs} textInCurs="Se creează…">
+                <Buton
+                  type="submit"
+                  varianta="primar"
+                  inCurs={stare.inCurs}
+                  textInCurs="Se creează…"
+                >
                   Creează materialul
                 </Buton>
                 <Buton
