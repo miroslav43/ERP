@@ -127,7 +127,8 @@ export async function listeazaCursuri(
     .limit(filtre.limita + 1);
 
   const cursor = filtre.cursor === null ? null : decodificaCursor(filtre.cursor);
-  if (cursor !== null) interogare = interogare.or(predicatKeyset(coloana, cursor, sortare.directie));
+  if (cursor !== null)
+    interogare = interogare.or(predicatKeyset(coloana, cursor, sortare.directie));
 
   const [rezultat, numarare] = await Promise.all([
     interogare.returns<RandCurs[]>(),
@@ -208,7 +209,11 @@ export async function listeazaMateriale(
   filtre: FiltreMateriale,
 ): Promise<RezultatMateriale> {
   const db = await createServerSupabase();
-  const sortare = sortareCeruta(filtre.sort ?? null, SORTARI_MATERIALE, SORTARE_IMPLICITA_MATERIALE);
+  const sortare = sortareCeruta(
+    filtre.sort ?? null,
+    SORTARI_MATERIALE,
+    SORTARE_IMPLICITA_MATERIALE,
+  );
   const coloana = COLOANA_SORTARE_MATERIAL[sortare.cheie];
   const crescator = sortare.directie === "asc";
 
@@ -236,7 +241,8 @@ export async function listeazaMateriale(
     .limit(filtre.limita + 1);
 
   const cursor = filtre.cursor === null ? null : decodificaCursor(filtre.cursor);
-  if (cursor !== null) interogare = interogare.or(predicatKeyset(coloana, cursor, sortare.directie));
+  if (cursor !== null)
+    interogare = interogare.or(predicatKeyset(coloana, cursor, sortare.directie));
 
   const [rezultat, numarare] = await Promise.all([
     interogare.returns<RandMaterial[]>(),
@@ -250,7 +256,13 @@ export async function listeazaMateriale(
   const randuri = areUrmatoarea ? toate.slice(0, filtre.limita) : toate;
   const ultim = randuri.at(-1);
   const valoare =
-    ultim === undefined ? null : sortare.cheie === "cod" ? ultim.cod : sortare.cheie === "fel" ? ultim.fel : ultim.titlu;
+    ultim === undefined
+      ? null
+      : sortare.cheie === "cod"
+        ? ultim.cod
+        : sortare.cheie === "fel"
+          ? ultim.fel
+          : ultim.titlu;
 
   return {
     randuri,
@@ -490,7 +502,8 @@ export async function listeazaInrolari(
     .limit(filtre.limita + 1);
 
   const cursor = filtre.cursor === null ? null : decodificaCursor(filtre.cursor);
-  if (cursor !== null) interogare = interogare.or(predicatKeyset(coloana, cursor, sortare.directie));
+  if (cursor !== null)
+    interogare = interogare.or(predicatKeyset(coloana, cursor, sortare.directie));
 
   const [rezultat, numarare] = await Promise.all([
     interogare.returns<RandInrolare[]>(),
@@ -927,7 +940,9 @@ export async function regulileCursului(
 export type OptiuneDenumita = Readonly<{ id: string; denumire: string }>;
 
 /** Departamente și funcții, pentru selectoarele regulii. Plafon 300 fiecare. */
-export async function tinteRegula(organizationId: string): Promise<
+export async function tinteRegula(
+  organizationId: string,
+): Promise<
   Readonly<{ departamente: readonly OptiuneDenumita[]; functii: readonly OptiuneDenumita[] }>
 > {
   const db = await createServerSupabase();
@@ -983,9 +998,7 @@ export function cheieCelula(employeeId: string, courseId: string): string {
  * 5000 de celule nu mai e un ecran, e un export. La volumele reale (cea mai
  * mare firmă are opt angajați) matricea încape întreagă, fără derulare.
  */
-export async function matriceConformitate(
-  organizationId: string,
-): Promise<MatriceConformitate> {
+export async function matriceConformitate(organizationId: string): Promise<MatriceConformitate> {
   const db = await createServerSupabase();
   const [angajati, cursuriRes] = await Promise.all([
     angajatiPentruAtribuire(organizationId),

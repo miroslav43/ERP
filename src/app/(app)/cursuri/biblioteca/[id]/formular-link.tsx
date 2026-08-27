@@ -102,10 +102,9 @@ export function FormularLink({ materialId }: { readonly materialId: string }) {
 
           <div className="sm:col-span-2">
             <Callout fel="atentie" titlu="Ce nu putem măsura la un film extern">
-              Parcurgerea nu se poate urmări: filmul rulează pe platforma
-              furnizorului, care nu ne spune cât a văzut omul. Folosiți bifa sau
-              declarația asumată. La deschidere, angajatul e întrebat înainte ca
-              furnizorul să-i primească adresa IP.
+              Parcurgerea nu se poate urmări: filmul rulează pe platforma furnizorului, care nu ne
+              spune cât a văzut omul. Folosiți bifa sau declarația asumată. La deschidere, angajatul
+              e întrebat înainte ca furnizorul să-i primească adresa IP.
             </Callout>
           </div>
 

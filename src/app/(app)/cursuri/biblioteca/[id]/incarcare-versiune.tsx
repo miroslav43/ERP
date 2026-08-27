@@ -131,7 +131,10 @@ export function IncarcareVersiune({ materialId, fel, cereDurata }: Proprietati) 
   const inCurs = stare.tip === "lucru";
 
   return (
-    <form onSubmit={trimite} className="border-border rounded-panou grid gap-4 border p-4 sm:grid-cols-2">
+    <form
+      onSubmit={trimite}
+      className="border-border rounded-panou grid gap-4 border p-4 sm:grid-cols-2"
+    >
       <div className="sm:col-span-2">
         <IncarcareFisier
           nume="fisier"

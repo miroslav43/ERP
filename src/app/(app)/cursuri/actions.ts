@@ -971,7 +971,9 @@ export const aplicaRegulile = createAction({
     const [reguli, angajati, membri, existente] = await Promise.all([
       ctx.supabase
         .from("course_assignment_rules")
-        .select("criteriu, department_id, job_position_id, rol, employee_id, decalaj_zile, termen_zile")
+        .select(
+          "criteriu, department_id, job_position_id, rol, employee_id, decalaj_zile, termen_zile",
+        )
         .eq("organization_id", org)
         .eq("course_id", input.course_id)
         .eq("activ", true)
@@ -1003,9 +1005,7 @@ export const aplicaRegulile = createAction({
     if (reguli.error !== null) traduEroare(reguli.error);
     if (angajati.error !== null) traduEroare(angajati.error);
 
-    const rolPeUtilizator = new Map(
-      (membri.data ?? []).map((m) => [m.user_id, m.role as string]),
-    );
+    const rolPeUtilizator = new Map((membri.data ?? []).map((m) => [m.user_id, m.role as string]));
     const deja = new Set((existente.data ?? []).map((e) => e.employee_id));
     const azi = new Date().toISOString().slice(0, 10);
 

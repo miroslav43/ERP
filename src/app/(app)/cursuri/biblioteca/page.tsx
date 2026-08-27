@@ -42,7 +42,10 @@ export default async function PaginaBiblioteca({
 
   const poateCrea = can(permisiuni, "courses:create", "team");
   const filtre = filtreDinUrl(filtreMaterialeSchema, parametri);
-  const { randuri, urmatorulCursor, total } = await listeazaMateriale(tenant.organizationId, filtre);
+  const { randuri, urmatorulCursor, total } = await listeazaMateriale(
+    tenant.organizationId,
+    filtre,
+  );
 
   const coloane: readonly Coloana<(typeof randuri)[number]>[] = [
     {
@@ -111,7 +114,9 @@ export default async function PaginaBiblioteca({
 
       <BaraFiltre
         active={[
-          ...(filtre.cauta === null ? [] : [{ cheie: "cauta", eticheta: `Caută: ${filtre.cauta}` }]),
+          ...(filtre.cauta === null
+            ? []
+            : [{ cheie: "cauta", eticheta: `Caută: ${filtre.cauta}` }]),
           ...(filtre.fel === null ? [] : [{ cheie: "fel", eticheta: ETICHETE_FEL[filtre.fel] }]),
         ]}
         cheiProprii={["cauta", "fel"]}

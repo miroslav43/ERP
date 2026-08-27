@@ -150,8 +150,8 @@ export default async function PaginaMaterial({
 
       {material.versiune_curenta_id === null ? (
         <Callout fel="atentie" titlu="Materialul nu are încă niciun conținut">
-          Până nu încărcați un fișier sau nu lipiți un link, angajații nu au ce
-          deschide, iar cursurile care îl conțin nu se pot parcurge.
+          Până nu încărcați un fișier sau nu lipiți un link, angajații nu au ce deschide, iar
+          cursurile care îl conțin nu se pot parcurge.
         </Callout>
       ) : null}
 
@@ -161,9 +161,9 @@ export default async function PaginaMaterial({
             Versiune nouă
           </h2>
           <p className="text-muted-foreground text-corp">
-            O versiune publicată nu-și mai schimbă conținutul: dovada de parcurgere o
-            ancorează. Un material actualizat primește o versiune nouă, iar cine a început
-            deja continuă pe cea veche.
+            O versiune publicată nu-și mai schimbă conținutul: dovada de parcurgere o ancorează. Un
+            material actualizat primește o versiune nouă, iar cine a început deja continuă pe cea
+            veche.
           </p>
           {material.sursa === "link" ? (
             <FormularLink materialId={materialId} />

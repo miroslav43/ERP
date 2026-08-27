@@ -60,9 +60,7 @@ export default async function PaginaStadiu({
   const parcurse = randuri.filter((r) => r.status === "finalizat").length;
   const restante = randuri.filter(
     (r) =>
-      (r.status === "neinceput" || r.status === "in_curs") &&
-      r.termen !== null &&
-      r.termen < azi,
+      (r.status === "neinceput" || r.status === "in_curs") && r.termen !== null && r.termen < azi,
   ).length;
 
   const coloane: readonly Coloana<(typeof randuri)[number]>[] = [

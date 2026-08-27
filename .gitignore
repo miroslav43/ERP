@@ -54,11 +54,32 @@ supabase/.branches
 # Capturi, snapshot-uri și log-uri lăsate de serverul MCP Playwright.
 /.playwright-mcp
 
-# Capturi de ecran lăsate la rădăcină în timpul lucrului.
+# Capturi de ecran lăsate la rădăcină în timpul lucrului. Regula prindea doar
+# `image*.png` — numele pe care îl dă lipirea manuală. O captură făcută de
+# sistem se numește `Screenshot from …` sau `Screen Shot … at …` și rămânea
+# NEURMĂRITĂ, adică exact ce înghite un `git add .` dat din reflex.
 /image*.png
+/Screenshot*.png
+/Screen Shot*.png
+/Pasted image*.png
 
 # Claude Code — componentele de proiect (.claude/agents, .claude/skills,
 # .claude-plugin) SE COMIT deliberat: vin cu `git clone` și se încarcă automat.
 # Excepțiile sunt strict locale, per mașină.
 .claude/settings.local.json
 .claude/RESUME.md
+
+# Istoricul de sesiune al plugin-ului `remember`. Directorul are propriul
+# `.gitignore` cu `*`, dar ăla se auto-ignoră: nu e urmărit, deci NU ajunge
+# într-un clon proaspăt, iar pe mașina următoare `.remember/` reapare
+# neurmărit. Regula trebuie să stea aici ca să supraviețuiască clonării.
+/.remember/
+
+# Unelte locale de editor. Repo-ul e lucrat în paralel de mai multe persoane și
+# sesiuni, pe un index git partajat — ce generează editorul unuia n-are ce
+# căuta în commit-ul altuia.
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo

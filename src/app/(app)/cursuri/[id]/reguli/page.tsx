@@ -61,8 +61,7 @@ export default async function PaginaReguli({
 
       {curs.publicat ? null : (
         <Callout fel="atentie" titlu="Cursul nu e publicat">
-          Regulile nu atribuie nimic pentru un curs nepublicat. Publicați-l din pagina
-          cursului.
+          Regulile nu atribuie nimic pentru un curs nepublicat. Publicați-l din pagina cursului.
         </Callout>
       )}
 
