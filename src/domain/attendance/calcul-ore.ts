@@ -89,3 +89,92 @@ export function sporDeNoapteSeAplica(oreNoapte: number, pragOreNoapte: number): 
   if (oreNoapte <= 0) return false;
   return oreNoapte >= pragOreNoapte;
 }
+
+// ── Ziua întreagă, dintr-un singur interval ──────────────────────────────────
+
+/**
+ * Parametrii organizației care intră în derivarea unei zile.
+ *
+ * Toți vin din `attendance_settings`, tabelă ale cărei valori sunt marcate în
+ * migrarea 0013 „DE VERIFICAT DE JURIST”. Funcția nu are opinie despre cât
+ * TREBUIE să fie o pauză — o aplică pe cea configurată.
+ */
+export interface ConfigZi {
+  /** Durata normală a zilei; peste ea încep orele suplimentare. */
+  readonly orePeZi: number;
+  readonly noapteStart: string;
+  readonly noapteSfarsit: string;
+  /** `attendance_settings.pauza_masa_minute`. */
+  readonly pauzaMinute: number;
+  /** Când e inclusă în program, pauza e plătită și NU se scade. */
+  readonly pauzaInclusaInProgram: boolean;
+  /**
+   * `attendance_settings.pauza_obligatorie_peste_ore` — sub pragul ăsta pauza
+   * nu se scade deloc. Cine intră la 09:00 și pleacă la 12:00 n-a luat masa de
+   * prânz, iar o jumătate de oră tăiată dintr-o tură de trei ore e o greșeală
+   * vizibilă pe fluturașul lui.
+   */
+  readonly pauzaObligatoriePesteOre: number;
+}
+
+/** Descompunerea unei zile — fiecare cifră cu linia ei, ca omul să vadă DE CE. */
+export interface OreleZilei {
+  /** Sfârșit − început, înainte de orice scădere. */
+  readonly brut: number;
+  /** Cât s-a scăzut pentru masă. `0` când nu se aplică. */
+  readonly pauza: number;
+  /** Ce se scrie în `ore_lucrate`. */
+  readonly lucrate: number;
+  readonly suplimentare: number;
+  readonly noapte: number;
+}
+
+/**
+ * Toate cifrele unei zile de pontaj, derivate dintr-un singur interval.
+ *
+ * ── DE CE O SINGURĂ FUNCȚIE ───────────────────────────────────────────────
+ * Aceleași cifre se afișează în formularul angajatului ȘI se rescriu pe server
+ * înainte de scriere. Două implementări ar diverge, iar divergența s-ar vedea
+ * abia pe fluturașul de salariu.
+ *
+ * ── PAUZA ─────────────────────────────────────────────────────────────────
+ * `pauza_masa_minute` și `pauza_masa_inclusa_in_program` există din 0013,
+ * se configurează din `/pontaj/setari`, se salvează — și până acum NICIUN
+ * calcul nu le citea. Consecința: 08:30–17:00 producea 8,5 ore lucrate și 0,5
+ * ore suplimentare în fiecare zi, pentru orice firmă cu pauză neplătită.
+ *
+ * ── PLAFONAREA ORELOR DE NOAPTE ───────────────────────────────────────────
+ * `attendance_entries_noapte_ck` (0013:157) cere `ore_noapte <= ore_lucrate`.
+ * Când tura cade întreagă în fereastra de noapte și pauza se scade totuși
+ * (prag configurat 0), noaptea brută ar depăși orele lucrate și INSERT-ul ar
+ * cădea cu 23514 — un mesaj de bază de date pe ecranul unui angajat. Se
+ * plafonează aici, nu se lasă pe seama bazei.
+ *
+ * `null` în aceleași condiții ca `oreLucrateDinInterval`: ore invalide sau tură
+ * care nu se închide în aceeași zi (modelul are un rând pe zi).
+ */
+export function oreleZilei(
+  oraInceput: string,
+  oraSfarsit: string,
+  config: ConfigZi,
+): OreleZilei | null {
+  const brut = oreLucrateDinInterval(oraInceput, oraSfarsit);
+  if (brut === null) return null;
+
+  const seScade = !config.pauzaInclusaInProgram && brut > config.pauzaObligatoriePesteOre;
+  // Pauza nu poate scoate ziua sub zero: o pauză configurată mai lungă decât
+  // tura ar produce ore negative, respinse de `ore_lucrate >= 0`.
+  const pauza = seScade ? Math.min(Math.round((config.pauzaMinute / 60) * 100) / 100, brut) : 0;
+  const lucrate = Math.round((brut - pauza) * 100) / 100;
+
+  const noapteBruta =
+    oreNoapteDinInterval(oraInceput, oraSfarsit, config.noapteStart, config.noapteSfarsit) ?? 0;
+
+  return {
+    brut,
+    pauza,
+    lucrate,
+    suplimentare: oreSuplimentareDinLucrate(lucrate, config.orePeZi),
+    noapte: Math.min(noapteBruta, lucrate),
+  };
+}

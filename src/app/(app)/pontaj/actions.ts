@@ -5,9 +5,11 @@ import { randomUUID } from "node:crypto";
 
 import { createAction } from "@/lib/actions/create-action";
 import { businessRule, notFound } from "@/lib/actions/errors";
+import { oreleZilei } from "@/domain/attendance/calcul-ore";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { formatMonthYear } from "@/lib/format/date";
+import { setariPontaj } from "@/lib/queries/attendance";
 import { zileNelucratoare } from "@/lib/queries/leave";
 import {
   aprobaPontajBlocSchema,
@@ -172,6 +174,50 @@ export const salveazaZiPontaj = createAction({
       );
     }
 
+    // ── Orele, rescrise pe server când ziua vine dintr-un interval ──────────
+    //
+    // Cine are `attendance:create = all` — responsabilul de pontaj, în foaia
+    // colectivă — își păstrează dreptul de a suprascrie cifrele: acolo calculul
+    // e o SUGESTIE, tocmai pentru pauzele neobișnuite și turele peste miezul
+    // nopții pe care modelul cu un rând pe zi nu le exprimă.
+    //
+    // Cine scrie în scope `own` — angajatul, din portal — NU. Formularul lui
+    // arată orele ca text needitabil, iar dacă serverul ar crede pur și simplu
+    // ce primește, „needitabil" ar fi o decorație de ecran: o cerere fabricată
+    // ar scrie orice număr de ore suplimentare pe propria fișă, cu spor.
+    // Intervalul e singurul lucru pe care angajatul îl declară; restul se
+    // derivă aici, din setările organizației.
+    let oreLucrate = input.ore_lucrate;
+    let oreSuplimentare = input.ore_suplimentare;
+    let oreNoapte = input.ore_noapte;
+
+    if (ctx.scope !== "all" && input.ora_inceput !== null && input.ora_sfarsit !== null) {
+      // `input.data`, nu începutul perioadei: setările au istoric
+      // (`valabil_de_la`), iar ziua pontată e data la care se aplică.
+      const setari = await setariPontaj(ctx.tenant.organizationId, input.data);
+
+      // Aceleași valori de rezervă ca în `/pontaj/page.tsx`: absența
+      // setărilor e normală, nu o eroare (nu există seed). Pauza implicită e
+      // ZERO și „inclusă în program", adică nu se scade nimic — o firmă care
+      // n-a configurat nimic nu trebuie să piardă tăcut ore din pontaj.
+      const derivate = oreleZilei(input.ora_inceput, input.ora_sfarsit, {
+        orePeZi: setari?.ore_pe_zi ?? 8,
+        noapteStart: setari?.noapte_start.slice(0, 5) ?? "22:00",
+        noapteSfarsit: setari?.noapte_sfarsit.slice(0, 5) ?? "06:00",
+        pauzaMinute: setari?.pauza_masa_minute ?? 0,
+        pauzaInclusaInProgram: setari?.pauza_masa_inclusa_in_program ?? true,
+        pauzaObligatoriePesteOre: setari?.pauza_obligatorie_peste_ore ?? 0,
+      });
+      if (derivate === null) {
+        throw businessRule(
+          "Ora de ieșire trebuie să fie după ora de intrare, în aceeași zi. Tura care trece de miezul nopții se înregistrează de responsabilul de pontaj.",
+        );
+      }
+      oreLucrate = derivate.lucrate;
+      oreSuplimentare = derivate.suplimentare;
+      oreNoapte = derivate.noapte;
+    }
+
     const db = await createServerSupabase();
 
     // Citire-apoi-INSERT-sau-UPDATE, niciodată `.upsert()`: indexul unic
@@ -203,9 +249,9 @@ export const salveazaZiPontaj = createAction({
         .update({
           ora_inceput: input.ora_inceput,
           ora_sfarsit: input.ora_sfarsit,
-          ore_lucrate: input.ore_lucrate,
-          ore_suplimentare: input.ore_suplimentare,
-          ore_noapte: input.ore_noapte,
+          ore_lucrate: oreLucrate,
+          ore_suplimentare: oreSuplimentare,
+          ore_noapte: oreNoapte,
           tip_zi: tipZi,
           observatii: input.observatii,
         })
@@ -236,9 +282,9 @@ export const salveazaZiPontaj = createAction({
         data: input.data,
         ora_inceput: input.ora_inceput,
         ora_sfarsit: input.ora_sfarsit,
-        ore_lucrate: input.ore_lucrate,
-        ore_suplimentare: input.ore_suplimentare,
-        ore_noapte: input.ore_noapte,
+        ore_lucrate: oreLucrate,
+        ore_suplimentare: oreSuplimentare,
+        ore_noapte: oreNoapte,
         tip_zi: tipZi,
         observatii: input.observatii,
       })

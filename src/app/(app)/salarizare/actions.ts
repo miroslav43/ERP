@@ -238,6 +238,11 @@ function laSetariSnapshot(
    * pot diverge tăcut. Intră în snapshot, deci perioada rămâne reproductibilă.
    */
   pragOreNoapte: number,
+  /**
+   * Ce feluri de muncă a declarat firma (0080). `undefined` când nu există rând
+   * de setări de pontaj: nu se verifică nimic, ca înainte.
+   */
+  feluriDeMunca: PayrollSettingsSnapshot["feluriDeMunca"],
 ): PayrollSettingsSnapshot {
   return {
     valabilDeLa: setari.valabil_de_la,
@@ -253,6 +258,11 @@ function laSetariSnapshot(
     // cu 0, iar munca de 1 Decembrie se plătea la tarif simplu.
     procentSporSarbatoare: setari.procent_spor_sarbatoare,
     pragOreNoapte,
+    // Nu sting niciun spor — control de integritate. Vezi `calc.ts`.
+    // Spread condiționat, nu `feluriDeMunca: undefined`: cu
+    // `exactOptionalPropertyTypes`, o proprietate opțională trebuie să
+    // LIPSEASCă, nu să fie `undefined`.
+    ...(feluriDeMunca === undefined ? {} : { feluriDeMunca }),
     procentOreSuplimentare: setari.procent_ore_suplimentare,
     valoareTichetMasa: setari.valoare_tichet_masa,
     ticheteImpozabile: setari.tichete_impozabile,
@@ -313,7 +323,18 @@ export const calculeazaPerioada = createAction({
     // Pragul orelor de noapte (Codul Muncii art. 126). Fără rând de setări de
     // pontaj, implicitul e 3 — același ca al coloanei din 0066.
     const setariPontajLuna = await setariPontaj(ctx.tenant.organizationId, primaZiALunii);
-    const snapshot = laSetariSnapshot(setari, setariPontajLuna?.prag_ore_noapte ?? 3);
+    const snapshot = laSetariSnapshot(
+      setari,
+      setariPontajLuna?.prag_ore_noapte ?? 3,
+      setariPontajLuna === null
+        ? undefined
+        : {
+            noaptea: setariPontajLuna.lucreaza_noaptea,
+            weekend: setariPontajLuna.lucreaza_weekend,
+            sarbatori: setariPontajLuna.lucreaza_sarbatori,
+            oreSuplimentare: setariPontajLuna.admite_ore_suplimentare,
+          },
+    );
     const [
       zileLuna,
       personal,

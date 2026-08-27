@@ -286,6 +286,18 @@ export interface SetariPontaj {
   readonly ore_pe_saptamana: number;
   readonly ore_maxime_saptamanale: number;
   readonly pauza_masa_minute: number;
+  /** Când e inclusă în program, pauza e plătită și NU se scade din interval. */
+  readonly pauza_masa_inclusa_in_program: boolean;
+  /** Pragul de ore de la care pauza devine obligatorie — sub el nu se scade. */
+  readonly pauza_obligatorie_peste_ore: number;
+  /**
+   * Ce feluri de muncă are firma (0080). Declarații despre PROGRAM, nu despre
+   * plată: sporurile rămân obligatorii când munca s-a prestat.
+   */
+  readonly lucreaza_noaptea: boolean;
+  readonly lucreaza_weekend: boolean;
+  readonly lucreaza_sarbatori: boolean;
+  readonly admite_ore_suplimentare: boolean;
   readonly spor_suplimentare_procent: number;
   readonly spor_noapte_procent: number;
   readonly spor_weekend_procent: number;
@@ -307,6 +319,8 @@ export async function setariPontaj(
     .from("attendance_settings")
     .select(
       "ore_pe_zi, ore_pe_saptamana, ore_maxime_saptamanale, pauza_masa_minute, " +
+        "pauza_masa_inclusa_in_program, pauza_obligatorie_peste_ore, " +
+        "lucreaza_noaptea, lucreaza_weekend, lucreaza_sarbatori, admite_ore_suplimentare, " +
         "spor_suplimentare_procent, spor_noapte_procent, spor_weekend_procent, spor_sarbatoare_procent, " +
         "noapte_start, noapte_sfarsit, prag_ore_noapte",
     )
@@ -439,6 +453,12 @@ export async function departamente(organizationId: string): Promise<readonly Dep
 export interface ZiSaptamanaPontaj {
   readonly data: string;
   readonly tip_prezenta: TipPrezenta;
+  /**
+   * Intervalul planificat, ca `"08:30:00"` (0081). Nul pe zilele nelucrate și
+   * pe săptămânile trimise înainte de migrare.
+   */
+  readonly ora_inceput: string | null;
+  readonly ora_sfarsit: string | null;
   readonly ore_planificate: number;
   readonly observatii: string | null;
 }
@@ -447,6 +467,8 @@ export interface SaptamanaPontaj {
   readonly id: string;
   readonly status: StareSaptamanaPontaj;
   readonly motivRespingere: string | null;
+  /** Săptămâna a fost declarată cu weekend (0081). */
+  readonly lucreazaWeekend: boolean;
   readonly zile: readonly ZiSaptamanaPontaj[];
 }
 
@@ -459,18 +481,23 @@ export async function citesteSaptamanaPontaj(
   const db = await createServerSupabase();
   const { data: submisie, error: eroareSubmisie } = await db
     .from("attendance_week_submissions")
-    .select("id, status, motiv_respingere")
+    .select("id, status, motiv_respingere, lucreaza_weekend")
     .eq("organization_id", organizationId)
     .eq("employee_id", employeeId)
     .eq("saptamana_start", saptamanaStart)
     .is("deleted_at", null)
-    .maybeSingle<{ id: string; status: StareSaptamanaPontaj; motiv_respingere: string | null }>();
+    .maybeSingle<{
+      id: string;
+      status: StareSaptamanaPontaj;
+      motiv_respingere: string | null;
+      lucreaza_weekend: boolean;
+    }>();
   if (eroareSubmisie !== null) throw eroareSubmisie;
   if (submisie === null) return null;
 
   const { data: zile, error: eroareZile } = await db
     .from("attendance_week_submission_days")
-    .select("data, tip_prezenta, ore_planificate, observatii")
+    .select("data, tip_prezenta, ora_inceput, ora_sfarsit, ore_planificate, observatii")
     .eq("submission_id", submisie.id)
     .order("data", { ascending: true })
     .returns<ZiSaptamanaPontaj[]>();
@@ -480,6 +507,7 @@ export async function citesteSaptamanaPontaj(
     id: submisie.id,
     status: submisie.status,
     motivRespingere: submisie.motiv_respingere,
+    lucreazaWeekend: submisie.lucreaza_weekend,
     zile: zile ?? [],
   };
 }
@@ -554,7 +582,9 @@ export async function saptamaniDeAprobat(
       .returns<{ id: string; full_name: string; marca: string }[]>(),
     db
       .from("attendance_week_submission_days")
-      .select("submission_id, data, tip_prezenta, ore_planificate, observatii")
+      .select(
+        "submission_id, data, tip_prezenta, ora_inceput, ora_sfarsit, ore_planificate, observatii",
+      )
       .in("submission_id", idSubmisii)
       .order("data", { ascending: true })
       .returns<(ZiSaptamanaPontaj & { submission_id: string })[]>(),
@@ -602,6 +632,11 @@ export interface SetariPontajComplete {
   readonly perioada_referinta_luni: number;
   readonly repaus_zilnic_minim_ore: number;
   readonly repaus_saptamanal_minim_ore: number;
+  /** Ce feluri de muncă are firma (0080) — vezi `SetariPontaj`. */
+  readonly lucreaza_noaptea: boolean;
+  readonly lucreaza_weekend: boolean;
+  readonly lucreaza_sarbatori: boolean;
+  readonly admite_ore_suplimentare: boolean;
   readonly spor_suplimentare_procent: number;
   readonly spor_noapte_procent: number;
   readonly spor_weekend_procent: number;
@@ -618,7 +653,7 @@ export interface SetariPontajComplete {
 }
 
 const CAMPURI_SETARI_PONTAJ =
-  "id, valabil_de_la, ore_pe_zi, ore_pe_saptamana, ore_maxime_saptamanale, perioada_referinta_luni, repaus_zilnic_minim_ore, repaus_saptamanal_minim_ore, spor_suplimentare_procent, spor_noapte_procent, spor_weekend_procent, spor_sarbatoare_procent, noapte_start, noapte_sfarsit, prag_ore_noapte, termen_compensare_suplimentare_zile, termen_compensare_sarbatoare_zile, pauza_masa_minute, pauza_masa_inclusa_in_program, pauza_obligatorie_peste_ore, observatii_juridice";
+  "id, valabil_de_la, ore_pe_zi, ore_pe_saptamana, ore_maxime_saptamanale, perioada_referinta_luni, repaus_zilnic_minim_ore, repaus_saptamanal_minim_ore, lucreaza_noaptea, lucreaza_weekend, lucreaza_sarbatori, admite_ore_suplimentare, spor_suplimentare_procent, spor_noapte_procent, spor_weekend_procent, spor_sarbatoare_procent, noapte_start, noapte_sfarsit, prag_ore_noapte, termen_compensare_suplimentare_zile, termen_compensare_sarbatoare_zile, pauza_masa_minute, pauza_masa_inclusa_in_program, pauza_obligatorie_peste_ore, observatii_juridice";
 
 /**
  * Parametrii de dreptul muncii în vigoare la o dată dată.

@@ -908,3 +908,90 @@ describe("calculatePayrollEntry — pragul orelor de noapte (art. 126)", () => {
     expect(rezultat.warnings.some((w) => w.cod === "SAL_SPOR_NOAPTE_SUB_PRAG")).toBe(false);
   });
 });
+
+describe("calculatePayrollEntry — ore într-un fel de muncă nedeclarat (0080)", () => {
+  /** Firma declară că nu lucrează noaptea, nici în weekend, nici de sărbători. */
+  const DOAR_PROGRAM_NORMAL: PayrollSettingsSnapshot = {
+    ...SETARI,
+    procentSporNoapte: 0.25,
+    procentSporWeekend: 1,
+    procentSporSarbatoare: 1,
+    pragOreNoapte: 0,
+    feluriDeMunca: {
+      noaptea: false,
+      weekend: false,
+      sarbatori: false,
+      oreSuplimentare: false,
+    },
+  };
+
+  /**
+   * Aceeași firmă, dar FĂRĂ declarație — apelantul de dinainte de 0074.
+   * Proprietatea LIPSEȘTE, nu e `undefined`: `exactOptionalPropertyTypes`.
+   */
+  const { feluriDeMunca: _neDeclarat, ...FARA_DECLARATIE } = DOAR_PROGRAM_NORMAL;
+
+  const calculeaza = (settings: PayrollSettingsSnapshot, attendance: Record<string, unknown>) =>
+    calculatePayrollEntry({
+      settings,
+      contract: { salariuBaza: 5000, nrPersoaneIntretinere: 0 },
+      attendance: { ...PONTAJ_STANDARD, ...attendance } as typeof PONTAJ_STANDARD,
+      bonuses: [],
+      deductions: [],
+    });
+
+  it("semnalează orele de noapte apărute într-o firmă fără tură de noapte", () => {
+    const rezultat = calculeaza(DOAR_PROGRAM_NORMAL, { oreNoapte: 6 });
+    expect(rezultat.warnings.some((w) => w.cod === "SAL_ORE_IN_MOD_NEDECLARAT")).toBe(true);
+  });
+
+  it("REGULA CENTRALĂ: semnalarea NU stinge sporul — orele s-au prestat, deci se plătesc", () => {
+    // Dreptul din art. 126 nu depinde de o căsuță din setări. Dacă bifa ar
+    // opri plata, un patron ar putea tăia sporul de noapte debifând o casetă.
+    const rezultat = calculeaza(DOAR_PROGRAM_NORMAL, { oreNoapte: 6 });
+    expect(rezultat.sporNoapte).toBeGreaterThan(0);
+
+    const declarat = calculeaza(FARA_DECLARATIE, { oreNoapte: 6 });
+    expect(rezultat.sporNoapte).toBe(declarat.sporNoapte);
+  });
+
+  it("adună toate felurile contrazise într-un SINGUR avertisment", () => {
+    const rezultat = calculeaza(DOAR_PROGRAM_NORMAL, {
+      oreNoapte: 6,
+      zileRepausLucrate: 1,
+      oreNormaleRepaus: 8,
+      oreSuplimentare: 4,
+    });
+    const nedeclarate = rezultat.warnings.filter((w) => w.cod === "SAL_ORE_IN_MOD_NEDECLARAT");
+    expect(nedeclarate).toHaveLength(1);
+    expect(nedeclarate[0]?.mesaj).toContain("ore de noapte");
+    expect(nedeclarate[0]?.mesaj).toContain("repausul săptămânal");
+    expect(nedeclarate[0]?.mesaj).toContain("ore suplimentare");
+  });
+
+  it("tace când realitatea se potrivește cu declarația", () => {
+    const rezultat = calculeaza(DOAR_PROGRAM_NORMAL, { oreNoapte: 0, oreSuplimentare: 0 });
+    expect(rezultat.warnings.some((w) => w.cod === "SAL_ORE_IN_MOD_NEDECLARAT")).toBe(false);
+  });
+
+  it("tace când felul de muncă e declarat, oricâte ore ar fi", () => {
+    const totul: PayrollSettingsSnapshot = {
+      ...DOAR_PROGRAM_NORMAL,
+      feluriDeMunca: { noaptea: true, weekend: true, sarbatori: true, oreSuplimentare: true },
+    };
+    const rezultat = calculeaza(totul, {
+      oreNoapte: 6,
+      zileRepausLucrate: 1,
+      oreNormaleRepaus: 8,
+      oreSuplimentare: 4,
+    });
+    expect(rezultat.warnings.some((w) => w.cod === "SAL_ORE_IN_MOD_NEDECLARAT")).toBe(false);
+  });
+
+  it("tace de tot pentru apelanții de dinainte de 0074", () => {
+    // `feluriDeMunca` absent = firma n-a declarat nimic. Nu se verifică nimic,
+    // iar fluturașii calculați până acum rămân identici.
+    const rezultat = calculeaza(FARA_DECLARATIE, { oreNoapte: 6, oreSuplimentare: 4 });
+    expect(rezultat.warnings.some((w) => w.cod === "SAL_ORE_IN_MOD_NEDECLARAT")).toBe(false);
+  });
+});

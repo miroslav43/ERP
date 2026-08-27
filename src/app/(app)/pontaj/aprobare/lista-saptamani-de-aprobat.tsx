@@ -57,8 +57,16 @@ function RandSarcina({ sarcina }: { readonly sarcina: SarcinaSaptamanaDeAprobat 
         {sarcina.zile.map((zi, index) => (
           <li key={zi.data} className="text-muted-foreground flex justify-between gap-2">
             <span>{ETICHETE_ZI[index]}</span>
-            <span className="text-foreground">
-              {ETICHETE_TIP_PREZENTA[zi.tip_prezenta]} · {zi.ore_planificate}h
+            {/* Intervalul, nu doar totalul: aprobatorul decide dacă programul
+                declarat e cel convenit, iar „8h" nu spune dacă omul vine la
+                07:00 sau la 11:00. Zilele fără interval (weekend nebifat,
+                sărbătoare) rămân doar cu ora zero. */}
+            <span className="text-foreground tabular-nums">
+              {ETICHETE_TIP_PREZENTA[zi.tip_prezenta]}
+              {zi.ora_inceput === null || zi.ora_sfarsit === null
+                ? ""
+                : ` · ${zi.ora_inceput.slice(0, 5)}–${zi.ora_sfarsit.slice(0, 5)}`}{" "}
+              · {zi.ore_planificate}h
             </span>
           </li>
         ))}

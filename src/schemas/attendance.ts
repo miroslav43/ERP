@@ -183,12 +183,31 @@ export type TipPrezenta = (typeof TIPURI_PREZENTA)[number];
 export const STARI_SAPTAMANA_PONTAJ = ["ciorna", "trimisa", "aprobata", "respinsa"] as const;
 export type StareSaptamanaPontaj = (typeof STARI_SAPTAMANA_PONTAJ)[number];
 
-const ziPlanificataSchema = z.object({
-  data: z.iso.date(),
-  tip_prezenta: z.enum(TIPURI_PREZENTA),
-  ore_planificate: z.coerce.number().min(0).max(24),
-  observatii: textOptional(500),
-});
+/**
+ * O zi din plan se declară ca INTERVAL (0081), nu ca număr de ore.
+ *
+ * `ore_planificate` rămâne în formă, dar e o valoare de tranzit: acțiunea o
+ * RESCRIE din interval, prin `oreleZilei`, înainte de a apela RPC-ul. Ce
+ * trimite clientul aici nu ajunge niciodată în bază ca atare — la fel ca la
+ * ziua individuală.
+ *
+ * Intervalul e opțional fiindcă o zi nelucrată (weekend debifat, sărbătoare)
+ * n-are ce interval să poarte; oglindește `_interval_ck` din 0075, care cere
+ * ori amândouă orele, ori niciuna.
+ */
+const ziPlanificataSchema = z
+  .object({
+    data: z.iso.date(),
+    tip_prezenta: z.enum(TIPURI_PREZENTA),
+    ora_inceput: oraOptionala,
+    ora_sfarsit: oraOptionala,
+    ore_planificate: z.coerce.number().min(0).max(24),
+    observatii: textOptional(500),
+  })
+  .refine((v) => (v.ora_inceput === null) === (v.ora_sfarsit === null), {
+    message: "Completați ambele ore, sau niciuna.",
+    path: ["ora_sfarsit"],
+  });
 export type ZiPlanificata = z.output<typeof ziPlanificataSchema>;
 
 /**
@@ -201,6 +220,22 @@ export const trimiteSaptamanaPontajSchema = z.object({
     message: "Săptămâna trebuie să înceapă luni.",
   }),
   status: z.enum(["ciorna", "trimisa"]),
+  /**
+   * Săptămâna aceasta include sâmbăta și duminica (0081). Se salvează pe
+   * submisie, nu se derivă la citire din setările firmei: aprobatorul care
+   * deschide o săptămână veche trebuie să vadă ce s-a declarat ATUNCI.
+   */
+  lucreaza_weekend: z.coerce.boolean().default(false),
+  /**
+   * Fișa pentru care se completează săptămâna (0084). `null` = a mea, adică
+   * exact comportamentul de dinainte.
+   *
+   * Nu e o poartă de securitate: `trimite_saptamana_pontaj` o dă mai departe
+   * lui `app.poate_scrie_pontaj`, care refuză cu 42501 dacă apelantul n-are
+   * `attendance:create` peste angajatul ăla — `all` pentru oricine, `team`
+   * doar pentru subalterni, `own` niciodată pentru altcineva.
+   */
+  employee_id: z.uuid("Angajatul selectat nu este valid.").nullable().default(null),
   zile: z.array(ziPlanificataSchema).min(1).max(7),
 });
 export type TrimiteSaptamanaPontaj = z.output<typeof trimiteSaptamanaPontajSchema>;
@@ -250,13 +285,24 @@ export const setariPontajSchema = z.object({
   perioada_referinta_luni: z.coerce.number().int().min(1).max(12),
   repaus_zilnic_minim_ore: z.coerce.number().min(0).max(24),
   repaus_saptamanal_minim_ore: z.coerce.number().min(0).max(168),
-  // Procente 0-100, nu fracții: scara e cea din `attendance_settings`, diferită
-  // de cea din `payroll_settings`. Confuzia dintre ele ar înmulți sau împărți
-  // sporurile cu o sută.
-  spor_suplimentare_procent: z.coerce.number().min(0).max(300),
-  spor_noapte_procent: z.coerce.number().min(0).max(300),
-  spor_weekend_procent: z.coerce.number().min(0).max(300),
-  spor_sarbatoare_procent: z.coerce.number().min(0).max(300),
+  /**
+   * Ce feluri de muncă are firma (0080). NU sunt „ce sporuri acord": sporurile
+   * din art. 123, 137 alin. (2) și 142 alin. (2) sunt obligatorii CÂND munca
+   * s-a prestat. Comutatoarele declară doar dacă se prestează, iar ecranul
+   * încetează să ceară parametri juridici care nu se aplică.
+   *
+   * `.default(true)` păstrează comportamentul de azi pentru orice apel care
+   * n-a fost încă adaptat — aceeași alegere ca implicitul coloanei din migrare.
+   */
+  lucreaza_noaptea: z.coerce.boolean().default(true),
+  lucreaza_weekend: z.coerce.boolean().default(true),
+  lucreaza_sarbatori: z.coerce.boolean().default(true),
+  admite_ore_suplimentare: z.coerce.boolean().default(true),
+  // Cele patru `spor_*_procent` NU mai sunt aici (0082). Sporurile care intră pe
+  // fluturaș se configurează exclusiv în `/salarizare/setari`, pe
+  // `payroll_settings.procent_spor_*`, și se citesc din `domain/payroll/calc.ts`.
+  // Coloanele au rămas în tabelă, cu `default 0`, deci INSERT-ul de aici merge
+  // fără ele — vezi 0082 pentru de ce nu s-au șters.
   noapte_start: z.string().regex(/^\d{2}:\d{2}$/u, "Ora trebuie să fie HH:MM."),
   noapte_sfarsit: z.string().regex(/^\d{2}:\d{2}$/u, "Ora trebuie să fie HH:MM."),
   prag_ore_noapte: z.coerce.number().min(0).max(12),

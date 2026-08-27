@@ -735,10 +735,14 @@ export type Database = {
       }
       attendance_settings: {
         Row: {
+          admite_ore_suplimentare: boolean
           created_at: string
           created_by: string | null
           deleted_at: string | null
           id: string
+          lucreaza_noaptea: boolean
+          lucreaza_sarbatori: boolean
+          lucreaza_weekend: boolean
           noapte_sfarsit: string
           noapte_start: string
           observatii_juridice: string | null
@@ -764,10 +768,14 @@ export type Database = {
           valabil_de_la: string
         }
         Insert: {
+          admite_ore_suplimentare?: boolean
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
           id?: string
+          lucreaza_noaptea?: boolean
+          lucreaza_sarbatori?: boolean
+          lucreaza_weekend?: boolean
           noapte_sfarsit: string
           noapte_start: string
           observatii_juridice?: string | null
@@ -782,10 +790,10 @@ export type Database = {
           prag_ore_noapte?: number
           repaus_saptamanal_minim_ore: number
           repaus_zilnic_minim_ore: number
-          spor_noapte_procent: number
-          spor_sarbatoare_procent: number
-          spor_suplimentare_procent: number
-          spor_weekend_procent: number
+          spor_noapte_procent?: number
+          spor_sarbatoare_procent?: number
+          spor_suplimentare_procent?: number
+          spor_weekend_procent?: number
           termen_compensare_sarbatoare_zile: number
           termen_compensare_suplimentare_zile: number
           updated_at?: string
@@ -793,10 +801,14 @@ export type Database = {
           valabil_de_la: string
         }
         Update: {
+          admite_ore_suplimentare?: boolean
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
           id?: string
+          lucreaza_noaptea?: boolean
+          lucreaza_sarbatori?: boolean
+          lucreaza_weekend?: boolean
           noapte_sfarsit?: string
           noapte_start?: string
           observatii_juridice?: string | null
@@ -837,6 +849,8 @@ export type Database = {
           data: string
           id: string
           observatii: string | null
+          ora_inceput: string | null
+          ora_sfarsit: string | null
           ore_planificate: number
           organization_id: string
           submission_id: string
@@ -848,6 +862,8 @@ export type Database = {
           data: string
           id?: string
           observatii?: string | null
+          ora_inceput?: string | null
+          ora_sfarsit?: string | null
           ore_planificate?: number
           organization_id: string
           submission_id: string
@@ -859,6 +875,8 @@ export type Database = {
           data?: string
           id?: string
           observatii?: string | null
+          ora_inceput?: string | null
+          ora_sfarsit?: string | null
           ore_planificate?: number
           organization_id?: string
           submission_id?: string
@@ -891,6 +909,7 @@ export type Database = {
           deleted_at: string | null
           employee_id: string
           id: string
+          lucreaza_weekend: boolean
           motiv_respingere: string | null
           organization_id: string
           saptamana_start: string
@@ -907,6 +926,7 @@ export type Database = {
           deleted_at?: string | null
           employee_id: string
           id?: string
+          lucreaza_weekend?: boolean
           motiv_respingere?: string | null
           organization_id: string
           saptamana_start: string
@@ -923,6 +943,7 @@ export type Database = {
           deleted_at?: string | null
           employee_id?: string
           id?: string
+          lucreaza_weekend?: boolean
           motiv_respingere?: string | null
           organization_id?: string
           saptamana_start?: string
@@ -11240,6 +11261,8 @@ export type Database = {
       }
       trimite_saptamana_pontaj: {
         Args: {
+          p_employee_id?: string | null
+          p_lucreaza_weekend?: boolean
           p_organization_id: string
           p_saptamana_start: string
           p_status: Database["public"]["Enums"]["attendance_week_status"]

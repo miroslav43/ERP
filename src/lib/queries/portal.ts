@@ -61,6 +61,13 @@ export interface TipConcediu {
 export interface ZiPontaj {
   readonly id: string;
   readonly data: string;
+  /**
+   * Intervalul declarat, ca `"08:30:00"` — `time` din Postgres, cu secunde.
+   * Nul pe zilele scrise înainte ca portalul să ceară intervalul, și pe cele
+   * venite din concediu.
+   */
+  readonly ora_inceput: string | null;
+  readonly ora_sfarsit: string | null;
   readonly ore_lucrate: number | null;
   readonly ore_suplimentare: number | null;
   readonly ore_noapte: number | null;
@@ -238,7 +245,9 @@ export async function pontajulMeu(
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("attendance_entries")
-    .select("id, data, ore_lucrate, ore_suplimentare, ore_noapte, tip_zi, observatii")
+    .select(
+      "id, data, ora_inceput, ora_sfarsit, ore_lucrate, ore_suplimentare, ore_noapte, tip_zi, observatii",
+    )
     .eq("organization_id", organizationId)
     .eq("employee_id", employeeId)
     .gte("data", prima)
