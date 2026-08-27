@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { adaugaZile, esteLuni, lunieaUrmatoare, zileleSaptamanii } from "./saptamana";
+import {
+  INDICI_WEEKEND,
+  adaugaZile,
+  esteLuni,
+  intervalDeTrimis,
+  lunieaUrmatoare,
+  zileleSaptamanii,
+} from "./saptamana";
 
 describe("adaugaZile", () => {
   it("trece corect peste granița lunii și a anului", () => {
@@ -77,5 +84,51 @@ describe("zileleSaptamanii", () => {
       "2026-08-22",
       "2026-08-23",
     ]);
+  });
+});
+
+describe("intervalDeTrimis", () => {
+  const PLIN = { ora_inceput: "08:30", ora_sfarsit: "17:00" };
+  const GOL = { ora_inceput: "", ora_sfarsit: "" };
+
+  it("trimite intervalul zilelor de lucru, oricare ar fi comutatorul", () => {
+    for (const index of [0, 1, 2, 3, 4]) {
+      expect(intervalDeTrimis(PLIN, index, false)).toEqual(PLIN);
+      expect(intervalDeTrimis(PLIN, index, true)).toEqual(PLIN);
+    }
+  });
+
+  it("DEFECTUL REPARAT: weekendul nebifat pleacă fără interval, deci cu zero ore", () => {
+    // Implicitul de 8 ore pe toate cele șapte zile declara 56 de ore pe
+    // săptămână, din care 16 într-un weekend pe care nu-l alesese nimeni.
+    expect(intervalDeTrimis(PLIN, 5, false)).toEqual({ ora_inceput: null, ora_sfarsit: null });
+    expect(intervalDeTrimis(PLIN, 6, false)).toEqual({ ora_inceput: null, ora_sfarsit: null });
+  });
+
+  it("weekendul bifat trimite intervalul, ca orice altă zi", () => {
+    expect(intervalDeTrimis(PLIN, 5, true)).toEqual(PLIN);
+    expect(intervalDeTrimis(PLIN, 6, true)).toEqual(PLIN);
+  });
+
+  it("ziua fără interval pleacă fără interval", () => {
+    expect(intervalDeTrimis(GOL, 0, true)).toEqual({ ora_inceput: null, ora_sfarsit: null });
+  });
+
+  it("intervalul pe jumătate completat se tratează ca absent, nu ca eroare de bază", () => {
+    // `_interval_ck` (0081) cere ori amândouă orele, ori niciuna. Un 23514 pe
+    // un câmp pe jumătate scris e o eroare pe care omul n-o poate lega de ce a
+    // făcut.
+    expect(intervalDeTrimis({ ora_inceput: "08:30", ora_sfarsit: "" }, 0, true)).toEqual({
+      ora_inceput: null,
+      ora_sfarsit: null,
+    });
+    expect(intervalDeTrimis({ ora_inceput: "", ora_sfarsit: "17:00" }, 0, true)).toEqual({
+      ora_inceput: null,
+      ora_sfarsit: null,
+    });
+  });
+
+  it("indexează weekendul pe poziție, nu pe dată — săptămâna începe luni", () => {
+    expect([...INDICI_WEEKEND].sort()).toEqual([5, 6]);
   });
 });

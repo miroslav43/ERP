@@ -26,8 +26,8 @@ import { zileNelucratoare } from "@/lib/queries/leave";
 import { zileLucratoareLuna } from "@/lib/queries/payroll";
 import { filtrePontajSchema, type StatusPerioada } from "@/schemas/attendance";
 import type { PermissionScope } from "@/config/permissions";
+import type { ConfigZi } from "@/domain/attendance/calcul-ore";
 
-import type { IntervalNoapte } from "./interval-noapte";
 import { NavPontaj } from "./nav-pontaj";
 import { FiltrePontaj } from "./filtre-pontaj";
 import { FoaieColectiva, type RandFoaie } from "./foaie-colectiva";
@@ -50,8 +50,7 @@ async function Foaie({
   utilizatorEticheta,
   poateEdita,
   poateAproba,
-  orePeZi,
-  intervalNoapte,
+  config,
   oreAsteptateLuna,
   parametri,
 }: {
@@ -66,8 +65,7 @@ async function Foaie({
   readonly utilizatorEticheta: string;
   readonly poateEdita: boolean;
   readonly poateAproba: boolean;
-  readonly orePeZi: number;
-  readonly intervalNoapte: IntervalNoapte;
+  readonly config: ConfigZi;
   readonly oreAsteptateLuna: number;
   readonly parametri: Record<string, string | string[] | undefined>;
 }) {
@@ -121,8 +119,7 @@ async function Foaie({
         liberSuplimentar={liberSuplimentar}
         poateEdita={poateEdita}
         poateAproba={poateAproba}
-        orePeZi={orePeZi}
-        intervalNoapte={intervalNoapte}
+        config={config}
         oreAsteptateLuna={oreAsteptateLuna}
         azi={todayInBucharest()}
       />
@@ -203,8 +200,7 @@ async function Foaie({
         liberSuplimentar={liberSuplimentar}
         poateEdita={poateEdita}
         poateAproba={poateAproba}
-        orePeZi={orePeZi}
-        intervalNoapte={intervalNoapte}
+        config={config}
         oreAsteptateLuna={oreAsteptateLuna}
         azi={todayInBucharest()}
       />
@@ -238,6 +234,7 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
   const poateEdita = can(permisiuni, "attendance:create", "own");
   const poateAproba = can(permisiuni, "attendance:approve", "team");
   const poateDeschide = can(permisiuni, "attendance:create", "all");
+  const poateConfigura = can(permisiuni, "attendance:update", "all");
 
   const an = anDinUrl(parametri["an"], Number(todayInBucharest().slice(0, 4)));
   const filtre = filtreDinUrl(filtrePontajSchema, parametri);
@@ -256,6 +253,26 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
     start: setari?.noapte_start?.slice(0, 5) ?? "22:00",
     sfarsit: setari?.noapte_sfarsit?.slice(0, 5) ?? "06:00",
   } as const;
+
+  /*
+    Parametrii după care se derivă orele dintr-un interval — ACEIAȘI ca la ziua
+    individuală din portal și la planul săptămânal.
+
+    Până acum, foaia colectivă primea `orePeZi` + `intervalNoapte` și chema
+    `oreLucrateDinInterval`, care NU scade pauza de masă. Aceeași zi, 08:30–17:00,
+    ieșea cu 8,00 ore când o ponta angajatul din portal și cu 8,50 când o ponta
+    responsabilul de pontaj de aici — iar cifra care ajungea în bază depindea de
+    cine a completat, nu de cât s-a lucrat. Se trimite un singur `config`, tocmai
+    ca fereastra de noapte să nu se mai poată pasa fără regula pauzei.
+  */
+  const config: ConfigZi = {
+    orePeZi,
+    noapteStart: intervalNoapte.start,
+    noapteSfarsit: intervalNoapte.sfarsit,
+    pauzaMinute: setari?.pauza_masa_minute ?? 0,
+    pauzaInclusaInProgram: setari?.pauza_masa_inclusa_in_program ?? true,
+    pauzaObligatoriePesteOre: setari?.pauza_obligatorie_peste_ore ?? 0,
+  };
   // „Ore așteptate” pentru lună — bază de raportare, NU calculul de salariu
   // (acela rămâne în `salarizare`, care poate citi aceleași cifre mai târziu).
   const oreAsteptateLuna =
@@ -268,11 +285,22 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
       <AntetPagina
         titlu="Pontaj"
         descriere={`Foaia colectivă pentru ${formatMonthYear(an, filtre.luna)}.`}
-        actiuni={
-          <Link href="/pontaj/setari" className={buton({ varianta: "secundar" })}>
-            Setări
-          </Link>
-        }
+        // Butonul stătea NEGARDAT, deși `/pontaj/setari` cere
+        // `attendance:update = all` (setari/page.tsx:23). Un angajat sau un
+        // manager îl vedea, apăsa, și primea „Nu aveți dreptul de a configura
+        // parametrii de pontaj." — un buton care se vede și nu funcționează e
+        // mai rău decât unul care lipsește. Aceeași permisiune ca pagina țintă,
+        // nu una apropiată: `attendance:create = all` (care deschide perioade)
+        // nu dă și dreptul de a schimba parametrii.
+        {...(poateConfigura
+          ? {
+              actiuni: (
+                <Link href="/pontaj/setari" className={buton({ varianta: "secundar" })}>
+                  Setări
+                </Link>
+              ),
+            }
+          : {})}
         file={<NavPontaj poateAproba={poateAproba} />}
       />
 
@@ -310,8 +338,7 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
             utilizatorEticheta={user.fullName ?? user.email}
             poateEdita={poateEdita}
             poateAproba={poateAproba}
-            orePeZi={orePeZi}
-            intervalNoapte={intervalNoapte}
+            config={config}
             oreAsteptateLuna={oreAsteptateLuna}
             parametri={parametri}
           />

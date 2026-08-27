@@ -2,6 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  autorulPoateRetrage,
   conflictDeEchipa,
   verificaPlafonAnual,
   verificaSold,
@@ -155,5 +156,40 @@ describe("plafonul anual legal", () => {
   it("respinge valori negative", () => {
     expect(() => verificaPlafonAnual(-1, 0, 10)).toThrow(RangeError);
     expect(() => verificaPlafonAnual(1, -2, 10)).toThrow(RangeError);
+  });
+});
+
+describe("autorulPoateRetrage", () => {
+  const AZI = "2026-08-25";
+
+  it("lasă ciorna și cererea trimisă să plece oricând, inclusiv retroactiv", () => {
+    expect(autorulPoateRetrage("ciorna", "2020-01-01", AZI)).toBe(true);
+    expect(autorulPoateRetrage("trimisa", "2020-01-01", AZI)).toBe(true);
+  });
+
+  it("lasă un concediu aprobat care încă nu a început", () => {
+    expect(autorulPoateRetrage("aprobata", "2026-08-26", AZI)).toBe(true);
+  });
+
+  it("refuză un concediu aprobat chiar în prima lui zi", () => {
+    // `>`, nu `>=`: cine e în prima zi de concediu a consumat-o.
+    expect(autorulPoateRetrage("aprobata", AZI, AZI)).toBe(false);
+  });
+
+  it("refuză un concediu aprobat deja consumat", () => {
+    expect(autorulPoateRetrage("aprobata", "2026-08-01", AZI)).toBe(false);
+  });
+
+  it("refuză stările terminale, oricât de departe ar fi data", () => {
+    for (const status of ["respinsa", "anulata", "intrerupta"]) {
+      expect(autorulPoateRetrage(status, "2099-01-01", AZI)).toBe(false);
+    }
+  });
+
+  it("compară pe an, nu doar pe zi și lună", () => {
+    // Capcana comparației lexicografice greșite: „2026-01-05" < „2026-08-25",
+    // dar „2027-01-05" > el. Ordinea pe `YYYY-MM-DD` le prinde pe amândouă.
+    expect(autorulPoateRetrage("aprobata", "2027-01-05", AZI)).toBe(true);
+    expect(autorulPoateRetrage("aprobata", "2026-01-05", AZI)).toBe(false);
   });
 });

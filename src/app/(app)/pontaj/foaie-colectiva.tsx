@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 
 import { type TipZi } from "@/schemas/attendance";
+import type { ConfigZi } from "@/domain/attendance/calcul-ore";
 import {
   CLASE_TIP_ZI,
   CODURI_TIP_ZI,
@@ -10,7 +11,6 @@ import {
   esteZiLucratoare,
   tipZiAutomat,
 } from "./etichete";
-import type { IntervalNoapte } from "./interval-noapte";
 import { CelulaZi } from "./celula-zi";
 
 export interface IntrareZiClient {
@@ -48,8 +48,8 @@ interface Proprietati {
   readonly poateEdita: boolean;
   readonly poateAproba: boolean;
   /** Pragul de ore/zi al organizației — trecut mai departe la `CelulaZi`. */
-  readonly orePeZi: number;
-  readonly intervalNoapte: IntervalNoapte;
+  /** Parametrii de derivare a orelor, pauza de masă inclusă. */
+  readonly config: ConfigZi;
   /**
    * Ore așteptate ale lunii (ore_pe_zi × zile lucrătoare) — aceeași valoare
    * pentru fiecare angajat, calculată o singură dată în pagină. Doar
@@ -135,8 +135,7 @@ export function FoaieColectiva({
   liberSuplimentar,
   poateEdita,
   poateAproba,
-  orePeZi,
-  intervalNoapte,
+  config,
   oreAsteptateLuna,
   azi,
 }: Proprietati) {
@@ -470,8 +469,7 @@ export function FoaieColectiva({
           eticheta={`${selectie.eticheta} · ${new Date(`${selectie.data}T00:00:00Z`).toLocaleDateString("ro-RO")}`}
           intrare={intrareSelectata}
           poateAproba={poateAproba}
-          orePeZi={orePeZi}
-          intervalNoapte={intervalNoapte}
+          config={config}
           poateSterge={
             intrareSelectata !== null &&
             !intrareSelectata.esteDinConcediu &&

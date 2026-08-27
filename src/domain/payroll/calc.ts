@@ -69,6 +69,24 @@ export interface PayrollSettingsSnapshot {
    * înseamnă amândouă „fără prag”.
    */
   readonly pragOreNoapte?: number;
+  /**
+   * Ce feluri de muncă a declarat firma în setările de pontaj (0080).
+   *
+   * NU sting niciun spor: dacă orele s-au prestat, art. 123 / 137 alin. (2) /
+   * 142 alin. (2) se aplică oricum, iar calculul le plătește ca până acum. Rolul
+   * lor aici e strict de CONTROL DE INTEGRITATE — ore apărute într-un fel de
+   * muncă declarat inexistent înseamnă ori pontaj greșit, ori o declarație
+   * rămasă în urmă, și amândouă merită spuse pe fluturaș.
+   *
+   * Opționale: `undefined` = firma n-a declarat nimic, deci nu se verifică
+   * nimic. Apelanții de dinainte de 0074 rămân neatinși.
+   */
+  readonly feluriDeMunca?: {
+    readonly noaptea: boolean;
+    readonly weekend: boolean;
+    readonly sarbatori: boolean;
+    readonly oreSuplimentare: boolean;
+  };
   readonly procentSporWeekend: number;
   /**
    * Sporul distinct pentru sărbătoare legală. Lipsește din `payroll_settings`;
@@ -450,6 +468,31 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
       "SAL_SPOR_REPAUS_NECONFIGURAT",
       `${(oreRepaus + oreSarbatoare).toFixed(2)} ore plătite la tariful orar simplu, fără spor.`,
     );
+  }
+
+  // Realitatea contrazice declarația din setările de pontaj (0080).
+  //
+  // Un singur avertisment, cu toate felurile enumerate: patru rânduri separate
+  // pe același fluturaș ar spune de patru ori „mergeți în setările de pontaj".
+  // Orele NU se ating — ele s-au prestat, iar sporul li se cuvine oricum.
+  if (settings.feluriDeMunca !== undefined) {
+    const feluri = settings.feluriDeMunca;
+    const nedeclarate: string[] = [];
+    if (!feluri.noaptea && attendance.oreNoapte > 0) {
+      nedeclarate.push(`${attendance.oreNoapte.toFixed(2)} ore de noapte`);
+    }
+    if (!feluri.weekend && oreRepaus > 0) {
+      nedeclarate.push(`${oreRepaus.toFixed(2)} ore în repausul săptămânal`);
+    }
+    if (!feluri.sarbatori && oreSarbatoare > 0) {
+      nedeclarate.push(`${oreSarbatoare.toFixed(2)} ore de sărbătoare legală`);
+    }
+    if (!feluri.oreSuplimentare && attendance.oreSuplimentare > 0) {
+      nedeclarate.push(`${attendance.oreSuplimentare.toFixed(2)} ore suplimentare`);
+    }
+    if (nedeclarate.length > 0) {
+      avertizeaza("SAL_ORE_IN_MOD_NEDECLARAT", `${nedeclarate.join(", ")}.`);
+    }
   }
 
   const raporteaza = (probleme: readonly { cod: string; detalii: string }[]): void => {

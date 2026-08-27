@@ -53,7 +53,6 @@ export default async function PaginaConcediiEchipa({ searchParams }: Proprietati
   const fisaMea = await fisaProprie(tenant.organizationId, user.id);
   const scope: "team" | "all" = can(permisiuni, "leave:read", "all") ? "all" : "team";
   const poateAproba = can(permisiuni, "leave:approve", "team");
-  const poateConfigura = can(permisiuni, "leave:update", "all");
 
   const parametri = await searchParams;
   const filtre = filtreDinUrl(filtreCereriSchema, parametri);
@@ -110,7 +109,6 @@ export default async function PaginaConcediiEchipa({ searchParams }: Proprietati
             poateVedeaEchipa={true}
             poateAproba={poateAproba}
             poateVedeaCalendar={true}
-            poateConfigura={poateConfigura}
             deAprobat={deAprobat}
           />
         }

@@ -12,8 +12,9 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { ziDinRuta } from "@/lib/rute/parametri";
 import { formatDate } from "@/lib/format/date";
-import { citestePerioada } from "@/lib/queries/attendance";
+import { citestePerioada, setariPontaj } from "@/lib/queries/attendance";
 import { fisaMea, pontajulMeu } from "@/lib/queries/portal";
+import type { ConfigZi } from "@/domain/attendance/calcul-ore";
 
 import { FaraFisa } from "../../../fara-fisa";
 import { ETICHETE_TIP_ZI } from "../../../etichete";
@@ -104,13 +105,42 @@ export default async function PaginaZiPontaj({
     );
   }
 
+  // Parametrii după care se derivă ziua din interval. Aceleași valori de
+  // rezervă ca în `/pontaj/page.tsx` și în `salveazaZiPontaj`: absența
+  // setărilor e normală (nu există seed pentru `attendance_settings`), iar
+  // pauza implicită e zero și „inclusă în program" — o firmă care n-a
+  // configurat nimic nu trebuie să piardă tăcut ore din pontajul oamenilor.
+  //
+  // Angajatul POATE citi tabela: `attendance_settings_select` (0013:732) cere
+  // `attendance:read` la scope `own`, exact ce are rolul `employee`.
+  const setari = await setariPontaj(tenant.organizationId, zi);
+  const config: ConfigZi = {
+    orePeZi: setari?.ore_pe_zi ?? 8,
+    noapteStart: setari?.noapte_start.slice(0, 5) ?? "22:00",
+    noapteSfarsit: setari?.noapte_sfarsit.slice(0, 5) ?? "06:00",
+    pauzaMinute: setari?.pauza_masa_minute ?? 0,
+    pauzaInclusaInProgram: setari?.pauza_masa_inclusa_in_program ?? true,
+    pauzaObligatoriePesteOre: setari?.pauza_obligatorie_peste_ore ?? 0,
+  };
+
   return (
     <div className={`${LATIMI.formular} space-y-4 p-4`}>
       {antet}
+      {/* Aceeași regulă ca la planul săptămânal: formularul ține orele în
+          `useState`, deci o navigare zi → zi ar reutiliza instanța și ar
+          păstra valorile zilei precedente. Azi nu există niciun link direct
+          între două zile (se trece mereu prin listă, care demontează
+          formularul), deci defectul e latent — dar cheia îl închide înainte
+          să apară primul buton „ziua următoare". */}
       <FormularZi
+        key={zi}
         data={zi}
-        oreInitiale={String(existenta?.ore_lucrate ?? 8)}
-        suplimentareInitiale={String(existenta?.ore_suplimentare ?? 0)}
+        config={config}
+        // `time` din Postgres vine ca `"08:30:00"`; `<input type="time">` cere
+        // `"HH:MM"`. Fără tăiere, câmpul rămâne gol fără nicio explicație.
+        inceputInitial={existenta?.ora_inceput?.slice(0, 5) ?? ""}
+        sfarsitInitial={existenta?.ora_sfarsit?.slice(0, 5) ?? ""}
+        oreSalvate={existenta?.ore_lucrate ?? null}
         observatiiInitiale={existenta?.observatii ?? ""}
       />
       {inapoi}

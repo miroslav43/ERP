@@ -43,3 +43,48 @@ export function lunieaUrmatoare(azi: string): string {
 export function zileleSaptamanii(saptamanaStart: string): readonly string[] {
   return Array.from({ length: 7 }, (_, i) => adaugaZile(saptamanaStart, i));
 }
+
+// ── Ce se trimite spre aprobare ─────────────────────────────────────────────
+
+/** Sâmbăta și duminica: ultimele două poziții ale săptămânii ISO. */
+export const INDICI_WEEKEND: ReadonlySet<number> = new Set([5, 6]);
+
+export interface ZiPlanDeclarata {
+  /** `"08:30"`, sau `""` când ziua n-are interval. */
+  readonly ora_inceput: string;
+  readonly ora_sfarsit: string;
+}
+
+export interface IntervalTrimis {
+  readonly ora_inceput: string | null;
+  readonly ora_sfarsit: string | null;
+}
+
+/**
+ * Intervalul cu care pleacă spre server ziua de pe poziția `index`.
+ *
+ * ── DE CE E O FUNCȚIE, NU O CONDIȚIE ÎN FORMULAR ─────────────────────────
+ * Regula asta a produs deja un defect livrat: implicitul de 8 ore pe toate
+ * cele șapte zile din portal însemna 56 de ore declarate pe săptămână, din
+ * care 16 într-un weekend pe care nu-l alesese nimeni. Cine apăsa direct
+ * „Trimite spre aprobare" nu vedea nimic ciudat pe ecran.
+ *
+ * Aici e explicită și verificabilă: ziua de weekend nebifat pleacă FĂRĂ
+ * interval — deci serverul îi scrie zero ore — iar rândul rămâne în listă, ca
+ * aprobatorul să vadă săptămâna întreagă, nu una din cinci zile.
+ *
+ * Intervalul incomplet (o singură oră completată) se tratează ca absent:
+ * `attendance_week_submission_days_interval_ck` (0081) cere ori amândouă, ori
+ * niciuna, iar un refuz al bazei pe un câmp pe jumătate completat e o eroare
+ * pe care omul n-o poate lega de ce a făcut.
+ */
+export function intervalDeTrimis(
+  zi: ZiPlanDeclarata,
+  index: number,
+  lucreazaWeekend: boolean,
+): IntervalTrimis {
+  const ascunsa = !lucreazaWeekend && INDICI_WEEKEND.has(index);
+  const complet = zi.ora_inceput.length > 0 && zi.ora_sfarsit.length > 0;
+  if (ascunsa || !complet) return { ora_inceput: null, ora_sfarsit: null };
+  return { ora_inceput: zi.ora_inceput, ora_sfarsit: zi.ora_sfarsit };
+}

@@ -1,11 +1,13 @@
 // src/app/(portal)/portal/pontajul-meu/page.tsx
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Clock, CalendarClock } from "lucide-react";
+import { CalendarDays, Clock, CalendarClock, LayoutList } from "lucide-react";
+import { z } from "zod";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { buton } from "@/components/ui/buton";
+import { ComutatorVizualizare } from "@/components/ui/comutator-vizualizare";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -17,8 +19,25 @@ import { pontajulMeu, fisaMea } from "@/lib/queries/portal";
 import { ETICHETE_TIP_ZI } from "../etichete";
 
 import { FaraFisa } from "../fara-fisa";
+import { GrilaLuna } from "./grila-luna";
 
 export const metadata: Metadata = { title: "Pontajul meu" };
+
+/**
+ * Vizualizarea stă în ADRESĂ, nu în stare de client: supraviețuiește
+ * reîncărcării, se poate trimite cuiva prin copy-paste și dă un buton „înapoi”
+ * care funcționează. Același tipar ca `/departamente`.
+ *
+ * `.catch()`, nu `.parse()` strict: o adresă copiată greșit trebuie să cadă pe
+ * implicit, nu să strice ecranul cu o eroare de validare.
+ */
+const VIZUALIZARI = ["lista", "calendar"] as const;
+const vizualizareSchema = z.enum(VIZUALIZARI).catch("lista");
+
+const OPTIUNI_VIZUALIZARE = [
+  { cheie: "lista", eticheta: "Listă", pictograma: LayoutList },
+  { cheie: "calendar", eticheta: "Calendar", pictograma: CalendarDays },
+] as const;
 
 interface ProprietatiPagina {
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -62,6 +81,7 @@ export default async function PaginaPontajulMeu({ searchParams }: ProprietatiPag
   const azi = todayInBucharest();
   const an = anDinUrl(parametri["an"], Number(azi.slice(0, 4)));
   const luna = lunaDinUrl(parametri["luna"], Number(azi.slice(5, 7)));
+  const vizualizare = vizualizareSchema.parse(parametri["vizualizare"]);
 
   const zile = await pontajulMeu(tenant.organizationId, an, luna, propriaFisaId);
 
@@ -78,6 +98,16 @@ export default async function PaginaPontajulMeu({ searchParams }: ProprietatiPag
   // convertită în `Date` alunecă peste graniță în funcție de fus.
   const lunaAnterioara = luna === 1 ? { an: an - 1, luna: 12 } : { an, luna: luna - 1 };
   const lunaUrmatoare = luna === 12 ? { an: an + 1, luna: 1 } : { an, luna: luna + 1 };
+
+  /**
+   * Săgețile de lună construiesc adresa de la zero, deci trebuie să care mai
+   * departe vizualizarea: fără asta, primul „Luna următoare” apăsat din calendar
+   * te arunca înapoi în listă, ceea ce arată exact ca un defect. Aceeași scăpare
+   * era semnalată în scris la comutatorul din `/rapoarte`.
+   */
+  const sufixVizualizare = vizualizare === "lista" ? "" : `&vizualizare=${vizualizare}`;
+  const adresaLuna = (tinta: { readonly an: number; readonly luna: number }) =>
+    `/portal/pontajul-meu?an=${String(tinta.an)}&luna=${String(tinta.luna)}${sufixVizualizare}`;
 
   return (
     <div className={`${LATIMI.lista} space-y-4 p-4`}>
@@ -99,20 +129,27 @@ export default async function PaginaPontajulMeu({ searchParams }: ProprietatiPag
       />
 
       <nav aria-label="Alege luna" className="flex items-center justify-between gap-2">
-        <Link
-          href={`/portal/pontajul-meu?an=${lunaAnterioara.an}&luna=${lunaAnterioara.luna}`}
-          className={buton({ varianta: "secundar" })}
-        >
+        <Link href={adresaLuna(lunaAnterioara)} className={buton({ varianta: "secundar" })}>
           ← Luna anterioară
         </Link>
         <p className="text-foreground text-corp font-medium">{formatMonthYear(an, luna)}</p>
-        <Link
-          href={`/portal/pontajul-meu?an=${lunaUrmatoare.an}&luna=${lunaUrmatoare.luna}`}
-          className={buton({ varianta: "secundar" })}
-        >
+        <Link href={adresaLuna(lunaUrmatoare)} className={buton({ varianta: "secundar" })}>
           Luna următoare →
         </Link>
       </nav>
+
+      {/* Comutatorul rămâne pe ecran și când luna e goală: altfel omul care a
+          ajuns pe o lună fără înregistrări nu mai are de unde să afle că există
+          vederea de calendar. */}
+      <ComutatorVizualizare
+        eticheta="Cum se afișează pontajul"
+        cheieParametru="vizualizare"
+        optiuni={OPTIUNI_VIZUALIZARE}
+        curenta={vizualizare}
+        implicita="lista"
+        parametri={parametri}
+        cale="/portal/pontajul-meu"
+      />
 
       {zile.length === 0 ? (
         <StareGoala
@@ -132,39 +169,46 @@ export default async function PaginaPontajulMeu({ searchParams }: ProprietatiPag
             <Total eticheta="De noapte" valoare={total.noapte} />
           </section>
 
-          <ul className="space-y-2">
-            {zile.map((z) => (
-              <li key={z.id}>
-                {/* Rândul e link doar când ziua chiar se poate edita: o zi venită
-                    din concediu sau dintr-o lună închisă ar duce la un ecran care
-                    explică refuzul, ceea ce e corect — dar un rând care nu
-                    reacționează spune mai bine „nu e nimic de făcut aici". */}
-                <ZiRand data={z.data} editabila={poatePlanifica && z.tip_zi === "lucratoare"}>
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-foreground text-corp font-medium">{formatDate(z.data)}</p>
-                      <p className="text-muted-foreground text-nota">
-                        {ETICHETE_TIP_ZI[z.tip_zi] ?? z.tip_zi}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-foreground text-corp tabular-nums">
-                        {(z.ore_lucrate ?? 0).toLocaleString("ro-RO")} ore
-                      </p>
-                      {(z.ore_suplimentare ?? 0) > 0 ? (
-                        <p className="text-muted-foreground text-nota tabular-nums">
-                          +{(z.ore_suplimentare ?? 0).toLocaleString("ro-RO")} suplimentare
+          {vizualizare === "calendar" ? (
+            <GrilaLuna an={an} luna={luna} zile={zile} poateEdita={poatePlanifica} />
+          ) : (
+            <ul className="space-y-2">
+              {zile.map((z) => (
+                <li key={z.id}>
+                  {/* Rândul e link doar când ziua chiar se poate edita: o zi
+                      venită din concediu sau dintr-o lună închisă ar duce la un
+                      ecran care explică refuzul, ceea ce e corect — dar un rând
+                      care nu reacționează spune mai bine „nu e nimic de făcut
+                      aici". */}
+                  <ZiRand data={z.data} editabila={poatePlanifica && z.tip_zi === "lucratoare"}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-foreground text-corp font-medium">
+                          {formatDate(z.data)}
                         </p>
-                      ) : null}
+                        <p className="text-muted-foreground text-nota">
+                          {ETICHETE_TIP_ZI[z.tip_zi] ?? z.tip_zi}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-foreground text-corp tabular-nums">
+                          {(z.ore_lucrate ?? 0).toLocaleString("ro-RO")} ore
+                        </p>
+                        {(z.ore_suplimentare ?? 0) > 0 ? (
+                          <p className="text-muted-foreground text-nota tabular-nums">
+                            +{(z.ore_suplimentare ?? 0).toLocaleString("ro-RO")} suplimentare
+                          </p>
+                        ) : null}
+                      </div>
                     </div>
-                  </div>
-                  {z.observatii === null ? null : (
-                    <p className="text-muted-foreground text-nota mt-2">{z.observatii}</p>
-                  )}
-                </ZiRand>
-              </li>
-            ))}
-          </ul>
+                    {z.observatii === null ? null : (
+                      <p className="text-muted-foreground text-nota mt-2">{z.observatii}</p>
+                    )}
+                  </ZiRand>
+                </li>
+              ))}
+            </ul>
+          )}
         </>
       )}
     </div>
