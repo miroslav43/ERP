@@ -40,6 +40,7 @@ export default async function PaginaSalarizare() {
   }
 
   const poateCrea = can(permisiuni, "payroll:create", "all");
+  const poateConfigura = can(permisiuni, "payroll:update", "all");
   const perioade = await listeazaPerioade(tenant.organizationId);
 
   /*
@@ -102,14 +103,28 @@ export default async function PaginaSalarizare() {
       <AntetPagina
         titlu="Salarizare"
         descriere="Perioadele de salarizare ale organizației."
+        // „Setări” stătea NEGARDAT, deși `/salarizare/setari` cere
+        // `payroll:update = all` (setari/page.tsx:23) — același defect ca la
+        // pontaj, dar aici încă nu se vede: ecranul cere deja
+        // `payroll:read = all`, iar în seed-ul din 0002 cele trei roluri care
+        // au acea citire (`hr`, `org_admin`, `super_admin`) au toate și
+        // `payroll:update = all`. Garda nu schimbă deci nimic azi — contează
+        // în clipa în care o organizație restrânge `payroll:update` pentru un
+        // rol sau pentru un membru anume (rândurile pe organizație și pe
+        // `member_id` din 0063 bat rândul global). Se pune acum fiindcă atunci
+        // nu se va uita nimeni aici.
+        // „Istoric venituri” rămâne neatins — ținta lui cere tot
+        // `payroll:read`, deci cine a ajuns aici îl poate deschide.
         actiuni={
           <>
             <Link href="/salarizare/istoric-venituri" className={buton({ varianta: "secundar" })}>
               Istoric venituri
             </Link>
-            <Link href="/salarizare/setari" className={buton({ varianta: "secundar" })}>
-              Setări
-            </Link>
+            {poateConfigura ? (
+              <Link href="/salarizare/setari" className={buton({ varianta: "secundar" })}>
+                Setări
+              </Link>
+            ) : null}
           </>
         }
       />
