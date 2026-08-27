@@ -10,14 +10,17 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { todayInBucharest } from "@/lib/format/date";
-import { idFisaProprie } from "@/lib/queries/employees";
+import { angajatiPentruPontaj, idFisaProprie } from "@/lib/queries/employees";
 import { citesteSaptamanaPontaj, setariPontaj } from "@/lib/queries/attendance";
 import { zileNelucratoare } from "@/lib/queries/leave";
 import { adaugaZile, esteLuni, lunieaUrmatoare } from "@/domain/attendance/saptamana";
 
 import { NavPontaj } from "../nav-pontaj";
 import { ETICHETE_STARE_SAPTAMANA, TONURI_STARE_SAPTAMANA, esteZiLucratoare } from "../etichete";
+import type { ConfigZi } from "@/domain/attendance/calcul-ore";
+
 import { FormularSaptamana } from "./formular-saptamana";
+import { AlegeAngajat } from "./alege-angajat";
 
 export const metadata: Metadata = { title: "Planul săptămânii" };
 
@@ -43,18 +46,52 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
     ? saptamanaCeruta
     : lunieaUrmatoare(todayInBucharest());
 
+  // ── PENTRU CINE SE COMPLETEAZĂ SĂPTĂMÂNA (0084) ──────────────────────────
+  // Ecranul era personal prin construcție: citea și scria exclusiv săptămâna
+  // celui care privea. Patronul — `attendance:create = all` — vedea orele
+  // tuturor în foaia colectivă, dar nu putea deschide planul nimănui, nici
+  // măcar ca să-l corecteze; iar dacă n-avea fișă proprie (cazul obișnuit
+  // înainte de 0077), ecranul îi răspundea cu un refuz de ACCES, deși drepturi
+  // avea toate.
+  //
+  // Selectorul se oferă DOAR la scope `all`. La `team`, `app.poate_scrie_pontaj`
+  // ar accepta subalternii, dar lista ar trebui filtrată la subarborele lui —
+  // altfel ecranul arată nume pe care baza le refuză la salvare, adică exact
+  // butonul care se vede și nu funcționează. Se poate adăuga separat.
+  const poateAlegeAngajat = can(permisiuni, "attendance:create", "all");
+  const parametruAngajat = parametri["angajat"];
+  const angajatCerut =
+    poateAlegeAngajat && typeof parametruAngajat === "string" && parametruAngajat.length > 0
+      ? parametruAngajat
+      : null;
+
   const propriaFisaId = await idFisaProprie(tenant.organizationId, user.id);
-  if (propriaFisaId === null) {
+  const fisaTinta = angajatCerut ?? propriaFisaId;
+  const angajati = poateAlegeAngajat ? await angajatiPentruPontaj(tenant.organizationId) : [];
+
+  // Fără fișă proprie ȘI fără drept de a alege pe altcineva nu există nicio
+  // săptămână de arătat. Mesajul spune ce lipsește — o fișă — nu „acces
+  // restricționat", care trimite omul să-și caute drepturi pe care le are.
+  if (fisaTinta === null && !poateAlegeAngajat) {
     return (
-      <AccesRestrictionat mesaj="Contul dvs. nu este legat de o fișă de angajat principală în această organizație." />
+      <AccesRestrictionat mesaj="Contul dvs. nu este legat de o fișă de angajat principală în această organizație, deci nu are o săptămână proprie de planificat. Cereți-i administratorului să vă creeze fișa." />
     );
   }
 
-  const submisie = await citesteSaptamanaPontaj(
-    tenant.organizationId,
-    propriaFisaId,
-    saptamanaStart,
-  );
+  if (fisaTinta === null) {
+    return (
+      <div className="space-y-6">
+        <AntetPagina
+          titlu="Planul săptămânii"
+          descriere="Contul dumneavoastră nu are fișă de angajat proprie, deci nu are nici săptămână proprie. Alegeți angajatul pentru care completați."
+          file={<NavPontaj poateAproba={can(permisiuni, "attendance:approve", "team")} />}
+        />
+        <AlegeAngajat angajati={angajati} selectat={null} saptamanaStart={saptamanaStart} />
+      </div>
+    );
+  }
+
+  const submisie = await citesteSaptamanaPontaj(tenant.organizationId, fisaTinta, saptamanaStart);
 
   /*
    * Implicitul se calcula ca 8 ore „La birou” pentru toate cele ȘAPTE zile,
@@ -89,13 +126,35 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
     return {
       data,
       tip_prezenta: existenta?.tip_prezenta ?? "birou",
-      ore_planificate: String(existenta?.ore_planificate ?? (lucratoare ? orePeZi : 0)),
+      // `time` din Postgres vine ca `"08:30:00"`; `<input type="time">` cere
+      // `"HH:MM"`. O zi nelucrătoare pornete fără interval, nu cu unul presupus.
+      ora_inceput: lucratoare ? (existenta?.ora_inceput?.slice(0, 5) ?? "") : "",
+      ora_sfarsit: lucratoare ? (existenta?.ora_sfarsit?.slice(0, 5) ?? "") : "",
       observatii: existenta?.observatii ?? "",
     };
   });
 
+  // Parametrii după care se derivă orele — aceiași ca la ziua individuală și ca
+  // în `trimiteSaptamanaPontaj`, care rescrie oricum cifra pe server.
+  const config: ConfigZi = {
+    orePeZi,
+    noapteStart: setari?.noapte_start.slice(0, 5) ?? "22:00",
+    noapteSfarsit: setari?.noapte_sfarsit.slice(0, 5) ?? "06:00",
+    pauzaMinute: setari?.pauza_masa_minute ?? 0,
+    pauzaInclusaInProgram: setari?.pauza_masa_inclusa_in_program ?? true,
+    pauzaObligatoriePesteOre: setari?.pauza_obligatorie_peste_ore ?? 0,
+  };
+
+  // Săptămâna deja trimisă își păstrează declarația; una nouă pornete de la ce a
+  // bifat firma în /pontaj/setări (0080).
+  const lucreazaWeekendInitial = submisie?.lucreazaWeekend ?? setari?.lucreaza_weekend ?? false;
+
   const poateEdita = submisie === null || submisie.status !== "aprobata";
   const inceputSaptamanii = new Date(`${saptamanaStart}T00:00:00Z`).toLocaleDateString("ro-RO");
+
+  // Persoana aleasă călătorește prin navigarea între săptămâni; fără ea,
+  // „Săptămâna următoare" ar sări înapoi pe fișa proprie.
+  const contextAngajat = fisaTinta === propriaFisaId ? "" : `&angajat=${fisaTinta}`;
 
   return (
     <div className="space-y-6">
@@ -105,15 +164,19 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
         file={<NavPontaj poateAproba={can(permisiuni, "attendance:approve", "team")} />}
       />
 
+      {poateAlegeAngajat ? (
+        <AlegeAngajat angajati={angajati} selectat={fisaTinta} saptamanaStart={saptamanaStart} />
+      ) : null}
+
       <nav aria-label="Alege săptămâna" className="flex flex-wrap items-center gap-3">
         <Link
-          href={`/pontaj/saptamana?saptamana=${adaugaZile(saptamanaStart, -7)}`}
+          href={`/pontaj/saptamana?saptamana=${adaugaZile(saptamanaStart, -7)}${contextAngajat}`}
           className={buton({ varianta: "secundar" })}
         >
           ← Săptămâna anterioară
         </Link>
         <Link
-          href={`/pontaj/saptamana?saptamana=${adaugaZile(saptamanaStart, 7)}`}
+          href={`/pontaj/saptamana?saptamana=${adaugaZile(saptamanaStart, 7)}${contextAngajat}`}
           className={buton({ varianta: "secundar" })}
         >
           Săptămâna următoare →
@@ -131,10 +194,23 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
         </p>
       ) : null}
 
+      {/*
+        `key` pe săptămână, nu decor: formularul ține zilele în `useState`,
+        inițializat din props. La navigarea pe client către altă săptămână, React
+        găsește același tip de componență în aceeași poziție și REUTILIZEAZĂ
+        instanța — argumentul lui `useState` se citește doar la montare, deci
+        tabelul rămânea pe zilele săptămânii precedente. Antetul se schimba (e
+        randat pe server), tabelul nu, iar butoanele „Anterioară"/„Următoarea"
+        păreau moarte. Cheia schimbată forțează remontarea.
+      */}
       <FormularSaptamana
+        key={saptamanaStart}
         saptamanaStart={saptamanaStart}
         zileInitiale={zileInitiale}
         poateEdita={poateEdita}
+        config={config}
+        lucreazaWeekendInitial={lucreazaWeekendInitial}
+        employeeId={fisaTinta === propriaFisaId ? null : fisaTinta}
       />
     </div>
   );

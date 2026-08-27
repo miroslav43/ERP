@@ -3,6 +3,8 @@
 
 import { createAction } from "@/lib/actions/create-action";
 import { businessRule, notFound } from "@/lib/actions/errors";
+import { oreleZilei } from "@/domain/attendance/calcul-ore";
+import { setariPontaj } from "@/lib/queries/attendance";
 import { decideSaptamanaPontajSchema, trimiteSaptamanaPontajSchema } from "@/schemas/attendance";
 import { traduEroare } from "../erori";
 
@@ -37,11 +39,54 @@ export const trimiteSaptamanaPontaj = createAction<
   },
   revalidate: [...CAI_REVALIDARE],
   handler: async (ctx, input) => {
+    // ── Orele se DERIVĂ din interval, aici, nu se cred de la client ─────────
+    //
+    // Formularul arată orele ca text needitabil. Dacă serverul ar scrie pur și
+    // simplu ce primește, „needitabil" ar fi o decorație de ecran: o cerere
+    // fabricată ar declara 12 ore planificate pe un interval de 4. Aceeași
+    // regulă ca la ziua individuală (`salveazaZiPontaj`), și același
+    // `oreleZilei` — o singură aritmetică a pauzei de masă în tot produsul.
+    //
+    // Setările se citesc o dată pe săptămână, nu o dată pe zi: sunt versionate
+    // pe `valabil_de_la`, iar o săptămână nu traversează o schimbare de
+    // parametri decât în cazuri patologice. `saptamana_start` e data de
+    // referință.
+    const setari = await setariPontaj(ctx.tenant.organizationId, input.saptamana_start);
+    const config = {
+      orePeZi: setari?.ore_pe_zi ?? 8,
+      noapteStart: setari?.noapte_start.slice(0, 5) ?? "22:00",
+      noapteSfarsit: setari?.noapte_sfarsit.slice(0, 5) ?? "06:00",
+      pauzaMinute: setari?.pauza_masa_minute ?? 0,
+      pauzaInclusaInProgram: setari?.pauza_masa_inclusa_in_program ?? true,
+      pauzaObligatoriePesteOre: setari?.pauza_obligatorie_peste_ore ?? 0,
+    };
+
+    const zile = input.zile.map((zi) => {
+      // Fără interval = zi nelucrată (weekend debifat, sărbătoare): zero ore,
+      // nu norma presupusă. Vechiul implicit `8` din RPC e exact ce umplea
+      // sâmbăta și duminica în portal.
+      if (zi.ora_inceput === null || zi.ora_sfarsit === null) {
+        return { ...zi, ora_inceput: null, ora_sfarsit: null, ore_planificate: 0 };
+      }
+      const derivate = oreleZilei(zi.ora_inceput, zi.ora_sfarsit, config);
+      if (derivate === null) {
+        throw businessRule(
+          `Pe ${zi.data}, ora de ieșire trebuie să fie după ora de intrare, în aceeași zi.`,
+        );
+      }
+      return { ...zi, ore_planificate: derivate.lucrate };
+    });
+
     const { data, error } = await ctx.supabase.rpc("trimite_saptamana_pontaj", {
       p_organization_id: ctx.tenant.organizationId,
       p_saptamana_start: input.saptamana_start,
       p_status: input.status,
-      p_zile: input.zile,
+      p_zile: zile,
+      p_lucreaza_weekend: input.lucreaza_weekend,
+      // Cine are `attendance:create = all` completează și pentru altcineva
+      // (0084). `null` înseamnă propria fișă. Autorizarea rămâne în bază, în
+      // `app.poate_scrie_pontaj` — aici nu se decide nimic, doar se transmite.
+      p_employee_id: input.employee_id,
     });
     if (error !== null) traduEroare(error);
     return { id: data };

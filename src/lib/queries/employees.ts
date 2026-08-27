@@ -597,6 +597,34 @@ export async function colegiPentruManager(
   return data ?? [];
 }
 
+/**
+ * Toți angajații pentru care se poate completa un plan de pontaj (0084).
+ *
+ * Aceleași stări ca la `colegiPentruManager` — cine e `plecat` n-are săptămână
+ * de planificat — dar FĂRĂ excludere: patronul trebuie să se regăsească și pe
+ * sine în listă, altfel selectorul îl scoate din propria firmă.
+ *
+ * Nu e o poartă: cine deschide lista tot nu poate SCRIE decât unde îl lasă
+ * `app.poate_scrie_pontaj`. Ecranul o oferă doar la scope `all`, ca să nu
+ * afișeze nume pe care apoi baza le-ar refuza.
+ */
+export async function angajatiPentruPontaj(
+  organizationId: string,
+): Promise<readonly OptiuneColeg[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("employees")
+    .select("id, full_name, marca")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .in("status", ["candidat", "activ", "suspendat", "preaviz"])
+    .order("full_name", { ascending: true })
+    .limit(500)
+    .returns<OptiuneColeg[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
 /** Doar rezumatul mascat — valorile clare se obțin exclusiv prin acțiunea auditată. */
 export async function citesteRezumatDateSensibile(
   organizationId: string,
