@@ -10,6 +10,9 @@
 # problema reapare pe orice mașină nou clonată.
 * text=auto eol=lf
 
-# Singurul binar din repo. `text=auto` l-ar detecta oricum, dar o declarație
+# Binarele din repo: favicon-ul și cele două fonturi DejaVu folosite la
+# generarea PDF-urilor (~1,4 MB). `text=auto` le-ar detecta oricum, după
+# octeții NUL, dar `eol=lf` de mai sus se aplică peste TOT — iar o declarație
 # explicită nu depinde de euristică.
 *.ico binary
+*.ttf binary
