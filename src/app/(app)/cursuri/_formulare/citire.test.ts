@@ -85,7 +85,7 @@ describe("cursul — ce trimite formularul chiar trece prin schemă", () => {
     expect(r.success && r.data.valabilitate_luni).toBeNull();
   });
 
-  it("TERMENUL GOL trece și înseamnă „fără termen” (migrarea 0079)", () => {
+  it("TERMENUL GOL trece și înseamnă „fără termen” (migrarea 0085)", () => {
     const r = creeazaCursSchema.safeParse(citesteCurs(formular({ ...complet, termen_zile: "" })));
     expect(r.success, erori(r).join(", ")).toBe(true);
     expect(r.success && r.data.termen_zile).toBeNull();

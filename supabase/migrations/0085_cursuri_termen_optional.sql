@@ -1,4 +1,10 @@
--- supabase/migrations/0079_cursuri_termen_optional.sql
+-- supabase/migrations/0085_cursuri_termen_optional.sql
+-- Redenumită din 0079: între timp amonte a ocupat 0079-0084 cu migrări de
+-- concedii, pontaj și fișa patronului. Convenția din CLAUDE.md la coliziune e
+-- să îți redenumești PROPRIA migrare. Conținutul e neschimbat și a fost deja
+-- aplicat pe bază sub numele vechi — ordinea reală de aplicare e chiar cea din
+-- numele nou, fiindcă nu atinge nimic din ce ating 0079-0084.
+--
 -- Un curs poate exista FĂRĂ TERMEN.
 --
 -- ── DE CE ────────────────────────────────────────────────────────────────

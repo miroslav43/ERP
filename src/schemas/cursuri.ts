@@ -127,7 +127,7 @@ const campuriCurs = {
    * șirul gol, niciodată `null`, iar `.default(30)` se aplică doar peste
    * `undefined` — de aceea vechea formă refuza exact gestul pe care textul de
    * ajutor de pe ecran îl recomanda. `courses.termen_zile` acceptă NULL de la
-   * migrarea 0079.
+   * migrarea 0085.
    */
   termen_zile: optional(
     z.coerce

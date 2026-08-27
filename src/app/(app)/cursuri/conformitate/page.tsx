@@ -49,7 +49,7 @@ function treaptaCelula(celula: CelulaConformitate | undefined, azi: string): Tre
   }
   if (celula.status === "expirat") return "expirat";
   /*
-   * Un curs atribuit, neînceput și FĂRĂ TERMEN (posibil de la migrarea 0079)
+   * Un curs atribuit, neînceput și FĂRĂ TERMEN (posibil de la migrarea 0085)
    * n-are ce rata, deci nu e nici „curând", nici „critic". Dar nici
    * `neaplicabil` nu e: aia înseamnă „nu i se cere", iar aici i se cere.
    * `in_regula` — nimic nu e în neregulă, dar cursul apare ca nefăcut în
@@ -100,7 +100,7 @@ export default async function PaginaConformitate() {
        * Varianta de dinainte punea `in_regula` și `neaplicabil` la un loc, deci
        * un curs obligatoriu atribuit și NEÎNCEPUT se număra drept acoperit —
        * cifra spunea „toată lumea e în regulă" exact despre oamenii care încă
-       * n-au făcut nimic. Cu termene opționale (0079) cazul ar fi devenit
+       * n-au făcut nimic. Cu termene opționale (0085) cazul ar fi devenit
        * obișnuit, nu marginal.
        */
       if (esteLaZi(celula, treapta)) laZi += 1;
