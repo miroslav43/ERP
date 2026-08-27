@@ -47,9 +47,11 @@ export function TestGrila({
   const [inCurs, porneste] = useTransition();
   const [pas, setPas] = useState(0);
   const [raspunsuri, setRaspunsuri] = useState<Readonly<Record<string, string>>>({});
-  const [rezultat, setRezultat] = useState<
-    Readonly<{ scor: number; promovat: boolean; numar: number }> | null
-  >(null);
+  const [rezultat, setRezultat] = useState<Readonly<{
+    scor: number;
+    promovat: boolean;
+    numar: number;
+  }> | null>(null);
   const [eroare, setEroare] = useState<string | null>(null);
 
   const intrebare = intrebari[pas];
@@ -105,8 +107,8 @@ export function TestGrila({
             {rezultat.promovat ? "Ați trecut testul." : "Nu ați atins pragul de trecere."}
           </p>
           <p className="text-muted-foreground text-corp mt-2">
-            Nota: {rezultat.scor.toFixed(0)} din 100. Pragul de trecere:{" "}
-            {pragTest.toFixed(0)}. Încercarea {rezultat.numar}.
+            Nota: {rezultat.scor.toFixed(0)} din 100. Pragul de trecere: {pragTest.toFixed(0)}.
+            Încercarea {rezultat.numar}.
           </p>
         </div>
 

@@ -64,8 +64,7 @@ export const ETICHETE_TREAPTA: Readonly<Record<CursTreaptaDovada, string>> = {
 /** Ce înseamnă fiecare treaptă, scris pentru administratorul care alege. */
 export const EXPLICATII_TREAPTA: Readonly<Record<CursTreaptaDovada, string>> = {
   bifa: "Angajatul apasă „Am parcurs”. Cel mai simplu, fără dovadă.",
-  parcurgere:
-    "Se măsoară cât din film a fost urmărit. Doar pentru filme încărcate în aplicație.",
+  parcurgere: "Se măsoară cât din film a fost urmărit. Doar pentru filme încărcate în aplicație.",
   test: "Angajatul dă un test grilă și trebuie să treacă un prag.",
   declaratie:
     "Angajatul își scrie numele și asumă un text. Se înregistrează data, adresa IP și versiunea materialului.",

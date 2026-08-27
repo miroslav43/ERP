@@ -53,8 +53,7 @@ export type LinkExtern = Readonly<{
 }>;
 
 export type RezultatLink =
-  | Readonly<{ ok: true; link: LinkExtern }>
-  | Readonly<{ ok: false; motiv: string }>;
+  Readonly<{ ok: true; link: LinkExtern }> | Readonly<{ ok: false; motiv: string }>;
 
 function gazdaFurnizor(hostname: string): FurnizorLink | null {
   const gazda = hostname.toLowerCase();

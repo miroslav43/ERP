@@ -64,7 +64,11 @@ export default async function PaginaCurs({
         firimituri={[{ eticheta: "Cursuri", href: "/cursuri" }, { eticheta: curs.denumire }]}
         actiuni={
           <div className="flex flex-wrap gap-2">
-            {curs.publicat ? <Badge ton="succes">Publicat</Badge> : <Badge ton="ciorna">Ciornă</Badge>}
+            {curs.publicat ? (
+              <Badge ton="succes">Publicat</Badge>
+            ) : (
+              <Badge ton="ciorna">Ciornă</Badge>
+            )}
             <Link href={`/cursuri/${cursId}/stadiu`} className={buton({ varianta: "secundar" })}>
               Stadiu
             </Link>

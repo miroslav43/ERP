@@ -95,7 +95,9 @@ describe("potrivesteSemnatura — MIME-ul din formular nu e o dovadă", () => {
 
   it("recunoaşte PDF, MP4, WebM şi WebVTT", () => {
     expect(potrivesteSemnatura("application/pdf", octeti(0x25, 0x50, 0x44, 0x46))).toBe(true);
-    expect(potrivesteSemnatura("video/mp4", octeti(0, 0, 0, 0x20, 0x66, 0x74, 0x79, 0x70))).toBe(true);
+    expect(potrivesteSemnatura("video/mp4", octeti(0, 0, 0, 0x20, 0x66, 0x74, 0x79, 0x70))).toBe(
+      true,
+    );
     expect(potrivesteSemnatura("video/webm", octeti(0x1a, 0x45, 0xdf, 0xa3))).toBe(true);
     expect(potrivesteSemnatura("text/vtt", octeti(0x57, 0x45, 0x42, 0x56, 0x54, 0x54))).toBe(true);
   });

@@ -120,7 +120,9 @@ export function VizualizatorVideo({
   const stareLectie: Lectie = { ...lectie, status, secundeVizionate: secunde };
   const poate = esteFinalizabila(stareLectie);
   const necesar =
-    lectie.treaptaDovada === "parcurgere" && lectie.durataSecunde !== null && lectie.procentMinim !== null
+    lectie.treaptaDovada === "parcurgere" &&
+    lectie.durataSecunde !== null &&
+    lectie.procentMinim !== null
       ? secundeNecesare(lectie.durataSecunde, lectie.procentMinim)
       : null;
 
@@ -245,9 +247,7 @@ export function VizualizatorVideo({
             </Buton>
             {/* Butonul dezactivat are MEREU motivul scris sub el. Unul mut e
                 la fel de rău ca unul care eșuează. */}
-            {poate.poate ? null : (
-              <p className="text-muted-foreground text-nota">{poate.motiv}</p>
-            )}
+            {poate.poate ? null : <p className="text-muted-foreground text-nota">{poate.motiv}</p>}
           </div>
         </BaraActiuni>
       )}

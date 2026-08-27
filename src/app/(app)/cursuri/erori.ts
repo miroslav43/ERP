@@ -23,9 +23,7 @@ import { businessRule, isPostgrestError } from "@/lib/actions/errors";
 export function traduEroare(error: unknown): never {
   if (isPostgrestError(error)) {
     if (error.code === "23505") {
-      throw businessRule(
-        "Există deja un curs sau un material cu acest cod. Alegeți altul.",
-      );
+      throw businessRule("Există deja un curs sau un material cu acest cod. Alegeți altul.");
     }
     if (error.code === "23514") {
       throw businessRule(

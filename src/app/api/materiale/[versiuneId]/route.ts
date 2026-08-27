@@ -52,7 +52,8 @@ export async function GET(cerere: Request, { params }: ProprietatiRuta): Promise
   const vreaSubtitrarea = url.searchParams.get("subtitrare") === "1";
 
   const rezolvare = await resolveTenant();
-  if (rezolvare.status === "neautentificat") return raspunsText("Trebuie să vă autentificați.", 401);
+  if (rezolvare.status === "neautentificat")
+    return raspunsText("Trebuie să vă autentificați.", 401);
   if (rezolvare.status !== "ok") return raspunsText("Alegeți mai întâi o organizație.", 403);
 
   // Citirea trece prin RLS. Dacă rândul nu vine — pentru că nu e al firmei sau

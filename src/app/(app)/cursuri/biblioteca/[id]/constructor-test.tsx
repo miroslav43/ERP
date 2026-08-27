@@ -82,10 +82,9 @@ export function ConstructorTest({ versiuneId, pragTest, initiale }: Proprietati)
   return (
     <div className="space-y-4">
       <Callout fel="informativ" titlu="Cum se trece testul">
-        Angajatul trebuie să obțină cel puțin {pragTest.toFixed(0)} din 100. Nota o
-        calculează baza, din răspunsurile corecte alese aici — ele nu ajung
-        niciodată în browserul lui. Reîncercările sunt nelimitate și se
-        păstrează toate.
+        Angajatul trebuie să obțină cel puțin {pragTest.toFixed(0)} din 100. Nota o calculează baza,
+        din răspunsurile corecte alese aici — ele nu ajung niciodată în browserul lui. Reîncercările
+        sunt nelimitate și se păstrează toate.
       </Callout>
 
       {intrebari.length === 0 ? (

@@ -30,13 +30,7 @@ interface Proprietati {
   readonly deja: readonly string[];
 }
 
-export function FormularAtribuire({
-  cursId,
-  denumire,
-  termenZile,
-  angajati,
-  deja,
-}: Proprietati) {
+export function FormularAtribuire({ cursId, denumire, termenZile, angajati, deja }: Proprietati) {
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
   const [cauta, setCauta] = useState("");

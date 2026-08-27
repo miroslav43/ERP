@@ -207,7 +207,10 @@ export function ConstructorCurs({
                 return (
                   <li key={material.id} className="flex items-center gap-3 p-3">
                     {material.fel === "pdf" ? (
-                      <FileText className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
+                      <FileText
+                        className="text-muted-foreground size-4 shrink-0"
+                        aria-hidden="true"
+                      />
                     ) : (
                       <Film className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
                     )}

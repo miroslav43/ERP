@@ -132,7 +132,9 @@ export default async function PaginaCursuri({
 
       <BaraFiltre
         active={[
-          ...(filtre.cauta === null ? [] : [{ cheie: "cauta", eticheta: `Caută: ${filtre.cauta}` }]),
+          ...(filtre.cauta === null
+            ? []
+            : [{ cheie: "cauta", eticheta: `Caută: ${filtre.cauta}` }]),
           ...(filtre.doar_publicate === "da"
             ? [{ cheie: "doar_publicate", eticheta: "Doar publicate" }]
             : []),
@@ -151,7 +153,11 @@ export default async function PaginaCursuri({
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-eticheta text-muted-foreground uppercase">Stare</span>
-          <select name="doar_publicate" defaultValue={filtre.doar_publicate ?? ""} className={clasaControl()}>
+          <select
+            name="doar_publicate"
+            defaultValue={filtre.doar_publicate ?? ""}
+            className={clasaControl()}
+          >
             <option value="">Toate</option>
             <option value="da">Doar publicate</option>
           </select>
@@ -186,9 +192,7 @@ export default async function PaginaCursuri({
         total={total}
         cursorUrmator={urmatorulCursor}
         limita={filtre.limita}
-        construiesteHref={({ cursor, limita }) =>
-          href({ cursor, limita: String(limita) })
-        }
+        construiesteHref={({ cursor, limita }) => href({ cursor, limita: String(limita) })}
       />
     </div>
   );

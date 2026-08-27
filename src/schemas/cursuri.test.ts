@@ -70,7 +70,12 @@ describe("materialul — oglinda lui course_materials_*_ck", () => {
 
   it("un film propriu cu procent trece", () => {
     const r = creeazaMaterialSchema.safeParse(
-      material({ fel: "video", sursa: "fisier", treapta_dovada: "parcurgere", procent_minim: "80" }),
+      material({
+        fel: "video",
+        sursa: "fisier",
+        treapta_dovada: "parcurgere",
+        procent_minim: "80",
+      }),
     );
     expect(r.success).toBe(true);
   });
@@ -80,10 +85,13 @@ describe("materialul — oglinda lui course_materials_*_ck", () => {
       campuri(creeazaMaterialSchema.safeParse(material({ treapta_dovada: "test" }))),
     ).toContain("prag_test");
     expect(
-      campuri(creeazaMaterialSchema.safeParse(material({ treapta_dovada: "bifa", prag_test: "70" }))),
+      campuri(
+        creeazaMaterialSchema.safeParse(material({ treapta_dovada: "bifa", prag_test: "70" })),
+      ),
     ).toContain("prag_test");
     expect(
-      creeazaMaterialSchema.safeParse(material({ treapta_dovada: "test", prag_test: "70" })).success,
+      creeazaMaterialSchema.safeParse(material({ treapta_dovada: "test", prag_test: "70" }))
+        .success,
     ).toBe(true);
   });
 
@@ -101,7 +109,9 @@ describe("materialul — oglinda lui course_materials_*_ck", () => {
   });
 
   it("codul refuză majuscule și spații — intră în calea din Storage", () => {
-    expect(creeazaMaterialSchema.safeParse(material({ cod: "Regulament Intern" })).success).toBe(false);
+    expect(creeazaMaterialSchema.safeParse(material({ cod: "Regulament Intern" })).success).toBe(
+      false,
+    );
   });
 
   it("toate cele patru trepte se pot alege", () => {
@@ -124,10 +134,12 @@ describe("testul grilă — oglinda cheii de răspuns", () => {
   });
 
   it("o întrebare validă trece", () => {
-    expect(salveazaTestSchema.safeParse({
-      version_id: "8b867d05-d4c0-4a42-9bc7-ce21abe20ac4",
-      intrebari: [intrebare()],
-    }).success).toBe(true);
+    expect(
+      salveazaTestSchema.safeParse({
+        version_id: "8b867d05-d4c0-4a42-9bc7-ce21abe20ac4",
+        intrebari: [intrebare()],
+      }).success,
+    ).toBe(true);
   });
 
   it("varianta corectă trebuie să existe printre variante", () => {
@@ -195,13 +207,18 @@ describe("regula de atribuire — oglinda lui course_assignment_rules_criteriu_c
       expect(campuri(fara), criteriu).toContain(camp);
 
       // Cu ținta lui: trece.
-      expect(creeazaRegulaSchema.safeParse(regula({ criteriu, [camp]: TINTA })).success, criteriu).toBe(true);
+      expect(
+        creeazaRegulaSchema.safeParse(regula({ criteriu, [camp]: TINTA })).success,
+        criteriu,
+      ).toBe(true);
     }
   });
 
   it("criteriul „rol” cere rolul", () => {
     expect(creeazaRegulaSchema.safeParse(regula({ criteriu: "rol" })).success).toBe(false);
-    expect(creeazaRegulaSchema.safeParse(regula({ criteriu: "rol", rol: "manager" })).success).toBe(true);
+    expect(creeazaRegulaSchema.safeParse(regula({ criteriu: "rol", rol: "manager" })).success).toBe(
+      true,
+    );
   });
 
   it("o țintă străină de criteriu e refuzată — altfel regula ar prinde alt set de oameni", () => {

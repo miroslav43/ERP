@@ -50,7 +50,9 @@ describe("analizeazaLink — ce refuză", () => {
   });
 
   it("respinge credențialele din adresă", () => {
-    expect(analizeazaLink("https://user:parola@www.youtube.com/watch?v=dQw4w9WgXcQ").ok).toBe(false);
+    expect(analizeazaLink("https://user:parola@www.youtube.com/watch?v=dQw4w9WgXcQ").ok).toBe(
+      false,
+    );
   });
 
   it("respinge identificatorul de lungime greșită", () => {
@@ -65,7 +67,12 @@ describe("analizeazaLink — ce refuză", () => {
   });
 
   it("fiecare refuz e o propoziție care se termină cu punct", () => {
-    for (const intrare of ["", "nu e url", "http://youtube.com/watch?v=dQw4w9WgXcQ", "https://x.ro/a"]) {
+    for (const intrare of [
+      "",
+      "nu e url",
+      "http://youtube.com/watch?v=dQw4w9WgXcQ",
+      "https://x.ro/a",
+    ]) {
       const r = analizeazaLink(intrare);
       expect(r.ok).toBe(false);
       expect(r.ok === false && /[.”]$/.test(r.motiv)).toBe(true);
@@ -77,7 +84,9 @@ describe("adresele reconstruite din șablon", () => {
   it("YouTube merge prin nocookie și fără parametri moșteniți", () => {
     const link = ok("https://www.youtube.com/watch?v=dQw4w9WgXcQ&autoplay=1&enablejsapi=1");
     const adresa = adresaIncorporare(link);
-    expect(adresa).toBe("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1");
+    expect(adresa).toBe(
+      "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1",
+    );
     // Parametrii ostili din intrare nu supraviețuiesc reconstrucției.
     expect(adresa).not.toContain("autoplay");
     expect(adresa).not.toContain("enablejsapi");
@@ -91,8 +100,11 @@ describe("adresele reconstruite din șablon", () => {
 
   it("toate adresele construite rămân pe gazde cunoscute", () => {
     const gazdePermise = [
-      "www.youtube-nocookie.com", "player.vimeo.com", "www.loom.com",
-      "www.youtube.com", "vimeo.com",
+      "www.youtube-nocookie.com",
+      "player.vimeo.com",
+      "www.loom.com",
+      "www.youtube.com",
+      "vimeo.com",
     ];
     for (const intrare of [
       "https://youtu.be/dQw4w9WgXcQ",

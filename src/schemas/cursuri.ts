@@ -34,7 +34,12 @@ export type CursTreaptaDovada = (typeof CURS_TREAPTA_DOVADA_TOATE)[number];
  * grilă n-avea ecrane: un material salvat cu treapta `test` ar fi fost imposibil
  * de închis de angajat. De la 0077, toate patru sunt reale.
  */
-export const CURS_TREAPTA_DOVADA = ["bifa", "parcurgere", "test", "declaratie"] as const satisfies readonly CursTreaptaDovada[];
+export const CURS_TREAPTA_DOVADA = [
+  "bifa",
+  "parcurgere",
+  "test",
+  "declaratie",
+] as const satisfies readonly CursTreaptaDovada[];
 export type CursTreaptaOferita = (typeof CURS_TREAPTA_DOVADA)[number];
 
 export const CURS_STATUS = ["neinceput", "in_curs", "finalizat", "expirat", "anulat"] as const;
@@ -266,10 +271,7 @@ const campuriMaterial = {
       .max(100, "Procentul are cel mult 100."),
   ),
   prag_test: optional(
-    z.coerce
-      .number()
-      .min(1, "Nota minimă e cel puțin 1.")
-      .max(100, "Nota minimă e cel mult 100."),
+    z.coerce.number().min(1, "Nota minimă e cel puțin 1.").max(100, "Nota minimă e cel mult 100."),
   ),
   /*
    * Aceeași formă ca `optional()`, nu `.min(10)` urmat de `.transform()`:
@@ -410,7 +412,6 @@ export const semneazaLectieSchema = z.object({
   confirmare: z.literal(true, "Bifați confirmarea pentru a semna."),
 });
 export type SemneazaLectieInput = z.output<typeof semneazaLectieSchema>;
-
 
 // ── Testul grilă (0077) ────────────────────────────────────────────────────
 
