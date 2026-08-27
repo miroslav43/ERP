@@ -2655,7 +2655,7 @@ export type Database = {
           prag_avertizare_zile: number
           publicat: boolean
           publicat_la: string | null
-          termen_zile: number
+          termen_zile: number | null
           updated_at: string
           updated_by: string | null
           valabilitate_luni: number | null
@@ -2674,7 +2674,7 @@ export type Database = {
           prag_avertizare_zile?: number
           publicat?: boolean
           publicat_la?: string | null
-          termen_zile?: number
+          termen_zile?: number | null
           updated_at?: string
           updated_by?: string | null
           valabilitate_luni?: number | null
@@ -2693,7 +2693,7 @@ export type Database = {
           prag_avertizare_zile?: number
           publicat?: boolean
           publicat_la?: string | null
-          termen_zile?: number
+          termen_zile?: number | null
           updated_at?: string
           updated_by?: string | null
           valabilitate_luni?: number | null

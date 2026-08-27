@@ -2,6 +2,7 @@
 // Validările de intrare pentru modulul de diurnă: deplasări, etape, cheltuieli, filtre.
 
 import { z } from "zod";
+import { optional, textOptional } from "./comun";
 
 // ── Enumerări în oglindă cu tipurile din 0015_per_diem.sql ───────────────────
 
@@ -50,15 +51,6 @@ export type RegulaTrecereFrontiera = (typeof REGULI_TRECERE_FRONTIERA)[number];
 
 const RE_DATA = /^\d{4}-\d{2}-\d{2}$/u;
 
-const textOptional = (maxim: number) =>
-  z
-    .string()
-    .trim()
-    .max(maxim, `Textul nu poate depăși ${String(maxim)} de caractere.`)
-    .nullable()
-    .default(null)
-    .transform((v) => (v === null || v.length === 0 ? null : v));
-
 const uuidOptional = z
   .string()
   .trim()
@@ -86,11 +78,6 @@ const numarOptional = (min: number, max: number) =>
  * `schema.safeParse({})` când query string-ul e nevalid, iar fără valori
  * implicite peste tot, revenirea ar eșua și ea.
  */
-const optional = <T extends z.ZodTypeAny>(schema: T) =>
-  z
-    .union([schema, z.literal(""), z.undefined()])
-    .transform((v) => (v === "" || v === undefined ? null : v))
-    .default(null as never);
 
 /**
  * Coloanele după care lista de deplasări se poate sorta.

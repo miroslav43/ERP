@@ -22,6 +22,7 @@ import type { CursCriteriu } from "@/schemas/cursuri";
 import { CURS_CRITERIU } from "@/schemas/cursuri";
 
 import { aplicaRegulile, creeazaRegula, stergeRegula } from "../../actions";
+import { intrareRegula } from "../../_formulare/citire";
 
 const ETICHETE_CRITERIU: Readonly<Record<CursCriteriu, string>> = {
   toti: "Toți angajații",
@@ -103,16 +104,7 @@ export function ReguliCurs({
   const adauga = useCallback((): void => {
     ruleaza(
       () =>
-        creeazaRegula({
-          course_id: cursId,
-          criteriu,
-          department_id: criteriu === "departament" ? tinta : null,
-          job_position_id: criteriu === "functie" ? tinta : null,
-          rol: criteriu === "rol" ? tinta : null,
-          employee_id: criteriu === "angajat" ? tinta : null,
-          decalaj_zile: decalaj,
-          termen_zile: null,
-        }),
+        creeazaRegula(intrareRegula({ cursId, criteriu, tinta, decalaj })),
       "Regula a fost adăugată.",
     );
     setTinta("");
@@ -284,7 +276,36 @@ export function ReguliCurs({
         inCurs={inCurs}
         laConfirmare={() => {
           setConfirmaAplicarea(false);
-          ruleaza(() => aplicaRegulile({ course_id: cursId }), "Regulile au fost aplicate.");
+          /*
+           * NU prin `ruleaza`: acela afișează toastul verde necondiționat, iar
+           * `aplicaRegulile` poate întoarce `{ atribuite: 0 }` când nimeni nu
+           * se potrivește. O confirmare verde peste zero atribuiri e o minciună
+           * — omul crede că a rezolvat ceva și nu se mai uită.
+           */
+          setEroare(null);
+          porneste(async () => {
+            const rezultat = await aplicaRegulile({ course_id: cursId });
+            if (!rezultat.ok) {
+              setEroare(rezultat.error.message);
+              return;
+            }
+            const { atribuite, esuate } = rezultat.data;
+            arataToast(
+              atribuite === 0
+                ? {
+                    fel: "informativ",
+                    text: "Nicio atribuire nouă: toți cei care se potrivesc au deja cursul.",
+                  }
+                : {
+                    fel: "reusita",
+                    text:
+                      esuate === 0
+                        ? `Cursul a fost atribuit la ${String(atribuite)} ${atribuite === 1 ? "persoană" : "persoane"}.`
+                        : `Atribuit la ${String(atribuite)}; ${String(esuate)} au fost sărite.`,
+                  },
+            );
+            router.refresh();
+          });
         }}
       />
     </div>

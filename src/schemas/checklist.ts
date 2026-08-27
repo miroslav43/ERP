@@ -3,6 +3,7 @@
 // Server Actions și schema conținutului json din dovada de parcurgere.
 
 import { z } from "zod";
+import { optional, textOptional } from "./comun";
 
 // ── Enumerări în oglindă cu tipurile din 0014_checklist.sql ──────────────────
 
@@ -58,20 +59,6 @@ export type RolResponsabil = (typeof ROLURI_RESPONSABIL)[number];
  * `filtreDinUrl()` revine la `schema.safeParse({})` când query string-ul e
  * nevalid; fără valori implicite peste tot, revenirea ar eșua și ea.
  */
-const optional = <T extends z.ZodTypeAny>(schema: T) =>
-  z
-    .union([schema, z.literal(""), z.undefined()])
-    .transform((v) => (v === "" || v === undefined ? null : v))
-    .default(null as never);
-
-const textOptional = (maxim: number) =>
-  z
-    .string()
-    .trim()
-    .max(maxim, `Textul nu poate depăși ${String(maxim)} de caractere.`)
-    .nullable()
-    .default(null)
-    .transform((v) => (v === null || v.length === 0 ? null : v));
 
 const listaStatusuriOptionala = z
   .string()

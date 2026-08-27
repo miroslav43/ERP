@@ -1,16 +1,8 @@
 // src/schemas/evaluation.ts
 import { z } from "zod";
+import { textOptional } from "./comun";
 
 import { MAXIM_CRITERII, SCALE_PERMISE, TIPURI_CRITERIU } from "@/domain/evaluations/criterii";
-
-const textOptional = (maxim: number) =>
-  z
-    .string()
-    .trim()
-    .max(maxim, `Textul nu poate depăși ${String(maxim)} de caractere.`)
-    .nullable()
-    .default(null)
-    .transform((valoare) => (valoare === null || valoare.length === 0 ? null : valoare));
 
 export const STATUSURI_EVALUARE = ["draft", "finalizat"] as const;
 export type StatusEvaluare = (typeof STATUSURI_EVALUARE)[number];

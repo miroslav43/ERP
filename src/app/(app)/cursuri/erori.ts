@@ -2,7 +2,7 @@
 // Traducerea codurilor Postgres specifice modulului de cursuri — separat de
 // traducerea generică din `src/lib/actions/errors.ts`.
 
-import { businessRule, isPostgrestError } from "@/lib/actions/errors";
+import { businessRule, invalidInput, isPostgrestError } from "@/lib/actions/errors";
 
 /**
  * Triggerele din 0075 ridică P0001 cu texte deja scrise pentru utilizatorul
@@ -23,7 +23,15 @@ import { businessRule, isPostgrestError } from "@/lib/actions/errors";
 export function traduEroare(error: unknown): never {
   if (isPostgrestError(error)) {
     if (error.code === "23505") {
-      throw businessRule("Există deja un curs sau un material cu acest cod. Alegeți altul.");
+      /*
+       * `invalidInput`, nu `businessRule`: al doilea n-are `fieldErrors`, deci
+       * mesajul ateriza ca un Callout în CAPUL formularului, câmpul „Cod" nu
+       * primea `aria-invalid`, iar efectul care mută focusul pe primul câmp
+       * invalid n-avea ce găsi. Contrazice exact rațiunea lui `<Camp>`, scrisă
+       * în `components/ui/camp.tsx:13-18`.
+       */
+      const mesaj = "Există deja un curs sau un material cu acest cod. Alegeți altul.";
+      throw invalidInput(mesaj, { cod: [mesaj] });
     }
     if (error.code === "23514") {
       throw businessRule(

@@ -1,5 +1,6 @@
 // src/schemas/attendance.ts
 import { z } from "zod";
+import { optional, textOptional } from "./comun";
 
 import { todayInBucharest } from "@/lib/format/date";
 
@@ -40,23 +41,6 @@ export type SursaIntrare = (typeof SURSE_INTRARE)[number];
  * nevalid; fără valori implicite peste tot, revenirea ar eșua și ea, iar
  * utilizatorul ar primi ecranul de eroare pentru un `?limita=abc`.
  */
-const optional = <T extends z.ZodTypeAny>(schema: T) =>
-  z
-    .union([schema, z.literal(""), z.undefined()])
-    .transform((v) => (v === "" || v === undefined ? null : v))
-    .default(null as never);
-
-/**
- * Text opțional venit dintr-un formular (nu din URL): șirul gol devine `null`.
- */
-const textOptional = (maxim: number) =>
-  z
-    .string()
-    .trim()
-    .max(maxim, `Textul nu poate depăși ${String(maxim)} de caractere.`)
-    .nullable()
-    .default(null)
-    .transform((valoare) => (valoare === null || valoare.length === 0 ? null : valoare));
 
 /** `"08:30"` — format `<input type="time">`. Postgres `time` acceptă șirul ca atare. */
 const oraOptionala = z

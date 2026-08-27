@@ -7,6 +7,7 @@
 // P0001 ajunsă în interfață e o poartă lipsă, nu o validare.
 
 import { z } from "zod";
+import { optional, textOptional } from "./comun";
 
 import { FURNIZORI_LINK } from "@/lib/media/link-extern";
 
@@ -55,21 +56,6 @@ export const CURS_MOTIV = ["manual", "regula", "recertificare"] as const;
 export type CursMotiv = (typeof CURS_MOTIV)[number];
 
 // ── Ajutoare, aceleași ca în `schemas/checklist.ts` ─────────────────────────
-
-const optional = <T extends z.ZodTypeAny>(schema: T) =>
-  z
-    .union([schema, z.literal(""), z.undefined()])
-    .transform((v) => (v === "" || v === undefined ? null : v))
-    .default(null as never);
-
-const textOptional = (maxim: number) =>
-  z
-    .string()
-    .trim()
-    .max(maxim, `Textul nu poate depăși ${String(maxim)} de caractere.`)
-    .nullable()
-    .default(null)
-    .transform((v) => (v === null || v.length === 0 ? null : v));
 
 const cod = z
   .string()
@@ -136,18 +122,32 @@ const campuriCurs = {
       .min(1, "Valabilitatea are cel puțin o lună.")
       .max(120, "Valabilitatea are cel mult 120 de luni."),
   ),
-  termen_zile: z.coerce
-    .number()
-    .int()
-    .min(1, "Termenul are cel puțin o zi.")
-    .max(365, "Termenul are cel mult 365 de zile.")
-    .default(30),
-  prag_avertizare_zile: z.coerce
-    .number()
-    .int()
-    .min(1, "Preavizul are cel puțin o zi.")
-    .max(180, "Preavizul are cel mult 180 de zile.")
-    .default(30),
+  /*
+   * Gol = FĂRĂ TERMEN. `FormData.get()` pe un câmp randat dar golit întoarce
+   * șirul gol, niciodată `null`, iar `.default(30)` se aplică doar peste
+   * `undefined` — de aceea vechea formă refuza exact gestul pe care textul de
+   * ajutor de pe ecran îl recomanda. `courses.termen_zile` acceptă NULL de la
+   * migrarea 0079.
+   */
+  termen_zile: optional(
+    z.coerce
+      .number()
+      .int()
+      .min(1, "Termenul are cel puțin o zi.")
+      .max(365, "Termenul are cel mult 365 de zile."),
+  ),
+  /*
+   * Preavizul, în schimb, rămâne `not null` în bază: e o preferință de afișare,
+   * nu o proprietate a cursului. Golit, revine la 30 — dar prin `optional()`,
+   * nu prin `.default()`, ca șirul gol să nu mai ajungă la coerciție.
+   */
+  prag_avertizare_zile: optional(
+    z.coerce
+      .number()
+      .int()
+      .min(1, "Preavizul are cel puțin o zi.")
+      .max(180, "Preavizul are cel mult 180 de zile."),
+  ).transform((v) => v ?? 30),
 };
 
 export const creeazaCursSchema = z.object(campuriCurs);

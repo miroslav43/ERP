@@ -17,6 +17,7 @@ import { Formular } from "@/components/ui/formular";
 import { analizeazaLink, ETICHETE_FURNIZOR } from "@/lib/media/link-extern";
 
 import { salveazaVersiuneLink } from "../../actions";
+import { citesteVersiuneLink } from "../../_formulare/citire";
 
 export function FormularLink({ materialId }: { readonly materialId: string }) {
   const router = useRouter();
@@ -32,12 +33,7 @@ export function FormularLink({ materialId }: { readonly materialId: string }) {
   return (
     <Formular
       actiune={async (date) =>
-        salveazaVersiuneLink({
-          material_id: materialId,
-          adresa: String(date.get("adresa") ?? ""),
-          durata_secunde: String(date.get("durata_secunde") ?? ""),
-          nota_versiune: String(date.get("nota_versiune") ?? ""),
-        })
+        salveazaVersiuneLink(citesteVersiuneLink(date, materialId))
       }
       laReusita={laReusita}
       mesajReusita="Linkul a fost salvat."

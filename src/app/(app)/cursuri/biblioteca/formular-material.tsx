@@ -17,30 +17,18 @@ import { Formular } from "@/components/ui/formular";
 import { CURS_TREAPTA_DOVADA } from "@/schemas/cursuri";
 
 import { creeazaMaterial } from "../actions";
+import { citesteMaterial } from "../_formulare/citire";
 import { ETICHETE_TREAPTA, EXPLICATII_TREAPTA } from "../etichete";
 
-function citeste(date: FormData) {
-  const procent = String(date.get("procent_minim") ?? "");
-  const prag = String(date.get("prag_test") ?? "");
-  return {
-    cod: String(date.get("cod") ?? ""),
-    titlu: String(date.get("titlu") ?? ""),
-    descriere: String(date.get("descriere") ?? ""),
-    fel: String(date.get("fel") ?? "pdf"),
-    sursa: String(date.get("sursa") ?? "fisier"),
-    treapta_dovada: String(date.get("treapta_dovada") ?? "bifa"),
-    procent_minim: procent === "" ? null : procent,
-    prag_test: prag === "" ? null : prag,
-    declaratie_text: String(date.get("declaratie_text") ?? ""),
-    transcriere: String(date.get("transcriere") ?? ""),
-  };
-}
 
 export function FormularMaterialNou() {
   const router = useRouter();
   const [deschis, setDeschis] = useState(false);
   const [treapta, setTreapta] = useState<string>("bifa");
   const [fel, setFel] = useState<string>("pdf");
+  const [sursa, setSursa] = useState<string>("fisier");
+  /** Parcurgerea se poate măsura doar pe un film pe care îl deținem. */
+  const seMasoara = fel === "video" && sursa === "fisier";
   const idFormular = useId();
   const idc = (sufix: string): string => `${idFormular}-${sufix}`;
 
@@ -74,7 +62,7 @@ export function FormularMaterialNou() {
         marime="lucru"
       >
         <Formular
-          actiune={async (date) => creeazaMaterial(citeste(date))}
+          actiune={async (date) => creeazaMaterial(citesteMaterial(date))}
           laReusita={laReusita}
           mesajReusita="Materialul a fost creat."
           className="grid gap-4 sm:grid-cols-2"
@@ -128,6 +116,8 @@ export function FormularMaterialNou() {
                     value={fel}
                     onChange={(e) => {
                       setFel(e.target.value);
+                      // `course_materials_pdf_ck`: un PDF vine mereu din fișier.
+                      if (e.target.value === "pdf") setSursa("fisier");
                       // Parcurgerea măsurată există doar la filme; dacă omul
                       // trece pe document, treapta se retrage singură, ca să nu
                       // trimită o combinație pe care baza o refuză.
@@ -150,7 +140,23 @@ export function FormularMaterialNou() {
                 erori={stare.erori["sursa"] ?? []}
               >
                 {(a) => (
-                  <select {...a} defaultValue="fisier" disabled={fel === "pdf"}>
+                  <select
+                    {...a}
+                    /*
+                     * Controlat, nu `defaultValue`: un `<select disabled>` nu se
+                     * trimite în `FormData`, deci la un refuz „Link extern" se
+                     * pierdea și revenea „Încărcat în aplicație", tăcut.
+                     */
+                    value={sursa}
+                    disabled={fel === "pdf"}
+                    onChange={(e) => {
+                      setSursa(e.target.value);
+                      // Parcurgerea măsurată e imposibilă la un film extern:
+                      // filmul rulează la furnizor, care nu ne spune cât s-a
+                      // văzut. Treapta se retrage aici, nu abia la server.
+                      if (e.target.value === "link" && treapta === "parcurgere") setTreapta("bifa");
+                    }}
+                  >
                     <option value="fisier">Încărcat în aplicație</option>
                     <option value="link">Link extern (YouTube, Vimeo, Loom)</option>
                   </select>
@@ -175,9 +181,18 @@ export function FormularMaterialNou() {
                     }}
                   >
                     {CURS_TREAPTA_DOVADA.map((t) => (
-                      <option key={t} value={t} disabled={t === "parcurgere" && fel !== "video"}>
+                      <option key={t} value={t} disabled={t === "parcurgere" && !seMasoara}>
                         {ETICHETE_TREAPTA[t]}
+                        {/*
+                          Motivul, scris în etichetă: o opțiune stinsă fără el e
+                          o ușă închisă fără explicație. Cele două cauze sunt
+                          diferite și omul trebuie să știe pe care o poate
+                          schimba.
+                        */}
                         {t === "parcurgere" && fel !== "video" ? " — doar la filme" : ""}
+                        {t === "parcurgere" && fel === "video" && sursa === "link"
+                          ? " — nu se poate măsura la un film extern"
+                          : ""}
                       </option>
                     ))}
                   </select>
@@ -267,7 +282,13 @@ export function FormularMaterialNou() {
                 )}
               </Camp>
 
-              <BaraActiuni className="sm:col-span-2">
+              {/*
+                `lipitaPeTelefon`: sub 768px dialogul devine foaie cu corp
+                derulabil (`dialog.tsx:25-33`), iar cu treapta „declarație"
+                activă textarea împinge butonul sub linia vizibilă — exact
+                defectul pe care comentariul propriu al dialogului îl descrie.
+              */}
+              <BaraActiuni className="sm:col-span-2" lipitaPeTelefon>
                 <Buton
                   type="submit"
                   varianta="primar"

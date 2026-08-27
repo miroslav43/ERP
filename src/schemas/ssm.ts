@@ -1,5 +1,6 @@
 // src/schemas/ssm.ts
 import { z } from "zod";
+import { optional } from "./comun";
 
 /**
  * Valorile enumerate vin din `0011_ssm.sql`, scrise ca uniuni literale — nu
@@ -34,11 +35,6 @@ export type RezultatVerificareStingator = (typeof REZULTATE_VERIFICARE_STINGATOR
  * nevalid; fără valori implicite peste tot, revenirea ar eșua și ea, iar
  * utilizatorul ar primi ecranul de eroare pentru un `?limita=abc`.
  */
-const optional = <T extends z.ZodTypeAny>(schema: T) =>
-  z
-    .union([schema, z.literal(""), z.undefined()])
-    .transform((v) => (v === "" || v === undefined ? null : v))
-    .default(null as never);
 
 // ── Filtre de listare ───────────────────────────────────────────────────────
 

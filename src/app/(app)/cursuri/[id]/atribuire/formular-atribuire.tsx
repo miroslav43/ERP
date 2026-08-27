@@ -20,6 +20,7 @@ import type { AngajatOptiune } from "@/lib/queries/cursuri";
 import { Users } from "lucide-react";
 
 import { atribuieCurs } from "../../actions";
+import { intrareAtribuire } from "../../_formulare/citire";
 
 interface Proprietati {
   readonly cursId: string;
@@ -57,11 +58,9 @@ export function FormularAtribuire({ cursId, denumire, termenZile, angajati, deja
     setEroare(null);
     setConfirma(false);
     porneste(async () => {
-      const rezultat = await atribuieCurs({
-        course_id: cursId,
-        employee_ids: [...alesi],
-        termen: null,
-      });
+      const rezultat = await atribuieCurs(
+        intrareAtribuire({ cursId, angajati: [...alesi] }),
+      );
       if (!rezultat.ok) {
         setEroare(rezultat.error.message);
         return;

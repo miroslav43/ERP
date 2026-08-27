@@ -13,10 +13,11 @@ import { useRouter } from "next/navigation";
 
 import { BaraActiuni } from "@/components/ui/bara-actiuni";
 import { Buton } from "@/components/ui/buton";
-import { Camp } from "@/components/ui/camp";
+import { Camp, clasaBifa } from "@/components/ui/camp";
 import { Formular } from "@/components/ui/formular";
 
 import { actualizeazaCurs, creeazaCurs } from "../actions";
+import { citesteCurs } from "../_formulare/citire";
 
 export interface ValoriCurs {
   readonly id: string;
@@ -33,19 +34,6 @@ interface Proprietati {
   readonly initial?: ValoriCurs;
 }
 
-/** Cheile obiectului sunt EXACT cele din `creeazaCursSchema`. */
-function citeste(date: FormData) {
-  const valabilitate = String(date.get("valabilitate_luni") ?? "");
-  return {
-    cod: String(date.get("cod") ?? ""),
-    denumire: String(date.get("denumire") ?? ""),
-    descriere: String(date.get("descriere") ?? ""),
-    obligatoriu: date.get("obligatoriu") === "on",
-    valabilitate_luni: valabilitate === "" ? null : valabilitate,
-    termen_zile: String(date.get("termen_zile") ?? "30"),
-    prag_avertizare_zile: String(date.get("prag_avertizare_zile") ?? "30"),
-  };
-}
 
 export function FormularCurs({ initial }: Proprietati) {
   const router = useRouter();
@@ -56,8 +44,8 @@ export function FormularCurs({ initial }: Proprietati) {
   const trimite = useCallback(
     async (date: FormData) =>
       esteEditare
-        ? actualizeazaCurs({ id: initial.id, ...citeste(date) })
-        : creeazaCurs(citeste(date)),
+        ? actualizeazaCurs({ id: initial.id, ...citesteCurs(date) })
+        : creeazaCurs(citesteCurs(date)),
     [esteEditare, initial],
   );
 
@@ -198,12 +186,32 @@ export function FormularCurs({ initial }: Proprietati) {
             )}
           </Camp>
 
-          <label className="flex items-center gap-2 self-end sm:col-span-2">
+          {/*
+            `clasaBifa`, nu clase scrise de mână: `stari-de-interactiune.md` §3
+            fixează forma bifei, iar varianta de dinainte pierdea
+            `accent-primary` (culoarea firmei), `rounded-xs` și
+            `border-foreground/60`. Era singura bifă din modul care n-o folosea,
+            pe singurul câmp cu consecință de conformitate. `min-h-11` pe
+            etichetă: o bifă de 16px fără înălțime era cea mai mică țintă
+            tactilă din tot modulul.
+          */}
+          <label className="flex min-h-11 cursor-pointer items-center gap-2 sm:col-span-2">
             <input
               type="checkbox"
               name="obligatoriu"
-              defaultChecked={initial?.obligatoriu ?? true}
-              className="size-4 pointer-coarse:size-6"
+              defaultChecked={
+                /*
+                 * O bifă DEBIFATĂ e absentă din `FormData`, deci `valoriTrimise`
+                 * n-o conține — iar `Formular` promite că repune valorile la
+                 * refuz. Fără asta, cine debifa și greșea codul primea cursul
+                 * înapoi BIFAT, tăcut. Distincția „n-a trimis încă" vs „a trimis
+                 * debifat" se face pe existența ALTOR chei.
+                 */
+                Object.keys(stare.valoriTrimise).length > 0
+                  ? stare.valoriTrimise["obligatoriu"] === "on"
+                  : (initial?.obligatoriu ?? true)
+              }
+              className={clasaBifa}
             />
             <span className="text-corp">Curs obligatoriu</span>
           </label>

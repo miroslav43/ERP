@@ -457,6 +457,41 @@ export const salveazaVersiuneFisier = createAction({
   },
 });
 
+/**
+ * Curăță un obiect urcat pentru o versiune care nu s-a mai salvat.
+ *
+ * Încărcarea se face în doi pași: octeții urcă direct din browser, apoi se
+ * scrie rândul. Când al doilea pas eșuează — validare, semnătură de fișier
+ * greșită, om care se răzgândește — obiectul rămâne în bucket, iar
+ * `storage.objects` NU are politică DELETE, deci nimeni nu-l mai poate scoate.
+ * Fiecare încercare eșuată însemna un fișier pierdut definitiv în spațiul plătit.
+ *
+ * `createAdminSupabase` ocolește RLS din acest motiv, nu din comoditate. Calea
+ * e verificată împotriva prefixului organizației ȘI al materialului, deci nu
+ * poate atinge alt tenant nici dacă apelantul minte.
+ */
+export const renuntaLaIncarcare = createAction({
+  name: "cursuri.versiune.renunta",
+  feature: FEATURE,
+  permission: "courses:create",
+  minScope: "team",
+  input: z.object({ material_id: z.uuid(), cale: z.string().trim().min(1).max(1024) }),
+  audit: {
+    action: "delete",
+    entityType: "course_material_versions",
+    entityId: (i) => i.material_id,
+    allow: ["material_id"],
+  },
+  handler: async (ctx: ActionContext, input) => {
+    const prefix = prefixCaleMaterial(ctx.tenant.organizationId, input.material_id);
+    if (!input.cale.startsWith(prefix)) {
+      throw invalidInput("Calea nu corespunde acestui material.", {});
+    }
+    await createAdminSupabase().storage.from(BUCKET_CURSURI).remove([input.cale]);
+    return { sters: true };
+  },
+});
+
 export const salveazaVersiuneLink = createAction({
   name: "cursuri.versiune.salveaza_link",
   feature: FEATURE,

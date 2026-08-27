@@ -48,7 +48,20 @@ function treaptaCelula(celula: CelulaConformitate | undefined, azi: string): Tre
     return treaptaValabilitate(celula.expiraLa, azi, celula.pragAvertizareZile);
   }
   if (celula.status === "expirat") return "expirat";
+  /*
+   * Un curs atribuit, neînceput și FĂRĂ TERMEN (posibil de la migrarea 0079)
+   * n-are ce rata, deci nu e nici „curând", nici „critic". Dar nici
+   * `neaplicabil` nu e: aia înseamnă „nu i se cere", iar aici i se cere.
+   * `in_regula` — nimic nu e în neregulă, dar cursul apare ca nefăcut în
+   * numărătoarea de mai jos, care se uită la STATUS, nu la treaptă.
+   */
+  if (celula.termen === null) return "in_regula";
   return treaptaTermen(celula.termen, azi, celula.status ?? "neinceput");
+}
+
+/** Cine e efectiv acoperit: a parcurs cursul și parcurgerea încă e valabilă. */
+function esteLaZi(celula: CelulaConformitate | undefined, treapta: TreaptaScadenta): boolean {
+  return celula?.status === "finalizat" && treapta !== "expirat";
 }
 
 function textCelula(celula: CelulaConformitate | undefined): string {
@@ -79,8 +92,18 @@ export default async function PaginaConformitate() {
   let critic = 0;
   for (const angajat of angajati) {
     for (const curs of cursuri) {
-      const treapta = treaptaCelula(celule.get(cheieCelula(angajat.id, curs.id)), azi);
-      if (treapta === "in_regula" || treapta === "neaplicabil") laZi += 1;
+      const celula = celule.get(cheieCelula(angajat.id, curs.id));
+      const treapta = treaptaCelula(celula, azi);
+      /*
+       * „La zi" se numără din STATUS, nu din treaptă.
+       *
+       * Varianta de dinainte punea `in_regula` și `neaplicabil` la un loc, deci
+       * un curs obligatoriu atribuit și NEÎNCEPUT se număra drept acoperit —
+       * cifra spunea „toată lumea e în regulă" exact despre oamenii care încă
+       * n-au făcut nimic. Cu termene opționale (0079) cazul ar fi devenit
+       * obișnuit, nu marginal.
+       */
+      if (esteLaZi(celula, treapta)) laZi += 1;
       else if (treapta === "lipsa") lipsa += 1;
       else if (treapta === "expirat" || treapta === "critic") critic += 1;
     }
@@ -109,7 +132,7 @@ export default async function PaginaConformitate() {
         <>
           <section aria-label="Rezumat" className="grid gap-3 sm:grid-cols-3">
             <Indicator
-              eticheta="La zi"
+              eticheta="Parcurse și valabile"
               valoare={textProgres(laZi, total, "situații")}
               esteCuvant
               ton={laZi === total ? "bun" : "neutru"}

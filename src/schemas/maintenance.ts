@@ -7,6 +7,7 @@
 // schemele să poată valida și intrarea brută din URL, unde totul e `string`.
 
 import { z } from "zod";
+import { optional } from "./comun";
 
 export const STATUS_ECHIPAMENT = [
   "in_functiune",
@@ -42,12 +43,6 @@ const RE_ORA = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/u;
 // Fiecare câmp opțional are `.default(...)`: `filtreDinUrl()` revine la
 // `schema.safeParse({})` când query string-ul e nevalid, iar fără implicite
 // peste tot revenirea ar eșua și ea (vezi `lib/rute/parametri.ts`).
-
-const optional = <T extends z.ZodTypeAny>(schema: T) =>
-  z
-    .union([schema, z.literal(""), z.undefined()])
-    .transform((v) => (v === "" || v === undefined ? null : v))
-    .default(null as never);
 
 /**
  * Coloanele după care se pot sorta cele trei liste de mentenanță.

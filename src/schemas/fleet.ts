@@ -1,5 +1,6 @@
 // src/schemas/fleet.ts
 import { z } from "zod";
+import { optional } from "./comun";
 
 /**
  * Valorile enumerate vin din `0012_fleet.sql`. Sunt scrise aici ca uniuni
@@ -46,11 +47,6 @@ export type StatusFoaie = (typeof STATUS_FOAIE)[number];
  * utilizatorul ar primi ecranul de eroare pentru un `?limita=abc` — exact
  * defectul reparat în modulele de concedii și inventar.
  */
-const optional = <T extends z.ZodTypeAny>(schema: T) =>
-  z
-    .union([schema, z.literal(""), z.undefined()])
-    .transform((v) => (v === "" || v === undefined ? null : v))
-    .default(null as never);
 
 /**
  * Coloanele după care se pot sorta cele două liste de flotă.

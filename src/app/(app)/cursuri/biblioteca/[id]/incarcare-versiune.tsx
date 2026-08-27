@@ -35,12 +35,33 @@ import {
   type FelMaterial,
 } from "@/lib/media/cale";
 
-import { pregatesteIncarcareMaterial, salveazaVersiuneFisier } from "../../actions";
+import {
+  pregatesteIncarcareMaterial,
+  renuntaLaIncarcare,
+  salveazaVersiuneFisier,
+} from "../../actions";
+import { citesteVersiuneFisier } from "../../_formulare/citire";
 
 interface Proprietati {
   readonly materialId: string;
   readonly fel: FelMaterial;
   readonly cereDurata: boolean;
+}
+
+/**
+ * Mesajul complet al unui refuz.
+ *
+ * `error.message` singur ascunde exact ce trebuie: erorile de CÂMP. Ecranul
+ * ăsta n-are `<Camp>` pentru fiecare câmp trimis (durata, subtitrarea, calea),
+ * deci fără concatenare omul primea „Datele introduse nu sunt valide." și
+ * niciun indiciu despre care dată.
+ */
+function mesajComplet(eroare: {
+  readonly message: string;
+  readonly fieldErrors: Readonly<Record<string, readonly string[]>> | null;
+}): string {
+  const peCamp = Object.values(eroare.fieldErrors ?? {}).flat();
+  return peCamp.length === 0 ? eroare.message : peCamp.join(" ");
 }
 
 type Stare =
@@ -105,18 +126,22 @@ export function IncarcareVersiune({ materialId, fel, cereDurata }: Proprietati) 
       }
 
       setStare({ tip: "lucru", mesaj: "Se verifică fișierul…" });
-      const salvat = await salveazaVersiuneFisier({
-        material_id: materialId,
-        cale: pregatire.data.cale,
-        nume_fisier: fisier.name,
-        mime: fisier.type,
-        subtitrare_cale: null,
-        durata_secunde: durata === "" ? null : durata,
-        numar_pagini: String(date.get("numar_pagini") ?? ""),
-        nota_versiune: String(date.get("nota_versiune") ?? ""),
-      });
+      const salvat = await salveazaVersiuneFisier(
+        citesteVersiuneFisier(date, {
+          materialId,
+          cale: pregatire.data.cale,
+          numeFisier: fisier.name,
+          mime: fisier.type,
+        }),
+      );
       if (!salvat.ok) {
-        setStare({ tip: "eroare", mesaj: salvat.error.message });
+        /*
+         * Octeții au urcat deja. Fără curățare, fiecare încercare eșuată lăsa
+         * un obiect ORFAN în bucket — iar `storage.objects` n-are politică
+         * DELETE, deci nimeni nu-l mai putea scoate vreodată.
+         */
+        await renuntaLaIncarcare({ material_id: materialId, cale: pregatire.data.cale });
+        setStare({ tip: "eroare", mesaj: mesajComplet(salvat.error) });
         return;
       }
 
