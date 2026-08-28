@@ -20,6 +20,7 @@ import { formatDate, oraInBucharest, todayInBucharest } from "@/lib/format/date"
 import { citestePerioada, setariPontaj } from "@/lib/queries/attendance";
 import { configZiDin, intervalulPropus } from "@/domain/attendance/calcul-ore";
 import { stareaCeasului } from "@/domain/attendance/ceas";
+import { formatOreCuUnitate } from "@/lib/format/ore";
 import { cn } from "@/lib/ui/cn";
 import { anunturiPublicate, idAnunturiCitite } from "@/lib/queries/announcements";
 import { cursurileMele, restanteDinCursuri } from "@/lib/queries/cursuri";
@@ -30,6 +31,7 @@ import {
   soldurileMele,
   tipuriConcediu,
 } from "@/lib/queries/portal";
+import { meritaPontata } from "@/domain/attendance/zi-de-pontat";
 
 import { ETICHETE_STATUS_CERERE, ETICHETE_TIP_ZI, TONURI_STATUS_CERERE } from "./etichete";
 import { FaraFisa } from "./fara-fisa";
@@ -121,6 +123,26 @@ export default async function PaginaPortal() {
   const suplimentareLuna = zile.reduce((total, z) => total + (z.ore_suplimentare ?? 0), 0);
 
   /*
+   * Cardul „Astăzi" se face auzit doar când e ceva de făcut CHIAR AZI: ziua nu e
+   * pontată, omul are dreptul s-o ponteze, iar firma chiar lucrează în ziua asta.
+   * Ultima condiție e cea care lipsea: `ziDeAzi` e `null` și sâmbăta, deci fără
+   * `meritaPontata` cardul ar fi strigat „pontează-te acum" în repausul
+   * săptămânal al fiecărui birou.
+   */
+  const promoveazaPontaj =
+    poatePontaZiua &&
+    ziDeAzi === null &&
+    meritaPontata(
+      azi,
+      setari === null
+        ? null
+        : {
+            lucreazaWeekend: setari.lucreaza_weekend,
+            lucreazaSarbatori: setari.lucreaza_sarbatori,
+          },
+    );
+
+  /*
    * Contorul de cursuri vine din ACEEAȘI listă pe care o afișează ecranul, nu
    * dintr-un `count()` separat. O interogare care numără și una care listează
    * diverg întotdeauna, la momentul cel mai prost — în acest repo, contorul de
@@ -203,7 +225,11 @@ export default async function PaginaPortal() {
                 ? ` · în așteptare ${soldPrincipal.in_asteptare.toLocaleString("ro-RO")}`
                 : null}
             </p>
-            {/* Singurul buton primar de pe ecran, în cardul de care se leagă.
+            {/* Fiecare buton primar stă în cardul de care se leagă, iar cardul
+                apare doar când are ce cere: cursuri restante, sold de concediu,
+                ziua nepontată. Comentariul de aici a spus cândva „singurul buton
+                primar de pe ecran" — nu mai e adevărat de la cardul de cursuri
+                încoace, iar afirmația falsă e mai rea decât regula lipsă.
                 Pe telefon nu există buton plutitor: bara de jos are deja cinci
                 ținte pentru degetul mare, iar al șaselea le-ar acoperi. */}
             {poateCereConcediu ? (
@@ -225,7 +251,39 @@ export default async function PaginaPortal() {
       </div>
 
       <div className="space-y-3">
-        {vedePontaj ? (
+        {vedePontaj && promoveazaPontaj ? (
+          /*
+            Aceeași croială ca la cardul de sold: fundal plin, o cifră mare și
+            butonul în cardul de care se leagă. Diferă ce spune cifra — acolo e
+            un drept care se consumă, aici e o zi care lipsește.
+          */
+          <section
+            aria-labelledby="azi"
+            className="bg-primary text-primary-foreground rounded-panou p-4"
+          >
+            <h2 id="azi" className="text-corp font-medium opacity-90">
+              Astăzi nu e pontat nimic
+            </h2>
+            <p className="mt-1 text-4xl font-semibold tabular-nums">0 ore</p>
+            <p className="text-corp mt-2 opacity-90">
+              Luna aceasta: {oreLuna.toLocaleString("ro-RO")} ore
+              {suplimentareLuna > 0
+                ? ` · ${suplimentareLuna.toLocaleString("ro-RO")} suplimentare`
+                : null}
+            </p>
+            <Link
+              href={`/portal/pontajul-meu/zi/${azi}`}
+              className={cn(
+                buton({ varianta: "primar" }),
+                // Cardul e deja `bg-primary`: paleta butonului se INVERSEAZĂ.
+                "bg-primary-foreground text-primary hover:bg-primary-foreground mt-4",
+              )}
+            >
+              <Clock aria-hidden="true" className="size-4" />
+              Pontează-te acum
+            </Link>
+          </section>
+        ) : vedePontaj ? (
           <section
             aria-labelledby="azi"
             className="bg-surface border-border rounded-panou border p-4"
@@ -390,7 +448,7 @@ export default async function PaginaPortal() {
             <Scurtatura
               href="/portal/pontajul-meu"
               eticheta="Pontajul meu"
-              descriere={`${oreLuna.toLocaleString("ro-RO")} ore luna aceasta`}
+              descriere={`${formatOreCuUnitate(oreLuna)} luna aceasta`}
               Iconita={Clock}
             />
           ) : null}

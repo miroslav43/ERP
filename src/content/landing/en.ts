@@ -67,8 +67,8 @@ export const EN: ContinutLanding = {
     ferestreEticheta: "Show",
     descriereTabel:
       "Monthly attendance sheet for April 2026, eight employees across thirty days, with row and column totals.",
-    anuntColoana: "April {zi}: {ore} hours, across {persoane} people.",
-    anuntRand: "{nume}: {ore} hours in April.",
+    anuntColoana: "April {zi}: {ore} h, across {persoane} people.",
+    anuntRand: "{nume}: {ore} h in April.",
   },
 
   dovada: {
