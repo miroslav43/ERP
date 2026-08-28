@@ -65,12 +65,19 @@ jobs:
         with:
           node-version: ${{ env.VERSIUNE_NODE }}
 
-      - name: Documentația cedează întotdeauna revizuirii
+      - name: Documentația cedează revizuirii (doar pe rularea nocturnă)
         id: prioritate
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -uo pipefail
+          # Bariera apără COTA de abonament, care e comună cu `revizuire.yml`. Un
+          # `workflow_dispatch` e o cerere explicită a omului, care știe ce cere —
+          # acolo bariera ar fi paternalistă, nu protectoare.
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "cedam=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           # Cota de abonament e comună. Dacă poarta de securitate rulează acum sau
           # a picat azi, nu-i luăm din buget pentru documentație.
           activa=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow=revizuire.yml \
