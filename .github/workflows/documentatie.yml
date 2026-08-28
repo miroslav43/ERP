@@ -239,17 +239,22 @@ jobs:
           DIR: ${{ steps.material.outputs.dir }}
         run: |
           set -uo pipefail
-          mkdir -p "$DIR/livrare/$(dirname "$PAGINA")"
-          cp "$PAGINA" "$DIR/livrare/$PAGINA"
-          cp "$DIR/rezumat.json" "$DIR/livrare/rezumat.json" 2>/dev/null || echo '{"modificata":false}' > "$DIR/livrare/rezumat.json"
-          # Dacă agentul n-a putut scrie pagina și a lăsat o propunere, o ducem cu
-          # noi: altfel munca lui se pierde odată cu runner-ul.
+          mkdir -p "$DIR/livrare"
+          # Nume PLAT, nu structura de directoare: `.claude` e ascuns, iar
+          # `actions/upload-artifact` exclude implicit fișierele ascunse — pagina
+          # ar dispărea tăcut din artefact, iar consolidarea ar găsi zero fișiere
+          # de aplicat și ar raporta „nimic de publicat". S-a întâmplat.
+          cp "$PAGINA" "$DIR/livrare/pagina.md"
+          cp "$DIR/rezumat.json" "$DIR/livrare/rezumat.json" 2>/dev/null \
+            || echo "{\"pagina\":\"$PAGINA\",\"modificata\":false}" > "$DIR/livrare/rezumat.json"
           find "$DIR" -maxdepth 1 -name '*.propus*' -exec cp {} "$DIR/livrare/" \; 2>/dev/null || true
+          ls -la "$DIR/livrare"
 
       - uses: actions/upload-artifact@v4
         with:
           name: pagina-${{ strategy.job-index }}
           path: ${{ steps.material.outputs.dir }}/livrare
+          include-hidden-files: true
           retention-days: 7
 
   # ───────────────────────────────────────────────────────────────────────────
@@ -285,14 +290,23 @@ jobs:
       - name: Aplică paginile
         run: |
           set -uo pipefail
+          aplicate=0
           for d in "$RUNNER_TEMP"/artefacte/pagina-*; do
             [ -d "$d" ] || continue
-            find "$d" -name '*.md' -path '*/.claude/docs/*' | while read -r f; do
-              rel="${f#"$d"/}"
-              cp "$f" "$rel"
-              echo "  aplicat: $rel"
-            done
+            [ -f "$d/rezumat.json" ] || continue
+            tinta=$(jq -r '.pagina // empty' "$d/rezumat.json")
+            case "$tinta" in
+              .claude/docs/*) ;;
+              *) echo "::error title=Țintă refuzată::$tinta"; exit 1 ;;
+            esac
+            if [ -f "$d/pagina.md" ]; then
+              cp "$d/pagina.md" "$tinta"
+              echo "  aplicat: $tinta"
+              aplicate=$((aplicate + 1))
+            fi
           done
+          echo "aplicate=$aplicate" >> "$GITHUB_ENV"
+          echo "Pagini aplicate: $aplicate"
 
       - name: Agenții au putut chiar să scrie?
         # Prima rulare reală a raportat `success` cu zero pagini schimbate, deși
@@ -313,6 +327,19 @@ jobs:
               echo "::warning title=Propunere nescrisă::$pag are o propunere în artefact"
             fi
           done
+          pretinse=0
+          for r in "$RUNNER_TEMP"/artefacte/pagina-*/rezumat.json; do
+            [ -f "$r" ] || continue
+            if [ "$(jq -r '.modificata // false' "$r")" = "true" ]; then
+              pretinse=$((pretinse + 1))
+            fi
+          done
+          # Un agent care raportează „am modificat" dar a cărui pagină nu ajunge pe
+          # disc înseamnă că s-a pierdut ceva între job-uri — nu că n-a fost nevoie.
+          if [ "$pretinse" -gt 0 ] && [ "${aplicate:-0}" = "0" ]; then
+            echo "::error title=Pagini pierdute::$pretinse agenți raportează modificări, dar zero pagini au ajuns în arbore"
+            exit 1
+          fi
           if [ "$blocate" -gt 0 ]; then
             echo "::error title=Sincronizare eșuată::$blocate agenți n-au putut scrie pagina"
             exit 1
