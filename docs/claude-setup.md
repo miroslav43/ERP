@@ -1,3 +1,11 @@
+> ⚠ **Documentul descrie o ALTĂ mașină.** Verificat pe 28 august 2026: vorbește despre
+> `/Users/maleticimiroslav/ERP Adminio` (macOS), modelul `opusplan`, un director de
+> memorie care nu există și „fără remote git" — când remote-ul e coloana vertebrală a
+> CI-ului. Nu-l folosi ca sursă pentru configurația curentă.
+>
+> Pentru starea reală a sesiunii, rulează `claude /status`. O comandă nu se învechește.
+> Convențiile proiectului: `CLAUDE.md`. Documentația vie: `.claude/docs/`.
+
 # Claude Code — configurație și mod de lucru pe acest proiect
 
 Acest document răspunde la o singură întrebare: **dacă mâine deschizi acest

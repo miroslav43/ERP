@@ -15,6 +15,17 @@ cu ș/ț cu virgulă dedesubt (U+0219/U+021B), nu cu sedilă.
 > (`.claude/skills/administrativo/hooks/digest.mjs`). Pentru o numărătoare pe
 > loc: `ls supabase/migrations/*.sql | wc -l`.
 
+## Înainte de orice sarcină pe un modul
+
+Citește `.claude/docs/modul/<numele directorului din src/app/(app)/>.md` — **în locul**
+sweep-ului prin cod, nu pe lângă el. Pagina spune ce refuză baza tăcut, ce permisiune
+păzește fiecare rută și ce se mișcă împreună. Plafon: **12 KB de vault per sarcină**,
+adică două pagini, nu cinci.
+
+Dacă pagina lipsește sau e marcată învechită, **spune asta explicit înainte de a scrie
+cod**, și citește diff-ul enumerat de hook (`git diff <scris_pe> -- <fișierele numite>`),
+niciodată tot modulul. Convențiile vault-ului: `.claude/docs/meta/conventii.md`.
+
 ## Verificarea
 
 ```bash
@@ -110,6 +121,23 @@ Repo-ul a fost lucrat în paralel de mai multe sesiuni și persoane.
 `git status --short` înainte de orice `git add` — niciodată `-A` sau `.` orb.
 `git fetch origin main` înainte de push. La coliziune de nume de migrare îți
 redenumești **propria** migrare. `git merge`, nu rebase.
+
+**Munca se termină cu push, nu cu „gata".** La finalul oricărei sarcini, comite și
+împinge ce ai făcut — altfel rămâne doar pe discul unei mașini pe care lucrează și
+altcineva, iar următoarea sesiune o pierde sau o calcă. Ritualul, în ordine:
+
+```bash
+git status --short -- <căile tale>      # doar ale tale, niciodată tot
+git fetch origin main
+git diff --name-only HEAD origin/main   # se suprapune cu ce ai atins?
+git commit --only -- <căile tale>       # `--only`, fiindcă indexul e partajat
+git merge origin/main                   # merge, nu rebase
+git push origin main
+```
+
+Excepții, singurele: utilizatorul a cerut explicit să nu comiți, sau lanțul de
+verificare e roșu **din cauza ta** (o roșeață preexistentă, în fișiere pe care nu
+le-ai atins, nu te oprește — spui că e acolo și mergi mai departe).
 
 ## Datorie cunoscută (nu o redescoperi)
 

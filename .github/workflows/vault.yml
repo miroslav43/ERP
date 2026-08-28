@@ -1,0 +1,54 @@
+# Poarta vault-ului `.claude/docs/`.
+#
+# Separată de `ci.yml` DELIBERAT. Dacă lintul de documentație ar rula în jobul
+# `quality`, un commit legitim de cod care șterge un fișier citat într-o pagină
+# ar înroși `main` pentru toate sesiunile paralele — pentru o linie scrisă de un
+# bot. Principiul e deja scris în `src/config/docs.test.ts`: o poartă care pică
+# pentru munca CORECTĂ taxă pe omul greșit și e dezactivată în trei zile.
+#
+# Deci: nicio afirmație din vault nu are voie să oprească un commit de cod.
+# Workflow-ul ăsta se declanșează NUMAI când se schimbă chiar vault-ul.
+
+name: Vault
+
+on:
+  push:
+    paths:
+      - ".claude/docs/**"
+      - "scripts/docs/**"
+      - ".github/workflows/vault.yml"
+  pull_request:
+    paths:
+      - ".claude/docs/**"
+      - "scripts/docs/**"
+  workflow_dispatch:
+
+concurrency:
+  group: vault-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  lint:
+    name: Poarta vault-ului
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      # fetch-depth: 0 — `ci.yml` face checkout superficial (adâncime 1), iar
+      # clasele care ating git-ul eșuează TĂCUT într-o clonă trunchiată.
+      # Singurul workflow care o face corect azi e `revizuire.yml`.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # Lintul e Node curat, fără dependențe: nu are nevoie de `pnpm install`.
+      - name: docs:lint
+        run: node scripts/docs/lint-vault.mjs

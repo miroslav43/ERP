@@ -1,0 +1,7 @@
+# Cache-uri locale ale uneltelor de vault. Se recalculează, nu se versionează.
+.cache/
+
+# Din configurația Obsidian se versionează UN singur fișier: cel care forțează
+# link-uri absolute. Restul (workspace, layout, plugin-uri locale) e per-mașină.
+.obsidian/*
+!.obsidian/app.json
