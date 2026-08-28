@@ -3908,6 +3908,7 @@ export type Database = {
       employees: {
         Row: {
           act_eliberat_de: string | null
+          act_eliberat_la: string | null
           act_valabil_pana: string | null
           adresa_cod_postal: string | null
           adresa_judet: string | null
@@ -3963,6 +3964,7 @@ export type Database = {
         }
         Insert: {
           act_eliberat_de?: string | null
+          act_eliberat_la?: string | null
           act_valabil_pana?: string | null
           adresa_cod_postal?: string | null
           adresa_judet?: string | null
@@ -4018,6 +4020,7 @@ export type Database = {
         }
         Update: {
           act_eliberat_de?: string | null
+          act_eliberat_la?: string | null
           act_valabil_pana?: string | null
           adresa_cod_postal?: string | null
           adresa_judet?: string | null
@@ -4132,6 +4135,7 @@ export type Database = {
           parent_contract_id: string | null
           perioada_proba_zile: number | null
           preaviz_zile: number | null
+          punct_lucru_id: string | null
           reges_contract_id: string | null
           reges_norma_timp: string | null
           reges_repartizare: string | null
@@ -4178,6 +4182,7 @@ export type Database = {
           parent_contract_id?: string | null
           perioada_proba_zile?: number | null
           preaviz_zile?: number | null
+          punct_lucru_id?: string | null
           reges_contract_id?: string | null
           reges_norma_timp?: string | null
           reges_repartizare?: string | null
@@ -4224,6 +4229,7 @@ export type Database = {
           parent_contract_id?: string | null
           perioada_proba_zile?: number | null
           preaviz_zile?: number | null
+          punct_lucru_id?: string | null
           reges_contract_id?: string | null
           reges_norma_timp?: string | null
           reges_repartizare?: string | null
@@ -4242,6 +4248,13 @@ export type Database = {
           zile_concediu_anual?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "contracts_punct_lucru_fk"
+            columns: ["punct_lucru_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "puncte_lucru"
+            referencedColumns: ["id", "organization_id"]
+          },
           {
             foreignKeyName: "employment_contracts_department_id_fkey"
             columns: ["department_id"]
