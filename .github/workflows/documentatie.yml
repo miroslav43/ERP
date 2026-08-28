@@ -295,9 +295,19 @@ jobs:
             [ -d "$d" ] || continue
             [ -f "$d/rezumat.json" ] || continue
             tinta=$(jq -r '.pagina // empty' "$d/rezumat.json")
+            # `rezumat.json` e scris de agent, deci `tinta` e o cale pe care nu o
+            # controlăm. Un prefix `.claude/docs/` NU e suficient: „.claude/docs/
+            # ../../../etc/x" îl trece. Se verifică forma ȘI containment-ul real.
             case "$tinta" in
-              .claude/docs/*) ;;
+              *..*|/*|"") echo "::error title=Țintă refuzată::$tinta"; exit 1 ;;
+              .claude/docs/*.md) ;;
               *) echo "::error title=Țintă refuzată::$tinta"; exit 1 ;;
+            esac
+            rad=$(realpath .)
+            abs=$(realpath -m -- "$tinta")
+            case "$abs" in
+              "$rad"/.claude/docs/*) ;;
+              *) echo "::error title=Ținta iese din vault::$tinta -> $abs"; exit 1 ;;
             esac
             if [ -f "$d/pagina.md" ]; then
               cp "$d/pagina.md" "$tinta"
