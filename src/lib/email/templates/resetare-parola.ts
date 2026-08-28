@@ -8,9 +8,24 @@ import {
   type TemplateContext,
 } from "./layout";
 
+/**
+ * ── DE CE `tokenHash`, ȘI NU `token` SAU UN LINK GATA FĂCUT ─────────────────
+ * Șablonul construia `${appUrl}/resetare-parola/${token}` — o rută care NU
+ * EXISTĂ în aplicație. Nu era doar nefolosit: era îndreptat spre nimic.
+ *
+ * Prima variantă a reparației primea linkul întreg de la apelant. `templates.test.ts`
+ * a respins-o, pe drept: are o poartă care cere ca ORICE link dintr-un e-mail să
+ * pornească din `NEXT_PUBLIC_APP_URL`. Un șablon căruia i se dă un URL gata
+ * făcut poate fi convins să trimită oriunde.
+ *
+ * Așa că apelantul dă doar `token_hash`-ul (de la `auth.admin.generateLink()`),
+ * iar destinația o compune șablonul, din `ctx.appUrl`. Linkul nu POATE ieși de
+ * pe domeniul aplicației — și tocmai de aceea niciun `Site URL` greșit din
+ * proiectul Supabase nu-l mai poate trimite pe `localhost`.
+ */
 export type ResetareParolaData = Readonly<{
   nume: string;
-  token: string;
+  tokenHash: string;
   valabilMinute: number;
 }>;
 
@@ -18,7 +33,9 @@ export const renderResetareParola = (
   data: ResetareParolaData,
   ctx: TemplateContext,
 ): RenderedEmail => {
-  const link = `${ctx.appUrl}/resetare-parola/${encodeURIComponent(data.token)}`;
+  const link =
+    `${ctx.appUrl}/auth/callback?token_hash=${encodeURIComponent(data.tokenHash)}` +
+    `&type=recovery&next=${encodeURIComponent("/parola-noua")}`;
   const subject = "Resetarea parolei tale Administrativo";
   const bodyHtml =
     `<h1 style="margin:0 0 16px 0;font-family:Arial,Helvetica,sans-serif;font-size:20px;line-height:28px;color:#12203c;">Resetare parolă</h1>` +

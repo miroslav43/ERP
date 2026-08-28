@@ -1368,6 +1368,10 @@ export type Database = {
           descriere: string | null
           dovada: string | null
           dovada_document_id: string | null
+          dovada_fisier_marime_bytes: number | null
+          dovada_fisier_mime: string | null
+          dovada_fisier_nume: string | null
+          dovada_fisier_path: string | null
           employee_id: string
           etapa_id: string | null
           etapa_ordine: number | null
@@ -1405,6 +1409,10 @@ export type Database = {
           descriere?: string | null
           dovada?: string | null
           dovada_document_id?: string | null
+          dovada_fisier_marime_bytes?: number | null
+          dovada_fisier_mime?: string | null
+          dovada_fisier_nume?: string | null
+          dovada_fisier_path?: string | null
           employee_id: string
           etapa_id?: string | null
           etapa_ordine?: number | null
@@ -1442,6 +1450,10 @@ export type Database = {
           descriere?: string | null
           dovada?: string | null
           dovada_document_id?: string | null
+          dovada_fisier_marime_bytes?: number | null
+          dovada_fisier_mime?: string | null
+          dovada_fisier_nume?: string | null
+          dovada_fisier_path?: string | null
           employee_id?: string
           etapa_id?: string | null
           etapa_ordine?: number | null
@@ -11776,7 +11788,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      accept_invitation: { Args: { p_token: string }; Returns: string }
+      accept_invitation: { Args: { p_token: string }; Returns: Json }
       aloca_numar_tichet: {
         Args: { p_organization_id: string }
         Returns: string

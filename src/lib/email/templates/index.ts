@@ -4,15 +4,24 @@ import { renderBunVenit, type BunVenitData } from "./bun-venit";
 import { renderCerereDemoPrimita, type CerereDemoData } from "./cerere-demo-primita";
 import { renderFluturas, type FluturasData } from "./fluturas";
 import { renderInvitatie, type InvitatieData } from "./invitatie";
+import { renderLinkMagic, type LinkMagicData } from "./link-magic";
 import { renderResetareParola, type ResetareParolaData } from "./resetare-parola";
 import type { RenderedEmail, TemplateContext } from "./layout";
 
 export type { RenderedEmail, TemplateContext };
-export type { BunVenitData, CerereDemoData, FluturasData, InvitatieData, ResetareParolaData };
+export type {
+  BunVenitData,
+  CerereDemoData,
+  FluturasData,
+  InvitatieData,
+  LinkMagicData,
+  ResetareParolaData,
+};
 
 export const EMAIL_TEMPLATE_KEYS = [
   "invitatie",
   "resetare-parola",
+  "link-magic",
   "bun-venit",
   "cerere-demo-primita",
   "fluturas",
@@ -22,6 +31,7 @@ export type EmailTemplateKey = (typeof EMAIL_TEMPLATE_KEYS)[number];
 export type EmailMessage =
   | Readonly<{ template: "invitatie"; data: InvitatieData }>
   | Readonly<{ template: "resetare-parola"; data: ResetareParolaData }>
+  | Readonly<{ template: "link-magic"; data: LinkMagicData }>
   | Readonly<{ template: "bun-venit"; data: BunVenitData }>
   | Readonly<{ template: "cerere-demo-primita"; data: CerereDemoData }>
   | Readonly<{ template: "fluturas"; data: FluturasData }>;
@@ -32,6 +42,8 @@ export const renderEmail = (message: EmailMessage, ctx: TemplateContext): Render
       return renderInvitatie(message.data, ctx);
     case "resetare-parola":
       return renderResetareParola(message.data, ctx);
+    case "link-magic":
+      return renderLinkMagic(message.data, ctx);
     case "bun-venit":
       return renderBunVenit(message.data, ctx);
     case "cerere-demo-primita":
@@ -44,6 +56,7 @@ export const renderEmail = (message: EmailMessage, ctx: TemplateContext): Render
 export const TEMPLATE_LABELS: Readonly<Record<EmailTemplateKey, string>> = {
   invitatie: "Invitație în organizație",
   "resetare-parola": "Resetare parolă",
+  "link-magic": "Link de autentificare",
   "bun-venit": "Bun venit",
   "cerere-demo-primita": "Cerere demo (echipă)",
   fluturas: "Fluturaș de salariu",
@@ -66,7 +79,15 @@ export const SAMPLE_MESSAGES: Readonly<Record<EmailTemplateKey, EmailMessage>> =
   },
   "resetare-parola": {
     template: "resetare-parola",
-    data: { nume: "Ioana Țîrlea", token: "exemplu-token", valabilMinute: 60 },
+    data: {
+      nume: "Ioana Țîrlea",
+      tokenHash: "exemplu-token-hash",
+      valabilMinute: 60,
+    },
+  },
+  "link-magic": {
+    template: "link-magic",
+    data: { tokenHash: "exemplu-token-hash", next: "/", valabilMinute: 60 },
   },
   "bun-venit": {
     template: "bun-venit",

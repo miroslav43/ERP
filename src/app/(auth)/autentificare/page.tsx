@@ -41,7 +41,12 @@ export default async function PaginaAutentificare({ searchParams }: Props) {
   if (data.user) redirect(catre);
 
   const eroare = MESAJE[param(parametri.eroare) ?? ""] ?? null;
-  const linkTrimis = param(parametri.stare) === "link-trimis";
+  const stare = param(parametri.stare);
+  const linkTrimis = stare === "link-trimis";
+  // Ecranul pe care ajunge cineva imediat după ce și-a creat contul din
+  // invitație. Fără el, ar fi aruncat la un formular gol, fără să știe dacă
+  // ceva a mers.
+  const contCreat = stare === "cont-creat";
 
   return (
     <>
@@ -56,6 +61,15 @@ export default async function PaginaAutentificare({ searchParams }: Props) {
           className="text-danger border-danger/40 bg-danger/5 rounded-control text-corp mt-4 border px-3 py-2"
         >
           {eroare}
+        </p>
+      )}
+      {contCreat && (
+        <p
+          role="status"
+          className="text-success border-success/40 bg-success/5 rounded-control text-corp mt-4 border px-3 py-2"
+        >
+          Contul a fost creat și invitația acceptată. Intrați cu adresa invitată și parola pe care
+          tocmai ați ales-o.
         </p>
       )}
       {linkTrimis && (

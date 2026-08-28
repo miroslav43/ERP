@@ -25,15 +25,52 @@ export async function GET(request: NextRequest): Promise<Response> {
     return NextResponse.redirect(new URL("/autentificare?eroare=link", baza));
   }
 
-  const code = url.searchParams.get("code");
-  if (code === null || code.length === 0 || code.length > 512) {
-    return NextResponse.redirect(new URL("/autentificare?eroare=link", baza));
-  }
-
   const supabase = await createServerSupabase();
-  const { data: sesiune, error } = await supabase.auth.exchangeCodeForSession(code);
-  if (error) {
-    return NextResponse.redirect(new URL("/autentificare?eroare=link", baza));
+
+  /*
+   * Două drumuri, fiindcă e-mailurile nu mai vin de la Supabase.
+   *
+   * `code` e drumul PKCE clasic, pentru linkurile pe care le trimitea mailerul
+   * intern. `token_hash` + `type` e drumul e-mailurilor NOASTRE: acțiunea cere
+   * `auth.admin.generateLink()`, care produce hash-ul FĂRĂ să trimită nimic,
+   * iar șablonul îl împachetează într-un link pe domeniul aplicației. Aici se
+   * schimbă pe o sesiune.
+   *
+   * Ambele rămân: linkurile deja plecate trebuie să funcționeze până expiră.
+   */
+  const code = url.searchParams.get("code");
+  const tokenHash = url.searchParams.get("token_hash");
+  const tip = url.searchParams.get("type");
+
+  let sesiune: { user: { id: string } } | null = null;
+
+  if (tokenHash !== null && tokenHash.length > 0 && tokenHash.length <= 512) {
+    // Lista e închisă deliberat: `type` vine din URL, deci din mâna
+    // utilizatorului. `email_change` și `invite` nu au drum în aplicație.
+    const tipuri = ["magiclink", "recovery", "email", "signup"] as const;
+    const tipVerificat = (tipuri as readonly string[]).includes(tip ?? "")
+      ? (tip as (typeof tipuri)[number])
+      : null;
+    if (tipVerificat === null) {
+      return NextResponse.redirect(new URL("/autentificare?eroare=link", baza));
+    }
+    const { data, error } = await supabase.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: tipVerificat,
+    });
+    if (error || data.user === null) {
+      return NextResponse.redirect(new URL("/autentificare?eroare=link", baza));
+    }
+    sesiune = { user: { id: data.user.id } };
+  } else {
+    if (code === null || code.length === 0 || code.length > 512) {
+      return NextResponse.redirect(new URL("/autentificare?eroare=link", baza));
+    }
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) {
+      return NextResponse.redirect(new URL("/autentificare?eroare=link", baza));
+    }
+    sesiune = { user: { id: data.user.id } };
   }
 
   // `next` explicit înseamnă link profund (invitație, resetare de parolă) și se

@@ -3,7 +3,8 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { clientEnv } from "@/config/env";
+import { sendEmail } from "@/lib/email/send";
+import { createAdminSupabase } from "@/lib/supabase/admin";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { consumeRateLimit } from "@/lib/utils/rate-limit";
 import { autentificareSchema, caleInterna, linkMagicSchema } from "@/schemas/auth";
@@ -85,15 +86,36 @@ export async function trimiteLinkMagic(formData: FormData): Promise<void> {
     redirect(inapoi("limita", catre));
   }
 
-  const supabase = await createServerSupabase();
-  await supabase.auth.signInWithOtp({
+  /*
+   * `generateLink`, nu `signInWithOtp`: al doilea lasă Supabase să compună și
+   * să trimită mesajul, din `Site URL`-ul proiectului — de acolo veneau
+   * linkurile către `localhost:3000`. Primul produce doar tokenul; e-mailul îl
+   * trimitem noi, prin Resend, cu link compus din `NEXT_PUBLIC_APP_URL`.
+   *
+   * `magiclink` (nu `signup`) păstrează regula de dinainte: linkul magic NU
+   * creează conturi noi. Pentru o adresă fără cont, `generateLink` dă eroare —
+   * pe care o înghițim, ca răspunsul să rămână identic.
+   */
+  const admin = createAdminSupabase();
+  const link = await admin.auth.admin.generateLink({
+    type: "magiclink",
     email: validat.data.email,
-    options: {
-      // Onboarding sales-led: linkul magic NU creează conturi noi.
-      shouldCreateUser: false,
-      emailRedirectTo: `${clientEnv.NEXT_PUBLIC_APP_URL}/auth/callback?next=${encodeURIComponent(catre)}`,
-    },
   });
+
+  if (link.error === null && link.data.user !== null) {
+    await sendEmail({
+      db: admin,
+      to: validat.data.email,
+      entityId: link.data.user.id,
+      template: "link-magic",
+      data: {
+        tokenHash: link.data.properties.hashed_token,
+        // `catre` a trecut deja prin `caleInterna`, deci nu poate fi absolut.
+        next: catre,
+        valabilMinute: 60,
+      },
+    });
+  }
 
   // Răspuns identic indiferent dacă adresa există: rezultatul nu se comunică.
   await raspunsUniform(inceput);
