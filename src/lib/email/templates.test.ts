@@ -74,6 +74,37 @@ describe("siguranța conținutului", () => {
 });
 
 describe("configurarea emailului", () => {
+  /*
+   * `docker-stack.yml` trimite variabilele neconfigurate ca ȘIR GOL
+   * (`${RESEND_WEBHOOK_SECRET:-}`). Cu `.optional()` — care acceptă `undefined`,
+   * nu `""` — `resolveEmailConfig` ARUNCA, iar `getEmailConfig()` cădea la
+   * primul apel. Efectul: niciun e-mail nu a plecat vreodată din aplicație, iar
+   * `email_log` a rămas gol de la începutul proiectului.
+   *
+   * Fără testul ăsta, defectul se întoarce la prima variabilă opțională nouă.
+   */
+  it("o variabilă setată pe gol înseamnă „neconfigurată”, nu „invalidă”", () => {
+    const config = resolveEmailConfig({
+      NEXT_PUBLIC_APP_URL: APP_URL,
+      RESEND_WEBHOOK_SECRET: "",
+      RESEND_API_KEY: "",
+      EMAIL_REPLY_TO: "",
+      EMAIL_ECHIPA: "",
+    });
+    expect(config.webhookSecret).toBeNull();
+    expect(config.apiKey).toBeNull();
+    expect(config.replyTo).toBeNull();
+    expect(config.echipaEmail).toBeNull();
+  });
+
+  it("o valoare chiar invalidă rămâne invalidă", () => {
+    // Permisivitatea de mai sus e strict pentru ȘIRUL GOL. O adresă stricată
+    // trebuie să pice în continuare, altfel poarta devine zgomot verde.
+    expect(() =>
+      resolveEmailConfig({ NEXT_PUBLIC_APP_URL: APP_URL, EMAIL_REPLY_TO: "nu-e-adresa" }),
+    ).toThrow(/Configurare email invalidă/u);
+  });
+
   it("implicit rulează în modul test și normalizează URL-ul aplicației", () => {
     const config = resolveEmailConfig({ NEXT_PUBLIC_APP_URL: `${APP_URL}/` });
     expect(config.mode).toBe("test");
@@ -85,5 +116,23 @@ describe("configurarea emailului", () => {
     expect(() => resolveEmailConfig({ NEXT_PUBLIC_APP_URL: "nu-e-url" })).toThrow(
       /Configurare email invalidă/,
     );
+  });
+});
+
+describe("cheile de șablon încap în constrângerea din bază", () => {
+  /*
+   * `email_log.template` are `CHECK (template ~ '^[a-z][a-z0-9_-]{1,63}$')`.
+   * Înainte de migrarea 0091 regexul nu accepta cratima, iar patru din cele
+   * șase chei o conțin — deci `insereazaLog` pica, `sendEmail` se oprea cu
+   * „baza_de_date" și e-mailul nu pleca. Tăcut: apelanții doar înregistrează
+   * rezultatul.
+   *
+   * Poarta e aici, nu în bază: o cheie nouă cu majusculă, spațiu sau punct ar
+   * fi respinsă abia în producție, la primul e-mail de felul acela.
+   */
+  const REGEX_BAZA = /^[a-z][a-z0-9_-]{1,63}$/u;
+
+  it.each(EMAIL_TEMPLATE_KEYS)("„%s” trece de constrângere", (cheie) => {
+    expect(REGEX_BAZA.test(cheie)).toBe(true);
   });
 });

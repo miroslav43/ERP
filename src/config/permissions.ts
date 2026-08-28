@@ -70,14 +70,20 @@ export const PERMISSION_KEYS = [
   "checklists:read",
   "checklists:create",
   "checklists:update",
+  // `approve` a stat seedată în 0002 și citită de ZERO politici până la 0088,
+  // care i-a dat conținut. Împărțirea, de acum: `update` = cine bifează pași,
+  // `approve` = cine ÎNCHIDE parcursul (finalizare sau anulare). Managerul o
+  // avea deja la scope `team`, deci închiderea pentru subordonați i s-a deschis
+  // fără niciun seed nou — iar bifarea i-a rămas îngustă, la `own`.
+  "checklists:approve",
   "compliance:read",
   "compliance:create",
   "compliance:update",
   "compliance:export",
   // Modulul de cursuri (0075). Exact patru chei: nu există politică DELETE
   // (ștergerea e `deleted_at`, deci `update`) și nu există flux de aprobare.
-  // Absența e forma corectă a lui „nu" — un rând decorativ ar produce exact
-  // `checklists:approve`, seedat în 0002 și mort de atunci.
+  // Absența e forma corectă a lui „nu" — un rând decorativ ar produce exact ce a
+  // fost `checklists:approve` până la 0088: seedat din 0002 și citit de nimeni.
   "courses:read",
   "courses:create",
   "courses:update",
@@ -130,6 +136,22 @@ export const PERMISSION_KEYS = [
   "per_diem:update",
   "per_diem:delete",
   "per_diem:approve",
+  // Modulul REGES-Online (0087). Șase chei, dintre care două — `transmit` și
+  // `configure` — NU sunt în produsul cartezian de acțiuni din 0002_authz.sql
+  // (read/create/update/delete/approve/export), deci nici `super_admin` nu le
+  // primește automat: fiecare are rândul ei explicit în seed.
+  //
+  // `transmit` e separată de `update` deliberat. A apăsa „Transmite" înseamnă a
+  // scrie în registrul oficial al Inspecției Muncii; a corecta un rând din coadă
+  // înainte de trimitere nu. Modulul vechi le confunda: acțiunile declarau
+  // `compliance:read` iar pagina gata pe `compliance:update`, deci cine avea doar
+  // citire putea chema Server Action-ul direct și falsifica registrul.
+  "reges:read",
+  "reges:create",
+  "reges:update",
+  "reges:transmit",
+  "reges:configure",
+  "reges:export",
   "reports:read",
   "roles:read",
   "roles:update",

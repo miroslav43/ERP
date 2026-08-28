@@ -167,8 +167,13 @@ begin
   values (v_alfa, 'Sediu Alfa'), (v_beta, 'Sediu Beta');
 
   -- Înrolare unificată angajat (0033): contorul de marcă, 1:1 pe organizație.
+  -- `on conflict` nu e prudență decorativă: de la 0083 încoace, crearea unei
+  -- organizații creează fișa patronului, care cheamă `internal.urmatoarea_marca()`,
+  -- care inserează el însuși rândul de contor. Fixture-ul îl găsea deja acolo și
+  -- pica pe cheia primară înainte să apuce să testeze vreo politică.
   insert into public.employee_marca_counters (organization_id, next_marca)
-  values (v_alfa, 1), (v_beta, 1);
+  values (v_alfa, 1), (v_beta, 1)
+  on conflict (organization_id) do nothing;
 
   -- Suprascrieri de permisiuni per organizație (rândurile globale au org NULL).
   insert into public.role_permissions (organization_id, role, resource, action, scope)
@@ -198,6 +203,16 @@ begin
   -- aprobare a concediilor (0009 §12, reparat în 0017) are mulțime vidă pentru
   -- Ana/Bogdan și cererea escaladează direct la org_admin — ceea ce ar ascunde
   -- exact regresia pe care 0017 a reparat-o, în loc s-o exercite.
+  -- 0083 a pus un trigger pe `organization_members` care creează automat fișa
+  -- „patronului", cu `is_primary` și `user_id`-ul membrului. Fixture-ul își
+  -- construiește singur graful de angajați — cu marca, ierarhia și `manager_path`
+  -- de care depind verificările de scope `team` — deci fișele automate se șterg
+  -- aici. Fără ștergere, al doilea rând cu același `user_id` cade pe
+  -- `employees_org_user_primary_uniq`, iar suita se oprea înainte să testeze
+  -- vreo politică. Ștergerea e fizică, nu `deleted_at`: rândul nu trebuie să
+  -- existe deloc, pentru că `app.current_employee_id()` nu filtrează pe marca.
+  delete from public.employees where organization_id in (v_alfa, v_beta);
+
   insert into public.employees (id, organization_id, marca, first_name, last_name,
                                 department_id, job_position_id, hired_on, status, user_id)
   values ((select val from t_ids where cheie='mgr_alfa'), v_alfa, '000', 'Maria', 'Manager',
@@ -319,13 +334,58 @@ begin
   values (v_alfa, (select val from t_ids where cheie='ang_alfa'), 'ADV', 1, 'ADV-1', 'Adeverință de venit', 'suma-alfa'),
          (v_beta, (select val from t_ids where cheie='ang_beta'), 'ADV', 1, 'ADV-1', 'Adeverință de venit', 'suma-beta');
 
-  insert into public.revisal_config (organization_id, event_type, termen_zile, valabil_de_la)
+  insert into public.reges_termene (organization_id, event_type, termen_zile, valabil_de_la)
   values (v_alfa, 'angajare', -1, current_date - 500),
          (v_beta, 'angajare', -1, current_date - 500);
 
-  insert into public.revisal_events (organization_id, employee_id, event_type, data_evenimentului, termen_transmitere)
+  insert into public.reges_evenimente (organization_id, employee_id, event_type, data_evenimentului, termen_transmitere)
   values (v_alfa, (select val from t_ids where cheie='ang_alfa'), 'angajare', current_date - 400, current_date - 401),
          (v_beta, (select val from t_ids where cheie='ang_beta'), 'angajare', current_date - 300, current_date - 301);
+
+  -- REGES-Online (0087). Credențialele au criptotext fictiv, ca la
+  -- `employee_sensitive_data`: verificarea de izolare nu decriptează nimic, se
+  -- uită doar dacă rândul firmei Beta e vizibil din sesiunea firmei Alfa.
+  insert into public.reges_credentiale (
+    organization_id, mediu, cui_angajator, utilizator,
+    client_secret_ciphertext, client_secret_iv, client_secret_tag, client_secret_key_version,
+    parola_ciphertext, parola_iv, parola_tag, parola_key_version, activ)
+  values (v_alfa, 'test', 'RO1111111', 'alfa@test',
+          '\x01'::bytea, repeat('a', 12)::bytea, repeat('b', 16)::bytea, 1,
+          '\x02'::bytea, repeat('c', 12)::bytea, repeat('d', 16)::bytea, 1, true),
+         (v_beta, 'test', 'RO2222222', 'beta@test',
+          '\x03'::bytea, repeat('e', 12)::bytea, repeat('f', 16)::bytea, 1,
+          '\x04'::bytea, repeat('g', 12)::bytea, repeat('h', 16)::bytea, 1, true);
+
+  insert into t_ids
+  select 'msj_' || e, gen_random_uuid() from unnest(array['alfa','beta']) e;
+
+  insert into public.reges_mesaje (id, organization_id, employee_id, tip, operatie)
+  values ((select val from t_ids where cheie='msj_alfa'), v_alfa,
+          (select val from t_ids where cheie='ang_alfa'), 'salariat', 'InregistrareSalariat'),
+         ((select val from t_ids where cheie='msj_beta'), v_beta,
+          (select val from t_ids where cheie='ang_beta'), 'salariat', 'InregistrareSalariat');
+
+  -- Un nomenclator NAȚIONAL (organization_id null) e vizibil tuturor prin design:
+  -- codurile COR sunt date publice. Rândurile de mai jos sunt cele SPECIFICE
+  -- angajatorului (TipSporAngajator), singurele care trebuie izolate.
+  insert into public.reges_nomenclatoare (organization_id, tip, reges_id, cod, nume)
+  values (v_alfa, 'TipSporAngajator', gen_random_uuid(), 'SPA', 'Spor Alfa'),
+         (v_beta, 'TipSporAngajator', gen_random_uuid(), 'SPB', 'Spor Beta');
+
+  insert into public.reges_propuneri (organization_id, directie, fel, contract_id, salariat_nume)
+  values (v_alfa, 'trimisa', 'detasare', (select c.id from public.employment_contracts c where c.organization_id = v_alfa limit 1), 'Salariat Alfa'),
+         (v_beta, 'trimisa', 'detasare', (select c.id from public.employment_contracts c where c.organization_id = v_beta limit 1), 'Salariat Beta');
+
+  insert into public.contract_suspendari (
+    organization_id, contract_id, employee_id, data_inceput, temei_legal)
+  values (v_alfa, (select c.id from public.employment_contracts c where c.organization_id = v_alfa limit 1),
+          (select val from t_ids where cheie='ang_alfa'), current_date - 200, 'Art54'),
+         (v_beta, (select c.id from public.employment_contracts c where c.organization_id = v_beta limit 1),
+          (select val from t_ids where cheie='ang_beta'), current_date - 100, 'Art54');
+
+  insert into public.reges_apeluri (organization_id, mesaj_id, metoda, cale, http_status)
+  values (v_alfa, (select val from t_ids where cheie='msj_alfa'), 'POST', '/api/Salariat', 200),
+         (v_beta, (select val from t_ids where cheie='msj_beta'), 'POST', '/api/Salariat', 200);
 
   -- Conformitate (Faza 4). `entity_type` acoperă deliberat două regimuri
   -- diferite: un document de vehicul (drept de conformitate) și unul de angajat
@@ -651,9 +711,21 @@ begin
 
   -- Pas neobligatoriu, responsabil = managerul direct: simplifică finalizarea
   -- de mai jos (fără el, ar trebui bifat manual înainte de a putea finaliza).
-  insert into public.checklist_template_items (organization_id, template_id, ordine, titlu, responsabil_tip, obligatoriu)
-  values (v_alfa, (select val from t_ids where cheie='ctpl_alfa'), 1, 'Predare echipament', 'manager_direct', false),
-         (v_beta, (select val from t_ids where cheie='ctpl_beta'), 1, 'Predare echipament', 'manager_direct', false);
+  -- Etape (0089), pentru AMBELE organizații: verificarea (c) cere rânduri de
+  -- ambele părți ca izolarea tabelei să fie demonstrată, nu presupusă.
+  insert into public.checklist_template_stages (organization_id, template_id, ordine, titlu, termen_zile_relativ)
+  values (v_alfa, (select val from t_ids where cheie='ctpl_alfa'), 1, 'Înainte de prima zi', -5),
+         (v_beta, (select val from t_ids where cheie='ctpl_beta'), 1, 'Înainte de prima zi', -5);
+
+  insert into public.checklist_template_items (organization_id, template_id, ordine, titlu, responsabil_tip, obligatoriu, etapa_id)
+  values (v_alfa, (select val from t_ids where cheie='ctpl_alfa'), 1, 'Predare echipament', 'manager_direct', false,
+          (select st.id from public.checklist_template_stages st
+            where st.organization_id = v_alfa
+              and st.template_id = (select val from t_ids where cheie='ctpl_alfa'))),
+         (v_beta, (select val from t_ids where cheie='ctpl_beta'), 1, 'Predare echipament', 'manager_direct', false,
+          (select st.id from public.checklist_template_stages st
+            where st.organization_id = v_beta
+              and st.template_id = (select val from t_ids where cheie='ctpl_beta')));
 
   -- Pornirea instanței copiază pașii din șablon prin trigger
   -- (checklist_copiaza_pasii, 0014) — populează checklist_instance_items prin
@@ -2134,6 +2206,354 @@ begin
     end;
     reset role;
   end if;
+
+  -- ───────────────────────────────────────────────────────────────────────
+  -- INTEGRARE (0088). Patru probe pentru defectele care au trecut prin
+  -- typecheck, lint, 2084 de teste și cele trei bariere fără niciun zgomot.
+  -- Verificarea (l) le-ar fi prins pe toate, dacă ar fi existat.
+  -- ───────────────────────────────────────────────────────────────────────
+  declare
+    v_mgr_fisa   uuid;
+    v_tpl_gol    uuid;
+    v_tpl_plin   uuid;
+    v_inst_mgr   uuid;
+    v_pas_mgr    uuid;
+    v_inv_vazute integer;
+  begin
+    select e.id into v_mgr_fisa from public.employees e
+     where e.organization_id = v_alfa and e.user_id = v_mgr_user
+       and e.is_primary and e.deleted_at is null;
+
+    -- Pregătirea o face org_admin: șabloanele cer `checklists:create = all`.
+    perform set_config('request.jwt.claim.sub', v_admin::text, true);
+    set local role authenticated;
+    insert into public.checklist_templates (organization_id, denumire, tip)
+    values (v_alfa, 'Integrare fără pași ' || v_rand, 'onboarding') returning id into v_tpl_gol;
+    insert into public.checklist_templates (organization_id, denumire, tip)
+    values (v_alfa, 'Integrare cu pași ' || v_rand, 'onboarding') returning id into v_tpl_plin;
+    -- Pasul îi revine MANAGERULUI, nu subiectului.
+    insert into public.checklist_template_items
+      (organization_id, template_id, ordine, titlu, responsabil_tip, responsabil_employee_id, obligatoriu)
+    values (v_alfa, v_tpl_plin, 1, 'Pregătește laptopul', 'angajat', v_mgr_fisa, true);
+    reset role;
+
+    -- (D10) Pornirea pe un șablon FĂRĂ pași trebuie REFUZATĂ. Înainte de 0088
+    -- trecea, iar instanța se finaliza singură și emitea o dovadă imutabilă cu
+    -- `total_pasi = 0` — există una în producție.
+    perform set_config('request.jwt.claim.sub', v_admin::text, true);
+    set local role authenticated;
+    begin
+      insert into public.checklist_instances (organization_id, template_id, employee_id, tip, data_referinta)
+      values (v_alfa, v_tpl_gol, v_sub_alfa, 'onboarding', current_date);
+      v_scapate := v_scapate || E'\n  org_admin -> checklist_instances (șablon FĂRĂ pași): a pornit, deși parcursul ar fi gol';
+    exception when sqlstate 'P0001' then
+      v_reusite := v_reusite || E'\n  org_admin -> checklist_instances: șablonul gol refuzat corect (D10)';
+    end;
+
+    -- Instanța reală, pe șablonul cu pași.
+    begin
+      insert into public.checklist_instances (organization_id, template_id, employee_id, tip, data_referinta)
+      values (v_alfa, v_tpl_plin, v_sub_alfa, 'onboarding', current_date)
+      returning id into v_inst_mgr;
+      v_reusite := v_reusite || E'\n  org_admin -> checklist_instances (pornire pe șablon cu pași)';
+    exception when others then
+      v_esuate := v_esuate || format(E'\n  org_admin -> checklist_instances (șablon cu pași): %s (%s)', sqlerrm, sqlstate);
+    end;
+    reset role;
+
+    select ii.id into v_pas_mgr from public.checklist_instance_items ii
+     where ii.instance_id = v_inst_mgr and ii.deleted_at is null;
+
+    -- (D1) PROBA DE FOND: managerul bifează pasul AL CĂRUI RESPONSABIL ESTE.
+    -- Până la 0088 nu avea `checklists:update` deloc, deci ramura scrisă anume
+    -- pentru el în 0014:865 era cod mort, iar pasul nu putea fi bifat de nimeni
+    -- în afară de `checklists:update = all`.
+    perform set_config('request.jwt.claim.sub', v_mgr_user::text, true);
+    set local role authenticated;
+    begin
+      update public.checklist_instance_items set status = 'bifat'
+       where id = v_pas_mgr and organization_id = v_alfa;
+      if not found then
+        v_esuate := v_esuate || E'\n  manager -> checklist_instance_items (pasul lui): zero rânduri, refuz TĂCUT al politicii';
+      else
+        v_reusite := v_reusite || E'\n  manager -> checklist_instance_items (bifează pasul al cărui responsabil e) (D1)';
+      end if;
+    exception when others then
+      v_esuate := v_esuate || format(E'\n  manager -> checklist_instance_items (pasul lui): %s (%s)', sqlerrm, sqlstate);
+    end;
+
+    -- (D9) Managerul NU trebuie să vadă inventarul firmei prin poarta de
+    -- integrare. Politicile din 0014:916-930 erau gardate exclusiv pe
+    -- `checklists:update >= team`, fără subordonare și fără `returnat_la is null`.
+    select count(*) into v_inv_vazute from public.inventory_items;
+    if v_inv_vazute > 0 then
+      v_scapate := v_scapate || format(
+        E'\n  manager -> inventory_items: vede %s obiecte prin poarta de integrare (D9)', v_inv_vazute);
+    else
+      v_reusite := v_reusite || E'\n  manager -> inventory_items: zero rânduri, corect (D9)';
+    end if;
+
+    -- (D5) Închiderea parcursului e `checklists:approve`, pe care managerul o
+    -- are la scope `team` din 0002. Subordonatul e al lui, pasul e bifat.
+    begin
+      update public.checklist_instances set status = 'finalizata' where id = v_inst_mgr;
+      if not found then
+        v_esuate := v_esuate || E'\n  manager -> checklist_instances (finalizare): zero rânduri, refuz tăcut';
+      else
+        v_reusite := v_reusite || E'\n  manager -> checklist_instances (finalizează parcursul subordonatului) (D5)';
+      end if;
+    exception when others then
+      v_esuate := v_esuate || format(E'\n  manager -> checklist_instances (finalizare): %s (%s)', sqlerrm, sqlstate);
+    end;
+    reset role;
+  end;
+
+  -- ───────────────────────────────────────────────────────────────────────
+  -- INTEGRARE (0089). D7 și D8: responsabilul se REZOLVĂ la materializare.
+  -- Fără ele, un șablon reutilizabil nu putea produce NICIUN pas pe care noul
+  -- angajat să-l bifeze — modulul era mort pe drumul lui principal.
+  -- ───────────────────────────────────────────────────────────────────────
+  declare
+    v_tpl        uuid;
+    v_etapa      uuid;
+    v_inst_ana   uuid;
+    v_inst_sub   uuid;
+    v_pas_subiect uuid;
+    v_pas_mgrdir uuid;
+    v_resp       uuid;
+    v_et_titlu   text;
+    v_et_termen  date;
+    v_fel        text;
+    v_mgr_fisa2  uuid;
+  begin
+    perform set_config('request.jwt.claim.sub', v_admin::text, true);
+    set local role authenticated;
+    insert into public.checklist_templates (organization_id, denumire, tip)
+    values (v_alfa, 'Integrare pe etape ' || v_rand, 'onboarding') returning id into v_tpl;
+
+    insert into public.checklist_template_stages (organization_id, template_id, ordine, titlu, termen_zile_relativ)
+    values (v_alfa, v_tpl, 1, 'Prima zi', 0) returning id into v_etapa;
+
+    -- Pasul 1 îi revine SUBIECTULUI — noul angajat. Ăsta e cazul care nu se
+    -- putea exprima deloc înainte de 0089.
+    insert into public.checklist_template_items
+      (organization_id, template_id, ordine, titlu, responsabil_tip, obligatoriu, etapa_id)
+    values (v_alfa, v_tpl, 1, 'Citește regulamentul intern', 'subiect', true, v_etapa);
+    -- Pasul 2 îi revine MANAGERULUI DIRECT, rezolvat tot la materializare.
+    insert into public.checklist_template_items
+      (organization_id, template_id, ordine, titlu, responsabil_tip, obligatoriu, etapa_id)
+    values (v_alfa, v_tpl, 2, 'Pregătește locul de muncă', 'manager_direct', true, v_etapa);
+
+    insert into public.checklist_instances (organization_id, template_id, employee_id, tip, data_referinta)
+    values (v_alfa, v_tpl, v_ang_alfa, 'onboarding', current_date) returning id into v_inst_ana;
+    reset role;
+
+    -- Materializarea: responsabilul „subiect" TREBUIE să fie chiar Ana.
+    select ii.id, ii.responsabil_employee_id, ii.etapa_titlu, ii.etapa_termen, ii.fel::text
+      into v_pas_subiect, v_resp, v_et_titlu, v_et_termen, v_fel
+      from public.checklist_instance_items ii
+     where ii.instance_id = v_inst_ana and ii.ordine = 1;
+
+    if v_resp is distinct from v_ang_alfa then
+      v_esuate := v_esuate || format(
+        E'\n  materializare `subiect`: responsabil_employee_id = %s, se aștepta %s (D7)', v_resp, v_ang_alfa);
+    else
+      v_reusite := v_reusite || E'\n  materializare: `subiect` rezolvat în angajatul instanței (D7)';
+    end if;
+
+    if v_et_titlu is distinct from 'Prima zi' or v_et_termen is distinct from current_date then
+      v_esuate := v_esuate || format(
+        E'\n  materializare etapă: titlu=%s termen=%s, se aștepta „Prima zi"/%s', v_et_titlu, v_et_termen, current_date);
+    else
+      v_reusite := v_reusite || E'\n  materializare: etapa copiată ca text, cu termen absolut';
+    end if;
+
+    if v_fel is distinct from 'bifa' then
+      v_esuate := v_esuate || format(E'\n  materializare fel: %s, se aștepta bifa', v_fel);
+    else
+      v_reusite := v_reusite || E'\n  materializare: `fel` derivat corect';
+    end if;
+
+    -- PROBA DE FOND (D7): ANGAJATUL își bifează propriul pas.
+    perform set_config('request.jwt.claim.sub', v_emp_user::text, true);
+    set local role authenticated;
+    begin
+      update public.checklist_instance_items set status = 'bifat'
+       where id = v_pas_subiect and organization_id = v_alfa;
+      if not found then
+        v_esuate := v_esuate || E'\n  employee -> pasul propriu (`subiect`): zero rânduri, refuz TĂCUT (D7)';
+      else
+        v_reusite := v_reusite || E'\n  employee -> își bifează propriul pas de integrare (D7)';
+      end if;
+    exception when others then
+      v_esuate := v_esuate || format(E'\n  employee -> pasul propriu (`subiect`): %s (%s)', sqlerrm, sqlstate);
+    end;
+    reset role;
+
+    -- (D8) `manager_direct` rezolvat: parcurs pentru subordonatul lui v_mgr_user.
+    perform set_config('request.jwt.claim.sub', v_admin::text, true);
+    set local role authenticated;
+    insert into public.checklist_instances (organization_id, template_id, employee_id, tip, data_referinta)
+    values (v_alfa, v_tpl, v_sub_alfa, 'onboarding', current_date) returning id into v_inst_sub;
+    reset role;
+
+    select e.id into v_mgr_fisa2 from public.employees e
+     where e.organization_id = v_alfa and e.user_id = v_mgr_user and e.is_primary and e.deleted_at is null;
+
+    select ii.id, ii.responsabil_employee_id into v_pas_mgrdir, v_resp
+      from public.checklist_instance_items ii
+     where ii.instance_id = v_inst_sub and ii.ordine = 2;
+
+    if v_resp is distinct from v_mgr_fisa2 then
+      v_esuate := v_esuate || format(
+        E'\n  materializare `manager_direct`: responsabil = %s, se aștepta managerul %s (D8)', v_resp, v_mgr_fisa2);
+    else
+      v_reusite := v_reusite || E'\n  materializare: `manager_direct` rezolvat în managerul real (D8)';
+    end if;
+
+    perform set_config('request.jwt.claim.sub', v_mgr_user::text, true);
+    set local role authenticated;
+    begin
+      update public.checklist_instance_items set status = 'bifat'
+       where id = v_pas_mgrdir and organization_id = v_alfa;
+      if not found then
+        v_esuate := v_esuate || E'\n  manager -> pas `manager_direct`: zero rânduri, refuz tăcut (D8)';
+      else
+        v_reusite := v_reusite || E'\n  manager -> bifează pasul `manager_direct` al subordonatului (D8)';
+      end if;
+    exception when others then
+      v_esuate := v_esuate || format(E'\n  manager -> pas `manager_direct`: %s (%s)', sqlerrm, sqlstate);
+    end;
+    reset role;
+
+    -- IZOLARE: angajatul Anei NU are voie să bifeze pasul din parcursul altcuiva.
+    perform set_config('request.jwt.claim.sub', v_emp_user::text, true);
+    set local role authenticated;
+    update public.checklist_instance_items set status = 'bifat'
+     where id = v_pas_mgrdir and organization_id = v_alfa;
+    if found then
+      v_scapate := v_scapate || E'\n  employee -> pasul din parcursul ALTCUIVA: a trecut';
+    else
+      v_reusite := v_reusite || E'\n  employee -> pasul altcuiva: refuzat corect';
+    end if;
+    reset role;
+  end;
+
+  -- ───────────────────────────────────────────────────────────────────────
+  -- INTEGRARE (0090). Salvarea atomică a unui șablon, cu parcare negativă.
+  -- ───────────────────────────────────────────────────────────────────────
+  declare
+    v_sab      uuid;
+    v_pasi     integer;
+    v_pozitii  text;
+    v_sters    integer;
+    v_negative integer;
+    v_id_pas1  uuid;
+    v_id_pas2  uuid;
+    v_id_et    uuid;
+  begin
+    perform set_config('request.jwt.claim.sub', v_admin::text, true);
+    set local role authenticated;
+
+    -- Un șablon întreg — antet, două etape, trei pași — dintr-un singur apel.
+    select public.checklist_salveaza_sablon(jsonb_build_object(
+      'denumire', 'Asistent ' || v_rand,
+      'tip', 'onboarding',
+      'valabil_de_la', current_date::text,
+      'activ', true,
+      'etape', jsonb_build_array(
+        jsonb_build_object(
+          'titlu', 'Înainte de prima zi', 'termen_zile_relativ', -5,
+          'pasi', jsonb_build_array(
+            jsonb_build_object('titlu', 'Pregătește laptopul', 'responsabil_tip', 'manager_direct'),
+            jsonb_build_object('titlu', 'Semnează contractul', 'responsabil_tip', 'rol', 'responsabil_rol', 'hr')
+          )),
+        jsonb_build_object(
+          'titlu', 'Prima zi', 'termen_zile_relativ', 0,
+          'pasi', jsonb_build_array(
+            jsonb_build_object('titlu', 'Citește regulamentul', 'responsabil_tip', 'subiect')
+          ))
+      )
+    )) into v_sab;
+
+    select count(*), string_agg(ti.ordine::text, ',' order by ti.ordine)
+      into v_pasi, v_pozitii
+      from public.checklist_template_items ti
+     where ti.template_id = v_sab and ti.deleted_at is null;
+
+    if v_pasi <> 3 or v_pozitii <> '1,2,3' then
+      v_esuate := v_esuate || format(
+        E'\n  checklist_salveaza_sablon: %s pași, poziții %s; se așteptau 3 și „1,2,3"', v_pasi, v_pozitii);
+    else
+      v_reusite := v_reusite || E'\n  org_admin -> checklist_salveaza_sablon (3 pași, 2 etape, UN drum)';
+    end if;
+
+    -- Re-salvare: pașii 1 și 2 schimbă locul, al treilea dispare.
+    select ti.id into v_id_pas1 from public.checklist_template_items ti
+     where ti.template_id = v_sab and ti.titlu = 'Pregătește laptopul' and ti.deleted_at is null;
+    select ti.id into v_id_pas2 from public.checklist_template_items ti
+     where ti.template_id = v_sab and ti.titlu = 'Semnează contractul' and ti.deleted_at is null;
+    select st.id into v_id_et from public.checklist_template_stages st
+     where st.template_id = v_sab and st.titlu = 'Înainte de prima zi' and st.deleted_at is null;
+
+    perform public.checklist_salveaza_sablon(jsonb_build_object(
+      'id', v_sab::text,
+      'denumire', 'Asistent ' || v_rand,
+      'tip', 'onboarding',
+      'valabil_de_la', current_date::text,
+      'activ', true,
+      'etape', jsonb_build_array(
+        jsonb_build_object(
+          'id', v_id_et::text, 'titlu', 'Înainte de prima zi', 'termen_zile_relativ', -5,
+          'pasi', jsonb_build_array(
+            jsonb_build_object('id', v_id_pas2::text, 'titlu', 'Semnează contractul',
+                               'responsabil_tip', 'rol', 'responsabil_rol', 'hr'),
+            jsonb_build_object('id', v_id_pas1::text, 'titlu', 'Pregătește laptopul',
+                               'responsabil_tip', 'manager_direct')
+          ))
+      )
+    ));
+
+    select ti.ordine into v_pasi from public.checklist_template_items ti where ti.id = v_id_pas2;
+    select count(*) into v_sters from public.checklist_template_items ti
+     where ti.template_id = v_sab and ti.deleted_at is not null;
+
+    if v_pasi <> 1 then
+      v_esuate := v_esuate || format(
+        E'\n  reordonare prin parcare negativă: „Semnează contractul" e pe %s, nu pe 1', v_pasi);
+    else
+      v_reusite := v_reusite || E'\n  org_admin -> reordonare într-un singur UPDATE, prin parcare negativă';
+    end if;
+
+    if v_sters <> 1 then
+      v_esuate := v_esuate || format(
+        E'\n  ștergere logică la re-salvare: %s rânduri șterse, se aștepta 1', v_sters);
+    else
+      v_reusite := v_reusite || E'\n  org_admin -> pasul scos din asistent se șterge LOGIC, nu dispare din instanțe';
+    end if;
+
+    select count(*) into v_negative from public.checklist_template_items ti
+     where ti.template_id = v_sab and ti.deleted_at is null and ti.ordine < 0;
+    if v_negative > 0 then
+      v_esuate := v_esuate || format(E'\n  parcarea negativă a SUPRAVIEȚUIT: %s rânduri vii cu ordine < 0', v_negative);
+    else
+      v_reusite := v_reusite || E'\n  parcarea negativă nu supraviețuiește salvării';
+    end if;
+
+    -- Banda negativă NU e stare legală în repaus. `set constraints all
+    -- immediate` forțează triggerul amânat să se pronunțe acum: fixture-ul se
+    -- încheie cu rollback, deci altfel n-ar apuca niciodată să tragă.
+    begin
+      update public.checklist_template_items set ordine = -3 where id = v_id_pas1;
+      set constraints all immediate;
+      v_scapate := v_scapate || E'\n  scriere directă cu ordine = -3: a trecut, deși e doar parcare';
+      set constraints all deferred;
+    exception when sqlstate 'P0001' then
+      v_reusite := v_reusite || E'\n  scriere directă cu ordine negativă: refuzată la commit, corect';
+      set constraints all deferred;
+    end;
+    reset role;
+  end;
 
   if v_scapate <> '' then
     perform pg_temp.esueaza(format(

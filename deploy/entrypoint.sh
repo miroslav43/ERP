@@ -20,7 +20,8 @@
 set -eu
 
 for nume in SUPABASE_SERVICE_ROLE_KEY HR_ENCRYPTION_KEYS HR_HASH_KEY \
-            TENANT_COOKIE_SECRET RESEND_API_KEY RESEND_WEBHOOK_SECRET; do
+            TENANT_COOKIE_SECRET RESEND_API_KEY RESEND_WEBHOOK_SECRET \
+            REGES_CRON_SECRET; do
   eval "cale=\${${nume}_FILE:-}"
   [ -n "$cale" ] || continue
   if [ -r "$cale" ]; then

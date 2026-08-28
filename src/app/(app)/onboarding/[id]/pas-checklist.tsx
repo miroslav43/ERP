@@ -10,7 +10,11 @@ import { Camp, clasaBifa } from "@/components/ui/camp";
 import { Formular } from "@/components/ui/formular";
 import { cn } from "@/lib/ui/cn";
 import { formatDate, formatDateTime } from "@/lib/format/date";
-import type { ChecklistItemStatus, ChecklistVerificare } from "@/schemas/checklist";
+import type {
+  ChecklistItemStatus,
+  ChecklistVerificare,
+  ChecklistResponsabilTip,
+} from "@/schemas/checklist";
 import { CHECKLIST_ITEM_STATUS } from "@/schemas/checklist";
 
 import { bifeazaPas } from "../actions";
@@ -50,7 +54,9 @@ export interface PasAfisat {
   readonly ordine: number;
   readonly titlu: string;
   readonly descriere: string | null;
-  readonly responsabil_tip: "rol" | "angajat" | "manager_direct";
+  // Legat de sursă, nu scris de mână: uniunea de aici a rămas în urmă la 0089,
+  // care a adăugat `subiect`. Aceeași capcană ca la `verificare_automata`.
+  readonly responsabil_tip: ChecklistResponsabilTip;
   readonly responsabil_rol: "super_admin" | "org_admin" | "manager" | "hr" | "employee" | null;
   readonly responsabil_employee_id: string | null;
   readonly termen: string | null;
@@ -169,9 +175,18 @@ function PasRand({ pas, poateBifa }: { readonly pas: PasAfisat; readonly poateBi
     return bifeazaPas({
       id: pas.id,
       status: String(date.get("status") ?? pas.status) as ChecklistItemStatus,
-      dovada: pas.tip_dovada === "semnatura" ? (dovadaSemn.length === 0 ? null : dovadaSemn) : null,
+      // Câmpul care NU e randat pentru felul curent de dovadă se trimite ÎNAPOI
+      // NESCHIMBAT, exact ca în `comuta()`. Cu `null` acolo, salvarea unei simple
+      // observații pe un pas cu dovadă „document" ștergea semnătura scrisă de
+      // altcineva — `bifeazaPas` scrie toate patru coloanele la fiecare apel.
+      dovada:
+        pas.tip_dovada === "semnatura" ? (dovadaSemn.length === 0 ? null : dovadaSemn) : pas.dovada,
       dovada_document_id:
-        pas.tip_dovada === "document" ? (dovadaDoc.length === 0 ? null : dovadaDoc) : null,
+        pas.tip_dovada === "document"
+          ? dovadaDoc.length === 0
+            ? null
+            : dovadaDoc
+          : pas.dovada_document_id,
       observatii: observatii.length === 0 ? null : observatii,
     });
   }

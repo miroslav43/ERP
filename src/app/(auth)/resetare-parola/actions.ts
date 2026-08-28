@@ -3,8 +3,8 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { clientEnv } from "@/config/env";
-import { createServerSupabase } from "@/lib/supabase/server";
+import { sendEmail } from "@/lib/email/send";
+import { createAdminSupabase } from "@/lib/supabase/admin";
 import { consumeRateLimit } from "@/lib/utils/rate-limit";
 import { resetareParolaSchema } from "@/schemas/auth";
 
@@ -34,10 +34,48 @@ export async function cereResetareParola(formData: FormData): Promise<void> {
     redirect("/resetare-parola?eroare=limita");
   }
 
-  const supabase = await createServerSupabase();
-  await supabase.auth.resetPasswordForEmail(validat.data.email, {
-    redirectTo: `${clientEnv.NEXT_PUBLIC_APP_URL}/auth/callback?next=%2Fparola-noua`,
+  /*
+   * ── DE CE NU MAI FOLOSIM `resetPasswordForEmail` ──────────────────────────
+   * Aceea lasă Supabase să trimită mesajul: șablon implicit în engleză, fără
+   * nimic din firmă, iar linkul construit din `Site URL`-ul proiectului — care
+   * arăta către `http://localhost:3000`. Utilizatorul primea un link către
+   * calculatorul altcuiva.
+   *
+   * `generateLink` produce același token, dar NU trimite nimic. E-mailul pleacă
+   * prin Resend, cu șablonul care exista deja în proiect și pe care nu-l chema
+   * nimeni, iar linkul se compune din `NEXT_PUBLIC_APP_URL`.
+   *
+   * `createAdminSupabase` e permis aici — fișier `actions.ts` — și e necesar:
+   * `generateLink` e API de administrare. Nu ocolim nicio politică RLS; singura
+   * atingere de date e citirea numelui, filtrată pe `id`-ul utilizatorului.
+   */
+  const admin = createAdminSupabase();
+  const link = await admin.auth.admin.generateLink({
+    type: "recovery",
+    email: validat.data.email,
   });
+
+  // Un cont inexistent produce eroare. NU se comunică: mesajul și durata rămân
+  // identice, altfel formularul devine un detector de conturi.
+  if (link.error === null && link.data.user !== null) {
+    const { data: profil } = await admin
+      .from("profiles")
+      .select("full_name")
+      .eq("id", link.data.user.id)
+      .maybeSingle();
+
+    await sendEmail({
+      db: admin,
+      to: validat.data.email,
+      entityId: link.data.user.id,
+      template: "resetare-parola",
+      data: {
+        nume: profil?.full_name ?? "",
+        tokenHash: link.data.properties.hashed_token,
+        valabilMinute: 60,
+      },
+    });
+  }
 
   // Același mesaj și același timp, cont existent sau nu.
   await asteapta();

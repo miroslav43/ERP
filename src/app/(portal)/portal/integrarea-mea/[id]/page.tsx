@@ -8,6 +8,7 @@ import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { buton } from "@/components/ui/buton";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
+import { pasEsteGata } from "@/schemas/checklist";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { idDinRuta } from "@/lib/rute/parametri";
 import { formatDate } from "@/lib/format/date";
@@ -62,13 +63,22 @@ export default async function PaginaParcursulMeu({
    * Pașii altcuiva rămân VIZIBILI, fără control: politica de SELECT îi arată
    * (`0014:823`), iar omul trebuie să știe pe cine așteaptă.
    */
-  const idPasuriBifabile = pasi
-    .filter(
-      (pas) => pas.verificare_automata === null && pas.responsabil_employee_id === stare.fisa.id,
-    )
-    .map((pas) => pas.id);
+  // Un parcurs închis nu primește bife: `checklist_pregateste_pasul` (0014:576)
+  // refuză orice modificare cu P0001, iar un buton care nu poate reuși e un
+  // defect de ecran.
+  const idPasuriBifabile =
+    instanta.status !== "in_curs"
+      ? []
+      : pasi
+          .filter(
+            (pas) =>
+              pas.verificare_automata === null && pas.responsabil_employee_id === stare.fisa.id,
+          )
+          .map((pas) => pas.id);
 
-  const facute = pasi.filter((pas) => pas.status !== "de_facut").length;
+  // Același predicat ca `progresInstante`, importat, nu rescris: două
+  // definiții ale lui „gata” dădeau cifre diferite pentru aceeași instanță.
+  const facute = pasi.filter((pas) => pasEsteGata(pas.status)).length;
 
   return (
     <div className={`${LATIMI.detaliu} space-y-4 p-4`}>

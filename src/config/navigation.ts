@@ -10,6 +10,7 @@
  */
 import {
   GraduationCap,
+  ArrowLeftRight,
   BarChart3,
   Briefcase,
   CalendarDays,
@@ -144,26 +145,39 @@ export const NAV_ITEMS: readonly NavItem[] = [
     order: 40,
   },
   /*
-   * REVISAL n-avea NICIUN link în tot codul — `grep -rn 'href="/revisal'` pe
-   * `src/` întorcea zero potriviri, iar `NAV_ITEMS` nu-l pomenea. Ecranul
+   * Ecranul n-avea NICIUN link în tot codul până la adăugarea intrării ăsteia:
    * exista, era complet, și se ajungea la el doar tastând adresa.
    *
    * Registrul general de evidență a salariaților are termen legal de
    * transmitere și contravenție PER SALARIAT la întârziere; e printre puținele
-   * ecrane din produs a căror absență costă bani. `minScope: "all"` fiindcă
-   * pagina însăși cere `compliance:read = "all"` — un element de meniu care duce
-   * într-un refuz e mai rău decât unul care lipsește.
+   * ecrane din produs a căror absență costă bani.
+   *
+   * `permission` a trecut de la `compliance:read` la `reges:read` odată cu 0087.
+   * Cheile `compliance:*` rămân ale modulului de scadențe, iar rolul `hr` nu are
+   * niciuna dintre ele — ceea ce însemna că specialistul de personal, exact omul
+   * care transmite la ITM, nu vedea intrarea deloc.
    */
   {
-    id: "revisal",
-    label: "REVISAL",
-    href: "/revisal",
+    id: "reges",
+    label: "REGES-Online",
+    href: "/reges",
     icon: ScrollText,
     group: "personal",
-    featureKey: null,
-    permission: "compliance:read",
+    featureKey: "reges",
+    permission: "reges:read",
     minScope: "all",
     order: 41,
+  },
+  {
+    id: "reges-propuneri",
+    label: "Propuneri detașare",
+    href: "/reges/propuneri",
+    icon: ArrowLeftRight,
+    group: "personal",
+    featureKey: "reges",
+    permission: "reges:read",
+    minScope: "all",
+    order: 42,
   },
   {
     id: "functii",

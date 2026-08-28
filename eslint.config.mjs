@@ -29,6 +29,16 @@ const eslintConfig = defineConfig([
           patterns: [
             {
               group: ["**/lib/supabase/admin", "@/lib/supabase/admin"],
+              /*
+               * `import type { AdminSupabase }` e permis: tipul se șterge la
+               * compilare și nu poate ocoli nimic. Restricția e despre FABRICĂ —
+               * `createAdminSupabase()` — nu despre semnătura funcțiilor care
+               * primesc clientul ca argument. Fără excepția asta, orice modul
+               * care declară „mi se dă un client de serviciu" ar trebui trecut în
+               * lista albă de mai jos, iar lista ar înceta să mai fie evidența
+               * locurilor unde service_role INTRĂ efectiv în joc.
+               */
+              allowTypeImports: true,
               message:
                 "Clientul admin folosește service_role și ocolește RLS. Importă-l doar în Server Actions, Route Handlers sau scripturi — și explică într-un comentariu de ce e nevoie să ocolești RLS.",
             },
@@ -62,6 +72,15 @@ const eslintConfig = defineConfig([
     files: [
       "src/lib/supabase/admin.ts", // chiar constructorul clientului
       "src/**/actions.ts", // Server Actions — rulează exclusiv pe server
+      // Tot Server Actions (`"use server"` în capul fișierului), separate de
+      // `actions.ts` fiindcă fiecare produce un efect IREVERSIBIL în registrul
+      // oficial al Inspecției Muncii. `service_role` e necesar acolo pentru două
+      // lucruri imposibile altfel: `reges_credentiale` n-are nicio politică RLS
+      // și niciun privilegiu pentru `authenticated` (jetonul OIDC se citește și
+      // se scrie doar așa), iar jurnalul de apeluri trebuie scris chiar și când
+      // apelul extern a eșuat. Fiecare interogare filtrează explicit pe
+      // `organization_id` luat din `ctx.tenant`, niciodată dintr-un argument.
+      "src/app/(app)/reges/actiuni-api.ts",
       "src/app/api/**/route.ts", // Route Handlers — idem
       // Limitarea de rată trebuie să funcționeze ȘI pentru cereri
       // neautentificate (login, resetare de parolă), unde nu există sesiune

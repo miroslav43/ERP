@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { Buton } from "@/components/ui/buton";
 import { Camp, clasaBifa } from "@/components/ui/camp";
 import { Formular } from "@/components/ui/formular";
-import type { ChecklistVerificare } from "@/schemas/checklist";
+import type { ChecklistVerificare, ChecklistResponsabilTip } from "@/schemas/checklist";
 import {
   CHECKLIST_RESPONSABIL_TIP,
   CHECKLIST_TIP_DOVADA,
@@ -44,7 +44,9 @@ interface PasInitial {
   readonly id: string;
   readonly titlu: string;
   readonly descriere: string | null;
-  readonly responsabil_tip: "rol" | "angajat" | "manager_direct";
+  // Legat de sursă, nu scris de mână: uniunea de aici a rămas în urmă la 0089,
+  // care a adăugat `subiect`. Aceeași capcană ca la `verificare_automata`.
+  readonly responsabil_tip: ChecklistResponsabilTip;
   readonly responsabil_rol: "super_admin" | "org_admin" | "manager" | "hr" | "employee" | null;
   readonly responsabil_employee_id: string | null;
   readonly termen_zile_relativ: number;

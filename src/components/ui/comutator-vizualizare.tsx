@@ -12,7 +12,7 @@ import { buton } from "./buton";
  *
  * ── DE CE O PRIMITIVĂ, ACUM ───────────────────────────────────────────────
  * Existau patru comutatoare scrise de mână: `/concedii` (corect),
- * `/ssm/instruiri`, `/rapoarte`, `/revisal`. Diferă între ele în feluri care
+ * `/ssm/instruiri`, `/rapoarte`, `/reges`. Diferă între ele în feluri care
  * contează:
  *
  * · cel din `/rapoarte` construiește adresa de la zero, deci ARUNCĂ restul

@@ -7,6 +7,7 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import {
   SORTARI_INSTANTE,
   SORTARI_SABLOANE,
+  pasEsteGata,
   type ChecklistInstantaStatus,
   type ChecklistItemStatus,
   type ChecklistResponsabilTip,
@@ -18,6 +19,7 @@ import {
   type RolResponsabil,
   type SortareInstante,
   type SortareSabloane,
+  type ChecklistFelPas,
 } from "@/schemas/checklist";
 
 import {
@@ -261,7 +263,7 @@ export async function progresInstante(
   const acumulator = new Map<string, { total: number; gata: number }>();
   for (const rand of randuri) {
     const curent = acumulator.get(rand.instance_id) ?? { total: 0, gata: 0 };
-    const esteGata = rand.status === "bifat" || rand.status === "neaplicabil";
+    const esteGata = pasEsteGata(rand.status);
     acumulator.set(rand.instance_id, {
       total: curent.total + 1,
       gata: curent.gata + (esteGata ? 1 : 0),
@@ -301,6 +303,13 @@ export interface PasInstanta {
   readonly dovada: string | null;
   readonly dovada_document_id: string | null;
   readonly observatii: string | null;
+  // Etapa, copiată ca text la materializare (0089). `null` pentru pașii unui
+  // șablon fără etape și pentru parcursurile pornite înainte de 0089 — ecranele
+  // îi grupează atunci sub „Fără etapă”.
+  readonly etapa_titlu: string | null;
+  readonly etapa_ordine: number | null;
+  readonly etapa_termen: string | null;
+  readonly fel: ChecklistFelPas;
 }
 
 export async function pasiiInstantei(
@@ -313,11 +322,15 @@ export async function pasiiInstantei(
     .select(
       "id, ordine, titlu, descriere, responsabil_tip, responsabil_rol, responsabil_employee_id, " +
         "termen, obligatoriu, tip_dovada, verificare_automata, status, bifat_de, bifat_la, " +
-        "bifat_automat, dovada, dovada_document_id, observatii",
+        "bifat_automat, dovada, dovada_document_id, observatii, " +
+        "etapa_titlu, etapa_ordine, etapa_termen, fel",
     )
     .eq("organization_id", organizationId)
     .eq("instance_id", instanceId)
     .is("deleted_at", null)
+    // Etapa întâi, apoi poziția în ea. `nullsFirst` ține pașii fără etapă în
+    // capul listei, nu la coadă: într-un șablon mixt ei sunt cei vechi.
+    .order("etapa_ordine", { ascending: true, nullsFirst: true })
     .order("ordine", { ascending: true })
     .returns<PasInstanta[]>();
 

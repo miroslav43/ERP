@@ -1,19 +1,19 @@
 // GENERAT AUTOMAT — nu edita manual.
 //
-// Regenerare: `.claude/.../altoieste-tipuri.py` peste ieșirea lui
+// Regenerare: `scripts/altoieste-tipuri.py` peste ieșirea lui
 // `supabase gen types typescript --db-url <bancul local>`. Bancul se ridică cu
 // `banc-migrare.sh --pastreaza`, deci tipurile ies din MIGRĂRILE din repo, nu
 // din starea cloud-ului — care poate avea drift.
 //
-// Trei funcții RPC (hr_write_sensitive, log_audit_event, submit_demo_request)
-// primesc înapoi `| null` pe argumentele opționale: generatorul curent le
-// tipează doar `?: T` (omisibil), dar parametrii SQL au `default null` —
-// apelanții existenți trimit explicit `null`, nu omit cheia. Fără patch,
+// Argumentele SQL cu `default null` primesc înapoi `| null`: generatorul le
+// tipează doar `?: T` (omisibil), dar apelanții existenți trimit explicit
+// `null`, nu omit cheia. Lista se citește din catalog, nu din memorie. Fără patch,
 // regenerarea rupe fișierele care apelează aceste RPC-uri fără nicio schimbare
 // reală de schemă. Patch-ul e mecanic, aplicat de script.
 //
-// Generatorul CLI adaugă și schema `graphql_public`; e eliminată tot acolo,
-// pentru că `src/lib/supabase/server.ts` tipează clientul strict pe `public`.
+// Generatorul CLI poate adăuga și schema `graphql_public`; e eliminată tot
+// acolo, pentru că `src/lib/supabase/server.ts` tipează clientul strict pe
+// `public`.
 
 export type Json =
   | string
@@ -1368,7 +1368,16 @@ export type Database = {
           descriere: string | null
           dovada: string | null
           dovada_document_id: string | null
+          dovada_fisier_marime_bytes: number | null
+          dovada_fisier_mime: string | null
+          dovada_fisier_nume: string | null
+          dovada_fisier_path: string | null
           employee_id: string
+          etapa_id: string | null
+          etapa_ordine: number | null
+          etapa_termen: string | null
+          etapa_titlu: string | null
+          fel: Database["public"]["Enums"]["checklist_fel_pas"] | null
           id: string
           instance_id: string
           obligatoriu: boolean
@@ -1400,7 +1409,16 @@ export type Database = {
           descriere?: string | null
           dovada?: string | null
           dovada_document_id?: string | null
+          dovada_fisier_marime_bytes?: number | null
+          dovada_fisier_mime?: string | null
+          dovada_fisier_nume?: string | null
+          dovada_fisier_path?: string | null
           employee_id: string
+          etapa_id?: string | null
+          etapa_ordine?: number | null
+          etapa_termen?: string | null
+          etapa_titlu?: string | null
+          fel?: Database["public"]["Enums"]["checklist_fel_pas"] | null
           id?: string
           instance_id: string
           obligatoriu: boolean
@@ -1432,7 +1450,16 @@ export type Database = {
           descriere?: string | null
           dovada?: string | null
           dovada_document_id?: string | null
+          dovada_fisier_marime_bytes?: number | null
+          dovada_fisier_mime?: string | null
+          dovada_fisier_nume?: string | null
+          dovada_fisier_path?: string | null
           employee_id?: string
+          etapa_id?: string | null
+          etapa_ordine?: number | null
+          etapa_termen?: string | null
+          etapa_titlu?: string | null
+          fel?: Database["public"]["Enums"]["checklist_fel_pas"] | null
           id?: string
           instance_id?: string
           obligatoriu?: boolean
@@ -1597,6 +1624,8 @@ export type Database = {
           curs_id: string | null
           deleted_at: string | null
           descriere: string | null
+          etapa_id: string | null
+          fel: Database["public"]["Enums"]["checklist_fel_pas"] | null
           id: string
           obligatoriu: boolean
           ordine: number
@@ -1620,6 +1649,8 @@ export type Database = {
           curs_id?: string | null
           deleted_at?: string | null
           descriere?: string | null
+          etapa_id?: string | null
+          fel?: Database["public"]["Enums"]["checklist_fel_pas"] | null
           id?: string
           obligatoriu?: boolean
           ordine: number
@@ -1643,6 +1674,8 @@ export type Database = {
           curs_id?: string | null
           deleted_at?: string | null
           descriere?: string | null
+          etapa_id?: string | null
+          fel?: Database["public"]["Enums"]["checklist_fel_pas"] | null
           id?: string
           obligatoriu?: boolean
           ordine?: number
@@ -1669,6 +1702,13 @@ export type Database = {
             referencedColumns: ["id", "organization_id"]
           },
           {
+            foreignKeyName: "checklist_template_items_etapa_fk"
+            columns: ["etapa_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_template_stages"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
             foreignKeyName: "checklist_template_items_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
@@ -1684,6 +1724,66 @@ export type Database = {
           },
           {
             foreignKeyName: "checklist_template_items_template_fk"
+            columns: ["template_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_templates"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
+      }
+      checklist_template_stages: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          descriere: string | null
+          id: string
+          ordine: number
+          organization_id: string
+          template_id: string
+          termen_zile_relativ: number
+          titlu: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          descriere?: string | null
+          id?: string
+          ordine: number
+          organization_id: string
+          template_id: string
+          termen_zile_relativ?: number
+          titlu: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          descriere?: string | null
+          id?: string
+          ordine?: number
+          organization_id?: string
+          template_id?: string
+          termen_zile_relativ?: number
+          titlu?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_template_stages_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_template_stages_template_fk"
             columns: ["template_id", "organization_id"]
             isOneToOne: false
             referencedRelation: "checklist_templates"
@@ -1843,6 +1943,82 @@ export type Database = {
             columns: ["resolved_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contract_suspendari: {
+        Row: {
+          contract_id: string
+          created_at: string
+          created_by: string | null
+          data_inceput: string
+          data_sfarsit: string | null
+          deleted_at: string | null
+          employee_id: string
+          explicatie: string | null
+          id: string
+          organization_id: string
+          reges_actiune_id: string | null
+          stare: Database["public"]["Enums"]["reges_stare_suspendare"]
+          temei_legal: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          contract_id: string
+          created_at?: string
+          created_by?: string | null
+          data_inceput: string
+          data_sfarsit?: string | null
+          deleted_at?: string | null
+          employee_id: string
+          explicatie?: string | null
+          id?: string
+          organization_id: string
+          reges_actiune_id?: string | null
+          stare?: Database["public"]["Enums"]["reges_stare_suspendare"]
+          temei_legal: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          contract_id?: string
+          created_at?: string
+          created_by?: string | null
+          data_inceput?: string
+          data_sfarsit?: string | null
+          deleted_at?: string | null
+          employee_id?: string
+          explicatie?: string | null
+          id?: string
+          organization_id?: string
+          reges_actiune_id?: string | null
+          stare?: Database["public"]["Enums"]["reges_stare_suspendare"]
+          temei_legal?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_suspendari_contract_fk"
+            columns: ["contract_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "employment_contracts"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "contract_suspendari_employee_fk"
+            columns: ["employee_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "contract_suspendari_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -3677,6 +3853,9 @@ export type Database = {
           observatii: string | null
           optiune_pilon_ii: boolean
           organization_id: string
+          reges_localitate_id: string | null
+          reges_salariat_id: string | null
+          reges_tip_act: string | null
           serie_act: string | null
           stare_civila: Database["public"]["Enums"]["stare_civila"] | null
           status: Database["public"]["Enums"]["employee_status"]
@@ -3729,6 +3908,9 @@ export type Database = {
           observatii?: string | null
           optiune_pilon_ii?: boolean
           organization_id: string
+          reges_localitate_id?: string | null
+          reges_salariat_id?: string | null
+          reges_tip_act?: string | null
           serie_act?: string | null
           stare_civila?: Database["public"]["Enums"]["stare_civila"] | null
           status?: Database["public"]["Enums"]["employee_status"]
@@ -3781,6 +3963,9 @@ export type Database = {
           observatii?: string | null
           optiune_pilon_ii?: boolean
           organization_id?: string
+          reges_localitate_id?: string | null
+          reges_salariat_id?: string | null
+          reges_tip_act?: string | null
           serie_act?: string | null
           stare_civila?: Database["public"]["Enums"]["stare_civila"] | null
           status?: Database["public"]["Enums"]["employee_status"]
@@ -3853,6 +4038,12 @@ export type Database = {
           parent_contract_id: string | null
           perioada_proba_zile: number | null
           preaviz_zile: number | null
+          reges_contract_id: string | null
+          reges_norma_timp: string | null
+          reges_repartizare: string | null
+          reges_temei_incetare: string | null
+          reges_tip_contract: string | null
+          reges_tip_norma: string | null
           salariu_baza: number
           special_regime: Database["public"]["Enums"]["special_regime"] | null
           status: Database["public"]["Enums"]["contract_status"]
@@ -3893,6 +4084,12 @@ export type Database = {
           parent_contract_id?: string | null
           perioada_proba_zile?: number | null
           preaviz_zile?: number | null
+          reges_contract_id?: string | null
+          reges_norma_timp?: string | null
+          reges_repartizare?: string | null
+          reges_temei_incetare?: string | null
+          reges_tip_contract?: string | null
+          reges_tip_norma?: string | null
           salariu_baza: number
           special_regime?: Database["public"]["Enums"]["special_regime"] | null
           status?: Database["public"]["Enums"]["contract_status"]
@@ -3933,6 +4130,12 @@ export type Database = {
           parent_contract_id?: string | null
           perioada_proba_zile?: number | null
           preaviz_zile?: number | null
+          reges_contract_id?: string | null
+          reges_norma_timp?: string | null
+          reges_repartizare?: string | null
+          reges_temei_incetare?: string | null
+          reges_tip_contract?: string | null
+          reges_tip_norma?: string | null
           salariu_baza?: number
           special_regime?: Database["public"]["Enums"]["special_regime"] | null
           status?: Database["public"]["Enums"]["contract_status"]
@@ -9099,6 +9302,659 @@ export type Database = {
         }
         Relationships: []
       }
+      reges_apeluri: {
+        Row: {
+          cale: string
+          consumer_id: string | null
+          created_at: string
+          created_by: string | null
+          durata_ms: number | null
+          eroare: string | null
+          http_status: number | null
+          id: string
+          mesaj_id: string | null
+          metoda: string
+          organization_id: string
+        }
+        Insert: {
+          cale: string
+          consumer_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          durata_ms?: number | null
+          eroare?: string | null
+          http_status?: number | null
+          id?: string
+          mesaj_id?: string | null
+          metoda: string
+          organization_id: string
+        }
+        Update: {
+          cale?: string
+          consumer_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          durata_ms?: number | null
+          eroare?: string | null
+          http_status?: number | null
+          id?: string
+          mesaj_id?: string | null
+          metoda?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reges_apeluri_mesaj_fk"
+            columns: ["mesaj_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "reges_mesaje"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "reges_apeluri_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reges_credentiale: {
+        Row: {
+          acces_token_ciphertext: string | null
+          acces_token_iv: string | null
+          acces_token_key_version: number | null
+          acces_token_tag: string | null
+          activ: boolean
+          client_id: string
+          client_secret_ciphertext: string | null
+          client_secret_iv: string | null
+          client_secret_key_version: number | null
+          client_secret_tag: string | null
+          consumer_id: string
+          created_at: string
+          created_by: string | null
+          cui_angajator: string
+          deleted_at: string | null
+          mediu: Database["public"]["Enums"]["reges_mediu"]
+          organization_id: string
+          parola_ciphertext: string | null
+          parola_iv: string | null
+          parola_key_version: number | null
+          parola_tag: string | null
+          reimprospatare_ciphertext: string | null
+          reimprospatare_iv: string | null
+          reimprospatare_key_version: number | null
+          reimprospatare_tag: string | null
+          token_expira_la: string | null
+          updated_at: string
+          updated_by: string | null
+          utilizator: string
+          verificat_la: string | null
+          verificat_mesaj: string | null
+          verificat_ok: boolean | null
+        }
+        Insert: {
+          acces_token_ciphertext?: string | null
+          acces_token_iv?: string | null
+          acces_token_key_version?: number | null
+          acces_token_tag?: string | null
+          activ?: boolean
+          client_id?: string
+          client_secret_ciphertext?: string | null
+          client_secret_iv?: string | null
+          client_secret_key_version?: number | null
+          client_secret_tag?: string | null
+          consumer_id?: string
+          created_at?: string
+          created_by?: string | null
+          cui_angajator: string
+          deleted_at?: string | null
+          mediu?: Database["public"]["Enums"]["reges_mediu"]
+          organization_id: string
+          parola_ciphertext?: string | null
+          parola_iv?: string | null
+          parola_key_version?: number | null
+          parola_tag?: string | null
+          reimprospatare_ciphertext?: string | null
+          reimprospatare_iv?: string | null
+          reimprospatare_key_version?: number | null
+          reimprospatare_tag?: string | null
+          token_expira_la?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          utilizator: string
+          verificat_la?: string | null
+          verificat_mesaj?: string | null
+          verificat_ok?: boolean | null
+        }
+        Update: {
+          acces_token_ciphertext?: string | null
+          acces_token_iv?: string | null
+          acces_token_key_version?: number | null
+          acces_token_tag?: string | null
+          activ?: boolean
+          client_id?: string
+          client_secret_ciphertext?: string | null
+          client_secret_iv?: string | null
+          client_secret_key_version?: number | null
+          client_secret_tag?: string | null
+          consumer_id?: string
+          created_at?: string
+          created_by?: string | null
+          cui_angajator?: string
+          deleted_at?: string | null
+          mediu?: Database["public"]["Enums"]["reges_mediu"]
+          organization_id?: string
+          parola_ciphertext?: string | null
+          parola_iv?: string | null
+          parola_key_version?: number | null
+          parola_tag?: string | null
+          reimprospatare_ciphertext?: string | null
+          reimprospatare_iv?: string | null
+          reimprospatare_key_version?: number | null
+          reimprospatare_tag?: string | null
+          token_expira_la?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          utilizator?: string
+          verificat_la?: string | null
+          verificat_mesaj?: string | null
+          verificat_ok?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reges_credentiale_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reges_evenimente: {
+        Row: {
+          contract_id: string | null
+          created_at: string
+          created_by: string | null
+          data_evenimentului: string
+          deleted_at: string | null
+          employee_id: string
+          eroare: string | null
+          event_type: Database["public"]["Enums"]["reges_tip_eveniment"]
+          export_checksum: string | null
+          export_path: string | null
+          id: string
+          numar_inregistrare: string | null
+          observatii: string | null
+          organization_id: string
+          payload: Json
+          status: Database["public"]["Enums"]["reges_stare_eveniment"]
+          termen_transmitere: string
+          transmis_de: string | null
+          transmis_la: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          contract_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_evenimentului: string
+          deleted_at?: string | null
+          employee_id: string
+          eroare?: string | null
+          event_type: Database["public"]["Enums"]["reges_tip_eveniment"]
+          export_checksum?: string | null
+          export_path?: string | null
+          id?: string
+          numar_inregistrare?: string | null
+          observatii?: string | null
+          organization_id: string
+          payload?: Json
+          status?: Database["public"]["Enums"]["reges_stare_eveniment"]
+          termen_transmitere: string
+          transmis_de?: string | null
+          transmis_la?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          contract_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_evenimentului?: string
+          deleted_at?: string | null
+          employee_id?: string
+          eroare?: string | null
+          event_type?: Database["public"]["Enums"]["reges_tip_eveniment"]
+          export_checksum?: string | null
+          export_path?: string | null
+          id?: string
+          numar_inregistrare?: string | null
+          observatii?: string | null
+          organization_id?: string
+          payload?: Json
+          status?: Database["public"]["Enums"]["reges_stare_eveniment"]
+          termen_transmitere?: string
+          transmis_de?: string | null
+          transmis_la?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reges_evenimente_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "employment_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reges_evenimente_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reges_evenimente_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reges_inchiriere: {
+        Row: {
+          actualizat_la: string
+          cheie: string
+          detinut_de: string
+          expira_la: string
+        }
+        Insert: {
+          actualizat_la?: string
+          cheie: string
+          detinut_de: string
+          expira_la: string
+        }
+        Update: {
+          actualizat_la?: string
+          cheie?: string
+          detinut_de?: string
+          expira_la?: string
+        }
+        Relationships: []
+      }
+      reges_mesaje: {
+        Row: {
+          asteapta_rezultate_conexe: boolean
+          cerere_rezumat: Json
+          contract_id: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          depinde_de: string | null
+          employee_id: string | null
+          eroare: string | null
+          eveniment_id: string | null
+          http_status: number | null
+          id: string
+          incercari: number
+          message_id: string
+          operatie: Database["public"]["Enums"]["reges_operatie"]
+          ordine: number
+          organization_id: string
+          raspuns_la: string | null
+          referinta_id: string | null
+          referinta_sec_id: string | null
+          response_id: string | null
+          rezultat_cod: string | null
+          rezultat_mesaj: string | null
+          rezultat_tip: string | null
+          stare: Database["public"]["Enums"]["reges_stare_mesaj"]
+          tip: Database["public"]["Enums"]["reges_tip_mesaj"]
+          trimis_de: string | null
+          trimis_la: string | null
+          updated_at: string
+          updated_by: string | null
+          urmatoarea_incercare_la: string | null
+        }
+        Insert: {
+          asteapta_rezultate_conexe?: boolean
+          cerere_rezumat?: Json
+          contract_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          depinde_de?: string | null
+          employee_id?: string | null
+          eroare?: string | null
+          eveniment_id?: string | null
+          http_status?: number | null
+          id?: string
+          incercari?: number
+          message_id?: string
+          operatie: Database["public"]["Enums"]["reges_operatie"]
+          ordine?: number
+          organization_id: string
+          raspuns_la?: string | null
+          referinta_id?: string | null
+          referinta_sec_id?: string | null
+          response_id?: string | null
+          rezultat_cod?: string | null
+          rezultat_mesaj?: string | null
+          rezultat_tip?: string | null
+          stare?: Database["public"]["Enums"]["reges_stare_mesaj"]
+          tip: Database["public"]["Enums"]["reges_tip_mesaj"]
+          trimis_de?: string | null
+          trimis_la?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          urmatoarea_incercare_la?: string | null
+        }
+        Update: {
+          asteapta_rezultate_conexe?: boolean
+          cerere_rezumat?: Json
+          contract_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          depinde_de?: string | null
+          employee_id?: string | null
+          eroare?: string | null
+          eveniment_id?: string | null
+          http_status?: number | null
+          id?: string
+          incercari?: number
+          message_id?: string
+          operatie?: Database["public"]["Enums"]["reges_operatie"]
+          ordine?: number
+          organization_id?: string
+          raspuns_la?: string | null
+          referinta_id?: string | null
+          referinta_sec_id?: string | null
+          response_id?: string | null
+          rezultat_cod?: string | null
+          rezultat_mesaj?: string | null
+          rezultat_tip?: string | null
+          stare?: Database["public"]["Enums"]["reges_stare_mesaj"]
+          tip?: Database["public"]["Enums"]["reges_tip_mesaj"]
+          trimis_de?: string | null
+          trimis_la?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          urmatoarea_incercare_la?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reges_mesaje_contract_fk"
+            columns: ["contract_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "employment_contracts"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "reges_mesaje_depinde_fk"
+            columns: ["depinde_de", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "reges_mesaje"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "reges_mesaje_employee_fk"
+            columns: ["employee_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "reges_mesaje_eveniment_fk"
+            columns: ["eveniment_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "reges_evenimente"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "reges_mesaje_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reges_nomenclatoare: {
+        Row: {
+          activ: boolean
+          cod: string | null
+          continut: Json
+          created_at: string
+          created_by: string | null
+          id: string
+          nume: string
+          organization_id: string | null
+          parinte_reges_id: string | null
+          reges_id: string
+          sincronizat_la: string
+          tip: string
+          updated_at: string
+          updated_by: string | null
+          versiune: number | null
+        }
+        Insert: {
+          activ?: boolean
+          cod?: string | null
+          continut?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nume: string
+          organization_id?: string | null
+          parinte_reges_id?: string | null
+          reges_id: string
+          sincronizat_la?: string
+          tip: string
+          updated_at?: string
+          updated_by?: string | null
+          versiune?: number | null
+        }
+        Update: {
+          activ?: boolean
+          cod?: string | null
+          continut?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nume?: string
+          organization_id?: string | null
+          parinte_reges_id?: string | null
+          reges_id?: string
+          sincronizat_la?: string
+          tip?: string
+          updated_at?: string
+          updated_by?: string | null
+          versiune?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reges_nomenclatoare_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reges_propuneri: {
+        Row: {
+          angajator_partener_cui: string | null
+          angajator_partener_nume: string | null
+          contract_id: string | null
+          created_at: string
+          created_by: string | null
+          data_inceput: string | null
+          data_sfarsit: string | null
+          deleted_at: string | null
+          directie: Database["public"]["Enums"]["reges_directie_propunere"]
+          fel: Database["public"]["Enums"]["reges_fel_propunere"]
+          id: string
+          mesaj_id: string | null
+          observatii: string | null
+          organization_id: string
+          primita_la: string | null
+          raspuns_de: string | null
+          raspuns_la: string | null
+          reges_contract_id: string | null
+          reges_propunere_id: string | null
+          salariat_cnp_last4: string | null
+          salariat_nume: string | null
+          stare: Database["public"]["Enums"]["reges_stare_propunere"]
+          temei_legal: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          angajator_partener_cui?: string | null
+          angajator_partener_nume?: string | null
+          contract_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_inceput?: string | null
+          data_sfarsit?: string | null
+          deleted_at?: string | null
+          directie: Database["public"]["Enums"]["reges_directie_propunere"]
+          fel: Database["public"]["Enums"]["reges_fel_propunere"]
+          id?: string
+          mesaj_id?: string | null
+          observatii?: string | null
+          organization_id: string
+          primita_la?: string | null
+          raspuns_de?: string | null
+          raspuns_la?: string | null
+          reges_contract_id?: string | null
+          reges_propunere_id?: string | null
+          salariat_cnp_last4?: string | null
+          salariat_nume?: string | null
+          stare?: Database["public"]["Enums"]["reges_stare_propunere"]
+          temei_legal?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          angajator_partener_cui?: string | null
+          angajator_partener_nume?: string | null
+          contract_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_inceput?: string | null
+          data_sfarsit?: string | null
+          deleted_at?: string | null
+          directie?: Database["public"]["Enums"]["reges_directie_propunere"]
+          fel?: Database["public"]["Enums"]["reges_fel_propunere"]
+          id?: string
+          mesaj_id?: string | null
+          observatii?: string | null
+          organization_id?: string
+          primita_la?: string | null
+          raspuns_de?: string | null
+          raspuns_la?: string | null
+          reges_contract_id?: string | null
+          reges_propunere_id?: string | null
+          salariat_cnp_last4?: string | null
+          salariat_nume?: string | null
+          stare?: Database["public"]["Enums"]["reges_stare_propunere"]
+          temei_legal?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reges_propuneri_contract_fk"
+            columns: ["contract_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "employment_contracts"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "reges_propuneri_mesaj_fk"
+            columns: ["mesaj_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "reges_mesaje"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "reges_propuneri_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reges_termene: {
+        Row: {
+          cod_revisal: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          descriere: string | null
+          event_type: Database["public"]["Enums"]["reges_tip_eveniment"]
+          id: string
+          organization_id: string | null
+          reper: string
+          termen_zile: number
+          updated_at: string
+          updated_by: string | null
+          valabil_de_la: string
+          valabil_pana: string | null
+          zile_lucratoare: boolean
+        }
+        Insert: {
+          cod_revisal?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          descriere?: string | null
+          event_type: Database["public"]["Enums"]["reges_tip_eveniment"]
+          id?: string
+          organization_id?: string | null
+          reper?: string
+          termen_zile: number
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la: string
+          valabil_pana?: string | null
+          zile_lucratoare?: boolean
+        }
+        Update: {
+          cod_revisal?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          descriere?: string | null
+          event_type?: Database["public"]["Enums"]["reges_tip_eveniment"]
+          id?: string
+          organization_id?: string | null
+          reper?: string
+          termen_zile?: number
+          updated_at?: string
+          updated_by?: string | null
+          valabil_de_la?: string
+          valabil_pana?: string | null
+          zile_lucratoare?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reges_termene_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       retention_policies: {
         Row: {
           anonymize_only: boolean
@@ -9145,162 +10001,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "retention_policies_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      revisal_config: {
-        Row: {
-          cod_revisal: string | null
-          created_at: string
-          created_by: string | null
-          deleted_at: string | null
-          descriere: string | null
-          event_type: Database["public"]["Enums"]["revisal_event_type"]
-          id: string
-          organization_id: string | null
-          reper: string
-          termen_zile: number
-          updated_at: string
-          updated_by: string | null
-          valabil_de_la: string
-          valabil_pana: string | null
-          zile_lucratoare: boolean
-        }
-        Insert: {
-          cod_revisal?: string | null
-          created_at?: string
-          created_by?: string | null
-          deleted_at?: string | null
-          descriere?: string | null
-          event_type: Database["public"]["Enums"]["revisal_event_type"]
-          id?: string
-          organization_id?: string | null
-          reper?: string
-          termen_zile: number
-          updated_at?: string
-          updated_by?: string | null
-          valabil_de_la: string
-          valabil_pana?: string | null
-          zile_lucratoare?: boolean
-        }
-        Update: {
-          cod_revisal?: string | null
-          created_at?: string
-          created_by?: string | null
-          deleted_at?: string | null
-          descriere?: string | null
-          event_type?: Database["public"]["Enums"]["revisal_event_type"]
-          id?: string
-          organization_id?: string | null
-          reper?: string
-          termen_zile?: number
-          updated_at?: string
-          updated_by?: string | null
-          valabil_de_la?: string
-          valabil_pana?: string | null
-          zile_lucratoare?: boolean
-        }
-        Relationships: [
-          {
-            foreignKeyName: "revisal_config_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      revisal_events: {
-        Row: {
-          contract_id: string | null
-          created_at: string
-          created_by: string | null
-          data_evenimentului: string
-          deleted_at: string | null
-          employee_id: string
-          eroare: string | null
-          event_type: Database["public"]["Enums"]["revisal_event_type"]
-          export_checksum: string | null
-          export_path: string | null
-          id: string
-          numar_inregistrare: string | null
-          observatii: string | null
-          organization_id: string
-          payload: Json
-          status: Database["public"]["Enums"]["revisal_status"]
-          termen_transmitere: string
-          transmis_de: string | null
-          transmis_la: string | null
-          updated_at: string
-          updated_by: string | null
-        }
-        Insert: {
-          contract_id?: string | null
-          created_at?: string
-          created_by?: string | null
-          data_evenimentului: string
-          deleted_at?: string | null
-          employee_id: string
-          eroare?: string | null
-          event_type: Database["public"]["Enums"]["revisal_event_type"]
-          export_checksum?: string | null
-          export_path?: string | null
-          id?: string
-          numar_inregistrare?: string | null
-          observatii?: string | null
-          organization_id: string
-          payload?: Json
-          status?: Database["public"]["Enums"]["revisal_status"]
-          termen_transmitere: string
-          transmis_de?: string | null
-          transmis_la?: string | null
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Update: {
-          contract_id?: string | null
-          created_at?: string
-          created_by?: string | null
-          data_evenimentului?: string
-          deleted_at?: string | null
-          employee_id?: string
-          eroare?: string | null
-          event_type?: Database["public"]["Enums"]["revisal_event_type"]
-          export_checksum?: string | null
-          export_path?: string | null
-          id?: string
-          numar_inregistrare?: string | null
-          observatii?: string | null
-          organization_id?: string
-          payload?: Json
-          status?: Database["public"]["Enums"]["revisal_status"]
-          termen_transmitere?: string
-          transmis_de?: string | null
-          transmis_la?: string | null
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "revisal_events_contract_id_fkey"
-            columns: ["contract_id"]
-            isOneToOne: false
-            referencedRelation: "employment_contracts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "revisal_events_employee_id_fkey"
-            columns: ["employee_id"]
-            isOneToOne: false
-            referencedRelation: "employees"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "revisal_events_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -11088,7 +11788,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      accept_invitation: { Args: { p_token: string }; Returns: string }
+      accept_invitation: { Args: { p_token: string }; Returns: Json }
       aloca_numar_tichet: {
         Args: { p_organization_id: string }
         Returns: string
@@ -11103,6 +11803,7 @@ export type Database = {
           ramase_dupa: number
         }[]
       }
+      checklist_salveaza_sablon: { Args: { p_sablon: Json }; Returns: string }
       consume_rate_limit: {
         Args: { p_key: string; p_limit: number; p_window_seconds: number }
         Returns: boolean
@@ -11111,7 +11812,7 @@ export type Database = {
         Args: {
           p_aproba: boolean
           p_entry_id: string
-          p_motiv?: string
+          p_motiv?: string | null
           p_organization_id: string
         }
         Returns: string
@@ -11164,7 +11865,7 @@ export type Database = {
           p_ip?: string | null
           p_organization_id?: string | null
           p_request_id?: string | null
-          p_status?: Database["public"]["Enums"]["audit_status"] | null
+          p_status?: Database["public"]["Enums"]["audit_status"]
           p_user_agent?: string | null
         }
         Returns: string
@@ -11182,12 +11883,12 @@ export type Database = {
       }
       org_write_sensitive: {
         Args: {
-          p_cnp_ciphertext?: string
-          p_cnp_hash?: string
-          p_cnp_iv?: string
-          p_cnp_key_version?: number
-          p_cnp_last4?: string
-          p_cnp_tag?: string
+          p_cnp_ciphertext?: string | null
+          p_cnp_hash?: string | null
+          p_cnp_iv?: string | null
+          p_cnp_key_version?: number | null
+          p_cnp_last4?: string | null
+          p_cnp_tag?: string | null
           p_organization_id: string
         }
         Returns: string
@@ -11228,11 +11929,61 @@ export type Database = {
           zile_sarbatoare_lucrate: number
         }[]
       }
+      reges_ia_inchirierea: {
+        Args: { p_cheie: string; p_detinator: string; p_secunde?: number }
+        Returns: boolean
+      }
+      reges_lasa_inchirierea: {
+        Args: { p_cheie: string; p_detinator: string }
+        Returns: undefined
+      }
+      reges_read_credentiale: {
+        Args: { p_org: string }
+        Returns: {
+          activ: boolean
+          client_id: string
+          client_secret_ciphertext: string
+          client_secret_iv: string
+          client_secret_key_version: number
+          client_secret_tag: string
+          consumer_id: string
+          cui_angajator: string
+          mediu: Database["public"]["Enums"]["reges_mediu"]
+          organization_id: string
+          parola_ciphertext: string
+          parola_iv: string
+          parola_key_version: number
+          parola_tag: string
+          token_expira_la: string
+          utilizator: string
+          verificat_la: string
+          verificat_mesaj: string
+          verificat_ok: boolean
+        }[]
+      }
+      reges_write_credentiale: {
+        Args: {
+          p_client_id: string
+          p_client_secret_ciphertext?: string | null
+          p_client_secret_iv?: string | null
+          p_client_secret_key_version?: number | null
+          p_client_secret_tag?: string | null
+          p_cui_angajator: string
+          p_mediu: Database["public"]["Enums"]["reges_mediu"]
+          p_org: string
+          p_parola_ciphertext?: string | null
+          p_parola_iv?: string | null
+          p_parola_key_version?: number | null
+          p_parola_tag?: string | null
+          p_utilizator: string
+        }
+        Returns: undefined
+      }
       seed_leave_balances: {
         Args: {
           p_an: number
           p_employee: string
-          p_zile_odihna_override?: number
+          p_zile_odihna_override?: number | null
         }
         Returns: undefined
       }
@@ -11354,9 +12105,14 @@ export type Database = {
         | "naval"
         | "mixt"
         | "altul"
+      checklist_fel_pas: "bifa" | "fisier" | "semnatura" | "curs" | "automat"
       checklist_instanta_status: "in_curs" | "finalizata" | "anulata"
       checklist_item_status: "de_facut" | "in_lucru" | "bifat" | "neaplicabil"
-      checklist_responsabil_tip: "rol" | "angajat" | "manager_direct"
+      checklist_responsabil_tip:
+        | "rol"
+        | "angajat"
+        | "manager_direct"
+        | "subiect"
       checklist_tip: "onboarding" | "offboarding" | "transfer" | "altul"
       checklist_tip_dovada: "niciuna" | "bifa" | "document" | "semnatura"
       checklist_verificare:
@@ -11515,7 +12271,55 @@ export type Database = {
         | "durata_maxima"
       permission_scope: "none" | "own" | "team" | "all"
       plan_type: "trial" | "starter" | "professional" | "enterprise"
-      revisal_event_type:
+      reges_directie_propunere: "trimisa" | "primita"
+      reges_fel_propunere: "detasare" | "mutare"
+      reges_mediu: "test" | "productie"
+      reges_operatie:
+        | "InregistrareSalariat"
+        | "ModificareSalariat"
+        | "AdaugareContract"
+        | "ModificareContract"
+        | "RadiereContract"
+        | "IncetareContract"
+        | "CorectieIncetareContract"
+        | "AnulareIncetareContract"
+        | "SuspendareContract"
+        | "CorectieSuspendareContract"
+        | "ModificareSuspendareContract"
+        | "IncetareSuspendareContract"
+        | "ReactivareContract"
+        | "CorectieReactivareContract"
+        | "AnulareReactivareContract"
+        | "PropunereDetasareContract"
+        | "AcceptarePropunereDetasareContract"
+        | "RespingerePropunereDetasareContract"
+        | "IncetarePropunereDetasareContract"
+        | "PropunereMutareContract"
+        | "AcceptarePropunereMutareContract"
+        | "RespingerePropunereMutareContract"
+        | "IncetarePropunereMutareContract"
+      reges_stare_eveniment:
+        | "de_pregatit"
+        | "pregatit"
+        | "transmis"
+        | "confirmat"
+        | "respins"
+        | "anulat"
+      reges_stare_mesaj:
+        | "de_transmis"
+        | "in_curs"
+        | "asteapta_raspuns"
+        | "reusit"
+        | "esuat"
+        | "anulat"
+      reges_stare_propunere:
+        | "noua"
+        | "acceptata"
+        | "respinsa"
+        | "incetata"
+        | "expirata"
+      reges_stare_suspendare: "activa" | "incetata" | "anulata"
+      reges_tip_eveniment:
         | "angajare"
         | "modificare_salariu"
         | "modificare_functie"
@@ -11526,13 +12330,11 @@ export type Database = {
         | "detasare"
         | "incetare"
         | "corectie"
-      revisal_status:
-        | "de_pregatit"
-        | "pregatit"
-        | "transmis"
-        | "confirmat"
-        | "respins"
-        | "anulat"
+      reges_tip_mesaj:
+        | "salariat"
+        | "contract"
+        | "propunere_detasare"
+        | "propunere_mutare"
       salary_component_kind:
         | "spor_procent"
         | "spor_suma"
@@ -11806,9 +12608,15 @@ export const Constants = {
         "mixt",
         "altul",
       ],
+      checklist_fel_pas: ["bifa", "fisier", "semnatura", "curs", "automat"],
       checklist_instanta_status: ["in_curs", "finalizata", "anulata"],
       checklist_item_status: ["de_facut", "in_lucru", "bifat", "neaplicabil"],
-      checklist_responsabil_tip: ["rol", "angajat", "manager_direct"],
+      checklist_responsabil_tip: [
+        "rol",
+        "angajat",
+        "manager_direct",
+        "subiect",
+      ],
       checklist_tip: ["onboarding", "offboarding", "transfer", "altul"],
       checklist_tip_dovada: ["niciuna", "bifa", "document", "semnatura"],
       checklist_verificare: [
@@ -11984,7 +12792,59 @@ export const Constants = {
       ],
       permission_scope: ["none", "own", "team", "all"],
       plan_type: ["trial", "starter", "professional", "enterprise"],
-      revisal_event_type: [
+      reges_directie_propunere: ["trimisa", "primita"],
+      reges_fel_propunere: ["detasare", "mutare"],
+      reges_mediu: ["test", "productie"],
+      reges_operatie: [
+        "InregistrareSalariat",
+        "ModificareSalariat",
+        "AdaugareContract",
+        "ModificareContract",
+        "RadiereContract",
+        "IncetareContract",
+        "CorectieIncetareContract",
+        "AnulareIncetareContract",
+        "SuspendareContract",
+        "CorectieSuspendareContract",
+        "ModificareSuspendareContract",
+        "IncetareSuspendareContract",
+        "ReactivareContract",
+        "CorectieReactivareContract",
+        "AnulareReactivareContract",
+        "PropunereDetasareContract",
+        "AcceptarePropunereDetasareContract",
+        "RespingerePropunereDetasareContract",
+        "IncetarePropunereDetasareContract",
+        "PropunereMutareContract",
+        "AcceptarePropunereMutareContract",
+        "RespingerePropunereMutareContract",
+        "IncetarePropunereMutareContract",
+      ],
+      reges_stare_eveniment: [
+        "de_pregatit",
+        "pregatit",
+        "transmis",
+        "confirmat",
+        "respins",
+        "anulat",
+      ],
+      reges_stare_mesaj: [
+        "de_transmis",
+        "in_curs",
+        "asteapta_raspuns",
+        "reusit",
+        "esuat",
+        "anulat",
+      ],
+      reges_stare_propunere: [
+        "noua",
+        "acceptata",
+        "respinsa",
+        "incetata",
+        "expirata",
+      ],
+      reges_stare_suspendare: ["activa", "incetata", "anulata"],
+      reges_tip_eveniment: [
         "angajare",
         "modificare_salariu",
         "modificare_functie",
@@ -11996,13 +12856,11 @@ export const Constants = {
         "incetare",
         "corectie",
       ],
-      revisal_status: [
-        "de_pregatit",
-        "pregatit",
-        "transmis",
-        "confirmat",
-        "respins",
-        "anulat",
+      reges_tip_mesaj: [
+        "salariat",
+        "contract",
+        "propunere_detasare",
+        "propunere_mutare",
       ],
       salary_component_kind: [
         "spor_procent",

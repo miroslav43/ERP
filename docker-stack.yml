@@ -60,6 +60,9 @@ services:
       - EMAIL_FROM=${EMAIL_FROM:-Administrativo <noreply@administrativo.ro>}
       - RESEND_API_KEY=${RESEND_API_KEY:-}
       - RESEND_WEBHOOK_SECRET=${RESEND_WEBHOOK_SECRET:-}
+      # Ciclul de reconciliere REGES. Gol ⇒ ruta refuză tot, ciclul e oprit.
+      # Îl pornește un systemd timer de pe gazdă, cu un POST spre nginx.
+      - REGES_CRON_SECRET=${REGES_CRON_SECRET:-}
       # Trecerea la `docker secret`, când se decide (pași în DEPLOY.md →
       # „Ce vede docker inspect"): creezi secretul, adaugi blocul `secrets:` la
       # serviciu și la nivel de stack, apoi înlocuiești linia de mai sus cu

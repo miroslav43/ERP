@@ -759,10 +759,24 @@ export type AngajatOptiune = Readonly<{
   job_position_id: string | null;
 }>;
 
+/*
+ * ── COLOANA E `full_name`, NU `nume` ────────────────────────────────────────
+ * Tabela `employees` are `first_name`, `last_name` și `full_name` — ultima
+ * GENERATĂ de bază ca `last_name || ' ' || first_name`. Modulul ăsta a cerut la
+ * prima livrare `nume, prenume`, nume inventate care nu există nicăieri, și a
+ * picat cu 42703 pe patru ecrane: conformitatea, atribuirea, regulile și —
+ * numai după prima înrolare — stadiul.
+ *
+ * Nimic nu l-a prins fiindcă `.returns<AngajatBrut[]>()` ÎNLOCUIEȘTE tipul
+ * generat din `src/types/database.ts`: genericul explicit spune ce crede
+ * autorul, nu ce are baza. `queries-coloane.test.ts` e poarta care compară
+ * acum cele două.
+ *
+ * Aceleași coloane ca peste tot: `attendance.ts:144`, `employees.ts:243`.
+ */
 type AngajatBrut = Readonly<{
   id: string;
-  nume: string | null;
-  prenume: string | null;
+  full_name: string;
   department_id: string | null;
   job_position_id: string | null;
 }>;
@@ -773,17 +787,20 @@ export async function angajatiPentruAtribuire(
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("employees")
-    .select("id, nume, prenume, department_id, job_position_id")
+    .select("id, full_name, department_id, job_position_id")
     .eq("organization_id", organizationId)
     .in("status", ["activ", "suspendat", "preaviz"])
     .is("deleted_at", null)
-    .order("nume", { ascending: true })
+    .order("full_name", { ascending: true })
     .limit(500)
     .returns<AngajatBrut[]>();
   if (error !== null) throw error;
   return (data ?? []).map((a) => ({
     id: a.id,
-    nume: [a.nume, a.prenume].filter(Boolean).join(" ") || "—",
+    // `full_name` e generată din două coloane NOT NULL, deci în practică nu e
+    // goală. `|| "—"` rămâne fiindcă un rând fără nume ar face celula matricei
+    // să dispară vizual, nu să arate un semn de întrebare.
+    nume: a.full_name || "—",
     department_id: a.department_id,
     job_position_id: a.job_position_id,
   }));
@@ -798,14 +815,12 @@ export async function numeAngajati(
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("employees")
-    .select("id, nume, prenume")
+    .select("id, full_name")
     .eq("organization_id", organizationId)
     .in("id", [...new Set(ids)].slice(0, 500))
-    .returns<AngajatBrut[]>();
+    .returns<Pick<AngajatBrut, "id" | "full_name">[]>();
   if (error !== null) throw error;
-  return new Map(
-    (data ?? []).map((a) => [a.id, [a.nume, a.prenume].filter(Boolean).join(" ") || "—"]),
-  );
+  return new Map((data ?? []).map((a) => [a.id, a.full_name || "—"]));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -996,6 +1011,57 @@ export type MatriceConformitate = Readonly<{
 
 export function cheieCelula(employeeId: string, courseId: string): string {
   return `${employeeId}|${courseId}`;
+}
+
+/**
+ * Cursurile obligatorii care NU intră în matrice fiindcă nu sunt publicate.
+ *
+ * Există pentru starea goală a conformitatii. Fără ea, un administrator care
+ * tocmai a bifat „Curs obligatoriu" citește „Niciun curs obligatoriu publicat"
+ * și n-are cum să afle că exact cursul lui e cel lipsă, nici de ce: publicarea
+ * cere cel puțin o lecție.
+ *
+ * Două interogări, nu un embed agregat — același raționament ca la
+ * `listeazaSabloane` (`evaluari.ts:303`): agregatul ar trece prin RLS-ul
+ * tabelei încorporate, iar cifra afișată ar depinde tăcut de rol.
+ */
+export async function cursuriObligatoriiNepublicate(
+  organizationId: string,
+): Promise<readonly Readonly<{ id: string; denumire: string; lectii: number }>[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("courses")
+    .select("id, denumire")
+    .eq("organization_id", organizationId)
+    .eq("obligatoriu", true)
+    .eq("activ", true)
+    .eq("publicat", false)
+    .is("deleted_at", null)
+    .order("denumire", { ascending: true })
+    .limit(10)
+    .returns<{ id: string; denumire: string }[]>();
+  if (error !== null) throw error;
+  const cursuri = data ?? [];
+  if (cursuri.length === 0) return [];
+
+  const lectii = await db
+    .from("course_items")
+    .select("course_id")
+    .eq("organization_id", organizationId)
+    .in(
+      "course_id",
+      cursuri.map((c) => c.id),
+    )
+    .is("deleted_at", null)
+    .limit(1000)
+    .returns<{ course_id: string }[]>();
+  if (lectii.error !== null) throw lectii.error;
+
+  const peCurs = new Map<string, number>();
+  for (const rand of lectii.data ?? []) {
+    peCurs.set(rand.course_id, (peCurs.get(rand.course_id) ?? 0) + 1);
+  }
+  return cursuri.map((c) => ({ ...c, lectii: peCurs.get(c.id) ?? 0 }));
 }
 
 /**

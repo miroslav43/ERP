@@ -222,6 +222,15 @@ export const RO: ContinutLanding = {
             ],
           },
           {
+            cheie: "reges",
+            titlu: "REGES-Online (fost Revisal)",
+            text: "Contractele și salariații pleacă la Inspecția Muncii direct din ERP, prin API-ul REGES. Fără fișier de import purtat cu mâna și fără a doua tastare a acelorași date.",
+            puncte: [
+              "Termenul legal al fiecărui eveniment, calculat în zile lucrătoare",
+              "Răspunsul ITM se întoarce în fișa omului, cu motivul refuzului scris pe înțeles",
+            ],
+          },
+          {
             cheie: "evaluations",
             titlu: "Evaluări",
             text: "Șabloane pe criterii. Evaluarea se deschide din fișa omului și rămâne în dosarul lui.",

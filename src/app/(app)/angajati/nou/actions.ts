@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { createAction } from "@/lib/actions/create-action";
 import { businessRule } from "@/lib/actions/errors";
 import { formatDate } from "@/lib/format/date";
-import { genereazaEvenimenteRevisal } from "@/lib/revisal/genereaza-evenimente";
+import { genereazaEvenimenteReges } from "@/lib/reges/genereaza-evenimente";
 import { genereazaContractDeMunca } from "@/lib/documents/contract-munca";
 import { genereazaFisaPostului } from "@/lib/documents/fisa-postului";
 import { inroleazaAngajatSchema } from "@/schemas/employee";
@@ -474,7 +474,7 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
     // REVISAL: aceeași generare idempotentă, mutată din `creeazaContract` —
     // vezi comentariul identic acolo.
     try {
-      await genereazaEvenimenteRevisal({
+      await genereazaEvenimenteReges({
         supabase: db,
         organizationId: ctx.tenant.organizationId,
         userId: ctx.user.id,
@@ -503,7 +503,7 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
 
     revalidatePath("/angajati");
     revalidatePath(`/angajati/${angajat.id}`);
-    revalidatePath("/revisal");
+    revalidatePath("/reges");
     revalidatePath("/concedii/sold");
 
     return {
