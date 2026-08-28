@@ -62,8 +62,8 @@ export const RO: ContinutLanding = {
     ferestreEticheta: "Arată",
     descriereTabel:
       "Foaie colectivă de prezență pentru aprilie 2026, opt angajați pe treizeci de zile, cu totaluri pe rând și pe coloană.",
-    anuntColoana: "Ziua {zi} aprilie: {ore} ore, din {persoane} persoane.",
-    anuntRand: "{nume}: {ore} ore în aprilie.",
+    anuntColoana: "Ziua {zi} aprilie: {ore} h, din {persoane} persoane.",
+    anuntRand: "{nume}: {ore} h în aprilie.",
   },
 
   dovada: {
