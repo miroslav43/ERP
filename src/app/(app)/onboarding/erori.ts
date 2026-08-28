@@ -26,8 +26,31 @@ import { businessRule, isPostgrestError } from "@/lib/actions/errors";
 export function traduEroare(error: unknown): never {
   if (isPostgrestError(error)) {
     if (error.code === "23505") {
-      // `checklist_templates_denumire_uk` (organization_id, tip, lower(denumire)).
-      throw businessRule("Există deja un șablon cu această denumire pentru tipul ales.");
+      /*
+       * Modulul are TREI indexuri unice, nu unul. Mesajul se alege după
+       * `constraint`, nu se presupune: până acum, orice coliziune — inclusiv
+       * una pe poziția unui pas sau pe ciclul unei instanțe — îi spunea omului
+       * că denumirea șablonului e luată, ceea ce e fals și trimite în direcția
+       * greșită.
+       *
+       * `constraint` poate lipsi din răspunsul PostgREST; atunci rămâne un
+       * mesaj onest, care nu inventează o cauză.
+       */
+      const constrangere = error.details ?? error.message;
+      if (constrangere.includes("checklist_templates_denumire_uk")) {
+        throw businessRule("Există deja un șablon cu această denumire pentru tipul ales.");
+      }
+      if (constrangere.includes("checklist_instances_ciclu_uk")) {
+        throw businessRule(
+          "Angajatul are deja un parcurs pornit pe acest șablon, în același ciclu.",
+        );
+      }
+      if (constrangere.includes("ordine_uk")) {
+        throw businessRule(
+          "Două elemente au ajuns pe aceeași poziție. Reîncărcați pagina și salvați din nou.",
+        );
+      }
+      throw businessRule("Există deja un rând cu aceleași date.");
     }
     if (error.code === "P0001") {
       throw businessRule(error.message.slice(0, 600));

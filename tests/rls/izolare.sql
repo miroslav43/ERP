@@ -773,6 +773,40 @@ begin
   values (v_alfa, (select val from t_ids where cheie='curs_alfa'), (select val from t_ids where cheie='cmat_alfa'), 1),
          (v_beta, (select val from t_ids where cheie='curs_beta'), (select val from t_ids where cheie='cmat_beta'), 1);
 
+  -- ── Migrarea 0093: pas de CITIRE și confirmarea lui ───────────────────────
+  -- Al doilea șablon per organizație, cu un pas legat de material. Primul e
+  -- deja finalizat mai sus, deci un pas adăugat acolo n-ar mai fi materializat.
+  -- Verificarea (c) cere rânduri de ambele părți: fără ele, izolarea tabelei de
+  -- confirmări ar fi nedemonstrată, nu doar netestată.
+  insert into t_ids
+  select k || '_' || e, gen_random_uuid()
+  from unnest(array['ctpl2','cinst2']) k, unnest(array['alfa','beta']) e;
+
+  insert into public.checklist_templates (id, organization_id, denumire, tip)
+  values ((select val from t_ids where cheie='ctpl2_alfa'), v_alfa, 'Citire de test ' || v_sufix, 'onboarding'),
+         ((select val from t_ids where cheie='ctpl2_beta'), v_beta, 'Citire de test ' || v_sufix, 'onboarding');
+
+  insert into public.checklist_template_items
+    (organization_id, template_id, ordine, titlu, responsabil_tip, obligatoriu, tip_dovada, material_id)
+  values (v_alfa, (select val from t_ids where cheie='ctpl2_alfa'), 1, 'Citește regulamentul', 'subiect', true, 'bifa',
+          (select val from t_ids where cheie='cmat_alfa')),
+         (v_beta, (select val from t_ids where cheie='ctpl2_beta'), 1, 'Citește regulamentul', 'subiect', true, 'bifa',
+          (select val from t_ids where cheie='cmat_beta'));
+
+  insert into public.checklist_instances (id, organization_id, template_id, employee_id, tip, data_referinta)
+  values ((select val from t_ids where cheie='cinst2_alfa'), v_alfa, (select val from t_ids where cheie='ctpl2_alfa'),
+          (select val from t_ids where cheie='ang_alfa'), 'onboarding', current_date),
+         ((select val from t_ids where cheie='cinst2_beta'), v_beta, (select val from t_ids where cheie='ctpl2_beta'),
+          (select val from t_ids where cheie='ang_beta'), 'onboarding', current_date);
+
+  -- Confirmarea bifează pasul prin `internal.checklist_bifeaza_la_citire`.
+  insert into public.checklist_material_reads (organization_id, instance_item_id, employee_id, material_id)
+  select ii.organization_id, ii.id, ii.employee_id, ii.material_id
+    from public.checklist_instance_items ii
+   where ii.instance_id in ((select val from t_ids where cheie='cinst2_alfa'),
+                            (select val from t_ids where cheie='cinst2_beta'))
+     and ii.material_id is not null;
+
   insert into public.course_enrollments (organization_id, course_id, employee_id)
   values (v_alfa, (select val from t_ids where cheie='curs_alfa'), (select val from t_ids where cheie='ang_alfa')),
          (v_beta, (select val from t_ids where cheie='curs_beta'), (select val from t_ids where cheie='ang_beta'));
@@ -2553,6 +2587,118 @@ begin
       set constraints all deferred;
     end;
     reset role;
+  end;
+
+  -- ───────────────────────────────────────────────────────────────────────
+  -- INTEGRARE (0092). Poarta de Storage pentru dovada-fișier.
+  -- Se probează FUNCȚIA, care e exact predicatul celor trei politici: un test
+  -- prin API-ul de Storage n-ar spune nimic despre ea, iar ea e tot ce apără.
+  -- ───────────────────────────────────────────────────────────────────────
+  declare
+    v_tpl2   uuid;
+    v_inst2  uuid;
+    v_pas2   uuid;
+    v_cale   text;
+    v_strain text;
+    -- Blocul (l) nu leagă administratorul lui Beta; îl luăm din fixture.
+    v_adm_beta uuid := pg_temp.id('admin_beta');
+  begin
+    perform set_config('request.jwt.claim.sub', v_admin::text, true);
+    set local role authenticated;
+    insert into public.checklist_templates (organization_id, denumire, tip)
+    values (v_alfa, 'Dovada ' || v_rand, 'onboarding') returning id into v_tpl2;
+    insert into public.checklist_template_items
+      (organization_id, template_id, ordine, titlu, responsabil_tip, obligatoriu, tip_dovada)
+    values (v_alfa, v_tpl2, 1, 'Încarcă diploma', 'subiect', true, 'document');
+    insert into public.checklist_instances (organization_id, template_id, employee_id, tip, data_referinta)
+    values (v_alfa, v_tpl2, v_ang_alfa, 'onboarding', current_date) returning id into v_inst2;
+    reset role;
+
+    select ii.id into v_pas2 from public.checklist_instance_items ii where ii.instance_id = v_inst2;
+    v_cale   := v_alfa::text || '/checklists/' || v_ang_alfa::text || '/' || v_pas2::text || '/x.pdf';
+    -- Aceeași cale, dar sub folderul altcuiva: pasul e al Anei, folderul e al
+    -- subordonatului. Trebuie refuzată, altfel cineva ar scrie în dosarul altuia.
+    v_strain := v_alfa::text || '/checklists/' || v_sub_alfa::text || '/' || v_pas2::text || '/x.pdf';
+
+    perform set_config('request.jwt.claim.sub', v_emp_user::text, true);
+    set local role authenticated;
+
+    if app.checklist_poate_dovada(v_cale, 'update') then
+      v_reusite := v_reusite || E'\n  employee -> poate încărca dovada pe pasul propriu (D2)';
+    else
+      v_esuate := v_esuate || E'\n  employee -> app.checklist_poate_dovada pe pasul propriu: FALS (D2)';
+    end if;
+
+    if app.checklist_poate_dovada(v_strain, 'update') then
+      v_scapate := v_scapate || E'\n  employee -> cale cu folderul ALTCUIVA: acceptată';
+    else
+      v_reusite := v_reusite || E'\n  employee -> cale cu folderul altcuiva: refuzată corect';
+    end if;
+
+    -- Segment 2 greșit: `onboarding` NU e resursă în catalog. Trece regexul lui
+    -- `app.path_resource`, deci ar fi exact capcana din 0073 dacă poarta nu l-ar
+    -- verifica explicit.
+    if app.checklist_poate_dovada(
+         v_alfa::text || '/onboarding/' || v_ang_alfa::text || '/' || v_pas2::text || '/x.pdf',
+         'update') then
+      v_scapate := v_scapate || E'\n  employee -> segment de resursă inexistent (`onboarding`): acceptat';
+    else
+      v_reusite := v_reusite || E'\n  employee -> segment de resursă greșit: refuzat corect';
+    end if;
+    reset role;
+
+    -- Un angajat din CEALALTĂ firmă nu are ce căuta pe calea asta.
+    perform set_config('request.jwt.claim.sub', v_adm_beta::text, true);
+    set local role authenticated;
+    if app.checklist_poate_dovada(v_cale, 'read') then
+      v_scapate := v_scapate || E'\n  org_admin Beta -> dovada unui pas din Alfa: acceptată';
+    else
+      v_reusite := v_reusite || E'\n  org_admin Beta -> dovada din Alfa: refuzată corect';
+    end if;
+    reset role;
+  end;
+
+  -- ───────────────────────────────────────────────────────────────────────
+  -- INTEGRARE (0095). Pasul atribuit AJUNGE la responsabil.
+  -- Până acum modulul nu producea nicio notificare: un pas cu responsabil era
+  -- o bifă pe care cineva trebuia să se nimerească s-o caute.
+  -- ───────────────────────────────────────────────────────────────────────
+  declare
+    v_tpl3  uuid;
+    v_inst3 uuid;
+    v_notif integer;
+    v_link  text;
+  begin
+    perform set_config('request.jwt.claim.sub', v_admin::text, true);
+    set local role authenticated;
+    insert into public.checklist_templates (organization_id, denumire, tip)
+    values (v_alfa, 'Notificare ' || v_rand, 'onboarding') returning id into v_tpl3;
+    insert into public.checklist_template_items
+      (organization_id, template_id, ordine, titlu, responsabil_tip, obligatoriu)
+    values (v_alfa, v_tpl3, 1, 'Pregătește actele', 'subiect', true);
+    insert into public.checklist_instances (organization_id, template_id, employee_id, tip, data_referinta)
+    values (v_alfa, v_tpl3, v_ang_alfa, 'onboarding', current_date) returning id into v_inst3;
+    reset role;
+
+    select count(*), min(n.link) into v_notif, v_link
+      from public.notifications n
+     where n.entity_type = 'checklist_instances'
+       and n.entity_id = v_inst3
+       and n.user_id = v_emp_user;
+
+    if v_notif < 1 then
+      v_esuate := v_esuate || E'\n  notificare la pornirea parcursului: niciun mesaj pentru responsabil';
+    elsif v_link is distinct from '/onboarding/' || v_inst3::text then
+      v_esuate := v_esuate || format(E'\n  notificare: link greșit (%s)', v_link);
+    else
+      v_reusite := v_reusite || E'\n  pornirea parcursului notifică responsabilul, cu link corect';
+    end if;
+
+    -- UN singur mesaj per persoană, oricâți pași ar avea: altfel un onboarding
+    -- de 12 pași ar produce 12 notificări dintr-un singur gest.
+    if v_notif > 1 then
+      v_esuate := v_esuate || format(E'\n  notificare: %s mesaje pentru un singur om, se aștepta 1', v_notif);
+    end if;
   end;
 
   if v_scapate <> '' then

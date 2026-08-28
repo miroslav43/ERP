@@ -18,6 +18,8 @@ import type {
 import { CHECKLIST_ITEM_STATUS } from "@/schemas/checklist";
 
 import { bifeazaPas } from "../actions";
+import { CitireMaterial } from "./citire-material";
+import { IncarcareDovada } from "./incarcare-dovada";
 import {
   ETICHETE_RESPONSABIL_TIP,
   ETICHETE_ROL,
@@ -76,6 +78,15 @@ export interface PasAfisat {
   readonly bifat_automat: boolean;
   readonly dovada: string | null;
   readonly dovada_document_id: string | null;
+  /** Dovada încărcată direct în pas (0092). */
+  readonly dovada_fisier_nume: string | null;
+  readonly dovada_fisier_marime_bytes: number | null;
+  /** Materialul de citit (0093), cu versiunea curentă pentru livrare. */
+  readonly material: Readonly<{
+    readonly id: string;
+    readonly titlu: string;
+    readonly versiune_curenta_id: string | null;
+  }> | null;
   readonly observatii: string | null;
 }
 
@@ -110,7 +121,15 @@ function responsabilText(pas: PasAfisat): string {
 
 /** Pasul cere o dovadă pe care baza o verifică, și ea încă nu e înregistrată. */
 function dovadaLipseste(pas: PasAfisat): boolean {
-  if (pas.tip_dovada === "document") return pas.dovada_document_id === null;
+  // Un pas de citire se bifează prin CONFIRMARE, nu direct: triggerul din 0093
+  // îl trece pe „bifat" când apare rândul imutabil. Caseta deschide panoul,
+  // unde stă butonul care chiar funcționează.
+  if (pas.material !== null) return true;
+  // Oglinda triggerului din 0092: un fișier încărcat în pas satisface cerința
+  // la fel de bine ca un rând din dosarul de personal.
+  if (pas.tip_dovada === "document") {
+    return pas.dovada_document_id === null && pas.dovada_fisier_nume === null;
+  }
   if (pas.tip_dovada === "semnatura") return (pas.dovada ?? "").trim().length === 0;
   return false;
 }
@@ -309,24 +328,23 @@ function PasRand({ pas, poateBifa }: { readonly pas: PasAfisat; readonly poateBi
                   )}
                 </Camp>
 
+                {pas.material === null ? null : (
+                  <CitireMaterial
+                    pasId={pas.id}
+                    titlu={pas.material.titlu}
+                    versiuneId={pas.material.versiune_curenta_id}
+                    confirmat={pas.status === "bifat"}
+                    poateConfirma={poateBifa}
+                  />
+                )}
+
                 {pas.tip_dovada === "document" ? (
-                  <Camp
-                    nume="dovada_document_id"
-                    id={idc("dovada_document_id")}
-                    eticheta={ETICHETE_TIP_DOVADA.document}
-                    ajutor="Identificatorul documentului încărcat la fișa angajatului."
-                    erori={stare.erori["dovada_document_id"] ?? []}
-                  >
-                    {(a) => (
-                      <input
-                        {...a}
-                        type="text"
-                        defaultValue={
-                          stare.valoriTrimise["dovada_document_id"] ?? pas.dovada_document_id ?? ""
-                        }
-                      />
-                    )}
-                  </Camp>
+                  <IncarcareDovada
+                    pasId={pas.id}
+                    numeFisier={pas.dovada_fisier_nume}
+                    marimeBytes={pas.dovada_fisier_marime_bytes}
+                    poateScrie={poateBifa}
+                  />
                 ) : null}
 
                 {pas.tip_dovada === "semnatura" ? (

@@ -1380,6 +1380,7 @@ export type Database = {
           fel: Database["public"]["Enums"]["checklist_fel_pas"] | null
           id: string
           instance_id: string
+          material_id: string | null
           obligatoriu: boolean
           observatii: string | null
           ordine: number
@@ -1421,6 +1422,7 @@ export type Database = {
           fel?: Database["public"]["Enums"]["checklist_fel_pas"] | null
           id?: string
           instance_id: string
+          material_id?: string | null
           obligatoriu: boolean
           observatii?: string | null
           ordine: number
@@ -1462,6 +1464,7 @@ export type Database = {
           fel?: Database["public"]["Enums"]["checklist_fel_pas"] | null
           id?: string
           instance_id?: string
+          material_id?: string | null
           obligatoriu?: boolean
           observatii?: string | null
           ordine?: number
@@ -1507,6 +1510,13 @@ export type Database = {
             columns: ["instance_id", "organization_id"]
             isOneToOne: false
             referencedRelation: "checklist_instances"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "checklist_instance_items_material_fk"
+            columns: ["material_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "course_materials"
             referencedColumns: ["id", "organization_id"]
           },
           {
@@ -1617,6 +1627,61 @@ export type Database = {
           },
         ]
       }
+      checklist_material_reads: {
+        Row: {
+          citit_la: string
+          created_at: string
+          created_by: string | null
+          employee_id: string
+          id: string
+          instance_item_id: string
+          material_id: string
+          organization_id: string
+        }
+        Insert: {
+          citit_la?: string
+          created_at?: string
+          created_by?: string | null
+          employee_id: string
+          id?: string
+          instance_item_id: string
+          material_id: string
+          organization_id: string
+        }
+        Update: {
+          citit_la?: string
+          created_at?: string
+          created_by?: string | null
+          employee_id?: string
+          id?: string
+          instance_item_id?: string
+          material_id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_material_reads_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_material_reads_item_fk"
+            columns: ["instance_item_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_instance_items"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "checklist_material_reads_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       checklist_template_items: {
         Row: {
           created_at: string
@@ -1627,6 +1692,7 @@ export type Database = {
           etapa_id: string | null
           fel: Database["public"]["Enums"]["checklist_fel_pas"] | null
           id: string
+          material_id: string | null
           obligatoriu: boolean
           ordine: number
           organization_id: string
@@ -1652,6 +1718,7 @@ export type Database = {
           etapa_id?: string | null
           fel?: Database["public"]["Enums"]["checklist_fel_pas"] | null
           id?: string
+          material_id?: string | null
           obligatoriu?: boolean
           ordine: number
           organization_id: string
@@ -1677,6 +1744,7 @@ export type Database = {
           etapa_id?: string | null
           fel?: Database["public"]["Enums"]["checklist_fel_pas"] | null
           id?: string
+          material_id?: string | null
           obligatoriu?: boolean
           ordine?: number
           organization_id?: string
@@ -1706,6 +1774,13 @@ export type Database = {
             columns: ["etapa_id", "organization_id"]
             isOneToOne: false
             referencedRelation: "checklist_template_stages"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "checklist_template_items_material_fk"
+            columns: ["material_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "course_materials"
             referencedColumns: ["id", "organization_id"]
           },
           {
@@ -12105,7 +12180,13 @@ export type Database = {
         | "naval"
         | "mixt"
         | "altul"
-      checklist_fel_pas: "bifa" | "fisier" | "semnatura" | "curs" | "automat"
+      checklist_fel_pas:
+        | "bifa"
+        | "fisier"
+        | "semnatura"
+        | "curs"
+        | "automat"
+        | "citire"
       checklist_instanta_status: "in_curs" | "finalizata" | "anulata"
       checklist_item_status: "de_facut" | "in_lucru" | "bifat" | "neaplicabil"
       checklist_responsabil_tip:
@@ -12608,7 +12689,14 @@ export const Constants = {
         "mixt",
         "altul",
       ],
-      checklist_fel_pas: ["bifa", "fisier", "semnatura", "curs", "automat"],
+      checklist_fel_pas: [
+        "bifa",
+        "fisier",
+        "semnatura",
+        "curs",
+        "automat",
+        "citire",
+      ],
       checklist_instanta_status: ["in_curs", "finalizata", "anulata"],
       checklist_item_status: ["de_facut", "in_lucru", "bifat", "neaplicabil"],
       checklist_responsabil_tip: [
