@@ -26,7 +26,12 @@ import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
-import { cheieCelula, matriceConformitate, type CelulaConformitate } from "@/lib/queries/cursuri";
+import {
+  cheieCelula,
+  cursuriObligatoriiNepublicate,
+  matriceConformitate,
+  type CelulaConformitate,
+} from "@/lib/queries/cursuri";
 import { textProgres, treaptaTermen, treaptaValabilitate } from "@/domain/cursuri/scadente";
 import type { TreaptaScadenta } from "@/domain/scadente";
 
@@ -86,6 +91,18 @@ export default async function PaginaConformitate() {
   const { angajati, cursuri, celule } = await matriceConformitate(tenant.organizationId);
   const azi = todayInBucharest();
 
+  /*
+   * Diagnosticul stării goale, cerut doar când chiar e goală.
+   *
+   * „Niciun curs obligatoriu publicat" e adevărat și inutil: administratorul
+   * care tocmai a bifat „Curs obligatoriu" nu are cum să lege propoziția de
+   * cursul lui. Aici i se spune care e cursul, ce-i lipsește ca să fie
+   * publicabil, și drumul până la el.
+   */
+  const nepublicate =
+    cursuri.length === 0 ? await cursuriObligatoriiNepublicate(tenant.organizationId) : [];
+  const primul = nepublicate[0];
+
   const total = angajati.length * cursuri.length;
   let laZi = 0;
   let lipsa = 0;
@@ -121,16 +138,36 @@ export default async function PaginaConformitate() {
         <StareGoala
           fel="initiala"
           pictograma={ShieldCheck}
-          titlu={cursuri.length === 0 ? "Niciun curs obligatoriu publicat" : "Niciun angajat activ"}
+          titlu={
+            cursuri.length > 0
+              ? "Niciun angajat activ"
+              : primul === undefined
+                ? "Niciun curs obligatoriu publicat"
+                : nepublicate.length === 1
+                  ? `„${primul.denumire}” nu e publicat încă`
+                  : `${String(nepublicate.length)} cursuri obligatorii nu sunt publicate`
+          }
           descriere={
-            cursuri.length === 0
-              ? "Matricea arată doar cursurile marcate ca obligatorii și publicate."
-              : "Adăugați angajați ca să apară aici."
+            cursuri.length > 0
+              ? "Adăugați angajați ca să apară aici."
+              : primul === undefined
+                ? "Matricea arată doar cursurile marcate ca obligatorii și publicate. Marcați un curs ca obligatoriu din formularul lui."
+                : primul.lectii === 0
+                  ? "Matricea arată doar cursurile publicate. Cursul e marcat ca obligatoriu, dar nu are nicio lecție — adăugați cel puțin un material din bibliotecă, apoi publicați-l."
+                  : "Matricea arată doar cursurile publicate. Cursul are deja lecții: mai rămâne să-l publicați."
           }
           actiune={
-            cursuri.length === 0
-              ? { eticheta: "Vedeți cursurile", href: "/cursuri" }
-              : { eticheta: "Deschideți lista de angajați", href: "/angajati" }
+            cursuri.length > 0
+              ? { eticheta: "Deschideți lista de angajați", href: "/angajati" }
+              : primul === undefined
+                ? { eticheta: "Vedeți cursurile", href: "/cursuri" }
+                : {
+                    eticheta:
+                      nepublicate.length === 1
+                        ? "Deschideți cursul"
+                        : "Vedeți cursurile nepublicate",
+                    href: nepublicate.length === 1 ? `/cursuri/${primul.id}` : "/cursuri",
+                  }
           }
         />
       ) : (
