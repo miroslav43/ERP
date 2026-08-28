@@ -25,7 +25,7 @@ capcane: [2, 17]
 citeste_daca:
   - "perioadă care nu se recalculează → [[date/pontaj]]"
   - "sumă greșită → src/domain/payroll/, nu pagina asta"
-scris_pe: c72c3e8dbdab4bbee1ff6f55e311080155c5c4a2
+scris_pe: c924a7bf10af2d211b0246d582eb2c8293864dfc
 scris_la: 2026-08-28
 tags: [modul, finance]
 ---
@@ -77,6 +77,26 @@ neconfirmate de contabil.
 `compensariLuna`, `diurnaLunaPerAngajat`, `plafoaneDiurnaLuna`, `popririActive`,
 `dosarePopriri`, plus setările valabile la o dată.
 
+## Livrabilele perioadei
+
+Panoul „Livrabile" de pe `/salarizare/[id]` apare doar când perioada e `aprobat` sau
+`inchis`. Cele patru descărcări — `bancar`, `nota`, `stat`, `d112`, sub
+`src/app/api/export/salarizare/` — se cer prin `ButonDescarcare`
+(`src/components/incarcare/buton-descarcare.tsx`), **nu** prin `<a href>`: rutele refuză
+în `text/plain`, nu în JSON (`d112/route.ts:41`, `bancar/route.ts:30`), iar printr-o
+navigare refuzul înlocuia ecranul de salarizare cu pagina aia de text. Prin `fetch`,
+refuzul ajunge într-o notificare și omul rămâne pe perioadă.
+
+`d112` cere `payroll:export` all **și** `employees:read` all (`d112/route.ts:65-73`) —
+declarația conține CNP-ul fiecărui asigurat, deci `payroll:export` singur nu ajunge.
+
+Cifrele de control ale exportului nu sunt în corpul răspunsului, ci în antete:
+`bancar/route.ts:164-166` trimite `x-plati-incluse`, `x-suma-control` și `x-fara-iban` —
+ce NU a intrat în fișier. `ButonDescarcare` le citește și le pune în notificarea de
+reușită. `d112/route.ts:276` trimite `x-atentionari` (atenționări ANAF neblocante), care
+**nu** e în lista citită de buton (`buton-descarcare.tsx:33-39`) — deci numărul lor nu
+apare azi nicăieri pe ecran.
+
 ## Ce refuză baza tăcut
 
 - **Tranzițiile de perioadă se verifică prin `.select()` după `.update()`.** O tranziție
@@ -107,4 +127,5 @@ Pontajul care alimentează calculul (`[[modul/pontaj]]`), diurna, și fișa anga
 ## Când NU e suficientă pagina asta
 
 - Orice întrebare despre o cifră: `src/domain/payroll/` plus `NOTES.md` §valorile legale.
-- Exportul: route handlers sub `src/app/api/export/salarizare/`.
+- Exportul: route handlers sub `src/app/api/export/salarizare/` — pagina spune doar cum
+  se cer și ce antete întorc, nu ce e în fișier.
