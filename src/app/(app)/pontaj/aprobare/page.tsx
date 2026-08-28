@@ -185,9 +185,13 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
   const an = anDinUrl(parametri["an"], Number(todayInBucharest().slice(0, 4)));
   const filtre = filtreDinUrl(filtreAprobareSchema, parametri);
 
-  const perioada = await citestePerioada(tenant.organizationId, an, filtre.luna);
-  const listaDepartamente = await departamente(tenant.organizationId);
-  const sarciniSaptamana = await saptamaniDeAprobat(tenant.organizationId, user.id);
+  // Trei citiri independente, puse una după alta fără motiv: perioada are nevoie
+  // de (an, lună), departamentele doar de tenant, sarcinile doar de utilizator.
+  const [perioada, listaDepartamente, sarciniSaptamana] = await Promise.all([
+    citestePerioada(tenant.organizationId, an, filtre.luna),
+    departamente(tenant.organizationId),
+    saptamaniDeAprobat(tenant.organizationId, user.id),
+  ]);
 
   return (
     <div className="space-y-6">

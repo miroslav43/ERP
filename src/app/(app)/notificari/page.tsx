@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import { Bell } from "lucide-react";
 
 import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
-import { Buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import {
@@ -13,6 +12,7 @@ import {
 } from "@/lib/queries/notifications";
 import { trimiteMarcheazaToateCitite } from "./actions";
 import { RandNotificare } from "./rand-notificare";
+import { ButonTrimite } from "@/components/incarcare/buton-trimite";
 
 export const metadata: Metadata = { title: "Notificări" };
 
@@ -42,9 +42,9 @@ export default async function PaginaNotificari() {
           ? {
               actiuni: (
                 <form action={trimiteMarcheazaToateCitite}>
-                  <Buton varianta="secundar" type="submit">
+                  <ButonTrimite varianta="secundar" textInCurs="Se marchează…">
                     Marchează tot ca citit
-                  </Buton>
+                  </ButonTrimite>
                 </form>
               ),
             }

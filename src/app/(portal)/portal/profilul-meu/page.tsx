@@ -5,10 +5,10 @@ import { LogOut } from "lucide-react";
 import { deconecteaza } from "@/app/(app)/actions";
 import { FormularProfil } from "@/components/forms/formular-profil";
 import { AntetPagina } from "@/components/ui/antet-pagina";
-import { Buton } from "@/components/ui/buton";
 import { requireUser } from "@/lib/auth/current-user";
 import { urlAvatar } from "@/lib/avatar/cale";
 import { citesteProfilPropriu } from "@/lib/queries/profile";
+import { ButonTrimite } from "@/components/incarcare/buton-trimite";
 
 export const metadata: Metadata = { title: "Profilul meu" };
 
@@ -27,10 +27,10 @@ export default async function PaginaProfilulMeu() {
       />
 
       <form action={deconecteaza}>
-        <Buton type="submit" varianta="secundar" className="w-full">
+        <ButonTrimite varianta="secundar" className="w-full" textInCurs="Se deconectează…">
           <LogOut className="size-4 shrink-0" aria-hidden />
           Deconectare
-        </Buton>
+        </ButonTrimite>
       </form>
     </div>
   );

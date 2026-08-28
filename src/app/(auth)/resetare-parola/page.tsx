@@ -1,9 +1,9 @@
 // src/app/(auth)/resetare-parola/page.tsx
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Buton } from "@/components/ui/buton";
 import { param } from "@/schemas/auth";
 import { cereResetareParola } from "./actions";
+import { ButonTrimite } from "@/components/incarcare/buton-trimite";
 
 export const metadata: Metadata = { title: "Resetare parolă" };
 export const dynamic = "force-dynamic";
@@ -60,9 +60,9 @@ export default async function PaginaResetareParola({ searchParams }: Props) {
             className="border-border bg-background focus:border-ring rounded-control text-corp pointer-coarse:text-sectiune w-full border px-3 py-2"
           />
         </div>
-        <Buton type="submit" varianta="primar">
+        <ButonTrimite varianta="primar" textInCurs="Se trimite…">
           Trimite linkul de resetare
-        </Buton>
+        </ButonTrimite>
       </form>
 
       <p className="text-corp mt-6">

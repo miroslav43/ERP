@@ -10,6 +10,7 @@ import { BUCKET_CHECKLISTS, RESTRICTII_DOVADA, verificaDovada } from "@/lib/onbo
 import { getBrowserSupabase } from "@/lib/supabase/browser";
 
 import { linkDovada, pregatesteIncarcareDovada, salveazaDovada } from "../actions";
+import { useSemnalIncarcare } from "@/components/incarcare/use-incarcare";
 
 /**
  * Încărcarea dovezii, direct în pas.
@@ -102,13 +103,31 @@ export function IncarcareDovada({ pasId, numeFisier, marimeBytes, poateScrie }: 
     router.refresh();
   }
 
+  const [seDescarca, setSeDescarca] = useState(false);
+  useSemnalIncarcare(seDescarca, "documentul");
+
   async function descarca(): Promise<void> {
-    const rezultat = await linkDovada({ id: pasId });
-    if (!rezultat.ok) {
-      setStadiu({ tip: "eroare", mesaj: rezultat.error.message });
-      return;
+    if (seDescarca) return;
+    setSeDescarca(true);
+    try {
+      const rezultat = await linkDovada({ id: pasId });
+      if (!rezultat.ok) {
+        setStadiu({ tip: "eroare", mesaj: rezultat.error.message });
+        return;
+      }
+      /*
+        `window.open` după un `await` a pierdut contextul de gest al
+        utilizatorului, deci blocarea de ferestre îl poate opri TĂCUT: butonul
+        se stinge, nu se deschide nimic, și nu apare nicio eroare. `open`
+        întoarce `null` exact în cazul ăsta — atunci cădem pe navigarea în
+        aceeași filă, care nu e blocabilă. Fișierul vine cu
+        `content-disposition: attachment`, deci fila nu se pierde.
+      */
+      const fereastra = window.open(rezultat.data.url, "_blank", "noopener,noreferrer");
+      if (fereastra === null) window.location.assign(rezultat.data.url);
+    } finally {
+      setSeDescarca(false);
     }
-    window.open(rezultat.data.url, "_blank", "noopener,noreferrer");
   }
 
   const inCurs = stadiu.tip === "lucru";
@@ -129,6 +148,8 @@ export function IncarcareDovada({ pasId, numeFisier, marimeBytes, poateScrie }: 
           <Buton
             varianta="tertiar"
             disabled={inCurs}
+            inCurs={seDescarca}
+            textInCurs="Se pregătește…"
             onClick={() => {
               void descarca();
             }}

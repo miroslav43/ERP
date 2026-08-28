@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import { Bell } from "lucide-react";
 
 import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
-import { Buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { listeazaNotificarile } from "@/lib/queries/notifications";
@@ -11,6 +10,7 @@ import { trimiteMarcheazaToateCitite } from "@/app/(app)/notificari/actions";
 import { RandNotificare } from "@/app/(app)/notificari/rand-notificare";
 
 import { caleaDePortal } from "./legaturi";
+import { ButonTrimite } from "@/components/incarcare/buton-trimite";
 
 export const metadata: Metadata = { title: "Notificările mele" };
 
@@ -44,9 +44,9 @@ export default async function PaginaNotificarileMele() {
           ? {
               actiuni: (
                 <form action={trimiteMarcheazaToateCitite}>
-                  <Buton type="submit" varianta="secundar">
+                  <ButonTrimite varianta="secundar" textInCurs="Se marchează…">
                     Marchează tot ca citit
-                  </Buton>
+                  </ButonTrimite>
                 </form>
               ),
             }

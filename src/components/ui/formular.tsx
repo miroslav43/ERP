@@ -8,6 +8,7 @@ import { cn } from "@/lib/ui/cn";
 
 import { Callout } from "./callout";
 import { arataToast } from "./toast";
+import { useSemnalPanaLaRuta } from "@/components/incarcare/use-incarcare";
 
 /**
  * Învelișul unui formular. Desface `ActionResult` o singură dată și predă
@@ -100,12 +101,21 @@ export function Formular<TData>({
 
   const rezultat = stare.rezultat;
 
+  const semnaleazaNavigarea = useSemnalPanaLaRuta();
+
   useEffect(() => {
     if (rezultat === null || !rezultat.ok) return;
     if (mesajReusita !== undefined) arataToast({ fel: "reusita", text: mesajReusita });
+    /*
+      `useActionState` a lăsat deja `inCurs` pe `false` când ajungem aici, iar
+      `laReusita` e, în unsprezece formulare, un `router.push`. Fără semnalul
+      ăsta, între „s-a salvat" și pagina următoare urma o navigare întreagă în
+      care butonul redevenea activ și nimic nu se mișca.
+    */
+    if (laReusita !== undefined) semnaleazaNavigarea();
     laReusita?.(rezultat.data);
     // `rezultat` e stabil între randări cât timp acțiunea nu s-a mai executat.
-  }, [rezultat, mesajReusita, laReusita]);
+  }, [rezultat, mesajReusita, laReusita, semnaleazaNavigarea]);
 
   const erori = rezultat !== null && !rezultat.ok ? (rezultat.error.fieldErrors ?? {}) : {};
 

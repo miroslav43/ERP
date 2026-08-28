@@ -60,13 +60,19 @@ export async function Topbar() {
    * navigare, doar ca să afle ce era deja în mână. În plus, ramura
    * `utilizator === null` era moartă: `rezolvare.status === "ok"` o exclude.
    */
-  const [organizatii, module, permisiuni] = await Promise.all([
+  /*
+   * `numaraNecitite` era un `await` separat, imediat după acest `Promise.all` —
+   * deci un val de rețea propriu, pe fiecare randare de înveliș, pentru un
+   * număr care nu depinde de niciunul dintre rezultatele de aici: îi trebuie
+   * doar `tenant.organizationId` și `utilizator.id`, amândouă în mână de la
+   * `resolveTenant()`. Mutat înăuntru, costă zero.
+   */
+  const [organizatii, module, permisiuni, necitite] = await Promise.all([
     listUserOrganizations(),
     getEnabledFeatures(tenant.organizationId),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    numaraNecitite(tenant.organizationId, utilizator.id),
   ]);
-
-  const necitite = await numaraNecitite(tenant.organizationId, utilizator.id);
 
   // Harta se predă întreagă: `buildNavigation` aplică și `scope = 'none'` (refuz
   // explicit) și pragul `minScope` al fiecărei intrări. Paleta de comenzi trebuie

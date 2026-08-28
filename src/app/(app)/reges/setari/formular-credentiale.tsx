@@ -8,6 +8,7 @@ import { Buton } from "@/components/ui/buton";
 import { Callout } from "@/components/ui/callout";
 import { Camp } from "@/components/ui/camp";
 import { MEDII } from "../constante";
+import { useSemnalIncarcare } from "@/components/incarcare/use-incarcare";
 import {
   comutaActivarea,
   salveazaCredentialele,
@@ -38,6 +39,16 @@ export function FormularCredentiale(props: {
   const [mesaj, setMesaj] = useState<Mesaj | null>(null);
   const [erori, setErori] = useState<Readonly<Record<string, readonly string[]>> | null>(null);
   const [inCurs, startTransition] = useTransition();
+
+  /*
+    `useTransition` dă un singur `inCurs` pentru toate trei butoanele, iar
+    „Testează conexiunea" și „Descarcă nomenclatoarele" vorbesc cu un serviciu
+    EXTERN, prin Keycloak: pot ține zeci de secunde. Se stingeau toate trei și
+    nimic nu spunea care lucrează. `actiune` marchează care e în zbor, ca rotița
+    să apară pe butonul apăsat.
+  */
+  const [actiune, setActiune] = useState<"salvare" | "test" | "sincronizare" | null>(null);
+  useSemnalIncarcare(inCurs && actiune !== "salvare", "răspunsul de la REGES");
 
   const r = props.rezumat;
 
@@ -71,6 +82,7 @@ export function FormularCredentiale(props: {
 
   function testeaza() {
     setMesaj(null);
+    setActiune("test");
     startTransition(async () => {
       const rezultat = await testeazaConexiunea();
       if (rezultat.ok) {
@@ -105,6 +117,7 @@ export function FormularCredentiale(props: {
 
   function sincronizeaza() {
     setMesaj(null);
+    setActiune("sincronizare");
     startTransition(async () => {
       const rezultat = await sincronizeazaNomenclatoarele();
       setMesaj(
@@ -243,13 +256,22 @@ export function FormularCredentiale(props: {
         </p>
 
         <div className="flex flex-wrap gap-2">
-          <Buton type="submit" varianta="primar" disabled={inCurs}>
-            {inCurs ? "Se salvează…" : "Salvează cheile"}
+          <Buton
+            type="submit"
+            varianta="primar"
+            onClick={() => setActiune("salvare")}
+            inCurs={inCurs && actiune === "salvare"}
+            textInCurs="Se salvează…"
+            disabled={inCurs}
+          >
+            Salvează cheile
           </Buton>
           <Buton
             type="button"
             varianta="secundar"
             onClick={testeaza}
+            inCurs={inCurs && actiune === "test"}
+            textInCurs="Se testează…"
             disabled={inCurs || r === null}
           >
             Testează conexiunea
@@ -258,6 +280,8 @@ export function FormularCredentiale(props: {
             type="button"
             varianta="secundar"
             onClick={sincronizeaza}
+            inCurs={inCurs && actiune === "sincronizare"}
+            textInCurs="Se descarcă…"
             disabled={inCurs || r === null}
           >
             Descarcă nomenclatoarele

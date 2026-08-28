@@ -59,10 +59,42 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
   const cerere = await citesteCerere(tenant.organizationId, id);
   if (cerere === null) notFound();
 
-  const [zile, lant] = await Promise.all([
+  const db = await createServerSupabase();
+
+  // Numele angajatului se citește doar dacă scope-ul depășește „own”:
+  // pentru un rol strict „own” (`employees:read = none`), RLS ar întoarce
+  // oricum null — mai bine sărim interogarea decât să o lăsăm eșueze tăcut.
+  const arataAngajat = can(permisiuni, "leave:read", "team");
+
+  /*
+    Cinci citiri, un singur val.
+    Erau puse cap la cap: `Promise.all([zile, lant])`, apoi tipul, apoi
+    angajatul, apoi fișa proprie. Niciuna nu depinde de rezultatul alteia —
+    toate au nevoie doar de `cerere`, care e deja în mână. `fisaMea` nici măcar
+    de asta: îi trebuie doar tenantul și utilizatorul, disponibile de la intrare.
+  */
+  const [zile, lant, tipRes, angajatRes, stareFisa] = await Promise.all([
     zileleCererii(cerere.id),
     lantulAprobarii(tenant.organizationId, cerere.id),
+    db
+      .from("leave_types")
+      .select("denumire, culoare")
+      .eq("organization_id", tenant.organizationId)
+      .eq("id", cerere.leave_type_id)
+      .maybeSingle<TipMinim>(),
+    arataAngajat
+      ? db
+          .from("employees")
+          .select("full_name, marca")
+          .eq("organization_id", tenant.organizationId)
+          .eq("id", cerere.employee_id)
+          .maybeSingle<AngajatMinim>()
+      : null,
+    fisaMea(tenant.organizationId, user.id),
   ]);
+
+  const tip = tipRes.data;
+  const angajat: AngajatMinim | null = angajatRes?.data ?? null;
 
   // Sarcina proprie, dacă există: cine poate decide trebuie s-o poată face DE
   // AICI, nu doar din ecranul de aprobări. Fișa e locul unde te uiți ca să
@@ -74,29 +106,6 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
   // în `decideCerere`, la scriere.
   const sarcinaMea =
     lant.find((pas) => pas.approver_user_id === user.id && pas.status === "in_asteptare") ?? null;
-
-  const db = await createServerSupabase();
-  const { data: tip } = await db
-    .from("leave_types")
-    .select("denumire, culoare")
-    .eq("organization_id", tenant.organizationId)
-    .eq("id", cerere.leave_type_id)
-    .maybeSingle<TipMinim>();
-
-  // Numele angajatului se citește doar dacă scope-ul depășește „own”:
-  // pentru un rol strict „own” (`employees:read = none`), RLS ar întoarce
-  // oricum null — mai bine sărim interogarea decât să o lăsăm eșueze tăcut.
-  const arataAngajat = can(permisiuni, "leave:read", "team");
-  let angajat: AngajatMinim | null = null;
-  if (arataAngajat) {
-    const { data } = await db
-      .from("employees")
-      .select("full_name, marca")
-      .eq("organization_id", tenant.organizationId)
-      .eq("id", cerere.employee_id)
-      .maybeSingle<AngajatMinim>();
-    angajat = data;
-  }
 
   // ── CINE POATE ANULA, ȘI DE CE E NEVOIE DE FIȘA PROPRIE ────────────────────
   // Ecranul ăsta nu e „cererea mea", ca în portal: aici ajung și managerul, și
@@ -112,7 +121,6 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
   //
   // Ciorna și cererea trimisă rămân exact ca înainte, pentru oricine are
   // dreptul — nu se restrânge nimic din ce mergea.
-  const stareFisa = await fisaMea(tenant.organizationId, user.id);
   const esteAMea = stareFisa.stare === "ok" && stareFisa.fisa.id === cerere.employee_id;
 
   const poateAnula =

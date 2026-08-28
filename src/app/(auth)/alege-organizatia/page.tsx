@@ -2,10 +2,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Building2, LifeBuoy, LogOut } from "lucide-react";
+import { LifeBuoy, LogOut } from "lucide-react";
 
-import { comutaOrganizatiaDirect, deconecteaza } from "@/app/(app)/actions";
-import { Buton } from "@/components/ui/buton";
+import { deconecteaza } from "@/app/(app)/actions";
+import { ButonTrimite } from "@/components/incarcare/buton-trimite";
+import { ListaFirme } from "./_componente/lista-firme";
 import { listUserOrganizations } from "@/lib/queries/organizations";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { RUTA_AUTENTIFICARE, RUTA_SUPER_ADMIN } from "@/config/routes";
@@ -13,14 +14,6 @@ import { isPlatformAdmin } from "@/lib/auth/platform";
 export const metadata: Metadata = {
   title: "Alegeți organizația",
   description: "Selectați organizația în care doriți să lucrați.",
-};
-
-const ETICHETE_ROL: Readonly<Record<string, string>> = {
-  super_admin: "Super-administrator",
-  org_admin: "Administrator",
-  manager: "Manager",
-  hr: "Resurse umane",
-  employee: "Angajat",
 };
 
 type Props = Readonly<{
@@ -83,41 +76,19 @@ export default async function AlegeOrganizatiaPage({ searchParams }: Props) {
       {organizatii.length > 0 ? (
         /*
           Ecranul cu cea mai mare consecință a unei citiri greșite din tot
-          produsul: de aici pleacă tenantul în care se va lucra. Două lucruri îi
-          răspund direct.
+          produsul: de aici pleacă tenantul în care se va lucra.
 
-          1. DENUMIREA e cel mai proeminent element al rândului — `text-sectiune`
-             semi-bold, adică o treaptă peste corpul textului, cu rolul și slugul
-             coborâte la `text-nota` sub ea. Înainte toate trei erau la o
-             jumătate de treaptă distanță, iar ochiul citea rândul ca un bloc.
-          2. ȚINTA e rândul ÎNTREG, nu denumirea: `<button>` pe toată lățimea,
-             `min-h-14` (56px, peste minimul de 44). Nimeni nu alege firma greșit
-             fiindcă a atins doi pixeli mai jos.
+          Lista e o componentă CLIENT (`_componente/lista-firme.tsx`), nu un
+          `<form>` per rând, iar motivul nu e feedbackul, ci corectitudinea:
+          react-dom pornește acțiunea la orice submit, fără gardă de „deja în
+          curs", deci două clicuri pe două firme scriau amândouă cookie-ul de
+          organizație. Vezi docblock-ul componentei.
+
+          Ce s-a păstrat: DENUMIREA e cel mai proeminent element al rândului
+          (`text-sectiune` semi-bold, cu rolul și slugul coborâte la `text-nota`),
+          iar ȚINTA e rândul ÎNTREG, `min-h-14`.
         */
-        <ul className="flex flex-col gap-2">
-          {organizatii.map((organizatie) => (
-            <li key={organizatie.id}>
-              <form action={comutaOrganizatiaDirect}>
-                <input type="hidden" name="organizationId" value={organizatie.id} />
-                <button
-                  type="submit"
-                  className="border-border bg-surface hover:bg-background rounded-panou flex min-h-14 w-full items-center gap-3 border px-4 py-3 text-left transition-colors"
-                >
-                  <Building2 aria-hidden="true" className="text-primary h-5 w-5 shrink-0" />
-                  <span className="flex min-w-0 flex-col">
-                    {/* Conținut de la utilizator: randat ca text, niciodată ca HTML (S8). */}
-                    <span className="text-foreground text-sectiune truncate font-semibold">
-                      {organizatie.name}
-                    </span>
-                    <span className="text-muted-foreground text-nota truncate">
-                      {ETICHETE_ROL[organizatie.role] ?? organizatie.role} · /{organizatie.slug}
-                    </span>
-                  </span>
-                </button>
-              </form>
-            </li>
-          ))}
-        </ul>
+        <ListaFirme organizatii={organizatii} />
       ) : (
         <section
           aria-labelledby="titlu-fara-organizatie"
@@ -150,10 +121,10 @@ export default async function AlegeOrganizatiaPage({ searchParams }: Props) {
       )}
 
       <form action={deconecteaza}>
-        <Buton type="submit" varianta="link">
+        <ButonTrimite varianta="link" textInCurs="Se deconectează…">
           <LogOut aria-hidden="true" className="h-4 w-4" />
           Deconectare
-        </Buton>
+        </ButonTrimite>
       </form>
     </div>
   );

@@ -2,10 +2,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Buton } from "@/components/ui/buton";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { caleInterna, param } from "@/schemas/auth";
-import { autentificarePrinParola, trimiteLinkMagic } from "./actions";
+import { autentificarePrinParola } from "./actions";
+import { ButoaneAutentificare } from "./_componente/butoane-autentificare";
 
 export const metadata: Metadata = { title: "Autentificare" };
 export const dynamic = "force-dynamic";
@@ -122,26 +122,7 @@ export default async function PaginaAutentificare({ searchParams }: Props) {
           />
         </div>
 
-        {/* Singurul navy din zonă: acțiunea care te duce înăuntru. */}
-        <Buton type="submit" varianta="primar">
-          Intră în cont
-        </Buton>
-
-        <div className="border-border relative border-t pt-4 text-center">
-          <span className="bg-surface text-muted-foreground text-nota absolute -top-2.5 left-1/2 -translate-x-1/2 px-2">
-            sau
-          </span>
-          {/* `formNoValidate`: linkul magic nu are nevoie de parolă. */}
-          <Buton
-            type="submit"
-            varianta="secundar"
-            formAction={trimiteLinkMagic}
-            formNoValidate
-            className="w-full"
-          >
-            Trimite-mi un link de autentificare
-          </Buton>
-        </div>
+        <ButoaneAutentificare />
       </form>
     </>
   );

@@ -121,7 +121,14 @@ export function BaraFiltre({
         className="border-border bg-surface rounded-panou flex flex-wrap items-end gap-4 border p-4"
       >
         {children}
-        <Buton type="submit" varianta="secundar" disabled={inCurs}>
+        {/*
+          `inCurs`, nu `disabled={inCurs}`: `Buton` are deja rotița, `aria-busy`
+          și blocarea în prop-ul ăsta (`buton.tsx:120-126`), iar legarea doar pe
+          `disabled` producea un buton care se stinge fără să spună de ce. Pe
+          cele 17 ecrane cu filtre, omul apăsa „Aplică" și rămânea cu tabelul pe
+          datele vechi și cu un buton gri.
+        */}
+        <Buton type="submit" varianta="secundar" inCurs={inCurs} textInCurs="Se filtrează…">
           {textAplica}
         </Buton>
       </form>

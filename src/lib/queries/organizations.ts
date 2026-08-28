@@ -2,6 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 
+import { getCurrentUser } from "@/lib/auth/current-user";
 import { createServerSupabase } from "@/lib/supabase/server";
 import type { AppRole, OrgSummary } from "@/lib/tenant/types";
 
@@ -19,9 +20,20 @@ import type { AppRole, OrgSummary } from "@/lib/tenant/types";
 export const listUserOrganizations = cache(async (): Promise<readonly OrgSummary[]> => {
   const supabase = await createServerSupabase();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  /*
+    `getCurrentUser()`, nu `supabase.auth.getUser()` direct.
+
+    Sunt același drum la GoTrue, dar primul e memoizat cu `React.cache()` pe
+    durata requestului, iar al doilea nu. Fișierul chema varianta nememoizată,
+    deci fiecare randare plătea DOUĂ validări de token în loc de una — iar
+    mediana unui apel GoTrue e, după propria măsurătoare din
+    `src/lib/supabase/fetch-cu-termen.ts:35-38`, sub 130 ms.
+
+    Se simte în patru locuri: `<Topbar/>` (pe toate paginile din `(app)`),
+    `(portal)/layout.tsx`, `comutaNucleu` din `(app)/actions.ts` — care făcea
+    două GoTrue în aceeași acțiune — și `/alege-organizatia`, care făcea la fel.
+  */
+  const user = await getCurrentUser();
   if (user === null) return [];
 
   const { data, error } = await supabase

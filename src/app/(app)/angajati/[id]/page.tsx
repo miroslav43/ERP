@@ -128,16 +128,19 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
   const angajat = await citesteAngajat(tenant.organizationId, id, scope, propriaFisaId);
   if (angajat === null) notFound();
 
-  // Datele sensibile nu se randează deloc dacă scope-ul nu acoperă întreaga organizație.
-  const rezumatSensibil =
-    scope === "all" ? await citesteRezumatDateSensibile(tenant.organizationId, id) : null;
-  const scutiriFiscale =
-    scope === "all" ? await citesteScutiriFiscale(tenant.organizationId, id) : [];
+  /*
+   * ── UN SINGUR VAL, NU OPT ─────────────────────────────────────────────
+   * Pagina asta era cea mai grea din tot produsul: opt `await` pe rând, unul
+   * după altul, niciunul dependent de rezultatul precedentului — toate au
+   * nevoie doar de `angajat`, care e deja în mână. Opt dus-întors înlănțuite
+   * la ~27 ms fiecare, plus valurile învelișului deasupra.
+   *
+   * Porțile de permisiune se evaluează ÎNAINTE, sincron: ele decid dacă o
+   * interogare pleacă deloc. `Promise.resolve(…)` pe ramura refuzată păstrează
+   * exact semantica de dinainte — nicio interogare, nicio schimbare de tip.
+   */
   const poateAdaugaScutire = can(permisiuni, "payroll:create", "all");
-  const componenteSalariale =
-    scope === "all" ? await citesteComponenteSalariale(tenant.organizationId, id) : [];
   const poateAdaugaComponenta = can(permisiuni, "payroll:create", "all");
-  const evaluari = await evaluariAngajat(tenant.organizationId, id);
   // Cheie proprie din 0070; politicile au urmat-o în 0071. Până atunci poarta
   // din bază era `employees:update`, pe care managerul nu o are la niciun
   // scope: acțiunea trecea de preambul și baza o refuza cu 42501, deci
@@ -145,30 +148,57 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
   // contrar cerinței „managerul direct".
   const poateCreaEvaluare = can(permisiuni, "evaluations:create", "team");
   const poateEditaEvaluare = can(permisiuni, "evaluations:update", "team");
-  // Șabloanele arhivate nu se pot alege la o evaluare nouă: acțiunea le
-  // respinge oricum, iar un `<option>` care duce garantat la un refuz e mai
-  // rău decât unul absent.
-  const sabloaneEvaluare = poateCreaEvaluare
-    ? (await listeazaSabloane(tenant.organizationId, { includeArhivate: false })).map((s) => ({
-        id: s.id,
-        denumire: s.denumire,
-        criterii: s.criterii,
-      }))
-    : [];
-  const sabloaneComponente =
+
+  const dbFisa = await createServerSupabase();
+
+  const [
+    rezumatSensibil,
+    scutiriFiscale,
+    componenteSalariale,
+    evaluari,
+    sabloaneEvaluareBrute,
+    sabloaneComponente,
+    lantManageri,
+    dependentiRes,
+  ] = await Promise.all([
+    // Datele sensibile nu se randează deloc dacă scope-ul nu acoperă întreaga organizație.
+    scope === "all" ? citesteRezumatDateSensibile(tenant.organizationId, id) : null,
+    scope === "all" ? citesteScutiriFiscale(tenant.organizationId, id) : [],
+    scope === "all" ? citesteComponenteSalariale(tenant.organizationId, id) : [],
+    evaluariAngajat(tenant.organizationId, id),
+    // Șabloanele arhivate nu se pot alege la o evaluare nouă: acțiunea le
+    // respinge oricum, iar un `<option>` care duce garantat la un refuz e mai
+    // rău decât unul absent.
+    poateCreaEvaluare ? listeazaSabloane(tenant.organizationId, { includeArhivate: false }) : [],
     scope === "all" && poateAdaugaComponenta
-      ? await (async () => {
-          const db = await createServerSupabase();
-          const { data } = await db
-            .from("salary_component_types")
-            .select("id, denumire, kind")
-            .or(`organization_id.eq.${tenant.organizationId},organization_id.is.null`)
-            .eq("activ", true)
-            .is("deleted_at", null)
-            .order("denumire");
-          return data ?? [];
-        })()
-      : [];
+      ? dbFisa
+          .from("salary_component_types")
+          .select("id, denumire, kind")
+          .or(`organization_id.eq.${tenant.organizationId},organization_id.is.null`)
+          .eq("activ", true)
+          .is("deleted_at", null)
+          .order("denumire")
+          .then(({ data }) => data ?? [])
+      : [],
+    lantulDeManageri(tenant.organizationId, angajat.manager_path, angajat.id),
+    // Persoanele în întreținere (0069). RLS (`employee_dependents_select` →
+    // `app.can_see_employee`) decide singură cine le vede; pagina nu filtrează.
+    dbFisa
+      .from("employee_dependents")
+      .select("id, nume, relatie, data_nasterii, in_intretinere_de_la, in_intretinere_pana_la")
+      .eq("organization_id", tenant.organizationId)
+      .eq("employee_id", angajat.id)
+      .is("deleted_at", null)
+      .order("in_intretinere_de_la", { ascending: true })
+      .returns<RandDependent[]>(),
+  ]);
+
+  const sabloaneEvaluare = sabloaneEvaluareBrute.map((s) => ({
+    id: s.id,
+    denumire: s.denumire,
+    criterii: s.criterii,
+  }));
+
   /*
    * TOATE contractele active, nu doar primul găsit.
    *
@@ -187,11 +217,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
   const contractPrincipal =
     contracteActive.find((c) => !c.este_act_aditional) ?? contracteActive[0] ?? null;
   const contracteIstoric = angajat.contracts.filter((c) => c.status !== "activ");
-  const lantManageri = await lantulDeManageri(
-    tenant.organizationId,
-    angajat.manager_path,
-    angajat.id,
-  );
+
   const esteFisaProprie = angajat.user_id === utilizator.id;
   const poateIncarcaPtOricine = can(permisiuni, "users:update", "all");
   const poateEditaAngajat = can(permisiuni, "employees:update", "all");
@@ -200,18 +226,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
   const poateAcordaPermisiuni = can(permisiuni, "roles:update", "team");
   const poateVedeaRegulileConcediu = can(permisiuni, "leave:read", "all");
 
-  // Persoanele în întreținere (0069). RLS (`employee_dependents_select` →
-  // `app.can_see_employee`) decide singură cine le vede; pagina nu filtrează.
-  const dbFisa = await createServerSupabase();
-  const { data: dependentiBruti } = await dbFisa
-    .from("employee_dependents")
-    .select("id, nume, relatie, data_nasterii, in_intretinere_de_la, in_intretinere_pana_la")
-    .eq("organization_id", tenant.organizationId)
-    .eq("employee_id", angajat.id)
-    .is("deleted_at", null)
-    .order("in_intretinere_de_la", { ascending: true })
-    .returns<RandDependent[]>();
-  const dependenti = dependentiBruti ?? [];
+  const dependenti = dependentiRes.data ?? [];
 
   // Nota „fără cont" și lanțul managerial coboară sub titlu, prin prop-ul
   // `file` al antetului: rămân în același bloc, nu ca frați ai lui.

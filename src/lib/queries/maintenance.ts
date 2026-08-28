@@ -545,40 +545,66 @@ export async function ultimeleCitiriContor(
   if (idUnice.length === 0 || tipUnice.length === 0) return new Map();
 
   const db = await createServerSupabase();
-  const ultima = new Map<string, number>();
 
-  for (const tip of tipUnice) {
-    let dupaId: string | null = null;
+  /*
+   * Tipurile de contor merg în PARALEL, nu unul după altul.
+   *
+   * Bucla era `for (const tip of tipUnice)` cu paginare secvențială înăuntru —
+   * deci, pentru două tipuri de contor, două lanțuri de dus-întors puse cap la
+   * cap. Nu era o alegere: tipurile nu depind unul de altul, iar cheile pe care
+   * le scriu sunt disjuncte prin construcție (`cheieContor(equipment_id, tip)`).
+   *
+   * Contează mai mult decât pare: funcția e chemată de `numarScadenteMentenanta`,
+   * care intră în `contoarePanouPentru`, care alimentează insignele din meniu —
+   * adică se plătea la fiecare randare de înveliș, pe orice pagină a aplicației.
+   *
+   * Paginarea în interiorul unui tip RĂMÂNE secvențială, și trebuie: `dupaId`
+   * al paginii următoare vine din ultimul rând al celei curente.
+   */
+  const perTip = await Promise.all(
+    tipUnice.map(async (tip) => {
+      const aleTipului = new Map<string, number>();
+      let dupaId: string | null = null;
 
-    for (let pagina = 0; pagina < MAXIM_PAGINI_CONTOARE; pagina += 1) {
-      let interogare = db
-        .from("equipment_meters")
-        .select("equipment_id, tip, citire")
-        .eq("organization_id", organizationId)
-        .eq("tip", tip)
-        .in("equipment_id", idUnice)
-        .is("deleted_at", null)
-        .order("equipment_id", { ascending: true })
-        .order("data_citirii", { ascending: false })
-        // Două citiri în aceeași zi: cea introdusă ultima e cea bună.
-        .order("created_at", { ascending: false })
-        .limit(LIMITA_PAGINA_CONTOARE);
-      if (dupaId !== null) interogare = interogare.gt("equipment_id", dupaId);
+      for (let pagina = 0; pagina < MAXIM_PAGINI_CONTOARE; pagina += 1) {
+        let interogare = db
+          .from("equipment_meters")
+          .select("equipment_id, tip, citire")
+          .eq("organization_id", organizationId)
+          .eq("tip", tip)
+          .in("equipment_id", idUnice)
+          .is("deleted_at", null)
+          .order("equipment_id", { ascending: true })
+          .order("data_citirii", { ascending: false })
+          // Două citiri în aceeași zi: cea introdusă ultima e cea bună.
+          .order("created_at", { ascending: false })
+          .limit(LIMITA_PAGINA_CONTOARE);
+        if (dupaId !== null) interogare = interogare.gt("equipment_id", dupaId);
 
-      const { data, error } = await interogare.returns<RandUltimaCitire[]>();
-      if (error !== null) throw error;
+        const { data, error } = await interogare.returns<RandUltimaCitire[]>();
+        if (error !== null) throw error;
 
-      const randuri = data ?? [];
-      for (const rand of randuri) {
-        const cheie = cheieContor(rand.equipment_id, rand.tip);
-        if (!ultima.has(cheie)) ultima.set(cheie, rand.citire);
+        const randuri = data ?? [];
+        for (const rand of randuri) {
+          const cheie = cheieContor(rand.equipment_id, rand.tip);
+          // Prima citire întâlnită per echipament e cea mai recentă: sortarea de
+          // mai sus o garantează. `has` păstrează exact semantica de dinainte.
+          if (!aleTipului.has(cheie)) aleTipului.set(cheie, rand.citire);
+        }
+
+        if (randuri.length < LIMITA_PAGINA_CONTOARE) break;
+        const ultimulRand = randuri.at(-1);
+        if (ultimulRand === undefined) break;
+        dupaId = ultimulRand.equipment_id;
       }
 
-      if (randuri.length < LIMITA_PAGINA_CONTOARE) break;
-      const ultimulRand = randuri.at(-1);
-      if (ultimulRand === undefined) break;
-      dupaId = ultimulRand.equipment_id;
-    }
+      return aleTipului;
+    }),
+  );
+
+  const ultima = new Map<string, number>();
+  for (const alTipului of perTip) {
+    for (const [cheie, citire] of alTipului) ultima.set(cheie, citire);
   }
 
   return ultima;

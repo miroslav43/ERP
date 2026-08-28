@@ -5,7 +5,6 @@ import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
-import { buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +28,7 @@ import { AlertTriangle, Receipt, Users } from "lucide-react";
 import { TONURI_STATUS_PERIOADA, ETICHETE_STATUS_PERIOADA, numeLuna } from "../etichete";
 import { ActiuniPerioada } from "./actiuni-perioada";
 import { RandAngajatDraft } from "./rand-angajat-draft";
+import { ButonDescarcare } from "@/components/incarcare/buton-descarcare";
 
 export const metadata: Metadata = { title: "Perioadă de salarizare" };
 
@@ -236,30 +236,43 @@ export default async function PaginaPerioada({ params }: ProprietatiPagina) {
             contabilul o validează cu DUKIntegrator înainte de depunere.
           </p>
           <div className="flex flex-wrap gap-2">
-            <a
+            {/*
+              Butoane, nu `<a href>`. Rutele astea fac un tur de bază per angajat
+              și pot răspunde cu un refuz în `text/plain` — printr-o navigare,
+              refuzul ÎNLOCUIA ecranul de salarizare cu o pagină albă cu o
+              propoziție. În plus, fișierul bancar și D112 pun cifrele de
+              control în antete HTTP, pe care o descărcare prin link nu le arată
+              nimănui; prin `fetch` ajung în notificare. Vezi
+              `components/incarcare/buton-descarcare.tsx`.
+            */}
+            <ButonDescarcare
               href={`/api/export/salarizare/bancar?perioada=${perioada.id}`}
-              className={buton({ varianta: "secundar" })}
+              eticheta="fișierul bancar"
+              numeImplicit="salarii.xml"
             >
               Fișier bancar (SEPA)
-            </a>
-            <a
+            </ButonDescarcare>
+            <ButonDescarcare
               href={`/api/export/salarizare/nota?perioada=${perioada.id}`}
-              className={buton({ varianta: "secundar" })}
+              eticheta="nota contabilă"
+              numeImplicit="nota-contabila.csv"
             >
               Notă contabilă (CSV)
-            </a>
-            <a
+            </ButonDescarcare>
+            <ButonDescarcare
               href={`/api/export/salarizare/stat?perioada=${perioada.id}`}
-              className={buton({ varianta: "secundar" })}
+              eticheta="statul de plată"
+              numeImplicit="stat-de-plata.pdf"
             >
               Stat de plată (PDF)
-            </a>
-            <a
+            </ButonDescarcare>
+            <ButonDescarcare
               href={`/api/export/salarizare/d112?perioada=${perioada.id}`}
-              className={buton({ varianta: "secundar" })}
+              eticheta="declarația 112"
+              numeImplicit="d112.xml"
             >
               Declarația 112 (XML)
-            </a>
+            </ButonDescarcare>
           </div>
         </section>
       )}

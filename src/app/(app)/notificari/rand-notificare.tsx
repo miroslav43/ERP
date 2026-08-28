@@ -15,6 +15,11 @@ import {
 
 import { formatDateTime } from "@/lib/format/date";
 import type { RandNotificare as Notificare, TipNotificare } from "@/lib/queries/notifications";
+import { useRouter } from "next/navigation";
+import { useTransition } from "react";
+
+import { SenzorLink } from "@/components/incarcare/senzor-link";
+import { arataToast } from "@/components/ui/toast";
 import { marcheazaNotificareaCitita } from "./actions";
 
 const ICONITA_TIP: Readonly<Record<TipNotificare, typeof Bell>> = {
@@ -60,6 +65,8 @@ export function RandNotificare({
   readonly notificare: Notificare;
   readonly href?: string | null;
 }) {
+  const router = useRouter();
+  const [seMarcheaza, marcheaza] = useTransition();
   const Iconita = ICONITA_TIP[notificare.kind];
   const necitita = notificare.read_at === null;
   const destinatie = href === undefined ? notificare.link : href;
@@ -100,21 +107,39 @@ export function RandNotificare({
       <Link
         href={destinatie}
         onClick={() => {
+          // Marcarea e efect secundar: navigarea e scopul, iar dacă marcarea
+          // eșuează notificarea rămâne necitită — recuperabil, deci nu blocăm.
           if (necitita) void marcheazaNotificareaCitita({ id: notificare.id });
         }}
         className={clasa}
       >
         {continut}
+        {/* Destinația e o pagină de aplicație, cu propriile ei citiri. */}
+        <SenzorLink />
       </Link>
     );
   }
 
+  /*
+    Fără `startTransition`, apelul de mai jos era pur și simplu aruncat: React nu
+    știa că se lucrează, rândul rămânea „necitit" până la un refresh manual, iar
+    un al doilea clic pornea o a doua scriere. Rezultatul acțiunii era și el
+    ignorat — un refuz nu se vedea nicăieri.
+  */
   return (
     <button
       type="button"
-      disabled={!necitita}
+      disabled={!necitita || seMarcheaza}
+      aria-busy={seMarcheaza ? true : undefined}
       onClick={() => {
-        void marcheazaNotificareaCitita({ id: notificare.id });
+        marcheaza(async () => {
+          const rezultat = await marcheazaNotificareaCitita({ id: notificare.id });
+          if (!rezultat.ok) {
+            arataToast({ fel: "eroare", text: rezultat.error.message });
+            return;
+          }
+          router.refresh();
+        });
       }}
       className={`${clasa} disabled:cursor-default disabled:hover:bg-transparent`}
     >

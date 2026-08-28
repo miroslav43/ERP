@@ -44,15 +44,18 @@ export default async function PaginaFluturas({ params }: ProprietatiPagina) {
 
   const inregistrare = await citesteInregistrare(tenant.organizationId, idInregistrare);
   if (inregistrare === null) notFound();
-  // Aici perioada CHIAR se poate citi: ecranul cere `payroll:read = "all"`,
-  // adică exact ce cere `payroll_periods_select`. În portal nu se poate — vezi
-  // nota de pe `perioada` din `Fluturas`.
-  const perioada = await citestePerioada(tenant.organizationId, inregistrare.period_id);
-  const { bonusuri, retineri } = await listeazaBonusuriSiRetineri(
-    tenant.organizationId,
-    inregistrare.period_id,
-    inregistrare.employee_id,
-  );
+  // Amândouă depind de `inregistrare`, dar nu una de alta — deci un val, nu două.
+  const [perioada, { bonusuri, retineri }] = await Promise.all([
+    // Aici perioada CHIAR se poate citi: ecranul cere `payroll:read = "all"`,
+    // adică exact ce cere `payroll_periods_select`. În portal nu se poate — vezi
+    // nota de pe `perioada` din `Fluturas`.
+    citestePerioada(tenant.organizationId, inregistrare.period_id),
+    listeazaBonusuriSiRetineri(
+      tenant.organizationId,
+      inregistrare.period_id,
+      inregistrare.employee_id,
+    ),
+  ]);
 
   return (
     <div className={`${LATIMI.detaliu} space-y-6`}>

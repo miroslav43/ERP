@@ -1,10 +1,11 @@
 // src/app/(auth)/parola-noua/page.tsx
 import type { Metadata } from "next";
 import Link from "next/link";
-import { buton, Buton } from "@/components/ui/buton";
+import { buton } from "@/components/ui/buton";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { param } from "@/schemas/auth";
 import { seteazaParolaNoua } from "./actions";
+import { ButonTrimite } from "@/components/incarcare/buton-trimite";
 
 export const metadata: Metadata = { title: "Parolă nouă" };
 export const dynamic = "force-dynamic";
@@ -91,9 +92,9 @@ export default async function PaginaParolaNoua({ searchParams }: Props) {
             className={CLASA_CAMP}
           />
         </div>
-        <Buton type="submit" varianta="primar">
+        <ButonTrimite varianta="primar" textInCurs="Se salvează…" eticheta="aplicația">
           Salvează parola
-        </Buton>
+        </ButonTrimite>
       </form>
     </>
   );

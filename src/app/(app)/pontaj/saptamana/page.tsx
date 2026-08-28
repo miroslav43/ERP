@@ -65,9 +65,29 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
       ? parametruAngajat
       : null;
 
-  const propriaFisaId = await idFisaProprie(tenant.organizationId, user.id);
+  /*
+    Patru citiri independente, un singur val.
+    Erau în serie: fișa proprie, lista de angajați, apoi — după două ramuri de
+    ieșire și după `submisie` — setările și zilele nelucrătoare. Niciuna dintre
+    cele patru nu depinde de alta; doar `submisie` are nevoie de `fisaTinta`.
+
+    Setările și sărbătorile se citesc și pe ramurile de ieșire, unde nu se
+    folosesc. E o interogare de setări în plus pe un drum rar (cont fără fișă
+    proprie), în schimbul a două valuri pe drumul normal. `zileNelucratoare` e
+    memoizat, deci acolo nu se plătește nimic în plus.
+  */
+  const saptamanaSfarsit = adaugaZile(saptamanaStart, 6);
+  const anInceput = Number(saptamanaStart.slice(0, 4));
+  const anSfarsit = Number(saptamanaSfarsit.slice(0, 4));
+
+  const [propriaFisaId, angajati, setari, { nationale, organizatie }] = await Promise.all([
+    idFisaProprie(tenant.organizationId, user.id),
+    poateAlegeAngajat ? angajatiPentruPontaj(tenant.organizationId) : [],
+    setariPontaj(tenant.organizationId, saptamanaStart),
+    // O săptămână poate călări două ani (28 decembrie – 3 ianuarie).
+    zileNelucratoare(tenant.organizationId, anInceput, anSfarsit),
+  ]);
   const fisaTinta = angajatCerut ?? propriaFisaId;
-  const angajati = poateAlegeAngajat ? await angajatiPentruPontaj(tenant.organizationId) : [];
 
   // Fără fișă proprie ȘI fără drept de a alege pe altcineva nu există nicio
   // săptămână de arătat. Mesajul spune ce lipsește — o fișă — nu „acces
@@ -102,14 +122,6 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
    * `celula-zi.tsx`), iar zilele nelucrătoare pornesc de la 0: le poate ridica
    * oricine are nevoie, dar acum e o alegere, nu o valoare moștenită.
    */
-  const saptamanaSfarsit = adaugaZile(saptamanaStart, 6);
-  const anInceput = Number(saptamanaStart.slice(0, 4));
-  const anSfarsit = Number(saptamanaSfarsit.slice(0, 4));
-  const [setari, { nationale, organizatie }] = await Promise.all([
-    setariPontaj(tenant.organizationId, saptamanaStart),
-    // O săptămână poate călări două ani (28 decembrie – 3 ianuarie).
-    zileNelucratoare(tenant.organizationId, anInceput, anSfarsit),
-  ]);
   const orePeZi = setari?.ore_pe_zi ?? 8;
   const setNationale = new Set(nationale.map((z) => z.data));
   const setRecuperare = new Set(

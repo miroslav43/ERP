@@ -239,8 +239,20 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
   const an = anDinUrl(parametri["an"], Number(todayInBucharest().slice(0, 4)));
   const filtre = filtreDinUrl(filtrePontajSchema, parametri);
 
-  const perioada = await citestePerioada(tenant.organizationId, an, filtre.luna);
-  const listaDepartamente = scope === "own" ? [] : await departamente(tenant.organizationId);
+  /*
+    Trei citiri independente, un val — erau trei.
+    `zileLucratoareLuna` nu are nevoie de `perioada`: doar înmulțirea de mai jos
+    e păzită de `perioada === null`. Iar sub capotă cheamă `zileNelucratoare`,
+    memoizat de la reparația din `queries/leave.ts`, deci secțiunea streamată de
+    mai sus nu-l mai plătește a doua oară.
+  */
+  const [perioada, listaDepartamente, zileLucratoare] = await Promise.all([
+    citestePerioada(tenant.organizationId, an, filtre.luna),
+    scope === "own" ? [] : departamente(tenant.organizationId),
+    zileLucratoareLuna(tenant.organizationId, an, filtre.luna),
+  ]);
+
+  // Chiar depinde de `perioada`: îi ia `data_inceput`. Rămâne al doilea val.
   // Nu există seed pentru `attendance_settings` — 8h e implicitul deja folosit
   // în formular înainte de această modificare (`celula-zi.tsx`).
   const setari =
@@ -275,10 +287,7 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
   };
   // „Ore așteptate” pentru lună — bază de raportare, NU calculul de salariu
   // (acela rămâne în `salarizare`, care poate citi aceleași cifre mai târziu).
-  const oreAsteptateLuna =
-    perioada === null
-      ? 0
-      : orePeZi * (await zileLucratoareLuna(tenant.organizationId, an, filtre.luna));
+  const oreAsteptateLuna = perioada === null ? 0 : orePeZi * zileLucratoare;
 
   return (
     <div className="space-y-6">
