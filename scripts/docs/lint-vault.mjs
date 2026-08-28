@@ -208,6 +208,19 @@ const verifica = (cale) => {
     return { rel, erori, averts, verificari };
   }
   const text = brut.toString("utf8");
+
+  // `meta/log.md` e un jurnal append-only scris rând cu rând de CI, nu o pagină.
+  // Verificat rămâne ce contează: fără octeți NUL, fără sedile, fără secrete.
+  if (rel.endsWith(".claude/docs/meta/log.md")) {
+    const linii = text.split("\n");
+    linii.forEach((linie, i) => {
+      num("N");
+      if (/[şţŞŢ]/.test(linie)) E("N", i + 1, "diacritic cu sedilă în jurnal");
+      for (const { re, ce } of TIPARE_P) if (re.test(linie)) E("P", i + 1, `repo public: ${ce}`);
+    });
+    return { rel, erori, averts, verificari };
+  }
+
   const { fm, corp, decalaj } = frontmatter(text);
 
   // ── Frontmatter ──
@@ -284,7 +297,9 @@ const verifica = (cale) => {
   // ── A, B, J din spans inline (proză) ──
   for (const { linie, nr } of proza) {
     for (const m of linie.matchAll(/`([^`\n]+)`/g)) {
-      const tok = m[1].trim();
+      // `fisier.ts:97` e o citare cu număr de linie, nu o cale inexistentă.
+      // Convenția e folosită și în CLAUDE.md (`0023_portal_angajat.sql:51`).
+      const tok = m[1].trim().replace(/:(\d+)(-\d+)?$/, "");
       if (tok.includes("<") || tok.includes("*") || IN_AFARA.test(tok)) continue;
 
       // B — migrare

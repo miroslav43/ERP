@@ -389,7 +389,25 @@ jobs:
           set -uo pipefail
           node scripts/docs/lint-vault.mjs --json > "$RUNNER_TEMP/lint-dupa.json" || true
           node scripts/docs/lint-compara.mjs "$RUNNER_TEMP/lint-inainte.json" "$RUNNER_TEMP/lint-dupa.json" \
-            | tee -a "$GITHUB_STEP_SUMMARY"
+            | tee "$RUNNER_TEMP/compara.txt" | tee -a "$GITHUB_STEP_SUMMARY"
+
+          # Comparația nu doar raportează: paginile care au CĂPĂTAT erori se
+          # revertesc individual, restul se publică. O poartă care doar scrie în
+          # rezumat lasă erorile să ajungă pe main — s-a întâmplat la prima
+          # publicare reală, iar `vault.yml` a devenit roșu pentru toată lumea.
+          revert=$(sed -n 's/^REVERT: //p' "$RUNNER_TEMP/compara.txt")
+          if [ -n "$revert" ]; then
+            for pag in $revert; do
+              case "$pag" in
+                .claude/docs/*.md) git checkout HEAD -- "$pag" && echo "::warning title=Pagină revertită::$pag a căpătat erori noi" ;;
+                *) echo "::error title=Cale de revert refuzată::$pag"; exit 1 ;;
+              esac
+            done
+            node scripts/docs/lint-vault.mjs || {
+              echo "::error title=Vault-ul rămâne roșu după revert::nu public"
+              exit 1
+            }
+          fi
 
       - name: Comite și publică
         if: ${{ inputs.uscat != true }}
