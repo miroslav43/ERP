@@ -22,13 +22,15 @@ import {
   versiunileMaterialului,
 } from "@/lib/queries/cursuri";
 import { durataCitibila } from "@/domain/cursuri/scadente";
-import { ETICHETE_FURNIZOR } from "@/lib/media/link-extern";
+import { ETICHETE_FURNIZOR, adresaPublica } from "@/lib/media/link-extern";
 import { FileWarning } from "lucide-react";
 
 import { ETICHETE_FEL, ETICHETE_SURSA, ETICHETE_TREAPTA, EXPLICATII_TREAPTA } from "../../etichete";
 import { ConstructorTest } from "./constructor-test";
 import { FormularLink } from "./formular-link";
 import { IncarcareVersiune } from "./incarcare-versiune";
+import { FormularMaterialEditare } from "./formular-material-editare";
+import { PrevizualizareVersiune } from "./previzualizare-versiune";
 
 export const metadata: Metadata = { title: "Material" };
 
@@ -53,6 +55,7 @@ export default async function PaginaMaterial({
   if (material === null) notFound();
 
   const poateIncarca = can(permisiuni, "courses:create", "team");
+  const poateEdita = can(permisiuni, "courses:update", "team");
   const versiuni = await versiunileMaterialului(tenant.organizationId, materialId);
 
   /*
@@ -114,6 +117,42 @@ export default async function PaginaMaterial({
       peTelefon: "ascuns",
       celula: (v) => v.nota_versiune ?? "—",
     },
+    {
+      /*
+       * Coloana care lipsea. Până acum, singurul om din firmă care putea VEDEA
+       * ce s-a încărcat era angajatul căruia i se atribuia cursul — adică
+       * exact cel care nu poate repara o încărcare greșită. Bucket-ul e privat,
+       * deci pentru fișiere drumul e un URL semnat cu TTL scurt; pentru
+       * linkurile externe e chiar adresa publică, reconstruită din furnizor și
+       * id, ca la butonul „Deschideți la sursă" din portal.
+       */
+      cheie: "deschide",
+      antet: "Deschide",
+      latime: "ingusta",
+      peTelefon: "meta",
+      celula: (v) =>
+        v.fisier_path !== null ? (
+          <PrevizualizareVersiune
+            versiuneId={v.id}
+            eticheta={`versiunea ${String(v.versiune)} — ${v.fisier_nume ?? "fișier"}`}
+          />
+        ) : v.link_furnizor !== null && v.link_id !== null ? (
+          <a
+            href={adresaPublica({
+              furnizor: v.link_furnizor,
+              id: v.link_id,
+              codPrivat: v.link_cod_privat,
+            })}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-accent underline underline-offset-2"
+          >
+            La sursă
+          </a>
+        ) : (
+          "—"
+        ),
+    },
   ];
 
   return (
@@ -153,6 +192,43 @@ export default async function PaginaMaterial({
           Până nu încărcați un fișier sau nu lipiți un link, angajații nu au ce deschide, iar
           cursurile care îl conțin nu se pot parcurge.
         </Callout>
+      ) : null}
+
+      {/*
+        Transcrierea nu e o rafinare: pentru un angajat surd, un film fără text
+        e un curs pe care nu-l poate face. Coloana exista de la prima livrare,
+        se afișa în portal — dar nimic nu o semnala când lipsea.
+      */}
+      {material.fel === "video" && material.transcriere === null ? (
+        <Callout fel="atentie" titlu="Filmul nu are transcriere">
+          Fără textul rostit, angajații care nu aud — sau care nu pot porni sunetul la lucru — nu au
+          cum să parcurgă lecția. Se completează mai jos, la „Modifică detaliile materialului”.
+        </Callout>
+      ) : null}
+
+      {poateEdita ? (
+        <details className="border-border rounded-panou border p-4">
+          <summary className="text-corp cursor-pointer font-medium">
+            Modifică detaliile materialului
+          </summary>
+          <div className="mt-4">
+            <FormularMaterialEditare
+              material={{
+                id: material.id,
+                cod: material.cod,
+                titlu: material.titlu,
+                descriere: material.descriere,
+                fel: material.fel,
+                sursa: material.sursa,
+                treapta_dovada: material.treapta_dovada,
+                procent_minim: material.procent_minim,
+                prag_test: material.prag_test,
+                declaratie_text: material.declaratie_text,
+                transcriere: material.transcriere,
+              }}
+            />
+          </div>
+        </details>
       ) : null}
 
       {poateIncarca ? (

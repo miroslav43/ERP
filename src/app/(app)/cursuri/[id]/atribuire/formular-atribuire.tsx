@@ -25,7 +25,7 @@ import { intrareAtribuire } from "../../_formulare/citire";
 interface Proprietati {
   readonly cursId: string;
   readonly denumire: string;
-  readonly termenZile: number;
+  readonly termenZile: number | null;
   readonly angajati: readonly AngajatOptiune[];
   /** Cine are deja cursul în curs sau parcurs: nu se re-atribuie din greșeală. */
   readonly deja: readonly string[];
@@ -58,9 +58,7 @@ export function FormularAtribuire({ cursId, denumire, termenZile, angajati, deja
     setEroare(null);
     setConfirma(false);
     porneste(async () => {
-      const rezultat = await atribuieCurs(
-        intrareAtribuire({ cursId, angajati: [...alesi] }),
-      );
+      const rezultat = await atribuieCurs(intrareAtribuire({ cursId, angajati: [...alesi] }));
       if (!rezultat.ok) {
         setEroare(rezultat.error.message);
         return;
@@ -160,7 +158,13 @@ export function FormularAtribuire({ cursId, denumire, termenZile, angajati, deja
         consecinta="Fiecare persoană primește o notificare și îl vede imediat în „Cursurile mele”."
         cifre={[
           { eticheta: "Persoane", valoare: String(alesi.size) },
-          { eticheta: "Termen", valoare: `${String(termenZile)} zile de azi` },
+          {
+            eticheta: "Termen",
+            // Un curs fără termen e legitim de la 0085. `String(null)` scria
+            // „null zile de azi" chiar în dialogul de confirmare — adică exact
+            // acolo unde omul se uită înainte să apese.
+            valoare: termenZile === null ? "Fără termen" : `${String(termenZile)} zile de azi`,
+          },
         ]}
         etichetaConfirmare="Atribuie"
         inCurs={inCurs}

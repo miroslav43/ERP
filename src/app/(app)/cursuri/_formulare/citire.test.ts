@@ -18,6 +18,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  actualizeazaMaterialSchema,
   atribuieCursSchema,
   creeazaCursSchema,
   creeazaMaterialSchema,
@@ -27,8 +28,11 @@ import {
 } from "@/schemas/cursuri";
 
 import {
+  alegereDinFel,
   citesteCurs,
-  citesteMaterial,
+  citesteMaterialEditat,
+  felDinAlegere,
+  intrareMaterial,
   citesteVersiuneFisier,
   citesteVersiuneLink,
   intrareAtribuire,
@@ -119,54 +123,49 @@ describe("cursul — ce trimite formularul chiar trece prin schemă", () => {
 // Materialul — toate patru treptele
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe("materialul — toate patru treptele, exact cum le trimite dialogul", () => {
-  const baza = { titlu: "Regulament intern", cod: "regulament", descriere: "", transcriere: "" };
+describe("materialul — toate patru treptele, exact cum le trimite asistentul", () => {
+  const baza = {
+    ales: "pdf" as const,
+    cod: "regulament",
+    titlu: "Regulament intern",
+    descriere: "",
+    treapta: "bifa" as const,
+    procentMinim: "80",
+    pragTest: "70",
+    declaratieText: "Declar că am citit și am înțeles.",
+    transcriere: "",
+    faraVorbire: false,
+  };
 
   it.each([
-    ["bifă", { fel: "pdf", sursa: "fisier", treapta_dovada: "bifa" }],
-    [
-      "parcurgere măsurată",
-      { fel: "video", sursa: "fisier", treapta_dovada: "parcurgere", procent_minim: "80" },
-    ],
-    ["test grilă", { fel: "pdf", sursa: "fisier", treapta_dovada: "test", prag_test: "70" }],
-    [
-      "declarație asumată",
-      {
-        fel: "pdf",
-        sursa: "fisier",
-        treapta_dovada: "declaratie",
-        declaratie_text: "Declar că am citit și am înțeles.",
-      },
-    ],
-  ])("treapta „%s” trece", (_nume, campuri) => {
+    ["bifă", { ales: "pdf" as const, treapta: "bifa" as const }],
+    ["parcurgere măsurată", { ales: "video_fisier" as const, treapta: "parcurgere" as const }],
+    ["test grilă", { ales: "pdf" as const, treapta: "test" as const }],
+    ["declarație asumată", { ales: "pdf" as const, treapta: "declaratie" as const }],
+  ])("treapta „%s” trece", (_nume, peste) => {
     // Livrat, TOATE patru eșuau: câmpurile treptelor nealese pleacă `null`, iar
     // `optional()` nu-l accepta. Iar mesajul era invizibil — controlul vinovat
     // nu e randat, deci n-avea unde să apară.
-    const r = creeazaMaterialSchema.safeParse(citesteMaterial(formular({ ...baza, ...campuri })));
+    const r = creeazaMaterialSchema.safeParse(intrareMaterial({ ...baza, ...peste }));
     expect(r.success, erori(r).join(", ")).toBe(true);
   });
 
-  it("refuză un PDF adus prin link extern", () => {
-    const r = creeazaMaterialSchema.safeParse(
-      citesteMaterial(formular({ ...baza, fel: "pdf", sursa: "link", treapta_dovada: "bifa" })),
-    );
-    expect(r.success).toBe(false);
-    expect(erori(r)).toContain("sursa");
+  it("un PDF nu poate veni din link — alegerea de la pasul 1 le leagă", () => {
+    // `felDinAlegere` face imposibilă combinația: nu există card „PDF din link”.
+    expect(felDinAlegere("pdf")).toEqual({ fel: "pdf", sursa: "fisier" });
+    expect(felDinAlegere("video_link")).toEqual({ fel: "video", sursa: "link" });
   });
 
   it("refuză parcurgerea măsurată pe un film extern — nu deținem filmul", () => {
     const r = creeazaMaterialSchema.safeParse(
-      citesteMaterial(
-        formular({
-          ...baza,
-          fel: "video",
-          sursa: "link",
-          treapta_dovada: "parcurgere",
-          procent_minim: "80",
-        }),
-      ),
+      intrareMaterial({ ...baza, ales: "video_link", treapta: "parcurgere" }),
     );
     expect(r.success).toBe(false);
+  });
+
+  it("bifa „fără vorbire” scrie propoziția în transcriere, nu un gol", () => {
+    const r = intrareMaterial({ ...baza, ales: "video_fisier", faraVorbire: true });
+    expect(r.transcriere).toBe("Filmul nu conține vorbire.");
   });
 });
 
@@ -266,6 +265,69 @@ describe("regula de atribuire", () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
+// Editarea materialului
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe("citesteMaterialEditat", () => {
+  /** Formularul de editare, exact cum îl trimite browserul. */
+  function formular(peste: Readonly<Record<string, string>> = {}): FormData {
+    const date = new FormData();
+    date.set("cod", "ssm_general");
+    date.set("titlu", "Instructaj general");
+    date.set("descriere", "");
+    date.set("treapta_dovada", "bifa");
+    for (const [cheie, valoare] of Object.entries(peste)) date.set(cheie, valoare);
+    return date;
+  }
+
+  it("drumul invers al felului acoperă exact combinațiile legale", () => {
+    expect(alegereDinFel("pdf", "fisier")).toBe("pdf");
+    expect(alegereDinFel("video", "fisier")).toBe("video_fisier");
+    expect(alegereDinFel("video", "link")).toBe("video_link");
+  });
+
+  it("felul și sursa vin din props, NU din formular", () => {
+    // Miezul înghețării: chiar dacă cineva pune câmpurile în DOM, ele nu ajung
+    // în sarcină. Singurul drum până la acțiune trece prin argument.
+    const date = formular({ fel: "video", sursa: "link" });
+    const iesire = citesteMaterialEditat(date, UUID, "pdf");
+    expect(iesire.fel).toBe("pdf");
+    expect(iesire.sursa).toBe("fisier");
+  });
+
+  it("un material editat fără câmpuri de treaptă trece de schemă", () => {
+    // Reproducerea defectului original: câmpurile treptelor nealese nu sunt
+    // randate, deci pleacă `null`. Cu `optional()` stricat, aici cădea tot.
+    const r = actualizeazaMaterialSchema.safeParse(citesteMaterialEditat(formular(), UUID, "pdf"));
+    expect(r.success).toBe(true);
+  });
+
+  it("descrierea goală devine `null`, nu șir gol", () => {
+    const r = actualizeazaMaterialSchema.parse(citesteMaterialEditat(formular(), UUID, "pdf"));
+    expect(r.descriere).toBeNull();
+  });
+
+  it("bifa „fără vorbire” scrie chiar propoziția în transcriere", () => {
+    const date = formular({ transcriere: "ce scrisese omul" });
+    date.set("fara_vorbire", "on");
+    const r = actualizeazaMaterialSchema.parse(citesteMaterialEditat(date, UUID, "video_fisier"));
+    expect(r.transcriere).toBe("Filmul nu conține vorbire.");
+  });
+
+  it("o treaptă necunoscută cade pe `bifa`, nu ajunge la server", () => {
+    const r = citesteMaterialEditat(formular({ treapta_dovada: "inventat" }), UUID, "pdf");
+    expect(r.treapta_dovada).toBe("bifa");
+  });
+
+  it("parcurgerea măsurată își duce procentul, iar celelalte praguri rămân goale", () => {
+    const date = formular({ treapta_dovada: "parcurgere", procent_minim: "90", prag_test: "70" });
+    const r = actualizeazaMaterialSchema.parse(citesteMaterialEditat(date, UUID, "video_fisier"));
+    expect(r.procent_minim).toBe(90);
+    expect(r.prag_test).toBeNull();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
 // Poarta
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -296,11 +358,12 @@ describe("componentele nu construiesc singure sarcina acțiunii", () => {
 
   it.each([
     ["creeazaCurs", "citesteCurs"],
-    ["creeazaMaterial", "citesteMaterial"],
+    ["creeazaMaterial", "intrareMaterial"],
     ["salveazaVersiuneFisier", "citesteVersiuneFisier"],
     ["salveazaVersiuneLink", "citesteVersiuneLink"],
     ["atribuieCurs", "intrareAtribuire"],
     ["creeazaRegula", "intrareRegula"],
+    ["actualizeazaMaterial", "citesteMaterialEditat"],
   ])("`%s` se apelează prin `%s`, nu cu obiect literal", (actiune, citire) => {
     const vinovate = componente
       .filter((c) => new RegExp(`\\b${actiune}\\s*\\(\\s*\\{`, "u").test(c.sursa))

@@ -162,7 +162,23 @@ export function ConstructorTest({ versiuneId, pragTest, initiale }: Proprietati)
                     <Buton
                       varianta="tertiar"
                       marime="iconita"
-                      aria-label={`Șterge varianta ${String(io + 1)}`}
+                      /*
+                        Motivul stingerii intră în NUMELE butonului, nu într-o
+                        propoziție sub el: butonul ăsta se repetă o dată pe
+                        variantă, iar o explicație pe fiecare rând ar îneca
+                        formularul. Așa o aude și cititorul de ecran, și o vede
+                        cine ține mausul deasupra.
+                      */
+                      aria-label={
+                        intrebare.optiuni.length <= 2
+                          ? `Nu se poate șterge varianta ${String(io + 1)}: o întrebare are nevoie de cel puțin două variante`
+                          : `Șterge varianta ${String(io + 1)}`
+                      }
+                      title={
+                        intrebare.optiuni.length <= 2
+                          ? "O întrebare are nevoie de cel puțin două variante."
+                          : undefined
+                      }
                       disabled={intrebare.optiuni.length <= 2}
                       onClick={() => {
                         modifica(index, (i) => ({
@@ -180,18 +196,25 @@ export function ConstructorTest({ versiuneId, pragTest, initiale }: Proprietati)
                     </Buton>
                   </div>
                 ))}
-                <Buton
-                  varianta="tertiar"
-                  disabled={intrebare.optiuni.length >= 8}
-                  onClick={() => {
-                    modifica(index, (i) => ({
-                      ...i,
-                      optiuni: [...i.optiuni, { id: idNou("o", i.optiuni), text: "" }],
-                    }));
-                  }}
-                >
-                  Încă o variantă
-                </Buton>
+                <div className="flex flex-col gap-1">
+                  <Buton
+                    varianta="tertiar"
+                    disabled={intrebare.optiuni.length >= 8}
+                    onClick={() => {
+                      modifica(index, (i) => ({
+                        ...i,
+                        optiuni: [...i.optiuni, { id: idNou("o", i.optiuni), text: "" }],
+                      }));
+                    }}
+                  >
+                    Încă o variantă
+                  </Buton>
+                  {intrebare.optiuni.length >= 8 ? (
+                    <p className="text-muted-foreground text-nota">
+                      Opt variante e maximul pe întrebare.
+                    </p>
+                  ) : null}
+                </div>
               </fieldset>
             </li>
           ))}
@@ -205,36 +228,48 @@ export function ConstructorTest({ versiuneId, pragTest, initiale }: Proprietati)
       )}
 
       <BaraActiuni eticheta="Editarea testului">
-        <Buton
-          varianta="secundar"
-          disabled={intrebari.length >= 50}
-          onClick={() => {
-            setIntrebari((p) => [
-              ...p,
-              {
-                id: idNou("q", p),
-                text: "",
-                optiuni: [
-                  { id: "o1", text: "" },
-                  { id: "o2", text: "" },
-                ],
-                corect: "",
-              },
-            ]);
-          }}
-        >
-          <Plus className="size-4" aria-hidden="true" />
-          Întrebare nouă
-        </Buton>
-        <Buton
-          varianta="primar"
-          disabled={intrebari.length === 0 || inCurs}
-          inCurs={inCurs}
-          textInCurs="Se salvează…"
-          onClick={salveaza}
-        >
-          Salvează testul
-        </Buton>
+        <div className="flex flex-col gap-1">
+          <Buton
+            varianta="secundar"
+            disabled={intrebari.length >= 50}
+            onClick={() => {
+              setIntrebari((p) => [
+                ...p,
+                {
+                  id: idNou("q", p),
+                  text: "",
+                  optiuni: [
+                    { id: "o1", text: "" },
+                    { id: "o2", text: "" },
+                  ],
+                  corect: "",
+                },
+              ]);
+            }}
+          >
+            <Plus className="size-4" aria-hidden="true" />
+            Întrebare nouă
+          </Buton>
+          {intrebari.length >= 50 ? (
+            <p className="text-muted-foreground text-nota">
+              Cincizeci de întrebări e maximul unui test.
+            </p>
+          ) : null}
+        </div>
+        <div className="flex flex-col gap-1">
+          <Buton
+            varianta="primar"
+            disabled={intrebari.length === 0 || inCurs}
+            inCurs={inCurs}
+            textInCurs="Se salvează…"
+            onClick={salveaza}
+          >
+            Salvează testul
+          </Buton>
+          {intrebari.length === 0 ? (
+            <p className="text-muted-foreground text-nota">Adăugați întâi o întrebare.</p>
+          ) : null}
+        </div>
       </BaraActiuni>
     </div>
   );

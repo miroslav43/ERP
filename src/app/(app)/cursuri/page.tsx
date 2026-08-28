@@ -7,6 +7,7 @@ import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
 import { BaraFiltre } from "@/components/ui/bara-filtre";
+import { Callout } from "@/components/ui/callout";
 import { Paginare } from "@/components/ui/paginare";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
@@ -16,7 +17,7 @@ import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { filtreDinUrl } from "@/lib/rute/parametri";
-import { listeazaCursuri } from "@/lib/queries/cursuri";
+import { listeazaCursuri, materialeDisponibile } from "@/lib/queries/cursuri";
 import { filtreCursuriSchema } from "@/schemas/cursuri";
 
 import { DESCRIERI, TITLURI } from "./etichete";
@@ -49,7 +50,12 @@ export default async function PaginaCursuri({
 
   const poateCrea = can(permisiuni, "courses:create", "team");
   const filtre = filtreDinUrl(filtreCursuriSchema, parametri);
-  const { randuri, urmatorulCursor, total } = await listeazaCursuri(tenant.organizationId, filtre);
+  const [{ randuri, urmatorulCursor, total }, materiale] = await Promise.all([
+    listeazaCursuri(tenant.organizationId, filtre),
+    materialeDisponibile(tenant.organizationId),
+  ]);
+  /** Primul contact: nici cursuri, nici materiale, și nicio căutare activă. */
+  const arataPornirea = materiale.length === 0 && randuri.length === 0 && filtre.cauta === null;
 
   const coloane: readonly Coloana<(typeof randuri)[number]>[] = [
     {
@@ -100,7 +106,7 @@ export default async function PaginaCursuri({
       numeric: true,
       latime: "ingusta",
       peTelefon: "meta",
-      celula: (c) => `${String(c.termen_zile)} zile`,
+      celula: (c) => (c.termen_zile === null ? "Fără termen" : `${String(c.termen_zile)} zile`),
     },
   ];
 
@@ -164,6 +170,34 @@ export default async function PaginaCursuri({
         </label>
       </BaraFiltre>
 
+      {/*
+        Ordinea, scrisă ÎNTREAGĂ, o singură dată, la începutul drumului.
+        Modulul are Callout-uri bune peste tot — la material, la reguli, la test
+        — dar niciunul aici, unde omul intră prima oară. Apare doar cât timp
+        biblioteca e goală: după primul material, e zgomot.
+      */}
+      {arataPornirea ? (
+        <Callout fel="informativ" titlu="Cum se face un curs">
+          <ol className="mt-1 list-decimal space-y-1 ps-5">
+            <li>
+              <strong>Bibliotecă</strong> — adăugați materialele: un PDF sau un film.
+            </li>
+            <li>
+              <strong>Curs nou</strong> — îi dați un nume și un termen.
+            </li>
+            <li>
+              <strong>Lecții</strong> — puneți materialele în curs, în ordinea în care se parcurg.
+            </li>
+            <li>
+              <strong>Publicați</strong> — abia atunci cursul poate fi atribuit.
+            </li>
+            <li>
+              <strong>Atribuiți</strong> — oamenii îl primesc în portal, cu notificare.
+            </li>
+          </ol>
+        </Callout>
+      ) : null}
+
       <Tabel
         caption="Cursurile firmei, cu starea și termenul fiecăruia."
         coloane={coloane}
@@ -181,7 +215,14 @@ export default async function PaginaCursuri({
                 : "Schimbați căutarea sau ștergeți filtrele."
             }
             {...(filtre.cauta === null && poateCrea
-              ? { actiune: { eticheta: "Creați primul curs", href: "/cursuri/nou" } }
+              ? {
+                  // Nu „Creați primul curs": un curs fără bibliotecă e o
+                  // carcasă goală, iar constructorul n-are ce oferi. Primul pas
+                  // real e materialul.
+                  actiune: arataPornirea
+                    ? { eticheta: "Începeți cu biblioteca", href: "/cursuri/biblioteca/nou" }
+                    : { eticheta: "Creați primul curs", href: "/cursuri/nou" },
+                }
               : {})}
           />
         }

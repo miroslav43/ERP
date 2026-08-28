@@ -103,8 +103,7 @@ export function ReguliCurs({
 
   const adauga = useCallback((): void => {
     ruleaza(
-      () =>
-        creeazaRegula(intrareRegula({ cursId, criteriu, tinta, decalaj })),
+      () => creeazaRegula(intrareRegula({ cursId, criteriu, tinta, decalaj })),
       "Regula a fost adăugată.",
     );
     setTinta("");
@@ -244,22 +243,36 @@ export function ReguliCurs({
           </div>
 
           <BaraActiuni eticheta="Reguli de atribuire">
-            <Buton
-              varianta="secundar"
-              disabled={inCurs || (criteriu !== "toti" && tinta === "")}
-              onClick={adauga}
-            >
-              Adaugă regula
-            </Buton>
-            <Buton
-              varianta="primar"
-              disabled={inCurs || reguli.length === 0}
-              onClick={() => {
-                setConfirmaAplicarea(true);
-              }}
-            >
-              Aplică acum
-            </Buton>
+            {/* Fiecare buton stins își spune motivul. Un buton gri fără
+                explicație e o ușă închisă fără indicație. */}
+            <div className="flex flex-col gap-1">
+              <Buton
+                varianta="secundar"
+                disabled={inCurs || (criteriu !== "toti" && tinta === "")}
+                onClick={adauga}
+              >
+                Adaugă regula
+              </Buton>
+              {criteriu !== "toti" && tinta === "" ? (
+                <p className="text-muted-foreground text-nota">Alegeți întâi ținta regulii.</p>
+              ) : null}
+            </div>
+            <div className="flex flex-col gap-1">
+              <Buton
+                varianta="primar"
+                disabled={inCurs || reguli.length === 0}
+                onClick={() => {
+                  setConfirmaAplicarea(true);
+                }}
+              >
+                Aplică acum
+              </Buton>
+              {reguli.length === 0 ? (
+                <p className="text-muted-foreground text-nota">
+                  Adăugați întâi o regulă. Fără ele, cursul se atribuie doar manual.
+                </p>
+              ) : null}
+            </div>
           </BaraActiuni>
         </section>
       ) : null}

@@ -32,9 +32,7 @@ export function FormularLink({ materialId }: { readonly materialId: string }) {
 
   return (
     <Formular
-      actiune={async (date) =>
-        salveazaVersiuneLink(citesteVersiuneLink(date, materialId))
-      }
+      actiune={async (date) => salveazaVersiuneLink(citesteVersiuneLink(date, materialId))}
       laReusita={laReusita}
       mesajReusita="Linkul a fost salvat."
       className="border-border rounded-panou grid gap-4 border p-4 sm:grid-cols-2"

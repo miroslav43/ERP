@@ -14,19 +14,26 @@
 
 import { useCallback, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp, FileText, Film, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Asterisk, FileText, Film, Plus, Trash2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { BaraActiuni } from "@/components/ui/bara-actiuni";
 import { Buton } from "@/components/ui/buton";
 import { Callout } from "@/components/ui/callout";
 import { ConfirmareActiune } from "@/components/ui/dialog";
+import { clasaControl } from "@/components/ui/camp";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { arataToast } from "@/components/ui/toast";
 import type { RandLectie, RandMaterial } from "@/lib/queries/cursuri";
 import { durataCitibila } from "@/domain/cursuri/scadente";
 
-import { adaugaLectie, mutaLectie, publicaCurs, stergeLectie } from "../actions";
+import {
+  actualizeazaLectie,
+  adaugaLectie,
+  mutaLectie,
+  publicaCurs,
+  stergeLectie,
+} from "../actions";
 import { ETICHETE_FEL, ETICHETE_TREAPTA } from "../etichete";
 
 interface Proprietati {
@@ -52,6 +59,7 @@ export function ConstructorCurs({
   const [inCurs, porneste] = useTransition();
   const [eroare, setEroare] = useState<string | null>(null);
   const [confirmaPublicarea, setConfirmaPublicarea] = useState(false);
+  const [cautaMaterial, setCautaMaterial] = useState("");
 
   const ruleaza = useCallback(
     (operatie: () => Promise<{ ok: boolean; error?: { message: string } }>, reusita: string) => {
@@ -72,6 +80,16 @@ export function ConstructorCurs({
   );
 
   const idLectiiFolosite = new Set(lectii.map((l) => l.material_id));
+
+  /*
+   * Căutare în panou. Biblioteca vine plafonată la 500 de rânduri
+   * (`queries/cursuri.ts`), iar ecranul de alături — atribuirea — are deja
+   * căutare. Aici, unde chiar contează, era derulaj orb.
+   */
+  const bibliotecaVizibila = (() => {
+    const t = cautaMaterial.trim().toLowerCase();
+    return t === "" ? biblioteca : biblioteca.filter((m) => m.titlu.toLowerCase().includes(t));
+  })();
   const faraVersiune = lectii.filter((l) => !l.are_versiune);
   const obligatorii = lectii.filter((l) => l.obligatoriu).length;
 
@@ -155,6 +173,48 @@ export function ConstructorCurs({
                       >
                         <ArrowDown className="size-4" aria-hidden="true" />
                       </Buton>
+                      {/*
+                        Comutator, nu buton de acțiune: `aria-pressed` spune
+                        cititorului de ecran STAREA, iar eticheta spune ce se
+                        întâmplă la apăsare. `actualizeazaLectie` exista de la
+                        prima livrare fără niciun apelant, deci insigna
+                        „Opțională" de mai sus era o stare de neatins — o lecție
+                        putea fi doar obligatorie, oricâte lecții „de citit dacă
+                        vă interesează" ar fi avut cursul.
+                      */}
+                      <Buton
+                        varianta="tertiar"
+                        marime="iconita"
+                        aria-pressed={lectie.obligatoriu}
+                        aria-label={
+                          lectie.obligatoriu
+                            ? `Fă „${lectie.titlu}” opțională`
+                            : `Fă „${lectie.titlu}” obligatorie`
+                        }
+                        title={
+                          lectie.obligatoriu
+                            ? "Obligatorie. Apăsați ca să devină opțională."
+                            : "Opțională. Apăsați ca să devină obligatorie."
+                        }
+                        disabled={inCurs}
+                        onClick={() => {
+                          ruleaza(
+                            () =>
+                              actualizeazaLectie({
+                                id: lectie.id,
+                                obligatoriu: !lectie.obligatoriu,
+                              }),
+                            lectie.obligatoriu
+                              ? "Lecția a devenit opțională."
+                              : "Lecția a devenit obligatorie.",
+                          );
+                        }}
+                      >
+                        <Asterisk
+                          className={`size-4 ${lectie.obligatoriu ? "" : "opacity-30"}`}
+                          aria-hidden="true"
+                        />
+                      </Buton>
                       <Buton
                         varianta="tertiar"
                         marime="iconita"
@@ -191,6 +251,21 @@ export function ConstructorCurs({
             Bibliotecă
           </h2>
 
+          {biblioteca.length > 6 ? (
+            <label className="flex flex-col gap-1">
+              <span className="sr-only">Caută în bibliotecă</span>
+              <input
+                type="search"
+                value={cautaMaterial}
+                placeholder="Caută material"
+                className={clasaControl()}
+                onChange={(e) => {
+                  setCautaMaterial(e.target.value);
+                }}
+              />
+            </label>
+          ) : null}
+
           {biblioteca.length === 0 ? (
             <StareGoala
               fel="initiala"
@@ -202,8 +277,14 @@ export function ConstructorCurs({
             />
           ) : (
             <ul className="divide-border border-border rounded-panou divide-y border">
-              {biblioteca.map((material) => {
+              {bibliotecaVizibila.map((material) => {
                 const folosit = idLectiiFolosite.has(material.id);
+                /*
+                 * Un material fără versiune n-are ce deschide angajatul. Datele
+                 * erau deja aduse (`versiune_curenta_id`) și nu se foloseau:
+                 * omul îl adăuga și afla abia din insigna „Fără conținut".
+                 */
+                const faraContinut = material.versiune_curenta_id === null;
                 return (
                   <li key={material.id} className="flex items-center gap-3 p-3">
                     {material.fel === "pdf" ? (
@@ -218,6 +299,10 @@ export function ConstructorCurs({
                       <p className="truncate font-medium">{material.titlu}</p>
                       <p className="text-muted-foreground text-nota">
                         {ETICHETE_TREAPTA[material.treapta_dovada]}
+                        {/* Motivul, scris lângă butonul stins — nu doar în
+                            `aria-label`, pe care un utilizator văzător nu-l aude. */}
+                        {faraContinut ? " · fără fișier sau link" : ""}
+                        {folosit ? " · deja în curs" : ""}
                       </p>
                     </div>
                     {poateEdita ? (
@@ -227,9 +312,11 @@ export function ConstructorCurs({
                         aria-label={
                           folosit
                             ? `„${material.titlu}” este deja în curs`
-                            : `Adaugă „${material.titlu}” la curs`
+                            : faraContinut
+                              ? `„${material.titlu}” nu are încă fișier sau link`
+                              : `Adaugă „${material.titlu}” la curs`
                         }
-                        disabled={folosit || inCurs}
+                        disabled={folosit || faraContinut || inCurs}
                         onClick={() => {
                           ruleaza(
                             () =>

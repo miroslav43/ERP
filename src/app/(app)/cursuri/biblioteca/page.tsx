@@ -1,10 +1,12 @@
 // src/app/(app)/cursuri/biblioteca/page.tsx
+import Link from "next/link";
 import type { Metadata } from "next";
 import { Library } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
+import { buton } from "@/components/ui/buton";
 import { BaraFiltre } from "@/components/ui/bara-filtre";
 import { Paginare } from "@/components/ui/paginare";
 import { StareGoala } from "@/components/ui/stare-goala";
@@ -19,7 +21,6 @@ import { filtreMaterialeSchema } from "@/schemas/cursuri";
 
 import { DESCRIERI, ETICHETE_FEL, ETICHETE_SURSA, ETICHETE_TREAPTA, TITLURI } from "../etichete";
 import { NavCursuri } from "../nav-cursuri";
-import { FormularMaterialNou } from "./formular-material";
 
 export const metadata: Metadata = { title: TITLURI.biblioteca };
 
@@ -109,7 +110,15 @@ export default async function PaginaBiblioteca({
         titlu={TITLURI.biblioteca}
         descriere={DESCRIERI.biblioteca}
         file={<NavCursuri activ="biblioteca" />}
-        {...(poateCrea ? { actiuni: <FormularMaterialNou /> } : {})}
+        {...(poateCrea
+          ? {
+              actiuni: (
+                <Link href="/cursuri/biblioteca/nou" className={buton({ varianta: "primar" })}>
+                  Material nou
+                </Link>
+              ),
+            }
+          : {})}
       />
 
       <BaraFiltre
@@ -157,6 +166,14 @@ export default async function PaginaBiblioteca({
                 ? "Adăugați un PDF sau un film. Un material încărcat o dată poate intra în oricâte cursuri."
                 : "Schimbați căutarea sau ștergeți filtrele."
             }
+            {...(filtre.cauta === null && filtre.fel === null && poateCrea
+              ? {
+                  actiune: {
+                    eticheta: "Adăugați primul material",
+                    href: "/cursuri/biblioteca/nou",
+                  },
+                }
+              : {})}
           />
         }
       />

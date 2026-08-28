@@ -127,9 +127,21 @@ export default async function PaginaConformitate() {
               ? "Matricea arată doar cursurile marcate ca obligatorii și publicate."
               : "Adăugați angajați ca să apară aici."
           }
+          actiune={
+            cursuri.length === 0
+              ? { eticheta: "Vedeți cursurile", href: "/cursuri" }
+              : { eticheta: "Deschideți lista de angajați", href: "/angajati" }
+          }
         />
       ) : (
         <>
+          {/*
+            Indicatorii de aici rămân fără `href`, spre deosebire de cei din
+            `stadiu`. Nu din neglijență: nu există nicio listă filtrată către
+            care să trimită — conformitatea e o matrice, iar detaliul util e
+            celula, nu o sublistă. O cifră cu drum inventat e mai rea decât una
+            fără drum: promite o filtrare care nu există.
+          */}
           <section aria-label="Rezumat" className="grid gap-3 sm:grid-cols-3">
             <Indicator
               eticheta="Parcurse și valabile"

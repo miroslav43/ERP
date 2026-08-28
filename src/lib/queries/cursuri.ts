@@ -74,7 +74,14 @@ export type RandCurs = Readonly<{
   descriere: string | null;
   obligatoriu: boolean;
   valabilitate_luni: number | null;
-  termen_zile: number;
+  /*
+   * Nullable de la migrarea 0085 („gol = fără termen"). Tipul ăsta e scris de
+   * mână, iar `.maybeSingle<RandCurs>()` ÎNLOCUIEȘTE tipul generat — deci
+   * nimic nu l-ar fi prins automat: `src/types/database.ts` spunea corect
+   * `number | null`, aici scria `number`, și tocmai de aceea `String(...)`
+   * scria „null zile" în două ecrane fără nicio eroare de compilare.
+   */
+  termen_zile: number | null;
   prag_avertizare_zile: number;
   publicat: boolean;
   publicat_la: string | null;

@@ -69,9 +69,21 @@ export default async function PaginaCurs({
             ) : (
               <Badge ton="ciorna">Ciornă</Badge>
             )}
+            {/*
+              Insigna „Dezactivat" era de neatins: `dezactiveazaCurs` n-avea
+              apelant, deci `activ` era mereu `true`. Acum starea se comută din
+              `/editare` și trebuie să se VADĂ de aici — altfel administratorul
+              află că un curs nu se poate atribui abia din refuzul bazei.
+            */}
+            {curs.activ ? null : <Badge ton="neutru">Dezactivat</Badge>}
             <Link href={`/cursuri/${cursId}/stadiu`} className={buton({ varianta: "secundar" })}>
               Stadiu
             </Link>
+            {poateEdita ? (
+              <Link href={`/cursuri/${cursId}/editare`} className={buton({ varianta: "secundar" })}>
+                Modifică
+              </Link>
+            ) : null}
             {poateAtribui ? (
               <Link href={`/cursuri/${cursId}/reguli`} className={buton({ varianta: "secundar" })}>
                 Reguli
@@ -92,7 +104,16 @@ export default async function PaginaCurs({
         definitii={[
           { eticheta: "Cod", valoare: curs.cod, identificator: true },
           { eticheta: "Obligatoriu", valoare: curs.obligatoriu ? "Da" : "Nu" },
-          { eticheta: "Termen", valoare: `${String(curs.termen_zile)} zile de la atribuire` },
+          {
+            eticheta: "Termen",
+            // `termen_zile` e nullable de la migrarea 0085 („gol = fără
+            // termen"). Fără ramura asta, ecranul scria literal „null zile de
+            // la atribuire" pe primul curs creat fără termen.
+            valoare:
+              curs.termen_zile === null
+                ? "Fără termen"
+                : `${String(curs.termen_zile)} zile de la atribuire`,
+          },
           {
             eticheta: "Valabilitate",
             valoare:

@@ -209,15 +209,20 @@ export function IncarcareVersiune({ materialId, fel, cereDurata }: Proprietati) 
       ) : null}
 
       <BaraActiuni className="sm:col-span-2">
-        <Buton
-          type="submit"
-          varianta="primar"
-          inCurs={inCurs}
-          textInCurs={stare.tip === "lucru" ? stare.mesaj : "Se încarcă…"}
-          disabled={fisier === null}
-        >
-          Încarcă versiunea
-        </Buton>
+        <div className="flex flex-col gap-1">
+          <Buton
+            type="submit"
+            varianta="primar"
+            inCurs={inCurs}
+            textInCurs={stare.tip === "lucru" ? stare.mesaj : "Se încarcă…"}
+            disabled={fisier === null}
+          >
+            Încarcă versiunea
+          </Buton>
+          {fisier === null ? (
+            <p className="text-muted-foreground text-nota">Alegeți întâi fișierul de urcat.</p>
+          ) : null}
+        </div>
       </BaraActiuni>
     </form>
   );

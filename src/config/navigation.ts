@@ -249,6 +249,36 @@ export const NAV_ITEMS: readonly NavItem[] = [
     // într-un refuz e mai rău decât unul care lipsește.
     minScope: "team",
     order: 55,
+    // Biblioteca și conformitatea sunt PAGINI, nu file: se ajungea la ele doar
+    // din butoanele de pe `/cursuri`. Biblioteca e locul unde începe orice curs
+    // — dacă meniul nu o arată, ordinea reală a lucrului („întâi materialul,
+    // apoi cursul") rămâne un secret al ecranului de pornire.
+    children: [
+      {
+        id: "cursuri-lista",
+        label: "Cursuri",
+        href: "/cursuri",
+        featureKey: "courses",
+        permission: "courses:read",
+        minScope: "team",
+      },
+      {
+        id: "cursuri-biblioteca",
+        label: "Bibliotecă de materiale",
+        href: "/cursuri/biblioteca",
+        featureKey: "courses",
+        permission: "courses:read",
+        minScope: "team",
+      },
+      {
+        id: "cursuri-conformitate",
+        label: "Conformitate",
+        href: "/cursuri/conformitate",
+        featureKey: "courses",
+        permission: "courses:read",
+        minScope: "team",
+      },
+    ],
   },
   {
     id: "ssm",
