@@ -6,6 +6,7 @@ cai:
   - "src/app/(app)/angajati/**"
   - "src/lib/queries/employees.ts"
   - "src/schemas/employee.ts"
+  - "src/schemas/comun.ts"
   - "src/domain/hr/**"
 tabele:
   [
@@ -26,7 +27,7 @@ capcane: [10, 11, 22, 30]
 citeste_daca:
   - "CNP/IBAN care nu se văd → [[rol/hr]]"
   - "coloană inexistentă la SELECT → [[date/pontaj]]"
-scris_pe: c72c3e8dbdab4bbee1ff6f55e311080155c5c4a2
+scris_pe: c924a7bf10af2d211b0246d582eb2c8293864dfc
 scris_la: 2026-08-28
 tags: [modul, hr, nucleu]
 ---
@@ -92,12 +93,51 @@ proiectul: `idFisaProprie`, `listeazaAngajati` (cursor keyset base64url),
   de evadare, niciodată ca octet brut — un octet nul face fișierul invizibil pentru
   `grep`. — capcana #11
 
+## Ce refuză schema tăcut
+
+Baza nu e singurul loc care refuză fără să spună. Ajutoarele comune stau în
+`src/schemas/comun.ts`; `src/schemas/comun.test.ts` interzice redeclararea lor local
+oriunde în `src/schemas/`.
+
+- **Un `<select>` cu opțiune goală trimite ȘIRUL GOL, nu `null`**, iar
+  `z.enum(X).nullable()` îl respinge. Se vedea ca un buton „Continuă" mort în asistentul
+  de înrolare: validarea pica pe `special_regime` și pe `stare_civila`, iar niciunul nu
+  randa vreun mesaj. `enumOptional` normalizează `""`/`null`/`undefined` la `null` și dă
+  mesajul de două ori — `zodResolver` citește mesajul RAMURII, iar `z.flattenError` din
+  `create-action.ts` pe cel al UNIUNII. —
+  `src/app/(app)/angajati/nou/_components/poarta-pasilor.test.ts`
+- **`z.coerce.number()` dă `0` și pe `""`, și pe `null`.** Un câmp numeric golit nu
+  spunea „lipsește", ci plafonul câmpului calculat pe zero: `salariu_baza` se scria 0 RON
+  fără niciun mesaj, iar `norma_ore_saptamana` ieșea cu textul englezesc al lui zod.
+  `numarObligatoriu`, `numarOptional` și `numarCuImplicit` scot golul ÎNAINTE de
+  coerciție. Pe o coloană întreagă din bază, `intreg: true` e obligatoriu — altfel
+  Postgres rotunjește tăcut la inserare. — `src/schemas/comun.test.ts`
+- **`z.flattenError` colapsează calea unui câmp-listă la rădăcină**: serverul raportează
+  `autorizatii`, clientul `autorizatii.2.numar`. Rezumatul emite amândouă formele, altfel
+  una dintre căi dispare de pe ecran. —
+  `src/app/(app)/angajati/nou/_components/erori-formular.test.ts`
+
 ## Ce se mișcă împreună
 
 O coloană nouă pe `employees` atinge: migrarea → `src/types/database.ts` (regenerat din
 bancul LOCAL, nu din cloud) → `src/schemas/employee.ts` →
 `src/lib/queries/employees.ts` → acțiunile → formularele. Poarta care prinde coloanele
 inventate în stratul de citiri e `src/lib/queries/coloane.test.ts`.
+
+Pașii asistentului de înrolare nu mai au clase de câmp proprii: `campuri-comune.tsx` a
+dispărut, controalele trec prin `Camp` din `src/components/ui/camp.tsx`, iar mesajele
+prin `mesajCamp` din `nou/_components/erori-formular.ts`. Un câmp nou în
+`inroleazaAngajatSchema` cere **și** o intrare în `ETICHETE_CAMPURI`
+(`nou/_components/etichete-campuri.ts`): tipul e `Record<keyof …, string>`, deci
+omisiunea nu compilează — rezumatul de erori numește câmpuri care, de regulă, sunt pe un
+pas nemontat, așa că eticheta nu poate fi citită din arbore. Enumerările afișate se
+traduc din `src/app/(app)/angajati/etichete.ts` (`ETICHETE_REGIM_SPECIAL`,
+`ETICHETE_DURATA_CONTRACT`), nu din valoarea brută a bazei.
+
+Pe fișa angajatului, citirile care depind doar de `angajat` pleacă într-un singur
+`Promise.all`, iar porțile `can(...)` se evaluează sincron înaintea lui — ele decid dacă
+o interogare pleacă deloc. O citire nouă intră în acel bloc, nu ca `await` separat, și
+refolosește clientul `dbFisa` creat o dată deasupra.
 
 ## Ce NU e aici
 
@@ -109,3 +149,5 @@ Pontajul (`[[modul/pontaj]]`), concediile (`[[modul/concedii]]`), statele de pla
 - Criptarea datelor sensibile (AES-256-GCM, chei versionate): `src/domain/hr/` și
   `NOTES.md`.
 - Nomenclatorul COR și codurile CAEN: `src/domain/hr/cor-nomenclator.ts`.
+- Contractul lui `Camp` (de ce `nume` și nu `useId`, de ce fișierul n-are `"use client"`):
+  antetul din `src/components/ui/camp.tsx`.

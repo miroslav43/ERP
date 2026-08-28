@@ -15,6 +15,7 @@ tabele:
     attendance_approval_batches,
     attendance_week_submissions,
     attendance_week_submission_days,
+    puncte_lucru,
   ]
 permisiuni: [attendance:read, attendance:create, attendance:update, attendance:approve]
 feature: attendance
@@ -22,7 +23,7 @@ capcane: [2, 6, 7, 9, 17]
 citeste_daca:
   - "buton de aprobare care nu apare → [[rol/manager]]"
   - "tranziție de perioadă respinsă → [[date/pontaj]]"
-scris_pe: c72c3e8dbdab4bbee1ff6f55e311080155c5c4a2
+scris_pe: c924a7bf10af2d211b0246d582eb2c8293864dfc
 scris_la: 2026-08-28
 tags: [modul, hr]
 ---
@@ -30,9 +31,12 @@ tags: [modul, hr]
 # Pontaj
 
 Evidența zilnică a prezenței, pe perioade lunare care se deschid, se aprobă în loturi și
-se blochează. Are două fluxuri paralele: **ziua** (`attendance_entries`, pontare
-intrare/ieșire sau confirmarea zilei standard) și **săptămâna planificată**
-(`attendance_week_submissions`, trimisă de angajat și decisă de manager).
+se blochează. Are trei fluxuri paralele: **ziua** (`attendance_entries`, interval
+completat de mână prin `salveazaZiPontaj`), **săptămâna planificată**
+(`attendance_week_submissions`, trimisă de angajat și decisă de manager) și
+**pontarea rapidă** (`0096_pontaj_rapid.sql` — ceas „Am intrat"/„Am ieșit" sau
+confirmarea zilei standard, apăsate din portal, scrise tot în `attendance_entries` cu
+`sursa = pontare_rapida`).
 
 ## Rute și cine ajunge
 
@@ -43,7 +47,7 @@ intrare/ieșire sau confirmarea zilei standard) și **săptămâna planificată*
 | `/pontaj/perioade`      | `attendance:approve` team/all, `attendance:create` all                                                         |
 | `/pontaj/perioade/[id]` | `attendance:read` team                                                                                         |
 | `/pontaj/saptamana`     | `attendance:create` own; decizia cere `approve` team                                                           |
-| `/pontaj/setari`        | `attendance:update` all                                                                                        |
+| `/pontaj/setari`        | `attendance:update` all; tot de aici se aleg `mod_pontare_rapida` și `verificare_pontare`                      |
 
 Toate trec întâi prin `requireFeature(tenant.organizationId, "attendance")`.
 
@@ -58,7 +62,7 @@ Toate în `src/app/(app)/pontaj/actions.ts`, cu excepțiile notate.
 | `pontezaIntrarea`, `pontezaIesirea`               | `attendance:create` / own      | ora de intrare/ieșire pe ziua curentă |
 | `confirmaZiuaStandard`                            | `attendance:create` / own      | ziua completă, din setări             |
 | `stergeZiPontaj`                                  | `attendance:create` / own      | `deleted_at` pe zi                    |
-| `aprobaPontajBloc`                                | `attendance:approve` / team    | lotul + liniile lui                   |
+| `aprobaPontajBloc`                                | `attendance:approve` / team    | lotul + liniile lui închise           |
 | `decideZiPontaj`                                  | `attendance:approve` / team    | verdictul pe o zi                     |
 | `blocheazaPerioada`, `redeschidePerioada`         | `attendance:approve` / **all** | statusul perioadei                    |
 | `sincronizeazaConcediile`                         | `attendance:create` / all      | zilele care vin din concedii aprobate |
@@ -66,14 +70,30 @@ Toate în `src/app/(app)/pontaj/actions.ts`, cu excepțiile notate.
 | `decideSaptamanaPontaj` (`saptamana/actions.ts`)  | `attendance:approve` / team    | verdictul pe săptămână                |
 | `salveazaSetariPontaj` (`setari/actions.ts`)      | `attendance:update` / all      | `attendance_settings`                 |
 
+Pontarea rapidă — `pontezaIntrarea`, `pontezaIesirea`, `confirmaZiuaStandard` — nu
+primește de la client nici ora, nici orele, nici angajatul: schemele ei au un singur
+câmp, `cod_punct_lucru`. Ora vine din `ctx.now`, orele se derivă din `configZiDin` +
+`oreleZilei`, fișa se rezolvă din sesiune cu `fisaProprie`. Preambulul comun
+(`pregatirePontareRapida`) refuză întâi pe `mod_pontare_rapida`, apoi cere codul de pe
+afiș dacă `verificare_pontare = cod_qr`. `pontezaIntrarea` e **idempotentă**: a doua
+atingere pe o zi deja deschisă întoarce aceeași zi cu `reluare: true`, nu 23505.
+
+`salveazaZiPontaj` rescrie orele pe server pentru orice scope diferit de `all`: cu
+interval complet le derivă, iar fără oră de sfârșit le pune **zero**. Cifrele venite
+din client sunt păstrate doar de `attendance:create = all`, unde calculul e o sugestie.
+
 ## Citiri
 
 `src/lib/queries/attendance.ts`, funcții libere cu `organizationId` primul argument:
 `citestePerioada`, `citestePerioadaDupaId`, `listeazaPerioade`,
-`listeazaAngajatiPontaj` (cursor keyset, `limita + 1`), `intrariLuna`,
-`intrariProprii`, `setariPontaj`, `setariPontajComplete`, `istoricSetariPontaj`,
-`loturiPerioadei`, `liniiDeAprobat`, `citesteSaptamanaPontaj`, `saptamaniDeAprobat`,
-`departamente`.
+`listeazaAngajatiPontaj` (cursor keyset, `limita + 1`), `angajatiPontajDupaId`,
+`intrariLuna`, `intrariProprii`, `setariPontaj`, `setariPontajComplete`,
+`istoricSetariPontaj`, `loturiPerioadei`, `liniiDeAprobat`, `citesteSaptamanaPontaj`,
+`saptamaniDeAprobat`, `departamente`.
+
+`setariPontaj` întoarce și `program_start` (nullable), `mod_pontare_rapida` și
+`verificare_pontare` — cine adaugă o coloană de setări o adaugă în DOUĂ locuri:
+lista de câmpuri a lui `setariPontaj` și `CAMPURI_SETARI_PONTAJ`.
 
 ## Ce refuză baza tăcut
 
@@ -98,6 +118,20 @@ Secțiunea care justifică pagina. Fiecare rând are artefact.
   face `.select()` după `.update()` și tratează rezultatul gol drept conflict. — capcana #17
 - **Foaia colectivă se paginează după ANGAJAT, nu după rânduri de pontaj.** PostgREST
   trunchiază tăcut peste `max_rows`; angajați × zile depășește pragul altfel. — capcana #2
+- **O zi deschisă și neînchisă nu poate fi aprobată**: constrângerea
+  `attendance_entries_aprobare_zi_incheiata_ck` (`0096_pontaj_rapid.sql`) cere ca
+  `approved_at` să fie null cât timp există `ora_inceput` fără `ora_sfarsit`. 23514 NU e
+  tradus de `traduEroare`, iar el ar cădea pe ÎNTREG lotul — de aceea `aprobaPontajBloc`
+  filtrează zilele în curs înainte, le numără și întoarce `zileDeschise`. Constrângerea e
+  plasa de sub filtru, nu invers; fără ea, „Am ieșit" de după aprobare e respins tăcut de
+  `USING`. — capcana #17
+- **`employee` nu-și poate citi propria fișă cu clientul autentificat**: politica
+  `employees_select` (`0005_hr_rls.sql`) nu deschide drumul, deci `fisaProprie` folosește
+  `createAdminSupabase()` cu filtru explicit pe `organization_id` și cere
+  `is_primary = true`, cerința lui `app.current_employee_id`. Același motiv pentru
+  `puncte_lucru`: `puncte_lucru_select` (`0030_onboarding_companie.sql`) cere
+  `departments:read`, pe care rolul `employee` nu-l are, deci codul de pe afiș se rezolvă
+  tot cu clientul admin, filtrat pe organizație. — `0096_pontaj_rapid.sql`
 
 ## Erori traduse
 
@@ -115,7 +149,15 @@ ca un `throw`):
 O schimbare de formă a zilei de pontaj atinge, în ordine: migrarea →
 `src/types/database.ts` → `src/schemas/attendance.ts` →
 `src/lib/queries/attendance.ts` → `src/app/(app)/pontaj/actions.ts` → `page.tsx` +
-componenta de celulă. Calculul orelor stă separat, în `src/domain/attendance/`, cu teste.
+componenta de celulă. Calculul orelor stă separat, în `src/domain/attendance/`, cu teste:
+`calcul-ore.ts` (`oreleZilei`, inversa `intervalulPropus` și valorile de rezervă din
+`configZiDin` — un singur loc, nu patru copii), `ceas.ts` (`stareaCeasului`,
+`minuteScurse`, `formatDurata`) și `zi-de-pontat.ts` (`meritaPontata`). Toate sunt pure:
+ora curentă vine de la apelant, fiindcă autoritatea ei e ceasul serverului.
+
+O sursă nouă de intrare se adaugă în trei locuri deodată: enumul din migrare,
+`SURSE_INTRARE` din `src/schemas/attendance.ts` și `ETICHETE_SURSA` din
+`src/app/(app)/pontaj/etichete.ts`.
 
 ## Ce NU e aici
 
@@ -123,9 +165,15 @@ Concediile (`[[modul/concedii]]` — pontajul doar le sincronizează prin
 `sincronizeazaConcediile`), sporurile și agregarea în state de plată
 (`[[modul/salarizare]]`), și fișa angajatului (`[[modul/angajati]]`).
 
+Butoanele pontării rapide nu sunt sub `/pontaj`: ecranele stau în
+`src/app/(portal)/portal/`, iar afișul cu cod QR și rotirea lui `cod_pontaj` în
+`src/app/(app)/puncte-lucru/`. Aici sunt doar acțiunile pe care le apelează și setările
+care le pornesc.
+
 ## Când NU e suficientă pagina asta
 
 - Calculul efectiv al orelor și al intervalului de noapte: `src/domain/attendance/` și
   `src/app/(app)/pontaj/interval-noapte.ts`.
 - Forma exactă a politicilor: migrarea `0013_attendance.sql`, care e și scheletul canonic
   pentru orice migrare nouă.
+- Coloanele și tipurile pontării rapide, cu motivele lor: `0096_pontaj_rapid.sql`.
