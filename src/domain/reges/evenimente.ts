@@ -1,6 +1,6 @@
-// src/domain/revisal/evenimente.ts
-// Modul PUR pentru termenele REVISAL. Fără I/O, fără importuri de infrastructură.
-// Termenele NU sunt codate aici: intră ca `ConfigurareTermen[]`, citite din public.revisal_config.
+// src/domain/reges/evenimente.ts
+// Modul PUR pentru termenele REGES-Online. Fără I/O, fără importuri de infrastructură.
+// Termenele NU sunt codate aici: intră ca `ConfigurareTermen[]`, citite din public.reges_termene.
 // Calendarul zilelor libere intră tot ca argument, ca să poată fi înlocuit fără să atingi logica.
 
 export type ZiIso = string; // 'AAAA-LL-ZZ', comparabilă lexicografic
@@ -17,12 +17,12 @@ export const TIPURI_EVENIMENT = [
   "incetare",
   "corectie",
 ] as const;
-export type TipEvenimentRevisal = (typeof TIPURI_EVENIMENT)[number];
+export type TipEvenimentReges = (typeof TIPURI_EVENIMENT)[number];
 
 export const REPERE_TERMEN = ["data_eveniment", "valabil_de_la", "data_contract"] as const;
 export type ReperTermen = (typeof REPERE_TERMEN)[number];
 
-export const STATUSURI_REVISAL = [
+export const STATUSURI_REGES = [
   "de_pregatit",
   "pregatit",
   "transmis",
@@ -30,7 +30,7 @@ export const STATUSURI_REVISAL = [
   "respins",
   "anulat",
 ] as const;
-export type StatusRevisal = (typeof STATUSURI_REVISAL)[number];
+export type StatusReges = (typeof STATUSURI_REGES)[number];
 
 export type Rezultat<T> =
   { readonly ok: true; readonly valoare: T } | { readonly ok: false; readonly motiv: string };
@@ -39,7 +39,7 @@ export interface ConfigurareTermen {
   readonly id: string;
   /** null = configurare implicită de platformă; un rând al organizației o suprascrie. */
   readonly organizationId: string | null;
-  readonly eventType: TipEvenimentRevisal;
+  readonly eventType: TipEvenimentReges;
   readonly termenZile: number;
   readonly reper: ReperTermen;
   readonly zileLucratoare: boolean;
@@ -49,7 +49,7 @@ export interface ConfigurareTermen {
 }
 
 export interface DateEveniment {
-  readonly eventType: TipEvenimentRevisal;
+  readonly eventType: TipEvenimentReges;
   readonly dataEvenimentului: ZiIso;
   readonly valabilDeLa: ZiIso | null;
   readonly dataContract: ZiIso | null;
@@ -181,7 +181,7 @@ export function deplaseazaZileLucratoare(
 /** Rândul organizației bate rândul de platformă; la egalitate câștigă cel mai recent `valabil_de_la`. */
 export function alegeConfigurare(
   configurari: readonly ConfigurareTermen[],
-  tip: TipEvenimentRevisal,
+  tip: TipEvenimentReges,
   laData: ZiIso,
 ): ConfigurareTermen | null {
   const candidate = configurari.filter(
@@ -239,7 +239,7 @@ export function calculeazaTermen(
   if (configurare === null) {
     return {
       ok: false,
-      motiv: `Nu există un termen configurat pentru evenimentul „${eveniment.eventType}" la data de ${eveniment.dataEvenimentului}. Completați configurarea REVISAL înainte de a înregistra evenimentul.`,
+      motiv: `Nu există un termen configurat pentru evenimentul „${eveniment.eventType}" la data de ${eveniment.dataEvenimentului}. Completați termenele REGES înainte de a înregistra evenimentul.`,
     };
   }
   const dataReper = dataDeReper(eveniment, configurare.reper);
@@ -296,7 +296,7 @@ export interface EvaluareTermen {
 export function evalueazaTermen(
   termenTransmitere: ZiIso,
   azi: ZiIso,
-  status: StatusRevisal,
+  status: StatusReges,
 ): EvaluareTermen {
   if (status === "transmis" || status === "confirmat") {
     return { stare: "transmis", zileRamase: 0, zileIntarziere: 0 };
@@ -312,7 +312,7 @@ export function evalueazaTermen(
 
 // ---------------------------------------------------------------- deducerea evenimentelor
 
-export interface StareContractRevisal {
+export interface StareContractReges {
   readonly salariuBaza: number;
   readonly jobPositionId: string | null;
   readonly normaOreSaptamana: number;
@@ -323,17 +323,17 @@ export interface StareContractRevisal {
 }
 
 /**
- * Compară două stări ale aceluiași contract și spune ce evenimente REVISAL se nasc.
+ * Compară două stări ale aceluiași contract și spune ce evenimente de raportat se nasc.
  * Pur, deci se poate rula identic din formularul de editare și din importul în masă.
  */
 export function deduceEvenimenteContract(
-  vechi: StareContractRevisal | null,
-  nou: StareContractRevisal,
-): readonly TipEvenimentRevisal[] {
+  vechi: StareContractReges | null,
+  nou: StareContractReges,
+): readonly TipEvenimentReges[] {
   if (vechi === null) {
     return nou.status === "activ" ? ["angajare"] : [];
   }
-  const tipuri: TipEvenimentRevisal[] = [];
+  const tipuri: TipEvenimentReges[] = [];
   if (vechi.status !== "activ" && nou.status === "activ" && vechi.status === "proiect") {
     tipuri.push("angajare");
   }

@@ -87,6 +87,16 @@ const serverSchema = z
     RESEND_API_KEY: z.string().default(""),
     EMAIL_FROM: z.string().min(1).default("Administrativo <noreply@administrativo.ro>"),
     RESEND_WEBHOOK_SECRET: z.string().default(""),
+    /**
+     * Secretul cu care timerul de pe gazdă cheamă `/api/reges/reconciliere`.
+     *
+     * `default("")` nu e neglijență: e comutatorul de pornire. Ruta REFUZĂ orice
+     * cerere cât timp secretul e gol, deci o instalare care n-a apucat să-l pună
+     * are ciclul oprit, nu deschis. Alternativa — variabilă obligatorie — ar fi
+     * oprit aplicația la boot pe fiecare mediu care nu folosește REGES încă,
+     * inclusiv CI-ul.
+     */
+    REGES_CRON_SECRET: z.string().default(""),
   })
   .refine((env) => env.HR_ENCRYPTION_ACTIVE_KEY in env.HR_ENCRYPTION_KEYS, {
     error: "HR_ENCRYPTION_ACTIVE_KEY nu are corespondent în HR_ENCRYPTION_KEYS",

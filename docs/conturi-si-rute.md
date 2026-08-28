@@ -212,7 +212,10 @@ Poarta e în `(app)/layout.tsx`: `requireTenant()`, apoi **rolul `employee` e re
 | `/profil`                        | —                              | —               |
 | `/puncte-lucru`                  | `departments:create` ≥ `all`   | `nucleu`        |
 | `/rapoarte`                      | `payroll:read` ≥ `all`         | `payroll`       |
-| `/revisal`                       | —                              | `nucleu`        |
+| `/reges`                         | `reges:read` ≥ `all`           | `reges`         |
+| `/reges/[id]`                    | `reges:read` ≥ `all`           | `reges`         |
+| `/reges/propuneri`               | `reges:read` ≥ `all`           | `reges`         |
+| `/reges/setari`                  | `reges:configure` ≥ `all`      | `reges`         |
 | `/salarizare`                    | `payroll:read` ≥ `all`         | `payroll`       |
 | `/salarizare/[id]`               | `payroll:read` ≥ `all`         | `payroll`       |
 | `/salarizare/[id]/[entryId]`     | `payroll:read` ≥ `all`         | `payroll`       |

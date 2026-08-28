@@ -1,5 +1,6 @@
 "use server";
 
+import type { Json } from "@/types/database";
 import { createAction } from "@/lib/actions/create-action";
 import { businessRule, invalidInput, notFound } from "@/lib/actions/errors";
 import { createServerSupabase } from "@/lib/supabase/server";
@@ -14,6 +15,7 @@ import {
   mutaPasSchema,
   pornesteInstantaSchema,
   stergePasSchema,
+  salveazaSablonSchema,
 } from "@/schemas/checklist";
 
 import { traduEroare } from "./erori";
@@ -152,7 +154,10 @@ export const bifeazaPas = createAction({
 export const finalizeazaInstanta = createAction({
   name: "checklist.instance.finish",
   feature: "onboarding",
-  permission: "checklists:update",
+  // Închiderea parcursului e `approve`, nu `update` (0088): `update` a rămas
+  // pentru bifarea unui pas, la scope `own`. Managerul are `approve = team` din
+  // 0002, deci închide pentru subordonați fără niciun drept nou.
+  permission: "checklists:approve",
   minScope: "team",
   input: finalizeazaInstantaSchema,
   audit: {
@@ -196,7 +201,10 @@ export const finalizeazaInstanta = createAction({
 export const anuleazaInstanta = createAction({
   name: "checklist.instance.cancel",
   feature: "onboarding",
-  permission: "checklists:update",
+  // Închiderea parcursului e `approve`, nu `update` (0088): `update` a rămas
+  // pentru bifarea unui pas, la scope `own`. Managerul are `approve = team` din
+  // 0002, deci închide pentru subordonați fără niciun drept nou.
+  permission: "checklists:approve",
   minScope: "team",
   input: anuleazaInstantaSchema,
   audit: {
@@ -234,6 +242,52 @@ export const anuleazaInstanta = createAction({
 });
 
 // ── Șabloane ───────────────────────────────────────────────────────────────
+
+/**
+ * Salvează antetul, etapele și pașii unui șablon într-o SINGURĂ tranzacție.
+ *
+ * Înlocuiește lanțul `creeazaSablon` → `adaugaPas` × N, care costa un drum la
+ * server pentru fiecare pas, fără nimic care să-i lege: un șablon de 12 pași
+ * cerea 13 scrieri neatomice, iar o întrerupere la mijloc lăsa în bază
+ * jumătate de șablon care arată ca unul întreg.
+ *
+ * Cele două acțiuni vechi RĂMÂN: pagina de editare a antetului și adăugarea
+ * unui singur pas la un șablon existent le folosesc în continuare, iar
+ * ștergerea lor ar fi o schimbare fără legătură cu asistentul.
+ *
+ * Permisiunea declarată e `checklists:create` fiindcă asistentul e o unealtă de
+ * AUTORARE. Distincția create/update rămâne impusă exact de RLS, înăuntrul
+ * funcției: `checklist_templates_insert` cere `create = all`,
+ * `checklist_templates_update` cere `update = all`. Niciun rol din seed nu are
+ * una fără cealaltă, deci poarta din aplicație nu poate fi mai laxă decât baza.
+ */
+export const salveazaSablon = createAction({
+  name: "checklist.template.save",
+  feature: "onboarding",
+  permission: "checklists:create",
+  minScope: "all",
+  input: salveazaSablonSchema,
+  audit: {
+    action: "update",
+    entityType: "checklist_template",
+    entityId: (_input, data: Readonly<{ id: string }>) => data.id,
+    // Fără `etape` și fără `pasi_fara_etapa`: jurnalul ar primi tot conținutul
+    // șablonului la fiecare salvare, iar ce contează e CINE a salvat și CÂND.
+    allow: ["id", "denumire", "tip", "department_id", "job_position_id", "activ"],
+  },
+  revalidate: ["/onboarding/sabloane"],
+  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    // `.rpc()` ajunge doar la schema `public` — de aceea funcția stă acolo, iar
+    // ajutorul ei în `app`, unde PostgREST nu are acces.
+    const { data, error } = await ctx.supabase.rpc("checklist_salveaza_sablon", {
+      p_sablon: input as unknown as Json,
+    });
+    if (error !== null) traduEroare(error);
+    if (data === null) throw businessRule("Șablonul nu a putut fi salvat.");
+
+    return { id: data };
+  },
+});
 
 export const creeazaSablon = createAction({
   name: "checklist.template.create",

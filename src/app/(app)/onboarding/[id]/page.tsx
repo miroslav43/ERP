@@ -18,6 +18,7 @@ import {
   citesteInstanta,
   pasiiInstantei,
 } from "@/lib/queries/checklist";
+import { fisaMea } from "@/lib/queries/portal";
 
 import { TONURI_STATUS_INSTANTA, ETICHETE_STATUS_INSTANTA, ETICHETE_TIP } from "../etichete";
 import { ActiuniInstanta } from "./actiuni-instanta";
@@ -33,7 +34,7 @@ export default async function PaginaInstanta({ params }: ProprietatiPagina) {
   // Un segment care nu e UUID nu poate desemna niciun rând: 404, nu 22P02.
   const id = idDinRuta((await params).id);
 
-  const { tenant } = await requireTenant();
+  const { tenant, user } = await requireTenant();
   await requireFeature(tenant.organizationId, "onboarding");
   const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
@@ -56,26 +57,44 @@ export default async function PaginaInstanta({ params }: ProprietatiPagina) {
     : undefined;
 
   // Bifare = poate gestiona orice pas al echipei (scope „team"/„all") SAU e
-  // chiar subiectul checklistului și pasul îi e alocat lui însuși.
+  // responsabilul desemnat al pasului.
   //
-  // Dacă scope-ul e strict „own" (nu „team"/„all"), politica
-  // `checklist_instances_select` a lăsat pagina să se încarce DOAR pentru
-  // propria instanță — e singura ramură „own" din acea politică. Nu mai e
-  // nevoie de o interogare separată pe `employees` (care oricum ar eșua
-  // pentru rolul `employee`, cu `employees:read = none`) ca să aflăm fișa
-  // proprie: e chiar `instanta.employee_id`.
+  // Comparația se face cu fișa PRIVITORULUI, nu cu `instanta.employee_id`.
+  // Raționamentul de dinainte — „scope «own» ⇒ pagina s-a încărcat doar pentru
+  // propria instanță, deci subiectul SUNT eu" — se sprijinea pe faptul că
+  // singura ramură „own" din `checklist_instances_select` era pe `employee_id`.
+  // Migrarea 0088 adaugă a doua ramură, pe RESPONSABIL: un manager cu
+  // `checklists:update = own` deschide acum parcursul unui subaltern, unde
+  // `instanta.employee_id` e subalternul, nu el. Cu vechea comparație i s-ar fi
+  // oferit bife pe pașii SUBIECTULUI (refuzate apoi de RLS) și i s-ar fi ascuns
+  // exact pașii lui.
+  //
+  // Un parcurs închis nu primește bife deloc: `checklist_pregateste_pasul`
+  // (0014:576) refuză orice modificare cu P0001, iar un buton care nu poate
+  // reuși e un defect de ecran, nu o comoditate.
   const poateBifaOricare = can(permisiuni, "checklists:update", "team");
   const poateBifaOwn = can(permisiuni, "checklists:update", "own") && !poateBifaOricare;
-  const idPasuriBifabile = pasi
-    .filter(
-      (p) =>
-        p.verificare_automata === null &&
-        (poateBifaOricare || (poateBifaOwn && p.responsabil_employee_id === instanta.employee_id)),
-    )
-    .map((p) => p.id);
+  const fisaPrivitorului = poateBifaOwn ? await fisaMea(tenant.organizationId, user.id) : null;
+  const idPropriu =
+    fisaPrivitorului !== null && fisaPrivitorului.stare === "ok" ? fisaPrivitorului.fisa.id : null;
+  const idPasuriBifabile =
+    instanta.status !== "in_curs"
+      ? []
+      : pasi
+          .filter(
+            (p) =>
+              p.verificare_automata === null &&
+              (poateBifaOricare ||
+                (poateBifaOwn && idPropriu !== null && p.responsabil_employee_id === idPropriu)),
+          )
+          .map((p) => p.id);
 
+  // `approve`, nu `update`: 0088 a mutat închiderea parcursului pe cheia care
+  // stătea seedată și moartă din 0002. Ecranul trebuie să ceară exact ce cer
+  // acum `finalizeazaInstanta` și `anuleazaInstanta`, altfel butonul apare și
+  // acțiunea îl refuză.
   const poateGestiona =
-    can(permisiuni, "checklists:update", "team") && instanta.status === "in_curs";
+    can(permisiuni, "checklists:approve", "team") && instanta.status === "in_curs";
 
   // Vizibil MEREU pentru cine are dreptul (politica din 0014 cere
   // `checklists:update ≥ team`) — nu doar lângă butonul „Finalizează".

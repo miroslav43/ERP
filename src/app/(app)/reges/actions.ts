@@ -1,21 +1,19 @@
-// src/app/(app)/revisal/actions.ts
+// src/app/(app)/reges/actions.ts
 "use server";
-
-import { revalidatePath } from "next/cache";
 
 import { businessRule, mapPostgrestError, notFound } from "@/lib/actions/errors";
 import type { ActionResult } from "@/lib/actions/types";
 import { createAction } from "@/lib/actions/create-action";
 import { todayInBucharest } from "@/lib/format/date";
-import { idOrganizatie } from "@/lib/queries/revisal";
+import { idOrganizatie } from "@/lib/queries/reges";
 import { createServerSupabase } from "@/lib/supabase/server";
 import {
   construiesteExport,
   laCsv,
   numeFisierExport,
   type IntrareExport,
-} from "@/domain/revisal/export";
-import type { TipEvenimentRevisal } from "@/domain/revisal/evenimente";
+} from "@/domain/reges/export";
+import type { TipEvenimentReges } from "@/domain/reges/evenimente";
 
 import {
   exportaSchema,
@@ -25,16 +23,23 @@ import {
 } from "./constante";
 
 const actiuneMarcheazaTransmis = createAction<typeof marcheazaTransmisSchema, { id: string }>({
-  name: "revisal.marcheaza_transmis",
-  permission: "compliance:read",
+  name: "reges.marcheaza_transmis",
+  feature: "reges",
+  // A DECLARAT `compliance:read` până la 0087, deși pagina ținea butonul în
+  // spatele lui `compliance:update`. Cine avea doar citire putea chema Server
+  // Action-ul direct și marca drept transmis orice eveniment — o falsificare a
+  // registrului, nu o scăpare cosmetică. Acțiunea cere acum exact ce gatează
+  // pagina. (`docs/design/faza-2/2-vanatoare.md:558`)
+  permission: "reges:update",
   minScope: "all", // S3: fără scope suficient, refuz explicit
   input: marcheazaTransmisSchema,
   audit: {
     action: "update",
-    entityType: "revisal_events",
+    entityType: "reges_evenimente",
     entityId: (input) => input.evenimentId,
     allow: ["evenimentId", "transmisLa", "numarInregistrare", "observatii"],
   },
+  revalidate: ["/reges"],
   handler: async (ctx, input) => {
     const supabase = await createServerSupabase();
     const organizationId = idOrganizatie(ctx.tenant);
@@ -44,7 +49,7 @@ const actiuneMarcheazaTransmis = createAction<typeof marcheazaTransmisSchema, { 
     }
 
     const { data: eveniment, error: eroareCitire } = await supabase
-      .from("revisal_events")
+      .from("reges_evenimente")
       .select("id, status")
       .eq("id", input.evenimentId)
       .eq("organization_id", organizationId)
@@ -52,7 +57,7 @@ const actiuneMarcheazaTransmis = createAction<typeof marcheazaTransmisSchema, { 
       .maybeSingle();
 
     if (eroareCitire) throw mapPostgrestError(eroareCitire, ctx.requestId);
-    if (eveniment === null) throw notFound("Evenimentul REVISAL nu a fost găsit.");
+    if (eveniment === null) throw notFound("Evenimentul REGES nu a fost găsit.");
     if (eveniment.status === "anulat") {
       throw businessRule("Evenimentul este anulat și nu mai poate fi marcat ca transmis.");
     }
@@ -63,7 +68,7 @@ const actiuneMarcheazaTransmis = createAction<typeof marcheazaTransmisSchema, { 
     // Coloana e timestamptz; păstrăm ora 00:00 UTC pentru ca ziua afișată la București
     // să rămână ziua aleasă de operator.
     const { data, error } = await supabase
-      .from("revisal_events")
+      .from("reges_evenimente")
       .update({
         status: "transmis",
         transmis_la: `${input.transmisLa}T00:00:00Z`,
@@ -87,7 +92,6 @@ const actiuneMarcheazaTransmis = createAction<typeof marcheazaTransmisSchema, { 
       throw businessRule("Marcarea ca transmis a fost respinsă. Evenimentul a rămas netransmis.");
     }
 
-    revalidatePath("/revisal");
     return { id: input.evenimentId };
   },
 });
@@ -98,7 +102,7 @@ export async function marcheazaTransmis(
   return actiuneMarcheazaTransmis(input);
 }
 
-export interface ExportRevisal {
+export interface ExportReges {
   readonly numeFisier: string;
   readonly continut: string;
   readonly totalIntrari: number;
@@ -106,19 +110,21 @@ export interface ExportRevisal {
   readonly probleme: readonly { readonly mesaj: string; readonly blocant: boolean }[];
 }
 
-const actiuneExporta = createAction<typeof exportaSchema, ExportRevisal>({
-  name: "revisal.export",
-  permission: "compliance:read",
+const actiuneExporta = createAction<typeof exportaSchema, ExportReges>({
+  name: "reges.export",
+  feature: "reges",
+  // Idem: pagina gata butonul pe `compliance:export`, acțiunea cerea `read`.
+  permission: "reges:export",
   minScope: "all",
   input: exportaSchema,
-  audit: { action: "export", entityType: "revisal_events", allow: ["doarNetransmise"] },
+  audit: { action: "export", entityType: "reges_evenimente", allow: ["doarNetransmise"] },
   handler: async (ctx, input) => {
     const supabase = await createServerSupabase();
     const organizationId = idOrganizatie(ctx.tenant);
     const azi = todayInBucharest();
 
     let cerere = supabase
-      .from("revisal_events")
+      .from("reges_evenimente")
       .select("id, event_type, data_evenimentului, termen_transmitere, employee_id, contract_id")
       .eq("organization_id", organizationId)
       .is("deleted_at", null)
@@ -196,7 +202,7 @@ const actiuneExporta = createAction<typeof exportaSchema, ExportRevisal>({
       return [
         {
           evenimentId: eveniment.id,
-          tip: eveniment.event_type as TipEvenimentRevisal,
+          tip: eveniment.event_type as TipEvenimentReges,
           codEveniment: null,
           dataEvenimentului: eveniment.data_evenimentului,
           termenTransmitere: eveniment.termen_transmitere,
@@ -249,10 +255,10 @@ const actiuneExporta = createAction<typeof exportaSchema, ExportRevisal>({
       totalIntrari: rezultat.intrari.length,
       gataDeTransmis: rezultat.gataDeTransmis.length,
       probleme: rezultat.probleme.map((p) => ({ mesaj: p.mesaj, blocant: p.blocant })),
-    } satisfies ExportRevisal;
+    } satisfies ExportReges;
   },
 });
 
-export async function exportaEvenimente(input: ExportaInput): Promise<ActionResult<ExportRevisal>> {
+export async function exportaEvenimente(input: ExportaInput): Promise<ActionResult<ExportReges>> {
   return actiuneExporta(input);
 }

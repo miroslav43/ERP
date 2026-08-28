@@ -1,37 +1,34 @@
-// src/domain/revisal/export.ts
+// src/domain/reges/export.ts
 //
-// ⚠ FIȘIERUL `.rvs` NU POATE FI PRODUS DE ACEASTĂ APLICAȚIE. Verificat, nu presupus.
+// ISTORIC: DE CE MODULUL ĂSTA PRODUCEA UN CSV, ȘI DE CE ÎNCĂ O FACE
 //
-// Ghidul oficial al Inspecției Muncii („Generarea registrului utilizând aplicația
-// Revisal conform HG nr. 500/2011", inspectiamuncii.ro) spune literal că
-// „fișierul cu extensia .rvs este codificat și prin urmare conținutul acestuia
-// nu poate fi vizualizat, așa cum era cazul fișierelor .xml". Iar din 10 aprilie
-// 2023, transmiterea la ITM se face DOAR cu fișiere .rvs generate sau validate
-// prin aplicația Revisal 6.0.8/6.0.9.
+// Până la REGES-Online, aplicația NU putea produce documentul oficial. Ghidul
+// Inspecției Muncii („Generarea registrului utilizând aplicația Revisal conform
+// HG nr. 500/2011") spunea literal că „fișierul cu extensia .rvs este codificat
+// și prin urmare conținutul acestuia nu poate fi vizualizat" — adică `.rvs` era
+// formatul de IEȘIRE al aplicației Revisal, nu unul pe care un terț îl poate
+// scrie. Drumul real ar fi fost `ERP → XML → import în Revisal → .rvs → ITM`,
+// iar XSD-ul acela nu era în posesie. Nu s-a inventat serializarea, deliberat:
+// un fișier care arată plauzibil dar are un element greșit e mai rău decât unul
+// care lipsește, fiindcă se descoperă abia la import.
 //
-// Cu alte cuvinte, `.rvs` e formatul de IEȘIRE al aplicației Revisal, nu unul pe
-// care o aplicație terță îl poate scrie. Drumul real pentru un ERP e altul:
+// De la 1 ianuarie 2026 fundătura a dispărut. REGES-Online are API, iar
+// transmiterea oficială se face prin `src/lib/reges/client.ts` — mesaje JSON
+// semnate cu jetonul firmei, nu fișiere purtate cu mâna.
 //
-//   ERP → XML conform XSD-ului din HG 500/2011 → import în Revisal → .rvs → ITM
+// CE RĂMÂNE AICI, ȘI DE CE
+// Exportul NU a devenit cod mort. E singura formă în care un om poate CITI ce
+// urmează să plece: `RezultatExport` adună evenimentul, salariatul, contractul,
+// funcția cu codul COR, norma, salariul și temeiul de încetare, iar
+// `verificaIntrare` marchează BLOCANT tot ce ar fi respins de registru. Un
+// operator de personal verifică lista înainte să apese „Transmite", nu după ce
+// Inspecția Muncii a respins mesajul.
 //
-// XSD-ul acela se obține de la Inspecția Muncii (specificațiile tehnice publicate
-// pe inspectiamuncii.ro, plus suportregistru@inspectiamuncii.ro). NU îl avem, deci
-// NU inventăm serializarea: un fișier care arată plauzibil dar are un element
-// greșit e mai rău decât unul care lipsește, fiindcă e descoperit abia la import.
-//
-// Ce livrează modulul, și e stabil și verificabil:
-//   · `RezultatExport` — structura completă a evenimentelor, cu toate câmpurile
-//     cerute de registru (contract, funcție cu cod COR, normă, salariu, temei de
-//     încetare), gata de mapat pe XSD în ziua în care îl avem;
-//   · `laCsv` — un CSV lizibil, ca operatorul de personal să controleze și să
-//     introducă evenimentele în Revisal fără să le recitească din alt ecran.
-//
-// Funcția `serializeazaOficial` era menționată într-o versiune anterioară a
-// acestui antet ca „de confirmat cu ITM". Nu a existat niciodată în cod, iar
-// acum se știe de ce: nu putea exista. Mențiunea s-a scos, ca nimeni să n-o mai
-// caute.
+// CNP-ul apare doar mascat (ultimele patru cifre). Payload-ul real către REGES
+// se construiește separat, în `src/domain/reges/mapare.ts`, din date decriptate
+// la momentul trimiterii — și nu trece niciodată prin fișierul ăsta.
 
-import type { TipEvenimentRevisal, ZiIso } from "./evenimente";
+import type { TipEvenimentReges, ZiIso } from "./evenimente";
 
 export interface AngajatorExport {
   readonly cui: string;
@@ -70,7 +67,7 @@ export interface ContractExport {
 
 export interface IntrareExport {
   readonly evenimentId: string;
-  readonly tip: TipEvenimentRevisal;
+  readonly tip: TipEvenimentReges;
   readonly codEveniment: string | null;
   readonly dataEvenimentului: ZiIso;
   readonly termenTransmitere: ZiIso;
@@ -230,7 +227,7 @@ const ANTET = [
   "Condiții de muncă",
   "Salariu de bază",
   "Monedă",
-  "Cod REVISAL contract",
+  "Cod contract în sistemul vechi (Revisal)",
   "Temei încetare",
   "Data încetării",
 ] as const;
@@ -246,7 +243,8 @@ export function mascheazaCnp(ultimele4: string | null): string {
 
 /**
  * CSV cu separator „;" și BOM, ca să se deschidă corect în Excel cu setări românești.
- * Este un LISTING DE LUCRU, nu fișierul oficial de import în ReviSal.
+ * Este un LISTING DE LUCRU pentru operatorul de personal, nu documentul transmis:
+ * transmiterea oficială se face prin API, din `src/lib/reges/client.ts`.
  */
 export function laCsv(rezultat: RezultatExport): string {
   const randuri = rezultat.intrari.map((intrare) => {
@@ -284,5 +282,5 @@ export function laCsv(rezultat: RezultatExport): string {
 }
 
 export function numeFisierExport(cui: string, azi: ZiIso): string {
-  return `revisal-${cui.replace(/[^0-9A-Za-z]/g, "")}-${azi}.csv`;
+  return `reges-${cui.replace(/[^0-9A-Za-z]/g, "")}-${azi}.csv`;
 }

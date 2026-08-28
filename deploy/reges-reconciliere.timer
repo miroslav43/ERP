@@ -1,0 +1,23 @@
+# deploy/reges-reconciliere.timer
+#
+# La 10 minute. Cadența nu e arbitrară: rezultatele REGES sosesc asincron, „de
+# obicei în câteva minute", iar un termen legal se măsoară în zile lucrătoare.
+# Mai des ar consuma cotă degeaba pe firme cu 8 angajați; mai rar ar lăsa un
+# refuz al Inspecției Muncii nevăzut o jumătate de zi.
+#
+# `Persistent=true`: dacă VM-ul a fost oprit, ciclul rulează o dată la pornire,
+# în loc să sară peste fereastra pierdută.
+
+[Unit]
+Description=Programează ciclul de reconciliere REGES-Online
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=10min
+Persistent=true
+# Împrăștie pornirea, ca timerul să nu cadă exact peste alte joburi de pe VM.
+RandomizedDelaySec=60
+Unit=reges-reconciliere.service
+
+[Install]
+WantedBy=timers.target

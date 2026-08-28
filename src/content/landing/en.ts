@@ -227,6 +227,15 @@ export const EN: ContinutLanding = {
             ],
           },
           {
+            cheie: "reges",
+            titlu: "REGES-Online (formerly Revisal)",
+            text: "Contracts and employees are filed with the Labour Inspectorate straight from the ERP, over the REGES API. No hand-carried import file, no second typing of the same data.",
+            puncte: [
+              "Each event's legal deadline, counted in working days",
+              "The Inspectorate's answer lands back on the employee record, with the rejection reason in plain words",
+            ],
+          },
+          {
             cheie: "evaluations",
             titlu: "Reviews",
             text: "Templates built from your own criteria. A review opens from the person's file and stays in it.",

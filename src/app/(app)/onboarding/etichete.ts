@@ -3,12 +3,14 @@
 // funcții async.
 
 import type { TonStare } from "@/components/ui/badge";
+import { CHECKLIST_VERIFICARE_IMPLEMENTATE } from "@/schemas/checklist";
 import type {
   ChecklistInstantaStatus,
   ChecklistItemStatus,
   ChecklistResponsabilTip,
   ChecklistTip,
   ChecklistTipDovada,
+  ChecklistFelPas,
   RolResponsabil,
   ChecklistVerificare,
 } from "@/schemas/checklist";
@@ -72,16 +74,32 @@ export const ETICHETE_VERIFICARE: Readonly<Record<ChecklistVerificare, string>> 
   documente_semnate: "Documente semnate (neimplementat)",
 };
 
-/** Care verificări chiar au un mecanism în spate. Restul se oferă dezactivate. */
-export const VERIFICARI_IMPLEMENTATE: readonly ChecklistVerificare[] = [
-  "inventar_returnat",
-  "curs_finalizat",
-];
+/**
+ * Care verificări chiar au un mecanism în spate. Restul se oferă dezactivate.
+ *
+ * Reexport, nu a doua listă: sursa e `CHECKLIST_VERIFICARE_IMPLEMENTATE` din
+ * `@/schemas/checklist`, aceeași pe care o folosește schema de validare a
+ * acțiunii. Două liste scrise separat ar diverge tăcut — ecranul ar oferi o
+ * opțiune pe care serverul o refuză, sau invers.
+ */
+export const VERIFICARI_IMPLEMENTATE: readonly ChecklistVerificare[] =
+  CHECKLIST_VERIFICARE_IMPLEMENTATE;
 
 export const ETICHETE_RESPONSABIL_TIP: Readonly<Record<ChecklistResponsabilTip, string>> = {
+  // Primul din listă: e cazul obișnuit într-un parcurs de integrare, și
+  // singurul care făcea până la 0089 un pas imposibil de bifat de cel vizat.
+  subiect: "Angajatul integrat",
   rol: "Un rol anume",
   angajat: "Un angajat anume",
   manager_direct: "Managerul direct",
+};
+
+export const ETICHETE_FEL_PAS: Readonly<Record<ChecklistFelPas, string>> = {
+  bifa: "Bifă simplă",
+  fisier: "Document încărcat",
+  semnatura: "Declarație pe nume",
+  curs: "Curs de parcurs",
+  automat: "Se bifează din alt modul",
 };
 
 export const ETICHETE_ROL: Readonly<Record<RolResponsabil, string>> = {

@@ -1,0 +1,46 @@
+# deploy/reges-reconciliere.service
+#
+# Pornește un ciclu de reconciliere REGES-Online.
+#
+# Instalare pe VM:
+#   sudo cp deploy/reges-reconciliere.{service,timer} /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now reges-reconciliere.timer
+#   systemctl list-timers reges-reconciliere    # verificarea că e programat
+#
+# Secretul se citește din /etc/administrativo/reges.env, care conține o linie:
+#   REGES_CRON_SECRET=<aceeași valoare ca în .env.production>
+# Fișierul are 0600 și aparține lui root: `curl` ar expune secretul în `ps` dacă
+# ar fi dat pe linia de comandă.
+#
+# DE CE UN TIMER, ȘI NU pg_cron
+# Proiectul are pg_cron cu trei joburi, dar acelea rulează PL/pgSQL în interiorul
+# Postgres-ului. Ciclul REGES trebuie să iasă pe HTTP către Inspecția Muncii, iar
+# `pg_net` nu e activat pe instanța noastră. Un job SQL n-are cum să facă apelul.
+#
+# DE CE E SIGUR CU DOUĂ REPLICI
+# Nu decide timerul, ci baza: ruta ia întâi o închiriere din `reges_inchiriere`.
+# O a doua cerere — altă replică, sau o suprapunere de timere — primește 409 și
+# se retrage. De aceea `--fail` de mai jos EXCLUDE 409: nu e o pană.
+
+[Unit]
+Description=Ciclu de reconciliere REGES-Online (Administrativo)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/administrativo/reges.env
+# 409 = „lucrează deja altcineva", stare normală. `-o /dev/null -w %{http_code}`
+# scrie codul în jurnal, ca `journalctl -u reges-reconciliere` să arate ce s-a
+# întâmplat fără să deschidă nimeni baza.
+ExecStart=/bin/sh -c '\
+  cod=$(curl -sS -m 300 -o /tmp/reges-raspuns.json -w "%{http_code}" \
+        -X POST -H "Authorization: Bearer $REGES_CRON_SECRET" \
+        http://127.0.0.1:3000/api/reges/reconciliere); \
+  echo "reges: HTTP $cod"; \
+  case "$cod" in 200|409) exit 0 ;; *) cat /tmp/reges-raspuns.json; exit 1 ;; esac'
+TimeoutStartSec=360
+
+[Install]
+WantedBy=multi-user.target

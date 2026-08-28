@@ -1,16 +1,16 @@
-// src/lib/revisal/genereaza-evenimente.ts
+// src/lib/reges/genereaza-evenimente.ts
 //
-// UNDE SE GENEREAZĂ EVENIMENTELE REVISAL — ȘI DE CE AICI
+// UNDE SE GENEREAZĂ EVENIMENTELE DE RAPORTAT LA REGES — ȘI DE CE AICI
 //
 // Nu în trigger de bază de date, deși ar fi tentant („prinde orice UPDATE, inclusiv importul").
 // Motive, în ordinea greutății:
 //
-// 1. Termenul depinde de `revisal_config` ALES pe organizație + de calendarul sărbătorilor
+// 1. Termenul depinde de `reges_termene` ALES pe organizație + de calendarul sărbătorilor
 //    legale (Paște ortodox, zile mobile). Un trigger PL/pgSQL ar trebui să reimplementeze
 //    aritmetica zilelor lucrătoare în SQL, fără teste unitare, fără posibilitatea de a rula
 //    „ce s-ar întâmpla dacă" în UI. Aici este o funcție pură, testată, refolosită identic de
 //    formular, de import și de ecranul de previzualizare.
-// 2. Un eveniment REVISAL are consecințe contravenționale. Trebuie să fie VIZIBIL în rezultatul
+// 2. Un eveniment de raportat are consecințe contravenționale. Trebuie să fie VIZIBIL în rezultatul
 //    acțiunii: „am creat contractul ȘI ai termen până pe 29 mai". Un trigger tăcut ascunde asta.
 // 3. Trigger-ul generic de audit + RLS FORCE fac ca inserările din trigger să ruleze în contextul
 //    sesiunii; `created_by` și antetele de cerere nu sunt disponibile în DB. Rândul de audit
@@ -35,14 +35,14 @@ import {
   type CalendarLucrator,
   type ConfigurareTermen,
   type ReperTermen,
-  type TipEvenimentRevisal,
+  type TipEvenimentReges,
   type ZiIso,
-} from "@/domain/revisal/evenimente";
+} from "@/domain/reges/evenimente";
 
 export interface EvenimentDeGenerat {
   readonly employeeId: string;
   readonly contractId: string | null;
-  readonly tip: TipEvenimentRevisal;
+  readonly tip: TipEvenimentReges;
   readonly dataEvenimentului: ZiIso;
   readonly valabilDeLa: ZiIso | null;
   readonly dataContract: ZiIso | null;
@@ -51,7 +51,7 @@ export interface EvenimentDeGenerat {
 
 export interface EvenimentRespins {
   readonly employeeId: string;
-  readonly tip: TipEvenimentRevisal;
+  readonly tip: TipEvenimentReges;
   readonly motiv: string;
 }
 
@@ -65,12 +65,12 @@ function cheie(employeeId: string, tip: string, data: string): string {
   return `${employeeId}|${tip}|${data}`;
 }
 
-export async function incarcaConfigurariRevisal(
+export async function incarcaTermeneReges(
   supabase: ServerSupabase,
   organizationId: string,
 ): Promise<readonly ConfigurareTermen[]> {
   const { data, error } = await supabase
-    .from("revisal_config")
+    .from("reges_termene")
     .select(
       "id, organization_id, event_type, termen_zile, reper, zile_lucratoare, descriere, valabil_de_la, valabil_pana",
     )
@@ -82,7 +82,7 @@ export async function incarcaConfigurariRevisal(
   return (data ?? []).map((rand) => ({
     id: rand.id,
     organizationId: rand.organization_id,
-    eventType: rand.event_type as TipEvenimentRevisal,
+    eventType: rand.event_type as TipEvenimentReges,
     termenZile: rand.termen_zile,
     reper: rand.reper as ReperTermen,
     zileLucratoare: rand.zile_lucratoare,
@@ -98,10 +98,10 @@ export function calendarPentruAnul(referinta: ZiIso): CalendarLucrator {
 }
 
 /**
- * Creează evenimentele REVISAL lipsă. Nu aruncă pentru un eveniment invalid: îl raportează
+ * Creează evenimentele REGES lipsă. Nu aruncă pentru un eveniment invalid: îl raportează
  * în `respinse`, ca un import de 50 de angajați să nu cadă din cauza unui singur rând.
  */
-export async function genereazaEvenimenteRevisal(input: {
+export async function genereazaEvenimenteReges(input: {
   readonly supabase: ServerSupabase;
   readonly organizationId: string;
   readonly userId: string;
@@ -110,11 +110,11 @@ export async function genereazaEvenimenteRevisal(input: {
   const { supabase, organizationId, userId, evenimente } = input;
   if (evenimente.length === 0) return { create: 0, sarite: 0, respinse: [] };
 
-  const configurari = await incarcaConfigurariRevisal(supabase, organizationId);
+  const configurari = await incarcaTermeneReges(supabase, organizationId);
   const idAngajati = [...new Set(evenimente.map((e) => e.employeeId))];
 
   const { data: existente, error: eroareExistente } = await supabase
-    .from("revisal_events")
+    .from("reges_evenimente")
     .select("employee_id, event_type, data_evenimentului")
     .eq("organization_id", organizationId)
     .in("employee_id", idAngajati)
@@ -132,7 +132,7 @@ export async function genereazaEvenimenteRevisal(input: {
     organization_id: string;
     employee_id: string;
     contract_id: string | null;
-    event_type: TipEvenimentRevisal;
+    event_type: TipEvenimentReges;
     data_evenimentului: string;
     termen_transmitere: string;
     status: "de_pregatit";
@@ -179,7 +179,7 @@ export async function genereazaEvenimenteRevisal(input: {
   }
 
   if (deInserat.length > 0) {
-    const { error } = await supabase.from("revisal_events").insert(deInserat);
+    const { error } = await supabase.from("reges_evenimente").insert(deInserat);
     if (error) throw mapPostgrestError(error, randomUUID());
   }
 

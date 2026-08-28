@@ -1,4 +1,4 @@
-// src/domain/revisal/evenimente.test.ts
+// src/domain/reges/evenimente.test.ts
 import { describe, expect, it } from "vitest";
 
 import {
@@ -12,7 +12,7 @@ import {
   evalueazaTermen,
   pasteOrtodox,
   type ConfigurareTermen,
-  type StareContractRevisal,
+  type StareContractReges,
 } from "./evenimente";
 
 const CALENDAR = construiesteCalendar(2025, 2027);
@@ -170,7 +170,7 @@ describe("evalueazaTermen", () => {
 });
 
 describe("deduceEvenimenteContract", () => {
-  const baza: StareContractRevisal = {
+  const baza: StareContractReges = {
     salariuBaza: 5000,
     jobPositionId: "f1",
     normaOreSaptamana: 40,

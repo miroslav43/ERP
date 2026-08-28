@@ -1,4 +1,4 @@
-// src/app/(app)/revisal/actiuni-client.tsx
+// src/app/(app)/reges/actiuni-client.tsx
 "use client";
 
 import { useRouter } from "next/navigation";

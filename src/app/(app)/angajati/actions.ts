@@ -17,7 +17,7 @@ import {
 } from "@/lib/crypto/aes-gcm";
 import { ultimeleCifreCnp } from "@/domain/hr/cnp";
 import { ultimeleCifreIban } from "@/domain/hr/iban";
-import { genereazaEvenimenteRevisal } from "@/lib/revisal/genereaza-evenimente";
+import { genereazaEvenimenteReges } from "@/lib/reges/genereaza-evenimente";
 import {
   actualizeazaAngajatSchema,
   creeazaContractSchema,
@@ -197,7 +197,7 @@ export const creeazaContract = createAction({
 
     // "proiect" ar fi rămas definitiv — nimic altundeva în cod nu-l mai schimbă
     // (bug confirmat: fișa angajatului și motorul de salarizare caută mereu
-    // status = 'activ', niciodată 'proiect'). `cod_revisal`/`revisal_events`
+    // status = 'activ', niciodată 'proiect'). `cod_revisal`/`reges_evenimente`
     // urmăresc separat dacă transmiterea la ITM chiar a avut loc — statusul
     // contractului nu mai trebuie să dubleze acea urmărire.
     //
@@ -272,9 +272,9 @@ export const creeazaContract = createAction({
     //
     // Generarea nu aruncă: un contract creat cu succes nu trebuie anulat pentru
     // că evidența REVISAL a eșuat. Eșecul se vede în jurnal și evenimentul poate
-    // fi regenerat, pentru că `genereazaEvenimenteRevisal` este idempotentă.
+    // fi regenerat, pentru că `genereazaEvenimenteReges` este idempotentă.
     try {
-      await genereazaEvenimenteRevisal({
+      await genereazaEvenimenteReges({
         supabase: db,
         organizationId: ctx.tenant.organizationId,
         userId: ctx.user.id,
@@ -299,7 +299,7 @@ export const creeazaContract = createAction({
     }
 
     revalidatePath(`/angajati/${input.employee_id}`);
-    revalidatePath("/revisal");
+    revalidatePath("/reges");
     return { id: data.id };
   },
 });
@@ -319,7 +319,7 @@ export const inceteazaContract = createAction({
     const db = await createServerSupabase();
     const { data: contract, error: eroareCitire } = await db
       .from("employment_contracts")
-      .select("id, employee_id, status, valabil_de_la, este_act_aditional")
+      .select("id, employee_id, status, valabil_de_la, data_contract, este_act_aditional")
       .eq("id", input.contract_id)
       .eq("organization_id", ctx.tenant.organizationId)
       .is("deleted_at", null)
@@ -384,8 +384,44 @@ export const inceteazaContract = createAction({
       }
     }
 
+    // Încetarea are termen legal ZERO — „cel târziu la data încetării". Până la
+    // 0087, acțiunea asta nu genera NICIUN eveniment, deși comentariul de mai sus
+    // vorbea despre unul: raportarea încetării ar fi trebuit făcută complet
+    // manual, din portalul ITM, pentru fiecare om. `docs/design/faza-2/2-vanatoare.md:522`
+    // îl semnalase, iar cu transmiterea prin API golul devenea o contravenție
+    // tăcută la fiecare plecare.
+    //
+    // Ca la angajare: nu aruncă. Un contract încetat cu succes nu se anulează
+    // fiindcă evidența a eșuat, iar generarea e idempotentă pe
+    // (angajat, tip, dată), deci se poate relua.
+    try {
+      await genereazaEvenimenteReges({
+        supabase: db,
+        organizationId: ctx.tenant.organizationId,
+        userId: ctx.user.id,
+        evenimente: [
+          {
+            employeeId: contract.employee_id,
+            contractId: contract.id,
+            tip: "incetare",
+            dataEvenimentului: input.incetat_la,
+            valabilDeLa: contract.valabil_de_la,
+            dataContract: contract.data_contract,
+            payload: { temei_incetare: input.temei_incetare },
+          },
+        ],
+      });
+    } catch (eroare) {
+      console.error("[reges] evenimentul de încetare nu a putut fi generat", {
+        contractId: contract.id,
+        requestId: ctx.requestId,
+        eroare,
+      });
+    }
+
     revalidatePath("/angajati");
     revalidatePath(`/angajati/${contract.employee_id}`);
+    revalidatePath("/reges");
     return { id: contract.id, employee_id: contract.employee_id };
   },
 });

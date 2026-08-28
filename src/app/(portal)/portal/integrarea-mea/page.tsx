@@ -10,6 +10,7 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate } from "@/lib/format/date";
+import type { ProgresInstanta } from "@/lib/queries/checklist";
 import { listeazaInstante, progresInstante } from "@/lib/queries/checklist";
 import { fisaMea } from "@/lib/queries/portal";
 import { ETICHETE_STATUS_INSTANTA, ETICHETE_TIP } from "@/app/(app)/onboarding/etichete";
@@ -47,8 +48,14 @@ export default async function PaginaIntegrareaMea() {
     limita: 25,
   });
 
-  const progres =
-    randuri.length === 0 ? new Map() : await progresInstante(randuri.map((r) => r.id));
+  // Tipul e SCRIS, nu dedus. Cu `new Map()` gol pe o ramură, uniunea celor două
+  // ramuri colapsează în `Map<any, any>`, iar `p.orice` trece de `tsc` fără o
+  // vorbă — exact așa a supraviețuit `p?.facute` de mai jos, un câmp care nu
+  // există: `progresInstante` întoarce `{ total, gata, procent }`.
+  const progres: ReadonlyMap<string, ProgresInstanta> =
+    randuri.length === 0
+      ? new Map<string, ProgresInstanta>()
+      : await progresInstante(randuri.map((r) => r.id));
 
   return (
     <div className={`${LATIMI.lista} space-y-4 p-4`}>
@@ -69,7 +76,7 @@ export default async function PaginaIntegrareaMea() {
           {randuri.map((instanta) => {
             const p = progres.get(instanta.id);
             const total = p?.total ?? 0;
-            const facute = p?.facute ?? 0;
+            const facute = p?.gata ?? 0;
             return (
               <li key={instanta.id}>
                 <Link

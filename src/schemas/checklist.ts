@@ -10,7 +10,16 @@ import { optional, textOptional } from "./comun";
 export const CHECKLIST_TIP = ["onboarding", "offboarding", "transfer", "altul"] as const;
 export type ChecklistTip = (typeof CHECKLIST_TIP)[number];
 
-export const CHECKLIST_RESPONSABIL_TIP = ["rol", "angajat", "manager_direct"] as const;
+/**
+ * Cine răspunde de un pas.
+ *
+ * `subiect` (0089) = chiar angajatul pentru care s-a pornit parcursul. Există
+ * fiindcă un șablon REUTILIZABIL nu poate ști dinainte pe cine angajezi:
+ * `angajat` cere un UUID fix, ales la scrierea șablonului, iar `rol` lasă
+ * `responsabil_employee_id` NULL, adică pe nimeni. Se rezolvă într-o persoană
+ * la materializare, în `internal.checklist_copiaza_pasii`.
+ */
+export const CHECKLIST_RESPONSABIL_TIP = ["subiect", "rol", "angajat", "manager_direct"] as const;
 export type ChecklistResponsabilTip = (typeof CHECKLIST_RESPONSABIL_TIP)[number];
 
 export const CHECKLIST_TIP_DOVADA = ["niciuna", "bifa", "document", "semnatura"] as const;
@@ -28,11 +37,56 @@ export const CHECKLIST_VERIFICARE = [
 ] as const;
 export type ChecklistVerificare = (typeof CHECKLIST_VERIFICARE)[number];
 
+/**
+ * Verificările automate care CHIAR au implementare.
+ *
+ * `acces_revocat` și `documente_semnate` stau în enumul din `0014:19` fără
+ * niciun trigger care să le bifeze vreodată. Prin `_automat_ck`, un pas pus pe
+ * ele e obligatoriu prin construcție — deci nu se bifează nici automat, nici
+ * manual, iar instanța devine imposibil de finalizat.
+ *
+ * Interfața le arăta `disabled` (`formular-pas.tsx:338`), dar asta e o
+ * politețe, nu o poartă: schema accepta enumul ÎNTREG, deci un apel direct la
+ * Server Action trecea. Migrarea 0088 le închide și în bază, cu un CHECK.
+ */
+export const CHECKLIST_VERIFICARE_IMPLEMENTATE = [
+  "inventar_returnat",
+  "curs_finalizat",
+] as const satisfies readonly ChecklistVerificare[];
+export type ChecklistVerificareImplementata = (typeof CHECKLIST_VERIFICARE_IMPLEMENTATE)[number];
+
 export const CHECKLIST_INSTANTA_STATUS = ["in_curs", "finalizata", "anulata"] as const;
 export type ChecklistInstantaStatus = (typeof CHECKLIST_INSTANTA_STATUS)[number];
 
 export const CHECKLIST_ITEM_STATUS = ["de_facut", "in_lucru", "bifat", "neaplicabil"] as const;
 export type ChecklistItemStatus = (typeof CHECKLIST_ITEM_STATUS)[number];
+
+/**
+ * Felul unui pas — discriminantul folosit de asistent.
+ *
+ * În bază e o coloană GENERATĂ (0089), derivată din `tip_dovada` și
+ * `verificare_automata` de `app.checklist_fel_derivat`. Nu se scrie niciodată:
+ * se alege punând cele două coloane din care se naște. Aici e doar pentru
+ * citire și pentru etichete.
+ */
+export const CHECKLIST_FEL_PAS = ["bifa", "fisier", "semnatura", "curs", "automat"] as const;
+export type ChecklistFelPas = (typeof CHECKLIST_FEL_PAS)[number];
+
+/**
+ * „Pasul e gata” — o singură definiție, pentru toate ecranele și toate cifrele.
+ *
+ * `neaplicabil` INTRĂ: e o decizie luată, nu o restanță, iar poarta de
+ * finalizare din `0014:490` îl tratează exact la fel (`not in ('bifat',
+ * 'neaplicabil')`). `in_lucru` NU intră.
+ *
+ * Există fiindcă existau două definiții care nu se potriveau: `progresInstante`
+ * (`queries/checklist.ts:264`) număra `bifat || neaplicabil`, iar ecranul de
+ * detaliu din portal număra `!== "de_facut"` — deci un pas „în lucru” apărea
+ * gata pe un ecran și restanță pe celălalt, pentru aceeași instanță.
+ */
+export function pasEsteGata(status: ChecklistItemStatus): boolean {
+  return status === "bifat" || status === "neaplicabil";
+}
 
 /**
  * Copie locală a `public.app_role`, nu un import din `@/lib/tenant/types`.
@@ -200,7 +254,7 @@ const pasCampuriSchema = z.object({
   termen_zile_relativ: z.coerce.number().int().min(-365).max(365).default(0),
   obligatoriu: z.coerce.boolean().default(true),
   tip_dovada: z.enum(CHECKLIST_TIP_DOVADA).default("bifa"),
-  verificare_automata: optional(z.enum(CHECKLIST_VERIFICARE)),
+  verificare_automata: optional(z.enum(CHECKLIST_VERIFICARE_IMPLEMENTATE)),
   curs_id: optional(z.uuid()),
 });
 
@@ -230,6 +284,10 @@ function validareResponsabilSiAutomat(
       valoare.responsabil_rol === null) ||
     (valoare.responsabil_tip === "manager_direct" &&
       valoare.responsabil_rol === null &&
+      valoare.responsabil_employee_id === null) ||
+    // `subiect` se rezolvă la materializare, nu în șablon: ambele coloane goale.
+    (valoare.responsabil_tip === "subiect" &&
+      valoare.responsabil_rol === null &&
       valoare.responsabil_employee_id === null);
 
   if (!combinatieValida) {
@@ -237,7 +295,7 @@ function validareResponsabilSiAutomat(
       code: "custom",
       path: ["responsabil_tip"],
       message:
-        "Alegeți un rol pentru tipul «rol», un angajat pentru tipul «angajat», sau lăsați ambele goale pentru «manager direct».",
+        "Alegeți un rol pentru tipul «rol», un angajat pentru tipul «angajat», sau lăsați ambele goale pentru «angajatul integrat» și «manager direct».",
     });
   }
 
@@ -313,7 +371,77 @@ export const pasDovadaSchema = z.object({
   bifat_la: z.string().nullable(),
   bifat_automat: z.boolean(),
   observatii: z.string().nullable(),
+  // Cele trei chei de mai jos apar în dovezile scrise DE LA 0089 încolo.
+  // Sunt opționale pentru că o dovadă e IMUTABILĂ: cele emise înainte nu le au
+  // și nu pot fi rescrise retroactiv — dar trebuie să se deschidă în
+  // continuare, altfel `continutDovadaSchema.parse` din pagina de dovadă
+  // aruncă pe un document vechi și perfect valid.
+  fel: z.enum(CHECKLIST_FEL_PAS).nullish(),
+  etapa_titlu: z.string().nullish(),
+  etapa_ordine: z.number().nullish(),
 });
 export type PasDovada = z.output<typeof pasDovadaSchema>;
 
 export const continutDovadaSchema = z.array(pasDovadaSchema);
+
+// ── Salvarea completă a unui șablon (0090) ──────────────────────────────────
+
+/**
+ * Un pas, așa cum îl trimite asistentul.
+ *
+ * `id` prezent ⇒ pasul există și se rescrie; absent ⇒ e nou. Pașii care nu mai
+ * apar deloc în încărcătură se șterg LOGIC de `checklist_salveaza_sablon` —
+ * instanțele deja pornite își păstrează copia, deci nu se pierde istoric.
+ *
+ * `fel` NU face parte din încărcătură: e coloană generată în bază (0089),
+ * derivată din `tip_dovada` și `verificare_automata`. Asistentul alege un card,
+ * iar cardul pune cele două coloane.
+ */
+export const pasAsistentSchema = pasCampuriSchema
+  .extend({ id: optional(z.uuid()) })
+  .superRefine(validareResponsabilSiAutomat);
+export type PasAsistent = z.output<typeof pasAsistentSchema>;
+
+export const etapaAsistentSchema = z.object({
+  id: optional(z.uuid()),
+  titlu: z.string().trim().min(2).max(160),
+  descriere: optional(z.string().trim().max(2000)),
+  // Negativ e cazul principal, nu excepția: „Înainte de prima zi” = -5.
+  termen_zile_relativ: z.coerce.number().int().min(-365).max(365).default(0),
+  pasi: z.array(pasAsistentSchema).max(200),
+});
+export type EtapaAsistent = z.output<typeof etapaAsistentSchema>;
+
+export const salveazaSablonSchema = sablonCampuriSchema
+  .extend({
+    id: optional(z.uuid()),
+    // Cel mult 100 de etape: oglinda lui `checklist_template_stages_ordine_ck`.
+    etape: z.array(etapaAsistentSchema).max(100).default([]),
+    // Pașii unui șablon scris înainte de etape. Asistentul îi arată într-o
+    // secțiune „Fără etapă” și îi poate lăsa acolo.
+    pasi_fara_etapa: z.array(pasAsistentSchema).max(200).default([]),
+  })
+  .superRefine(validareValabilitate)
+  .superRefine((valoare, ctx) => {
+    const total =
+      valoare.etape.reduce((suma, e) => suma + e.pasi.length, 0) + valoare.pasi_fara_etapa.length;
+    // Oglinda porții din 0088: un șablon fără pași produce o instanță care se
+    // finalizează singură și emite o dovadă care nu atestă nimic. Baza o
+    // refuză oricum; aici mesajul ajunge pe ecran, nu ca P0001 tradus.
+    if (total === 0) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["etape"],
+        message: "Un șablon fără niciun pas nu poate fi pornit. Adăugați cel puțin un pas.",
+      });
+    }
+    if (total > 500) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["etape"],
+        message: "Un șablon poate avea cel mult 500 de pași.",
+      });
+    }
+  });
+export type SalveazaSablonInput = z.input<typeof salveazaSablonSchema>;
+export type SalveazaSablon = z.output<typeof salveazaSablonSchema>;

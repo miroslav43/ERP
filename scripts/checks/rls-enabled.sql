@@ -52,6 +52,17 @@ declare
                                    -- exclusiv prin org_read_sensitive /
                                    -- org_write_sensitive (SECURITY DEFINER).
                                    -- Închis deliberat în 0031 și 0032.
+    'reges_credentiale',           -- cheile API REGES ale firmei-client: exclusiv
+                                   -- prin reges_read_credentiale /
+                                   -- reges_write_credentiale (SECURITY DEFINER,
+                                   -- care auditează). O politică de SELECT ar
+                                   -- deschide o cale directă spre criptotext.
+                                   -- Închis în 0087.
+    'reges_inchiriere',            -- închirierea care serializează ciclul de
+                                   -- reconciliere între cele două replici. Nu
+                                   -- conține date de business și nu se atinge
+                                   -- din aplicație: doar service_role, prin
+                                   -- reges_ia_inchirierea / reges_lasa_inchirierea.
     'employee_marca_counters'      -- contorul de mărci per organizație: se
                                    -- incrementează atomic doar prin
                                    -- urmatoarea_marca (SECURITY DEFINER).

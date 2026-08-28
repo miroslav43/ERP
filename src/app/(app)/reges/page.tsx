@@ -1,4 +1,6 @@
-// src/app/(app)/revisal/page.tsx
+// src/app/(app)/reges/page.tsx
+import Link from "next/link";
+
 import { FileCheck2 } from "lucide-react";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
@@ -12,15 +14,24 @@ import { formatDate } from "@/lib/format/date";
 import {
   FILTRE_IMPLICITE,
   idOrganizatie,
-  interogheazaEvenimenteRevisal,
+  interogheazaEvenimenteReges,
+  interogheazaMesajeReges,
   type FiltruStare,
-} from "@/lib/queries/revisal";
+  type RandMesaj,
+} from "@/lib/queries/reges";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { ETICHETE_STATUS, ETICHETE_TIP, OPTIUNI_STARE } from "./constante";
+import {
+  ETICHETE_OPERATIE,
+  ETICHETE_STARE_MESAJ,
+  ETICHETE_STATUS,
+  ETICHETE_TIP,
+  OPTIUNI_STARE,
+} from "./constante";
 import { ActiuniEveniment, ButonExport } from "./actiuni-client";
+import { ButonAnuleazaMesaj, ButonPregateste, ButonTransmite } from "./coada-client";
 
-export const metadata = { title: "REVISAL — evidența evenimentelor" };
+export const metadata = { title: "REGES-Online — evidența evenimentelor" };
 
 const STARI_VALIDE: readonly FiltruStare[] = ["toate", "intarziate", "de_transmis", "transmise"];
 
@@ -36,35 +47,113 @@ const CLASA_STARE: Record<string, string> = {
   anulat: "bg-surface text-muted-foreground ring-1 ring-border",
 };
 
-export default async function PaginaRevisal(props: {
+export default async function PaginaReges(props: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { tenant } = await requireTenant();
-  await requireFeature(tenant.organizationId, "nucleu"); // modul dezactivat ⇒ 404
+  await requireFeature(tenant.organizationId, "reges"); // modul dezactivat ⇒ 404
   const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
-  const scopCitire = scopeFor(permisiuni, "compliance:read") ?? undefined;
+  const scopCitire = scopeFor(permisiuni, "reges:read") ?? undefined;
   if (!meetsScope(scopCitire, "all")) {
     return (
-      <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta registrul general de evidență a salariaților. Solicitați administratorului firmei permisiunea „Conformitate — citire”." />
+      <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta registrul general de evidență a salariaților. Solicitați administratorului firmei permisiunea „REGES — citire”." />
     );
   }
-  const poateActualiza = meetsScope(scopeFor(permisiuni, "compliance:update") ?? undefined, "all");
-  const poateExporta = meetsScope(scopeFor(permisiuni, "compliance:export") ?? undefined, "all");
+  const poateActualiza = meetsScope(scopeFor(permisiuni, "reges:update") ?? undefined, "all");
+  const poatePregati = meetsScope(scopeFor(permisiuni, "reges:create") ?? undefined, "all");
+  const poateTransmite = meetsScope(scopeFor(permisiuni, "reges:transmit") ?? undefined, "all");
+  const poateExporta = meetsScope(scopeFor(permisiuni, "reges:export") ?? undefined, "all");
+  const poateConfigura = meetsScope(scopeFor(permisiuni, "reges:configure") ?? undefined, "all");
 
   const parametri = await props.searchParams;
   const stareBruta = Array.isArray(parametri["stare"]) ? parametri["stare"][0] : parametri["stare"];
   const filtre = { ...FILTRE_IMPLICITE, stare: esteStare(stareBruta) ? stareBruta : "toate" };
 
   const supabase = await createServerSupabase();
-  const { randuri, statistici, azi } = await interogheazaEvenimenteRevisal(
-    supabase,
-    idOrganizatie(tenant),
-    filtre,
-  );
+  const organizationId = idOrganizatie(tenant);
+  const [{ randuri, statistici, azi }, coada] = await Promise.all([
+    interogheazaEvenimenteReges(supabase, organizationId, filtre),
+    interogheazaMesajeReges(supabase, organizationId),
+  ]);
+
+  // Coada de mesaje API — un strat SUB registrul de evenimente, nu în locul lui.
+  // Un eveniment legal („angajare") se traduce în unul sau două mesaje REGES, iar
+  // al doilea nu poate pleca până nu vine identificatorul salariatului din primul.
+  const COLOANE_MESAJE: readonly Coloana<RandMesaj>[] = [
+    {
+      cheie: "operatie",
+      antet: "Operație",
+      peTelefon: "titlu",
+      celula: (m) => (
+        <span className="text-foreground">
+          {ETICHETE_OPERATIE[m.operatie] ?? m.operatie}
+          <span className="text-muted-foreground text-nota block">
+            {m.angajatNume ?? "—"}
+            {m.contractNumar === null ? "" : ` · CIM ${m.contractNumar}`}
+          </span>
+        </span>
+      ),
+    },
+    {
+      cheie: "stare",
+      antet: "Stare",
+      celula: (m) => (
+        <span className="text-foreground">
+          {ETICHETE_STARE_MESAJ[m.stare] ?? m.stare}
+          {m.rezultatMesaj === null && m.eroare === null ? null : (
+            <span className="text-muted-foreground text-nota block">
+              {m.rezultatMesaj ?? m.eroare}
+            </span>
+          )}
+        </span>
+      ),
+    },
+    {
+      cheie: "referinta",
+      antet: "Identificator REGES",
+      celula: (m) =>
+        m.referintaId === null ? (
+          <span className="text-muted-foreground">—</span>
+        ) : (
+          <code className="text-nota">{m.referintaId}</code>
+        ),
+    },
+    {
+      cheie: "trimis",
+      antet: "Trimis",
+      celula: (m) => (m.trimisLa === null ? "—" : formatDate(m.trimisLa.slice(0, 10))),
+    },
+    {
+      cheie: "actiuni",
+      antet: "Acțiuni",
+      peTelefon: "insigna",
+      celula: (m) => {
+        if (m.stare !== "de_transmis") return <span className="text-muted-foreground">—</span>;
+        return (
+          <div className="space-y-2">
+            {m.tip === "salariat" && poateTransmite ? (
+              <ButonTransmite
+                mesajId={m.id}
+                numeAngajat={m.angajatNume ?? "salariat"}
+                transmisibil={m.transmisibil}
+              />
+            ) : (
+              <span className="text-muted-foreground text-nota">
+                {m.transmisibil
+                  ? "Pleacă la următoarea reconciliere"
+                  : "Așteaptă mesajul precedent"}
+              </span>
+            )}
+            {poateActualiza ? <ButonAnuleazaMesaj mesajId={m.id} /> : null}
+          </div>
+        );
+      },
+    },
+  ];
 
   /**
-   * Nicio coloană nu e `sortabil`: citirea REVISAL n-are cursor, ordinea după
+   * Nicio coloană nu e `sortabil`: citirea REGES n-are cursor, ordinea după
    * termenul de transmitere e chiar rostul registrului, iar un antet care pare
    * sortabil și nu face nimic e mai rău decât unul care nu pare.
    *
@@ -140,13 +229,23 @@ export default async function PaginaRevisal(props: {
       cheie: "actiuni",
       antet: "Acțiuni",
       peTelefon: "insigna",
+      // Două drumuri, deliberat. „Pregătește" traduce evenimentul în mesaje API
+      // și e drumul normal de acum înainte. „Marchează transmis" rămâne pentru
+      // evenimentele rezolvate ÎN AFARA aplicației — direct din portalul ITM —
+      // altfel registrul ar arăta la nesfârșit restanțe care nu există.
       celula: (rand) =>
         rand.stare === "transmis" || rand.stare === "anulat" ? (
           <span className="text-muted-foreground text-nota">Nimic de făcut</span>
-        ) : poateActualiza ? (
-          <ActiuniEveniment evenimentId={rand.id} numeAngajat={rand.angajatNume} azi={azi} />
         ) : (
-          <span className="text-muted-foreground text-nota">Fără drept de marcare</span>
+          <div className="space-y-2">
+            {poatePregati ? <ButonPregateste evenimentId={rand.id} /> : null}
+            {poateActualiza ? (
+              <ActiuniEveniment evenimentId={rand.id} numeAngajat={rand.angajatNume} azi={azi} />
+            ) : null}
+            {!poatePregati && !poateActualiza ? (
+              <span className="text-muted-foreground text-nota">Fără drept de transmitere</span>
+            ) : null}
+          </div>
         ),
     },
   ];
@@ -154,7 +253,14 @@ export default async function PaginaRevisal(props: {
   return (
     <div className="space-y-6">
       <AntetPagina
-        titlu="REVISAL"
+        titlu="REGES-Online (fost Revisal)"
+        actiuni={
+          poateConfigura ? (
+            <Link className={buton({ varianta: "secundar" })} href="/reges/setari">
+              Chei API
+            </Link>
+          ) : undefined
+        }
         descriere={`Registrul general de evidență a salariaților. Netransmiterea în termen a unui eveniment este contravenție, separat pentru fiecare salariat. Situația la ${formatDate(azi)}.`}
       />
 
@@ -203,7 +309,7 @@ export default async function PaginaRevisal(props: {
           return (
             <a
               key={optiune.valoare}
-              href={`/revisal?stare=${optiune.valoare}`}
+              href={`/reges?stare=${optiune.valoare}`}
               aria-current={activ ? "page" : undefined}
               className={buton({ varianta: activ ? "primar" : "secundar" })}
             >
@@ -219,12 +325,12 @@ export default async function PaginaRevisal(props: {
           fel="filtrata"
           pictograma={FileCheck2}
           titlu="Niciun eveniment pentru filtrul ales"
-          descriere="Evenimentele REVISAL se creează automat la înregistrarea unui contract, la modificarea salariului, a funcției sau a normei, la suspendare și la încetare."
+          descriere="Evenimentele de raportat se creează automat la înregistrarea unui contract, la modificarea salariului, a funcției sau a normei, la suspendare și la încetare."
           actiune={{ eticheta: "Vezi angajații", href: "/angajati" }}
         />
       ) : (
         <Tabel
-          caption="Evenimente REVISAL, ordonate după termenul de transmitere"
+          caption="Evenimente REGES-Online, ordonate după termenul de transmitere"
           coloane={coloane}
           randuri={randuri}
           cheieRand={(rand) => rand.id}
@@ -237,6 +343,34 @@ export default async function PaginaRevisal(props: {
           trunchiat={randuri.length >= filtre.limita}
         />
       )}
+
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-foreground font-medium">Mesaje către Inspecția Muncii</h2>
+          <p className="text-muted-foreground text-nota">
+            {coada.statistici.deTransmis} de transmis · {coada.statistici.asteapta} în așteptare ·{" "}
+            {coada.statistici.esuate} respinse · {coada.statistici.reusite} confirmate
+          </p>
+        </div>
+        <Tabel
+          caption="Coada de mesaje REGES-Online"
+          coloane={COLOANE_MESAJE}
+          randuri={coada.randuri}
+          cheieRand={(m) => m.id}
+          // Rândul duce la detaliu: acolo se vede ce clasificare va pleca la ITM,
+          // se corectează înainte de transmitere și se citește jurnalul apelurilor.
+          href={(m) => `/reges/${m.id}`}
+          densitate="compact"
+          gol={
+            <StareGoala
+              fel="initiala"
+              pictograma={FileCheck2}
+              titlu="Nu e nimic de transmis"
+              descriere="Un eveniment din registrul de mai sus devine mesaj abia după «Pregătește pentru REGES». Până atunci nu pleacă nimic."
+            />
+          }
+        />
+      </section>
     </div>
   );
 }

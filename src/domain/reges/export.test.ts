@@ -1,4 +1,4 @@
-// src/domain/revisal/export.test.ts
+// src/domain/reges/export.test.ts
 import { describe, expect, it } from "vitest";
 
 import {
@@ -113,6 +113,6 @@ describe("CSV interimar", () => {
   });
 
   it("compune un nume de fișier stabil", () => {
-    expect(numeFisierExport("RO12345678", "2026-05-27")).toBe("revisal-RO12345678-2026-05-27.csv");
+    expect(numeFisierExport("RO12345678", "2026-05-27")).toBe("reges-RO12345678-2026-05-27.csv");
   });
 });
