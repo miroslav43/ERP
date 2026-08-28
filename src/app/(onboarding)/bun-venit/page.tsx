@@ -54,11 +54,17 @@ export default async function PaginaBunVenit() {
   // ascuns — dar schema le cere, fiindcă e aceeași cu cea de la înrolare. Fără
   // pre-completarea de aici, `handleSubmit` ar pica tăcut pe validare și butonul
   // „Finalizează" n-ar face NIMIC: nicio eroare vizibilă, niciun apel la server.
-  const { data: profil } = await supabase
-    .from("profiles")
-    .select("full_name, email")
-    .eq("id", rezolvare.user.id)
-    .maybeSingle();
+  // Profilul și firma nu depind unul de altul — erau două valuri, e unul.
+  const [{ data: profil }, { data: firma }] = await Promise.all([
+    supabase.from("profiles").select("full_name, email").eq("id", rezolvare.user.id).maybeSingle(),
+    supabase
+      .from("organizations")
+      .select(
+        "name, slug, cui, legal_name, forma_juridica, reg_com, platitor_tva, email_contact, telefon_contact, judet, oras, sector",
+      )
+      .eq("id", tenant.organizationId)
+      .maybeSingle(),
+  ]);
 
   const numeIntreg = (profil?.full_name ?? "").trim();
   const spatiu = numeIntreg.lastIndexOf(" ");
@@ -68,14 +74,6 @@ export default async function PaginaBunVenit() {
   const numeProprietar = spatiu === -1 ? numeIntreg : numeIntreg.slice(0, spatiu);
   const prenumeProprietar = spatiu === -1 ? numeIntreg : numeIntreg.slice(spatiu + 1);
   const emailProprietar = profil?.email ?? rezolvare.user.email;
-
-  const { data: firma } = await supabase
-    .from("organizations")
-    .select(
-      "name, slug, cui, legal_name, forma_juridica, reg_com, platitor_tva, email_contact, telefon_contact, judet, oras, sector",
-    )
-    .eq("id", tenant.organizationId)
-    .maybeSingle();
 
   // Doar câmpurile deja completate de super-admin se pre-umplu. Cheia lipsă
   // lasă `defaultValues` din asistent să decidă, în loc să scrie `null` peste ele.

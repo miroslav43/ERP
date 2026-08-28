@@ -572,6 +572,7 @@ export type Database = {
           ore_suplimentare: number
           organization_id: string
           period_id: string
+          punct_lucru_id: string | null
           respins_de: string | null
           respins_la: string | null
           sursa: Database["public"]["Enums"]["attendance_entry_source"]
@@ -599,6 +600,7 @@ export type Database = {
           ore_suplimentare?: number
           organization_id: string
           period_id: string
+          punct_lucru_id?: string | null
           respins_de?: string | null
           respins_la?: string | null
           sursa?: Database["public"]["Enums"]["attendance_entry_source"]
@@ -626,6 +628,7 @@ export type Database = {
           ore_suplimentare?: number
           organization_id?: string
           period_id?: string
+          punct_lucru_id?: string | null
           respins_de?: string | null
           respins_la?: string | null
           sursa?: Database["public"]["Enums"]["attendance_entry_source"]
@@ -667,6 +670,13 @@ export type Database = {
             columns: ["period_id"]
             isOneToOne: false
             referencedRelation: "attendance_periods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_entries_punct_lucru_id_fkey"
+            columns: ["punct_lucru_id"]
+            isOneToOne: false
+            referencedRelation: "puncte_lucru"
             referencedColumns: ["id"]
           },
         ]
@@ -743,6 +753,7 @@ export type Database = {
           lucreaza_noaptea: boolean
           lucreaza_sarbatori: boolean
           lucreaza_weekend: boolean
+          mod_pontare_rapida: Database["public"]["Enums"]["mod_pontare_rapida"]
           noapte_sfarsit: string
           noapte_start: string
           observatii_juridice: string | null
@@ -755,6 +766,7 @@ export type Database = {
           pauza_obligatorie_peste_ore: number
           perioada_referinta_luni: number
           prag_ore_noapte: number
+          program_start: string | null
           repaus_saptamanal_minim_ore: number
           repaus_zilnic_minim_ore: number
           spor_noapte_procent: number
@@ -766,6 +778,7 @@ export type Database = {
           updated_at: string
           updated_by: string | null
           valabil_de_la: string
+          verificare_pontare: Database["public"]["Enums"]["verificare_pontare"]
         }
         Insert: {
           admite_ore_suplimentare?: boolean
@@ -776,6 +789,7 @@ export type Database = {
           lucreaza_noaptea?: boolean
           lucreaza_sarbatori?: boolean
           lucreaza_weekend?: boolean
+          mod_pontare_rapida?: Database["public"]["Enums"]["mod_pontare_rapida"]
           noapte_sfarsit: string
           noapte_start: string
           observatii_juridice?: string | null
@@ -788,6 +802,7 @@ export type Database = {
           pauza_obligatorie_peste_ore: number
           perioada_referinta_luni: number
           prag_ore_noapte?: number
+          program_start?: string | null
           repaus_saptamanal_minim_ore: number
           repaus_zilnic_minim_ore: number
           spor_noapte_procent?: number
@@ -799,6 +814,7 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
           valabil_de_la: string
+          verificare_pontare?: Database["public"]["Enums"]["verificare_pontare"]
         }
         Update: {
           admite_ore_suplimentare?: boolean
@@ -809,6 +825,7 @@ export type Database = {
           lucreaza_noaptea?: boolean
           lucreaza_sarbatori?: boolean
           lucreaza_weekend?: boolean
+          mod_pontare_rapida?: Database["public"]["Enums"]["mod_pontare_rapida"]
           noapte_sfarsit?: string
           noapte_start?: string
           observatii_juridice?: string | null
@@ -821,6 +838,7 @@ export type Database = {
           pauza_obligatorie_peste_ore?: number
           perioada_referinta_luni?: number
           prag_ore_noapte?: number
+          program_start?: string | null
           repaus_saptamanal_minim_ore?: number
           repaus_zilnic_minim_ore?: number
           spor_noapte_procent?: number
@@ -832,6 +850,7 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
           valabil_de_la?: string
+          verificare_pontare?: Database["public"]["Enums"]["verificare_pontare"]
         }
         Relationships: [
           {
@@ -9295,6 +9314,7 @@ export type Database = {
         Row: {
           activ: boolean
           adresa: string | null
+          cod_pontaj: string | null
           cod_postal: string | null
           created_at: string
           created_by: string | null
@@ -9312,6 +9332,7 @@ export type Database = {
         Insert: {
           activ?: boolean
           adresa?: string | null
+          cod_pontaj?: string | null
           cod_postal?: string | null
           created_at?: string
           created_by?: string | null
@@ -9329,6 +9350,7 @@ export type Database = {
         Update: {
           activ?: boolean
           adresa?: string | null
+          cod_pontaj?: string | null
           cod_postal?: string | null
           created_at?: string
           created_by?: string | null
@@ -12117,7 +12139,11 @@ export type Database = {
         | "absenta_nemotivata"
         | "delegatie"
         | "fara_plata"
-      attendance_entry_source: "manuala" | "import" | "sincronizare_concedii"
+      attendance_entry_source:
+        | "manuala"
+        | "import"
+        | "sincronizare_concedii"
+        | "pontare_rapida"
       attendance_period_status: "deschisa" | "in_aprobare" | "blocata"
       attendance_presence_kind:
         | "birou"
@@ -12318,6 +12344,7 @@ export type Database = {
       medical_payer: "angajator" | "fnuass" | "mixt"
       member_status: "active" | "suspended" | "inactive"
       meter_kind: "ore" | "km" | "cicluri"
+      mod_pontare_rapida: "oprit" | "confirmare" | "ceas" | "ambele"
       notification_kind:
         | "info"
         | "success"
@@ -12473,6 +12500,7 @@ export type Database = {
         | "motocicleta"
         | "altele"
       vehicle_status: "activ" | "in_service" | "vandut" | "casat"
+      verificare_pontare: "fara" | "cod_qr"
       work_mode: "sediu" | "telemunca" | "domiciliu" | "mixt"
     }
     CompositeTypes: {
@@ -12621,7 +12649,12 @@ export const Constants = {
         "delegatie",
         "fara_plata",
       ],
-      attendance_entry_source: ["manuala", "import", "sincronizare_concedii"],
+      attendance_entry_source: [
+        "manuala",
+        "import",
+        "sincronizare_concedii",
+        "pontare_rapida",
+      ],
       attendance_period_status: ["deschisa", "in_aprobare", "blocata"],
       attendance_presence_kind: [
         "birou",
@@ -12842,6 +12875,7 @@ export const Constants = {
       medical_payer: ["angajator", "fnuass", "mixt"],
       member_status: ["active", "suspended", "inactive"],
       meter_kind: ["ore", "km", "cicluri"],
+      mod_pontare_rapida: ["oprit", "confirmare", "ceas", "ambele"],
       notification_kind: [
         "info",
         "success",
@@ -13013,6 +13047,7 @@ export const Constants = {
         "altele",
       ],
       vehicle_status: ["activ", "in_service", "vandut", "casat"],
+      verificare_pontare: ["fara", "cod_qr"],
       work_mode: ["sediu", "telemunca", "domiciliu", "mixt"],
     },
   },

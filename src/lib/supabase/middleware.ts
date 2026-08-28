@@ -7,6 +7,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/types/database";
 
 import { fetchCuTermen } from "./fetch-cu-termen";
+import { OPTIUNI_COOKIE } from "./optiuni-cookie";
 
 /**
  * Deliberat NU importăm `@/config/env`: modulul acela validează la import și
@@ -60,6 +61,9 @@ export async function updateSession(request: NextRequest): Promise<SessionUpdate
         }
       },
     },
+    // Aici cookie-urile sb-* chiar se rescriu spre browser, la fiecare cerere
+    // de document: e locul în care durata sesiunii se reînnoiește efectiv.
+    cookieOptions: OPTIUNI_COOKIE,
     // Locul cel mai expus din aplicație: `getUser()` de mai jos rulează la
     // FIECARE request care trece de matcher. Un apel fără termen aici agață tot
     // traficul autentificat deodată, ceea ce s-a și întâmplat pe 23 august.

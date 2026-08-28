@@ -191,9 +191,22 @@ export default async function PaginaPontajulMeu({ searchParams }: ProprietatiPag
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-foreground text-corp tabular-nums">
-                          {(z.ore_lucrate ?? 0).toLocaleString("ro-RO")} ore
-                        </p>
+                        {/*
+                          O zi deschisă cu ceasul și neînchisă încă are
+                          `ore_lucrate = 0` — adică arată IDENTIC cu o zi
+                          legitimă de zero ore. Fără rândul ăsta, singurul semn
+                          că cineva a uitat să apese „Am ieșit" ar fi absența
+                          orelor la sfârșit de lună, pe fluturaș.
+                        */}
+                        {z.ora_inceput !== null && z.ora_sfarsit === null ? (
+                          <p className="text-warning text-corp font-medium tabular-nums">
+                            în curs · de la {z.ora_inceput.slice(0, 5)}
+                          </p>
+                        ) : (
+                          <p className="text-foreground text-corp tabular-nums">
+                            {(z.ore_lucrate ?? 0).toLocaleString("ro-RO")} ore
+                          </p>
+                        )}
                         {(z.ore_suplimentare ?? 0) > 0 ? (
                           <p className="text-muted-foreground text-nota tabular-nums">
                             +{(z.ore_suplimentare ?? 0).toLocaleString("ro-RO")} suplimentare

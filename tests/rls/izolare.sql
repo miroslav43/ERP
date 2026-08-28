@@ -1686,6 +1686,22 @@ begin
   values (v_alfa, v_ang_alfa, current_date - 5, 8, 'lucratoare', now())
   returning id into v_pontaj_apr;
 
+  -- 0096: plasa de sub aprobare. `aprobaPontajBloc` sare peste zilele în curs,
+  -- dar filtrul e în APLICAȚIE — o cale de scriere nouă l-ar putea ocoli. Fără
+  -- constrângerea din bază, o zi deschisă aprobată la prânz rămâne înghețată la
+  -- zero ore, iar „Am ieșit" de la ora 17 e respins TĂCUT de clauza `USING`.
+  -- Rulează cu rolul sesiunii, fără RLS: se probează constrângerea, nu politica.
+  begin
+    insert into public.attendance_entries (organization_id, employee_id, data, ora_inceput, ore_lucrate, tip_zi, approved_at)
+    values (v_alfa, v_ang_alfa, current_date - 4, '08:00', 0, 'lucratoare', now());
+    v_scapate := v_scapate || E'\n  constrângere -> attendance_entries_aprobare_zi_incheiata_ck: o zi DESCHISĂ a fost aprobată, deși constrângerea trebuia s-o oprească';
+  exception
+    when check_violation then
+      v_reusite := v_reusite || E'\n  constrângere -> ziua deschisă nu poate fi aprobată (23514)';
+    when others then
+      v_esuate := v_esuate || format(E'\n  constrângere -> ziua deschisă aprobată: a căzut cu %s (%s), nu cu 23514', sqlerrm, sqlstate);
+  end;
+
   -- Instanța proprie de checklist și un pas al cărui responsabil e chiar el.
   select id into v_inst_mea from public.checklist_instances
    where organization_id = v_alfa and employee_id = v_ang_alfa and deleted_at is null
@@ -1755,6 +1771,23 @@ begin
       -- `current_date - 1` (org_admin), iar pregătirea de mai sus `- 5`.
       ('employee', 'attendance_entries (ziua proprie)',    'PERMIS',
        'insert into public.attendance_entries (organization_id, employee_id, data, ore_lucrate, tip_zi) values ($1,$6,current_date - 3,8,''lucratoare'')'),
+
+      -- 0096, jumătatea întâi a ceasului: ziua deschisă are DOAR ora de intrare,
+      -- `ora_sfarsit` NULL și ZERO ore. Forma asta n-a fost niciodată produsă de
+      -- un angajat până acum (formularul cerea obligatoriu ambele ore), deci
+      -- nimic nu dovedise că politica o acceptă. Memoria proiectului spune că
+      -- raționamentul despre ce poate scrie un rol a greșit de patru ori — de
+      -- aceea se probează, nu se deduce.
+      ('employee', 'attendance_entries (zi în curs)',       'PERMIS',
+       'insert into public.attendance_entries (organization_id, employee_id, data, ora_inceput, ore_lucrate, tip_zi, sursa) values ($1,$6,current_date - 2,''08:00'',0,''lucratoare'',''pontare_rapida'')'),
+
+      -- Jumătatea a doua, cea care contează cel mai mult: „Am ieșit" e un UPDATE
+      -- pe un rând propriu, neaprobat. `PERMIS_RAND`, nu `PERMIS`: un UPDATE
+      -- respins de clauza `USING` NU aruncă — afectează zero rânduri și tace.
+      -- Marcat `PERMIS`, testul ar fi verde chiar dacă politica ar respinge
+      -- tăcut fiecare închidere de zi din portal.
+      ('employee', 'attendance_entries (închide ziua)',     'PERMIS_RAND',
+       'update public.attendance_entries set ora_sfarsit = ''16:30'', ore_lucrate = 8 where organization_id = $1 and employee_id = $6 and data = current_date - 2'),
 
       -- Capcana tăcută a modulului: `attendance_entries_update` (0013:795) cere
       -- `approved_at is null`. Un UPDATE respins de `USING` NU aruncă — afectează

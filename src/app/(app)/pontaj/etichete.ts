@@ -97,6 +97,10 @@ export const ETICHETE_SURSA: Readonly<Record<SursaIntrare, string>> = {
   manuala: "Manuală",
   import: "Import",
   sincronizare_concedii: "Din concediu",
+  // 0096: ziua pusă de angajat însuși, de pe telefon. Eticheta e „De pe telefon",
+  // nu „Pontare rapidă": omul care citește foaia colectivă vrea să știe CINE a
+  // scris rândul, nu cum se cheamă funcția care l-a scris.
+  pontare_rapida: "De pe telefon",
 };
 
 /** ISO-dow ca la Postgres: luni = 1 … duminică = 7. Comparație pe șir, fără fus orar. */

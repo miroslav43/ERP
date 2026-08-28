@@ -174,8 +174,14 @@ const TIPARE_P = [
   { re: /\bparol[ăa]\s*[:=]\s*[`"']?\S{4,}/i, ce: "parolă cu valoare" },
   { re: /\b12345678\b/, ce: "parola conturilor demo" },
   { re: /\bSUPABASE_(SERVICE_ROLE|DB)_\w*\s*[=:]\s*\S/, ce: "secret cu valoare" },
-  { re: /lipse[șs]te\s+politica|nu\s+exist[ăa]\s+politic[ăa]|f[ăa]r[ăa]\s+politic[ăa]\s+RLS/i, ce: "gol de autorizare descris" },
-  { re: /nimeni\s+nu\s+verific[ăa]|poate\s+fi\s+ocolit[ăa]?\s+prin/i, ce: "gol de autorizare descris" },
+  {
+    re: /lipse[șs]te\s+politica|nu\s+exist[ăa]\s+politic[ăa]|f[ăa]r[ăa]\s+politic[ăa]\s+RLS/i,
+    ce: "gol de autorizare descris",
+  },
+  {
+    re: /nimeni\s+nu\s+verific[ăa]|poate\s+fi\s+ocolit[ăa]?\s+prin/i,
+    ce: "gol de autorizare descris",
+  },
 ];
 
 // ── Verificarea unei pagini ────────────────────────────────────────────────
@@ -213,7 +219,11 @@ const verifica = (cale) => {
     if (fm[c] === undefined) E("FM", 1, `frontmatter fără câmpul obligatoriu \`${c}\``);
   }
   if (fm.scris_pe && fm.scris_pe !== "MANUAL" && !/^[0-9a-f]{40}$/.test(fm.scris_pe))
-    E("FM", 1, `\`scris_pe\` trebuie să fie SHA complet (40 de caractere) sau MANUAL, nu „${fm.scris_pe}”`);
+    E(
+      "FM",
+      1,
+      `\`scris_pe\` trebuie să fie SHA complet (40 de caractere) sau MANUAL, nu „${fm.scris_pe}”`,
+    );
   if (Array.isArray(fm.citeste_daca) && fm.citeste_daca.length > 3)
     E("FM", 1, `\`citeste_daca\` are ${fm.citeste_daca.length} intrări, maximum e 3`);
   if (fm.stare !== undefined) E("FM", 1, "`stare:` nu se scrie — se derivă din git");
@@ -239,7 +249,11 @@ const verifica = (cale) => {
   const plafon = PLAFOANE[fm.tip] || PLAFOANE.meta;
   const octetiCorp = Buffer.byteLength(corp, "utf8");
   if (octetiCorp > plafon.dur)
-    E("R", 1, `corpul are ${octetiCorp} de octeți, plafonul dur pentru \`${fm.tip}\` e ${plafon.dur} — sparge pagina`);
+    E(
+      "R",
+      1,
+      `corpul are ${octetiCorp} de octeți, plafonul dur pentru \`${fm.tip}\` e ${plafon.dur} — sparge pagina`,
+    );
   else if (octetiCorp > plafon.tinta)
     A("R", 1, `corpul are ${octetiCorp} de octeți, ținta pentru \`${fm.tip}\` e ${plafon.tinta}`);
 
@@ -249,15 +263,15 @@ const verifica = (cale) => {
   for (const { linie, nr } of [...proza, ...blocuri]) {
     num("N");
     const m = /[şţŞŢ]/.exec(linie);
-    if (m) E("N", nr, `diacritic cu sedilă „${m[0]}” — folosește virgula dedesubt (ș/ț, U+0219/U+021B)`);
+    if (m)
+      E("N", nr, `diacritic cu sedilă „${m[0]}” — folosește virgula dedesubt (ș/ț, U+0219/U+021B)`);
   }
 
   // ── P — repo public ──
   for (const { linie, nr, limbaj } of [...proza, ...blocuri]) {
     num("P");
     if (scutit(linie)) continue;
-    for (const { re, ce } of TIPARE_P)
-      if (re.test(linie)) E("P", nr, `repo public: ${ce}`);
+    for (const { re, ce } of TIPARE_P) if (re.test(linie)) E("P", nr, `repo public: ${ce}`);
     if (/^\s*(using|with check)\s*\(/i.test(linie) && /sql/i.test(limbaj || ""))
       E("P", nr, "repo public: corp de politică RLS — descrie forma, nu predicatul");
   }
@@ -276,13 +290,15 @@ const verifica = (cale) => {
       // B — migrare
       if (/^\d{4}[a-z]?_[a-z0-9_]+\.sql$/.test(tok)) {
         num("B");
-        if (!MIGRARI.has(tok)) semnaleaza(tok, nr, "B", `migrarea \`${tok}\` nu e în \`supabase/migrations/\``);
+        if (!MIGRARI.has(tok))
+          semnaleaza(tok, nr, "B", `migrarea \`${tok}\` nu e în \`supabase/migrations/\``);
         continue;
       }
       // A — cale de repo
       if (RADACINI_REPO.test(tok) && EXTENSII.test(tok)) {
         num("A");
-        if (!existsSync(join(RADACINA, tok))) semnaleaza(tok, nr, "A", `calea \`${tok}\` nu există pe disc`);
+        if (!existsSync(join(RADACINA, tok)))
+          semnaleaza(tok, nr, "A", `calea \`${tok}\` nu există pe disc`);
         continue;
       }
       if (RADACINI_REPO.test(tok) && !tok.includes(" ") && !EXTENSII.test(tok)) {
@@ -295,7 +311,13 @@ const verifica = (cale) => {
       if (/^\/[a-z][a-z0-9-]*(\/[A-Za-z0-9_[\]-]+)*\/?$/.test(tok)) {
         num("J");
         const ruta = tok.replace(/\/$/, "");
-        if (!rutaExista(ruta)) semnaleaza(tok, nr, "J", `ruta \`${ruta}\` nu se rezolvă la niciun \`page.tsx\`/\`route.ts\``);
+        if (!rutaExista(ruta))
+          semnaleaza(
+            tok,
+            nr,
+            "J",
+            `ruta \`${ruta}\` nu se rezolvă la niciun \`page.tsx\`/\`route.ts\``,
+          );
         continue;
       }
     }
@@ -303,11 +325,14 @@ const verifica = (cale) => {
 
   // ── A, B din blocuri îngrădite (acolo pune un model majoritatea căilor) ──
   for (const { linie, nr } of blocuri) {
-    for (const m of linie.matchAll(/(?:^|[\s"'`(=])((?:src|docs|supabase|tests|scripts|ops|\.claude|\.github)\/[A-Za-z0-9_./()[\]-]*[A-Za-z0-9_)\]])/g)) {
+    for (const m of linie.matchAll(
+      /(?:^|[\s"'`(=])((?:src|docs|supabase|tests|scripts|ops|\.claude|\.github)\/[A-Za-z0-9_./()[\]-]*[A-Za-z0-9_)\]])/g,
+    )) {
       const tok = m[1];
       if (tok.includes("<") || tok.includes("*") || !EXTENSII.test(tok)) continue;
       num("A");
-      if (!existsSync(join(RADACINA, tok))) semnaleaza(tok, nr, "A", `calea \`${tok}\` (în bloc de cod) nu există pe disc`);
+      if (!existsSync(join(RADACINA, tok)))
+        semnaleaza(tok, nr, "A", `calea \`${tok}\` (în bloc de cod) nu există pe disc`);
     }
   }
 
@@ -316,7 +341,8 @@ const verifica = (cale) => {
     for (const m of linie.matchAll(/capcana\s+#(\d+)/gi)) {
       num("G");
       const n = Number(m[1]);
-      if (NR_CAPCANE === 0) A("G", nr, "n-am putut citi `capcane.md` — verificarea capcanelor e sărită");
+      if (NR_CAPCANE === 0)
+        A("G", nr, "n-am putut citi `capcane.md` — verificarea capcanelor e sărită");
       else if (n < 1 || n > NR_CAPCANE)
         E("G", nr, `capcana #${n} nu există (documentul are ${NR_CAPCANE} intrări)`);
     }
@@ -338,7 +364,11 @@ const verifica = (cale) => {
       if (/^capcana/i.test(tinta) || scutit(linie)) continue;
       num("H");
       if (!tinta.includes("/")) {
-        E("H", nr, `wikilink scurt \`[[${tinta}]]\` — scrie calea completă (există perechi cu același basename)`);
+        E(
+          "H",
+          nr,
+          `wikilink scurt \`[[${tinta}]]\` — scrie calea completă (există perechi cu același basename)`,
+        );
         continue;
       }
       if (tinta === propria) {
@@ -360,7 +390,8 @@ const idxExplica = argumente.indexOf("--explica");
 const doarUnul = idxExplica >= 0 ? argumente[idxExplica + 1] : null;
 
 let pagini = fisiereMd(VAULT);
-if (doarUnul) pagini = pagini.filter((p) => relative(RADACINA, p) === doarUnul || p.endsWith(doarUnul));
+if (doarUnul)
+  pagini = pagini.filter((p) => relative(RADACINA, p) === doarUnul || p.endsWith(doarUnul));
 
 if (!existsSync(VAULT)) {
   console.log("Vault-ul `.claude/docs/` nu există încă. Nimic de verificat.");
@@ -376,7 +407,9 @@ const totalVerificari = rezultate.reduce(
 );
 
 if (caJson) {
-  console.log(JSON.stringify({ pagini: rezultate, totalErori, totalAverts, totalVerificari }, null, 2));
+  console.log(
+    JSON.stringify({ pagini: rezultate, totalErori, totalAverts, totalVerificari }, null, 2),
+  );
   process.exit(totalErori > 0 ? 1 : 0);
 }
 
@@ -386,7 +419,9 @@ for (const r of rezultate) {
   for (const e of r.erori) console.log(`  ✗ [${e.clasa}] linia ${e.nr}: ${e.mesaj}`);
   for (const a of r.averts) console.log(`  ⚠ [${a.clasa}] linia ${a.nr}: ${a.mesaj}`);
   if (doarUnul) {
-    const perClasa = Object.entries(r.verificari).map(([c, n]) => `${c}=${n}`).join(" ");
+    const perClasa = Object.entries(r.verificari)
+      .map(([c, n]) => `${c}=${n}`)
+      .join(" ");
     console.log(`  afirmații verificate efectiv: ${perClasa || "niciuna"}`);
   }
 }
@@ -397,6 +432,8 @@ console.log(
     `${totalErori} erori · ${totalAverts} avertismente`,
 );
 if (totalVerificari === 0 && pagini.length > 0)
-  console.log("⚠ zero afirmații verificate — scrie artefactele în backticks, altfel poarta e decorativă");
+  console.log(
+    "⚠ zero afirmații verificate — scrie artefactele în backticks, altfel poarta e decorativă",
+  );
 
 process.exit(totalErori > 0 ? 1 : 0);

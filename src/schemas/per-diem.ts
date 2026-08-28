@@ -2,7 +2,7 @@
 // Validările de intrare pentru modulul de diurnă: deplasări, etape, cheltuieli, filtre.
 
 import { z } from "zod";
-import { optional, textOptional } from "./comun";
+import { enumOptional, numarOptional, optional, textOptional } from "./comun";
 
 // ── Enumerări în oglindă cu tipurile din 0015_per_diem.sql ───────────────────
 
@@ -61,17 +61,6 @@ const uuidOptional = z
     (v) => v === null || z.uuid().safeParse(v).success,
     "Identificatorul selectat nu este valid.",
   );
-
-const numarOptional = (min: number, max: number) =>
-  z.coerce
-    .number()
-    .refine((v) => Number.isFinite(v), "Valoarea trebuie să fie un număr.")
-    .refine(
-      (v) => v >= min && v <= max,
-      `Valoarea trebuie să fie între ${String(min)} și ${String(max)}.`,
-    )
-    .nullable()
-    .default(null);
 
 /**
  * Fiecare câmp are `.default(...)` — `filtreDinUrl()` revine la
@@ -134,7 +123,12 @@ export const deplasareNouaSchema = z
     plecare_la: z.iso.datetime({ local: true }),
     sosire_la: z.iso.datetime({ local: true }),
     mijloc_transport: z.enum(MIJLOACE_TRANSPORT),
-    km_parcursi: numarOptional(0, 1_000_000),
+    km_parcursi: numarOptional({
+      min: 0,
+      max: 1_000_000,
+      mesaj: "Kilometrii parcurși trebuie să fie un număr.",
+      interval: "Kilometrii parcurși sunt între 0 și 1.000.000.",
+    }),
     avans_acordat: z.coerce.number().min(0).default(0),
     moneda_avans: z
       .string()
@@ -143,11 +137,21 @@ export const deplasareNouaSchema = z
       .transform((v) => v.toUpperCase())
       .nullable()
       .default(null),
-    curs_diurna: numarOptional(0.000001, 1_000_000),
+    curs_diurna: numarOptional({
+      min: 0.000001,
+      max: 1_000_000,
+      mesaj: "Cursul valutar trebuie să fie un număr.",
+      interval: "Cursul valutar este între 0,000001 și 1.000.000.",
+    }),
     observatii: textOptional(2000),
     detasare_transnationala: z.coerce.boolean().default(false),
     stat_gazda_country_id: uuidOptional,
-    salariu_minim_stat_gazda: numarOptional(0, 100_000_000),
+    salariu_minim_stat_gazda: numarOptional({
+      min: 0,
+      max: 100_000_000,
+      mesaj: "Salariul minim din statul gazdă trebuie să fie un număr.",
+      interval: "Salariul minim din statul gazdă este între 0 și 100.000.000.",
+    }),
     moneda_salariu_minim: z
       .string()
       .trim()
@@ -221,7 +225,7 @@ export const etapaNouaSchema = z
     to_country_id: z.uuid("Țara de sosire a etapei este obligatorie."),
     plecare_la: z.iso.datetime({ local: true }),
     sosire_la: z.iso.datetime({ local: true }),
-    mijloc_transport: z.enum(MIJLOACE_TRANSPORT).nullable().default(null),
+    mijloc_transport: enumOptional(MIJLOACE_TRANSPORT, "Alegeți mijlocul de transport din listă."),
     localitate_sosire: textOptional(200),
   })
   .superRefine((valoare, ctx) => {

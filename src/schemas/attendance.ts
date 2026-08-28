@@ -1,6 +1,6 @@
 // src/schemas/attendance.ts
 import { z } from "zod";
-import { optional, textOptional } from "./comun";
+import { enumOptional, optional, textOptional } from "./comun";
 
 import { todayInBucharest } from "@/lib/format/date";
 
@@ -29,9 +29,25 @@ export const TIPURI_ZI_ALEGERE = [
 ] as const;
 
 export const STATUS_PERIOADA = ["deschisa", "in_aprobare", "blocata"] as const;
+
+/** Cele patru moduri de pontare rapidă (0096). `oprit` = numai formularul vechi. */
+export const MODURI_PONTARE_RAPIDA = ["oprit", "confirmare", "ceas", "ambele"] as const;
+export type ModPontareRapida = (typeof MODURI_PONTARE_RAPIDA)[number];
+
+/** Cum se verifică prezența la pontarea rapidă (0096). */
+export const VERIFICARI_PONTARE = ["fara", "cod_qr"] as const;
+export type VerificarePontare = (typeof VERIFICARI_PONTARE)[number];
 export type StatusPerioada = (typeof STATUS_PERIOADA)[number];
 
-export const SURSE_INTRARE = ["manuala", "import", "sincronizare_concedii"] as const;
+export const SURSE_INTRARE = [
+  "manuala",
+  "import",
+  "sincronizare_concedii",
+  // 0096: ziua pusă de angajat însuși, din portal. Până acum distincția „cine a
+  // scris rândul" trăia doar în `audit_logs`, adică nicăieri unde un raport s-o
+  // poată număra.
+  "pontare_rapida",
+] as const;
 export type SursaIntrare = (typeof SURSE_INTRARE)[number];
 
 /**
@@ -100,7 +116,7 @@ export const salveazaZiPontajSchema = z
     ore_lucrate: z.coerce.number().min(0).max(24),
     ore_suplimentare: z.coerce.number().min(0).max(24).default(0),
     ore_noapte: z.coerce.number().min(0).max(24).default(0),
-    tip_zi: z.enum(TIPURI_ZI).nullable().default(null),
+    tip_zi: enumOptional(TIPURI_ZI, "Alegeți tipul zilei din listă."),
     observatii: textOptional(1000),
   })
   .refine((v) => v.ore_suplimentare <= v.ore_lucrate, {
@@ -261,40 +277,74 @@ export type DecideSaptamanaPontaj = z.output<typeof decideSaptamanaPontajSchema>
  * nu erau configurate nicăieri, iar salarizarea cădea tăcut pe cele din
  * `payroll_settings`.
  */
-export const setariPontajSchema = z.object({
-  valabil_de_la: z.string().regex(/^\d{4}-\d{2}-\d{2}$/u, "Data trebuie să fie AAAA-LL-ZZ."),
-  ore_pe_zi: z.coerce.number().positive("Norma zilnică trebuie să fie pozitivă.").max(24),
-  ore_pe_saptamana: z.coerce.number().positive().max(168),
-  ore_maxime_saptamanale: z.coerce.number().positive().max(168),
-  perioada_referinta_luni: z.coerce.number().int().min(1).max(12),
-  repaus_zilnic_minim_ore: z.coerce.number().min(0).max(24),
-  repaus_saptamanal_minim_ore: z.coerce.number().min(0).max(168),
-  /**
-   * Ce feluri de muncă are firma (0080). NU sunt „ce sporuri acord": sporurile
-   * din art. 123, 137 alin. (2) și 142 alin. (2) sunt obligatorii CÂND munca
-   * s-a prestat. Comutatoarele declară doar dacă se prestează, iar ecranul
-   * încetează să ceară parametri juridici care nu se aplică.
-   *
-   * `.default(true)` păstrează comportamentul de azi pentru orice apel care
-   * n-a fost încă adaptat — aceeași alegere ca implicitul coloanei din migrare.
-   */
-  lucreaza_noaptea: z.coerce.boolean().default(true),
-  lucreaza_weekend: z.coerce.boolean().default(true),
-  lucreaza_sarbatori: z.coerce.boolean().default(true),
-  admite_ore_suplimentare: z.coerce.boolean().default(true),
-  // Cele patru `spor_*_procent` NU mai sunt aici (0082). Sporurile care intră pe
-  // fluturaș se configurează exclusiv în `/salarizare/setari`, pe
-  // `payroll_settings.procent_spor_*`, și se citesc din `domain/payroll/calc.ts`.
-  // Coloanele au rămas în tabelă, cu `default 0`, deci INSERT-ul de aici merge
-  // fără ele — vezi 0082 pentru de ce nu s-au șters.
-  noapte_start: z.string().regex(/^\d{2}:\d{2}$/u, "Ora trebuie să fie HH:MM."),
-  noapte_sfarsit: z.string().regex(/^\d{2}:\d{2}$/u, "Ora trebuie să fie HH:MM."),
-  prag_ore_noapte: z.coerce.number().min(0).max(12),
-  termen_compensare_suplimentare_zile: z.coerce.number().int().min(0).max(365),
-  termen_compensare_sarbatoare_zile: z.coerce.number().int().min(0).max(365),
-  pauza_masa_minute: z.coerce.number().int().min(0).max(240),
-  pauza_masa_inclusa_in_program: z.coerce.boolean(),
-  pauza_obligatorie_peste_ore: z.coerce.number().min(0).max(24),
-  observatii_juridice: z.string().trim().max(2000).nullable().default(null),
-});
+export const setariPontajSchema = z
+  .object({
+    valabil_de_la: z.string().regex(/^\d{4}-\d{2}-\d{2}$/u, "Data trebuie să fie AAAA-LL-ZZ."),
+    ore_pe_zi: z.coerce.number().positive("Norma zilnică trebuie să fie pozitivă.").max(24),
+    ore_pe_saptamana: z.coerce.number().positive().max(168),
+    ore_maxime_saptamanale: z.coerce.number().positive().max(168),
+    perioada_referinta_luni: z.coerce.number().int().min(1).max(12),
+    repaus_zilnic_minim_ore: z.coerce.number().min(0).max(24),
+    repaus_saptamanal_minim_ore: z.coerce.number().min(0).max(168),
+    /**
+     * Ce feluri de muncă are firma (0080). NU sunt „ce sporuri acord": sporurile
+     * din art. 123, 137 alin. (2) și 142 alin. (2) sunt obligatorii CÂND munca
+     * s-a prestat. Comutatoarele declară doar dacă se prestează, iar ecranul
+     * încetează să ceară parametri juridici care nu se aplică.
+     *
+     * `.default(true)` păstrează comportamentul de azi pentru orice apel care
+     * n-a fost încă adaptat — aceeași alegere ca implicitul coloanei din migrare.
+     */
+    lucreaza_noaptea: z.coerce.boolean().default(true),
+    lucreaza_weekend: z.coerce.boolean().default(true),
+    lucreaza_sarbatori: z.coerce.boolean().default(true),
+    admite_ore_suplimentare: z.coerce.boolean().default(true),
+    // Cele patru `spor_*_procent` NU mai sunt aici (0082). Sporurile care intră pe
+    // fluturaș se configurează exclusiv în `/salarizare/setari`, pe
+    // `payroll_settings.procent_spor_*`, și se citesc din `domain/payroll/calc.ts`.
+    // Coloanele au rămas în tabelă, cu `default 0`, deci INSERT-ul de aici merge
+    // fără ele — vezi 0082 pentru de ce nu s-au șters.
+    noapte_start: z.string().regex(/^\d{2}:\d{2}$/u, "Ora trebuie să fie HH:MM."),
+    noapte_sfarsit: z.string().regex(/^\d{2}:\d{2}$/u, "Ora trebuie să fie HH:MM."),
+    prag_ore_noapte: z.coerce.number().min(0).max(12),
+    termen_compensare_suplimentare_zile: z.coerce.number().int().min(0).max(365),
+    termen_compensare_sarbatoare_zile: z.coerce.number().int().min(0).max(365),
+    pauza_masa_minute: z.coerce.number().int().min(0).max(240),
+    pauza_masa_inclusa_in_program: z.coerce.boolean(),
+    pauza_obligatorie_peste_ore: z.coerce.number().min(0).max(24),
+    observatii_juridice: z.string().trim().max(2000).nullable().default(null),
+    /**
+     * Pontarea rapidă (0096). `program_start` e OPȚIONAL: o firmă fără program fix
+     * nu trebuie să inventeze unul. Dar modurile care propun un interval —
+     * `confirmare` și `ambele` — nu au ce propune fără el, de unde verificarea
+     * încrucișată de mai jos.
+     */
+    program_start: optional(z.string().regex(/^\d{2}:\d{2}$/u, "Ora trebuie să fie HH:MM.")),
+    mod_pontare_rapida: z.enum(MODURI_PONTARE_RAPIDA).default("oprit"),
+    verificare_pontare: z.enum(VERIFICARI_PONTARE).default("fara"),
+  })
+  .refine(
+    (v) => v.program_start !== null || !["confirmare", "ambele"].includes(v.mod_pontare_rapida),
+    {
+      message: "Completați ora de început a programului: fără ea nu se poate propune un interval.",
+      path: ["program_start"],
+    },
+  );
 export type IntrareSetariPontaj = z.output<typeof setariPontajSchema>;
+
+/**
+ * Schemele pontării rapide.
+ *
+ * TOATE sunt goale în afară de codul QR, și asta e ideea: acțiunea nu primește
+ * de la client nici ora, nici orele, nici angajatul. Ora vine din ceasul
+ * serverului, orele se derivă pe server din setările organizației, iar fișa se
+ * rezolvă din sesiune. Singurul lucru pe care omul îl poate declara e că a
+ * scanat afișul de la punctul de lucru — și chiar și ăla se verifică pe server.
+ */
+const codPunctLucru = optional(
+  z.string().trim().min(16, "Codul scanat nu e valid.").max(64, "Codul scanat nu e valid."),
+);
+
+export const pontezaIntrareaSchema = z.object({ cod_punct_lucru: codPunctLucru });
+export const pontezaIesireaSchema = z.object({ cod_punct_lucru: codPunctLucru });
+export const confirmaZiuaStandardSchema = z.object({ cod_punct_lucru: codPunctLucru });

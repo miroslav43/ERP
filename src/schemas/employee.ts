@@ -2,6 +2,7 @@
 // Validările de intrare pentru angajați, contracte și încetare. CNP/IBAN vin din @/domain/hr.
 
 import { z } from "zod";
+import { enumOptional, numarCuImplicit, numarObligatoriu, numarOptional } from "./comun";
 
 import { normalizeazaCnp, validateazaCnp } from "@/domain/hr/cnp";
 import { normalizeazaIban, validateazaIban } from "@/domain/hr/iban";
@@ -69,16 +70,6 @@ const uuidOptional = z
     "Identificatorul selectat nu este valid.",
   );
 
-const numarOptional = (minim: number, maxim: number) =>
-  z
-    .union([z.coerce.number(), z.null()])
-    .default(null)
-    .refine(
-      (valoare) =>
-        valoare === null || (Number.isFinite(valoare) && valoare >= minim && valoare <= maxim),
-      `Valoarea trebuie să fie între ${String(minim)} și ${String(maxim)}.`,
-    );
-
 const cnpOptional = z
   .string()
   .trim()
@@ -134,9 +125,16 @@ export const filtreAngajatiSchema = z.object({
   q: textOptional(80),
   department_id: uuidOptional,
   job_position_id: uuidOptional,
-  status: z.enum(STATUSURI_ANGAJAT).nullable().default(null),
+  status: enumOptional(STATUSURI_ANGAJAT, "Statusul din filtru nu este valid."),
   cursor: textOptional(400),
-  limita: z.coerce.number().int().min(5).max(100).default(25),
+  limita: numarCuImplicit({
+    min: 5,
+    max: 100,
+    implicit: 25,
+    intreg: true,
+    mesaj: "Limita trebuie să fie un număr.",
+    interval: "Limita este între 5 și 100 de rânduri.",
+  }),
   /** Forma din URL: `marca` crescător, `-marca` descrescător. */
   sort: textOptional(40),
 });
@@ -161,7 +159,7 @@ export const creeazaAngajatSchema = z.object({
   adresa_resedinta_cod_postal: textOptional(12),
   email_serviciu: emailOptional,
   telefon_serviciu: textOptional(32),
-  stare_civila: z.enum(STARI_CIVILE).nullable().default(null),
+  stare_civila: enumOptional(STARI_CIVILE, "Alegeți o stare civilă din listă."),
   data_nasterii: dataOptionala,
   gen: z.enum(GENURI).default("nedeclarat"),
   cetatenie: z
@@ -181,7 +179,14 @@ export const creeazaAngajatSchema = z.object({
   hired_on: dataOptionala,
   conditii_munca: z.enum(CONDITII_MUNCA).default("normale"),
   grad_handicap: textOptional(20),
-  nr_persoane_intretinere: z.coerce.number().int().min(0).max(20).default(0),
+  nr_persoane_intretinere: numarCuImplicit({
+    min: 0,
+    max: 20,
+    implicit: 0,
+    intreg: true,
+    mesaj: "Numărul persoanelor în întreținere trebuie să fie un număr.",
+    interval: "Numărul persoanelor în întreținere este între 0 și 20.",
+  }),
   optiune_pilon_ii: z.coerce.boolean().default(true),
   is_primary: z.coerce.boolean().default(true),
   contact_urgenta_nume: textOptional(120),
@@ -378,25 +383,62 @@ const corpContractSchema = z.object({
   valabil_pana: dataOptionala,
   contract_duration: z.enum(DURATE_CONTRACT).default("nedeterminat"),
   motiv_determinat: textOptional(200),
-  norma_ore_saptamana: z.coerce.number().min(0.5).max(48).default(40),
-  norma_ore_zi: z.coerce.number().min(0.5).max(12).default(8),
+  norma_ore_saptamana: numarCuImplicit({
+    min: 0.5,
+    max: 48,
+    implicit: 40,
+    mesaj: "Norma săptămânală trebuie să fie un număr.",
+    interval: "Norma săptămânală este între 0,5 și 48 de ore.",
+  }),
+  norma_ore_zi: numarCuImplicit({
+    min: 0.5,
+    max: 12,
+    implicit: 8,
+    mesaj: "Norma zilnică trebuie să fie un număr.",
+    interval: "Norma zilnică este între 0,5 și 12 ore.",
+  }),
   work_mode: z.enum(MODURI_LUCRU).default("sediu"),
-  special_regime: z.enum(REGIMURI_SPECIALE).nullable().default(null),
+  special_regime: enumOptional(REGIMURI_SPECIALE, "Alegeți un regim special din listă."),
   loc_telemunca: textOptional(200),
   loc_munca: textOptional(200),
   department_id: uuidOptional,
   job_position_id: uuidOptional,
   conditii_munca: z.enum(CONDITII_MUNCA).default("normale"),
-  salariu_baza: z.coerce.number().min(0, "Salariul de bază nu poate fi negativ."),
+  salariu_baza: numarObligatoriu({
+    min: 0,
+    max: 100_000_000,
+    lipsa: "Salariul de bază este obligatoriu.",
+    mesaj: "Salariul de bază trebuie să fie un număr.",
+    interval: "Salariul de bază este între 0 și 100.000.000.",
+  }),
   moneda: z
     .string()
     .trim()
     .toUpperCase()
     .regex(/^[A-Z]{3}$/u, "Moneda se scrie cu trei litere (ex. RON).")
     .default("RON"),
-  zile_concediu_anual: z.coerce.number().int().min(0).max(60).default(21),
-  perioada_proba_zile: numarOptional(0, 365),
-  preaviz_zile: numarOptional(0, 365),
+  zile_concediu_anual: numarCuImplicit({
+    min: 0,
+    max: 60,
+    implicit: 21,
+    intreg: true,
+    mesaj: "Zilele de concediu trebuie să fie un număr.",
+    interval: "Zilele de concediu anual sunt între 0 și 60.",
+  }),
+  perioada_proba_zile: numarOptional({
+    min: 0,
+    max: 365,
+    intreg: true,
+    mesaj: "Perioada de probă trebuie să fie un număr de zile.",
+    interval: "Perioada de probă este între 0 și 365 de zile.",
+  }),
+  preaviz_zile: numarOptional({
+    min: 0,
+    max: 365,
+    intreg: true,
+    mesaj: "Preavizul trebuie să fie un număr de zile.",
+    interval: "Preavizul este între 0 și 365 de zile.",
+  }),
 });
 
 /** Comune contractului de bază și fluxului unificat de înrolare (fără employee_id fix). */
@@ -614,7 +656,13 @@ export const incetareContractSchema = z.object({
 
 export const modificaSalariuContractSchema = z.object({
   contract_id: z.uuid("Contractul selectat nu este valid."),
-  salariu_baza: z.coerce.number().min(0, "Salariul de bază nu poate fi negativ."),
+  salariu_baza: numarObligatoriu({
+    min: 0,
+    max: 100_000_000,
+    lipsa: "Salariul de bază este obligatoriu.",
+    mesaj: "Salariul de bază trebuie să fie un număr.",
+    interval: "Salariul de bază este între 0 și 100.000.000.",
+  }),
 });
 
 // ── Dezvăluirea datelor sensibile ─────────────────────────────────────────────
@@ -644,8 +692,18 @@ export const creeazaScutireFiscalaSchema = z
     exemption_type: z.enum(TIPURI_SCUTIRE, "Alegeți tipul de scutire."),
     valabil_de_la: dataObligatorie("Valabil de la"),
     valabil_pana: dataOptionala,
-    procent_scutire: numarOptional(0, 100),
-    plafon_lunar: numarOptional(0, 1_000_000),
+    procent_scutire: numarOptional({
+      min: 0,
+      max: 100,
+      mesaj: "Procentul de scutire trebuie să fie un număr.",
+      interval: "Procentul de scutire este între 0 și 100.",
+    }),
+    plafon_lunar: numarOptional({
+      min: 0,
+      max: 1_000_000,
+      mesaj: "Plafonul lunar trebuie să fie un număr.",
+      interval: "Plafonul lunar este între 0 și 1.000.000.",
+    }),
     temei_legal: textOptional(500),
   })
   .superRefine((valoare, ctx) => {

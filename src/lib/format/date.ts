@@ -116,6 +116,33 @@ export function todayInBucharest(): DateString {
   return toBucharestDateString(new Date());
 }
 
+/** `HH:MM`, în fusul României. Formatter propriu — ora 24 e scrisă `00`, nu `24`. */
+const bucharestOraFormatter = new Intl.DateTimeFormat("en-GB", {
+  timeZone: TIMEZONE,
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+/**
+ * Ora locală românească a unui moment în timp, ca `"07:32"`.
+ *
+ * Perechea lui `toBucharestDateString`, pentru ceasul de pontaj: ora care se
+ * scrie în `attendance_entries.ora_inceput` vine de la CEASUL SERVERULUI, nu de
+ * la telefon. Un telefon cu ora greșită — sau cu ora mutată intenționat — n-are
+ * voie să producă ore de muncă.
+ *
+ * `hourCycle: "h23"` nu e decorativ: cu implicitul `h24`, miezul nopții iese
+ * `"24:00"`, care nu e o valoare validă pentru `time` în Postgres și ar cădea cu
+ * 22007 exact în tura de noapte.
+ */
+export function oraInBucharest(moment: Date): string {
+  if (Number.isNaN(moment.getTime())) {
+    throw new TypeError("Moment invalid");
+  }
+  return bucharestOraFormatter.format(moment);
+}
+
 /**
  * Formele scurte, pentru axele graficelor și antetele înguste de tabel.
  *

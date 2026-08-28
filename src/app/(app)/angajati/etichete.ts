@@ -2,7 +2,13 @@
 // Etichete de interfață — separate de actions.ts, care poate exporta doar funcții async.
 
 import type { TonStare } from "@/components/ui/badge";
-import type { CONDITII_MUNCA, GENURI, STARI_CIVILE } from "@/schemas/employee";
+import type {
+  CONDITII_MUNCA,
+  DURATE_CONTRACT,
+  GENURI,
+  REGIMURI_SPECIALE,
+  STARI_CIVILE,
+} from "@/schemas/employee";
 import type { StatusAngajat, TipScutire } from "@/schemas/employee";
 
 export const ETICHETE_STATUS: Readonly<Record<StatusAngajat, string>> = {
@@ -68,6 +74,19 @@ export const ETICHETE_CONDITII_MUNCA: Readonly<Record<(typeof CONDITII_MUNCA)[nu
   deosebite: "Deosebite",
   speciale: "Speciale",
 };
+
+export const ETICHETE_REGIM_SPECIAL: Readonly<Record<(typeof REGIMURI_SPECIALE)[number], string>> =
+  {
+    ucenicie: "Ucenicie",
+    internship: "Internship",
+    zilier: "Zilier",
+  };
+
+export const ETICHETE_DURATA_CONTRACT: Readonly<Record<(typeof DURATE_CONTRACT)[number], string>> =
+  {
+    nedeterminat: "Nedeterminată",
+    determinat: "Determinată",
+  };
 
 /**
  * Tipurile de componentă salarială. Stăteau în corpul fișei angajatului, adică

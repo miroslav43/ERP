@@ -3,13 +3,22 @@
 
 import { useCallback, useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Ban, Pencil, Undo2 } from "lucide-react";
+import { Ban, Pencil, Printer, QrCode, Undo2 } from "lucide-react";
 
 import { Buton } from "@/components/ui/buton";
 import { Camp, clasaBifa } from "@/components/ui/camp";
 import { Formular } from "@/components/ui/formular";
 import { JUDETE } from "@/schemas/organization";
-import { actualizeazaPunctLucru, dezactiveazaPunctLucru, reactiveazaPunctLucru } from "./actions";
+import Link from "next/link";
+
+import { buton } from "@/components/ui/buton";
+import { cn } from "@/lib/ui/cn";
+import {
+  actualizeazaPunctLucru,
+  dezactiveazaPunctLucru,
+  reactiveazaPunctLucru,
+  rotesteCodPontaj,
+} from "./actions";
 
 /**
  * Acțiunile unui rând din lista punctelor de lucru: editarea și dezactivarea.
@@ -41,6 +50,8 @@ interface Proprietati {
     sediu_principal: boolean;
     activ: boolean;
     observatii: string | null;
+    /** `true` când punctul are deja un cod de pontare tipăribil (0096). */
+    areCodPontaj: boolean;
   }>;
   readonly poateEdita: boolean;
 }
@@ -93,6 +104,18 @@ export function ActiuniPunctLucru({ punct, poateEdita }: Proprietati) {
     });
   }
 
+  function roteste(): void {
+    setEroare(null);
+    porneste(async () => {
+      const rezultat = await rotesteCodPontaj({ id: punct.id });
+      if (!rezultat.ok) {
+        setEroare(rezultat.error.message);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
   return (
     <div className="space-y-2">
       <div className="text-nota flex flex-wrap gap-1">
@@ -116,6 +139,23 @@ export function ActiuniPunctLucru({ punct, poateEdita }: Proprietati) {
             Reactivează
           </Buton>
         )}
+
+        {/* Pontarea prin cod QR (0096). Butonul spune „Rotește", nu
+            „Generează", când codul există deja: cine îl apasă trebuie să știe
+            din eticheta lui că afișele lipite devin inutile. */}
+        <Buton varianta="tertiar" onClick={roteste} disabled={inCurs}>
+          <QrCode aria-hidden="true" className="size-3.5" />
+          {punct.areCodPontaj ? "Rotește codul" : "Generează cod de pontare"}
+        </Buton>
+        {punct.areCodPontaj ? (
+          <Link
+            href={`/puncte-lucru/${punct.id}/afis`}
+            className={cn(buton({ varianta: "tertiar" }), "text-nota")}
+          >
+            <Printer aria-hidden="true" className="size-3.5" />
+            Afișul de tipărit
+          </Link>
+        ) : null}
       </div>
 
       {eroare === null ? null : (

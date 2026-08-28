@@ -174,6 +174,10 @@ function CelulaLunii({
   const ore = intrare?.ore_lucrate ?? 0;
   const suplimentare = intrare?.ore_suplimentare ?? 0;
   const fundal = intrare === undefined ? "" : (CLASE[intrare.tip_zi] ?? "");
+  // Zi deschisă cu ceasul și neînchisă: `ore_lucrate` e 0, deci celula ar arăta
+  // codul tipului de zi ca și cum n-ar fi fost nimic pontat.
+  const inCurs =
+    intrare !== undefined && intrare.ora_inceput !== null && intrare.ora_sfarsit === null;
 
   const corp = (
     <>
@@ -181,6 +185,8 @@ function CelulaLunii({
       <span className="text-corp mt-1 block">
         {intrare === undefined ? (
           <span className="text-muted-foreground">—</span>
+        ) : inCurs ? (
+          <span className="text-warning font-medium">în curs</span>
         ) : (
           <span className="text-foreground tabular-nums">
             {ore > 0

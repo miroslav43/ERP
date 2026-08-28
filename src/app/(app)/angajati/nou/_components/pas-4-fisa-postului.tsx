@@ -3,8 +3,9 @@
 
 import type { UseFormReturn } from "react-hook-form";
 
+import { Camp } from "@/components/ui/camp";
 import type { InroleazaAngajatInput } from "@/schemas/employee";
-import { claseCamp, claseLabel } from "./campuri-comune";
+import { mesajCamp } from "./erori-formular";
 
 export const CAMPURI_PAS_4 = [
   "subordonare",
@@ -14,11 +15,13 @@ export const CAMPURI_PAS_4 = [
 
 interface Proprietati {
   readonly formular: UseFormReturn<InroleazaAngajatInput>;
-  readonly idFormular: string;
 }
 
-export function Pas4FisaPostului({ formular, idFormular }: Proprietati) {
-  const { register } = formular;
+export function Pas4FisaPostului({ formular }: Proprietati) {
+  const {
+    register,
+    formState: { errors },
+  } = formular;
 
   return (
     <fieldset className="border-border rounded-panou space-y-4 border p-4">
@@ -30,41 +33,33 @@ export function Pas4FisaPostului({ formular, idFormular }: Proprietati) {
         Necompletată, se poate adăuga oricând ulterior de pe fișa angajatului.
       </p>
 
-      <div>
-        <label htmlFor={`${idFormular}-subordonare`} className={claseLabel}>
-          Subordonare
-        </label>
-        <input
-          id={`${idFormular}-subordonare`}
-          {...register("subordonare")}
-          placeholder="ex. Directorul de departament"
-          className={claseCamp}
-        />
-      </div>
+      <Camp nume="subordonare" eticheta="Subordonare" erori={mesajCamp(errors.subordonare)}>
+        {(atribute) => (
+          <input
+            {...atribute}
+            {...register("subordonare")}
+            placeholder="ex. Directorul de departament"
+          />
+        )}
+      </Camp>
 
-      <div>
-        <label htmlFor={`${idFormular}-atributii`} className={claseLabel}>
-          Atribuții (câte una pe linie)
-        </label>
-        <textarea
-          id={`${idFormular}-atributii`}
-          {...register("atributii")}
-          rows={6}
-          className={claseCamp}
-        />
-      </div>
+      <Camp
+        nume="atributii"
+        eticheta="Atribuții (câte una pe linie)"
+        fel="textarea"
+        erori={mesajCamp(errors.atributii)}
+      >
+        {(atribute) => <textarea {...atribute} {...register("atributii")} rows={6} />}
+      </Camp>
 
-      <div>
-        <label htmlFor={`${idFormular}-competente`} className={claseLabel}>
-          Competențe necesare (câte una pe linie)
-        </label>
-        <textarea
-          id={`${idFormular}-competente`}
-          {...register("competente")}
-          rows={6}
-          className={claseCamp}
-        />
-      </div>
+      <Camp
+        nume="competente"
+        eticheta="Competențe necesare (câte una pe linie)"
+        fel="textarea"
+        erori={mesajCamp(errors.competente)}
+      >
+        {(atribute) => <textarea {...atribute} {...register("competente")} rows={6} />}
+      </Camp>
     </fieldset>
   );
 }

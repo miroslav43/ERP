@@ -67,3 +67,124 @@ export const textOptional = (maxim: number) =>
     .nullable()
     .default(null)
     .transform((v) => (v === null || v.length === 0 ? null : v));
+
+/**
+ * Un `<select>` opțional: opțiunea „— Niciunul —” trimite `""`, nu `null`.
+ *
+ * `z.enum(X).nullable()` RESPINGE șirul gol — verificat rulând zod-ul din
+ * depozit, nu dedus. În asistentul de înrolare asta se vedea ca un buton
+ * „Continuă” mort: `register()` trimite valoarea brută a controlului, validarea
+ * pica pe `special_regime` și pe `stare_civila`, iar niciunul dintre cele două
+ * câmpuri nu randa vreun mesaj. Trei ecrane trăiesc azi cu câte un ocol scris
+ * de mână (`stareCivila === "" ? null : …`); ocolul se mută aici o dată.
+ *
+ * MESAJUL SE DĂ DE DOUĂ ORI, deliberat — amândouă căile au fost măsurate:
+ *  · pe `z.enum(...)`, fiindcă `zodResolver` desface `invalid_union` și
+ *    raportează mesajul RAMURII (probă: întoarce „MESAJ-ENUM”, nu al uniunii);
+ *  · pe `z.union(...)`, fiindcă `z.flattenError` din `create-action.ts` citește
+ *    mesajul de la NIVELUL uniunii (probă: `fieldErrors` conține „MESAJ-UNIUNE”).
+ * Cu unul singur, una dintre cele două căi scapă textul englezesc al lui zod.
+ *
+ * `z.preprocess` ar fi fost mai scurt, dar face `z.input<>` să fie `unknown`,
+ * iar `useForm<z.input<typeof schema>>` și-ar pierde tipul pe fiecare enum.
+ */
+export const enumOptional = <const T extends readonly [string, ...string[]]>(
+  valori: T,
+  mesaj: string,
+) =>
+  z
+    .union([z.enum(valori, mesaj), z.literal(""), z.null(), z.undefined()], mesaj)
+    .transform((v): T[number] | null =>
+      v === "" || v === undefined || v === null ? null : (v as T[number]),
+    )
+    .default(null as never);
+
+/**
+ * Cele patru forme ale câmpului numeric neatins.
+ *
+ * `"   "` intră aici; `0` NU — un zero tastat de om e o valoare, nu o absență.
+ */
+const numarGol = (v: unknown): boolean =>
+  v === null || v === undefined || (typeof v === "string" && v.trim() === "");
+
+/**
+ * Ce trimite efectiv un control numeric: `FormData` dă șiruri, un apel direct
+ * de Server Action dă numere, iar react-hook-form dă `""` pe un `<input
+ * type="number">` golit — fiindcă nu se folosește `valueAsNumber`.
+ */
+const numarBrut = (mesaj: string) =>
+  z.union([z.string(), z.number(), z.null(), z.undefined()], mesaj);
+
+/** Configurarea comună a celor trei ajutoare numerice. */
+type OptiuniNumar = Readonly<{
+  min: number;
+  max: number;
+  /** Mesajul pentru „nu e un număr”. */
+  mesaj: string;
+  /** Mesajul pentru „în afara intervalului”. */
+  interval: string;
+  /**
+   * Coloana din bază e întreagă (`smallint`, `integer`).
+   *
+   * Fără el, „30,5 zile de preaviz” trece de Zod și ajunge la Postgres, care
+   * ROTUNJEȘTE tăcut la inserare într-un `smallint` — omul vede altă valoare
+   * decât a scris, fără niciun mesaj.
+   */
+  intreg?: boolean;
+}>;
+
+/** Miezul comun: coerciția și cele două praguri, cu mesajele lor distincte. */
+const miezNumar = (optiuni: OptiuniNumar) => {
+  const baza = z.coerce.number(optiuni.mesaj);
+  return (optiuni.intreg === true ? baza.int(optiuni.interval) : baza)
+    .min(optiuni.min, optiuni.interval)
+    .max(optiuni.max, optiuni.interval);
+};
+
+/**
+ * Un câmp numeric opțional.
+ *
+ * ── DE CE `.transform(...).pipe(...)` ȘI NU O UNIUNE ──────────────────────
+ * `z.coerce.number()` pe `""` dă `Number("") === 0`, iar pe `null` dă tot `0`.
+ * Ajutorul local pe care îl înlocuiește (`z.union([z.coerce.number(), z.null()])`)
+ * suferea de exact asta: un câmp lăsat gol nu producea „lipsește”, ci plafonul
+ * câmpului, calculat pe zero. Golul se scoate ÎNAINTE de coerciție.
+ *
+ * Conducta păstrează mesajele interioare, deci se poate deosebi „nu e număr” de
+ * „în afara intervalului”. O uniune le-ar fi colapsat pe amândouă într-unul.
+ */
+export const numarOptional = (optiuni: OptiuniNumar) =>
+  numarBrut(optiuni.mesaj)
+    .transform((v): unknown => (numarGol(v) ? null : v))
+    .pipe(miezNumar(optiuni).nullable())
+    .default(null as never);
+
+/**
+ * Un câmp numeric obligatoriu, care spune „lipsește” în loc să tacă pe zero.
+ *
+ * Cazul real: „Salariu de bază” golit se scria 0 RON fără niciun mesaj, iar
+ * „Normă (ore/săptămână)” golită pica `min(0.5)` cu textul englezesc al lui zod
+ * („Too small: expected number to be >=0.5”), pe un câmp care nu randa erori.
+ */
+export const numarObligatoriu = (optiuni: OptiuniNumar & Readonly<{ lipsa: string }>) =>
+  numarBrut(optiuni.mesaj)
+    .transform((v, ctx): unknown => {
+      if (numarGol(v)) {
+        ctx.addIssue({ code: "custom", message: optiuni.lipsa });
+        return z.NEVER;
+      }
+      return v;
+    })
+    .pipe(miezNumar(optiuni));
+
+/**
+ * Un câmp numeric cu implicit: golit, revine la valoarea din configurare.
+ *
+ * Pentru normă și pentru zilele de concediu — un om care golește câmpul vrea
+ * „cât e normal”, nu o eroare.
+ */
+export const numarCuImplicit = (optiuni: OptiuniNumar & Readonly<{ implicit: number }>) =>
+  numarBrut(optiuni.mesaj)
+    .transform((v): unknown => (numarGol(v) ? optiuni.implicit : v))
+    .pipe(miezNumar(optiuni))
+    .default(optiuni.implicit as never);

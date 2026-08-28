@@ -5,19 +5,30 @@ import { randomUUID } from "node:crypto";
 
 import { createAction } from "@/lib/actions/create-action";
 import { businessRule, notFound } from "@/lib/actions/errors";
-import { oreleZilei } from "@/domain/attendance/calcul-ore";
+import {
+  configZiDin,
+  intervalulPropus,
+  oreleZilei,
+  type ConfigZi,
+} from "@/domain/attendance/calcul-ore";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { formatMonthYear } from "@/lib/format/date";
+import { formatMonthYear, oraInBucharest, todayInBucharest } from "@/lib/format/date";
+import type { ActionContext } from "@/lib/actions/types";
+import { stareaCeasului } from "@/domain/attendance/ceas";
 import { setariPontaj } from "@/lib/queries/attendance";
 import { zileNelucratoare } from "@/lib/queries/leave";
 import {
   aprobaPontajBlocSchema,
+  confirmaZiuaStandardSchema,
   decideZiPontajSchema,
   deschidePerioadaSchema,
   idPerioadaSchema,
+  pontezaIesireaSchema,
+  pontezaIntrareaSchema,
   salveazaZiPontajSchema,
   sincronizeazaConcediileSchema,
+  type ModPontareRapida,
   stergeZiPontajSchema,
 } from "@/schemas/attendance";
 
@@ -55,6 +66,55 @@ function intervalulLunii(
     inceput: `${String(an)}-${doiCifre(luna)}-01`,
     sfarsit: `${String(an)}-${doiCifre(luna)}-${doiCifre(ultimaZi)}`,
   };
+}
+
+/**
+ * Fișa de angajat a utilizatorului curent, prin clientul ADMIN.
+ *
+ * Ocolirea RLS e obligatorie aici, nu comodă: rolul `employee` are
+ * `employees:read` la scope `own`, dar politica `employees_select`
+ * (0005_hr_rls.sql) nu-i deschide drumul ăsta, deci clientul autentificat nu-și
+ * poate citi nici măcar propria fișă. Filtrul pe `organization_id` e explicit,
+ * ca ESLint-ul să-l poată vedea și ca nimeni să nu-l scoată din greșeală.
+ *
+ * `is_primary = true` e cerința lui `app.current_employee_id(org)`: un cont a
+ * cărui unică fișă nu e principală primește refuz de la bază oricum, deci mai
+ * bine îl primește aici, cu un mesaj care spune ce e de făcut.
+ */
+async function fisaProprie(ctx: ActionContext): Promise<string> {
+  const admin = createAdminSupabase();
+  const { data: fisa, error } = await admin
+    .from("employees")
+    .select("id")
+    .eq("organization_id", ctx.tenant.organizationId)
+    .eq("user_id", ctx.user.id)
+    .eq("is_primary", true)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (error !== null) throw error;
+  if (fisa === null) {
+    throw businessRule(
+      "Contul dvs. nu este legat de o fișă de angajat activă în această organizație. Contactați administratorul.",
+    );
+  }
+  return fisa.id;
+}
+
+/**
+ * Tipul zilei, derivat din calendar — COPIE a `internal.pontaj_intrare_pregateste`.
+ *
+ * Necesară fiindcă tipul generat marchează `tip_zi` obligatoriu și nenul, deși
+ * triggerul l-ar deriva singur dintr-un `null`. Vezi `etichete.ts`.
+ */
+async function tipZiDerivat(ctx: ActionContext, data: string): Promise<TipZiPontaj> {
+  const an = Number(data.slice(0, 4));
+  const { nationale, organizatie } = await zileNelucratoare(ctx.tenant.organizationId, an, an);
+  return tipZiAutomat(
+    data,
+    new Set(nationale.map((z) => z.data)),
+    new Set(organizatie.filter((z) => z.tip === "zi_recuperare").map((z) => z.data)),
+    new Set(organizatie.filter((z) => z.tip === "liber_suplimentar").map((z) => z.data)),
+  );
 }
 
 export const deschidePerioada = createAction({
@@ -134,45 +194,10 @@ export const salveazaZiPontaj = createAction({
       throw businessRule("Nu aveți dreptul să înregistrați pontaj pentru alt angajat.");
     }
 
-    let employeeId = input.employee_id;
-    if (employeeId === null) {
-      // Fișa proprie via clientul admin: rolul `employee` are
-      // `employees:read = none`, deci clientul autentificat NU poate citi nici
-      // măcar propria fișă (0005_hr_rls.sql, `employees_select`). Tiparul e
-      // cel din `concedii/actions.ts`.
-      const admin = createAdminSupabase();
-      const { data: fisa, error: eroareFisa } = await admin
-        .from("employees")
-        .select("id")
-        .eq("organization_id", ctx.tenant.organizationId)
-        .eq("user_id", ctx.user.id)
-        .eq("is_primary", true)
-        .is("deleted_at", null)
-        .maybeSingle();
-      if (eroareFisa !== null) throw eroareFisa;
-      if (fisa === null) {
-        throw businessRule(
-          "Contul dvs. nu este legat de o fișă de angajat activă în această organizație. Contactați administratorul.",
-        );
-      }
-      employeeId = fisa.id;
-    }
+    const employeeId = input.employee_id ?? (await fisaProprie(ctx));
 
-    // Tipul zilei: alegerea explicită a utilizatorului, sau derivarea
-    // automată — COPIE a `internal.pontaj_intrare_pregateste` (vezi
-    // `etichete.ts`). Necesară fiindcă tipul generat marchează `tip_zi`
-    // obligatoriu și nenul, deși triggerul l-ar deriva singur la `null`.
-    let tipZi = input.tip_zi;
-    if (tipZi === null) {
-      const an = Number(input.data.slice(0, 4));
-      const { nationale, organizatie } = await zileNelucratoare(ctx.tenant.organizationId, an, an);
-      tipZi = tipZiAutomat(
-        input.data,
-        new Set(nationale.map((z) => z.data)),
-        new Set(organizatie.filter((z) => z.tip === "zi_recuperare").map((z) => z.data)),
-        new Set(organizatie.filter((z) => z.tip === "liber_suplimentar").map((z) => z.data)),
-      );
-    }
+    // Tipul zilei: alegerea explicită a utilizatorului, sau derivarea automată.
+    const tipZi = input.tip_zi ?? (await tipZiDerivat(ctx, input.data));
 
     // ── Orele, rescrise pe server când ziua vine dintr-un interval ──────────
     //
@@ -191,31 +216,42 @@ export const salveazaZiPontaj = createAction({
     let oreSuplimentare = input.ore_suplimentare;
     let oreNoapte = input.ore_noapte;
 
-    if (ctx.scope !== "all" && input.ora_inceput !== null && input.ora_sfarsit !== null) {
-      // `input.data`, nu începutul perioadei: setările au istoric
-      // (`valabil_de_la`), iar ziua pontată e data la care se aplică.
-      const setari = await setariPontaj(ctx.tenant.organizationId, input.data);
-
-      // Aceleași valori de rezervă ca în `/pontaj/page.tsx`: absența
-      // setărilor e normală, nu o eroare (nu există seed). Pauza implicită e
-      // ZERO și „inclusă în program", adică nu se scade nimic — o firmă care
-      // n-a configurat nimic nu trebuie să piardă tăcut ore din pontaj.
-      const derivate = oreleZilei(input.ora_inceput, input.ora_sfarsit, {
-        orePeZi: setari?.ore_pe_zi ?? 8,
-        noapteStart: setari?.noapte_start.slice(0, 5) ?? "22:00",
-        noapteSfarsit: setari?.noapte_sfarsit.slice(0, 5) ?? "06:00",
-        pauzaMinute: setari?.pauza_masa_minute ?? 0,
-        pauzaInclusaInProgram: setari?.pauza_masa_inclusa_in_program ?? true,
-        pauzaObligatoriePesteOre: setari?.pauza_obligatorie_peste_ore ?? 0,
-      });
-      if (derivate === null) {
-        throw businessRule(
-          "Ora de ieșire trebuie să fie după ora de intrare, în aceeași zi. Tura care trece de miezul nopții se înregistrează de responsabilul de pontaj.",
-        );
+    if (ctx.scope !== "all") {
+      if (input.ora_inceput !== null && input.ora_sfarsit !== null) {
+        // `input.data`, nu începutul perioadei: setările au istoric
+        // (`valabil_de_la`), iar ziua pontată e data la care se aplică.
+        const setari = await setariPontaj(ctx.tenant.organizationId, input.data);
+        const derivate = oreleZilei(input.ora_inceput, input.ora_sfarsit, configZiDin(setari));
+        if (derivate === null) {
+          throw businessRule(
+            "Ora de ieșire trebuie să fie după ora de intrare, în aceeași zi. Tura care trece de miezul nopții se înregistrează de responsabilul de pontaj.",
+          );
+        }
+        oreLucrate = derivate.lucrate;
+        oreSuplimentare = derivate.suplimentare;
+        oreNoapte = derivate.noapte;
+      } else {
+        /*
+         * GAURA DE ÎNCREDERE, închisă.
+         *
+         * Rederivarea de mai sus se făcea DOAR când ambele ore erau prezente.
+         * Cu ora de ieșire lipsă, cifrele venite de la client se scriau ca
+         * atare — inclusiv pentru scope `own`. Cât timp formularul angajatului
+         * cerea obligatoriu ambele ore, combinația nu se producea niciodată și
+         * defectul dormea.
+         *
+         * Pontarea în doi timpi (0096) o face LEGITIMĂ: o zi deschisă cu ceasul
+         * are exact forma asta. Fără ramura de aici, o cerere fabricată ar scrie
+         * orice număr de ore suplimentare, cu spor, pe propria fișă.
+         *
+         * ZERO explicit, nu `null`: `ore_lucrate` e `not null default 0`
+         * (0013:141), iar tipul generat o marchează opțională, nu nullabilă —
+         * un `null` ar trece de `tsc` și ar cădea cu 23502 abia la runtime.
+         */
+        oreLucrate = 0;
+        oreSuplimentare = 0;
+        oreNoapte = 0;
       }
-      oreLucrate = derivate.lucrate;
-      oreSuplimentare = derivate.suplimentare;
-      oreNoapte = derivate.noapte;
     }
 
     const db = await createServerSupabase();
@@ -296,6 +332,420 @@ export const salveazaZiPontaj = createAction({
   },
 });
 
+// ── Pontarea rapidă (0096) ───────────────────────────────────────────────────
+//
+// Trei acțiuni care au în comun un lucru esențial: NU primesc de la client nici
+// ora, nici orele, nici angajatul. Ora vine din `ctx.now` — ceasul serverului —,
+// orele se derivă din setările organizației, iar fișa se rezolvă din sesiune.
+// Un telefon cu ora mutată nu poate produce ore de muncă.
+
+/** Ce a aflat preambulul comun, înainte ca vreo scriere să înceapă. */
+interface PregatirePontare {
+  readonly employeeId: string;
+  /** Ziua calendaristică ROMÂNEASCĂ, nu UTC. */
+  readonly azi: string;
+  /** `"07:32"`, din ceasul serverului. */
+  readonly acum: string;
+  readonly config: ConfigZi;
+  readonly setari: Awaited<ReturnType<typeof setariPontaj>>;
+  readonly punctLucruId: string | null;
+  /** Numele punctului scanat, ca ecranul să poată confirma UNDE s-a pontat. */
+  readonly punctLucruDenumire: string | null;
+}
+
+/**
+ * Preambulul comun celor trei acțiuni: modul activ, dovada de prezență, fișa.
+ *
+ * Ordinea nu e arbitrară — se verifică întâi ce e ieftin și refuză cel mai des
+ * (modul oprit), abia apoi se plătesc drumurile la bază.
+ */
+async function pregatirePontareRapida(
+  ctx: ActionContext,
+  cod: string | null,
+  moduriPermise: readonly ModPontareRapida[],
+): Promise<PregatirePontare> {
+  const azi = todayInBucharest();
+  const setari = await setariPontaj(ctx.tenant.organizationId, azi);
+
+  const mod = (setari?.mod_pontare_rapida ?? "oprit") as ModPontareRapida;
+  if (!moduriPermise.includes(mod)) {
+    throw businessRule(
+      "Pontarea rapidă nu este activată în acest fel pentru firma dumneavoastră. Completați ziua din „Pontajul meu”.",
+    );
+  }
+
+  /*
+   * Dovada de prezență.
+   *
+   * Codul se rezolvă cu clientul ADMIN, cu filtru explicit pe organizație:
+   * politica `puncte_lucru_select` (0030) cere `departments:read <> 'none'`, iar
+   * rolul `employee` n-are NICIO permisiune pe `departments` (0002:1206-1219).
+   * Deci angajatul nu poate — și nu trebuie să poată — citi tabela.
+   *
+   * Se spune pe față ce dovedește: că cineva a fost lângă afiș. Nu că angajatul
+   * era acolo. E o frână, nu o probă.
+   */
+  let punctLucruId: string | null = null;
+  let punctLucruDenumire: string | null = null;
+  if ((setari?.verificare_pontare ?? "fara") === "cod_qr") {
+    if (cod === null) {
+      throw businessRule("Firma cere scanarea codului de la punctul de lucru înainte de pontare.");
+    }
+    const admin = createAdminSupabase();
+    const { data: punct, error } = await admin
+      .from("puncte_lucru")
+      .select("id, denumire")
+      .eq("organization_id", ctx.tenant.organizationId)
+      .eq("cod_pontaj", cod)
+      .eq("activ", true)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (error !== null) throw error;
+    if (punct === null) {
+      throw businessRule(
+        "Codul scanat nu aparține niciunui punct de lucru activ al firmei. Cereți un afiș nou responsabilului.",
+      );
+    }
+    punctLucruId = punct.id;
+    punctLucruDenumire = punct.denumire;
+  }
+
+  return {
+    employeeId: await fisaProprie(ctx),
+    azi,
+    acum: oraInBucharest(ctx.now),
+    config: configZiDin(setari),
+    setari,
+    punctLucruId,
+    punctLucruDenumire,
+  };
+}
+
+/** Ziua de azi a angajatului, în forma de care are nevoie `stareaCeasului`. */
+async function ziuaDeAzi(
+  ctx: ActionContext,
+  employeeId: string,
+  azi: string,
+): Promise<{
+  readonly id: string;
+  readonly ora_inceput: string | null;
+  readonly ora_sfarsit: string | null;
+  readonly ore_lucrate: number | null;
+  readonly leave_request_id: string | null;
+  readonly tip_zi: string;
+} | null> {
+  // Citire-apoi-INSERT-sau-UPDATE, niciodată `.upsert()`: indexul unic
+  // `attendance_entries_zi_uq` e PARȚIAL (`where deleted_at is null`), iar
+  // PostgREST nu emite predicatul în `ON CONFLICT` — un `.upsert()` cade cu 42P10.
+  const { data, error } = await ctx.supabase
+    .from("attendance_entries")
+    .select("id, ora_inceput, ora_sfarsit, ore_lucrate, leave_request_id, tip_zi")
+    .eq("organization_id", ctx.tenant.organizationId)
+    .eq("employee_id", employeeId)
+    .eq("data", azi)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (error !== null) throw error;
+  return data;
+}
+
+export const pontezaIntrarea = createAction({
+  name: "attendance.entry.clock_in",
+  feature: "attendance",
+  permission: "attendance:create",
+  minScope: "own",
+  input: pontezaIntrareaSchema,
+  audit: {
+    action: "create",
+    entityType: "attendance_entry",
+    entityId: (_input, data: Readonly<{ id: string }>) => data.id,
+    // Lista e GOALĂ deliberat: singurul câmp de intrare e codul de pe afiș, un
+    // token care n-are ce căuta scris în clar în jurnalul de audit. Ce contează
+    // — cine, când, pe ce rând — e deja înregistrat de `createAction`.
+    allow: [],
+  },
+  revalidate: [...CAI_REVALIDARE],
+  handler: async (
+    ctx,
+    input,
+  ): Promise<
+    Readonly<{
+      id: string;
+      ora_inceput: string;
+      reluare: boolean;
+      punct_lucru: string | null;
+    }>
+  > => {
+    const p = await pregatirePontareRapida(ctx, input.cod_punct_lucru, ["ceas", "ambele"]);
+    const existenta = await ziuaDeAzi(ctx, p.employeeId, p.azi);
+    const stare = stareaCeasului(existenta, p.acum);
+
+    /*
+     * IDEMPOTENȚĂ, nu eroare.
+     *
+     * `createAction` n-are limitare de rată, iar o a doua atingere pe o rețea
+     * proastă e cel mai firesc lucru din lume. Fără ramura asta, al doilea INSERT
+     * cade cu 23505 pe indexul unic parțial, iar omul citește „Există deja o zi
+     * de pontaj" pentru o operațiune care A REUȘIT. Prima lui experiență cu
+     * „pontarea rapidă" devine „nu merge".
+     */
+    if (stare.fel === "in_curs" && existenta !== null) {
+      return {
+        id: existenta.id,
+        ora_inceput: stare.oraInceput,
+        reluare: true,
+        punct_lucru: p.punctLucruDenumire,
+      };
+    }
+    if (stare.fel === "incheiata") {
+      throw businessRule(
+        `Ziua de azi este deja pontată, de la ${stare.oraInceput} până la ${stare.oraSfarsit}.`,
+      );
+    }
+    if (stare.fel === "alta_sursa") {
+      throw businessRule(
+        "Ziua de azi este deja înregistrată — din concediu, din foaia colectivă sau ca absență. Pentru o corectură, întrebați responsabilul de pontaj.",
+      );
+    }
+
+    const randNou = {
+      ora_inceput: p.acum,
+      ora_sfarsit: null,
+      // ZERO explicit, niciodată `null`: `ore_lucrate` e `not null default 0`
+      // (0013:141) și ar cădea cu 23502, cu typecheck verde.
+      ore_lucrate: 0,
+      ore_suplimentare: 0,
+      ore_noapte: 0,
+      punct_lucru_id: p.punctLucruId,
+      sursa: "pontare_rapida" as const,
+    };
+
+    if (existenta !== null) {
+      // Rând gol, fără interval și fără ore — un loc liber pe care îl deschidem.
+      const { data, error } = await ctx.supabase
+        .from("attendance_entries")
+        .update(randNou)
+        .eq("id", existenta.id)
+        .eq("organization_id", ctx.tenant.organizationId)
+        .select("id")
+        .maybeSingle();
+      if (error !== null) traduEroare(error);
+      if (data === null) {
+        throw businessRule(
+          "Ziua a fost aprobată sau luna a fost blocată între timp, deci nu mai poate fi deschisă.",
+        );
+      }
+      return {
+        id: data.id,
+        ora_inceput: p.acum,
+        reluare: false,
+        punct_lucru: p.punctLucruDenumire,
+      };
+    }
+
+    const { data, error } = await ctx.supabase
+      .from("attendance_entries")
+      .insert({
+        organization_id: ctx.tenant.organizationId,
+        // Placeholder inert: `internal.pontaj_intrare_pregateste` suprascrie
+        // necondiționat `period_id` la INSERT — sau aruncă P0001 (luna
+        // nedeschisă / blocată) ÎNAINTE de atribuire.
+        period_id: randomUUID(),
+        employee_id: p.employeeId,
+        data: p.azi,
+        tip_zi: await tipZiDerivat(ctx, p.azi),
+        ...randNou,
+      })
+      .select("id")
+      .single();
+    if (error !== null) traduEroare(error);
+
+    return {
+      id: data.id,
+      ora_inceput: p.acum,
+      reluare: false,
+      punct_lucru: p.punctLucruDenumire,
+    };
+  },
+});
+
+export const pontezaIesirea = createAction({
+  name: "attendance.entry.clock_out",
+  feature: "attendance",
+  permission: "attendance:create",
+  minScope: "own",
+  input: pontezaIesireaSchema,
+  audit: {
+    action: "update",
+    entityType: "attendance_entry",
+    entityId: (_input, data: Readonly<{ id: string }>) => data.id,
+    allow: [],
+  },
+  revalidate: [...CAI_REVALIDARE],
+  handler: async (
+    ctx,
+    input,
+  ): Promise<Readonly<{ id: string; ora_sfarsit: string; ore_lucrate: number }>> => {
+    const p = await pregatirePontareRapida(ctx, input.cod_punct_lucru, ["ceas", "ambele"]);
+    const existenta = await ziuaDeAzi(ctx, p.employeeId, p.azi);
+    const stare = stareaCeasului(existenta, p.acum);
+
+    if (existenta === null || stare.fel !== "in_curs") {
+      throw businessRule("Nu aveți nicio zi deschisă astăzi. Apăsați întâi „Am intrat”.");
+    }
+
+    const derivate = oreleZilei(stare.oraInceput, p.acum, p.config);
+    if (derivate === null) {
+      /*
+       * Două cauze, același refuz. Ori ziua a fost deschisă aseară și n-a fost
+       * închisă — modelul are un rând pe zi și ore fără dată, deci tura peste
+       * miezul nopții nu se poate exprima —, ori ieșirea cade exact pe ora
+       * intrării. În ambele cazuri, corectura e a responsabilului de pontaj.
+       */
+      throw businessRule(
+        `Ziua a fost deschisă la ${stare.oraInceput} și nu se poate închide la ${p.acum}. Tura care trece de miezul nopții se înregistrează de responsabilul de pontaj.`,
+      );
+    }
+
+    // `.select()` DUPĂ `.update()`: un UPDATE respins de clauza `USING` afectează
+    // ZERO rânduri, fără nicio eroare. Aici se întâmplă exact atunci când ziua a
+    // fost aprobată în bloc la prânz — cazul pentru care există și constrângerea
+    // `attendance_entries_aprobare_zi_incheiata_ck` din 0096.
+    const { data, error } = await ctx.supabase
+      .from("attendance_entries")
+      .update({
+        ora_sfarsit: p.acum,
+        ore_lucrate: derivate.lucrate,
+        ore_suplimentare: derivate.suplimentare,
+        ore_noapte: derivate.noapte,
+      })
+      .eq("id", existenta.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle();
+    if (error !== null) traduEroare(error);
+    if (data === null) {
+      throw businessRule(
+        "Ziua a fost aprobată sau luna a fost blocată între timp, deci nu mai poate fi închisă. Anunțați responsabilul de pontaj.",
+      );
+    }
+
+    return { id: data.id, ora_sfarsit: p.acum, ore_lucrate: derivate.lucrate };
+  },
+});
+
+export const confirmaZiuaStandard = createAction({
+  name: "attendance.entry.confirm_standard",
+  feature: "attendance",
+  permission: "attendance:create",
+  minScope: "own",
+  input: confirmaZiuaStandardSchema,
+  audit: {
+    action: "create",
+    entityType: "attendance_entry",
+    entityId: (_input, data: Readonly<{ id: string }>) => data.id,
+    allow: [],
+  },
+  revalidate: [...CAI_REVALIDARE],
+  handler: async (
+    ctx,
+    input,
+  ): Promise<
+    Readonly<{ id: string; ora_inceput: string; ora_sfarsit: string; ore_lucrate: number }>
+  > => {
+    const p = await pregatirePontareRapida(ctx, input.cod_punct_lucru, ["confirmare", "ambele"]);
+
+    const programStart = p.setari?.program_start;
+    if (programStart === null || programStart === undefined) {
+      throw businessRule(
+        "Firma nu are declarată ora de început a programului, deci nu se poate propune un interval.",
+      );
+    }
+    // `time` din Postgres vine cu secunde: `"08:00:00"`.
+    const interval = intervalulPropus(programStart.slice(0, 5), p.config);
+    if (interval === null) {
+      throw businessRule(
+        "Programul declarat de firmă nu încape într-o singură zi calendaristică. Completați ziua din „Pontajul meu”.",
+      );
+    }
+    const derivate = oreleZilei(interval.inceput, interval.sfarsit, p.config);
+    if (derivate === null) {
+      throw businessRule("Programul declarat de firmă nu produce un interval valid.");
+    }
+
+    const existenta = await ziuaDeAzi(ctx, p.employeeId, p.azi);
+    const stare = stareaCeasului(existenta, p.acum);
+    if (stare.fel === "in_curs") {
+      throw businessRule(
+        `Aveți o zi deschisă de la ${stare.oraInceput}. Închideți-o cu „Am ieșit”.`,
+      );
+    }
+    if (stare.fel === "incheiata") {
+      throw businessRule(
+        `Ziua de azi este deja pontată, de la ${stare.oraInceput} până la ${stare.oraSfarsit}.`,
+      );
+    }
+    if (stare.fel === "alta_sursa") {
+      throw businessRule(
+        "Ziua de azi este deja înregistrată — din concediu, din foaia colectivă sau ca absență. Pentru o corectură, întrebați responsabilul de pontaj.",
+      );
+    }
+
+    const valori = {
+      ora_inceput: interval.inceput,
+      ora_sfarsit: interval.sfarsit,
+      ore_lucrate: derivate.lucrate,
+      ore_suplimentare: derivate.suplimentare,
+      ore_noapte: derivate.noapte,
+      punct_lucru_id: p.punctLucruId,
+      sursa: "pontare_rapida" as const,
+    };
+
+    if (existenta !== null) {
+      const { data, error } = await ctx.supabase
+        .from("attendance_entries")
+        .update(valori)
+        .eq("id", existenta.id)
+        .eq("organization_id", ctx.tenant.organizationId)
+        .select("id")
+        .maybeSingle();
+      if (error !== null) traduEroare(error);
+      if (data === null) {
+        throw businessRule(
+          "Ziua a fost aprobată sau luna a fost blocată între timp, deci nu mai poate fi completată.",
+        );
+      }
+      return {
+        id: data.id,
+        ora_inceput: interval.inceput,
+        ora_sfarsit: interval.sfarsit,
+        ore_lucrate: derivate.lucrate,
+      };
+    }
+
+    const { data, error } = await ctx.supabase
+      .from("attendance_entries")
+      .insert({
+        organization_id: ctx.tenant.organizationId,
+        period_id: randomUUID(),
+        employee_id: p.employeeId,
+        data: p.azi,
+        tip_zi: await tipZiDerivat(ctx, p.azi),
+        ...valori,
+      })
+      .select("id")
+      .single();
+    if (error !== null) traduEroare(error);
+
+    return {
+      id: data.id,
+      ora_inceput: interval.inceput,
+      ora_sfarsit: interval.sfarsit,
+      ore_lucrate: derivate.lucrate,
+    };
+  },
+});
+
 export const stergeZiPontaj = createAction({
   name: "attendance.entry.delete",
   feature: "attendance",
@@ -364,7 +814,10 @@ export const aprobaPontajBloc = createAction({
     allow: ["period_id", "department_id"],
   },
   revalidate: [...CAI_REVALIDARE],
-  handler: async (ctx, input): Promise<Readonly<{ id: string; liniiAprobate: number }>> => {
+  handler: async (
+    ctx,
+    input,
+  ): Promise<Readonly<{ id: string; liniiAprobate: number; zileDeschise: number }>> => {
     // (1) Perioada, cu clientul utilizatorului.
     const { data: perioada, error: eroarePerioada } = await ctx.supabase
       .from("attendance_periods")
@@ -393,13 +846,18 @@ export const aprobaPontajBloc = createAction({
     // luna în „în aprobare” și raporta succes — cele 12 rămase nu apăreau
     // nicăieri ca problemă, iar o blocare ulterioară le îngheța neaprobate,
     // fără cale de întoarcere în afară de redeschiderea lunii.
-    const liniiVizibile: { readonly id: string; readonly employee_id: string }[] = [];
+    const liniiVizibile: {
+      readonly id: string;
+      readonly employee_id: string;
+      readonly ora_inceput: string | null;
+      readonly ora_sfarsit: string | null;
+    }[] = [];
     let completCitit = false;
     for (let pagina = 0; pagina < MAXIM_PAGINI_APROBARE; pagina += 1) {
       const deLa = pagina * PAGINA_APROBARE;
       const { data: lot, error: eroareLinii } = await ctx.supabase
         .from("attendance_entries")
-        .select("id, employee_id")
+        .select("id, employee_id, ora_inceput, ora_sfarsit")
         .eq("organization_id", ctx.tenant.organizationId)
         .eq("period_id", input.period_id)
         .is("approved_at", null)
@@ -434,11 +892,33 @@ export const aprobaPontajBloc = createAction({
       idAngajatiDepartament = new Set((angajatiDepartament ?? []).map((a) => a.id));
     }
 
-    const idDeAprobat = liniiVizibile
-      .filter((l) => idAngajatiDepartament === null || idAngajatiDepartament.has(l.employee_id))
+    const inSelectie = liniiVizibile.filter(
+      (l) => idAngajatiDepartament === null || idAngajatiDepartament.has(l.employee_id),
+    );
+
+    /*
+     * ZILELE ÎN CURS SE SAR, ȘI SE SPUNE CÂTE.
+     *
+     * O zi deschisă cu ceasul la 07:32 și neînchisă încă arată exact ca o zi
+     * neaprobată oarecare. Aprobată la prânz, „Am ieșit" de la ora 17 e apoi
+     * respins de clauza `USING` a politicii — ZERO rânduri, FĂRĂ eroare — iar
+     * ziua rămâne înghețată la 0 ore, pe care salarizarea le agregă tăcut.
+     *
+     * Constrângerea `attendance_entries_aprobare_zi_incheiata_ck` (0096) ar face
+     * acum aprobarea să cadă cu 23514 — dar ar cădea ÎNTREGUL lot, pentru o
+     * singură zi deschisă. Deci filtrul de aici nu e ornament pe lângă
+     * constrângere: e calea normală, iar constrângerea e plasa de sub ea.
+     */
+    const deschise = inSelectie.filter((l) => l.ora_inceput !== null && l.ora_sfarsit === null);
+    const idDeAprobat = inSelectie
+      .filter((l) => !(l.ora_inceput !== null && l.ora_sfarsit === null))
       .map((l) => l.id);
     if (idDeAprobat.length === 0) {
-      throw businessRule("Nu există linii de pontaj neaprobate pentru selecția aleasă.");
+      throw businessRule(
+        deschise.length === 0
+          ? "Nu există linii de pontaj neaprobate pentru selecția aleasă."
+          : "Toate zilele neaprobate din selecție sunt încă deschise — cineva a apăsat „Am intrat” și n-a apăsat „Am ieșit”. Nu se pot aproba așa.",
+      );
     }
 
     // (3) Lotul, cu clientul utilizatorului. `linii_aprobate` rămâne pe
@@ -513,7 +993,10 @@ export const aprobaPontajBloc = createAction({
       }
     }
 
-    return { id: lot.id, liniiAprobate: idDeAprobat.length };
+    // `zileDeschise` NU e un detaliu tehnic: e numărul de oameni care au uitat
+    // să-și închidă ziua și pe care aprobarea tocmai i-a sărit. Ecranul îl
+    // afișează; tăcut, ar fi exact tiparul de defect pe care îl repară.
+    return { id: lot.id, liniiAprobate: idDeAprobat.length, zileDeschise: deschise.length };
   },
 });
 

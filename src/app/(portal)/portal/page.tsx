@@ -16,7 +16,10 @@ import { buton } from "@/components/ui/buton";
 import { getEnabledFeatures } from "@/lib/auth/features";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { formatDate, todayInBucharest } from "@/lib/format/date";
+import { formatDate, oraInBucharest, todayInBucharest } from "@/lib/format/date";
+import { citestePerioada, setariPontaj } from "@/lib/queries/attendance";
+import { configZiDin, intervalulPropus } from "@/domain/attendance/calcul-ore";
+import { stareaCeasului } from "@/domain/attendance/ceas";
 import { cn } from "@/lib/ui/cn";
 import { anunturiPublicate, idAnunturiCitite } from "@/lib/queries/announcements";
 import { cursurileMele, restanteDinCursuri } from "@/lib/queries/cursuri";
@@ -30,6 +33,8 @@ import {
 
 import { ETICHETE_STATUS_CERERE, ETICHETE_TIP_ZI, TONURI_STATUS_CERERE } from "./etichete";
 import { FaraFisa } from "./fara-fisa";
+import { IndemnInstalare } from "./indemn-instalare";
+import { PontareRapida } from "./pontare-rapida";
 
 export const metadata: Metadata = { title: "Portalul meu" };
 
@@ -63,21 +68,27 @@ export default async function PaginaPortal() {
   const poatePontaZiua =
     moduleActive.has("attendance") && can(permisiuni, "attendance:create", "own");
 
-  const [solduri, cereri, tipuri, zile, anunturi, citite, cursuri] = await Promise.all([
-    vedeConcedii ? soldurileMele(tenant.organizationId, an, fisa.id) : Promise.resolve([]),
-    vedeConcedii ? cererileMele(tenant.organizationId, fisa.id, 20) : Promise.resolve([]),
-    vedeConcedii
-      ? tipuriConcediu(tenant.organizationId)
-      : Promise.resolve(new Map<string, { denumire: string; scade_din_sold: boolean }>()),
-    vedePontaj ? pontajulMeu(tenant.organizationId, an, luna, fisa.id) : Promise.resolve([]),
-    vedeAnunturi
-      ? anunturiPublicate(tenant.organizationId, new Date().toISOString())
-      : Promise.resolve([]),
-    vedeAnunturi
-      ? idAnunturiCitite(tenant.organizationId, fisa.id)
-      : Promise.resolve(new Set<string>()),
-    vedeCursuri ? cursurileMele(tenant.organizationId, fisa.id) : Promise.resolve([]),
-  ]);
+  const [solduri, cereri, tipuri, zile, anunturi, citite, cursuri, perioada, setari] =
+    await Promise.all([
+      vedeConcedii ? soldurileMele(tenant.organizationId, an, fisa.id) : Promise.resolve([]),
+      vedeConcedii ? cererileMele(tenant.organizationId, fisa.id, 20) : Promise.resolve([]),
+      vedeConcedii
+        ? tipuriConcediu(tenant.organizationId)
+        : Promise.resolve(new Map<string, { denumire: string; scade_din_sold: boolean }>()),
+      vedePontaj ? pontajulMeu(tenant.organizationId, an, luna, fisa.id) : Promise.resolve([]),
+      vedeAnunturi
+        ? anunturiPublicate(tenant.organizationId, new Date().toISOString())
+        : Promise.resolve([]),
+      vedeAnunturi
+        ? idAnunturiCitite(tenant.organizationId, fisa.id)
+        : Promise.resolve(new Set<string>()),
+      vedeCursuri ? cursurileMele(tenant.organizationId, fisa.id) : Promise.resolve([]),
+      // Perioada și setările intră în ACELAȘI `Promise.all`, nu după el: puse în
+      // urma unei interogări deja plecate, ar plăti un al doilea drum dus-întors
+      // pe fiecare deschidere a aplicației.
+      poatePontaZiua ? citestePerioada(tenant.organizationId, an, luna) : Promise.resolve(null),
+      poatePontaZiua ? setariPontaj(tenant.organizationId, azi) : Promise.resolve(null),
+    ]);
 
   // Soldul despre care se întreabă e cel de odihnă: dintre tipurile care SCAD
   // din sold, cel cu dreptul anual cel mai mare. Fără filtrul pe
@@ -89,6 +100,23 @@ export default async function PaginaPortal() {
       .sort((a, b) => b.drept_anual - a.drept_anual)[0] ?? null;
 
   const ziDeAzi = zile.find((z) => z.data === azi) ?? null;
+
+  /*
+   * Pontarea rapidă (0096). Modul e `oprit` până când firma îl aprinde din
+   * `/pontaj/setari`, deci pentru orice organizație existentă ecranul rămâne
+   * exact ce era.
+   *
+   * Ora vine din ceasul SERVERULUI, ca și la scriere: aici doar decide ce buton
+   * se desenează, dar dacă ecranul și acțiunea ar folosi ceasuri diferite,
+   * butonul ar arăta „Am ieșit" pentru o zi pe care serverul o crede neîncepută.
+   */
+  const modPontare = setari?.mod_pontare_rapida ?? "oprit";
+  const configZi = configZiDin(setari);
+  const stareCeas = stareaCeasului(ziDeAzi, oraInBucharest(new Date()));
+  const intervalPropus =
+    setari?.program_start === null || setari?.program_start === undefined
+      ? null
+      : intervalulPropus(setari.program_start.slice(0, 5), configZi);
   const oreLuna = zile.reduce((total, z) => total + (z.ore_lucrate ?? 0), 0);
   const suplimentareLuna = zile.reduce((total, z) => total + (z.ore_suplimentare ?? 0), 0);
 
@@ -117,6 +145,14 @@ export default async function PaginaPortal() {
             {fisa.hired_on === null ? null : ` · angajat din ${formatDate(fisa.hired_on)}`}
           </p>
         </section>
+
+        {/*
+          Invitația de instalare stă sub salut, nu peste el: e utilă o dată, iar
+          după ce omul a instalat (sau a închis-o) dispare definitiv. Componenta
+          decide singură — pe laptop și în aplicația deja instalată nu randează
+          nimic, deci nu are nevoie de nicio poartă aici.
+        */}
+        <IndemnInstalare />
 
         {/*
           Cardul promovat al cursurilor. DISPARE complet când nu e nimic de
@@ -197,17 +233,33 @@ export default async function PaginaPortal() {
             <h2 id="azi" className="text-foreground text-corp font-semibold">
               Astăzi
             </h2>
+            {poatePontaZiua && modPontare !== "oprit" ? (
+              <PontareRapida
+                stare={stareCeas}
+                mod={modPontare}
+                intervalPropus={intervalPropus}
+                numeFirma={tenant.name}
+                cereCod={(setari?.verificare_pontare ?? "fara") === "cod_qr"}
+                lunaDeschisa={perioada !== null && perioada.status === "deschisa"}
+              />
+            ) : null}
+
             {ziDeAzi === null ? (
               <>
-                <p className="text-muted-foreground text-corp mt-1">
-                  Nu e pontat nimic pe ziua de azi.
-                </p>
-                {poatePontaZiua ? (
+                {modPontare === "oprit" ? (
+                  <p className="text-muted-foreground text-corp mt-1">
+                    Nu e pontat nimic pe ziua de azi.
+                  </p>
+                ) : null}
+                {/* Formularul cu ore rămâne accesibil chiar și cu pontarea
+                    rapidă pornită: ziua neobișnuită — venit mai târziu, plecat
+                    mai devreme — se completează tot de aici. */}
+                {poatePontaZiua && perioada !== null && perioada.status === "deschisa" ? (
                   <Link
                     href={`/portal/pontajul-meu/zi/${azi}`}
                     className="text-primary text-corp mt-2 inline-block underline-offset-2 hover:underline"
                   >
-                    Completează ziua
+                    {modPontare === "oprit" ? "Completează ziua" : "A fost altfel? Scrie orele"}
                   </Link>
                 ) : null}
               </>
