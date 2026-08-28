@@ -49,6 +49,10 @@ jobs:
       actions: read
     outputs:
       rulam: ${{ steps.decide.outputs.rulam }}
+      # „Am apucat să evaluez starea" — adevărat și când nu e nimic de rescris.
+      # Jurnalul zilei atârnă de ăsta, nu de `rulam`: o noapte fără pagini
+      # învechite e tot o noapte în care rutina a rulat, și asta trebuie să se vadă.
+      activ: ${{ steps.decide.outputs.activ }}
       motiv: ${{ steps.decide.outputs.motiv }}
       pagini: ${{ steps.decide.outputs.pagini }}
       sha: ${{ steps.decide.outputs.sha }}
@@ -131,9 +135,10 @@ jobs:
           fi
           n=$(echo "$lista" | jq 'length')
           echo "pagini=$lista" >> "$GITHUB_OUTPUT"
+          echo "activ=true" >> "$GITHUB_OUTPUT"
           if [ "$n" = "0" ]; then
             { echo "rulam=false"; echo "motiv=nicio pagină învechită"; } >> "$GITHUB_OUTPUT"
-            echo "::notice::Vault-ul e la zi."
+            echo "::notice::Vault-ul e la zi — se scrie doar jurnalul zilei."
           else
             { echo "rulam=true"; echo "motiv=$n pagini"; } >> "$GITHUB_OUTPUT"
           fi
@@ -271,7 +276,7 @@ jobs:
   consolidare:
     name: Verifică și publică
     needs: [triaj, pagina]
-    if: always() && needs.triaj.outputs.rulam == 'true'
+    if: always() && needs.triaj.outputs.activ == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -291,11 +296,13 @@ jobs:
         run: node scripts/docs/lint-vault.mjs --json > "$RUNNER_TEMP/lint-inainte.json" || true
 
       - uses: actions/download-artifact@v4
+        if: needs.triaj.outputs.rulam == 'true'
         with:
           path: ${{ runner.temp }}/artefacte
           pattern: pagina-*
 
       - name: Aplică paginile
+        if: needs.triaj.outputs.rulam == 'true'
         run: |
           set -uo pipefail
           aplicate=0
@@ -327,6 +334,7 @@ jobs:
           echo "Pagini aplicate: $aplicate"
 
       - name: Agenții au putut chiar să scrie?
+        if: needs.triaj.outputs.rulam == 'true'
         # Prima rulare reală a raportat `success` cu zero pagini schimbate, deși
         # toți patru agenții pregătiseră rescrieri complete și fuseseră refuzați la
         # scriere. „Nicio schimbare" e un rezultat valid DOAR dacă agentul a decis
