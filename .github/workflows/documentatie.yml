@@ -203,6 +203,14 @@ jobs:
           # Promptul se compune dintr-un șablon, nu dintr-un heredoc: terminatorul
           # la coloana 0 rupe blocul `run: |` din YAML, iar unul indentat nu e
           # recunoscut de bash. `prompt.mjs` substituie DOAR variabile numite.
+          #
+          # `bypassPermissions`, nu `acceptEdits`: orice cale sub `.claude/` e
+          # tratată de harness ca fișier sensibil și cere aprobare explicită, care
+          # într-o rulare neinteractivă nu poate veni. Prima rulare reală a pierdut
+          # patru rescrieri complete exact așa, raportând `success`. Izolarea nu
+          # vine de la promptul de permisiune, ci de la job: `contents: read`, fără
+          # credențiale git, fără `Bash` — plus poarta structurală din `consolidare`,
+          # care abandonează la orice modificare în afara vault-ului.
           REPO="$GITHUB_REPOSITORY" SHA_VECHI="$VECHI" SHA_NOU="$GITHUB_SHA" \
             node scripts/docs/prompt.mjs .github/documentatie-prompt.md "$DIR/prompt.txt"
 
@@ -215,7 +223,7 @@ jobs:
             --max-turns 40 \
             --mcp-config '{"mcpServers":{}}' \
             --strict-mcp-config \
-            --permission-mode acceptEdits \
+            --permission-mode bypassPermissions \
             --output-format json \
             > "$DIR/sesiune.json" 2> "$DIR/stderr.log"
           cod=$?
@@ -234,6 +242,9 @@ jobs:
           mkdir -p "$DIR/livrare/$(dirname "$PAGINA")"
           cp "$PAGINA" "$DIR/livrare/$PAGINA"
           cp "$DIR/rezumat.json" "$DIR/livrare/rezumat.json" 2>/dev/null || echo '{"modificata":false}' > "$DIR/livrare/rezumat.json"
+          # Dacă agentul n-a putut scrie pagina și a lăsat o propunere, o ducem cu
+          # noi: altfel munca lui se pierde odată cu runner-ul.
+          find "$DIR" -maxdepth 1 -name '*.propus*' -exec cp {} "$DIR/livrare/" \; 2>/dev/null || true
 
       - uses: actions/upload-artifact@v4
         with:
@@ -282,6 +293,31 @@ jobs:
               echo "  aplicat: $rel"
             done
           done
+
+      - name: Agenții au putut chiar să scrie?
+        # Prima rulare reală a raportat `success` cu zero pagini schimbate, deși
+        # toți patru agenții pregătiseră rescrieri complete și fuseseră refuzați la
+        # scriere. „Nicio schimbare" e un rezultat valid DOAR dacă agentul a decis
+        # asta; dacă a fost împiedicat, e o eroare care trebuie să se vadă.
+        run: |
+          set -uo pipefail
+          blocate=0
+          for r in "$RUNNER_TEMP"/artefacte/pagina-*/rezumat.json; do
+            [ -f "$r" ] || continue
+            pag=$(jq -r '.pagina // "?"' "$r")
+            if jq -e 'has("blocaj") or has("blocat")' "$r" >/dev/null 2>&1; then
+              echo "::error title=Agent blocat::$pag — $(jq -r '.descriere // ""' "$r" | head -c 300)"
+              blocate=$((blocate + 1))
+            fi
+            if [ -f "$(dirname "$r")/$(basename "$pag" .md).md.propus" ]; then
+              echo "::warning title=Propunere nescrisă::$pag are o propunere în artefact"
+            fi
+          done
+          if [ "$blocate" -gt 0 ]; then
+            echo "::error title=Sincronizare eșuată::$blocate agenți n-au putut scrie pagina"
+            exit 1
+          fi
+          echo "Niciun agent blocat."
 
       - name: Prettier peste vault
         # `.prettierignore` nu conține `.claude`, iar `format:check` din jobul
