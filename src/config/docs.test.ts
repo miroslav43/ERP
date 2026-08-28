@@ -108,10 +108,15 @@ describe("niciun fișier text urmărit nu conține octeți NUL", () => {
 });
 
 describe("căile citate în documentație există", () => {
-  // Domeniul e deliberat îngust: CLAUDE.md, capcane.md și plugin-ul
-  // `administrativo`. Restul lui `.claude/` poate fi lucrat concurent de altă
-  // sesiune, iar un test care îi cade peste munca în curs produce doar fricțiune.
-  // Lărgește-l când componentele acelea se stabilizează.
+  // Domeniul: CLAUDE.md, capcane.md și tot `.claude/skills/`. Skill-urile
+  // `administrativo-*` au fost scoase din `administrativo/skills/` la rădăcina
+  // lui `.claude/skills/` — un plugin `@skills-dir` care conține el însuși un
+  // director `skills/` își pierde descrierile skill-urilor imbricate, deci alea
+  // nu se mai puteau declanșa singure. Domeniul le urmează.
+  //
+  // `.claude/docs/` NU intră aici: are propria poartă, `pnpm docs:lint`, rulată
+  // de `.github/workflows/vault.yml`. O afirmație din vault n-are voie să
+  // înroșească `pnpm test`, deci nici un commit de cod.
   const documente = (): readonly string[] => {
     const out: string[] = [CLAUDE_MD, CAPCANE];
     const parcurge = (dir: string): void => {
@@ -122,7 +127,7 @@ describe("căile citate în documentație există", () => {
         else if (intrare.endsWith(".md")) out.push(cale);
       }
     };
-    parcurge(join(RADACINA, ".claude/skills/administrativo"));
+    parcurge(join(RADACINA, ".claude/skills"));
     return out;
   };
 
