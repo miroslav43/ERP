@@ -2,6 +2,8 @@
 
 import type { Json } from "@/types/database";
 import { createAction } from "@/lib/actions/create-action";
+import type { ActionContext } from "@/lib/actions/types";
+import { BUCKET_CHECKLISTS, construiesteCaleDovada, prefixCaleDovada } from "@/lib/onboarding/cale";
 import { businessRule, invalidInput, notFound } from "@/lib/actions/errors";
 import { createServerSupabase } from "@/lib/supabase/server";
 import {
@@ -16,6 +18,10 @@ import {
   pornesteInstantaSchema,
   stergePasSchema,
   salveazaSablonSchema,
+  pregatesteIncarcareDovadaSchema,
+  salveazaDovadaSchema,
+  linkDovadaSchema,
+  confirmaCitireSchema,
 } from "@/schemas/checklist";
 
 import { traduEroare } from "./erori";
@@ -261,6 +267,221 @@ export const anuleazaInstanta = createAction({
  * `checklist_templates_update` cere `update = all`. Niciun rol din seed nu are
  * una fără cealaltă, deci poarta din aplicație nu poate fi mai laxă decât baza.
  */
+
+// ── Dovada-fișier (0092) ────────────────────────────────────────────────────
+//
+// Trei timpi, ca peste tot în proiect: acțiunea semnează calea, browserul urcă
+// octeții DIRECT în Storage, a doua acțiune înregistrează rândul. Octeții nu
+// trec prin server.
+//
+// Toate trei cer `checklists:update` prag `own` — aceeași cheie ca bifarea, nu
+// `create`. Atașarea unei dovezi e semantic un `update` pe pas; precedentul e
+// `avatars_insert`, care consultă `users:update`. Poarta fină o face
+// `app.checklist_poate_dovada` (0092), care se ancorează pe PASUL din segmentul
+// 4 al căii, nu pe folderul persoanei.
+
+/** Pasul, cu angajatul lui — și numai dacă politica îl arată apelantului. */
+async function pasulDovezii(
+  ctx: ActionContext,
+  id: string,
+): Promise<Readonly<{ id: string; employee_id: string; instance_id: string; titlu: string }>> {
+  const { data, error } = await ctx.supabase
+    .from("checklist_instance_items")
+    .select("id, employee_id, instance_id, titlu")
+    .eq("id", id)
+    .eq("organization_id", ctx.tenant.organizationId)
+    .is("deleted_at", null)
+    .maybeSingle<{ id: string; employee_id: string; instance_id: string; titlu: string }>();
+
+  if (error !== null) traduEroare(error);
+  // RLS nu dă eroare când ascunde un rând: întoarce zero rânduri.
+  if (data === null) throw notFound("Pasul nu există sau nu vă este vizibil.");
+  return data;
+}
+
+export const pregatesteIncarcareDovada = createAction({
+  name: "checklist.dovada.pregateste",
+  feature: "onboarding",
+  permission: "checklists:update",
+  minScope: "own",
+  input: pregatesteIncarcareDovadaSchema,
+  audit: {
+    action: "import",
+    entityType: "checklist_instance_item",
+    entityId: (input) => input.id,
+    allow: ["id", "nume_fisier"],
+  },
+  revalidate: [],
+  handler: async (
+    ctx: ActionContext,
+    input,
+  ): Promise<Readonly<{ cale: string; token: string }>> => {
+    const pas = await pasulDovezii(ctx, input.id);
+    const cale = construiesteCaleDovada({
+      organizationId: ctx.tenant.organizationId,
+      employeeId: pas.employee_id,
+      instanceItemId: pas.id,
+      numeFisier: input.nume_fisier,
+    });
+
+    const { data, error } = await ctx.supabase.storage
+      .from(BUCKET_CHECKLISTS)
+      .createSignedUploadUrl(cale);
+    if (error !== null || data === null) {
+      throw businessRule("Nu am putut pregăti încărcarea dovezii.");
+    }
+    return { cale, token: data.token };
+  },
+});
+
+export const salveazaDovada = createAction({
+  name: "checklist.dovada.salveaza",
+  feature: "onboarding",
+  permission: "checklists:update",
+  minScope: "own",
+  input: salveazaDovadaSchema,
+  audit: {
+    action: "update",
+    entityType: "checklist_instance_item",
+    entityId: (input) => input.id,
+    allow: ["id", "nume", "mime", "marime_bytes"],
+  },
+  revalidate: ["/onboarding", "/portal/integrarea-mea"],
+  handler: async (ctx: ActionContext, input): Promise<Readonly<{ id: string }>> => {
+    const pas = await pasulDovezii(ctx, input.id);
+
+    // Calea NU se crede pe cuvânt. Fără verificarea asta, un apelant ar putea
+    // lega de pasul lui un obiect scris sub folderul altcuiva — poarta de
+    // Storage a păzit SCRIEREA, nu referința.
+    const prefix = prefixCaleDovada(ctx.tenant.organizationId, pas.employee_id, pas.id);
+    if (!input.cale.startsWith(prefix)) {
+      throw invalidInput("Calea fișierului nu corespunde acestui pas.", {
+        cale: ["Cale invalidă."],
+      });
+    }
+
+    const { data, error } = await ctx.supabase
+      .from("checklist_instance_items")
+      .update({
+        dovada_fisier_path: input.cale,
+        dovada_fisier_nume: input.nume,
+        dovada_fisier_mime: input.mime,
+        dovada_fisier_marime_bytes: input.marime_bytes,
+      })
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle<{ id: string }>();
+
+    if (error !== null) traduEroare(error);
+    // Un UPDATE respins de clauza USING atinge zero rânduri, FĂRĂ eroare.
+    if (data === null) throw businessRule("Dovada nu a putut fi atașată pasului.");
+    return { id: data.id };
+  },
+});
+
+export const linkDovada = createAction({
+  name: "checklist.dovada.link",
+  feature: "onboarding",
+  permission: "checklists:read",
+  minScope: "own",
+  input: linkDovadaSchema,
+  audit: {
+    action: "export",
+    entityType: "checklist_instance_item",
+    entityId: (input) => input.id,
+    allow: ["id"],
+  },
+  revalidate: [],
+  handler: async (ctx: ActionContext, input): Promise<Readonly<{ url: string }>> => {
+    const { data, error } = await ctx.supabase
+      .from("checklist_instance_items")
+      .select("dovada_fisier_path, dovada_fisier_nume")
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .maybeSingle<{ dovada_fisier_path: string | null; dovada_fisier_nume: string | null }>();
+
+    if (error !== null) traduEroare(error);
+    if (data?.dovada_fisier_path == null) throw notFound("Pasul nu are nicio dovadă atașată.");
+
+    // 120 de secunde, ca la documentele de personal: un URL semnat e un token
+    // la purtător, nu un link de pus în favorite.
+    const semnat = await ctx.supabase.storage
+      .from(BUCKET_CHECKLISTS)
+      // `exactOptionalPropertyTypes`: cheia lipsește cu totul când n-avem nume,
+      // nu se trimite `undefined`.
+      .createSignedUrl(
+        data.dovada_fisier_path,
+        120,
+        data.dovada_fisier_nume === null ? {} : { download: data.dovada_fisier_nume },
+      );
+    if (semnat.error !== null || semnat.data === null) {
+      throw businessRule("Nu am putut genera linkul de descărcare.");
+    }
+    return { url: semnat.data.signedUrl };
+  },
+});
+
+/**
+ * Confirmarea că materialul unui pas a fost citit.
+ *
+ * Scrie un rând IMUTABIL în `checklist_material_reads` (0093, tiparul
+ * `announcement_reads`), iar un trigger `security definer` bifează pasul. Nu
+ * bifăm pasul de aici: politica de UPDATE a pașilor n-are ramură pe
+ * `employee_id`, doar pe `responsabil_employee_id`, iar un pas de citire îl
+ * parcurge SUBIECTUL — care nu e neapărat responsabilul.
+ *
+ * `organization_id` și `employee_id` nu vin din client: politica de INSERT le
+ * ancorează pe `app.current_employee_id`. Nimeni nu confirmă în locul altcuiva,
+ * nici măcar cine are `checklists:update = all` — o citire declarată de HR în
+ * numele angajatului ar goli dovada de sens.
+ */
+export const confirmaCitire = createAction({
+  name: "checklist.material.confirma",
+  feature: "onboarding",
+  permission: "checklists:update",
+  minScope: "own",
+  input: confirmaCitireSchema,
+  audit: {
+    action: "update",
+    entityType: "checklist_instance_item",
+    entityId: (input) => input.id,
+    allow: ["id"],
+  },
+  revalidate: ["/onboarding", "/portal/integrarea-mea", "/portal"],
+  handler: async (ctx: ActionContext, input): Promise<Readonly<{ id: string }>> => {
+    const pas = await pasulDovezii(ctx, input.id);
+
+    const { data: material, error: eroareMaterial } = await ctx.supabase
+      .from("checklist_instance_items")
+      .select("material_id")
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .maybeSingle<{ material_id: string | null }>();
+    if (eroareMaterial !== null) traduEroare(eroareMaterial);
+    if (material?.material_id == null) {
+      throw businessRule("Pasul nu cere citirea niciunui material.");
+    }
+
+    const { data, error } = await ctx.supabase
+      .from("checklist_material_reads")
+      .insert({
+        organization_id: ctx.tenant.organizationId,
+        instance_item_id: pas.id,
+        employee_id: pas.employee_id,
+        material_id: material.material_id,
+      })
+      .select("id")
+      .maybeSingle<{ id: string }>();
+
+    // 23505 = a confirmat deja. Nu e o eroare pentru om: pasul e bifat.
+    if (error !== null && error.code !== "23505") traduEroare(error);
+    return { id: data?.id ?? pas.id };
+  },
+});
+
 export const salveazaSablon = createAction({
   name: "checklist.template.save",
   feature: "onboarding",

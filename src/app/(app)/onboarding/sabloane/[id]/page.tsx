@@ -5,28 +5,28 @@ import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
+import { Badge } from "@/components/ui/badge";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
-import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
+import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { createServerSupabase } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/format/date";
 import { idDinRuta } from "@/lib/rute/parametri";
-import { citesteSablon, pasiiSablonului } from "@/lib/queries/checklist";
-import { listeazaCursuri } from "@/lib/queries/cursuri";
+import { citesteSablon, etapeleSablonului, pasiiSablonului } from "@/lib/queries/checklist";
 
-import { ETICHETE_TIP } from "../../etichete";
-import { FormularSablon } from "../nou/formular-sablon";
-import { ListaPasi } from "./lista-pasi";
+import { stareDinSablon } from "../../_formulare/citire";
+import {
+  ETICHETE_FEL_PAS,
+  ETICHETE_RESPONSABIL_TIP,
+  ETICHETE_ROL,
+  ETICHETE_TIP,
+} from "../../etichete";
+import { AsistentSablon } from "../_componente/asistent-sablon";
+import { optiuniAsistent } from "../_componente/optiuni";
 
 export const metadata: Metadata = { title: "Șablon de checklist" };
 
 interface ProprietatiPagina {
   readonly params: Promise<{ readonly id: string }>;
-}
-
-interface OptiuneDenumita {
-  readonly id: string;
-  readonly denumire: string;
 }
 
 export default async function PaginaSablon({ params }: ProprietatiPagina) {
@@ -45,100 +45,87 @@ export default async function PaginaSablon({ params }: ProprietatiPagina) {
   const sablon = await citesteSablon(tenant.organizationId, id);
   if (sablon === null) notFound();
 
-  const pasi = await pasiiSablonului(tenant.organizationId, sablon.id);
+  const [etape, pasi] = await Promise.all([
+    etapeleSablonului(tenant.organizationId, sablon.id),
+    pasiiSablonului(tenant.organizationId, sablon.id),
+  ]);
 
-  /*
-   * Cursurile publicate, pentru pasul cu verificare `curs_finalizat` (0076).
-   *
-   * `getEnabledFeatures` decide, nu un try/catch: `requireFeature` ar da 404 pe
-   * TOATĂ pagina dacă modulul de cursuri e stins, iar șabloanele de integrare
-   * n-au nicio treabă cu asta. Lista goală face opțiunea să apară dezactivată,
-   * cu motivul scris — nu să dispară fără explicație.
-   */
-  const moduleActive = await getEnabledFeatures(tenant.organizationId);
-  const cursuri = moduleActive.has("courses")
-    ? await listeazaCursuri(tenant.organizationId, {
-        doar_publicate: "da",
-        cauta: null,
-        cursor: null,
-        limita: 100,
-      }).then((r) => r.randuri.map((c) => ({ id: c.id, denumire: c.denumire })))
-    : [];
+  // Editarea cere `all` pe amândouă: `checklist_salveaza_sablon` inserează ȘI
+  // actualizează, iar politicile din 0014 cer scope `all` pentru fiecare.
+  const poateEditare =
+    can(permisiuni, "checklists:update", "all") && can(permisiuni, "checklists:create", "all");
 
-  const poateEditareSablon = can(permisiuni, "checklists:update", "all");
-  const poateEditarePasi = can(permisiuni, "checklists:update", "all");
-  const poateAdaugaPas = can(permisiuni, "checklists:create", "all");
+  const antet = (
+    <div className="space-y-1">
+      <p className="text-muted-foreground text-corp">
+        <Link href="/onboarding/sabloane" className="underline-offset-2 hover:underline">
+          Șabloane
+        </Link>
+      </p>
+      <AntetPagina
+        titlu={sablon.denumire}
+        descriere={`${ETICHETE_TIP[sablon.tip]} · Valabil de la ${formatDate(sablon.valabil_de_la)}${
+          sablon.valabil_pana_la === null ? "" : ` până la ${formatDate(sablon.valabil_pana_la)}`
+        } · ${sablon.activ ? "Activ" : "Dezactivat"} · ${String(pasi.length)} pași`}
+      />
+    </div>
+  );
 
-  let departamente: readonly OptiuneDenumita[] = [];
-  let posturi: readonly OptiuneDenumita[] = [];
-  if (poateEditareSablon) {
-    const db = await createServerSupabase();
-    const [departamenteRes, posturiRes] = await Promise.all([
-      db
-        .from("departments")
-        .select("id, denumire")
-        .eq("organization_id", tenant.organizationId)
-        .eq("activ", true)
-        .order("denumire")
-        .limit(200)
-        .returns<OptiuneDenumita[]>(),
-      db
-        .from("job_positions")
-        .select("id, denumire")
-        .eq("organization_id", tenant.organizationId)
-        .eq("activ", true)
-        .order("denumire")
-        .limit(200)
-        .returns<OptiuneDenumita[]>(),
-    ]);
-    departamente = departamenteRes.data ?? [];
-    posturi = posturiRes.data ?? [];
+  if (!poateEditare) {
+    // Fără drept de editare, șablonul se CITEȘTE. Varianta veche randa oricum
+    // lista cu butoane inerte; un control care nu poate reuși e mai rău decât
+    // absența lui.
+    return (
+      <div className={`${LATIMI.detaliu} space-y-6`}>
+        {antet}
+        <ol className="space-y-2">
+          {pasi.map((p) => {
+            const etapa = etape.find((e) => e.id === p.etapa_id);
+            return (
+              <li key={p.id} className="border-border rounded-panou border p-3">
+                <p className="font-medium">
+                  {p.titlu}
+                  {p.obligatoriu ? (
+                    <span className="text-muted-foreground text-nota ml-1">(obligatoriu)</span>
+                  ) : null}
+                </p>
+                <p className="text-muted-foreground text-nota mt-1 flex flex-wrap items-center gap-2">
+                  {etapa === undefined ? null : <Badge ton="neutru">{etapa.titlu}</Badge>}
+                  <span>{ETICHETE_FEL_PAS[p.fel]}</span>
+                  <span>·</span>
+                  <span>
+                    {ETICHETE_RESPONSABIL_TIP[p.responsabil_tip]}
+                    {p.responsabil_tip === "rol" && p.responsabil_rol !== null
+                      ? `: ${ETICHETE_ROL[p.responsabil_rol]}`
+                      : ""}
+                  </span>
+                  <span>·</span>
+                  <span>{p.termen_zile_relativ} zile</span>
+                </p>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+    );
   }
 
+  const optiuni = await optiuniAsistent(tenant.organizationId);
+
   return (
-    <div className={`${LATIMI.formular} space-y-6`}>
-      <div className="space-y-1">
-        <p className="text-muted-foreground text-corp">
-          <Link href="/onboarding/sabloane" className="underline-offset-2 hover:underline">
-            Șabloane
-          </Link>
-        </p>
-        <AntetPagina
-          titlu={sablon.denumire}
-          descriere={`${ETICHETE_TIP[sablon.tip]} · Valabil de la ${formatDate(
-            sablon.valabil_de_la,
-          )}${
-            sablon.valabil_pana_la === null ? "" : ` până la ${formatDate(sablon.valabil_pana_la)}`
-          } · ${sablon.activ ? "Activ" : "Dezactivat"}`}
-        />
-      </div>
-
-      {poateEditareSablon ? (
-        <section aria-labelledby="titlu-editare" className="space-y-3">
-          <h2 id="titlu-editare" className="text-sectiune font-semibold">
-            Datele șablonului
-          </h2>
-          <FormularSablon
-            departamente={departamente}
-            posturi={posturi}
-            astazi={sablon.valabil_de_la}
-            initial={sablon}
-          />
-        </section>
-      ) : null}
-
-      <section aria-labelledby="titlu-pasi" className="space-y-3">
-        <h2 id="titlu-pasi" className="text-sectiune font-semibold">
-          Pași
-        </h2>
-        <ListaPasi
-          templateId={sablon.id}
-          cursuri={cursuri}
-          pasi={pasi}
-          poateEditare={poateEditarePasi}
-          poateAdauga={poateAdaugaPas}
-        />
-      </section>
+    <div className={`${LATIMI.detaliu} space-y-6`}>
+      {antet}
+      {/* Același asistent ca la creare, cu salt liber între etape: cine intră
+          să schimbe un termen n-are de ce să reparcurgă tot. */}
+      <AsistentSablon
+        departamente={optiuni.departamente}
+        posturi={optiuni.posturi}
+        cursuri={optiuni.cursuri}
+        materiale={optiuni.materiale}
+        angajati={optiuni.angajati}
+        astazi={sablon.valabil_de_la}
+        initial={stareDinSablon(sablon, etape, pasi)}
+      />
     </div>
   );
 }

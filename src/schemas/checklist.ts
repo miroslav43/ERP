@@ -69,7 +69,14 @@ export type ChecklistItemStatus = (typeof CHECKLIST_ITEM_STATUS)[number];
  * se alege punând cele două coloane din care se naște. Aici e doar pentru
  * citire și pentru etichete.
  */
-export const CHECKLIST_FEL_PAS = ["bifa", "fisier", "semnatura", "curs", "automat"] as const;
+export const CHECKLIST_FEL_PAS = [
+  "bifa",
+  "fisier",
+  "semnatura",
+  "curs",
+  "citire",
+  "automat",
+] as const;
 export type ChecklistFelPas = (typeof CHECKLIST_FEL_PAS)[number];
 
 /**
@@ -256,6 +263,8 @@ const pasCampuriSchema = z.object({
   tip_dovada: z.enum(CHECKLIST_TIP_DOVADA).default("bifa"),
   verificare_automata: optional(z.enum(CHECKLIST_VERIFICARE_IMPLEMENTATE)),
   curs_id: optional(z.uuid()),
+  /** Materialul de citit (0093). Cere `obligatoriu` și dovadă „bifă”. */
+  material_id: optional(z.uuid()),
 });
 
 /**
@@ -272,6 +281,7 @@ function validareResponsabilSiAutomat(
     tip_dovada: ChecklistTipDovada;
     verificare_automata: ChecklistVerificare | null;
     curs_id: string | null;
+    material_id?: string | null;
   }>,
   ctx: z.RefinementCtx,
 ): void {
@@ -289,6 +299,24 @@ function validareResponsabilSiAutomat(
     (valoare.responsabil_tip === "subiect" &&
       valoare.responsabil_rol === null &&
       valoare.responsabil_employee_id === null);
+
+  // Oglinda lui `checklist_template_items_material_ck` (0093): un material cere
+  // pas obligatoriu, dovadă „bifă” și nicio verificare automată. Fără garda
+  // asta, refuzul ar veni ca 23514 brut, fără să spună care câmp e de vină.
+  if (valoare.material_id !== null && valoare.material_id !== undefined) {
+    if (
+      !valoare.obligatoriu ||
+      valoare.tip_dovada !== "bifa" ||
+      valoare.verificare_automata !== null
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["material_id"],
+        message:
+          "Un pas de citire trebuie să fie obligatoriu, cu dovadă „bifă” și fără verificare automată.",
+      });
+    }
+  }
 
   if (!combinatieValida) {
     ctx.addIssue({
@@ -401,6 +429,7 @@ export const pasAsistentSchema = pasCampuriSchema
   .extend({ id: optional(z.uuid()) })
   .superRefine(validareResponsabilSiAutomat);
 export type PasAsistent = z.output<typeof pasAsistentSchema>;
+export type PasAsistentInput = z.input<typeof pasAsistentSchema>;
 
 export const etapaAsistentSchema = z.object({
   id: optional(z.uuid()),
@@ -411,6 +440,7 @@ export const etapaAsistentSchema = z.object({
   pasi: z.array(pasAsistentSchema).max(200),
 });
 export type EtapaAsistent = z.output<typeof etapaAsistentSchema>;
+export type EtapaAsistentInput = z.input<typeof etapaAsistentSchema>;
 
 export const salveazaSablonSchema = sablonCampuriSchema
   .extend({
@@ -445,3 +475,28 @@ export const salveazaSablonSchema = sablonCampuriSchema
   });
 export type SalveazaSablonInput = z.input<typeof salveazaSablonSchema>;
 export type SalveazaSablon = z.output<typeof salveazaSablonSchema>;
+
+// ── Dovada-fișier (0092) ────────────────────────────────────────────────────
+
+export const pregatesteIncarcareDovadaSchema = z.object({
+  /** Pasul de instanță pe care se atașează dovada. */
+  id: z.uuid(),
+  nume_fisier: z.string().trim().min(1).max(200),
+});
+
+export const salveazaDovadaSchema = z.object({
+  id: z.uuid(),
+  /** Calea semnată la pasul anterior. Se re-verifică pe server, nu se crede. */
+  cale: z.string().trim().min(1).max(512),
+  nume: z.string().trim().min(1).max(200),
+  mime: z.string().trim().min(1).max(160),
+  marime_bytes: z.coerce.number().int().min(1).max(26214400),
+});
+
+export const stergeDovadaSchema = z.object({ id: z.uuid() });
+export const linkDovadaSchema = z.object({ id: z.uuid() });
+
+export const confirmaCitireSchema = z.object({
+  /** Pasul de instanță al cărui material a fost parcurs. */
+  id: z.uuid(),
+});

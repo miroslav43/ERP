@@ -99,6 +99,7 @@ export const ETICHETE_FEL_PAS: Readonly<Record<ChecklistFelPas, string>> = {
   fisier: "Document încărcat",
   semnatura: "Declarație pe nume",
   curs: "Curs de parcurs",
+  citire: "Material de citit",
   automat: "Se bifează din alt modul",
 };
 

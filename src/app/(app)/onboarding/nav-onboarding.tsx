@@ -16,6 +16,7 @@ export function NavOnboarding() {
 
   const file = [
     { href: "/onboarding", eticheta: "Instanțe" },
+    { href: "/onboarding/sarcinile-mele", eticheta: "Sarcinile mele" },
     { href: "/onboarding/sabloane", eticheta: "Șabloane" },
   ] as const;
 

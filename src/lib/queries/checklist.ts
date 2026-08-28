@@ -302,6 +302,9 @@ export interface PasInstanta {
   readonly bifat_automat: boolean;
   readonly dovada: string | null;
   readonly dovada_document_id: string | null;
+  /** Dovada încărcată direct în pas (0092). `null` = niciun fișier atașat. */
+  readonly dovada_fisier_nume: string | null;
+  readonly dovada_fisier_marime_bytes: number | null;
   readonly observatii: string | null;
   // Etapa, copiată ca text la materializare (0089). `null` pentru pașii unui
   // șablon fără etape și pentru parcursurile pornite înainte de 0089 — ecranele
@@ -310,6 +313,16 @@ export interface PasInstanta {
   readonly etapa_ordine: number | null;
   readonly etapa_termen: string | null;
   readonly fel: ChecklistFelPas;
+  /** Materialul de citit (0093), cu versiunea lui curentă pentru livrare. */
+  readonly material: Readonly<{
+    readonly id: string;
+    readonly titlu: string;
+    readonly versiune_curenta_id: string | null;
+  }> | null;
+  // Fără `citit_la`: n-ar fi fost SELECTAT, iar un câmp declarat și neadus e
+  // exact capcana „tipuri scrise de mână" — `undefined` la rulare, tăcere la
+  // typecheck. Confirmarea se citește din `status`, pe care triggerul din 0093
+  // îl trece pe „bifat" în aceeași tranzacție.
 }
 
 export async function pasiiInstantei(
@@ -323,7 +336,11 @@ export async function pasiiInstantei(
       "id, ordine, titlu, descriere, responsabil_tip, responsabil_rol, responsabil_employee_id, " +
         "termen, obligatoriu, tip_dovada, verificare_automata, status, bifat_de, bifat_la, " +
         "bifat_automat, dovada, dovada_document_id, observatii, " +
-        "etapa_titlu, etapa_ordine, etapa_termen, fel",
+        "dovada_fisier_nume, dovada_fisier_marime_bytes, " +
+        "etapa_titlu, etapa_ordine, etapa_termen, fel, " +
+        // Citirea separată ar fi însemnat încă un drum; embedul e sub RLS, deci
+        // materialul apare doar cui i-l arată politicile din 0093.
+        "material:course_materials!checklist_instance_items_material_fk(id, titlu, versiune_curenta_id)",
     )
     .eq("organization_id", organizationId)
     .eq("instance_id", instanceId)
@@ -573,6 +590,39 @@ export interface PasSablon {
   readonly verificare_automata: ChecklistVerificare | null;
   /** Cursul care bifează pasul, când `verificare_automata = 'curs_finalizat'` (0076). */
   readonly curs_id: string | null;
+  /** Materialul de citit cerut de pas (0093). */
+  readonly material_id: string | null;
+  /** Etapa din care face parte pasul (0089). `null` = șablon fără etape. */
+  readonly etapa_id: string | null;
+  /** Coloană GENERATĂ (0089): derivată din `tip_dovada` și `verificare_automata`. */
+  readonly fel: ChecklistFelPas;
+}
+
+export interface EtapaSablon {
+  readonly id: string;
+  readonly ordine: number;
+  readonly titlu: string;
+  readonly descriere: string | null;
+  readonly termen_zile_relativ: number;
+}
+
+/** Etapele unui șablon, în ordine. Lista e goală pentru șabloanele de dinainte de 0089. */
+export async function etapeleSablonului(
+  organizationId: string,
+  templateId: string,
+): Promise<readonly EtapaSablon[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("checklist_template_stages")
+    .select("id, ordine, titlu, descriere, termen_zile_relativ")
+    .eq("organization_id", organizationId)
+    .eq("template_id", templateId)
+    .is("deleted_at", null)
+    .order("ordine", { ascending: true })
+    .returns<EtapaSablon[]>();
+
+  if (error !== null) throw error;
+  return data ?? [];
 }
 
 export async function pasiiSablonului(
@@ -584,7 +634,8 @@ export async function pasiiSablonului(
     .from("checklist_template_items")
     .select(
       "id, ordine, titlu, descriere, responsabil_tip, responsabil_rol, responsabil_employee_id, " +
-        "termen_zile_relativ, obligatoriu, tip_dovada, verificare_automata, curs_id",
+        "termen_zile_relativ, obligatoriu, tip_dovada, verificare_automata, curs_id, " +
+        "material_id, etapa_id, fel",
     )
     .eq("organization_id", organizationId)
     .eq("template_id", templateId)
@@ -642,6 +693,64 @@ export async function angajatiActivi(organizationId: string): Promise<readonly A
     .order("full_name", { ascending: true })
     .limit(500)
     .returns<AngajatRezumat[]>();
+
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+// ── Sarcinile mele (0095) ───────────────────────────────────────────────────
+
+export interface SarcinaIntegrare {
+  readonly id: string;
+  readonly instance_id: string;
+  readonly titlu: string;
+  readonly descriere: string | null;
+  readonly termen: string | null;
+  readonly obligatoriu: boolean;
+  readonly status: ChecklistItemStatus;
+  readonly fel: ChecklistFelPas;
+  readonly etapa_titlu: string | null;
+  readonly employee_id: string;
+}
+
+/**
+ * Pașii care îmi revin MIE, peste toate parcursurile deschise.
+ *
+ * Două forme de „al meu”, exact cele două ramuri din RLS:
+ *   • `responsabil_employee_id` = fișa mea — materializat la pornire de 0089
+ *     pentru `subiect`, `manager_direct` și `angajat`;
+ *   • `responsabil_tip = 'rol'` cu rolul meu — acolo coloana rămâne NULL prin
+ *     construcție, fiindcă „oricine e HR” nu e o persoană.
+ *
+ * Fără a doua ramură, pașii atribuiți pe rol n-ar apărea în lista nimănui, deși
+ * politica îi arată. Contorul din panou și rândurile de aici vin din ACEEAȘI
+ * funcție, ca să nu se repete defectul „contorul nu urmează lista”.
+ */
+export async function sarcinileMele(
+  organizationId: string,
+  employeeId: string | null,
+  rol: RolResponsabil,
+): Promise<readonly SarcinaIntegrare[]> {
+  const db = await createServerSupabase();
+
+  const conditii = [`and(responsabil_tip.eq.rol,responsabil_rol.eq.${rol})`];
+  if (employeeId !== null) conditii.push(`responsabil_employee_id.eq.${employeeId}`);
+
+  const { data, error } = await db
+    .from("checklist_instance_items")
+    .select(
+      "id, instance_id, titlu, descriere, termen, obligatoriu, status, fel, etapa_titlu, employee_id, " +
+        // Doar parcursurile deschise: un pas dintr-unul anulat nu mai e o treabă.
+        "checklist_instances!inner(status)",
+    )
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .in("status", ["de_facut", "in_lucru"])
+    .eq("checklist_instances.status", "in_curs")
+    .or(conditii.join(","))
+    .order("termen", { ascending: true, nullsFirst: false })
+    .limit(200)
+    .returns<SarcinaIntegrare[]>();
 
   if (error !== null) throw error;
   return data ?? [];
