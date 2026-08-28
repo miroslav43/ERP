@@ -86,6 +86,8 @@ export interface AngajatDetaliu {
   readonly first_name: string;
   readonly last_name: string;
   readonly email_personal: string | null;
+  /** Adresa dată de firmă (0033). Rezerva pentru invitație când lipsește cea personală. */
+  readonly email_serviciu: string | null;
   readonly telefon: string | null;
   readonly adresa_strada: string | null;
   readonly adresa_oras: string | null;
@@ -305,7 +307,7 @@ export async function citesteAngajat(
   let interogare = db
     .from("employees")
     .select(
-      `id, marca, full_name, first_name, last_name, email_personal, telefon, adresa_strada, adresa_oras,
+      `id, marca, full_name, first_name, last_name, email_personal, email_serviciu, telefon, adresa_strada, adresa_oras,
        adresa_judet, data_nasterii, gen, cetatenie, status, hired_on, terminated_on, conditii_munca,
        grad_handicap, nr_persoane_intretinere, is_primary, contact_urgenta_nume, contact_urgenta_telefon,
        observatii, manager_path, user_id,

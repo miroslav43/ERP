@@ -5745,6 +5745,7 @@ export type Database = {
           created_by: string | null
           deleted_at: string | null
           email: string
+          employee_id: string | null
           expires_at: string
           id: string
           invited_by: string | null
@@ -5765,6 +5766,7 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           email: string
+          employee_id?: string | null
           expires_at: string
           id?: string
           invited_by?: string | null
@@ -5785,6 +5787,7 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           email?: string
+          employee_id?: string | null
           expires_at?: string
           id?: string
           invited_by?: string | null
@@ -5799,6 +5802,13 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "invitations_employee_fk"
+            columns: ["employee_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id", "organization_id"]
+          },
           {
             foreignKeyName: "invitations_organization_id_fkey"
             columns: ["organization_id"]
@@ -11899,6 +11909,10 @@ export type Database = {
     }
     Functions: {
       accept_invitation: { Args: { p_token: string }; Returns: Json }
+      aloca_numar_contract: {
+        Args: { p_organization_id: string }
+        Returns: string
+      }
       aloca_numar_tichet: {
         Args: { p_organization_id: string }
         Returns: string

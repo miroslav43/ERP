@@ -262,3 +262,5 @@ revoke all on function internal.membru_creeaza_fisa_de_angajat() from public, an
 -- backfill: potrivirea după e-mail ar fi o ghicitoare — `employees.email_personal`
 -- și `invitations.email` sunt câmpuri diferite, iar o legare greșită dă unui om
 -- accesul la fișa altuia.
+
+commit;

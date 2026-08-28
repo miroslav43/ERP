@@ -5,8 +5,9 @@ import { useId } from "react";
 import { useWatch, type UseFormReturn } from "react-hook-form";
 
 import { Camp, clasaBifa } from "@/components/ui/camp";
+import { TIPURI_ACT_IDENTITATE } from "@/domain/reges/operatii";
 import { GENURI, STARI_CIVILE, type InroleazaAngajatInput } from "@/schemas/employee";
-import { ETICHETE_GEN, ETICHETE_STARE_CIVILA } from "../../etichete";
+import { ETICHETE_ACT_IDENTITATE, ETICHETE_GEN, ETICHETE_STARE_CIVILA } from "../../etichete";
 import { mesajCamp } from "./erori-formular";
 
 export const CAMPURI_PAS_1 = [
@@ -16,10 +17,11 @@ export const CAMPURI_PAS_1 = [
   "gen",
   "cetatenie",
   "stare_civila",
-  "tip_act_identitate",
+  "reges_tip_act",
   "serie_act",
   "numar_act",
   "act_eliberat_de",
+  "act_eliberat_la",
   "act_valabil_pana",
   "cnp",
   "grad_handicap",
@@ -115,28 +117,59 @@ export function Pas1Identitate({ formular }: Proprietati) {
 
       <fieldset className="border-border rounded-panou space-y-4 border p-4">
         <legend className="text-foreground text-corp px-1 font-medium">Act de identitate</legend>
+        <p className="text-muted-foreground text-corp">
+          Datele astea intră cuvânt cu cuvânt în contractul de muncă („posesor al … seria … nr. …,
+          eliberat de … la data de …”) și în transmiterea către REGES. De aceea sunt obligatorii
+          aici, chiar dacă pe fișele deja existente lipsesc.
+        </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <Camp
-            nume="tip_act_identitate"
-            eticheta="Tip"
-            erori={mesajCamp(errors.tip_act_identitate)}
+            nume="reges_tip_act"
+            eticheta="Tipul actului"
+            fel="select"
+            obligatoriu
+            erori={mesajCamp(errors.reges_tip_act)}
           >
             {(atribute) => (
-              <input {...atribute} {...register("tip_act_identitate")} placeholder="CI" />
+              <select {...atribute} {...register("reges_tip_act")}>
+                <option value="">— Alegeți —</option>
+                {TIPURI_ACT_IDENTITATE.map((tip) => (
+                  <option key={tip} value={tip}>
+                    {ETICHETE_ACT_IDENTITATE[tip]}
+                  </option>
+                ))}
+              </select>
             )}
           </Camp>
-          <Camp nume="serie_act" eticheta="Serie" erori={mesajCamp(errors.serie_act)}>
+          <Camp
+            nume="serie_act"
+            eticheta="Serie"
+            erori={mesajCamp(errors.serie_act)}
+            // `exactOptionalPropertyTypes`: cheia se omite, nu se trimite `undefined`.
+            {...(esteStrain ? { ajutor: "Un pașaport n-are serie — lăsați gol." } : {})}
+          >
             {(atribute) => <input {...atribute} {...register("serie_act")} />}
           </Camp>
-          <Camp nume="numar_act" eticheta="Număr" erori={mesajCamp(errors.numar_act)}>
+          <Camp nume="numar_act" eticheta="Număr" obligatoriu erori={mesajCamp(errors.numar_act)}>
             {(atribute) => <input {...atribute} {...register("numar_act")} />}
           </Camp>
           <Camp
             nume="act_eliberat_de"
             eticheta="Eliberat de"
+            obligatoriu
             erori={mesajCamp(errors.act_eliberat_de)}
           >
-            {(atribute) => <input {...atribute} {...register("act_eliberat_de")} />}
+            {(atribute) => (
+              <input {...atribute} {...register("act_eliberat_de")} placeholder="ex. SPCLEP Cluj" />
+            )}
+          </Camp>
+          <Camp
+            nume="act_eliberat_la"
+            eticheta="Data eliberării"
+            obligatoriu
+            erori={mesajCamp(errors.act_eliberat_la)}
+          >
+            {(atribute) => <input {...atribute} type="date" {...register("act_eliberat_la")} />}
           </Camp>
           <Camp
             nume="act_valabil_pana"
@@ -145,7 +178,7 @@ export function Pas1Identitate({ formular }: Proprietati) {
           >
             {(atribute) => <input {...atribute} type="date" {...register("act_valabil_pana")} />}
           </Camp>
-          <Camp nume="cnp" eticheta="CNP" erori={mesajCamp(errors.cnp)}>
+          <Camp nume="cnp" eticheta="CNP" obligatoriu erori={mesajCamp(errors.cnp)}>
             {(atribute) => (
               <input {...atribute} {...register("cnp")} inputMode="numeric" maxLength={13} />
             )}

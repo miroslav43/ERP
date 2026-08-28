@@ -6,7 +6,15 @@ import { enumOptional, numarCuImplicit, numarObligatoriu, numarOptional } from "
 
 import { normalizeazaCnp, validateazaCnp } from "@/domain/hr/cnp";
 import { normalizeazaIban, validateazaIban } from "@/domain/hr/iban";
+import { TIPURI_ACT_IDENTITATE } from "@/domain/reges/operatii";
 import { REZULTATE_EXAMEN, TIPURI_EXAMEN } from "@/schemas/ssm";
+
+/** Actele de identitate ROMÂNEȘTI, din vocabularul REGES. */
+export const ACTE_ROMANESTI = [
+  "CarteIdentitate",
+  "BuletinIdentitate",
+  "AltActIdentitateRomanesc",
+] as const satisfies readonly (typeof TIPURI_ACT_IDENTITATE)[number][];
 
 export const STATUSURI_ANGAJAT = [
   "candidat",
@@ -82,6 +90,20 @@ const cnpOptional = z
     (valoare) => valoare === null || validateazaCnp(valoare).valid,
     "CNP-ul introdus nu este valid.",
   );
+
+/**
+ * CNP obligatoriu — folosit doar la înrolare.
+ *
+ * Golul se prinde ÎNAINTE de normalizare, cu mesajul lui: „nu e valid" pe un
+ * câmp pe care omul nu l-a atins deloc e o acuzație greșită. Aceeași distincție
+ * pe care o fac `numarObligatoriu` și `numarOptional` din `./comun`.
+ */
+const cnpObligatoriu = z
+  .string()
+  .trim()
+  .min(1, "Câmpul „CNP” este obligatoriu.")
+  .transform((valoare) => normalizeazaCnp(valoare))
+  .refine((valoare) => validateazaCnp(valoare).valid, "CNP-ul introdus nu este valid.");
 
 const emailOptional = z
   .string()
@@ -168,10 +190,25 @@ export const creeazaAngajatSchema = z.object({
     .toUpperCase()
     .regex(/^[A-Z]{2}$/u, "Cetățenia se completează cu codul de țară din două litere (ex. RO).")
     .default("RO"),
+  /**
+   * Textul tipărit pe documente („carte de identitate"). Rămâne LIBER, fiindcă
+   * importul în masă primește ce a scris cineva în Excel, iar fișele vechi au
+   * deja valori proprii. Forma structurată e `reges_tip_act`, de mai jos.
+   */
   tip_act_identitate: textOptional(40),
+  /**
+   * Aceeași informație, în vocabularul REGES.
+   *
+   * Coloana există din `0087_reges_online.sql:482` și NU era completată
+   * niciodată: `src/domain/reges/compune.ts:128` cădea pe „CarteIdentitate"
+   * pentru toată lumea, inclusiv pentru un cetățean străin cu pașaport.
+   * Formularul scrie de acum amândouă, dintr-un singur `<select>`.
+   */
+  reges_tip_act: enumOptional(TIPURI_ACT_IDENTITATE, "Alegeți tipul actului de identitate."),
   serie_act: textOptional(10),
   numar_act: textOptional(20),
   act_eliberat_de: textOptional(120),
+  act_eliberat_la: dataOptionala,
   act_valabil_pana: dataOptionala,
   department_id: uuidOptional,
   job_position_id: uuidOptional,
@@ -268,9 +305,11 @@ export const CAMPURI_EDITABILE_ANGAJAT = [
   "gen",
   "cetatenie",
   "tip_act_identitate",
+  "reges_tip_act",
   "serie_act",
   "numar_act",
   "act_eliberat_de",
+  "act_eliberat_la",
   "act_valabil_pana",
   "department_id",
   "job_position_id",
@@ -309,9 +348,11 @@ export const actualizeazaAngajatSchema = creeazaAngajatSchema
     gen: true,
     cetatenie: true,
     tip_act_identitate: true,
+    reges_tip_act: true,
     serie_act: true,
     numar_act: true,
     act_eliberat_de: true,
+    act_eliberat_la: true,
     act_valabil_pana: true,
     department_id: true,
     job_position_id: true,
@@ -401,6 +442,14 @@ const corpContractSchema = z.object({
   special_regime: enumOptional(REGIMURI_SPECIALE, "Alegeți un regim special din listă."),
   loc_telemunca: textOptional(200),
   loc_munca: textOptional(200),
+  /**
+   * Punctul de lucru unde se prestează munca (0097).
+   *
+   * NULL = sediul social sau o locație ocazională, al cărei text stă în
+   * `loc_munca`. Se scriu AMÂNDOUĂ: denumirea rezolvată rămâne corectă în
+   * documentele deja emise chiar dacă punctul de lucru e redenumit ulterior.
+   */
+  punct_lucru_id: uuidOptional,
   department_id: uuidOptional,
   job_position_id: uuidOptional,
   conditii_munca: z.enum(CONDITII_MUNCA).default("normale"),
@@ -506,6 +555,55 @@ export const inroleazaAngajatSchema = creeazaAngajatSchema
     }),
   )
   .extend({
+    /*
+     * ── CE DEVINE OBLIGATORIU DOAR AICI ───────────────────────────────────
+     *
+     * Câmpurile de mai jos rămân OPȚIONALE în `creeazaAngajatSchema`, deci în
+     * ecranul de editare și în importul în masă. Motivul e măsurat, nu de
+     * principiu: toate cele 11 fișe din baza reală n-au nici serie, nici număr
+     * de act, nici emitent, nici adresă. Făcute obligatorii peste tot, o
+     * corecție de număr de telefon pe un angajat vechi ar cere găsirea
+     * buletinului lui.
+     *
+     * La ÎNROLARE însă e singurul moment în care omul are documentele în față,
+     * iar fără ele nu iese nici contractul (textul cere seria, numărul,
+     * emitentul și data eliberării), nici transmiterea la REGES (care cere CNP
+     * valid și adresă de domiciliu — `src/domain/reges/validare.ts:32-67`).
+     */
+    reges_tip_act: z.enum(TIPURI_ACT_IDENTITATE, "Alegeți tipul actului de identitate."),
+    // Seria NU e obligatorie aici: un pașaport n-are serie. Regula, condiționată
+    // de cetățenie, e în `superRefine`-ul de mai jos.
+    numar_act: textObligatoriu(1, 20, "Numărul actului de identitate"),
+    act_eliberat_de: textObligatoriu(2, 120, "Emitentul actului de identitate"),
+    act_eliberat_la: dataObligatorie("Data eliberării actului"),
+    cnp: cnpObligatoriu,
+    adresa_strada: textObligatoriu(3, 200, "Adresa de domiciliu"),
+    adresa_oras: textObligatoriu(2, 120, "Localitatea de domiciliu"),
+    adresa_judet: textObligatoriu(2, 80, "Județul de domiciliu"),
+
+    /**
+     * Vechimea în unitate.
+     *
+     * Devine obligatorie fiindcă din ea se calculează vechimea
+     * (`src/domain/leave/drepturi.ts:14`), iar `src/lib/documents/adeverinte.ts:59`
+     * REFUZĂ să emită adeverința de vechime când e goală — adică un câmp sărit
+     * la înrolare rupe tăcut o funcție de peste un an mai târziu.
+     *
+     * Formularul o precompletează din „Angajat de la"; diferă doar la
+     * reangajare, la contract nou care înlocuiește unul vechi și la preluare
+     * prin transfer.
+     */
+    hired_on: dataObligatorie("Vechimea în unitate"),
+
+    /**
+     * Numărul contractului, ACUM OPȚIONAL.
+     *
+     * Gol, îl alocă `public.aloca_numar_contract` (0098), atomic, cu resetare
+     * anuală: „42/2026". Completat, se folosește ca atare — un contract preluat
+     * prin transfer sau importat istoric își păstrează numărul propriu.
+     */
+    numar: textOptional(40),
+
     // Fișa postului: opțională — dacă nu se completează, nu se generează documentul.
     subordonare: textOptional(160),
     atributii: textOptional(4000),
@@ -581,6 +679,67 @@ export const inroleazaAngajatSchema = creeazaAngajatSchema
   })
   .superRefine(valideazaReguliContract)
   .superRefine((valoare, ctx) => {
+    /*
+     * Actul de identitate trebuie să se potrivească cu cetățenia.
+     *
+     * Un cetățean român cu „Pașaport" ca act de identitate la angajare, sau un
+     * cetățean străin cu „Carte de identitate" românească, sunt amândouă
+     * greșeli care ies abia la transmiterea către REGES — unde `tipActIdentitate`
+     * e verificat de server, nu de noi.
+     */
+    const esteRoman = valoare.cetatenie.trim().toUpperCase() === "RO";
+    const actRomanesc = (ACTE_ROMANESTI as readonly string[]).includes(valoare.reges_tip_act);
+
+    if (esteRoman && !actRomanesc) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["reges_tip_act"],
+        message: "Pentru un cetățean român, actul de identitate este cartea sau buletinul.",
+      });
+    }
+    if (!esteRoman && actRomanesc) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["reges_tip_act"],
+        message:
+          "Pentru un cetățean străin alegeți pașaportul, permisul de ședere sau cartea de rezidență.",
+      });
+    }
+    // Seria există doar pe actele românești; un pașaport are numai număr.
+    if (actRomanesc && valoare.serie_act === null) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["serie_act"],
+        message: "Seria actului de identitate este obligatorie.",
+      });
+    }
+    if (valoare.act_eliberat_la > valoare.data_contract) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["act_eliberat_la"],
+        message: "Actul de identitate nu poate fi eliberat după data contractului.",
+      });
+    }
+
+    /*
+     * Vechimea în unitate, între limitele pe care le impune baza.
+     *
+     * `public.tg_employees_validari` (`0004_hr.sql:877`) respinge un `hired_on`
+     * la mai mult de un an în viitor, cu P0001. `valabil_de_la` NU are aceeași
+     * limită, iar formularul precompletează prima din a doua — deci un contract
+     * programat la 14 luni ar trece de formular și ar cădea în bază, cu un
+     * mesaj care nu spune care câmp e vinovat.
+     */
+    const anViitor = new Date();
+    anViitor.setFullYear(anViitor.getFullYear() + 1);
+    if (valoare.hired_on > anViitor.toISOString().slice(0, 10)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["hired_on"],
+        message: "Vechimea în unitate nu poate începe la mai mult de un an în viitor.",
+      });
+    }
+
     // Validarea „autorizația are nevoie de dată de expirare" nu mai e nevoie ca
     // `superRefine`: din 0069 `valabil_pana` e obligatoriu în forma fiecărei
     // autorizații din listă. Rămâne verificarea unicității numerelor, care
@@ -773,4 +932,15 @@ export type IntrarePersoanaIntretinere = z.output<typeof persoanaIntretinereSche
 
 export const stergePersoanaIntretinereSchema = z.object({
   id: z.uuid("Persoana selectată nu este validă."),
+});
+
+/**
+ * Invitarea unui angajat existent din fișa lui.
+ *
+ * Nu primește adresa: o ALEGE serverul, din fișă, prin
+ * `src/lib/invitatii/adresa.ts`. O adresă venită din formular ar putea fi a
+ * altcuiva, iar invitația poartă drept de acces la fișa asta.
+ */
+export const invitaAngajatulSchema = z.object({
+  id: z.uuid("Angajatul selectat nu este valid."),
 });

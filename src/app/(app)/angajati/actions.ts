@@ -1,7 +1,12 @@
 // src/app/(app)/angajati/actions.ts
 "use server";
 
+import QRCode from "qrcode";
 import { revalidatePath } from "next/cache";
+
+import { clientEnv } from "@/config/env";
+import { creeazaInvitatie, ZILE_VALABILITATE } from "@/lib/invitatii/creeaza";
+import { alegeAdresaDeInvitatie, type FelAdresa } from "@/lib/invitatii/adresa";
 
 import { readRequestMeta, writeAuditLog } from "@/lib/actions/audit";
 import { businessRule, notFound } from "@/lib/actions/errors";
@@ -23,6 +28,7 @@ import {
   creeazaContractSchema,
   dezvaluieDateSensibileSchema,
   incetareContractSchema,
+  invitaAngajatulSchema,
   modificaSalariuContractSchema,
 } from "@/schemas/employee";
 
@@ -557,5 +563,119 @@ export const dezvaluieDateSensibile = createAction({
     });
 
     return { camp: input.camp, valoare };
+  },
+});
+
+/**
+ * Invită un angajat EXISTENT să-și facă cont — inclusiv pe cel fără e-mail.
+ *
+ * ── GOLUL PE CARE ÎL ÎNCHIDE ────────────────────────────────────────────────
+ * Înrolarea trimite invitația singură, dar numai dacă fișa are e-mail personal;
+ * altfel lasă un avertisment și merge mai departe. Iar o fișă creată înainte ca
+ * legătura invitație–angajat să existe (0099) n-a primit niciodată nimic. La
+ * scrierea acestui cod, 4 din 11 fișe active n-aveau `user_id` — adică exact
+ * oamenii pentru care s-a construit pontarea de pe telefon.
+ *
+ * ── CE FACE CÂND NU EXISTĂ NICIO ADRESĂ ─────────────────────────────────────
+ * Fabrică una (`marca-0042@hala-nord.intern`) și NU trimite niciun mesaj.
+ * Invitația ajunge la om pe hârtie: acțiunea întoarce linkul și un cod QR gata
+ * randat, iar ecranul le tipărește. Vezi `lib/invitatii/adresa.ts` pentru de ce
+ * o adresă fabricată e singurul drum: Supabase Auth are nevoie de una ca să
+ * existe un cont cu parolă.
+ *
+ * ── DE CE CODUL QR SE GENEREAZĂ AICI, PE SERVER ─────────────────────────────
+ * Tokenul e cunoscut o SINGURĂ dată, chiar în clipa asta — în bază stă doar
+ * hash-ul. O pagină de fișă tipăribilă, randată ulterior, n-ar avea de unde să-l
+ * ia. Deci imaginea se produce acum și călătorește odată cu rezultatul; clientul
+ * n-are nevoie de nicio bibliotecă de QR în bundle.
+ */
+export const invitaAngajatul = createAction({
+  name: "employees.invite",
+  feature: "nucleu",
+  permission: "employees:invite",
+  minScope: "all",
+  input: invitaAngajatulSchema,
+  audit: {
+    action: "invite_sent",
+    entityType: "employees",
+    entityId: (input) => input.id,
+    // Adresa NU intră în audit: pentru cea personală e dată cu caracter
+    // personal, iar tokenul n-ar avea ce căuta acolo în niciun caz.
+    allow: [],
+  },
+  revalidate: ["/angajati", "/setari/membri"],
+  handler: async (
+    ctx,
+    input,
+  ): Promise<
+    Readonly<{
+      adresa: string;
+      fel: FelAdresa;
+      emailTrimis: boolean;
+      link: string;
+      qr: string;
+      expiraLa: string;
+    }>
+  > => {
+    const db = await createServerSupabase();
+
+    const [{ data: fisa, error: eroareFisa }, { data: organizatie, error: eroareOrg }] =
+      await Promise.all([
+        db
+          .from("employees")
+          .select("id, marca, full_name, email_personal, email_serviciu, user_id, status")
+          .eq("id", input.id)
+          .eq("organization_id", ctx.tenant.organizationId)
+          .is("deleted_at", null)
+          .maybeSingle(),
+        db.from("organizations").select("slug").eq("id", ctx.tenant.organizationId).maybeSingle(),
+      ]);
+    if (eroareFisa !== null) throw eroareFisa;
+    if (eroareOrg !== null) throw eroareOrg;
+    if (fisa === null) throw notFound("Angajatul nu a fost găsit.");
+    if (organizatie === null) throw notFound("Organizația nu a fost găsită.");
+
+    // Are deja cont: a doua invitație n-ar face decât să ocupe un loc din
+    // `seats_limit` și să încurce omul cu un al doilea link.
+    if (fisa.user_id !== null) {
+      throw businessRule("Angajatul are deja cont în aplicație.");
+    }
+
+    const alegere = alegeAdresaDeInvitatie(fisa, organizatie.slug);
+
+    const invitatie = await creeazaInvitatie({
+      db,
+      organizationId: ctx.tenant.organizationId,
+      email: alegere.adresa,
+      rol: "employee",
+      employeeId: fisa.id,
+      invitatDe: ctx.user.fullName ?? ctx.user.email,
+      trimiteEmail: alegere.seTrimiteEmail,
+      userId: ctx.user.id,
+      acum: ctx.now,
+    });
+
+    const baza = clientEnv.NEXT_PUBLIC_APP_URL.replace(/\/+$/u, "");
+    const link = `${baza}/invitatie/${encodeURIComponent(invitatie.token)}`;
+    // Corecție de erori `M` (15%), nu `H`: fișa se ține în mână, nu se lipește pe
+    // un perete de hală, iar un cod mai puțin dens rămâne citibil pe o
+    // imprimantă cu toner slab.
+    const qr = await QRCode.toString(link, {
+      type: "svg",
+      errorCorrectionLevel: "M",
+      margin: 1,
+      color: { dark: "#000000", light: "#ffffff" },
+    });
+
+    const expira = new Date(ctx.now.getTime() + ZILE_VALABILITATE * 24 * 60 * 60 * 1000);
+
+    return {
+      adresa: alegere.adresa,
+      fel: alegere.fel,
+      emailTrimis: invitatie.emailTrimis,
+      link,
+      qr,
+      expiraLa: expira.toISOString(),
+    };
   },
 });

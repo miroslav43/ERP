@@ -1,26 +1,31 @@
 // src/app/(app)/angajati/nou/actions.ts
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { createAction } from "@/lib/actions/create-action";
 import { businessRule } from "@/lib/actions/errors";
-import { formatDate } from "@/lib/format/date";
+import { formatDate, todayInBucharest } from "@/lib/format/date";
 import { genereazaEvenimenteReges } from "@/lib/reges/genereaza-evenimente";
-import { genereazaContractDeMunca } from "@/lib/documents/contract-munca";
-import { genereazaFisaPostului } from "@/lib/documents/fisa-postului";
+import { genereazaDocumenteInrolare, type DocumentEmis } from "@/lib/documents/inrolare";
+import { creeazaInvitatie } from "@/lib/invitatii/creeaza";
+import { adresaRealaDinFisa } from "@/lib/invitatii/adresa";
 import { inroleazaAngajatSchema } from "@/schemas/employee";
 import { predaObiect } from "@/app/(app)/inventar/actions";
 import { adaugaAutorizatieNominala, adaugaFisaAptitudine } from "@/app/(app)/ssm/actions";
 
-import { ETICHETE_MOD_LUCRU } from "../etichete";
+import { ETICHETE_ACT_IDENTITATE, ETICHETE_MOD_LUCRU } from "../etichete";
 import { salveazaDateSensibile } from "../actions";
 
 interface RezultatInrolare {
   readonly id: string;
   readonly contractId: string;
-  readonly documentContractId: string | null;
-  readonly documentFisaPostuluiId: string | null;
+  /** Numărul alocat contractului — cel scris efectiv, nu cel cerut. */
+  readonly numarContract: string;
+  /** Documentele emise, în ordinea în care s-au generat. */
+  readonly documente: readonly DocumentEmis[];
+  /** Adresa la care a plecat invitația de acces, sau `null` dacă n-a plecat. */
+  readonly invitatieTrimisaLa: string | null;
+  /** Denumirea șablonului de integrare pornit automat, sau `null`. */
+  readonly checklistPornit: string | null;
   /**
    * Ce NU s-a putut face, deși înrolarea a reușit.
    *
@@ -58,9 +63,11 @@ const CAMPURI_ANGAJAT = [
   "gen",
   "cetatenie",
   "tip_act_identitate",
+  "reges_tip_act",
   "serie_act",
   "numar_act",
   "act_eliberat_de",
+  "act_eliberat_la",
   "act_valabil_pana",
   "department_id",
   "job_position_id",
@@ -90,12 +97,21 @@ const CAMPURI_CONTRACT = [
   "special_regime",
   "loc_telemunca",
   "loc_munca",
+  "punct_lucru_id",
   "conditii_munca",
   "moneda",
   "zile_concediu_anual",
   "perioada_proba_zile",
   "preaviz_zile",
 ] as const;
+
+/**
+ * Câte alocări de număr se încearcă înainte de a renunța.
+ *
+ * NEEXPORTAT, deliberat: fișierul e `"use server"`, iar o constantă exportată de
+ * aici rupe build-ul — `tsc` tace, doar `pnpm build` o prinde.
+ */
+const MAX_INCERCARI_NUMAR = 5;
 
 function textAtribuiri(text: string | null): readonly string[] {
   if (text === null) return [];
@@ -115,8 +131,16 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
     entityType: "employee",
     entityId: (_input, data) => data.id,
     // Salariul rămâne deliberat în afara jurnalului de audit, ca la `creeazaContract`.
+    //
+    // `numar` e în listă, dar cu alocare automată INPUTUL e gol: numărul efectiv
+    // se vede în jurnalul tabelei `employment_contracts`, scris de triggerul de
+    // audit atașat în bucla `do $$` a migrării ei. Aici s-ar înregistra ce a
+    // cerut omul, acolo ce s-a scris — a doua e informația care contează.
     allow: [...CAMPURI_ANGAJAT, ...CAMPURI_CONTRACT],
   },
+  // `revalidate:` se DECLARĂ, nu se cheamă `revalidatePath()` din handler —
+  // regula din CLAUDE.md, încălcată aici de la prima livrare.
+  revalidate: ["/angajati", "/reges", "/concedii/sold", "/onboarding", "/setari/membri"],
   handler: async (ctx, input): Promise<RezultatInrolare> => {
     const db = ctx.supabase;
     const avertismente: string[] = [];
@@ -145,6 +169,7 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
       special_regime,
       loc_telemunca,
       loc_munca,
+      punct_lucru_id,
       moneda,
       salariu_baza,
       zile_concediu_anual,
@@ -172,6 +197,10 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
       .from("employees")
       .insert({
         ...fisa,
+        // Textul de pe documente se DERIVĂ din valoarea REGES, dintr-un singur
+        // `<select>`. Ținute separat, cele două ar fi divergent tăcut: omul ar
+        // alege „Permis de ședere" și contractul ar tipări altceva.
+        tip_act_identitate: ETICHETE_ACT_IDENTITATE[fisa.reges_tip_act],
         marca,
         organization_id: ctx.tenant.organizationId,
         status: "activ",
@@ -184,47 +213,118 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
 
     await salveazaDateSensibile(db, angajat.id, cnp, iban, banca);
 
-    // RLS (`contracts_insert`) forțează status = 'proiect' la INSERT — vezi
-    // comentariul identic din `creeazaContract` (../actions.ts). Activarea e
-    // un al doilea pas, prin UPDATE.
-    const { data: contract, error: eroareContract } = await db
-      .from("employment_contracts")
-      .insert({
-        employee_id: angajat.id,
-        parent_contract_id: null,
-        este_act_aditional: false,
-        numar,
-        data_contract,
-        valabil_de_la,
-        valabil_pana,
-        contract_duration,
-        motiv_determinat,
-        norma_ore_saptamana,
-        norma_ore_zi,
-        work_mode,
-        special_regime,
-        loc_telemunca,
-        loc_munca,
-        department_id: fisa.department_id,
-        job_position_id: fisa.job_position_id,
-        conditii_munca: fisa.conditii_munca,
-        salariu_baza,
-        moneda,
-        zile_concediu_anual,
-        perioada_proba_zile,
-        preaviz_zile,
-        organization_id: ctx.tenant.organizationId,
-        status: "proiect",
-        cod_revisal: null,
-        incetat_la: null,
-        motiv_incetare: null,
-        temei_incetare: null,
-        created_by: ctx.user.id,
-        updated_by: ctx.user.id,
-      })
-      .select("id")
-      .single();
-    if (eroareContract !== null) throw eroareContract;
+    /*
+     * Locul muncii se scrie de DOUĂ ori, deliberat.
+     *
+     * `punct_lucru_id` e legătura vie, folosită de rapoarte. `loc_munca` e
+     * denumirea REZOLVATĂ la momentul semnării: contractul deja emis trebuie să
+     * rămână corect chiar dacă punctul de lucru e redenumit peste doi ani.
+     */
+    let denumireLocMunca = loc_munca;
+    if (punct_lucru_id !== null) {
+      const { data: punct } = await db
+        .from("puncte_lucru")
+        .select("denumire")
+        .eq("id", punct_lucru_id)
+        .eq("organization_id", ctx.tenant.organizationId)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (punct === null) {
+        throw businessRule("Punctul de lucru ales nu mai există. Alegeți altul.");
+      }
+      denumireLocMunca = punct.denumire;
+    }
+
+    /*
+     * Numărul contractului.
+     *
+     * Gol în formular = alocat automat de `public.aloca_numar_contract` (0098),
+     * atomic, cu resetare anuală. Completat = folosit ca atare, pentru un
+     * contract preluat prin transfer sau importat istoric.
+     *
+     * Reîncercarea acoperă cursa cu o altă înrolare simultană — dar NUMAI pe
+     * indexul de număr: `employment_contracts` are cel puțin două indexuri
+     * unice, iar un 23505 venit din altă parte, tratat ca „numărul e luat", ar
+     * arde numere din registru și ar ieși cu un mesaj fără legătură cu cauza.
+     */
+    let numarContract: string | null = numar;
+    let contract: { id: string } | null = null;
+
+    for (let incercare = 0; incercare < MAX_INCERCARI_NUMAR && contract === null; incercare += 1) {
+      let numarDeFolosit = numarContract;
+      if (numarDeFolosit === null) {
+        const { data: alocat, error: eroareAlocare } = await db.rpc("aloca_numar_contract", {
+          p_organization_id: ctx.tenant.organizationId,
+        });
+        if (eroareAlocare !== null) throw eroareAlocare;
+        numarDeFolosit = alocat;
+      }
+
+      // RLS (`contracts_insert`) forțează status = 'proiect' la INSERT — vezi
+      // comentariul identic din `creeazaContract` (../actions.ts). Activarea e
+      // un al doilea pas, prin UPDATE.
+      const { data, error: eroareContract } = await db
+        .from("employment_contracts")
+        .insert({
+          employee_id: angajat.id,
+          parent_contract_id: null,
+          este_act_aditional: false,
+          numar: numarDeFolosit,
+          data_contract,
+          valabil_de_la,
+          valabil_pana,
+          contract_duration,
+          motiv_determinat,
+          norma_ore_saptamana,
+          norma_ore_zi,
+          work_mode,
+          special_regime,
+          loc_telemunca,
+          loc_munca: denumireLocMunca,
+          punct_lucru_id,
+          department_id: fisa.department_id,
+          job_position_id: fisa.job_position_id,
+          conditii_munca: fisa.conditii_munca,
+          salariu_baza,
+          moneda,
+          zile_concediu_anual,
+          perioada_proba_zile,
+          preaviz_zile,
+          organization_id: ctx.tenant.organizationId,
+          status: "proiect",
+          cod_revisal: null,
+          incetat_la: null,
+          motiv_incetare: null,
+          temei_incetare: null,
+          created_by: ctx.user.id,
+          updated_by: ctx.user.id,
+        })
+        .select("id")
+        .single();
+
+      if (eroareContract === null) {
+        contract = data;
+        numarContract = numarDeFolosit;
+        break;
+      }
+
+      const detalii = `${eroareContract.message} ${eroareContract.details ?? ""}`;
+      const numarulELuat =
+        eroareContract.code === "23505" && detalii.includes("contracts_org_numar_uniq");
+      if (!numarulELuat) throw eroareContract;
+
+      if (numar !== null) {
+        // Numărul l-a ales omul: nu se realocă pe la spatele lui.
+        throw businessRule(
+          `Numărul de contract „${numar}” este deja folosit în firma ta. Alegeți altul sau lăsați câmpul gol.`,
+        );
+      }
+      numarContract = null; // alocat automat: reluăm cu următorul din contor
+    }
+
+    if (contract === null || numarContract === null) {
+      throw businessRule("Numerotarea contractelor este ocupată. Încercați din nou.");
+    }
 
     // `.select()` obligatoriu: un UPDATE respins de clauza `USING` afectează
     // zero rânduri FĂRĂ eroare (capcana 17). Contractul ar rămâne „proiect",
@@ -406,69 +506,172 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
     const denumireFunctie = randFunctie?.data?.denumire ?? null;
     const denumireDepartament = randDepartament?.data?.denumire ?? null;
 
-    let documentContractId: string | null = null;
-    try {
-      const documentContract = await genereazaContractDeMunca(db, {
+    const { documente, avertismente: avertismenteDocumente } = await genereazaDocumenteInrolare(
+      db,
+      {
         organizationId: ctx.tenant.organizationId,
         employeeId: angajat.id,
         contractId: contract.id,
         emisDe: ctx.user.id,
-        numarContract: numar,
-        dataContract: data_contract,
-        angajatNume: angajat.full_name ?? "",
-        angajatAdresa: [fisa.adresa_strada, fisa.adresa_oras, fisa.adresa_judet]
-          .filter((v): v is string => v !== null)
-          .join(", "),
-        functie: denumireFunctie,
-        departament: denumireDepartament,
-        dataAngajarii: valabil_de_la,
-        durataContract:
-          contract_duration === "determinat" && valabil_pana !== null
-            ? `determinată, până la ${formatDate(valabil_pana)}`
-            : "nedeterminată",
-        normaOreSaptamana: norma_ore_saptamana,
-        normaOreZi: norma_ore_zi,
-        modLucru: ETICHETE_MOD_LUCRU[work_mode] ?? work_mode,
-        salariuBrut: salariu_baza,
-        zileConcediuAnual: zile_concediu_anual,
-      });
-      documentContractId = documentContract.id;
-    } catch (eroare) {
-      avertismente.push(
-        "Contractul de muncă nu a putut fi generat. Îl puteți genera din fișa angajatului, secțiunea Documente.",
-      );
-      console.error("[documente] contractul de muncă nu a putut fi generat", {
-        employeeId: angajat.id,
-        requestId: ctx.requestId,
-        eroare,
-      });
-    }
-
-    let documentFisaPostuluiId: string | null = null;
-    if (jobDescriptionId !== null) {
-      try {
-        const documentFisaPost = await genereazaFisaPostului(db, {
-          organizationId: ctx.tenant.organizationId,
-          employeeId: angajat.id,
-          emisDe: ctx.user.id,
-          angajatNume: angajat.full_name ?? "",
+        azi: todayInBucharest(),
+        angajat: {
+          nume: angajat.full_name ?? "",
+          adresa: [fisa.adresa_strada, fisa.adresa_oras, fisa.adresa_judet]
+            .filter((v): v is string => v !== null)
+            .join(", "),
+          serieAct: fisa.serie_act,
+          numarAct: fisa.numar_act,
+          actEliberatDe: fisa.act_eliberat_de,
+          actEliberatLa: fisa.act_eliberat_la,
           functie: denumireFunctie,
           departament: denumireDepartament,
-          subordonare,
-          atributii: listaAtributii,
-          competente: listaCompetente,
+        },
+        contract: {
+          numar: numarContract,
+          dataContract: data_contract,
+          dataAngajarii: valabil_de_la,
+          durata:
+            contract_duration === "determinat" && valabil_pana !== null
+              ? `determinată, până la ${formatDate(valabil_pana)}`
+              : "nedeterminată",
+          normaOreSaptamana: norma_ore_saptamana,
+          normaOreZi: norma_ore_zi,
+          modLucru: ETICHETE_MOD_LUCRU[work_mode] ?? work_mode,
+          locMunca: denumireLocMunca,
+          locTelemunca: loc_telemunca,
+          salariuBrut: salariu_baza,
+          zileConcediuAnual: zile_concediu_anual,
+        },
+        codModLucru: work_mode,
+        fisaPostului:
+          jobDescriptionId === null
+            ? null
+            : { subordonare, atributii: listaAtributii, competente: listaCompetente },
+      },
+    );
+    avertismente.push(...avertismenteDocumente);
+
+    /*
+     * Invitația de acces în aplicație.
+     *
+     * Până acum, lanțul se rupea aici: angajatul se crea, iar contul lui se
+     * invita din alt modul, sub alt rol, dintr-un ecran pe care nimeni nu-l
+     * deschidea. `employees.user_id` nu era scris NICIODATĂ de aplicație, deci
+     * omul primea cont și tot n-avea fișă.
+     *
+     * `employee_id` pe invitație (0099) închide bucla: la acceptare, triggerul
+     * `internal.membru_creeaza_fisa_de_angajat` scrie legătura.
+     *
+     * Ca toți pașii opționali de mai sus, eșecul NU anulează înrolarea: pragul
+     * cerut e `employees:invite`, pe care un `manager` nu-l are.
+     */
+    let invitatieTrimisaLa: string | null = null;
+    /*
+     * Adresa REALĂ, personală sau de serviciu. Până acum se citea doar
+     * `email_personal`, deci un angajat care are numai adresă de firmă rămânea
+     * fără cont, deși avea unde primi mesajul.
+     *
+     * Când nu există NICIUNA, invitația NU se creează aici, deliberat: ar avea
+     * nevoie de o adresă fabricată, ar consuma un loc din `seats_limit` și ar
+     * expira în șapte zile cu un link pe care nu l-a văzut nimeni — rezultatul
+     * înrolării nu are unde să-l arate. Se face din fișa angajatului, unde fișa
+     * tipăribilă cu cod QR apare pe ecran în clipa creării.
+     */
+    const adresaInvitatie = adresaRealaDinFisa(fisa);
+    if (adresaInvitatie === null) {
+      avertismente.push(
+        "Angajatul nu are e-mail, deci nu i s-a trimis nicio invitație. Deschideți fișa lui și apăsați „Invită în aplicație”: primește un nume de utilizator și o fișă de tipărit, cu cod QR.",
+      );
+    } else {
+      try {
+        const invitatie = await creeazaInvitatie({
+          db,
+          organizationId: ctx.tenant.organizationId,
+          email: adresaInvitatie,
+          rol: "employee",
+          employeeId: angajat.id,
+          invitatDe: ctx.user.fullName ?? ctx.user.email,
+          userId: ctx.user.id,
+          acum: ctx.now,
         });
-        documentFisaPostuluiId = documentFisaPost.id;
+        invitatieTrimisaLa = invitatie.emailTrimis ? invitatie.email : null;
+        if (!invitatie.emailTrimis) {
+          avertismente.push(
+            "Invitația a fost creată, dar e-mailul nu a plecat. Retrimiteți-l din Setări → Membri.",
+          );
+        }
       } catch (eroare) {
         avertismente.push(
-          "Fișa postului nu a putut fi generată. O puteți genera din fișa angajatului, secțiunea Documente.",
+          "Invitația de acces nu a putut fi trimisă. Poate fi nevoie de dreptul „angajați: invitare”.",
         );
-        console.error("[documente] fișa postului nu a putut fi generată", {
+        console.error("[invitatii] invitația de înrolare nu a putut fi trimisă", {
           employeeId: angajat.id,
           requestId: ctx.requestId,
           eroare,
         });
       }
+    }
+
+    /*
+     * Checklistul de integrare.
+     *
+     * Se alege cel mai SPECIFIC șablon activ de tip `onboarding` care se
+     * potrivește: pe funcție bate pe departament, care bate pe general. La
+     * egalitate, cel mai recent — o firmă care și-a rescris șablonul vrea
+     * varianta nouă, nu pe cea din primul an.
+     *
+     * `data_referinta` e `valabil_de_la`, nu ziua de azi: termenele pașilor se
+     * calculează relativ la începerea activității, nu la clipa în care cineva
+     * a apăsat butonul.
+     */
+    let checklistPornit: string | null = null;
+    try {
+      const { data: sabloane } = await db
+        .from("checklist_templates")
+        .select("id, denumire, department_id, job_position_id")
+        .eq("organization_id", ctx.tenant.organizationId)
+        .eq("tip", "onboarding")
+        .eq("activ", true)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false });
+
+      const potrivite = (sabloane ?? []).filter(
+        (s) =>
+          (s.job_position_id === null || s.job_position_id === fisa.job_position_id) &&
+          (s.department_id === null || s.department_id === fisa.department_id),
+      );
+      const specificitate = (s: (typeof potrivite)[number]): number =>
+        (s.job_position_id === null ? 0 : 2) + (s.department_id === null ? 0 : 1);
+      const ales = [...potrivite].sort((a, b) => specificitate(b) - specificitate(a))[0];
+
+      if (ales === undefined) {
+        avertismente.push(
+          "Nu există niciun șablon de integrare activ, deci nu s-a pornit niciun checklist. Creați unul din Integrare → Șabloane.",
+        );
+      } else {
+        const { error: eroareInstanta } = await db.from("checklist_instances").insert({
+          organization_id: ctx.tenant.organizationId,
+          template_id: ales.id,
+          employee_id: angajat.id,
+          data_referinta: valabil_de_la,
+          observatii: null,
+          // Triggerul `internal.checklist_pregateste_instanta` (BEFORE INSERT)
+          // suprascrie `tip` din șablon; valoarea de aici există doar ca să
+          // compileze, exact ca în `pornesteInstanta`.
+          tip: "onboarding",
+        });
+        if (eroareInstanta !== null) throw eroareInstanta;
+        checklistPornit = ales.denumire;
+      }
+    } catch (eroare) {
+      avertismente.push(
+        "Checklistul de integrare nu a putut fi pornit. Îl puteți porni din Integrare → Instanță nouă.",
+      );
+      console.error("[integrare] checklistul nu a putut fi pornit la înrolare", {
+        employeeId: angajat.id,
+        requestId: ctx.requestId,
+        eroare,
+      });
     }
 
     // REVISAL: aceeași generare idempotentă, mutată din `creeazaContract` —
@@ -501,16 +704,13 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
       });
     }
 
-    revalidatePath("/angajati");
-    revalidatePath(`/angajati/${angajat.id}`);
-    revalidatePath("/reges");
-    revalidatePath("/concedii/sold");
-
     return {
       id: angajat.id,
       contractId: contract.id,
-      documentContractId,
-      documentFisaPostuluiId,
+      numarContract,
+      documente,
+      invitatieTrimisaLa,
+      checklistPornit,
       avertismente,
     };
   },

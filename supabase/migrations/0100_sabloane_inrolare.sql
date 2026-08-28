@@ -193,3 +193,5 @@ on conflict do nothing;
 -- baza e una singură pentru dezvoltare și producție. Până urcă și codul care
 -- furnizează variabilele noi, fiecare înrolare ar ieși fără contract. Migrarea
 -- aceasta se poate aplica oricând; 0101 se aplică DUPĂ deploy.
+
+commit;

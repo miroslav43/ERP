@@ -1,6 +1,7 @@
 // src/app/(app)/angajati/nou/_components/pas-3-contract.tsx
 "use client";
 
+import { useEffect, useState } from "react";
 import { useWatch, type UseFormReturn } from "react-hook-form";
 
 import { Camp } from "@/components/ui/camp";
@@ -37,6 +38,7 @@ export const CAMPURI_PAS_3 = [
   "special_regime",
   "loc_telemunca",
   "loc_munca",
+  "punct_lucru_id",
   "salariu_baza",
   "moneda",
   "zile_concediu_anual",
@@ -61,13 +63,27 @@ interface Proprietati {
   readonly departamente: readonly Optiune[];
   readonly functii: readonly Optiune[];
   readonly angajati: readonly OptiuneAngajat[];
+  readonly puncteLucru: readonly Optiune[];
+  /** Următorul număr liber, doar ca text de ajutor. Alocarea reală e la salvare. */
+  readonly numarUrmator: string | null;
 }
 
-export function Pas3Contract({ formular, departamente, functii, angajati }: Proprietati) {
+/** Santinela din `<select>` pentru „locul nu e nici sediul, nici un punct de lucru". */
+const ALTA_LOCATIE = "ALTA";
+
+export function Pas3Contract({
+  formular,
+  departamente,
+  functii,
+  angajati,
+  puncteLucru,
+  numarUrmator,
+}: Proprietati) {
   const {
     register,
     control,
-    formState: { errors },
+    setValue,
+    formState: { errors, dirtyFields },
   } = formular;
   // `useWatch`, NU `formular.watch(…)`. `watch` abonează doar componenta care
   // apelează `useForm` (asistentul), nu și pașii lui, iar cu React Compiler
@@ -78,7 +94,28 @@ export function Pas3Contract({ formular, departamente, functii, angajati }: Prop
   // niciodată, iar validarea pica apoi pe un câmp invizibil.
   const modLucru = useWatch({ control, name: "work_mode" });
   const durataContract = useWatch({ control, name: "contract_duration" });
+  const valabilDeLa = useWatch({ control, name: "valabil_de_la" });
+  const punctAles = useWatch({ control, name: "punct_lucru_id" });
   const esteLaDistanta = modLucru === "telemunca" || modLucru === "domiciliu";
+
+  const [altaLocatie, setAltaLocatie] = useState(false);
+
+  /*
+   * Vechimea în unitate se completează singură din „Angajat de la".
+   *
+   * La o angajare obișnuită sunt aceeași dată, iar a doua oară e muncă în plus.
+   * `dirtyFields` e discriminantul: în clipa în care omul atinge câmpul,
+   * oglindirea se oprește definitiv — cazul reangajării, unde vechimea e mai
+   * veche decât contractul.
+   *
+   * `setValue`, nu `setState`: React Compiler interzice al doilea într-un efect
+   * (`react-hooks/set-state-in-effect`), fiindcă produce randări în cascadă.
+   */
+  useEffect(() => {
+    if (dirtyFields.hired_on === true) return;
+    if (typeof valabilDeLa !== "string" || valabilDeLa === "") return;
+    setValue("hired_on", valabilDeLa, { shouldDirty: false });
+  }, [valabilDeLa, dirtyFields.hired_on, setValue]);
 
   return (
     <div className="space-y-6">
@@ -158,8 +195,23 @@ export function Pas3Contract({ formular, departamente, functii, angajati }: Prop
       <fieldset className="border-border rounded-panou space-y-4 border p-4">
         <legend className="text-foreground text-corp px-1 font-medium">Contractul de muncă</legend>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Camp nume="numar" eticheta="Număr contract" obligatoriu erori={mesajCamp(errors.numar)}>
-            {(atribute) => <input {...atribute} {...register("numar")} />}
+          <Camp
+            nume="numar"
+            eticheta="Număr contract"
+            erori={mesajCamp(errors.numar)}
+            ajutor={
+              numarUrmator === null
+                ? "Lăsat gol, se alocă automat la salvare."
+                : `Lăsat gol, primește automat ${numarUrmator}. Completați doar pentru un contract preluat prin transfer sau importat.`
+            }
+          >
+            {(atribute) => (
+              <input
+                {...atribute}
+                {...register("numar")}
+                placeholder={numarUrmator ?? "se alocă automat"}
+              />
+            )}
           </Camp>
           <Camp
             nume="data_contract"
@@ -181,8 +233,9 @@ export function Pas3Contract({ formular, departamente, functii, angajati }: Prop
           <Camp
             nume="hired_on"
             eticheta="Vechime în unitate din"
+            obligatoriu
             erori={mesajCamp(errors.hired_on)}
-            ajutor="De obicei aceeași dată. Diferă la reangajare sau la preluare prin transfer — din ea se calculează vechimea și adeverințele."
+            ajutor="Se completează singură din „Angajat de la”. Schimbați-o doar la reangajare sau la preluare prin transfer — din ea se calculează vechimea și adeverințele."
           >
             {(atribute) => <input {...atribute} type="date" {...register("hired_on")} />}
           </Camp>
@@ -279,9 +332,63 @@ export function Pas3Contract({ formular, departamente, functii, angajati }: Prop
               {(atribute) => <input {...atribute} {...register("loc_telemunca")} />}
             </Camp>
           ) : (
-            <Camp nume="loc_munca" eticheta="Locul de muncă" erori={mesajCamp(errors.loc_munca)}>
-              {(atribute) => <input {...atribute} {...register("loc_munca")} />}
-            </Camp>
+            <>
+              {/*
+                Locul muncii e clauză obligatorie a contractului (art. 17 alin. (3)
+                lit. b) din Codul muncii). Până acum era text liber și nu ajungea
+                deloc în documentul generat.
+
+                `punct_lucru_id` NU trece prin `register`: santinela „Altă
+                locație" nu e un uuid și ar cădea pe `uuidOptional`. Selecția e
+                controlată, iar valoarea reală se scrie cu `setValue`.
+              */}
+              <Camp
+                nume="punct_lucru_id"
+                eticheta="Locul de muncă"
+                fel="select"
+                erori={mesajCamp(errors.punct_lucru_id)}
+              >
+                {(atribute) => (
+                  <select
+                    {...atribute}
+                    value={altaLocatie ? ALTA_LOCATIE : (punctAles ?? "")}
+                    onChange={(eveniment) => {
+                      const aleasa = eveniment.target.value;
+                      if (aleasa === ALTA_LOCATIE) {
+                        setAltaLocatie(true);
+                        setValue("punct_lucru_id", null, { shouldDirty: true });
+                        return;
+                      }
+                      setAltaLocatie(false);
+                      setValue("punct_lucru_id", aleasa === "" ? null : aleasa, {
+                        shouldDirty: true,
+                      });
+                      // Textul liber nu are ce căuta pe o alegere din listă.
+                      setValue("loc_munca", null, { shouldDirty: true });
+                    }}
+                  >
+                    <option value="">— Sediul social —</option>
+                    {puncteLucru.map((punct) => (
+                      <option key={punct.id} value={punct.id}>
+                        {punct.denumire}
+                      </option>
+                    ))}
+                    <option value={ALTA_LOCATIE}>Altă locație…</option>
+                  </select>
+                )}
+              </Camp>
+              {altaLocatie ? (
+                <Camp
+                  nume="loc_munca"
+                  eticheta="Care anume"
+                  obligatoriu
+                  erori={mesajCamp(errors.loc_munca)}
+                  ajutor="Șantier, punct de delegare, o locație care nu merită înregistrată la ONRC."
+                >
+                  {(atribute) => <input {...atribute} {...register("loc_munca")} />}
+                </Camp>
+              ) : null}
+            </>
           )}
           <Camp
             nume="special_regime"

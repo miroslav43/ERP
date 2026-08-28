@@ -86,9 +86,7 @@ if (process.argv.includes("--json")) {
     `Module de rută: **${raport.module.cuPagina}** din **${raport.module.total}** au pagină.\n`,
   );
   if (fierbintiFaraPagina.length) {
-    console.log(
-      `**Atinse în ultimele ${ZILE} zile și fără pagină — astea contează acum:**\n`,
-    );
+    console.log(`**Atinse în ultimele ${ZILE} zile și fără pagină — astea contează acum:**\n`);
     for (const m of fierbintiFaraPagina) console.log(`- \`src/app/(app)/${m}/\``);
     console.log("");
   }

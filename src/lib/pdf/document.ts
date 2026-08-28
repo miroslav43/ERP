@@ -178,6 +178,18 @@ export class Cursor {
   }
 
   /**
+   * Lățimea unui text, în puncte.
+   *
+   * Expusă fiindcă `pdf-lib` NU are noțiune de flux: încadrarea unui paragraf
+   * (`src/lib/pdf/flux.ts`) trebuie să măsoare cuvânt cu cuvânt ca să știe unde
+   * să rupă rândul, iar fonturile sunt private aici.
+   */
+  latimeText(continut: string, marime = 9, aldin = false): number {
+    const font = aldin ? this.context.fonturi.aldin : this.context.fonturi.normal;
+    return font.widthOfTextAtSize(continut, marime);
+  }
+
+  /**
    * Taie un text la lățimea disponibilă, cu „…" la capăt.
    *
    * Fără asta, un nume lung intră peste coloana următoare — `pdf-lib` nu

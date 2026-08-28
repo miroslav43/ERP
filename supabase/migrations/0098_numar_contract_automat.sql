@@ -138,3 +138,5 @@ grant execute on function public.aloca_numar_contract(uuid) to authenticated;
 -- · Nu face numărul obligatoriu în bază. `numar` rămâne `not null`; aplicația îl
 --   alocă înainte de INSERT, iar câmpul din formular devine opțional. Un contract
 --   preluat prin transfer sau importat istoric își păstrează numărul propriu.
+
+commit;

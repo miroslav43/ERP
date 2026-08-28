@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { cn } from "@/lib/ui/cn";
 import { ButonStergeDocument, FormularDocument, ListaDescarcare } from "./formular-document";
+import { ButonEmiteLipsa } from "./buton-emite-lipsa";
 
 export default async function PaginaDocumenteAngajat({
   params,
@@ -30,6 +31,9 @@ export default async function PaginaDocumenteAngajat({
   const poateIncarca = scopActualizare !== null && scopActualizare !== "none";
   const scopStergere = scopeFor(permisiuni, "employees:delete");
   const poateSterge = scopStergere !== null && scopStergere !== "none";
+  // Emiterea unui document oficial cere același prag ca înrolarea: e actul care
+  // consumă un număr din registrul seriei, nu o încărcare de fișier.
+  const poateInrola = scopeFor(permisiuni, "employees:create") === "all";
 
   const supabase = await createServerSupabase();
   const { data: angajat } = await supabase
@@ -53,7 +57,7 @@ export default async function PaginaDocumenteAngajat({
     );
   }
 
-  const [documente, tipuri] = await Promise.all([
+  const [documente, tipuri, emise] = await Promise.all([
     supabase
       .from("employee_documents")
       .select(
@@ -71,6 +75,23 @@ export default async function PaginaDocumenteAngajat({
       .eq("activ", true)
       .is("deleted_at", null)
       .order("ordine"),
+    /*
+     * Documentele GENERATE — contractul, fișa postului, NDA, anexa de
+     * proprietate intelectuală, actul adițional de telemuncă.
+     *
+     * Stau în altă tabelă decât fișierele încărcate (`hr_issued_documents` vs
+     * `employee_documents`), au numerotare proprie pe serie și o amprentă
+     * SHA-256. Până acum nu erau vizibile NICĂIERI în aplicație: HR-ul le vedea
+     * o dată, în ecranul de confirmare al înrolării, și nu le mai găsea
+     * niciodată. Portalul angajatului le arăta; ecranul administratorului, nu.
+     */
+    supabase
+      .from("hr_issued_documents")
+      .select("id, titlu, numar_afisat, emis_la, anulat_la")
+      .eq("employee_id", id)
+      .eq("organization_id", tenant.organizationId)
+      .is("deleted_at", null)
+      .order("emis_la", { ascending: false }),
   ]);
 
   // Se ARUNCĂ, nu se randează un panou de eroare în pagină. Pagina e Server
@@ -98,6 +119,47 @@ export default async function PaginaDocumenteAngajat({
           descriere={`Marca ${angajat.marca} · ${String(documente.data.length)} document(e) în dosar`}
         />
       </div>
+
+      {poateInrola ? (
+        <section className="border-border rounded-panou border p-4">
+          <h2 className="text-foreground text-sectiune font-semibold">Documente generate</h2>
+          <p className="text-muted-foreground text-corp mt-1">
+            {(emise.data ?? []).length === 0
+              ? "Niciun document emis încă. Butonul de mai jos generează contractul, fișa postului, acordul de confidențialitate, anexa de proprietate intelectuală și — la telemuncă — actul adițional."
+              : "Emise de aplicație, cu număr propriu și amprentă. Se deschid în PDF."}
+          </p>
+          <div className="mt-3">
+            <ButonEmiteLipsa employeeId={angajat.id} />
+          </div>
+          <ul className="divide-border mt-3 divide-y">
+            {(emise.data ?? []).map((document) => (
+              <li key={document.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2">
+                <Link
+                  href={`/documente/${document.id}?format=pdf`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary text-corp underline decoration-1 underline-offset-4 hover:decoration-2"
+                >
+                  {document.titlu}
+                </Link>
+                <span className="text-muted-foreground text-nota">{document.numar_afisat}</span>
+                <span className="text-muted-foreground text-nota">
+                  {formatDate(document.emis_la)}
+                </span>
+                {document.anulat_la === null ? null : <Badge ton="neutru">Anulat</Badge>}
+                <Link
+                  href={`/documente/${document.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-foreground text-nota ml-auto underline-offset-2 hover:underline"
+                >
+                  Vezi în pagină
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {poateIncarca ? <FormularDocument employeeId={angajat.id} tipuri={tipuri.data} /> : null}
 

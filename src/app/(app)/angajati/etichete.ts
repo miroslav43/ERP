@@ -2,6 +2,7 @@
 // Etichete de interfață — separate de actions.ts, care poate exporta doar funcții async.
 
 import type { TonStare } from "@/components/ui/badge";
+import type { TIPURI_ACT_IDENTITATE } from "@/domain/reges/operatii";
 import type {
   CONDITII_MUNCA,
   DURATE_CONTRACT,
@@ -73,6 +74,36 @@ export const ETICHETE_CONDITII_MUNCA: Readonly<Record<(typeof CONDITII_MUNCA)[nu
   normale: "Normale",
   deosebite: "Deosebite",
   speciale: "Speciale",
+};
+
+/**
+ * Actele de identitate, din vocabularul REGES, în română.
+ *
+ * Aceeași hartă hrănește DOUĂ lucruri: opțiunile `<select>`-ului din asistent și
+ * textul scris în `employees.tip_act_identitate`, care ajunge pe documentele
+ * tipărite. Ținute separat, cele două ar fi divergent tăcut — omul ar alege
+ * „Permis de ședere" și contractul ar scrie altceva.
+ *
+ * Ordinea nu e cea din enum: primele sunt cele pe care le alege cineva în 99%
+ * din cazuri, restul urmează. Un `<select>` de treisprezece opțiuni în ordinea
+ * bazei e o listă în care nu găsești nimic.
+ */
+export const ETICHETE_ACT_IDENTITATE: Readonly<
+  Record<(typeof TIPURI_ACT_IDENTITATE)[number], string>
+> = {
+  CarteIdentitate: "Carte de identitate",
+  Pasaport: "Pașaport",
+  PermisDeSedere: "Permis de ședere",
+  CarteDeRezidenta: "Carte de rezidență",
+  BuletinIdentitate: "Buletin de identitate",
+  AltActIdentitateRomanesc: "Alt act de identitate românesc",
+  AvizDeAngajare: "Aviz de angajare",
+  DocumentDeIdentitatetemporara: "Document de identitate temporară",
+  CertificatInregistrare: "Certificat de înregistrare",
+  PasaportBeneficiarProtectieInternationala: "Pașaport — protecție internațională",
+  AltApatridTolerat: "Apatrid tolerat",
+  NIF: "Număr de identificare fiscală",
+  Alt: "Alt document",
 };
 
 export const ETICHETE_REGIM_SPECIAL: Readonly<Record<(typeof REGIMURI_SPECIALE)[number], string>> =

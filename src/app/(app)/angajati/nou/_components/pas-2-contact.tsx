@@ -79,19 +79,33 @@ export function Pas2Contact({ formular }: Proprietati) {
 
       <fieldset className="border-border rounded-panou space-y-4 border p-4">
         <legend className="text-foreground text-corp px-1 font-medium">Domiciliu</legend>
+        <p className="text-muted-foreground text-corp">
+          Se tipărește în contract și e cerut de REGES la transmiterea salariatului.
+        </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <Camp
             nume="adresa_strada"
             eticheta="Stradă și număr"
+            obligatoriu
             erori={mesajCamp(errors.adresa_strada)}
             className="sm:col-span-2"
           >
             {(atribute) => <input {...atribute} {...register("adresa_strada")} />}
           </Camp>
-          <Camp nume="adresa_oras" eticheta="Localitate" erori={mesajCamp(errors.adresa_oras)}>
+          <Camp
+            nume="adresa_oras"
+            eticheta="Localitate"
+            obligatoriu
+            erori={mesajCamp(errors.adresa_oras)}
+          >
             {(atribute) => <input {...atribute} {...register("adresa_oras")} />}
           </Camp>
-          <Camp nume="adresa_judet" eticheta="Județ" erori={mesajCamp(errors.adresa_judet)}>
+          <Camp
+            nume="adresa_judet"
+            eticheta="Județ"
+            obligatoriu
+            erori={mesajCamp(errors.adresa_judet)}
+          >
             {(atribute) => <input {...atribute} {...register("adresa_judet")} />}
           </Camp>
           <Camp

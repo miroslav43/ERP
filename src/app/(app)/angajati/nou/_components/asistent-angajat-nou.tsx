@@ -61,15 +61,27 @@ interface Proprietati {
   readonly departamente: readonly Optiune[];
   readonly functii: readonly Optiune[];
   readonly angajati: readonly OptiuneAngajat[];
+  readonly puncteLucru: readonly Optiune[];
   readonly zileConcediuImplicit: number;
   readonly obiecteDisponibile: readonly OptiuneInventar[];
+  /** Următorul număr liber de contract, doar ca text de ajutor. */
+  readonly numarUrmator: string | null;
+}
+
+interface DocumentEmis {
+  readonly cod: string;
+  readonly denumire: string;
+  readonly id: string;
+  readonly numarAfisat: string;
 }
 
 interface RezultatSucces {
   readonly id: string;
   readonly nume: string;
-  readonly documentContractId: string | null;
-  readonly documentFisaPostuluiId: string | null;
+  readonly numarContract: string;
+  readonly documente: readonly DocumentEmis[];
+  readonly invitatieTrimisaLa: string | null;
+  readonly checklistPornit: string | null;
   readonly avertismente: readonly string[];
 }
 
@@ -77,8 +89,10 @@ export function AsistentAngajatNou({
   departamente,
   functii,
   angajati,
+  puncteLucru,
   zileConcediuImplicit,
   obiecteDisponibile,
+  numarUrmator,
 }: Proprietati) {
   const refFormular = useRef<HTMLFormElement | null>(null);
   const [pasCurent, setPasCurent] = useState(1);
@@ -175,8 +189,10 @@ export function AsistentAngajatNou({
       setRezultat({
         id: raspuns.data.id,
         nume: `${valori.first_name} ${valori.last_name}`.trim(),
-        documentContractId: raspuns.data.documentContractId,
-        documentFisaPostuluiId: raspuns.data.documentFisaPostuluiId,
+        numarContract: raspuns.data.numarContract,
+        documente: raspuns.data.documente,
+        invitatieTrimisaLa: raspuns.data.invitatieTrimisaLa,
+        checklistPornit: raspuns.data.checklistPornit,
         avertismente: raspuns.data.avertismente,
       });
       return;
@@ -233,31 +249,67 @@ export function AsistentAngajatNou({
           „{rezultat.nume}” a fost înrolat(ă)
         </h2>
         <p className="text-muted-foreground text-corp">
-          Marca a fost atribuită automat, contractul e activ, iar soldul de concediu a fost
-          însămânțat pentru toate tipurile organizației.
+          Contractul <strong className="text-foreground">nr. {rezultat.numarContract}</strong> e
+          activ, marca a fost atribuită automat, iar soldul de concediu a fost însămânțat pentru
+          toate tipurile organizației.
         </p>
+
+        {/* Lanțul, pas cu pas: ce a mers de la sine. Ce n-a mers stă mai jos,
+            în avertismente — separate, ca să nu se citească drept același lucru. */}
+        <ul className="text-corp space-y-1">
+          {rezultat.invitatieTrimisaLa !== null ? (
+            <li className="text-muted-foreground">
+              Invitația de acces a plecat la{" "}
+              <span className="text-foreground">{rezultat.invitatieTrimisaLa}</span>. Contul se
+              creează când angajatul acceptă și își pune parola, și se leagă singur de fișa asta.
+            </li>
+          ) : null}
+          {rezultat.checklistPornit !== null ? (
+            <li className="text-muted-foreground">
+              Checklistul de integrare{" "}
+              <span className="text-foreground">„{rezultat.checklistPornit}”</span> a pornit.
+            </li>
+          ) : null}
+        </ul>
+
+        {rezultat.documente.length > 0 ? (
+          <div className="border-border rounded-panou border p-4">
+            <p className="text-foreground text-corp font-medium">
+              {rezultat.documente.length === 1
+                ? "Un document generat"
+                : `${String(rezultat.documente.length)} documente generate`}
+            </p>
+            <ul className="mt-2 space-y-1">
+              {rezultat.documente.map((document) => (
+                <li key={document.id} className="text-corp flex flex-wrap items-baseline gap-2">
+                  <Link
+                    href={`/documente/${document.id}?format=pdf`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary underline decoration-1 underline-offset-4 hover:decoration-2"
+                  >
+                    {document.denumire}
+                  </Link>
+                  <span className="text-muted-foreground text-nota">{document.numarAfisat}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="text-muted-foreground text-nota mt-3">
+              Se descarcă în PDF. Toate stau și pe fișa angajatului, la Documente.
+            </p>
+          </div>
+        ) : null}
+
         <div className="flex flex-wrap gap-3">
           <Link href={`/angajati/${rezultat.id}`} className={buton({ varianta: "primar" })}>
             Deschide fișa angajatului
           </Link>
-          {rezultat.documentContractId !== null ? (
+          {rezultat.documente.length > 1 ? (
             <Link
-              href={`/documente/${rezultat.documentContractId}`}
-              target="_blank"
-              rel="noopener noreferrer"
+              href={`/angajati/${rezultat.id}/documente`}
               className={buton({ varianta: "secundar" })}
             >
-              Vezi contractul de muncă
-            </Link>
-          ) : null}
-          {rezultat.documentFisaPostuluiId !== null ? (
-            <Link
-              href={`/documente/${rezultat.documentFisaPostuluiId}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={buton({ varianta: "secundar" })}
-            >
-              Vezi fișa postului
+              Toate documentele
             </Link>
           ) : null}
         </div>
@@ -313,6 +365,8 @@ export function AsistentAngajatNou({
           departamente={departamente}
           functii={functii}
           angajati={angajati}
+          puncteLucru={puncteLucru}
+          numarUrmator={numarUrmator}
         />
       )}
       {pasCurent === 4 && <Pas4FisaPostului formular={formular} />}

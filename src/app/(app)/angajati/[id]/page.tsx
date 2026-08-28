@@ -59,6 +59,7 @@ import { FormularScutireFiscala } from "./formular-scutire-fiscala";
 import { IncarcareAvatarAdmin } from "./incarcare-avatar-admin";
 import { SectiuneConcedii } from "./sectiune-concedii";
 import { SectiuneDependenti, type RandDependent } from "./sectiune-dependenti";
+import { InvitatieAngajat } from "./invitatie-angajat";
 
 export const metadata: Metadata = { title: "Fișa angajatului" };
 
@@ -221,6 +222,9 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
   const esteFisaProprie = angajat.user_id === utilizator.id;
   const poateIncarcaPtOricine = can(permisiuni, "users:update", "all");
   const poateEditaAngajat = can(permisiuni, "employees:update", "all");
+  // Invitarea are permisiune PROPRIE (0099), separată de `employees:update`:
+  // ea consumă un loc din `seats_limit` și creează un cont, nu editează o fișă.
+  const poateInvita = can(permisiuni, "employees:invite", "all");
   // Pragul `team` e cel mai mic care deschide ecranul: `org_admin` are `all`
   // (toată firma), managerul `team` (doar echipa lui, restul îl oprește RLS).
   const poateAcordaPermisiuni = can(permisiuni, "roles:update", "team");
@@ -343,6 +347,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
           </GrupCampuri>
           <GrupCampuri titlu="Contact">
             <Camp eticheta="E-mail personal" valoare={angajat.email_personal} />
+            <Camp eticheta="E-mail de serviciu" valoare={angajat.email_serviciu} />
             <Camp eticheta="Telefon" valoare={angajat.telefon} />
             <Camp
               eticheta="Adresă"
@@ -364,6 +369,26 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
             />
             <Camp eticheta="Grad de handicap" valoare={angajat.grad_handicap} />
           </GrupCampuri>
+          {/*
+            Accesul în aplicație. Apare DOAR când fișa n-are cont: odată legată,
+            butonul n-ar avea ce face, iar prezența lui ar sugera că mai e ceva
+            de apăsat. Verificat pe baza reală: 4 din 11 fișe active n-aveau
+            `user_id`, adică exact oamenii pentru care s-a construit pontarea de
+            pe telefon.
+          */}
+          {poateInvita && angajat.user_id === null ? (
+            <div className="sm:col-span-2">
+              <h3 className="text-muted-foreground text-nota mb-2 font-medium tracking-wide uppercase">
+                Acces în aplicație
+              </h3>
+              <InvitatieAngajat
+                employeeId={angajat.id}
+                numeAngajat={angajat.full_name}
+                numeFirma={tenant.name}
+              />
+            </div>
+          ) : null}
+
           <div className="sm:col-span-2">
             <h3 className="text-muted-foreground text-nota mb-2 font-medium tracking-wide uppercase">
               Persoane în întreținere

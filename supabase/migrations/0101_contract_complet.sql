@@ -65,11 +65,11 @@ update public.hr_document_templates
          'ore/săptămână, {{norma_ore_zi}} ore/zi, în regim {{mod_lucru}}.</p>' ||
          '<p>Salariul de bază lunar brut: {{salariu_brut}} lei.</p>' ||
          '<p>Durata concediului de odihnă anual: {{zile_concediu_anual}} zile lucrătoare.</p>',
-       variabile =
-         '["numar_contract","data_contract","organizatie_denumire","angajat_nume","cnp_complet",'
-         '"serie_act","numar_act","act_eliberat_de","act_eliberat_la","angajat_adresa","functie",'
-         '"departament","data_angajarii","loc_munca","durata_contract","norma_ore_saptamana",'
-         '"norma_ore_zi","mod_lucru","salariu_brut","zile_concediu_anual"]'::jsonb,
+       -- Lista stă pe un singur literal, nu spartă pe rânduri: Postgres
+       -- concatenează literalele adiacente, dar `valori-inrolare.test.ts` o
+       -- citește de aici ca să o compare cu harta din cod, iar un tablou rupt în
+       -- două l-ar face să nu mai poată.
+       variabile = '["numar_contract","data_contract","organizatie_denumire","angajat_nume","cnp_complet","serie_act","numar_act","act_eliberat_de","act_eliberat_la","angajat_adresa","functie","departament","data_angajarii","loc_munca","durata_contract","norma_ore_saptamana","norma_ore_zi","mod_lucru","salariu_brut","zile_concediu_anual"]'::jsonb,
        updated_at = now()
  where cod = 'contract_munca'
    and organization_id is null;
@@ -87,3 +87,5 @@ update public.hr_document_templates
 -- Doar identitatea și numărul contractului chiar blochează emiterea; restul
 -- primesc rezervă și lasă documentul să iasă, cu un gol vizibil pe hârtie — care
 -- e mai util decât niciun document.
+
+commit;
