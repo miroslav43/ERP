@@ -1,0 +1,351 @@
+# Sincronizarea nocturnă a vault-ului `.claude/docs/`.
+#
+# DE CE NU `on: push`: workflow-ul trage din ACELAȘI `CLAUDE_CODE_OAUTH_TOKEN` ca
+# `revizuire.yml`, care e poarta de securitate RLS. La cadența măsurată a repo-ului
+# (vârf de 80 de commit-uri/zi), per-push ar cere zeci de invocări Opus pe zi, iar
+# când cota se termină cade revizuirea ca să plătească documentația. Nocturn: o
+# rulare pe zi, previzibilă.
+#
+# DE CE NU `anthropics/claude-code-action`: același motiv ca la `revizuire.yml` —
+# acțiunea nu suportă evenimentul `push`, iar token-ul ei de GitHub App
+# re-declanșează workflow-uri. Rulăm CLI-ul direct.
+
+name: Documentație
+
+on:
+  schedule:
+    - cron: "0 2 * * *" # 04:00–05:00 ora României
+  workflow_dispatch:
+    inputs:
+      pagini:
+        description: "Pagini forțate, separate prin virgulă (gol = triajul decide)"
+        default: ""
+      uscat:
+        description: "Scrie și verifică, dar NU comite"
+        type: boolean
+        default: false
+
+concurrency:
+  group: documentatie-${{ github.event_name }}
+  cancel-in-progress: false
+
+permissions: {}
+
+env:
+  VERSIUNE_CLAUDE: "2.1.238"
+  VERSIUNE_NODE: "22"
+
+jobs:
+  # ───────────────────────────────────────────────────────────────────────────
+  # Ce merită rescris — calculat FĂRĂ LLM. Dacă lista iese goală, nu se cheltuie
+  # nimic: plata ca să afli că n-ai ce face e exact tiparul pe care îl evităm.
+  # ───────────────────────────────────────────────────────────────────────────
+  triaj:
+    name: Triaj — ce pagini s-au învechit
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      rulam: ${{ steps.decide.outputs.rulam }}
+      motiv: ${{ steps.decide.outputs.motiv }}
+      pagini: ${{ steps.decide.outputs.pagini }}
+      sha: ${{ steps.decide.outputs.sha }}
+    steps:
+      # fetch-depth: 0 — prospețimea se calculează din `git log`. Într-o clonă
+      # superficială ar întoarce gol pentru orice și triajul ar raporta senin
+      # „totul e proaspăt". `triaj.mjs` are și o santinelă pentru cazul ăsta.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.VERSIUNE_NODE }}
+
+      - name: Documentația cedează întotdeauna revizuirii
+        id: prioritate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          # Cota de abonament e comună. Dacă poarta de securitate rulează acum sau
+          # a picat azi, nu-i luăm din buget pentru documentație.
+          activa=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow=revizuire.yml \
+            --status=in_progress --limit 1 --json databaseId --jq 'length' 2>/dev/null || echo 0)
+          picata=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow=revizuire.yml \
+            --status=failure --created "$(date -u +%F)" --limit 1 --json databaseId --jq 'length' 2>/dev/null || echo 0)
+          if [ "$activa" != "0" ] || [ "$picata" != "0" ]; then
+            echo "cedam=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "cedam=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Decide
+        id: decide
+        env:
+          # Doar PREZENȚA secretului, niciodată valoarea: expresia se evaluează la
+          # "true"/"false", secretul nu ajunge în mediu.
+          ARE_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+          CEDAM: ${{ steps.prioritate.outputs.cedam }}
+          FORTATE: ${{ inputs.pagini }}
+          ACTIV: ${{ vars.DOCS_ACTIV }}
+        run: |
+          set -uo pipefail
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+          if [ "$ARE_TOKEN" != "true" ]; then
+            { echo "rulam=false"; echo "motiv=CLAUDE_CODE_OAUTH_TOKEN nu e configurat"; } >> "$GITHUB_OUTPUT"
+            echo "::notice::Sincronizarea e sărită: adaugă secretul CLAUDE_CODE_OAUTH_TOKEN."
+            exit 0
+          fi
+          if [ "${ACTIV:-true}" = "false" ]; then
+            { echo "rulam=false"; echo "motiv=DOCS_ACTIV=false"; } >> "$GITHUB_OUTPUT"
+            echo "::notice::Întrerupătorul de urgență e pe oprit."
+            exit 0
+          fi
+          if [ "$CEDAM" = "true" ]; then
+            { echo "rulam=false"; echo "motiv=revizuirea rulează sau a picat azi"; } >> "$GITHUB_OUTPUT"
+            echo "::notice::Documentația cedează revizuirii; se reia mâine."
+            exit 0
+          fi
+
+          if [ -n "$FORTATE" ]; then
+            lista=$(echo "$FORTATE" | tr ',' '\n' | sed 's/^ *//;s/ *$//' | grep -v '^$' \
+              | jq -R . | jq -sc .)
+          else
+            lista=$(node scripts/docs/triaj.mjs --json | jq -c '[.alese[].pagina]')
+          fi
+          n=$(echo "$lista" | jq 'length')
+          echo "pagini=$lista" >> "$GITHUB_OUTPUT"
+          if [ "$n" = "0" ]; then
+            { echo "rulam=false"; echo "motiv=nicio pagină învechită"; } >> "$GITHUB_OUTPUT"
+            echo "::notice::Vault-ul e la zi."
+          else
+            { echo "rulam=true"; echo "motiv=$n pagini"; } >> "$GITHUB_OUTPUT"
+          fi
+          node scripts/docs/triaj.mjs >> "$GITHUB_STEP_SUMMARY"
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # O pagină, un job. `contents: read`, fără credențiale git, FĂRĂ `Bash`.
+  #
+  # Diff-ul e text controlat de cine a scris commit-ul, iar promptul îi cere
+  # agentului să-l citească. Fără Bash, fără credențial persistat și fără
+  # `contents: write`, o directivă strecurată într-un diff n-are unealtă.
+  # ───────────────────────────────────────────────────────────────────────────
+  pagina:
+    name: ${{ matrix.pagina }}
+    needs: triaj
+    if: needs.triaj.outputs.rulam == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        pagina: ${{ fromJSON(needs.triaj.outputs.pagini) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.VERSIUNE_NODE }}
+
+      - name: Instalează Claude Code
+        run: |
+          curl -fsSL https://claude.ai/install.sh | bash -s -- "$VERSIUNE_CLAUDE"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Pregătește materialul
+        id: material
+        env:
+          PAGINA: ${{ matrix.pagina }}
+        run: |
+          set -euo pipefail
+          DIR="$RUNNER_TEMP/lucru"
+          mkdir -p "$DIR"
+          echo "dir=$DIR" >> "$GITHUB_OUTPUT"
+
+          vechi=$(sed -n 's/^scris_pe: *//p' "$PAGINA" | head -1)
+          cai=$(sed -n '/^cai:/,/^[a-z_]*:/p' "$PAGINA" | sed -n 's/^  - *"\(.*\)"$/\1/p')
+          echo "vechi=$vechi" >> "$GITHUB_OUTPUT"
+
+          # `git diff`, niciodată `git log -p`: mesajele de commit nu intră în
+          # material. Vault-ul se exclude — altfel agentul își citește propria ieșire.
+          # shellcheck disable=SC2086
+          git diff "$vechi..HEAD" -- $cai ':(exclude).claude/docs' > "$DIR/diff.patch" || true
+          wc -c < "$DIR/diff.patch"
+
+      - name: Rescrie pagina
+        id: claude
+        continue-on-error: true
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          PAGINA: ${{ matrix.pagina }}
+          DIR: ${{ steps.material.outputs.dir }}
+          VECHI: ${{ steps.material.outputs.vechi }}
+        run: |
+          set -uo pipefail
+          # Promptul se compune dintr-un șablon, nu dintr-un heredoc: terminatorul
+          # la coloana 0 rupe blocul `run: |` din YAML, iar unul indentat nu e
+          # recunoscut de bash. `prompt.mjs` substituie DOAR variabile numite.
+          REPO="$GITHUB_REPOSITORY" SHA_VECHI="$VECHI" SHA_NOU="$GITHUB_SHA" \
+            node scripts/docs/prompt.mjs .github/documentatie-prompt.md "$DIR/prompt.txt"
+
+          claude -p "$(cat "$DIR/prompt.txt")" \
+            --model claude-opus-5 \
+            --effort high \
+            --allowedTools "Read,Grep,Glob,Write,Edit" \
+            --disallowedTools "Bash,Task,WebFetch,WebSearch" \
+            --add-dir "$DIR" \
+            --max-turns 40 \
+            --mcp-config '{"mcpServers":{}}' \
+            --strict-mcp-config \
+            --permission-mode acceptEdits \
+            --output-format json \
+            > "$DIR/sesiune.json" 2> "$DIR/stderr.log"
+          cod=$?
+          echo "cod=$cod" >> "$GITHUB_OUTPUT"
+          if [ "$cod" != "0" ]; then
+            echo "::warning title=Agentul a picat::$(tail -c 800 "$DIR/stderr.log")"
+          fi
+          jq -r '.is_error // false' "$DIR/sesiune.json" 2>/dev/null || true
+
+      - name: Împachetează rezultatul
+        env:
+          PAGINA: ${{ matrix.pagina }}
+          DIR: ${{ steps.material.outputs.dir }}
+        run: |
+          set -uo pipefail
+          mkdir -p "$DIR/livrare/$(dirname "$PAGINA")"
+          cp "$PAGINA" "$DIR/livrare/$PAGINA"
+          cp "$DIR/rezumat.json" "$DIR/livrare/rezumat.json" 2>/dev/null || echo '{"modificata":false}' > "$DIR/livrare/rezumat.json"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pagina-${{ strategy.job-index }}
+          path: ${{ steps.material.outputs.dir }}/livrare
+          retention-days: 7
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Publicarea. FĂRĂ LLM — singurul job cu `contents: write`.
+  # ───────────────────────────────────────────────────────────────────────────
+  consolidare:
+    name: Verifică și publică
+    needs: [triaj, pagina]
+    if: always() && needs.triaj.outputs.rulam == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.VERSIUNE_NODE }}
+          cache: pnpm
+
+      - name: Amprenta lintului ÎNAINTE
+        run: node scripts/docs/lint-vault.mjs --json > "$RUNNER_TEMP/lint-inainte.json" || true
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/artefacte
+          pattern: pagina-*
+
+      - name: Aplică paginile
+        run: |
+          set -uo pipefail
+          for d in "$RUNNER_TEMP"/artefacte/pagina-*; do
+            [ -d "$d" ] || continue
+            find "$d" -name '*.md' -path '*/.claude/docs/*' | while read -r f; do
+              rel="${f#"$d"/}"
+              cp "$f" "$rel"
+              echo "  aplicat: $rel"
+            done
+          done
+
+      - name: Prettier peste vault
+        # `.prettierignore` nu conține `.claude`, iar `format:check` din jobul
+        # `quality` chiar acoperă markdown-ul de acolo. Fără pasul ăsta, main ar fi
+        # roșu în fiecare dimineață pe fișiere pe care omul nu le-a scris.
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm exec prettier --write ".claude/docs/**/*.md" || true
+
+      - name: Poarta structurală
+        # Rulează ÎNAINTE de a verifica dacă vault-ul s-a schimbat: altfel cazul
+        # „agentul a scris NUMAI în afara vault-ului" ar ocoli poarta.
+        run: |
+          set -uo pipefail
+          afara=$(git status --porcelain | grep -v '^.. \.claude/docs/' || true)
+          if [ -n "$afara" ]; then
+            echo "::error title=Modificări în afara vault-ului::$afara"
+            git diff > "$RUNNER_TEMP/neasteptat.patch"
+            exit 1
+          fi
+          delta=$(git diff --numstat -- .claude/docs | awk '{s+=$1+$2} END {print s+0}')
+          echo "delta=$delta linii"
+          if [ "$delta" -gt 1500 ]; then
+            echo "::error title=Rescriere en-gros::$delta linii — semnătura unei rescrieri, nu a unei actualizări"
+            exit 1
+          fi
+
+      - name: Lint după, comparat independent
+        # Poarta nu e „zero erori", e „nicio eroare în plus". Comparația o face
+        # workflow-ul, nu Claude — același protocol ca la `revizuire.yml`.
+        run: |
+          set -uo pipefail
+          node scripts/docs/lint-vault.mjs --json > "$RUNNER_TEMP/lint-dupa.json" || true
+          node scripts/docs/lint-compara.mjs "$RUNNER_TEMP/lint-inainte.json" "$RUNNER_TEMP/lint-dupa.json" \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Comite și publică
+        if: ${{ inputs.uscat != true }}
+        run: |
+          set -uo pipefail
+          if git diff --quiet -- .claude/docs; then
+            echo "::notice::Nimic de publicat — agenții n-au schimbat nicio pagină."
+            exit 0
+          fi
+
+          git config user.name "claude-documentatie[bot]"
+          git config user.email "claude-documentatie[bot]@users.noreply.github.com"
+
+          # `scris_pe` se avansează MECANIC, doar pentru paginile care apar efectiv
+          # în diff — niciodată din auto-raportarea agentului.
+          for p in $(git diff --name-only -- .claude/docs); do
+            sed -i "s/^scris_pe: .*/scris_pe: ${GITHUB_SHA}/" "$p"
+            sed -i "s/^scris_la: .*/scris_la: $(date -u +%Y-%m-%d)/" "$p"
+            echo "[$(date -u +%Y-%m-%d)] sync | ${p#.claude/docs/}" >> .claude/docs/meta/log.md
+          done
+          pnpm exec prettier --write ".claude/docs/**/*.md" || true
+
+          git add -- .claude/docs
+          git commit --only -- .claude/docs -m "docs(vault): sincronizare automată [documentatie automata] [skip ci]
+
+Pagini atinse: $(git diff --cached --name-only -- .claude/docs | tr '\n' ' ')
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+
+  for i in 1 2 3; do
+  git fetch origin main --quiet
+  git merge origin/main --no-edit --quiet || { echo "::warning::conflict la încercarea $i"; git merge --abort || true; continue; }
+  if git push origin HEAD:main; then
+  echo "::notice::Publicat."
+  exit 0
+  fi
+  done
+  echo "::error title=Publicare eșuată::main s-a mișcat de trei ori"
+  exit 1
