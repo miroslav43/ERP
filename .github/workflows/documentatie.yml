@@ -333,19 +333,33 @@ jobs:
           pnpm exec prettier --write ".claude/docs/**/*.md" || true
 
           git add -- .claude/docs
-          git commit --only -- .claude/docs -m "docs(vault): sincronizare automată [documentatie automata] [skip ci]
+          pagini=$(git diff --cached --name-only -- .claude/docs | tr '\n' ' ')
 
-Pagini atinse: $(git diff --cached --name-only -- .claude/docs | tr '\n' ' ')
+          # Mesajul se construiește într-un FIȘIER, cu toate liniile indentate. Un
+          # `-m` multi-linie pune liniile următoare la coloana 0, ceea ce închide
+          # blocul `run: |` și le transformă în chei YAML de nivel înalt. GitHub
+          # respinge fișierul; `yaml.safe_load` îl acceptă tăcut. De asta există
+          # `scripts/docs/verifica-workflow.mjs`.
+          {
+            echo "docs(vault): sincronizare automată [documentatie automata] [skip ci]"
+            echo
+            echo "Pagini atinse: $pagini"
+            echo
+            echo "Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
+          } > "$RUNNER_TEMP/mesaj.txt"
+          git commit --only -F "$RUNNER_TEMP/mesaj.txt" -- .claude/docs
 
-Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
-
-  for i in 1 2 3; do
-  git fetch origin main --quiet
-  git merge origin/main --no-edit --quiet || { echo "::warning::conflict la încercarea $i"; git merge --abort || true; continue; }
-  if git push origin HEAD:main; then
-  echo "::notice::Publicat."
-  exit 0
-  fi
-  done
-  echo "::error title=Publicare eșuată::main s-a mișcat de trei ori"
-  exit 1
+          for i in 1 2 3; do
+            git fetch origin main --quiet
+            if ! git merge origin/main --no-edit --quiet; then
+              echo "::warning::conflict la încercarea $i"
+              git merge --abort || true
+              continue
+            fi
+            if git push origin HEAD:main; then
+              echo "::notice::Publicat."
+              exit 0
+            fi
+          done
+          echo "::error title=Publicare eșuată::main s-a mișcat de trei ori"
+          exit 1

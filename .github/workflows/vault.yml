@@ -16,7 +16,7 @@ on:
     paths:
       - ".claude/docs/**"
       - "scripts/docs/**"
-      - ".github/workflows/vault.yml"
+      - ".github/workflows/**"
   pull_request:
     paths:
       - ".claude/docs/**"
@@ -52,3 +52,9 @@ jobs:
       # Lintul e Node curat, fără dependențe: nu are nevoie de `pnpm install`.
       - name: docs:lint
         run: node scripts/docs/lint-vault.mjs
+
+      # `yaml.safe_load` a acceptat tăcut un workflow pe care GitHub l-a respins:
+      # un `-m` multi-linie într-un bloc `run: |` pusese liniile următoare la
+      # coloana 0, unde au devenit chei de nivel înalt. „Parsează" ≠ „e valid".
+      - name: Structura workflow-urilor
+        run: node scripts/docs/verifica-workflow.mjs
