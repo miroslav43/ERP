@@ -72,6 +72,29 @@ function numaraCapcane() {
   }
 }
 
+/**
+ * Prospețimea vault-ului, din bătaia de inimă scrisă nocturn în `meta/log.md`.
+ *
+ * Există fiindcă o rulare programată care NU pornește e complet invizibilă:
+ * GitHub nu raportează nimic, nu apare niciun ✗, iar `gh run list` arată doar
+ * ce a rulat. Prima rulare cu `cron: 0 2 * * *` chiar a fost pierdută, și n-ar
+ * fi aflat nimeni. Aici, semnalul ajunge în fața omului la fiecare sesiune.
+ */
+function prospetimeVault() {
+  const cale = join(RADACINA, ".claude/docs/meta/log.md");
+  if (!existsSync(cale)) return "";
+  try {
+    const zile = readFileSync(cale, "utf8").match(/^## (\d{4}-\d{2}-\d{2})/gm);
+    if (!zile?.length) return "";
+    const ultima = zile[zile.length - 1].slice(3);
+    const vechime = Math.floor((Date.now() - Date.parse(`${ultima}T00:00:00Z`)) / 86400000);
+    if (vechime <= 1) return "";
+    return `\n⚠ Vault-ul n-a mai fost sincronizat de ${vechime} zile (ultima intrare: ${ultima}).\nVerifică: \`gh run list --workflow=documentatie.yml\`\n`;
+  } catch {
+    return "";
+  }
+}
+
 const valori = {
   migrari: numaraFisiere("supabase/migrations", (n) => n.endsWith(".sql")),
   actiuni: numaraAparitii("src", "actions.ts", /createAction[<(]/g),
@@ -83,6 +106,9 @@ for (const [cheie, valoare] of Object.entries(valori)) {
   // Dacă numărătoarea a eșuat (0), lăsăm textul fără cifră în loc să mințim.
   text = text.replaceAll(`{{${cheie}}}`, valoare > 0 ? String(valoare) : "…");
 }
+// Se adaugă DOAR când e ceva de spus: un avertisment care apare mereu nu se mai
+// citește. În zilele în care nocturna și-a făcut treaba, digestul tace.
+text += prospetimeVault();
 
 process.stdout.write(
   JSON.stringify({

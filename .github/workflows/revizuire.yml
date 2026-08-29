@@ -453,44 +453,72 @@ jobs:
           # jos NU re-declanșează workflow-ul.
 
       - name: Verifică dacă main s-a mișcat între timp
+        id: ancora
         run: |
           set -euo pipefail
           actual=$(git rev-parse HEAD)
-          if [ "$actual" != "$GITHUB_SHA" ]; then
-            echo "::warning title=Reparare anulată::main a avansat de la ${GITHUB_SHA} la ${actual}. Constatările se referă la alt cod."
-            exit 1
+          if [ "$actual" = "$GITHUB_SHA" ]; then
+            echo "putem=true" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
+          # Dacă main a avansat DOAR cu documentație, constatările se referă în
+          # continuare la același cod: ne întoarcem la commit-ul revizuit și
+          # continuăm. Vault-ul se sincronizează nocturn și publică singur, deci
+          # fără excepția asta jobul de reparare ar fi picat sistematic din cauza
+          # unui bot care n-a atins nicio linie de cod.
+          if ! git diff --name-only "${GITHUB_SHA}..${actual}" | grep -qv '^\.claude/docs/'; then
+            echo "::notice title=main a avansat doar cu vault::mă întorc la ${GITHUB_SHA} și repar."
+            git reset --hard "$GITHUB_SHA"
+            echo "putem=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # A avansat cu COD. Reparația nu se mai poate aplica — dar asta nu e un
+          # eșec al revizuirii, e o cursă normală când se împinge de două ori la
+          # rând. Ieșim curat: `verdict` raportează oricum constatările rămase, iar
+          # un ✗ roșu aici ar fi doar zgomot pe care omul învață să-l ignore.
+          echo "::notice title=Reparare sărită::main a avansat de la ${GITHUB_SHA} la ${actual}; constatările se referă la alt cod."
+          echo "putem=false" >> "$GITHUB_OUTPUT"
+
       - uses: actions/download-artifact@v4
+        if: steps.ancora.outputs.putem == 'true'
         with:
           name: raport-revizuire-${{ github.sha }}
           path: ${{ runner.temp }}/revizuire # NU în workspace: altfel raportul ar fi comis
 
       - uses: pnpm/action-setup@v4
+        if: steps.ancora.outputs.putem == 'true'
       - uses: actions/setup-node@v4
+        if: steps.ancora.outputs.putem == 'true'
         with:
           node-version: ${{ env.VERSIUNE_NODE }}
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
+      - if: steps.ancora.outputs.putem == 'true'
+        run: pnpm install --frozen-lockfile
 
       - name: Amprenta de tipuri, ÎNAINTE de orice modificare
+        if: steps.ancora.outputs.putem == 'true'
         run: |
           set -uo pipefail
           bash scripts/ci/tipuri-amprenta.sh > "${RUNNER_TEMP}/tipuri-baza.txt"
           echo "Linie de bază: $(wc -l < "${RUNNER_TEMP}/tipuri-baza.txt") erori de tip preexistente."
 
       - name: Instalează Claude Code
+        if: steps.ancora.outputs.putem == 'true'
         run: |
           set -euo pipefail
           curl -fsSL https://claude.ai/install.sh | bash -s -- "$VERSIUNE_CLAUDE"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Identitate git
+        if: steps.ancora.outputs.putem == 'true'
         run: |
           git config user.name  "claude-revizuire[bot]"
           git config user.email "claude-revizuire[bot]@users.noreply.github.com"
 
       - name: Repară
+        if: steps.ancora.outputs.putem == 'true'
         id: claude
         continue-on-error: true
         timeout-minutes: 35
@@ -565,6 +593,7 @@ jobs:
           exit 0
 
       - name: Verificare independentă a tipurilor
+        if: steps.ancora.outputs.putem == 'true'
         id: verificare
         run: |
           set -uo pipefail
@@ -590,7 +619,7 @@ jobs:
           git push origin HEAD:main
 
       - name: Renunță la reparări
-        if: steps.verificare.outputs.curat != 'true'
+        if: steps.ancora.outputs.putem == 'true' && steps.verificare.outputs.curat != 'true'
         run: |
           git reset --hard "$GITHUB_SHA"
           echo "S-a revenit la ${GITHUB_SHA}. Nimic nu a fost publicat."

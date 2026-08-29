@@ -14,7 +14,11 @@ name: Documentație
 
 on:
   schedule:
-    - cron: "0 2 * * *" # 04:00–05:00 ora României
+    # Minut impar, DELIBERAT. GitHub avertizează că rulările programate pot fi
+    # întârziate — sau pierdute de tot — în perioadele de încărcare mare, iar fix
+    # ora rotundă e cel mai aglomerat slot care există: acolo își pun toți cronul.
+    # Prima rulare programată, cu `0 2 * * *`, chiar n-a pornit niciodată.
+    - cron: "37 2 * * *" # ~04:37–05:37 ora României
   workflow_dispatch:
     inputs:
       pagini:
