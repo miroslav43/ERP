@@ -1,12 +1,10 @@
 // src/app/(app)/salarizare/componente/formular-sablon-componenta-nou.tsx
 "use client";
 
-import { useCallback, useId, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Plus } from "lucide-react";
 
-import { Buton } from "@/components/ui/buton";
 import { Camp, clasaBifa } from "@/components/ui/camp";
-import { Formular } from "@/components/ui/formular";
+import { FormularDialog } from "@/components/ui/formular-dialog";
 import { TIPURI_COMPONENTA_SALARIALA } from "@/schemas/salary-component";
 
 import { creeazaSablonComponenta } from "./actions";
@@ -42,40 +40,29 @@ async function trimite(fd: FormData) {
   });
 }
 
+/**
+ * Șablon de componentă salarială, într-o casetă.
+ *
+ * Formularul se desfăcea sub antet și împingea în jos lista șabloanelor deja
+ * definite — exact lista din care se vede ce cod intern e liber și ce regim
+ * fiscal au surorile componentei pe care o adaugi.
+ */
 export function FormularSablonComponentaNou() {
-  const router = useRouter();
-  const [deschis, setDeschis] = useState(false);
-  const idBifa = useId();
-
-  // `laReusita` intră în dependențele efectului de succes din `Formular`. O
-  // funcție nouă la fiecare randare ar reporni efectul după `router.refresh()`,
-  // iar notificarea ar apărea de două ori pentru o singură salvare.
-  const laReusita = useCallback(() => {
-    setDeschis(false);
-    router.refresh();
-  }, [router]);
-
-  if (!deschis) {
-    return (
-      <Buton
-        varianta="primar"
-        onClick={() => {
-          setDeschis(true);
-        }}
-      >
-        Șablon nou
-      </Buton>
-    );
-  }
-
   return (
-    <Formular
+    <FormularDialog
+      declansator={{
+        eticheta: "Șablon nou",
+        pictograma: <Plus aria-hidden="true" className="size-4" />,
+      }}
+      titlu="Șablon de componentă salarială"
+      descriere="Regimul fiscal ales aici se aplică fiecărui angajat căruia i se asociază componenta. Se poate schimba ulterior, dar nu retroactiv: fluturașii deja calculați rămân cum au fost."
+      marime="mare"
       actiune={trimite}
-      laReusita={laReusita}
       mesajReusita="Șablonul a fost creat."
-      className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-2"
+      etichetaTrimite="Creează șablonul"
+      textInCurs="Se creează…"
     >
-      {(stare) => {
+      {(stare, idc) => {
         // Echivalentul lui `valoriTrimise[cheie] ?? valoarea inițială`, pentru
         // bife: după o trimitere respinsă contează dacă cheia a AJUNS în
         // `FormData`, fiindcă o casetă nebifată nu apare deloc acolo. Înainte
@@ -86,8 +73,14 @@ export function FormularSablonComponentaNou() {
             : stare.valoriTrimise[cheie] === "on";
 
         return (
-          <>
-            <Camp nume="cod" eticheta="Cod intern" obligatoriu erori={stare.erori["cod"] ?? []}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Camp
+              nume="cod"
+              id={idc("cod")}
+              eticheta="Cod intern"
+              obligatoriu
+              erori={stare.erori["cod"] ?? []}
+            >
               {(a) => (
                 <input
                   {...a}
@@ -101,6 +94,7 @@ export function FormularSablonComponentaNou() {
 
             <Camp
               nume="denumire"
+              id={idc("denumire")}
               eticheta="Denumire"
               obligatoriu
               erori={stare.erori["denumire"] ?? []}
@@ -117,6 +111,7 @@ export function FormularSablonComponentaNou() {
 
             <Camp
               nume="kind"
+              id={idc("kind")}
               eticheta="Tip"
               fel="select"
               obligatoriu
@@ -136,6 +131,7 @@ export function FormularSablonComponentaNou() {
 
             <Camp
               nume="cod_revisal"
+              id={idc("cod_revisal")}
               eticheta="Cod REVISAL"
               erori={stare.erori["cod_revisal"] ?? []}
             >
@@ -163,58 +159,44 @@ export function FormularSablonComponentaNou() {
               </legend>
               <div className="flex items-center gap-2">
                 <input
-                  id={`${idBifa}-impozabil`}
+                  id={idc("impozabil")}
                   name="impozabil"
                   type="checkbox"
                   defaultChecked={bifa("impozabil", true)}
                   className={clasaBifa}
                 />
-                <label htmlFor={`${idBifa}-impozabil`} className="text-corp">
+                <label htmlFor={idc("impozabil")} className="text-corp">
                   Impozabil
                 </label>
               </div>
               <div className="flex items-center gap-2">
                 <input
-                  id={`${idBifa}-cas`}
+                  id={idc("cas")}
                   name="intra_in_baza_cas"
                   type="checkbox"
                   defaultChecked={bifa("intra_in_baza_cas", true)}
                   className={clasaBifa}
                 />
-                <label htmlFor={`${idBifa}-cas`} className="text-corp">
+                <label htmlFor={idc("cas")} className="text-corp">
                   Intră în baza CAS
                 </label>
               </div>
               <div className="flex items-center gap-2">
                 <input
-                  id={`${idBifa}-cass`}
+                  id={idc("cass")}
                   name="intra_in_baza_cass"
                   type="checkbox"
                   defaultChecked={bifa("intra_in_baza_cass", true)}
                   className={clasaBifa}
                 />
-                <label htmlFor={`${idBifa}-cass`} className="text-corp">
+                <label htmlFor={idc("cass")} className="text-corp">
                   Intră în baza CASS
                 </label>
               </div>
             </fieldset>
-
-            <div className="flex items-center gap-3 sm:col-span-2">
-              <Buton type="submit" varianta="primar" inCurs={stare.inCurs} textInCurs="Se creează…">
-                Creează șablonul
-              </Buton>
-              <Buton
-                varianta="link"
-                onClick={() => {
-                  setDeschis(false);
-                }}
-              >
-                Renunță
-              </Buton>
-            </div>
-          </>
+          </div>
         );
       }}
-    </Formular>
+    </FormularDialog>
   );
 }

@@ -260,7 +260,12 @@ export function ButonStergeDocument({
           erori={stare.erori["motiv"] ?? []}
         >
           {(a) => (
-            <textarea {...a} rows={3} maxLength={500} defaultValue={stare.valoriTrimise["motiv"] ?? ""} />
+            <textarea
+              {...a}
+              rows={3}
+              maxLength={500}
+              defaultValue={stare.valoriTrimise["motiv"] ?? ""}
+            />
           )}
         </Camp>
       )}
