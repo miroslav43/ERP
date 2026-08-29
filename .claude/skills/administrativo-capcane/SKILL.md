@@ -1,11 +1,11 @@
 ---
 name: administrativo-capcane
-description: Caută în cele 36 de capcane cunoscute ale schemei Administrativo, după codul de eroare Postgres/PostgREST (42501, 42P10, 23505, 42703, 428C9, 22P02, P0001, PGRST116), după tabelă, modul sau rol. Acoperă și capcanele TĂCUTE — cele care nu produc nicio eroare: UPDATE cu zero rânduri, listă goală, meniu gol, embed NULL, trunchiere la 1000 de rânduri. Se folosește ÎNAINTE de a scrie cod care atinge o tabelă și ori de câte ori o scriere eșuează, o citire întoarce zero rânduri sau un ecran apare gol fără explicație.
+description: Caută în cele 37 de capcane cunoscute ale schemei Administrativo, după codul de eroare Postgres/PostgREST (42501, 42P10, 23505, 42703, 428C9, 22P02, P0001, PGRST116), după tabelă, modul sau rol. Acoperă și capcanele TĂCUTE — cele care nu produc nicio eroare: UPDATE cu zero rânduri, listă goală, meniu gol, embed NULL, trunchiere la 1000 de rânduri. Se folosește ÎNAINTE de a scrie cod care atinge o tabelă și ori de câte ori o scriere eșuează, o citire întoarce zero rânduri sau un ecran apare gol fără explicație.
 ---
 
 # Capcanele schemei Administrativo
 
-`docs/design/ecrane/capcane.md` are 36 de capcane verificate empiric, fiecare cu
+`docs/design/ecrane/capcane.md` are 37 de capcane verificate empiric, fiecare cu
 fișierul afectat. Documentul e sursa de adevăr; acest skill e doar căutarea.
 
 ## 1. Cum cauți

@@ -106,7 +106,7 @@ drept CONFLICT.
 
 ## Unde e restul
 
-- `docs/design/ecrane/capcane.md` — **36 de capcane** verificate empiric.
+- `docs/design/ecrane/capcane.md` — **37 de capcane** verificate empiric.
   Caută în ele: `node .claude/skills/administrativo/scripts/capcana.mjs <cod|--tabela X|--rol Y|--tacute>`
 - `tests/rls/izolare.sql` verificarea `(l)` — singura poartă POZITIVĂ din proiect
   („politicile nu blochează scrierile legitime”). Acoperă azi un singur rol.
