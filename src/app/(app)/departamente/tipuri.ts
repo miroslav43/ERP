@@ -32,4 +32,21 @@ export interface OptiuneDepartament {
 export interface OptiuneAngajat {
   readonly id: string;
   readonly full_name: string;
+  /**
+   * `employees.department_id` de ACUM. `null` = nerepartizat.
+   *
+   * Nu e decor: desemnarea unui manager îl și repartizează în departamentul pe
+   * care îl preia, iar formularul trebuie să știe DINAINTE dacă asta înseamnă
+   * că omul pleacă de undeva. Fără câmpul ăsta, singura variantă onestă ar fi
+   * să nu mute pe nimeni.
+   */
+  readonly departamentId: string | null;
+  /**
+   * Denumirea acelui departament, pentru avertismentul din formular.
+   *
+   * Poate fi „alt departament" când RLS ascunde departamentul respectiv —
+   * aceeași grijă ca la `PersoanaPanou.departamentCurent`: se spune ce se știe,
+   * nu se inventează „nerepartizat".
+   */
+  readonly departamentDenumire: string | null;
 }

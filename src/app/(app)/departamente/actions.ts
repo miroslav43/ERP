@@ -6,6 +6,8 @@ import { revalidatePath } from "next/cache";
 import { businessRule, mapPostgrestError, notFound } from "@/lib/actions/errors";
 import { createAction } from "@/lib/actions/create-action";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { decideApartenentaManagerului } from "@/domain/departments/manager-membru";
+import type { ActionContext } from "@/lib/actions/types";
 import {
   actualizeazaDepartamentSchema,
   creeazaDepartamentSchema,
@@ -23,6 +25,7 @@ const CAMPURI_AUDITATE_CREARE = [
   "parent_id",
   "manager_employee_id",
   "cost_center",
+  "muta_managerul_in_departament",
 ] as const;
 
 const CAMPURI_AUDITATE_ACTUALIZARE = [
@@ -31,7 +34,76 @@ const CAMPURI_AUDITATE_ACTUALIZARE = [
   "parent_id",
   "manager_employee_id",
   "cost_center",
+  // Consimțământul se auditează: el explică de ce cineva a plecat dintr-un
+  // departament la o salvare care, în rest, schimba doar o denumire.
+  "muta_managerul_in_departament",
 ] as const;
+
+/**
+ * Departamentul în care e repartizat ACUM angajatul ales ca manager.
+ *
+ * Se citește ÎNAINTE de scrierea pe `departments`, și nu din comoditate: după
+ * UPDATE, `manager_employee_id` e deja cel nou, iar de unde vine omul n-ar mai
+ * fi de aflat decât din jurnal.
+ */
+async function departamentulManagerului(
+  ctx: ActionContext,
+  db: Awaited<ReturnType<typeof createServerSupabase>>,
+  managerId: string | null,
+): Promise<string | null> {
+  if (managerId === null) return null;
+  const { data, error } = await db
+    .from("employees")
+    .select("department_id")
+    .eq("id", managerId)
+    .eq("organization_id", ctx.tenant.organizationId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (error !== null) throw mapPostgrestError(error, ctx.requestId);
+  // Nu e o verificare de prisos: `departments.manager_employee_id` ARE trigger de
+  // organizație (0004_hr.sql), dar o fișă ștearsă logic între alegerea din
+  // listă și apăsarea butonului ar trece de el.
+  if (data === null) throw notFound("Angajatul ales ca manager nu a fost găsit.");
+  return data.department_id;
+}
+
+/**
+ * Repartizarea managerului în departamentul pe care tocmai l-a primit.
+ *
+ * Regula stă în `@/domain/departments/manager-membru`, testată separat. Aici
+ * rămâne doar scrierea — și cele două lucruri pe care le poate face greșit:
+ *
+ * 1. `.select()` după `.update()`. `employees_update` refuză prin `USING` cu
+ *    ZERO RÂNDURI ȘI FĂRĂ EROARE. Fără el, un refuz ar fi raportat drept
+ *    reușită, iar omul ar rămâne exact cu defectul pe care îl repară funcția.
+ * 2. Mesajul spune CE S-A SCRIS DEJA. Departamentul e salvat înaintea acestei
+ *    scrieri, iar PostgREST nu deschide o tranzacție peste două cereri: „a
+ *    eșuat" ar fi o minciună despre rândul deja scris.
+ */
+async function repartizeazaManagerul(
+  ctx: ActionContext,
+  db: Awaited<ReturnType<typeof createServerSupabase>>,
+  departamentId: string,
+  decizie: ReturnType<typeof decideApartenentaManagerului>,
+  ceEsteDejaScris: string,
+): Promise<void> {
+  if (decizie.fel === "nimic") return;
+
+  const { data, error } = await db
+    .from("employees")
+    .update({ department_id: departamentId, updated_by: ctx.user.id })
+    .eq("id", decizie.employeeId)
+    .eq("organization_id", ctx.tenant.organizationId)
+    .is("deleted_at", null)
+    .select("id")
+    .maybeSingle();
+  if (error !== null) throw mapPostgrestError(error, ctx.requestId);
+  if (data === null) {
+    throw businessRule(
+      `${ceEsteDejaScris}, dar managerul nu a putut fi repartizat în el: fișa lui a fost ștearsă între timp sau nu aveți dreptul de a o modifica. Repartizați-l din panoul departamentului.`,
+    );
+  }
+}
 
 export const creeazaDepartament = createAction<
   typeof creeazaDepartamentSchema,
@@ -49,10 +121,16 @@ export const creeazaDepartament = createAction<
   },
   handler: async (ctx, input) => {
     const db = await createServerSupabase();
+    // `muta_managerul_in_departament` NU e o coloană a tabelei: e consimțământ,
+    // nu date. Lăsat în spread, PostgREST ar respinge inserarea cu PGRST204.
+    const { muta_managerul_in_departament: mutaManagerul, ...campuri } = input;
+
+    const departamentulLui = await departamentulManagerului(ctx, db, campuri.manager_employee_id);
+
     const { data, error } = await db
       .from("departments")
       .insert({
-        ...input,
+        ...campuri,
         organization_id: ctx.tenant.organizationId,
         activ: true,
         path: [],
@@ -63,9 +141,26 @@ export const creeazaDepartament = createAction<
       .select("id")
       .single();
     if (error !== null) throw mapPostgrestError(error, ctx.requestId);
-    revalidatePath("/departamente");
+
+    await repartizeazaManagerul(
+      ctx,
+      db,
+      data.id,
+      decideApartenentaManagerului({
+        managerId: campuri.manager_employee_id,
+        departamentId: data.id,
+        // Un departament proaspăt creat e `activ: true` prin construcție.
+        departamentActiv: true,
+        departamentulManagerului: departamentulLui,
+        mutaDinAltDepartament: mutaManagerul,
+      }),
+      "Departamentul a fost creat",
+    );
+
     return { id: data.id };
   },
+  /** Vezi nota de la `actualizeazaDepartament`: managerul poate fi repartizat aici. */
+  revalidate: ["/departamente", "/angajati", "/organigrama"],
 });
 
 export const actualizeazaDepartament = createAction<
@@ -84,20 +179,47 @@ export const actualizeazaDepartament = createAction<
   },
   handler: async (ctx, input) => {
     const db = await createServerSupabase();
-    const { id, ...campuri } = input;
+    // Ca la creare: consimțământul nu e o coloană a tabelei.
+    const { id, muta_managerul_in_departament: mutaManagerul, ...campuri } = input;
+
+    const departamentulLui = await departamentulManagerului(ctx, db, campuri.manager_employee_id);
+
+    // `activ` se cere ÎN `.select()`, nu printr-o citire separată: e valoarea de
+    // după scriere, singura pe care regula are voie să se sprijine.
     const { data, error } = await db
       .from("departments")
       .update({ ...campuri, updated_by: ctx.user.id })
       .eq("id", id)
       .eq("organization_id", ctx.tenant.organizationId)
       .is("deleted_at", null)
-      .select("id")
+      .select("id, activ")
       .maybeSingle();
     if (error !== null) throw mapPostgrestError(error, ctx.requestId);
     if (data === null) throw notFound("Departamentul nu a fost găsit.");
-    revalidatePath("/departamente");
+
+    await repartizeazaManagerul(
+      ctx,
+      db,
+      id,
+      decideApartenentaManagerului({
+        managerId: campuri.manager_employee_id,
+        departamentId: id,
+        departamentActiv: data.activ,
+        departamentulManagerului: departamentulLui,
+        mutaDinAltDepartament: mutaManagerul,
+      }),
+      "Departamentul a fost salvat",
+    );
+
     return { id };
   },
+  /**
+   * Declarat, nu chemat din handler: repartizarea managerului scrie pe FIȘA
+   * lui, deci se învechesc și listele de angajați, și organigrama — la fel ca
+   * la `mutaAngajati`, mai jos. Forma declarativă rulează după succesul complet
+   * al acțiunii, inclusiv după scrierea jurnalului.
+   */
+  revalidate: ["/departamente", "/angajati", "/organigrama"],
 });
 
 export const mutaDepartament = createAction<typeof mutaDepartamentSchema, DepartamentIdentificat>({

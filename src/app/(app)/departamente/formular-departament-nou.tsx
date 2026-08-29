@@ -6,6 +6,8 @@ import { Plus } from "lucide-react";
 import { Camp } from "@/components/ui/camp";
 import { FormularDialog } from "@/components/ui/formular-dialog";
 
+import { CampManager } from "./camp-manager";
+import type { OptiuneAngajat } from "./tipuri";
 import { creeazaDepartament } from "./actions";
 
 /**
@@ -38,11 +40,6 @@ interface OptiuneDepartament {
   readonly cod: string;
 }
 
-interface OptiuneAngajat {
-  readonly id: string;
-  readonly full_name: string;
-}
-
 interface Proprietati {
   readonly departamente: readonly OptiuneDepartament[];
   readonly angajati: readonly OptiuneAngajat[];
@@ -61,6 +58,8 @@ async function trimite(date: FormData) {
     parent_id: parinte === "" ? null : parinte,
     manager_employee_id: manager === "" ? null : manager,
     cost_center: String(date.get("cost_center") ?? ""),
+    // Vezi nota din `actiuni-departament.tsx`: bifa lipsă înseamnă „nu-l muta".
+    muta_managerul_in_departament: String(date.get("muta_managerul_in_departament") ?? ""),
   });
 }
 
@@ -134,24 +133,19 @@ export function FormularDepartamentNou({ departamente, angajati }: Proprietati) 
             )}
           </Camp>
 
-          <Camp
-            nume="manager_employee_id"
-            id={idc("manager_employee_id")}
-            eticheta="Manager"
-            fel="select"
+          {/*
+           * `departamentId={null}`: departamentul nu există încă, deci ORICE om
+           * deja repartizat vine, prin definiție, din altă parte — și primește
+           * avertismentul. Cine e nerepartizat intră aici tăcut, ca peste tot.
+           */}
+          <CampManager
+            idc={idc}
             erori={stare.erori["manager_employee_id"] ?? []}
-          >
-            {(a) => (
-              <select {...a} defaultValue={stare.valoriTrimise["manager_employee_id"] ?? ""}>
-                <option value="">— nedesemnat —</option>
-                {angajati.map((ang) => (
-                  <option key={ang.id} value={ang.id}>
-                    {ang.full_name}
-                  </option>
-                ))}
-              </select>
-            )}
-          </Camp>
+            angajati={angajati}
+            departamentId={null}
+            numeDepartament="departamentul nou"
+            managerInitial={stare.valoriTrimise["manager_employee_id"] ?? null}
+          />
 
           <Camp
             nume="cost_center"

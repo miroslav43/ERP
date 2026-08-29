@@ -170,9 +170,17 @@ export default async function PaginaDepartamente({ searchParams }: ProprietatiPa
     cod: r.cod,
     activ: r.activ,
   }));
+  // Departamentul curent urcă odată cu numele, fiindcă desemnarea unui manager
+  // îl repartizează și ca membru: formularul trebuie să poată spune, ÎNAINTE de
+  // salvare, dacă gestul îl scoate pe om dintr-un departament în care e deja.
+  // `departamentCurent` e denumirea, deja calculată mai sus — inclusiv „alt
+  // departament" pentru unul ascuns de RLS; `departamentPeAngajat` dă id-ul, iar
+  // comparația din formular se face pe el, niciodată pe denumire.
   const optiuniAngajati: readonly OptiuneAngajat[] = persoane.map((p) => ({
     id: p.id,
     full_name: p.full_name,
+    departamentId: departamentPeAngajat.get(p.id) ?? null,
+    departamentDenumire: p.departamentCurent,
   }));
 
   return (

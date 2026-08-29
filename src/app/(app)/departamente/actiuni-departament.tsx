@@ -9,6 +9,8 @@ import { Buton } from "@/components/ui/buton";
 import { Camp } from "@/components/ui/camp";
 import { FormularDialog } from "@/components/ui/formular-dialog";
 
+import { CampManager } from "./camp-manager";
+import type { OptiuneAngajat } from "./tipuri";
 import {
   actualizeazaDepartament,
   dezactiveazaDepartament,
@@ -39,11 +41,6 @@ interface OptiuneDepartament {
   readonly id: string;
   readonly denumire: string;
   readonly cod: string;
-}
-
-interface OptiuneAngajat {
-  readonly id: string;
-  readonly full_name: string;
 }
 
 interface Proprietati {
@@ -90,6 +87,10 @@ export function ActiuniDepartament({
       parent_id: departament.parent_id,
       manager_employee_id: manager === "" ? null : manager,
       cost_center: String(date.get("cost_center") ?? ""),
+      // Bifa apare doar când managerul ales vine din alt departament. Absentă,
+      // `FormData` n-o are deloc — iar `""` e citit `false` de schemă, adică
+      // „nu-l muta". Exact ce trebuie: consimțământul lipsă nu mută pe nimeni.
+      muta_managerul_in_departament: String(date.get("muta_managerul_in_departament") ?? ""),
     });
   }
 
@@ -157,31 +158,16 @@ export function ActiuniDepartament({
                 )}
               </Camp>
 
-              <Camp
-                nume="manager_employee_id"
-                id={idc("manager_employee_id")}
-                eticheta="Manager"
-                fel="select"
+              <CampManager
+                idc={idc}
                 erori={stare.erori["manager_employee_id"] ?? []}
-              >
-                {(a) => (
-                  <select
-                    {...a}
-                    defaultValue={
-                      stare.valoriTrimise["manager_employee_id"] ??
-                      departament.manager_employee_id ??
-                      ""
-                    }
-                  >
-                    <option value="">— nedesemnat —</option>
-                    {angajati.map((ang) => (
-                      <option key={ang.id} value={ang.id}>
-                        {ang.full_name}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </Camp>
+                angajati={angajati}
+                departamentId={departament.id}
+                numeDepartament={departament.denumire}
+                managerInitial={
+                  stare.valoriTrimise["manager_employee_id"] ?? departament.manager_employee_id
+                }
+              />
 
               <Camp
                 nume="cost_center"
