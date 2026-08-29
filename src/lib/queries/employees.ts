@@ -8,6 +8,7 @@ import {
   type SortareAngajati,
   type StatusAngajat,
 } from "@/schemas/employee";
+import type { PiediciStergere } from "@/domain/hr/stergere-angajat";
 import { urlAvatar } from "@/lib/avatar/cale";
 import { avataturiPeUtilizatori } from "@/lib/queries/profile";
 import { createServerSupabase } from "@/lib/supabase/server";
@@ -30,14 +31,18 @@ export interface RandAngajat {
   readonly status: StatusAngajat;
   readonly hired_on: string | null;
   readonly is_primary: boolean;
+  /**
+   * Contul din portal, dacă fișa are unul. Se citea deja — avatarul se rezolvă
+   * din el — dar se arunca la ieșire. E păstrat de când coloana „Stare" arată
+   * și rolul din aplicație: ea are nevoie de cheia după care se caută rolul.
+   */
+  readonly user_id: string | null;
   readonly avatar_url: string | null;
   readonly department: { readonly id: string; readonly denumire: string } | null;
   readonly job_position: { readonly id: string; readonly denumire: string } | null;
 }
 
-interface RandAngajatBrut extends Omit<RandAngajat, "avatar_url"> {
-  readonly user_id: string | null;
-}
+type RandAngajatBrut = Omit<RandAngajat, "avatar_url">;
 
 export interface RezultatAngajati {
   readonly randuri: readonly RandAngajat[];
@@ -281,9 +286,9 @@ export async function listeazaAngajati(intrare: IntrareListare): Promise<Rezulta
   const areUrmatoarea = toate.length > filtre.limita;
   const brute = areUrmatoarea ? toate.slice(0, filtre.limita) : toate;
   const avataruri = await avataturiPeUtilizatori(brute.map((rand) => rand.user_id));
-  const randuri: RandAngajat[] = brute.map(({ user_id, ...rest }) => ({
-    ...rest,
-    avatar_url: urlAvatar(avataruri.get(user_id ?? "") ?? null),
+  const randuri: RandAngajat[] = brute.map((rand) => ({
+    ...rand,
+    avatar_url: urlAvatar(avataruri.get(rand.user_id ?? "") ?? null),
   }));
   const ultimul = randuri.at(-1);
   const valoareCursor =
@@ -355,6 +360,113 @@ export async function citesteAngajat(
     avatar_url: urlAvatar(avataruri.get(data.user_id ?? "") ?? null),
     contracts: contracte,
     documents: documente,
+  };
+}
+
+/**
+ * Rolul din aplicație al conturilor legate de niște fișe.
+ *
+ * ── DE CE O A DOUA INTEROGARE, NU UN EMBED ────────────────────────────────
+ * Nu există cheie străină între `employees` și `organization_members` — se
+ * întâlnesc pe perechea `(organization_id, user_id)`, nu pe o referință. Fără
+ * FK, PostgREST refuză embed-ul, deci alegerea nu e între „embed” și „încă un
+ * dus-întors”, ci doar cum se face al doilea.
+ *
+ * Se cer exact id-urile cerute, nu toți membrii firmei: la opt angajați
+ * diferența e nulă, dar interogarea rămâne mărginită și la o firmă care crește.
+ *
+ * ── CE NU REFUZĂ TĂCUT ────────────────────────────────────────────────────
+ * `organization_members_select` cere DOAR apartenența la organizație — nicio
+ * permisiune, niciun scope. Deci și `hr` (care n-are niciun `users:*`) și
+ * managerul primesc rândurile. Verificat pe politica vie, nu dedus: e fix genul
+ * de citire care ar fi întors zero rânduri fără eroare.
+ *
+ * Se filtrează `status = 'active'`: un membru dezactivat nu mai e administrator
+ * al nimănui, iar insigna lui de pe fișă ar fi o afirmație falsă.
+ */
+interface RolMembru {
+  readonly user_id: string | null;
+  readonly role: string;
+}
+
+export async function rolurileConturilor(
+  organizationId: string,
+  userIds: readonly (string | null)[],
+): Promise<ReadonlyMap<string, string>> {
+  const ids = [...new Set(userIds.filter((u): u is string => u !== null))];
+  if (ids.length === 0) return new Map();
+
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("organization_members")
+    .select("user_id, role")
+    .eq("organization_id", organizationId)
+    .in("user_id", ids)
+    .eq("status", "active")
+    .is("deleted_at", null)
+    // Array MUTABIL în generic, nu `readonly …[]`: supabase-js compară forma și
+    // răspunde la un `readonly` cu un tip-mesaj („Cannot cast array result to a
+    // single object"), nu cu o eroare care arată spre cauză. Rezultatul se
+    // închide oricum imediat, în `ReadonlyMap`.
+    .returns<RolMembru[]>();
+  if (error !== null) throw error;
+
+  return new Map(
+    data.flatMap((rand) => (rand.user_id === null ? [] : [[rand.user_id, rand.role] as const])),
+  );
+}
+
+/**
+ * Piedicile la ștergerea unei fișe, numărate în bază — pentru ECRAN.
+ *
+ * ── DE CE SE NUMĂRĂ ÎNAINTE DE CLIC ───────────────────────────────────────
+ * Același argument ca la `actiuni-functie.tsx`: un refuz care sosește după
+ * apăsare îl învață pe om că butonul e nesigur, iar cifra care explică refuzul
+ * — câte contracte, câți subordonați — nu apare nicăieri. Aici motivele se
+ * așază sub buton, iar butonul se blochează singur.
+ *
+ * ⚠️ Numărătoarea trece prin RLS, deci vede doar ce are voie să citească cel
+ * care întreabă. Rolurile cu `employees:delete = all` (super_admin, org_admin,
+ * hr) au și `employees:read = all`, deci pentru ele numărul e complet. O
+ * suprascriere per membru (`role_permissions.member_id`, migrarea 0063) poate
+ * însă acorda ștergerea fără citirea completă — atunci ecranul ar SUBESTIMA.
+ * De aceea adevărul rămâne la server: `stergeAngajat` renumără cu clientul de
+ * serviciu, iar funcția asta e doar semnalul care ține degetul departe de
+ * butonul care oricum ar fi refuzat.
+ */
+export async function piediciStergereAngajat(
+  organizationId: string,
+  employeeId: string,
+  esteFisaProprie: boolean,
+): Promise<PiediciStergere> {
+  const db = await createServerSupabase();
+
+  const [contracte, subordonati] = await Promise.all([
+    db
+      .from("employment_contracts")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", organizationId)
+      .eq("employee_id", employeeId)
+      .eq("status", "activ")
+      .is("deleted_at", null),
+    // Subordonații DIRECȚI, nu tot subarborele: `manager_path` l-ar da pe tot,
+    // dar mesajul „mută-i pe alt manager" se referă la cei care îl au scris ca
+    // manager. Nepoții se mută singuri, prin triggerul de cascadă.
+    db
+      .from("employees")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", organizationId)
+      .eq("manager_employee_id", employeeId)
+      .is("deleted_at", null),
+  ]);
+
+  if (contracte.error !== null) throw contracte.error;
+  if (subordonati.error !== null) throw subordonati.error;
+
+  return {
+    contracteActive: contracte.count ?? 0,
+    subordonatiDirecti: subordonati.count ?? 0,
+    esteFisaProprie,
   };
 }
 

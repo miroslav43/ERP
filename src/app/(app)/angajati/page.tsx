@@ -19,12 +19,17 @@ import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate } from "@/lib/format/date";
 import { scrieSortare } from "@/lib/queries/cursor";
-import { idFisaProprie, listeazaAngajati, functiiActive } from "@/lib/queries/employees";
+import {
+  idFisaProprie,
+  listeazaAngajati,
+  functiiActive,
+  rolurileConturilor,
+} from "@/lib/queries/employees";
 import { filtreAngajatiSchema } from "@/schemas/employee";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 import { departamente as listaDepartamente } from "@/lib/queries/attendance";
 
-import { ETICHETE_STATUS, TONURI_STATUS } from "./etichete";
+import { ETICHETE_ROL_CONT, TONURI_STATUS, etichetaStare, rolAdministrativ } from "./etichete";
 import { FiltreAngajati } from "./filtre-angajati";
 
 export const metadata: Metadata = { title: "Angajați" };
@@ -71,6 +76,14 @@ async function TabelAngajati({ organizationId, scope, userId, parametri }: Propr
       />
     );
   }
+
+  // Rolurile conturilor legate de fișele DE PE PAGINA ASTA, nu de pe toate.
+  // O singură interogare pentru tot tabelul, mărginită la id-urile din mână —
+  // una pe rând ar fi făcut din coloana „Stare" un N+1.
+  const roluri = await rolurileConturilor(
+    organizationId,
+    randuri.map((r) => r.user_id),
+  );
 
   /**
    * Adresele se construiesc din parametrii EXISTENȚI, nu dintr-un obiect gol:
@@ -140,7 +153,17 @@ async function TabelAngajati({ organizationId, scope, userId, parametri }: Propr
       cheie: "stare",
       antet: "Stare",
       peTelefon: "insigna",
-      celula: (r) => <Badge ton={TONURI_STATUS[r.status]}>{ETICHETE_STATUS[r.status]}</Badge>,
+      celula: (r) => {
+        // Două insigne, fiindcă sunt două informații: ce poate face omul în
+        // aplicație și în ce relație de muncă e cu firma. Vezi `./etichete.ts`.
+        const rol = rolAdministrativ(roluri.get(r.user_id ?? "") ?? null);
+        return (
+          <span className="flex flex-wrap items-center gap-1">
+            {rol === null ? null : <Badge ton="neutru">{ETICHETE_ROL_CONT[rol]}</Badge>}
+            <Badge ton={TONURI_STATUS[r.status]}>{etichetaStare(r.status, rol)}</Badge>
+          </span>
+        );
+      },
     },
   ];
 

@@ -944,3 +944,15 @@ export const stergePersoanaIntretinereSchema = z.object({
 export const invitaAngajatulSchema = z.object({
   id: z.uuid("Angajatul selectat nu este valid."),
 });
+
+/**
+ * Ștergerea unei fișe de angajat.
+ *
+ * Un singur câmp, deliberat: piedicile NU vin din formular. Le renumără
+ * serverul la fiecare apel, fiindcă între randarea paginii și apăsarea
+ * butonului altcineva poate încheia un contract sau muta un subordonat — iar o
+ * piedică trimisă de client ar fi o piedică pe care clientul o poate omite.
+ */
+export const stergeAngajatSchema = z.object({
+  id: z.uuid("Angajatul selectat nu este valid."),
+});
