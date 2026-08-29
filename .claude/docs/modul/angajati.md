@@ -20,6 +20,8 @@ tabele:
     work_permits,
     organization_members,
     role_permissions,
+    hr_document_templates,
+    hr_issued_documents,
   ]
 permisiuni:
   [employees:read, employees:create, employees:update, employees:delete, roles:update, users:update]
@@ -27,8 +29,8 @@ capcane: [10, 11, 22, 30]
 citeste_daca:
   - "CNP/IBAN care nu se văd → [[rol/hr]]"
   - "coloană inexistentă la SELECT → [[date/pontaj]]"
-scris_pe: c924a7bf10af2d211b0246d582eb2c8293864dfc
-scris_la: 2026-08-28
+scris_pe: MANUAL
+scris_la: 2026-08-29
 tags: [modul, hr, nucleu]
 ---
 
@@ -49,6 +51,7 @@ adică sunt mereu active.
 | `/angajati/[id]`                                      | citirea fișei; butoanele cer `employees:update` all, `payroll:create` all, `evaluations:*` team, `users:update` all, `roles:update` team |
 | `/angajati/[id]/editeaza`, `/angajati/[id]/documente` | `nucleu`                                                                                                                                 |
 | `/angajati/[id]/permisiuni`                           | `roles:update` team                                                                                                                      |
+| `/angajati/sabloane-documente`, `…/[cod]`             | `employees:update` **all** — aceeași poartă ca `hr_templates_insert/_update`                                                             |
 
 ## Server Actions
 
@@ -64,6 +67,8 @@ adică sunt mereu active.
 | `stergeDocument`                                                                     | `employees:delete` / all   | documente         |
 | `suprascriePermisiunea`                                                              | `roles:update` / team      | permisiuni        |
 | `pregatesteIncarcareaImportului`, `analizeazaImportAngajati`, `aplicaImportAngajati` | all                        | import            |
+| `emiteDocumenteLipsa`, `regenereazaDocumente`                                        | `employees:create` / all   | documente         |
+| `salveazaSablonDocument`, `restabilesteSablonPlatforma`                              | `employees:update` / all   | sabloane-documente |
 
 ## Citiri
 
@@ -116,6 +121,31 @@ oriunde în `src/schemas/`.
   `autorizatii`, clientul `autorizatii.2.numar`. Rezumatul emite amândouă formele, altfel
   una dintre căi dispare de pe ecran. —
   `src/app/(app)/angajati/nou/_components/erori-formular.test.ts`
+
+## Documentele emise și șabloanele lor
+
+- **Șabloanele sunt DATE, nu cod**: `hr_document_templates.continut_html`, HTML cu
+  `{{variabila}}`. Rândul cu `organization_id is null` e seedul de platformă și e
+  **intangibil** — `with check` cere `organization_id is not null`, deci editarea lui dă
+  zero rânduri, nu eroare. Editarea din `/angajati/sabloane-documente` clonează seedul în
+  rândul firmei la prima salvare; generatorul preferă automat varianta firmei
+  (`generator.ts:76-77`). Nu `.upsert()`: indexurile sunt PARȚIALE, deci 42P10.
+- **O variabilă inventată într-un șablon nu strică o emitere, ci TOATE emiterile**
+  viitoare ale acelui document — `genereazaDocument` aruncă la prima variabilă fără
+  valoare. Mulțimea validă e `VARIABILE_PER_COD` din `src/lib/documents/variabile.ts`,
+  verificată la salvare. Cele trei copii ale listei (SQL-ul migrărilor, hărțile din
+  `valori-inrolare.ts`, constanta) sunt legate între ele de `valori-inrolare.test.ts`.
+- **HTML-ul de șablon NU e evadat** la randare: `randeaza` evadează doar valorile
+  interpolate, iar `paginaTiparibila` îl inserează brut într-o pagină servită de
+  `/documente/[id]`. De când firmele îl pot edita, singura apărare e `curataHtml`, care
+  RECONSTRUIEȘTE marcajul din șapte etichete și zero atribute
+  (`src/lib/documents/curata-html.ts`). Aceeași mulțime de șapte e și contractul cu
+  `src/lib/pdf/din-html.ts` și cu bara editorului; cele trei se schimbă împreună.
+- **Regenerarea nu suprascrie**: emite un document nou și îl marchează pe cel vechi
+  `anulat_la`. Întâi emite, apoi anulează — invers, un eșec de emitere ar lăsa angajatul
+  fără document valid. Acțiunea declară `employees:create` (cerut de `hr_issued_insert`),
+  dar anularea trece prin `hr_issued_update`, care cere `employees:update`. Probat
+  empiric în `tests/rls/proba-sabloane-documente.sql`, nu dedus.
 
 ## Ce se mișcă împreună
 

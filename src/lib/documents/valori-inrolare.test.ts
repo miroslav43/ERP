@@ -4,6 +4,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { CODURI_INROLARE, DESCRIERI_VARIABILE, VARIABILE_PER_COD } from "./variabile";
 import {
   rezerva,
   valoriActAditionalTelemunca,
@@ -29,13 +30,7 @@ import {
  */
 const MIGRARI = join(process.cwd(), "supabase/migrations");
 
-const CODURI = [
-  "contract_munca",
-  "fisa_postului",
-  "nda",
-  "anexa_proprietate_intelectuala",
-  "act_aditional_telemunca",
-] as const;
+const CODURI = CODURI_INROLARE;
 
 /**
  * Variabilele declarate în migrări, per cod de șablon.
@@ -187,6 +182,36 @@ describe("acoperirea variabilelor de șablon", () => {
       .filter(([, valoare]) => valoare.trim() === "")
       .map(([cheie]) => cheie);
     expect(goale, `Valori goale în „${cod}”: ${goale.join(", ")}`).toEqual([]);
+  });
+});
+
+describe("VARIABILE_PER_COD", () => {
+  /*
+   * A TREIA LATURĂ A TRIUNGHIULUI.
+   *
+   * Testele de mai sus leagă SQL-ul migrărilor de hărțile din cod. `variabile.ts`
+   * e a treia copie a aceleiași liste, scrisă de mână fiindcă o importă și un
+   * component CLIENT (paleta editorului), care n-are voie să tragă după el
+   * `formatLei` și restul. Copia scrisă de mână trebuie legată de celelalte
+   * două, altfel editorul ar respinge o variabilă validă — sau, mai rău, ar
+   * accepta una pe care emiterea o refuză.
+   */
+  it.each(CODURI)("`%s` declară exact cheile pe care le produce harta", (cod) => {
+    expect([...VARIABILE_PER_COD[cod]].sort()).toEqual([...HARTI[cod].keys()].sort());
+  });
+
+  it("descrie fiecare variabilă folosită", () => {
+    // Paleta afișează descrierea sub numele variabilei. Una nedescrisă apare ca
+    // un rând gol, exact la variabila nouă, adăugată cel mai recent.
+    const toate = [...new Set(CODURI.flatMap((cod) => [...VARIABILE_PER_COD[cod]]))].sort();
+    const nedescrise = toate.filter((v) => DESCRIERI_VARIABILE[v] === undefined);
+    expect(nedescrise, `Variabile fără descriere: ${nedescrise.join(", ")}`).toEqual([]);
+  });
+
+  it("nu descrie variabile care nu există", () => {
+    const toate = new Set(CODURI.flatMap((cod) => [...VARIABILE_PER_COD[cod]]));
+    const orfane = Object.keys(DESCRIERI_VARIABILE).filter((v) => !toate.has(v));
+    expect(orfane, `Descrieri pentru variabile inexistente: ${orfane.join(", ")}`).toEqual([]);
   });
 });
 

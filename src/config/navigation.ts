@@ -143,6 +143,24 @@ export const NAV_ITEMS: readonly NavItem[] = [
     permission: "employees:read",
     minScope: "team",
     order: 40,
+    children: [
+      {
+        id: "sabloane-documente",
+        label: "Șabloane de documente",
+        href: "/angajati/sabloane-documente",
+        featureKey: null,
+        /*
+         * `all`, EXACT ca poarta paginii.
+         *
+         * Politicile `hr_templates_insert`/`_update` (0005_hr_rls.sql:846-870)
+         * cer `employees` la scope `all`. Un `team` aici ar fi arătat intrarea
+         * managerului, care ar fi ajuns pe `AccesRestrictionat` — cazul pentru
+         * care nota de la l. 503-511 spune că două intrări au fost șterse.
+         */
+        permission: "employees:update",
+        minScope: "all",
+      },
+    ],
   },
   /*
    * Ecranul n-avea NICIUN link în tot codul până la adăugarea intrării ăsteia:
