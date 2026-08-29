@@ -5,12 +5,44 @@ import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
+import { IntrareOra } from "@/components/ui/intrare-ora";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
-import { oreleZilei, type ConfigZi } from "@/domain/attendance/calcul-ore";
+import { formatOre } from "@/lib/format/ore";
+import { oreleZilei, type ConfigZi, type OreleZilei } from "@/domain/attendance/calcul-ore";
 import { INDICI_WEEKEND, intervalDeTrimis } from "@/domain/attendance/saptamana";
 import { TIPURI_PREZENTA, type TipPrezenta } from "@/schemas/attendance";
 import { ETICHETE_TIP_PREZENTA } from "../etichete";
 import { trimiteSaptamanaPontaj } from "./actions";
+
+/**
+ * Un rând din descompunerea săptămânii: eticheta la stânga, cifra la dreapta.
+ *
+ * Aceeași formă ca `Rand` din rezumatul zilei individuale
+ * (`portal/pontajul-meu/zi/[data]/formular-zi.tsx`) — cele două ecrane arată
+ * aceleași mărimi și n-au voie să le prezinte diferit.
+ */
+function RandTotal({
+  eticheta,
+  valoare,
+  accent = false,
+  discret = false,
+}: {
+  readonly eticheta: string;
+  readonly valoare: number;
+  readonly accent?: boolean;
+  readonly discret?: boolean;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <dt className={discret ? "text-muted-foreground" : "text-foreground"}>{eticheta}</dt>
+      <dd
+        className={`tabular-nums ${accent ? "text-foreground font-medium" : "text-muted-foreground"}`}
+      >
+        {formatOre(valoare)} h
+      </dd>
+    </div>
+  );
+}
 
 export interface ZiFormular {
   readonly data: string;
@@ -27,6 +59,13 @@ interface Proprietati {
   readonly poateEdita: boolean;
   /** Parametrii firmei după care se derivă orele — aceiași ca la ziua individuală. */
   readonly config: ConfigZi;
+  /**
+   * Regula după care ies cifrele din coloana „Ore”, scrisă în cuvinte —
+   * `rezumatRegulaPontaj`. Vine gata compusă de pe server fiindcă numai acolo
+   * se știe dacă firma are ÎNTR-ADEVĂR setări sau se merge pe valorile de
+   * rezervă; `config` singur nu poate deosebi cele două cazuri.
+   */
+  readonly regulaFirmei: string;
   /** Starea inițială a casetei de weekend: din săptămână, sau din setările firmei. */
   readonly lucreazaWeekendInitial: boolean;
   /**
@@ -51,6 +90,7 @@ export function FormularSaptamana({
   zileInitiale,
   poateEdita,
   config,
+  regulaFirmei,
   lucreazaWeekendInitial,
   employeeId = null,
 }: Proprietati) {
@@ -118,17 +158,43 @@ export function FormularSaptamana({
     .filter((rand) => lucreazaWeekend || !INDICI_WEEKEND.has(rand.index));
 
   /*
-   * Omul introduce șapte cifre și, până acum, nu afla niciodată cât a declarat
-   * în total — deși exact totalul e ce citește managerul. Se calculează aici,
-   * nu într-un `<tfoot>`: subsolul tabelului se randează doar peste 768px, iar
-   * ecranul ăsta e singurul din modul deschis de pe telefon.
+   * Omul introduce șapte intervale și, până acum, afla din ele o singură cifră:
+   * „Total planificat". Nu și câte ore SUPLIMENTARE ies din ele — deși aia e
+   * cifra care se plătește cu spor și singura pe care n-o poate socoti singur,
+   * fiindcă depinde de norma zilnică și de pauza firmei.
+   *
+   * Suplimentarele se adună PE ZI, nu se derivă din totalul săptămânii: pragul
+   * din `oreSuplimentareDinLucrate` e zilnic. O săptămână cu 40 de ore în care
+   * o zi are 10 și alta 6 conține două ore suplimentare, nu zero.
+   *
+   * Se calculează aici, nu într-un `<tfoot>`: subsolul tabelului se randează
+   * doar peste 768px, iar ecranul ăsta e singurul din modul deschis de pe
+   * telefon.
    */
-  const totalPlanificat = randuri.reduce((suma, rand) => suma + (oreZi(rand) ?? 0), 0);
+  const totaluri = randuri.reduce(
+    (suma, rand) => {
+      const zi = derivateZi(rand);
+      if (zi === null) return suma;
+      return {
+        brut: suma.brut + zi.brut,
+        pauza: suma.pauza + zi.pauza,
+        lucrate: suma.lucrate + zi.lucrate,
+        suplimentare: suma.suplimentare + zi.suplimentare,
+        noapte: suma.noapte + zi.noapte,
+      };
+    },
+    { brut: 0, pauza: 0, lucrate: 0, suplimentare: 0, noapte: 0 },
+  );
 
-  /** Orele unei zile, derivate — aceeași funcție pe care o rulează serverul. */
-  function oreZi(zi: ZiFormular): number | null {
+  /** Cifrele unei zile, derivate — aceeași funcție pe care o rulează serverul. */
+  function derivateZi(zi: ZiFormular): OreleZilei | null {
     if (zi.ora_inceput.length === 0 || zi.ora_sfarsit.length === 0) return null;
-    return oreleZilei(zi.ora_inceput, zi.ora_sfarsit, config)?.lucrate ?? null;
+    return oreleZilei(zi.ora_inceput, zi.ora_sfarsit, config);
+  }
+
+  /** Doar orele lucrate, pentru coloana din tabel. */
+  function oreZi(zi: ZiFormular): number | null {
+    return derivateZi(zi)?.lucrate ?? null;
   }
 
   const coloane: readonly Coloana<RandZi>[] = [
@@ -175,32 +241,38 @@ export function FormularSaptamana({
       cheie: "interval",
       antet: "De la – până la",
       peTelefon: "meta",
+      /*
+        `span`, nu `div`: pe telefon `Tabel` randează coloanele `meta` prin
+        `CardRand`, ÎNTR-UN `<p>` (tabel.tsx §CardRand). Un `<div>` acolo e
+        marcaj nevalid — browserul închide paragraful singur, arborele lui nu
+        mai seamănă cu cel randat pe server, iar React raportează eroare de
+        hidratare și rescrie nodul. Nimic nu se vede stricat; doar consola
+        țipă și randarea se face de două ori.
+      */
       celula: (rand) => (
-        <div className="flex items-center gap-1">
-          <input
+        <span className="inline-flex items-center gap-1">
+          <IntrareOra
             aria-label={`Ora de intrare — ${ETICHETE_ZI[rand.index]}`}
-            type="time"
-            value={rand.ora_inceput}
+            valoare={rand.ora_inceput}
             disabled={!poateEdita || inCurs}
-            onChange={(e) => {
-              actualizeazaZi(rand.index, { ora_inceput: e.target.value });
+            onSchimba={(v) => {
+              actualizeazaZi(rand.index, { ora_inceput: v });
             }}
-            className="border-foreground/60 disabled:bg-surface rounded-control text-corp border px-2 py-1.5 disabled:cursor-not-allowed"
+            className="w-20 px-2"
           />
           <span aria-hidden="true" className="text-muted-foreground">
             –
           </span>
-          <input
+          <IntrareOra
             aria-label={`Ora de ieșire — ${ETICHETE_ZI[rand.index]}`}
-            type="time"
-            value={rand.ora_sfarsit}
+            valoare={rand.ora_sfarsit}
             disabled={!poateEdita || inCurs}
-            onChange={(e) => {
-              actualizeazaZi(rand.index, { ora_sfarsit: e.target.value });
+            onSchimba={(v) => {
+              actualizeazaZi(rand.index, { ora_sfarsit: v });
             }}
-            className="border-foreground/60 disabled:bg-surface rounded-control text-corp border px-2 py-1.5 disabled:cursor-not-allowed"
+            className="w-20 px-2"
           />
-        </div>
+        </span>
       ),
     },
     {
@@ -220,11 +292,11 @@ export function FormularSaptamana({
         if (ore === null) {
           return (
             <span className="text-muted-foreground">
-              {rand.ora_inceput.length > 0 || rand.ora_sfarsit.length > 0 ? "—" : "0,00"}
+              {rand.ora_inceput.length > 0 || rand.ora_sfarsit.length > 0 ? "—" : "0:00"}
             </span>
           );
         }
-        return <span>{ore.toLocaleString("ro-RO", { minimumFractionDigits: 2 })}</span>;
+        return <span>{formatOre(ore)}</span>;
       },
     },
     {
@@ -284,12 +356,40 @@ export function FormularSaptamana({
         gol={null}
       />
 
-      <p className="border-border bg-surface rounded-panou text-corp flex justify-between border px-4 py-2 font-medium">
-        <span>Total planificat pe săptămână</span>
-        <output aria-live="polite" className="tabular-nums">
-          {totalPlanificat.toLocaleString("ro-RO", { minimumFractionDigits: 2 })} h
-        </output>
-      </p>
+      {/*
+        REGIUNE VIE, ca rezumatul zilei individuale: cifrele se schimbă la
+        fiecare interval tastat, iar cine completează cu cititorul de ecran
+        trebuie să le audă fără să plece din câmp.
+      */}
+      <section
+        aria-live="polite"
+        aria-label="Totalul săptămânii"
+        className="border-border bg-surface rounded-panou border px-4 py-3"
+      >
+        <h2 className="text-corp mb-2 font-medium">Totalul săptămânii</h2>
+        <dl className="text-corp space-y-1">
+          <RandTotal eticheta="Interval declarat" valoare={totaluri.brut} />
+          {totaluri.pauza > 0 ? (
+            <RandTotal eticheta="Pauză de masă" valoare={-totaluri.pauza} discret />
+          ) : null}
+          <div className="border-border mt-2 border-t pt-2">
+            <RandTotal eticheta="Ore lucrate" valoare={totaluri.lucrate} accent />
+          </div>
+          <RandTotal eticheta="Din care suplimentare" valoare={totaluri.suplimentare} />
+          {totaluri.noapte > 0 ? (
+            <RandTotal eticheta="Din care de noapte" valoare={totaluri.noapte} />
+          ) : null}
+        </dl>
+        {/*
+          Regula stă lipită de cifre, nu într-un panou separat: e explicația
+          lor. Coloana „Ore” scade pauza sau n-o scade după ea, iar când NU o
+          scade nimic din tabel nu spune că există o pauză — două reguli
+          complet diferite arată identic pe ecran.
+        */}
+        <p className="border-border text-muted-foreground text-nota mt-3 border-t pt-2">
+          {regulaFirmei}
+        </p>
+      </section>
 
       <div aria-live="polite">
         {eroare === null ? null : <p className="text-danger text-corp">{eroare}</p>}

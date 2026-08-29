@@ -26,6 +26,7 @@ import {
   TONURI_STARE_SAPTAMANA,
   ETICHETE_STARE_SAPTAMANA,
   esteZiLucratoare,
+  rezumatRegulaPontaj,
 } from "@/app/(app)/pontaj/etichete";
 
 import { FaraFisa } from "../../fara-fisa";
@@ -175,6 +176,8 @@ export default async function PaginaSaptamanaPortal({
         zileInitiale={zileInitiale}
         poateEdita={poateEdita}
         config={config}
+        // Aceeași dată ca la citirea setărilor: începutul săptămânii.
+        regulaFirmei={rezumatRegulaPontaj(config, setari !== null)}
         lucreazaWeekendInitial={lucreazaWeekendInitial}
       />
 

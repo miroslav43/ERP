@@ -6,6 +6,7 @@
 
 import { ListaDefinitii } from "@/components/ui/lista-definitii";
 import { formatLei } from "@/lib/format/money";
+import { formatOre } from "@/lib/format/ore";
 import { formatMonthYear } from "@/lib/format/date";
 import { ETICHETE_TIP_PRIMA, ETICHETE_TIP_RETINERE } from "@/domain/payroll/etichete";
 import type {
@@ -117,7 +118,10 @@ export function Fluturas({ inregistrare, bonusuri, retineri, perioada }: Proprie
             { eticheta: "Zile lucrătoare lună", valoare: inregistrare.zile_lucratoare_luna },
             { eticheta: "Zile lucrate", valoare: inregistrare.zile_lucrate },
             { eticheta: "Zile CO", valoare: inregistrare.zile_concediu_odihna },
-            { eticheta: "Ore suplimentare", valoare: inregistrare.ore_suplimentare },
+            {
+              eticheta: "Ore suplimentare",
+              valoare: formatOre(inregistrare.ore_suplimentare),
+            },
             ...(inregistrare.zile_concediu_medical > 0
               ? [
                   {

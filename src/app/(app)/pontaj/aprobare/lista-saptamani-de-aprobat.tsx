@@ -5,6 +5,7 @@ import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
+import { formatOraZi, formatOre } from "@/lib/format/ore";
 
 import { ETICHETE_TIP_PREZENTA } from "../etichete";
 import { decideSaptamanaPontaj } from "../saptamana/actions";
@@ -65,8 +66,8 @@ function RandSarcina({ sarcina }: { readonly sarcina: SarcinaSaptamanaDeAprobat 
               {ETICHETE_TIP_PREZENTA[zi.tip_prezenta]}
               {zi.ora_inceput === null || zi.ora_sfarsit === null
                 ? ""
-                : ` · ${zi.ora_inceput.slice(0, 5)}–${zi.ora_sfarsit.slice(0, 5)}`}{" "}
-              · {zi.ore_planificate}h
+                : ` · ${formatOraZi(zi.ora_inceput) ?? ""}–${formatOraZi(zi.ora_sfarsit) ?? ""}`}{" "}
+              · {formatOre(zi.ore_planificate)} h
             </span>
           </li>
         ))}

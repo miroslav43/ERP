@@ -16,7 +16,12 @@ import { zileNelucratoare } from "@/lib/queries/leave";
 import { adaugaZile, esteLuni, lunieaUrmatoare } from "@/domain/attendance/saptamana";
 
 import { NavPontaj } from "../nav-pontaj";
-import { ETICHETE_STARE_SAPTAMANA, TONURI_STARE_SAPTAMANA, esteZiLucratoare } from "../etichete";
+import {
+  ETICHETE_STARE_SAPTAMANA,
+  TONURI_STARE_SAPTAMANA,
+  esteZiLucratoare,
+  rezumatRegulaPontaj,
+} from "../etichete";
 import type { ConfigZi } from "@/domain/attendance/calcul-ore";
 
 import { FormularSaptamana } from "./formular-saptamana";
@@ -209,6 +214,10 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
         zileInitiale={zileInitiale}
         poateEdita={poateEdita}
         config={config}
+        // Regula se compune pentru ÎNCEPUTUL săptămânii, aceeași dată pentru
+        // care s-au citit setările — altfel textul ar putea descrie altă
+        // versiune decât cea din care ies cifrele.
+        regulaFirmei={rezumatRegulaPontaj(config, setari !== null)}
         lucreazaWeekendInitial={lucreazaWeekendInitial}
         employeeId={fisaTinta === propriaFisaId ? null : fisaTinta}
       />

@@ -38,8 +38,8 @@ describe("foaia din hero se închide", () => {
     expect(FOAIA.total).toBe(1198.5);
   });
 
-  it("afișează totalul în forma românească", () => {
-    expect(formateazaOre(FOAIA.total)).toBe("1.198,5");
+  it("afișează totalul pe ceas, nu în zecimale", () => {
+    expect(formateazaOre(FOAIA.total)).toBe("1.198:30");
   });
 
   it("orele suplimentare și cele de noapte sunt SUBSETURI, nu adaosuri", () => {

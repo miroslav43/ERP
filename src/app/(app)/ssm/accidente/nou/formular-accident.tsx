@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
 import { Camp } from "@/components/ui/camp";
+import { IntrareOra } from "@/components/ui/intrare-ora";
 import { Formular } from "@/components/ui/formular";
 import { TIPURI_ACCIDENT } from "@/schemas/ssm";
 
@@ -122,7 +123,7 @@ export function FormularAccident({ angajati }: { readonly angajati: readonly Ang
                 eticheta="Ora producerii (opțional)"
                 erori={stare.erori["ora_producerii"] ?? []}
               >
-                {(a) => <input {...a} type="time" defaultValue={trimise["ora_producerii"] ?? ""} />}
+                {(a) => <IntrareOra {...a} implicit={trimise["ora_producerii"] ?? ""} />}
               </Camp>
 
               <Camp nume="tip" eticheta="Tip" fel="select" erori={stare.erori["tip"] ?? []}>

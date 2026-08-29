@@ -45,9 +45,22 @@ function plimba(dir: string): string[] {
   return gasite;
 }
 
-/** Directiva se caută în capul fișierului: mai jos ar fi doar un șir oarecare. */
+/**
+ * Directiva se caută în capul fișierului: mai jos ar fi doar un șir oarecare.
+ *
+ * Comentariile de deasupra ei se sar. Jumătate din fișierele de client din
+ * depozit încep cu linia de cale (`// src/app/…/formular-saptamana.tsx`) și abia
+ * apoi cu `"use client"` — perfect valid pentru Next, care cere doar ca
+ * directiva să fie prima INSTRUCȚIUNE. Cât timp regula cerea directiva pe
+ * primul rând fizic, poarta le socotea Componente de Server și le raporta
+ * fiecare `onSchimba={…}` drept abatere: un fals pozitiv care ar fi împins
+ * exact la mutarea codului corect.
+ */
 function esteClient(text: string): boolean {
-  return /^\s*(["'])use client\1/.test(text.slice(0, 200));
+  const faraComentarii = text
+    .slice(0, 2000)
+    .replace(/^\s*(?:\/\/[^\n]*\n|\/\*[\s\S]*?\*\/\s*)*/, "");
+  return /^\s*(["'])use client\1/.test(faraComentarii);
 }
 
 const fisiere = plimba(SRC);

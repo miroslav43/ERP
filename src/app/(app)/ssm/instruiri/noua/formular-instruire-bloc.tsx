@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
 import { Camp, clasaBifa, clasaControl } from "@/components/ui/camp";
+import { IntrareDurata } from "@/components/ui/intrare-ora";
 import { Formular } from "@/components/ui/formular";
 import { cn } from "@/lib/ui/cn";
 
@@ -189,16 +190,18 @@ export function FormularInstruireBloc({
 
               <Camp
                 nume="durata_ore"
-                eticheta="Durata (ore)"
+                eticheta="Durata"
+                ajutor="Ore și minute, de pildă 2:00."
                 erori={stare.erori["durata_ore"] ?? []}
               >
                 {(a) => (
-                  <input
+                  <IntrareDurata
                     {...a}
-                    type="number"
-                    min={0}
-                    step="0.5"
-                    defaultValue={trimise["durata_ore"] ?? 2}
+                    implicit={
+                      trimise["durata_ore"] === undefined || trimise["durata_ore"] === ""
+                        ? 2
+                        : Number(trimise["durata_ore"])
+                    }
                   />
                 )}
               </Camp>

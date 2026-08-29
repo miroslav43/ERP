@@ -15,6 +15,7 @@ import { formatDate } from "@/lib/format/date";
 import { citestePerioada, setariPontaj } from "@/lib/queries/attendance";
 import { fisaMea, pontajulMeu } from "@/lib/queries/portal";
 import type { ConfigZi } from "@/domain/attendance/calcul-ore";
+import { rezumatRegulaPontaj } from "@/app/(app)/pontaj/etichete";
 
 import { FaraFisa } from "../../../fara-fisa";
 import { ETICHETE_TIP_ZI } from "../../../etichete";
@@ -136,6 +137,10 @@ export default async function PaginaZiPontaj({
         key={zi}
         data={zi}
         config={config}
+        // Regula se calculează pentru ZIUA pontată, nu pentru azi: setările au
+        // istoric, iar o versiune pusă în vigoare de luna viitoare nu se aplică
+        // zilei ăsteia. Exact diferența pe care ecranul o ascundea.
+        regulaFirmei={rezumatRegulaPontaj(config, setari !== null)}
         // `time` din Postgres vine ca `"08:30:00"`; `<input type="time">` cere
         // `"HH:MM"`. Fără tăiere, câmpul rămâne gol fără nicio explicație.
         inceputInitial={existenta?.ora_inceput?.slice(0, 5) ?? ""}

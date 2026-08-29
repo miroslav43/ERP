@@ -6,7 +6,8 @@ import { calculeazaZileDiurna } from "@/domain/per-diem/ferestre";
 import { calculeazaSume, type BaremTara } from "@/domain/per-diem/sume";
 import { Callout } from "@/components/ui/callout";
 import { formatDate } from "@/lib/format/date";
-import { formatAmount, formatLei } from "@/lib/format/money";
+import { formatLei } from "@/lib/format/money";
+import { formatOre } from "@/lib/format/ore";
 
 import { textZile } from "../etichete";
 import type { PoliticaRand } from "@/lib/queries/per-diem";
@@ -107,8 +108,8 @@ export function PrevizualizareDiurna({
       <div className="text-foreground text-corp space-y-1">
         <LiniePolitica politica={politica} />
         <p>
-          <strong>0 zile de diurnă</strong> — deplasarea durează {formatAmount(durataOre)} ore, sub
-          pragul de {formatAmount(politica.prag_ore_minim)} ore din politică.
+          <strong>0 zile de diurnă</strong> — deplasarea durează {formatOre(durataOre)} h, sub
+          pragul de {formatOre(politica.prag_ore_minim)} h din politică.
         </p>
       </div>
     );

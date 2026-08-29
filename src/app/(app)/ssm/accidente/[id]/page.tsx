@@ -11,6 +11,7 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, formatDateTime } from "@/lib/format/date";
+import { formatOraZi } from "@/lib/format/ore";
 import { idDinRuta } from "@/lib/rute/parametri";
 import { angajatiDupaId, citesteAccident } from "@/lib/queries/ssm";
 import { momentLimitaComunicareItm } from "@/domain/ssm/termen-itm";
@@ -108,7 +109,7 @@ export default async function PaginaAccident({ params }: ProprietatiPagina) {
         aria-label="Detalii accident"
         className="border-border rounded-panou grid gap-4 border p-4 sm:grid-cols-2"
       >
-        <Camp eticheta="Ora producerii" valoare={accident.ora_producerii ?? "—"} />
+        <Camp eticheta="Ora producerii" valoare={formatOraZi(accident.ora_producerii) ?? "—"} />
         <Camp eticheta="Zile de incapacitate" valoare={String(accident.zile_incapacitate)} />
         <Camp
           eticheta="Comunicat la ITM"

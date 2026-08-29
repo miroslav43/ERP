@@ -6,6 +6,7 @@
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { formatDateTime } from "@/lib/format/date";
 import { formatAmount, formatLei } from "@/lib/format/money";
+import { formatOre } from "@/lib/format/ore";
 import {
   calculeazaDiurnaDeplasare,
   type Deplasare,
@@ -123,8 +124,8 @@ function CalculDiurna({
   if (ferestre.length === 0) {
     return (
       <p className="text-foreground text-corp">
-        <strong>0 zile de diurnă</strong> — deplasarea a durat {formatAmount(durataOre)} ore, sub
-        pragul de {formatAmount(politica.prag_ore_minim)} ore din politică.
+        <strong>0 zile de diurnă</strong> — deplasarea a durat {formatOre(durataOre)} h, sub pragul
+        de {formatOre(politica.prag_ore_minim)} h din politică.
       </p>
     );
   }

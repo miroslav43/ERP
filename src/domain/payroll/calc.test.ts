@@ -964,9 +964,10 @@ describe("calculatePayrollEntry — ore într-un fel de muncă nedeclarat (0080)
     });
     const nedeclarate = rezultat.warnings.filter((w) => w.cod === "SAL_ORE_IN_MOD_NEDECLARAT");
     expect(nedeclarate).toHaveLength(1);
-    expect(nedeclarate[0]?.mesaj).toContain("ore de noapte");
-    expect(nedeclarate[0]?.mesaj).toContain("repausul săptămânal");
-    expect(nedeclarate[0]?.mesaj).toContain("ore suplimentare");
+    // Cifrele se scriu pe ceas, nu zecimal — la fel ca peste tot în produs.
+    expect(nedeclarate[0]?.mesaj).toContain("6:00 h de noapte");
+    expect(nedeclarate[0]?.mesaj).toContain("8:00 h în repausul săptămânal");
+    expect(nedeclarate[0]?.mesaj).toContain("4:00 h suplimentare");
   });
 
   it("tace când realitatea se potrivește cu declarația", () => {

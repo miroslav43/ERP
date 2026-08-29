@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 
 import { salveazaZiPontaj } from "@/app/(app)/pontaj/actions";
 import { Buton } from "@/components/ui/buton";
+import { IntrareOra } from "@/components/ui/intrare-ora";
+import { formatOre } from "@/lib/format/ore";
 import { oreleZilei, type ConfigZi } from "@/domain/attendance/calcul-ore";
 
 /**
@@ -35,14 +37,13 @@ import { oreleZilei, type ConfigZi } from "@/domain/attendance/calcul-ore";
 const CLASA_CAMP =
   "mt-1 min-h-11 w-full rounded-control border border-foreground/60 bg-background px-3 py-2 text-corp";
 
-/** Ore cu două zecimale, în scriere românească: `8.5` → `8,50`. */
-function ore(valoare: number): string {
-  return valoare.toLocaleString("ro-RO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
+/** Durata pe ceas: `8.5` → `8:30`. Zecimala nu ajunge pe ecran. */
+const ore = formatOre;
 
 export function FormularZi({
   data,
   config,
+  regulaFirmei,
   inceputInitial,
   sfarsitInitial,
   oreSalvate,
@@ -50,6 +51,8 @@ export function FormularZi({
 }: {
   readonly data: string;
   readonly config: ConfigZi;
+  /** Regula după care ies cifrele, scrisă în cuvinte — `rezumatRegulaPontaj`. */
+  readonly regulaFirmei: string;
   readonly inceputInitial: string;
   readonly sfarsitInitial: string;
   /** Orele deja în bază, pentru zilele scrise înainte ca intervalul să existe. */
@@ -112,15 +115,12 @@ export function FormularZi({
           <label htmlFor={idInceput} className="text-foreground text-corp font-medium">
             Ora de intrare
           </label>
-          <input
+          <IntrareOra
             id={idInceput}
-            type="time"
             required
-            value={inceput}
+            valoare={inceput}
             aria-describedby={idRezumat}
-            onChange={(e) => {
-              setInceput(e.target.value);
-            }}
+            onSchimba={setInceput}
             className={CLASA_CAMP}
           />
         </div>
@@ -128,15 +128,12 @@ export function FormularZi({
           <label htmlFor={idSfarsit} className="text-foreground text-corp font-medium">
             Ora de ieșire
           </label>
-          <input
+          <IntrareOra
             id={idSfarsit}
-            type="time"
             required
-            value={sfarsit}
+            valoare={sfarsit}
             aria-describedby={idRezumat}
-            onChange={(e) => {
-              setSfarsit(e.target.value);
-            }}
+            onSchimba={setSfarsit}
             className={CLASA_CAMP}
           />
         </div>
@@ -183,6 +180,16 @@ export function FormularZi({
             ) : null}
           </dl>
         )}
+
+        {/*
+          Regula stă ÎN rezumat, nu sub el: e explicația cifrelor de deasupra,
+          iar `aria-live` o citește odată cu ele. Un om care vede 8:30 lucrate
+          în loc de 8:00 află pe loc dacă e regula firmei sau un defect — și,
+          fiindcă setările au istoric, dacă regula asta e chiar cea de azi.
+        */}
+        <p className="border-border text-muted-foreground text-nota mt-3 border-t pt-2">
+          {regulaFirmei}
+        </p>
       </section>
 
       <div>
@@ -249,7 +256,7 @@ function Rand({
       <dd
         className={`tabular-nums ${accent ? "text-foreground font-medium" : "text-muted-foreground"}`}
       >
-        {valoare < 0 ? `− ${ore(-valoare)}` : ore(valoare)} h
+        {ore(valoare)} h
       </dd>
     </div>
   );

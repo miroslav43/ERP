@@ -4,6 +4,7 @@ import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
+import { IntrareDurata } from "@/components/ui/intrare-ora";
 import type { Tara } from "@/lib/queries/per-diem";
 import { REGULI_TRECERE_FRONTIERA } from "@/schemas/per-diem";
 
@@ -31,8 +32,8 @@ export function FormularPolitica({ tari }: { readonly tari: readonly Tara[] }) {
   const [multiploPlafonNeimpozabil, setMultiploPlafonNeimpozabil] = useState("2.5");
   const [multiploDiurnaExterna, setMultiploDiurnaExterna] = useState("1");
   const [categorieBarem, setCategorieBarem] = useState<"I" | "II">("II");
-  const [pragOreMinim, setPragOreMinim] = useState("12");
-  const [pragOreZiIntreaga, setPragOreZiIntreaga] = useState("24");
+  const [pragOreMinim, setPragOreMinim] = useState<number | null>(12);
+  const [pragOreZiIntreaga, setPragOreZiIntreaga] = useState<number | null>(24);
   const [fractiuneZiPartiala, setFractiuneZiPartiala] = useState("0.5");
   const [acordaZiuaTrecerii, setAcordaZiuaTrecerii] = useState(true);
   const [regulaTaraTrecere, setRegulaTaraTrecere] =
@@ -83,8 +84,8 @@ export function FormularPolitica({ tari }: { readonly tari: readonly Tara[] }) {
         multiplu_plafon_neimpozabil: Number(multiploPlafonNeimpozabil),
         multiplu_diurna_externa: Number(multiploDiurnaExterna),
         categorie_barem: categorieBarem,
-        prag_ore_minim: Number(pragOreMinim),
-        prag_ore_zi_intreaga: Number(pragOreZiIntreaga),
+        prag_ore_minim: pragOreMinim ?? 0,
+        prag_ore_zi_intreaga: pragOreZiIntreaga ?? 0,
         fractiune_zi_partiala: Number(fractiuneZiPartiala),
         acorda_diurna_ziua_trecerii: acordaZiuaTrecerii,
         regula_tara_trecere: regulaTaraTrecere,
@@ -265,15 +266,10 @@ export function FormularPolitica({ tari }: { readonly tari: readonly Tara[] }) {
         <label htmlFor={id.pragMinim} className="text-corp">
           Prag ore minim
         </label>
-        <input
+        <IntrareDurata
           id={id.pragMinim}
-          type="number"
-          min="0"
-          step="0.5"
-          value={pragOreMinim}
-          onChange={(e) => {
-            setPragOreMinim(e.target.value);
-          }}
+          valoare={pragOreMinim}
+          onSchimba={setPragOreMinim}
           className={CLASA_CAMP}
         />
       </div>
@@ -282,16 +278,10 @@ export function FormularPolitica({ tari }: { readonly tari: readonly Tara[] }) {
         <label htmlFor={id.pragZiIntreaga} className="text-corp">
           Prag ore zi întreagă
         </label>
-        <input
+        <IntrareDurata
           id={id.pragZiIntreaga}
-          type="number"
-          min="0"
-          max="24"
-          step="0.5"
-          value={pragOreZiIntreaga}
-          onChange={(e) => {
-            setPragOreZiIntreaga(e.target.value);
-          }}
+          valoare={pragOreZiIntreaga}
+          onSchimba={setPragOreZiIntreaga}
           className={CLASA_CAMP}
         />
       </div>

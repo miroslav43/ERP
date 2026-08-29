@@ -61,6 +61,15 @@ export type Coloana<R> = Readonly<{
    * `insigna` — la dreapta titlului (o pastilă de stare).
    * `meta` — rândul de dedesubt, mărunt, separat prin „·".
    * `ascuns` — nu apare pe telefon.
+   *
+   * ── CE POATE ÎNTOARCE `celula` PENTRU `titlu`, `insigna` ȘI `meta` ──────
+   * Numai conținut de tip FRAZĂ: `<span>`, `<input>`, `<select>`, text. Cele
+   * trei se randează în `CardRand` într-un `<p>` sau într-un `<span>`, iar un
+   * `<div>` acolo e marcaj nevalid: browserul închide paragraful singur,
+   * arborele lui nu mai seamănă cu cel randat pe server și React raportează
+   * eroare de hidratare. Nimic nu se vede stricat — doar consola țipă și
+   * randarea se face de două ori. Pentru un rând de controale, `<span>` cu
+   * `inline-flex` face exact ce făcea `<div>` cu `flex`.
    */
   peTelefon?: "titlu" | "insigna" | "meta" | "ascuns";
   celula: (rand: R) => ReactNode;

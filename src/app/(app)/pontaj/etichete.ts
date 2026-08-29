@@ -1,5 +1,7 @@
 // src/app/(app)/pontaj/etichete.ts
 import type { TonStare } from "@/components/ui/badge";
+import type { ConfigZi } from "@/domain/attendance/calcul-ore";
+import { formatOre } from "@/lib/format/ore";
 import type {
   StareSaptamanaPontaj,
   StatusPerioada,
@@ -98,6 +100,41 @@ export const ETICHETE_SURSA: Readonly<Record<SursaIntrare, string>> = {
   import: "Import",
   sincronizare_concedii: "Din concediu",
 };
+
+/**
+ * Regula de pontaj a firmei, scrisă într-o propoziție, pentru ziua pontată.
+ *
+ * ── DE CE EXISTĂ ──────────────────────────────────────────────────────────
+ * Ecranul angajatului arăta trei cifre — interval, ore lucrate, din care
+ * suplimentare — și niciun cuvânt despre regula după care au ieșit. Când
+ * pauza NU se scade, în rezumat nu apare niciun rând de pauză, deci ecranul
+ * arată identic pentru o firmă care n-a configurat nimic și pentru una cu
+ * pauză de 30 de minute plătită. Un om care vede 8:30 lucrate în loc de 8:00
+ * nu are cum să afle dacă e o regulă a firmei sau un defect.
+ *
+ * Contează mai ales fiindcă `attendance_settings` are ISTORIC
+ * (`valabil_de_la`): o regulă schimbată azi și pusă în vigoare de luna
+ * viitoare NU se aplică zilei de azi. Fără propoziția asta, diferența e
+ * invizibilă pe ecranul pe care se vede.
+ *
+ * `areSetari` e separat de valorile din `config`: fără el, o firmă
+ * neconfigurată și una configurată exact pe valorile de rezervă ar da același
+ * text, iar prima trebuie să afle că merge pe implicit.
+ */
+export function rezumatRegulaPontaj(config: ConfigZi, areSetari: boolean): string {
+  const norma = `normă ${formatOre(config.orePeZi)} h/zi`;
+
+  const pauza =
+    config.pauzaMinute === 0
+      ? "fără pauză de masă configurată"
+      : config.pauzaInclusaInProgram
+        ? `pauza de ${String(config.pauzaMinute)} min e inclusă în programul plătit, deci NU se scade`
+        : `pauza de ${String(config.pauzaMinute)} min se scade peste ${formatOre(config.pauzaObligatoriePesteOre)} h lucrate`;
+
+  return areSetari
+    ? `Regula firmei: ${norma} · ${pauza}.`
+    : `Firma n-a configurat încă regulile de pontaj, deci se aplică ${norma} · ${pauza}.`;
+}
 
 /** ISO-dow ca la Postgres: luni = 1 … duminică = 7. Comparație pe șir, fără fus orar. */
 function isoDow(data: string): number {

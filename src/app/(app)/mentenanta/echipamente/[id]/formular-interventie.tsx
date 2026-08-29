@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
 import { Camp } from "@/components/ui/camp";
+import { IntrareDurata, IntrareOra } from "@/components/ui/intrare-ora";
 import { Formular } from "@/components/ui/formular";
 import { REZULTATE_INTERVENTIE, TIPURI_MENTENANTA } from "@/schemas/maintenance";
 import { ETICHETE_REZULTAT_INTERVENTIE, ETICHETE_TIP_MENTENANTA } from "../../etichete";
@@ -163,22 +164,24 @@ export function FormularInterventie({
                   eticheta="Ora de început"
                   erori={stare.erori["ora_start"] ?? []}
                 >
-                  {(a) => <input {...a} type="time" defaultValue={trimise["ora_start"] ?? ""} />}
+                  {(a) => <IntrareOra {...a} implicit={trimise["ora_start"] ?? ""} />}
                 </Camp>
 
                 <Camp
                   nume="durata_ore"
                   id={idc("durata")}
-                  eticheta="Durata (ore)"
+                  eticheta="Durata"
+                  ajutor="Ore și minute, de pildă 1:30."
                   erori={stare.erori["durata_ore"] ?? []}
                 >
                   {(a) => (
-                    <input
+                    <IntrareDurata
                       {...a}
-                      type="number"
-                      min="0"
-                      step="0.5"
-                      defaultValue={trimise["durata_ore"] ?? ""}
+                      implicit={
+                        trimise["durata_ore"] === undefined || trimise["durata_ore"] === ""
+                          ? null
+                          : Number(trimise["durata_ore"])
+                      }
                     />
                   )}
                 </Camp>

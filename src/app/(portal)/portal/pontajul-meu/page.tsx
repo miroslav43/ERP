@@ -13,6 +13,7 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, formatMonthYear, todayInBucharest } from "@/lib/format/date";
+import { formatOre } from "@/lib/format/ore";
 import { anDinUrl } from "@/lib/rute/parametri";
 import { pontajulMeu, fisaMea } from "@/lib/queries/portal";
 
@@ -192,11 +193,11 @@ export default async function PaginaPontajulMeu({ searchParams }: ProprietatiPag
                       </div>
                       <div className="text-right">
                         <p className="text-foreground text-corp tabular-nums">
-                          {(z.ore_lucrate ?? 0).toLocaleString("ro-RO")} ore
+                          {formatOre(z.ore_lucrate ?? 0)}
                         </p>
                         {(z.ore_suplimentare ?? 0) > 0 ? (
                           <p className="text-muted-foreground text-nota tabular-nums">
-                            +{(z.ore_suplimentare ?? 0).toLocaleString("ro-RO")} suplimentare
+                            +{formatOre(z.ore_suplimentare ?? 0)} suplimentare
                           </p>
                         ) : null}
                       </div>
@@ -219,9 +220,7 @@ function Total({ eticheta, valoare }: { readonly eticheta: string; readonly valo
   return (
     <div>
       <p className="text-nota opacity-90">{eticheta}</p>
-      <p className="text-cifra font-mono font-semibold tabular-nums">
-        {valoare.toLocaleString("ro-RO")}
-      </p>
+      <p className="text-cifra font-mono font-semibold tabular-nums">{formatOre(valoare)}</p>
     </div>
   );
 }

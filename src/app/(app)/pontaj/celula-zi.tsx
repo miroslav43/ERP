@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
+import { IntrareDurata, IntrareOra } from "@/components/ui/intrare-ora";
 import { TIPURI_ZI_ALEGERE, type TipZi } from "@/schemas/attendance";
 import {
   oreleZilei,
@@ -56,9 +57,11 @@ export function CelulaZi({
   const [eroare, setEroare] = useState<string | null>(null);
   const [oraInceput, setOraInceput] = useState(intrare?.oraInceput ?? "");
   const [oraSfarsit, setOraSfarsit] = useState(intrare?.oraSfarsit ?? "");
-  const [oreLucrate, setOreLucrate] = useState(String(intrare?.oreLucrate ?? 8));
-  const [oreSuplimentare, setOreSuplimentare] = useState(String(intrare?.oreSuplimentare ?? 0));
-  const [oreNoapte, setOreNoapte] = useState(String(intrare?.oreNoapte ?? 0));
+  const [oreLucrate, setOreLucrate] = useState<number | null>(intrare?.oreLucrate ?? 8);
+  const [oreSuplimentare, setOreSuplimentare] = useState<number | null>(
+    intrare?.oreSuplimentare ?? 0,
+  );
+  const [oreNoapte, setOreNoapte] = useState<number | null>(intrare?.oreNoapte ?? 0);
   const [motivRespingere, setMotivRespingere] = useState("");
   const [ceareMotiv, setCereMotiv] = useState(false);
   const [tipZi, setTipZi] = useState<string>(
@@ -92,9 +95,9 @@ export function CelulaZi({
         data,
         ora_inceput: oraInceput.length === 0 ? null : oraInceput,
         ora_sfarsit: oraSfarsit.length === 0 ? null : oraSfarsit,
-        ore_lucrate: Number(oreLucrate),
-        ore_suplimentare: Number(oreSuplimentare),
-        ore_noapte: Number(oreNoapte),
+        ore_lucrate: oreLucrate ?? 0,
+        ore_suplimentare: oreSuplimentare ?? 0,
+        ore_noapte: oreNoapte ?? 0,
         tip_zi: tipZi.length === 0 ? null : (tipZi as TipZi),
         observatii: observatii.length === 0 ? null : observatii,
       });
@@ -132,18 +135,17 @@ export function CelulaZi({
     // firmei, plafonate la orele lucrate).
     const derivate = oreleZilei(nouaInceput, nouaSfarsit, config);
     if (derivate !== null) {
-      setOreLucrate(String(derivate.lucrate));
-      setOreSuplimentare(String(derivate.suplimentare));
-      setOreNoapte(String(derivate.noapte));
+      setOreLucrate(derivate.lucrate);
+      setOreSuplimentare(derivate.suplimentare);
+      setOreNoapte(derivate.noapte);
     }
   }
 
   /** Editare manuală a orelor lucrate — recalculează doar suplimentarul. */
-  function actualizeazaOreLucrateManual(valoare: string): void {
-    setOreLucrate(valoare);
-    const numar = Number(valoare);
-    if (valoare.trim().length > 0 && Number.isFinite(numar)) {
-      setOreSuplimentare(String(oreSuplimentareDinLucrate(numar, config.orePeZi)));
+  function actualizeazaOreLucrateManual(ore: number | null): void {
+    setOreLucrate(ore);
+    if (ore !== null) {
+      setOreSuplimentare(oreSuplimentareDinLucrate(ore, config.orePeZi));
     }
   }
 
@@ -208,13 +210,11 @@ export function CelulaZi({
             <label htmlFor={idOraInceput} className="text-corp block font-medium">
               Ora început
             </label>
-            <input
+            <IntrareOra
               id={idOraInceput}
-              type="time"
-              lang="ro-RO"
-              value={oraInceput}
-              onChange={(e) => {
-                actualizeazaInterval("inceput", e.target.value);
+              valoare={oraInceput}
+              onSchimba={(v) => {
+                actualizeazaInterval("inceput", v);
               }}
               className={CLASA_CAMP}
             />
@@ -223,13 +223,11 @@ export function CelulaZi({
             <label htmlFor={idOraSfarsit} className="text-corp block font-medium">
               Ora sfârșit
             </label>
-            <input
+            <IntrareOra
               id={idOraSfarsit}
-              type="time"
-              lang="ro-RO"
-              value={oraSfarsit}
-              onChange={(e) => {
-                actualizeazaInterval("sfarsit", e.target.value);
+              valoare={oraSfarsit}
+              onSchimba={(v) => {
+                actualizeazaInterval("sfarsit", v);
               }}
               className={CLASA_CAMP}
             />
@@ -238,16 +236,10 @@ export function CelulaZi({
             <label htmlFor={idOreLucrate} className="text-corp block font-medium">
               Ore lucrate
             </label>
-            <input
+            <IntrareDurata
               id={idOreLucrate}
-              type="number"
-              min={0}
-              max={24}
-              step={0.5}
-              value={oreLucrate}
-              onChange={(e) => {
-                actualizeazaOreLucrateManual(e.target.value);
-              }}
+              valoare={oreLucrate}
+              onSchimba={actualizeazaOreLucrateManual}
               className={CLASA_CAMP}
             />
           </div>
@@ -255,16 +247,10 @@ export function CelulaZi({
             <label htmlFor={idOreSuplimentare} className="text-corp block font-medium">
               Ore suplimentare
             </label>
-            <input
+            <IntrareDurata
               id={idOreSuplimentare}
-              type="number"
-              min={0}
-              max={24}
-              step={0.5}
-              value={oreSuplimentare}
-              onChange={(e) => {
-                setOreSuplimentare(e.target.value);
-              }}
+              valoare={oreSuplimentare}
+              onSchimba={setOreSuplimentare}
               className={CLASA_CAMP}
             />
           </div>
@@ -272,16 +258,10 @@ export function CelulaZi({
             <label htmlFor={idOreNoapte} className="text-corp block font-medium">
               Ore noapte
             </label>
-            <input
+            <IntrareDurata
               id={idOreNoapte}
-              type="number"
-              min={0}
-              max={24}
-              step={0.5}
-              value={oreNoapte}
-              onChange={(e) => {
-                setOreNoapte(e.target.value);
-              }}
+              valoare={oreNoapte}
+              onSchimba={setOreNoapte}
               className={CLASA_CAMP}
             />
           </div>

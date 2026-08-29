@@ -9,6 +9,7 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
+import { formatOraZi, formatOre } from "@/lib/format/ore";
 import {
   istoricSetariPontaj,
   setariPontajComplete,
@@ -86,12 +87,15 @@ export default async function PaginaSetariPontaj() {
                 și regula pauzei. */}
             {istoric.map((versiune) => (
               <li key={versiune.id}>
-                de la {formatDate(versiune.valabil_de_la)} — normă {versiune.ore_pe_zi} h/zi,{" "}
+                de la {formatDate(versiune.valabil_de_la)} — normă {formatOre(versiune.ore_pe_zi)}{" "}
+                h/zi,{" "}
                 {versiune.pauza_masa_minute === 0
                   ? "fără pauză configurată"
                   : versiune.pauza_masa_inclusa_in_program
                     ? `pauză ${String(versiune.pauza_masa_minute)} min inclusă în program`
-                    : `pauză ${String(versiune.pauza_masa_minute)} min scăzută peste ${String(versiune.pauza_obligatorie_peste_ore)} h`}
+                    : `pauză ${String(versiune.pauza_masa_minute)} min scăzută peste ${formatOre(
+                        versiune.pauza_obligatorie_peste_ore,
+                      )} h`}
               </li>
             ))}
           </ul>
@@ -119,20 +123,24 @@ function RegulaInVigoare({ setari }: { readonly setari: SetariPontajComplete }) 
   const randuri: readonly (readonly [string, string])[] = [
     [
       "Normă zilnică",
-      `${String(setari.ore_pe_zi)} h/zi · ${String(setari.ore_pe_saptamana)} h/săptămână`,
+      `${formatOre(setari.ore_pe_zi)} h/zi · ${formatOre(setari.ore_pe_saptamana)} h/săptămână`,
     ],
     [
       "Pauză de masă",
       setari.pauza_masa_minute === 0
         ? "nu e configurată"
         : pauzaSeScade
-          ? `${String(setari.pauza_masa_minute)} min, SE SCADE din program peste ${String(setari.pauza_obligatorie_peste_ore)} h lucrate`
+          ? `${String(setari.pauza_masa_minute)} min, SE SCADE din program peste ${formatOre(
+              setari.pauza_obligatorie_peste_ore,
+            )} h lucrate`
           : `${String(setari.pauza_masa_minute)} min, inclusă în programul plătit — NU se scade`,
     ],
     [
       "Tură de noapte",
       setari.lucreaza_noaptea
-        ? `${setari.noapte_start.slice(0, 5)}–${setari.noapte_sfarsit.slice(0, 5)}, spor peste ${String(setari.prag_ore_noapte)} h/zi`
+        ? `${formatOraZi(setari.noapte_start) ?? ""}–${
+            formatOraZi(setari.noapte_sfarsit) ?? ""
+          }, spor peste ${formatOre(setari.prag_ore_noapte)} h/zi`
         : "firma nu lucrează noaptea",
     ],
     ["Repaus săptămânal", setari.lucreaza_weekend ? "se lucrează" : "nu se lucrează"],

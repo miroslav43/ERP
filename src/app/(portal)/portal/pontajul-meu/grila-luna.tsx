@@ -2,6 +2,7 @@
 import Link from "next/link";
 
 import { CLASE_TIP_ZI, CODURI_TIP_ZI, ETICHETE_TIP_ZI } from "@/app/(app)/pontaj/etichete";
+import { formatOre } from "@/lib/format/ore";
 import { construiesteSaptamani, ziIso } from "@/domain/calendar/grila-lunara";
 import type { ZiPontaj } from "@/lib/queries/portal";
 
@@ -183,15 +184,13 @@ function CelulaLunii({
           <span className="text-muted-foreground">—</span>
         ) : (
           <span className="text-foreground tabular-nums">
-            {ore > 0
-              ? `${ore.toLocaleString("ro-RO")} ore`
-              : (CODURI[intrare.tip_zi] ?? intrare.tip_zi)}
+            {ore > 0 ? formatOre(ore) : (CODURI[intrare.tip_zi] ?? intrare.tip_zi)}
           </span>
         )}
       </span>
       {suplimentare > 0 ? (
         <span className="text-muted-foreground text-nota block tabular-nums">
-          +{suplimentare.toLocaleString("ro-RO")} supl.
+          +{formatOre(suplimentare)} supl.
         </span>
       ) : null}
       {intrare === undefined ? null : (

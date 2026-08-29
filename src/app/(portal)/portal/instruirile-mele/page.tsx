@@ -11,6 +11,7 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
+import { formatOreCuUnitate } from "@/lib/format/ore";
 import {
   autorizatiiNominaleAngajat,
   eipAngajatului,
@@ -113,7 +114,7 @@ export default async function PaginaInstruirileMele() {
                     Efectuată {formatDate(instruire.data_instruirii)}
                     {instruire.durata_ore === null
                       ? null
-                      : ` · ${instruire.durata_ore.toLocaleString("ro-RO")} ore`}
+                      : ` · ${formatOreCuUnitate(instruire.durata_ore)}`}
                   </p>
                   {instruire.urmatoarea_scadenta === null ? (
                     <p className="text-muted-foreground text-nota mt-1">

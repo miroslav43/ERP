@@ -12,6 +12,7 @@ import {
   tipZiAutomat,
 } from "./etichete";
 import { CelulaZi } from "./celula-zi";
+import { formatOre } from "@/lib/format/ore";
 
 export interface IntrareZiClient {
   readonly id: string;
@@ -349,7 +350,7 @@ export function FoaieColectiva({
                       ) : (
                         <span className="tabular-nums">
                           {intrare.oreLucrate > 0
-                            ? intrare.oreLucrate
+                            ? formatOre(intrare.oreLucrate)
                             : CODURI_TIP_ZI[intrare.tipZi]}
                         </span>
                       );
@@ -391,11 +392,13 @@ export function FoaieColectiva({
                     );
                   })}
                   <td className="text-muted-foreground px-2 py-2 text-right tabular-nums">
-                    {oreAsteptateLuna}
+                    {formatOre(oreAsteptateLuna)}
                   </td>
-                  <td className="px-2 py-2 text-right tabular-nums">{totalOre}</td>
-                  <td className="px-2 py-2 text-right tabular-nums">{totalSuplimentar}</td>
-                  <td className="px-2 py-2 text-right tabular-nums">{totalNoapte}</td>
+                  <td className="px-2 py-2 text-right tabular-nums">{formatOre(totalOre)}</td>
+                  <td className="px-2 py-2 text-right tabular-nums">
+                    {formatOre(totalSuplimentar)}
+                  </td>
+                  <td className="px-2 py-2 text-right tabular-nums">{formatOre(totalNoapte)}</td>
                   <td className="text-muted-foreground text-nota px-2 py-2 text-left">
                     {speciale.length === 0
                       ? "—"
@@ -412,15 +415,19 @@ export function FoaieColectiva({
               </th>
               {zile.map((zi) => (
                 <td key={zi} className="text-nota px-1 py-2 text-center tabular-nums">
-                  {totaluriColoana.get(zi) ?? 0}
+                  {formatOre(totaluriColoana.get(zi) ?? 0)}
                 </td>
               ))}
               <td className="text-muted-foreground px-2 py-2 text-right tabular-nums">
-                {oreAsteptateLuna * randuri.length}
+                {formatOre(oreAsteptateLuna * randuri.length)}
               </td>
-              <td className="px-2 py-2 text-right tabular-nums">{totalGeneral}</td>
-              <td className="px-2 py-2 text-right tabular-nums">{totaluriGenerale.suplimentare}</td>
-              <td className="px-2 py-2 text-right tabular-nums">{totaluriGenerale.noapte}</td>
+              <td className="px-2 py-2 text-right tabular-nums">{formatOre(totalGeneral)}</td>
+              <td className="px-2 py-2 text-right tabular-nums">
+                {formatOre(totaluriGenerale.suplimentare)}
+              </td>
+              <td className="px-2 py-2 text-right tabular-nums">
+                {formatOre(totaluriGenerale.noapte)}
+              </td>
               <td className="text-muted-foreground text-nota px-2 py-2 text-left">
                 {specialeGenerale.length === 0
                   ? "—"

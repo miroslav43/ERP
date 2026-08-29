@@ -19,6 +19,7 @@
  * funcția pe care o folosește aplicația la calculul zilelor lucrătoare.
  */
 import { sarbatoriAnului } from "@/domain/calendar/sarbatori";
+import { formatOre } from "@/lib/format/ore";
 
 export const AN_FOAIE = 2026;
 export const LUNA_FOAIE = 4;
@@ -282,12 +283,11 @@ export const FOAIA = {
 
 export const NORMA_LUNARA = FOAIA.zileLucratoare * ORE_NORMA_ZI;
 
-const FORMAT_ORE = new Intl.NumberFormat("ro-RO", {
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 1,
-});
-
-/** „1 198,5" — spațiu la mii, virgulă la zecimale, ca pe orice document românesc. */
-export function formateazaOre(ore: number): string {
-  return FORMAT_ORE.format(ore);
-}
+/**
+ * „1.198:30" — pe ceas, ca peste tot în aplicație.
+ *
+ * Foaia de pe pagina de prezentare arată exact ce vede clientul în produs, deci
+ * nu poate rămâne pe cealaltă convenție: o jumătate de oră scrisă `,5` aici și
+ * `:30` în ecranul de pontaj ar promite altceva decât se livrează.
+ */
+export const formateazaOre = formatOre;

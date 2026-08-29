@@ -9,6 +9,7 @@ import { Buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Schelet } from "@/components/ui/schelet";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
+import { formatOre } from "@/lib/format/ore";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -46,7 +47,13 @@ const COLOANE_APROBARE: readonly Coloana<RandAprobare>[] = [
     peTelefon: "meta",
     celula: (r) => r.zile,
   },
-  { cheie: "ore", antet: "Ore lucrate", numeric: true, peTelefon: "meta", celula: (r) => r.ore },
+  {
+    cheie: "ore",
+    antet: "Ore lucrate",
+    numeric: true,
+    peTelefon: "meta",
+    celula: (r) => formatOre(r.ore),
+  },
 ];
 
 interface ProprietatiPagina {

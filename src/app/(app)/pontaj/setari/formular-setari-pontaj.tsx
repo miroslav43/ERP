@@ -5,6 +5,8 @@ import type { ChangeEvent } from "react";
 import Link from "next/link";
 
 import { Buton } from "@/components/ui/buton";
+import { IntrareDurata, IntrareOra } from "@/components/ui/intrare-ora";
+import { formatOre } from "@/lib/format/ore";
 import { oreleZilei } from "@/domain/attendance/calcul-ore";
 import type { SetariPontajComplete } from "@/lib/queries/attendance";
 
@@ -69,10 +71,51 @@ function Numeric({
   );
 }
 
-/** Ore cu două zecimale, în scriere românească. */
-function ore(valoare: number): string {
-  return valoare.toLocaleString("ro-RO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+/**
+ * Aceeași structură ca `Numeric`, dar pentru un câmp care măsoară TIMP.
+ *
+ * Norma zilnică de șapte ore și jumătate se scrie `7:30`, nu `7,5`: sunt
+ * parametri de dreptul muncii, iar contractul individual de muncă scrie tot
+ * ore și minute. Ce pleacă spre server rămâne zecimal — `z.coerce.number()`
+ * din `schemas/attendance.ts` primește exact ce primea și înainte.
+ */
+function Durata({
+  nume,
+  eticheta,
+  descriere,
+  implicit,
+  valoare,
+  onSchimba,
+}: {
+  readonly nume: string;
+  readonly eticheta: string;
+  readonly descriere: string;
+  readonly implicit: number | undefined;
+  /** Când e dată, câmpul devine CONTROLAT — pentru cele care hrănesc exemplul viu. */
+  readonly valoare?: number | null;
+  readonly onSchimba?: (ore: number | null) => void;
+}) {
+  const id = useId();
+  const controlat = valoare !== undefined && onSchimba !== undefined;
+  return (
+    <div className="flex flex-col gap-1">
+      <label htmlFor={id} className="text-corp">
+        {eticheta}
+      </label>
+      <IntrareDurata
+        id={id}
+        name={nume}
+        required
+        {...(controlat ? { valoare, onSchimba } : { implicit: implicit ?? null })}
+        className={CAMP}
+      />
+      <p className="text-muted-foreground text-nota">{descriere}</p>
+    </div>
+  );
 }
+
+/** Durata pe ceas: `8.5` → `8:30`. */
+const ore = formatOre;
 
 /**
  * Un comutator „ce feluri de muncă are firma".
@@ -155,7 +198,7 @@ function Rand({
       <dd
         className={`tabular-nums ${accent ? "text-foreground font-medium" : "text-muted-foreground"}`}
       >
-        {valoare < 0 ? `− ${ore(-valoare)}` : ore(valoare)} h
+        {ore(valoare)} h
       </dd>
     </div>
   );
@@ -186,10 +229,10 @@ export function FormularSetariPontaj({
     bifată și prag de 8 ore, adică o pauză de 30 de minute care nu se scade
     niciodată — iar cele 30 de minute deveneau oră suplimentară în fiecare zi.
   */
-  const [orePeZi, setOrePeZi] = useState(String(setariCurente?.ore_pe_zi ?? 8));
+  const [orePeZi, setOrePeZi] = useState<number | null>(setariCurente?.ore_pe_zi ?? 8);
   const [pauzaMinute, setPauzaMinute] = useState(String(setariCurente?.pauza_masa_minute ?? 0));
-  const [pauzaPrag, setPauzaPrag] = useState(
-    String(setariCurente?.pauza_obligatorie_peste_ore ?? 0),
+  const [pauzaPrag, setPauzaPrag] = useState<number | null>(
+    setariCurente?.pauza_obligatorie_peste_ore ?? 0,
   );
   const [pauzaInclusa, setPauzaInclusa] = useState(
     setariCurente?.pauza_masa_inclusa_in_program ?? false,
@@ -206,7 +249,7 @@ export function FormularSetariPontaj({
     porneste(async () => {
       const rezultat = await salveazaSetariPontaj({
         valabil_de_la: formular.get("valabil_de_la"),
-        ore_pe_zi: orePeZi,
+        ore_pe_zi: orePeZi ?? 0,
         ore_pe_saptamana: formular.get("ore_pe_saptamana"),
         ore_maxime_saptamanale: formular.get("ore_maxime_saptamanale"),
         perioada_referinta_luni: formular.get("perioada_referinta_luni"),
@@ -228,7 +271,7 @@ export function FormularSetariPontaj({
         termen_compensare_sarbatoare_zile: formular.get("termen_compensare_sarbatoare_zile"),
         pauza_masa_minute: pauzaMinute,
         pauza_masa_inclusa_in_program: pauzaInclusa,
-        pauza_obligatorie_peste_ore: pauzaPrag,
+        pauza_obligatorie_peste_ore: pauzaPrag ?? 0,
         observatii_juridice: formular.get("observatii_juridice"),
       });
       if (rezultat.ok) setMesaj("Versiunea a fost salvată.");
@@ -240,14 +283,14 @@ export function FormularSetariPontaj({
   const EXEMPLU = { inceput: "08:30", sfarsit: "17:00" } as const;
   const numar = (v: string, rezerva: number) => (Number.isFinite(Number(v)) ? Number(v) : rezerva);
   const exemplu = oreleZilei(EXEMPLU.inceput, EXEMPLU.sfarsit, {
-    orePeZi: numar(orePeZi, 8),
+    orePeZi: orePeZi ?? 8,
     // Fereastra de noapte nu contează pentru o zi de 08:30–17:00; se trimit
     // valorile reale oricum, ca exemplul să nu mintă dacă cineva o mută.
     noapteStart: setariCurente?.noapte_start.slice(0, 5) ?? "22:00",
     noapteSfarsit: setariCurente?.noapte_sfarsit.slice(0, 5) ?? "06:00",
     pauzaMinute: numar(pauzaMinute, 0),
     pauzaInclusaInProgram: pauzaInclusa,
-    pauzaObligatoriePesteOre: numar(pauzaPrag, 0),
+    pauzaObligatoriePesteOre: pauzaPrag ?? 0,
   });
 
   // Configurație care se anulează singură: minute de pauză declarate, dar care nu
@@ -310,7 +353,9 @@ export function FormularSetariPontaj({
             minute de pauză, dar{" "}
             {pauzaInclusa
               ? "caseta „Pauza de masă e inclusă în programul plătit” e bifătă, deci pauza e timp plătit"
-              : `pragul de obligativitate (${pauzaPrag} h) e mai mare decât ziua din exemplu`}
+              : `pragul de obligativitate (${ore(
+                  pauzaPrag ?? 0,
+                )} h) e mai mare decât ziua din exemplu`}
             . E o configurație validă, dar dacă intenția era ca cele {pauzaMinute} de minute să se
             SCADĂ din program, debifați caseta și coborâți pragul.
           </p>
@@ -366,29 +411,25 @@ export function FormularSetariPontaj({
       <fieldset className="space-y-4">
         <legend className="text-corp font-medium">Timp de lucru</legend>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Numeric
+          <Durata
             nume="ore_pe_zi"
             eticheta="Ore pe zi"
             descriere="Norma zilnică obișnuită."
             implicit={setariCurente?.ore_pe_zi}
-            maxim={24}
-
             valoare={orePeZi}
             onSchimba={setOrePeZi}
           />
-          <Numeric
+          <Durata
             nume="ore_pe_saptamana"
             eticheta="Ore pe săptămână"
             descriere="Norma săptămânală obișnuită."
             implicit={setariCurente?.ore_pe_saptamana}
-            maxim={168}
           />
-          <Numeric
+          <Durata
             nume="ore_maxime_saptamanale"
             eticheta="Maxim săptămânal cu ore suplimentare"
             descriere="Limita legală, inclusiv suplimentarele."
             implicit={setariCurente?.ore_maxime_saptamanale}
-            maxim={168}
           />
           <Numeric
             nume="perioada_referinta_luni"
@@ -399,19 +440,17 @@ export function FormularSetariPontaj({
             minim={1}
             maxim={12}
           />
-          <Numeric
+          <Durata
             nume="repaus_zilnic_minim_ore"
-            eticheta="Repaus zilnic minim (ore)"
+            eticheta="Repaus zilnic minim"
             descriere="Între sfârșitul unei zile și începutul următoarei."
             implicit={setariCurente?.repaus_zilnic_minim_ore}
-            maxim={24}
           />
-          <Numeric
+          <Durata
             nume="repaus_saptamanal_minim_ore"
-            eticheta="Repaus săptămânal minim (ore)"
+            eticheta="Repaus săptămânal minim"
             descriere="Neîntrerupt, în fiecare săptămână."
             implicit={setariCurente?.repaus_saptamanal_minim_ore}
-            maxim={168}
           />
         </div>
       </fieldset>
@@ -447,11 +486,10 @@ export function FormularSetariPontaj({
               <label htmlFor={idNoapteStart} className="text-corp">
                 Începutul intervalului
               </label>
-              <input
+              <IntrareOra
                 id={idNoapteStart}
                 name="noapte_start"
-                type="time"
-                defaultValue={setariCurente?.noapte_start.slice(0, 5)}
+                implicit={setariCurente?.noapte_start}
                 required
                 className={CAMP}
               />
@@ -460,21 +498,19 @@ export function FormularSetariPontaj({
               <label htmlFor={idNoapteSfarsit} className="text-corp">
                 Sfârșitul intervalului
               </label>
-              <input
+              <IntrareOra
                 id={idNoapteSfarsit}
                 name="noapte_sfarsit"
-                type="time"
-                defaultValue={setariCurente?.noapte_sfarsit.slice(0, 5)}
+                implicit={setariCurente?.noapte_sfarsit}
                 required
                 className={CAMP}
               />
             </div>
-            <Numeric
+            <Durata
               nume="prag_ore_noapte"
               eticheta="Prag ore de noapte"
               descriere="Minimul de ore nocturne dintr-o zi pentru a da drept la spor. Zero = fără prag."
               implicit={setariCurente?.prag_ore_noapte}
-              maxim={12}
             />
           </div>
         </fieldset>
@@ -534,13 +570,11 @@ export function FormularSetariPontaj({
             valoare={pauzaMinute}
             onSchimba={setPauzaMinute}
           />
-          <Numeric
+          <Durata
             nume="pauza_obligatorie_peste_ore"
-            eticheta="Pauza devine obligatorie peste (ore)"
+            eticheta="Pauza devine obligatorie peste"
             descriere="Durata zilei de la care pauza e impusă."
             implicit={setariCurente?.pauza_obligatorie_peste_ore}
-            maxim={24}
-
             valoare={pauzaPrag}
             onSchimba={setPauzaPrag}
           />

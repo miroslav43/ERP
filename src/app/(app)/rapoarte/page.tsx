@@ -17,6 +17,7 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatLei } from "@/lib/format/money";
+import { formatOre, formatOreCuUnitate } from "@/lib/format/ore";
 import { formatMonthShort } from "@/lib/format/date";
 import { aniCuPerioade, statisticiAnuale } from "@/lib/queries/rapoarte";
 
@@ -197,7 +198,7 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
       antet: "Ore supl.",
       numeric: true,
       peTelefon: "meta",
-      celula: (angajat) => formatZecimal(angajat.oreSuplimentare),
+      celula: (angajat) => formatOre(angajat.oreSuplimentare),
     },
     {
       cheie: "zile_co",
@@ -344,7 +345,7 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
             />
             <Indicator
               eticheta="Ore suplimentare"
-              valoare={`${formatZecimal(statistici.totalOreSuplimentare)} ore`}
+              valoare={formatOreCuUnitate(statistici.totalOreSuplimentare)}
             />
             <Indicator
               eticheta="Zile de concediu"
@@ -419,7 +420,7 @@ export default async function PaginaRapoarte({ searchParams }: ProprietatiPagina
                   {statistici.totalTicheteNumar} · {formatLei(statistici.totalTicheteValoare)}
                 </td>
                 <td className="px-4 py-3 text-right tabular-nums">
-                  {formatZecimal(statistici.totalOreSuplimentare)}
+                  {formatOre(statistici.totalOreSuplimentare)}
                 </td>
                 <td className="px-4 py-3 text-right tabular-nums">
                   {formatZecimal(statistici.totalZileConcediuOdihna)}

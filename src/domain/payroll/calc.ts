@@ -29,6 +29,7 @@
 // `PayrollSettingsSnapshot`, niciodată hardcodată — vezi banner-ul din UI.
 
 import { sporDeNoapteSeAplica } from "../attendance/calcul-ore";
+import { formatOre } from "@/lib/format/ore";
 import { rotunjesteLaBani } from "../bani";
 import { descriereCompleta, problema, problemaDinEtapa, type CodProblema } from "./erori";
 import { calculeazaCompensarea, type IntrareCompensare } from "./etape/compensare-ore";
@@ -454,19 +455,19 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
   if (attendance.oreNoapte > 0 && !sporNoapteSeAplica) {
     avertizeaza(
       "SAL_SPOR_NOAPTE_SUB_PRAG",
-      `${attendance.oreNoapte.toFixed(2)} ore de noapte, sub pragul de ${pragNoapte.toFixed(2)} ore.`,
+      `${formatOre(attendance.oreNoapte)} h de noapte, sub pragul de ${formatOre(pragNoapte)} h.`,
     );
   }
   if (oreSarbatoare > 0 && settings.procentSporSarbatoare === undefined) {
     avertizeaza(
       "SAL_SPOR_SARBATOARE_NECONFIGURAT",
-      `${oreSarbatoare.toFixed(2)} ore lucrate în zile de sărbătoare legală.`,
+      `${formatOre(oreSarbatoare)} h lucrate în zile de sărbătoare legală.`,
     );
   }
   if (oreRepaus + oreSarbatoare > 0 && procentRepaus === 0 && procentSarbatoare === 0) {
     avertizeaza(
       "SAL_SPOR_REPAUS_NECONFIGURAT",
-      `${(oreRepaus + oreSarbatoare).toFixed(2)} ore plătite la tariful orar simplu, fără spor.`,
+      `${formatOre(oreRepaus + oreSarbatoare)} h plătite la tariful orar simplu, fără spor.`,
     );
   }
 
@@ -479,16 +480,16 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     const feluri = settings.feluriDeMunca;
     const nedeclarate: string[] = [];
     if (!feluri.noaptea && attendance.oreNoapte > 0) {
-      nedeclarate.push(`${attendance.oreNoapte.toFixed(2)} ore de noapte`);
+      nedeclarate.push(`${formatOre(attendance.oreNoapte)} h de noapte`);
     }
     if (!feluri.weekend && oreRepaus > 0) {
-      nedeclarate.push(`${oreRepaus.toFixed(2)} ore în repausul săptămânal`);
+      nedeclarate.push(`${formatOre(oreRepaus)} h în repausul săptămânal`);
     }
     if (!feluri.sarbatori && oreSarbatoare > 0) {
-      nedeclarate.push(`${oreSarbatoare.toFixed(2)} ore de sărbătoare legală`);
+      nedeclarate.push(`${formatOre(oreSarbatoare)} h de sărbătoare legală`);
     }
     if (!feluri.oreSuplimentare && attendance.oreSuplimentare > 0) {
-      nedeclarate.push(`${attendance.oreSuplimentare.toFixed(2)} ore suplimentare`);
+      nedeclarate.push(`${formatOre(attendance.oreSuplimentare)} h suplimentare`);
     }
     if (nedeclarate.length > 0) {
       avertizeaza("SAL_ORE_IN_MOD_NEDECLARAT", `${nedeclarate.join(", ")}.`);
