@@ -412,6 +412,24 @@ export const mutaAngajatiSchema = z.object({
 
 export type MutaAngajatiInput = z.infer<typeof mutaAngajatiSchema>;
 
+/**
+ * Funcția unei singure persoane — schemă îngustă, din exact aceleași motive ca
+ * `mutaAngajatiSchema` de mai sus: `actualizeazaAngajatSchema` are 36 de câmpuri
+ * cu `.default(...)`, iar un payload parțial i-ar goli fișa. Nota lungă de
+ * acolo se aplică literal și aici, inclusiv partea cea mai scumpă —
+ * `manager_employee_id → null` rescrie `manager_path` la toți subordonații și
+ * ascunde o ramură întreagă de managerul ei, fără eroare.
+ *
+ * Cu două câmpuri, schema asta n-are ce goli.
+ */
+export const atribuieFunctiaSchema = z.object({
+  employee_id: z.uuid("Angajatul selectat nu este valid."),
+  /** `null` = scoaterea funcției, o stare legitimă (fișă nouă, funcție desființată). */
+  job_position_id: z.uuid("Funcția selectată nu este validă.").nullable().default(null),
+});
+
+export type AtribuieFunctiaInput = z.infer<typeof atribuieFunctiaSchema>;
+
 // ── Contract ──────────────────────────────────────────────────────────────────
 
 const corpContractSchema = z.object({

@@ -514,14 +514,20 @@ export interface NodManagerial {
   readonly full_name: string;
   readonly marca: string;
   readonly manager_employee_id: string | null;
+  /**
+   * Contul din portal. Se citea deja — avatarul se rezolvă din el — dar se
+   * arunca la ieșire. E păstrat de când organigrama pune administratorul la
+   * rădăcină: `organization_members` nu are cheie străină către `employees`, se
+   * întâlnesc pe `(organization_id, user_id)`, deci ăsta e singurul fir dintre
+   * un nod și rolul lui. Vezi `rolurileConturilor`, aceeași cheie.
+   */
+  readonly user_id: string | null;
   readonly avatar_url: string | null;
   readonly department: { readonly denumire: string } | null;
   readonly job_position: { readonly denumire: string } | null;
 }
 
-interface NodManagerialBrut extends Omit<NodManagerial, "avatar_url"> {
-  readonly user_id: string | null;
-}
+type NodManagerialBrut = Omit<NodManagerial, "avatar_url">;
 
 /**
  * Toți angajații activi vizibili prin scope-ul curent, în formă plată —
@@ -576,9 +582,9 @@ export async function arboreleManagerial(
 
     const brute = [...ascendenti.data, ...subarbore.data];
     const avataruri = await avataturiPeUtilizatori(brute.map((nod) => nod.user_id));
-    return brute.map(({ user_id, ...rest }) => ({
-      ...rest,
-      avatar_url: urlAvatar(avataruri.get(user_id ?? "") ?? null),
+    return brute.map((nod) => ({
+      ...nod,
+      avatar_url: urlAvatar(avataruri.get(nod.user_id ?? "") ?? null),
     }));
   }
 
@@ -599,9 +605,9 @@ export async function arboreleManagerial(
 
   const brute = data ?? [];
   const avataruri = await avataturiPeUtilizatori(brute.map((nod) => nod.user_id));
-  return brute.map(({ user_id, ...rest }) => ({
-    ...rest,
-    avatar_url: urlAvatar(avataruri.get(user_id ?? "") ?? null),
+  return brute.map((nod) => ({
+    ...nod,
+    avatar_url: urlAvatar(avataruri.get(nod.user_id ?? "") ?? null),
   }));
 }
 
@@ -750,6 +756,44 @@ export async function angajatiPentruPontaj(
     .order("full_name", { ascending: true })
     .limit(500)
     .returns<OptiuneColeg[]>();
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
+export interface AngajatDeAtribuit extends OptiuneColeg {
+  /** Funcția pe care o deține ACUM. `null` = nealocată. */
+  readonly job_position_id: string | null;
+}
+
+/**
+ * Angajații pentru caseta „Atribuie angajați" din nomenclatorul de funcții.
+ *
+ * ── DE CE ADUCE ȘI FUNCȚIA CURENTĂ ────────────────────────────────────────
+ * Caseta e un rând de bife, iar ce trimite ea înapoi e o stare completă („ăștia
+ * dețin funcția"), nu o operație. Fără `job_position_id` n-ar avea de unde ști
+ * pe cine să pre-bifeze, deci fiecare deschidere ar arăta lista goală și prima
+ * salvare ar SCOATE tăcut pe toți cei care o aveau deja.
+ *
+ * Se aduce funcția, nu doar un boolean „o are pe asta": ecranul scrie lângă
+ * fiecare nume ce funcție deține în acest moment, ca mutarea cuiva de pe o
+ * funcție pe alta să fie o alegere văzută, nu un efect secundar.
+ *
+ * Aceleași stări ca la `colegiPentruManager` — cine a plecat din firmă n-are
+ * funcție de ținut — și aceeași limită explicită de 500.
+ */
+export async function angajatiPentruAtribuire(
+  organizationId: string,
+): Promise<readonly AngajatDeAtribuit[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("employees")
+    .select("id, full_name, marca, job_position_id")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .in("status", ["candidat", "activ", "suspendat", "preaviz"])
+    .order("full_name", { ascending: true })
+    .limit(500)
+    .returns<AngajatDeAtribuit[]>();
   if (error !== null) throw error;
   return data ?? [];
 }

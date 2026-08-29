@@ -420,6 +420,28 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
   border-left: 1px solid var(--color-border);
 }
 
+/*
+ * Muchia DEDUSĂ, nu configurată: cineva fără manager direct în bază, pe care
+ * organigrama îl atârnă sub administrator ca să nu apară drept arbore paralel.
+ * Punctată, fiindcă e o presupunere a ecranului — `manager_employee_id` rămâne
+ * `null`, iar aprobările de concediu și pontaj citesc baza, nu desenul ăsta.
+ * Vezi `domain/hr/organigrama.ts` pentru condițiile în care se deduce.
+ *
+ * Clasa stă în DOUĂ locuri, fiindcă linia e desenată din două bucăți:
+ *  - pe fiecare <li>, pentru bara orizontală și tija lui;
+ *  - pe <ul>, pentru trunchiul care coboară din nodul părinte — el se pune doar
+ *    când TOȚI copiii rândului sunt impliciți; la un rând mixt trunchiul e
+ *    parcurs și de o muchie reală, deci rămâne plin.
+ */
+.og-ramura > li.og-implicit::before,
+.og-ramura > li.og-implicit::after,
+.og-ramura.og-implicit::before {
+  border-top-style: dashed;
+  border-left-style: dashed;
+  border-right-style: dashed;
+  border-color: color-mix(in oklab, var(--color-muted-foreground) 55%, transparent);
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
  * DIALOGURILE ȘI PANOURILE — intrarea și ieșirea
  *

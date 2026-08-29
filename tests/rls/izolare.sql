@@ -1461,6 +1461,7 @@ declare
   -- Departamentul de pornire al Anei, ca proba de mutare să-l poată pune la loc
   -- și să nu schimbe starea văzută de verificările de după ea.
   v_dep_initial uuid;
+  v_poz_initial uuid;
   -- Evaluări (0071): șablonul creat de HR și cele două evaluări ale probei.
   v_sablon_firma uuid;
   v_eval_sub     uuid;
@@ -1661,6 +1662,52 @@ begin
     v_reusite := v_reusite || E'\n  hr -> employees.department_id (mută un angajat între departamente)';
   exception when others then
     v_esuate := v_esuate || format(E'\n  hr -> employees.department_id (mută un angajat între departamente): %s (%s)', sqlerrm, sqlstate);
+  end;
+  reset role;
+
+  -- 10b) un `hr` din Alfa ATRIBUIE o funcție unui angajat.
+  --
+  -- Sora cazului de mai sus, pe cealaltă coloană de încadrare: e scrierea pe
+  -- care o fac `atribuieFunctia` (de pe fișă) și `atribuieAngajatiPeFunctie`
+  -- (din nomenclator). Contează separat de `department_id`, deși politica e
+  -- aceeași `employees_update`, din două motive:
+  --
+  -- · `job_position_id` referă `job_positions`, nu `departments` — altă cheie
+  --   străină, alte granturi. Un `GRANT` lipsă pe tabela referită nu se vede
+  --   din faptul că mutarea între departamente merge.
+  -- · nomenclatorul de funcții e păzit în aplicație de `departments:update`,
+  --   iar scrierea asta de `employees:update`. Sunt permisiuni distincte,
+  --   deținute azi de aceleași roluri; proba le desparte ca despărțirea lor în
+  --   seed să nu treacă neobservată.
+  --
+  -- Atribuie, apoi pune la loc valoarea inițială: proba n-are voie să schimbe
+  -- starea pe care se sprijină verificările de după ea.
+  select job_position_id into v_poz_initial from public.employees where id = v_ang_alfa;
+
+  perform set_config('request.jwt.claim.sub', v_hr_user::text, true);
+  set local role authenticated;
+  begin
+    update public.employees
+       set job_position_id = null, updated_by = v_hr_user
+     where id = v_ang_alfa and organization_id = v_alfa and deleted_at is null;
+    get diagnostics v_randuri = row_count;
+    if v_randuri <> 1 then
+      raise exception using errcode = 'P0001',
+        message = format('retragerea funcției a atins %s rânduri, nu 1 — politica a refuzat tăcut', v_randuri);
+    end if;
+
+    update public.employees
+       set job_position_id = v_poz_initial, updated_by = v_hr_user
+     where id = v_ang_alfa and organization_id = v_alfa and deleted_at is null;
+    get diagnostics v_randuri = row_count;
+    if v_randuri <> 1 then
+      raise exception using errcode = 'P0001',
+        message = format('atribuirea funcției a atins %s rânduri, nu 1 — politica a refuzat tăcut', v_randuri);
+    end if;
+
+    v_reusite := v_reusite || E'\n  hr -> employees.job_position_id (atribuie și retrage o funcție)';
+  exception when others then
+    v_esuate := v_esuate || format(E'\n  hr -> employees.job_position_id (atribuie și retrage o funcție): %s (%s)', sqlerrm, sqlstate);
   end;
   reset role;
 
@@ -1892,7 +1939,15 @@ begin
       -- Fișa unui coleg rămâne inaccesibilă: `employees:read = own` compară pe
       -- `user_id`, nu pe apartenență.
       ('employee', 'employees (fișa altui coleg)',         'ZERO',
-       'update public.employees set observatii = ''(l)'' where organization_id = $1 and id = $3')
+       'update public.employees set observatii = ''(l)'' where organization_id = $1 and id = $3'),
+
+      -- Managerul NU are `employees:update` — niciun rând în `role_permissions`,
+      -- deci absența e refuz. Cazul contează fiindcă managerul VEDE fișa (are
+      -- `employees:read = team`) și are în față exact ecranele de pe care se
+      -- schimbă funcția. Fără el, o politică lărgită din greșeală la `team` ar
+      -- trece neobservată: nimic nu aruncă, `USING` respinge cu zero rânduri.
+      ('manager',  'employees.job_position_id (funcția unui subordonat)', 'ZERO',
+       'update public.employees set job_position_id = null, updated_by = auth.uid() where organization_id = $1 and id = $6')
     ) as t(rol, eticheta, asteptat, sql)
   loop
     -- Ramura `employee` NU e opțională. Fără ea, orice caz marcat „employee" ar
