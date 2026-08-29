@@ -12,6 +12,11 @@ import { readRequestMeta, writeAuditLog } from "@/lib/actions/audit";
 import { businessRule, notFound } from "@/lib/actions/errors";
 import { createAction } from "@/lib/actions/create-action";
 import { createServerSupabase } from "@/lib/supabase/server";
+// Ocolirea RLS e permisă de ESLint în `actions.ts`; motivul concret e scris la
+// `stergeAngajat` — o gardă numărată sub RLS ar slăbi odată cu drepturile de
+// citire ale celui pe care îl păzește.
+import { createAdminSupabase } from "@/lib/supabase/admin";
+import { mesajRefuzStergere } from "@/domain/hr/stergere-angajat";
 import {
   amprentaSensibila,
   catreBytea,
@@ -30,6 +35,7 @@ import {
   incetareContractSchema,
   invitaAngajatulSchema,
   modificaSalariuContractSchema,
+  stergeAngajatSchema,
 } from "@/schemas/employee";
 
 interface RandSensibil {
@@ -612,6 +618,7 @@ export const invitaAngajatul = createAction({
       adresa: string;
       fel: FelAdresa;
       emailTrimis: boolean;
+      retrimisa: boolean;
       link: string;
       qr: string;
       expiraLa: string;
@@ -651,6 +658,11 @@ export const invitaAngajatul = createAction({
       employeeId: fisa.id,
       invitatDe: ctx.user.fullName ?? ctx.user.email,
       trimiteEmail: alegere.seTrimiteEmail,
+      // Butonul ăsta e singurul drum al omului care n-a primit e-mailul: fișa
+      // n-are lista invitațiilor sub el, iar retrimiterea exista doar în consola
+      // de platformă. „Există deja o invitație" nu era un răspuns — a doua
+      // apăsare retrimite (0105).
+      retrimiteDacaExista: true,
       userId: ctx.user.id,
       acum: ctx.now,
     });
@@ -673,9 +685,143 @@ export const invitaAngajatul = createAction({
       adresa: alegere.adresa,
       fel: alegere.fel,
       emailTrimis: invitatie.emailTrimis,
+      retrimisa: invitatie.retrimisa,
       link,
       qr,
       expiraLa: expira.toISOString(),
     };
+  },
+});
+
+/**
+ * Ștergerea unei fișe de angajat — LOGICĂ, prin `deleted_at`.
+ *
+ * ── DE CE NU UN DELETE ADEVĂRAT ───────────────────────────────────────────
+ * Nu există nicio politică DELETE în tot proiectul, pe nicio tabelă. Nu e o
+ * scăpare: dosarul de personal are termene legale de păstrare, iar fișa e
+ * capătul a vreo douăsprezece legături — contracte, documente, pontaj,
+ * concedii, state de plată, date sensibile criptate. Un rând dispărut le-ar
+ * lăsa pe toate fără subiect. `deleted_at` scoate fișa din TOATE citirile
+ * (fiecare are `.is("deleted_at", null)`) și rămâne reversibil dintr-un UPDATE.
+ *
+ * ── DE CE RENUMĂRĂ PIEDICILE, DEȘI ECRANUL LE-A NUMĂRAT DEJA ──────────────
+ * Pagina le arată ca să nu fie refuzul o surpriză; aici sunt adevărul. Între
+ * randare și apăsare altcineva poate semna un contract nou sau muta un
+ * subordonat sub fișa asta — iar clientul, oricum, nu trimite nicio piedică.
+ *
+ * ── DE CE CLIENTUL DE SERVICIU LA NUMĂRĂTOARE ─────────────────────────────
+ * Numărătoarea prin sesiune ar vedea doar ce are voie să citească cel care
+ * șterge. Rolurile din seed au `employees:delete = all` împreună cu
+ * `employees:read = all`, deci ar fi ieșit la fel — dar o suprascriere per
+ * membru (`role_permissions.member_id`, migrarea 0063) poate acorda ștergerea
+ * fără citirea completă. Atunci o gardă numărată sub RLS ar vedea zero
+ * subordonați acolo unde sunt cinci și ar lăsa lanțul rupt. O gardă nu are voie
+ * să slăbească odată cu drepturile de citire ale celui pe care îl păzește.
+ * Filtrul pe `organization_id` rămâne explicit pe fiecare interogare.
+ */
+export const stergeAngajat = createAction({
+  name: "employees.delete",
+  feature: "nucleu",
+  permission: "employees:delete",
+  minScope: "all",
+  input: stergeAngajatSchema,
+  audit: {
+    action: "delete",
+    entityType: "employees",
+    entityId: (input) => input.id,
+    // Numele nu intră în jurnal: `entity_id` spune deja despre cine e vorba,
+    // iar `audit_logs` e citit de mai mulți ochi decât fișa însăși.
+    allow: ["id"],
+  },
+  revalidate: ["/angajati", "/organigrama", "/setari/membri"],
+  // Nu întoarce numele: `full_name` e GENERATED ALWAYS și de aceea `string |
+  // null` în tipurile generate, iar ecranul îl are oricum din props. Un
+  // `?? ""` doar ca să se potrivească semnătura ar fi produs „Fișa lui  a fost
+  // ștearsă."
+  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    const db = await createServerSupabase();
+
+    const { data: fisa, error: eroareFisa } = await db
+      .from("employees")
+      .select("id, user_id")
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (eroareFisa !== null) throw eroareFisa;
+    if (fisa === null) throw notFound("Angajatul nu există sau a fost deja șters.");
+
+    // Ocolire deliberată de RLS, motivată în capul acțiunii: garda nu trebuie
+    // să slăbească odată cu scope-ul de citire al celui care o declanșează.
+    const admin = createAdminSupabase();
+    const [contracte, subordonati] = await Promise.all([
+      admin
+        .from("employment_contracts")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", ctx.tenant.organizationId)
+        .eq("employee_id", fisa.id)
+        .eq("status", "activ")
+        .is("deleted_at", null),
+      admin
+        .from("employees")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", ctx.tenant.organizationId)
+        .eq("manager_employee_id", fisa.id)
+        .is("deleted_at", null),
+    ]);
+    if (contracte.error !== null) throw contracte.error;
+    if (subordonati.error !== null) throw subordonati.error;
+
+    const refuz = mesajRefuzStergere({
+      contracteActive: contracte.count ?? 0,
+      subordonatiDirecti: subordonati.count ?? 0,
+      esteFisaProprie: fisa.user_id !== null && fisa.user_id === ctx.user.id,
+    });
+    if (refuz !== null) throw businessRule(refuz);
+
+    /*
+     * `.select()` după `.update()`, cu `.is("deleted_at", null)` repetat:
+     * politica `employees_update` cere `deleted_at is null` în `USING`, iar un
+     * UPDATE respins de `USING` afectează ZERO rânduri fără nicio eroare. Fără
+     * rândul întors înapoi, două apăsări una după alta ar raporta amândouă
+     * succes, deși a doua n-a atins nimic.
+     *
+     * `updated_by` nu se trimite: îl pune triggerul BEFORE `set_actor_employees`
+     * din `auth.uid()`, exact ce cere clauza `WITH CHECK`.
+     */
+    const { data: stearsa, error } = await db
+      .from("employees")
+      .update({ deleted_at: ctx.now.toISOString() })
+      .eq("id", fisa.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
+    if (error !== null) throw businessRule(error.message.slice(0, 300));
+
+    if (stearsa === null) {
+      /*
+       * Zero rânduri fără eroare — semnătura unui UPDATE respins de `USING`.
+       * Aici sunt DOUĂ cauze, iar mesajul „a șters-o altcineva" ar minți în a
+       * doua: politica `employees_update` cere `employees:update`, pe care
+       * acțiunea asta NU o pretinde (ea cere `employees:delete`). Rolurile din
+       * seed le au pe amândouă, dar o suprascriere per membru poate acorda una
+       * fără cealaltă. O întrebare în plus, doar pe calea de eșec, spune care.
+       */
+      const { count } = await admin
+        .from("employees")
+        .select("id", { count: "exact", head: true })
+        .eq("id", fisa.id)
+        .eq("organization_id", ctx.tenant.organizationId)
+        .is("deleted_at", null);
+
+      throw businessRule(
+        (count ?? 0) > 0
+          ? "Baza a refuzat ștergerea: politica cere și dreptul de editare a fișelor, nu doar pe cel de ștergere."
+          : "Fișa a fost ștearsă de altcineva între timp.",
+      );
+    }
+
+    return { id: stearsa.id };
   },
 });

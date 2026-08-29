@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { ChevronRight, FileText, FolderOpen, KeyRound, Pencil } from "lucide-react";
+import { ChevronRight, FileCheck, FileText, FolderOpen, KeyRound, Pencil } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
@@ -34,17 +34,22 @@ import {
   citesteScutiriFiscale,
   idFisaProprie,
   lantulDeManageri,
+  piediciStergereAngajat,
+  rolurileConturilor,
 } from "@/lib/queries/employees";
 
 import {
   ETICHETE_CONTRACT,
   ETICHETE_MOD_LUCRU,
+  ETICHETE_ROL_CONT,
   ETICHETE_SCUTIRE,
-  ETICHETE_STATUS,
   ETICHETE_TIP_COMPONENTA,
   TONURI_STATUS,
+  etichetaStare,
+  rolAdministrativ,
 } from "../etichete";
 import { ButonIncheieComponenta } from "./buton-incheie-componenta";
+import { ButonStergeAngajat } from "./buton-sterge-angajat";
 import { DateSensibile } from "./date-sensibile";
 import { FormularContractNou } from "./formular-contract-nou";
 import { FormularComponentaSalariala } from "./formular-componenta-salariala";
@@ -150,6 +155,12 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
   // contrar cerinței „managerul direct".
   const poateCreaEvaluare = can(permisiuni, "evaluations:create", "team");
   const poateEditaEvaluare = can(permisiuni, "evaluations:update", "team");
+  // Invitarea are permisiune PROPRIE (0099), separată de `employees:update`:
+  // ea consumă un loc din `seats_limit` și creează un cont, nu editează o fișă.
+  // Stă printre porțile de sus fiindcă decide dacă pleacă interogarea de mai
+  // jos — `invitations_select` cere `users:read` sau `employees:invite`, deci
+  // pentru un manager ar fi fost oricum zero rânduri.
+  const poateInvita = can(permisiuni, "employees:invite", "all");
 
   const dbFisa = await createServerSupabase();
 
@@ -162,6 +173,8 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
     sabloaneComponente,
     lantManageri,
     dependentiRes,
+    documenteEmiseRes,
+    invitatiePendinte,
   ] = await Promise.all([
     // Datele sensibile nu se randează deloc dacă scope-ul nu acoperă întreaga organizație.
     scope === "all" ? citesteRezumatDateSensibile(tenant.organizationId, id) : null,
@@ -193,7 +206,59 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
       .is("deleted_at", null)
       .order("in_intretinere_de_la", { ascending: true })
       .returns<RandDependent[]>(),
+    /*
+     * Documentele EMISE de aplicație — contractul, fișa postului, acordul de
+     * confidențialitate, anexa de proprietate intelectuală, actul adițional de
+     * telemuncă. Cele cinci pe care înrolarea le generează dintr-un foc.
+     *
+     * ── DE CE NU ERAU AICI ────────────────────────────────────────────────
+     * Stau în ALTĂ tabelă decât fișierele încărcate: `hr_issued_documents`, cu
+     * numerotare proprie pe serie și amprentă SHA-256, față de
+     * `employee_documents`. Secțiunea „Documente" citea doar embed-ul
+     * `documents` din `citesteAngajat`, adică doar încărcările. Rezultat: omul
+     * abia le vedea o dată, în ecranul de confirmare al înrolării, și pe fișă
+     * scria „Nu există documente încărcate pentru acest angajat" — despre un
+     * angajat cu cinci documente emise pe numele lui.
+     *
+     * `hr_issued_select` cere doar `app.can_see_employee`: cine a ajuns pe fișă
+     * le poate vedea, fără nicio poartă în plus.
+     */
+    dbFisa
+      .from("hr_issued_documents")
+      .select("id, titlu, numar_afisat, emis_la, anulat_la")
+      .eq("organization_id", tenant.organizationId)
+      .eq("employee_id", angajat.id)
+      .is("deleted_at", null)
+      .order("emis_la", { ascending: false })
+      .limit(50),
+    /*
+     * Invitația plecată și încă neacceptată, dacă există.
+     *
+     * `maybeSingle()` e sigur: `invitations_employee_pending_uq` (0099) permite
+     * o singură invitație în așteptare per fișă. Fără rândul ăsta, butonul
+     * spunea „Invită în aplicație" și răspundea „există deja o invitație" —
+     * starea era vizibilă doar prin refuz.
+     */
+    poateInvita && angajat.user_id === null
+      ? dbFisa
+          .from("invitations")
+          .select("email, expires_at")
+          .eq("organization_id", tenant.organizationId)
+          .eq("employee_id", angajat.id)
+          .eq("status", "pending")
+          .is("deleted_at", null)
+          .maybeSingle()
+          .then(({ data }) => data)
+      : null,
   ]);
+
+  // Aruncat, nu înghițit cu `?? []`: o listă goală din cauza unei erori arată
+  // exact ca dosarul gol al unui angajat nou, iar asta e chiar defectul reparat
+  // mai sus. Eroarea ajunge la `angajati/error.tsx`, care are buton de reîncărcare.
+  if (documenteEmiseRes.error !== null) {
+    throw new Error("Nu am putut încărca documentele emise ale angajatului.");
+  }
+  const documenteEmise = documenteEmiseRes.data;
 
   const sabloaneEvaluare = sabloaneEvaluareBrute.map((s) => ({
     id: s.id,
@@ -223,13 +288,26 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
   const esteFisaProprie = angajat.user_id === utilizator.id;
   const poateIncarcaPtOricine = can(permisiuni, "users:update", "all");
   const poateEditaAngajat = can(permisiuni, "employees:update", "all");
-  // Invitarea are permisiune PROPRIE (0099), separată de `employees:update`:
-  // ea consumă un loc din `seats_limit` și creează un cont, nu editează o fișă.
-  const poateInvita = can(permisiuni, "employees:invite", "all");
   // Pragul `team` e cel mai mic care deschide ecranul: `org_admin` are `all`
   // (toată firma), managerul `team` (doar echipa lui, restul îl oprește RLS).
   const poateAcordaPermisiuni = can(permisiuni, "roles:update", "team");
   const poateVedeaRegulileConcediu = can(permisiuni, "leave:read", "all");
+  // Ștergerea are permisiune PROPRIE, nu `employees:update`: seed-ul o dă doar
+  // lui `org_admin`, `hr` și `super_admin`, iar managerul — care poate edita
+  // fișele echipei — nu o are deloc.
+  const poateSterge = can(permisiuni, "employees:delete", "all");
+  // Numărate doar când butonul chiar apare. Două `count` în plus la fiecare
+  // deschidere de fișă, pentru un buton pe care jumătate din roluri nu-l văd,
+  // ar fi cost curat.
+  const [piediciStergere, roluriConturi] = await Promise.all([
+    poateSterge ? piediciStergereAngajat(tenant.organizationId, angajat.id, esteFisaProprie) : null,
+    rolurileConturilor(tenant.organizationId, [angajat.user_id]),
+  ]);
+  // Rolul din aplicație, dacă fișa are cont și dacă rolul spune ceva. Vezi nota
+  // din `../etichete.ts`: e altă informație decât `status`, de aceea altă
+  // insignă — și tot de acolo vine reștampilarea lui „Candidat”.
+  const rolCont = rolAdministrativ(roluriConturi.get(angajat.user_id ?? "") ?? null);
+  const stareAfisata = etichetaStare(angajat.status, rolCont);
 
   const dependenti = dependentiRes.data ?? [];
 
@@ -319,8 +397,22 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                   Editează fișa
                 </Link>
               ) : null}
+              {piediciStergere === null ? null : (
+                <ButonStergeAngajat
+                  id={angajat.id}
+                  nume={angajat.full_name}
+                  marca={angajat.marca}
+                  status={stareAfisata}
+                  piedici={piediciStergere}
+                />
+              )}
+              {rolCont === null ? null : (
+                <Badge className="text-corp px-3 py-1" ton="neutru">
+                  {ETICHETE_ROL_CONT[rolCont]}
+                </Badge>
+              )}
               <Badge className="text-corp px-3 py-1" ton={TONURI_STATUS[angajat.status]}>
-                {ETICHETE_STATUS[angajat.status]}
+                {stareAfisata}
               </Badge>
             </>
           }
@@ -412,6 +504,11 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
                 employeeId={angajat.id}
                 numeAngajat={angajat.full_name}
                 numeFirma={tenant.name}
+                pendinte={
+                  invitatiePendinte === null
+                    ? null
+                    : { adresa: invitatiePendinte.email, expiraLa: invitatiePendinte.expires_at }
+                }
               />
             </div>
           ) : null}
@@ -803,9 +900,11 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 id="titlu-documente" className="text-sectiune font-medium">
             Documente
-            {angajat.documents.length > 0 ? (
+            {/* Numărătoarea le cuprinde pe amândouă. Cât timp arăta doar
+                încărcările, un angajat cu cinci documente emise afișa „(0)". */}
+            {documenteEmise.length + angajat.documents.length > 0 ? (
               <span className="text-muted-foreground ml-2 font-normal">
-                ({angajat.documents.length})
+                ({documenteEmise.length + angajat.documents.length})
               </span>
             ) : null}
           </h2>
@@ -817,8 +916,55 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
             Deschide dosarul
           </Link>
         </div>
+
+        {documenteEmise.length === 0 ? null : (
+          <div className="mb-5">
+            <h3 className="text-muted-foreground text-nota mb-1 font-medium tracking-wide uppercase">
+              Emise de aplicație
+            </h3>
+            <p className="text-muted-foreground text-nota mb-2">
+              Generate din șabloane, cu număr propriu și amprentă. Se deschid ca PDF.
+            </p>
+            <ul className="divide-border text-corp divide-y">
+              {documenteEmise.map((document) => (
+                <li key={document.id} className="flex flex-wrap items-center gap-3 py-2.5">
+                  <FileCheck aria-hidden="true" className="text-muted-foreground size-4 shrink-0" />
+                  {/*
+                   * Direct la PDF, într-o filă nouă. Ruta `/documente/[id]` e
+                   * deja publică pentru cine poate vedea fișa (RLS:
+                   * `hr_issued_select`), deci nu mai trece prin dosar.
+                   */}
+                  <Link
+                    href={`/documente/${document.id}?format=pdf`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="min-w-0 flex-1 font-medium underline-offset-2 hover:underline"
+                  >
+                    {document.titlu}
+                  </Link>
+                  {document.anulat_la === null ? null : <Badge ton="neutru">Anulat</Badge>}
+                  <span className="text-muted-foreground shrink-0">
+                    {document.numar_afisat} · {formatDate(document.emis_la)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {documenteEmise.length === 0 ? null : (
+          <h3 className="text-muted-foreground text-nota mb-2 font-medium tracking-wide uppercase">
+            Încărcate în dosar
+          </h3>
+        )}
         {angajat.documents.length === 0 ? (
-          <StareGoala mesaj="Nu există documente încărcate pentru acest angajat. Dosarul se completează din „Deschide dosarul”." />
+          <StareGoala
+            mesaj={
+              documenteEmise.length === 0
+                ? "Nu există documente pentru acest angajat. Dosarul se completează din „Deschide dosarul”."
+                : "Niciun fișier încărcat în dosar. Se încarcă din „Deschide dosarul”."
+            }
+          />
         ) : (
           <ul className="divide-border text-corp divide-y">
             {angajat.documents.map((document) => (
