@@ -60,6 +60,7 @@ import { IncarcareAvatarAdmin } from "./incarcare-avatar-admin";
 import { SectiuneConcedii } from "./sectiune-concedii";
 import { SectiuneDependenti, type RandDependent } from "./sectiune-dependenti";
 import { InvitatieAngajat } from "./invitatie-angajat";
+import { DateLipsa } from "./date-lipsa";
 
 export const metadata: Metadata = { title: "Fișa angajatului" };
 
@@ -326,6 +327,32 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
           {...(subAntet === null ? {} : { file: subAntet })}
         />
       </div>
+
+      {/*
+        Restanța de date, imediat sub antet.
+        Fișele create înainte de 0097 n-au act de identitate complet și n-au
+        adresă — verificat pe baza reală: toate 11. Fără semnalul ăsta,
+        lipsa iese la lumină abia la prima emitere de contract sau la prima
+        transmitere către ITM.
+      */}
+      <DateLipsa
+        employeeId={angajat.id}
+        poateEdita={poateEditaAngajat}
+        fisa={{
+          serie_act: angajat.serie_act,
+          numar_act: angajat.numar_act,
+          act_eliberat_de: angajat.act_eliberat_de,
+          act_eliberat_la: angajat.act_eliberat_la,
+          adresa_strada: angajat.adresa_strada,
+          adresa_oras: angajat.adresa_oras,
+          adresa_judet: angajat.adresa_judet,
+          // `null` când actorul n-are dreptul de a vedea rezumatul sensibil:
+          // atunci nu se poate ști dacă CNP-ul lipsește, iar o restanță
+          // inventată e mai rea decât una netrecută în listă.
+          cnpUltimele4: rezumatSensibil?.cnp_last4 ?? "—",
+          cetatenie: angajat.cetatenie,
+        }}
+      />
 
       <section aria-labelledby="titlu-date-personale" className={CLASA_SECTIUNE}>
         <h2 id="titlu-date-personale" className="text-sectiune mb-4 font-medium">

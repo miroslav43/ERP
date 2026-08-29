@@ -80,7 +80,16 @@ describe("pdfDinDocument", () => {
     expect(esteePdf(octeti)).toBe(true);
   });
 
-  it("rupe textul lung pe mai multe pagini", async () => {
+  /*
+   * Timeout explicit, nu implicitul de 5 s al vitest.
+   *
+   * Cazul ăsta încadrează ~150 de rânduri și încorporează fontul cu diacritice
+   * la fiecare rulare. În izolare durează ~1,5 s; în suita întreagă, cu
+   * lucrătorii în paralel pe aceeași mașină, a atins 5364 ms și a picat pe
+   * TIMEOUT — nu pe aserțiune. Un test care pică după cât de ocupată e mașina
+   * învață pe toată lumea să reruleze suita până iese verde.
+   */
+  it("rupe textul lung pe mai multe pagini", { timeout: 30_000 }, async () => {
     // Fără flux, `drawText` ar fi desenat totul pe un singur rând, în afara
     // paginii — și tot ar fi ieșit un PDF „valid", cu o pagină goală.
     // ~400 de repetări: o pagină A4 la corp de 9 puncte încape ~45 de rânduri,

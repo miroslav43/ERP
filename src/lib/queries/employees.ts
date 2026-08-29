@@ -100,6 +100,17 @@ export interface AngajatDetaliu {
   readonly terminated_on: string | null;
   readonly conditii_munca: string;
   readonly grad_handicap: string | null;
+  /**
+   * Actul de identitate — citit AICI doar ca să se poată semnala ce lipsește.
+   *
+   * Fișa de detaliu nu-l afișează (e în ecranul de editare), dar fără el pagina
+   * n-ar putea spune „lipsesc datele pentru contract și REGES" — iar toate cele
+   * 11 fișe din baza reală n-au niciunul dintre câmpurile astea.
+   */
+  readonly serie_act: string | null;
+  readonly numar_act: string | null;
+  readonly act_eliberat_de: string | null;
+  readonly act_eliberat_la: string | null;
   readonly nr_persoane_intretinere: number;
   readonly is_primary: boolean;
   readonly contact_urgenta_nume: string | null;
@@ -309,7 +320,8 @@ export async function citesteAngajat(
     .select(
       `id, marca, full_name, first_name, last_name, email_personal, email_serviciu, telefon, adresa_strada, adresa_oras,
        adresa_judet, data_nasterii, gen, cetatenie, status, hired_on, terminated_on, conditii_munca,
-       grad_handicap, nr_persoane_intretinere, is_primary, contact_urgenta_nume, contact_urgenta_telefon,
+       grad_handicap, serie_act, numar_act, act_eliberat_de, act_eliberat_la,
+       nr_persoane_intretinere, is_primary, contact_urgenta_nume, contact_urgenta_telefon,
        observatii, manager_path, user_id,
        ${EMBED_DEPARTAMENT}, ${EMBED_FUNCTIE},
        contracts:employment_contracts!employee_id(id, numar, data_contract, valabil_de_la, valabil_pana,
@@ -522,9 +534,11 @@ export interface AngajatEditabil {
   readonly gen: string;
   readonly cetatenie: string;
   readonly tip_act_identitate: string | null;
+  readonly reges_tip_act: string | null;
   readonly serie_act: string | null;
   readonly numar_act: string | null;
   readonly act_eliberat_de: string | null;
+  readonly act_eliberat_la: string | null;
   readonly act_valabil_pana: string | null;
   readonly department_id: string | null;
   readonly job_position_id: string | null;
@@ -551,7 +565,8 @@ export async function citesteAngajatPentruEditare(
        telefon_serviciu, adresa_strada, adresa_oras, adresa_judet, adresa_cod_postal,
        adresa_resedinta_strada, adresa_resedinta_oras, adresa_resedinta_judet,
        adresa_resedinta_cod_postal, stare_civila, data_nasterii, gen, cetatenie,
-       tip_act_identitate, serie_act, numar_act, act_eliberat_de, act_valabil_pana,
+       tip_act_identitate, reges_tip_act, serie_act, numar_act, act_eliberat_de,
+       act_eliberat_la, act_valabil_pana,
        department_id, job_position_id, manager_employee_id, hired_on, conditii_munca,
        grad_handicap, optiune_pilon_ii, contact_urgenta_nume, contact_urgenta_telefon,
        contact_urgenta_relatie, observatii`,
