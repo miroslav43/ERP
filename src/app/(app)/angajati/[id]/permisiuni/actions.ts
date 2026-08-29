@@ -1,9 +1,54 @@
 // src/app/(app)/angajati/[id]/permisiuni/actions.ts
 "use server";
 
+import { z } from "zod";
+
 import { createAction } from "@/lib/actions/create-action";
 import { businessRule } from "@/lib/actions/errors";
+import { ROLURI_ATRIBUIBILE, schimbaRolul } from "@/lib/membri/schimba-rol";
 import { suprascriePermisiuneSchema } from "@/schemas/permisiuni-membru";
+
+/**
+ * Rolul, schimbat de pe fișa omului — nu doar din Setări → Membri.
+ *
+ * ── DE CE ȘI AICI ─────────────────────────────────────────────────────────
+ * Ecranul de membri e o listă de adrese de e-mail: cine schimbă rolul acolo nu
+ * vede departamentul, funcția sau contractul omului. Decizia „ce rol are" se ia
+ * uitându-te la fișă, deci controlul stă și pe fișă.
+ *
+ * ── DE CE `users:update` LA `all` ─────────────────────────────────────────
+ * Nu e o alegere de prudență, e singura care corespunde bazei:
+ * `organization_members_update` (0002_authz.sql:959) cere
+ * `app.has_role(org, ['org_admin'])`. Un prag mai mic ar lăsa acțiunea să
+ * pornească pentru un manager cu `roles:update = team`, iar refuzul ar veni de
+ * la RLS ca UPDATE cu zero rânduri — adică nu ar veni deloc.
+ *
+ * Restul paginii cere `roles:update` la `team`, fiindcă suprascrierile per
+ * membru chiar se pot acorda pe echipă. Cele două praguri diferă pe bună
+ * dreptate: una schimbă rolul, cealaltă îl nuanțează.
+ */
+export const schimbaRolulAngajatului = createAction({
+  name: "employees.change_role",
+  input: z.object({ memberId: z.uuid(), role: z.enum(ROLURI_ATRIBUIBILE) }),
+  permission: "users:update",
+  minScope: "all",
+  audit: {
+    action: "role_changed",
+    entityType: "organization_members",
+    entityId: (input) => input.memberId,
+    allow: ["memberId", "role"],
+  },
+  // Și lista de membri: rolul afișat acolo tocmai s-a schimbat de aici.
+  revalidate: ["/angajati", "/setari/membri"],
+  handler: async (ctx, input): Promise<Readonly<{ id: string; role: string }>> =>
+    schimbaRolul({
+      db: ctx.supabase,
+      organizationId: ctx.tenant.organizationId,
+      memberId: input.memberId,
+      rol: input.role,
+      memberIdAutor: ctx.tenant.memberId,
+    }),
+});
 
 /**
  * Acordă, restrânge sau retrage o permisiune pentru un membru anume.

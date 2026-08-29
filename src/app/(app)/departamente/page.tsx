@@ -12,7 +12,11 @@ import { construiesteArbore } from "@/domain/departments/arbore";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { urlAvatar } from "@/lib/avatar/cale";
-import { angajatiPentruStructura, structuraDepartamentelor } from "@/lib/queries/departments";
+import {
+  angajatiPentruStructura,
+  rolurilePeUtilizator,
+  structuraDepartamentelor,
+} from "@/lib/queries/departments";
 import { avataturiPeUtilizatori } from "@/lib/queries/profile";
 import { idFisaProprie } from "@/lib/queries/employees";
 
@@ -79,9 +83,10 @@ export default async function PaginaDepartamente({ searchParams }: ProprietatiPa
       ? null
       : await idFisaProprie(tenant.organizationId, user.id);
 
-  const [structura, angajati] = await Promise.all([
+  const [structura, angajati, rolurileMembrilor] = await Promise.all([
     structuraDepartamentelor(tenant.organizationId),
     angajatiPentruStructura(tenant.organizationId, scopeAngajati ?? "none", propriaFisaId),
+    rolurilePeUtilizator(tenant.organizationId),
   ]);
 
   // Un singur apel pentru avatarele angajaților ȘI ale managerilor.
@@ -147,6 +152,11 @@ export default async function PaginaDepartamente({ searchParams }: ProprietatiPa
               full_name: d.manager.full_name,
               avatar_url: urlAvatar(avataruri.get(d.manager.user_id ?? "") ?? null),
             },
+      // Semnalul se aprinde DOAR pe `employee`. Un șef fără cont n-are ce rol să
+      // primească, iar unul pus pe `hr` sau Administrator e o alegere, nu o
+      // scăpare — regula automată nu atinge niciunul dintre ele.
+      sefFaraRolDeManager:
+        d.manager?.user_id != null && rolurileMembrilor.get(d.manager.user_id) === "employee",
       persoane: persoanePeDepartament.get(d.id) ?? [],
     }));
 

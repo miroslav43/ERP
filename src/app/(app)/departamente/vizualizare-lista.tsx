@@ -104,6 +104,19 @@ function Card({
                 {d.manager.full_name}
               </Link>
             )}
+            {/*
+              Semnul stă lângă NUME, nu într-o coloană separată: întrebarea pe
+              care o răspunde — „de ce nu vede omul ăsta pontajul echipei?" —
+              apare uitându-te la el, nu scanând un tabel.
+            */}
+            {d.sefFaraRolDeManager ? (
+              <span
+                className="text-warning text-nota"
+                title="Conduce departamentul, dar în aplicație are rolul Angajat: nu vede pontajul echipei și nu îi poate aproba concediile. Rolul se schimbă de un administrator, din fișa lui → Permisiuni."
+              >
+                · rol de Angajat
+              </span>
+            ) : null}
           </span>
         </span>
 

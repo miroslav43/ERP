@@ -68,6 +68,15 @@ function Patrat({
         <span className="text-muted-foreground text-nota inline-flex items-center gap-1 leading-tight">
           <AvatarAngajat url={d.manager.avatar_url} nume={d.manager.full_name} marime="sm" />
           <span className="truncate">{d.manager.full_name}</span>
+          {/* Vezi nota din `vizualizare-lista.tsx`: același semn, aceeași regulă. */}
+          {d.sefFaraRolDeManager ? (
+            <span
+              className="text-warning shrink-0"
+              title="Conduce departamentul, dar în aplicație are rolul Angajat: nu vede pontajul echipei și nu îi poate aproba concediile."
+            >
+              ⚠
+            </span>
+          ) : null}
         </span>
       )}
 

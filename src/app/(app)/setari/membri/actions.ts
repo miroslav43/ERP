@@ -6,8 +6,12 @@ import { z } from "zod";
 import { createAction } from "@/lib/actions/create-action";
 import { businessRule, notFound } from "@/lib/actions/errors";
 import { creeazaInvitatie, type InvitatieCreata } from "@/lib/invitatii/creeaza";
+import { numaraAdminiActivi, ROLURI_ATRIBUIBILE, schimbaRolul } from "@/lib/membri/schimba-rol";
 
-const roluriInvitabile = z.enum(["org_admin", "manager", "hr", "employee"]);
+// Aceeași listă și pentru invitație, și pentru schimbarea rolului: cine poate fi
+// invitat e exact cine poate fi devenit. A doua copie a listei ar fi locul unde
+// se despart tăcut.
+const roluriInvitabile = z.enum(ROLURI_ATRIBUIBILE);
 
 export type { InvitatieCreata };
 
@@ -74,20 +78,6 @@ export const revocaInvitatia = createAction({
   },
 });
 
-async function numaraAdminiActivi(
-  ctx: Parameters<Parameters<typeof createAction>[0]["handler"]>[0],
-  exceptaMembrul: string,
-): Promise<number> {
-  const { count } = await ctx.supabase
-    .from("organization_members")
-    .select("id", { count: "exact", head: true })
-    .eq("organization_id", ctx.tenant.organizationId)
-    .eq("role", "org_admin")
-    .eq("status", "active")
-    .neq("id", exceptaMembrul);
-  return count ?? 0;
-}
-
 export const schimbaRolulMembrului = createAction({
   name: "members.change_role",
   input: z.object({ memberId: z.uuid(), role: roluriInvitabile }),
@@ -100,30 +90,17 @@ export const schimbaRolulMembrului = createAction({
     allow: ["memberId", "role"],
   },
   revalidate: ["/setari/membri"],
-  handler: async (ctx, input): Promise<Readonly<{ id: string; role: string }>> => {
-    if (input.memberId === ctx.tenant.memberId) {
-      throw businessRule("Nu vă puteți schimba propriul rol. Rugați alt administrator.");
-    }
-    if (input.role !== "org_admin" && (await numaraAdminiActivi(ctx, input.memberId)) === 0) {
-      throw businessRule("Organizația trebuie să aibă cel puțin un administrator activ.");
-    }
-
-    const { data, error } = await ctx.supabase
-      .from("organization_members")
-      .update({ role: input.role })
-      .eq("id", input.memberId)
-      .eq("organization_id", ctx.tenant.organizationId)
-      .select("id, role")
-      .maybeSingle();
-
-    if (error !== null) {
-      throw error;
-    }
-    if (data === null) {
-      throw notFound("Membrul nu a fost găsit în această organizație.");
-    }
-    return { id: data.id, role: data.role };
-  },
+  handler: async (ctx, input): Promise<Readonly<{ id: string; role: string }>> =>
+    // Munca stă în `@/lib/membri/schimba-rol`, ca s-o poată face și pagina de
+    // permisiuni a angajatului, și regula de la desemnarea unui șef de
+    // departament. Aici rămâne doar contextul: cine schimbă și cu ce drept.
+    schimbaRolul({
+      db: ctx.supabase,
+      organizationId: ctx.tenant.organizationId,
+      memberId: input.memberId,
+      rol: input.role,
+      memberIdAutor: ctx.tenant.memberId,
+    }),
 });
 
 export const seteazaStareaMembrului = createAction({
@@ -142,7 +119,10 @@ export const seteazaStareaMembrului = createAction({
     if (input.memberId === ctx.tenant.memberId) {
       throw businessRule("Nu vă puteți dezactiva propriul cont din această organizație.");
     }
-    if (input.status !== "active" && (await numaraAdminiActivi(ctx, input.memberId)) === 0) {
+    if (
+      input.status !== "active" &&
+      (await numaraAdminiActivi(ctx.supabase, ctx.tenant.organizationId, input.memberId)) === 0
+    ) {
       throw businessRule("Organizația trebuie să aibă cel puțin un administrator activ.");
     }
 

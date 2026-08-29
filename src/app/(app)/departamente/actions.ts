@@ -7,6 +7,12 @@ import { businessRule, mapPostgrestError, notFound } from "@/lib/actions/errors"
 import { createAction } from "@/lib/actions/create-action";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { decideApartenentaManagerului } from "@/domain/departments/manager-membru";
+import {
+  aplicaRolurile,
+  aplicaSubordonarea,
+  decideSchimbareaSefului,
+  type ContextSef,
+} from "@/lib/departamente/sef";
 import type { ActionContext } from "@/lib/actions/types";
 import {
   actualizeazaDepartamentSchema,
@@ -105,6 +111,28 @@ async function repartizeazaManagerul(
   }
 }
 
+/**
+ * Contextul regulii „șef de departament ⇒ rol de manager".
+ *
+ * `autorEsteAdministrator` se ia din ROLUL apelantului, nu din permisiuni, și nu
+ * din prudență: `organization_members_update` cere `app.has_role(org,
+ * ['org_admin'])`. Un `hr` are `departments:update = all`, deci ajunge până aici
+ * cu drepturi depline asupra structurii — și niciunul asupra rolurilor.
+ */
+function contextSef(
+  ctx: ActionContext,
+  db: Awaited<ReturnType<typeof createServerSupabase>>,
+): ContextSef {
+  return {
+    db,
+    organizationId: ctx.tenant.organizationId,
+    requestId: ctx.requestId,
+    userId: ctx.user.id,
+    memberIdAutor: ctx.tenant.memberId,
+    autorEsteAdministrator: ctx.tenant.role === "org_admin",
+  };
+}
+
 export const creeazaDepartament = createAction<
   typeof creeazaDepartamentSchema,
   DepartamentIdentificat
@@ -157,6 +185,20 @@ export const creeazaDepartament = createAction<
       "Departamentul a fost creat",
     );
 
+    // Rolul, dar NU subordonarea: un departament proaspăt creat n-are pe cine să
+    // pună în subordinea șefului. Singurul om din el e chiar el, dacă tocmai a
+    // fost repartizat mai sus.
+    const contextul = contextSef(ctx, db);
+    await aplicaRolurile(
+      contextul,
+      await decideSchimbareaSefului(contextul, {
+        sefAnteriorId: null,
+        sefNouId: campuri.manager_employee_id,
+        departamentId: data.id,
+      }),
+      "Departamentul a fost creat",
+    );
+
     return { id: data.id };
   },
   /** Vezi nota de la `actualizeazaDepartament`: managerul poate fi repartizat aici. */
@@ -184,15 +226,30 @@ export const actualizeazaDepartament = createAction<
 
     const departamentulLui = await departamentulManagerului(ctx, db, campuri.manager_employee_id);
 
+    // Cine conducea ÎNAINTE. Se citește acum sau niciodată: după UPDATE coloana
+    // are deja valoarea nouă, iar fostul șef — cel pe care regula îl retrogradează
+    // — n-ar mai fi de aflat decât din jurnal.
+    const inainte = await db
+      .from("departments")
+      .select("manager_employee_id")
+      .eq("id", id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (inainte.error !== null) throw mapPostgrestError(inainte.error, ctx.requestId);
+    const sefAnteriorId = inainte.data?.manager_employee_id ?? null;
+
     // `activ` se cere ÎN `.select()`, nu printr-o citire separată: e valoarea de
-    // după scriere, singura pe care regula are voie să se sprijine.
+    // după scriere, singura pe care regula are voie să se sprijine. `parent_id`
+    // la fel — subordonarea ridică șeful sub șeful părinte, iar părintele poate
+    // fi tocmai ce s-a schimbat la această salvare.
     const { data, error } = await db
       .from("departments")
       .update({ ...campuri, updated_by: ctx.user.id })
       .eq("id", id)
       .eq("organization_id", ctx.tenant.organizationId)
       .is("deleted_at", null)
-      .select("id, activ")
+      .select("id, activ, parent_id")
       .maybeSingle();
     if (error !== null) throw mapPostgrestError(error, ctx.requestId);
     if (data === null) throw notFound("Departamentul nu a fost găsit.");
@@ -210,6 +267,30 @@ export const actualizeazaDepartament = createAction<
       }),
       "Departamentul a fost salvat",
     );
+
+    const sefNouId = campuri.manager_employee_id;
+    const contextul = contextSef(ctx, db);
+    await aplicaRolurile(
+      contextul,
+      await decideSchimbareaSefului(contextul, {
+        sefAnteriorId,
+        sefNouId,
+        departamentId: id,
+      }),
+      "Departamentul a fost salvat",
+    );
+
+    // Subordonarea NU e condiționată de rolul autorului, spre deosebire de
+    // scrierea rolului: `employees_update` cere `employees:update`, pe care `hr`
+    // îl are la `all`. HR-ul construiește structura chiar dacă drepturile le dă
+    // altcineva — organigrama iese corectă, doar rolul rămâne de acordat.
+    if (sefNouId !== null && sefNouId !== sefAnteriorId) {
+      await aplicaSubordonarea(
+        contextul,
+        { departamentId: id, sefId: sefNouId, parentId: data.parent_id },
+        "Departamentul a fost salvat",
+      );
+    }
 
     return { id };
   },
@@ -294,7 +375,11 @@ export const dezactiveazaDepartament = createAction<
       .update({ activ: false, updated_by: ctx.user.id })
       .eq("id", input.id)
       .eq("organization_id", ctx.tenant.organizationId)
-      .select("id")
+      // `manager_employee_id` se ia din chiar rândul scris: dezactivarea nu-l
+      // golește (vezi `manager-membru.ts`), deci valoarea de după UPDATE e tot
+      // cine conducea. O citire separată ar fi fost o interogare în plus pentru
+      // exact aceeași informație.
+      .select("id, manager_employee_id")
       .maybeSingle();
     if (error !== null) throw mapPostgrestError(error, ctx.requestId);
     if (departamentDezactivat === null) {
@@ -302,6 +387,20 @@ export const dezactiveazaDepartament = createAction<
         "Departamentul nu a fost dezactivat: a fost șters între timp sau nu aveți dreptul de a modifica structura organizatorică. Reîncărcați pagina.",
       );
     }
+
+    // Un departament închis nu mai e condus de nimeni: cine îl conducea și n-a
+    // rămas șef nicăieri altundeva se întoarce la rolul de angajat.
+    const contextul = contextSef(ctx, db);
+    await aplicaRolurile(
+      contextul,
+      await decideSchimbareaSefului(contextul, {
+        sefAnteriorId: departamentDezactivat.manager_employee_id,
+        sefNouId: null,
+        departamentId: input.id,
+      }),
+      "Departamentul a fost dezactivat",
+    );
+
     revalidatePath("/departamente");
     return { id: input.id };
   },
@@ -345,7 +444,7 @@ export const reactiveazaDepartament = createAction<
       .update({ activ: true, updated_by: ctx.user.id })
       .eq("id", input.id)
       .eq("organization_id", ctx.tenant.organizationId)
-      .select("id")
+      .select("id, manager_employee_id")
       .maybeSingle();
     if (error !== null) throw mapPostgrestError(error, ctx.requestId);
     if (reactivat === null) {
@@ -353,6 +452,21 @@ export const reactiveazaDepartament = createAction<
         "Departamentul nu a fost reactivat: a fost șters între timp sau nu aveți dreptul de a modifica structura organizatorică. Reîncărcați pagina.",
       );
     }
+
+    // Simetric cu dezactivarea. Fără ramura asta, un departament închis și
+    // redeschis din greșeală și-ar recăpăta șeful pe card, dar nu și drepturile
+    // lui — iar diferența n-ar fi vizibilă nicăieri.
+    const contextul = contextSef(ctx, db);
+    await aplicaRolurile(
+      contextul,
+      await decideSchimbareaSefului(contextul, {
+        sefAnteriorId: null,
+        sefNouId: reactivat.manager_employee_id,
+        departamentId: input.id,
+      }),
+      "Departamentul a fost reactivat",
+    );
+
     revalidatePath("/departamente");
     return { id: input.id };
   },

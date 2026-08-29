@@ -10,6 +10,8 @@ import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { arataToast } from "@/components/ui/toast";
 import { clientEnv } from "@/config/env";
 import type { ActionResult } from "@/lib/actions/types";
+// Aceeași listă ca pe fișa angajatului: două ecrane schimbă acum același rol.
+import { ROLURI, etichetaRol } from "@/lib/membri/etichete";
 
 import {
   invitaMembru,
@@ -37,25 +39,11 @@ export type RandInvitatie = Readonly<{
   expiraLa: string;
 }>;
 
-const ROLURI: readonly Readonly<{
-  valoare: "org_admin" | "manager" | "hr" | "employee";
-  eticheta: string;
-}>[] = [
-  { valoare: "org_admin", eticheta: "Administrator" },
-  { valoare: "manager", eticheta: "Manager" },
-  { valoare: "hr", eticheta: "Resurse umane" },
-  { valoare: "employee", eticheta: "Angajat" },
-];
-
 const ETICHETE_STARE: Readonly<Record<string, string>> = {
   active: "Activ",
   suspended: "Suspendat",
   inactive: "Dezactivat",
 };
-
-function etichetaRol(rol: string): string {
-  return ROLURI.find((element) => element.valoare === rol)?.eticheta ?? rol;
-}
 
 type Mesaj = Readonly<{ text: string; esteEroare: boolean }>;
 

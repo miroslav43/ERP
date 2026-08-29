@@ -15,6 +15,15 @@ export interface DepartamentEcran {
   readonly manager_employee_id: string | null;
   readonly cost_center: string | null;
   readonly manager: Readonly<{ full_name: string; avatar_url: string | null }> | null;
+  /**
+   * Conduce departamentul, dar are în aplicație rolul de `employee`.
+   *
+   * Se calculează pe server, din rolul apartenenței. `false` acoperă și cazurile
+   * în care nu e nimic de semnalat, și cele în care semnalul ar fi greșit: omul
+   * fără cont (n-are ce rol să primească) sau pus intenționat pe `hr` ori
+   * `Administrator` — roluri pe care automatismul nu le atinge niciodată.
+   */
+  readonly sefFaraRolDeManager: boolean;
   /** Angajații activi repartizați FIX aici. Sortați pe nume. */
   readonly persoane: readonly PersoanaPanou[];
 }
