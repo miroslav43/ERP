@@ -24,14 +24,12 @@
 // jumătate rămâne pe contractul de atunci; treapta nouă se aplică înrolărilor
 // următoare. De aceea schimbarea ei e permisă fără ceremonie.
 
-import { useCallback, useId, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Pencil } from "lucide-react";
+import { useCallback, useState } from "react";
 
 import { AlegereCarduri, type OptiuneCard } from "@/components/ui/alegere-carduri";
-import { BaraActiuni } from "@/components/ui/bara-actiuni";
-import { Buton } from "@/components/ui/buton";
 import { Camp, clasaBifa } from "@/components/ui/camp";
-import { Formular } from "@/components/ui/formular";
+import { FormularDialog } from "@/components/ui/formular-dialog";
 import { ListaDefinitii } from "@/components/ui/lista-definitii";
 import type { CursTreaptaDovada, CursTreaptaOferita } from "@/schemas/cursuri";
 
@@ -56,10 +54,6 @@ interface Proprietati {
 }
 
 export function FormularMaterialEditare({ material }: Proprietati) {
-  const router = useRouter();
-  const idFormular = useId();
-  const idc = (sufix: string): string => `${idFormular}-${sufix}`;
-
   const ales = alegereDinFel(material.fel, material.sursa);
   const esteFilmPropriu = ales === "video_fisier";
   const esteFilm = material.fel === "video";
@@ -99,19 +93,23 @@ export function FormularMaterialEditare({ material }: Proprietati) {
     [material.id, ales],
   );
 
-  const laReusita = useCallback((): void => {
-    router.refresh();
-  }, [router]);
-
   return (
-    <Formular
+    <FormularDialog
+      declansator={{
+        eticheta: "Modifică detaliile materialului",
+        varianta: "secundar",
+        pictograma: <Pencil aria-hidden="true" className="size-4" />,
+      }}
+      titlu={`Modifică „${material.titlu}”`}
+      descriere="Felul și sursa materialului sunt înghețate: schimbarea lor ar invalida dovezile de parcurgere deja strânse. Treapta de dovadă se poate schimba — se aplică de la versiunea următoare."
+      marime="lucru"
       actiune={trimite}
-      laReusita={laReusita}
       mesajReusita="Materialul a fost salvat."
-      className="space-y-4"
+      etichetaTrimite="Salvează materialul"
+      textInCurs="Se salvează…"
     >
-      {(stare) => (
-        <>
+      {(stare, idc) => (
+        <div className="space-y-4">
           {/* Rezumatul inert al celor două câmpuri înghețate. */}
           <ListaDefinitii
             coloane={2}
@@ -310,14 +308,8 @@ export function FormularMaterialEditare({ material }: Proprietati) {
               )}
             </div>
           ) : null}
-
-          <BaraActiuni separata lipitaPeTelefon>
-            <Buton type="submit" varianta="primar" inCurs={stare.inCurs} textInCurs="Se salvează…">
-              Salvează materialul
-            </Buton>
-          </BaraActiuni>
-        </>
+        </div>
       )}
-    </Formular>
+    </FormularDialog>
   );
 }

@@ -1,18 +1,14 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import { useRouter } from "next/navigation";
-
-import { Buton } from "@/components/ui/buton";
 import { Camp } from "@/components/ui/camp";
-import { Formular } from "@/components/ui/formular";
+import { FormularDialog } from "@/components/ui/formular-dialog";
 import { formatDateTime } from "@/lib/format/date";
 
 import { comunicaAccidentLaItm, finalizeazaCercetare } from "../../actions";
 
 /**
  * Comunicarea la ITM și finalizarea cercetării — două acțiuni distincte în
- * timp, deci două formulare.
+ * timp, deci două casete.
  *
  * ── FUNDĂTURA CARE S-A ÎNCHIS ─────────────────────────────────────────────
  * Formularul de comunicare se randa doar cât timp `comunicatLaItm === null` și
@@ -27,6 +23,13 @@ import { comunicaAccidentLaItm, finalizeazaCercetare } from "../../actions";
  * cine are `ssm:update`. Corectarea trece prin aceeași acțiune, deci lasă
  * aceeași urmă în `audit_logs` — nu e o portiță, e drumul obișnuit parcurs a
  * doua oară.
+ *
+ * ── DE CE CASETE, ȘI DE CE STAREA A DISPĂRUT ──────────────────────────────
+ * Ambele formulare se desfăceau în fișa accidentului, iar comunicarea stătea
+ * deschisă permanent până la prima salvare. Corectarea avea nevoie de o stare
+ * proprie (`corecteaza`) tocmai ca să comute între rândul de rezumat și
+ * formular; într-o casetă, comutarea o face deschiderea, deci starea nu mai are
+ * ce păzi și a dispărut cu totul.
  *
  * ── DE CE SE RECALCULEAZĂ VALOAREA PENTRU `datetime-local` ────────────────
  * Coloana e `timestamptz`; controlul cere `AAAA-LL-ZZTHH:MM` în ora de perete.
@@ -67,13 +70,7 @@ export function FormularComunicareItm({
   readonly cercetareFinalizata: string | null;
   readonly zileIncapacitate: number;
 }) {
-  const router = useRouter();
-  const [corecteaza, setCorecteaza] = useState(false);
-
-  const laReusita = useCallback(() => {
-    setCorecteaza(false);
-    router.refresh();
-  }, [router]);
+  const comunicat = comunicatLaItm !== null;
 
   async function comunica(formular: FormData) {
     const numar = String(formular.get("numar_proces_verbal") ?? "").trim();
@@ -94,46 +91,44 @@ export function FormularComunicareItm({
     });
   }
 
-  const arataComunicarea = comunicatLaItm === null || corecteaza;
-
   return (
     <div className="space-y-4">
-      {comunicatLaItm !== null && !corecteaza ? (
-        <div className="border-border rounded-panou text-corp flex flex-wrap items-center justify-between gap-3 border p-4">
+      <div className="border-border rounded-panou text-corp flex flex-wrap items-center justify-between gap-3 border p-4">
+        {comunicat ? (
           <p>
             Comunicat la ITM pe <strong>{formatDateTime(comunicatLaItm)}</strong>
             {numarProcesVerbal === null ? null : ` · proces-verbal ${numarProcesVerbal}`}
           </p>
-          <Buton
-            varianta="tertiar"
-            onClick={() => {
-              setCorecteaza(true);
-            }}
-          >
-            Corectează
-          </Buton>
-        </div>
-      ) : null}
+        ) : (
+          <p className="text-muted-foreground">Accidentul nu a fost încă comunicat la ITM.</p>
+        )}
 
-      {arataComunicarea ? (
-        <Formular
-          actiune={comunica}
-          laReusita={laReusita}
-          mesajReusita={
-            comunicatLaItm === null
-              ? "Comunicarea la ITM a fost înregistrată."
-              : "Comunicarea la ITM a fost corectată."
+        <FormularDialog
+          declansator={{
+            eticheta: comunicat ? "Corectează" : "Marchează comunicat",
+            varianta: comunicat ? "tertiar" : "primar",
+          }}
+          titlu={comunicat ? "Corectarea comunicării la ITM" : "Comunicare la ITM"}
+          descriere={
+            comunicat
+              ? "Corectarea trece prin aceeași acțiune ca prima înregistrare, deci lasă aceeași urmă în jurnalul de audit."
+              : "Ora se scrie în ora de perete a României, nu în cea a browserului. Numărul procesului-verbal poate fi completat mai târziu, prin „Corectează”."
           }
-          className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-2"
+          marime="mare"
+          actiune={comunica}
+          mesajReusita={
+            comunicat
+              ? "Comunicarea la ITM a fost corectată."
+              : "Comunicarea la ITM a fost înregistrată."
+          }
+          etichetaTrimite={comunicat ? "Salvează corectura" : "Marchează comunicat"}
+          textInCurs="Se salvează…"
         >
-          {(stare) => (
-            <>
-              <p className="text-corp font-medium sm:col-span-2">
-                {comunicatLaItm === null ? "Comunicare la ITM" : "Corectarea comunicării la ITM"}
-              </p>
-
+          {(stare, idc) => (
+            <div className="grid gap-4 sm:grid-cols-2">
               <Camp
                 nume="comunicat_la_itm_la"
+                id={idc("comunicat_la_itm_la")}
                 eticheta="Comunicat la"
                 obligatoriu
                 erori={stare.erori["comunicat_la_itm_la"] ?? []}
@@ -152,7 +147,9 @@ export function FormularComunicareItm({
 
               <Camp
                 nume="numar_proces_verbal"
-                eticheta="Număr proces verbal (opțional)"
+                id={idc("numar_proces_verbal")}
+                eticheta="Număr proces verbal"
+                ajutor="Poate lipsi acum și poate fi adăugat când vine de la ITM."
                 erori={stare.erori["numar_proces_verbal"] ?? []}
               >
                 {(a) => (
@@ -165,46 +162,30 @@ export function FormularComunicareItm({
                   />
                 )}
               </Camp>
-
-              <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
-                <Buton
-                  type="submit"
-                  varianta="primar"
-                  inCurs={stare.inCurs}
-                  textInCurs="Se salvează…"
-                >
-                  {comunicatLaItm === null ? "Marchează comunicat" : "Salvează corectura"}
-                </Buton>
-                {comunicatLaItm === null ? null : (
-                  <Buton
-                    varianta="secundar"
-                    disabled={stare.inCurs}
-                    onClick={() => {
-                      setCorecteaza(false);
-                    }}
-                  >
-                    Renunță
-                  </Buton>
-                )}
-              </div>
-            </>
+            </div>
           )}
-        </Formular>
-      ) : null}
+        </FormularDialog>
+      </div>
 
-      {comunicatLaItm === null || cercetareFinalizata !== null ? null : (
-        <Formular
+      {/* Finalizarea cercetării nu se poate face înaintea comunicării, și nu
+          se mai poate face a doua oară — de aceea butonul ei apare doar în
+          fereastra dintre cele două stări. */}
+      {comunicat && cercetareFinalizata === null ? (
+        <FormularDialog
+          declansator={{ eticheta: "Finalizează cercetarea", varianta: "primar" }}
+          titlu="Finalizarea cercetării"
+          descriere="Zilele de incapacitate se pot corecta aici: cifra din declarația inițială e o estimare, iar cea de la finalul cercetării e cea care rămâne în registru."
+          marime="mare"
           actiune={finalizeaza}
-          laReusita={laReusita}
           mesajReusita="Cercetarea a fost finalizată."
-          className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-2"
+          etichetaTrimite="Finalizează cercetarea"
+          textInCurs="Se salvează…"
         >
-          {(stare) => (
-            <>
-              <p className="text-corp font-medium sm:col-span-2">Finalizarea cercetării</p>
-
+          {(stare, idc) => (
+            <div className="grid gap-4 sm:grid-cols-2">
               <Camp
                 nume="cercetare_finalizata_la"
+                id={idc("cercetare_finalizata_la")}
                 eticheta="Cercetare finalizată la"
                 obligatoriu
                 erori={stare.erori["cercetare_finalizata_la"] ?? []}
@@ -220,6 +201,7 @@ export function FormularComunicareItm({
 
               <Camp
                 nume="zile_incapacitate"
+                id={idc("zile_incapacitate")}
                 eticheta="Zile de incapacitate (corectate)"
                 erori={stare.erori["zile_incapacitate"] ?? []}
               >
@@ -235,6 +217,7 @@ export function FormularComunicareItm({
 
               <Camp
                 nume="urmari"
+                id={idc("urmari")}
                 eticheta="Urmări"
                 fel="textarea"
                 className="sm:col-span-2"
@@ -249,21 +232,10 @@ export function FormularComunicareItm({
                   />
                 )}
               </Camp>
-
-              <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
-                <Buton
-                  type="submit"
-                  varianta="primar"
-                  inCurs={stare.inCurs}
-                  textInCurs="Se salvează…"
-                >
-                  Finalizează cercetarea
-                </Buton>
-              </div>
-            </>
+            </div>
           )}
-        </Formular>
-      )}
+        </FormularDialog>
+      ) : null}
     </div>
   );
 }

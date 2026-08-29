@@ -202,33 +202,31 @@ export default async function PaginaMaterial({
       {material.fel === "video" && material.transcriere === null ? (
         <Callout fel="atentie" titlu="Filmul nu are transcriere">
           Fără textul rostit, angajații care nu aud — sau care nu pot porni sunetul la lucru — nu au
-          cum să parcurgă lecția. Se completează mai jos, la „Modifică detaliile materialului”.
+          cum să parcurgă lecția. Se completează din butonul „Modifică detaliile materialului”.
         </Callout>
       ) : null}
 
+      {/* `FormularMaterialEditare` își poartă singur butonul de când e casetă.
+          `<details>` ascundea problema cât era închis, dar deschis desfăcea
+          douăzeci de câmpuri peste secțiunea de versiuni de dedesubt. */}
       {poateEdita ? (
-        <details className="border-border rounded-panou border p-4">
-          <summary className="text-corp cursor-pointer font-medium">
-            Modifică detaliile materialului
-          </summary>
-          <div className="mt-4">
-            <FormularMaterialEditare
-              material={{
-                id: material.id,
-                cod: material.cod,
-                titlu: material.titlu,
-                descriere: material.descriere,
-                fel: material.fel,
-                sursa: material.sursa,
-                treapta_dovada: material.treapta_dovada,
-                procent_minim: material.procent_minim,
-                prag_test: material.prag_test,
-                declaratie_text: material.declaratie_text,
-                transcriere: material.transcriere,
-              }}
-            />
-          </div>
-        </details>
+        <div>
+          <FormularMaterialEditare
+            material={{
+              id: material.id,
+              cod: material.cod,
+              titlu: material.titlu,
+              descriere: material.descriere,
+              fel: material.fel,
+              sursa: material.sursa,
+              treapta_dovada: material.treapta_dovada,
+              procent_minim: material.procent_minim,
+              prag_test: material.prag_test,
+              declaratie_text: material.declaratie_text,
+              transcriere: material.transcriere,
+            }}
+          />
+        </div>
       ) : null}
 
       {poateIncarca ? (
