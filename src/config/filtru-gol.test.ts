@@ -15,7 +15,8 @@
 // afișați" pentru ORICE angajat fără cont, prin
 // `.eq("user_id", angajat.user_id ?? "")`. Două rânduri mai jos stătea ramura
 // scrisă anume pentru angajatul fără cont — de neatins tocmai în cazul ei.
-// Pe baza reală, 4 din 11 fișe active n-au `user_id`.
+// Pe baza reală, fișa fără cont e majoritară, nu excepția: 5 din 9 fișe active
+// n-aveau `user_id` pe 29 aug 2026.
 //
 // Niciuna dintre celelalte porți n-o vede:
 //   · `tsc`               — `string` acolo unde se cere `string`, nimic de spus;

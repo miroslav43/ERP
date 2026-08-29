@@ -66,7 +66,8 @@ export default async function PaginaPermisiuniMembru({
   // ridică 22P02 pe conversie, PostgREST îl întoarce ca eroare, iar ecranul de mai
   // jos — scris anume pentru angajatul fără cont — devenea de neatins tocmai în
   // cazul lui. Omul primea „Angajații nu au putut fi afișați" pentru fiecare fișă
-  // fără cont, adică 4 din 11 fișe active. Poarta: `src/config/filtru-gol.test.ts`.
+  // fără cont — cazul majoritar, nu limita: 5 din 9 fișe active n-aveau `user_id`
+  // pe 29 aug 2026. Poarta: `src/config/filtru-gol.test.ts`.
   const apartenenta =
     angajat.user_id === null
       ? { data: null, error: null }
