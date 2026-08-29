@@ -79,6 +79,16 @@ export type PropsFormularDialog<TData> = Readonly<{
   mesajReusita?: string;
   /** Eticheta butonului de trimitere — „Creează departamentul". */
   etichetaTrimite: string;
+  /**
+   * Varianta butonului de trimitere. Implicit `primar`.
+   *
+   * `distructiv` e pentru scrierile care închid ceva — încetarea unui contract,
+   * retragerea unui document din dosar. Butonul e CONTURAT, nu plin, și se
+   * inversează la hover: vezi `buton.tsx`, unde varianta plină lipsește
+   * deliberat fiindcă opacitatea peste crem deschide culoarea și ar da semnal
+   * invers exact la apăsarea finală.
+   */
+  variantaTrimite?: VariantaButon;
   /** Ce scrie pe buton cât se trimite — „Se creează…". */
   textInCurs?: string;
   /** Eticheta butonului de renunțare. Implicit „Renunță". */
@@ -113,6 +123,7 @@ export function FormularDialog<TData>({
   actiune,
   mesajReusita,
   etichetaTrimite,
+  variantaTrimite = "primar",
   textInCurs,
   etichetaRenuntare = "Renunță",
   laReusita,
@@ -189,7 +200,7 @@ export function FormularDialog<TData>({
                   </Buton>
                   <Buton
                     type="submit"
-                    varianta="primar"
+                    varianta={variantaTrimite}
                     inCurs={stare.inCurs}
                     {...(textInCurs === undefined ? {} : { textInCurs })}
                   >

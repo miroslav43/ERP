@@ -1,16 +1,40 @@
 // src/app/(app)/angajati/[id]/documente/formular-document.tsx
 "use client";
-import { useId, useRef, useState } from "react";
+import { Plus } from "lucide-react";
+import { useRef, useState } from "react";
 import { Buton } from "@/components/ui/buton";
+import { Camp } from "@/components/ui/camp";
+import { FormularDialog } from "@/components/ui/formular-dialog";
+import type { ActionResult } from "@/lib/actions/types";
 import { getBrowserSupabase } from "@/lib/supabase/browser";
 import { BUCKET_DOCUMENTE, verificaDocument } from "@/lib/documents/cale";
-import { useRouter } from "next/navigation";
 import {
   linkDescarcareDocument,
   pregatesteIncarcareDocument,
   salveazaDocument,
   stergeDocument,
 } from "./actions";
+
+/**
+ * Un refuz construit pe client, în forma exactă a lui `ActionResult`.
+ *
+ * Încărcarea unui document nu e o singură Server Action, ci trei pași —
+ * pregătirea căii semnate, urcarea în bucket, salvarea rândului — iar primii
+ * doi pot eșua fără să treacă vreodată prin `create-action.ts`. Ca `Formular`
+ * să le arate la fel ca pe restul (mesaj pe câmp, `Callout` altfel), refuzul se
+ * îmbracă aici în același tip.
+ */
+function refuzLocal(mesaj: string, camp?: string): ActionResult<never> {
+  return {
+    ok: false,
+    error: {
+      code: "VALIDARE",
+      message: mesaj,
+      fieldErrors: camp === undefined ? null : { [camp]: [mesaj] },
+      requestId: "client",
+    },
+  };
+}
 
 type TipDocument = {
   id: string;
@@ -19,6 +43,21 @@ type TipDocument = {
   vizibil_angajatului_implicit: boolean;
 };
 
+/**
+ * Adăugarea unui document în dosar, într-o casetă.
+ *
+ * Formularul stătea PERMANENT deschis deasupra listei, pe trei coloane: pe un
+ * dosar cu douăzeci de acte, primul lucru de pe ecran era un formular gol, iar
+ * lista — motivul pentru care omul a intrat pe pagină — începea sub el.
+ *
+ * ── DE CE `actiune` ÎNTOARCE UN `ActionResult` COMPUS ─────────────────────
+ * Încărcarea are trei pași: `pregatesteIncarcareDocument` dă o cale semnată,
+ * fișierul urcă direct în bucket din browser, iar `salveazaDocument` scrie
+ * rândul. Numai primul și ultimul sunt Server Actions. Pașii care nu trec prin
+ * `create-action.ts` își îmbracă refuzul cu `refuzLocal`, ca `Formular` să-l
+ * arate la fel ca pe oricare altul — inclusiv verificarea de tip MIME și de
+ * dimensiune, care se face în browser tocmai ca să nu urce 20 MB degeaba.
+ */
 export function FormularDocument({
   employeeId,
   tipuri,
@@ -26,51 +65,34 @@ export function FormularDocument({
   employeeId: string;
   tipuri: readonly TipDocument[];
 }) {
-  const router = useRouter();
-  const idTip = useId();
-  const idTitlu = useId();
-  const idFisier = useId();
   const referinta = useRef<HTMLInputElement>(null);
-  const [stare, setStare] = useState<{
-    tip: "inactiv" | "lucru" | "succes" | "eroare";
-    mesaj: string;
-  }>({ tip: "inactiv", mesaj: "" });
 
-  async function trimite(formular: FormData): Promise<void> {
+  async function trimite(formular: FormData): Promise<ActionResult<{ id: string }>> {
     const fisier = referinta.current?.files?.[0];
     const tipId = String(formular.get("tip") ?? "");
     const titlu = String(formular.get("titlu") ?? "").trim();
-    if (!fisier) {
-      setStare({ tip: "eroare", mesaj: "Alege un fișier." });
-      return;
-    }
-    const problema = verificaDocument(fisier.type, fisier.size);
-    if (problema !== null) {
-      setStare({ tip: "eroare", mesaj: problema });
-      return;
-    }
+    if (!fisier) return refuzLocal("Alegeți un fișier.", "fisier");
 
-    setStare({ tip: "lucru", mesaj: "Se încarcă documentul…" });
+    const problema = verificaDocument(fisier.type, fisier.size);
+    if (problema !== null) return refuzLocal(problema, "fisier");
+
     const pregatire = await pregatesteIncarcareDocument({
       employeeId,
       numeFisier: fisier.name,
       dimensiune: fisier.size,
       mime: fisier.type,
     });
-    if (!pregatire.ok) {
-      setStare({ tip: "eroare", mesaj: pregatire.error.message });
-      return;
-    }
+    if (!pregatire.ok) return refuzLocal(pregatire.error.message);
+
     const urcare = await getBrowserSupabase()
       .storage.from(BUCKET_DOCUMENTE)
       .uploadToSignedUrl(pregatire.data.cale, pregatire.data.token, fisier);
     if (urcare.error !== null) {
-      setStare({ tip: "eroare", mesaj: "Încărcarea a eșuat. Verifică conexiunea." });
-      return;
+      return refuzLocal("Încărcarea a eșuat. Verificați conexiunea.", "fisier");
     }
 
     const tip = tipuri.find((t) => t.id === tipId);
-    const rezultat = await salveazaDocument({
+    return salveazaDocument({
       employeeId,
       documentTypeId: tipId,
       titlu,
@@ -81,78 +103,77 @@ export function FormularDocument({
       confidential: tip?.confidential_implicit ?? true,
       vizibilAngajatului: tip?.vizibil_angajatului_implicit ?? true,
     });
-    if (!rezultat.ok) {
-      setStare({ tip: "eroare", mesaj: rezultat.error.message });
-      return;
-    }
-    setStare({ tip: "succes", mesaj: "Documentul a fost adăugat în dosar." });
-    // Lista de deasupra e randată pe server. Fără `router.refresh()`, ecranul
-    // spunea „a fost adăugat" iar lista rămânea exact aceeași până la o
-    // reîncărcare manuală — situația în care omul încarcă al doilea exemplar
-    // al aceluiași document, crezând că primul s-a pierdut. `ButonStergeDocument`
-    // avea deja apelul; încărcarea, nu.
-    referinta.current?.form?.reset();
-    router.refresh();
   }
 
   return (
-    <form
-      action={(formular) => void trimite(formular)}
-      className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-3"
+    <FormularDialog
+      declansator={{
+        eticheta: "Adaugă document",
+        pictograma: <Plus aria-hidden="true" className="size-4" />,
+      }}
+      titlu="Document nou în dosar"
+      descriere="Tipul documentului decide singur dacă actul e confidențial și dacă angajatul îl vede în portal. Fișierele acceptate: PDF și imagini, până la 20 MB."
+      marime="mare"
+      actiune={trimite}
+      mesajReusita="Documentul a fost adăugat în dosar."
+      etichetaTrimite="Adaugă documentul"
+      textInCurs="Se încarcă…"
     >
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idTip} className="text-corp font-medium">
-          Tip document
-        </label>
-        <select
-          id={idTip}
-          name="tip"
-          required
-          className="border-foreground/60 rounded-control border p-2"
-        >
-          {tipuri.map((tip) => (
-            <option key={tip.id} value={tip.id}>
-              {tip.denumire}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idTitlu} className="text-corp font-medium">
-          Titlu
-        </label>
-        <input
-          id={idTitlu}
-          name="titlu"
-          required
-          maxLength={200}
-          className="border-foreground/60 rounded-control border p-2"
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idFisier} className="text-corp font-medium">
-          Fișier (max. 20 MB)
-        </label>
-        <input ref={referinta} id={idFisier} type="file" required className="text-corp" />
-      </div>
-      <div className="flex items-center gap-4 sm:col-span-3">
-        <Buton
-          type="submit"
-          varianta="primar"
-          inCurs={stare.tip === "lucru"}
-          textInCurs="Se încarcă…"
-        >
-          Adaugă documentul
-        </Buton>
-        <p
-          role="status"
-          aria-live="polite"
-          className={stare.tip === "eroare" ? "text-danger text-corp" : "text-foreground text-corp"}
-        >
-          {stare.mesaj}
-        </p>
-      </div>
-    </form>
+      {(stare, idc) => (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Camp
+            nume="tip"
+            id={idc("tip")}
+            eticheta="Tip document"
+            fel="select"
+            obligatoriu
+            erori={stare.erori["tip"] ?? []}
+          >
+            {(a) => (
+              <select {...a} defaultValue={stare.valoriTrimise["tip"] ?? ""}>
+                {tipuri.map((tip) => (
+                  <option key={tip.id} value={tip.id}>
+                    {tip.denumire}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Camp>
+
+          <Camp
+            nume="titlu"
+            id={idc("titlu")}
+            eticheta="Titlu"
+            obligatoriu
+            erori={stare.erori["titlu"] ?? []}
+          >
+            {(a) => (
+              <input
+                {...a}
+                type="text"
+                maxLength={200}
+                defaultValue={stare.valoriTrimise["titlu"] ?? ""}
+              />
+            )}
+          </Camp>
+
+          {/* Fișierul NU trece prin `valoriTrimise`: un `<input type="file">`
+              nu poate primi o valoare din cod, deci nici nu poate fi repus
+              după un refuz. Rămâne pe referință, ca înainte. */}
+          <Camp
+            nume="fisier"
+            id={idc("fisier")}
+            eticheta="Fișier"
+            ajutor="PDF sau imagine, cel mult 20 MB."
+            obligatoriu
+            className="sm:col-span-2"
+            erori={stare.erori["fisier"] ?? []}
+          >
+            {(a) => <input {...a} ref={referinta} type="file" />}
+          </Camp>
+        </div>
+      )}
+    </FormularDialog>
   );
 }
 
@@ -191,6 +212,18 @@ export function ListaDescarcare({
   );
 }
 
+/**
+ * Retragerea unui document din dosar.
+ *
+ * Cerea motivul într-un câmp apărut ÎN rândul tabelului, între „Descarcă" și
+ * „Renunță": rândul se lățea, coloanele săreau, iar butonul distructiv ajungea
+ * la câțiva pixeli de cel de descărcare. Acum e o casetă, cu spațiu pentru
+ * propoziția care spune ce se întâmplă.
+ *
+ * Rămâne o RETRAGERE, nu o ștergere: `stergeDocument` marchează rândul cu
+ * `deleted_at` și păstrează fișierul — nicio politică DELETE nu există în
+ * schemă. Motivul intră în audit și e obligatoriu.
+ */
 export function ButonStergeDocument({
   documentId,
   poateSterge,
@@ -198,80 +231,39 @@ export function ButonStergeDocument({
   documentId: string;
   poateSterge: boolean;
 }) {
-  const router = useRouter();
-  const idMotiv = useId();
-  const [deschis, setDeschis] = useState(false);
-  const [motiv, setMotiv] = useState("");
-  const [inCurs, setInCurs] = useState(false);
-  const [eroare, setEroare] = useState<string | null>(null);
-
   if (!poateSterge) return null;
 
-  async function confirma(): Promise<void> {
-    setInCurs(true);
-    setEroare(null);
-    const rezultat = await stergeDocument({ documentId, motiv });
-    setInCurs(false);
-    if (!rezultat.ok) {
-      setEroare(rezultat.error.message);
-      return;
-    }
-    setDeschis(false);
-    router.refresh();
-  }
-
-  if (!deschis) {
-    return (
-      <Buton
-        varianta="distructiv"
-        onClick={() => {
-          setDeschis(true);
-        }}
-      >
-        Retrage din dosar
-      </Buton>
-    );
+  async function trimite(date: FormData) {
+    return stergeDocument({ documentId, motiv: String(date.get("motiv") ?? "") });
   }
 
   return (
-    <span className="flex flex-wrap items-center gap-2">
-      <label htmlFor={idMotiv} className="sr-only">
-        Motivul retragerii
-      </label>
-      <input
-        id={idMotiv}
-        value={motiv}
-        onChange={(eveniment) => {
-          setMotiv(eveniment.target.value);
-        }}
-        placeholder="Motivul retragerii (min. 3 caractere)"
-        className="border-foreground/60 rounded-control text-corp border px-2 py-1.5"
-      />
-      <Buton
-        varianta="distructiv"
-        inCurs={inCurs}
-        textInCurs="Se retrage…"
-        disabled={motiv.trim().length < 3}
-        onClick={() => {
-          void confirma();
-        }}
-      >
-        Confirmă
-      </Buton>
-      <Buton
-        varianta="link"
-        onClick={() => {
-          setDeschis(false);
-          setEroare(null);
-        }}
-      >
-        Renunță
-      </Buton>
-      {eroare !== null && (
-        <span role="alert" className="text-danger text-corp">
-          {eroare}
-        </span>
+    <FormularDialog
+      declansator={{ eticheta: "Retrage din dosar", varianta: "distructiv" }}
+      titlu="Retrage documentul din dosar"
+      descriere="Documentul dispare din dosarul angajatului și din portalul lui. Fișierul se păstrează, iar motivul retragerii intră în jurnalul de audit."
+      marime="mediu"
+      actiune={trimite}
+      mesajReusita="Documentul a fost retras din dosar."
+      etichetaTrimite="Retrage documentul"
+      variantaTrimite="distructiv"
+      textInCurs="Se retrage…"
+    >
+      {(stare, idc) => (
+        <Camp
+          nume="motiv"
+          id={idc("motiv")}
+          eticheta="Motivul retragerii"
+          fel="textarea"
+          obligatoriu
+          ajutor="Cel puțin 3 caractere. Se vede în jurnalul de audit, nu de către angajat."
+          erori={stare.erori["motiv"] ?? []}
+        >
+          {(a) => (
+            <textarea {...a} rows={3} maxLength={500} defaultValue={stare.valoriTrimise["motiv"] ?? ""} />
+          )}
+        </Camp>
       )}
-    </span>
+    </FormularDialog>
   );
 }

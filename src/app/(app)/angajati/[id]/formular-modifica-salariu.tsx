@@ -1,13 +1,23 @@
 // src/app/(app)/angajati/[id]/formular-modifica-salariu.tsx
 "use client";
 
-import { useId, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-
-import { Buton } from "@/components/ui/buton";
+import { Camp } from "@/components/ui/camp";
+import { FormularDialog } from "@/components/ui/formular-dialog";
 
 import { formatLei } from "@/lib/format/money";
 import { modificaSalariulContractului } from "../actions";
+
+/**
+ * Modificarea salariului de bază, într-o casetă.
+ *
+ * Consecința stă în `descriere`, nu într-o notă sub câmp: modificarea se aplică
+ * din următoarea perioadă calculată, iar fluturașii deja calculați rămân
+ * neschimbați. E singura propoziție care contează aici, și e prima citită.
+ *
+ * Formularul era pe `<form action={fn}>` cu `useTransition` și un `<p>` roșu la
+ * final — deci arunca `fieldErrors` și își golea singurul câmp la orice refuz.
+ * Vezi nota lungă din `formular-contract-nou.tsx`.
+ */
 
 interface Proprietati {
   readonly contractId: string;
@@ -15,85 +25,44 @@ interface Proprietati {
 }
 
 export function FormularModificaSalariu({ contractId, salariuActual }: Proprietati) {
-  const router = useRouter();
-  const [deschis, setDeschis] = useState(false);
-  const [inCurs, porneste] = useTransition();
-  const [eroare, setEroare] = useState<string | null>(null);
-  const idSalariu = useId();
-
-  function trimite(formular: FormData): void {
-    setEroare(null);
-    porneste(async () => {
-      const rezultat = await modificaSalariulContractului({
-        contract_id: contractId,
-        salariu_baza: Number(formular.get("salariu_baza")),
-      });
-      if (!rezultat.ok) {
-        setEroare(rezultat.error.message);
-        return;
-      }
-      setDeschis(false);
-      router.refresh();
+  /** Cheile obiectului sunt EXACT cele din `modificaSalariulContractuluiSchema`. */
+  async function trimite(date: FormData) {
+    return modificaSalariulContractului({
+      contract_id: contractId,
+      salariu_baza: Number(date.get("salariu_baza")),
     });
   }
 
-  if (!deschis) {
-    return (
-      <Buton
-        varianta="secundar"
-        className="mt-3"
-        onClick={() => {
-          setDeschis(true);
-        }}
-      >
-        Modifică salariul
-      </Buton>
-    );
-  }
-
   return (
-    <form
-      action={trimite}
-      className="border-border rounded-control mt-3 flex flex-wrap items-end gap-3 border p-3"
+    <FormularDialog
+      declansator={{ eticheta: "Modifică salariul", varianta: "secundar", className: "mt-3" }}
+      titlu="Modifică salariul de bază"
+      descriere={`Salariul actual este ${formatLei(salariuActual)}. Modificarea se aplică din următoarea perioadă calculată — fluturașii deja calculați rămân neschimbați.`}
+      marime="mediu"
+      actiune={trimite}
+      mesajReusita="Salariul a fost modificat."
+      etichetaTrimite="Salvează"
+      textInCurs="Se salvează…"
     >
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idSalariu} className="text-corp">
-          Salariu de bază nou (lei)
-        </label>
-        <input
-          id={idSalariu}
-          name="salariu_baza"
-          type="number"
-          step="0.01"
-          min={0}
-          required
-          defaultValue={salariuActual}
-          className="border-foreground/60 rounded-control text-corp w-40 border px-3 py-2"
-        />
-        <p className="text-muted-foreground text-nota">
-          Actual: {formatLei(salariuActual)}. Se aplică din următoarea perioadă calculată —
-          fluturașii deja calculați rămân neschimbați.
-        </p>
-      </div>
-      <div className="flex items-center gap-3">
-        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
-          Salvează
-        </Buton>
-        <Buton
-          varianta="link"
-          onClick={() => {
-            setDeschis(false);
-            setEroare(null);
-          }}
+      {(stare, idc) => (
+        <Camp
+          nume="salariu_baza"
+          id={idc("salariu_baza")}
+          eticheta="Salariu de bază nou (lei)"
+          obligatoriu
+          erori={stare.erori["salariu_baza"] ?? []}
         >
-          Renunță
-        </Buton>
-      </div>
-      {eroare === null ? null : (
-        <p role="alert" className="text-danger text-corp w-full">
-          {eroare}
-        </p>
+          {(a) => (
+            <input
+              {...a}
+              type="number"
+              step="0.01"
+              min={0}
+              defaultValue={stare.valoriTrimise["salariu_baza"] ?? salariuActual}
+            />
+          )}
+        </Camp>
       )}
-    </form>
+    </FormularDialog>
   );
 }
