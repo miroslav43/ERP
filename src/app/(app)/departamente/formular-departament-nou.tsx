@@ -1,28 +1,35 @@
 // src/app/(app)/departamente/formular-departament-nou.tsx
 "use client";
 
-import { useCallback, useId, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Plus } from "lucide-react";
 
-import { Buton } from "@/components/ui/buton";
 import { Camp } from "@/components/ui/camp";
-import { Formular } from "@/components/ui/formular";
+import { FormularDialog } from "@/components/ui/formular-dialog";
 
 import { creeazaDepartament } from "./actions";
 
 /**
- * Departament nou.
+ * Departament nou, într-o casetă.
  *
- * Prin `<Formular>` + `<Camp>` din motivul măsurat în tot nomenclatorul: cu
- * `<form action={fn}>` și câmpuri necontrolate, React 19 RESETEAZĂ formularul
- * după acțiune, inclusiv când acțiunea a fost refuzată. Un cod deja folosit —
- * refuzat de indexul unic, nu de schemă, deci abia după drumul la server —
+ * ── DE CE NU MAI CREȘTE ÎN PAGINĂ ─────────────────────────────────────────
+ * Formularul se desfăcea în coloana din dreapta antetului, iar cele șase
+ * câmpuri împingeau organigrama sub linia de plutire: pe o structură goală
+ * ecranul era formular și atât, iar banda „2 persoane fără departament" ajungea
+ * la 700 px sub titlu. Cine voia să vadă ce coduri sunt deja luate — exact
+ * întrebarea de dinaintea completării câmpului „Cod" — trebuia să închidă
+ * formularul, să se uite, și să-l redeschidă gol.
+ *
+ * ── CE PĂSTREAZĂ DIN VARIANTA VECHE ───────────────────────────────────────
+ * Cu `<form action={fn}>` și câmpuri necontrolate, React 19 RESETEAZĂ
+ * formularul după acțiune, inclusiv când a fost refuzată. Un cod deja folosit —
+ * respins de indexul unic, nu de schemă, deci abia după drumul la server —
  * ștergea și denumirea, și descrierea, și centrul de cost, și cele două
- * selecții. `valoriTrimise` le pune înapoi ca `defaultValue`.
+ * selecții. `stare.valoriTrimise` le pune înapoi ca `defaultValue`, iar caseta
+ * NU se închide la refuz: vezi `FormularDialog`.
  *
- * Identificatorii se prefixează cu `useId()`: pe aceeași pagină stau N
- * formulare de editare din `actiuni-departament.tsx`, cu exact aceleași nume de
- * câmp, iar `Camp` derivă `id` din `nume`.
+ * Identificatorii trec prin `idc`: pe aceeași pagină stau N formulare de
+ * editare din `actiuni-departament.tsx`, cu exact aceleași nume de câmp, iar
+ * `Camp` derivă `id` din `nume`.
  */
 
 interface OptiuneDepartament {
@@ -58,41 +65,22 @@ async function trimite(date: FormData) {
 }
 
 export function FormularDepartamentNou({ departamente, angajati }: Proprietati) {
-  const router = useRouter();
-  const [deschis, setDeschis] = useState(false);
-  const idFormular = useId();
-  const idc = (sufix: string): string => `${idFormular}-${sufix}`;
-
-  // `useCallback`: `laReusita` intră în lista de dependențe a efectului din
-  // `Formular`. O funcție nouă la fiecare randare ar reporni efectul după
-  // succes, deci notificarea ar apărea de două ori.
-  const laReusita = useCallback((): void => {
-    setDeschis(false);
-    router.refresh();
-  }, [router]);
-
-  if (!deschis) {
-    return (
-      <Buton
-        varianta="primar"
-        onClick={() => {
-          setDeschis(true);
-        }}
-      >
-        Departament nou
-      </Buton>
-    );
-  }
-
   return (
-    <Formular
+    <FormularDialog
+      declansator={{
+        eticheta: "Departament nou",
+        pictograma: <Plus aria-hidden="true" className="size-4" />,
+      }}
+      titlu="Departament nou"
+      descriere="Codul e unic în organizație și se folosește în rapoarte. Departamentul superior poate fi schimbat oricând, din structura de mai jos."
+      marime="mare"
       actiune={trimite}
-      laReusita={laReusita}
       mesajReusita="Departamentul a fost creat."
-      className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-2"
+      etichetaTrimite="Creează departamentul"
+      textInCurs="Se creează…"
     >
-      {(stare) => (
-        <>
+      {(stare, idc) => (
+        <div className="grid gap-4 sm:grid-cols-2">
           <Camp
             nume="cod"
             id={idc("cod")}
@@ -193,28 +181,13 @@ export function FormularDepartamentNou({ departamente, angajati }: Proprietati) 
               <textarea
                 {...a}
                 maxLength={1000}
-                rows={2}
+                rows={3}
                 defaultValue={stare.valoriTrimise["descriere"] ?? ""}
               />
             )}
           </Camp>
-
-          <div className="flex items-center gap-3 sm:col-span-2">
-            <Buton type="submit" varianta="primar" inCurs={stare.inCurs} textInCurs="Se creează…">
-              Creează departamentul
-            </Buton>
-            <Buton
-              varianta="link"
-              disabled={stare.inCurs}
-              onClick={() => {
-                setDeschis(false);
-              }}
-            >
-              Renunță
-            </Buton>
-          </div>
-        </>
+        </div>
       )}
-    </Formular>
+    </FormularDialog>
   );
 }
