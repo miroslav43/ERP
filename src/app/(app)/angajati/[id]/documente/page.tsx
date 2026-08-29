@@ -99,7 +99,10 @@ export default async function PaginaDocumenteAngajat({
   // trimitea un `() => {}` gol, adică un buton „Reîncearcă" care nu făcea
   // nimic. Aruncat, eroarea ajunge la `angajati/error.tsx`, unde butonul chiar
   // reîmprospătează datele de pe server.
-  if (documente.error !== null || tipuri.error !== null) {
+  // `emise` intră și el în verificare: acum lista lui e conținut, nu un extra
+  // pentru administratori, iar un `?? []` peste o eroare ar arăta identic cu un
+  // angajat fără niciun document emis.
+  if (documente.error !== null || tipuri.error !== null || emise.error !== null) {
     throw new Error("Nu am putut încărca dosarul de documente al angajatului.");
   }
 
@@ -120,7 +123,17 @@ export default async function PaginaDocumenteAngajat({
         />
       </div>
 
-      {poateInrola ? (
+      {/*
+       * Lista se arată oricui poate CITI fișa, nu doar celui care poate EMITE.
+       *
+       * Poarta era `poateInrola` (`employees:create = all`) pe toată secțiunea,
+       * inclusiv pe listă. Efectul: documentele generate la înrolare — contract,
+       * fișă a postului, NDA, anexă PI, act de telemuncă — erau invizibile
+       * pentru cine avea drept de citire, deși `hr_issued_select` (RLS) i le
+       * dădea. Permisiunea de emitere păzește acum doar butonul de emitere,
+       * fiindcă EA e cea care consumă un număr din registrul seriei.
+       */}
+      {poateInrola || (emise.data ?? []).length > 0 ? (
         <section className="border-border rounded-panou border p-4">
           <h2 className="text-foreground text-sectiune font-semibold">Documente generate</h2>
           <p className="text-muted-foreground text-corp mt-1">
@@ -128,9 +141,11 @@ export default async function PaginaDocumenteAngajat({
               ? "Niciun document emis încă. Butonul de mai jos generează contractul, fișa postului, acordul de confidențialitate, anexa de proprietate intelectuală și — la telemuncă — actul adițional."
               : "Emise de aplicație, cu număr propriu și amprentă. Se deschid în PDF."}
           </p>
-          <div className="mt-3">
-            <ButonEmiteLipsa employeeId={angajat.id} />
-          </div>
+          {poateInrola ? (
+            <div className="mt-3">
+              <ButonEmiteLipsa employeeId={angajat.id} />
+            </div>
+          ) : null}
           <ul className="divide-border mt-3 divide-y">
             {(emise.data ?? []).map((document) => (
               <li key={document.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2">
