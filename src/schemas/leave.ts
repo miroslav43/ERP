@@ -179,6 +179,25 @@ export type FiltreCereri = z.infer<typeof filtreCereriSchema>;
 const ANUL_MINIM_CERERE = 2000;
 const ANUL_MAXIM_CERERE = 2199;
 
+/**
+ * Pregătirea încărcării unui document justificativ de concediu.
+ *
+ * Se cere ÎNAINTE ca cererea să existe: omul alege fișierul în formularul de
+ * cerere nouă, deci nu există încă niciun `leave_request_id` de care să-l
+ * lege. De aceea calea se construiește pe fișa de angajat, nu pe cerere, iar
+ * `atasament_path` se trimite mai departe odată cu cererea.
+ */
+export const pregatesteIncarcareDocumentSchema = z.object({
+  /** `null` = pentru mine însumi, exact ca la `creeazaCerereSchema`. */
+  employee_id: uuidOptional,
+  nume_fisier: z.string().trim().min(1, "Fișierul nu are nume.").max(255),
+});
+
+/** Legătura temporară către un document justificativ deja încărcat. */
+export const linkDocumentConcediuSchema = z.object({
+  id: z.uuid("Cererea nu este validă."),
+});
+
 export const creeazaCerereSchema = z
   .object({
     /** `null` = cererea e pentru mine însumi. */

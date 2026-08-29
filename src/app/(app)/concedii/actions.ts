@@ -4,7 +4,7 @@
 import { z } from "zod";
 
 import { createAction } from "@/lib/actions/create-action";
-import { businessRule, notFound } from "@/lib/actions/errors";
+import { businessRule, invalidInput, notFound } from "@/lib/actions/errors";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import type { ActionContext } from "@/lib/actions/types";
 import { numaraZileCerere, type PortiuneZi } from "@/domain/leave/zile-cerere";
@@ -20,8 +20,15 @@ import {
   anuleazaCerereSchema,
   creeazaCerereSchema,
   decideCerereSchema,
+  linkDocumentConcediuSchema,
+  pregatesteIncarcareDocumentSchema,
   type StatusCerere,
 } from "@/schemas/leave";
+import {
+  BUCKET_DOCUMENTE,
+  construiesteCaleDocument,
+  prefixCaleDocument,
+} from "@/lib/documents/cale";
 import {
   sincronizeazaZileleDeConcediu,
   type TipZiPontaj,
@@ -37,6 +44,60 @@ import { traduEroare } from "./erori";
  * `/portal` intră fiindcă pagina de start arată soldul și cererile în așteptare.
  */
 const CAI_PORTAL_CONCEDII: readonly string[] = ["/portal", "/portal/concediile-mele"];
+
+/**
+ * Fișa pe care lucrează acțiunea: cea cerută explicit, sau a celui autentificat.
+ *
+ * Clientul ADMIN, nu cel al utilizatorului: rolul `employee` are
+ * `employees:read = none`, deci nu-și poate citi nici propria fișă
+ * (`employees_select`, 0005_hr_rls.sql). Filtrul pe organizație ȘI pe
+ * utilizator e explicit — singurul lucru care ține locul lui RLS aici.
+ */
+async function fisaTinta(ctx: ActionContext, cerut: string | null): Promise<string> {
+  if (ctx.scope !== "all" && cerut !== null) {
+    throw businessRule("Nu aveți dreptul să lucrați pe cererea de concediu a altui angajat.");
+  }
+  if (cerut !== null) return cerut;
+
+  const admin = createAdminSupabase();
+  const { data, error } = await admin
+    .from("employees")
+    .select("id")
+    .eq("organization_id", ctx.tenant.organizationId)
+    .eq("user_id", ctx.user.id)
+    .eq("is_primary", true)
+    .is("deleted_at", null)
+    .maybeSingle<{ id: string }>();
+  if (error !== null) throw error;
+  if (data === null) {
+    throw businessRule(
+      "Contul dvs. nu este legat de o fișă de angajat activă în această organizație. Contactați administratorul.",
+    );
+  }
+  return data.id;
+}
+
+/**
+ * Calea primită de la client NU se crede pe cuvânt.
+ *
+ * Poarta de Storage (`storage_objects_insert`) păzește SCRIEREA fișierului, nu
+ * referința scrisă în rând: fără verificarea asta, o cerere fabricată ar putea
+ * lega de concediul propriu un obiect urcat sub folderul altcuiva — și l-ar
+ * face citibil prin ecranul cererii. Același tipar ca în `salveazaDovada`.
+ */
+function verificaCaleaDocumentului(
+  organizationId: string,
+  employeeId: string,
+  cale: string | null,
+): void {
+  if (cale === null || cale.trim().length === 0) return;
+  const prefix = prefixCaleDocument(organizationId, "leave", employeeId);
+  if (!cale.startsWith(prefix)) {
+    throw invalidInput("Documentul atașat nu aparține acestei cereri.", {
+      atasament_path: ["Cale invalidă."],
+    });
+  }
+}
 
 function laDataUTC(valoare: string): Date {
   const parti = valoare.split("-");
@@ -235,6 +296,10 @@ export const creeazaCerereConcediu = createAction({
       }
       employeeId = fisa.id;
     }
+
+    // Documentul urcat înaintea cererii trebuie să stea în dosarul ACESTUI
+    // angajat. Poarta de Storage a păzit scrierea fișierului, nu referința.
+    verificaCaleaDocumentului(ctx.tenant.organizationId, employeeId, input.atasament_path);
 
     // ── (2) Tipul de concediu ───────────────────────────────────────────────
     const { data: tip, error: eroareTip } = await ctx.supabase
@@ -817,5 +882,103 @@ export const decideCerere = createAction({
     }
 
     return { id: sarcina.entity_id };
+  },
+});
+
+// ── Documentul justificativ ─────────────────────────────────────────────────
+
+/**
+ * Pregătește încărcarea documentului justificativ și întoarce o adresă semnată.
+ *
+ * Fișierul urcă DIRECT din browser în Storage, nu prin Server Action: un PDF de
+ * 20 MB trecut prin `FormData` către o acțiune ar traversa serverul degeaba și
+ * ar lovi limita de corp a cererii. Serverul dă doar calea și jetonul.
+ *
+ * Calea are segmentul 2 `leave` — nume de resursă REAL din `role_permissions`.
+ * `app.can_path` îl dă direct lui `app.has_permission`, iar un cuvânt
+ * inexistent acolo întoarce `none`, adică refuz TĂCUT la fiecare încărcare
+ * (0073_cale_storage_resurse.sql documentează exact accidentul ăsta).
+ * Segmentul 3 e fișa de angajat, pe care ramura `own` din `can_path` o
+ * acceptă de la 0073 încoace — altfel angajatul n-ar putea urca în propriul
+ * dosar.
+ */
+export const pregatesteIncarcareDocumentConcediu = createAction({
+  name: "leave.document.pregateste",
+  feature: "leave",
+  permission: "leave:create",
+  minScope: "own",
+  input: pregatesteIncarcareDocumentSchema,
+  audit: {
+    action: "import",
+    entityType: "leave_request",
+    entityId: () => null,
+    allow: ["employee_id", "nume_fisier"],
+  },
+  revalidate: [],
+  handler: async (
+    ctx: ActionContext,
+    input,
+  ): Promise<Readonly<{ cale: string; token: string }>> => {
+    const employeeId = await fisaTinta(ctx, input.employee_id);
+    const cale = construiesteCaleDocument({
+      organizationId: ctx.tenant.organizationId,
+      entitate: "leave",
+      entitateId: employeeId,
+      numeFisier: input.nume_fisier,
+    });
+
+    const { data, error } = await ctx.supabase.storage
+      .from(BUCKET_DOCUMENTE)
+      .createSignedUploadUrl(cale);
+    if (error !== null || data === null) {
+      throw businessRule("Nu am putut pregăti încărcarea documentului.");
+    }
+    return { cale, token: data.token };
+  },
+});
+
+/**
+ * Adresa temporară de descărcare a documentului unei cereri.
+ *
+ * Se citește întâi RÂNDUL, prin clientul utilizatorului: RLS decide dacă
+ * persoana are voie să vadă cererea (`own` pentru autor, `team` pentru
+ * manager, `all` pentru resurse umane). Abia calea din rândul întors se
+ * semnează — nicio cale nu vine de la client.
+ */
+export const linkDocumentConcediu = createAction({
+  name: "leave.document.link",
+  feature: "leave",
+  permission: "leave:read",
+  minScope: "own",
+  input: linkDocumentConcediuSchema,
+  audit: {
+    action: "export",
+    entityType: "leave_request",
+    entityId: (input) => input.id,
+    allow: ["id"],
+  },
+  revalidate: [],
+  handler: async (ctx: ActionContext, input): Promise<Readonly<{ url: string }>> => {
+    const { data, error } = await ctx.supabase
+      .from("leave_requests")
+      .select("atasament_path")
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .maybeSingle<{ atasament_path: string | null }>();
+    if (error !== null) traduEroare(error);
+    // Zero rânduri sub o politică SELECT nu se deosebește de „nu există”, iar
+    // ecranul n-are voie să spună care dintre ele e.
+    if (data === null || data.atasament_path === null) {
+      throw notFound("Cererea nu are un document atașat.");
+    }
+
+    const semnat = await ctx.supabase.storage
+      .from(BUCKET_DOCUMENTE)
+      .createSignedUrl(data.atasament_path, 60);
+    if (semnat.error !== null || semnat.data === null) {
+      throw businessRule("Documentul nu a putut fi deschis.");
+    }
+    return { url: semnat.data.signedUrl };
   },
 });

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { numaraZileCerere, type PortiuneZi } from "@/domain/leave/zile-cerere";
 import { creeazaCerereConcediu } from "@/app/(app)/concedii/actions";
 import { ETICHETE_PORTIUNE } from "@/app/(app)/concedii/etichete";
+import { IncarcareDocumentConcediu } from "@/app/(app)/concedii/incarcare-document";
 import { Buton } from "@/components/ui/buton";
 import { Camp } from "@/components/ui/camp";
 import { Formular } from "@/components/ui/formular";
@@ -184,7 +185,16 @@ export function FormularCererePortal({
    *
    * `employee_id` rămâne `null` și nu are câmp: acțiunea rezolvă fișa pe
    * server, din sesiune — un identificator venit din formular ar putea fi al
-   * altcuiva. `atasament_path` lipsește deliberat din portal.
+   * altcuiva.
+   *
+   * `atasament_path` NU mai lipsește. Lipsea „deliberat", pe motiv că un câmp
+   * de cale de storage tastat pe telefon e absurd — ceea ce era adevărat, dar
+   * concluzia greșită: consecința n-a fost un câmp mai puțin, ci nouă tipuri de
+   * concediu care nu se puteau trimite deloc din portal.
+   * `internal.leave_requests_pregateste` respinge trimiterea unui tip cu
+   * `necesita_document` fără atașament, iar ecranul nu oferea niciunul. Acum
+   * calea vine dintr-o încărcare reală, prin câmpul ascuns al
+   * `IncarcareDocumentConcediu`.
    */
   async function trimiteCererea(date: FormData): Promise<ActionResult<CerereCreata>> {
     const codMedical = textSauNull(date, "medical_code_id");
@@ -209,7 +219,7 @@ export function FormularCererePortal({
       portiune_inceput: String(date.get("portiune_inceput") ?? "zi_intreaga"),
       portiune_sfarsit: String(date.get("portiune_sfarsit") ?? "zi_intreaga"),
       motiv: textSauNull(date, "motiv"),
-      atasament_path: null,
+      atasament_path: textSauNull(date, "atasament_path"),
       leave_variant_id: textSauNull(date, "leave_variant_id"),
       medical_code_id: codMedical,
       serie_certificat: textSauNull(date, "serie_certificat"),
@@ -242,12 +252,6 @@ export function FormularCererePortal({
             eticheta="Tipul de concediu"
             fel="select"
             erori={stare.erori["leave_type_id"] ?? []}
-            {...(tip?.necesita_document === true
-              ? {
-                  ajutor:
-                    "Pentru acest tip veți avea nevoie de un document justificativ. Îl predați resurselor umane.",
-                }
-              : {})}
           >
             {(a) => (
               <select
@@ -265,6 +269,12 @@ export function FormularCererePortal({
               </select>
             )}
           </Camp>
+
+          <IncarcareDocumentConcediu
+            cheieTip={tip?.key ?? null}
+            necesitaDocument={tip?.necesita_document ?? false}
+            erori={stare.erori["atasament_path"] ?? []}
+          />
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Camp

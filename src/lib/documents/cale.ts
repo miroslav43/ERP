@@ -37,7 +37,7 @@ export const MIME_ACCEPTATE = [
  * producția. Vezi migrarea 0073_cale_storage_resurse.sql pentru al doilea
  * defect, cel de citire.
  */
-export const ENTITATI_DOCUMENT = ["employees"] as const;
+export const ENTITATI_DOCUMENT = ["employees", "leave"] as const;
 export type EntitateDocument = (typeof ENTITATI_DOCUMENT)[number];
 
 export function slugFisier(nume: string): string {

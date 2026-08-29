@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
 import { Camp } from "@/components/ui/camp";
+import { IncarcareDocumentConcediu } from "../incarcare-document";
 import { Formular } from "@/components/ui/formular";
 import type { ActionResult } from "@/lib/actions/types";
 import { numaraZileCerere, type PortiuneZi } from "@/domain/leave/zile-cerere";
@@ -271,12 +272,6 @@ export function FormularCerere({
               eticheta="Tip de concediu"
               fel="select"
               erori={stare.erori["leave_type_id"] ?? []}
-              {...(tip?.necesita_document === true
-                ? {
-                    ajutor:
-                      "Acest tip de concediu necesită un document justificativ atașat înainte de trimitere.",
-                  }
-                : {})}
             >
               {(a) => (
                 <select
@@ -506,21 +501,12 @@ export function FormularCerere({
               </fieldset>
             ) : null}
 
-            <Camp
-              nume="atasament_path"
-              eticheta="Calea documentului justificativ (opțional)"
-              className="sm:col-span-2"
+            <IncarcareDocumentConcediu
+              cheieTip={tip?.key ?? null}
+              necesitaDocument={tip?.necesita_document ?? false}
+              employeeId={employeeId.length === 0 ? null : employeeId}
               erori={stare.erori["atasament_path"] ?? []}
-            >
-              {(a) => (
-                <input
-                  {...a}
-                  type="text"
-                  placeholder="Ex. concedii/2026/certificat-123.pdf"
-                  defaultValue={stare.valoriTrimise["atasament_path"] ?? ""}
-                />
-              )}
-            </Camp>
+            />
           </div>
 
           <div

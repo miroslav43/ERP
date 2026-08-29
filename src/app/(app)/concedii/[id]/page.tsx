@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
+import { LinkDocumentConcediu } from "../link-document";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
@@ -200,7 +201,9 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
               <dt className="text-muted-foreground text-nota tracking-wide uppercase">
                 Document justificativ
               </dt>
-              <dd className="text-corp mt-0.5 font-mono">{cerere.atasament_path}</dd>
+              <dd className="text-corp mt-0.5">
+                <LinkDocumentConcediu cerereId={cerere.id} />
+              </dd>
             </div>
           ) : null}
           {cerere.motiv_respingere !== null ? (
