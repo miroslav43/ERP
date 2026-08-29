@@ -26,12 +26,12 @@
  * sugera că se poate.
  *
  * Prețul e că lista trăiește în DOUĂ locuri — aici și în
- * `internal.leave_requests_pregateste` (0096_concediu_document_original.sql),
+ * `internal.leave_requests_pregateste` (0106_concediu_document_original.sql),
  * care trebuie să nu blocheze trimiterea fără atașament. `documente-fizice.test.ts`
  * citește migrarea și pică dacă cele două se despart.
  */
 
-/** Cheile din `leave_types.key`. Aceleași trei, în aceeași ordine, ca în 0096. */
+/** Cheile din `leave_types.key`. Aceleași trei, în aceeași ordine, ca în 0106. */
 export const TIPURI_CU_ORIGINAL_FIZIC = ["medical", "maternitate", "donator_sange"] as const;
 
 export type TipCuOriginalFizic = (typeof TIPURI_CU_ORIGINAL_FIZIC)[number];

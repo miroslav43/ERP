@@ -1,4 +1,4 @@
--- supabase/migrations/0096_concediu_document_original.sql
+-- supabase/migrations/0106_concediu_document_original.sql
 -- Angajatul nu putea trimite din portal NICIUN concediu care cere act.
 --
 -- ┌ Ce se întâmpla ───────────────────────────────────────────────────────────

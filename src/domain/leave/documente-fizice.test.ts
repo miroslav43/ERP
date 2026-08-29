@@ -18,7 +18,7 @@ const MIGRARE = join(
   "..",
   "supabase",
   "migrations",
-  "0096_concediu_document_original.sql",
+  "0106_concediu_document_original.sql",
 );
 
 describe("TIPURI_CU_ORIGINAL_FIZIC", () => {
@@ -33,7 +33,7 @@ describe("TIPURI_CU_ORIGINAL_FIZIC", () => {
    * un P0001 care cere exact fișierul declarat opțional. Omul n-are ieșire, iar
    * mesajul îl trimite în direcția greșită.
    */
-  it("e aceeași listă ca în triggerul din 0096", () => {
+  it("e aceeași listă ca în triggerul din 0106", () => {
     const sql = readFileSync(MIGRARE, "utf8");
     const potrivire = /v_tip\.key not in \(([^)]*)\)/u.exec(sql);
     expect(potrivire, "condiția `v_tip.key not in (…)` a dispărut din migrare").not.toBeNull();
