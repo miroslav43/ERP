@@ -344,9 +344,26 @@ export function FoaieColectiva({
                      * ziua lucrătoare fără ore arată cifra `0`, iar categoriile
                      * poartă codurile de pontaj consacrate (CO, CM, AN, D, SL).
                      */
+                    /*
+                     * Ziua deschisă cu ceasul din portal și neînchisă încă are
+                     * `oreLucrate = 0`, deci ar apărea aici ca o zi lucrătoare
+                     * cu zero ore — imposibil de deosebit de un angajat absent.
+                     * Responsabilul de pontaj e singurul care poate observa că
+                     * cineva a uitat să apese „Am ieșit"; celula trebuie să i-o
+                     * spună, nu s-o ascundă sub o cifră plauzibilă.
+                     */
+                    const inCurs =
+                      intrare !== null &&
+                      intrare.oraInceput !== null &&
+                      intrare.oraSfarsit === null;
+
                     const continut =
                       intrare === null ? (
                         <span className="text-muted-foreground">—</span>
+                      ) : inCurs ? (
+                        <span className="text-warning font-medium" title="Zi deschisă, neîncheiată">
+                          ⧗
+                        </span>
                       ) : (
                         <span className="tabular-nums">
                           {intrare.oreLucrate > 0
@@ -465,6 +482,10 @@ export function FoaieColectiva({
             0
           </code>
           Zi lucrătoare înregistrată cu 0 ore
+        </span>
+        <span>
+          <code className="border-border text-warning mr-1 rounded border px-1">⧗</code>
+          Zi deschisă din portal, neîncheiată
         </span>
       </p>
 

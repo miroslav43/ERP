@@ -1,11 +1,12 @@
 // src/app/(app)/angajati/nou/_components/pas-2-contact.tsx
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { UseFormReturn } from "react-hook-form";
 
+import { Camp, clasaBifa } from "@/components/ui/camp";
 import type { InroleazaAngajatInput } from "@/schemas/employee";
-import { claseCamp, claseLabel } from "./campuri-comune";
+import { mesajCamp } from "./erori-formular";
 
 export const CAMPURI_PAS_2 = [
   "email_personal",
@@ -27,106 +28,93 @@ export const CAMPURI_PAS_2 = [
 
 interface Proprietati {
   readonly formular: UseFormReturn<InroleazaAngajatInput>;
-  readonly idFormular: string;
 }
 
-export function Pas2Contact({ formular, idFormular }: Proprietati) {
-  const { register } = formular;
-  const [reședințăDifera, setReședințăDifera] = useState(false);
+export function Pas2Contact({ formular }: Proprietati) {
+  const {
+    register,
+    formState: { errors },
+  } = formular;
+  const idBifa = useId();
+  const [resedintaDifera, setResedintaDifera] = useState(false);
 
   return (
     <div className="space-y-6">
       <fieldset className="border-border rounded-panou space-y-4 border p-4">
         <legend className="text-foreground text-corp px-1 font-medium">Contact personal</legend>
         <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor={`${idFormular}-email-personal`} className={claseLabel}>
-              E-mail personal
-            </label>
-            <input
-              id={`${idFormular}-email-personal`}
-              type="email"
-              {...register("email_personal")}
-              className={claseCamp}
-            />
-          </div>
-          <div>
-            <label htmlFor={`${idFormular}-telefon`} className={claseLabel}>
-              Telefon personal
-            </label>
-            <input
-              id={`${idFormular}-telefon`}
-              type="tel"
-              {...register("telefon")}
-              className={claseCamp}
-            />
-          </div>
+          <Camp
+            nume="email_personal"
+            eticheta="E-mail personal"
+            erori={mesajCamp(errors.email_personal)}
+            ajutor="Aici pleacă invitația de acces în aplicație."
+          >
+            {(atribute) => <input {...atribute} type="email" {...register("email_personal")} />}
+          </Camp>
+          <Camp nume="telefon" eticheta="Telefon personal" erori={mesajCamp(errors.telefon)}>
+            {(atribute) => <input {...atribute} type="tel" {...register("telefon")} />}
+          </Camp>
         </div>
       </fieldset>
 
       <fieldset className="border-border rounded-panou space-y-4 border p-4">
         <legend className="text-foreground text-corp px-1 font-medium">Contact de muncă</legend>
         <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor={`${idFormular}-email-serviciu`} className={claseLabel}>
-              E-mail de muncă
-            </label>
-            <input
-              id={`${idFormular}-email-serviciu`}
-              type="email"
-              {...register("email_serviciu")}
-              className={claseCamp}
-            />
-          </div>
-          <div>
-            <label htmlFor={`${idFormular}-telefon-serviciu`} className={claseLabel}>
-              Telefon de muncă
-            </label>
-            <input
-              id={`${idFormular}-telefon-serviciu`}
-              type="tel"
-              {...register("telefon_serviciu")}
-              className={claseCamp}
-            />
-          </div>
+          <Camp
+            nume="email_serviciu"
+            eticheta="E-mail de muncă"
+            erori={mesajCamp(errors.email_serviciu)}
+          >
+            {(atribute) => <input {...atribute} type="email" {...register("email_serviciu")} />}
+          </Camp>
+          <Camp
+            nume="telefon_serviciu"
+            eticheta="Telefon de muncă"
+            erori={mesajCamp(errors.telefon_serviciu)}
+          >
+            {(atribute) => <input {...atribute} type="tel" {...register("telefon_serviciu")} />}
+          </Camp>
         </div>
       </fieldset>
 
       <fieldset className="border-border rounded-panou space-y-4 border p-4">
         <legend className="text-foreground text-corp px-1 font-medium">Domiciliu</legend>
+        <p className="text-muted-foreground text-corp">
+          Se tipărește în contract și e cerut de REGES la transmiterea salariatului.
+        </p>
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <label htmlFor={`${idFormular}-adresa`} className={claseLabel}>
-              Stradă și număr
-            </label>
-            <input
-              id={`${idFormular}-adresa`}
-              {...register("adresa_strada")}
-              className={claseCamp}
-            />
-          </div>
-          <div>
-            <label htmlFor={`${idFormular}-oras`} className={claseLabel}>
-              Localitate
-            </label>
-            <input id={`${idFormular}-oras`} {...register("adresa_oras")} className={claseCamp} />
-          </div>
-          <div>
-            <label htmlFor={`${idFormular}-judet`} className={claseLabel}>
-              Județ
-            </label>
-            <input id={`${idFormular}-judet`} {...register("adresa_judet")} className={claseCamp} />
-          </div>
-          <div>
-            <label htmlFor={`${idFormular}-cod-postal`} className={claseLabel}>
-              Cod poștal
-            </label>
-            <input
-              id={`${idFormular}-cod-postal`}
-              {...register("adresa_cod_postal")}
-              className={claseCamp}
-            />
-          </div>
+          <Camp
+            nume="adresa_strada"
+            eticheta="Stradă și număr"
+            obligatoriu
+            erori={mesajCamp(errors.adresa_strada)}
+            className="sm:col-span-2"
+          >
+            {(atribute) => <input {...atribute} {...register("adresa_strada")} />}
+          </Camp>
+          <Camp
+            nume="adresa_oras"
+            eticheta="Localitate"
+            obligatoriu
+            erori={mesajCamp(errors.adresa_oras)}
+          >
+            {(atribute) => <input {...atribute} {...register("adresa_oras")} />}
+          </Camp>
+          <Camp
+            nume="adresa_judet"
+            eticheta="Județ"
+            obligatoriu
+            erori={mesajCamp(errors.adresa_judet)}
+          >
+            {(atribute) => <input {...atribute} {...register("adresa_judet")} />}
+          </Camp>
+          <Camp
+            nume="adresa_cod_postal"
+            eticheta="Cod poștal"
+            erori={mesajCamp(errors.adresa_cod_postal)}
+          >
+            {(atribute) => <input {...atribute} {...register("adresa_cod_postal")} />}
+          </Camp>
         </div>
       </fieldset>
 
@@ -134,60 +122,49 @@ export function Pas2Contact({ formular, idFormular }: Proprietati) {
         <legend className="text-foreground text-corp px-1 font-medium">Reședință</legend>
         <div className="flex items-center gap-2">
           <input
-            id={`${idFormular}-resedinta-difera`}
+            id={idBifa}
             type="checkbox"
-            checked={reședințăDifera}
+            checked={resedintaDifera}
             onChange={(eveniment) => {
-              setReședințăDifera(eveniment.target.checked);
+              setResedintaDifera(eveniment.target.checked);
             }}
-            className="border-border size-4 rounded"
+            className={clasaBifa}
           />
-          <label htmlFor={`${idFormular}-resedinta-difera`} className="text-foreground text-corp">
+          <label htmlFor={idBifa} className="text-foreground text-corp">
             Reședința diferă de domiciliu
           </label>
         </div>
-        {reședințăDifera ? (
+        {resedintaDifera ? (
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <label htmlFor={`${idFormular}-resedinta-adresa`} className={claseLabel}>
-                Stradă și număr
-              </label>
-              <input
-                id={`${idFormular}-resedinta-adresa`}
-                {...register("adresa_resedinta_strada")}
-                className={claseCamp}
-              />
-            </div>
-            <div>
-              <label htmlFor={`${idFormular}-resedinta-oras`} className={claseLabel}>
-                Localitate
-              </label>
-              <input
-                id={`${idFormular}-resedinta-oras`}
-                {...register("adresa_resedinta_oras")}
-                className={claseCamp}
-              />
-            </div>
-            <div>
-              <label htmlFor={`${idFormular}-resedinta-judet`} className={claseLabel}>
-                Județ
-              </label>
-              <input
-                id={`${idFormular}-resedinta-judet`}
-                {...register("adresa_resedinta_judet")}
-                className={claseCamp}
-              />
-            </div>
-            <div>
-              <label htmlFor={`${idFormular}-resedinta-cod-postal`} className={claseLabel}>
-                Cod poștal
-              </label>
-              <input
-                id={`${idFormular}-resedinta-cod-postal`}
-                {...register("adresa_resedinta_cod_postal")}
-                className={claseCamp}
-              />
-            </div>
+            <Camp
+              nume="adresa_resedinta_strada"
+              eticheta="Stradă și număr"
+              erori={mesajCamp(errors.adresa_resedinta_strada)}
+              className="sm:col-span-2"
+            >
+              {(atribute) => <input {...atribute} {...register("adresa_resedinta_strada")} />}
+            </Camp>
+            <Camp
+              nume="adresa_resedinta_oras"
+              eticheta="Localitate"
+              erori={mesajCamp(errors.adresa_resedinta_oras)}
+            >
+              {(atribute) => <input {...atribute} {...register("adresa_resedinta_oras")} />}
+            </Camp>
+            <Camp
+              nume="adresa_resedinta_judet"
+              eticheta="Județ"
+              erori={mesajCamp(errors.adresa_resedinta_judet)}
+            >
+              {(atribute) => <input {...atribute} {...register("adresa_resedinta_judet")} />}
+            </Camp>
+            <Camp
+              nume="adresa_resedinta_cod_postal"
+              eticheta="Cod poștal"
+              erori={mesajCamp(errors.adresa_resedinta_cod_postal)}
+            >
+              {(atribute) => <input {...atribute} {...register("adresa_resedinta_cod_postal")} />}
+            </Camp>
           </div>
         ) : null}
       </fieldset>
@@ -195,38 +172,35 @@ export function Pas2Contact({ formular, idFormular }: Proprietati) {
       <fieldset className="border-border rounded-panou space-y-4 border p-4">
         <legend className="text-foreground text-corp px-1 font-medium">Contact de urgență</legend>
         <div className="grid gap-4 sm:grid-cols-3">
-          <div>
-            <label htmlFor={`${idFormular}-urgenta-nume`} className={claseLabel}>
-              Nume
-            </label>
-            <input
-              id={`${idFormular}-urgenta-nume`}
-              {...register("contact_urgenta_nume")}
-              className={claseCamp}
-            />
-          </div>
-          <div>
-            <label htmlFor={`${idFormular}-urgenta-telefon`} className={claseLabel}>
-              Telefon
-            </label>
-            <input
-              id={`${idFormular}-urgenta-telefon`}
-              type="tel"
-              {...register("contact_urgenta_telefon")}
-              className={claseCamp}
-            />
-          </div>
-          <div>
-            <label htmlFor={`${idFormular}-urgenta-relatie`} className={claseLabel}>
-              Relație
-            </label>
-            <input
-              id={`${idFormular}-urgenta-relatie`}
-              {...register("contact_urgenta_relatie")}
-              placeholder="soț/soție, părinte…"
-              className={claseCamp}
-            />
-          </div>
+          <Camp
+            nume="contact_urgenta_nume"
+            eticheta="Nume"
+            erori={mesajCamp(errors.contact_urgenta_nume)}
+          >
+            {(atribute) => <input {...atribute} {...register("contact_urgenta_nume")} />}
+          </Camp>
+          <Camp
+            nume="contact_urgenta_telefon"
+            eticheta="Telefon"
+            erori={mesajCamp(errors.contact_urgenta_telefon)}
+          >
+            {(atribute) => (
+              <input {...atribute} type="tel" {...register("contact_urgenta_telefon")} />
+            )}
+          </Camp>
+          <Camp
+            nume="contact_urgenta_relatie"
+            eticheta="Relație"
+            erori={mesajCamp(errors.contact_urgenta_relatie)}
+          >
+            {(atribute) => (
+              <input
+                {...atribute}
+                {...register("contact_urgenta_relatie")}
+                placeholder="soț/soție, părinte…"
+              />
+            )}
+          </Camp>
         </div>
       </fieldset>
     </div>

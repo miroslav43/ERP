@@ -1,24 +1,15 @@
 // src/app/(app)/setari/membri/actions.ts
 "use server";
 
-import { createHash, randomBytes } from "node:crypto";
 import { z } from "zod";
 
 import { createAction } from "@/lib/actions/create-action";
-import { businessRule, limitExceeded, notFound } from "@/lib/actions/errors";
-import { consumeRateLimit } from "@/lib/utils/rate-limit";
-import { trimiteEmailInvitatie } from "@/lib/email/invitations";
+import { businessRule, notFound } from "@/lib/actions/errors";
+import { creeazaInvitatie, type InvitatieCreata } from "@/lib/invitatii/creeaza";
 
-const ZILE_VALABILITATE = 7;
 const roluriInvitabile = z.enum(["org_admin", "manager", "hr", "employee"]);
 
-export type InvitatieCreata = Readonly<{
-  id: string;
-  email: string;
-  /** Tokenul în clar, returnat o singură dată: linkul se compune din el. */
-  token: string;
-  emailTrimis: boolean;
-}>;
+export type { InvitatieCreata };
 
 export const invitaMembru = createAction({
   name: "members.invite",
@@ -37,100 +28,18 @@ export const invitaMembru = createAction({
     allow: ["email", "role"],
   },
   revalidate: ["/setari/membri"],
-  handler: async (ctx, input): Promise<InvitatieCreata> => {
-    const limita = await consumeRateLimit({
-      key: `invite:${ctx.tenant.organizationId}`,
-      limit: 20,
-      windowSeconds: 3600,
-    });
-    if (!limita.allowed) {
-      throw limitExceeded(
-        "S-au trimis prea multe invitații în ultima oră. Reîncercați mai târziu.",
-      );
-    }
-
-    const email = input.email.trim().toLowerCase();
-
-    const [{ count: membriActivi }, { data: invitatiiPendinte }, { data: organizatie }] =
-      await Promise.all([
-        ctx.supabase
-          .from("organization_members")
-          .select("id", { count: "exact", head: true })
-          .eq("organization_id", ctx.tenant.organizationId)
-          .eq("status", "active"),
-        ctx.supabase
-          .from("invitations")
-          .select("id, email")
-          .eq("organization_id", ctx.tenant.organizationId)
-          .eq("status", "pending"),
-        ctx.supabase
-          .from("organizations")
-          .select("seats_limit, name")
-          .eq("id", ctx.tenant.organizationId)
-          .maybeSingle(),
-      ]);
-
-    if (organizatie === null) {
-      throw notFound("Organizația nu a fost găsită.");
-    }
-    const pendinte = invitatiiPendinte ?? [];
-    if (pendinte.some((invitatie) => invitatie.email.toLowerCase() === email)) {
-      throw businessRule("Există deja o invitație în așteptare pentru această adresă.");
-    }
-    if ((membriActivi ?? 0) + pendinte.length >= organizatie.seats_limit) {
-      throw limitExceeded(
-        `Ați atins limita de ${organizatie.seats_limit} locuri. Dezactivați un membru sau extindeți contractul.`,
-      );
-    }
-
-    const token = randomBytes(32).toString("base64url");
-    const tokenHash = createHash("sha256").update(token).digest("hex");
-    const expira = new Date(ctx.now.getTime() + ZILE_VALABILITATE * 24 * 60 * 60 * 1000);
-
-    const { data, error } = await ctx.supabase
-      .from("invitations")
-      .insert({
-        organization_id: ctx.tenant.organizationId,
-        email,
-        role: input.role,
-        token_hash: tokenHash,
-        expires_at: expira.toISOString(),
-        status: "pending",
-        invited_by: ctx.user.id,
-      })
-      .select("id, email")
-      .single();
-
-    if (error !== null) {
-      throw error;
-    }
-
-    // Linkul îl compune șablonul, din `NEXT_PUBLIC_APP_URL` validat la boot.
-    // Construit aici, fiecare loc de apel ar putea produce alt domeniu, iar
-    // `process.env` citit direct ar ocoli validarea din `config/env.ts`.
-    let emailTrimis = false;
-    try {
-      await trimiteEmailInvitatie({
-        db: ctx.supabase,
-        destinatar: email,
-        organizatie: organizatie.name,
-        invitatDe: ctx.user.fullName ?? ctx.user.email,
-        rol: input.role,
-        token,
-        expiraLa: expira.toISOString(),
-        invitationId: data.id,
-      });
-      emailTrimis = true;
-    } catch (eroare) {
-      // Invitația rămâne validă chiar dacă e-mailul eșuează; linkul se poate copia manual.
-      console.error("[email] Invitația nu a putut fi trimisă", {
-        invitationId: data.id,
-        mesaj: eroare instanceof Error ? eroare.message : "necunoscut",
-      });
-    }
-
-    return { id: data.id, email: data.email, token, emailTrimis };
-  },
+  handler: async (ctx, input): Promise<InvitatieCreata> =>
+    // Munca stă în `@/lib/invitatii/creeaza`, ca s-o poată face și înrolarea
+    // unui angajat. Aici rămâne doar contextul: cine invită și cu ce drept.
+    creeazaInvitatie({
+      db: ctx.supabase,
+      organizationId: ctx.tenant.organizationId,
+      email: input.email,
+      rol: input.role,
+      invitatDe: ctx.user.fullName ?? ctx.user.email,
+      userId: ctx.user.id,
+      acum: ctx.now,
+    }),
 });
 
 export const revocaInvitatia = createAction({

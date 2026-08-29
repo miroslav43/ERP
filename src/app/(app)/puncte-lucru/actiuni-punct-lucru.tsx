@@ -1,15 +1,24 @@
 // src/app/(app)/puncte-lucru/actiuni-punct-lucru.tsx
 "use client";
 
-import { useCallback, useId, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Ban, Pencil, Undo2 } from "lucide-react";
+import { Ban, Pencil, Printer, QrCode, Undo2 } from "lucide-react";
 
 import { Buton } from "@/components/ui/buton";
 import { Camp, clasaBifa } from "@/components/ui/camp";
-import { Formular } from "@/components/ui/formular";
+import { FormularDialog } from "@/components/ui/formular-dialog";
 import { JUDETE } from "@/schemas/organization";
-import { actualizeazaPunctLucru, dezactiveazaPunctLucru, reactiveazaPunctLucru } from "./actions";
+import Link from "next/link";
+
+import { buton } from "@/components/ui/buton";
+import { cn } from "@/lib/ui/cn";
+import {
+  actualizeazaPunctLucru,
+  dezactiveazaPunctLucru,
+  reactiveazaPunctLucru,
+  rotesteCodPontaj,
+} from "./actions";
 
 /**
  * Acțiunile unui rând din lista punctelor de lucru: editarea și dezactivarea.
@@ -25,9 +34,13 @@ import { actualizeazaPunctLucru, dezactiveazaPunctLucru, reactiveazaPunctLucru }
  * greșeală rămânea așa. Fiindcă acum se desface dintr-un clic, dezactivarea nu
  * cere confirmare — vezi nota din `departamente/actiuni-departament.tsx`.
  *
- * Identificatorii se prefixează cu `useId()`: componenta se randează o dată per
- * rând, mai multe rânduri pot fi deschise în același timp, iar `Camp` derivă
- * `id` din `nume` — `denumire`, `judet` și `oras` s-ar repeta pe pagină.
+ * Editarea se deschide într-o CASETĂ, nu sub rând. Componenta se randează o
+ * dată per rând și mai multe rânduri puteau fi deschise simultan: lista se
+ * întindea pe câteva ecrane de formulare identice, iar rândul pe care lucrai
+ * sărea de fiecare dată când deschideai altul. Prefixarea identificatorilor
+ * rămâne necesară din același motiv — `Camp` derivă `id` din `nume`, iar
+ * `denumire`, `judet` și `oras` s-ar repeta pe pagină; o face acum `idc`, dat
+ * de `FormularDialog`.
  */
 
 interface Proprietati {
@@ -41,24 +54,16 @@ interface Proprietati {
     sediu_principal: boolean;
     activ: boolean;
     observatii: string | null;
+    /** `true` când punctul are deja un cod de pontare tipăribil (0096). */
+    areCodPontaj: boolean;
   }>;
   readonly poateEdita: boolean;
 }
 
 export function ActiuniPunctLucru({ punct, poateEdita }: Proprietati) {
   const router = useRouter();
-  const [editeaza, setEditeaza] = useState(false);
   const [inCurs, porneste] = useTransition();
   const [eroare, setEroare] = useState<string | null>(null);
-  const idFormular = useId();
-  const idc = (sufix: string): string => `${idFormular}-${sufix}`;
-
-  // `useCallback`: `laReusita` intră în dependențele efectului din `Formular`;
-  // o funcție nouă la fiecare randare ar scoate notificarea de două ori.
-  const laReusita = useCallback((): void => {
-    setEditeaza(false);
-    router.refresh();
-  }, [router]);
 
   if (!poateEdita) return null;
 
@@ -93,45 +98,36 @@ export function ActiuniPunctLucru({ punct, poateEdita }: Proprietati) {
     });
   }
 
+  function roteste(): void {
+    setEroare(null);
+    porneste(async () => {
+      const rezultat = await rotesteCodPontaj({ id: punct.id });
+      if (!rezultat.ok) {
+        setEroare(rezultat.error.message);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
   return (
     <div className="space-y-2">
       <div className="text-nota flex flex-wrap gap-1">
-        <Buton
-          varianta="tertiar"
-          onClick={() => {
-            setEditeaza((v) => !v);
+        <FormularDialog
+          declansator={{
+            eticheta: "Editează",
+            varianta: "tertiar",
+            pictograma: <Pencil aria-hidden="true" className="size-3.5" />,
           }}
-        >
-          <Pencil aria-hidden="true" className="size-3.5" />
-          Editează
-        </Buton>
-        {punct.activ ? (
-          <Buton varianta="distructiv" onClick={comutaActivarea} disabled={inCurs}>
-            <Ban aria-hidden="true" className="size-3.5" />
-            Dezactivează
-          </Buton>
-        ) : (
-          <Buton varianta="secundar" onClick={comutaActivarea} disabled={inCurs}>
-            <Undo2 aria-hidden="true" className="size-3.5" />
-            Reactivează
-          </Buton>
-        )}
-      </div>
-
-      {eroare === null ? null : (
-        <p role="alert" className="text-danger text-nota">
-          {eroare}
-        </p>
-      )}
-
-      {editeaza ? (
-        <Formular
+          titlu={`Editează „${punct.denumire}”`}
+          descriere="Adresa apare în contractele de muncă și în declarațiile către ITM. Sediul principal e unul singur: bifându-l aici, se ia de la cel de dinainte."
+          marime="mare"
           actiune={trimiteEditare}
-          laReusita={laReusita}
           mesajReusita="Punctul de lucru a fost salvat."
-          className="border-border rounded-control grid gap-2 border p-3 sm:grid-cols-2"
+          etichetaTrimite="Salvează"
+          textInCurs="Se salvează…"
         >
-          {(stare) => {
+          {(stare, idc) => {
             // Într-un `FormData` o bifă NEBIFATĂ lipsește cu totul, deci „încă
             // nu s-a trimis nimic” și „s-a trimis nebifat” arată identic pe
             // cheia ei. Se disting uitându-ne dacă formularul a plecat măcar o
@@ -143,7 +139,7 @@ export function ActiuniPunctLucru({ punct, poateEdita }: Proprietati) {
               : punct.sediu_principal;
 
             return (
-              <>
+              <div className="grid gap-4 sm:grid-cols-2">
                 <Camp
                   nume="denumire"
                   id={idc("denumire")}
@@ -268,22 +264,45 @@ export function ActiuniPunctLucru({ punct, poateEdita }: Proprietati) {
                     Sediu principal
                   </label>
                 </div>
-
-                <div className="sm:col-span-2">
-                  <Buton
-                    type="submit"
-                    varianta="primar"
-                    inCurs={stare.inCurs}
-                    textInCurs="Se salvează…"
-                  >
-                    Salvează
-                  </Buton>
-                </div>
-              </>
+              </div>
             );
           }}
-        </Formular>
-      ) : null}
+        </FormularDialog>
+        {punct.activ ? (
+          <Buton varianta="distructiv" onClick={comutaActivarea} disabled={inCurs}>
+            <Ban aria-hidden="true" className="size-3.5" />
+            Dezactivează
+          </Buton>
+        ) : (
+          <Buton varianta="secundar" onClick={comutaActivarea} disabled={inCurs}>
+            <Undo2 aria-hidden="true" className="size-3.5" />
+            Reactivează
+          </Buton>
+        )}
+
+        {/* Pontarea prin cod QR (0096). Butonul spune „Rotește", nu
+            „Generează", când codul există deja: cine îl apasă trebuie să știe
+            din eticheta lui că afișele lipite devin inutile. */}
+        <Buton varianta="tertiar" onClick={roteste} disabled={inCurs}>
+          <QrCode aria-hidden="true" className="size-3.5" />
+          {punct.areCodPontaj ? "Rotește codul" : "Generează cod de pontare"}
+        </Buton>
+        {punct.areCodPontaj ? (
+          <Link
+            href={`/puncte-lucru/${punct.id}/afis`}
+            className={cn(buton({ varianta: "tertiar" }), "text-nota")}
+          >
+            <Printer aria-hidden="true" className="size-3.5" />
+            Afișul de tipărit
+          </Link>
+        ) : null}
+      </div>
+
+      {eroare === null ? null : (
+        <p role="alert" className="text-danger text-nota">
+          {eroare}
+        </p>
+      )}
     </div>
   );
 }

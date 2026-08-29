@@ -25,6 +25,12 @@ interface RandPunctLucru {
   readonly sediu_principal: boolean;
   readonly activ: boolean;
   readonly observatii: string | null;
+  /**
+   * NU se selectează `cod_pontaj` însuși: e un secret operațional, iar lista se
+   * randează pentru oricine are `departments:read`. Ecranul are nevoie doar să
+   * știe DACĂ există, ca să aleagă între „Generează" și „Rotește".
+   */
+  readonly cod_pontaj: string | null;
 }
 
 export default async function PaginaPuncteLucru() {
@@ -42,7 +48,9 @@ export default async function PaginaPuncteLucru() {
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("puncte_lucru")
-    .select("id, denumire, adresa, judet, oras, cod_postal, sediu_principal, activ, observatii")
+    .select(
+      "id, denumire, adresa, judet, oras, cod_postal, sediu_principal, activ, observatii, cod_pontaj",
+    )
     .eq("organization_id", tenant.organizationId)
     .is("deleted_at", null)
     .order("sediu_principal", { ascending: false })
@@ -107,7 +115,24 @@ export default async function PaginaPuncteLucru() {
               </div>
               {poateEdita ? (
                 <div className="border-border bg-background border-t px-4 py-2">
-                  <ActiuniPunctLucru punct={punct} poateEdita={poateEdita} />
+                  {/* Codul nu traversează granița server/client: componenta
+                      primește doar faptul că EXISTĂ. Trimis întreg, ar ajunge în
+                      sursa paginii, unde îl vede oricine deschide DevTools. */}
+                  <ActiuniPunctLucru
+                    punct={{
+                      id: punct.id,
+                      denumire: punct.denumire,
+                      adresa: punct.adresa,
+                      judet: punct.judet,
+                      oras: punct.oras,
+                      cod_postal: punct.cod_postal,
+                      sediu_principal: punct.sediu_principal,
+                      activ: punct.activ,
+                      observatii: punct.observatii,
+                      areCodPontaj: punct.cod_pontaj !== null,
+                    }}
+                    poateEdita={poateEdita}
+                  />
                 </div>
               ) : null}
             </li>

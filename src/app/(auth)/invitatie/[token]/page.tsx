@@ -3,11 +3,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { z } from "zod";
-import { Buton } from "@/components/ui/buton";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { consumeRateLimit } from "@/lib/utils/rate-limit";
 import { param, tokenInvitatieSchema } from "@/schemas/auth";
 import { acceptaInvitatia, creeazaContSiAccepta } from "./actions";
+import { ButonTrimite } from "@/components/incarcare/buton-trimite";
 
 export const metadata: Metadata = { title: "Invitație" };
 export const dynamic = "force-dynamic";
@@ -114,9 +114,9 @@ export default async function PaginaInvitatie({ params, searchParams }: Props) {
             Sunteți autentificat ca{" "}
             <span className="text-foreground font-medium">{sesiune.user.email}</span>.
           </p>
-          <Buton type="submit" varianta="primar">
+          <ButonTrimite varianta="primar" textInCurs="Se acceptă…" eticheta="aplicația">
             Acceptă invitația
-          </Buton>
+          </ButonTrimite>
         </form>
       ) : areCont ? (
         /*
@@ -180,9 +180,9 @@ export default async function PaginaInvitatie({ params, searchParams }: Props) {
             />
           </div>
 
-          <Buton type="submit" varianta="primar">
+          <ButonTrimite varianta="primar" textInCurs="Se creează contul…">
             Creează contul
-          </Buton>
+          </ButonTrimite>
           <p className="text-muted-foreground text-nota">
             După ce contul e creat, vă ducem la autentificare ca să intrați cu parola aleasă.
           </p>

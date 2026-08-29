@@ -1,13 +1,13 @@
 // src/app/(app)/departamente/actiuni-departament.tsx
 "use client";
 
-import { useCallback, useId, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRightLeft, Ban, Pencil, Undo2 } from "lucide-react";
 
 import { Buton } from "@/components/ui/buton";
 import { Camp } from "@/components/ui/camp";
-import { Formular } from "@/components/ui/formular";
+import { FormularDialog } from "@/components/ui/formular-dialog";
 
 import {
   actualizeazaDepartament,
@@ -15,6 +15,25 @@ import {
   mutaDepartament,
   reactiveazaDepartament,
 } from "./actions";
+
+/**
+ * Acțiunile unui departament, din panoul lui.
+ *
+ * ── DE CE CASETE, NU PANOURI DESFĂCUTE ÎN LOC ─────────────────────────────
+ * Editarea și mutarea se deschideau SUB rândul departamentului, împingând în
+ * jos tot ce urma. Pe o structură cu opt departamente, deschiderea celui de-al
+ * doilea muta restul listei cu ~280 px, iar organigrama își pierdea forma exact
+ * în momentul în care omul avea nevoie de ea ca să aleagă departamentul
+ * superior. Acum contextul rămâne pe loc și caseta stă deasupra lui.
+ *
+ * ── CE NU S-A MUTAT ÎN CASETĂ ─────────────────────────────────────────────
+ * Dezactivarea și reactivarea rămân butoane directe, pe `useTransition`: n-au
+ * niciun câmp de completat. Nu cer nici confirmare, și e o decizie, nu o
+ * scăpare — se desfac dintr-un clic. Confirmarea se păstrează pentru ce chiar
+ * nu se mai poate lua înapoi (închiderea lunii de salarizare, trimiterea
+ * fluturașilor). Un dialog pus peste tot își pierde înțelesul exact acolo unde
+ * ar trebui să oprească pe cineva.
+ */
 
 interface OptiuneDepartament {
   readonly id: string;
@@ -50,19 +69,8 @@ export function ActiuniDepartament({
   poateEdita,
 }: Proprietati) {
   const router = useRouter();
-  const [panou, setPanou] = useState<"editeaza" | "muta" | null>(null);
   const [inCurs, porneste] = useTransition();
   const [eroare, setEroare] = useState<string | null>(null);
-  const idFormular = useId();
-  const idc = (sufix: string): string => `${idFormular}-${sufix}`;
-  const idParinte = useId();
-
-  // `useCallback`: `laReusita` intră în dependențele efectului din `Formular`;
-  // o funcție nouă la fiecare randare ar scoate notificarea de două ori.
-  const laReusita = useCallback((): void => {
-    setPanou(null);
-    router.refresh();
-  }, [router]);
 
   if (!poateEdita) return null;
 
@@ -71,7 +79,7 @@ export function ActiuniDepartament({
    *
    * `parent_id` NU vine din formular, ci din props: schema îl are cu
    * `.default(null)`, deci un formular care nu-l trimite ar muta departamentul
-   * la rădăcină la fiecare salvare de denumire. Mutarea are panoul ei.
+   * la rădăcină la fiecare salvare de denumire. Mutarea are caseta ei.
    */
   async function trimiteEditare(date: FormData) {
     const manager = String(date.get("manager_employee_id") ?? "");
@@ -86,37 +94,19 @@ export function ActiuniDepartament({
   }
 
   /**
-   * Mutarea rămâne pe `useTransition`, spre deosebire de editare: singurul ei
-   * control e un `<select>` cu o valoare aleasă, nu tastată. Resetul de după
-   * acțiune al lui React 19 nu are ce pierde acolo, iar refuzurile pe care le
-   * poate întoarce `mutaDepartament` (ciclu, adâncime — ridicate de trigger cu
-   * P0001) nu aparțin unui câmp anume, deci n-au unde să fie afișate mai bine
-   * decât în mesajul comun de sub butoane.
+   * Mutarea trece acum prin `Formular`, ca editarea. Refuzurile pe care le
+   * ridică triggerul cu P0001 — ciclu în arbore, adâncime depășită — nu aparțin
+   * unui câmp anume, deci `Formular` le arată în `Callout`-ul de sus al casetei,
+   * unde înainte erau un `<p>` roșu sub butoane.
    */
-  function trimiteMutare(fd: FormData): void {
-    setEroare(null);
-    porneste(async () => {
-      const parinte = String(fd.get("parent_id") ?? "");
-      const rezultat = await mutaDepartament({
-        id: departament.id,
-        parent_id: parinte === "" ? null : parinte,
-      });
-      if (!rezultat.ok) {
-        setEroare(rezultat.error.message);
-        return;
-      }
-      setPanou(null);
-      router.refresh();
+  async function trimiteMutare(date: FormData) {
+    const parinte = String(date.get("parent_id") ?? "");
+    return mutaDepartament({
+      id: departament.id,
+      parent_id: parinte === "" ? null : parinte,
     });
   }
 
-  /**
-   * Dezactivarea NU cere confirmare, și e o decizie, nu o scăpare: de când
-   * există butonul de mai jos, se poate desface dintr-un clic. Confirmarea se
-   * păstrează pentru ce chiar nu se mai poate lua înapoi — închiderea lunii de
-   * salarizare, trimiterea fluturașilor pe e-mail. Un dialog pus peste tot își
-   * pierde înțelesul exact acolo unde ar trebui să oprească pe cineva.
-   */
   function comutaActivarea(): void {
     setEroare(null);
     porneste(async () => {
@@ -134,52 +124,22 @@ export function ActiuniDepartament({
   return (
     <div className="space-y-2">
       <div className="text-nota flex flex-wrap gap-1">
-        <Buton
-          varianta="tertiar"
-          onClick={() => {
-            setPanou(panou === "editeaza" ? null : "editeaza");
+        <FormularDialog
+          declansator={{
+            eticheta: "Editează",
+            varianta: "tertiar",
+            pictograma: <Pencil aria-hidden="true" className="size-3.5" />,
           }}
-        >
-          <Pencil aria-hidden="true" className="size-3.5" />
-          Editează
-        </Buton>
-        <Buton
-          varianta="tertiar"
-          onClick={() => {
-            setPanou(panou === "muta" ? null : "muta");
-          }}
-        >
-          <ArrowRightLeft aria-hidden="true" className="size-3.5" />
-          Mută
-        </Buton>
-        {!departament.activ ? (
-          <Buton varianta="secundar" onClick={comutaActivarea} disabled={inCurs}>
-            <Undo2 aria-hidden="true" className="size-3.5" />
-            Reactivează
-          </Buton>
-        ) : departament.numarAngajati === 0 ? (
-          <Buton varianta="distructiv" onClick={comutaActivarea} disabled={inCurs}>
-            <Ban aria-hidden="true" className="size-3.5" />
-            Dezactivează
-          </Buton>
-        ) : null}
-      </div>
-
-      {eroare === null ? null : (
-        <p role="alert" className="text-danger text-nota">
-          {eroare}
-        </p>
-      )}
-
-      {panou === "editeaza" ? (
-        <Formular
+          titlu={`Editează „${departament.denumire}”`}
+          descriere="Codul departamentului nu se schimbă de aici; el intră în rapoarte și în export. Pentru a-l muta în structură, folosiți „Mută”."
+          marime="mare"
           actiune={trimiteEditare}
-          laReusita={laReusita}
           mesajReusita="Departamentul a fost salvat."
-          className="border-border rounded-control grid gap-2 border p-3 sm:grid-cols-2"
+          etichetaTrimite="Salvează"
+          textInCurs="Se salvează…"
         >
-          {(stare) => (
-            <>
+          {(stare, idc) => (
+            <div className="grid gap-4 sm:grid-cols-2">
               <Camp
                 nume="denumire"
                 id={idc("denumire")}
@@ -253,57 +213,74 @@ export function ActiuniDepartament({
                   <textarea
                     {...a}
                     maxLength={1000}
-                    rows={2}
+                    rows={3}
                     defaultValue={stare.valoriTrimise["descriere"] ?? departament.descriere ?? ""}
                   />
                 )}
               </Camp>
-
-              <div className="sm:col-span-2">
-                <Buton
-                  type="submit"
-                  varianta="primar"
-                  inCurs={stare.inCurs}
-                  textInCurs="Se salvează…"
-                >
-                  Salvează
-                </Buton>
-              </div>
-            </>
+            </div>
           )}
-        </Formular>
-      ) : null}
+        </FormularDialog>
 
-      {panou === "muta" ? (
-        <form
-          action={trimiteMutare}
-          className="border-border rounded-control flex flex-wrap items-end gap-2 border p-3"
+        <FormularDialog
+          declansator={{
+            eticheta: "Mută",
+            varianta: "tertiar",
+            pictograma: <ArrowRightLeft aria-hidden="true" className="size-3.5" />,
+          }}
+          titlu={`Mută „${departament.denumire}”`}
+          descriere="Departamentul pleacă cu tot ce are sub el. Un departament nu poate ajunge sub unul dintre propriii descendenți."
+          marime="mediu"
+          actiune={trimiteMutare}
+          mesajReusita="Departamentul a fost mutat."
+          etichetaTrimite="Mută"
+          textInCurs="Se mută…"
         >
-          <div className="flex flex-col gap-1">
-            <label htmlFor={idParinte} className="text-nota font-medium">
-              Mută sub
-            </label>
-            <select
-              id={idParinte}
-              name="parent_id"
-              defaultValue={departament.parent_id ?? ""}
-              className="border-foreground/60 rounded-control text-corp border px-2 py-1.5"
+          {(stare, idc) => (
+            <Camp
+              nume="parent_id"
+              id={idc("parent_id")}
+              eticheta="Mută sub"
+              fel="select"
+              erori={stare.erori["parent_id"] ?? []}
             >
-              <option value="">— rădăcină —</option>
-              {departamente
-                .filter((d) => d.id !== departament.id)
-                .map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.denumire} ({d.cod})
-                  </option>
-                ))}
-            </select>
-          </div>
-          <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se mută…">
-            Mută
+              {(a) => (
+                <select
+                  {...a}
+                  defaultValue={stare.valoriTrimise["parent_id"] ?? departament.parent_id ?? ""}
+                >
+                  <option value="">— rădăcină —</option>
+                  {departamente
+                    .filter((d) => d.id !== departament.id)
+                    .map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.denumire} ({d.cod})
+                      </option>
+                    ))}
+                </select>
+              )}
+            </Camp>
+          )}
+        </FormularDialog>
+
+        {!departament.activ ? (
+          <Buton varianta="secundar" onClick={comutaActivarea} disabled={inCurs}>
+            <Undo2 aria-hidden="true" className="size-3.5" />
+            Reactivează
           </Buton>
-        </form>
-      ) : null}
+        ) : departament.numarAngajati === 0 ? (
+          <Buton varianta="distructiv" onClick={comutaActivarea} disabled={inCurs}>
+            <Ban aria-hidden="true" className="size-3.5" />
+            Dezactivează
+          </Buton>
+        ) : null}
+      </div>
+
+      {eroare === null ? null : (
+        <p role="alert" className="text-danger text-nota">
+          {eroare}
+        </p>
+      )}
     </div>
   );
 }

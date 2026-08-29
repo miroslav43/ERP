@@ -8,6 +8,7 @@ import { clientEnv } from "@/config/env";
 import type { Database } from "@/types/database";
 
 import { fetchCuTermen } from "./fetch-cu-termen";
+import { OPTIUNI_COOKIE } from "./optiuni-cookie";
 
 /**
  * Clientul folosit în Server Components și Server Actions. Rulează cu cheia
@@ -46,6 +47,9 @@ export async function createServerSupabase(): Promise<ServerSupabase> {
           }
         },
       },
+      // Durata și transportul sesiunii, scrise explicit. Fără linia asta se
+      // moștenea tăcut implicitul bibliotecii, inclusiv absența lui `Secure`.
+      cookieOptions: OPTIUNI_COOKIE,
       // `fetch` cu termen pe antet: fără el, un socket agățat spre Supabase
       // blochează cererea la infinit. Vezi `fetch-cu-termen.ts` pentru
       // incidentul care a impus-o.

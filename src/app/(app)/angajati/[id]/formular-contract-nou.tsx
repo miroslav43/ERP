@@ -1,139 +1,126 @@
 // src/app/(app)/angajati/[id]/formular-contract-nou.tsx
 "use client";
 
-import { useId, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { Plus } from "lucide-react";
 
-import { Buton } from "@/components/ui/buton";
+import { Camp } from "@/components/ui/camp";
+import { FormularDialog } from "@/components/ui/formular-dialog";
 
 import { creeazaContract } from "../actions";
+
+/**
+ * Contract nou, într-o casetă.
+ *
+ * ── CE S-A REPARAT ODATĂ CU MUTAREA ───────────────────────────────────────
+ * Formularul se desfăcea sub secțiunea de contracte și era scris pe tiparul cel
+ * mai vechi din depozit: `<form action={fn}>` cu `useTransition`, etichete și
+ * `<input>` de mână, și un singur `<p>` roșu la final. Două consecințe, ambele
+ * tăcute:
+ *
+ * 1. **`fieldErrors` se aruncau.** `create-action.ts` le construiește la
+ *    FIECARE acțiune, prin `z.flattenError`. Un număr de contract deja folosit —
+ *    refuzat de indexul unic, deci abia după drumul la server — spunea „Datele
+ *    introduse nu sunt valide." sub buton, fără să arate CARE câmp.
+ * 2. **Ce s-a scris se pierdea.** React 19 resetează un `<form action={fn}>`
+ *    necontrolat după orice acțiune, inclusiv una refuzată: cele patru câmpuri
+ *    se goleau la fiecare încercare eșuată. `Formular` le pune înapoi prin
+ *    `valoriTrimise`, iar caseta nu se închide la refuz.
+ */
 
 interface Proprietati {
   readonly employeeId: string;
 }
 
 export function FormularContractNou({ employeeId }: Proprietati) {
-  const router = useRouter();
-  const [deschis, setDeschis] = useState(false);
-  const [inCurs, porneste] = useTransition();
-  const [eroare, setEroare] = useState<string | null>(null);
-  const idNumar = useId();
-  const idDataContract = useId();
-  const idValabilDeLa = useId();
-  const idSalariu = useId();
-
-  function trimite(formular: FormData): void {
-    setEroare(null);
-    porneste(async () => {
-      const rezultat = await creeazaContract({
-        employee_id: employeeId,
-        numar: String(formular.get("numar") ?? ""),
-        data_contract: String(formular.get("data_contract") ?? ""),
-        valabil_de_la: String(formular.get("valabil_de_la") ?? ""),
-        salariu_baza: Number(formular.get("salariu_baza")),
-      });
-      if (!rezultat.ok) {
-        setEroare(rezultat.error.message);
-        return;
-      }
-      setDeschis(false);
-      router.refresh();
+  /** Cheile obiectului sunt EXACT cele din `creeazaContractSchema`. */
+  async function trimite(date: FormData) {
+    return creeazaContract({
+      employee_id: employeeId,
+      numar: String(date.get("numar") ?? ""),
+      data_contract: String(date.get("data_contract") ?? ""),
+      valabil_de_la: String(date.get("valabil_de_la") ?? ""),
+      salariu_baza: Number(date.get("salariu_baza")),
     });
   }
 
-  if (!deschis) {
-    return (
-      <Buton
-        varianta="secundar"
-        className="mt-3"
-        onClick={() => {
-          setDeschis(true);
-        }}
-      >
-        Contract nou
-      </Buton>
-    );
-  }
-
   return (
-    <form
-      action={trimite}
-      className="border-border rounded-control mt-3 grid gap-3 border p-3 sm:grid-cols-2"
+    <FormularDialog
+      declansator={{
+        eticheta: "Contract nou",
+        varianta: "secundar",
+        pictograma: <Plus aria-hidden="true" className="size-4" />,
+        className: "mt-3",
+      }}
+      titlu="Contract nou"
+      descriere="Restul clauzelor — durată nedeterminată, normă de 40 de ore pe săptămână, loc de muncă la sediu, 21 de zile de concediu anual — se completează cu valorile implicite și pot fi schimbate ulterior."
+      marime="mare"
+      actiune={trimite}
+      mesajReusita="Contractul a fost creat."
+      etichetaTrimite="Creează contractul"
+      textInCurs="Se salvează…"
     >
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idNumar} className="text-corp">
-          Număr contract
-        </label>
-        <input
-          id={idNumar}
-          name="numar"
-          type="text"
-          required
-          maxLength={40}
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idDataContract} className="text-corp">
-          Data contractului
-        </label>
-        <input
-          id={idDataContract}
-          name="data_contract"
-          type="date"
-          required
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idValabilDeLa} className="text-corp">
-          Valabil de la
-        </label>
-        <input
-          id={idValabilDeLa}
-          name="valabil_de_la"
-          type="date"
-          required
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idSalariu} className="text-corp">
-          Salariu de bază (lei)
-        </label>
-        <input
-          id={idSalariu}
-          name="salariu_baza"
-          type="number"
-          step="0.01"
-          min={0}
-          required
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        />
-      </div>
-      <p className="text-muted-foreground text-nota sm:col-span-2">
-        Restul clauzelor (durată nedeterminată, normă 40 ore/săptămână, loc de muncă sediu, 21 zile
-        de concediu anual) se completează cu valorile implicite — le puteți schimba ulterior.
-      </p>
-      <div className="flex items-center gap-3 sm:col-span-2">
-        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
-          Creează contractul
-        </Buton>
-        <Buton
-          varianta="link"
-          onClick={() => {
-            setDeschis(false);
-            setEroare(null);
-          }}
-        >
-          Renunță
-        </Buton>
-      </div>
-      {eroare === null ? null : (
-        <p role="alert" className="text-danger text-corp sm:col-span-2">
-          {eroare}
-        </p>
+      {(stare, idc) => (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Camp
+            nume="numar"
+            id={idc("numar")}
+            eticheta="Număr contract"
+            obligatoriu
+            erori={stare.erori["numar"] ?? []}
+          >
+            {(a) => (
+              <input
+                {...a}
+                type="text"
+                maxLength={40}
+                defaultValue={stare.valoriTrimise["numar"] ?? ""}
+              />
+            )}
+          </Camp>
+
+          <Camp
+            nume="data_contract"
+            id={idc("data_contract")}
+            eticheta="Data contractului"
+            obligatoriu
+            erori={stare.erori["data_contract"] ?? []}
+          >
+            {(a) => (
+              <input {...a} type="date" defaultValue={stare.valoriTrimise["data_contract"] ?? ""} />
+            )}
+          </Camp>
+
+          <Camp
+            nume="valabil_de_la"
+            id={idc("valabil_de_la")}
+            eticheta="Valabil de la"
+            obligatoriu
+            erori={stare.erori["valabil_de_la"] ?? []}
+          >
+            {(a) => (
+              <input {...a} type="date" defaultValue={stare.valoriTrimise["valabil_de_la"] ?? ""} />
+            )}
+          </Camp>
+
+          <Camp
+            nume="salariu_baza"
+            id={idc("salariu_baza")}
+            eticheta="Salariu de bază (lei)"
+            obligatoriu
+            erori={stare.erori["salariu_baza"] ?? []}
+          >
+            {(a) => (
+              <input
+                {...a}
+                type="number"
+                step="0.01"
+                min={0}
+                defaultValue={stare.valoriTrimise["salariu_baza"] ?? ""}
+              />
+            )}
+          </Camp>
+        </div>
       )}
-    </form>
+    </FormularDialog>
   );
 }

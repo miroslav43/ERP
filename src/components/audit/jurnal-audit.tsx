@@ -11,6 +11,7 @@ import {
   type FiltreAudit,
 } from "@/lib/queries/audit";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { ButonDescarcare } from "@/components/incarcare/buton-descarcare";
 
 type Props = Readonly<{
   cale: string;
@@ -83,10 +84,21 @@ export async function JurnalAudit({ cale, filtre, mod }: Props) {
                 {rezultat.randuri.length === 1 ? "eveniment" : "de evenimente"}, de la cel mai
                 recent. Jurnalul este doar pentru citire.
               </p>
-              <a href={linkExport} className={clasaLink}>
+              {/*
+                Exportul colectează pe pagini, în serie (`queries/audit.ts:435-457`),
+                deci pe un jurnal mare sunt zeci de dus-întors în spatele unui
+                singur clic. Ca `<a href>` nu se vedea nimic; ca buton, se vede
+                și refuzul, în loc să înlocuiască ecranul cu text brut.
+              */}
+              <ButonDescarcare
+                href={linkExport}
+                eticheta="jurnalul de audit"
+                numeImplicit="jurnal-audit.csv"
+                varianta="secundar"
+              >
                 <Download aria-hidden="true" className="size-4" />
                 Descarcă CSV
-              </a>
+              </ButonDescarcare>
             </div>
 
             <TabelAudit randuri={rezultat.randuri} arataOrganizatia={arataOrganizatia} />

@@ -21,7 +21,7 @@ import { BaraActiuni } from "@/components/ui/bara-actiuni";
 import { Buton } from "@/components/ui/buton";
 import { Callout } from "@/components/ui/callout";
 import { Camp } from "@/components/ui/camp";
-import { IncarcareFisier } from "@/components/ui/incarcare-fisier";
+import { IncarcareFisier, marimeCitibila } from "@/components/ui/incarcare-fisier";
 import { arataToast } from "@/components/ui/toast";
 import { getBrowserSupabase } from "@/lib/supabase/browser";
 import {
@@ -116,7 +116,20 @@ export function IncarcareVersiune({ materialId, fel, cereDurata }: Proprietati) 
         return;
       }
 
-      setStare({ tip: "lucru", mesaj: "Se încarcă fișierul…" });
+      /*
+        Mărimea intră în mesaj fiindcă e singura explicație a așteptării: un film
+        de 200 MB urcă minute întregi, iar „Se încarcă fișierul…" fără cifră se
+        citește ca blocaj.
+
+        O bară de progres REALĂ nu e posibilă aici fără să înlocuim
+        `uploadToSignedUrl` din SDK cu un XHR scris de mână către endpoint-ul
+        semnat — SDK-ul nu expune `onUploadProgress`. E o schimbare care merită
+        propriul ei plan, nu una strecurată aici.
+      */
+      setStare({
+        tip: "lucru",
+        mesaj: `Se încarcă fișierul (${marimeCitibila(fisier.size)})…`,
+      });
       const urcare = await getBrowserSupabase()
         .storage.from(BUCKET_CURSURI)
         .uploadToSignedUrl(pregatire.data.cale, pregatire.data.token, fisier);

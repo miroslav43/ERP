@@ -1,9 +1,10 @@
 // src/app/(app)/salarizare/istoric-venituri/formular-istoric-venit.tsx
 "use client";
 
-import { Buton } from "@/components/ui/buton";
+import { Plus } from "lucide-react";
+
 import { Camp } from "@/components/ui/camp";
-import { Formular } from "@/components/ui/formular";
+import { FormularDialog } from "@/components/ui/formular-dialog";
 import type { ActionResult } from "@/lib/actions/types";
 
 import { salveazaIstoricVenit } from "../actions";
@@ -75,22 +76,40 @@ async function trimite(fd: FormData): Promise<ActionResult<RandSalvat>> {
   });
 }
 
+/**
+ * O lună de venit realizat, într-o casetă.
+ *
+ * Formularul stătea permanent deschis deasupra tabelului, iar tabelul e exact
+ * ce trebuie văzut înainte de a scrie: ce luni sunt deja introduse. Butonul se
+ * dezactivează când nu există niciun angajat de ales — înainte, formularul se
+ * randa oricum, cu un `<select>` gol și un buton mort la capătul lui.
+ */
 export function FormularIstoricVenit({
   angajati,
 }: {
   readonly angajati: readonly AngajatOptiune[];
 }) {
   return (
-    <Formular
+    <FormularDialog
+      declansator={{
+        eticheta: "Adaugă o lună",
+        pictograma: <Plus aria-hidden="true" className="size-4" />,
+        disabled: angajati.length === 0,
+      }}
+      titlu="Lună de venit realizat"
+      descriere="O lună introdusă de două ori se actualizează, nu se dublează. Câmpurile numerice lăsate goale NU se salvează ca zero: ar trage în jos media pe șase luni fără nicio eroare vizibilă."
+      marime="mare"
       actiune={trimite}
       mesajReusita="Rândul a fost salvat."
-      className="border-border rounded-panou border p-4"
+      etichetaTrimite="Salvează luna"
+      textInCurs="Se salvează…"
     >
-      {(stare) => (
+      {(stare, idc) => (
         <>
           <div className="grid gap-4 sm:grid-cols-3">
             <Camp
               nume="employee_id"
+              id={idc("employee_id")}
               eticheta="Angajat"
               fel="select"
               obligatoriu
@@ -114,7 +133,13 @@ export function FormularIstoricVenit({
               )}
             </Camp>
 
-            <Camp nume="an" eticheta="An" obligatoriu erori={stare.erori["an"] ?? []}>
+            <Camp
+              nume="an"
+              id={idc("an")}
+              eticheta="An"
+              obligatoriu
+              erori={stare.erori["an"] ?? []}
+            >
               {(a) => (
                 <input
                   {...a}
@@ -126,7 +151,13 @@ export function FormularIstoricVenit({
               )}
             </Camp>
 
-            <Camp nume="luna" eticheta="Luna" obligatoriu erori={stare.erori["luna"] ?? []}>
+            <Camp
+              nume="luna"
+              id={idc("luna")}
+              eticheta="Luna"
+              obligatoriu
+              erori={stare.erori["luna"] ?? []}
+            >
               {(a) => (
                 <input
                   {...a}
@@ -140,6 +171,7 @@ export function FormularIstoricVenit({
 
             <Camp
               nume="zile_lucrate"
+              id={idc("zile_lucrate")}
               eticheta="Zile lucrate"
               obligatoriu
               erori={stare.erori["zile_lucrate"] ?? []}
@@ -158,6 +190,7 @@ export function FormularIstoricVenit({
 
             <Camp
               nume="venit_brut"
+              id={idc("venit_brut")}
               eticheta="Venit brut (lei)"
               obligatoriu
               ajutor="Baza indemnizației de concediu medical."
@@ -176,6 +209,7 @@ export function FormularIstoricVenit({
 
             <Camp
               nume="drepturi_salariale"
+              id={idc("drepturi_salariale")}
               eticheta="Drepturi salariale (lei)"
               obligatoriu
               ajutor="Salariu de bază plus sporurile PERMANENTE, fără primele ocazionale. Baza indemnizației de concediu de odihnă."
@@ -196,24 +230,8 @@ export function FormularIstoricVenit({
 
           {/* `sursa` e o cheie a schemei, dar nu o alege omul — rămâne câmp ascuns. */}
           <input type="hidden" name="sursa" value="introdus manual" />
-
-          <div className="flex flex-col gap-1">
-            <Buton
-              type="submit"
-              varianta="primar"
-              inCurs={stare.inCurs}
-              textInCurs="Se salvează…"
-              disabled={angajati.length === 0}
-              className="self-start"
-            >
-              Salvează luna
-            </Buton>
-            <p className="text-muted-foreground text-nota">
-              O lună introdusă de două ori se actualizează, nu se dublează.
-            </p>
-          </div>
         </>
       )}
-    </Formular>
+    </FormularDialog>
   );
 }

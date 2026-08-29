@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Căutare în cele 36 de capcane ale schemei Administrativo.
+// Căutare în cele 37 de capcane ale schemei Administrativo.
 //
 // NU există un index JSON separat. Scriptul parsează
 // `docs/design/ecrane/capcane.md` LA RULARE, deci nu poate rugini: dacă

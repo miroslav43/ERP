@@ -47,8 +47,18 @@ export default async function PaginaDeplasareNoua() {
    * nu la `now()`. Se închide doar când NU EXISTĂ nicio versiune, iar
    * previzualizarea alege singură versiunea potrivită datei alese.
    */
-  const politici = await politiciOrganizatie(tenant.organizationId);
-  const politicaAzi = await politicaLaData(tenant.organizationId, azi);
+  /*
+    Politicile, versiunea de azi și nomenclatorul de țări nu depind unele de
+    altele — erau trei valuri puse cap la cap. `tari()` se citește și pe ramura
+    în care politica lipsește, deci o interogare de nomenclator „în plus" pe un
+    drum care oricum se termină într-un ecran de configurare: preț corect pentru
+    trei valuri economisite pe drumul normal.
+  */
+  const [politici, politicaAzi, listaTari] = await Promise.all([
+    politiciOrganizatie(tenant.organizationId),
+    politicaLaData(tenant.organizationId, azi),
+    tari(),
+  ]);
   // Referința pentru țara internă implicită: versiunea de azi dacă există,
   // altfel cea mai recentă (lista vine ordonată descrescător după `valabil_de_la`).
   const politica = politicaAzi ?? politici[0] ?? null;
@@ -75,22 +85,24 @@ export default async function PaginaDeplasareNoua() {
   }
 
   const poateAlegeAngajat = can(permisiuni, "per_diem:create", "all");
-  const listaTari = await tari();
-  const baremuri = await baremeleTarilor(listaTari.map((t) => t.id));
+  const db = await createServerSupabase();
 
-  let angajati: readonly AngajatMinim[] | null = null;
-  if (poateAlegeAngajat) {
-    const db = await createServerSupabase();
-    const { data } = await db
-      .from("employees")
-      .select("id, full_name, marca")
-      .eq("organization_id", tenant.organizationId)
-      .eq("status", "activ")
-      .is("deleted_at", null)
-      .order("full_name")
-      .returns<AngajatMinim[]>();
-    angajati = data ?? [];
-  }
+  // Baremurile chiar depind de lista de țări; angajații, nu. Un val, nu două.
+  const [baremuri, angajatiRes] = await Promise.all([
+    baremeleTarilor(listaTari.map((t) => t.id)),
+    poateAlegeAngajat
+      ? db
+          .from("employees")
+          .select("id, full_name, marca")
+          .eq("organization_id", tenant.organizationId)
+          .eq("status", "activ")
+          .is("deleted_at", null)
+          .order("full_name")
+          .returns<AngajatMinim[]>()
+      : null,
+  ]);
+
+  const angajati: readonly AngajatMinim[] | null = angajatiRes?.data ?? null;
 
   return (
     <div className={cn(LATIMI.detaliu, "space-y-6")}>

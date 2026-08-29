@@ -1,12 +1,10 @@
 // src/app/(app)/salarizare/popriri/formular-poprire-noua.tsx
 "use client";
 
-import { useCallback, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Plus } from "lucide-react";
 
-import { Buton } from "@/components/ui/buton";
 import { Camp } from "@/components/ui/camp";
-import { Formular } from "@/components/ui/formular";
+import { FormularDialog } from "@/components/ui/formular-dialog";
 
 import { creeazaPoprire } from "./actions";
 
@@ -45,42 +43,34 @@ async function trimite(fd: FormData) {
   });
 }
 
+/**
+ * Dosar de poprire nou, într-o casetă.
+ *
+ * Cele unsprezece câmpuri se desfăceau sub antet și împingeau afară din privire
+ * lista dosarelor deja deschise — exact lista care spune dacă angajatul mai are
+ * o poprire în derulare, adică dacă plafonul de reținere e o treime din net sau
+ * jumătate.
+ */
 export function FormularPoprireNoua({ angajati }: { readonly angajati: readonly Angajat[] }) {
-  const router = useRouter();
-  const [deschis, setDeschis] = useState(false);
-
-  // `laReusita` intră în dependențele efectului de succes din `Formular`. O
-  // funcție nouă la fiecare randare ar reporni efectul după `router.refresh()`,
-  // iar notificarea ar apărea de două ori pentru un singur dosar deschis.
-  const laReusita = useCallback(() => {
-    setDeschis(false);
-    router.refresh();
-  }, [router]);
-
-  if (!deschis) {
-    return (
-      <Buton
-        varianta="primar"
-        onClick={() => {
-          setDeschis(true);
-        }}
-      >
-        Dosar nou
-      </Buton>
-    );
-  }
-
   return (
-    <Formular
+    <FormularDialog
+      declansator={{
+        eticheta: "Dosar nou",
+        pictograma: <Plus aria-hidden="true" className="size-4" />,
+      }}
+      titlu="Dosar de poprire nou"
+      descriere="Rata lunară se plafonează automat: o treime din net când e singurul dosar al angajatului, jumătate când sunt mai multe. Obligațiile de întreținere se satisfac înaintea celorlalte creanțe."
+      marime="mare"
       actiune={trimite}
-      laReusita={laReusita}
       mesajReusita="Dosarul de poprire a fost deschis."
-      className="border-border rounded-panou grid w-full gap-3 border p-4 sm:grid-cols-2"
+      etichetaTrimite="Deschide dosarul"
+      textInCurs="Se salvează…"
     >
-      {(stare) => (
-        <>
+      {(stare, idc) => (
+        <div className="grid gap-4 sm:grid-cols-2">
           <Camp
             nume="employee_id"
+            id={idc("employee_id")}
             eticheta="Angajat"
             fel="select"
             obligatoriu
@@ -99,7 +89,13 @@ export function FormularPoprireNoua({ angajati }: { readonly angajati: readonly 
             )}
           </Camp>
 
-          <Camp nume="dosar" eticheta="Număr dosar" obligatoriu erori={stare.erori["dosar"] ?? []}>
+          <Camp
+            nume="dosar"
+            id={idc("dosar")}
+            eticheta="Număr dosar"
+            obligatoriu
+            erori={stare.erori["dosar"] ?? []}
+          >
             {(a) => (
               <input
                 {...a}
@@ -112,6 +108,7 @@ export function FormularPoprireNoua({ angajati }: { readonly angajati: readonly 
 
           <Camp
             nume="creditor"
+            id={idc("creditor")}
             eticheta="Creditor"
             obligatoriu
             erori={stare.erori["creditor"] ?? []}
@@ -128,6 +125,7 @@ export function FormularPoprireNoua({ angajati }: { readonly angajati: readonly 
 
           <Camp
             nume="executor"
+            id={idc("executor")}
             eticheta="Executor judecătoresc"
             erori={stare.erori["executor"] ?? []}
           >
@@ -143,6 +141,7 @@ export function FormularPoprireNoua({ angajati }: { readonly angajati: readonly 
 
           <Camp
             nume="tip_creanta"
+            id={idc("tip_creanta")}
             eticheta="Tipul creanței"
             fel="select"
             obligatoriu
@@ -158,6 +157,7 @@ export function FormularPoprireNoua({ angajati }: { readonly angajati: readonly 
 
           <Camp
             nume="suma_totala"
+            id={idc("suma_totala")}
             eticheta="Datoria totală (lei)"
             obligatoriu
             erori={stare.erori["suma_totala"] ?? []}
@@ -175,6 +175,7 @@ export function FormularPoprireNoua({ angajati }: { readonly angajati: readonly 
 
           <Camp
             nume="suma_lunara"
+            id={idc("suma_lunara")}
             eticheta="Rata lunară de reținut (lei)"
             obligatoriu
             ajutor="Plafonată automat la o treime din net pentru un singur dosar, la jumătate când sunt mai multe."
@@ -193,6 +194,7 @@ export function FormularPoprireNoua({ angajati }: { readonly angajati: readonly 
 
           <Camp
             nume="prioritate"
+            id={idc("prioritate")}
             eticheta="Prioritate"
             ajutor="Numărul mai mic se satisface primul."
             erori={stare.erori["prioritate"] ?? []}
@@ -210,6 +212,7 @@ export function FormularPoprireNoua({ angajati }: { readonly angajati: readonly 
 
           <Camp
             nume="data_inceput"
+            id={idc("data_inceput")}
             eticheta="Data de început"
             obligatoriu
             erori={stare.erori["data_inceput"] ?? []}
@@ -221,6 +224,7 @@ export function FormularPoprireNoua({ angajati }: { readonly angajati: readonly 
 
           <Camp
             nume="data_sfarsit"
+            id={idc("data_sfarsit")}
             eticheta="Data de sfârșit"
             erori={stare.erori["data_sfarsit"] ?? []}
           >
@@ -231,6 +235,7 @@ export function FormularPoprireNoua({ angajati }: { readonly angajati: readonly 
 
           <Camp
             nume="observatii"
+            id={idc("observatii")}
             eticheta="Observații"
             fel="textarea"
             erori={stare.erori["observatii"] ?? []}
@@ -245,22 +250,8 @@ export function FormularPoprireNoua({ angajati }: { readonly angajati: readonly 
               />
             )}
           </Camp>
-
-          <div className="flex gap-2 sm:col-span-2">
-            <Buton type="submit" varianta="primar" inCurs={stare.inCurs} textInCurs="Se salvează…">
-              Deschide dosarul
-            </Buton>
-            <Buton
-              varianta="secundar"
-              onClick={() => {
-                setDeschis(false);
-              }}
-            >
-              Renunță
-            </Buton>
-          </div>
-        </>
+        </div>
       )}
-    </Formular>
+    </FormularDialog>
   );
 }

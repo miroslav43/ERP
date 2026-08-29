@@ -1,5 +1,6 @@
 // src/schemas/ssm.ts
 import { z } from "zod";
+import { numarOptional } from "./comun";
 import { optional } from "./comun";
 
 /**
@@ -137,15 +138,6 @@ const dataOptionala = z
   .nullable()
   .default(null);
 
-const numarOptional = (min: number, max: number) =>
-  z.coerce
-    .number()
-    .min(min)
-    .max(max)
-    .nullable()
-    .default(null)
-    .or(z.literal("").transform(() => null));
-
 /**
  * Înregistrarea în bloc a unei instruiri: un tip, o dată, N angajați.
  *
@@ -161,7 +153,12 @@ export const instruireBlocSchema = z.object({
   lector_extern: textOptional(120),
   tematica: textOptional(2000),
   materiale: textOptional(500),
-  test_punctaj: numarOptional(0, 100),
+  test_punctaj: numarOptional({
+    min: 0,
+    max: 100,
+    mesaj: "Punctajul testului trebuie să fie un număr.",
+    interval: "Punctajul testului este între 0 și 100.",
+  }),
   observatii: textOptional(1000),
   employee_ids: z.array(z.uuid()).min(1, "Alegeți cel puțin un angajat.").max(200),
 });
@@ -180,7 +177,12 @@ export const fisaAptitudineSchema = z.object({
   rezultat: z.enum(REZULTATE_EXAMEN),
   valabil_pana: dataOptionala,
   numar_fisa: textOptional(64),
-  cost: numarOptional(0, 1_000_000),
+  cost: numarOptional({
+    min: 0,
+    max: 1_000_000,
+    mesaj: "Costul trebuie să fie un număr.",
+    interval: "Costul este între 0 și 1.000.000.",
+  }),
 });
 export type FisaAptitudine = z.output<typeof fisaAptitudineSchema>;
 
@@ -223,7 +225,12 @@ export type FinalizeazaCercetare = z.output<typeof finalizeazaCercetareSchema>;
 export const stingatorSchema = z.object({
   cod: z.string().trim().min(1, "Codul este obligatoriu.").max(40),
   tip: z.string().trim().min(1, "Tipul este obligatoriu.").max(60),
-  masa_kg: numarOptional(0.1, 200),
+  masa_kg: numarOptional({
+    min: 0.1,
+    max: 200,
+    mesaj: "Masa trebuie să fie un număr.",
+    interval: "Masa este între 0,1 și 200 kg.",
+  }),
   cladire: textOptional(120),
   locatie: z.string().trim().min(1, "Locația este obligatorie.").max(200),
   producator: textOptional(120),
@@ -251,7 +258,12 @@ export const verificareStingatorSchema = z.object({
   executant: textOptional(120),
   firma_autorizata: textOptional(160),
   rezultat: z.enum(REZULTATE_VERIFICARE_STINGATOR).default("conform"),
-  cost: numarOptional(0, 100_000),
+  cost: numarOptional({
+    min: 0,
+    max: 100_000,
+    mesaj: "Costul trebuie să fie un număr.",
+    interval: "Costul este între 0 și 100.000.",
+  }),
   observatii: textOptional(1000),
 });
 export type VerificareStingator = z.output<typeof verificareStingatorSchema>;
@@ -272,7 +284,12 @@ export const eipSchema = z.object({
     .nullable()
     .default(null)
     .or(z.literal("").transform(() => null)),
-  valoare: numarOptional(0, 100_000),
+  valoare: numarOptional({
+    min: 0,
+    max: 100_000,
+    mesaj: "Valoarea trebuie să fie un număr.",
+    interval: "Valoarea este între 0 și 100.000.",
+  }),
   semnatura_confirmata: z.coerce.boolean().default(false),
 });
 export type EipInput = z.output<typeof eipSchema>;

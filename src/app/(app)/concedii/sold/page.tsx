@@ -190,26 +190,33 @@ export default async function PaginaSoldConcediu({ searchParams }: ProprietatiPa
   const parametri = await searchParams;
   const an = anDinUrl(parametri["an"], Number(todayInBucharest().slice(0, 4)));
 
-  const { tipuri, solduri } = await soldAnual(tenant.organizationId, an);
-
-  // Fișa proprie: chiar și cu `employees:read = team`, o fișă se conține pe
-  // sine în propriul `manager_path`, deci lectura trece de RLS pentru orice
-  // rol care are cel puțin scope „team” pe `employees:read`. Pentru „own”
-  // (rolul `employee`, `employees:read = none`) rămâne `null` — și e corect.
   const db = await createServerSupabase();
-  const { data: fisaProprie } = await db
-    .from("employees")
-    .select("id")
-    .eq("organization_id", tenant.organizationId)
-    .eq("user_id", user.id)
-    .eq("is_primary", true)
-    .is("deleted_at", null)
-    .maybeSingle<{ id: string }>();
 
-  const { randuri: istoric, trunchiat: istoricTrunchiat } = await istoricSold(
-    tenant.organizationId,
-    an,
-  );
+  /*
+    Trei citiri independente, un singur val.
+    Erau în serie: soldul, apoi fișa proprie, apoi istoricul. Niciuna nu are
+    nevoie de rezultatul celeilalte — toate trei se descurcă cu `(tenant, an)`
+    și, pentru fișă, cu `user.id`.
+  */
+  const [{ tipuri, solduri }, fisaProprieRes, { randuri: istoric, trunchiat: istoricTrunchiat }] =
+    await Promise.all([
+      soldAnual(tenant.organizationId, an),
+      // Fișa proprie: chiar și cu `employees:read = team`, o fișă se conține pe
+      // sine în propriul `manager_path`, deci lectura trece de RLS pentru orice
+      // rol care are cel puțin scope „team” pe `employees:read`. Pentru „own”
+      // (rolul `employee`, `employees:read = none`) rămâne `null` — și e corect.
+      db
+        .from("employees")
+        .select("id")
+        .eq("organization_id", tenant.organizationId)
+        .eq("user_id", user.id)
+        .eq("is_primary", true)
+        .is("deleted_at", null)
+        .maybeSingle<{ id: string }>(),
+      istoricSold(tenant.organizationId, an),
+    ]);
+
+  const fisaProprie = fisaProprieRes.data;
 
   // Numele mișcărilor din istoric. Se citesc DOAR peste scope „own”: pentru cine
   // vede numai propriul sold, toate liniile sunt ale lui și o coloană „Angajat”

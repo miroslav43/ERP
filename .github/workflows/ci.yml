@@ -3,6 +3,12 @@ name: CI
 on:
   push:
     branches: [main]
+    # Vault-ul are propria poartă (`vault.yml`). Un commit de documentație nu
+    # are voie să declanșeze CI-ul complet — și mai ales nu are voie să ANULEZE
+    # rularea în curs pentru un commit de cod: `concurrency` de mai jos are
+    # `cancel-in-progress: true` pe un grup comun întregului `main`.
+    paths-ignore:
+      - ".claude/docs/**"
   pull_request:
 
 concurrency:

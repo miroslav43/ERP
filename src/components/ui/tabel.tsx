@@ -6,6 +6,7 @@ import type { ReactElement, ReactNode } from "react";
 import { cn } from "@/lib/ui/cn";
 
 import { RandTabel } from "../data/rand-tabel";
+import { SenzorLink } from "@/components/incarcare/senzor-link";
 
 /**
  * Tabelul aplicației. Înlocuiește 57 de `<table>` scrise de mână.
@@ -270,6 +271,13 @@ function AntetColoana<R>({
         ) : (
           <ChevronsUpDown aria-hidden="true" className="size-3.5 shrink-0 opacity-40" />
         )}
+        {/*
+          Sortarea reordonează pe SERVER (`hrefSortare` schimbă adresa, iar
+          pagina reface interogarea), deci între clic și rânduri e un dus-întors
+          întreg în care antetul arăta exact ca înainte — inclusiv `aria-sort`,
+          care rămânea pe coloana veche.
+        */}
+        <SenzorLink eticheta="tabelul" />
       </Link>
     </th>
   );

@@ -27,41 +27,65 @@ export default async function PaginaAngajatNou() {
   }
 
   const db = await createServerSupabase();
-  const [departamente, functii, angajati, organizatie, obiecteInventar] = await Promise.all([
-    db
-      .from("departments")
-      .select("id, denumire")
-      .eq("organization_id", tenant.organizationId)
-      .eq("activ", true)
-      .is("deleted_at", null)
-      .order("denumire"),
-    db
-      .from("job_positions")
-      .select("id, denumire")
-      .eq("organization_id", tenant.organizationId)
-      .eq("activ", true)
-      .is("deleted_at", null)
-      .order("denumire"),
-    db
-      .from("employees")
-      .select("id, full_name")
-      .eq("organization_id", tenant.organizationId)
-      .eq("status", "activ")
-      .is("deleted_at", null)
-      .order("full_name"),
-    db
-      .from("organizations")
-      .select("zile_concediu_anual_implicit")
-      .eq("id", tenant.organizationId)
-      .maybeSingle(),
-    // Golul dacă modulul Inventar nu e activat: RLS filtrează tăcut, nu aruncă.
-    db
-      .from("inventory_items")
-      .select("id, denumire, numar_inventar")
-      .eq("organization_id", tenant.organizationId)
-      .eq("status", "in_stoc")
-      .order("denumire"),
-  ]);
+  const [departamente, functii, angajati, organizatie, obiecteInventar, puncteLucru, contor] =
+    await Promise.all([
+      db
+        .from("departments")
+        .select("id, denumire")
+        .eq("organization_id", tenant.organizationId)
+        .eq("activ", true)
+        .is("deleted_at", null)
+        .order("denumire"),
+      db
+        .from("job_positions")
+        .select("id, denumire")
+        .eq("organization_id", tenant.organizationId)
+        .eq("activ", true)
+        .is("deleted_at", null)
+        .order("denumire"),
+      db
+        .from("employees")
+        .select("id, full_name")
+        .eq("organization_id", tenant.organizationId)
+        .eq("status", "activ")
+        .is("deleted_at", null)
+        .order("full_name"),
+      db
+        .from("organizations")
+        .select("zile_concediu_anual_implicit")
+        .eq("id", tenant.organizationId)
+        .maybeSingle(),
+      // Golul dacă modulul Inventar nu e activat: RLS filtrează tăcut, nu aruncă.
+      db
+        .from("inventory_items")
+        .select("id, denumire, numar_inventar")
+        .eq("organization_id", tenant.organizationId)
+        .eq("status", "in_stoc")
+        .order("denumire"),
+      db
+        .from("puncte_lucru")
+        .select("id, denumire")
+        .eq("organization_id", tenant.organizationId)
+        .eq("activ", true)
+        .is("deleted_at", null)
+        .order("denumire"),
+      /*
+       * Următorul număr de contract, CITIT — nu consumat.
+       *
+       * `public.aloca_numar_contract` avansează contorul, deci nu poate fi
+       * chemată ca să afișeze o previzualizare: fiecare deschidere de formular ar
+       * arde un număr. Aici se citește starea contorului; alocarea reală, atomică,
+       * se face la salvare. Numărul afișat poate fi depășit de o înrolare
+       * simultană — de aceea e text de ajutor, nu valoare precompletată.
+       */
+      db
+        .from("document_sequences")
+        .select("next_number")
+        .eq("organization_id", tenant.organizationId)
+        .eq("document_type", "contract_munca")
+        .eq("year", new Date().getFullYear())
+        .maybeSingle(),
+    ]);
 
   return (
     <div className={cn(LATIMI.formular, "space-y-6")}>
@@ -76,10 +100,12 @@ export default async function PaginaAngajatNou() {
           id: a.id,
           full_name: a.full_name ?? "",
         }))}
+        puncteLucru={puncteLucru.data ?? []}
         zileConcediuImplicit={
           organizatie.data?.zile_concediu_anual_implicit ?? ZILE_CONCEDIU_IMPLICIT_FALLBACK
         }
         obiecteDisponibile={obiecteInventar.data ?? []}
+        numarUrmator={`${String(contor.data?.next_number ?? 1)}/${String(new Date().getFullYear())}`}
       />
     </div>
   );

@@ -1,11 +1,9 @@
 "use client";
 
-import { useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { Plus } from "lucide-react";
 
-import { Buton } from "@/components/ui/buton";
 import { Camp } from "@/components/ui/camp";
-import { Formular } from "@/components/ui/formular";
+import { FormularDialog } from "@/components/ui/formular-dialog";
 
 import { adaugaAutorizatieNominala } from "../actions";
 
@@ -36,8 +34,6 @@ export function FormularAutorizatie({
 }: {
   readonly angajati: readonly AngajatOptiune[];
 }) {
-  const router = useRouter();
-
   async function trimite(formular: FormData) {
     const text = (cheie: string) => {
       const v = String(formular.get(cheie) ?? "").trim();
@@ -61,19 +57,20 @@ export function FormularAutorizatie({
     });
   }
 
-  // Stabil între randări: `laReusita` intră în lista de dependențe a efectului
-  // din `<Formular>`, iar o funcție nouă la fiecare randare ar relua efectul —
-  // adică încă o notificare de reușită la fiecare re-randare.
-  const laReusita = useCallback(() => {
-    router.refresh();
-  }, [router]);
-
   return (
-    <Formular
+    <FormularDialog
+      declansator={{
+        eticheta: "Autorizație nominală nouă",
+        varianta: "secundar",
+        pictograma: <Plus aria-hidden="true" className="size-4" />,
+      }}
+      titlu="Autorizație nominală nouă"
+      descriere="Data de expirare intră direct în lista de scadențe: un stivuitorist cu autorizația expirată apare acolo a doua zi. Autorizația se adaugă activă — suspendarea se face din listă."
+      marime="mare"
       actiune={trimite}
-      laReusita={laReusita}
       mesajReusita="Autorizația a fost adăugată."
-      className="border-border rounded-panou border p-4"
+      etichetaTrimite="Adaugă autorizația"
+      textInCurs="Se salvează…"
     >
       {(stare) => {
         // Formularul rămâne pe ecran după salvare, deci trebuie să repornească
@@ -84,8 +81,6 @@ export function FormularAutorizatie({
 
         return (
           <>
-            <p className="text-corp font-medium">Adaugă o autorizație nominală</p>
-
             <div className="grid gap-3 sm:grid-cols-3">
               <Camp
                 nume="employee_id"
@@ -156,20 +151,9 @@ export function FormularAutorizatie({
                 {(a) => <input {...a} type="date" defaultValue={trimise["valabil_pana"] ?? ""} />}
               </Camp>
             </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <Buton
-                type="submit"
-                varianta="primar"
-                inCurs={stare.inCurs}
-                textInCurs="Se salvează…"
-              >
-                Adaugă autorizația
-              </Buton>
-            </div>
           </>
         );
       }}
-    </Formular>
+    </FormularDialog>
   );
 }

@@ -1686,6 +1686,22 @@ begin
   values (v_alfa, v_ang_alfa, current_date - 5, 8, 'lucratoare', now())
   returning id into v_pontaj_apr;
 
+  -- 0096: plasa de sub aprobare. `aprobaPontajBloc` sare peste zilele în curs,
+  -- dar filtrul e în APLICAȚIE — o cale de scriere nouă l-ar putea ocoli. Fără
+  -- constrângerea din bază, o zi deschisă aprobată la prânz rămâne înghețată la
+  -- zero ore, iar „Am ieșit" de la ora 17 e respins TĂCUT de clauza `USING`.
+  -- Rulează cu rolul sesiunii, fără RLS: se probează constrângerea, nu politica.
+  begin
+    insert into public.attendance_entries (organization_id, employee_id, data, ora_inceput, ore_lucrate, tip_zi, approved_at)
+    values (v_alfa, v_ang_alfa, current_date - 4, '08:00', 0, 'lucratoare', now());
+    v_scapate := v_scapate || E'\n  constrângere -> attendance_entries_aprobare_zi_incheiata_ck: o zi DESCHISĂ a fost aprobată, deși constrângerea trebuia s-o oprească';
+  exception
+    when check_violation then
+      v_reusite := v_reusite || E'\n  constrângere -> ziua deschisă nu poate fi aprobată (23514)';
+    when others then
+      v_esuate := v_esuate || format(E'\n  constrângere -> ziua deschisă aprobată: a căzut cu %s (%s), nu cu 23514', sqlerrm, sqlstate);
+  end;
+
   -- Instanța proprie de checklist și un pas al cărui responsabil e chiar el.
   select id into v_inst_mea from public.checklist_instances
    where organization_id = v_alfa and employee_id = v_ang_alfa and deleted_at is null
@@ -1755,6 +1771,23 @@ begin
       -- `current_date - 1` (org_admin), iar pregătirea de mai sus `- 5`.
       ('employee', 'attendance_entries (ziua proprie)',    'PERMIS',
        'insert into public.attendance_entries (organization_id, employee_id, data, ore_lucrate, tip_zi) values ($1,$6,current_date - 3,8,''lucratoare'')'),
+
+      -- 0096, jumătatea întâi a ceasului: ziua deschisă are DOAR ora de intrare,
+      -- `ora_sfarsit` NULL și ZERO ore. Forma asta n-a fost niciodată produsă de
+      -- un angajat până acum (formularul cerea obligatoriu ambele ore), deci
+      -- nimic nu dovedise că politica o acceptă. Memoria proiectului spune că
+      -- raționamentul despre ce poate scrie un rol a greșit de patru ori — de
+      -- aceea se probează, nu se deduce.
+      ('employee', 'attendance_entries (zi în curs)',       'PERMIS',
+       'insert into public.attendance_entries (organization_id, employee_id, data, ora_inceput, ore_lucrate, tip_zi, sursa) values ($1,$6,current_date - 2,''08:00'',0,''lucratoare'',''pontare_rapida'')'),
+
+      -- Jumătatea a doua, cea care contează cel mai mult: „Am ieșit" e un UPDATE
+      -- pe un rând propriu, neaprobat. `PERMIS_RAND`, nu `PERMIS`: un UPDATE
+      -- respins de clauza `USING` NU aruncă — afectează zero rânduri și tace.
+      -- Marcat `PERMIS`, testul ar fi verde chiar dacă politica ar respinge
+      -- tăcut fiecare închidere de zi din portal.
+      ('employee', 'attendance_entries (închide ziua)',     'PERMIS_RAND',
+       'update public.attendance_entries set ora_sfarsit = ''16:30'', ore_lucrate = 8 where organization_id = $1 and employee_id = $6 and data = current_date - 2'),
 
       -- Capcana tăcută a modulului: `attendance_entries_update` (0013:795) cere
       -- `approved_at is null`. Un UPDATE respins de `USING` NU aruncă — afectează
@@ -2698,6 +2731,183 @@ begin
     -- de 12 pași ar produce 12 notificări dintr-un singur gest.
     if v_notif > 1 then
       v_esuate := v_esuate || format(E'\n  notificare: %s mesaje pentru un singur om, se aștepta 1', v_notif);
+    end if;
+  end;
+
+  -- ───────────────────────────────────────────────────────────────────────
+  -- ÎNROLARE (0097–0101). Numerotarea contractului, permisiunea îngustă de
+  -- invitare, punctul de lucru și legarea contului de fișă.
+  --
+  -- Cele patru au fost probate întâi într-un fișier separat, rulat cu mâna
+  -- (`tests/rls/proba-inrolare.sql`, șters odată cu blocul ăsta). Cazurile care
+  -- chiar apără ceva stau aici: `izolare.sql` rulează în CI la fiecare PR, iar
+  -- o bancă opt-in rulează când își amintește cineva.
+  -- ───────────────────────────────────────────────────────────────────────
+  declare
+    v_beta_org   uuid := pg_temp.id('beta');
+    -- Blocul (l) nu leagă administratorul lui Beta; îl luăm din fixture, ca
+    -- blocul de dovezi de mai sus.
+    v_adm_beta   uuid := pg_temp.id('admin_beta');
+    v_numar_1    text;
+    v_numar_10   text;
+    v_an         text := extract(year from current_date)::text;
+    v_punct      uuid;
+    v_punct_beta uuid;
+    v_ang_nou    uuid;
+    v_invit      uuid;
+    v_user_nou   uuid := gen_random_uuid();
+    v_legat      uuid;
+    i            integer;
+  begin
+    -- Contorul anului TRECUT, dus la 57. Anul curent trebuie să pornească
+    -- oricum de la 1: `document_sequences` are anul în cheie, deci separarea
+    -- vine din construcție, nu dintr-un job de la 1 ianuarie.
+    insert into public.document_sequences
+      (organization_id, document_type, year, prefix, next_number, padding)
+    values (v_alfa, 'contract_munca', extract(year from current_date)::int - 1, '', 57, 1);
+
+    -- (1) `hr` alocă numere de contract; `manager`, care n-are
+    -- `employees:create`, e refuzat. Absența permisiunii ESTE refuzul.
+    perform set_config('request.jwt.claim.sub', v_hr_user::text, true);
+    set local role authenticated;
+    begin
+      v_numar_1 := public.aloca_numar_contract(v_alfa);
+      -- Al zecelea număr al anului: singurul loc unde s-ar fi văzut trunchierea
+      -- `lpad`. `lpad('10', 1, '0')` = `'1'`, care ar fi coliziat cu primul
+      -- contract și ar fi blocat numerotarea pentru tot restul anului. O probă
+      -- pe 1 și 2 n-ar fi arătat nimic.
+      for i in 2..10 loop
+        v_numar_10 := public.aloca_numar_contract(v_alfa);
+      end loop;
+      if v_numar_1 <> '1/' || v_an then
+        -- Și proba resetării anuale: contorul lui 57 din anul trecut nu are
+        -- voie să se scurgă în anul curent.
+        v_esuate := v_esuate || format(E'\n  aloca_numar_contract: primul număr „%s", se aștepta „1/%s" (resetare anuală)', v_numar_1, v_an);
+      elsif v_numar_10 <> '10/' || v_an then
+        v_esuate := v_esuate || format(E'\n  aloca_numar_contract: al zecelea număr „%s", se aștepta „10/%s" (trunchiere lpad)', v_numar_10, v_an);
+      else
+        v_reusite := v_reusite || E'\n  hr -> aloca_numar_contract (1…10, fără trunchiere)';
+      end if;
+    exception when others then
+      v_esuate := v_esuate || format(E'\n  hr -> aloca_numar_contract: %s (%s)', sqlerrm, sqlstate);
+    end;
+    reset role;
+
+    perform set_config('request.jwt.claim.sub', v_mgr_user::text, true);
+    set local role authenticated;
+    begin
+      perform public.aloca_numar_contract(v_alfa);
+      v_scapate := v_scapate || E'\n  manager -> aloca_numar_contract: a putut consuma un număr din registru';
+    exception when others then
+      v_reusite := v_reusite || E'\n  manager -> aloca_numar_contract: refuzat corect';
+    end;
+    reset role;
+
+    -- (2) Punctul de lucru pe contract, cu cheie compusă de tenant.
+    perform set_config('request.jwt.claim.sub', v_admin::text, true);
+    set local role authenticated;
+    insert into public.puncte_lucru (organization_id, denumire)
+    values (v_alfa, 'Punct probă ' || v_rand) returning id into v_punct;
+    insert into public.employees (organization_id, marca, first_name, last_name)
+    values (v_alfa, 'L-INR-' || left(v_rand, 6), 'Probă', 'Înrolare') returning id into v_ang_nou;
+    reset role;
+
+    perform set_config('request.jwt.claim.sub', v_adm_beta::text, true);
+    set local role authenticated;
+    insert into public.puncte_lucru (organization_id, denumire)
+    values (v_beta_org, 'Punct Beta ' || v_rand) returning id into v_punct_beta;
+    reset role;
+
+    perform set_config('request.jwt.claim.sub', v_hr_user::text, true);
+    set local role authenticated;
+    begin
+      insert into public.employment_contracts
+        (organization_id, employee_id, numar, data_contract, valabil_de_la, salariu_baza, punct_lucru_id)
+      values (v_alfa, v_ang_nou, 'L-' || v_rand, current_date, current_date, 5000, v_punct);
+      v_reusite := v_reusite || E'\n  hr -> employment_contracts cu punct de lucru propriu';
+    exception when others then
+      v_esuate := v_esuate || format(E'\n  hr -> contract cu punct de lucru: %s (%s)', sqlerrm, sqlstate);
+    end;
+
+    -- Punctul de lucru al ALTEI firme. FK-ul e compus `(punct_lucru_id,
+    -- organization_id)`, tocmai fiindcă unul simplu ar fi verificat existența
+    -- rândului, nu apartenența lui — iar un uuid trimis direct către Server
+    -- Action ar fi intrat în contract.
+    begin
+      insert into public.employment_contracts
+        (organization_id, employee_id, numar, data_contract, valabil_de_la, salariu_baza, punct_lucru_id)
+      values (v_alfa, v_ang_nou, 'L-BETA-' || v_rand, current_date, current_date, 5000, v_punct_beta);
+      v_scapate := v_scapate || E'\n  hr -> contract cu punctul de lucru al ALTEI firme: acceptat';
+    exception when others then
+      v_reusite := v_reusite || E'\n  contract cu punct de lucru din altă firmă: refuzat corect';
+    end;
+    reset role;
+
+    -- (3) Permisiunea îngustă `employees:invite`. Aici stă tot rostul ei: `hr`
+    -- poate invita un ANGAJAT, dar nu un administrator. Dacă a doua trece,
+    -- cheia nouă a devenit `users:create` sub alt nume.
+    perform set_config('request.jwt.claim.sub', v_hr_user::text, true);
+    set local role authenticated;
+    perform set_config('request.jwt.claim.sub', v_hr_user::text, true);
+    set local role authenticated;
+    -- `returning id into …`, ca în aplicație. NU e un detaliu de stil:
+    -- `RETURNING` pe o tabelă cu RLS trece ȘI prin politica de SELECT, iar
+    -- `hr` n-are `users:read`. Prima versiune a probei insera fără `RETURNING`
+    -- și raporta verde pe un defect care ar fi rupt fiecare înrolare făcută de
+    -- HR. Reparat în 0104.
+    begin
+      insert into public.invitations
+        (organization_id, email, role, token_hash, expires_at, employee_id)
+      values (v_alfa, 'probal-' || v_rand || '@exemplu.test', 'employee',
+              md5(v_rand) || md5(v_rand), now() + interval '7 days', v_ang_nou)
+      returning id into v_invit;
+      v_reusite := v_reusite || E'\n  hr -> invitations (rol employee, legată de fișă)';
+    exception when others then
+      v_esuate := v_esuate || format(E'\n  hr -> invitations (rol employee): %s (%s)', sqlerrm, sqlstate);
+    end;
+
+    begin
+      insert into public.invitations
+        (organization_id, email, role, token_hash, expires_at)
+      values (v_alfa, 'sefl-' || v_rand || '@exemplu.test', 'org_admin',
+              md5(v_rand || 'b') || md5(v_rand || 'b'), now() + interval '7 days');
+      v_scapate := v_scapate || E'\n  hr -> invitations cu rol org_admin: ESCALADARE de privilegiu';
+    exception when others then
+      v_reusite := v_reusite || E'\n  hr -> invitations cu rol org_admin: refuzat corect';
+    end;
+    reset role;
+
+    -- `employee` n-are nici `users:create`, nici `employees:invite`.
+    perform set_config('request.jwt.claim.sub', v_emp_user::text, true);
+    set local role authenticated;
+    begin
+      insert into public.invitations
+        (organization_id, email, role, token_hash, expires_at)
+      values (v_alfa, 'empl-' || v_rand || '@exemplu.test', 'employee',
+              md5(v_rand || 'c') || md5(v_rand || 'c'), now() + interval '7 days');
+      v_scapate := v_scapate || E'\n  employee -> invitations: a putut invita pe cineva';
+    exception when others then
+      v_reusite := v_reusite || E'\n  employee -> invitations: refuzat corect';
+    end;
+    reset role;
+
+    -- (4) Legarea contului de fișă, la acceptarea invitației.
+    --
+    -- `employees.user_id` e citit de `app.current_employee_id()` și de toate
+    -- ramurile `own` din RLS, dar NU era scris niciodată de aplicație: omul
+    -- primea cont și tot n-avea fișă. Triggerul din 0099 închide bucla.
+    if v_invit is not null then
+      insert into auth.users (id, email) values (v_user_nou, 'legat-' || v_rand || '@exemplu.test');
+      insert into public.organization_members (organization_id, user_id, role, invitation_id)
+      values (v_alfa, v_user_nou, 'employee', v_invit);
+
+      select user_id into v_legat from public.employees where id = v_ang_nou;
+      if v_legat is distinct from v_user_nou then
+        v_esuate := v_esuate || format(
+          E'\n  acceptarea invitației NU a legat contul de fișă (user_id = %s)', coalesce(v_legat::text, 'NULL'));
+      else
+        v_reusite := v_reusite || E'\n  acceptarea invitației leagă contul de fișă (employees.user_id)';
+      end if;
     end if;
   end;
 

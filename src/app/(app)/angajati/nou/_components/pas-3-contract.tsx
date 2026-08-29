@@ -1,8 +1,10 @@
 // src/app/(app)/angajati/nou/_components/pas-3-contract.tsx
 "use client";
 
+import { useEffect, useState } from "react";
 import { useWatch, type UseFormReturn } from "react-hook-form";
 
+import { Camp } from "@/components/ui/camp";
 import {
   CONDITII_MUNCA,
   DURATE_CONTRACT,
@@ -10,7 +12,13 @@ import {
   REGIMURI_SPECIALE,
   type InroleazaAngajatInput,
 } from "@/schemas/employee";
-import { claseCamp, claseLabel, Eroare } from "./campuri-comune";
+import {
+  ETICHETE_CONDITII_MUNCA,
+  ETICHETE_DURATA_CONTRACT,
+  ETICHETE_MOD_LUCRU,
+  ETICHETE_REGIM_SPECIAL,
+} from "../../etichete";
+import { mesajCamp } from "./erori-formular";
 
 export const CAMPURI_PAS_3 = [
   "department_id",
@@ -30,6 +38,7 @@ export const CAMPURI_PAS_3 = [
   "special_regime",
   "loc_telemunca",
   "loc_munca",
+  "punct_lucru_id",
   "salariu_baza",
   "moneda",
   "zile_concediu_anual",
@@ -51,23 +60,30 @@ interface OptiuneAngajat {
 
 interface Proprietati {
   readonly formular: UseFormReturn<InroleazaAngajatInput>;
-  readonly idFormular: string;
   readonly departamente: readonly Optiune[];
   readonly functii: readonly Optiune[];
   readonly angajati: readonly OptiuneAngajat[];
+  readonly puncteLucru: readonly Optiune[];
+  /** Următorul număr liber, doar ca text de ajutor. Alocarea reală e la salvare. */
+  readonly numarUrmator: string | null;
 }
+
+/** Santinela din `<select>` pentru „locul nu e nici sediul, nici un punct de lucru". */
+const ALTA_LOCATIE = "ALTA";
 
 export function Pas3Contract({
   formular,
-  idFormular,
   departamente,
   functii,
   angajati,
+  puncteLucru,
+  numarUrmator,
 }: Proprietati) {
   const {
     register,
     control,
-    formState: { errors },
+    setValue,
+    formState: { errors, dirtyFields },
   } = formular;
   // `useWatch`, NU `formular.watch(…)`. `watch` abonează doar componenta care
   // apelează `useForm` (asistentul), nu și pașii lui, iar cu React Compiler
@@ -78,363 +94,390 @@ export function Pas3Contract({
   // niciodată, iar validarea pica apoi pe un câmp invizibil.
   const modLucru = useWatch({ control, name: "work_mode" });
   const durataContract = useWatch({ control, name: "contract_duration" });
+  const valabilDeLa = useWatch({ control, name: "valabil_de_la" });
+  const punctAles = useWatch({ control, name: "punct_lucru_id" });
+  const esteLaDistanta = modLucru === "telemunca" || modLucru === "domiciliu";
+
+  const [altaLocatie, setAltaLocatie] = useState(false);
+
+  /*
+   * Vechimea în unitate se completează singură din „Angajat de la".
+   *
+   * La o angajare obișnuită sunt aceeași dată, iar a doua oară e muncă în plus.
+   * `dirtyFields` e discriminantul: în clipa în care omul atinge câmpul,
+   * oglindirea se oprește definitiv — cazul reangajării, unde vechimea e mai
+   * veche decât contractul.
+   *
+   * `setValue`, nu `setState`: React Compiler interzice al doilea într-un efect
+   * (`react-hooks/set-state-in-effect`), fiindcă produce randări în cascadă.
+   */
+  useEffect(() => {
+    if (dirtyFields.hired_on === true) return;
+    if (typeof valabilDeLa !== "string" || valabilDeLa === "") return;
+    setValue("hired_on", valabilDeLa, { shouldDirty: false });
+  }, [valabilDeLa, dirtyFields.hired_on, setValue]);
 
   return (
     <div className="space-y-6">
       <fieldset className="border-border rounded-panou space-y-4 border p-4">
         <legend className="text-foreground text-corp px-1 font-medium">Organizare</legend>
         <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor={`${idFormular}-departament`} className={claseLabel}>
-              Departament
-            </label>
-            <select
-              id={`${idFormular}-departament`}
-              {...register("department_id")}
-              className={claseCamp}
-            >
-              <option value="">— Nealocat —</option>
-              {departamente.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.denumire}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label htmlFor={`${idFormular}-functie`} className={claseLabel}>
-              Funcție
-            </label>
-            <select
-              id={`${idFormular}-functie`}
-              {...register("job_position_id")}
-              className={claseCamp}
-            >
-              <option value="">— Nealocată —</option>
-              {functii.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.denumire}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label htmlFor={`${idFormular}-manager`} className={claseLabel}>
-              Manager direct
-            </label>
-            <select
-              id={`${idFormular}-manager`}
-              {...register("manager_employee_id")}
-              className={claseCamp}
-            >
-              <option value="">— Fără —</option>
-              {angajati.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.full_name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label htmlFor={`${idFormular}-conditii`} className={claseLabel}>
-              Condiții de muncă
-            </label>
-            <select
-              id={`${idFormular}-conditii`}
-              {...register("conditii_munca")}
-              className={claseCamp}
-            >
-              {CONDITII_MUNCA.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
+          <Camp
+            nume="department_id"
+            eticheta="Departament"
+            fel="select"
+            erori={mesajCamp(errors.department_id)}
+          >
+            {(atribute) => (
+              <select {...atribute} {...register("department_id")}>
+                <option value="">— Nealocat —</option>
+                {departamente.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.denumire}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Camp>
+          <Camp
+            nume="job_position_id"
+            eticheta="Funcție"
+            fel="select"
+            erori={mesajCamp(errors.job_position_id)}
+          >
+            {(atribute) => (
+              <select {...atribute} {...register("job_position_id")}>
+                <option value="">— Nealocată —</option>
+                {functii.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.denumire}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Camp>
+          <Camp
+            nume="manager_employee_id"
+            eticheta="Manager direct"
+            fel="select"
+            erori={mesajCamp(errors.manager_employee_id)}
+          >
+            {(atribute) => (
+              <select {...atribute} {...register("manager_employee_id")}>
+                <option value="">— Fără —</option>
+                {angajati.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.full_name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Camp>
+          <Camp
+            nume="conditii_munca"
+            eticheta="Condiții de muncă"
+            fel="select"
+            erori={mesajCamp(errors.conditii_munca)}
+          >
+            {(atribute) => (
+              <select {...atribute} {...register("conditii_munca")}>
+                {CONDITII_MUNCA.map((c) => (
+                  <option key={c} value={c}>
+                    {ETICHETE_CONDITII_MUNCA[c]}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Camp>
         </div>
       </fieldset>
 
       <fieldset className="border-border rounded-panou space-y-4 border p-4">
         <legend className="text-foreground text-corp px-1 font-medium">Contractul de muncă</legend>
         <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor={`${idFormular}-numar`} className={claseLabel}>
-              Număr contract *
-            </label>
-            <input
-              id={`${idFormular}-numar`}
-              {...register("numar")}
-              aria-invalid={Boolean(errors.numar)}
-              className={claseCamp}
-            />
-            <Eroare id={`${idFormular}-numar-eroare`} mesaj={errors.numar?.message} />
-          </div>
-          <div>
-            <label htmlFor={`${idFormular}-data-contract`} className={claseLabel}>
-              Data contractului *
-            </label>
-            <input
-              id={`${idFormular}-data-contract`}
-              type="date"
-              {...register("data_contract")}
-              aria-invalid={Boolean(errors.data_contract)}
-              className={claseCamp}
-            />
-            <Eroare
-              id={`${idFormular}-data-contract-eroare`}
-              mesaj={errors.data_contract?.message}
-            />
-          </div>
-          <div>
-            <label htmlFor={`${idFormular}-valabil-de-la`} className={claseLabel}>
-              Angajat de la (valabil de la) *
-            </label>
-            <input
-              id={`${idFormular}-valabil-de-la`}
-              type="date"
-              {...register("valabil_de_la")}
-              aria-invalid={Boolean(errors.valabil_de_la)}
-              className={claseCamp}
-            />
-            <Eroare
-              id={`${idFormular}-valabil-de-la-eroare`}
-              mesaj={errors.valabil_de_la?.message}
-            />
-          </div>
-          <div>
-            <label htmlFor={`${idFormular}-hired-on`} className={claseLabel}>
-              Data angajării (fișă)
-            </label>
-            <input
-              id={`${idFormular}-hired-on`}
-              type="date"
-              {...register("hired_on")}
-              className={claseCamp}
-            />
-          </div>
-          <div>
-            <label htmlFor={`${idFormular}-durata`} className={claseLabel}>
-              Durata contractului
-            </label>
-            <select
-              id={`${idFormular}-durata`}
-              {...register("contract_duration")}
-              className={claseCamp}
-            >
-              {DURATE_CONTRACT.map((d) => (
-                <option key={d} value={d}>
-                  {d === "nedeterminat" ? "Nedeterminată" : "Determinată"}
-                </option>
-              ))}
-            </select>
-          </div>
+          <Camp
+            nume="numar"
+            eticheta="Număr contract"
+            erori={mesajCamp(errors.numar)}
+            ajutor={
+              numarUrmator === null
+                ? "Lăsat gol, se alocă automat la salvare."
+                : `Lăsat gol, primește automat ${numarUrmator}. Completați doar pentru un contract preluat prin transfer sau importat.`
+            }
+          >
+            {(atribute) => (
+              <input
+                {...atribute}
+                {...register("numar")}
+                placeholder={numarUrmator ?? "se alocă automat"}
+              />
+            )}
+          </Camp>
+          <Camp
+            nume="data_contract"
+            eticheta="Data contractului"
+            obligatoriu
+            erori={mesajCamp(errors.data_contract)}
+          >
+            {(atribute) => <input {...atribute} type="date" {...register("data_contract")} />}
+          </Camp>
+          <Camp
+            nume="valabil_de_la"
+            eticheta="Angajat de la (valabil de la)"
+            obligatoriu
+            erori={mesajCamp(errors.valabil_de_la)}
+            ajutor="Începutul legal al acestui contract. Merge la REGES și în contractul generat."
+          >
+            {(atribute) => <input {...atribute} type="date" {...register("valabil_de_la")} />}
+          </Camp>
+          <Camp
+            nume="hired_on"
+            eticheta="Vechime în unitate din"
+            obligatoriu
+            erori={mesajCamp(errors.hired_on)}
+            ajutor="Se completează singură din „Angajat de la”. Schimbați-o doar la reangajare sau la preluare prin transfer — din ea se calculează vechimea și adeverințele."
+          >
+            {(atribute) => <input {...atribute} type="date" {...register("hired_on")} />}
+          </Camp>
+          <Camp
+            nume="contract_duration"
+            eticheta="Durata contractului"
+            fel="select"
+            erori={mesajCamp(errors.contract_duration)}
+          >
+            {(atribute) => (
+              <select {...atribute} {...register("contract_duration")}>
+                {DURATE_CONTRACT.map((d) => (
+                  <option key={d} value={d}>
+                    {ETICHETE_DURATA_CONTRACT[d]}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Camp>
           {durataContract === "determinat" ? (
             <>
-              <div>
-                <label htmlFor={`${idFormular}-valabil-pana`} className={claseLabel}>
-                  Până la *
-                </label>
-                <input
-                  id={`${idFormular}-valabil-pana`}
-                  type="date"
-                  {...register("valabil_pana")}
-                  aria-invalid={Boolean(errors.valabil_pana)}
-                  className={claseCamp}
-                />
-                <Eroare
-                  id={`${idFormular}-valabil-pana-eroare`}
-                  mesaj={errors.valabil_pana?.message}
-                />
-              </div>
-              <div>
-                <label htmlFor={`${idFormular}-motiv-determinat`} className={claseLabel}>
-                  Motivul duratei determinate
-                </label>
-                <input
-                  id={`${idFormular}-motiv-determinat`}
-                  {...register("motiv_determinat")}
-                  className={claseCamp}
-                />
-              </div>
+              <Camp
+                nume="valabil_pana"
+                eticheta="Până la"
+                obligatoriu
+                erori={mesajCamp(errors.valabil_pana)}
+              >
+                {(atribute) => <input {...atribute} type="date" {...register("valabil_pana")} />}
+              </Camp>
+              <Camp
+                nume="motiv_determinat"
+                eticheta="Motivul duratei determinate"
+                erori={mesajCamp(errors.motiv_determinat)}
+              >
+                {(atribute) => <input {...atribute} {...register("motiv_determinat")} />}
+              </Camp>
             </>
           ) : null}
-          <div>
-            <label htmlFor={`${idFormular}-norma-saptamana`} className={claseLabel}>
-              Normă (ore/săptămână)
-            </label>
-            <input
-              id={`${idFormular}-norma-saptamana`}
-              type="number"
-              step="0.5"
-              min={0.5}
-              max={48}
-              {...register("norma_ore_saptamana")}
-              className={claseCamp}
-            />
-          </div>
-          <div>
-            <label htmlFor={`${idFormular}-norma-zi`} className={claseLabel}>
-              Normă (ore/zi)
-            </label>
-            <input
-              id={`${idFormular}-norma-zi`}
-              type="number"
-              step="0.5"
-              min={0.5}
-              max={12}
-              {...register("norma_ore_zi")}
-              className={claseCamp}
-            />
-          </div>
-          <div>
-            <label htmlFor={`${idFormular}-mod-lucru`} className={claseLabel}>
-              Mod de lucru
-            </label>
-            <select id={`${idFormular}-mod-lucru`} {...register("work_mode")} className={claseCamp}>
-              {MODURI_LUCRU.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-          </div>
-          {modLucru === "telemunca" || modLucru === "domiciliu" ? (
-            <div>
-              <label htmlFor={`${idFormular}-loc-telemunca`} className={claseLabel}>
-                Locul desfășurării activității *
-              </label>
+          <Camp
+            nume="norma_ore_saptamana"
+            eticheta="Normă (ore/săptămână)"
+            erori={mesajCamp(errors.norma_ore_saptamana)}
+          >
+            {(atribute) => (
               <input
-                id={`${idFormular}-loc-telemunca`}
-                {...register("loc_telemunca")}
-                aria-invalid={Boolean(errors.loc_telemunca)}
-                className={claseCamp}
+                {...atribute}
+                type="number"
+                step="0.5"
+                min={0.5}
+                max={48}
+                {...register("norma_ore_saptamana")}
               />
-              <Eroare
-                id={`${idFormular}-loc-telemunca-eroare`}
-                mesaj={errors.loc_telemunca?.message}
-              />
-            </div>
-          ) : (
-            <div>
-              <label htmlFor={`${idFormular}-loc-munca`} className={claseLabel}>
-                Locul de muncă
-              </label>
+            )}
+          </Camp>
+          <Camp
+            nume="norma_ore_zi"
+            eticheta="Normă (ore/zi)"
+            erori={mesajCamp(errors.norma_ore_zi)}
+          >
+            {(atribute) => (
               <input
-                id={`${idFormular}-loc-munca`}
-                {...register("loc_munca")}
-                className={claseCamp}
+                {...atribute}
+                type="number"
+                step="0.5"
+                min={0.5}
+                max={12}
+                {...register("norma_ore_zi")}
               />
-            </div>
-          )}
-          <div>
-            <label htmlFor={`${idFormular}-regim-special`} className={claseLabel}>
-              Regim special
-            </label>
-            <select
-              id={`${idFormular}-regim-special`}
-              {...register("special_regime")}
-              className={claseCamp}
+            )}
+          </Camp>
+          <Camp
+            nume="work_mode"
+            eticheta="Mod de lucru"
+            fel="select"
+            erori={mesajCamp(errors.work_mode)}
+          >
+            {(atribute) => (
+              <select {...atribute} {...register("work_mode")}>
+                {MODURI_LUCRU.map((m) => (
+                  <option key={m} value={m}>
+                    {ETICHETE_MOD_LUCRU[m] ?? m}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Camp>
+          {esteLaDistanta ? (
+            <Camp
+              nume="loc_telemunca"
+              eticheta="Locul desfășurării activității"
+              obligatoriu
+              erori={mesajCamp(errors.loc_telemunca)}
             >
-              <option value="">— Niciunul —</option>
-              {REGIMURI_SPECIALE.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label htmlFor={`${idFormular}-perioada-proba`} className={claseLabel}>
-              Perioadă de probă (zile)
-            </label>
-            <input
-              id={`${idFormular}-perioada-proba`}
-              type="number"
-              min={0}
-              max={365}
-              {...register("perioada_proba_zile")}
-              className={claseCamp}
-            />
-          </div>
-          <div>
-            <label htmlFor={`${idFormular}-preaviz`} className={claseLabel}>
-              Preaviz (zile)
-            </label>
-            <input
-              id={`${idFormular}-preaviz`}
-              type="number"
-              min={0}
-              max={365}
-              {...register("preaviz_zile")}
-              className={claseCamp}
-            />
-          </div>
+              {(atribute) => <input {...atribute} {...register("loc_telemunca")} />}
+            </Camp>
+          ) : (
+            <>
+              {/*
+                Locul muncii e clauză obligatorie a contractului (art. 17 alin. (3)
+                lit. b) din Codul muncii). Până acum era text liber și nu ajungea
+                deloc în documentul generat.
+
+                `punct_lucru_id` NU trece prin `register`: santinela „Altă
+                locație" nu e un uuid și ar cădea pe `uuidOptional`. Selecția e
+                controlată, iar valoarea reală se scrie cu `setValue`.
+              */}
+              <Camp
+                nume="punct_lucru_id"
+                eticheta="Locul de muncă"
+                fel="select"
+                erori={mesajCamp(errors.punct_lucru_id)}
+              >
+                {(atribute) => (
+                  <select
+                    {...atribute}
+                    value={altaLocatie ? ALTA_LOCATIE : (punctAles ?? "")}
+                    onChange={(eveniment) => {
+                      const aleasa = eveniment.target.value;
+                      if (aleasa === ALTA_LOCATIE) {
+                        setAltaLocatie(true);
+                        setValue("punct_lucru_id", null, { shouldDirty: true });
+                        return;
+                      }
+                      setAltaLocatie(false);
+                      setValue("punct_lucru_id", aleasa === "" ? null : aleasa, {
+                        shouldDirty: true,
+                      });
+                      // Textul liber nu are ce căuta pe o alegere din listă.
+                      setValue("loc_munca", null, { shouldDirty: true });
+                    }}
+                  >
+                    <option value="">— Sediul social —</option>
+                    {puncteLucru.map((punct) => (
+                      <option key={punct.id} value={punct.id}>
+                        {punct.denumire}
+                      </option>
+                    ))}
+                    <option value={ALTA_LOCATIE}>Altă locație…</option>
+                  </select>
+                )}
+              </Camp>
+              {altaLocatie ? (
+                <Camp
+                  nume="loc_munca"
+                  eticheta="Care anume"
+                  obligatoriu
+                  erori={mesajCamp(errors.loc_munca)}
+                  ajutor="Șantier, punct de delegare, o locație care nu merită înregistrată la ONRC."
+                >
+                  {(atribute) => <input {...atribute} {...register("loc_munca")} />}
+                </Camp>
+              ) : null}
+            </>
+          )}
+          <Camp
+            nume="special_regime"
+            eticheta="Regim special"
+            fel="select"
+            erori={mesajCamp(errors.special_regime)}
+          >
+            {(atribute) => (
+              <select {...atribute} {...register("special_regime")}>
+                <option value="">— Niciunul —</option>
+                {REGIMURI_SPECIALE.map((r) => (
+                  <option key={r} value={r}>
+                    {ETICHETE_REGIM_SPECIAL[r]}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Camp>
+          <Camp
+            nume="perioada_proba_zile"
+            eticheta="Perioadă de probă (zile)"
+            erori={mesajCamp(errors.perioada_proba_zile)}
+          >
+            {(atribute) => (
+              <input
+                {...atribute}
+                type="number"
+                min={0}
+                max={365}
+                {...register("perioada_proba_zile")}
+              />
+            )}
+          </Camp>
+          <Camp
+            nume="preaviz_zile"
+            eticheta="Preaviz (zile)"
+            erori={mesajCamp(errors.preaviz_zile)}
+          >
+            {(atribute) => (
+              <input {...atribute} type="number" min={0} max={365} {...register("preaviz_zile")} />
+            )}
+          </Camp>
         </div>
       </fieldset>
 
       <fieldset className="border-border rounded-panou space-y-4 border p-4">
         <legend className="text-foreground text-corp px-1 font-medium">Salarizare</legend>
         <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor={`${idFormular}-salariu`} className={claseLabel}>
-              Salariu de bază brut (lunar) *
-            </label>
-            <input
-              id={`${idFormular}-salariu`}
-              type="number"
-              step="0.01"
-              min={0}
-              {...register("salariu_baza")}
-              aria-invalid={Boolean(errors.salariu_baza)}
-              className={claseCamp}
-            />
-            <Eroare id={`${idFormular}-salariu-eroare`} mesaj={errors.salariu_baza?.message} />
-          </div>
-          <div>
-            <label htmlFor={`${idFormular}-moneda`} className={claseLabel}>
-              Monedă
-            </label>
-            <input
-              id={`${idFormular}-moneda`}
-              {...register("moneda")}
-              maxLength={3}
-              className={claseCamp}
-            />
-          </div>
-          <div>
-            <label htmlFor={`${idFormular}-zile-concediu`} className={claseLabel}>
-              Zile de concediu de odihnă anual
-            </label>
-            <input
-              id={`${idFormular}-zile-concediu`}
-              type="number"
-              min={0}
-              max={60}
-              {...register("zile_concediu_anual")}
-              className={claseCamp}
-            />
-            <p className="text-muted-foreground text-nota mt-1">
-              Implicit conform politicii organizației — modificabil aici doar pentru acest angajat.
-            </p>
-          </div>
-          <div>
-            <label htmlFor={`${idFormular}-iban`} className={claseLabel}>
-              IBAN
-            </label>
-            <input
-              id={`${idFormular}-iban`}
-              {...register("iban")}
-              aria-invalid={Boolean(errors.iban)}
-              className={claseCamp}
-            />
-            <Eroare id={`${idFormular}-iban-eroare`} mesaj={errors.iban?.message} />
-          </div>
-          <div>
-            <label htmlFor={`${idFormular}-banca`} className={claseLabel}>
-              Bancă
-            </label>
-            <input id={`${idFormular}-banca`} {...register("banca")} className={claseCamp} />
-          </div>
+          <Camp
+            nume="salariu_baza"
+            eticheta="Salariu de bază brut (lunar)"
+            obligatoriu
+            erori={mesajCamp(errors.salariu_baza)}
+          >
+            {(atribute) => (
+              <input
+                {...atribute}
+                type="number"
+                step="0.01"
+                min={0}
+                {...register("salariu_baza")}
+              />
+            )}
+          </Camp>
+          <Camp nume="moneda" eticheta="Monedă" erori={mesajCamp(errors.moneda)}>
+            {(atribute) => <input {...atribute} maxLength={3} {...register("moneda")} />}
+          </Camp>
+          <Camp
+            nume="zile_concediu_anual"
+            eticheta="Zile de concediu de odihnă anual"
+            erori={mesajCamp(errors.zile_concediu_anual)}
+            ajutor="Implicit conform politicii organizației — modificabil aici doar pentru acest angajat."
+          >
+            {(atribute) => (
+              <input
+                {...atribute}
+                type="number"
+                min={0}
+                max={60}
+                {...register("zile_concediu_anual")}
+              />
+            )}
+          </Camp>
+          <Camp nume="iban" eticheta="IBAN" erori={mesajCamp(errors.iban)}>
+            {(atribute) => <input {...atribute} {...register("iban")} />}
+          </Camp>
+          <Camp nume="banca" eticheta="Bancă" erori={mesajCamp(errors.banca)}>
+            {(atribute) => <input {...atribute} {...register("banca")} />}
+          </Camp>
         </div>
       </fieldset>
     </div>

@@ -7,7 +7,7 @@
 // schemele să poată valida și intrarea brută din URL, unde totul e `string`.
 
 import { z } from "zod";
-import { optional } from "./comun";
+import { enumOptional, optional } from "./comun";
 
 export const STATUS_ECHIPAMENT = [
   "in_functiune",
@@ -169,7 +169,7 @@ const campuriPlan = z.object({
   tip: z.enum(TIPURI_MENTENANTA).default("preventiva"),
   periodicitate_zile: z.coerce.number().int().min(1).nullable().default(null),
   periodicitate_contor: z.coerce.number().min(0.01).nullable().default(null),
-  tip_contor: z.enum(TIPURI_CONTOR).nullable().default(null),
+  tip_contor: enumOptional(TIPURI_CONTOR, "Alegeți tipul de contor din listă."),
   ultima_executie: z.iso.date().nullable().default(null),
   ultima_citire_contor: z.coerce.number().min(0).nullable().default(null),
   responsabil_employee_id: z.uuid().nullable().default(null),

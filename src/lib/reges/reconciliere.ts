@@ -153,13 +153,23 @@ async function trimiteUnul(
   const regesSalariatId = await referintaSalariatPentru(db, mesaj);
   if (regesSalariatId === null) return false; // dependența n-a sosit încă
 
+  // `reges_mesaje.contract_id` e nullable. Golit cu `?? ""`, ajungea la o
+  // coloană `uuid` și ridica 22P02, iar mesajul era marcat „Contractul legat de
+  // mesaj nu mai există" — o explicație falsă pentru un mesaj fără contract
+  // atașat. Rezultatul e același (eșec neretransmis), motivul scris în jurnal
+  // nu era. Poarta: `src/config/filtru-gol.test.ts`.
+  if (mesaj.contract_id === null) {
+    await marcheazaEsec(db, mesaj.id, "Mesajul nu are un contract atașat.");
+    return false;
+  }
+
   const { data: contract } = await db
     .from("employment_contracts")
     // prettier-ignore
     .select(
       "numar, data_contract, valabil_de_la, valabil_pana, contract_duration, norma_ore_saptamana, norma_ore_zi, salariu_baza, moneda, work_mode, special_regime, reges_contract_id, reges_tip_contract, reges_tip_norma, reges_norma_timp, reges_repartizare, temei_incetare, reges_temei_incetare, incetat_la, job_positions(cod_cor)",
     )
-    .eq("id", mesaj.contract_id ?? "")
+    .eq("id", mesaj.contract_id)
     .eq("organization_id", mesaj.organization_id)
     .maybeSingle();
 
@@ -211,7 +221,7 @@ async function trimiteUnul(
     const { data: suspendare } = await db
       .from("contract_suspendari")
       .select("data_inceput, data_sfarsit, temei_legal, explicatie")
-      .eq("contract_id", mesaj.contract_id ?? "")
+      .eq("contract_id", mesaj.contract_id)
       .eq("organization_id", mesaj.organization_id)
       .eq("stare", "activa")
       .is("deleted_at", null)

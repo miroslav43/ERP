@@ -10,6 +10,7 @@ import {
 } from "@/config/routes";
 import { resolveTenant } from "@/lib/tenant/resolve-tenant";
 import { stareFirmei } from "@/lib/tenant/stare-firma";
+import { ButonTrimite } from "@/components/incarcare/buton-trimite";
 
 export const metadata: Metadata = {
   title: "Firma se configurează",
@@ -64,13 +65,20 @@ export default async function PaginaFirmaInConfigurare() {
       </div>
 
       <form action={deconecteaza}>
-        <button
-          type="submit"
+        {/*
+          `varianta="tertiar"` + clasele originale: `cn` le lasă pe acestea să
+          câștige, deci butonul arată exact ca înainte — discret, cum se cuvine
+          pe un ecran de așteptare. Ce se schimbă e doar că acum se blochează și
+          spune „Se deconectează…" cât timp GoTrue lucrează.
+        */}
+        <ButonTrimite
+          varianta="tertiar"
+          textInCurs="Se deconectează…"
           className="border-border text-muted-foreground hover:bg-surface hover:text-foreground rounded-control text-corp flex w-full items-center justify-center gap-2 border px-4 py-2 font-medium transition"
         >
           <LogOut aria-hidden="true" className="size-4" />
           Deconectare
-        </button>
+        </ButonTrimite>
       </form>
     </div>
   );

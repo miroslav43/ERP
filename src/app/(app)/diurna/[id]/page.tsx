@@ -69,13 +69,23 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
   const deplasare = await citesteDeplasare(tenant.organizationId, id);
   if (deplasare === null) notFound();
 
-  const [etapeTrip, cheltuieliTrip, listaTari] = await Promise.all([
+  const arataAngajat = can(permisiuni, "per_diem:read", "team");
+
+  /*
+    `politicaLaData` și `angajatiDupaId` erau două valuri separate, după acest
+    `Promise.all` — dar amândouă au nevoie doar de `deplasare`, care e deja
+    citită. Singura dependență REALĂ e `baremeleTarilor`, care nu poate pleca
+    până nu se știu țările implicate (din etape ȘI din politică).
+  */
+  const [etapeTrip, cheltuieliTrip, listaTari, politica, angajati] = await Promise.all([
     etapele(deplasare.id),
     cheltuielile(deplasare.id),
     tari(),
+    politicaLaData(tenant.organizationId, deplasare.plecare_la.slice(0, 10)),
+    arataAngajat
+      ? angajatiDupaId(tenant.organizationId, [deplasare.employee_id])
+      : new Map<string, never>(),
   ]);
-
-  const politica = await politicaLaData(tenant.organizationId, deplasare.plecare_la.slice(0, 10));
 
   const idTariImplicate = [
     ...new Set(
@@ -89,10 +99,6 @@ export default async function PaginaDeplasare({ params }: ProprietatiPagina) {
   const baremuri = await baremeleTarilor(idTariImplicate);
   const hartaTari = new Map(listaTari.map((t) => [t.id, t]));
 
-  const arataAngajat = can(permisiuni, "per_diem:read", "team");
-  const angajati = arataAngajat
-    ? await angajatiDupaId(tenant.organizationId, [deplasare.employee_id])
-    : new Map<string, never>();
   const angajat = angajati.get(deplasare.employee_id);
 
   const editabila = deplasare.status === "ciorna" || deplasare.status === "respinsa";

@@ -178,3 +178,108 @@ export function oreleZilei(
     noapte: Math.min(noapteBruta, lucrate),
   };
 }
+
+// ── Inversa: din ora de început, intervalul unei zile normale ────────────────
+
+/** Minute de la miezul nopții → `"08:30"`. */
+function oraDinMinute(minute: number): string {
+  const ore = Math.floor(minute / 60);
+  const rest = minute % 60;
+  return `${String(ore).padStart(2, "0")}:${String(rest).padStart(2, "0")}`;
+}
+
+export interface IntervalPropus {
+  readonly inceput: string;
+  readonly sfarsit: string;
+}
+
+/**
+ * Intervalul unei zile NORMALE, pornind de la ora la care începe programul.
+ *
+ * ── DE CE E NEVOIE DE INVERSA ───────────────────────────────────────────────
+ * Butonul „Confirm ziua de azi" trebuie să arate un interval concret ÎNAINTE de
+ * apăsare — un buton care scrie ceva ce omul n-a văzut nu e o scurtătură, e o
+ * capcană. Iar intervalul afișat trebuie să producă exact `ore_pe_zi` când trece
+ * prin `oreleZilei` pe server; altfel angajatul confirmă „ziua normală" și se
+ * trezește cu o jumătate de oră suplimentară sau lipsă în fiecare zi.
+ *
+ * ── DE CE NU E O SIMPLĂ ADUNARE ─────────────────────────────────────────────
+ * `sfarsit = inceput + orePeZi` e corect DOAR când pauza e plătită. Când nu e,
+ * omul trebuie să stea la muncă `orePeZi` PLUS pauza, ca să iasă `orePeZi`
+ * lucrate. Dar pauza se scade doar peste pragul `pauzaObligatoriePesteOre`, deci
+ * există și un al treilea caz, în care ziua e prea scurtă ca pauza să conteze.
+ *
+ * Cele două candidaturi și condiția fiecăreia:
+ *   A. `brut = orePeZi + pauza`, valabilă când `brut > prag` (pauza se scade,
+ *      rămâne exact `orePeZi`);
+ *   B. `brut = orePeZi`, valabilă când `orePeZi <= prag` (pauza nu se scade).
+ * Când amândouă se potrivesc, se alege A: descrie ce trăiește omul — e la muncă
+ * de la intrare până la ieșire, cu pauza înăuntru.
+ *
+ * Invariantul e verificat prin test, nu prin raționament:
+ * `oreleZilei(propus.inceput, propus.sfarsit, config).lucrate === config.orePeZi`.
+ *
+ * `null` când ora e invalidă sau când ziua ar trece de miezul nopții — modelul
+ * are un rând pe zi, iar `oreleZilei` ar refuza oricum intervalul.
+ */
+export function intervalulPropus(programStart: string, config: ConfigZi): IntervalPropus | null {
+  const inceput = minuteDinOra(programStart);
+  if (inceput === null) return null;
+  if (config.orePeZi <= 0) return null;
+
+  const pauzaOre = config.pauzaInclusaInProgram
+    ? 0
+    : Math.round((config.pauzaMinute / 60) * 100) / 100;
+  const brutCuPauza = config.orePeZi + pauzaOre;
+  const brut =
+    !config.pauzaInclusaInProgram && brutCuPauza > config.pauzaObligatoriePesteOre
+      ? brutCuPauza
+      : config.orePeZi;
+
+  const sfarsit = inceput + Math.round(brut * 60);
+  // Ziua trebuie să se închidă în aceeași zi calendaristică. `24:00` nu e o oră
+  // validă în `time`, deci pragul e strict.
+  if (sfarsit >= 24 * 60) return null;
+
+  return { inceput: oraDinMinute(inceput), sfarsit: oraDinMinute(sfarsit) };
+}
+
+/**
+ * Config-ul zilei, dintr-un rând de `attendance_settings` care poate lipsi.
+ *
+ * ── DE CE EXISTĂ ────────────────────────────────────────────────────────────
+ * Aceleași șase valori de rezervă (8 h, 22:00, 06:00, pauză 0, inclusă, prag 0)
+ * erau scrise IDENTIC în patru locuri: `pontaj/actions.ts`, pagina zilei din
+ * portal, pagina săptămânii și, de acum, pontarea rapidă. Patru copii ale unei
+ * valori implicite diverg la prima schimbare, iar divergența se vede pe
+ * fluturașul de salariu, nu în teste.
+ *
+ * Absența setărilor e NORMALĂ, nu o eroare: nu există seed pentru
+ * `attendance_settings`. Pauza implicită e ZERO și „inclusă în program", adică
+ * nu se scade nimic — o firmă care n-a configurat nimic nu trebuie să piardă
+ * tăcut ore din pontajul oamenilor.
+ *
+ * Parametrul e tipat STRUCTURAL, nu prin importul lui `SetariPontaj` din stratul
+ * de citiri: domeniul nu are voie să depindă de stratul de acces la date.
+ */
+export function configZiDin(
+  setari: Readonly<{
+    ore_pe_zi: number;
+    noapte_start: string;
+    noapte_sfarsit: string;
+    pauza_masa_minute: number;
+    pauza_masa_inclusa_in_program: boolean;
+    pauza_obligatorie_peste_ore: number;
+  }> | null,
+): ConfigZi {
+  return {
+    orePeZi: setari?.ore_pe_zi ?? 8,
+    // `time` din Postgres vine cu secunde (`"22:00:00"`); aritmetica de aici
+    // lucrează pe `HH:MM`.
+    noapteStart: setari?.noapte_start.slice(0, 5) ?? "22:00",
+    noapteSfarsit: setari?.noapte_sfarsit.slice(0, 5) ?? "06:00",
+    pauzaMinute: setari?.pauza_masa_minute ?? 0,
+    pauzaInclusaInProgram: setari?.pauza_masa_inclusa_in_program ?? true,
+    pauzaObligatoriePesteOre: setari?.pauza_obligatorie_peste_ore ?? 0,
+  };
+}

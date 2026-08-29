@@ -1,11 +1,9 @@
 "use client";
 
-import { useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { Plus } from "lucide-react";
 
-import { Buton } from "@/components/ui/buton";
 import { Camp } from "@/components/ui/camp";
-import { Formular } from "@/components/ui/formular";
+import { FormularDialog } from "@/components/ui/formular-dialog";
 import { REZULTATE_VERIFICARE_STINGATOR, TIPURI_VERIFICARE_STINGATOR } from "@/schemas/ssm";
 
 import { inregistreazaVerificareStingator } from "../../actions";
@@ -30,8 +28,6 @@ import { ETICHETE_REZULTAT_VERIFICARE, ETICHETE_TIP_VERIFICARE_STINGATOR } from 
  * proprietatea `extinguisherId`, adăugată peste valori înainte de apel.
  */
 export function FormularVerificare({ extinguisherId }: { readonly extinguisherId: string }) {
-  const router = useRouter();
-
   async function trimite(formular: FormData) {
     const text = (cheie: string) => {
       const v = String(formular.get(cheie) ?? "").trim();
@@ -51,19 +47,20 @@ export function FormularVerificare({ extinguisherId }: { readonly extinguisherId
     });
   }
 
-  // Stabil între randări: `laReusita` intră în lista de dependențe a efectului
-  // din `<Formular>`, iar o funcție nouă la fiecare randare ar relua efectul —
-  // adică încă o notificare de reușită la fiecare re-randare.
-  const laReusita = useCallback(() => {
-    router.refresh();
-  }, [router]);
-
   return (
-    <Formular
+    <FormularDialog
+      declansator={{
+        eticheta: "Înregistrează o verificare",
+        varianta: "secundar",
+        pictograma: <Plus aria-hidden="true" className="size-4" />,
+      }}
+      titlu="Verificare de stingător"
+      descriere="Scadențele stingătorului se recalculează singure din data și tipul verificării — nu se scriu de mână nicăieri."
+      marime="mare"
       actiune={trimite}
-      laReusita={laReusita}
       mesajReusita="Verificarea a fost înregistrată."
-      className="border-border rounded-panou border p-4"
+      etichetaTrimite="Înregistrează verificarea"
+      textInCurs="Se salvează…"
     >
       {(stare) => {
         // Formularul rămâne pe ecran după salvare, deci trebuie să repornească
@@ -74,8 +71,6 @@ export function FormularVerificare({ extinguisherId }: { readonly extinguisherId
 
         return (
           <>
-            <p className="text-corp font-medium">Înregistrează o verificare</p>
-
             <div className="grid gap-3 sm:grid-cols-2">
               <Camp
                 nume="tip_verificare"
@@ -153,20 +148,9 @@ export function FormularVerificare({ extinguisherId }: { readonly extinguisherId
                 )}
               </Camp>
             </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <Buton
-                type="submit"
-                varianta="primar"
-                inCurs={stare.inCurs}
-                textInCurs="Se salvează…"
-              >
-                Înregistrează verificarea
-              </Buton>
-            </div>
           </>
         );
       }}
-    </Formular>
+    </FormularDialog>
   );
 }

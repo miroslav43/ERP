@@ -46,11 +46,10 @@ import {
   formatContor,
   formatPeriodicitate,
 } from "../../etichete";
-import { FormularEchipament } from "../formular-echipament";
+import { ButonEditeazaEchipament } from "./buton-editeaza-echipament";
 import { FormularContor } from "./formular-contor";
 import { FormularInterventie } from "./formular-interventie";
 import { FormularIscir } from "./formular-iscir";
-import { ButonEditeazaPlan } from "./buton-editeaza-plan";
 import { FormularPlan } from "./formular-plan";
 
 export const metadata: Metadata = { title: "Fișa echipamentului" };
@@ -338,37 +337,32 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
         </dl>
 
         {poateScrie ? (
-          <details className="border-border rounded-panou border p-4">
-            <summary className="text-corp cursor-pointer font-medium">
-              Editează datele echipamentului
-            </summary>
-            <div className="mt-4">
-              <FormularEchipament
-                echipament={{
-                  id: echipament.id,
-                  cod: echipament.cod,
-                  denumire: echipament.denumire,
-                  serie: echipament.serie,
-                  producator: echipament.producator,
-                  model: echipament.model,
-                  an_fabricatie: echipament.an_fabricatie,
-                  locatie: echipament.locatie,
-                  department_id: echipament.department_id,
-                  responsabil_employee_id: echipament.responsabil_employee_id,
-                  status: echipament.status,
-                  este_iscir: echipament.este_iscir,
-                  tip_autorizare_necesara: echipament.tip_autorizare_necesara,
-                  valoare_achizitie: echipament.valoare_achizitie,
-                  data_punerii_in_functiune: echipament.data_punerii_in_functiune,
-                  derogare_motiv: echipament.derogare_motiv,
-                }}
-                angajati={angajatiPentruResponsabil}
-                departamente={departamente}
-                ssmActiv={features.has("ssm")}
-                poateDerogare={can(permisiuni, "maintenance:update", "all")}
-              />
-            </div>
-          </details>
+          <div>
+            <ButonEditeazaEchipament
+              echipament={{
+                id: echipament.id,
+                cod: echipament.cod,
+                denumire: echipament.denumire,
+                serie: echipament.serie,
+                producator: echipament.producator,
+                model: echipament.model,
+                an_fabricatie: echipament.an_fabricatie,
+                locatie: echipament.locatie,
+                department_id: echipament.department_id,
+                responsabil_employee_id: echipament.responsabil_employee_id,
+                status: echipament.status,
+                este_iscir: echipament.este_iscir,
+                tip_autorizare_necesara: echipament.tip_autorizare_necesara,
+                valoare_achizitie: echipament.valoare_achizitie,
+                data_punerii_in_functiune: echipament.data_punerii_in_functiune,
+                derogare_motiv: echipament.derogare_motiv,
+              }}
+              angajati={angajatiPentruResponsabil}
+              departamente={departamente}
+              ssmActiv={features.has("ssm")}
+              poateDerogare={can(permisiuni, "maintenance:update", "all")}
+            />
+          </div>
         ) : null}
       </section>
 
@@ -433,9 +427,13 @@ export default async function PaginaEchipament({ params }: ProprietatiPagina) {
                       {numeleAngajatului(plan.responsabil_employee_id)}
                     </p>
                     <p className="text-muted-foreground text-nota">{formatPeriodicitate(plan)}</p>
+                    {/* `FormularPlan` își poartă singur butonul de declanșare
+                        de când e casetă: `ButonEditeazaPlan`, învelișul care
+                        ținea starea „deschis/închis" pentru fiecare plan din
+                        listă, n-a mai avut ce face și a fost șters. */}
                     {poateScrie ? (
                       <div className="mt-2">
-                        <ButonEditeazaPlan
+                        <FormularPlan
                           equipmentId={echipament.id}
                           angajati={angajatiGenerali}
                           planExistent={plan}

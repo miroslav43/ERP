@@ -2,6 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  intervalulPropus,
   oreLucrateDinInterval,
   oreNoapteDinInterval,
   oreSuplimentareDinLucrate,
@@ -221,6 +222,79 @@ describe("oreleZilei", () => {
         expect(rezultat.lucrate).toBeGreaterThanOrEqual(0);
         expect(rezultat.suplimentare).toBeLessThanOrEqual(rezultat.lucrate);
         expect(rezultat.noapte).toBeLessThanOrEqual(rezultat.lucrate);
+      }
+    }
+  });
+});
+
+describe("intervalulPropus", () => {
+  const BAZA: ConfigZi = {
+    orePeZi: 8,
+    noapteStart: "22:00",
+    noapteSfarsit: "06:00",
+    pauzaMinute: 0,
+    pauzaInclusaInProgram: true,
+    pauzaObligatoriePesteOre: 0,
+  };
+
+  it("cu pauza inclusă în program, ziua e exact durata normală", () => {
+    expect(intervalulPropus("08:00", BAZA)).toEqual({ inceput: "08:00", sfarsit: "16:00" });
+  });
+
+  it("cu pauză neplătită, ziua se lungește cu pauza", () => {
+    const config: ConfigZi = { ...BAZA, pauzaMinute: 30, pauzaInclusaInProgram: false };
+    expect(intervalulPropus("08:00", config)).toEqual({ inceput: "08:00", sfarsit: "16:30" });
+  });
+
+  it("nu lungește ziua când pragul de pauză nu e atins", () => {
+    // Pauza se scade doar peste 10 ore; o zi de 8 ore n-o atinge, deci
+    // intervalul rămâne 8 ore curate.
+    const config: ConfigZi = {
+      ...BAZA,
+      pauzaMinute: 30,
+      pauzaInclusaInProgram: false,
+      pauzaObligatoriePesteOre: 10,
+    };
+    expect(intervalulPropus("08:00", config)).toEqual({ inceput: "08:00", sfarsit: "16:00" });
+  });
+
+  it("întoarce null când ziua ar trece de miezul nopții", () => {
+    expect(intervalulPropus("20:00", BAZA)).toBeNull();
+  });
+
+  it("întoarce null pentru o oră invalidă sau o normă imposibilă", () => {
+    expect(intervalulPropus("24:00", BAZA)).toBeNull();
+    expect(intervalulPropus("", BAZA)).toBeNull();
+    expect(intervalulPropus("08:00", { ...BAZA, orePeZi: 0 })).toBeNull();
+  });
+
+  /*
+   * INVARIANTUL care justifică existența funcției: intervalul propus, trecut
+   * prin `oreleZilei`, trebuie să producă EXACT norma zilnică. Dacă se rupe,
+   * angajatul confirmă „ziua normală" și primește ore suplimentare sau ore
+   * lipsă în fiecare zi — o eroare care se vede abia pe fluturaș.
+   */
+  it("rotund-trip: ce propune se întoarce ca exact `orePeZi` lucrate", () => {
+    const configuratii: readonly ConfigZi[] = [
+      BAZA,
+      { ...BAZA, pauzaMinute: 30, pauzaInclusaInProgram: false },
+      { ...BAZA, pauzaMinute: 60, pauzaInclusaInProgram: false },
+      { ...BAZA, pauzaMinute: 45, pauzaInclusaInProgram: false, pauzaObligatoriePesteOre: 6 },
+      { ...BAZA, pauzaMinute: 30, pauzaInclusaInProgram: false, pauzaObligatoriePesteOre: 10 },
+      { ...BAZA, orePeZi: 6, pauzaMinute: 30, pauzaInclusaInProgram: false },
+      { ...BAZA, orePeZi: 4 },
+      { ...BAZA, orePeZi: 7.5, pauzaMinute: 30, pauzaInclusaInProgram: false },
+    ];
+    for (const config of configuratii) {
+      for (const start of ["06:00", "07:30", "08:00", "09:15"]) {
+        const propus = intervalulPropus(start, config);
+        expect(propus).not.toBeNull();
+        if (propus === null) continue;
+        const derivate = oreleZilei(propus.inceput, propus.sfarsit, config);
+        expect(derivate).not.toBeNull();
+        expect(derivate?.lucrate).toBe(config.orePeZi);
+        // Corolar: o zi normală nu produce niciodată ore suplimentare.
+        expect(derivate?.suplimentare).toBe(0);
       }
     }
   });

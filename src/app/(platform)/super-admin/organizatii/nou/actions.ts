@@ -168,7 +168,16 @@ export const onboardeazaOrganizatie = createPlatformAction<
 
     // Cont bancar principal (opțional, unul singur la înrolare — restul se
     // adaugă ulterior din ecranul dedicat).
-    if (input.banca_nume !== undefined && input.banca_iban !== undefined) {
+    //
+    // `completat`, nu `!== undefined`: `banca_nume` e `textOptional`, care
+    // întoarce `null` pentru un câmp gol. Garda veche era mereu adevărată pe
+    // prima jumătate, iar un IBAN fără numele băncii trimitea `banca: null`
+    // într-o coloană `not null`. Geamănul din `bun-venit/actions.ts` avea exact
+    // același defect, cu aceeași consecință.
+    const completat = (valoare: string | null | undefined): valoare is string =>
+      valoare !== null && valoare !== undefined && valoare.trim() !== "";
+
+    if (completat(input.banca_nume) && completat(input.banca_iban)) {
       const { error: eroareBanca } = await admin.from("organization_bank_accounts").insert({
         organization_id: organizatie.id,
         banca: input.banca_nume,
@@ -181,7 +190,7 @@ export const onboardeazaOrganizatie = createPlatformAction<
     }
 
     // Punct de lucru principal (opțional, la fel — unul singur la înrolare).
-    if (input.punct_lucru_denumire !== undefined) {
+    if (completat(input.punct_lucru_denumire)) {
       const { error: eroarePunct } = await admin.from("puncte_lucru").insert({
         organization_id: organizatie.id,
         denumire: input.punct_lucru_denumire,

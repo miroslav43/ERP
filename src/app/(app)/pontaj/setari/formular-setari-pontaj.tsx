@@ -7,7 +7,7 @@ import Link from "next/link";
 import { Buton } from "@/components/ui/buton";
 import { IntrareDurata, IntrareOra } from "@/components/ui/intrare-ora";
 import { formatOre } from "@/lib/format/ore";
-import { oreleZilei } from "@/domain/attendance/calcul-ore";
+import { intervalulPropus, oreleZilei } from "@/domain/attendance/calcul-ore";
 import type { SetariPontajComplete } from "@/lib/queries/attendance";
 
 import { salveazaSetariPontaj } from "./actions";
@@ -213,6 +213,9 @@ export function FormularSetariPontaj({
   const idNoapteStart = useId();
   const idNoapteSfarsit = useId();
   const idObservatii = useId();
+  const idMod = useId();
+  const idProgramStart = useId();
+  const idVerificare = useId();
   const [seTrimite, porneste] = useTransition();
   const [mesaj, setMesaj] = useState<string | null>(null);
   const [eroare, setEroare] = useState<string | null>(null);
@@ -236,6 +239,17 @@ export function FormularSetariPontaj({
   );
   const [pauzaInclusa, setPauzaInclusa] = useState(
     setariCurente?.pauza_masa_inclusa_in_program ?? false,
+  );
+
+  // Pontarea rapidă (0096). Implicitul `oprit` NU e prudență de formular: e chiar
+  // implicitul coloanei din migrare. O firmă care n-a ales nimic nu capătă tăcut
+  // o cale nouă prin care angajații îi scriu în pontaj.
+  const [modPontare, setModPontare] = useState<string>(
+    setariCurente?.mod_pontare_rapida ?? "oprit",
+  );
+  const [verificare, setVerificare] = useState<string>(setariCurente?.verificare_pontare ?? "fara");
+  const [programStart, setProgramStart] = useState(
+    (setariCurente?.program_start ?? "").slice(0, 5),
   );
 
   const [noaptea, setNoaptea] = useState(setariCurente?.lucreaza_noaptea ?? true);
@@ -273,6 +287,12 @@ export function FormularSetariPontaj({
         pauza_masa_inclusa_in_program: pauzaInclusa,
         pauza_obligatorie_peste_ore: pauzaPrag ?? 0,
         observatii_juridice: formular.get("observatii_juridice"),
+        // Din stare, ca și comutatoarele de mai sus: `<select>` și `<input
+        // type="time">` ar veni oricum din `FormData`, dar ora goală trebuie să
+        // ajungă `null`, nu `""` — schema o trece prin `optional()`.
+        program_start: programStart === "" ? null : programStart,
+        mod_pontare_rapida: modPontare,
+        verificare_pontare: verificare,
       });
       if (rezultat.ok) setMesaj("Versiunea a fost salvată.");
       else setEroare(rezultat.error.message);
@@ -292,6 +312,18 @@ export function FormularSetariPontaj({
     pauzaInclusaInProgram: pauzaInclusa,
     pauzaObligatoriePesteOre: pauzaPrag ?? 0,
   });
+
+  const intervalPropus =
+    programStart === ""
+      ? null
+      : intervalulPropus(programStart, {
+          orePeZi: numar(orePeZi, 8),
+          noapteStart: setariCurente?.noapte_start.slice(0, 5) ?? "22:00",
+          noapteSfarsit: setariCurente?.noapte_sfarsit.slice(0, 5) ?? "06:00",
+          pauzaMinute: numar(pauzaMinute, 0),
+          pauzaInclusaInProgram: pauzaInclusa,
+          pauzaObligatoriePesteOre: numar(pauzaPrag, 0),
+        });
 
   // Configurație care se anulează singură: minute de pauză declarate, dar care nu
   // se scad niciodată. E legală (pauză plătită), dar cine o alege din greșeală
@@ -590,6 +622,107 @@ export function FormularSetariPontaj({
           />
           Pauza de masă e inclusă în programul plătit
         </label>
+      </fieldset>
+
+      <fieldset className="space-y-4">
+        <legend className="text-corp font-medium">Pontarea de pe telefon</legend>
+        <p className="text-muted-foreground text-corp">
+          Angajatul își poate ponta ziua dintr-o atingere, din aplicația de pe ecranul telefonului.
+          Cifrele se calculează pe server, din setările de mai sus — omul declară doar că a fost la
+          muncă.
+        </p>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-1">
+            <label htmlFor={idMod} className="text-corp">
+              Cum se pontează
+            </label>
+            <select
+              id={idMod}
+              value={modPontare}
+              onChange={(e) => {
+                setModPontare(e.target.value);
+              }}
+              className={CAMP}
+            >
+              <option value="oprit">Oprit — numai formularul cu ore</option>
+              <option value="confirmare">Confirmarea zilei standard — o atingere</option>
+              <option value="ceas">Ceas: „Am intrat” / „Am ieșit” — două atingeri</option>
+              <option value="ambele">Amândouă, angajatul alege</option>
+            </select>
+            <p className="text-muted-foreground text-nota">
+              Ceasul scrie ora reală de la serverul nostru. Confirmarea scrie programul de mai jos.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label htmlFor={idProgramStart} className="text-corp">
+              Ora de început a programului
+            </label>
+            <input
+              id={idProgramStart}
+              type="time"
+              value={programStart}
+              onChange={(e) => {
+                setProgramStart(e.target.value);
+              }}
+              className={CAMP}
+            />
+            <p className="text-muted-foreground text-nota">
+              Ora de sfârșit NU se completează: se calculează din norma zilnică și din pauză, ca să
+              nu existe două cifre care se pot contrazice.
+            </p>
+          </div>
+        </div>
+
+        {/*
+          Aceeași disciplină ca la exemplul de mai sus: ecranul arată CE VA SCRIE
+          butonul, nu doar ce s-a configurat. Un patron care alege „confirmare”
+          fără să vadă intervalul rezultat n-are cum să prindă o normă pusă
+          greșit.
+        */}
+        {intervalPropus === null ? (
+          modPontare === "confirmare" || modPontare === "ambele" ? (
+            <p className="text-warning text-corp">
+              {programStart === ""
+                ? "Completați ora de început: fără ea, butonul de confirmare nu se poate afișa."
+                : "Programul nu încape într-o singură zi calendaristică."}
+            </p>
+          ) : null
+        ) : (
+          <p className="text-muted-foreground text-corp">
+            Butonul va propune{" "}
+            <span className="text-foreground font-medium tabular-nums">
+              {intervalPropus.inceput}–{intervalPropus.sfarsit}
+            </span>{" "}
+            și va înregistra{" "}
+            <span className="text-foreground font-medium tabular-nums">
+              {numar(orePeZi, 8).toLocaleString("ro-RO")}
+            </span>{" "}
+            ore lucrate.
+          </p>
+        )}
+
+        <div className="flex flex-col gap-1">
+          <label htmlFor={idVerificare} className="text-corp">
+            Verificarea prezenței
+          </label>
+          <select
+            id={idVerificare}
+            value={verificare}
+            onChange={(e) => {
+              setVerificare(e.target.value);
+            }}
+            className={CAMP}
+          >
+            <option value="fara">Pe încredere — ca formularul de azi</option>
+            <option value="cod_qr">Cod QR afișat la punctul de lucru</option>
+          </select>
+          <p className="text-muted-foreground text-nota">
+            Codul QR dovedește că cineva a fost lângă afiș, nu că angajatul era acolo. E o frână, nu
+            o probă — pontajul rămâne declarația angajatului, ca și până acum.
+          </p>
+        </div>
       </fieldset>
 
       <div className="flex flex-col gap-1">

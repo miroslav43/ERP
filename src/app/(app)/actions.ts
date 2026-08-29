@@ -155,7 +155,22 @@ export async function comutaOrganizatiaDirect(formData: FormData): Promise<void>
 
 export async function deconecteaza(): Promise<void> {
   const supabase = await createServerSupabase();
-  const { error } = await supabase.auth.signOut();
+  /*
+   * `scope: "local"` — deconectează DISPOZITIVUL acesta, nu contul de peste tot.
+   *
+   * Implicitul lui auth-js e `global`: revocă refresh-tokenurile tuturor
+   * sesiunilor utilizatorului. Cât timp singurul mod de folosire era laptopul de
+   * la birou, nu se vedea. Din clipa în care aplicația stă pe ecranul de start al
+   * telefonului, „mă deconectez de pe calculatorul de la serviciu" ar închide și
+   * telefonul omului — iar el ar descoperi asta luni dimineață, la poartă.
+   *
+   * ONESTITATE DESPRE CE **NU** REZOLVĂ: pe iPhone, adăugarea pe ecranul de start
+   * COPIAZĂ cookie-urile, deci Safari și aplicația instalată ajung să împartă
+   * ACEEAȘI sesiune — același refresh token, același id de sesiune. Acolo, până
+   * și `local` le închide pe amândouă, fiindcă sunt una singură. Nu e o scăpare a
+   * liniei ăsteia, e felul în care iOS separă (și copiază) depozitele.
+   */
+  const { error } = await supabase.auth.signOut({ scope: "local" });
   if (error !== null) {
     console.error("[auth] Deconectare eșuată", error.message);
   }

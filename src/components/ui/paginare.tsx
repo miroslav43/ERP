@@ -6,6 +6,7 @@ import type { ReactElement } from "react";
 import { cn } from "@/lib/ui/cn";
 
 import { buton } from "./buton";
+import { SenzorLink } from "@/components/incarcare/senzor-link";
 
 /**
  * Paginarea unei liste. Înlocuiește ~18 copii ale aceluiași link „Pagina
@@ -91,6 +92,7 @@ export function Paginare({
               )}
             >
               {m}
+              <SenzorLink eticheta="lista" />
             </Link>
           ))}
         </span>
@@ -102,6 +104,13 @@ export function Paginare({
           >
             Pagina următoare
             <ChevronRight aria-hidden="true" className="size-4" />
+            {/*
+              Pagina următoare e o citire nouă din bază, nu o filtrare în
+              memorie: cursorul keyset trimite o interogare pe server. Fără
+              senzor, omul apasă și rămâne pe aceleași rânduri, fără nimic care
+              să spună că se lucrează.
+            */}
+            <SenzorLink eticheta="pagina următoare" />
           </Link>
         )}
       </div>

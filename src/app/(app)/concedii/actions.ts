@@ -696,7 +696,7 @@ export const decideCerere = createAction({
   // care handlerul îl întoarce.
   // Tipul se scrie explicit: `revalidate` e declarat ÎNAINTEA lui `handler` în
   // obiectul literal, deci TypeScript n-are încă de unde infera forma datelor.
-  revalidate: (_input, data: Readonly<{ id: string }>) => [
+  revalidate: (_input, data: Readonly<{ id: string; zilePastrate: number }>) => [
     "/concedii",
     "/concedii/aprobari",
     "/concedii/sold",
@@ -706,7 +706,7 @@ export const decideCerere = createAction({
     // angajatul vede concediul aprobat și pontajul nemodificat.
     "/portal/pontajul-meu",
   ],
-  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+  handler: async (ctx, input): Promise<Readonly<{ id: string; zilePastrate: number }>> => {
     // (1) Sarcina, cu clientul utilizatorului: `approval_tasks_select` arată
     // doar sarcinile proprii (sau `leave:approve = all`), deci un aprobator
     // nu poate decide o sarcină care nu e a lui — RLS o ascunde, nu o refuză.
@@ -767,6 +767,12 @@ export const decideCerere = createAction({
     if (sarcinaDecisa === null) {
       throw businessRule("Sarcina de aprobare nu v-a putut fi atribuită. Reîncărcați lista.");
     }
+
+    // Câte zile pontate de angajat s-au suprapus peste concediu și au fost
+    // PĂSTRATE ca zile lucrate. Declarată la nivelul handlerului fiindcă
+    // rezultatul trebuie să ajungă la aprobator și când sincronizarea (care e
+    // best-effort, într-un `try`) cade pe drum.
+    let zilePastrate = 0;
 
     // (4) Un manager cu `leave:approve = team` nu vede, prin RLS, sarcinile
     // colegilor din pașii următori — numărătoarea se face cu clientul admin,
@@ -857,6 +863,19 @@ export const decideCerere = createAction({
         if (eroareCerere !== null) throw eroareCerere;
         const tipZi: TipZiPontaj = cerere.tip?.tip_zi_pontaj ?? "concediu";
 
+        // Contul angajatului, pentru notificare. Poate lipsi: o fișă există și
+        // fără cont (`invitations.email` e obligatoriu, deci angajatul fără
+        // adresă de e-mail n-a putut fi invitat încă). Atunci se sare peste
+        // notificare — numărul ajunge oricum la aprobator.
+        const { data: angajat, error: eroareAngajat } = await admin
+          .from("employees")
+          .select("user_id")
+          .eq("id", cerere.employee_id)
+          .eq("organization_id", ctx.tenant.organizationId)
+          .maybeSingle();
+        if (eroareAngajat !== null) throw eroareAngajat;
+        const userAngajat = angajat?.user_id ?? null;
+
         const { data: zileCerere, error: eroareZile } = await admin
           .from("leave_request_days")
           .select("data, leave_request_id")
@@ -871,7 +890,53 @@ export const decideCerere = createAction({
           leave_request_id: z.leave_request_id,
           tip_zi: tipZi,
         }));
-        await sincronizeazaZileleDeConcediu(admin, ctx.tenant.organizationId, zile);
+        const sincronizare = await sincronizeazaZileleDeConcediu(
+          admin,
+          ctx.tenant.organizationId,
+          zile,
+        );
+
+        /*
+         * DUBLA PLATĂ, SCOASĂ LA SUPRAFAȚĂ.
+         *
+         * `sincronizeazaZileleDeConcediu` sare peste orice zi a cărei `sursa` NU
+         * e `sincronizare_concedii` — adică peste zilele pe care angajatul le-a
+         * pontat el însuși — și le numără în `pastrate`. Numărul ăla era
+         * ARUNCAT aici, iar consecința era tăcută în ambele capete: ziua rămâne
+         * „lucrătoare, 8 ore" ȘI se scade o zi din soldul de concediu.
+         * Salarizarea agregă `ore_lucrate` fără să se plângă, deci ziua se
+         * plătește de două ori.
+         *
+         * Era rar cât timp angajații pontau greu. Pontarea dintr-o atingere
+         * (0096) face cazul frecvent — de aceea reparația vine în ACEEAȘI
+         * livrare cu butonul, nu după.
+         *
+         * NU se suprascrie ziua pontată: dacă omul chiar a muncit atunci,
+         * ștergerea declarației lui ar distruge singura dovadă. Se raportează
+         * aprobatorului și se anunță angajatul; decizia rămâne a oamenilor.
+         */
+        zilePastrate = sincronizare.pastrate;
+        if (sincronizare.pastrate > 0 && userAngajat !== null) {
+          const { error: eroareNotificare } = await admin.from("notifications").insert({
+            organization_id: ctx.tenant.organizationId,
+            user_id: userAngajat,
+            kind: "warning" as const,
+            title: "Zile pontate care se suprapun cu concediul",
+            body: `Aveți ${String(sincronizare.pastrate)} ${sincronizare.pastrate === 1 ? "zi pontată care se suprapune" : "zile pontate care se suprapun"} cu concediul aprobat. Au rămas înregistrate ca zile lucrate — verificați-le cu responsabilul de pontaj.`,
+            link: "/portal/pontajul-meu",
+            entity_type: "leave_request",
+            entity_id: sarcina.entity_id,
+          });
+          if (eroareNotificare !== null) {
+            // Notificarea e un plus, nu poarta: dacă ea cade, aprobarea NU se
+            // dă înapoi. Numărul ajunge oricum la aprobator prin rezultat.
+            console.error("[concedii] notificarea de zile suprapuse a eșuat", {
+              leaveRequestId: sarcina.entity_id,
+              requestId: ctx.requestId,
+              eroare: eroareNotificare,
+            });
+          }
+        }
       } catch (eroare) {
         console.error("[pontaj] sincronizarea automată cu concediul aprobat a eșuat", {
           leaveRequestId: sarcina.entity_id,
@@ -881,7 +946,9 @@ export const decideCerere = createAction({
       }
     }
 
-    return { id: sarcina.entity_id };
+    // `zilePastrate` NU e un detaliu tehnic: e numărul de zile care se vor plăti
+    // și ca lucrate, și ca zile de concediu, dacă nimeni nu se uită la ele.
+    return { id: sarcina.entity_id, zilePastrate };
   },
 });
 

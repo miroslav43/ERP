@@ -1,5 +1,6 @@
 // src/schemas/job-position.ts
 import { z } from "zod";
+import { enumOptional } from "./comun";
 
 import { codCorExista } from "@/domain/hr/cor-nomenclator";
 
@@ -77,9 +78,9 @@ export type SortareFunctii = (typeof SORTARI_FUNCTII)[number];
  */
 export const filtreFunctiiSchema = z.object({
   q: textOptional(120),
-  stare: z.enum(["activa", "inactiva"]).nullable().default(null),
+  stare: enumOptional(["activa", "inactiva"], "Starea din filtru nu este validă."),
   /** `lipsa` — doar funcțiile fără cod COR, cele care blochează REVISAL-ul. */
-  cor: z.enum(["lipsa"]).nullable().default(null),
+  cor: enumOptional(["lipsa"], "Filtrul de cod COR nu este valid."),
   /** Forma din URL: `denumire` crescător, `-denumire` descrescător. */
   sort: textOptional(40),
 });

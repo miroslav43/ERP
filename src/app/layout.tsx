@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
+import { ZonaIncarcare } from "@/components/incarcare/zona-incarcare";
+
 /**
  * Subsetul `latin-ext` este obligatoriu, nu opțional.
  *
@@ -43,7 +45,25 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ro" className={`${inter.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        {children}
+        {/*
+          Voalul de încărcare stă AICI, nu per zonă, și asta e toată ideea.
+          Drumul reclamat — `/alege-organizatia` → `/panou` — traversează două
+          grupuri de rute: layout-ul `(auth)` se demontează, cel `(app)` se
+          montează. Singurul înveliș comun celor două e acesta.
+
+          Funcționează fiindcă `redirect()` dintr-o Server Action face navigare
+          CLIENT, nu înlocuire de document (`redirect.md:13`), deci componentul
+          supraviețuiește exact intervalului în care ecranul tăcea.
+
+          `ZonaToast` rămâne montată per zonă — are altă cerință, fiindcă o
+          notificare a utilizatorului precedent n-are ce căuta pe ecranul
+          următorului. Voalul n-are starea asta: se stinge când se golește
+          lista de surse.
+        */}
+        <ZonaIncarcare />
+      </body>
     </html>
   );
 }

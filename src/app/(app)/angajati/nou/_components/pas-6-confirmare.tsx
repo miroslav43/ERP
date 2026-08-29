@@ -43,8 +43,20 @@ export function Pas6Confirmare({ formular }: Proprietati) {
       </dl>
 
       <dl className="border-border divide-border rounded-panou divide-y border p-4">
-        <Rand eticheta="Număr contract" valoare={valori.numar} />
+        {/*
+          `Rand` ascunde rândul gol, iar numărul de contract E gol în cazul
+          NORMAL — se alocă la salvare. Fără textul de mai jos, recapitularea
+          finală n-ar spune un cuvânt despre numerotare, exact în ecranul care
+          există ca să arate ce urmează să se scrie.
+        */}
+        <Rand
+          eticheta="Număr contract"
+          valoare={
+            (valori.numar ?? "").trim() === "" ? "se alocă automat la salvare" : valori.numar
+          }
+        />
         <Rand eticheta="Valabil de la" valoare={valori.valabil_de_la} />
+        <Rand eticheta="Vechime în unitate din" valoare={valori.hired_on} />
         <Rand
           eticheta="Durata"
           valoare={valori.contract_duration === "determinat" ? "Determinată" : "Nedeterminată"}

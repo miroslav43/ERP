@@ -73,6 +73,18 @@ export interface ZiPontaj {
   readonly ore_noapte: number | null;
   readonly tip_zi: string;
   readonly observatii: string | null;
+  /**
+   * Nenul când ziua a fost pusă automat din concediul aprobat. Ceasul de pontaj
+   * NU are voie s-o atingă — `salveazaZiPontaj` o refuză oricum, dar un buton
+   * care duce sigur într-un refuz e un defect de ecran.
+   */
+  readonly leave_request_id: string | null;
+  /**
+   * Nenul după aprobare. Ziua devine atunci needitabilă: politica de UPDATE o
+   * respinge, iar respingerea e TĂCUTĂ (zero rânduri, fără eroare). Ecranul
+   * trebuie s-o știe ÎNAINTE, nu după drumul la server.
+   */
+  readonly approved_at: string | null;
 }
 
 export interface DocumentPropriu {
@@ -246,7 +258,8 @@ export async function pontajulMeu(
   const { data, error } = await db
     .from("attendance_entries")
     .select(
-      "id, data, ora_inceput, ora_sfarsit, ore_lucrate, ore_suplimentare, ore_noapte, tip_zi, observatii",
+      "id, data, ora_inceput, ora_sfarsit, ore_lucrate, ore_suplimentare, ore_noapte, tip_zi, " +
+        "observatii, leave_request_id, approved_at",
     )
     .eq("organization_id", organizationId)
     .eq("employee_id", employeeId)

@@ -1,11 +1,9 @@
 "use client";
 
-import { useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { Plus } from "lucide-react";
 
-import { Buton } from "@/components/ui/buton";
 import { Camp } from "@/components/ui/camp";
-import { Formular } from "@/components/ui/formular";
+import { FormularDialog } from "@/components/ui/formular-dialog";
 
 import { predaEip } from "../actions";
 
@@ -33,8 +31,6 @@ interface AngajatOptiune {
  * nesemnată, iar confirmarea vine separat.
  */
 export function FormularEip({ angajati }: { readonly angajati: readonly AngajatOptiune[] }) {
-  const router = useRouter();
-
   async function trimite(formular: FormData) {
     const text = (cheie: string) => {
       const v = String(formular.get(cheie) ?? "").trim();
@@ -56,19 +52,20 @@ export function FormularEip({ angajati }: { readonly angajati: readonly AngajatO
     });
   }
 
-  // Stabil între randări: `laReusita` intră în lista de dependențe a efectului
-  // din `<Formular>`, iar o funcție nouă la fiecare randare ar relua efectul —
-  // adică încă o notificare de reușită la fiecare re-randare.
-  const laReusita = useCallback(() => {
-    router.refresh();
-  }, [router]);
-
   return (
-    <Formular
+    <FormularDialog
+      declansator={{
+        eticheta: "Predă un echipament",
+        varianta: "secundar",
+        pictograma: <Plus aria-hidden="true" className="size-4" />,
+      }}
+      titlu="Predare de echipament individual de protecție"
+      descriere="Data înlocuirii NU se completează aici: o calculează baza, din durata de utilizare. Predarea se înregistrează nesemnată — confirmarea angajatului vine separat."
+      marime="mare"
       actiune={trimite}
-      laReusita={laReusita}
       mesajReusita="Echipamentul a fost predat."
-      className="border-border rounded-panou border p-4"
+      etichetaTrimite="Predă echipamentul"
+      textInCurs="Se salvează…"
     >
       {(stare) => {
         // Formularul se folosește la rând, deci după o predare reușită trebuie
@@ -79,8 +76,6 @@ export function FormularEip({ angajati }: { readonly angajati: readonly AngajatO
 
         return (
           <>
-            <p className="text-corp font-medium">Predă echipament</p>
-
             <div className="grid gap-3 sm:grid-cols-3">
               <Camp
                 nume="employee_id"
@@ -175,20 +170,9 @@ export function FormularEip({ angajati }: { readonly angajati: readonly AngajatO
                 )}
               </Camp>
             </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <Buton
-                type="submit"
-                varianta="primar"
-                inCurs={stare.inCurs}
-                textInCurs="Se salvează…"
-              >
-                Predă echipamentul
-              </Buton>
-            </div>
           </>
         );
       }}
-    </Formular>
+    </FormularDialog>
   );
 }

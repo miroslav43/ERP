@@ -6,6 +6,8 @@
 // filtrează după `employee_id`: politica `leave_requests_select` (și surorile
 // ei) îl rezolvă singură, prin `app.current_employee_id(organization_id)`.
 
+import { cache } from "react";
+
 import { createServerSupabase } from "@/lib/supabase/server";
 import type { PermissionScope } from "@/config/permissions";
 import { SORTARI_CERERI } from "@/schemas/leave";
@@ -748,36 +750,49 @@ export interface ZileNelucratoare {
  * Sursa previzualizării de zile ale unei cereri (vezi `@/domain/leave/zile-cerere`)
  * și a marcajelor din grila de calendar. `anInceput`/`anSfarsit` pot fi egale.
  */
-export async function zileNelucratoare(
-  organizationId: string,
-  anInceput: number,
-  anSfarsit: number,
-): Promise<ZileNelucratoare> {
-  const db = await createServerSupabase();
-  const ani: number[] = [];
-  for (let an = anInceput; an <= anSfarsit; an += 1) ani.push(an);
+/*
+  Memoizat pe cerere, ca `resolveTenant` și `getPermissionMap`.
 
-  const [nationaleRes, organizatieRes] = await Promise.all([
-    db
-      .from("public_holidays")
-      .select("data, denumire")
-      .eq("tara", "RO")
-      .in("an", ani)
-      .is("deleted_at", null)
-      .returns<ZiSarbatoareNationala[]>(),
-    db
-      .from("organization_holidays")
-      .select("data, tip, denumire")
-      .eq("organization_id", organizationId)
-      .gte("data", `${String(anInceput)}-01-01`)
-      .lte("data", `${String(anSfarsit)}-12-31`)
-      .is("deleted_at", null)
-      .returns<ZiOrganizatie[]>(),
-  ]);
-  if (nationaleRes.error !== null) throw nationaleRes.error;
-  if (organizatieRes.error !== null) throw organizatieRes.error;
-  return { nationale: nationaleRes.data ?? [], organizatie: organizatieRes.data ?? [] };
-}
+  `/pontaj` o chema de DOUĂ ori cu argumente identice — o dată în corpul paginii
+  (:242) și o dată în secțiunea streamată (:72) — deci plătea două valuri pentru
+  aceleași sărbători. Argumentele sunt primitive, deci memoizarea e sigură:
+  `cache()` compară prin identitate, iar un `string` și două `number` se compară
+  bine. (Cu un obiect ca argument, fiecare apelant ar construi altul și nu s-ar
+  nimeri niciodată în cache — capcana e scrisă și în celelalte nouă locuri unde
+  proiectul folosește deja `cache()`.)
+*/
+export const zileNelucratoare = cache(
+  async (
+    organizationId: string,
+    anInceput: number,
+    anSfarsit: number,
+  ): Promise<ZileNelucratoare> => {
+    const db = await createServerSupabase();
+    const ani: number[] = [];
+    for (let an = anInceput; an <= anSfarsit; an += 1) ani.push(an);
+
+    const [nationaleRes, organizatieRes] = await Promise.all([
+      db
+        .from("public_holidays")
+        .select("data, denumire")
+        .eq("tara", "RO")
+        .in("an", ani)
+        .is("deleted_at", null)
+        .returns<ZiSarbatoareNationala[]>(),
+      db
+        .from("organization_holidays")
+        .select("data, tip, denumire")
+        .eq("organization_id", organizationId)
+        .gte("data", `${String(anInceput)}-01-01`)
+        .lte("data", `${String(anSfarsit)}-12-31`)
+        .is("deleted_at", null)
+        .returns<ZiOrganizatie[]>(),
+    ]);
+    if (nationaleRes.error !== null) throw nationaleRes.error;
+    if (organizatieRes.error !== null) throw organizatieRes.error;
+    return { nationale: nationaleRes.data ?? [], organizatie: organizatieRes.data ?? [] };
+  },
+);
 
 // ── Setări concedii: tipuri + grile de zile suplimentare ──────────────────────
 //

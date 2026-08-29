@@ -5,7 +5,14 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
-import { optional, textOptional } from "./comun";
+import {
+  enumOptional,
+  numarCuImplicit,
+  numarObligatoriu,
+  numarOptional,
+  optional,
+  textOptional,
+} from "./comun";
 
 const DIRECTOR = join(process.cwd(), "src/schemas");
 
@@ -83,6 +90,114 @@ describe("textOptional", () => {
 });
 
 /**
+ * `enumOptional` — defectul care făcea butonul „Continuă” să pară mort.
+ *
+ * Un `<select>` cu `<option value="">— Niciunul —</option>` trimite ȘIRUL GOL
+ * prin `register()`. `z.enum(X).nullable()` îl respinge, iar câmpul vinovat
+ * (`special_regime` în pasul 3, `stare_civila` în pasul 1) nu randa niciun
+ * mesaj: validarea pica, pasul nu avansa, ecranul tăcea.
+ */
+describe("enumOptional", () => {
+  const REGIMURI = ["ucenicie", "internship", "zilier"] as const;
+  const schema = enumOptional(REGIMURI, "Alegeți un regim special din listă.");
+
+  it('acceptă `""` — opțiunea „— Niciunul —” a unui `<select>`', () => {
+    // Exact valoarea pe care o trimitea formularul și pe care o respingea
+    // `z.enum(X).nullable()`.
+    expect(schema.parse("")).toBeNull();
+  });
+
+  it("acceptă și celelalte două forme ale absenței", () => {
+    expect(schema.parse(null)).toBeNull();
+    expect(schema.parse(undefined)).toBeNull();
+  });
+
+  it("lasă o valoare din enum să treacă neatinsă", () => {
+    expect(schema.parse("internship")).toBe("internship");
+  });
+
+  it("respinge o valoare din afara enum-ului, în română", () => {
+    const rezultat = schema.safeParse("altceva");
+    expect(rezultat.success).toBe(false);
+    expect(rezultat.error?.issues[0]?.message).toBe("Alegeți un regim special din listă.");
+  });
+
+  it("dă mesajul românesc pe AMBELE căi de raportare", () => {
+    // `zodResolver` desface `invalid_union` și ia mesajul RAMURII; serverul,
+    // prin `z.flattenError`, îl citește pe cel al UNIUNII. De aceea mesajul e
+    // dat de două ori în ajutor — cu unul singur, una dintre căi ar scăpa
+    // textul englezesc al lui zod pe ecran.
+    const obiect = z.object({ regim: schema });
+    const plat = z.flattenError(obiect.safeParse({ regim: "altceva" }).error!);
+    expect(plat.fieldErrors["regim"]).toEqual(["Alegeți un regim special din listă."]);
+  });
+});
+
+/**
+ * Ajutoarele numerice — a doua cale către același ecran mut.
+ *
+ * `z.coerce.number()` pe `""` dă `Number("") === 0`. Un salariu de bază golit
+ * se scria tăcut 0 RON, iar o normă golită pica `min(0.5)` cu textul englezesc
+ * al lui zod, pe un câmp fără afișare de eroare.
+ */
+describe("ajutoarele numerice", () => {
+  it("numarOptional normalizează golul la `null`, nu la zero", () => {
+    const schema = numarOptional({
+      min: 0,
+      max: 365,
+      mesaj: "Introduceți un număr.",
+      interval: "Valoarea trebuie să fie între 0 și 365.",
+    });
+    expect(schema.parse("")).toBeNull();
+    expect(schema.parse("   ")).toBeNull();
+    expect(schema.parse(null)).toBeNull();
+    expect(schema.parse(undefined)).toBeNull();
+    // Un zero TASTAT rămâne zero: e o valoare, nu o absență.
+    expect(schema.parse("0")).toBe(0);
+    expect(schema.parse("30")).toBe(30);
+  });
+
+  it("numarObligatoriu spune „lipsește”, nu plafonul calculat pe zero", () => {
+    const schema = numarObligatoriu({
+      min: 0.5,
+      max: 48,
+      lipsa: "Norma săptămânală este obligatorie.",
+      mesaj: "Norma săptămânală trebuie să fie un număr.",
+      interval: "Norma săptămânală este între 0,5 și 48 de ore.",
+    });
+    expect(schema.safeParse("").error?.issues[0]?.message).toBe(
+      "Norma săptămânală este obligatorie.",
+    );
+    expect(schema.safeParse(null).error?.issues[0]?.message).toBe(
+      "Norma săptămânală este obligatorie.",
+    );
+    // Conducta păstrează mesajele interioare, deci „nu e număr” și „în afara
+    // intervalului” rămân distincte — o uniune le-ar fi colapsat.
+    expect(schema.safeParse("abc").error?.issues[0]?.message).toBe(
+      "Norma săptămânală trebuie să fie un număr.",
+    );
+    expect(schema.safeParse("60").error?.issues[0]?.message).toBe(
+      "Norma săptămânală este între 0,5 și 48 de ore.",
+    );
+    expect(schema.parse("40")).toBe(40);
+  });
+
+  it("numarCuImplicit revine la implicit când câmpul e golit", () => {
+    const schema = numarCuImplicit({
+      min: 0,
+      max: 60,
+      implicit: 21,
+      mesaj: "Introduceți un număr de zile.",
+      interval: "Zilele de concediu sunt între 0 și 60.",
+    });
+    expect(schema.parse("")).toBe(21);
+    expect(schema.parse(undefined)).toBe(21);
+    expect(schema.parse("25")).toBe(25);
+    expect(schema.safeParse("61").success).toBe(false);
+  });
+});
+
+/**
  * Poarta. Fără ea, nimic din comentariul lui `comun.ts` nu ține.
  *
  * Ajutorul a trăit copiat în șapte fișiere, octet cu octet identic, iar
@@ -120,6 +235,70 @@ describe("niciun ajutor local", () => {
    */
   it("`optional` nu se declară local în niciun fișier de scheme", () => {
     const tipar = /^\s*(?:export\s+)?const optional\s*=/mu;
+    const vinovate = fisiere.filter((f) => tipar.test(f.sursa)).map((f) => f.nume);
+    expect(
+      vinovate,
+      `Declarat local în: ${vinovate.join(", ")}. Importă-l din "./comun" — copia diverge tăcut.`,
+    ).toEqual([]);
+  });
+
+  /**
+   * A doua poartă: tiparul `z.enum(X).nullable()`, care RESPINGE `""`.
+   *
+   * Un `<select>` cu opțiune goală trimite șirul gol, nu `null`. Când cele două
+   * s-au întâlnit în asistentul de înrolare, butonul „Continuă” a devenit mut:
+   * validarea pica pe `special_regime`, iar câmpul nu randa niciun mesaj.
+   *
+   * Excepțiile de mai jos sunt PERMISE, cu motivul scris. Ca să adaugi una,
+   * scrie aici de ce câmpul nu poate primi `""` — nu o adăuga doar ca să treacă
+   * testul.
+   *
+   * · `permisiuni-membru.ts` — `scope` n-are `.default(null)`, iar
+   *   `enumOptional` i l-ar adăuga. O cheie lipsă dintr-un payload malformat ar
+   *   deveni tăcut „revino la implicit”, adică o retragere de drept fără
+   *   eroare. Interfața (`matrice-permisiuni.tsx`) trimite oricum `null`
+   *   explicit, prin opțiunea `value="implicit"`.
+   * · `checklist.ts` — `verificare_automata` descrie forma unui RÂND CITIT din
+   *   bază, nu intrarea unui formular. Nu există `<select>` în spatele lui.
+   *
+   * Tiparul `z.array(z.enum(X)).nullable()` (leave.ts, checklist.ts) nu intră
+   * în poartă: `.nullable()` se aplică listei, după un `transform` care mapează
+   * deja `""` la `null`. Altă construcție, deja corectă.
+   */
+  it("`z.enum(...).nullable()` nu se mai folosește pe câmpuri de formular", () => {
+    const permise: Readonly<Record<string, readonly string[]>> = {
+      "permisiuni-membru.ts": ["scope: z.enum(PERMISSION_SCOPES).nullable(),"],
+      "checklist.ts": ["verificare_automata: z.enum(CHECKLIST_VERIFICARE).nullable(),"],
+    };
+    const tipar = /z\.enum\((?:[^()]|\([^()]*\))*\)\s*\.nullable\(\)/u;
+
+    const vinovate = fisiere.flatMap((f) =>
+      f.sursa
+        .split("\n")
+        .map((linie) => linie.trim())
+        .filter((linie) => tipar.test(linie))
+        .filter((linie) => !(permise[f.nume] ?? []).includes(linie))
+        .map((linie) => `${f.nume}: ${linie}`),
+    );
+
+    expect(
+      vinovate,
+      `Respinge șirul gol pe care îl trimite un <select>. Folosește enumOptional din "./comun":\n${vinovate.join("\n")}`,
+    ).toEqual([]);
+  });
+
+  /**
+   * A treia poartă: ajutoarele numerice.
+   *
+   * Au trăit local în două fișiere, cu comportamente DIFERITE pe aceeași
+   * intrare. Probă rulată pe copia din `ssm.ts`: `numarOptional(0, 1_000_000)`
+   * pe `""` dădea `0`, iar `numarOptional(0.1, 200)` pe `""` dădea `null` —
+   * aceeași funcție, două rezultate, după cum era minimul. Un cost golit se
+   * scria zero lei fără niciun mesaj.
+   */
+  it("ajutoarele numerice nu se declară local", () => {
+    const tipar =
+      /^\s*(?:export\s+)?const (?:enumOptional|numarOptional|numarObligatoriu|numarCuImplicit)\s*=/mu;
     const vinovate = fisiere.filter((f) => tipar.test(f.sursa)).map((f) => f.nume);
     expect(
       vinovate,

@@ -2,6 +2,7 @@
 // Validările de intrare pentru obiectele de inventar și circuitul predare/returnare.
 
 import { z } from "zod";
+import { enumOptional } from "./comun";
 
 export const STARI_OBIECT = ["nou", "bun", "uzat", "defect"] as const;
 export type StareObiect = (typeof STARI_OBIECT)[number];
@@ -85,8 +86,8 @@ export type SortareInventar = (typeof SORTARI_INVENTAR)[number];
 export const filtreInventarSchema = z.object({
   q: textOptional(200),
   numar: textOptional(40),
-  status: z.enum(STATUSURI_OBIECT).nullable().default(null),
-  stare: z.enum(STARI_OBIECT).nullable().default(null),
+  status: enumOptional(STATUSURI_OBIECT, "Statusul din filtru nu este valid."),
+  stare: enumOptional(STARI_OBIECT, "Starea din filtru nu este validă."),
   category_id: uuidOptional,
   cursor: textOptional(400),
   limita: z.coerce.number().int().min(5).max(100).default(25),

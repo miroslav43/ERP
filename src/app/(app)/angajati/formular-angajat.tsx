@@ -16,7 +16,14 @@ import {
   STARI_CIVILE,
 } from "@/schemas/employee";
 
-import { ETICHETE_CONDITII_MUNCA, ETICHETE_GEN, ETICHETE_STARE_CIVILA } from "./etichete";
+import { TIPURI_ACT_IDENTITATE } from "@/domain/reges/operatii";
+
+import {
+  ETICHETE_ACT_IDENTITATE,
+  ETICHETE_CONDITII_MUNCA,
+  ETICHETE_GEN,
+  ETICHETE_STARE_CIVILA,
+} from "./etichete";
 import { actualizeazaAngajat } from "./actions";
 
 interface Optiune {
@@ -57,9 +64,11 @@ export interface AngajatDeEditat {
   readonly gen: string;
   readonly cetatenie: string;
   readonly tip_act_identitate: string | null;
+  readonly reges_tip_act: string | null;
   readonly serie_act: string | null;
   readonly numar_act: string | null;
   readonly act_eliberat_de: string | null;
+  readonly act_eliberat_la: string | null;
   readonly act_valabil_pana: string | null;
   readonly department_id: string | null;
   readonly job_position_id: string | null;
@@ -495,6 +504,48 @@ export function FormularAngajat({ departamente, functii, colegi, angajat }: Prop
                   type="text"
                   maxLength={40}
                   defaultValue={valoare(stare, "tip_act_identitate", angajat.tip_act_identitate)}
+                />
+              )}
+            </Camp>
+            {/*
+              Forma STRUCTURATĂ a aceluiași act, în vocabularul REGES. Cele două
+              coloane coexistă: `tip_act_identitate` e textul tipărit pe
+              documente, `reges_tip_act` e ce se transmite la ITM. Asistentul de
+              înrolare scrie amândouă dintr-un singur `<select>`; aici rămân
+              separate, fiindcă fișele vechi au deja text liber propriu.
+            */}
+            <Camp
+              nume="reges_tip_act"
+              eticheta="Tipul actului (REGES)"
+              fel="select"
+              ajutor="Se transmite la ITM. Fără el, transmiterea cade pe „carte de identitate” pentru toată lumea."
+              erori={stare.erori["reges_tip_act"] ?? []}
+            >
+              {(a) => (
+                <select
+                  {...a}
+                  defaultValue={valoare(stare, "reges_tip_act", angajat.reges_tip_act)}
+                >
+                  <option value="">— Nespecificat —</option>
+                  {TIPURI_ACT_IDENTITATE.map((tip) => (
+                    <option key={tip} value={tip}>
+                      {ETICHETE_ACT_IDENTITATE[tip]}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Camp>
+            <Camp
+              nume="act_eliberat_la"
+              eticheta="Data eliberării"
+              ajutor="Cerută literal de textul contractului de muncă."
+              erori={stare.erori["act_eliberat_la"] ?? []}
+            >
+              {(a) => (
+                <input
+                  {...a}
+                  type="date"
+                  defaultValue={valoare(stare, "act_eliberat_la", angajat.act_eliberat_la)}
                 />
               )}
             </Camp>

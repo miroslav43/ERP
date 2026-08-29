@@ -1,12 +1,22 @@
 // src/app/(app)/angajati/actions.ts
 "use server";
 
+import QRCode from "qrcode";
 import { revalidatePath } from "next/cache";
+
+import { clientEnv } from "@/config/env";
+import { creeazaInvitatie, ZILE_VALABILITATE } from "@/lib/invitatii/creeaza";
+import { alegeAdresaDeInvitatie, type FelAdresa } from "@/lib/invitatii/adresa";
 
 import { readRequestMeta, writeAuditLog } from "@/lib/actions/audit";
 import { businessRule, notFound } from "@/lib/actions/errors";
 import { createAction } from "@/lib/actions/create-action";
 import { createServerSupabase } from "@/lib/supabase/server";
+// Ocolirea RLS e permisă de ESLint în `actions.ts`; motivul concret e scris la
+// `stergeAngajat` — o gardă numărată sub RLS ar slăbi odată cu drepturile de
+// citire ale celui pe care îl păzește.
+import { createAdminSupabase } from "@/lib/supabase/admin";
+import { mesajRefuzStergere } from "@/domain/hr/stergere-angajat";
 import {
   amprentaSensibila,
   catreBytea,
@@ -23,7 +33,9 @@ import {
   creeazaContractSchema,
   dezvaluieDateSensibileSchema,
   incetareContractSchema,
+  invitaAngajatulSchema,
   modificaSalariuContractSchema,
+  stergeAngajatSchema,
 } from "@/schemas/employee";
 
 interface RandSensibil {
@@ -557,5 +569,259 @@ export const dezvaluieDateSensibile = createAction({
     });
 
     return { camp: input.camp, valoare };
+  },
+});
+
+/**
+ * Invită un angajat EXISTENT să-și facă cont — inclusiv pe cel fără e-mail.
+ *
+ * ── GOLUL PE CARE ÎL ÎNCHIDE ────────────────────────────────────────────────
+ * Înrolarea trimite invitația singură, dar numai dacă fișa are e-mail personal;
+ * altfel lasă un avertisment și merge mai departe. Iar o fișă creată înainte ca
+ * legătura invitație–angajat să existe (0099) n-a primit niciodată nimic. La
+ * scrierea acestui cod, 4 din 11 fișe active n-aveau `user_id` — adică exact
+ * oamenii pentru care s-a construit pontarea de pe telefon.
+ *
+ * ── CE FACE CÂND NU EXISTĂ NICIO ADRESĂ ─────────────────────────────────────
+ * Fabrică una (`marca-0042@hala-nord.intern`) și NU trimite niciun mesaj.
+ * Invitația ajunge la om pe hârtie: acțiunea întoarce linkul și un cod QR gata
+ * randat, iar ecranul le tipărește. Vezi `lib/invitatii/adresa.ts` pentru de ce
+ * o adresă fabricată e singurul drum: Supabase Auth are nevoie de una ca să
+ * existe un cont cu parolă.
+ *
+ * ── DE CE CODUL QR SE GENEREAZĂ AICI, PE SERVER ─────────────────────────────
+ * Tokenul e cunoscut o SINGURĂ dată, chiar în clipa asta — în bază stă doar
+ * hash-ul. O pagină de fișă tipăribilă, randată ulterior, n-ar avea de unde să-l
+ * ia. Deci imaginea se produce acum și călătorește odată cu rezultatul; clientul
+ * n-are nevoie de nicio bibliotecă de QR în bundle.
+ */
+export const invitaAngajatul = createAction({
+  name: "employees.invite",
+  feature: "nucleu",
+  permission: "employees:invite",
+  minScope: "all",
+  input: invitaAngajatulSchema,
+  audit: {
+    action: "invite_sent",
+    entityType: "employees",
+    entityId: (input) => input.id,
+    // Adresa NU intră în audit: pentru cea personală e dată cu caracter
+    // personal, iar tokenul n-ar avea ce căuta acolo în niciun caz.
+    allow: [],
+  },
+  revalidate: ["/angajati", "/setari/membri"],
+  handler: async (
+    ctx,
+    input,
+  ): Promise<
+    Readonly<{
+      adresa: string;
+      fel: FelAdresa;
+      emailTrimis: boolean;
+      retrimisa: boolean;
+      link: string;
+      qr: string;
+      expiraLa: string;
+    }>
+  > => {
+    const db = await createServerSupabase();
+
+    const [{ data: fisa, error: eroareFisa }, { data: organizatie, error: eroareOrg }] =
+      await Promise.all([
+        db
+          .from("employees")
+          .select("id, marca, full_name, email_personal, email_serviciu, user_id, status")
+          .eq("id", input.id)
+          .eq("organization_id", ctx.tenant.organizationId)
+          .is("deleted_at", null)
+          .maybeSingle(),
+        db.from("organizations").select("slug").eq("id", ctx.tenant.organizationId).maybeSingle(),
+      ]);
+    if (eroareFisa !== null) throw eroareFisa;
+    if (eroareOrg !== null) throw eroareOrg;
+    if (fisa === null) throw notFound("Angajatul nu a fost găsit.");
+    if (organizatie === null) throw notFound("Organizația nu a fost găsită.");
+
+    // Are deja cont: a doua invitație n-ar face decât să ocupe un loc din
+    // `seats_limit` și să încurce omul cu un al doilea link.
+    if (fisa.user_id !== null) {
+      throw businessRule("Angajatul are deja cont în aplicație.");
+    }
+
+    const alegere = alegeAdresaDeInvitatie(fisa, organizatie.slug);
+
+    const invitatie = await creeazaInvitatie({
+      db,
+      organizationId: ctx.tenant.organizationId,
+      email: alegere.adresa,
+      rol: "employee",
+      employeeId: fisa.id,
+      invitatDe: ctx.user.fullName ?? ctx.user.email,
+      trimiteEmail: alegere.seTrimiteEmail,
+      // Butonul ăsta e singurul drum al omului care n-a primit e-mailul: fișa
+      // n-are lista invitațiilor sub el, iar retrimiterea exista doar în consola
+      // de platformă. „Există deja o invitație" nu era un răspuns — a doua
+      // apăsare retrimite (0105).
+      retrimiteDacaExista: true,
+      userId: ctx.user.id,
+      acum: ctx.now,
+    });
+
+    const baza = clientEnv.NEXT_PUBLIC_APP_URL.replace(/\/+$/u, "");
+    const link = `${baza}/invitatie/${encodeURIComponent(invitatie.token)}`;
+    // Corecție de erori `M` (15%), nu `H`: fișa se ține în mână, nu se lipește pe
+    // un perete de hală, iar un cod mai puțin dens rămâne citibil pe o
+    // imprimantă cu toner slab.
+    const qr = await QRCode.toString(link, {
+      type: "svg",
+      errorCorrectionLevel: "M",
+      margin: 1,
+      color: { dark: "#000000", light: "#ffffff" },
+    });
+
+    const expira = new Date(ctx.now.getTime() + ZILE_VALABILITATE * 24 * 60 * 60 * 1000);
+
+    return {
+      adresa: alegere.adresa,
+      fel: alegere.fel,
+      emailTrimis: invitatie.emailTrimis,
+      retrimisa: invitatie.retrimisa,
+      link,
+      qr,
+      expiraLa: expira.toISOString(),
+    };
+  },
+});
+
+/**
+ * Ștergerea unei fișe de angajat — LOGICĂ, prin `deleted_at`.
+ *
+ * ── DE CE NU UN DELETE ADEVĂRAT ───────────────────────────────────────────
+ * Nu există nicio politică DELETE în tot proiectul, pe nicio tabelă. Nu e o
+ * scăpare: dosarul de personal are termene legale de păstrare, iar fișa e
+ * capătul a vreo douăsprezece legături — contracte, documente, pontaj,
+ * concedii, state de plată, date sensibile criptate. Un rând dispărut le-ar
+ * lăsa pe toate fără subiect. `deleted_at` scoate fișa din TOATE citirile
+ * (fiecare are `.is("deleted_at", null)`) și rămâne reversibil dintr-un UPDATE.
+ *
+ * ── DE CE RENUMĂRĂ PIEDICILE, DEȘI ECRANUL LE-A NUMĂRAT DEJA ──────────────
+ * Pagina le arată ca să nu fie refuzul o surpriză; aici sunt adevărul. Între
+ * randare și apăsare altcineva poate semna un contract nou sau muta un
+ * subordonat sub fișa asta — iar clientul, oricum, nu trimite nicio piedică.
+ *
+ * ── DE CE CLIENTUL DE SERVICIU LA NUMĂRĂTOARE ─────────────────────────────
+ * Numărătoarea prin sesiune ar vedea doar ce are voie să citească cel care
+ * șterge. Rolurile din seed au `employees:delete = all` împreună cu
+ * `employees:read = all`, deci ar fi ieșit la fel — dar o suprascriere per
+ * membru (`role_permissions.member_id`, migrarea 0063) poate acorda ștergerea
+ * fără citirea completă. Atunci o gardă numărată sub RLS ar vedea zero
+ * subordonați acolo unde sunt cinci și ar lăsa lanțul rupt. O gardă nu are voie
+ * să slăbească odată cu drepturile de citire ale celui pe care îl păzește.
+ * Filtrul pe `organization_id` rămâne explicit pe fiecare interogare.
+ */
+export const stergeAngajat = createAction({
+  name: "employees.delete",
+  feature: "nucleu",
+  permission: "employees:delete",
+  minScope: "all",
+  input: stergeAngajatSchema,
+  audit: {
+    action: "delete",
+    entityType: "employees",
+    entityId: (input) => input.id,
+    // Numele nu intră în jurnal: `entity_id` spune deja despre cine e vorba,
+    // iar `audit_logs` e citit de mai mulți ochi decât fișa însăși.
+    allow: ["id"],
+  },
+  revalidate: ["/angajati", "/organigrama", "/setari/membri"],
+  // Nu întoarce numele: `full_name` e GENERATED ALWAYS și de aceea `string |
+  // null` în tipurile generate, iar ecranul îl are oricum din props. Un
+  // `?? ""` doar ca să se potrivească semnătura ar fi produs „Fișa lui  a fost
+  // ștearsă."
+  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    const db = await createServerSupabase();
+
+    const { data: fisa, error: eroareFisa } = await db
+      .from("employees")
+      .select("id, user_id")
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (eroareFisa !== null) throw eroareFisa;
+    if (fisa === null) throw notFound("Angajatul nu există sau a fost deja șters.");
+
+    // Ocolire deliberată de RLS, motivată în capul acțiunii: garda nu trebuie
+    // să slăbească odată cu scope-ul de citire al celui care o declanșează.
+    const admin = createAdminSupabase();
+    const [contracte, subordonati] = await Promise.all([
+      admin
+        .from("employment_contracts")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", ctx.tenant.organizationId)
+        .eq("employee_id", fisa.id)
+        .eq("status", "activ")
+        .is("deleted_at", null),
+      admin
+        .from("employees")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", ctx.tenant.organizationId)
+        .eq("manager_employee_id", fisa.id)
+        .is("deleted_at", null),
+    ]);
+    if (contracte.error !== null) throw contracte.error;
+    if (subordonati.error !== null) throw subordonati.error;
+
+    const refuz = mesajRefuzStergere({
+      contracteActive: contracte.count ?? 0,
+      subordonatiDirecti: subordonati.count ?? 0,
+      esteFisaProprie: fisa.user_id !== null && fisa.user_id === ctx.user.id,
+    });
+    if (refuz !== null) throw businessRule(refuz);
+
+    /*
+     * `.select()` după `.update()`, cu `.is("deleted_at", null)` repetat:
+     * politica `employees_update` cere `deleted_at is null` în `USING`, iar un
+     * UPDATE respins de `USING` afectează ZERO rânduri fără nicio eroare. Fără
+     * rândul întors înapoi, două apăsări una după alta ar raporta amândouă
+     * succes, deși a doua n-a atins nimic.
+     *
+     * `updated_by` nu se trimite: îl pune triggerul BEFORE `set_actor_employees`
+     * din `auth.uid()`, exact ce cere clauza `WITH CHECK`.
+     */
+    const { data: stearsa, error } = await db
+      .from("employees")
+      .update({ deleted_at: ctx.now.toISOString() })
+      .eq("id", fisa.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
+    if (error !== null) throw businessRule(error.message.slice(0, 300));
+
+    if (stearsa === null) {
+      /*
+       * Zero rânduri fără eroare — semnătura unui UPDATE respins de `USING`.
+       * Aici sunt DOUĂ cauze, iar mesajul „a șters-o altcineva" ar minți în a
+       * doua: politica `employees_update` cere `employees:update`, pe care
+       * acțiunea asta NU o pretinde (ea cere `employees:delete`). Rolurile din
+       * seed le au pe amândouă, dar o suprascriere per membru poate acorda una
+       * fără cealaltă. O întrebare în plus, doar pe calea de eșec, spune care.
+       */
+      const { count } = await admin
+        .from("employees")
+        .select("id", { count: "exact", head: true })
+        .eq("id", fisa.id)
+        .eq("organization_id", ctx.tenant.organizationId)
+        .is("deleted_at", null);
+
+      throw businessRule(
+        (count ?? 0) > 0
+          ? "Baza a refuzat ștergerea: politica cere și dreptul de editare a fișelor, nu doar pe cel de ștergere."
+          : "Fișa a fost ștearsă de altcineva între timp.",
+      );
+    }
+
+    return { id: stearsa.id };
   },
 });

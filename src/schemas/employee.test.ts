@@ -1,4 +1,7 @@
 // src/schemas/employee.test.ts
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -109,5 +112,51 @@ describe("mutaAngajatiSchema", () => {
     expect(mutaAngajatiSchema.safeParse({ employee_ids: exact, department_id: null }).success).toBe(
       true,
     );
+  });
+});
+
+/**
+ * Cealaltă jumătate a porții — cea pe care antetul de mai sus o promitea, dar
+ * nu o verifica.
+ *
+ * `construiestePayload` din `formular-angajat.tsx` parcurge
+ * `CAMPURI_EDITABILE_ANGAJAT` și citește `FormData` pentru fiecare cheie. O
+ * cheie fără control randat produce ȘIRUL GOL, care ajunge la schemă, devine
+ * `null` și SUPRASCRIE valoarea din bază. Nicio eroare: `UPDATE`-ul reușește,
+ * doar că golește.
+ *
+ * Comentariul din formular o spunea în scris — „trebuie să primească și un
+ * control randat mai jos, altfel prima salvare îl golește" — și tot s-a
+ * întâmplat: `act_eliberat_la` și `reges_tip_act` au fost adăugate în listă
+ * fără controale, iar prima salvare a oricărei fișe le-ar fi șters.
+ *
+ * Testul citește FIȘIERUL, nu randează componenta: proiectul `ui` din
+ * `vitest.config.mts` acoperă doar `src/components/`, iar pentru pagini unealta
+ * e Playwright. Aici e de ajuns o potrivire de `nume="…"`, fiindcă `<Camp>` e
+ * singurul mod în care formularul randează un control.
+ */
+describe("formularul de editare randează tot ce trimite", () => {
+  const FORMULAR = join(process.cwd(), "src/app/(app)/angajati/formular-angajat.tsx");
+  const sursa = readFileSync(FORMULAR, "utf8");
+
+  it("găsește formularul", () => {
+    // Fără asta, o redenumire de fișier ar face testul verde pe un șir gol.
+    expect(sursa.length).toBeGreaterThan(1000);
+  });
+
+  it("fiecare câmp editabil are un control randat", () => {
+    // Două forme, amândouă legitime: `<Camp nume="…">` pentru controalele
+    // obișnuite și `name="…"` direct pentru bifă, care nu trece prin `Camp` —
+    // o casetă de bifat n-are eticheta deasupra, ci lângă ea.
+    const fara = CAMPURI_EDITABILE_ANGAJAT.filter(
+      (cheie) =>
+        !new RegExp(`nume="${cheie}"`, "u").test(sursa) &&
+        !new RegExp(`name="${cheie}"`, "u").test(sursa),
+    );
+    expect(
+      fara,
+      `Câmpuri trimise de \`construiestePayload\` fără control în formular: ${fara.join(", ")}. ` +
+        `Prima salvare le va goli, fără nicio eroare.`,
+    ).toEqual([]);
   });
 });

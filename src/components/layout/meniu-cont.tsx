@@ -4,8 +4,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowLeftRight, Check, ChevronDown, LogOut, UserRound } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 import { comutaOrganizatiaDirect, deconecteaza } from "@/app/(app)/actions";
+import { RandTrimite } from "@/components/incarcare/rand-trimite";
 import type { AppRole } from "@/lib/tenant/types";
 
 /** Rândul din lista de firme a meniului de cont și din paleta de comenzi. */
@@ -72,8 +74,17 @@ export function MeniuCont({
   const nume = utilizator.fullName ?? utilizator.email;
   const altele = organizatii.filter((organizatie) => organizatie.id !== organizatiaCurentaId);
 
+  const [lucreaza, setLucreaza] = useState(false);
+  const panou = useRef<HTMLDetailsElement | null>(null);
+
+  // Panoul se închide de îndată ce ceva a pornit: rămas deschis, ar sta peste un
+  // ecran care încă arată firma veche, iar omul nu poate ști dacă a apăsat.
+  useEffect(() => {
+    if (lucreaza && panou.current !== null) panou.current.open = false;
+  }, [lucreaza]);
+
   return (
-    <details key={cale} className="relative">
+    <details ref={panou} key={cale} className="relative">
       <summary className="rounded-control text-corp flex h-11 cursor-pointer list-none items-center gap-1.5 px-2 text-white/80 transition-colors hover:bg-white/10 hover:text-white [&::-webkit-details-marker]:hidden">
         <UserRound aria-hidden="true" className="size-5 shrink-0" />
         {/* Numele dispare sub `sm`, unde antetul are patru ținte de 44 px și
@@ -122,9 +133,13 @@ export function MeniuCont({
             {altele.map((organizatie) => (
               <form key={organizatie.id} action={comutaOrganizatiaDirect}>
                 <input type="hidden" name="organizationId" value={organizatie.id} />
-                <button
-                  type="submit"
-                  className="text-foreground rounded-control hover:bg-surface text-corp flex min-h-11 w-full items-center gap-2 px-3 text-left transition-colors"
+                <RandTrimite
+                  className={
+                    "text-foreground rounded-control hover:bg-surface text-corp flex min-h-11 w-full items-center gap-2 px-3 text-left transition-colors"
+                  }
+                  blocat={lucreaza}
+                  raporteaza={setLucreaza}
+                  eticheta={organizatie.name}
                 >
                   <ArrowLeftRight aria-hidden="true" className="size-4 shrink-0" />
                   <span className="flex min-w-0 flex-col">
@@ -133,7 +148,7 @@ export function MeniuCont({
                       {ETICHETE_ROL[organizatie.role]}
                     </span>
                   </span>
-                </button>
+                </RandTrimite>
               </form>
             ))}
           </div>
@@ -144,13 +159,16 @@ export function MeniuCont({
             printr-un chenar și poziția ultimă. */}
         <div className="border-border mt-1 border-t pt-1">
           <form action={deconecteaza}>
-            <button
-              type="submit"
-              className="text-foreground rounded-control hover:bg-surface text-corp flex min-h-11 w-full items-center gap-2 px-3 text-left transition-colors"
+            <RandTrimite
+              className={
+                "text-foreground rounded-control hover:bg-surface text-corp flex min-h-11 w-full items-center gap-2 px-3 text-left transition-colors"
+              }
+              blocat={lucreaza}
+              raporteaza={setLucreaza}
             >
               <LogOut aria-hidden="true" className="size-4 shrink-0" />
               Deconectare
-            </button>
+            </RandTrimite>
           </form>
         </div>
       </div>

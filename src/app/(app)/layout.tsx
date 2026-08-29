@@ -1,15 +1,13 @@
 // src/app/(app)/layout.tsx
-import { contoarePanouPentru, insigneMeniu } from "@/lib/queries/panou";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { Sidebar, SidebarProvider } from "@/components/layout/sidebar";
-import { SidebarNav, type NavGroupView } from "@/components/layout/sidebar-nav";
+import { MeniuLateral } from "@/components/layout/meniu-lateral";
+import { ScheletNav, ScheletTopbar } from "@/components/layout/schelet-nav";
 import { Topbar } from "@/components/layout/topbar";
 import { RaporteazaProblema } from "@/components/layout/raporteaza-problema";
 import { getEnabledFeatures } from "@/lib/auth/features";
-import { getPermissionMap } from "@/lib/auth/permissions";
-import { buildNavigation } from "@/lib/navigation/build-navigation";
 import { resolveTenant } from "@/lib/tenant/resolve-tenant";
 import { stareFirmei } from "@/lib/tenant/stare-firma";
 import { POARTA_PORTAL_ACTIVA, RUTA_PORTAL } from "@/config/routes";
@@ -84,52 +82,16 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     redirect(tenant.role === "org_admin" ? "/bun-venit" : "/firma-in-configurare");
   }
 
-  const [features, permissions, store] = await Promise.all([
+  /*
+   * Doar ce are nevoie CARCASA: `features` pentru butonul de sesizare, cookie-ul
+   * pentru starea colapsată a railului. Harta de permisiuni a plecat odată cu
+   * meniul, în `<MeniuLateral>` — e memoizată cu `React.cache()`, deci n-o
+   * plătește nimeni de două ori, dar nu mai ține primul pixel.
+   */
+  const [features, store] = await Promise.all([
     getEnabledFeatures(tenant.organizationId),
-    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
     cookies(),
   ]);
-
-  // Harta se predă întreagă, nu turtită într-un `Set` de chei. `scope = 'none'`
-  // rămâne refuz explicit — dar acum îl tratează `meetsScope` din
-  // `buildNavigation`, împreună cu pragul `minScope` al fiecărei intrări, care
-  // înainte se pierdea pe drum.
-  /*
-   * Insignele veneau goale — `badges: {}` — deci meniul nu arăta niciodată
-   * vreun contor, deși panoul îi calcula pe toți. Se derivă acum din ACEEAȘI
-   * funcție ca panoul, memoizată pe cerere: dacă pagina curentă e chiar
-   * `/panou`, cele unsprezece interogări se fac O SINGURĂ dată pentru ambele.
-   */
-  const contoare = await contoarePanouPentru(tenant.organizationId, tenant.role, tenant.memberId);
-  const grupuri = buildNavigation({
-    features,
-    permissions,
-    badges: insigneMeniu(contoare),
-  });
-
-  // Iconițele sunt componente: trec granița server → client ca elemente randate.
-  const navigare: readonly NavGroupView[] = grupuri.map((grup) => ({
-    id: grup.id,
-    label: grup.label,
-    items: grup.items.map(({ icon: Icon, ...item }) => ({
-      id: item.id,
-      label: item.label,
-      href: item.href,
-      icon: <Icon className="size-4 shrink-0" aria-hidden />,
-      // `exactOptionalPropertyTypes`: o cheie absentă nu este același lucru cu
-      // una setată pe `undefined`, deci o omitem în loc să o setăm.
-      ...(item.badgeCount === undefined ? {} : { badgeCount: item.badgeCount }),
-      ...(item.children === undefined
-        ? {}
-        : {
-            children: item.children.map((copil) => ({
-              id: copil.id,
-              label: copil.label,
-              href: copil.href,
-            })),
-          }),
-    })),
-  }));
 
   return (
     <>
@@ -144,12 +106,37 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         className={monoCifre.variable}
       >
         <Sidebar organizationName={tenant.name}>
-          <SidebarNav groups={navigare} />
+          {/*
+            Meniul se randează ÎN AFARA căii critice.
+
+            `contoarePanouPentru` face un fan-out de unsprezece ramuri (~21 de
+            interogări, unele cu paginare) doar ca să pună cifrele din dreptul
+            intrărilor. Chemat din corpul layout-ului, ținea primul pixel al
+            întregii aplicații — și, fiindcă un layout care citește date runtime
+            NU e acoperit de `loading.tsx`, niciunul dintre cele 83 de schelete
+            ale produsului nu apărea în tot acest timp.
+
+            Ce rămâne în corp: cele două porți de redirect. Vezi docblock-ul din
+            `meniu-lateral.tsx` — un `redirect()` dintr-un context streamat devine
+            meta-tag pe client, iar angajatul ar apuca să vadă carcasa aplicației
+            de administrare înainte să fie mutat în portal.
+          */}
+          <Suspense fallback={<ScheletNav />}>
+            <MeniuLateral
+              organizationId={tenant.organizationId}
+              role={tenant.role}
+              memberId={tenant.memberId}
+            />
+          </Suspense>
         </Sidebar>
         <div className="flex min-w-0 flex-1 flex-col">
           {/* `Topbar` este Server Component fără props: își rezolvă singur
-              tenantul, utilizatorul și lista de organizații. */}
-          <Topbar />
+              tenantul, utilizatorul și lista de organizații. Streamat din același
+              motiv ca meniul: cheamă și el `contoarePanouPentru`, pentru
+              insignele paletei de comenzi. */}
+          <Suspense fallback={<ScheletTopbar />}>
+            <Topbar />
+          </Suspense>
           {/*
             Landmark-ul, umplutura și lățimea maximă aparțin EXCLUSIV învelișului.
             Înainte, fiecare dintre cele 94 de pagini randa încă un `<main>` cu

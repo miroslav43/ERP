@@ -307,6 +307,16 @@ export interface SetariPontaj {
   readonly noapte_sfarsit: string;
   /** Minimul de ore de noapte de la care se acordă sporul (art. 126; 0 = fără prag). */
   readonly prag_ore_noapte: number;
+  /**
+   * Ora la care începe programul obișnuit (0096). `null` când firma n-a declarat
+   * unul — și atunci butonul „Confirm ziua” nu se poate afișa, fiindcă
+   * `intervalulPropus` n-are de unde porni.
+   */
+  readonly program_start: string | null;
+  /** Ce fel de pontare rapidă oferă firma: `oprit`/`confirmare`/`ceas`/`ambele`. */
+  readonly mod_pontare_rapida: string;
+  /** Cum se verifică prezența: `fara` (pe încredere) sau `cod_qr`. */
+  readonly verificare_pontare: string;
 }
 
 /** Nu există seed pentru `attendance_settings` — `null` e normal, nu o eroare. */
@@ -322,7 +332,8 @@ export async function setariPontaj(
         "pauza_masa_inclusa_in_program, pauza_obligatorie_peste_ore, " +
         "lucreaza_noaptea, lucreaza_weekend, lucreaza_sarbatori, admite_ore_suplimentare, " +
         "spor_suplimentare_procent, spor_noapte_procent, spor_weekend_procent, spor_sarbatoare_procent, " +
-        "noapte_start, noapte_sfarsit, prag_ore_noapte",
+        "noapte_start, noapte_sfarsit, prag_ore_noapte, " +
+        "program_start, mod_pontare_rapida, verificare_pontare",
     )
     .eq("organization_id", organizationId)
     .lte("valabil_de_la", dataInceput)
@@ -650,10 +661,13 @@ export interface SetariPontajComplete {
   readonly pauza_masa_inclusa_in_program: boolean;
   readonly pauza_obligatorie_peste_ore: number;
   readonly observatii_juridice: string | null;
+  readonly program_start: string | null;
+  readonly mod_pontare_rapida: string;
+  readonly verificare_pontare: string;
 }
 
 const CAMPURI_SETARI_PONTAJ =
-  "id, valabil_de_la, ore_pe_zi, ore_pe_saptamana, ore_maxime_saptamanale, perioada_referinta_luni, repaus_zilnic_minim_ore, repaus_saptamanal_minim_ore, lucreaza_noaptea, lucreaza_weekend, lucreaza_sarbatori, admite_ore_suplimentare, spor_suplimentare_procent, spor_noapte_procent, spor_weekend_procent, spor_sarbatoare_procent, noapte_start, noapte_sfarsit, prag_ore_noapte, termen_compensare_suplimentare_zile, termen_compensare_sarbatoare_zile, pauza_masa_minute, pauza_masa_inclusa_in_program, pauza_obligatorie_peste_ore, observatii_juridice";
+  "id, valabil_de_la, ore_pe_zi, ore_pe_saptamana, ore_maxime_saptamanale, perioada_referinta_luni, repaus_zilnic_minim_ore, repaus_saptamanal_minim_ore, lucreaza_noaptea, lucreaza_weekend, lucreaza_sarbatori, admite_ore_suplimentare, spor_suplimentare_procent, spor_noapte_procent, spor_weekend_procent, spor_sarbatoare_procent, noapte_start, noapte_sfarsit, prag_ore_noapte, termen_compensare_suplimentare_zile, termen_compensare_sarbatoare_zile, pauza_masa_minute, pauza_masa_inclusa_in_program, pauza_obligatorie_peste_ore, observatii_juridice, program_start, mod_pontare_rapida, verificare_pontare";
 
 /**
  * Parametrii de dreptul muncii în vigoare la o dată dată.

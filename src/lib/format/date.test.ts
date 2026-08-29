@@ -7,6 +7,7 @@ import {
   toBucharestDateString,
   todayInBucharest,
   formatMonthShort,
+  oraInBucharest,
 } from "./date";
 
 describe("formatDate", () => {
@@ -111,5 +112,21 @@ describe("formatMonthShort", () => {
   it("respinge o lună inexistentă în loc s-o randeze goală", () => {
     expect(() => formatMonthShort(0)).toThrow(RangeError);
     expect(() => formatMonthShort(13)).toThrow(RangeError);
+  });
+});
+
+describe("oraInBucharest", () => {
+  it("dă ora locală românească, nu UTC", () => {
+    // 2026-08-28T06:32:00Z = 09:32 în România (EEST, UTC+3).
+    expect(oraInBucharest(new Date("2026-08-28T06:32:00Z"))).toBe("09:32");
+  });
+
+  it("scrie miezul nopții „00:00”, niciodată „24:00”", () => {
+    // 2026-01-14T22:00:00Z = 00:00 în România (EET, UTC+2).
+    expect(oraInBucharest(new Date("2026-01-14T22:00:00Z"))).toBe("00:00");
+  });
+
+  it("aruncă pentru un moment invalid", () => {
+    expect(() => oraInBucharest(new Date("nu-e-o-data"))).toThrow(TypeError);
   });
 });

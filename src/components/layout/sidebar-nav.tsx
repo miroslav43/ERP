@@ -8,6 +8,7 @@ import { useMemo, type ReactNode } from "react";
 import { cn } from "@/lib/ui/cn";
 
 import { useSidebar } from "./sidebar";
+import { SenzorLink } from "@/components/incarcare/senzor-link";
 
 export type NavItemView = Readonly<{
   id: string;
@@ -167,6 +168,13 @@ export function SidebarNav({ groups }: { groups: readonly NavGroupView[] }) {
                         <span className="sr-only"> de rezolvat</span>
                       </span>
                     ) : null}
+                    {/*
+                      Dacă ruta e deja prefetch-uită — cazul obișnuit pentru
+                      meniu — `pending` nici nu se aprinde, deci voalul nu apare
+                      peste o navigare instantanee. Se aprinde exact acolo unde
+                      prefetch-ul n-a apucat sau ruta e grea.
+                    */}
+                    <SenzorLink eticheta={element.label.toLocaleLowerCase("ro-RO")} />
                   </Link>
 
                   {activ && !colapsat && (element.children?.length ?? 0) > 0 ? (
@@ -187,6 +195,7 @@ export function SidebarNav({ groups }: { groups: readonly NavGroupView[] }) {
                               )}
                             >
                               {copil.label}
+                              <SenzorLink eticheta={copil.label.toLocaleLowerCase("ro-RO")} />
                             </Link>
                           </li>
                         );

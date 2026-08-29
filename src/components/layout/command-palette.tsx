@@ -3,6 +3,8 @@
 
 import { cheieCautare } from "@/lib/text/diacritice";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+
+import { useSemnalIncarcare } from "@/components/incarcare/use-incarcare";
 import { useRouter } from "next/navigation";
 import { Building2, Command, CornerDownLeft, Search, X } from "lucide-react";
 
@@ -49,6 +51,15 @@ export function CommandPalette({ elemente, organizatii }: Props) {
   const [interogare, setInterogare] = useState("");
   const [indiceActiv, setIndiceActiv] = useState(0);
   const [seComuta, startTransition] = useTransition();
+
+  /*
+    Paleta ÎȘI ÎNCHIDE dialogul înainte să pornească acțiunea (`inchide()` la
+    :172), iar singurul indicator pe care îl avea — `<p role="status">` de la
+    :355 — trăiește ÎNĂUNTRUL dialogului închis. Adică starea de așteptare era
+    anunțată unui element tocmai scos de pe ecran: nici văzută, nici citită.
+    Voalul global e singurul care supraviețuiește închiderii.
+  */
+  useSemnalIncarcare(seComuta, "firma aleasă");
 
   const toate = useMemo<readonly Rezultat[]>(() => {
     const navigare: Rezultat[] = elemente.map((element) => ({

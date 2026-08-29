@@ -1,6 +1,8 @@
 // src/app/(app)/puncte-lucru/actions.ts
 "use server";
 
+import { randomBytes } from "node:crypto";
+
 import { revalidatePath } from "next/cache";
 
 import { businessRule, mapPostgrestError, notFound } from "@/lib/actions/errors";
@@ -10,9 +12,11 @@ import {
   actualizeazaPunctLucruSchema,
   creeazaPunctLucruSchema,
   dezactiveazaPunctLucruSchema,
+  rotesteCodPontajSchema,
 } from "@/schemas/punct-lucru";
 
 type PunctLucruIdentificat = Readonly<{ id: string }>;
+type CodPontajGenerat = Readonly<{ id: string; cod: string }>;
 
 const CAMPURI_AUDITATE = [
   "denumire",
@@ -178,5 +182,58 @@ export const reactiveazaPunctLucru = createAction<
     }
     revalidatePath("/puncte-lucru");
     return { id: input.id };
+  },
+});
+
+/**
+ * Generează sau rotește codul de pe afișul de pontaj al unui punct de lucru.
+ *
+ * ── DE CE 24 DE OCTEȚI ──────────────────────────────────────────────────────
+ * `randomBytes(24)` în `base64url` dă 32 de caractere, adică 192 de biți de
+ * entropie. Codul e singura barieră dintre cineva aflat în altă parte și o
+ * pontare validă, iar ruta `/portal/ponteaza/[cod]` e publică pentru orice
+ * angajat autentificat — deci trebuie să fie neghicibil, nu doar unic.
+ * Constrângerea din bază cere între 16 și 64 de caractere.
+ *
+ * ── ROTIREA INVALIDEAZĂ AFIȘELE VECHI ───────────────────────────────────────
+ * E chiar scopul: un afiș fotografiat și trimis pe grupul de WhatsApp se
+ * anulează tipărind unul nou. De aceea acțiunea se cheamă „rotește", nu
+ * „generează" — cine o apasă trebuie să știe că afișele lipite devin inutile.
+ */
+export const rotesteCodPontaj = createAction<typeof rotesteCodPontajSchema, CodPontajGenerat>({
+  name: "puncte_lucru.rotate_code",
+  permission: "departments:update",
+  minScope: "all",
+  input: rotesteCodPontajSchema,
+  audit: {
+    action: "update",
+    entityType: "puncte_lucru",
+    entityId: (input) => input.id,
+    // Codul NU intră în audit: e un secret, iar jurnalul de audit e citibil de
+    // oricine are `audit:read`. Faptul că a fost rotit e tot ce contează.
+    allow: [],
+  },
+  revalidate: ["/puncte-lucru"],
+  handler: async (ctx, input) => {
+    const cod = randomBytes(24).toString("base64url");
+    const db = await createServerSupabase();
+    // `.select()` după `.update()`: `puncte_lucru_update` cere `departments:update
+    // = all` în `USING`, iar un refuz al politicii atinge zero rânduri FĂRĂ
+    // eroare. Fără el, ecranul ar afișa un cod nou care nu s-a scris nicăieri —
+    // iar afișul tipărit după el n-ar funcționa la nimeni.
+    const { data, error } = await db
+      .from("puncte_lucru")
+      .update({ cod_pontaj: cod, updated_by: ctx.user.id })
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .select("id")
+      .maybeSingle();
+    if (error !== null) throw mapPostgrestError(error, ctx.requestId);
+    if (data === null) {
+      throw businessRule(
+        "Codul nu a fost generat: punctul de lucru a fost șters între timp sau nu aveți dreptul de a modifica structura organizatorică. Reîncărcați pagina.",
+      );
+    }
+    return { id: input.id, cod };
   },
 });

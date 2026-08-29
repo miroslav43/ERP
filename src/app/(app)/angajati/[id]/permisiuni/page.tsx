@@ -60,22 +60,36 @@ export default async function PaginaPermisiuniMembru({
   // Apartenența, prin `user_id`: subordonarea trăiește în `employees`, iar
   // drepturile în `organization_members`. Un angajat fără cont n-are apartenență,
   // deci n-are ce i se suprascrie.
-  const { data: membru, error: eroareMembru } = await db
-    .from("organization_members")
-    .select("id, role")
-    .eq("organization_id", tenant.organizationId)
-    .eq("user_id", angajat.user_id ?? "")
-    .is("deleted_at", null)
-    .maybeSingle();
-  if (eroareMembru !== null) throw eroareMembru;
+  //
+  // Întrebarea nu se PUNE dacă `user_id` e NULL. `.eq("user_id", … ?? "")` trimite
+  // șirul vid unei coloane `uuid`, iar Postgres nu-l citește ca „nicio potrivire":
+  // ridică 22P02 pe conversie, PostgREST îl întoarce ca eroare, iar ecranul de mai
+  // jos — scris anume pentru angajatul fără cont — devenea de neatins tocmai în
+  // cazul lui. Omul primea „Angajații nu au putut fi afișați" pentru fiecare fișă
+  // fără cont — cazul majoritar, nu limita: 5 din 9 fișe active n-aveau `user_id`
+  // pe 29 aug 2026. Poarta: `src/config/filtru-gol.test.ts`.
+  const apartenenta =
+    angajat.user_id === null
+      ? { data: null, error: null }
+      : await db
+          .from("organization_members")
+          .select("id, role")
+          .eq("organization_id", tenant.organizationId)
+          .eq("user_id", angajat.user_id)
+          .is("deleted_at", null)
+          .maybeSingle();
+  if (apartenenta.error !== null) throw apartenenta.error;
+  const membru = apartenenta.data;
 
-  if (angajat.user_id === null || membru === null) {
+  if (membru === null) {
+    const numeAngajat = angajat.full_name ?? "Angajatul";
     return (
       <div className={cn(LATIMI.formular, "space-y-4")}>
         <AntetPagina titlu="Permisiuni suplimentare" />
         <p className="border-warning/40 bg-warning/10 text-foreground rounded-panou text-corp border p-4">
-          {angajat.full_name ?? "Angajatul"} nu are încă un cont în aplicație, deci nu are ce
-          permisiuni primi. Invitați-l întâi din secțiunea de membri.
+          {angajat.user_id === null
+            ? `${numeAngajat} nu are încă un cont în aplicație, deci nu are ce permisiuni primi. Contul se creează din fișa lui, de la „Acces în aplicație”.`
+            : `${numeAngajat} are cont, dar nu mai e membru activ al firmei. Permisiunile se acordă unei apartenențe, iar a lui a fost retrasă.`}
         </p>
         <Link
           href={`/angajati/${employeeId}`}

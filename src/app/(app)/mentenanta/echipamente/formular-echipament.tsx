@@ -43,6 +43,15 @@ interface Proprietati {
   readonly ssmActiv: boolean;
   /** `can(permisiuni, "maintenance:update", "all")` — deschide câmpul de derogare. */
   readonly poateDerogare: boolean;
+  /**
+   * Chemat după o salvare reușită, pe lângă navigarea către fișă.
+   *
+   * Există pentru `ButonEditeazaEchipament`, care randează formularul într-o
+   * casetă: pe fișa echipamentului, `router.push` merge către adresa CURENTĂ,
+   * deci nu se schimbă nimic pe ecran și caseta ar rămâne deschisă peste o fișă
+   * deja actualizată.
+   */
+  readonly laReusita?: () => void;
 }
 
 interface ValoriFormular {
@@ -113,6 +122,7 @@ export function FormularEchipament({
   departamente,
   ssmActiv,
   poateDerogare,
+  laReusita,
 }: Proprietati) {
   const router = useRouter();
   const modEditare = echipament !== undefined;
@@ -208,6 +218,7 @@ export function FormularEchipament({
       }
       router.push(`/mentenanta/echipamente/${rezultat.data.id}`);
       router.refresh();
+      laReusita?.();
     });
   }
 

@@ -96,6 +96,16 @@ export const PERMISSION_KEYS = [
   "employees:create",
   "employees:update",
   "employees:delete",
+  /**
+   * Cheie proprie din 0099, îngustă deliberat.
+   *
+   * `hr` e rolul care înrolează, dar n-are NICIUN `users:*` — deci nu putea
+   * trimite invitația pe care înrolarea o cere. Dându-i `users:create`, ar fi
+   * primit și dreptul de a invita `org_admin` din ecranul de membri: o
+   * extindere reală de privilegiu, pentru o nevoie îngustă. Politica RLS
+   * `invitations_insert` leagă cheia asta de rolul `employee`.
+   */
+  "employees:invite",
   // Chei proprii din 0070. Până atunci evaluările cereau `employees:update`, pe
   // care `manager` nu-l are la scope suficient — deci formularul de evaluare era,
   // în fapt, exclusiv al HR-ului și al administratorului, contrar cerinței

@@ -120,7 +120,23 @@ export const completeazaDateleFirmei = createAction({
       if (eroareCnp) throw eroareCnp;
     }
 
-    if (input.banca_nume !== undefined && input.banca_iban !== undefined) {
+    /*
+     * ATENȚIE la predicat: `completat`, nu `!== undefined`.
+     *
+     * `banca_nume` e `textOptional`, care întoarce `null` pentru un câmp gol —
+     * niciodată `undefined`. Garda veche era deci MEREU adevărată pe prima
+     * jumătate, iar cine completa IBAN-ul fără numele băncii trimitea
+     * `banca: null` într-o coloană `not null`: 23502, aruncat, și tot pasul de
+     * date ale firmei cădea.
+     *
+     * Aceeași asimetrie o avea garda punctului de lucru, mai jos — și e motivul
+     * pentru care, pe trei firme, există un singur punct de lucru: pentru cine
+     * lăsa câmpul gol, INSERT-ul pleca cu `denumire: null` și cădea.
+     */
+    const completat = (valoare: string | null | undefined): valoare is string =>
+      valoare !== null && valoare !== undefined && valoare.trim() !== "";
+
+    if (completat(input.banca_nume) && completat(input.banca_iban)) {
       const { error: eroareBanca } = await ctx.supabase.from("organization_bank_accounts").insert({
         organization_id: organizatie.id,
         banca: input.banca_nume,
@@ -132,7 +148,7 @@ export const completeazaDateleFirmei = createAction({
       if (eroareBanca) throw eroareBanca;
     }
 
-    if (input.punct_lucru_denumire !== undefined) {
+    if (completat(input.punct_lucru_denumire)) {
       const { error: eroarePunct } = await ctx.supabase.from("puncte_lucru").insert({
         organization_id: organizatie.id,
         denumire: input.punct_lucru_denumire,

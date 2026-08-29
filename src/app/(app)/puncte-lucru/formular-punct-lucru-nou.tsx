@@ -1,31 +1,33 @@
 // src/app/(app)/puncte-lucru/formular-punct-lucru-nou.tsx
 "use client";
 
-import { useCallback, useId, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Plus } from "lucide-react";
 
-import { Buton } from "@/components/ui/buton";
 import { Camp, clasaBifa } from "@/components/ui/camp";
-import { Formular } from "@/components/ui/formular";
+import { FormularDialog } from "@/components/ui/formular-dialog";
 import { JUDETE } from "@/schemas/organization";
 import { creeazaPunctLucru } from "./actions";
 
 /**
- * Punct de lucru nou.
+ * Punct de lucru nou, într-o casetă.
  *
- * Formularul trece prin `<Formular>` + `<Camp>` din două motive măsurate:
+ * ── DE CE NU MAI CREȘTE ÎN PAGINĂ ─────────────────────────────────────────
+ * Cele șapte câmpuri se desfăceau sub antet și împingeau lista punctelor
+ * existente afară din prima privire — exact lista pe care omul o consultă ca
+ * să nu adauge de două ori aceeași locație.
  *
+ * ── CE PĂSTREAZĂ DIN VARIANTA VECHE ───────────────────────────────────────
  * 1. `creeazaPunctLucruSchema` respinge pe câmp — „Denumirea trebuie să aibă
  *    cel puțin 2 caractere.” cade pe `denumire`, județul nerecunoscut cade pe
- *    `judet` — iar varianta veche arunca `fieldErrors` și afișa un singur `<p>`
- *    roșu lângă buton.
+ *    `judet` — iar `Camp` duce fiecare mesaj lângă câmpul lui.
  * 2. Cu `<form action={fn}>` și câmpuri necontrolate, React 19 RESETEAZĂ
- *    formularul după acțiune: o denumire de o literă golea și adresa, și
- *    codul poștal. `valoriTrimise` le pune înapoi ca `defaultValue`.
+ *    formularul după acțiune: o denumire de o literă golea și adresa, și codul
+ *    poștal. `valoriTrimise` le pune înapoi ca `defaultValue`, iar caseta nu se
+ *    închide la refuz.
  *
- * Identificatorii se prefixează cu `useId()`: pe aceeași pagină mai stau N
- * formulare de editare din `actiuni-punct-lucru.tsx`, cu exact aceleași nume de
- * câmp, iar `Camp` derivă `id` din `nume`.
+ * Identificatorii trec prin `idc`: pe aceeași pagină mai stau N formulare de
+ * editare din `actiuni-punct-lucru.tsx`, cu exact aceleași nume de câmp, iar
+ * `Camp` derivă `id` din `nume`.
  */
 
 /** Cheile obiectului sunt EXACT cele din `creeazaPunctLucruSchema`. */
@@ -45,41 +47,22 @@ async function trimite(date: FormData) {
 }
 
 export function FormularPunctLucruNou() {
-  const router = useRouter();
-  const [deschis, setDeschis] = useState(false);
-  const idFormular = useId();
-  const idc = (sufix: string): string => `${idFormular}-${sufix}`;
-
-  // `useCallback`: `laReusita` intră în lista de dependențe a efectului din
-  // `Formular`. O funcție nouă la fiecare randare ar reporni efectul după
-  // succes, deci notificarea ar apărea de două ori.
-  const laReusita = useCallback((): void => {
-    setDeschis(false);
-    router.refresh();
-  }, [router]);
-
-  if (!deschis) {
-    return (
-      <Buton
-        varianta="primar"
-        onClick={() => {
-          setDeschis(true);
-        }}
-      >
-        Punct de lucru nou
-      </Buton>
-    );
-  }
-
   return (
-    <Formular
+    <FormularDialog
+      declansator={{
+        eticheta: "Punct de lucru nou",
+        pictograma: <Plus aria-hidden="true" className="size-4" />,
+      }}
+      titlu="Punct de lucru nou"
+      descriere="Locația apare în contracte, în pontaj și în declarațiile către ITM. Sediul principal e unul singur: bifându-l aici, se ia de la cel de dinainte."
+      marime="mare"
       actiune={trimite}
-      laReusita={laReusita}
       mesajReusita="Punctul de lucru a fost creat."
-      className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-2"
+      etichetaTrimite="Creează punctul de lucru"
+      textInCurs="Se creează…"
     >
-      {(stare) => (
-        <>
+      {(stare, idc) => (
+        <div className="grid gap-4 sm:grid-cols-2">
           <Camp
             nume="denumire"
             id={idc("denumire")}
@@ -181,7 +164,7 @@ export function FormularPunctLucruNou() {
               <textarea
                 {...a}
                 maxLength={1000}
-                rows={2}
+                rows={3}
                 defaultValue={stare.valoriTrimise["observatii"] ?? ""}
               />
             )}
@@ -202,23 +185,8 @@ export function FormularPunctLucruNou() {
               Sediu principal
             </label>
           </div>
-
-          <div className="flex items-center gap-3 sm:col-span-2">
-            <Buton type="submit" varianta="primar" inCurs={stare.inCurs} textInCurs="Se creează…">
-              Creează punctul de lucru
-            </Buton>
-            <Buton
-              varianta="link"
-              disabled={stare.inCurs}
-              onClick={() => {
-                setDeschis(false);
-              }}
-            >
-              Renunță
-            </Buton>
-          </div>
-        </>
+        </div>
       )}
-    </Formular>
+    </FormularDialog>
   );
 }

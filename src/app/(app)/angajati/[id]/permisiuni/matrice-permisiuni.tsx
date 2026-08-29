@@ -1,6 +1,9 @@
 "use client";
 
 import { useId, useState, useTransition } from "react";
+
+import { Rotita } from "@/components/incarcare/rotita";
+import { useSemnalIncarcare } from "@/components/incarcare/use-incarcare";
 import { useRouter } from "next/navigation";
 
 import type { PermissionScope } from "@/config/permissions";
@@ -48,6 +51,9 @@ export function MatricePermisiuni({
   const [eroare, setEroare] = useState<string | null>(null);
   const [inLucru, setInLucru] = useState<string | null>(null);
   const [, porneste] = useTransition();
+  // Salvarea unei permisiuni reface harta pe server; voalul global acoperă
+  // intervalul în care rândul e blocat și nimic altceva nu se mișcă.
+  useSemnalIncarcare(inLucru !== null, "permisiunile");
   const idBaza = useId();
 
   function schimba(cheie: string, valoare: string): void {
@@ -111,9 +117,16 @@ export function MatricePermisiuni({
                       {modificat ? " · suprascris" : null}
                     </p>
                   </div>
+                  {/*
+                    Un `<select>` dezactivat arată la fel ca unul fără drept de
+                    scriere: gri, inert. Rotița de lângă el e singurul lucru care
+                    deosebește „se salvează" de „nu ai voie".
+                  */}
+                  {inLucru === rand.cheie ? <Rotita className="text-primary self-center" /> : null}
                   <select
                     id={idCamp}
                     value={valoare}
+                    aria-busy={inLucru === rand.cheie ? true : undefined}
                     disabled={!poateScrie || inLucru === rand.cheie}
                     onChange={(e) => {
                       schimba(rand.cheie, e.target.value);

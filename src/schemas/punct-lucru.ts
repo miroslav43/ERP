@@ -28,3 +28,14 @@ export const actualizeazaPunctLucruSchema = creeazaPunctLucruSchema.extend({
 export const dezactiveazaPunctLucruSchema = z.object({
   id: z.uuid("Punctul de lucru selectat nu este valid."),
 });
+
+/**
+ * Rotirea codului de pontaj (0096).
+ *
+ * Nu primește codul: îl GENEREAZĂ serverul. Un cod venit din formular ar putea
+ * fi ales de cineva, iar un cod ghicibil face din afișul de la intrare o
+ * decorație.
+ */
+export const rotesteCodPontajSchema = z.object({
+  id: z.uuid("Punctul de lucru selectat nu este valid."),
+});

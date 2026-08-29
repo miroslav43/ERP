@@ -1,11 +1,10 @@
 "use client";
 
-import { useCallback, useId } from "react";
-import { useRouter } from "next/navigation";
+import { Pencil, Plus } from "lucide-react";
+import { useCallback } from "react";
 
-import { Buton } from "@/components/ui/buton";
 import { Camp, clasaBifa } from "@/components/ui/camp";
-import { Formular } from "@/components/ui/formular";
+import { FormularDialog } from "@/components/ui/formular-dialog";
 import { TIPURI_CONTOR, TIPURI_MENTENANTA } from "@/schemas/maintenance";
 import { ETICHETE_TIP_CONTOR, ETICHETE_TIP_MENTENANTA } from "../../etichete";
 import { actualizeazaPlan, creeazaPlan } from "../../actions";
@@ -61,10 +60,7 @@ export function FormularPlan({
   readonly angajati: readonly Optiune[];
   readonly planExistent?: PlanExistent;
 }) {
-  const router = useRouter();
   const editare = planExistent !== undefined;
-  const idFormular = useId();
-  const idc = (sufix: string): string => `${idFormular}-${sufix}`;
 
   const trimite = useCallback(
     async (formular: FormData) => {
@@ -96,234 +92,220 @@ export function FormularPlan({
     [equipmentId, planExistent],
   );
 
-  // `laReusita` intră în dependențele unui `useEffect` din `<Formular>`: o
-  // funcție creată la fiecare randare ar reîmprospăta ruta la nesfârșit.
-  const reimprospateaza = useCallback(() => {
-    router.refresh();
-  }, [router]);
-
   return (
-    <section
-      aria-labelledby={idc("titlu")}
-      className="border-border rounded-panou space-y-3 border p-4"
+    <FormularDialog
+      declansator={
+        editare
+          ? {
+              eticheta: "Editează",
+              varianta: "secundar",
+              pictograma: <Pencil aria-hidden="true" className="size-4" />,
+            }
+          : {
+              eticheta: "Plan de mentenanță nou",
+              varianta: "secundar",
+              pictograma: <Plus aria-hidden="true" className="size-4" />,
+            }
+      }
+      titlu={editare ? `Editează „${planExistent.denumire}”` : "Plan de mentenanță nou"}
+      descriere="Planul are nevoie de cel puțin o periodicitate — în zile, pe contor, sau amândouă. O periodicitate pe contor cere și tipul contorului urmărit."
+      marime="mare"
+      actiune={trimite}
+      mesajReusita={editare ? "Planul a fost actualizat." : "Planul a fost salvat."}
+      etichetaTrimite={editare ? "Salvează modificările" : "Salvează planul"}
+      textInCurs="Se salvează…"
     >
-      <h3 id={idc("titlu")} className="text-corp font-medium">
-        {editare ? "Editează planul" : "Plan de mentenanță nou"}
-      </h3>
+      {(stare, idc) => {
+        // Formularul rămâne pe ecran după salvare, deci trebuie să
+        // repornească de la valorile din bază: React 19 resetează un `<form
+        // action>` necontrolat după acțiune, iar resetul pune înapoi
+        // `defaultValue` — adică exact ce tocmai s-a salvat, deci un al
+        // doilea clic ar crea încă un plan identic. `valoriTrimise` se
+        // păstrează DOAR cât timp ultimul răspuns a fost un refuz.
+        const trimise: Readonly<Record<string, string>> =
+          stare.data === null ? stare.valoriTrimise : {};
 
-      <Formular
-        actiune={trimite}
-        laReusita={reimprospateaza}
-        mesajReusita={editare ? "Planul a fost actualizat." : "Planul a fost salvat."}
-      >
-        {(stare) => {
-          // Formularul rămâne pe ecran după salvare, deci trebuie să
-          // repornească de la valorile din bază: React 19 resetează un `<form
-          // action>` necontrolat după acțiune, iar resetul pune înapoi
-          // `defaultValue` — adică exact ce tocmai s-a salvat, deci un al
-          // doilea clic ar crea încă un plan identic. `valoriTrimise` se
-          // păstrează DOAR cât timp ultimul răspuns a fost un refuz.
-          const trimise: Readonly<Record<string, string>> =
-            stare.data === null ? stare.valoriTrimise : {};
+        // Bifa nu apare deloc în `FormData` când e nebifată, deci
+        // `trimise["activ"]` nu distinge „nebifat” de „încă netrimis”.
+        const sATrimis = Object.keys(trimise).length > 0;
+        const activBifat = sATrimis ? trimise["activ"] === "on" : (planExistent?.activ ?? true);
 
-          // Bifa nu apare deloc în `FormData` când e nebifată, deci
-          // `trimise["activ"]` nu distinge „nebifat” de „încă netrimis”.
-          const sATrimis = Object.keys(trimise).length > 0;
-          const activBifat = sATrimis ? trimise["activ"] === "on" : (planExistent?.activ ?? true);
+        return (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <Camp
+                nume="denumire"
+                id={idc("denumire")}
+                eticheta="Denumire"
+                obligatoriu
+                className="sm:col-span-2 lg:col-span-1"
+                erori={stare.erori["denumire"] ?? []}
+              >
+                {(a) => (
+                  <input
+                    {...a}
+                    maxLength={200}
+                    defaultValue={trimise["denumire"] ?? planExistent?.denumire ?? ""}
+                  />
+                )}
+              </Camp>
 
-          return (
-            <>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <Camp
-                  nume="denumire"
-                  id={idc("denumire")}
-                  eticheta="Denumire"
-                  obligatoriu
-                  className="sm:col-span-2 lg:col-span-1"
-                  erori={stare.erori["denumire"] ?? []}
-                >
-                  {(a) => (
-                    <input
-                      {...a}
-                      maxLength={200}
-                      defaultValue={trimise["denumire"] ?? planExistent?.denumire ?? ""}
-                    />
-                  )}
-                </Camp>
+              <Camp
+                nume="tip"
+                id={idc("tip")}
+                eticheta="Tip"
+                fel="select"
+                erori={stare.erori["tip"] ?? []}
+              >
+                {(a) => (
+                  <select {...a} defaultValue={trimise["tip"] ?? planExistent?.tip ?? "preventiva"}>
+                    {TIPURI_MENTENANTA.map((t) => (
+                      <option key={t} value={t}>
+                        {ETICHETE_TIP_MENTENANTA[t]}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </Camp>
 
-                <Camp
-                  nume="tip"
-                  id={idc("tip")}
-                  eticheta="Tip"
-                  fel="select"
-                  erori={stare.erori["tip"] ?? []}
-                >
-                  {(a) => (
-                    <select
-                      {...a}
-                      defaultValue={trimise["tip"] ?? planExistent?.tip ?? "preventiva"}
-                    >
-                      {TIPURI_MENTENANTA.map((t) => (
-                        <option key={t} value={t}>
-                          {ETICHETE_TIP_MENTENANTA[t]}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </Camp>
-
-                {/* Bifa rămâne scrisă de mână: `Camp` pune eticheta ÎNAINTEA
+              {/* Bifa rămâne scrisă de mână: `Camp` pune eticheta ÎNAINTEA
                     controlului, iar la o casetă de bifat eticheta stă după —
                     altfel ținta de atingere se rupe în două și rândul se
                     citește invers. */}
-                <div className="flex items-center gap-2 self-end">
+              <div className="flex items-center gap-2 self-end">
+                <input
+                  id={idc("activ")}
+                  name="activ"
+                  type="checkbox"
+                  defaultChecked={activBifat}
+                  className={clasaBifa}
+                />
+                <label htmlFor={idc("activ")} className="text-corp">
+                  Plan activ
+                </label>
+              </div>
+
+              <Camp
+                nume="periodicitate_zile"
+                id={idc("periodicitate-zile")}
+                eticheta="Periodicitate (zile)"
+                erori={stare.erori["periodicitate_zile"] ?? []}
+              >
+                {(a) => (
                   <input
-                    id={idc("activ")}
-                    name="activ"
-                    type="checkbox"
-                    defaultChecked={activBifat}
-                    className={clasaBifa}
+                    {...a}
+                    type="number"
+                    min="1"
+                    defaultValue={
+                      trimise["periodicitate_zile"] ?? planExistent?.periodicitate_zile ?? ""
+                    }
                   />
-                  <label htmlFor={idc("activ")} className="text-corp">
-                    Plan activ
-                  </label>
-                </div>
+                )}
+              </Camp>
 
-                <Camp
-                  nume="periodicitate_zile"
-                  id={idc("periodicitate-zile")}
-                  eticheta="Periodicitate (zile)"
-                  erori={stare.erori["periodicitate_zile"] ?? []}
-                >
-                  {(a) => (
-                    <input
-                      {...a}
-                      type="number"
-                      min="1"
-                      defaultValue={
-                        trimise["periodicitate_zile"] ?? planExistent?.periodicitate_zile ?? ""
-                      }
-                    />
-                  )}
-                </Camp>
+              <Camp
+                nume="periodicitate_contor"
+                id={idc("periodicitate-contor")}
+                eticheta="Periodicitate (unități de contor)"
+                erori={stare.erori["periodicitate_contor"] ?? []}
+              >
+                {(a) => (
+                  <input
+                    {...a}
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    defaultValue={
+                      trimise["periodicitate_contor"] ?? planExistent?.periodicitate_contor ?? ""
+                    }
+                  />
+                )}
+              </Camp>
 
-                <Camp
-                  nume="periodicitate_contor"
-                  id={idc("periodicitate-contor")}
-                  eticheta="Periodicitate (unități de contor)"
-                  erori={stare.erori["periodicitate_contor"] ?? []}
-                >
-                  {(a) => (
-                    <input
-                      {...a}
-                      type="number"
-                      min="0.01"
-                      step="0.01"
-                      defaultValue={
-                        trimise["periodicitate_contor"] ?? planExistent?.periodicitate_contor ?? ""
-                      }
-                    />
-                  )}
-                </Camp>
+              <Camp
+                nume="tip_contor"
+                id={idc("tip-contor")}
+                eticheta="Tipul contorului"
+                fel="select"
+                erori={stare.erori["tip_contor"] ?? []}
+              >
+                {(a) => (
+                  <select
+                    {...a}
+                    defaultValue={trimise["tip_contor"] ?? planExistent?.tip_contor ?? ""}
+                  >
+                    <option value="">— (doar dacă e periodicitate pe contor)</option>
+                    {TIPURI_CONTOR.map((t) => (
+                      <option key={t} value={t}>
+                        {ETICHETE_TIP_CONTOR[t]}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </Camp>
 
-                <Camp
-                  nume="tip_contor"
-                  id={idc("tip-contor")}
-                  eticheta="Tipul contorului"
-                  fel="select"
-                  erori={stare.erori["tip_contor"] ?? []}
-                >
-                  {(a) => (
-                    <select
-                      {...a}
-                      defaultValue={trimise["tip_contor"] ?? planExistent?.tip_contor ?? ""}
-                    >
-                      <option value="">— (doar dacă e periodicitate pe contor)</option>
-                      {TIPURI_CONTOR.map((t) => (
-                        <option key={t} value={t}>
-                          {ETICHETE_TIP_CONTOR[t]}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </Camp>
+              <Camp
+                nume="ultima_executie"
+                id={idc("ultima-executie")}
+                eticheta="Ultima execuție"
+                erori={stare.erori["ultima_executie"] ?? []}
+              >
+                {(a) => (
+                  <input
+                    {...a}
+                    type="date"
+                    defaultValue={trimise["ultima_executie"] ?? planExistent?.ultima_executie ?? ""}
+                  />
+                )}
+              </Camp>
 
-                <Camp
-                  nume="ultima_executie"
-                  id={idc("ultima-executie")}
-                  eticheta="Ultima execuție"
-                  erori={stare.erori["ultima_executie"] ?? []}
-                >
-                  {(a) => (
-                    <input
-                      {...a}
-                      type="date"
-                      defaultValue={
-                        trimise["ultima_executie"] ?? planExistent?.ultima_executie ?? ""
-                      }
-                    />
-                  )}
-                </Camp>
+              <Camp
+                nume="responsabil_employee_id"
+                id={idc("responsabil")}
+                eticheta="Responsabil"
+                fel="select"
+                erori={stare.erori["responsabil_employee_id"] ?? []}
+              >
+                {(a) => (
+                  <select
+                    {...a}
+                    defaultValue={
+                      trimise["responsabil_employee_id"] ??
+                      planExistent?.responsabil_employee_id ??
+                      ""
+                    }
+                  >
+                    <option value="">Nespecificat</option>
+                    {angajati.map((ang) => (
+                      <option key={ang.id} value={ang.id}>
+                        {ang.nume}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </Camp>
 
-                <Camp
-                  nume="responsabil_employee_id"
-                  id={idc("responsabil")}
-                  eticheta="Responsabil"
-                  fel="select"
-                  erori={stare.erori["responsabil_employee_id"] ?? []}
-                >
-                  {(a) => (
-                    <select
-                      {...a}
-                      defaultValue={
-                        trimise["responsabil_employee_id"] ??
-                        planExistent?.responsabil_employee_id ??
-                        ""
-                      }
-                    >
-                      <option value="">Nespecificat</option>
-                      {angajati.map((ang) => (
-                        <option key={ang.id} value={ang.id}>
-                          {ang.nume}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </Camp>
-
-                <Camp
-                  nume="instructiuni"
-                  id={idc("instructiuni")}
-                  eticheta="Instrucțiuni"
-                  fel="textarea"
-                  className="sm:col-span-2 lg:col-span-3"
-                  erori={stare.erori["instructiuni"] ?? []}
-                >
-                  {(a) => (
-                    <textarea
-                      {...a}
-                      rows={2}
-                      maxLength={2000}
-                      defaultValue={trimise["instructiuni"] ?? planExistent?.instructiuni ?? ""}
-                    />
-                  )}
-                </Camp>
-              </div>
-
-              <div>
-                <Buton
-                  type="submit"
-                  varianta="primar"
-                  inCurs={stare.inCurs}
-                  textInCurs="Se salvează…"
-                >
-                  {editare ? "Salvează modificările" : "Salvează planul"}
-                </Buton>
-              </div>
-            </>
-          );
-        }}
-      </Formular>
-    </section>
+              <Camp
+                nume="instructiuni"
+                id={idc("instructiuni")}
+                eticheta="Instrucțiuni"
+                fel="textarea"
+                className="sm:col-span-2 lg:col-span-3"
+                erori={stare.erori["instructiuni"] ?? []}
+              >
+                {(a) => (
+                  <textarea
+                    {...a}
+                    rows={2}
+                    maxLength={2000}
+                    defaultValue={trimise["instructiuni"] ?? planExistent?.instructiuni ?? ""}
+                  />
+                )}
+              </Camp>
+            </div>
+          </>
+        );
+      }}
+    </FormularDialog>
   );
 }

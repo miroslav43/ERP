@@ -13,7 +13,7 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, formatMonthYear, todayInBucharest } from "@/lib/format/date";
-import { formatOre } from "@/lib/format/ore";
+import { formatOraZi, formatOre } from "@/lib/format/ore";
 import { anDinUrl } from "@/lib/rute/parametri";
 import { pontajulMeu, fisaMea } from "@/lib/queries/portal";
 
@@ -192,9 +192,22 @@ export default async function PaginaPontajulMeu({ searchParams }: ProprietatiPag
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-foreground text-corp tabular-nums">
-                          {formatOre(z.ore_lucrate ?? 0)}
-                        </p>
+                        {/*
+                          O zi deschisă cu ceasul și neînchisă încă are
+                          `ore_lucrate = 0` — adică arată IDENTIC cu o zi
+                          legitimă de zero ore. Fără rândul ăsta, singurul semn
+                          că cineva a uitat să apese „Am ieșit" ar fi absența
+                          orelor la sfârșit de lună, pe fluturaș.
+                        */}
+                        {z.ora_inceput !== null && z.ora_sfarsit === null ? (
+                          <p className="text-warning text-corp font-medium tabular-nums">
+                            în curs · de la {formatOraZi(z.ora_inceput) ?? ""}
+                          </p>
+                        ) : (
+                          <p className="text-foreground text-corp tabular-nums">
+                            {formatOre(z.ore_lucrate ?? 0)}
+                          </p>
+                        )}
                         {(z.ore_suplimentare ?? 0) > 0 ? (
                           <p className="text-muted-foreground text-nota tabular-nums">
                             +{formatOre(z.ore_suplimentare ?? 0)} suplimentare

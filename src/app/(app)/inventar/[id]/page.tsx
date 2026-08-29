@@ -69,14 +69,23 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
   const obiect = await citesteObiect(tenant.organizationId, id);
   if (obiect === null) notFound();
 
-  const [istoric, listaCategorii, module] = await Promise.all([
+  /*
+    `getEnabledFeatures` e memoizat cu `React.cache()` și l-a cerut deja
+    `(app)/layout.tsx`, deci așteptarea de aici nu costă niciun drum la bază —
+    dar deblochează poarta de modul ÎNAINTE de valul următor. Așa, tichetele
+    intră în `Promise.all` în loc să fie un val propriu după el.
+  */
+  //  e nume rezervat în Next (no-assign-module-variable).
+  const moduleActive = await getEnabledFeatures(tenant.organizationId);
+
+  const [istoric, listaCategorii, tichete] = await Promise.all([
     istoricAlocari(tenant.organizationId, id),
     categorii(),
-    getEnabledFeatures(tenant.organizationId),
+    // Modulul de ticketing e opțional: dacă nu e activ la organizație, secțiunea
+    // cu tichete nu se randează deloc, în loc să arate o listă goală derutantă.
+    moduleActive.has("ticketing") ? listeazaTicheteleObiectului(obiect.id) : null,
   ]);
-  // Modulul de ticketing e opțional: dacă nu e activ la organizație, secțiunea
-  // cu tichete nu se randează deloc, în loc să arate o listă goală derutantă.
-  const tichete = module.has("ticketing") ? await listeazaTicheteleObiectului(obiect.id) : null;
+
   const angajati = await numeleAngajatilor(
     tenant.organizationId,
     istoric.map((rand) => rand.employee_id),
