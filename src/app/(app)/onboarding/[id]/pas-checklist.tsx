@@ -2,11 +2,13 @@
 
 import { useCallback, useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Loader2 } from "lucide-react";
+import { Loader2, SlidersHorizontal } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { BaraActiuni } from "@/components/ui/bara-actiuni";
 import { Buton } from "@/components/ui/buton";
 import { Camp, clasaBifa } from "@/components/ui/camp";
+import { Dialog } from "@/components/ui/dialog";
 import { Formular } from "@/components/ui/formular";
 import { cn } from "@/lib/ui/cn";
 import { formatDate, formatDateTime } from "@/lib/format/date";
@@ -267,16 +269,11 @@ function PasRand({ pas, poateBifa }: { readonly pas: PasAfisat; readonly poateBi
           {poateBifa && !automat ? (
             <Buton
               varianta="tertiar"
-              aria-expanded={detalii}
-              aria-controls={idc("detalii")}
               onClick={() => {
-                setDetalii((v) => !v);
+                setDetalii(true);
               }}
             >
-              <ChevronDown
-                aria-hidden="true"
-                className={detalii ? "size-3.5 rotate-180" : "size-3.5"}
-              />
+              <SlidersHorizontal aria-hidden="true" className="size-3.5" />
               Detalii
             </Buton>
           ) : null}
@@ -300,16 +297,26 @@ function PasRand({ pas, poateBifa }: { readonly pas: PasAfisat; readonly poateBi
         </p>
       )}
 
+      {/* Caseta se deschide și PROGRAMATIC, din `comuta()`, când pasul cere o
+          dovadă pe care n-o are — de aceea starea rămâne aici și nu se
+          folosește `FormularDialog`, care și-o ține pe a lui. */}
       {poateBifa && !automat && detalii ? (
-        <div id={idc("detalii")}>
+        <Dialog
+          deschis
+          laInchidere={() => {
+            setDetalii(false);
+          }}
+          titlu={pas.titlu}
+          {...(pas.descriere === null ? {} : { descriere: pas.descriere })}
+          marime="mare"
+        >
           <Formular
             actiune={trimiteDetalii}
             laReusita={laReusita}
             mesajReusita="Pasul a fost salvat."
-            className="bg-surface rounded-control grid gap-3 p-3 sm:grid-cols-2"
           >
             {(stare) => (
-              <>
+              <div className="grid gap-4 sm:grid-cols-2">
                 <Camp
                   nume="status"
                   id={idc("status")}
@@ -384,7 +391,19 @@ function PasRand({ pas, poateBifa }: { readonly pas: PasAfisat; readonly poateBi
                   )}
                 </Camp>
 
-                <div className="flex items-center gap-3 sm:col-span-2">
+                {/* Butoanele stau ÎN `<form>`, nu în `subsol`-ul dialogului:
+                    acolo ar fi frate cu formularul în DOM, deci n-ar trimite
+                    nimic și n-ar putea citi `stare.inCurs`. */}
+                <BaraActiuni aliniere="final" separata lipitaPeTelefon className="sm:col-span-2">
+                  <Buton
+                    varianta="secundar"
+                    disabled={stare.inCurs}
+                    onClick={() => {
+                      setDetalii(false);
+                    }}
+                  >
+                    Renunță
+                  </Buton>
                   <Buton
                     type="submit"
                     varianta="primar"
@@ -393,20 +412,11 @@ function PasRand({ pas, poateBifa }: { readonly pas: PasAfisat; readonly poateBi
                   >
                     Salvează
                   </Buton>
-                  <Buton
-                    varianta="link"
-                    disabled={stare.inCurs}
-                    onClick={() => {
-                      setDetalii(false);
-                    }}
-                  >
-                    Renunță
-                  </Buton>
-                </div>
-              </>
+                </BaraActiuni>
+              </div>
             )}
           </Formular>
-        </div>
+        </Dialog>
       ) : null}
     </div>
   );
