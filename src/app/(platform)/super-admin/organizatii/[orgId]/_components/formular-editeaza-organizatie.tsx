@@ -10,7 +10,9 @@ import {
   SelectorCodCaenPrincipal,
   SelectorCodCaenSecundare,
 } from "@/components/forms/selector-cod-caen";
+import { BaraActiuni } from "@/components/ui/bara-actiuni";
 import { Buton } from "@/components/ui/buton";
+import { Dialog } from "@/components/ui/dialog";
 import { actualizeazaOrganizatie } from "../../actions";
 
 const ETICHETE_PLAN: Record<(typeof PLANURI)[number], string> = {
@@ -97,8 +99,8 @@ export function FormularEditeazaOrganizatie({
     });
   }
 
-  if (!deschis) {
-    return (
+  return (
+    <>
       <Buton
         varianta="secundar"
         onClick={() => {
@@ -107,227 +109,249 @@ export function FormularEditeazaOrganizatie({
       >
         Editează datele
       </Buton>
-    );
-  }
 
-  return (
-    <form
-      action={trimite}
-      className="border-border bg-surface rounded-panou grid gap-3 border p-4 sm:grid-cols-2"
-    >
-      <div className="flex flex-col gap-1">
-        <label htmlFor={`${idFormular}-name`} className="text-corp font-medium">
-          Denumire *
-        </label>
-        <input
-          id={`${idFormular}-name`}
-          name="name"
-          required
-          maxLength={120}
-          defaultValue={organizatie.name}
-          className={CLASA_CAMP}
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor={`${idFormular}-legal_name`} className="text-corp font-medium">
-          Denumire legală
-        </label>
-        <input
-          id={`${idFormular}-legal_name`}
-          name="legal_name"
-          maxLength={160}
-          defaultValue={organizatie.legal_name ?? ""}
-          className={CLASA_CAMP}
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor={`${idFormular}-email`} className="text-corp font-medium">
-          Email de contact *
-        </label>
-        <input
-          id={`${idFormular}-email`}
-          name="email_contact"
-          type="email"
-          required
-          defaultValue={organizatie.email_contact ?? ""}
-          className={CLASA_CAMP}
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor={`${idFormular}-telefon`} className="text-corp font-medium">
-          Telefon *
-        </label>
-        <input
-          id={`${idFormular}-telefon`}
-          name="telefon_contact"
-          required
-          defaultValue={organizatie.telefon_contact ?? ""}
-          className={CLASA_CAMP}
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor={`${idFormular}-judet`} className="text-corp font-medium">
-          Județ *
-        </label>
-        <select
-          id={`${idFormular}-judet`}
-          name="judet"
-          required
-          defaultValue={organizatie.judet ?? ""}
-          className={CLASA_CAMP}
-        >
-          {JUDETE.map((judet) => (
-            <option key={judet} value={judet}>
-              {judet}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor={`${idFormular}-oras`} className="text-corp font-medium">
-          Localitate *
-        </label>
-        <input
-          id={`${idFormular}-oras`}
-          name="oras"
-          required
-          defaultValue={organizatie.oras ?? ""}
-          className={CLASA_CAMP}
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor={`${idFormular}-adresa`} className="text-corp font-medium">
-          Adresă
-        </label>
-        <input
-          id={`${idFormular}-adresa`}
-          name="adresa"
-          maxLength={240}
-          defaultValue={organizatie.adresa ?? ""}
-          className={CLASA_CAMP}
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor={`${idFormular}-cod_postal`} className="text-corp font-medium">
-          Cod poștal
-        </label>
-        <input
-          id={`${idFormular}-cod_postal`}
-          name="cod_postal"
-          maxLength={10}
-          defaultValue={organizatie.cod_postal ?? ""}
-          className={CLASA_CAMP}
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor={`${idFormular}-website`} className="text-corp font-medium">
-          Website
-        </label>
-        <input
-          id={`${idFormular}-website`}
-          name="website"
-          type="url"
-          defaultValue={organizatie.website ?? ""}
-          className={CLASA_CAMP}
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor={`${idFormular}-reprezentant`} className="text-corp font-medium">
-          Reprezentant legal
-        </label>
-        <input
-          id={`${idFormular}-reprezentant`}
-          name="reprezentant_legal"
-          maxLength={120}
-          defaultValue={organizatie.reprezentant_legal ?? ""}
-          className={CLASA_CAMP}
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor={`${idFormular}-caen`} className="text-corp font-medium">
-          Cod CAEN principal
-        </label>
-        <SelectorCodCaenPrincipal id={`${idFormular}-caen`} value={codCaen} onChange={setCodCaen} />
-      </div>
-      <div className="flex flex-col gap-1 sm:col-span-2">
-        <label htmlFor={`${idFormular}-caen-secundare`} className="text-corp font-medium">
-          Coduri CAEN secundare
-        </label>
-        <SelectorCodCaenSecundare
-          id={`${idFormular}-caen-secundare`}
-          value={codCaenSecundare}
-          onChange={setCodCaenSecundare}
-          exclude={codCaen}
-          max={limitaSecundare}
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor={`${idFormular}-plan`} className="text-corp font-medium">
-          Plan *
-        </label>
-        <select
-          id={`${idFormular}-plan`}
-          name="plan"
-          required
-          defaultValue={organizatie.plan}
-          className={CLASA_CAMP}
-        >
-          {PLANURI.map((plan) => (
-            <option key={plan} value={plan}>
-              {ETICHETE_PLAN[plan]}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor={`${idFormular}-locuri`} className="text-corp font-medium">
-          Număr de locuri *
-        </label>
-        <input
-          id={`${idFormular}-locuri`}
-          name="seats_limit"
-          type="number"
-          min={1}
-          max={1000}
-          required
-          defaultValue={organizatie.seats_limit}
-          className={CLASA_CAMP}
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor={`${idFormular}-zile_concediu`} className="text-corp font-medium">
-          Zile de concediu de odihnă / an *
-        </label>
-        <input
-          id={`${idFormular}-zile_concediu`}
-          name="zile_concediu_anual_implicit"
-          type="number"
-          min={0}
-          max={60}
-          required
-          defaultValue={organizatie.zile_concediu_anual_implicit}
-          className={CLASA_CAMP}
-        />
-      </div>
-      <div className="flex items-center gap-3 sm:col-span-2">
-        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
-          Salvează modificările
-        </Buton>
-        <Buton
-          varianta="link"
-          onClick={() => {
+      {/* Caseta se randează doar cât e deschisă. `SelectorCodCaenSecundare`
+          ține în memorie nomenclatorul CAEN filtrat; fișa organizației nu
+          trebuie să plătească asta pentru un formular pe care nu-l deschide
+          nimeni. Montarea îl repune și pe valorile din bază, deci o încercare
+          abandonată nu lasă urme. */}
+      {deschis ? (
+        <Dialog
+          deschis
+          laInchidere={() => {
             setDeschis(false);
             setEroare(null);
           }}
+          titlu={`Editează „${organizatie.name}”`}
+          descriere="Codul fiscal și forma juridică nu se schimbă de aici — ele au fost fixate la înrolare și apar în documentele deja emise."
+          marime="lucru"
         >
-          Renunță
-        </Buton>
-        {eroare === null ? null : (
-          <p role="alert" className="text-danger text-corp">
-            {eroare}
-          </p>
-        )}
-      </div>
-    </form>
+          <form action={trimite} className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1">
+              <label htmlFor={`${idFormular}-name`} className="text-corp font-medium">
+                Denumire *
+              </label>
+              <input
+                id={`${idFormular}-name`}
+                name="name"
+                required
+                maxLength={120}
+                defaultValue={organizatie.name}
+                className={CLASA_CAMP}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor={`${idFormular}-legal_name`} className="text-corp font-medium">
+                Denumire legală
+              </label>
+              <input
+                id={`${idFormular}-legal_name`}
+                name="legal_name"
+                maxLength={160}
+                defaultValue={organizatie.legal_name ?? ""}
+                className={CLASA_CAMP}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor={`${idFormular}-email`} className="text-corp font-medium">
+                Email de contact *
+              </label>
+              <input
+                id={`${idFormular}-email`}
+                name="email_contact"
+                type="email"
+                required
+                defaultValue={organizatie.email_contact ?? ""}
+                className={CLASA_CAMP}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor={`${idFormular}-telefon`} className="text-corp font-medium">
+                Telefon *
+              </label>
+              <input
+                id={`${idFormular}-telefon`}
+                name="telefon_contact"
+                required
+                defaultValue={organizatie.telefon_contact ?? ""}
+                className={CLASA_CAMP}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor={`${idFormular}-judet`} className="text-corp font-medium">
+                Județ *
+              </label>
+              <select
+                id={`${idFormular}-judet`}
+                name="judet"
+                required
+                defaultValue={organizatie.judet ?? ""}
+                className={CLASA_CAMP}
+              >
+                {JUDETE.map((judet) => (
+                  <option key={judet} value={judet}>
+                    {judet}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor={`${idFormular}-oras`} className="text-corp font-medium">
+                Localitate *
+              </label>
+              <input
+                id={`${idFormular}-oras`}
+                name="oras"
+                required
+                defaultValue={organizatie.oras ?? ""}
+                className={CLASA_CAMP}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor={`${idFormular}-adresa`} className="text-corp font-medium">
+                Adresă
+              </label>
+              <input
+                id={`${idFormular}-adresa`}
+                name="adresa"
+                maxLength={240}
+                defaultValue={organizatie.adresa ?? ""}
+                className={CLASA_CAMP}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor={`${idFormular}-cod_postal`} className="text-corp font-medium">
+                Cod poștal
+              </label>
+              <input
+                id={`${idFormular}-cod_postal`}
+                name="cod_postal"
+                maxLength={10}
+                defaultValue={organizatie.cod_postal ?? ""}
+                className={CLASA_CAMP}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor={`${idFormular}-website`} className="text-corp font-medium">
+                Website
+              </label>
+              <input
+                id={`${idFormular}-website`}
+                name="website"
+                type="url"
+                defaultValue={organizatie.website ?? ""}
+                className={CLASA_CAMP}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor={`${idFormular}-reprezentant`} className="text-corp font-medium">
+                Reprezentant legal
+              </label>
+              <input
+                id={`${idFormular}-reprezentant`}
+                name="reprezentant_legal"
+                maxLength={120}
+                defaultValue={organizatie.reprezentant_legal ?? ""}
+                className={CLASA_CAMP}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor={`${idFormular}-caen`} className="text-corp font-medium">
+                Cod CAEN principal
+              </label>
+              <SelectorCodCaenPrincipal
+                id={`${idFormular}-caen`}
+                value={codCaen}
+                onChange={setCodCaen}
+              />
+            </div>
+            <div className="flex flex-col gap-1 sm:col-span-2">
+              <label htmlFor={`${idFormular}-caen-secundare`} className="text-corp font-medium">
+                Coduri CAEN secundare
+              </label>
+              <SelectorCodCaenSecundare
+                id={`${idFormular}-caen-secundare`}
+                value={codCaenSecundare}
+                onChange={setCodCaenSecundare}
+                exclude={codCaen}
+                max={limitaSecundare}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor={`${idFormular}-plan`} className="text-corp font-medium">
+                Plan *
+              </label>
+              <select
+                id={`${idFormular}-plan`}
+                name="plan"
+                required
+                defaultValue={organizatie.plan}
+                className={CLASA_CAMP}
+              >
+                {PLANURI.map((plan) => (
+                  <option key={plan} value={plan}>
+                    {ETICHETE_PLAN[plan]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor={`${idFormular}-locuri`} className="text-corp font-medium">
+                Număr de locuri *
+              </label>
+              <input
+                id={`${idFormular}-locuri`}
+                name="seats_limit"
+                type="number"
+                min={1}
+                max={1000}
+                required
+                defaultValue={organizatie.seats_limit}
+                className={CLASA_CAMP}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor={`${idFormular}-zile_concediu`} className="text-corp font-medium">
+                Zile de concediu de odihnă / an *
+              </label>
+              <input
+                id={`${idFormular}-zile_concediu`}
+                name="zile_concediu_anual_implicit"
+                type="number"
+                min={0}
+                max={60}
+                required
+                defaultValue={organizatie.zile_concediu_anual_implicit}
+                className={CLASA_CAMP}
+              />
+            </div>
+            {eroare === null ? null : (
+              <p role="alert" className="text-danger text-corp sm:col-span-2">
+                {eroare}
+              </p>
+            )}
+
+            {/* Butoanele stau ÎN `<form>`, nu în `subsol`-ul dialogului: acolo
+                ar fi frate cu formularul în DOM, deci n-ar trimite nimic și
+                n-ar putea citi `inCurs` — adică s-ar pierde „Se salvează…". */}
+            <BaraActiuni aliniere="final" separata lipitaPeTelefon className="sm:col-span-2">
+              <Buton
+                varianta="secundar"
+                disabled={inCurs}
+                onClick={() => {
+                  setDeschis(false);
+                  setEroare(null);
+                }}
+              >
+                Renunță
+              </Buton>
+              <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
+                Salvează modificările
+              </Buton>
+            </BaraActiuni>
+          </form>
+        </Dialog>
+      ) : null}
+    </>
   );
 }

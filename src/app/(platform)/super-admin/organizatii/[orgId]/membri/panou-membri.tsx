@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form";
 import { AlertCircle, Check, Copy, Send } from "lucide-react";
 
 import { Buton } from "@/components/ui/buton";
+import { ConfirmareActiune } from "@/components/ui/dialog";
 import { cn } from "@/lib/ui/cn";
 
 import {
@@ -52,15 +53,38 @@ function Mesaj({ text, ton }: Readonly<{ text: string | null; ton: "succes" | "e
   );
 }
 
+/**
+ * Confirmarea unei acțiuni de rând, într-o casetă.
+ *
+ * ── DE CE NU MAI ÎNTREABĂ ÎN RÂND ─────────────────────────────────────────
+ * „Suspenzi accesul? [Da] [Nu]" apărea ÎN rândul membrului, împingând deoparte
+ * selectorul de rol și butoanele vecine: rândul se relaya, iar „Da" ateriza
+ * exact acolo unde fusese cu o clipă înainte butonul apăsat. Pe o listă de
+ * membri, a doua apăsare din reflex cădea pe altceva.
+ *
+ * ── DE CE `consecinta` ȘI NU „Sigur?" ─────────────────────────────────────
+ * `dialog.tsx` o cere obligatoriu, și are dreptate: „Sigur doriți să
+ * continuați?" nu e o confirmare, e o formalitate pe care omul o apasă fără s-o
+ * citească. Ce oprește greșeala e propoziția care spune CE se întâmplă — de
+ * aceea apelantul dă un text, nu o întrebare.
+ */
 function ButonConfirmare({
   eticheta,
-  intrebare,
+  titlu,
+  consecinta,
   inCurs,
   laConfirmare,
-}: Readonly<{ eticheta: string; intrebare: string; inCurs: boolean; laConfirmare: () => void }>) {
+}: Readonly<{
+  eticheta: string;
+  titlu: string;
+  consecinta: string;
+  inCurs: boolean;
+  laConfirmare: () => void;
+}>) {
   const [deschis, setDeschis] = useState(false);
-  if (!deschis) {
-    return (
+
+  return (
+    <>
       <Buton
         varianta="secundar"
         className={CLASA_COMPACTA}
@@ -69,26 +93,20 @@ function ButonConfirmare({
       >
         {eticheta}
       </Buton>
-    );
-  }
-  return (
-    <span className="inline-flex items-center gap-2">
-      <span className="text-muted-foreground text-nota">{intrebare}</span>
-      <Buton
-        varianta="secundar"
-        className={CLASA_COMPACTA}
+      <ConfirmareActiune
+        deschis={deschis}
+        laInchidere={() => setDeschis(false)}
+        titlu={titlu}
+        consecinta={consecinta}
+        etichetaConfirmare={eticheta}
+        distructiv
         inCurs={inCurs}
-        onClick={() => {
+        laConfirmare={() => {
           setDeschis(false);
           laConfirmare();
         }}
-      >
-        Da
-      </Buton>
-      <Buton varianta="secundar" className={CLASA_COMPACTA} onClick={() => setDeschis(false)}>
-        Nu
-      </Buton>
-    </span>
+      />
+    </>
   );
 }
 
@@ -324,7 +342,8 @@ export function ActiuniMembru({
         {status === "active" ? (
           <ButonConfirmare
             eticheta="Suspendă"
-            intrebare="Suspenzi accesul?"
+            titlu="Suspendarea accesului"
+            consecinta="Membrul nu se mai poate autentifica în organizație și dispare din listele de responsabili. Datele lui rămân, iar accesul se poate reactiva oricând din același loc."
             inCurs={inCurs}
             laConfirmare={() =>
               ruleaza(async () => {
@@ -396,7 +415,8 @@ export function ActiuniInvitatie({
 
         <ButonConfirmare
           eticheta="Revocă"
-          intrebare="Revoci invitația?"
+          titlu="Revocarea invitației"
+          consecinta="Linkul deja trimis pe e-mail devine mort: cine îl deschide primește un refuz, fără explicație. Pentru a-i da din nou acces, invitația trebuie creată de la capăt."
           inCurs={inCurs}
           laConfirmare={() => {
             setEroare(null);
