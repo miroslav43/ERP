@@ -109,7 +109,12 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
         <AntetPagina
           titlu="Planul săptămânii"
           descriere="Contul dumneavoastră nu are fișă de angajat proprie, deci nu are nici săptămână proprie. Alegeți angajatul pentru care completați."
-          file={<NavPontaj poateAproba={can(permisiuni, "attendance:approve", "team")} />}
+          file={
+            <NavPontaj
+              poateAproba={can(permisiuni, "attendance:approve", "team")}
+              poateConfigura={can(permisiuni, "attendance:update", "all")}
+            />
+          }
         />
         <AlegeAngajat angajati={angajati} selectat={null} saptamanaStart={saptamanaStart} />
       </div>
@@ -178,7 +183,12 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
       <AntetPagina
         titlu="Planul săptămânii"
         descriere={`Declarați, pentru săptămâna care începe ${inceputSaptamanii}, cum veniți la lucru și câte ore planificați — editabil oricând, până la decizia managerului.`}
-        file={<NavPontaj poateAproba={can(permisiuni, "attendance:approve", "team")} />}
+        file={
+            <NavPontaj
+              poateAproba={can(permisiuni, "attendance:approve", "team")}
+              poateConfigura={can(permisiuni, "attendance:update", "all")}
+            />
+          }
       />
 
       {poateAlegeAngajat ? (

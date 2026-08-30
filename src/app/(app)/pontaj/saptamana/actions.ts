@@ -6,6 +6,7 @@ import { businessRule, notFound } from "@/lib/actions/errors";
 import { oreleZilei } from "@/domain/attendance/calcul-ore";
 import { setariPontaj } from "@/lib/queries/attendance";
 import { decideSaptamanaPontajSchema, trimiteSaptamanaPontajSchema } from "@/schemas/attendance";
+import { avertismenteDupaSaptamana, type RezultatCuAvertismente } from "../avertismente";
 import { traduEroare } from "../erori";
 
 const CAI_REVALIDARE = [
@@ -24,7 +25,7 @@ const CAI_REVALIDARE = [
  */
 export const trimiteSaptamanaPontaj = createAction<
   typeof trimiteSaptamanaPontajSchema,
-  Readonly<{ id: string }>
+  RezultatCuAvertismente
 >({
   name: "attendance.week.submit",
   feature: "attendance",
@@ -61,12 +62,13 @@ export const trimiteSaptamanaPontaj = createAction<
       pauzaObligatoriePesteOre: setari?.pauza_obligatorie_peste_ore ?? 0,
     };
 
-    const zile = input.zile.map((zi) => {
+    /** Ce se trimite spre RPC, plus cifrele pe care le verifică limitele legale. */
+    const derivatePeZi = input.zile.map((zi) => {
       // Fără interval = zi nelucrată (weekend debifat, sărbătoare): zero ore,
       // nu norma presupusă. Vechiul implicit `8` din RPC e exact ce umplea
       // sâmbăta și duminica în portal.
       if (zi.ora_inceput === null || zi.ora_sfarsit === null) {
-        return { ...zi, ora_inceput: null, ora_sfarsit: null, ore_planificate: 0 };
+        return { zi: { ...zi, ora_inceput: null, ora_sfarsit: null, ore_planificate: 0 } };
       }
       const derivate = oreleZilei(zi.ora_inceput, zi.ora_sfarsit, config);
       if (derivate === null) {
@@ -74,22 +76,56 @@ export const trimiteSaptamanaPontaj = createAction<
           `Pe ${zi.data}, ora de ieșire trebuie să fie după ora de intrare, în aceeași zi.`,
         );
       }
-      return { ...zi, ore_planificate: derivate.lucrate };
+      return { zi: { ...zi, ore_planificate: derivate.lucrate }, derivate };
     });
+    const zile = derivatePeZi.map((d) => d.zi);
 
     const { data, error } = await ctx.supabase.rpc("trimite_saptamana_pontaj", {
       p_organization_id: ctx.tenant.organizationId,
       p_saptamana_start: input.saptamana_start,
       p_status: input.status,
       p_zile: zile,
-      p_lucreaza_weekend: input.lucreaza_weekend,
+      /*
+       * DIN SETĂRI, nu de la client — aceeași regulă ca la orele rederivate
+       * mai sus, din același motiv.
+       *
+       * Steagul se salvează pe submisie și e ce vede aprobatorul ca CONTEXT:
+       * „la firma asta se lucrează în weekend". Venind din formular, o cerere
+       * fabricată putea declara asta la o firmă de birou, iar sâmbăta lucrată
+       * apărea drept program obișnuit. Caseta din formular rămâne, dar face
+       * exact ce spune că face — alege dacă zilele de weekend pleacă cu
+       * interval (`intervalDeTrimis`), nu ce regulă are firma.
+       *
+       * `?? false` e valoarea de rezervă care exista deja în AMBELE pagini de
+       * săptămână pentru firma neconfigurată; nu se inventează una nouă aici.
+       */
+      p_lucreaza_weekend: setari?.lucreaza_weekend ?? false,
       // Cine are `attendance:create = all` completează și pentru altcineva
       // (0084). `null` înseamnă propria fișă. Autorizarea rămâne în bază, în
       // `app.poate_scrie_pontaj` — aici nu se decide nimic, doar se transmite.
       p_employee_id: input.employee_id,
     });
     if (error !== null) traduEroare(error);
-    return { id: data };
+
+    return {
+      id: data,
+      // Planul e scris; abia acum se spune ce e în neregulă cu el. Sursa sunt
+      // zilele TRIMISE, nu `attendance_entries`: săptămâna planificată e în
+      // viitor, unde nu există încă niciun pontaj de citit.
+      avertismente: await avertismenteDupaSaptamana({
+        organizationId: ctx.tenant.organizationId,
+        saptamanaStart: input.saptamana_start,
+        setari,
+        zile: derivatePeZi.map(({ zi, derivate }) => ({
+          data: zi.data,
+          oraInceput: zi.ora_inceput,
+          oraSfarsit: zi.ora_sfarsit,
+          oreLucrate: zi.ore_planificate,
+          oreSuplimentare: derivate?.suplimentare ?? 0,
+          oreNoapte: derivate?.noapte ?? 0,
+        })),
+      }),
+    };
   },
 });
 

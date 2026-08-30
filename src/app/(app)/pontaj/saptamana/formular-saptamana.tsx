@@ -11,7 +11,9 @@ import { formatOre } from "@/lib/format/ore";
 import { oreleZilei, type ConfigZi, type OreleZilei } from "@/domain/attendance/calcul-ore";
 import { INDICI_WEEKEND, intervalDeTrimis } from "@/domain/attendance/saptamana";
 import { TIPURI_PREZENTA, type TipPrezenta } from "@/schemas/attendance";
+import type { AvertismentPontaj } from "@/domain/attendance/limite-legale";
 import { ETICHETE_TIP_PREZENTA } from "../etichete";
+import { ListaAvertismente } from "../lista-avertismente";
 import { trimiteSaptamanaPontaj } from "./actions";
 
 /**
@@ -97,6 +99,7 @@ export function FormularSaptamana({
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
   const [eroare, setEroare] = useState<string | null>(null);
+  const [avertismente, setAvertismente] = useState<readonly AvertismentPontaj[]>([]);
   const [zile, setZile] = useState<readonly ZiFormular[]>(zileInitiale);
   const [lucreazaWeekend, setLucreazaWeekend] = useState(lucreazaWeekendInitial);
   const idBaza = useId();
@@ -129,7 +132,14 @@ export function FormularSaptamana({
       const rezultat = await trimiteSaptamanaPontaj({
         saptamana_start: saptamanaStart,
         status,
-        lucreaza_weekend: lucreazaWeekend,
+        // `lucreaza_weekend` NU se mai trimite: e regula FIRMEI, iar acțiunea o
+        // citește din `attendance_settings`. Caseta de mai jos rămâne ce a fost
+        // mereu în fapt — alege dacă zilele de weekend pleacă cu interval.
+        //
+        // `rawInput` e `unknown` în `createAction`, deci un câmp rămas aici
+        // n-ar fi produs nicio eroare de tip: ar fi călătorit până la Zod, care
+        // l-ar fi tăiat tăcut. De-aia se scoate de mână, nu se lasă pe seama
+        // typecheck-ului.
         // `null` = fișa mea. Diferit de null doar când patronul sau un manager
         // a ales pe altcineva din selectorul de sus (0084).
         employee_id: employeeId,
@@ -149,6 +159,10 @@ export function FormularSaptamana({
         setEroare(rezultat.error.message);
         return;
       }
+      // Planul e salvat ORICUM; avertismentele rămân pe ecran lângă el. Nu se
+      // golesc la următoarea trimitere decât prin `setEroare(null)` de mai sus,
+      // adică exact când se recalculează.
+      setAvertismente(rezultat.data.avertismente);
       router.refresh();
     });
   }
@@ -393,6 +407,12 @@ export function FormularSaptamana({
 
       <div aria-live="polite">
         {eroare === null ? null : <p className="text-danger text-corp">{eroare}</p>}
+        {/*
+          Sub cifre, nu în locul lor, și în aceeași regiune vie ca eroarea: cine
+          apasă „Trimite" cu cititorul de ecran trebuie să audă că planul a
+          intrat ȘI ce anume depășește regulile firmei.
+        */}
+        <ListaAvertismente avertismente={avertismente} titlu="Planul depășește regulile firmei" />
       </div>
 
       {poateEdita ? (

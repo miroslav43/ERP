@@ -10,6 +10,7 @@ import { Buton } from "@/components/ui/buton";
 import { buton } from "@/components/ui/buton";
 import { cn } from "@/lib/ui/cn";
 import { formatDurata, minuteScurse, type StareCeas } from "@/domain/attendance/ceas";
+import { cePoateFace, type ConfigPontareRapida } from "@/domain/attendance/pontare-rapida";
 
 /**
  * Pontarea zilei de azi, dintr-o atingere, pe ecranul de start al portalului.
@@ -31,19 +32,25 @@ import { formatDurata, minuteScurse, type StareCeas } from "@/domain/attendance/
  */
 export function PontareRapida({
   stare,
-  mod,
+  pontare,
   intervalPropus,
   numeFirma,
-  cereCod,
   lunaDeschisa,
   cod = null,
   inversat = false,
 }: {
   readonly stare: StareCeas;
-  readonly mod: string;
+  /**
+   * Configurația firmei, cu implicitele deja aplicate de `configPontareRapida`.
+   *
+   * Un singur obiect în locul perechii `mod` + `cereCod`: cele două se citeau
+   * din aceeași sursă și se recompuneau în trei pagini, iar regula „ce butoane
+   * se desenează" ajunsese scrisă de patru ori. Aici se pune o singură
+   * întrebare, lui `cePoateFace`.
+   */
+  readonly pontare: ConfigPontareRapida;
   readonly intervalPropus: { readonly inceput: string; readonly sfarsit: string } | null;
   readonly numeFirma: string;
-  readonly cereCod: boolean;
   readonly lunaDeschisa: boolean;
   /**
    * Codul de pe afișul scanat. `null` pe ecranul de start; nenul pe
@@ -108,6 +115,20 @@ export function PontareRapida({
     });
   }
 
+  /*
+   * `areAfis: false` nu e o presupunere, ci o consecință de RLS: politica
+   * `puncte_lucru_select` (0030) cere `departments:read`, pe care rolul
+   * `employee` nu-l are, deci portalul NU poate ști dacă firma are afiș tipărit.
+   *
+   * Și nici nu-i trebuie. Cu `optional`, afișul se scanează din aplicația de
+   * cameră a telefonului, direct de pe perete — nu prin ecranul ăsta. Un îndemn
+   * „scanați afișul" desenat aici ar apărea la fiecare firmă neconfigurată,
+   * fiindcă `optional` e implicitul, și ar arăta spre un perete gol.
+   * `oferaScanare` rămâne pentru ecranul de setări, unde afișele CHIAR se pot
+   * citi.
+   */
+  const posibilitati = cePoateFace(pontare, false);
+
   if (stare.fel === "alta_sursa") return null;
 
   /*
@@ -146,7 +167,7 @@ export function PontareRapida({
    * toată ideea. Telefoanele scanează codul din aplicația de cameră, deci nu e
    * nevoie de niciun scaner în aplicație.
    */
-  if (cereCod && cod === null) {
+  if (posibilitati.cereScanare && cod === null) {
     return (
       <div className="mt-3 space-y-2">
         <p className={cn("text-corp", clasaSecundara)}>
@@ -163,8 +184,8 @@ export function PontareRapida({
     );
   }
 
-  const poateCeas = mod === "ceas" || mod === "ambele";
-  const poateConfirma = (mod === "confirmare" || mod === "ambele") && intervalPropus !== null;
+  const poateCeas = posibilitati.poateCeas;
+  const poateConfirma = posibilitati.poateConfirma && intervalPropus !== null;
 
   return (
     <div className="mt-3 space-y-3">

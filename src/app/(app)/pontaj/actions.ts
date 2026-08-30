@@ -16,7 +16,12 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { formatMonthYear, oraInBucharest, todayInBucharest } from "@/lib/format/date";
 import type { ActionContext } from "@/lib/actions/types";
 import { stareaCeasului } from "@/domain/attendance/ceas";
-import { setariPontaj } from "@/lib/queries/attendance";
+import {
+  configPontareRapida,
+  cumSeTrateazaCodul,
+  type ConfigPontareRapida,
+} from "@/domain/attendance/pontare-rapida";
+import { setariPontaj, setariPontareRapida } from "@/lib/queries/attendance";
 import { zileNelucratoare } from "@/lib/queries/leave";
 import {
   aprobaPontajBlocSchema,
@@ -24,7 +29,6 @@ import {
   decideZiPontajSchema,
   deschidePerioadaSchema,
   idPerioadaSchema,
-  MOD_PONTARE_IMPLICIT,
   pontezaIesireaSchema,
   pontezaIntrareaSchema,
   salveazaZiPontajSchema,
@@ -33,6 +37,7 @@ import {
   stergeZiPontajSchema,
 } from "@/schemas/attendance";
 
+import { avertismenteDupaZi, type RezultatCuAvertismente } from "./avertismente";
 import { tipZiAutomat } from "./etichete";
 import { traduEroare } from "./erori";
 import { sincronizeazaZileleDeConcediu, type TipZiPontaj } from "./sincronizare-concediu";
@@ -175,7 +180,11 @@ export const salveazaZiPontaj = createAction({
   audit: {
     action: "update",
     entityType: "attendance_entry",
-    entityId: (_input, data: Readonly<{ id: string }>) => data.id,
+    // Adnotarea de AICI decide `TData` pentru tot `createAction`, nu cea de pe
+    // `handler` — același tipar cu `revalidate`. Lăsată pe `{ id: string }`,
+    // acțiunea ar fi întors tipat doar identificatorul, iar `avertismente` ar fi
+    // dispărut din vedere la apelant deși pleacă pe fir.
+    entityId: (_input, data: RezultatCuAvertismente) => data.id,
     allow: [
       "employee_id",
       "data",
@@ -188,7 +197,15 @@ export const salveazaZiPontaj = createAction({
     ],
   },
   revalidate: [...CAI_REVALIDARE],
-  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+  /*
+    Ziua se salvează, apoi se SPUNE ce e în neregulă cu ea — `avertismente` e un
+    câmp nou în valoarea de retur, nu un `throw`. Un repaus prea scurt sau o
+    săptămână peste plafon sunt fapte care s-au întâmplat deja; o acțiune care
+    le refuză nu le desface, doar învață omul să rescrie ziua strâmb până trece.
+    Refuzurile rămân cele de dinainte: perioadă blocată, zi din concediu, drept
+    de scriere lipsă.
+  */
+  handler: async (ctx, input): Promise<RezultatCuAvertismente> => {
     // Rolul `employee` are `attendance:create = own`: nu poate scrie decât
     // pentru sine, chiar dacă a trimis explicit un `employee_id` străin.
     if (ctx.scope !== "all" && input.employee_id !== null) {
@@ -217,11 +234,17 @@ export const salveazaZiPontaj = createAction({
     let oreSuplimentare = input.ore_suplimentare;
     let oreNoapte = input.ore_noapte;
 
+    // `input.data`, nu începutul perioadei: setările au istoric
+    // (`valabil_de_la`), iar ziua pontată e data la care se aplică.
+    //
+    // Se citesc pentru ORICE scope, nu doar pentru cel care-și rederivă orele:
+    // același rând poartă și limitele legale verificate după scriere. O a doua
+    // citire pentru trei coloane din același rând ar fi fost un drum plătit
+    // degeaba la fiecare zi salvată.
+    const setari = await setariPontaj(ctx.tenant.organizationId, input.data);
+
     if (ctx.scope !== "all") {
       if (input.ora_inceput !== null && input.ora_sfarsit !== null) {
-        // `input.data`, nu începutul perioadei: setările au istoric
-        // (`valabil_de_la`), iar ziua pontată e data la care se aplică.
-        const setari = await setariPontaj(ctx.tenant.organizationId, input.data);
         const derivate = oreleZilei(input.ora_inceput, input.ora_sfarsit, configZiDin(setari));
         if (derivate === null) {
           throw businessRule(
@@ -302,7 +325,15 @@ export const salveazaZiPontaj = createAction({
           "Ziua a fost deja aprobată sau perioada a fost blocată între timp, deci nu mai poate fi modificată manual.",
         );
       }
-      return { id: actualizata.id };
+      return {
+        id: actualizata.id,
+        avertismente: await avertismenteDupaZi({
+          organizationId: ctx.tenant.organizationId,
+          employeeId,
+          data: input.data,
+          setari,
+        }),
+      };
     }
 
     const { data, error } = await db
@@ -329,7 +360,15 @@ export const salveazaZiPontaj = createAction({
       .single();
     if (error !== null) traduEroare(error);
 
-    return { id: data.id };
+    return {
+      id: data.id,
+      avertismente: await avertismenteDupaZi({
+        organizationId: ctx.tenant.organizationId,
+        employeeId,
+        data: input.data,
+        setari,
+      }),
+    };
   },
 });
 
@@ -349,6 +388,8 @@ interface PregatirePontare {
   readonly acum: string;
   readonly config: ConfigZi;
   readonly setari: Awaited<ReturnType<typeof setariPontaj>>;
+  /** Cum se pontează de pe telefon — din `setari_pontare_rapida`, nu din rândul versionat. */
+  readonly pontare: ConfigPontareRapida;
   readonly punctLucruId: string | null;
   /** Numele punctului scanat, ca ecranul să poată confirma UNDE s-a pontat. */
   readonly punctLucruDenumire: string | null;
@@ -366,10 +407,13 @@ async function pregatirePontareRapida(
   moduriPermise: readonly ModPontareRapida[],
 ): Promise<PregatirePontare> {
   const azi = todayInBucharest();
-  const setari = await setariPontaj(ctx.tenant.organizationId, azi);
+  const [setari, randPontare] = await Promise.all([
+    setariPontaj(ctx.tenant.organizationId, azi),
+    setariPontareRapida(ctx.tenant.organizationId),
+  ]);
 
-  const mod = (setari?.mod_pontare_rapida ?? MOD_PONTARE_IMPLICIT) as ModPontareRapida;
-  if (!moduriPermise.includes(mod)) {
+  const pontare = configPontareRapida(randPontare);
+  if (!moduriPermise.includes(pontare.mod)) {
     throw businessRule(
       "Pontarea rapidă nu este activată în acest fel pentru firma dumneavoastră. Completați ziua din „Pontajul meu”.",
     );
@@ -377,6 +421,12 @@ async function pregatirePontareRapida(
 
   /*
    * Dovada de prezență.
+   *
+   * `cumSeTrateazaCodul` decide, `pregatirePontareRapida` execută. Asimetria de
+   * la `optional` e miezul: absența codului trece (omul a apăsat butonul din
+   * portal, n-a scanat), dar un cod PREZENT se rezolvă întotdeauna. Un afiș
+   * vechi sau al altei firme n-are voie să treacă tăcut drept pontare fără
+   * punct de lucru — ar arăta ca o scanare reușită și ar înregistra altceva.
    *
    * Codul se rezolvă cu clientul ADMIN, cu filtru explicit pe organizație:
    * politica `puncte_lucru_select` (0030) cere `departments:read <> 'none'`, iar
@@ -388,10 +438,14 @@ async function pregatirePontareRapida(
    */
   let punctLucruId: string | null = null;
   let punctLucruDenumire: string | null = null;
-  if ((setari?.verificare_pontare ?? "fara") === "cod_qr") {
-    if (cod === null) {
-      throw businessRule("Firma cere scanarea codului de la punctul de lucru înainte de pontare.");
-    }
+  const tratareCod = cumSeTrateazaCodul(pontare.verificare, cod);
+  if (tratareCod === "cerut_lipsa") {
+    throw businessRule("Firma cere scanarea codului de la punctul de lucru înainte de pontare.");
+  }
+  // `cod !== null` e redundant pentru `cumSeTrateazaCodul` — „de_rezolvat" nu se
+  // întoarce niciodată fără cod — dar TypeScript nu poate îngusta prin apel, iar
+  // un `!` aici ar fi exact felul de afirmație pe care nimeni n-o mai verifică.
+  if (tratareCod === "de_rezolvat" && cod !== null) {
     const admin = createAdminSupabase();
     const { data: punct, error } = await admin
       .from("puncte_lucru")
@@ -417,6 +471,7 @@ async function pregatirePontareRapida(
     acum: oraInBucharest(ctx.now),
     config: configZiDin(setari),
     setari,
+    pontare,
     punctLucruId,
     punctLucruDenumire,
   };
@@ -656,14 +711,15 @@ export const confirmaZiuaStandard = createAction({
   > => {
     const p = await pregatirePontareRapida(ctx, input.cod_punct_lucru, ["confirmare", "ambele"]);
 
-    const programStart = p.setari?.program_start;
-    if (programStart === null || programStart === undefined) {
+    const programStart = p.pontare.programStart;
+    if (programStart === null) {
       throw businessRule(
         "Firma nu are declarată ora de început a programului, deci nu se poate propune un interval.",
       );
     }
-    // `time` din Postgres vine cu secunde: `"08:00:00"`.
-    const interval = intervalulPropus(programStart.slice(0, 5), p.config);
+    // Secundele au fost deja tăiate de `configPontareRapida` — `time` din
+    // Postgres vine ca `"08:00:00"`, iar aritmetica de aici lucrează pe `HH:MM`.
+    const interval = intervalulPropus(programStart, p.config);
     if (interval === null) {
       throw businessRule(
         "Programul declarat de firmă nu încape într-o singură zi calendaristică. Completați ziua din „Pontajul meu”.",

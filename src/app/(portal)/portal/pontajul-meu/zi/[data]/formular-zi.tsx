@@ -4,10 +4,12 @@ import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { salveazaZiPontaj } from "@/app/(app)/pontaj/actions";
+import { ListaAvertismente } from "@/app/(app)/pontaj/lista-avertismente";
 import { Buton } from "@/components/ui/buton";
 import { IntrareOra } from "@/components/ui/intrare-ora";
 import { formatOre } from "@/lib/format/ore";
 import { oreleZilei, type ConfigZi } from "@/domain/attendance/calcul-ore";
+import type { AvertismentPontaj } from "@/domain/attendance/limite-legale";
 
 /**
  * Completarea unei singure zile de pontaj, pentru telefon.
@@ -64,6 +66,7 @@ export function FormularZi({
   const [sfarsit, setSfarsit] = useState(sfarsitInitial);
   const [observatii, setObservatii] = useState(observatiiInitiale);
   const [eroare, setEroare] = useState<string | null>(null);
+  const [avertismente, setAvertismente] = useState<readonly AvertismentPontaj[]>([]);
   const [inCurs, porneste] = useTransition();
 
   const idInceput = useId();
@@ -95,6 +98,17 @@ export function FormularZi({
       });
       if (!rezultat.ok) {
         setEroare(rezultat.error.message);
+        return;
+      }
+      /*
+        Ziua e SALVATĂ în amândouă ramurile. Când verificarea a găsit ceva, se
+        rămâne pe ecran ca omul să apuce să citească — o navigare imediată ar
+        fi făcut avertismentul să clipească și să dispară, adică n-ar fi
+        existat. Plecarea e a lui, cu butonul de dedesubt.
+      */
+      if (rezultat.data.avertismente.length > 0) {
+        setAvertismente(rezultat.data.avertismente);
+        router.refresh();
         return;
       }
       router.push("/portal/pontajul-meu");
@@ -234,6 +248,28 @@ export function FormularZi({
       >
         Salvează ziua
       </Buton>
+
+      {/*
+        Ziua e deja în bază când apare blocul ăsta — de-aia stă SUB buton, sub
+        confirmarea salvării, și de aceea plecarea are butonul ei. Pus deasupra,
+        ar fi arătat ca un motiv pentru care salvarea n-a mers, iar omul ar mai
+        fi apăsat o dată.
+      */}
+      {avertismente.length === 0 ? null : (
+        <div aria-live="polite" className="space-y-3">
+          <p className="text-success text-corp">Ziua a fost salvată.</p>
+          <ListaAvertismente avertismente={avertismente} />
+          <Buton
+            varianta="secundar"
+            className="w-full"
+            onClick={() => {
+              router.push("/portal/pontajul-meu");
+            }}
+          >
+            Am înțeles, înapoi la pontajul meu
+          </Buton>
+        </div>
+      )}
     </form>
   );
 }

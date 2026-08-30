@@ -17,7 +17,7 @@ import { getEnabledFeatures } from "@/lib/auth/features";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, formatMonthYear, oraInBucharest, todayInBucharest } from "@/lib/format/date";
-import { citestePerioada, setariPontaj } from "@/lib/queries/attendance";
+import { citestePerioada, setariPontaj, setariPontareRapida } from "@/lib/queries/attendance";
 import { configZiDin, intervalulPropus } from "@/domain/attendance/calcul-ore";
 import { stareaCeasului } from "@/domain/attendance/ceas";
 import { formatOreCuUnitate } from "@/lib/format/ore";
@@ -33,7 +33,7 @@ import {
 } from "@/lib/queries/portal";
 import { citesteFluturasulPropriu, perioadaInregistrarii } from "@/lib/queries/payroll";
 import { meritaPontata } from "@/domain/attendance/zi-de-pontat";
-import { MOD_PONTARE_IMPLICIT } from "@/schemas/attendance";
+import { configPontareRapida } from "@/domain/attendance/pontare-rapida";
 
 import { CardSalariu } from "./card-salariu";
 import { ETICHETE_STATUS_CERERE, ETICHETE_TIP_ZI, TONURI_STATUS_CERERE } from "./etichete";
@@ -74,8 +74,19 @@ export default async function PaginaPortal() {
     moduleActive.has("attendance") && can(permisiuni, "attendance:create", "own");
   const vedeSalariu = moduleActive.has("payroll") && can(permisiuni, "payroll:read", "own");
 
-  const [solduri, cereri, tipuri, zile, anunturi, citite, cursuri, perioada, setari, fluturas] =
-    await Promise.all([
+  const [
+    solduri,
+    cereri,
+    tipuri,
+    zile,
+    anunturi,
+    citite,
+    cursuri,
+    perioada,
+    setari,
+    randPontare,
+    fluturas,
+  ] = await Promise.all([
       vedeConcedii ? soldurileMele(tenant.organizationId, an, fisa.id) : Promise.resolve([]),
       vedeConcedii ? cererileMele(tenant.organizationId, fisa.id, 20) : Promise.resolve([]),
       vedeConcedii
@@ -94,6 +105,7 @@ export default async function PaginaPortal() {
       // pe fiecare deschidere a aplicației.
       poatePontaZiua ? citestePerioada(tenant.organizationId, an, luna) : Promise.resolve(null),
       poatePontaZiua ? setariPontaj(tenant.organizationId, azi) : Promise.resolve(null),
+      poatePontaZiua ? setariPontareRapida(tenant.organizationId) : Promise.resolve(null),
       vedeSalariu
         ? citesteFluturasulPropriu(tenant.organizationId, fisa.id)
         : Promise.resolve(null),
@@ -134,13 +146,11 @@ export default async function PaginaPortal() {
    * se desenează, dar dacă ecranul și acțiunea ar folosi ceasuri diferite,
    * butonul ar arăta „Am ieșit" pentru o zi pe care serverul o crede neîncepută.
    */
-  const modPontare = setari?.mod_pontare_rapida ?? MOD_PONTARE_IMPLICIT;
+  const pontare = configPontareRapida(randPontare);
   const configZi = configZiDin(setari);
   const stareCeas = stareaCeasului(ziDeAzi, oraInBucharest(new Date()));
   const intervalPropus =
-    setari?.program_start === null || setari?.program_start === undefined
-      ? null
-      : intervalulPropus(setari.program_start.slice(0, 5), configZi);
+    pontare.programStart === null ? null : intervalulPropus(pontare.programStart, configZi);
   const oreLuna = zile.reduce((total, z) => total + (z.ore_lucrate ?? 0), 0);
   const suplimentareLuna = zile.reduce((total, z) => total + (z.ore_suplimentare ?? 0), 0);
 
@@ -342,14 +352,13 @@ export default async function PaginaPortal() {
 
             {/* Butoanele care chiar ponteaza ziua curentă. `inversat`, fiindcă
                 un `varianta="primar"` e tot navy și ar dispărea în card. */}
-            {poatePontaZiua && seLucreazaAzi && modPontare !== "oprit" ? (
+            {poatePontaZiua && seLucreazaAzi && pontare.mod !== "oprit" ? (
               <PontareRapida
                 inversat
                 stare={stareCeas}
-                mod={modPontare}
+                pontare={pontare}
                 intervalPropus={intervalPropus}
                 numeFirma={tenant.name}
-                cereCod={(setari?.verificare_pontare ?? "fara") === "cod_qr"}
                 lunaDeschisa={lunaDeschisa}
               />
             ) : null}
@@ -365,7 +374,7 @@ export default async function PaginaPortal() {
               pontarea într-o zi liberă.
             */}
             {poatePontaZiua && lunaDeschisa ? (
-              modPontare === "oprit" && seLucreazaAzi ? (
+              pontare.mod === "oprit" && seLucreazaAzi ? (
                 <Link
                   href={`/portal/pontajul-meu/zi/${azi}`}
                   className={cn(

@@ -28,6 +28,7 @@ import { zileLucratoareLuna } from "@/lib/queries/payroll";
 import { filtrePontajSchema, type StatusPerioada } from "@/schemas/attendance";
 import type { PermissionScope } from "@/config/permissions";
 import { configZiDin, type ConfigZi } from "@/domain/attendance/calcul-ore";
+import { limiteleFirmei, type LimiteFirmei } from "@/domain/attendance/limite-legale";
 import { esteLuni, lunieaSaptamanii } from "@/domain/attendance/saptamana";
 import { ziIso } from "@/domain/calendar/grila-lunara";
 
@@ -75,6 +76,7 @@ async function LunaIntreaga({
   poateEdita,
   poateAproba,
   config,
+  limite,
   oreAsteptateLuna,
   parametri,
   azi,
@@ -92,6 +94,12 @@ async function LunaIntreaga({
   readonly poateEdita: boolean;
   readonly poateAproba: boolean;
   readonly config: ConfigZi;
+  /**
+   * Limitele legale ale firmei, sau `null` când n-a configurat nimic. Foaia
+   * verifică pe ele zilele DEJA încărcate — fără nicio citire nouă, fiindcă
+   * luna e deja în pagină.
+   */
+  readonly limite: LimiteFirmei | null;
   readonly oreAsteptateLuna: number;
   readonly parametri: Record<string, string | string[] | undefined>;
   readonly azi: string;
@@ -138,6 +146,7 @@ async function LunaIntreaga({
         poateEdita={poateEdita}
         poateAproba={poateAproba}
         config={config}
+        limite={limite}
         oreAsteptateLuna={oreAsteptateLuna}
         azi={azi}
       />
@@ -225,6 +234,7 @@ async function LunaIntreaga({
         poateEdita={poateEdita}
         poateAproba={poateAproba}
         config={config}
+        limite={limite}
         oreAsteptateLuna={oreAsteptateLuna}
         azi={azi}
       />
@@ -320,21 +330,12 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
           ? "Săptămâna proprie, pe ore. Trageți peste o zonă dintr-o zi ca să pontați."
           : `Luna ${formatMonthYear(an, filtre.luna)}, pentru toți angajații.`
       }
-      // Butonul stătea NEGARDAT, deși `/pontaj/setari` cere
-      // `attendance:update = all` (setari/page.tsx:23). Un angajat sau un
-      // manager îl vedea, apăsa, și primea „Nu aveți dreptul de a configura
-      // parametrii de pontaj." — un buton care se vede și nu funcționează e
-      // mai rău decât unul care lipsește.
-      {...(poateConfigura
-        ? {
-            actiuni: (
-              <Link href="/pontaj/setari" className={buton({ varianta: "secundar" })}>
-                Setări
-              </Link>
-            ),
-          }
-        : {})}
-      file={<NavPontaj poateAproba={poateAproba} />}
+      // Setările au acum FILĂ, nu buton de antet — `poateConfigura` se duce
+      // acolo. Butonul de aici era singurul drum spre ele și stătea lângă titlu,
+      // unde nimeni nu caută o navigare. Garda rămâne aceeași
+      // (`attendance:update = all`, ca pagina țintă): un buton care se vede și
+      // răspunde „nu aveți dreptul" e mai rău decât unul care lipsește.
+      file={<NavPontaj poateAproba={poateAproba} poateConfigura={poateConfigura} />}
     />
   );
 
@@ -445,6 +446,7 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
             poateEdita={poateEdita}
             poateAproba={poateAproba}
             config={config}
+            limite={limiteleFirmei(setari)}
             oreAsteptateLuna={oreAsteptateLuna}
             parametri={parametri}
             azi={azi}

@@ -22,9 +22,10 @@ interface IntrareFila {
  */
 interface Proprietati {
   readonly poateAproba: boolean;
+  readonly poateConfigura: boolean;
 }
 
-export function NavPontaj({ poateAproba }: Proprietati) {
+export function NavPontaj({ poateAproba, poateConfigura }: Proprietati) {
   const cale = usePathname();
 
   const file: readonly IntrareFila[] = [
@@ -36,6 +37,10 @@ export function NavPontaj({ poateAproba }: Proprietati) {
     { href: "/pontaj/saptamana", eticheta: "Planul săptămânii" },
     { href: "/pontaj/perioade", eticheta: "Perioade" },
     ...(poateAproba ? [{ href: "/pontaj/aprobare", eticheta: "Aprobare" }] : []),
+    // Setările n-au avut niciodată filă: se ajungea la ele doar printr-un buton
+    // din antetul foii colective, iar cine nu-l observa n-avea de unde ști că
+    // pontarea de pe telefon se configurează undeva.
+    ...(poateConfigura ? [{ href: "/pontaj/setari", eticheta: "Setări" }] : []),
   ];
 
   return (

@@ -6,7 +6,13 @@ import { StareGoala } from "@/components/ui/stare-goala";
 import { buton } from "@/components/ui/buton";
 import { adresaVizualizare, type ParametriAdresa } from "@/components/ui/comutator-vizualizare";
 import { formatDate } from "@/lib/format/date";
-import { citestePerioada, intrariLuna, setariPontaj } from "@/lib/queries/attendance";
+import {
+  citestePerioada,
+  intrariLuna,
+  setariPontaj,
+  setariPontareRapida,
+} from "@/lib/queries/attendance";
+import { configPontareRapida } from "@/domain/attendance/pontare-rapida";
 import { zileNelucratoare } from "@/lib/queries/leave";
 import { fisaMea } from "@/lib/queries/portal";
 import { configZiDin, intervalulPropus } from "@/domain/attendance/calcul-ore";
@@ -78,14 +84,23 @@ export async function SectiuneSaptamana({
     istoric (`valabil_de_la`), iar săptămâna poate începe înaintea perioadei.
     `zileNelucratoare(anInceput, anSfarsit)` acoperă săptămâna de peste an.
   */
-  const [stareFisa, perioadaInceput, perioadaSfarsit, setari, { nationale, organizatie }] =
-    await Promise.all([
-      fisaMea(organizationId, userId),
-      citestePerioada(organizationId, anInceput, lunaInceput),
-      doualuni ? citestePerioada(organizationId, anSfarsit, lunaSfarsit) : null,
-      setariPontaj(organizationId, saptamanaStart),
-      zileNelucratoare(organizationId, anInceput, anSfarsit),
-    ]);
+  const [
+    stareFisa,
+    perioadaInceput,
+    perioadaSfarsit,
+    setari,
+    randPontare,
+    { nationale, organizatie },
+  ] = await Promise.all([
+    fisaMea(organizationId, userId),
+    citestePerioada(organizationId, anInceput, lunaInceput),
+    doualuni ? citestePerioada(organizationId, anSfarsit, lunaSfarsit) : null,
+    setariPontaj(organizationId, saptamanaStart),
+    // Ora de început NU mai vine din rândul versionat: e o setare operațională,
+    // fără istoric (0115).
+    setariPontareRapida(organizationId),
+    zileNelucratoare(organizationId, anInceput, anSfarsit),
+  ]);
 
   const navigare = (
     <NavigareSaptamana
@@ -122,6 +137,7 @@ export async function SectiuneSaptamana({
   );
 
   const config = configZiDin(setari);
+  const programStart = configPontareRapida(randPontare).programStart;
   const zileFaraPerioada: string[] = [];
 
   const zile: readonly ZiGrila[] = zileleSaptamanii(saptamanaStart).map((data, index) => {
@@ -195,9 +211,7 @@ export async function SectiuneSaptamana({
         )}
         config={config}
         intervalPropus={
-          setari === null || setari.program_start === null
-            ? null
-            : intervalulPropus(setari.program_start.slice(0, 5), config)
+          programStart === null ? null : intervalulPropus(programStart, config)
         }
         angajatId={null}
         eticheta={stareFisa.fisa.full_name ?? stareFisa.fisa.marca}

@@ -3,7 +3,9 @@
 import { useMemo, useState } from "react";
 
 import { type TipZi } from "@/schemas/attendance";
+import { Callout } from "@/components/ui/callout";
 import type { ConfigZi } from "@/domain/attendance/calcul-ore";
+import { avertismenteLuna, type LimiteFirmei } from "@/domain/attendance/limite-legale";
 import {
   CLASE_TIP_ZI,
   CODURI_TIP_ZI,
@@ -31,6 +33,17 @@ interface Proprietati {
   /** Pragul de ore/zi al organizației — trecut mai departe la `CelulaZi`. */
   /** Parametrii de derivare a orelor, pauza de masă inclusă. */
   readonly config: ConfigZi;
+  /**
+   * Limitele legale ale firmei, `null` dacă n-a configurat nimic.
+   *
+   * Verificarea se face pe zilele DEJA încărcate în ecran, fără nicio citire
+   * nouă: luna întreagă e deja aici. Consecința, spusă pe față în panoul de
+   * sus: repausul dintre ultima zi a lunii trecute și prima a acesteia nu se
+   * vede, iar media pe perioada de referință lipsește — pentru ea ar trebui
+   * aduse alte patru luni de pontaj pentru fiecare angajat din tabel. Pe alea
+   * le calculează acțiunea, la salvarea zilei.
+   */
+  readonly limite: LimiteFirmei | null;
   /**
    * Ore așteptate ale lunii (ore_pe_zi × zile lucrătoare) — aceeași valoare
    * pentru fiecare angajat, calculată o singură dată în pagină. Doar
@@ -117,6 +130,7 @@ export function FoaieColectiva({
   poateEdita,
   poateAproba,
   config,
+  limite,
   oreAsteptateLuna,
   azi,
 }: Proprietati) {
@@ -131,6 +145,36 @@ export function FoaieColectiva({
   const setLiber = useMemo(() => new Set(liberSuplimentar), [liberSuplimentar]);
 
   const perioadaBlocata = statusPerioada === "blocata";
+
+  /*
+    Ce e în neregulă cu luna, pe angajat.
+
+    Se arată DOAR severitatea `avertisment`. Pe o foaie cu 25 de oameni,
+    „săptămâna peste normă" — adică orele suplimentare, care sunt legale — ar
+    apărea de zeci de ori și ar îneca cele câteva depășiri reale. Ele rămân
+    vizibile acolo unde privește un singur om: formularul zilei și cel al
+    săptămânii.
+  */
+  const avertismentePeAngajat = useMemo(() => {
+    if (limite === null) return [];
+    return randuri
+      .map((rand) => ({
+        eticheta: rand.eticheta,
+        avertismente: avertismenteLuna({
+          zile: Object.entries(rand.intrari).map(([data, intrare]) => ({
+            data,
+            oraInceput: intrare.oraInceput,
+            oraSfarsit: intrare.oraSfarsit,
+            oreLucrate: intrare.oreLucrate,
+            oreSuplimentare: intrare.oreSuplimentare,
+            oreNoapte: intrare.oreNoapte,
+            esteSarbatoare: intrare.tipZi === "sarbatoare",
+          })),
+          limite,
+        }).filter((a) => a.severitate === "avertisment"),
+      }))
+      .filter((rand) => rand.avertismente.length > 0);
+  }, [randuri, limite]);
 
   const infoZile = useMemo(
     () =>
@@ -202,6 +246,34 @@ export function FoaieColectiva({
           corecții.
         </p>
       ) : null}
+
+      {/*
+        Panoul stă DEASUPRA matricei, nu în celule: cine aprobă o lună are în
+        față 25 × 31 de căsuțe, iar un semn într-una din ele n-ar fi găsit
+        niciodată. Aici scrie cine și ce, iar cifra din text spune unde să se
+        uite în tabel.
+      */}
+      {avertismentePeAngajat.length === 0 ? null : (
+        <Callout fel="atentie" titlu="Luna depășește regulile firmei">
+          <ul className="space-y-2">
+            {avertismentePeAngajat.map((rand) => (
+              <li key={rand.eticheta}>
+                <span className="font-medium">{rand.eticheta}</span>
+                <ul className="list-disc space-y-1 pl-4">
+                  {rand.avertismente.map((a) => (
+                    <li key={`${a.cod}-${a.zi}`}>{a.mesaj}</li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ul>
+          <p className="text-muted-foreground text-nota mt-2">
+            Pontajul rămâne cum a fost înregistrat — avertismentele nu blochează aprobarea. Media pe
+            perioada de referință și repausul de la granița lunii nu se verifică aici: se calculează
+            la salvarea fiecărei zile.
+          </p>
+        </Callout>
+      )}
 
       {/* `overflow-x-auto` singur nu ajungea: din regula CSS de calcul, un
           element cu `overflow-x: auto` primește `overflow-y: auto`, deci divul
