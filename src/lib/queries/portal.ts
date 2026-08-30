@@ -299,3 +299,45 @@ export async function documenteleMele(
   if (error !== null) throw error;
   return data ?? [];
 }
+
+/**
+ * La ce tipuri de concediu are dreptul angajatul și câte zile la fiecare, după
+ * setările firmei lui.
+ *
+ * Trece prin `public.drepturile_mele_concediu` (0107), nu prin tabele, din două
+ * motive care se cumulează:
+ *
+ *  - calculul complet (bază + grile de vechime, condiții de muncă, handicap,
+ *    vârstă, departament, funcție) trăiește în `app.drept_concediu` (0035:179);
+ *    refăcut aici ar fi a doua implementare a aceleiași formule, sortită să
+ *    diveargă;
+ *  - angajatul NU poate citi `leave_entitlement_rules` — politica `ler_select`
+ *    (0009:917) cere `leave:read = all`, el are `own` — deci ar fi primit zero
+ *    grile fără nicio eroare, iar ecranul i-ar fi arătat doar baza, tăcut și
+ *    greșit.
+ *
+ * Funcția nu primește `employee_id`: își rezolvă singură fișa apelantului, din
+ * `app.current_employee_id()`. Zero rânduri = fie contul n-are fișă de angajat,
+ * fie firma n-are tipuri active. Ambele sunt stări reale, nu erori.
+ */
+export interface DreptConcediu {
+  readonly leave_type_id: string;
+  readonly denumire: string;
+  readonly zile: number;
+  readonly reglementat: boolean;
+  readonly scade_din_sold: boolean;
+  readonly temei_legal: string | null;
+}
+
+export async function drepturileMele(
+  organizationId: string,
+  an: number,
+): Promise<readonly DreptConcediu[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db.rpc("drepturile_mele_concediu", {
+    p_organization_id: organizationId,
+    p_an: an,
+  });
+  if (error !== null) throw error;
+  return data ?? [];
+}

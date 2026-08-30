@@ -13,11 +13,18 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
 import { anDinUrl } from "@/lib/rute/parametri";
-import { cererileMele, soldurileMele, tipuriConcediu, fisaMea } from "@/lib/queries/portal";
+import {
+  cererileMele,
+  drepturileMele,
+  soldurileMele,
+  tipuriConcediu,
+  fisaMea,
+} from "@/lib/queries/portal";
 
 import { ETICHETE_STATUS_CERERE, TONURI_STATUS_CERERE } from "../etichete";
 
 import { FaraFisa } from "../fara-fisa";
+import { DrepturileMele } from "./drepturile-mele";
 
 export const metadata: Metadata = { title: "Concediile mele" };
 
@@ -53,26 +60,35 @@ export default async function PaginaConcediileMele({ searchParams }: Proprietati
   const parametri = await searchParams;
   const an = anDinUrl(parametri["an"], Number(todayInBucharest().slice(0, 4)));
 
-  const [solduri, cereri, tipuri] = await Promise.all([
+  const [solduri, cereri, tipuri, drepturi] = await Promise.all([
     soldurileMele(tenant.organizationId, an, propriaFisaId),
     cererileMele(tenant.organizationId, propriaFisaId, 100),
     tipuriConcediu(tenant.organizationId),
+    // Drepturile se cer odată cu restul, nu la deschiderea ferestrei: sunt
+    // câteva rânduri, iar o cerere separată la clic ar face fereastra să
+    // clipească fără niciun câștig.
+    drepturileMele(tenant.organizationId, an),
   ]);
 
   return (
     <div className={`${LATIMI.lista} space-y-4 p-4`}>
       <AntetPagina
         titlu="Concediile mele"
-        {...(poateCere
-          ? {
-              actiuni: (
-                <Link href="/portal/concediile-mele/noua" className={buton({ varianta: "primar" })}>
-                  <Plus aria-hidden="true" className="size-4" />
-                  Cerere nouă
-                </Link>
-              ),
-            }
-          : {})}
+        // „La ce am dreptul" apare indiferent de `poateCere`: a ști ce ți se
+        // cuvine nu ține de dreptul de a cere. Cine poate doar citi rămâne
+        // altfel cu un ecran care îi arată un sold, fără să-i spună vreodată
+        // din ce se compune.
+        actiuni={
+          <>
+            <DrepturileMele an={an} drepturi={drepturi} />
+            {poateCere ? (
+              <Link href="/portal/concediile-mele/noua" className={buton({ varianta: "primar" })}>
+                <Plus aria-hidden="true" className="size-4" />
+                Cerere nouă
+              </Link>
+            ) : null}
+          </>
+        }
       />
 
       <section aria-labelledby="solduri" className="space-y-2">
