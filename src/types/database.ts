@@ -10621,6 +10621,53 @@ export type Database = {
           },
         ]
       }
+      setari_pontare_rapida: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          mod_pontare_rapida: Database["public"]["Enums"]["mod_pontare_rapida"]
+          organization_id: string
+          program_start: string | null
+          updated_at: string
+          updated_by: string | null
+          verificare_pontare: Database["public"]["Enums"]["verificare_pontare"]
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          mod_pontare_rapida?: Database["public"]["Enums"]["mod_pontare_rapida"]
+          organization_id: string
+          program_start?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          verificare_pontare?: Database["public"]["Enums"]["verificare_pontare"]
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          mod_pontare_rapida?: Database["public"]["Enums"]["mod_pontare_rapida"]
+          organization_id?: string
+          program_start?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          verificare_pontare?: Database["public"]["Enums"]["verificare_pontare"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "setari_pontare_rapida_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ssm_legal_parameters: {
         Row: {
           cod: string
@@ -12562,7 +12609,7 @@ export type Database = {
         | "motocicleta"
         | "altele"
       vehicle_status: "activ" | "in_service" | "vandut" | "casat"
-      verificare_pontare: "fara" | "cod_qr"
+      verificare_pontare: "fara" | "cod_qr" | "optional"
       work_mode: "sediu" | "telemunca" | "domiciliu" | "mixt"
     }
     CompositeTypes: {
@@ -13109,7 +13156,7 @@ export const Constants = {
         "altele",
       ],
       vehicle_status: ["activ", "in_service", "vandut", "casat"],
-      verificare_pontare: ["fara", "cod_qr"],
+      verificare_pontare: ["fara", "cod_qr", "optional"],
       work_mode: ["sediu", "telemunca", "domiciliu", "mixt"],
     },
   },

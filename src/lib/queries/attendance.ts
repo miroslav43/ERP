@@ -4,6 +4,7 @@
 // handlers și scripturi). Fiecare interogare trece prin RLS.
 
 import { createServerSupabase } from "@/lib/supabase/server";
+import type { RandPontareRapida } from "@/domain/attendance/pontare-rapida";
 import type {
   FiltrePontaj,
   StareSaptamanaPontaj,
@@ -709,4 +710,73 @@ export async function istoricSetariPontaj(
     .returns<SetariPontajComplete[]>();
   if (error !== null) throw error;
   return data ?? [];
+}
+
+// ── Pontarea rapidă (0115) ───────────────────────────────────────────────────
+
+/**
+ * Configurația de pontare rapidă a firmei.
+ *
+ * Tabelă separată de `attendance_settings` și NEVESIONATĂ: nu există nimic de
+ * reconstituit pentru o lună trecută, iar ținerea celor trei câmpuri în rândul
+ * versionat obliga pe oricine voia să pornească un buton să reconfirme
+ * optsprezece cifre de dreptul muncii și să aleagă o dată de intrare în vigoare.
+ *
+ * `null` e o stare NORMALĂ — firma n-a salvat niciodată nimic. Apelantul NU
+ * cade pe literale: trece rezultatul prin `configPontareRapida`
+ * (`src/domain/attendance/pontare-rapida.ts`), care ține implicitele într-un
+ * singur loc, cu teste.
+ */
+export async function setariPontareRapida(
+  organizationId: string,
+): Promise<RandPontareRapida | null> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("setari_pontare_rapida")
+    .select("mod_pontare_rapida, verificare_pontare, program_start")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .maybeSingle<RandPontareRapida>();
+  if (error !== null) throw error;
+  return data;
+}
+
+export interface AfisPontare {
+  readonly id: string;
+  readonly denumire: string;
+  readonly activ: boolean;
+  /** Are cod generat, deci se poate tipări un afiș. */
+  readonly areCod: boolean;
+}
+
+/**
+ * Punctele de lucru și starea afișului lor de pontare.
+ *
+ * `cod_pontaj` NU se selectează niciodată: e un secret operațional — cine îl
+ * vede poate ponta de oriunde — iar ecranul are nevoie doar de „are cod / n-are
+ * cod". Aceeași regulă ca în `puncte-lucru/page.tsx`, unde codul nu traversează
+ * granița server/client.
+ *
+ * Poarta e `puncte_lucru_select` (0030), care cere `departments:read` diferit de
+ * `none`. Cele trei roluri care ajung la ecranul de setări — `super_admin`,
+ * `org_admin`, `hr` — îl au pe `all`, deci lista nu se golește tăcut pentru
+ * niciunul.
+ */
+export async function afiseDePontare(organizationId: string): Promise<readonly AfisPontare[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("puncte_lucru")
+    .select("id, denumire, activ, cod_pontaj")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .order("sediu_principal", { ascending: false })
+    .order("denumire")
+    .returns<{ id: string; denumire: string; activ: boolean; cod_pontaj: string | null }[]>();
+  if (error !== null) throw error;
+  return (data ?? []).map((p) => ({
+    id: p.id,
+    denumire: p.denumire,
+    activ: p.activ,
+    areCod: p.cod_pontaj !== null,
+  }));
 }

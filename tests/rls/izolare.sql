@@ -672,6 +672,16 @@ begin
     (v_alfa, current_date - 400, 8, 40, 48, 3, 12, 24, 75, 25, 100, 100, '22:00', '06:00', 60, 30, 30, false, 6),
     (v_beta, current_date - 400, 8, 40, 48, 3, 12, 24, 75, 25, 100, 100, '22:00', '06:00', 60, 30, 30, false, 6);
 
+  -- Migrarea 0115: cum se pontează de pe telefon. Un rând per firmă, fără
+  -- `valabil_de_la` — spre deosebire de setările de mai sus, aici nu există
+  -- istoric. Modul `ambele` cere `program_start`
+  -- (`setari_pontare_rapida_program_ck`), deci fixture-ul îl dă: o firmă care
+  -- alege un mod ce propune un interval fără să aibă ora de început e chiar
+  -- starea pe care constrângerea o refuză.
+  insert into public.setari_pontare_rapida (organization_id, mod_pontare_rapida, verificare_pontare, program_start)
+  values (v_alfa, 'ambele', 'optional', '08:30'),
+         (v_beta, 'ambele', 'optional', '08:30');
+
   -- `an`/`luna` din perioada deschisă mai jos trebuie să acopere data folosită
   -- de linia de pontaj — triggerul `pontaj_intrare_pregateste` (0013) refuză
   -- orice înregistrare a cărei lună n-a fost deschisă explicit.
