@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 
 import {
+  codCorOptional,
   enumOptional,
   numarCuImplicit,
   numarObligatoriu,
@@ -298,11 +299,48 @@ describe("niciun ajutor local", () => {
    */
   it("ajutoarele numerice nu se declară local", () => {
     const tipar =
-      /^\s*(?:export\s+)?const (?:enumOptional|numarOptional|numarObligatoriu|numarCuImplicit)\s*=/mu;
+      /^\s*(?:export\s+)?const (?:enumOptional|numarOptional|numarObligatoriu|numarCuImplicit|codCorOptional)\s*=/mu;
     const vinovate = fisiere.filter((f) => tipar.test(f.sursa)).map((f) => f.nume);
     expect(
       vinovate,
       `Declarat local în: ${vinovate.join(", ")}. Importă-l din "./comun" — copia diverge tăcut.`,
     ).toEqual([]);
+  });
+});
+
+/**
+ * Codul COR, mutat aici din `job-position.ts` când nomenclatorul de funcții a
+ * fost desființat (migrarea 0110).
+ *
+ * Ajutorul nu s-a schimbat la mutare — verifica deja și formatul, și existența
+ * în nomenclator. S-a schimbat însă CINE îl folosește: până acum un singur
+ * formular, cel al nomenclatorului; de acum fișa angajatului, contractul și
+ * patru ecrane de reguli. De aceea îi trebuie un test propriu: până acum n-avea
+ * niciunul.
+ */
+describe("codCorOptional", () => {
+  it("acceptă un cod care există în Clasificarea Ocupațiilor", () => {
+    expect(codCorOptional.parse("251401")).toBe("251401");
+  });
+
+  it("normalizează toate formele golului la null", () => {
+    expect(codCorOptional.parse("")).toBeNull();
+    expect(codCorOptional.parse(null)).toBeNull();
+    expect(codCorOptional.parse(undefined)).toBeNull();
+    expect(codCorOptional.parse("   ")).toBeNull();
+  });
+
+  it("respinge un cod cu format greșit", () => {
+    expect(() => codCorOptional.parse("12345")).toThrow();
+    expect(() => codCorOptional.parse("abcdef")).toThrow();
+  });
+
+  /**
+   * Poarta care contează. Șase cifre inventate treceau nedetectate până la
+   * exportul REVISAL, unde codul e blocant — adică luni mai târziu, la prima
+   * transmitere către ITM, cu funcția deja pe contractele semnate.
+   */
+  it("respinge șase cifre care nu sunt o ocupație reală", () => {
+    expect(() => codCorOptional.parse("999999")).toThrow();
   });
 });

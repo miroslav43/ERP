@@ -1,8 +1,6 @@
 // src/schemas/job-position.ts
 import { z } from "zod";
-import { enumOptional } from "./comun";
-
-import { codCorExista } from "@/domain/hr/cor-nomenclator";
+import { codCorOptional, enumOptional } from "./comun";
 
 const textOptional = (maxim: number) =>
   z
@@ -12,29 +10,6 @@ const textOptional = (maxim: number) =>
     .nullable()
     .default(null)
     .transform((valoare) => (valoare === null || valoare.length === 0 ? null : valoare));
-
-const codCorOptional = z
-  .string()
-  .trim()
-  .nullable()
-  .default(null)
-  .transform((valoare) => (valoare === null || valoare.length === 0 ? null : valoare))
-  .refine(
-    (valoare) => valoare === null || /^[0-9]{6}$/.test(valoare),
-    "Codul COR are 6 cifre (ex. 251401), conform ultimei variante REVISAL.",
-  )
-  /**
-   * Codul trebuie să EXISTE în nomenclator, nu doar să aibă șase cifre.
-   *
-   * Până acum singura verificare era formatul. Șase cifre inventate treceau
-   * nedetectate până la exportul REVISAL, unde codul e blocant — adică luni mai
-   * târziu, la prima transmitere către ITM, când funcția e deja pe contractele
-   * semnate ale mai multor oameni.
-   */
-  .refine(
-    (valoare) => valoare === null || codCorExista(valoare),
-    "Codul COR nu există în Clasificarea Ocupațiilor din România. Căutați ocupația după denumire.",
-  );
 
 export const creeazaFunctieSchema = z.object({
   cod: z.string().trim().min(1, "Codul funcției este obligatoriu.").max(32),

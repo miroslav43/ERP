@@ -34,6 +34,8 @@
 
 import { z } from "zod";
 
+import { codCorExista } from "@/domain/hr/cor-nomenclator";
+
 /**
  * Un câmp opțional venit dintr-un formular sau dintr-un query string.
  *
@@ -67,6 +69,40 @@ export const textOptional = (maxim: number) =>
     .nullable()
     .default(null)
     .transform((v) => (v === null || v.length === 0 ? null : v));
+
+/**
+ * Codul COR al unei ocupații — șase cifre care EXISTĂ în nomenclator.
+ *
+ * ── DE CE STĂ AICI, ȘI NU LÂNGĂ FORMULARUL CARE ÎL FOLOSEȘTE ──────────────
+ * A trăit în `schemas/job-position.ts`, fiindcă singurul câmp de cod COR din
+ * proiect era cel al nomenclatorului de funcții. Migrarea 0110 a desființat
+ * nomenclatorul: codul se cere acum pe fișa angajatului, pe contract și pe
+ * patru ecrane de reguli. Șapte locuri, deci un singur exemplar — regula pe
+ * care o impune `comun.test.ts` restului fișierului.
+ *
+ * ── DE CE DOUĂ VERIFICĂRI, NU UNA ─────────────────────────────────────────
+ * Formatul singur nu ajunge. Șase cifre inventate treceau nedetectate până la
+ * exportul REVISAL, unde codul e blocant — adică luni mai târziu, la prima
+ * transmitere către ITM, când funcția e deja pe contractele semnate ale mai
+ * multor oameni. Nomenclatorul (4422 de ocupații) stă în
+ * `@/domain/hr/cor-nomenclator`, nu în bază: se schimbă o dată la câțiva ani,
+ * prin ordin comun MMPS/INS, iar o copie în Postgres ar fi a doua sursă de
+ * adevăr.
+ */
+export const codCorOptional = z
+  .string()
+  .trim()
+  .nullable()
+  .default(null)
+  .transform((valoare) => (valoare === null || valoare.length === 0 ? null : valoare))
+  .refine(
+    (valoare) => valoare === null || /^[0-9]{6}$/.test(valoare),
+    "Codul COR are 6 cifre (ex. 251401), conform ultimei variante REVISAL.",
+  )
+  .refine(
+    (valoare) => valoare === null || codCorExista(valoare),
+    "Codul COR nu există în Clasificarea Ocupațiilor din România. Căutați ocupația după denumire.",
+  );
 
 /**
  * Un `<select>` opțional: opțiunea „— Niciunul —” trimite `""`, nu `null`.
