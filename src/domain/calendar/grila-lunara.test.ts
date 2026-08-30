@@ -1,7 +1,14 @@
 // src/domain/calendar/grila-lunara.test.ts
 import { describe, expect, it } from "vitest";
 
-import { construiesteSaptamani, isoDowPrimaZi, numarZileLuna, ziIso } from "./grila-lunara";
+import {
+  adaugaZileIso,
+  construiesteSaptamani,
+  deplaseazaLuna,
+  isoDowPrimaZi,
+  numarZileLuna,
+  ziIso,
+} from "./grila-lunara";
 
 describe("isoDowPrimaZi", () => {
   it("dă 7 pentru o lună care începe duminica, nu 0", () => {
@@ -84,5 +91,59 @@ describe("construiesteSaptamani", () => {
     const saptamani = construiesteSaptamani(2026, 3);
     expect(saptamani.at(-1)).toHaveLength(7);
     expect(saptamani.at(-1)?.at(-1)).toBeNull();
+  });
+});
+
+/**
+ * Cele două deplasări de care are nevoie navigarea din calendar. Stau aici, nu
+ * în componentă, din același motiv pentru care stă și restul modulului: sunt
+ * aritmetică, iar aritmetica greșită de calendar nu aruncă nicio eroare.
+ */
+describe("adaugaZileIso", () => {
+  it("trece peste capătul lunii", () => {
+    expect(adaugaZileIso("2026-08-31", 1)).toBe("2026-09-01");
+  });
+
+  it("trece peste capătul anului", () => {
+    expect(adaugaZileIso("2026-12-31", 1)).toBe("2027-01-01");
+  });
+
+  it("merge și înapoi, peste capătul anului", () => {
+    expect(adaugaZileIso("2026-01-01", -1)).toBe("2025-12-31");
+  });
+
+  it("sare o săptămână întreagă", () => {
+    expect(adaugaZileIso("2026-08-12", -7)).toBe("2026-08-05");
+  });
+
+  /**
+   * 2028 e bisect. Un salt care sare peste 29 februarie ar însemna că
+   * aritmetica se face pe luni, nu pe zile.
+   */
+  it("numără 29 februarie într-un an bisect", () => {
+    expect(adaugaZileIso("2028-02-28", 1)).toBe("2028-02-29");
+  });
+
+  it("sare peste 29 februarie într-un an nebisect", () => {
+    expect(adaugaZileIso("2027-02-28", 1)).toBe("2027-03-01");
+  });
+});
+
+describe("deplaseazaLuna", () => {
+  it("trece din decembrie în ianuarie ANUL URMĂTOR", () => {
+    expect(deplaseazaLuna(2026, 12, 1)).toEqual({ an: 2027, luna: 1 });
+  });
+
+  it("trece din ianuarie în decembrie anul precedent", () => {
+    expect(deplaseazaLuna(2026, 1, -1)).toEqual({ an: 2025, luna: 12 });
+  });
+
+  it("nu schimbă anul într-o deplasare obișnuită", () => {
+    expect(deplaseazaLuna(2026, 8, 1)).toEqual({ an: 2026, luna: 9 });
+  });
+
+  /** Săgeata de an e o deplasare de douăsprezece luni, nu un caz aparte. */
+  it("douăsprezece luni înapoi înseamnă același număr de lună, anul precedent", () => {
+    expect(deplaseazaLuna(2026, 8, -12)).toEqual({ an: 2025, luna: 8 });
   });
 });

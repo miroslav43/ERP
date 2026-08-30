@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 import { pasteOrtodox } from "./paste-ortodox";
-import { sarbatoriAnului, type Sarbatoare } from "./sarbatori";
+import { sarbatoriAnului, sarbatoriDupaZi, type Sarbatoare } from "./sarbatori";
 
 const ZI_IN_MS = 24 * 60 * 60 * 1000;
 
@@ -100,5 +100,46 @@ describe("sarbatoriAnului", () => {
     const timpi = sarbatoriAnului(2025).map((s) => s.data.getTime());
     const timpiSortati = [...timpi].sort((x, y) => x - y);
     expect(timpi).toEqual(timpiSortati);
+  });
+});
+
+/**
+ * Forma de care are nevoie un calendar: „ce scrie în `title`-ul zilei ăsteia”,
+ * răspuns într-un singur pas.
+ *
+ * Componenta desenează 42 de căsuțe și ar trebui altfel să parcurgă lista de 17
+ * sărbători pentru fiecare, comparând `Date`-uri — adică exact locul unde un fus
+ * orar mută Crăciunul pe 24. Aici cheia e șirul ISO, iar comparația e de șiruri.
+ */
+describe("sarbatoriDupaZi", () => {
+  it("indexează o sărbătoare fixă după ziua ei ISO", () => {
+    expect(sarbatoriDupaZi(2026).get("2026-12-01")).toBe("Ziua Națională a României");
+  });
+
+  it("indexează și sărbătorile mobile, derivate din Paște", () => {
+    expect(sarbatoriDupaZi(2026).get("2026-04-12")).toBe("Paștele");
+  });
+
+  /**
+   * Perechea testului de mai sus care apără NEDEDUPLICAREA în listă. Un `Map`
+   * păstrează o singură valoare pe cheie, deci ultima scrisă ar fi ștearsă
+   * tăcut pe cea dinainte — iar în calendar ar apărea „A doua zi de Rusalii”
+   * peste „Ziua Copilului”, fără ca nimic să semnaleze pierderea.
+   */
+  it("adună ambele denumiri când două sărbători cad în aceeași zi (1 iunie 2026)", () => {
+    expect(sarbatoriDupaZi(2026).get("2026-06-01")).toBe("Ziua Copilului · A doua zi de Rusalii");
+  });
+
+  it("nu conține zile obișnuite", () => {
+    expect(sarbatoriDupaZi(2026).get("2026-08-30")).toBeUndefined();
+  });
+
+  /**
+   * 17 sărbători, dar 16 zile: 1 iunie 2026 le poartă pe două. Numărul e scris
+   * ca literal, nu derivat din lungimea listei — altfel ar trece și cu harta
+   * care pierde ziua dublă.
+   */
+  it("are 16 zile distincte în 2026, nu 17", () => {
+    expect(sarbatoriDupaZi(2026).size).toBe(16);
   });
 });

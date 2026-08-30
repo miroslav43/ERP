@@ -55,3 +55,34 @@ export function sarbatoriAnului(an: number): readonly Sarbatoare[] {
     (primul, alDoilea) => primul.data.getTime() - alDoilea.data.getTime(),
   );
 }
+
+/**
+ * Sărbătorile anului indexate după ziua lor calendaristică ISO, `"2026-12-01"`.
+ *
+ * Forma de care are nevoie un calendar: 42 de căsuțe pe ecran, fiecare cu o
+ * singură întrebare — „ziua asta e liberă, și cum se numește?”. Cu lista brută,
+ * răspunsul ar cere 42 × 17 comparații de `Date`, adică fix locul unde un fus
+ * orar mută Crăciunul pe 24 decembrie. Aici cheia e un șir de cifre și
+ * comparația e de șiruri.
+ *
+ * Când două sărbători cad în aceeași zi — 1 iunie 2026 e și Ziua Copilului, și
+ * a doua zi de Rusalii — denumirile se ADUNĂ, despărțite prin `·`. Un `Map`
+ * ține o singură valoare pe cheie, deci scrierea directă ar pierde tăcut una
+ * dintre ele; `sarbatoriAnului` are un test dedicat care apără exact
+ * nededuplicarea în listă, iar ăsta e perechea lui pentru hartă.
+ */
+export function sarbatoriDupaZi(an: number): ReadonlyMap<string, string> {
+  const dupaZi = new Map<string, string>();
+  for (const sarbatoare of sarbatoriAnului(an)) {
+    const { data } = sarbatoare;
+    const zi = `${String(data.getUTCFullYear()).padStart(4, "0")}-${String(
+      data.getUTCMonth() + 1,
+    ).padStart(2, "0")}-${String(data.getUTCDate()).padStart(2, "0")}`;
+    const dinainte = dupaZi.get(zi);
+    dupaZi.set(
+      zi,
+      dinainte === undefined ? sarbatoare.denumire : `${dinainte} · ${sarbatoare.denumire}`,
+    );
+  }
+  return dupaZi;
+}
