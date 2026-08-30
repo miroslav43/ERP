@@ -11,6 +11,7 @@ import {
   type StareObiect,
   type StatusObiect,
 } from "@/schemas/inventory";
+import { aduna, dinLei, inLei, ZERO_BANI } from "@/domain/bani";
 import { createServerSupabase } from "@/lib/supabase/server";
 
 import {
@@ -233,6 +234,27 @@ export async function listeazaObiecte(
 }
 
 /** Perechea id → nume/marcă, pentru rândurile de alocare care nu au embed direct. */
+/**
+ * Angajații activi, pentru selectorul din caseta de predare.
+ *
+ * Interogarea asta stătea scrisă direct în `inventar/[id]/page.tsx`, singura
+ * din modul care nu trecea prin stratul de citiri. Locul ei e aici: caseta de
+ * predare se montează abia la deschidere, dar lista trebuie să existe pe server
+ * la randarea fișei, deci apelantul o cere o dată și o dă mai departe ca prop.
+ */
+export async function angajatiActivi(organizationId: string): Promise<readonly AngajatRezumat[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("employees")
+    .select("id, full_name, marca")
+    .eq("organization_id", organizationId)
+    .eq("status", "activ")
+    .is("deleted_at", null)
+    .order("full_name");
+  if (error !== null) throw error;
+  return data ?? [];
+}
+
 export async function numeleAngajatilor(
   organizationId: string,
   employeeIds: readonly string[],
@@ -374,4 +396,118 @@ export async function inPrimireaMea(
   const { data, error } = await interogare.returns<RandInPrimire[]>();
   if (error !== null) throw error;
   return data ?? [];
+}
+
+/* ────────────────────────── Rezumatul registrului ──────────────────────── */
+
+export interface RezumatInventar {
+  readonly inStoc: number;
+  readonly alocate: number;
+  readonly inReparatie: number;
+  readonly casate: number;
+  /**
+   * Suma valorilor, în lei, FĂRĂ obiectele casate.
+   *
+   * Un obiect scos din uz nu mai e patrimoniu utilizabil, iar întrebarea la care
+   * răspunde cifra e „cât valorează ce am”, nu „cât am cumpărat vreodată”.
+   * Obiectele fără valoare completată contează 0 — la fel ca în bază, unde
+   * coloana e nullable, nu `default 0`.
+   */
+  readonly valoareTotala: number;
+}
+
+/** Câte rânduri sunt pe fiecare stare de circuit; zero rânduri transferate. */
+async function numaraPeStatus(
+  db: Awaited<ReturnType<typeof createServerSupabase>>,
+  organizationId: string,
+  status: StatusObiect,
+): Promise<number> {
+  const { count, error } = await db
+    .from("inventory_items")
+    .select("id", { count: "exact", head: true })
+    .eq("organization_id", organizationId)
+    .eq("status", status);
+  if (error !== null) throw error;
+  return count ?? 0;
+}
+
+/** Câte rânduri se cer într-o felie la însumare. Egal cu `max_rows` din PostgREST. */
+const FELIE_INSUMARE = 1000;
+
+/**
+ * Suma valorilor, adunată în felii de 1000, pe cursor keyset.
+ *
+ * ── DE CE NU `.select("valoare.sum()")` ───────────────────────────────────
+ * Agregatele PostgREST nu sunt folosite nicăieri în `src/lib/queries` și nu
+ * sunt activate în `supabase/config.toml`. Un agregat care nu e activat nu dă
+ * eroare de compilare — dă un rezultat greșit sau un 400 în producție.
+ *
+ * ── DE CE NU O SINGURĂ CITIRE ─────────────────────────────────────────────
+ * `max_rows = 1000` (`supabase/config.toml:18`) TRUNCHIAZĂ TĂCUT. Un
+ * `.select("valoare")` fără paginare merge perfect pe registrul de azi și
+ * începe să mintă exact la al 1001-lea obiect, fără nicio eroare — adică
+ * tocmai la firma pentru care contorul contează.
+ *
+ * ── DE CE KEYSET, NU `.range()` ───────────────────────────────────────────
+ * `.range()` fără `order` stabil poate întoarce același rând de două ori și
+ * sări altul între două cereri, fiindcă Postgres nu promite nicio ordine. La o
+ * listă asta se vede; la o sumă, nu. `id` e uuid, deci ordinea e totală.
+ *
+ * Adunarea se face în bani întregi, prin `@/domain/bani`: 1000 de adunări în
+ * virgulă mobilă adună și eroarea de reprezentare, iar rezultatul ar fi apărut
+ * pe ecran ca „12.345,67000000001 lei”.
+ */
+async function insumeazaValoarea(
+  db: Awaited<ReturnType<typeof createServerSupabase>>,
+  organizationId: string,
+): Promise<number> {
+  let total = ZERO_BANI;
+  let ultimulId: string | null = null;
+
+  for (;;) {
+    let interogare = db
+      .from("inventory_items")
+      .select("id, valoare")
+      .eq("organization_id", organizationId)
+      .neq("status", "casat")
+      .order("id")
+      .limit(FELIE_INSUMARE);
+    if (ultimulId !== null) interogare = interogare.gt("id", ultimulId);
+
+    const { data, error } = await interogare.returns<{ id: string; valoare: number | null }[]>();
+    if (error !== null) throw error;
+
+    const randuri = data ?? [];
+    for (const rand of randuri) {
+      if (rand.valoare !== null) total = aduna(total, dinLei(rand.valoare));
+    }
+
+    if (randuri.length < FELIE_INSUMARE) return inLei(total);
+    const ultimul = randuri[randuri.length - 1];
+    if (ultimul === undefined) return inLei(total);
+    ultimulId = ultimul.id;
+  }
+}
+
+/**
+ * Forma registrului: câte obiecte sunt pe fiecare stare de circuit și cât
+ * valorează la un loc.
+ *
+ * Trece prin RLS ca orice altă citire, deci contoarele sunt deja restrânse la
+ * ce are voie să vadă cel care întreabă. La `inventory:read = own` sau `team`,
+ * politica de pe `inventory_items` arată numai obiectele alocate persoanei sau
+ * echipei — deci rezumatul ar fi un rând de zerouri care par o defecțiune.
+ * Apelantul îl cere DOAR la scope `all`; funcția nu impune asta singură,
+ * fiindcă nu are de unde ști permisiunile.
+ */
+export async function rezumatInventar(organizationId: string): Promise<RezumatInventar> {
+  const db = await createServerSupabase();
+  const [inStoc, alocate, inReparatie, casate, valoareTotala] = await Promise.all([
+    numaraPeStatus(db, organizationId, "in_stoc"),
+    numaraPeStatus(db, organizationId, "alocat"),
+    numaraPeStatus(db, organizationId, "in_reparatie"),
+    numaraPeStatus(db, organizationId, "casat"),
+    insumeazaValoarea(db, organizationId),
+  ]);
+  return { inStoc, alocate, inReparatie, casate, valoareTotala };
 }

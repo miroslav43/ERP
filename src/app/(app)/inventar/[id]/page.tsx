@@ -1,35 +1,49 @@
 // src/app/(app)/inventar/[id]/page.tsx
-import { Callout } from "@/components/ui/callout";
-import { ButonReaduInStoc } from "./buton-readu-in-stoc";
+import { Package, Ticket } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
-import { AntetPagina } from "@/components/ui/antet-pagina";
+import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
+import { Indicator } from "@/components/ui/indicator";
+import { ListaDefinitii } from "@/components/ui/lista-definitii";
+import { Nivel } from "@/components/ui/nivel";
+import { Scadenta } from "@/components/ui/scadenta";
+import { StareGoala } from "@/components/ui/stare-goala";
+import {
+  CAMPURI_FISA,
+  campuriCompletate,
+  custodie,
+  evenimenteFisa,
+  treaptaGarantie,
+  zileInEvidenta,
+} from "@/domain/inventory/fisa";
 import { can, getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { getEnabledFeatures, requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { createServerSupabase } from "@/lib/supabase/server";
-import { formatDate, formatDateTime } from "@/lib/format/date";
+import { formatDate, toBucharestDateString, todayInBucharest } from "@/lib/format/date";
 import { formatLei } from "@/lib/format/money";
 import {
+  angajatiActivi,
   categorii,
   citesteObiect,
   istoricAlocari,
   numeleAngajatilor,
 } from "@/lib/queries/inventory";
 import { listeazaTicheteleObiectului } from "@/lib/queries/ticketing";
+import { cn } from "@/lib/ui/cn";
 
 import { ETICHETE_STARE, ETICHETE_STATUS, TONURI_STARE, TONURI_STATUS } from "../etichete";
 import {
   ETICHETE_STATUS as ETICHETE_STATUS_TICHET,
   TONURI_STATUS as TONURI_STATUS_TICHET,
 } from "../../ticketing/etichete";
-import { ActiuniObiect } from "./actiuni-obiect";
-import { FormularPredare } from "./formular-predare";
-import { FormularReturnare } from "./formular-returnare";
+import { ButonCasare } from "./buton-casare";
+import { Cronologie } from "./cronologie";
+import { CardCustodie } from "./custodie";
+import { DialogObiect } from "./dialog-obiect";
 import { idDinRuta } from "@/lib/rute/parametri";
 
 export const metadata: Metadata = { title: "Fișa obiectului de inventar" };
@@ -38,22 +52,13 @@ interface ProprietatiPagina {
   readonly params: Promise<{ readonly id: string }>;
 }
 
-function Camp({
-  eticheta,
-  valoare,
-}: {
-  readonly eticheta: string;
-  readonly valoare: string | null;
-}) {
-  return (
-    <div>
-      <dt className="text-muted-foreground text-nota tracking-wide uppercase">{eticheta}</dt>
-      <dd className="text-corp mt-0.5">
-        {valoare === null || valoare.length === 0 ? "—" : valoare}
-      </dd>
-    </div>
-  );
-}
+/**
+ * Ritmul fișei: un card ridicat pentru antet, apoi secțiuni de aceeași
+ * greutate. E clasa fișei angajatului (`angajati/[id]/page.tsx`), singura din
+ * `(app)` care aplică elevația — fișa asta avea până acum chenare plate, deci
+ * nimic nu spunea care e obiectul și care e comentariul despre el.
+ */
+const CLASA_SECTIUNE = "border-border bg-surface rounded-panou border p-5 shadow-ridicat";
 
 export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
   const id = idDinRuta((await params).id);
@@ -75,15 +80,23 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
     dar deblochează poarta de modul ÎNAINTE de valul următor. Așa, tichetele
     intră în `Promise.all` în loc să fie un val propriu după el.
   */
-  //  e nume rezervat în Next (no-assign-module-variable).
   const moduleActive = await getEnabledFeatures(tenant.organizationId);
 
-  const [istoric, listaCategorii, tichete] = await Promise.all([
+  const poateScrie = can(permisiuni, "inventory:update", "all");
+
+  const [istoric, listaCategorii, tichete, angajatiDePredare] = await Promise.all([
     istoricAlocari(tenant.organizationId, id),
     categorii(),
     // Modulul de ticketing e opțional: dacă nu e activ la organizație, secțiunea
     // cu tichete nu se randează deloc, în loc să arate o listă goală derutantă.
     moduleActive.has("ticketing") ? listeazaTicheteleObiectului(obiect.id) : null,
+    /*
+      Lista de angajați se cere doar când se poate preda. Caseta se montează
+      abia la deschidere, deci `<select>`-ul nu costă nimic până atunci — dar
+      datele trebuie să existe pe server la randarea fișei, fiindcă dialogul e
+      componentă de client și nu poate citi singur din bază.
+    */
+    poateScrie ? angajatiActivi(tenant.organizationId) : [],
   ]);
 
   const angajati = await numeleAngajatilor(
@@ -97,206 +110,207 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
       : (listaCategorii.find((cat) => cat.id === obiect.category_id)?.denumire ?? null);
   const alocareDeschisa = istoric.find((rand) => rand.returnat_la === null) ?? null;
 
-  const poateScrie = can(permisiuni, "inventory:update", "all");
-  const poateCasa = poateScrie && alocareDeschisa === null && obiect.status !== "casat";
+  const stareCustodie = custodie(
+    obiect,
+    alocareDeschisa,
+    alocareDeschisa === null
+      ? null
+      : (angajati.get(alocareDeschisa.employee_id)?.full_name ?? null),
+  );
+  const poateCasa = poateScrie && stareCustodie.fel !== "alocat" && obiect.status !== "casat";
 
-  let optiuniAngajati: readonly {
-    readonly id: string;
-    readonly full_name: string | null;
-    readonly marca: string;
-  }[] = [];
-  if (poateScrie && alocareDeschisa === null && obiect.status !== "casat") {
-    const db = await createServerSupabase();
-    const { data } = await db
-      .from("employees")
-      .select("id, full_name, marca")
-      .eq("organization_id", tenant.organizationId)
-      .eq("status", "activ")
-      .is("deleted_at", null)
-      .order("full_name");
-    optiuniAngajati = data ?? [];
-  }
+  const azi = todayInBucharest();
+  const completate = campuriCompletate(obiect);
+  const fisaIntreaga = completate === CAMPURI_FISA.length;
+  const numeNume = new Map(
+    [...angajati].map(([idAngajat, angajat]) => [idAngajat, angajat.full_name] as const),
+  );
 
   return (
-    <div className="space-y-8">
-      {/* Numărul de inventar rămâne monospațiat, deci subtitlul merge prin
-          `file`, nu prin `descriere` — `descriere` primește doar text. */}
-      <AntetPagina
-        className="gap-1"
-        titlu={obiect.denumire}
-        actiuni={
-          <>
-            <Badge ton={TONURI_STATUS[obiect.status]}>{ETICHETE_STATUS[obiect.status]}</Badge>
-            <Badge ton={TONURI_STARE[obiect.stare]}>{ETICHETE_STARE[obiect.stare]}</Badge>
-          </>
-        }
-        file={
-          <p className="text-muted-foreground text-corp">
-            Nr. inventar <span className="font-mono">{obiect.numar_inventar}</span>
-            {categorieNume !== null ? ` · ${categorieNume}` : ""}
-          </p>
-        }
-      />
+    <div className={cn(LATIMI.detaliu, "space-y-6")}>
+      <div className={cn(CLASA_SECTIUNE, "@container")}>
+        <div className="flex flex-col gap-4 @2xl:flex-row @2xl:items-start">
+          {/*
+            Fișa angajatului are avatar; obiectul n-are chip. Pictograma e cea
+            cu care modulul se numește peste tot — `navigation.ts` și
+            `features.ts` folosesc amândouă `Package` — deci pastila leagă fișa
+            de meniul din care s-a ajuns la ea, în loc să inventeze un simbol.
+          */}
+          <span
+            aria-hidden="true"
+            className="bg-primary text-primary-foreground rounded-panou flex size-16 shrink-0 items-center justify-center"
+          >
+            <Package className="size-8" />
+          </span>
 
-      <section
-        aria-labelledby="titlu-date-generale"
-        className="border-border rounded-panou border p-4"
-      >
-        <h2 id="titlu-date-generale" className="text-sectiune mb-4 font-medium">
-          Date generale
+          <AntetPagina
+            className="min-w-0 @2xl:flex-1"
+            firimituri={[{ eticheta: "Inventar", href: "/inventar" }]}
+            titlu={obiect.denumire}
+            descriere={
+              <>
+                Nr. inventar <span className="font-mono">{obiect.numar_inventar}</span>
+                {categorieNume === null ? " · Necategorizat" : ` · ${categorieNume}`}
+              </>
+            }
+            {...(poateScrie
+              ? {
+                  actiuni: (
+                    <>
+                      <DialogObiect
+                        obiect={obiect}
+                        categorii={listaCategorii}
+                        eticheta={fisaIntreaga ? "Editează" : "Completează"}
+                      />
+                      {poateCasa ? (
+                        <ButonCasare
+                          id={obiect.id}
+                          denumire={obiect.denumire}
+                          numarInventar={obiect.numar_inventar}
+                          valoare={
+                            obiect.valoare === null ? "Necompletată" : formatLei(obiect.valoare)
+                          }
+                        />
+                      ) : null}
+                    </>
+                  ),
+                }
+              : {})}
+            file={
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge ton={TONURI_STATUS[obiect.status]}>{ETICHETE_STATUS[obiect.status]}</Badge>
+                <Badge ton={TONURI_STARE[obiect.stare]}>{ETICHETE_STARE[obiect.stare]}</Badge>
+              </div>
+            }
+          />
+        </div>
+      </div>
+
+      {/*
+        Cifrele obiectului. Cuvinte, nu liniuțe, acolo unde lipsește ceva: „—”
+        nu se aude deloc la cititorul de ecran și nu distinge „necompletat” de
+        „nimic” — aceeași regulă ca în `lista-definitii.tsx`.
+      */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <Indicator
+          eticheta="Valoare"
+          valoare={obiect.valoare === null ? "Necompletată" : formatLei(obiect.valoare)}
+          {...(obiect.valoare === null ? { esteCuvant: true } : {})}
+        />
+        <Indicator
+          eticheta="Predări"
+          valoare={istoric.length}
+          nota={
+            istoric.length === 0
+              ? "niciuna încă"
+              : stareCustodie.fel === "alocat"
+                ? "una în curs"
+                : "toate încheiate"
+          }
+        />
+        {/*
+          A patra cartelă, „În evidență de N zile”, a fost scoasă: propoziția
+          din cardul de custodie o spune deja, cu dată cu tot. Trei cifre pe care
+          le citești sunt mai mult decât patru pe care le sari — iar pe telefon,
+          unde cartelele se stivuiesc (cifra de 2rem are nevoie de lățime, deci
+          nu pot sta două pe rând), a patra însemna încă 130px până la întrebarea
+          pentru care ai deschis fișa.
+        */}
+        <Indicator
+          eticheta="Garanție"
+          esteCuvant
+          valoare={
+            <Scadenta treapta={treaptaGarantie(obiect.garantie_expira, azi)}>
+              {obiect.garantie_expira === null
+                ? "Fără garanție"
+                : formatDate(obiect.garantie_expira)}
+            </Scadenta>
+          }
+        />
+      </div>
+
+      <section aria-labelledby="titlu-custodie" className={CLASA_SECTIUNE}>
+        <h2 id="titlu-custodie" className="text-sectiune mb-4 font-medium">
+          Unde e obiectul
         </h2>
-        <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Camp eticheta="Serie" valoare={obiect.serie} />
-          <Camp eticheta="Model" valoare={obiect.model} />
-          <Camp eticheta="Producător" valoare={obiect.producator} />
-          <Camp eticheta="Locație" valoare={obiect.locatie} />
-          <Camp
-            eticheta="Valoare"
-            valoare={obiect.valoare === null ? null : formatLei(obiect.valoare)}
-          />
-          <Camp
-            eticheta="Data achiziției"
-            valoare={obiect.data_achizitie === null ? null : formatDate(obiect.data_achizitie)}
-          />
-          <Camp
-            eticheta="Garanția expiră"
-            valoare={obiect.garantie_expira === null ? null : formatDate(obiect.garantie_expira)}
-          />
-          <Camp eticheta="Observații" valoare={obiect.observatii} />
-        </dl>
+        <CardCustodie
+          custodie={stareCustodie}
+          obiectId={obiect.id}
+          creatLa={obiect.created_at}
+          zileInEvidenta={zileInEvidenta(obiect.created_at, azi)}
+          angajati={angajatiDePredare}
+          poateScrie={poateScrie}
+        />
       </section>
 
-      {alocareDeschisa !== null ? (
-        <section
-          aria-labelledby="titlu-predare-curenta"
-          className="border-border bg-surface rounded-panou border p-4"
-        >
-          <h2 id="titlu-predare-curenta" className="text-sectiune mb-4 font-medium">
-            Predare curentă
-          </h2>
-          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <Camp
-              eticheta="Deținut de"
-              valoare={angajati.get(alocareDeschisa.employee_id)?.full_name ?? "—"}
-            />
-            <Camp eticheta="Predat la" valoare={formatDateTime(alocareDeschisa.predat_la)} />
-            <Camp
-              eticheta="Stare la predare"
-              valoare={ETICHETE_STARE[alocareDeschisa.stare_la_predare]}
-            />
-            <Camp
-              eticheta="Confirmare de primire"
-              valoare={
-                alocareDeschisa.confirmat_de_angajat_la === null
-                  ? "Neconfirmată încă de angajat"
-                  : formatDateTime(alocareDeschisa.confirmat_de_angajat_la)
-              }
-            />
-          </dl>
-          {/* Procesul-verbal e singura piesă cu valoare juridică din modul, iar
-              până acum nu se genera nicăieri: coloana `pv_document_path` era
-              citită în șapte locuri și scrisă în niciunul. Linkul e aici, pe
-              predarea deschisă, fiindcă ăsta e momentul în care se semnează. */}
-          <p className="mt-4">
-            <Link
-              href={`/inventar/${obiect.id}/pv/${alocareDeschisa.id}`}
-              className="text-corp underline-offset-2 hover:underline"
-            >
-              Proces-verbal de predare-primire
-            </Link>
-          </p>
-          {poateScrie ? (
-            <div className="border-border mt-4 border-t pt-4">
-              <h3 className="text-corp mb-3 font-medium">Înregistrează returnarea</h3>
-              <FormularReturnare alocareId={alocareDeschisa.id} />
-            </div>
-          ) : null}
-        </section>
-      ) : poateScrie && obiect.status === "in_reparatie" ? (
-        /*
-         * Obiectul e în reparație. Înainte, fișa arăta aici direct formularul de
-         * predare — pentru orice obiect care nu e `casat` — iar formularul
-         * propunea implicit starea „Bun". Drumul de ieșire dintr-o stare de
-         * defect trecea, așadar, prin a preda cuiva un obiect defect declarat
-         * bun, fără niciun cuvânt pe ecran.
-         *
-         * `in_reparatie` era în plus o stare fără ieșire: `status` nu e câmp
-         * editabil, deci nicio acțiune nu-l readucea în stoc. Butonul de mai jos
-         * e ieșirea; predarea rămâne posibilă abia după ea.
-         */
-        <Callout
-          fel="atentie"
-          titlu="Obiectul e în reparație"
-          actiune={<ButonReaduInStoc obiectId={obiect.id} />}
-        >
-          A fost returnat cu starea „defect”, deci nu poate fi predat mai departe până nu confirmă
-          cineva că a revenit din service. Confirmarea îl mută înapoi în stoc și se scrie în
-          jurnalul de audit.
-        </Callout>
-      ) : poateScrie && obiect.status !== "casat" ? (
-        <section
-          aria-labelledby="titlu-predare-noua"
-          className="border-border rounded-panou border p-4"
-        >
-          <h2 id="titlu-predare-noua" className="text-sectiune mb-4 font-medium">
-            Predă obiectul unui angajat
-          </h2>
-          <FormularPredare itemId={obiect.id} angajati={optiuniAngajati} />
-        </section>
-      ) : null}
+      <section aria-labelledby="titlu-date-generale" className={CLASA_SECTIUNE}>
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+          <div className="min-w-0">
+            <h2 id="titlu-date-generale" className="text-sectiune font-medium">
+              Date generale
+            </h2>
+            {/*
+              Bara dispare la fișa întreagă: o bară plină e zgomot, iar
+              indicatorul care spune mereu „gata” nu mai spune nimic.
+            */}
+            {fisaIntreaga ? null : (
+              <Nivel
+                className="mt-2 max-w-xs"
+                marime="subtire"
+                valoare={completate}
+                din={CAMPURI_FISA.length}
+                eticheta="Cât e completată fișa obiectului"
+                text={`${String(completate)} din ${String(CAMPURI_FISA.length)} câmpuri completate`}
+              />
+            )}
+          </div>
+        </div>
 
-      <section aria-labelledby="titlu-istoric" className="border-border rounded-panou border p-4">
-        <h2 id="titlu-istoric" className="text-sectiune mb-4 font-medium">
-          Istoric predări-primiri
+        <ListaDefinitii
+          coloane={3}
+          textNecompletat="Necompletat"
+          definitii={[
+            { eticheta: "Serie", valoare: obiect.serie, identificator: true },
+            { eticheta: "Model", valoare: obiect.model },
+            { eticheta: "Producător", valoare: obiect.producator },
+            {
+              eticheta: "Valoare",
+              valoare: obiect.valoare === null ? null : formatLei(obiect.valoare),
+            },
+            {
+              eticheta: "Data achiziției",
+              valoare: obiect.data_achizitie === null ? null : formatDate(obiect.data_achizitie),
+            },
+            {
+              eticheta: "Garanția expiră",
+              valoare: obiect.garantie_expira === null ? null : formatDate(obiect.garantie_expira),
+            },
+            { eticheta: "Locație", valoare: obiect.locatie },
+            { eticheta: "Observații", valoare: obiect.observatii, lat: true },
+          ]}
+        />
+      </section>
+
+      <section aria-labelledby="titlu-cronologie" className={CLASA_SECTIUNE}>
+        <h2 id="titlu-cronologie" className="text-sectiune font-medium">
+          Cronologie
         </h2>
-        {istoric.length === 0 ? (
-          <p className="text-muted-foreground text-corp">
-            Obiectul nu a fost încă predat niciunui angajat.
-          </p>
-        ) : (
-          <ul className="space-y-3">
+        <p className="text-muted-foreground text-corp mt-1 mb-5">
+          {istoric.length === 0
+            ? "Obiectul nu a fost încă predat nimănui. Fiecare predare și fiecare returnare apar aici, cu procesul-verbal."
+            : "Fiecare predare și fiecare returnare, de la cea mai recentă."}
+        </p>
+        <Cronologie evenimente={evenimenteFisa(obiect, istoric, numeNume)} />
+        {istoric.length === 0 ? null : (
+          <ul className="border-border mt-5 flex flex-wrap gap-x-4 gap-y-1 border-t pt-4">
             {istoric.map((alocare) => (
-              <li key={alocare.id} className="border-border rounded-control border p-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium">
-                    {angajati.get(alocare.employee_id)?.full_name ?? "Angajat"}
-                  </span>
-                  {alocare.returnat_la === null ? (
-                    <span className="bg-surface text-foreground text-nota rounded px-2 py-0.5 font-medium">
-                      În curs
-                    </span>
-                  ) : null}
-                </div>
-                <dl className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <Camp eticheta="Predat la" valoare={formatDateTime(alocare.predat_la)} />
-                  <Camp
-                    eticheta="Returnat la"
-                    valoare={
-                      alocare.returnat_la === null ? null : formatDateTime(alocare.returnat_la)
-                    }
-                  />
-                  <Camp
-                    eticheta="Stare la predare"
-                    valoare={ETICHETE_STARE[alocare.stare_la_predare]}
-                  />
-                  {alocare.stare_la_returnare !== null ? (
-                    <Camp
-                      eticheta="Stare la returnare"
-                      valoare={ETICHETE_STARE[alocare.stare_la_returnare]}
-                    />
-                  ) : null}
-                  {alocare.observatii !== null ? (
-                    <Camp eticheta="Observații" valoare={alocare.observatii} />
-                  ) : null}
-                </dl>
-                <p className="mt-2">
-                  <Link
-                    href={`/inventar/${obiect.id}/pv/${alocare.id}`}
-                    className="text-nota underline-offset-2 hover:underline"
-                  >
-                    Proces-verbal
-                  </Link>
-                </p>
+              <li key={alocare.id}>
+                <Link
+                  href={`/inventar/${obiect.id}/pv/${alocare.id}`}
+                  className="text-nota underline-offset-2 hover:underline"
+                >
+                  Proces-verbal · {formatDate(toBucharestDateString(new Date(alocare.predat_la)))}
+                </Link>
               </li>
             ))}
           </ul>
@@ -307,20 +321,24 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
           defecțiunile raportate pe el. Secțiunea apare doar dacă modulul e
           activ la organizația respectivă. */}
       {tichete !== null && (
-        <section aria-labelledby="titlu-tichete" className="border-border rounded-panou border p-4">
+        <section aria-labelledby="titlu-tichete" className={CLASA_SECTIUNE}>
           <h2 id="titlu-tichete" className="text-sectiune mb-4 font-medium">
             Tichete pe acest obiect
           </h2>
           {tichete.length === 0 ? (
-            <p className="text-muted-foreground text-corp">
-              Nu s-a raportat nicio defecțiune pe acest obiect.
-            </p>
+            <StareGoala
+              fel="initiala"
+              compact
+              pictograma={Ticket}
+              titlu="Nicio defecțiune raportată"
+              descriere="Sesizările deschise pe acest obiect apar aici, cu numărul și starea lor."
+            />
           ) : (
             <ul className="space-y-2">
               {tichete.map((tichet) => (
                 <li
                   key={tichet.id}
-                  className="border-border rounded-control flex flex-wrap items-center gap-3 border p-3"
+                  className="border-border rounded-control bg-background flex flex-wrap items-center gap-3 border p-3"
                 >
                   <Link
                     href={`/ticketing/${tichet.id}`}
@@ -332,8 +350,16 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
                   <Badge ton={TONURI_STATUS_TICHET[tichet.status]} className="shrink-0">
                     {ETICHETE_STATUS_TICHET[tichet.status]}
                   </Badge>
+                  {/*
+                    `created_at` e `timestamptz`, iar `formatDate` ARUNCĂ pe
+                    orice nu e exact `YYYY-MM-DD` (`parseIsoDate`, date.ts:68).
+                    Pagina chema `formatDate(tichet.created_at)` direct: fișa
+                    oricărui obiect cu măcar un tichet cădea în `error.tsx`,
+                    cu modulul de ticketing activ. Nu s-a văzut fiindcă niciun
+                    obiect din bază n-are încă tichete.
+                  */}
                   <span className="text-muted-foreground text-nota">
-                    {formatDate(tichet.created_at)}
+                    {formatDate(toBucharestDateString(new Date(tichet.created_at)))}
                   </span>
                 </li>
               ))}
@@ -341,33 +367,6 @@ export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
           )}
         </section>
       )}
-
-      {poateScrie ? (
-        <section aria-labelledby="titlu-actiuni" className="border-border rounded-panou border p-4">
-          <h2 id="titlu-actiuni" className="text-sectiune mb-4 font-medium">
-            Acțiuni
-          </h2>
-          <ActiuniObiect
-            obiect={{
-              id: obiect.id,
-              denumire: obiect.denumire,
-              numar_inventar: obiect.numar_inventar,
-              serie: obiect.serie,
-              model: obiect.model,
-              producator: obiect.producator,
-              category_id: obiect.category_id,
-              data_achizitie: obiect.data_achizitie,
-              valoare: obiect.valoare,
-              garantie_expira: obiect.garantie_expira,
-              stare: obiect.stare,
-              locatie: obiect.locatie,
-              observatii: obiect.observatii,
-            }}
-            categorii={listaCategorii}
-            poateCasa={poateCasa}
-          />
-        </section>
-      ) : null}
     </div>
   );
 }
