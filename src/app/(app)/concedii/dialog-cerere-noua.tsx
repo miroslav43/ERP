@@ -1,18 +1,57 @@
-// src/app/(app)/concedii/noua/formular-cerere.tsx
+// src/app/(app)/concedii/dialog-cerere-noua.tsx
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useId, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { CalendarPlus } from "lucide-react";
 
+import { BaraActiuni } from "@/components/ui/bara-actiuni";
 import { Buton } from "@/components/ui/buton";
 import { Camp } from "@/components/ui/camp";
-import { IncarcareDocumentConcediu } from "../incarcare-document";
+import { Dialog } from "@/components/ui/dialog";
 import { Formular } from "@/components/ui/formular";
 import type { ActionResult } from "@/lib/actions/types";
-import { numaraZileCerere, type PortiuneZi } from "@/domain/leave/zile-cerere";
+import { numaraZileCerere } from "@/domain/leave/zile-cerere";
+import { tipImplicitConcediu } from "@/domain/leave/tip-implicit";
 import { formatAmount } from "@/lib/format/money";
-import { ETICHETE_PORTIUNE } from "../etichete";
-import { creeazaCerereConcediu } from "../actions";
+
+import { IncarcareDocumentConcediu } from "./incarcare-document";
+import { creeazaCerereConcediu } from "./actions";
+
+/**
+ * Cererea de concediu nouă, într-o CASETĂ deschisă din lista de cereri.
+ *
+ * ── DE CE NU MAI E O PAGINĂ ────────────────────────────────────────────────
+ * `/concedii/noua` era o rută proprie, iar deschiderea ei costa un drum
+ * complet la server: `requireTenant` (două apeluri GoTrue), `requireFeature`,
+ * `getPermissionMap`, apoi două valuri de interogări în serie — tipuri,
+ * sărbători, coduri de indemnizație, variante, sold. Pentru un formular pe
+ * care omul îl completează în treizeci de secunde, așteptarea de dinaintea
+ * primului câmp era jumătate din interacțiune.
+ *
+ * Datele vin acum odată cu lista (`date-cerere-noua.ts`, în același
+ * `Promise.all` cu restul paginii), iar deschiderea casetei nu mai atinge
+ * rețeaua deloc.
+ *
+ * ── CELE DOUĂ CAPCANE DE CASETĂ ────────────────────────────────────────────
+ * Aceleași ca în `components/ui/formular-dialog.tsx`, de unde tiparul e
+ * împrumutat — dar componenta aceea nu se poate folosi aici, fiindcă are UN
+ * singur buton de trimitere, iar cererea are două („ciornă" și „spre
+ * aprobare"), cu aceeași acțiune.
+ *
+ * 1. Butoanele stau ÎN `<form>`, într-un `BaraActiuni`, nu în `subsol`-ul
+ *    dialogului: `subsol` e FRATE cu formularul în DOM, deci un buton pus
+ *    acolo n-ar putea nici să trimită, nici să citească `stare.inCurs`.
+ * 2. Conținutul se RANDEAZĂ la deschidere, nu se ascunde — de aceea câmpurile
+ *    stau într-o componentă separată, montată abia când caseta e deschisă. Cu
+ *    starea ținută aici sus, o a doua deschidere ar reveni cu ce rămăsese
+ *    scris de prima dată.
+ *
+ * Caseta NU se închide la refuz: doar `laReusita` o închide. Cu câmpuri
+ * necontrolate, React 19 resetează formularul după acțiune — inclusiv când a
+ * eșuat — iar `Formular` repară asta prin `valoriTrimise`; închiderea pe
+ * eroare ar arunca exact ce a scris omul.
+ */
 
 interface TipConcediu {
   readonly id: string;
@@ -49,18 +88,18 @@ interface Angajat {
   readonly marca: string;
 }
 
-interface Proprietati {
+export interface DateCerereNoua {
   readonly tipuri: readonly TipConcediu[];
   readonly coduriMedicale: readonly CodMedical[];
   readonly variante: readonly VariantaConcediu[];
   readonly sarbatoriRo: readonly string[];
   readonly liberSuplimentar: readonly string[];
   readonly zileRecuperare: readonly string[];
+  /** `null` = cine se uită nu poate cere pentru altcineva (`leave:create` sub „all"). */
   readonly angajati: readonly Angajat[] | null;
+  /** Zile rămase pe tip, doar când cererea e strict proprie. */
   readonly soldPropriu: Readonly<Record<string, number>> | null;
 }
-
-const PORTIUNI: readonly PortiuneZi[] = ["zi_intreaga", "prima_jumatate", "a_doua_jumatate"];
 
 const ETICHETE_PLATITOR: Readonly<Record<CodMedical["platitor"], string>> = {
   angajator: "suportat integral de firmă",
@@ -99,28 +138,82 @@ function textSauNull(date: FormData, cheie: string): string | null {
   return valoare.length === 0 ? null : valoare;
 }
 
-export function FormularCerere({
-  tipuri,
-  coduriMedicale,
-  variante,
-  sarbatoriRo,
-  liberSuplimentar,
-  zileRecuperare,
-  angajati,
-  soldPropriu,
-}: Proprietati) {
+export function DialogCerereNoua({
+  date,
+  deschisInitial = false,
+}: {
+  readonly date: DateCerereNoua;
+  /**
+   * `/concedii?cerere=noua` deschide caseta din prima randare — adresa pe care
+   * o folosesc butonul din panou și starea goală a listei, ca „Cerere nouă" să
+   * ducă tot la formular, nu doar la ecranul de unde se deschide.
+   *
+   * Pagina remontează componenta la schimbarea parametrului (vezi `key`-ul din
+   * `page.tsx`): fără asta, o navigare pe ACEEAȘI rută ar păstra starea
+   * clientului, iar `useState` ar ignora valoarea inițială nouă.
+   */
+  readonly deschisInitial?: boolean;
+}) {
+  const [deschis, setDeschis] = useState(deschisInitial);
+
+  const inchide = useCallback((): void => {
+    setDeschis(false);
+  }, []);
+
+  return (
+    <>
+      <Buton
+        varianta="primar"
+        onClick={() => {
+          setDeschis(true);
+        }}
+      >
+        <CalendarPlus aria-hidden="true" className="size-4" />
+        Cerere nouă
+      </Buton>
+
+      {deschis ? (
+        <Dialog
+          deschis
+          laInchidere={inchide}
+          titlu="Cerere de concediu nouă"
+          descriere="Zilele consumate se numără pe măsură ce completați; soldul se verifică din nou, exact, la trimitere."
+          marime="mare"
+        >
+          <FormularCerereNoua date={date} laInchidere={inchide} />
+        </Dialog>
+      ) : null}
+    </>
+  );
+}
+
+function FormularCerereNoua({
+  date: {
+    tipuri,
+    coduriMedicale,
+    variante,
+    sarbatoriRo,
+    liberSuplimentar,
+    zileRecuperare,
+    angajati,
+    soldPropriu,
+  },
+  laInchidere,
+}: {
+  readonly date: DateCerereNoua;
+  readonly laInchidere: () => void;
+}) {
   const router = useRouter();
-  const primulTip = tipuri[0];
+  const idFormular = useId();
+  const idc = useCallback((sufix: string): string => `${idFormular}-${sufix}`, [idFormular]);
 
   // Controlate rămân doar câmpurile care hrănesc previzualizarea sau deschid
   // alte câmpuri; starea lor supraviețuiește oricum unei erori de validare.
   // Restul sunt necontrolate și își reiau valoarea din `stare.valoriTrimise`.
-  const [leaveTypeId, setLeaveTypeId] = useState(primulTip?.id ?? "");
+  const [leaveTypeId, setLeaveTypeId] = useState(tipImplicitConcediu(tipuri)?.id ?? "");
   const [employeeId, setEmployeeId] = useState("");
   const [dataInceput, setDataInceput] = useState("");
   const [dataSfarsit, setDataSfarsit] = useState("");
-  const [portiuneInceput, setPortiuneInceput] = useState<PortiuneZi>("zi_intreaga");
-  const [portiuneSfarsit, setPortiuneSfarsit] = useState<PortiuneZi>("zi_intreaga");
   const [variantaId, setVariantaId] = useState("");
   const [medicalCodeId, setMedicalCodeId] = useState("");
 
@@ -147,8 +240,6 @@ export function FormularCerere({
       return numaraZileCerere(
         dataInceput,
         dataSfarsit,
-        portiuneInceput,
-        portiuneSfarsit,
         sarbatoriRo,
         liberSuplimentar,
         zileRecuperare,
@@ -156,15 +247,7 @@ export function FormularCerere({
     } catch {
       return null;
     }
-  }, [
-    dataInceput,
-    dataSfarsit,
-    portiuneInceput,
-    portiuneSfarsit,
-    sarbatoriRo,
-    liberSuplimentar,
-    zileRecuperare,
-  ]);
+  }, [dataInceput, dataSfarsit, sarbatoriRo, liberSuplimentar, zileRecuperare]);
 
   // Soldul e afișat DOAR pentru cereri strict proprii: pentru cine alege un
   // angajat din listă, nu știm soldul lui fără un drum suplimentar la server —
@@ -177,11 +260,10 @@ export function FormularCerere({
   /**
    * Numele din `FormData` sunt EXACT cheile lui `creeazaCerereSchema`
    * (`src/schemas/leave.ts`): `employee_id`, `leave_type_id`, `data_inceput`,
-   * `data_sfarsit`, `portiune_inceput`, `portiune_sfarsit`, `motiv`,
-   * `atasament_path`, `leave_variant_id`, `medical_code_id`,
-   * `serie_certificat`, `numar_certificat`. Fără potrivirea asta, `fieldErrors`
-   * întors de acțiune n-ar mai găsi niciun câmp, iar mesajul ar dispărea în
-   * tăcere.
+   * `data_sfarsit`, `motiv`, `atasament_path`, `leave_variant_id`,
+   * `medical_code_id`, `serie_certificat`, `numar_certificat`. Fără potrivirea
+   * asta, `fieldErrors` întors de acțiune n-ar mai găsi niciun câmp, iar
+   * mesajul ar dispărea în tăcere.
    *
    * Certificatul se trimite DOAR pentru concediul medical — câmpurile lui nici
    * nu există în DOM altfel, deci lipsesc din `FormData`, iar schema le vede
@@ -207,8 +289,6 @@ export function FormularCerere({
       leave_type_id: String(date.get("leave_type_id") ?? ""),
       data_inceput: String(date.get("data_inceput") ?? ""),
       data_sfarsit: String(date.get("data_sfarsit") ?? ""),
-      portiune_inceput: String(date.get("portiune_inceput") ?? "zi_intreaga"),
-      portiune_sfarsit: String(date.get("portiune_sfarsit") ?? "zi_intreaga"),
       motiv: textSauNull(date, "motiv"),
       atasament_path: textSauNull(date, "atasament_path"),
       leave_variant_id: textSauNull(date, "leave_variant_id"),
@@ -219,12 +299,22 @@ export function FormularCerere({
     });
   }
 
-  const laReusita = useCallback(
-    (cerere: Readonly<{ id: string }>) => {
-      router.push(`/concedii/${cerere.id}`);
-    },
-    [router],
-  );
+  /**
+   * După reușită se închide caseta și se reîmprospătează LISTA, în locul unui
+   * `router.push` către fișa cererii. Formularul a devenit casetă tocmai
+   * fiindcă drumurile la server se simțeau; a-l încheia cu încă o navigare ar
+   * fi mutat aceeași așteptare de la început la sfârșit. Cererea apare în
+   * rândul de sus al listei, cu starea ei, iar notificarea spune ce s-a
+   * întâmplat — cine vrea fișa o deschide de acolo.
+   *
+   * Stabil prin `useCallback`: `laReusita` intră în dependențele efectului din
+   * `Formular`, iar o funcție nouă la fiecare randare ar reporni efectul după
+   * succes, adică ar afișa notificarea de două ori.
+   */
+  const laReusita = useCallback((): void => {
+    laInchidere();
+    router.refresh();
+  }, [laInchidere, router]);
 
   return (
     <Formular
@@ -235,7 +325,7 @@ export function FormularCerere({
           ? "Cererea a fost trimisă spre aprobare."
           : "Cererea a fost salvată ca ciornă."
       }
-      className="max-w-2xl gap-6"
+      className="gap-6"
     >
       {(stare) => (
         <>
@@ -243,6 +333,7 @@ export function FormularCerere({
             {angajati !== null ? (
               <Camp
                 nume="employee_id"
+                id={idc("employee_id")}
                 eticheta="Pentru angajatul"
                 fel="select"
                 className="sm:col-span-2"
@@ -269,8 +360,10 @@ export function FormularCerere({
 
             <Camp
               nume="leave_type_id"
+              id={idc("leave_type_id")}
               eticheta="Tip de concediu"
               fel="select"
+              className="sm:col-span-2"
               erori={stare.erori["leave_type_id"] ?? []}
             >
               {(a) => (
@@ -292,6 +385,7 @@ export function FormularCerere({
 
             <Camp
               nume="data_inceput"
+              id={idc("data_inceput")}
               eticheta="Data de început"
               obligatoriu
               erori={stare.erori["data_inceput"] ?? []}
@@ -303,36 +397,16 @@ export function FormularCerere({
                   value={dataInceput}
                   onChange={(eveniment) => {
                     setDataInceput(eveniment.target.value);
+                    // Un interval de o zi e cazul cel mai des întâlnit.
+                    if (dataSfarsit.length === 0) setDataSfarsit(eveniment.target.value);
                   }}
                 />
               )}
             </Camp>
 
             <Camp
-              nume="portiune_inceput"
-              eticheta="Porțiunea zilei de început"
-              fel="select"
-              erori={stare.erori["portiune_inceput"] ?? []}
-            >
-              {(a) => (
-                <select
-                  {...a}
-                  value={portiuneInceput}
-                  onChange={(eveniment) => {
-                    setPortiuneInceput(eveniment.target.value as PortiuneZi);
-                  }}
-                >
-                  {PORTIUNI.map((portiune) => (
-                    <option key={portiune} value={portiune}>
-                      {ETICHETE_PORTIUNE[portiune]}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </Camp>
-
-            <Camp
               nume="data_sfarsit"
+              id={idc("data_sfarsit")}
               eticheta="Data de sfârșit"
               obligatoriu
               erori={stare.erori["data_sfarsit"] ?? []}
@@ -342,6 +416,7 @@ export function FormularCerere({
                   {...a}
                   type="date"
                   value={dataSfarsit}
+                  {...(dataInceput.length > 0 ? { min: dataInceput } : {})}
                   onChange={(eveniment) => {
                     setDataSfarsit(eveniment.target.value);
                   }}
@@ -350,30 +425,8 @@ export function FormularCerere({
             </Camp>
 
             <Camp
-              nume="portiune_sfarsit"
-              eticheta="Porțiunea zilei de sfârșit"
-              fel="select"
-              erori={stare.erori["portiune_sfarsit"] ?? []}
-            >
-              {(a) => (
-                <select
-                  {...a}
-                  value={portiuneSfarsit}
-                  onChange={(eveniment) => {
-                    setPortiuneSfarsit(eveniment.target.value as PortiuneZi);
-                  }}
-                >
-                  {PORTIUNI.map((portiune) => (
-                    <option key={portiune} value={portiune}>
-                      {ETICHETE_PORTIUNE[portiune]}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </Camp>
-
-            <Camp
               nume="motiv"
+              id={idc("motiv")}
               eticheta="Motiv (opțional)"
               fel="textarea"
               className="sm:col-span-2"
@@ -387,6 +440,7 @@ export function FormularCerere({
             {varianteTip.length > 0 ? (
               <Camp
                 nume="leave_variant_id"
+                id={idc("leave_variant_id")}
                 eticheta="Variantă legală"
                 fel="select"
                 className="sm:col-span-2"
@@ -432,6 +486,7 @@ export function FormularCerere({
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Camp
                     nume="medical_code_id"
+                    id={idc("medical_code_id")}
                     eticheta="Cod de indemnizație"
                     fel="select"
                     obligatoriu
@@ -469,6 +524,7 @@ export function FormularCerere({
 
                   <Camp
                     nume="serie_certificat"
+                    id={idc("serie_certificat")}
                     eticheta="Seria (opțional)"
                     erori={stare.erori["serie_certificat"] ?? []}
                   >
@@ -484,6 +540,7 @@ export function FormularCerere({
 
                   <Camp
                     nume="numar_certificat"
+                    id={idc("numar_certificat")}
                     eticheta="Numărul certificatului"
                     obligatoriu
                     erori={stare.erori["numar_certificat"] ?? []}
@@ -543,7 +600,10 @@ export function FormularCerere({
             )}
           </div>
 
-          <div className="flex flex-wrap gap-3">
+          <BaraActiuni aliniere="final" separata lipitaPeTelefon>
+            <Buton varianta="secundar" onClick={laInchidere} disabled={stare.inCurs}>
+              Renunță
+            </Buton>
             <Buton
               type="submit"
               varianta="secundar"
@@ -568,7 +628,7 @@ export function FormularCerere({
             >
               Trimite spre aprobare
             </Buton>
-          </div>
+          </BaraActiuni>
         </>
       )}
     </Formular>

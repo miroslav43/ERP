@@ -7,7 +7,7 @@ import { createAction } from "@/lib/actions/create-action";
 import { businessRule, invalidInput, notFound } from "@/lib/actions/errors";
 import { createAdminSupabase } from "@/lib/supabase/admin";
 import type { ActionContext } from "@/lib/actions/types";
-import { numaraZileCerere, type PortiuneZi } from "@/domain/leave/zile-cerere";
+import { numaraZileCerere } from "@/domain/leave/zile-cerere";
 import {
   verificaPlafonAnual,
   verificaSold,
@@ -121,8 +121,6 @@ interface CerereDeVerificat {
   readonly denumirePlafon: string;
   readonly dataInceput: string;
   readonly dataSfarsit: string;
-  readonly portiuneInceput: PortiuneZi;
-  readonly portiuneSfarsit: PortiuneZi;
 }
 
 /**
@@ -155,8 +153,6 @@ async function verificaInainteDeTrimitere(
   const { zileLucratoare } = numaraZileCerere(
     cerere.dataInceput,
     cerere.dataSfarsit,
-    cerere.portiuneInceput,
-    cerere.portiuneSfarsit,
     sarbatoriRo,
     liberSuplimentar,
     zileRecuperare,
@@ -251,8 +247,6 @@ export const creeazaCerereConcediu = createAction({
       "leave_type_id",
       "data_inceput",
       "data_sfarsit",
-      "portiune_inceput",
-      "portiune_sfarsit",
       "trimite",
       "leave_variant_id",
       // `medical_code_id` NU intră aici, deliberat. Codul de indemnizație
@@ -371,8 +365,6 @@ export const creeazaCerereConcediu = createAction({
         denumirePlafon,
         dataInceput: input.data_inceput,
         dataSfarsit: input.data_sfarsit,
-        portiuneInceput: input.portiune_inceput,
-        portiuneSfarsit: input.portiune_sfarsit,
       });
     }
 
@@ -389,8 +381,6 @@ export const creeazaCerereConcediu = createAction({
         leave_type_id: input.leave_type_id,
         data_inceput: input.data_inceput,
         data_sfarsit: input.data_sfarsit,
-        portiune_inceput: input.portiune_inceput,
-        portiune_sfarsit: input.portiune_sfarsit,
         motiv: input.motiv,
         atasament_path: input.atasament_path,
         leave_variant_id: input.leave_variant_id,
@@ -587,7 +577,7 @@ export const trimiteCerere = createAction({
     const { data: cerere, error: eroareCerere } = await ctx.supabase
       .from("leave_requests")
       .select(
-        "id, employee_id, leave_type_id, leave_variant_id, data_inceput, data_sfarsit, portiune_inceput, portiune_sfarsit, status",
+        "id, employee_id, leave_type_id, leave_variant_id, data_inceput, data_sfarsit, status",
       )
       .eq("id", input.id)
       .eq("organization_id", ctx.tenant.organizationId)
@@ -651,8 +641,6 @@ export const trimiteCerere = createAction({
       denumirePlafon,
       dataInceput: cerere.data_inceput,
       dataSfarsit: cerere.data_sfarsit,
-      portiuneInceput: cerere.portiune_inceput,
-      portiuneSfarsit: cerere.portiune_sfarsit,
     });
 
     // `.eq("status", "ciorna")` NU e redundant cu verificarea de mai sus: între

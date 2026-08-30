@@ -16,7 +16,6 @@ import type {
   EvenimentSold,
   FiltreCereri,
   ModRotunjireAcumulare,
-  PortiuneZi,
   SortareCereri,
   StatusCerere,
   StatusSarcinaAprobare,
@@ -47,8 +46,6 @@ export interface RandCerere {
   readonly leave_type_id: string;
   readonly data_inceput: string;
   readonly data_sfarsit: string;
-  readonly portiune_inceput: PortiuneZi;
-  readonly portiune_sfarsit: PortiuneZi;
   readonly zile_lucratoare: number;
   readonly zile_calendaristice: number;
   readonly status: StatusCerere;
@@ -79,7 +76,7 @@ const COLOANA_SORTARE: Readonly<Record<SortareCereri, string>> = {
 const SORTARE_IMPLICITA = { cheie: "perioada", directie: "desc" } as const;
 
 const COLOANE_CERERE =
-  "id, employee_id, leave_type_id, data_inceput, data_sfarsit, portiune_inceput, portiune_sfarsit, zile_lucratoare, zile_calendaristice, status, trimisa_la, decis_la, created_at";
+  "id, employee_id, leave_type_id, data_inceput, data_sfarsit, zile_lucratoare, zile_calendaristice, status, trimisa_la, decis_la, created_at";
 
 export async function listeazaCereri(
   organizationId: string,
@@ -222,8 +219,6 @@ export interface CerereDetaliu {
   readonly leave_type_id: string;
   readonly data_inceput: string;
   readonly data_sfarsit: string;
-  readonly portiune_inceput: PortiuneZi;
-  readonly portiune_sfarsit: PortiuneZi;
   readonly zile_lucratoare: number;
   readonly zile_calendaristice: number;
   readonly status: StatusCerere;
@@ -239,7 +234,7 @@ export interface CerereDetaliu {
 }
 
 const COLOANE_CERERE_DETALIU =
-  "id, employee_id, leave_type_id, data_inceput, data_sfarsit, portiune_inceput, portiune_sfarsit, zile_lucratoare, zile_calendaristice, status, motiv, atasament_path, motiv_respingere, decis_de, flow_id, pas_curent, trimisa_la, decis_la, created_at";
+  "id, employee_id, leave_type_id, data_inceput, data_sfarsit, zile_lucratoare, zile_calendaristice, status, motiv, atasament_path, motiv_respingere, decis_de, flow_id, pas_curent, trimisa_la, decis_la, created_at";
 
 export async function citesteCerere(
   organizationId: string,
@@ -261,7 +256,6 @@ export async function citesteCerere(
 
 export interface ZiCerere {
   readonly data: string;
-  readonly portiune: PortiuneZi;
   readonly este_lucratoare: boolean;
   readonly status: StatusCerere;
 }
@@ -271,7 +265,7 @@ export async function zileleCererii(cerereId: string): Promise<readonly ZiCerere
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("leave_request_days")
-    .select("data, portiune, este_lucratoare, status")
+    .select("data, este_lucratoare, status")
     .eq("leave_request_id", cerereId)
     .order("data")
     .returns<ZiCerere[]>();
@@ -353,8 +347,15 @@ export interface SoldAnual {
  * Două interogări separate, fără embed (nu există FK direct între cele două
  * tabele care s-ar preta la unul). Împerecherea pe `leave_type_id` se face în
  * TS, cu `imperecheazaSold`.
+ *
+ * Memoizată pe cerere cu `cache()`, din exact motivul lui `zileNelucratoare`:
+ * `/concedii` o cheamă acum de două ori cu aceleași argumente — o dată pentru
+ * rezumatul „câte zile mi-au rămas" din capul listei și o dată pentru soldul
+ * arătat în caseta de cerere nouă. Argumentele sunt primitive (`string`,
+ * `number`), deci memoizarea chiar prinde: `cache()` compară prin identitate,
+ * iar un argument-obiect n-ar nimeri niciodată.
  */
-export async function soldAnual(organizationId: string, an: number): Promise<SoldAnual> {
+export const soldAnual = cache(async (organizationId: string, an: number): Promise<SoldAnual> => {
   const db = await createServerSupabase();
   const [tipuriRes, solduriRes] = await Promise.all([
     db
@@ -380,7 +381,7 @@ export async function soldAnual(organizationId: string, an: number): Promise<Sol
   if (tipuriRes.error !== null) throw tipuriRes.error;
   if (solduriRes.error !== null) throw solduriRes.error;
   return { tipuri: tipuriRes.data ?? [], solduri: solduriRes.data ?? [] };
-}
+});
 
 export interface RandSold {
   readonly tip: TipConcediu;
@@ -691,7 +692,6 @@ export async function deAprobat(
 
 export interface RandZiCalendar {
   readonly data: string;
-  readonly portiune: PortiuneZi;
   readonly status: StatusCerere;
   readonly leave_request_id: string;
   readonly cerere: Readonly<{
@@ -716,7 +716,7 @@ export async function calendarLunii(
   const { data, error } = await db
     .from("leave_request_days")
     .select(
-      "data, portiune, status, leave_request_id, cerere:leave_requests!leave_request_id(id, employee_id, leave_type_id, status)",
+      "data, status, leave_request_id, cerere:leave_requests!leave_request_id(id, employee_id, leave_type_id, status)",
     )
     .eq("organization_id", organizationId)
     .eq("este_lucratoare", true)

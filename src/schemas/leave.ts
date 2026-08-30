@@ -7,8 +7,10 @@ import { codCorOptional } from "./comun";
 
 // ── Enumerări în oglindă cu tipurile din 0009_leave.sql ──────────────────────
 
-export const PORTIUNI_ZI = ["zi_intreaga", "prima_jumatate", "a_doua_jumatate"] as const;
-export type PortiuneZi = (typeof PORTIUNI_ZI)[number];
+// `PORTIUNI_ZI` a dispărut în 0112: concediul se cere doar pe zile întregi.
+// Enum-ul `public.leave_day_portion` mai există în bază (Postgres nu știe să
+// scoată o etichetă dintr-un enum), dar o constrângere ține ambele coloane pe
+// `zi_intreaga`, iar acțiunea nu le mai trimite deloc — default-ul le scrie.
 
 export const STATUSURI_CERERE = [
   "ciorna",
@@ -46,10 +48,13 @@ export type EvenimentSold = (typeof EVENIMENTE_SOLD)[number];
 export const TIPURI_ZI_ORGANIZATIE = ["liber_suplimentar", "zi_recuperare"] as const;
 export type TipZiOrganizatie = (typeof TIPURI_ZI_ORGANIZATIE)[number];
 
+/**
+ * Cele două moduri care rotunjeau la jumătate de zi au ieșit în 0112: cu cereri
+ * doar pe zile întregi, jumătatea rămasă în sold nu se mai poate cheltui.
+ * Constrângerea `leave_types_rotunjire_fara_jumatati` le refuză și în bază.
+ */
 export const MODURI_ROTUNJIRE_ACUMULARE = [
   "fara_rotunjire",
-  "jumatate_in_sus",
-  "jumatate_in_jos",
   "zi_in_sus",
   "zi_in_jos",
   "matematic",
@@ -207,8 +212,6 @@ export const creeazaCerereSchema = z
     leave_type_id: z.uuid("Tipul de concediu selectat nu este valid."),
     data_inceput: dataObligatorie("Data de început"),
     data_sfarsit: dataObligatorie("Data de sfârșit"),
-    portiune_inceput: z.enum(PORTIUNI_ZI).default("zi_intreaga"),
-    portiune_sfarsit: z.enum(PORTIUNI_ZI).default("zi_intreaga"),
     motiv: textOptional(1000),
     atasament_path: textOptional(500),
     /**
@@ -332,7 +335,7 @@ export const actualizeazaTipConcediuSchema = z.object({
   termen_reportare: z.coerce.number().int().min(1).max(60).nullable().default(null),
   plafon_reportare_zile: z.coerce.number().min(0).max(1100).nullable().default(null),
   necesita_document: z.coerce.boolean().default(false),
-  mod_rotunjire_acumulare: z.enum(MODURI_ROTUNJIRE_ACUMULARE).default("jumatate_in_sus"),
+  mod_rotunjire_acumulare: z.enum(MODURI_ROTUNJIRE_ACUMULARE).default("zi_in_sus"),
   culoare: z
     .string()
     .trim()

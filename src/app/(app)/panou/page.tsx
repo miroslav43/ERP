@@ -283,7 +283,10 @@ export default async function PanouPage() {
               actiuni: (
                 <>
                   {poateCereConcediu ? (
-                    <Link href="/concedii/noua" className={buton({ varianta: "secundar" })}>
+                    // `?cerere=noua` deschide caseta de cerere direct pe listă:
+                    // formularul nu mai are rută proprie (vezi
+                    // `concedii/dialog-cerere-noua.tsx`).
+                    <Link href="/concedii?cerere=noua" className={buton({ varianta: "secundar" })}>
                       <CalendarPlus aria-hidden="true" className="size-4" />
                       Cerere de concediu
                     </Link>

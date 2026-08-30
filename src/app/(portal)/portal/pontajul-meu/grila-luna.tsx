@@ -17,7 +17,8 @@ import type { ZiPontaj } from "@/lib/queries/portal";
  * aplicația mare ar fi două limbi pentru același concediu.
  *
  * Importul peste grupul de rute e tiparul portalului, nu o excepție:
- * `concediile-mele` importă deja `ETICHETE_PORTIUNE` din `(app)/concedii`.
+ * `concediile-mele` importă deja `IncarcareDocumentConcediu` și acțiunile din
+ * `(app)/concedii`.
  *
  * ── CULOAREA NU E SINGURUL PURTĂTOR ───────────────────────────────────────
  * Regula scrisă în `(app)/pontaj/etichete.ts` §CLASE_TIP_ZI: fundalul colorează

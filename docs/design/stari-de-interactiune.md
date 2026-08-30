@@ -304,7 +304,7 @@ Fiecare acoperă zeci de apariții identice. Se caută șirul exact.
 
 "mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus-visible:outline-2 dark:border-zinc-600 dark:bg-zinc-900"
   ->  "mt-1 w-full rounded-md border border-foreground/60 bg-background px-3 py-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground hover:border-foreground disabled:cursor-not-allowed disabled:border-border disabled:bg-surface disabled:text-muted-foreground aria-invalid:border-danger"
-  (constanta de câmp, definită identic în cel puțin 7 fișiere: pontaj/celula-zi.tsx:21, angajati/formular-angajat.tsx:38, inventar/nou/formular-obiect.tsx:36, inventar/[id]/formular-returnare.tsx:21, inventar/[id]/formular-predare.tsx:29, inventar/[id]/actiuni-obiect.tsx:55, concedii/noua/formular-cerere.tsx:39 — EXTRAGE-O într-un singur modul `src/components/ui/camp.ts` în loc s-o înlocuiești de 7 ori)
+  (constanta de câmp, definită identic în cel puțin 7 fișiere: pontaj/celula-zi.tsx:21, angajati/formular-angajat.tsx:38, inventar/nou/formular-obiect.tsx:36, inventar/[id]/formular-returnare.tsx:21, inventar/[id]/formular-predare.tsx:29, inventar/[id]/actiuni-obiect.tsx:55 — EXTRAGE-O într-un singur modul `src/components/ui/camp.ts` în loc s-o înlocuiești de 7 ori)
 
 "rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
   ->  "rounded-md border border-foreground/60 bg-background px-3 py-2 text-sm text-foreground"

@@ -18,7 +18,6 @@ import { grupeazaPeTrepte } from "@/domain/leave/lant-aprobare";
 import { autorulPoateRetrage } from "@/domain/leave/verificari";
 
 import {
-  ETICHETE_PORTIUNE,
   ETICHETE_STATUS_CERERE,
   ETICHETE_STATUS_SARCINA,
   TONURI_STATUS_SARCINA,
@@ -175,15 +174,6 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
             </dt>
             <dd className="text-corp mt-0.5">{cerere.zile_calendaristice}</dd>
           </div>
-          <div>
-            <dt className="text-muted-foreground text-nota tracking-wide uppercase">Porțiuni</dt>
-            <dd className="text-corp mt-0.5">
-              {ETICHETE_PORTIUNE[cerere.portiune_inceput]}
-              {cerere.portiune_inceput !== cerere.portiune_sfarsit
-                ? ` → ${ETICHETE_PORTIUNE[cerere.portiune_sfarsit]}`
-                : ""}
-            </dd>
-          </div>
           {cerere.trimisa_la !== null ? (
             <div>
               <dt className="text-muted-foreground text-nota tracking-wide uppercase">
@@ -241,9 +231,6 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
                 }`}
               >
                 <div className="font-medium">{formatDate(zi.data)}</div>
-                {zi.portiune !== "zi_intreaga" ? (
-                  <div className="text-nota">{ETICHETE_PORTIUNE[zi.portiune]}</div>
-                ) : null}
               </li>
             ))}
           </ul>

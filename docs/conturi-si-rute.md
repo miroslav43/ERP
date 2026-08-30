@@ -148,7 +148,6 @@ Poarta e în `(app)/layout.tsx`: `requireTenant()`, apoi **rolul `employee` e re
 | `/concedii/aprobari`             | `leave:approve` ≥ `team`       | `leave`         |
 | `/concedii/calendar`             | `leave:read` ≥ `team`          | `leave`         |
 | `/concedii/echipa`               | `leave:read` ≥ `team`          | `leave`         |
-| `/concedii/noua`                 | `leave:create` ≥ `own`         | `leave`         |
 | `/concedii/setari`               | `leave:update` ≥ `all`         | `leave`         |
 | `/concedii/sold`                 | `leave:read` ≥ `own`           | `leave`         |
 | `/cursuri`                       | `courses:read` ≥ `team`        | `courses`       |
