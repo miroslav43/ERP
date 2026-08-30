@@ -54,14 +54,14 @@ export interface AngajatStructura {
   readonly user_id: string | null;
   /** `candidat` | `activ` | `suspendat` | `preaviz` | `incetat` | `arhivat`. */
   readonly status: string;
-  readonly job_position: Readonly<{ denumire: string }> | null;
+  readonly functie: string | null;
 }
 
 const COLOANE_DEPARTAMENT =
   "id, parent_id, cod, denumire, descriere, activ, manager_employee_id, cost_center, manager:employees!manager_employee_id(full_name, user_id)";
 
 const COLOANE_ANGAJAT =
-  "id, full_name, marca, department_id, user_id, status, job_position:job_positions!job_position_id(denumire)";
+  "id, full_name, marca, department_id, user_id, status, functie";
 
 export async function structuraDepartamentelor(
   organizationId: string,

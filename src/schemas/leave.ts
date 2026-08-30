@@ -3,6 +3,8 @@
 
 import { z } from "zod";
 
+import { codCorOptional } from "./comun";
+
 // ── Enumerări în oglindă cu tipurile din 0009_leave.sql ──────────────────────
 
 export const PORTIUNI_ZI = ["zi_intreaga", "prima_jumatate", "a_doua_jumatate"] as const;
@@ -360,7 +362,7 @@ export const creeazaRegulaConcediuSchema = z
     vechime_ani_min: z.coerce.number().int().min(0).max(60).nullable().default(null),
     valoare_text: textOptional(40),
     department_id: uuidOptional,
-    job_position_id: uuidOptional,
+    cod_cor: codCorOptional,
     zile_suplimentare: z.coerce
       .number("Numărul de zile trebuie să fie o cifră.")
       .min(0, "Numărul de zile suplimentare nu poate fi negativ.")
@@ -377,7 +379,7 @@ export const creeazaRegulaConcediuSchema = z
       ["vechime_ani_min", valoare.vechime_ani_min],
       ["valoare_text", valoare.valoare_text],
       ["department_id", valoare.department_id],
-      ["job_position_id", valoare.job_position_id],
+      ["cod_cor", valoare.cod_cor],
     ];
     const respingeAltele = (permise: readonly string[]) => {
       for (const [camp, val] of alteCriterii) {
@@ -442,12 +444,12 @@ export const creeazaRegulaConcediuSchema = z
         }
         break;
       case "functie":
-        respingeAltele(["job_position_id"]);
-        if (valoare.job_position_id === null) {
+        respingeAltele(["cod_cor"]);
+        if (valoare.cod_cor === null) {
           ctx.addIssue({
             code: "custom",
-            path: ["job_position_id"],
-            message: "Funcția este obligatorie.",
+            path: ["cod_cor"],
+            message: "Codul COR al ocupației este obligatoriu.",
           });
         }
         break;

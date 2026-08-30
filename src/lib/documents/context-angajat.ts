@@ -41,7 +41,7 @@ export async function adunaContextInrolare(
     // rândului DIN ȘIRUL de selecție, iar o expresie `"a" + "b"` îl face să
     // cadă pe `GenericStringError` — adică pe `any` cu alt nume.
     .select(
-      "id, full_name, adresa_strada, adresa_oras, adresa_judet, serie_act, numar_act, act_eliberat_de, act_eliberat_la, job_position_id, department_id",
+      "id, full_name, adresa_strada, adresa_oras, adresa_judet, serie_act, numar_act, act_eliberat_de, act_eliberat_la, functie, department_id",
     )
     .eq("id", employeeId)
     .eq("organization_id", organizationId)
@@ -67,14 +67,8 @@ export async function adunaContextInrolare(
     throw businessRule("Angajatul nu are contract, deci nu se poate emite niciun document.");
   }
 
-  const [functie, departament, fisaPost] = await Promise.all([
-    angajat.job_position_id === null
-      ? Promise.resolve(null)
-      : supabase
-          .from("job_positions")
-          .select("denumire")
-          .eq("id", angajat.job_position_id)
-          .maybeSingle(),
+  // Funcția NU mai cere o interogare: după 0110 e text pe fișă. Rămân două.
+  const [departament, fisaPost] = await Promise.all([
     angajat.department_id === null
       ? Promise.resolve(null)
       : supabase
@@ -106,7 +100,7 @@ export async function adunaContextInrolare(
       numarAct: angajat.numar_act,
       actEliberatDe: angajat.act_eliberat_de,
       actEliberatLa: angajat.act_eliberat_la,
-      functie: functie?.data?.denumire ?? null,
+      functie: angajat.functie,
       departament: departament?.data?.denumire ?? null,
     },
     contract: {

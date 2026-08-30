@@ -437,7 +437,7 @@ export interface RandSablon {
   readonly tip: ChecklistTip;
   readonly descriere: string | null;
   readonly department_id: string | null;
-  readonly job_position_id: string | null;
+  readonly cod_cor: string | null;
   readonly activ: boolean;
   readonly valabil_de_la: string;
   readonly valabil_pana_la: string | null;
@@ -453,7 +453,7 @@ export interface RezultatSabloane {
 }
 
 const COLOANE_SABLON =
-  "id, denumire, tip, descriere, department_id, job_position_id, activ, valabil_de_la, valabil_pana_la";
+  "id, denumire, tip, descriere, department_id, cod_cor, activ, valabil_de_la, valabil_pana_la";
 
 export async function listeazaSabloane(
   organizationId: string,

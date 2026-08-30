@@ -7,7 +7,7 @@
 // P0001 ajunsă în interfață e o poartă lipsă, nu o validare.
 
 import { z } from "zod";
-import { optional, textOptional } from "./comun";
+import { codCorOptional, optional, textOptional } from "./comun";
 
 import { FURNIZORI_LINK } from "@/lib/media/link-extern";
 
@@ -474,7 +474,7 @@ export const creeazaRegulaSchema = z
     course_id: z.uuid(),
     criteriu: z.enum(CURS_CRITERIU),
     department_id: optional(z.uuid()),
-    job_position_id: optional(z.uuid()),
+    cod_cor: codCorOptional,
     rol: optional(z.enum(["super_admin", "org_admin", "manager", "hr", "employee"])),
     employee_id: optional(z.uuid()),
     decalaj_zile: z.coerce.number().int().min(0).max(365).default(0),
@@ -489,7 +489,7 @@ export const creeazaRegulaSchema = z
   .superRefine((v, ctx) => {
     const tinte = {
       departament: v.department_id,
-      functie: v.job_position_id,
+      functie: v.cod_cor,
       rol: v.rol,
       angajat: v.employee_id,
     } as const;
@@ -499,7 +499,7 @@ export const creeazaRegulaSchema = z
         cheie === "departament"
           ? "department_id"
           : cheie === "functie"
-            ? "job_position_id"
+            ? "cod_cor"
             : cheie === "rol"
               ? "rol"
               : "employee_id";

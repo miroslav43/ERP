@@ -12,7 +12,7 @@ import { ETICHETE_STATUS } from "./etichete";
  * ── CE REPARĂ MIGRAREA ────────────────────────────────────────────────────
  * Vechiul `aplica()` pornea dintr-un `new URLSearchParams()` GOL și îl
  * repopula doar cu `q` și `status`. Verificat pe adresa
- * `q=Popescu&status=activ&sort=-nume&limita=50&department_id=…&job_position_id=…`,
+ * `q=Popescu&status=activ&sort=-nume&limita=50&department_id=…&functie=…`,
  * o apăsare pe „Aplică filtrele” lăsa în urmă exact `q=Popescu&status=activ`:
  * sortarea, mărimea paginii, departamentul și funcția dispăreau tăcut.
  *
@@ -39,13 +39,13 @@ import { ETICHETE_STATUS } from "./etichete";
 /**
  * Cheile administrate de bară.
  *
- * `department_id` și `job_position_id` sunt NOI aici, dar nu în produs:
+ * `department_id` și `functie` sunt NOI aici, dar nu în produs:
  * `listeazaAngajati` le filtrează din prima zi (`queries/employees.ts:219-222`),
  * iar un `grep` pe tot depozitul găsea o singură apariție a lor — într-un
  * comentariu. Capacitate implementată complet pe server și inaccesibilă din
  * interfață. `sort`, `limita` și `cursor` NU sunt aici: nu sunt filtre.
  */
-const CHEI_PROPRII = ["q", "status", "department_id", "job_position_id"] as const;
+const CHEI_PROPRII = ["q", "status", "department_id", "functie"] as const;
 
 // Fără `useId`: componenta e un Server Component și apare o singură dată pe pagină.
 const ID_CAUTARE = "filtre-angajati-cautare";

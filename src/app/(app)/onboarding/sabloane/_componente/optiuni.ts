@@ -21,7 +21,6 @@ export interface OptiuneAngajat {
 
 export interface OptiuniAsistent {
   readonly departamente: readonly OptiuneDenumita[];
-  readonly posturi: readonly OptiuneDenumita[];
   readonly cursuri: readonly OptiuneDenumita[];
   readonly materiale: readonly OptiuneDenumita[];
   readonly angajati: readonly OptiuneAngajat[];
@@ -44,17 +43,9 @@ export async function optiuniAsistent(organizationId: string): Promise<OptiuniAs
   // `departments:read`, iar `employees_select` cere `employees:read` — niciunul
   // garantat pentru cine are `checklists:create`. O listă goală înseamnă un
   // câmp opțional nefolosit, nu o eroare de pagină.
-  const [departamenteRes, posturiRes, cursuri, materialeRes, angajati] = await Promise.all([
+  const [departamenteRes, cursuri, materialeRes, angajati] = await Promise.all([
     db
       .from("departments")
-      .select("id, denumire")
-      .eq("organization_id", organizationId)
-      .eq("activ", true)
-      .order("denumire")
-      .limit(200)
-      .returns<OptiuneDenumita[]>(),
-    db
-      .from("job_positions")
       .select("id, denumire")
       .eq("organization_id", organizationId)
       .eq("activ", true)
@@ -89,7 +80,6 @@ export async function optiuniAsistent(organizationId: string): Promise<OptiuniAs
 
   return {
     departamente: departamenteRes.data ?? [],
-    posturi: posturiRes.data ?? [],
     cursuri,
     materiale: (materialeRes.data ?? []).map((m) => ({ id: m.id, denumire: m.titlu })),
     angajati,

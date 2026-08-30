@@ -6,7 +6,7 @@
 // operatori și paranteze: combinațiile se fac adăugând reguli, iar cinci ramuri
 // disjuncte se verifică dintr-o privire — un `and`/`or` compus, nu.
 
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2, Workflow } from "lucide-react";
 
@@ -16,6 +16,8 @@ import { Callout } from "@/components/ui/callout";
 import { ConfirmareActiune } from "@/components/ui/dialog";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { clasaControl } from "@/components/ui/camp";
+import { CautaCor } from "@/components/cauta-cor";
+import { ocupatiaDupaCod } from "@/domain/hr/cor-nomenclator";
 import { arataToast } from "@/components/ui/toast";
 import type { AngajatOptiune, OptiuneDenumita, RandRegula } from "@/lib/queries/cursuri";
 import type { CursCriteriu } from "@/schemas/cursuri";
@@ -45,7 +47,6 @@ interface Proprietati {
   readonly denumire: string;
   readonly reguli: readonly RandRegula[];
   readonly departamente: readonly OptiuneDenumita[];
-  readonly functii: readonly OptiuneDenumita[];
   readonly angajati: readonly AngajatOptiune[];
   readonly poateEdita: boolean;
 }
@@ -55,12 +56,12 @@ export function ReguliCurs({
   denumire,
   reguli,
   departamente,
-  functii,
   angajati,
   poateEdita,
 }: Proprietati) {
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
+  const idCautareCor = useId();
   const [criteriu, setCriteriu] = useState<CursCriteriu>("toti");
   const [tinta, setTinta] = useState("");
   const [decalaj, setDecalaj] = useState("0");
@@ -75,14 +76,18 @@ export function ReguliCurs({
         case "departament":
           return departamente.find((d) => d.id === regula.department_id)?.denumire ?? "—";
         case "functie":
-          return functii.find((f) => f.id === regula.job_position_id)?.denumire ?? "—";
+          // Denumirea ocupației vine din Clasificarea Ocupațiilor, nu din
+          // bază: regula reține codul COR (0110).
+          return regula.cod_cor === null
+            ? "—"
+            : (ocupatiaDupaCod(regula.cod_cor)?.denumire ?? regula.cod_cor);
         case "rol":
           return ETICHETE_ROL[regula.rol ?? ""] ?? regula.rol ?? "—";
         case "angajat":
           return angajati.find((a) => a.id === regula.employee_id)?.nume ?? "—";
       }
     },
-    [angajati, departamente, functii],
+    [angajati, departamente],
   );
 
   const ruleaza = useCallback(
@@ -112,9 +117,7 @@ export function ReguliCurs({
   const optiuniTinta =
     criteriu === "departament"
       ? departamente.map((d) => ({ id: d.id, text: d.denumire }))
-      : criteriu === "functie"
-        ? functii.map((f) => ({ id: f.id, text: f.denumire }))
-        : criteriu === "angajat"
+      : criteriu === "angajat"
           ? angajati.map((a) => ({ id: a.id, text: a.nume }))
           : criteriu === "rol"
             ? ROLURI.map((r) => ({ id: r, text: ETICHETE_ROL[r] ?? r }))
@@ -205,7 +208,24 @@ export function ReguliCurs({
               </select>
             </label>
 
-            {criteriu === "toti" ? null : (
+            {/*
+              Ocupația nu se alege dintr-un `<select>`: nomenclatorul are 4422
+              de intrări, iar ținta e un cod COR, nu un rând din bază.
+            */}
+            {criteriu === "functie" ? (
+              <label className="flex flex-col gap-1">
+                <span className="text-eticheta text-muted-foreground uppercase">Care ocupație</span>
+                <CautaCor
+                  idInput={idCautareCor}
+                  valoareInitiala={tinta}
+                  laText={(valoare) => {
+                    setTinta(valoare.trim());
+                  }}
+                />
+              </label>
+            ) : null}
+
+            {criteriu === "toti" || criteriu === "functie" ? null : (
               <label className="flex flex-col gap-1">
                 <span className="text-eticheta text-muted-foreground uppercase">Care</span>
                 <select

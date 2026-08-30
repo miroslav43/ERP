@@ -494,7 +494,7 @@ export const salveazaSablon = createAction({
     entityId: (_input, data: Readonly<{ id: string }>) => data.id,
     // Fără `etape` și fără `pasi_fara_etapa`: jurnalul ar primi tot conținutul
     // șablonului la fiecare salvare, iar ce contează e CINE a salvat și CÂND.
-    allow: ["id", "denumire", "tip", "department_id", "job_position_id", "activ"],
+    allow: ["id", "denumire", "tip", "department_id", "cod_cor", "activ"],
   },
   revalidate: ["/onboarding/sabloane"],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
@@ -524,7 +524,7 @@ export const creeazaSablon = createAction({
       "denumire",
       "tip",
       "department_id",
-      "job_position_id",
+      "cod_cor",
       "activ",
       "valabil_de_la",
       "valabil_pana_la",
@@ -559,7 +559,7 @@ export const actualizeazaSablon = createAction({
       "denumire",
       "tip",
       "department_id",
-      "job_position_id",
+      "cod_cor",
       "activ",
       "valabil_de_la",
       "valabil_pana_la",

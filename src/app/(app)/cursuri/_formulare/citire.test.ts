@@ -243,7 +243,8 @@ describe("regula de atribuire", () => {
   it.each([
     ["toti", ""],
     ["departament", UUID],
-    ["functie", UUID],
+    // Ținta criteriului „funcție" e un cod COR, nu un uuid (0110).
+    ["functie", "721208"],
     ["angajat", UUID],
     ["rol", "manager"],
   ] as const)("criteriul „%s” trece", (criteriu, tinta) => {

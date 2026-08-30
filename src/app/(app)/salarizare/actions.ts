@@ -221,13 +221,13 @@ interface RandFluturasEmail extends SursaFluturas {
     readonly marca: string;
     readonly email_serviciu: string | null;
     readonly email_personal: string | null;
-    readonly functie: { readonly denumire: string } | null;
+    readonly functie: string | null;
   } | null;
 }
 
 const COLOANE_FLUTURAS_EMAIL =
   "id, baza_salariu, suma_ore_suplimentare, spor_noapte, prime_total, valoare_tichete, brut, cas, cass, deducere_personala, scutire_fiscala, impozit, net, retineri_total, net_de_plata, rest_de_plata, zile_lucratoare_luna, zile_lucrate, zile_concediu_odihna, zile_concediu_medical, ore_lucrate, ore_suplimentare, ore_noapte, calc_warnings, " +
-  "angajat:employees!employee_id(full_name, marca, email_serviciu, email_personal, functie:job_positions!job_position_id(denumire))";
+  "angajat:employees!employee_id(full_name, marca, email_serviciu, email_personal, functie)";
 
 function laSetariSnapshot(
   setari: NonNullable<Awaited<ReturnType<typeof citesteSetariPeId>>>,
@@ -1215,7 +1215,7 @@ export const trimiteFluturasii = createAction({
           luna: perioada.luna,
           angajatNume: rand.angajat?.full_name ?? "—",
           angajatMarca: rand.angajat?.marca ?? "",
-          functie: rand.angajat?.functie?.denumire ?? null,
+          functie: rand.angajat?.functie ?? null,
           zileLucratoareLuna: rand.zile_lucratoare_luna,
           zileLucrate: rand.zile_lucrate,
           zileConcediuOdihna: rand.zile_concediu_odihna,

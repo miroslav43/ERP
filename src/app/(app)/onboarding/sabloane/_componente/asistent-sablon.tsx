@@ -19,6 +19,7 @@ import { AlegereCarduri, type OptiuneCard } from "@/components/ui/alegere-cardur
 import { BaraActiuni } from "@/components/ui/bara-actiuni";
 import { Buton } from "@/components/ui/buton";
 import { Camp, clasaBifa } from "@/components/ui/camp";
+import { CautaCor } from "@/components/cauta-cor";
 import { ProgresPasi } from "@/components/ui/progres-pasi";
 import { arataToast } from "@/components/ui/toast";
 import type { ChecklistFelPas } from "@/schemas/checklist";
@@ -84,7 +85,6 @@ interface OptiuneAngajat {
 
 interface Proprietati {
   readonly departamente: readonly Optiune[];
-  readonly posturi: readonly Optiune[];
   readonly cursuri: readonly Optiune[];
   readonly materiale: readonly Optiune[];
   readonly angajati: readonly OptiuneAngajat[];
@@ -100,7 +100,6 @@ type Stadiu =
 
 export function AsistentSablon({
   departamente,
-  posturi,
   cursuri,
   materiale,
   angajati,
@@ -121,7 +120,7 @@ export function AsistentSablon({
       tip: "onboarding",
       descriere: "",
       department_id: "",
-      job_position_id: "",
+      cod_cor: "",
       activ: true,
       valabil_de_la: astazi,
       valabil_pana_la: "",
@@ -383,31 +382,28 @@ export function AsistentSablon({
             </Camp>
           )}
 
-          {posturi.length === 0 ? null : (
-            <Camp
-              nume="job_position_id"
-              id={idc("job_position_id")}
-              eticheta="Restrâns la post"
-              fel="select"
-            >
-              {(a) => (
-                <select
-                  {...a}
-                  value={stare.job_position_id}
-                  onChange={(e) => {
-                    setStare((s) => ({ ...s, job_position_id: e.target.value }));
-                  }}
-                >
-                  <option value="">Toate posturile</option>
-                  {posturi.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.denumire}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </Camp>
-          )}
+          {/*
+            Restrângerea la o ocupație se face pe COD COR, nu pe un rând dintr-un
+            nomenclator: după migrarea 0110 acela nu mai există, iar codul e
+            cheia oficială — stabilă la redenumiri.
+          */}
+          <Camp
+            nume="cod_cor"
+            id={idc("cod_cor")}
+            eticheta="Restrâns la ocupație"
+            ajutor="Lăsat gol, șablonul se aplică tuturor ocupațiilor."
+          >
+            {(a) => (
+              <CautaCor
+                idInput={a.id}
+                valoareInitiala={stare.cod_cor}
+                descrisDe={a["aria-describedby"]}
+                laText={(valoare) => {
+                  setStare((s) => ({ ...s, cod_cor: valoare.trim() }));
+                }}
+              />
+            )}
+          </Camp>
 
           <Camp
             nume="valabil_de_la"

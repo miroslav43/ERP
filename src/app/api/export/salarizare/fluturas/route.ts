@@ -58,14 +58,14 @@ interface RandFluturas {
   readonly angajat: {
     readonly full_name: string | null;
     readonly marca: string;
-    readonly functie: { readonly denumire: string } | null;
+    readonly functie: string | null;
   } | null;
 }
 
 const COLOANE =
   "id, baza_salariu, suma_ore_suplimentare, spor_noapte, prime_total, valoare_tichete, brut, cas, cass, deducere_personala, scutire_fiscala, impozit, net, retineri_total, net_de_plata, rest_de_plata, zile_lucratoare_luna, zile_lucrate, zile_concediu_odihna, zile_concediu_medical, ore_lucrate, ore_suplimentare, ore_noapte, calc_warnings, " +
   "perioada:payroll_periods!period_id(an, luna, status), " +
-  "angajat:employees!employee_id(full_name, marca, functie:job_positions!job_position_id(denumire))";
+  "angajat:employees!employee_id(full_name, marca, functie)";
 
 export async function GET(cerere: Request): Promise<Response> {
   const { tenant } = await requireTenant();
@@ -109,7 +109,7 @@ export async function GET(cerere: Request): Promise<Response> {
     luna: perioada.luna,
     angajatNume: rand.angajat?.full_name ?? "—",
     angajatMarca: rand.angajat?.marca ?? "",
-    functie: rand.angajat?.functie?.denumire ?? null,
+    functie: rand.angajat?.functie ?? null,
     zileLucratoareLuna: rand.zile_lucratoare_luna,
     zileLucrate: rand.zile_lucrate,
     zileConcediuOdihna: rand.zile_concediu_odihna,

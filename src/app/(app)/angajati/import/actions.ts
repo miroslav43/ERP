@@ -150,7 +150,7 @@ export const analizeazaImportAngajati = createAction({
 
 async function idDupaCheie(
   ctx: ActionContext,
-  tabel: "departments" | "job_positions",
+  tabel: "departments",
   denumire: string,
 ): Promise<string | null> {
   const { data } = await ctx.supabase
@@ -173,11 +173,13 @@ async function importaUnRand(ctx: ActionContext, angajat: AngajatProtejat): Prom
   if (angajat.departament !== undefined && departmentId === null) {
     return `Departamentul „${angajat.departament}" nu există. Creează-l întâi în Structura organizatorică.`;
   }
-  const jobPositionId =
-    angajat.functie === undefined ? null : await idDupaCheie(ctx, "job_positions", angajat.functie);
-  if (angajat.functie !== undefined && jobPositionId === null) {
-    return `Funcția „${angajat.functie}" nu există în nomenclator. Adaug-o întâi din ecranul Funcții (/functii).`;
-  }
+  // Funcția NU mai cere un rând existent: după migrarea 0110 e text pe fișă,
+  // deci coloana din fișier se scrie ca atare. Importul nu mai poate eșua cu
+  // „funcția nu există în nomenclator" — nu mai există nomenclator.
+  //
+  // Codul COR nu se importă: ar trebui validat contra celor 4422 de ocupații,
+  // iar un cod greșit dintr-un fișier ar bloca abia la exportul REVISAL. Se
+  // completează din fișă, unde câmpul are căutare.
 
   // Marca lipsă din fișier o atribuie contorul organizației — același drum ca
   // la înrolare (`urmatoarea_marca`). Până în 0069 importul cerea marca și avea
@@ -218,7 +220,7 @@ async function importaUnRand(ctx: ActionContext, angajat: AngajatProtejat): Prom
         ? {}
         : { nr_persoane_intretinere: angajat.persoane_intretinere }),
       ...(departmentId === null ? {} : { department_id: departmentId }),
-      ...(jobPositionId === null ? {} : { job_position_id: jobPositionId }),
+      ...(angajat.functie === undefined ? {} : { functie: angajat.functie }),
     })
     .select("id")
     .single();
@@ -277,7 +279,7 @@ async function importaUnRand(ctx: ActionContext, angajat: AngajatProtejat): Prom
         ? {}
         : { zile_concediu_anual: angajat.zile_concediu }),
       ...(departmentId === null ? {} : { department_id: departmentId }),
-      ...(jobPositionId === null ? {} : { job_position_id: jobPositionId }),
+      ...(angajat.functie === undefined ? {} : { functie: angajat.functie }),
     });
     if (contract.error !== null) {
       return anuleaza(

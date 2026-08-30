@@ -50,7 +50,7 @@ export async function genereazaAdeverinta(
 
   const { data: angajat } = await supabase
     .from("employees")
-    .select("id, full_name, hired_on, terminated_on, job_position_id")
+    .select("id, full_name, hired_on, terminated_on, functie")
     .eq("id", employeeId)
     .eq("organization_id", organizationId)
     .is("deleted_at", null)
@@ -66,15 +66,6 @@ export async function genereazaAdeverinta(
     .eq("organization_id", organizationId)
     .is("deleted_at", null)
     .maybeSingle();
-
-  const { data: functie } =
-    angajat.job_position_id === null
-      ? { data: null }
-      : await supabase
-          .from("job_positions")
-          .select("denumire")
-          .eq("id", angajat.job_position_id)
-          .maybeSingle();
 
   const { data: contract } = await supabase
     .from("employment_contracts")
@@ -104,7 +95,9 @@ export async function genereazaAdeverinta(
     // altfel denumirea uzuală — niciodată nesetat.
     ["organizatie_denumire", organizatie.legal_name ?? organizatie.name],
     ["data_angajarii", formatDate(angajat.hired_on)],
-    ["functie", functie?.denumire ?? "nespecificată"],
+    // Funcția vine de pe rândul deja citit: după migrarea 0110 e o coloană
+    // pe `employees`, nu o cheie străină către un nomenclator.
+    ["functie", angajat.functie ?? "nespecificată"],
     [
       "perioada",
       `${formatDate(angajat.hired_on)} – ${angajat.terminated_on === null ? "prezent" : formatDate(angajat.terminated_on)}`,

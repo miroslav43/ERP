@@ -3,7 +3,7 @@
 // Server Actions și schema conținutului json din dovada de parcurgere.
 
 import { z } from "zod";
-import { optional, textOptional } from "./comun";
+import { codCorOptional, optional, textOptional } from "./comun";
 
 // ── Enumerări în oglindă cu tipurile din 0014_checklist.sql ──────────────────
 
@@ -218,7 +218,7 @@ const sablonCampuriSchema = z.object({
   tip: z.enum(CHECKLIST_TIP),
   descriere: textOptional(2000),
   department_id: optional(z.uuid()),
-  job_position_id: optional(z.uuid()),
+  cod_cor: codCorOptional,
   activ: z.coerce.boolean().default(true),
   // Necesar, nu opțional: coloana e `not null` fără implicit acceptabil din
   // client — vezi nota din `noua/formular-sablon.tsx`. Formularul îl

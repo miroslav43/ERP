@@ -45,7 +45,7 @@ export interface StareSablon {
   readonly tip: ChecklistTip;
   readonly descriere: string;
   readonly department_id: string;
-  readonly job_position_id: string;
+  readonly cod_cor: string;
   readonly activ: boolean;
   readonly valabil_de_la: string;
   readonly valabil_pana_la: string;
@@ -173,7 +173,7 @@ export function intrareSablon(stare: StareSablon): SalveazaSablonInput {
     tip: stare.tip,
     descriere: stare.descriere.trim(),
     department_id: stare.department_id,
-    job_position_id: stare.job_position_id,
+    cod_cor: stare.cod_cor === "" ? null : stare.cod_cor,
     activ: stare.activ,
     valabil_de_la: stare.valabil_de_la,
     valabil_pana_la: stare.valabil_pana_la,
@@ -214,7 +214,7 @@ export interface SablonCitit {
   readonly tip: ChecklistTip;
   readonly descriere: string | null;
   readonly department_id: string | null;
-  readonly job_position_id: string | null;
+  readonly cod_cor: string | null;
   readonly activ: boolean;
   readonly valabil_de_la: string;
   readonly valabil_pana_la: string | null;
@@ -275,7 +275,7 @@ export function stareDinSablon(
     tip: sablon.tip,
     descriere: sablon.descriere ?? "",
     department_id: sablon.department_id ?? "",
-    job_position_id: sablon.job_position_id ?? "",
+    cod_cor: sablon.cod_cor ?? "",
     activ: sablon.activ,
     valabil_de_la: sablon.valabil_de_la,
     valabil_pana_la: sablon.valabil_pana_la ?? "",

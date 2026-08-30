@@ -167,7 +167,7 @@ async function trimiteUnul(
     .from("employment_contracts")
     // prettier-ignore
     .select(
-      "numar, data_contract, valabil_de_la, valabil_pana, contract_duration, norma_ore_saptamana, norma_ore_zi, salariu_baza, moneda, work_mode, special_regime, reges_contract_id, reges_tip_contract, reges_tip_norma, reges_norma_timp, reges_repartizare, temei_incetare, reges_temei_incetare, incetat_la, job_positions(cod_cor)",
+      "numar, data_contract, valabil_de_la, valabil_pana, contract_duration, norma_ore_saptamana, norma_ore_zi, salariu_baza, moneda, work_mode, special_regime, reges_contract_id, reges_tip_contract, reges_tip_norma, reges_norma_timp, reges_repartizare, temei_incetare, reges_temei_incetare, incetat_la, functie, cod_cor",
     )
     .eq("id", mesaj.contract_id)
     .eq("organization_id", mesaj.organization_id)
@@ -179,10 +179,8 @@ async function trimiteUnul(
   }
 
   const ctx = { messageId: mesaj.message_id, ...contextAntet };
-  const rand = {
-    ...contract,
-    cod_cor: contract.job_positions?.cod_cor ?? null,
-  };
+  // `cod_cor` e deja pe rând: nu se mai împrumută din nomenclator prin embed.
+  const rand = contract;
 
   let corp: unknown;
   if (mesaj.operatie === "AdaugareContract" || mesaj.operatie === "ModificareContract") {
