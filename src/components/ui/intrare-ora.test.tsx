@@ -219,6 +219,53 @@ describe("IntrareDurata", () => {
     expect(camp("Ore").value).toBe("8:30");
   });
 
+  it("pune singură două punctele, pe a doua cifră", () => {
+    // Ce se cere de la om: patru cifre, cu zero-ul din față. Nicio tastă `:`.
+    const laSchimbare = vi.fn();
+    const { container } = render(
+      <IntrareDurata aria-label="Ore" name="ore_pe_zi" onSchimba={laSchimbare} />,
+    );
+
+    fireEvent.change(camp("Ore"), { target: { value: "0" } });
+    expect(camp("Ore").value).toBe("0");
+    fireEvent.change(camp("Ore"), { target: { value: "08" } });
+    expect(camp("Ore").value).toBe("08:");
+    fireEvent.change(camp("Ore"), { target: { value: "08:3" } });
+    fireEvent.change(camp("Ore"), { target: { value: "08:30" } });
+    expect(camp("Ore").value).toBe("08:30");
+
+    fireEvent.blur(camp("Ore"));
+    expect(laSchimbare).toHaveBeenCalledWith(8.5);
+    expect(campAscuns(container).value).toBe("8.5");
+  });
+
+  it("salvează ora rotundă lăsată de mască, `48:` — nu o respinge", () => {
+    // Cine scrie maximul săptămânal tastează `48` și pleacă. În câmp a rămas
+    // `48:`, pus de mască: refuzat, ar fi însemnat câmp roșu fără nicio vină.
+    const laSchimbare = vi.fn();
+    render(<IntrareDurata aria-label="Ore" onSchimba={laSchimbare} />);
+    fireEvent.change(camp("Ore"), { target: { value: "48" } });
+    fireEvent.blur(camp("Ore"));
+    expect(laSchimbare).toHaveBeenCalledWith(48);
+    expect(camp("Ore").value).toBe("48:00");
+  });
+
+  it("lasă backspace-ul să șteargă două punctele puse de mască", () => {
+    // Fără regula asta, tasta ar fi fost inertă: cifrele rămân `08`, iar masca
+    // pune `:` la loc, la nesfârșit.
+    render(<IntrareDurata aria-label="Ore" />);
+    fireEvent.change(camp("Ore"), { target: { value: "08" } });
+    expect(camp("Ore").value).toBe("08:");
+    fireEvent.change(camp("Ore"), { target: { value: "08" } });
+    expect(camp("Ore").value).toBe("0");
+  });
+
+  it("arată exemplul cerut de câmp, nu norma zilnică peste tot", () => {
+    // Un `8:00` sub „maxim săptămânal" sugerează exact cifra greșită.
+    render(<IntrareDurata aria-label="Ore" placeholder="48:00" />);
+    expect(camp("Ore").placeholder).toBe("48:00");
+  });
+
   it("trimite mai departe zecimala, fiindcă baza înmulțește cu tariful orar", () => {
     const laSchimbare = vi.fn();
     const { container } = render(

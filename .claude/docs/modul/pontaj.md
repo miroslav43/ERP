@@ -43,7 +43,7 @@ confirmarea zilei standard, apăsate din portal, scrise tot în `attendance_entr
 | Rută                    | Poartă                                                                                                         |
 | ----------------------- | -------------------------------------------------------------------------------------------------------------- |
 | `/pontaj`               | `attendance:read` cu scope citit prin `scopeFor`; butoanele cer `create` own/all, `approve` team, `update` all |
-| `/pontaj?vizualizare=…` | aceeași poartă; vezi „Cele trei vizualizări" mai jos                                                            |
+| `/pontaj?vizualizare=…` | aceeași poartă; vezi „Cele trei vizualizări" mai jos                                                           |
 | `/pontaj/aprobare`      | `attendance:approve` team; blocarea cere `all`                                                                 |
 | `/pontaj/perioade`      | `attendance:approve` team/all, `attendance:create` all                                                         |
 | `/pontaj/perioade/[id]` | `attendance:read` team                                                                                         |
@@ -222,6 +222,14 @@ zecimalele tastate (`8,5` rămâne marcat greșit, nu devine tăcut `85`), iar o
 `peTelefon: "meta"` din `Tabel` trebuie să întoarcă `<span>`, nu `<div>`: sub 768px se
 randează într-un `<p>`, iar marcajul nevalid dă eroare de hidratare fără ca ceva să
 pară stricat.
+
+Amândouă câmpurile pun singure două punctele, dar după REGULI DIFERITE.
+`mascheazaOraZi` ghicește unde se termină ora din faptul că o oră din zi nu trece de 23
+(`8` → `08:`, `25` → `02:5`); o durată n-are plafonul ăsta — `40:00`, `48:00` — deci
+`mascheazaDurata` taie fix după a doua cifră, iar `8:30` se tastează `0830`. Un `:`
+tastat de om se păstrează unde l-a pus. Consecința în `parseOre`: `48:` e o intrare
+VALIDĂ (48 de ore fix), fiindcă exact atât lasă masca în urmă când cineva scrie `48` și
+pleacă din câmp.
 
 Regula după care ies cifrele o scrie în cuvinte `rezumatRegulaPontaj`
 (`src/app/(app)/pontaj/etichete.ts`), compusă pe SERVER și trimisă formularului
