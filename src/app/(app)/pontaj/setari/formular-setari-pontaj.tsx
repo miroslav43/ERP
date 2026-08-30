@@ -317,12 +317,12 @@ export function FormularSetariPontaj({
     programStart === ""
       ? null
       : intervalulPropus(programStart, {
-          orePeZi: numar(orePeZi, 8),
+          orePeZi: orePeZi ?? 8,
           noapteStart: setariCurente?.noapte_start.slice(0, 5) ?? "22:00",
           noapteSfarsit: setariCurente?.noapte_sfarsit.slice(0, 5) ?? "06:00",
           pauzaMinute: numar(pauzaMinute, 0),
           pauzaInclusaInProgram: pauzaInclusa,
-          pauzaObligatoriePesteOre: numar(pauzaPrag, 0),
+          pauzaObligatoriePesteOre: pauzaPrag ?? 0,
         });
 
   // Configurație care se anulează singură: minute de pauză declarate, dar care nu
@@ -697,7 +697,7 @@ export function FormularSetariPontaj({
             </span>{" "}
             și va înregistra{" "}
             <span className="text-foreground font-medium tabular-nums">
-              {numar(orePeZi, 8).toLocaleString("ro-RO")}
+              {(orePeZi ?? 8).toLocaleString("ro-RO")}
             </span>{" "}
             ore lucrate.
           </p>
