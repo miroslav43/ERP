@@ -22,6 +22,7 @@ import { filtreCereriSchema } from "@/schemas/leave";
 import { fisaProprie } from "@/lib/queries/portal";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 
+import { ButonSetariConcedii } from "../buton-setari";
 import { FiltreCereri, type OptiuneAngajat as OptiuneAngajatFiltru } from "../filtre-cereri";
 import { NavConcedii } from "../nav-concedii";
 import { TabelCereri } from "../tabel-cereri";
@@ -53,6 +54,7 @@ export default async function PaginaConcediiEchipa({ searchParams }: Proprietati
   const fisaMea = await fisaProprie(tenant.organizationId, user.id);
   const scope: "team" | "all" = can(permisiuni, "leave:read", "all") ? "all" : "team";
   const poateAproba = can(permisiuni, "leave:approve", "team");
+  const poateConfigura = can(permisiuni, "leave:update", "all");
 
   const parametri = await searchParams;
   const filtre = filtreDinUrl(filtreCereriSchema, parametri);
@@ -104,6 +106,9 @@ export default async function PaginaConcediiEchipa({ searchParams }: Proprietati
             ? "Cererile de concediu ale tuturor angajaților din organizație, mai puțin ale dumneavoastră."
             : "Cererile de concediu ale angajaților din subordinea dumneavoastră."
         }
+        {...(poateConfigura
+          ? { actiuni: <ButonSetariConcedii poateConfigura={poateConfigura} /> }
+          : {})}
         file={
           <NavConcedii
             poateVedeaEchipa={true}

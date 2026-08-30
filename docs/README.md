@@ -26,6 +26,10 @@ prima dată (om sau un cont nou de Claude):
   `design/critique.md` pentru ce s-a respins/schimbat față de plan).
 - `superpowers/` — planuri/specificații scrise prin skill-ul `superpowers`
   (feature-uri individuale, ex. coduri CAEN).
+- `reges-online.md` — punerea în funcțiune a modulului REGES la o firmă-client
+  (chei de test, pași de configurare, diagnostic).
+- `reges-online-arhitectura.md` — la ce folosește modulul REGES și cum e
+  construit: fluxul eveniment → coadă → API, tabelele, securitatea, permisiunile.
 
 ## Când adaugi documentație nouă
 

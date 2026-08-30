@@ -22,6 +22,7 @@ import { filtreCereriSchema } from "@/schemas/leave";
 import { fisaProprie } from "@/lib/queries/portal";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 
+import { ButonSetariConcedii } from "./buton-setari";
 import { FiltreCereri } from "./filtre-cereri";
 import { NavConcedii } from "./nav-concedii";
 import { TabelCereri } from "./tabel-cereri";
@@ -105,11 +106,9 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
       <AntetPagina
         titlu="Concedii"
         descriere="Cererile dumneavoastră de concediu."
-        // Configurarea modulului stă în dreapta sus, ca la pontaj și la
-        // salarizare, nu ca ultimă filă în bandă. Banda e pentru VIZUALIZĂRI
-        // ale acelorași cereri — „ale mele”, „ale echipei”, sold, aprobări,
-        // calendar; o filă către un ecran de administrare stătea în același
-        // rând cu ele și se citea ca o a șasea vizualizare.
+        // De ce setările stau în dreapta sus și nu ca filă în bandă: vezi
+        // `ButonSetariConcedii`. Butonul e aceeași componentă pe toate cele
+        // cinci ecrane ale modulului, ca să nu dispară la un pas în lateral.
         //
         // `secundar` înaintea lui `primar`: acțiunea zilnică rămâne „Cerere
         // nouă”, iar setările se ating de câteva ori pe an.
@@ -117,11 +116,7 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
           ? {
               actiuni: (
                 <>
-                  {poateConfigura ? (
-                    <Link href="/concedii/setari" className={buton({ varianta: "secundar" })}>
-                      Setări
-                    </Link>
-                  ) : null}
+                  <ButonSetariConcedii poateConfigura={poateConfigura} />
                   {poateCrea ? (
                     <Link href="/concedii/noua" className={buton({ varianta: "primar" })}>
                       <CalendarPlus aria-hidden="true" className="size-4" />

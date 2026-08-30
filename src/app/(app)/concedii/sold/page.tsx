@@ -25,6 +25,7 @@ import {
   type TipConcediu,
 } from "@/lib/queries/leave";
 
+import { ButonSetariConcedii } from "../buton-setari";
 import { NavConcedii } from "../nav-concedii";
 import { anDinUrl } from "@/lib/rute/parametri";
 
@@ -186,6 +187,7 @@ export default async function PaginaSoldConcediu({ searchParams }: ProprietatiPa
       : "own";
   const poateAproba = can(permisiuni, "leave:approve", "team");
   const poateVedeaCalendar = can(permisiuni, "leave:read", "team");
+  const poateConfigura = can(permisiuni, "leave:update", "all");
 
   const parametri = await searchParams;
   const an = anDinUrl(parametri["an"], Number(todayInBucharest().slice(0, 4)));
@@ -242,7 +244,12 @@ export default async function PaginaSoldConcediu({ searchParams }: ProprietatiPa
             ? "Soldul dumneavoastră de zile de concediu, pe tip."
             : "Soldul de zile de concediu al angajaților vizibili pentru dvs., pe tip."
         }
-        actiuni={<SelectorAn an={an} />}
+        actiuni={
+          <>
+            <ButonSetariConcedii poateConfigura={poateConfigura} />
+            <SelectorAn an={an} />
+          </>
+        }
         file={
           <NavConcedii
             poateVedeaEchipa={poateVedeaCalendar}

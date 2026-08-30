@@ -16,6 +16,7 @@ import { formatDate, formatDateTime } from "@/lib/format/date";
 import { deAprobat } from "@/lib/queries/leave";
 import { oreParaTermen, treaptaTermenDecizie } from "@/domain/leave/termen-aprobare";
 
+import { ButonSetariConcedii } from "../buton-setari";
 import { NavConcedii } from "../nav-concedii";
 import { DecizieAprobare } from "./decizie-aprobare";
 
@@ -56,6 +57,7 @@ export default async function PaginaAprobariConcedii() {
   }
 
   const poateVedeaCalendar = can(permisiuni, "leave:read", "team");
+  const poateConfigura = can(permisiuni, "leave:update", "all");
   const { sarcini, trunchiat } = await deAprobat(tenant.organizationId, user.id);
   const acum = new Date();
 
@@ -74,6 +76,9 @@ export default async function PaginaAprobariConcedii() {
                 sarcini.length === 1 ? "cerere așteaptă" : "cereri așteaptă"
               } decizia dumneavoastră.`
         }
+        {...(poateConfigura
+          ? { actiuni: <ButonSetariConcedii poateConfigura={poateConfigura} /> }
+          : {})}
         file={
           <NavConcedii
             poateVedeaEchipa={poateVedeaCalendar}
