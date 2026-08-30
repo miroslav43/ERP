@@ -32,12 +32,12 @@ export const metadata: Metadata = { title: "Pontajul meu" };
  * `.catch()`, nu `.parse()` strict: o adresă copiată greșit trebuie să cadă pe
  * implicit, nu să strice ecranul cu o eroare de validare.
  */
-const VIZUALIZARI = ["lista", "calendar"] as const;
-const vizualizareSchema = z.enum(VIZUALIZARI).catch("lista");
+const VIZUALIZARI = ["calendar", "lista"] as const;
+const vizualizareSchema = z.enum(VIZUALIZARI).catch("calendar");
 
 const OPTIUNI_VIZUALIZARE = [
-  { cheie: "lista", eticheta: "Listă", pictograma: LayoutList },
   { cheie: "calendar", eticheta: "Calendar", pictograma: CalendarDays },
+  { cheie: "lista", eticheta: "Listă", pictograma: LayoutList },
 ] as const;
 
 interface ProprietatiPagina {
@@ -102,11 +102,16 @@ export default async function PaginaPontajulMeu({ searchParams }: ProprietatiPag
 
   /**
    * Săgețile de lună construiesc adresa de la zero, deci trebuie să care mai
-   * departe vizualizarea: fără asta, primul „Luna următoare” apăsat din calendar
-   * te arunca înapoi în listă, ceea ce arată exact ca un defect. Aceeași scăpare
-   * era semnalată în scris la comutatorul din `/rapoarte`.
+   * departe vizualizarea: fără asta, primul „Luna următoare” apăsat din listă
+   * te arunca înapoi în calendar, ceea ce arată exact ca un defect. Aceeași
+   * scăpare era semnalată în scris la comutatorul din `/rapoarte`.
+   *
+   * Se omite valoarea IMPLICITĂ, care e acum `calendar` — aceeași pe care o
+   * șterge din adresă `ComutatorVizualizare` prin `implicita`. Cele două
+   * trebuie să spună mereu același lucru: dacă diverg, săgeata de lună scrie în
+   * adresă exact parametrul pe care comutatorul tocmai l-a scos.
    */
-  const sufixVizualizare = vizualizare === "lista" ? "" : `&vizualizare=${vizualizare}`;
+  const sufixVizualizare = vizualizare === "calendar" ? "" : `&vizualizare=${vizualizare}`;
   const adresaLuna = (tinta: { readonly an: number; readonly luna: number }) =>
     `/portal/pontajul-meu?an=${String(tinta.an)}&luna=${String(tinta.luna)}${sufixVizualizare}`;
 
@@ -141,13 +146,13 @@ export default async function PaginaPontajulMeu({ searchParams }: ProprietatiPag
 
       {/* Comutatorul rămâne pe ecran și când luna e goală: altfel omul care a
           ajuns pe o lună fără înregistrări nu mai are de unde să afle că există
-          vederea de calendar. */}
+          și cealaltă vedere. */}
       <ComutatorVizualizare
         eticheta="Cum se afișează pontajul"
         cheieParametru="vizualizare"
         optiuni={OPTIUNI_VIZUALIZARE}
         curenta={vizualizare}
-        implicita="lista"
+        implicita="calendar"
         parametri={parametri}
         cale="/portal/pontajul-meu"
       />
