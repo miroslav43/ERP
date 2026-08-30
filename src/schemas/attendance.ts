@@ -34,6 +34,34 @@ export const STATUS_PERIOADA = ["deschisa", "in_aprobare", "blocata"] as const;
 export const MODURI_PONTARE_RAPIDA = ["oprit", "confirmare", "ceas", "ambele"] as const;
 export type ModPontareRapida = (typeof MODURI_PONTARE_RAPIDA)[number];
 
+/**
+ * Ce pontează o firmă care n-a configurat nimic.
+ *
+ * ── DE CE IMPLICITUL DIN COD E CEL CARE DECIDE ──────────────────────────────
+ * Nu `default`-ul coloanei. `0096` a adăugat `mod_pontare_rapida` cu
+ * `default 'oprit'`, iar starea reală a bazei era: o firmă cu două rânduri de
+ * setări (ambele `oprit`, din backfill-ul acelui `ALTER TABLE`, nealese de
+ * nimeni) și DOUĂ FIRME FĂRĂ NICIUN RÂND. Pentru cele din urmă, orice `default`
+ * de coloană e irelevant — nu există rând pe care să-l aplice. Valoarea asta e.
+ *
+ * Există ca o constantă, nu ca patru literale `?? "oprit"` risipite prin cod,
+ * fiindcă unul dintre acele patru locuri era `pregatirePontareRapida` din
+ * `src/app/(app)/pontaj/actions.ts` — POARTA DE SCRIERE. Ecranul și acțiunea
+ * cad pe aceeași valoare; dacă ar diverge, butonul s-ar desena și acțiunea l-ar
+ * refuza cu „Pontarea rapidă nu este activată" — o atingere aruncată și o
+ * eroare fără vină.
+ *
+ * `ceas` și nu `confirmare`/`ambele`: acelea propun un interval derivat din
+ * `program_start`, care e opțional — vezi refinement-ul de mai jos.
+ *
+ * TRANZITORIU: `0115_pontare_rapida_setari_proprii.sql` mută setările pontării
+ * rapide în tabela lor (`setari_pontare_rapida`, același implicit) și își aduce
+ * propriile implicite în `src/domain/attendance/pontare-rapida.ts`. Când
+ * fișierul acela există, constanta de aici se șterge și consumatorii ei trec pe
+ * el — nu se țin două surse pentru aceeași valoare.
+ */
+export const MOD_PONTARE_IMPLICIT: ModPontareRapida = "ceas";
+
 /** Cum se verifică prezența la pontarea rapidă (0096). */
 export const VERIFICARI_PONTARE = ["fara", "cod_qr"] as const;
 export type VerificarePontare = (typeof VERIFICARI_PONTARE)[number];
@@ -320,7 +348,7 @@ export const setariPontajSchema = z
      * încrucișată de mai jos.
      */
     program_start: optional(z.string().regex(/^\d{2}:\d{2}$/u, "Ora trebuie să fie HH:MM.")),
-    mod_pontare_rapida: z.enum(MODURI_PONTARE_RAPIDA).default("oprit"),
+    mod_pontare_rapida: z.enum(MODURI_PONTARE_RAPIDA).default(MOD_PONTARE_IMPLICIT),
     verificare_pontare: z.enum(VERIFICARI_PONTARE).default("fara"),
   })
   .refine(

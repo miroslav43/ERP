@@ -24,6 +24,7 @@ import {
   decideZiPontajSchema,
   deschidePerioadaSchema,
   idPerioadaSchema,
+  MOD_PONTARE_IMPLICIT,
   pontezaIesireaSchema,
   pontezaIntrareaSchema,
   salveazaZiPontajSchema,
@@ -367,7 +368,7 @@ async function pregatirePontareRapida(
   const azi = todayInBucharest();
   const setari = await setariPontaj(ctx.tenant.organizationId, azi);
 
-  const mod = (setari?.mod_pontare_rapida ?? "oprit") as ModPontareRapida;
+  const mod = (setari?.mod_pontare_rapida ?? MOD_PONTARE_IMPLICIT) as ModPontareRapida;
   if (!moduriPermise.includes(mod)) {
     throw businessRule(
       "Pontarea rapidă nu este activată în acest fel pentru firma dumneavoastră. Completați ziua din „Pontajul meu”.",

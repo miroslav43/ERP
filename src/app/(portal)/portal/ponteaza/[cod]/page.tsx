@@ -15,6 +15,7 @@ import { citestePerioada, setariPontaj } from "@/lib/queries/attendance";
 import { fisaMea, pontajulMeu } from "@/lib/queries/portal";
 import { configZiDin, intervalulPropus } from "@/domain/attendance/calcul-ore";
 import { stareaCeasului } from "@/domain/attendance/ceas";
+import { MOD_PONTARE_IMPLICIT } from "@/schemas/attendance";
 
 import { FaraFisa } from "../../fara-fisa";
 import { PontareRapida } from "../../pontare-rapida";
@@ -74,7 +75,7 @@ export default async function PaginaPonteazaCod({
     pontajulMeu(tenant.organizationId, an, luna, stare.fisa.id),
   ]);
 
-  const modPontare = setari?.mod_pontare_rapida ?? "oprit";
+  const modPontare = setari?.mod_pontare_rapida ?? MOD_PONTARE_IMPLICIT;
   const ziDeAzi = zile.find((z) => z.data === azi) ?? null;
   const config = configZiDin(setari);
   const stareCeas = stareaCeasului(ziDeAzi, oraInBucharest(new Date()));

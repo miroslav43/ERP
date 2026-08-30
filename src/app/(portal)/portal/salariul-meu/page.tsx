@@ -9,7 +9,11 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { fisaMea } from "@/lib/queries/portal";
-import { citesteFluturasulPropriu, listeazaBonusuriSiRetineri } from "@/lib/queries/payroll";
+import {
+  citesteFluturasulPropriu,
+  listeazaBonusuriSiRetineri,
+  perioadaInregistrarii,
+} from "@/lib/queries/payroll";
 import { Wallet } from "lucide-react";
 
 import { AVERTISMENT_SALARIZARE } from "../../../(app)/salarizare/etichete";
@@ -40,14 +44,17 @@ export default async function PaginaSalariulMeu() {
   const propriaFisaId = stare.fisa.id;
 
   const inregistrare = await citesteFluturasulPropriu(tenant.organizationId, propriaFisaId);
-  const { bonusuri, retineri } =
+  const [{ bonusuri, retineri }, perioada] =
     inregistrare === null
-      ? { bonusuri: [], retineri: [] }
-      : await listeazaBonusuriSiRetineri(
-          tenant.organizationId,
-          inregistrare.period_id,
-          inregistrare.employee_id,
-        );
+      ? ([{ bonusuri: [], retineri: [] }, null] as const)
+      : await Promise.all([
+          listeazaBonusuriSiRetineri(
+            tenant.organizationId,
+            inregistrare.period_id,
+            inregistrare.employee_id,
+          ),
+          perioadaInregistrarii(tenant.organizationId, inregistrare.period_id),
+        ]);
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 p-4">
@@ -65,16 +72,19 @@ export default async function PaginaSalariulMeu() {
           <p className="text-muted-foreground border-warning/40 bg-warning/8 rounded-panou text-nota border p-3">
             {AVERTISMENT_SALARIZARE}
           </p>
-          {/* `perioada={null}`: luna NU se poate citi din portal. Vezi nota de
-              pe `perioada` din `Fluturas` — `payroll_periods_select` cere
-              `payroll:read = "all"`, iar angajatul are `own`. Nu e o scăpare,
-              e o limită a bazei, iar `null` o spune explicit în loc s-o lase
-              să pară o omisiune. */}
+          {/* Luna se citește, de la migrarea `0113_luna_fluturasului_propriu`.
+              Până atunci aici scria literal `perioada={null}`, cu nota că e o
+              limită a bazei: `payroll_periods_select` cerea `payroll:read =
+              "all"`, iar angajatul are `own`, deci rândul cu anul și luna îi
+              era refuzat tăcut. 0113 a adăugat ramura proprie — perioadele
+              aprobate sau închise în care omul are chiar fluturașul lui.
+              `null` rămâne posibil (o perioadă ștearsă între timp), și atunci
+              `Fluturas` scrie „cel mai recent calculat" în loc să ghicească. */}
           <Fluturas
             inregistrare={inregistrare}
             bonusuri={bonusuri}
             retineri={retineri}
-            perioada={null}
+            perioada={perioada}
           />
 
           <a

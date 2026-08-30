@@ -9,6 +9,7 @@ import { IntrareDurata, IntrareOra } from "@/components/ui/intrare-ora";
 import { formatOre } from "@/lib/format/ore";
 import { intervalulPropus, oreleZilei } from "@/domain/attendance/calcul-ore";
 import type { SetariPontajComplete } from "@/lib/queries/attendance";
+import { MOD_PONTARE_IMPLICIT } from "@/schemas/attendance";
 
 import { salveazaSetariPontaj } from "./actions";
 
@@ -241,11 +242,14 @@ export function FormularSetariPontaj({
     setariCurente?.pauza_masa_inclusa_in_program ?? false,
   );
 
-  // Pontarea rapidă (0096). Implicitul `oprit` NU e prudență de formular: e chiar
-  // implicitul coloanei din migrare. O firmă care n-a ales nimic nu capătă tăcut
-  // o cale nouă prin care angajații îi scriu în pontaj.
+  // Pontarea rapidă (0096). Valoarea de rezervă stă într-un singur loc —
+  // `MOD_PONTARE_IMPLICIT` — fiindcă aceeași valoare decide și dacă acțiunea
+  // acceptă scrierea. Comentariul de aici a spus multă vreme că firma „nu
+  // capătă tăcut o cale nouă prin care angajații îi scriu în pontaj"; s-a
+  // dovedit că nici n-o capătă vreodată: `oprit` era backfill de coloană, nu
+  // alegerea nimănui, iar butonul n-a fost vizibil pentru nicio firmă.
   const [modPontare, setModPontare] = useState<string>(
-    setariCurente?.mod_pontare_rapida ?? "oprit",
+    setariCurente?.mod_pontare_rapida ?? MOD_PONTARE_IMPLICIT,
   );
   const [verificare, setVerificare] = useState<string>(setariCurente?.verificare_pontare ?? "fara");
   const [programStart, setProgramStart] = useState(
