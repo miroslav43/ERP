@@ -128,7 +128,7 @@ Fiecare își păstrează `search_path = ''` și coada `revoke`/`grant` existent
 | `app/(app)/angajati/import/actions.ts`            | „funcție" devine text; dispare find-or-create-ul de nomenclator            |
 | `app/(app)/angajati/nou/actions.ts`               | potrivirea șablonului de checklist: `job_position_id` → `cod_cor`          |
 | `schemas/{employee,leave,cursuri,checklist}.ts`   | `job_position_id: uuid` → `cod_cor: codCor`                                |
-| `schemas/comun.ts`                                | primește `codCorOptional`, mutat din `schemas/job-position.ts` și **întărit**: azi validează `^[0-9]{6}$`, va cere cod existent în nomenclator (`ocupatiaDupaCod`, 4422 de ocupații deja în cod) |
+| `schemas/comun.ts`                                | primește `codCorOptional`, mutat ca atare din `schemas/job-position.ts`. Verifică deja și formatul `^[0-9]{6}$`, și existența în nomenclator (`codCorExista`, 4422 de ocupații) — nu are nevoie de întărire, doar de un domiciliu comun, fiindcă `schemas/job-position.ts` dispare |
 | `components/cauta-cor.tsx`                        | mutat din `app/(app)/functii/`, ca să-l poată folosi și fișa, și ecranele de reguli |
 
 ## 7. Interfața
