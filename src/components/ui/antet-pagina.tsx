@@ -48,7 +48,24 @@ export type PropsAntetPagina = Readonly<{
    * ești în produs, asta spune al cui e ecranul.
    */
   firimituri?: readonly Readonly<{ eticheta: string; href?: string }>[];
-  /** Butoanele din dreapta. Cel mult două — a treia se mută într-un meniu. */
+  /**
+   * Butoanele din dreapta. Cel mult două — a treia se mută într-un meniu.
+   *
+   * ── DE CE CONTAINERUL LOR ARE ȘI `max-w-full` ─────────────────────────
+   * `shrink-0` singur îl rupea. Lățimea de conținut a unui container
+   * `flex-wrap` este suma copiilor pe UN rând — asta e `max-content`, iar
+   * `shrink-0` spune fix „nu coborî sub `max-content`". Deci containerul
+   * rămânea la lățimea tuturor butoanelor puse cap la cap, `flex-wrap` nu
+   * apuca niciodată să încapsuleze nimic, iar butoanele ieșeau din card, fără
+   * bară de derulare proprie și fără nicio eroare.
+   *
+   * `max-w-full` îl taie la lățimea antetului: abia sub plafonul ăsta copiii
+   * încep să curgă pe al doilea rând. Se vedea pe fișa angajatului, unde
+   * antetul primește CINCI copii (două butoane, ștergerea, două ecusoane), nu
+   * doi — iar meniul lateral fix de la `md` în sus lasă conținutului sub 600px
+   * pe un ecran de 900. Prima poziție unde se rupea nu era telefonul, ci
+   * laptopul mic.
+   */
   actiuni?: ReactNode;
   /** Banda de file a modulului, ca `<NavConcedii />`. Logica rămâne la modul. */
   file?: ReactNode;
@@ -96,7 +113,7 @@ export function AntetPagina({
           )}
         </div>
         {actiuni === undefined ? null : (
-          <div className="flex shrink-0 flex-wrap items-center gap-2">{actiuni}</div>
+          <div className="flex max-w-full shrink-0 flex-wrap items-center gap-2">{actiuni}</div>
         )}
       </div>
       {file}
