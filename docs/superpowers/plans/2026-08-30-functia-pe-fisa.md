@@ -48,8 +48,8 @@ regenerarea tipurilor.
 
 | Fișier                                        | Răspundere                                        |
 | --------------------------------------------- | ------------------------------------------------- |
-| `supabase/migrations/0108_functia_pe_fisa.sql` | coloane noi + backfill (aditivă)                  |
-| `supabase/migrations/0109_functia_fara_nomenclator.sql` | funcții SQL rescrise, CHECK-uri rescrise, coloane vechi șterse |
+| `supabase/migrations/0110_functia_pe_fisa.sql` | coloane noi + backfill (aditivă)                  |
+| `supabase/migrations/0111_functia_fara_nomenclator.sql` | funcții SQL rescrise, CHECK-uri rescrise, coloane vechi șterse |
 | `src/domain/checklist/potrivire-sablon.ts`     | alegerea șablonului de onboarding — funcție pură  |
 | `src/domain/checklist/potrivire-sablon.test.ts`| testele ei                                        |
 | `src/components/cauta-cor.tsx`                 | căutarea COR, mutată din `app/(app)/functii/`     |
@@ -66,7 +66,7 @@ regenerarea tipurilor.
 
 **Fișiere:**
 
-- Creează: `supabase/migrations/0108_functia_pe_fisa.sql`
+- Creează: `supabase/migrations/0110_functia_pe_fisa.sql`
 - Modifică: `src/types/database.ts` (generat)
 
 **Interfețe produse:** coloanele `functie text` și `cod_cor text` pe `employees`,
@@ -135,10 +135,12 @@ Antetul trebuie să spună explicit **de ce e aditivă**: codul aflat în produc
 face `select("job_position_id")`, iar ștergerea coloanei l-ar doborî în fereastra dintre
 migrare și deploy — baza e aceeași pentru dev și pentru producție.
 
-> **Capcană de numerotare:** pe disc există DEJA două `0107` (`0107_departamentul_conducere.sql`
-> și `0107_drepturile_mele_concediu.sql`), semn că altă sesiune a lucrat în paralel.
-> Verifică `ls supabase/migrations/ | tail -3` înainte de a fixa numărul; la coliziune îți
-> redenumești **propria** migrare.
+> **Capcană de numerotare — s-a întâmplat deja, în timpul scrierii planului.** Prima
+> versiune ținea `0108`/`0109`; între citirea directorului și scrierea fișierului, altă
+> sesiune a rezolvat o coliziune de `0107` și a adăugat un `0109` încă necomis
+> (`git status` îl arată `??`). Verifică `ls supabase/migrations/ | tail -3` **imediat
+> înainte** de a scrie fișierul, nu la începutul task-ului; la coliziune îți redenumești
+> **propria** migrare, niciodată pe a altcuiva.
 
 - [ ] **Pasul 2: Rulează pe bancul local**
 
@@ -188,7 +190,7 @@ Așteptat: **verde**. Migrarea e aditivă; dacă pică ceva aici, altcineva a sc
 
 ```bash
 git commit --only -m "feat(functii): coloane functie + cod_cor pe fișă, contract și reguli" \
-  -- supabase/migrations/0108_functia_pe_fisa.sql src/types/database.ts
+  -- supabase/migrations/0110_functia_pe_fisa.sql src/types/database.ts
 ```
 
 ---
@@ -774,7 +776,7 @@ generate. Dacă mai apare ceva, e un consumator scăpat — nu treci mai departe
 
 **Fișiere:**
 
-- Creează: `supabase/migrations/0109_functia_fara_nomenclator.sql`
+- Creează: `supabase/migrations/0111_functia_fara_nomenclator.sql`
 - Modifică: `src/types/database.ts`
 
 > **Poarta umană:** acest task se execută **numai după ce noul build rulează** în
