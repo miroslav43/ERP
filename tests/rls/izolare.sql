@@ -2986,7 +2986,7 @@ end $$;
 -- ─────────────────────────────────────────────────────────────────────────────
 -- (m) `drepturile_mele_concediu` întoarce DOAR drepturile celui care întreabă
 --
--- Funcția e SECURITY DEFINER (0107): înăuntru, RLS nu o oprește. Tot ce o ține
+-- Funcția e SECURITY DEFINER (0108): înăuntru, RLS nu o oprește. Tot ce o ține
 -- în frâu sunt cele două verificări pe care le face ea însăși — apartenența la
 -- organizație și rezolvarea fișei din `app.current_employee_id()`. Dacă vreuna
 -- cade, un angajat citește configurarea altei firme fără să apară nicio eroare.

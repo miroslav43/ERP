@@ -1,5 +1,10 @@
 -- =====================================================================================
--- 0107_drepturile_mele_concediu.sql
+-- 0108_drepturile_mele_concediu.sql
+--
+-- Scrisă ca 0107, renumerotată la merge: `0107_departamentul_conducere.sql`
+-- ocupase deja numărul și era APLICATĂ pe bază (30 aug), iar regula
+-- forward-only interzice mutarea celei aplicate. Se mută cea care n-a plecat
+-- încă nicăieri. Conținutul e neatins.
 --
 -- Angajatul își vede, din portal, la ce tipuri de concediu are dreptul și câte
 -- zile la fiecare — după setările firmei lui, nu după o listă generică.
