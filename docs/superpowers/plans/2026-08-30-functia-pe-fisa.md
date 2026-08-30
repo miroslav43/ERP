@@ -46,15 +46,15 @@ regenerarea tipurilor.
 
 **Se creează:**
 
-| Fișier                                        | Răspundere                                        |
-| --------------------------------------------- | ------------------------------------------------- |
-| `supabase/migrations/0110_functia_pe_fisa.sql` | coloane noi + backfill (aditivă)                  |
-| `supabase/migrations/0111_functia_fara_nomenclator.sql` | funcții SQL rescrise, CHECK-uri rescrise, coloane vechi șterse |
-| `src/domain/checklist/potrivire-sablon.ts`     | alegerea șablonului de onboarding — funcție pură  |
-| `src/domain/checklist/potrivire-sablon.test.ts`| testele ei                                        |
-| `src/components/cauta-cor.tsx`                 | căutarea COR, mutată din `app/(app)/functii/`     |
-| `src/app/(app)/angajati/[id]/dialog-incadrare.tsx` | dialogul cu cele patru câmpuri               |
-| `src/app/(app)/angajati/[id]/comutator-sef-departament.tsx` | comutatorul de șef            |
+| Fișier                                                      | Răspundere                                                     |
+| ----------------------------------------------------------- | -------------------------------------------------------------- |
+| `supabase/migrations/0110_functia_pe_fisa.sql`              | coloane noi + backfill (aditivă)                               |
+| `supabase/migrations/0111_functia_fara_nomenclator.sql`     | funcții SQL rescrise, CHECK-uri rescrise, coloane vechi șterse |
+| `src/domain/checklist/potrivire-sablon.ts`                  | alegerea șablonului de onboarding — funcție pură               |
+| `src/domain/checklist/potrivire-sablon.test.ts`             | testele ei                                                     |
+| `src/components/cauta-cor.tsx`                              | căutarea COR, mutată din `app/(app)/functii/`                  |
+| `src/app/(app)/angajati/[id]/dialog-incadrare.tsx`          | dialogul cu cele patru câmpuri                                 |
+| `src/app/(app)/angajati/[id]/comutator-sef-departament.tsx` | comutatorul de șef                                             |
 
 **Se șterg:** `src/app/(app)/functii/**` (10 fișiere) · `src/lib/queries/job-positions.ts`
 și `job-positions.test.ts` · `src/schemas/job-position.ts` ·
@@ -545,12 +545,17 @@ export const desemneazaSefDepartament = createAction<typeof sefDepartamentSchema
   name: "departments.set_head_from_employee",
   permission: "departments:update",
   minScope: "all",
-  input: sefDepartamentSchema,   // { employee_id, department_id, sef: boolean }
-  audit: { action: "update", entityType: "departments",
-           entityId: (input) => input.department_id,
-           allow: ["employee_id", "department_id", "sef"] },
+  input: sefDepartamentSchema, // { employee_id, department_id, sef: boolean }
+  audit: {
+    action: "update",
+    entityType: "departments",
+    entityId: (input) => input.department_id,
+    allow: ["employee_id", "department_id", "sef"],
+  },
   revalidate: ["/angajati", "/departamente", "/organigrama"],
-  handler: async (ctx, input) => { /* … */ },
+  handler: async (ctx, input) => {
+    /* … */
+  },
 });
 ```
 
@@ -788,11 +793,11 @@ generate. Dacă mai apare ceva, e un consumator scăpat — nu treci mai departe
 1. **Rescrie cele trei funcții SQL** — corpul se copiază din migrarea de origine și se
    schimbă exact o clauză în fiecare:
 
-   | Funcție                            | Origine                                | Clauza                                                        |
-   | ---------------------------------- | -------------------------------------- | ------------------------------------------------------------- |
-   | `app.drept_concediu`               | `0035_reguli_concediu.sql:179`         | `v_job_position = r.job_position_id` → `v_cod_cor = r.cod_cor`; selectul din `into` citește `e.cod_cor` |
-   | `internal.cursuri_aplica_regulile` | `0078_cursuri_reguli_atribuire.sql:88` | `e.job_position_id = v_regula.job_position_id` → `e.cod_cor = v_regula.cod_cor` |
-   | `public.checklist_salveaza_sablon` | `0090_integrare_salvare_sablon.sql:176`| cheia `job_position_id` din payload-ul JSON → `cod_cor`, cu `nullif(p_sablon->>'cod_cor', '')` fără cast la `uuid` |
+   | Funcție                            | Origine                                 | Clauza                                                                                                             |
+   | ---------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+   | `app.drept_concediu`               | `0035_reguli_concediu.sql:179`          | `v_job_position = r.job_position_id` → `v_cod_cor = r.cod_cor`; selectul din `into` citește `e.cod_cor`            |
+   | `internal.cursuri_aplica_regulile` | `0078_cursuri_reguli_atribuire.sql:88`  | `e.job_position_id = v_regula.job_position_id` → `e.cod_cor = v_regula.cod_cor`                                    |
+   | `public.checklist_salveaza_sablon` | `0090_integrare_salvare_sablon.sql:176` | cheia `job_position_id` din payload-ul JSON → `cod_cor`, cu `nullif(p_sablon->>'cod_cor', '')` fără cast la `uuid` |
 
    Fiecare își păstrează `security definer`, `set search_path = ''` și coada
    `revoke ... from public, anon, authenticated` existentă.

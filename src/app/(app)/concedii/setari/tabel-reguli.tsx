@@ -87,9 +87,7 @@ export function TabelReguli({
       antet: "Criteriu",
       peTelefon: "meta",
       celula: (regula) => (
-        <span className="text-muted-foreground">
-          {descrieCriteriu(regula, hartaDepartamente)}
-        </span>
+        <span className="text-muted-foreground">{descrieCriteriu(regula, hartaDepartamente)}</span>
       ),
     },
     {

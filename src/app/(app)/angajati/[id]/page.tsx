@@ -611,7 +611,10 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
             <dt className="text-muted-foreground text-nota tracking-wide uppercase">Funcție</dt>
             <dd className="mt-0.5 flex flex-wrap items-baseline gap-2">
               <span
-                className={cn("text-corp", angajat.functie === null && "text-muted-foreground/70 italic")}
+                className={cn(
+                  "text-corp",
+                  angajat.functie === null && "text-muted-foreground/70 italic",
+                )}
               >
                 {angajat.functie ?? "Nedeclarată"}
               </span>

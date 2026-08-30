@@ -195,10 +195,7 @@ export const actualizeazaAngajat = createAction({
  *    `USING` cu ZERO RÂNDURI ȘI FĂRĂ EROARE; fără verificarea rezultatului gol,
  *    un refuz ar ajunge pe ecran drept succes.
  */
-export const actualizeazaIncadrarea = createAction<
-  typeof incadrareSchema,
-  { id: string }
->({
+export const actualizeazaIncadrarea = createAction<typeof incadrareSchema, { id: string }>({
   name: "employees.update_incadrare",
   permission: "employees:update",
   minScope: "all",
@@ -207,13 +204,7 @@ export const actualizeazaIncadrarea = createAction<
     action: "update",
     entityType: "employee",
     entityId: (input) => input.employee_id,
-    allow: [
-      "employee_id",
-      "functie",
-      "cod_cor",
-      "department_id",
-      "manager_employee_id",
-    ],
+    allow: ["employee_id", "functie", "cod_cor", "department_id", "manager_employee_id"],
   },
   // `/organigrama` scrie funcția și subordonarea pe fiecare nod, deci se
   // învechește și ea. `/functii` NU mai e în listă: nomenclatorul a dispărut.
@@ -229,10 +220,8 @@ export const actualizeazaIncadrarea = createAction<
         .eq("organization_id", ctx.tenant.organizationId)
         .is("deleted_at", null)
         .maybeSingle();
-      if (eroareDepartament !== null)
-        throw mapPostgrestError(eroareDepartament, ctx.requestId);
-      if (departament === null)
-        throw notFound("Departamentul selectat nu a fost găsit.");
+      if (eroareDepartament !== null) throw mapPostgrestError(eroareDepartament, ctx.requestId);
+      if (departament === null) throw notFound("Departamentul selectat nu a fost găsit.");
       if (!departament.activ) {
         throw businessRule(
           `Departamentul „${departament.denumire}” este dezactivat, deci nu primește oameni.`,
@@ -248,10 +237,8 @@ export const actualizeazaIncadrarea = createAction<
         .eq("organization_id", ctx.tenant.organizationId)
         .is("deleted_at", null)
         .maybeSingle();
-      if (eroareManager !== null)
-        throw mapPostgrestError(eroareManager, ctx.requestId);
-      if (manager === null)
-        throw notFound("Managerul selectat nu a fost găsit.");
+      if (eroareManager !== null) throw mapPostgrestError(eroareManager, ctx.requestId);
+      if (manager === null) throw notFound("Managerul selectat nu a fost găsit.");
 
       // Ciclul: cel ales îl are deja pe angajat în propriul lanț de superiori,
       // deci legarea invers ar închide bucla. `manager_path` e ținut de trigger
@@ -279,9 +266,7 @@ export const actualizeazaIncadrarea = createAction<
       .maybeSingle();
     if (error !== null) throw mapPostgrestError(error, ctx.requestId);
     if (data === null)
-      throw notFound(
-        "Fișa de angajat nu a fost găsită sau nu vă este accesibilă.",
-      );
+      throw notFound("Fișa de angajat nu a fost găsită sau nu vă este accesibilă.");
 
     return { id: data.id };
   },
@@ -340,8 +325,7 @@ export const desemneazaSefDepartament = createAction<
       .eq("organization_id", ctx.tenant.organizationId)
       .is("deleted_at", null)
       .maybeSingle();
-    if (eroareAngajat !== null)
-      throw mapPostgrestError(eroareAngajat, ctx.requestId);
+    if (eroareAngajat !== null) throw mapPostgrestError(eroareAngajat, ctx.requestId);
     if (angajat === null) throw notFound("Fișa de angajat nu a fost găsită.");
     if (angajat.department_id !== input.department_id) {
       throw businessRule(
@@ -359,8 +343,7 @@ export const desemneazaSefDepartament = createAction<
       .eq("organization_id", ctx.tenant.organizationId)
       .is("deleted_at", null)
       .maybeSingle();
-    if (eroareInainte !== null)
-      throw mapPostgrestError(eroareInainte, ctx.requestId);
+    if (eroareInainte !== null) throw mapPostgrestError(eroareInainte, ctx.requestId);
     if (inainte === null) throw notFound("Departamentul nu a fost găsit.");
 
     const sefAnteriorId = inainte.manager_employee_id;
@@ -379,8 +362,7 @@ export const desemneazaSefDepartament = createAction<
       .select("id")
       .maybeSingle();
     if (error !== null) throw mapPostgrestError(error, ctx.requestId);
-    if (data === null)
-      throw notFound("Departamentul nu a fost găsit sau nu vă este accesibil.");
+    if (data === null) throw notFound("Departamentul nu a fost găsit sau nu vă este accesibil.");
 
     const contextul: ContextSef = {
       db,

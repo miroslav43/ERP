@@ -118,10 +118,10 @@ export function ReguliCurs({
     criteriu === "departament"
       ? departamente.map((d) => ({ id: d.id, text: d.denumire }))
       : criteriu === "angajat"
-          ? angajati.map((a) => ({ id: a.id, text: a.nume }))
-          : criteriu === "rol"
-            ? ROLURI.map((r) => ({ id: r, text: ETICHETE_ROL[r] ?? r }))
-            : [];
+        ? angajati.map((a) => ({ id: a.id, text: a.nume }))
+        : criteriu === "rol"
+          ? ROLURI.map((r) => ({ id: r, text: ETICHETE_ROL[r] ?? r }))
+          : [];
 
   return (
     <div className="space-y-4">

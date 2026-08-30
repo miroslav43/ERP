@@ -964,9 +964,7 @@ export type OptiuneDenumita = Readonly<{ id: string; denumire: string }>;
 /** Departamente și funcții, pentru selectoarele regulii. Plafon 300 fiecare. */
 export async function tinteRegula(
   organizationId: string,
-): Promise<
-  Readonly<{ departamente: readonly OptiuneDenumita[] }>
-> {
+): Promise<Readonly<{ departamente: readonly OptiuneDenumita[] }>> {
   const db = await createServerSupabase();
   const [dep] = await Promise.all([
     db

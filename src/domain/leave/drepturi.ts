@@ -102,11 +102,7 @@ function seAplicaRegula(
         regula.departmentId === angajat.departmentId
       );
     case "functie":
-      return (
-        regula.codCor !== null &&
-        angajat.codCor !== null &&
-        regula.codCor === angajat.codCor
-      );
+      return regula.codCor !== null && angajat.codCor !== null && regula.codCor === angajat.codCor;
     default: {
       const necunoscut: never = regula.tipCriteriu;
       throw new RangeError(`Criteriu de grilă de concediu necunoscut: ${String(necunoscut)}`);

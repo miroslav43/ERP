@@ -213,15 +213,8 @@ export default async function PaginaSetariConcedii({ searchParams }: Proprietati
           simultan (ex. vechime + condiții deosebite). Nu se pot adăuga grile pe tipurile
           reglementate legal.
         </p>
-        <TabelReguli
-          reguli={reguli}
-          tipuri={tipuri}
-          departamente={departamente}
-        />
-        <FormularRegulaNoua
-          tipuri={tipuriAdaptabile}
-          departamente={departamente}
-        />
+        <TabelReguli reguli={reguli} tipuri={tipuri} departamente={departamente} />
+        <FormularRegulaNoua tipuri={tipuriAdaptabile} departamente={departamente} />
       </section>
 
       <section

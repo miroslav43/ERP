@@ -29,19 +29,18 @@ capcane: [10, 11, 22, 30]
 citeste_daca:
   - "CNP/IBAN care nu se văd → [[rol/hr]]"
   - "coloană inexistentă la SELECT → [[date/pontaj]]"
-scris_pe: 3c9747a4f30ad317e7ea4e01fe0a4e778381411e
+scris_pe: 26b9de685cdd0f50bf4947388e750faa6ddede74
 scris_la: 2026-08-30
 tags: [modul, hr, nucleu]
 ---
 
 # Angajați
 
-Fișa angajatului, contractele, documentele și datele personale sensibile. E modulul cu
-cel mai mare rulaj din proiect și cu cea mai mare densitate de fix-uri — orice schimbare
-aici atinge alte module.
+Fișa angajatului, contractele, documentele și datele personale sensibile. Orice
+schimbare aici atinge alte module.
 
-**Nu are feature flag.** Paginile cer `requireFeature(tenant.organizationId, "nucleu")`,
-adică sunt mereu active.
+**Nu are feature flag**: paginile cer `requireFeature(…, "nucleu")`, deci sunt mereu
+active.
 
 ## Rute și cine ajunge
 
@@ -69,6 +68,8 @@ adică sunt mereu active.
 | `pregatesteIncarcareaImportului`, `analizeazaImportAngajati`, `aplicaImportAngajati` | all                        | import             |
 | `emiteDocumenteLipsa`, `regenereazaDocumente`                                        | `employees:create` / all   | documente          |
 | `salveazaSablonDocument`, `restabilesteSablonPlatforma`                              | `employees:update` / all   | sabloane-documente |
+| `actualizeazaIncadrarea`                                                             | `employees:update` / all   | `actions.ts`       |
+| `desemneazaSefDepartament`                                                           | `departments:update` / all | `actions.ts`       |
 
 ## Citiri
 
@@ -77,7 +78,25 @@ proiectul: `idFisaProprie`, `listeazaAngajati` (cursor keyset base64url),
 `citesteAngajat`, `citesteAngajatPentruEditare`, `lantulDeManageri`,
 `arboreleManagerial`, `colegiPentruManager`, `angajatiPentruPontaj`,
 `citesteRezumatDateSensibile`, `citesteScutiriFiscale`, `citesteComponenteSalariale`,
-`functiiActive`.
+`functiiFolosite`.
+
+## Încadrarea (funcție, cod COR, departament, manager)
+
+**0110** a desființat nomenclatorul `job_positions`: funcția e `employees.functie` plus
+`employees.cod_cor` (validat contra nomenclatorului COR din `src/domain/hr/`, **nu** în
+bază). Contractul are propriile `functie`/`cod_cor`, **înghețate la semnare** — codul
+stătea pe nomenclator, deci corectarea lui rescria retroactiv ce se declara la ITM.
+
+- **`manager` NU are `employees:update`, la niciun scope** — doar `read = team`; invocată
+  direct, acțiunea e refuzată cu ZERO RÂNDURI. Probat în `izolare.sql` `(l)`.
+- **`manager_employee_id` e cel mai periculos câmp al fișei.** Golirea lui declanșează
+  `tg_employees_manager_path`, care rescrie `manager_path` la TOȚI subordonații; cum
+  `team` se rezolvă pe `manager_path`, o ramură întreagă devine invizibilă managerului
+  ei, fără eroare. Dialogul îl pre-completează, iar câmpul e de acum în lista de audit.
+- **Criteriul „funcție" al regulilor** (concedii, cursuri, bonusuri, checklist) se
+  potrivește pe `cod_cor`, evaluat de funcțiile rescrise în **0111** — pe text, „Sudor"
+  și „sudor" ar fi fost două reguli diferite, tăcut. O fișă fără cod nu prinde nicio
+  regulă, iar pe baza reală toate îl aveau NULL.
 
 ## Ce refuză baza tăcut
 

@@ -1006,9 +1006,7 @@ export const aplicaRegulile = createAction({
     const [reguli, angajati, membri, existente] = await Promise.all([
       ctx.supabase
         .from("course_assignment_rules")
-        .select(
-          "criteriu, department_id, cod_cor, rol, employee_id, decalaj_zile, termen_zile",
-        )
+        .select("criteriu, department_id, cod_cor, rol, employee_id, decalaj_zile, termen_zile")
         .eq("organization_id", org)
         .eq("course_id", input.course_id)
         .eq("activ", true)

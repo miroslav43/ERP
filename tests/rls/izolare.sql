@@ -2984,6 +2984,147 @@ begin
 end $$;
 
 -- ─────────────────────────────────────────────────────────────────────────────
+-- (l), continuare — încadrarea schimbată de pe fișă (0110/0111)
+--
+-- Cele două scrieri noi ale fișei, probate ca scrieri REALE, per rol:
+--
+--   `actualizeazaIncadrarea`   → employees.functie / cod_cor / department_id /
+--                                manager_employee_id   (employees:update, all)
+--   `desemneazaSefDepartament` → departments.manager_employee_id
+--                                                      (departments:update, all)
+--
+-- Așteptarea nu e dedusă, e citită din `role_permissions`: `hr` are
+-- `employees:update = all`, iar `manager` NU are `employees:update` DELOC —
+-- doar `employees:read = team`. Un manager care apasă „Schimbă" pe fișa cuiva
+-- din echipa lui trebuie deci să fie refuzat de bază, nu doar de `can()`.
+--
+-- DE CE UPDATE ȘI NU INSERT: un UPDATE respins de clauza `USING` afectează ZERO
+-- RÂNDURI, FĂRĂ EROARE. Un test care doar prinde excepții l-ar rata complet, iar
+-- utilizatorul ar vedea „salvat" peste o scriere care nu s-a întâmplat.
+-- De aceea se numără rândurile, nu se ascultă erorile.
+--
+-- Entitățile sunt CREATE AICI, nu împrumutate din fixture: `manager_employee_id`
+-- pus pe o fișă din arborele existent ar putea închide un ciclu, iar
+-- `tg_employees_manager_path` ar arunca P0001 — un eșec despre lanțul managerial,
+-- nu despre permisiuni.
+-- ─────────────────────────────────────────────────────────────────────────────
+do $$
+declare
+  v_alfa     uuid := pg_temp.id('alfa');
+  v_admin    uuid := pg_temp.id('admin_alfa');
+  v_hr       uuid := pg_temp.id('hr_user_alfa');
+  v_mgr      uuid := pg_temp.id('mgr_user_alfa');
+  v_emp      uuid := pg_temp.id('emp_alfa');
+  v_dep      uuid;
+  v_tinta    uuid;
+  v_sef      uuid;
+  v_rand     text := to_char(floor(random() * 9000000 + 1000000), 'FM9999999');
+  n          integer;
+  v_esuate   text := '';
+begin
+  -- ── Pregătirea, ca org_admin ───────────────────────────────────────────────
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+
+  insert into public.departments (organization_id, cod, denumire)
+  values (v_alfa, 'INC-' || left(v_rand, 5), 'Departament încadrare ' || v_rand)
+  returning id into v_dep;
+
+  insert into public.employees (organization_id, marca, first_name, last_name)
+  values (v_alfa, 'INC-' || left(v_rand, 6), 'Tinta', 'Incadrare')
+  returning id into v_tinta;
+
+  insert into public.employees (organization_id, marca, first_name, last_name)
+  values (v_alfa, 'SEF-' || left(v_rand, 6), 'Sefu', 'Incadrare')
+  returning id into v_sef;
+  reset role;
+
+  -- ── 1. `hr` POATE schimba încadrarea (employees:update = all) ─────────────
+  perform set_config('request.jwt.claim.sub', v_hr::text, true);
+  set local role authenticated;
+  with modificate as (
+    update public.employees
+       set functie = 'Sudor MAG, schimbul 2',
+           cod_cor = '721208',
+           department_id = v_dep,
+           manager_employee_id = v_sef
+     where id = v_tinta and organization_id = v_alfa
+    returning 1
+  ) select count(*) into n from modificate;
+  reset role;
+  if n <> 1 then
+    v_esuate := v_esuate || E'\n  ⛔ FALS-NEGATIV: `hr` NU poate schimba încadrarea, deși are employees:update = all';
+  end if;
+
+  -- Scrierea chiar a ajuns în coloane, nu doar a raportat un rând.
+  if (select functie from public.employees where id = v_tinta) is distinct from 'Sudor MAG, schimbul 2'
+     or (select cod_cor from public.employees where id = v_tinta) is distinct from '721208' then
+    v_esuate := v_esuate || E'\n  ⛔ UPDATE raportat ca reușit, dar coloanele functie/cod_cor n-au valoarea scrisă';
+  end if;
+
+  -- ── 2. `manager` NU poate: n-are employees:update la niciun scope ─────────
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  with modificate as (
+    update public.employees set functie = 'Schimbat de manager'
+     where id = v_tinta and organization_id = v_alfa
+    returning 1
+  ) select count(*) into n from modificate;
+  reset role;
+  if n <> 0 then
+    v_esuate := v_esuate || E'\n  ⛔ FALS-POZITIV: `manager` a schimbat funcția cuiva, deși nu are employees:update';
+  end if;
+
+  -- ── 3. `employee` NU poate nici pe propria fișă ───────────────────────────
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  with modificate as (
+    update public.employees set functie = 'Auto-promovare'
+     where organization_id = v_alfa and user_id = v_emp
+    returning 1
+  ) select count(*) into n from modificate;
+  reset role;
+  if n <> 0 then
+    v_esuate := v_esuate || E'\n  ⛔ FALS-POZITIV: un `employee` și-a schimbat singur funcția pe propria fișă';
+  end if;
+
+  -- ── 4. `hr` POATE desemna șeful unui departament (departments:update=all) ──
+  perform set_config('request.jwt.claim.sub', v_hr::text, true);
+  set local role authenticated;
+  with modificate as (
+    update public.departments set manager_employee_id = v_sef
+     where id = v_dep and organization_id = v_alfa
+    returning 1
+  ) select count(*) into n from modificate;
+  reset role;
+  if n <> 1 then
+    v_esuate := v_esuate || E'\n  ⛔ FALS-NEGATIV: `hr` NU poate desemna un șef de departament, deși are departments:update = all';
+  end if;
+
+  -- ── 5. `manager` NU poate desemna șefi ────────────────────────────────────
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  with modificate as (
+    update public.departments set manager_employee_id = null
+     where id = v_dep and organization_id = v_alfa
+    returning 1
+  ) select count(*) into n from modificate;
+  reset role;
+  if n <> 0 then
+    v_esuate := v_esuate || E'\n  ⛔ FALS-POZITIV: `manager` a schimbat șeful unui departament, deși nu are departments:update';
+  end if;
+
+  if v_esuate <> '' then
+    perform pg_temp.esueaza(format(E'(l) încadrarea de pe fișă — verdicte greșite:%s', v_esuate));
+  end if;
+
+  raise notice '(l) încadrarea de pe fișă: hr scrie, manager și employee sunt refuzați ✓';
+exception when others then
+  reset role;
+  perform pg_temp.esueaza(format('(l) proba de încadrare a aruncat: %s (%s)', sqlerrm, sqlstate));
+end $$;
+
+-- ─────────────────────────────────────────────────────────────────────────────
 -- (m) `drepturile_mele_concediu` întoarce DOAR drepturile celui care întreabă
 --
 -- Funcția e SECURITY DEFINER (0108): înăuntru, RLS nu o oprește. Tot ce o ține

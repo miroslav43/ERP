@@ -22,16 +22,16 @@ Există și un al doilea motiv, care nu ține de complexitate ci de corectitudin
 
 Interogare pe baza reală (2026-08-30):
 
-| Ce                                             | Rânduri |
-| ---------------------------------------------- | ------- |
-| `job_positions` active                         | 6       |
-| angajați cu funcție                            | 8 din 12 |
-| contracte cu funcție                           | 8       |
-| reguli de concediu pe funcție                  | **0**   |
-| reguli de bonus pe funcție                     | **0**   |
-| riscuri SSM pe funcție                         | **0**   |
-| fișe de post (`job_descriptions`)              | **0**   |
-| șabloane de checklist pe funcție               | **1**   |
+| Ce                                | Rânduri  |
+| --------------------------------- | -------- |
+| `job_positions` active            | 6        |
+| angajați cu funcție               | 8 din 12 |
+| contracte cu funcție              | 8        |
+| reguli de concediu pe funcție     | **0**    |
+| reguli de bonus pe funcție        | **0**    |
+| riscuri SSM pe funcție            | **0**    |
+| fișe de post (`job_descriptions`) | **0**    |
+| șabloane de checklist pe funcție  | **1**    |
 
 Nomenclatorul e citit din ~40 de fișiere, dar aproape nimic nu se _sprijină_ pe el:
 un singur rând din toată baza folosește funcția drept criteriu de regulă.
@@ -93,12 +93,12 @@ regulile pe ocupație să nu scaneze tabela.
 tabele de reguli. Nu e un `drop column` simplu: **cinci constrângeri CHECK enumeră
 coloana** și trebuie rescrise în aceeași migrare —
 
-| Tabelă                   | Constrângere                       |
-| ------------------------ | ---------------------------------- |
-| `leave_entitlement_rules` | `ler_criteriu_ck`                  |
-| `payroll_bonus_rules`     | `pbr_criteriu_ck`                  |
-| `course_assignment_rules` | `course_assignment_rules_criteriu_ck` |
-| `job_descriptions`        | `job_descriptions_tinta`           |
+| Tabelă                    | Constrângere                                                |
+| ------------------------- | ----------------------------------------------------------- |
+| `leave_entitlement_rules` | `ler_criteriu_ck`                                           |
+| `payroll_bonus_rules`     | `pbr_criteriu_ck`                                           |
+| `course_assignment_rules` | `course_assignment_rules_criteriu_ck`                       |
+| `job_descriptions`        | `job_descriptions_tinta`                                    |
 | `leave_entitlement_rules` | indexul unic cu `coalesce(job_position_id, …)` (`0035:151`) |
 
 Fiecare devine aceeași regulă scrisă pe `cod_cor`. `job_descriptions` și
@@ -109,27 +109,27 @@ Fiecare devine aceeași regulă scrisă pe `cod_cor`. `job_descriptions` și
 
 Interogare pe `pg_proc`: trei funcții citesc `job_position_id` în corp.
 
-| Funcție                            | Ce face                                | Schimbarea                                     |
-| ---------------------------------- | -------------------------------------- | ---------------------------------------------- |
-| `app.drept_concediu`               | evaluează regulile de concediu         | `v_job_position = r.job_position_id` → `cod_cor` |
-| `internal.cursuri_aplica_regulile` | atribuie cursuri după criterii         | `e.job_position_id = v_regula.job_position_id` → `cod_cor` |
-| `public.checklist_salveaza_sablon` | RPC de salvare a șablonului (JSON)     | cheia `job_position_id` din payload → `cod_cor` |
+| Funcție                            | Ce face                            | Schimbarea                                                 |
+| ---------------------------------- | ---------------------------------- | ---------------------------------------------------------- |
+| `app.drept_concediu`               | evaluează regulile de concediu     | `v_job_position = r.job_position_id` → `cod_cor`           |
+| `internal.cursuri_aplica_regulile` | atribuie cursuri după criterii     | `e.job_position_id = v_regula.job_position_id` → `cod_cor` |
+| `public.checklist_salveaza_sablon` | RPC de salvare a șablonului (JSON) | cheia `job_position_id` din payload → `cod_cor`            |
 
 Fiecare își păstrează `search_path = ''` și coada `revoke`/`grant` existentă.
 
 ## 6. Straturile TypeScript
 
-| Fișier                                            | Schimbarea                                                                 |
-| ------------------------------------------------- | -------------------------------------------------------------------------- |
-| `lib/queries/employees.ts`                        | `EMBED_FUNCTIE` dispare; `functiiActive()` → `functiiFolosite()` (denumiri distincte din `employees`, pentru sugestii și filtru) |
-| `lib/queries/{departments,cursuri,leave,panou,reges,portal,checklist}.ts` | embed `job_positions!…` → coloană simplă                   |
-| `lib/reges/reconciliere.ts`                       | `contract.job_positions?.cod_cor` → `contract.cod_cor`                     |
-| `lib/documents/{adeverinte,context-angajat}.ts`   | **cade a doua interogare** — funcția e pe rândul deja citit                |
-| `app/(app)/angajati/import/actions.ts`            | „funcție" devine text; dispare find-or-create-ul de nomenclator            |
-| `app/(app)/angajati/nou/actions.ts`               | potrivirea șablonului de checklist: `job_position_id` → `cod_cor`          |
-| `schemas/{employee,leave,cursuri,checklist}.ts`   | `job_position_id: uuid` → `cod_cor: codCor`                                |
-| `schemas/comun.ts`                                | primește `codCorOptional`, mutat ca atare din `schemas/job-position.ts`. Verifică deja și formatul `^[0-9]{6}$`, și existența în nomenclator (`codCorExista`, 4422 de ocupații) — nu are nevoie de întărire, doar de un domiciliu comun, fiindcă `schemas/job-position.ts` dispare |
-| `components/cauta-cor.tsx`                        | mutat din `app/(app)/functii/`, ca să-l poată folosi și fișa, și ecranele de reguli |
+| Fișier                                                                    | Schimbarea                                                                                                                                                                                                                                                                         |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `lib/queries/employees.ts`                                                | `EMBED_FUNCTIE` dispare; `functiiActive()` → `functiiFolosite()` (denumiri distincte din `employees`, pentru sugestii și filtru)                                                                                                                                                   |
+| `lib/queries/{departments,cursuri,leave,panou,reges,portal,checklist}.ts` | embed `job_positions!…` → coloană simplă                                                                                                                                                                                                                                           |
+| `lib/reges/reconciliere.ts`                                               | `contract.job_positions?.cod_cor` → `contract.cod_cor`                                                                                                                                                                                                                             |
+| `lib/documents/{adeverinte,context-angajat}.ts`                           | **cade a doua interogare** — funcția e pe rândul deja citit                                                                                                                                                                                                                        |
+| `app/(app)/angajati/import/actions.ts`                                    | „funcție" devine text; dispare find-or-create-ul de nomenclator                                                                                                                                                                                                                    |
+| `app/(app)/angajati/nou/actions.ts`                                       | potrivirea șablonului de checklist: `job_position_id` → `cod_cor`                                                                                                                                                                                                                  |
+| `schemas/{employee,leave,cursuri,checklist}.ts`                           | `job_position_id: uuid` → `cod_cor: codCor`                                                                                                                                                                                                                                        |
+| `schemas/comun.ts`                                                        | primește `codCorOptional`, mutat ca atare din `schemas/job-position.ts`. Verifică deja și formatul `^[0-9]{6}$`, și existența în nomenclator (`codCorExista`, 4422 de ocupații) — nu are nevoie de întărire, doar de un domiciliu comun, fiindcă `schemas/job-position.ts` dispare |
+| `components/cauta-cor.tsx`                                                | mutat din `app/(app)/functii/`, ca să-l poată folosi și fișa, și ecranele de reguli                                                                                                                                                                                                |
 
 ## 7. Interfața
 

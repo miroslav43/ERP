@@ -69,11 +69,7 @@ export default async function PaginaEditeazaAngajat({ params }: ProprietatiPagin
           descriere="Toate câmpurile afișate pe fișă se completează aici. CNP-ul și IBAN-ul rămân neschimbate dacă lăsați câmpurile goale."
         />
       </div>
-      <FormularAngajat
-        departamente={departamente.data ?? []}
-        colegi={colegi}
-        angajat={angajat}
-      />
+      <FormularAngajat departamente={departamente.data ?? []} colegi={colegi} angajat={angajat} />
     </div>
   );
 }
