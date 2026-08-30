@@ -43,6 +43,7 @@ confirmarea zilei standard, apăsate din portal, scrise tot în `attendance_entr
 | Rută                    | Poartă                                                                                                         |
 | ----------------------- | -------------------------------------------------------------------------------------------------------------- |
 | `/pontaj`               | `attendance:read` cu scope citit prin `scopeFor`; butoanele cer `create` own/all, `approve` team, `update` all |
+| `/pontaj?vizualizare=…` | aceeași poartă; vezi „Cele trei vizualizări" mai jos                                                            |
 | `/pontaj/aprobare`      | `attendance:approve` team; blocarea cere `all`                                                                 |
 | `/pontaj/perioade`      | `attendance:approve` team/all, `attendance:create` all                                                         |
 | `/pontaj/perioade/[id]` | `attendance:read` team                                                                                         |
@@ -50,6 +51,32 @@ confirmarea zilei standard, apăsate din portal, scrise tot în `attendance_entr
 | `/pontaj/setari`        | `attendance:update` all; tot de aici se aleg `mod_pontare_rapida` și `verificare_pontare`                      |
 
 Toate trec întâi prin `requireFeature(tenant.organizationId, "attendance")`.
+
+## Cele trei vizualizări ale lui `/pontaj`
+
+`?vizualizare=` cu `saptamana` (IMPLICITĂ, deci absentă din adresă) · `luna` · `lista`.
+Enumul și opțiunile stau în `vizualizari.ts`; comutarea folosește primitiva
+`ComutatorVizualizare`, deci starea e în adresă și nu se livrează JavaScript pentru ea.
+
+- **`saptamana`** — grila orară a pontajului PROPRIU, `?saptamana=<luni ISO>`. Se pontează
+  trăgând peste o zonă dintr-o zi; la eliberare se deschide `CelulaZi` cu intervalul
+  precompletat (`oraInceputInitiala`/`oraSfarsitInitiala`, care BAT `intrare`). Fereastra
+  e 06:00–22:00, lărgită de `intervalulGrilei` cât să cuprindă orice intrare din afara ei.
+  Tragerea e doar cu mausul: pe telefon `touch-action: none` ar bloca derularea paginii,
+  deci acolo atingerea deschide dialogul cu intervalul propus — aceeași cale ca tastatura.
+- **`luna`** — calendar de 7 coloane cu TOȚI angajații, max 3 pe zi plus „+N alții"
+  (citibili prin `sr-only`, nu prin `title`). Server Component pur, needitabil.
+- **`lista`** — foaia colectivă, neschimbată.
+
+`luna` și `lista` se hrănesc din ACELEAȘI citiri și se ramifică abia la randare
+(`LunaIntreaga` din `page.tsx`); o a doua citire ar fi însemnat două ecrane care pot
+arăta lucruri diferite pentru aceeași lună. Aritmetica grilei orare e în
+`src/domain/attendance/grila-orara.ts`, cu teste — inclusiv cel purtător: orice tragere
+produce un interval pe care `oreleZilei` îl acceptă.
+
+Săptămâna se ancorează în luna din adresă (`an`+`luna`), iar comutatorul completează
+cheia care lipsește în cealaltă direcție — altfel comutarea ar sări în altă perioadă
+decât cea de pe ecran.
 
 ## Server Actions
 
@@ -97,6 +124,15 @@ lista de câmpuri a lui `setariPontaj` și `CAMPURI_SETARI_PONTAJ`. Amândouă �
 versiunea în vigoare la o dată (`valabil_de_la`), iar `null` e o stare normală: firma
 n-a configurat nimic și apelantul cade pe valori de rezervă.
 
+**Valoarea de rezervă a pontării rapide e `ceas`, nu `oprit`** — `MOD_PONTARE_IMPLICIT`
+din `src/schemas/attendance.ts`, folosită în toate cele patru locuri care cădeau înainte
+pe literalul `"oprit"`, dintre care unul e poarta de scriere (`pregatirePontareRapida`).
+Implicitul din COD e cel care decide, nu `default`-ul coloanei: două din trei firme n-au
+niciun rând în `attendance_settings`, iar `oprit` din al treilea era backfill de
+`ALTER TABLE` (0096), nealegerea nimănui. Consecință: butonul „Am intrat" apare pe
+ecranul de start fără ca firma să configureze ceva; cine nu-l vrea îl stinge din
+`/pontaj/setari`.
+
 ## Ce refuză baza tăcut
 
 Secțiunea care justifică pagina. Fiecare rând are artefact.
@@ -127,6 +163,19 @@ Secțiunea care justifică pagina. Fiecare rând are artefact.
   filtrează zilele în curs înainte, le numără și întoarce `zileDeschise`. Constrângerea e
   plasa de sub filtru, nu invers; fără ea, „Am ieșit" de după aprobare e respins tăcut de
   `USING`. — capcana #17
+- **`intrariProprii` NU filtrează pe `employee_id`** — se bazează pe RLS. Corect pentru
+  un `employee`, dar pentru scope `all` (`hr`, `org_admin`) RLS nu îngustează nimic, deci
+  funcția întoarce pontajul ÎNTREGII firme. Orice ecran „al meu" trebuie să rezolve fișa
+  explicit și să filtreze pe ea: `sectiune-saptamana.tsx` cheamă `fisaMea` + `intrariLuna(org, [fisa], …)`.
+  `fisaMea`, nu `idFisaProprie`: `app.current_employee_id()` CERE `is_primary`, în timp ce
+  a doua doar sortează după el — de aici starea `fara_principala`, un cont care își vede
+  marca și căruia baza îi refuză orice scriere.
+- **`oraOptionala` respinge ora brută din Postgres.** Coloana `time` sosește `"08:30:00"`,
+  iar schema cere `^([01]\d|2[0-3]):[0-5]\d$`. Cine deschidea o zi cu interval din foaia
+  colectivă, schimba doar observația și apăsa „Salvează" primea eroare de validare pe un
+  câmp neatins. Normalizarea se face o singură dată, în `intrareaClient`
+  (`intrare-client.ts`), care e acum singurul constructor al formei de client — testat în
+  `intrare-client.test.ts`, inclusiv perechea brut-respins / normalizat-acceptat.
 - **`employee` nu-și poate citi propria fișă cu clientul autentificat**: politica
   `employees_select` (`0005_hr_rls.sql`) nu deschide drumul, deci `fisaProprie` folosește
   `createAdminSupabase()` cu filtru explicit pe `organization_id` și cere
@@ -150,10 +199,13 @@ ca un `throw`):
 
 O schimbare de formă a zilei de pontaj atinge, în ordine: migrarea →
 `src/types/database.ts` → `src/schemas/attendance.ts` →
-`src/lib/queries/attendance.ts` → `src/app/(app)/pontaj/actions.ts` → `page.tsx` +
-componenta de celulă. Calculul orelor stă separat, în `src/domain/attendance/`, cu teste:
+`src/lib/queries/attendance.ts` → `src/app/(app)/pontaj/actions.ts` →
+**`intrare-client.ts`** (singurul loc care construiește forma de client, și singurul care
+normalizează ora) → `page.tsx` + componenta de celulă. Calculul orelor stă separat, în
+`src/domain/attendance/`, cu teste:
 `calcul-ore.ts` (`oreleZilei`, inversa `intervalulPropus` și valorile de rezervă din
-`configZiDin` — un singur loc, nu patru copii), `ceas.ts` (`stareaCeasului`,
+`configZiDin` — un singur loc, nu patru copii), `grila-orara.ts` (fereastra orară, alinierea la sferturi, poziția blocului — tot ce se
+poate greși TĂCUT desenând o săptămână), `ceas.ts` (`stareaCeasului`,
 `minuteScurse`, `formatDurata`) și `zi-de-pontat.ts` (`meritaPontata`). Toate sunt pure:
 ora curentă vine de la apelant, fiindcă autoritatea ei e ceasul serverului.
 

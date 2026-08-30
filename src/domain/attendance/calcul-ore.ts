@@ -3,8 +3,16 @@
 // (`celula-zi.tsx`) ca sugestie editabilă, nu ca sursă finală de adevăr:
 // utilizatorul poate suprascrie oricând valoarea calculată.
 
-/** `"08:30"` → minute de la miezul nopții, sau `null` dacă formatul e invalid. */
-function minuteDinOra(ora: string): number | null {
+/**
+ * `"08:30"` → minute de la miezul nopții, sau `null` dacă formatul e invalid.
+ *
+ * Exportată fiindcă grila orară (`grila-orara.ts`) trebuie să înțeleagă `"08:30"`
+ * EXACT ca `oreleZilei`: dacă o citește altfel, blocul desenat pe ecran și ora
+ * salvată în bază se despart, iar nimic nu semnalează. Rămâne strictă — fără
+ * secunde — deci apelantul care primește o coloană `time` din Postgres
+ * (`"08:30:00"`) o trece întâi prin `formatOraZi`.
+ */
+export function minuteDinOra(ora: string): number | null {
   const potrivire = /^([01]\d|2[0-3]):([0-5]\d)$/u.exec(ora);
   if (potrivire === null) return null;
   const ore = potrivire[1];
@@ -181,8 +189,8 @@ export function oreleZilei(
 
 // ── Inversa: din ora de început, intervalul unei zile normale ────────────────
 
-/** Minute de la miezul nopții → `"08:30"`. */
-function oraDinMinute(minute: number): string {
+/** Minute de la miezul nopții → `"08:30"`. Perechea lui `minuteDinOra`. */
+export function oraDinMinute(minute: number): string {
   const ore = Math.floor(minute / 60);
   const rest = minute % 60;
   return `${String(ore).padStart(2, "0")}:${String(rest).padStart(2, "0")}`;

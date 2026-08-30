@@ -139,6 +139,20 @@ export function parseOre(input: string): number | null {
  * `"830"` → `"08:30"`, `"1730"` → `"17:30"`, `"17:5"` → `"17:05"`.
  */
 export function normalizeazaOraZi(input: string): string | null {
+  const partit = despartOraZi(input);
+  if (partit === null) return null;
+  return valideazaCeas(partit.ore, partit.minute);
+}
+
+/**
+ * Ce a tastat omul → perechea (ore, minute), FĂRĂ verificarea intervalelor.
+ *
+ * Despărțirea e separată de validare fiindcă are doi consumatori cu verdicte
+ * diferite pe aceeași intrare: `normalizeazaOraZi` respinge `"17:75"`, iar
+ * `plafoneazaMinutele` îl aduce la `"17:59"`. A doua copie a regulilor de
+ * despărțire ar fi însemnat două ecrane care citesc altfel același șir.
+ */
+function despartOraZi(input: string): { readonly ore: number; readonly minute: number } | null {
   const brut = input.trim();
   if (brut.length === 0) return null;
 
@@ -152,14 +166,42 @@ export function normalizeazaOraZi(input: string): string | null {
   const cuDouaPuncte = /^(\d{1,2}):(\d{1,2})?(?::[0-5]\d(?:\.\d+)?)?$/u.exec(brut);
   if (cuDouaPuncte !== null) {
     const minute = cuDouaPuncte[2];
-    return valideazaCeas(Number(cuDouaPuncte[1]), minute === undefined ? 0 : Number(minute));
+    return {
+      ore: Number(cuDouaPuncte[1]),
+      minute: minute === undefined ? 0 : Number(minute),
+    };
   }
 
   if (!/^\d{1,4}$/u.test(brut)) return null;
-  if (brut.length <= 2) return valideazaCeas(Number(brut), 0);
+  if (brut.length <= 2) return { ore: Number(brut), minute: 0 };
   // `830` sunt trei cifre: prima e ora, ultimele două minutele.
   const taietura = brut.length - 2;
-  return valideazaCeas(Number(brut.slice(0, taietura)), Number(brut.slice(taietura)));
+  return { ore: Number(brut.slice(0, taietura)), minute: Number(brut.slice(taietura)) };
+}
+
+/**
+ * Minutul tastat peste 59, adus la ultimul minut valid: `"17:75"` → `"17:59"`.
+ *
+ * ── DE CE EXISTĂ, DEȘI MASCA REFUZĂ SĂ CORECTEZE ──────────────────────────
+ * `mascheazaOraZi` lasă dinadins `17:75` pe ecran, ca omul să vadă ce a tastat.
+ * Atât timp cât acolo se oprea, valoarea nu ajungea nicăieri: câmpul ascuns al
+ * lui `IntrareOra` rămâne gol când ora nu e validă, deci intervalul dispărea
+ * TĂCUT la trimiterea planului săptămânii — omul completa ora, apăsa „Trimite”
+ * și pleca fără ea. Un minut plafonat vizibil e mai bun decât un interval
+ * pierdut fără urmă.
+ *
+ * ── DE CE NU SE PLAFONEAZĂ ȘI ORA ─────────────────────────────────────────
+ * `"25:30"` rămâne respins. Masca îl face oricum netastabil (`25` devine
+ * `02:5`), iar aducerea lui la `23:30` ar muta valoarea cu două ore — o
+ * rescriere cu totul de alt ordin decât ultimele cincisprezece minute ale unei
+ * ore pe care omul a numit-o deja corect.
+ */
+export function plafoneazaMinutele(input: string): string | null {
+  const partit = despartOraZi(input);
+  if (partit === null) return null;
+  if (!Number.isInteger(partit.ore) || !Number.isInteger(partit.minute)) return null;
+  if (partit.ore > 23) return null;
+  return `${douaCifre(partit.ore)}:${douaCifre(Math.min(partit.minute, MINUTE_PE_ORA - 1))}`;
 }
 
 /**

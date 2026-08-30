@@ -7,6 +7,7 @@ import {
   mascheazaOraZi,
   normalizeazaOraZi,
   parseOre,
+  plafoneazaMinutele,
 } from "./ore";
 
 describe("formatOre", () => {
@@ -143,7 +144,10 @@ describe("mascheazaOraZi", () => {
     expect(mascheazaOraZi("2359")).toBe("23:59");
   });
 
-  it("nu corectează minutul — un câmp care rescrie tăcut e mai rău decât unul care refuză", () => {
+  it("nu corectează minutul — corectura e treaba câmpului, la predare", () => {
+    // Masca arată exact ce s-a tastat, iar validatorul îl respinge. Plafonarea
+    // la `17:59` se face în `plafoneazaMinutele`, chemată de `IntrareOra` când
+    // ora se închide — două roluri, nu unul care face tăcut amândouă.
     expect(mascheazaOraZi("1775")).toBe("17:75");
     expect(normalizeazaOraZi("17:75")).toBeNull();
   });
@@ -186,5 +190,38 @@ describe("normalizeazaOraZi", () => {
     expect(normalizeazaOraZi("8:75")).toBeNull();
     expect(normalizeazaOraZi("5:30 PM")).toBeNull();
     expect(normalizeazaOraZi("")).toBeNull();
+  });
+});
+
+describe("plafoneazaMinutele", () => {
+  it("aduce minutul peste 59 la ultimul minut al aceleiași ore", () => {
+    expect(plafoneazaMinutele("17:75")).toBe("17:59");
+    expect(plafoneazaMinutele("8:99")).toBe("08:59");
+    expect(plafoneazaMinutele("0:60")).toBe("00:59");
+  });
+
+  it("citește și forma fără două puncte, ca masca", () => {
+    // `preda` primește textul mascat, dar funcția trebuie să despartă la fel ca
+    // `normalizeazaOraZi` — altfel două ecrane ar citi altfel același șir.
+    expect(plafoneazaMinutele("1775")).toBe("17:59");
+    expect(plafoneazaMinutele("875")).toBe("08:59");
+  });
+
+  it("lasă neatinsă ora care era deja bună", () => {
+    expect(plafoneazaMinutele("17:59")).toBe("17:59");
+    expect(plafoneazaMinutele("08:30")).toBe("08:30");
+    expect(plafoneazaMinutele("17:")).toBe("17:00");
+    expect(plafoneazaMinutele("8")).toBe("08:00");
+  });
+
+  it("NU plafonează ora — `25:30` ar deveni `23:30`, adică alt moment din zi", () => {
+    expect(plafoneazaMinutele("25:30")).toBeNull();
+    expect(plafoneazaMinutele("24:00")).toBeNull();
+  });
+
+  it("respinge ce nu e nici măcar o încercare de oră", () => {
+    expect(plafoneazaMinutele("5:30 PM")).toBeNull();
+    expect(plafoneazaMinutele("abc")).toBeNull();
+    expect(plafoneazaMinutele("")).toBeNull();
   });
 });

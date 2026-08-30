@@ -3,7 +3,13 @@
 import { useRef, useState, type ReactElement } from "react";
 
 import { clasaControl } from "@/components/ui/camp";
-import { formatOre, mascheazaOraZi, normalizeazaOraZi, parseOre } from "@/lib/format/ore";
+import {
+  formatOre,
+  mascheazaOraZi,
+  normalizeazaOraZi,
+  parseOre,
+  plafoneazaMinutele,
+} from "@/lib/format/ore";
 import { cn } from "@/lib/ui/cn";
 
 /**
@@ -157,9 +163,23 @@ export function IntrareOra({
       onSchimba?.("");
       return;
     }
-    const curat = normalizeazaOraZi(brut);
-    // Ciorna rămâne pe ecran cât timp nu e o oră: altfel dispare fără ca omul
-    // să vadă ce a scris greșit.
+    /*
+      Minutul peste 59 se PLAFONEAZĂ, nu se refuză: `17:75` devine `17:59`.
+
+      Refuzul pur părea prudent — masca lasă dinadins pe ecran ce s-a tastat —
+      dar aici se termina prost. Câmpul ascuns de mai jos rămâne gol cât timp
+      ora nu e validă, deci în planul săptămânii intervalul pleca spre server ca
+      `null`: omul completa ora, apăsa „Trimite” și ziua ajungea cu zero ore, cu
+      chenarul roșu rămas într-o pagină pe care n-o mai privea. Fiindcă
+      plafonarea se întâmplă pe a patra cifră (acolo ora se închide și `preda`
+      e chemat de saltul automat), corectura e VIZIBILĂ în clipa tastării, nu
+      descoperită mai târziu.
+
+      Ora peste 23 rămâne respinsă — vezi `plafoneazaMinutele`.
+    */
+    const curat = normalizeazaOraZi(brut) ?? plafoneazaMinutele(brut);
+    // Ciorna rămâne pe ecran cât timp nu e o oră nici după plafonare: altfel
+    // dispare fără ca omul să vadă ce a scris greșit.
     if (curat === null) return;
     setCiorna(null);
     setPropriu(curat);

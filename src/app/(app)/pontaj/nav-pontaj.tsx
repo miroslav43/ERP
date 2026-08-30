@@ -28,7 +28,11 @@ export function NavPontaj({ poateAproba }: Proprietati) {
   const cale = usePathname();
 
   const file: readonly IntrareFila[] = [
-    { href: "/pontaj", eticheta: "Foaie" },
+    // „Prezența", nu „Foaie": ruta are acum trei vizualizări — săptămâna pe ore,
+    // luna ca un calendar și foaia colectivă — iar numele uneia singure dintre
+    // ele n-are ce căuta pe filă. Contrastul util e cu fila următoare: aici e ce
+    // s-a lucrat, dincolo e ce se planifică.
+    { href: "/pontaj", eticheta: "Prezența" },
     { href: "/pontaj/saptamana", eticheta: "Planul săptămânii" },
     { href: "/pontaj/perioade", eticheta: "Perioade" },
     ...(poateAproba ? [{ href: "/pontaj/aprobare", eticheta: "Aprobare" }] : []),

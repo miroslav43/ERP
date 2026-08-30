@@ -188,14 +188,28 @@ describe("IntrareOra", () => {
     expect(camp("Ora").value).toBe("02:50");
   });
 
-  it("ține pe ecran minutul greșit și marchează câmpul, în loc să-l rescrie", () => {
-    // Minutul NU se corectează: un câmp care schimbă tăcut ce-ai tastat pe un
-    // pontaj e mai rău decât unul care refuză.
-    render(<IntrareOra aria-label="Ora" />);
+  it("plafonează minutul peste 59 în clipa în care ora se închide", () => {
+    /*
+      Înainte, `17:75` rămânea pe ecran, marcat roșu, și atât. Câmpul ascuns —
+      singurul care ajunge în `FormData` — rămâne gol cât timp ora nu e validă,
+      deci în planul săptămânii intervalul pleca spre server ca `null`: ziua se
+      salva cu zero ore, iar chenarul roșu rămânea într-o pagină pe care omul
+      n-o mai privea. Ce se verifică aici e tocmai capătul acela: că valoarea
+      chiar ajunge în formular.
+
+      Plafonarea se întâmplă pe `change`, nu pe `blur`: a patra cifră închide
+      ora și declanșează saltul automat, care predă valoarea pe loc.
+    */
+    const laSchimbare = vi.fn();
+    const { container } = render(
+      <IntrareOra aria-label="Ora" name="ora_inceput" onSchimba={laSchimbare} />,
+    );
     fireEvent.change(camp("Ora"), { target: { value: "1775" } });
-    fireEvent.blur(camp("Ora"));
-    expect(camp("Ora").value).toBe("17:75");
-    expect(camp("Ora").getAttribute("aria-invalid")).toBe("true");
+
+    expect(camp("Ora").value).toBe("17:59");
+    expect(camp("Ora").getAttribute("aria-invalid")).toBeNull();
+    expect(campAscuns(container).value).toBe("17:59");
+    expect(laSchimbare).toHaveBeenCalledWith("17:59");
   });
 });
 

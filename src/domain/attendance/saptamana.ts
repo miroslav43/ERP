@@ -39,6 +39,24 @@ export function lunieaUrmatoare(azi: string): string {
   return adaugaZile(azi, zilePanaLuniViitoare);
 }
 
+/**
+ * Lunea săptămânii CURENTE — cea care conține ziua dată.
+ *
+ * Perechea lui `lunieaUrmatoare`, cu privirea în cealaltă direcție, și motivul
+ * pentru care sunt două funcții și nu una cu un parametru: planul săptămânii se
+ * declară în AVANS, deci ținta lui e săptămâna viitoare, iar grila de pontaj
+ * arată ce s-a lucrat DEJA, deci ținta ei e săptămâna în curs. Pentru o zi de
+ * duminică cele două răspund la o săptămână distanță una de alta, și fiecare are
+ * dreptate pe ecranul ei.
+ */
+export function lunieaSaptamanii(zi: string): string {
+  const ziuaSaptamanii = new Date(`${zi}T00:00:00Z`).getUTCDay();
+  // Duminica e 0 în JS, dar 7 în ISO: capătul săptămânii, nu începutul ei. Fără
+  // ramura asta, duminica ar sări cu o săptămână înainte.
+  const inapoi = ziuaSaptamanii === 0 ? 6 : ziuaSaptamanii - 1;
+  return adaugaZile(zi, -inapoi);
+}
+
 /** Cele șapte zile ale săptămânii care începe luni la `saptamanaStart`. */
 export function zileleSaptamanii(saptamanaStart: string): readonly string[] {
   return Array.from({ length: 7 }, (_, i) => adaugaZile(saptamanaStart, i));

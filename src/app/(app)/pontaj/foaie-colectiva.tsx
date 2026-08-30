@@ -12,30 +12,10 @@ import {
   tipZiAutomat,
 } from "./etichete";
 import { CelulaZi } from "./celula-zi";
+// Tipurile au plecat într-un `.ts` simplu: le importă și serverul, și clientul,
+// iar maparea din `attendance_entries` are acolo teste. Vezi `intrare-client.ts`.
+import type { RandFoaie } from "./intrare-client";
 import { formatOre } from "@/lib/format/ore";
-
-export interface IntrareZiClient {
-  readonly id: string;
-  readonly oraInceput: string | null;
-  readonly oraSfarsit: string | null;
-  readonly oreLucrate: number;
-  readonly oreSuplimentare: number;
-  readonly oreNoapte: number;
-  readonly tipZi: TipZi;
-  readonly esteDinConcediu: boolean;
-  readonly aprobat: boolean;
-  readonly respins: boolean;
-  readonly motivRespingere: string | null;
-  readonly observatii: string | null;
-}
-
-export interface RandFoaie {
-  /** `null` = fișa proprie (scope „own”): `salveazaZiPontaj` o rezolvă server-side. */
-  readonly angajatId: string | null;
-  readonly eticheta: string;
-  /** Cheia e ziua ISO (`"2026-03-09"`) — serializabil peste granița server/client. */
-  readonly intrari: Readonly<Record<string, IntrareZiClient>>;
-}
 
 interface Proprietati {
   readonly dataInceput: string;
