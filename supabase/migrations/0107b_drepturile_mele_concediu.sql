@@ -1,5 +1,5 @@
 -- =====================================================================================
--- 0107_drepturile_mele_concediu.sql
+-- 0107b_drepturile_mele_concediu.sql
 --
 -- Angajatul își vede, din portal, la ce tipuri de concediu are dreptul și câte
 -- zile la fiecare — după setările firmei lui, nu după o listă generică.
