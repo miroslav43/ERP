@@ -5,8 +5,9 @@ transmite contractele și salariații direct prin API-ul Inspecției Muncii, fă
 fișier de import purtat cu mâna.
 
 Documentul ăsta e pentru cine PUNE ÎN FUNCȚIUNE modulul la o firmă-client.
-Pentru cum e construit, vezi comentariile din `src/domain/reges/` și
-`src/lib/reges/`.
+Pentru la ce folosește și cum e construit, vezi
+[`reges-online-arhitectura.md`](reges-online-arhitectura.md) — iar pentru
+detaliul ultim, comentariile din `src/domain/reges/` și `src/lib/reges/`.
 
 ---
 
