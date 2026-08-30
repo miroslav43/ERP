@@ -71,6 +71,8 @@ function Numeric({
   );
 }
 
+type Optiune = Readonly<{ valoare: number; eticheta: string }>;
+
 /**
  * Aceeași structură ca `Numeric`, dar pentru un câmp în care cifra nu e liberă:
  * are câteva valori pe care legea le recunoaște, și niciuna în afara lor.
@@ -79,8 +81,6 @@ function Numeric({
  * perioade de referință care nu există nicăieri în Codul muncii și pe care
  * nimic din produs nu le-ar fi respins mai târziu.
  */
-type Optiune = Readonly<{ valoare: number; eticheta: string }>;
-
 function Alegere({
   nume,
   eticheta,
