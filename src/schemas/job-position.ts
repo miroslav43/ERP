@@ -52,6 +52,42 @@ export const dezactiveazaFunctieSchema = z.object({
   id: z.uuid("Funcția selectată nu este validă."),
 });
 
+/**
+ * Cine deține funcția — lista COMPLETĂ, nu un adaos.
+ *
+ * ── DE CE LISTA ÎNTREAGĂ ȘI NU „ADAUGĂ X" / „SCOATE Y" ────────────────────
+ * Ecranul e un rând de bife peste angajații activi, cu cei care au deja funcția
+ * pre-bifați. Ce trimite el înapoi e o STARE dorită, nu o operație; handler-ul
+ * calculează diferența față de bază. Un payload de tip „adaugă" ar fi
+ * dezambiguat greșit tocmai debifarea, adică singurul fel în care se scoate
+ * cineva de pe o funcție din ecranul ăsta.
+ *
+ * ── DE CE LISTA GOALĂ E VALIDĂ ────────────────────────────────────────────
+ * Spre deosebire de `mutaAngajatiSchema`, aici NU există `.min(1)`. Debifarea
+ * tuturor înseamnă „funcția asta nu mai e ținută de nimeni" — exact ce trebuie
+ * făcut înainte de a o dezactiva, fiindcă `dezactiveazaFunctie` refuză cât timp
+ * are angajați alocați. Un `.min(1)` ar închide singura ieșire din acel refuz.
+ *
+ * Plafonul de 200 nu e o limită de produs, e o plasă: cea mai mare firmă din
+ * sistem are opt angajați.
+ */
+export const atribuieAngajatiSchema = z.object({
+  job_position_id: z.uuid("Funcția selectată nu este validă."),
+  employee_ids: z
+    .array(z.uuid("Angajatul selectat nu este valid."))
+    .max(200, "Se pot atribui cel mult 200 de persoane deodată.")
+    .default([])
+    // Deduplicarea NU e cosmetică: handler-ul compară numărul de rânduri
+    // întoarse de `.select()` cu lungimea listei, ca să prindă un refuz parțial
+    // al politicii RLS. Cu `["X","X"]`, baza întoarce UN rând iar lungimea e
+    // doi, deci o scriere reușită ar fi raportată drept refuz. Din interfață nu
+    // se poate întâmpla (selecția e un `Set`), dar acțiunea e un endpoint POST
+    // invocabil direct. Aceeași notă stă la `mutaAngajatiSchema`.
+    .transform((identificatori) => [...new Set(identificatori)]),
+});
+
+export type AtribuieAngajatiInput = z.infer<typeof atribuieAngajatiSchema>;
+
 // ── Filtrele nomenclatorului ─────────────────────────────────────────────────
 
 /**

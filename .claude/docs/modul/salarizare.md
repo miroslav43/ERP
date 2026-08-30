@@ -25,8 +25,8 @@ capcane: [2, 17]
 citeste_daca:
   - "perioadă care nu se recalculează → [[date/pontaj]]"
   - "sumă greșită → src/domain/payroll/, nu pagina asta"
-scris_pe: c924a7bf10af2d211b0246d582eb2c8293864dfc
-scris_la: 2026-08-28
+scris_pe: 3c9747a4f30ad317e7ea4e01fe0a4e778381411e
+scris_la: 2026-08-30
 tags: [modul, finance]
 ---
 
@@ -66,6 +66,16 @@ neconfirmate de contabil.
 | `creeazaPoprire` / `inchidePoprire`                                                         | `payroll:create` / `payroll:update`, all |
 | `creeazaSablonComponenta` / `actualizeazaSablonComponenta` / `dezactiveazaSablonComponenta` | `payroll:create` / `payroll:update`, all |
 | `salveazaSetari`                                                                            | `payroll:update` / all                   |
+
+Cele trei formulare de adăugare — `FormularSablonComponentaNou`, `FormularPoprireNoua`,
+`FormularIstoricVenit` — se cer dintr-un buton și se deschid în casetă, prin
+`FormularDialog` (`src/components/ui/formular-dialog.tsx`), nu desfăcute sub antet: în
+spatele lor rămâne vizibilă exact lista de citit înainte de a scrie — ce cod intern e
+liber, ce dosare de poprire are deja angajatul, ce luni de venit sunt introduse.
+Închiderea și `router.refresh()` le face componenta, deci ecranele astea nu-și mai țin
+starea `deschis` și nu-și mai memorează `laReusita`. `FormularIstoricVenit` își
+dezactivează butonul când nu are niciun angajat de ales. `setari/formular-setari.tsx`
+rămâne în pagină — e ecranul însuși, nu o adăugare.
 
 ## Citiri
 
@@ -118,6 +128,14 @@ Migrarea → `src/types/database.ts` → `src/schemas/payroll.ts` →
 `src/lib/queries/payroll.ts` → acțiuni → pagini. **Calculul propriu-zis nu e aici**: stă
 în `src/domain/payroll/`, care e cel mai mare director de domeniu din proiect și e
 acoperit cu teste. O sumă greșită se repară acolo, nu în pagină.
+
+Avertismentele calculului își scriu **orele pe ceas**: `calc.ts` trece fiecare durată
+prin `formatOre` (`src/lib/format/ore.ts`) și lipește unitatea `h` — `6:00 h de noapte`,
+nu `6.00 ore`. Sumele în lei rămân zecimale (`toFixed(2)`), iar coloanele de ore din bază
+rămân `numeric`, fiindcă tariful orar se înmulțește cu ele; ceasul e doar reprezentarea
+de citire, convertită într-un singur loc. `calc.test.ts` fixează șirurile verbatim pentru
+`SAL_ORE_IN_MOD_NEDECLARAT`, deci un avertisment nou care formatează orele altfel iese
+inconsecvent pe ecran, nu la teste.
 
 ## Ce NU e aici
 

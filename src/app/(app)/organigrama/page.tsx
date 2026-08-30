@@ -8,54 +8,66 @@ import { AntetPagina } from "@/components/ui/antet-pagina";
 import { AvatarAngajat } from "@/components/data/avatar-angajat";
 import { Callout } from "@/components/ui/callout";
 import { StareGoala } from "@/components/ui/stare-goala";
+import { cn } from "@/lib/ui/cn";
+import { construiesteOrganigrama, type NodOrganigrama } from "@/domain/hr/organigrama";
 import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireUser } from "@/lib/auth/current-user";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { arboreleManagerial, idFisaProprie, type NodManagerial } from "@/lib/queries/employees";
+import {
+  arboreleManagerial,
+  idFisaProprie,
+  rolurileConturilor,
+  type NodManagerial,
+} from "@/lib/queries/employees";
+
+import { ETICHETE_ROL_CONT, rolAdministrativ } from "../angajati/etichete";
 
 export const metadata: Metadata = { title: "Organigramă" };
-
-const RADACINA = "radacina";
 
 /**
  * Plafonul `max_rows` al PostgREST. `arboreleManagerial` nu cere o limită, deci
  * peste atâtea fișe active răspunsul se TAIE, fără eroare și fără antet care s-o
  * spună.
  *
- * Aici tăierea nu doar ascunde oameni, ci DEFORMEAZĂ ce rămâne: `grupeaza` pune
- * la rădăcină orice nod al cărui manager nu e în setul vizibil, deci fiecare
- * subordonat al cuiva rămas afară devine o rădăcină de sine stătătoare.
- * Organigrama arată atunci zeci de arbori paraleli — o ierarhie plauzibilă și
- * falsă, exact felul de greșeală pe care nimeni n-o observă. Pragul se compară
- * cu `>=`: la fix 1000 de rânduri nu se poate ști dacă al 1001-lea exista.
+ * Aici tăierea nu doar ascunde oameni, ci DEFORMEAZĂ ce rămâne: cine are un
+ * manager rămas în afara setului vizibil e tratat ca și cum n-ar avea manager
+ * deloc, deci ajunge lipit de administrator sau, în lipsa lui, devine rădăcină
+ * de sine stătătoare. Organigrama arată atunci o ierarhie plauzibilă și falsă,
+ * exact felul de greșeală pe care nimeni n-o observă. Pragul se compară cu
+ * `>=`: la fix 1000 de rânduri nu se poate ști dacă al 1001-lea exista.
  */
 const PLAFON_RANDURI = 1000;
 
-interface NodArbore extends NodManagerial {
-  readonly copii: readonly NodArbore[];
-}
+/**
+ * Ce scrie pe nod în locul funcției, când fișa n-are una.
+ *
+ * ── DE CE ROLUL DE CONT ȘI NU O FUNCȚIE REALĂ ─────────────────────────────
+ * Patronul primește fișă dintr-un trigger (`0099_invitatia_leaga_fisa.sql`),
+ * care inserează marca, numele și `status`, atât. Nu-i pune funcție, iar
+ * organigrama îl afișa drept „fără funcție" — corect față de bază, dar citit ca
+ * o scăpare tocmai despre omul care conduce firma.
+ *
+ * Nu se creează o funcție „Administrator" în nomenclator, și motivul e greu:
+ * `job_positions` are `cod_cor` și hrănește REVISAL/REGES. O funcție inventată
+ * pentru cineva fără contract ar fi dată falsă trimisă la ITM. Aici se schimbă
+ * un cuvânt de pe ecran, nu un rând din bază — același compromis ca la
+ * `etichetaStare`, unde „Candidat" devine „Fără contract".
+ *
+ * Eticheta se scrie cu litere cursive: e o informație DERIVATĂ din rolul din
+ * aplicație, nu o funcție aleasă de cineva. Dacă mai târziu i se atribuie o
+ * funcție adevărată, ea are prioritate — asta rămâne doar plasa de siguranță.
+ */
+function etichetaFunctiei(
+  nod: NodManagerial,
+  roluri: ReadonlyMap<string, string>,
+): { readonly text: string; readonly derivat: boolean } {
+  if (nod.job_position !== null) return { text: nod.job_position.denumire, derivat: false };
 
-function grupeaza(noduri: readonly NodManagerial[]): ReadonlyMap<string, readonly NodManagerial[]> {
-  const idVizibile = new Set(noduri.map((n) => n.id));
-  const harta = new Map<string, readonly NodManagerial[]>();
-  for (const nod of noduri) {
-    const areManagerVizibil =
-      nod.manager_employee_id !== null && idVizibile.has(nod.manager_employee_id);
-    const cheie = areManagerVizibil ? (nod.manager_employee_id as string) : RADACINA;
-    harta.set(cheie, [...(harta.get(cheie) ?? []), nod]);
-  }
-  return harta;
-}
+  const rol = rolAdministrativ(nod.user_id === null ? null : roluri.get(nod.user_id));
+  if (rol !== null) return { text: ETICHETE_ROL_CONT[rol], derivat: true };
 
-function construieste(
-  cheie: string,
-  dupaManager: ReadonlyMap<string, readonly NodManagerial[]>,
-): readonly NodArbore[] {
-  return (dupaManager.get(cheie) ?? []).map((nod) => ({
-    ...nod,
-    copii: construieste(nod.id, dupaManager),
-  }));
+  return { text: "fără funcție", derivat: false };
 }
 
 /**
@@ -74,36 +86,59 @@ function construieste(
 function Arbore({
   noduri,
   nivel,
+  roluri,
 }: {
-  readonly noduri: readonly NodArbore[];
+  readonly noduri: readonly NodOrganigrama<NodManagerial>[];
   readonly nivel: number;
+  readonly roluri: ReadonlyMap<string, string>;
 }) {
+  // Trunchiul care coboară din nodul părinte e punctat doar când TOATE muchiile
+  // rândului sunt deduse. La un rând mixt el e parcurs și de o legătură reală.
+  const totImplicit = noduri.length > 0 && noduri.every((nod) => nod.implicit);
+
   return (
-    <ul className={nivel === 1 ? "og-radacina" : "og-ramura"}>
-      {noduri.map((nod) => (
-        <li key={nod.id}>
-          <Link
-            href={`/angajati/${nod.id}`}
-            className="border-border bg-background hover:bg-surface hover:border-primary/40 rounded-panou shadow-ridicat flex w-40 flex-col items-center gap-1.5 border px-3 py-3 text-center"
-          >
-            <AvatarAngajat url={nod.avatar_url} nume={nod.full_name} marime="sm" />
-            <span className="text-corp leading-tight font-medium">{nod.full_name}</span>
-            <span className="text-muted-foreground text-nota font-mono">{nod.marca}</span>
-            <span className="text-muted-foreground text-nota leading-tight">
-              {nod.job_position?.denumire ?? "fără funcție"}
-              {nod.department === null ? "" : ` · ${nod.department.denumire}`}
-            </span>
-            {nod.copii.length > 0 ? (
-              <span className="text-muted-foreground text-nota inline-flex items-center gap-1">
-                <Users aria-hidden="true" className="size-3.5" />
-                <span>{nod.copii.length}</span>
-                <span className="sr-only">subordonați direcți</span>
+    // `cn(...)`, nu un template literal: varianta cu `${… ? " og-implicit" : ""}`
+    // a fost scrisă corect și a ieșit din formatter fără spațiul din față, adică
+    // `og-ramuraog-implicit` — o clasă inexistentă, deci conectorul punctat pur
+    // și simplu nu se desena. Nici `tsc`, nici ESLint, nici testele n-au ce
+    // spune despre un șir de caractere. Cu `cn` separatorul nu e al nostru.
+    <ul className={cn(nivel === 1 ? "og-radacina" : "og-ramura", totImplicit && "og-implicit")}>
+      {noduri.map((nod) => {
+        const functie = etichetaFunctiei(nod.date, roluri);
+        return (
+          <li key={nod.date.id} className={nod.implicit ? "og-implicit" : undefined}>
+            <Link
+              href={`/angajati/${nod.date.id}`}
+              className="border-border bg-background hover:bg-surface hover:border-primary/40 rounded-panou shadow-ridicat flex w-40 flex-col items-center gap-1.5 border px-3 py-3 text-center"
+            >
+              <AvatarAngajat url={nod.date.avatar_url} nume={nod.date.full_name} marime="sm" />
+              <span className="text-corp leading-tight font-medium">{nod.date.full_name}</span>
+              <span className="text-muted-foreground text-nota font-mono">{nod.date.marca}</span>
+              <span className="text-muted-foreground text-nota leading-tight">
+                <span className={functie.derivat ? "italic" : undefined}>{functie.text}</span>
+                {nod.date.department === null ? "" : ` · ${nod.date.department.denumire}`}
               </span>
+              {nod.implicit ? (
+                <span className="text-muted-foreground text-nota border-border/70 w-full border-t pt-1.5 leading-tight italic">
+                  {nod.date.manager_employee_id === null
+                    ? "manager nedesemnat"
+                    : "manager inactiv sau șters"}
+                </span>
+              ) : null}
+              {nod.copii.length > 0 ? (
+                <span className="text-muted-foreground text-nota inline-flex items-center gap-1">
+                  <Users aria-hidden="true" className="size-3.5" />
+                  <span>{nod.copii.length}</span>
+                  <span className="sr-only">subordonați direcți</span>
+                </span>
+              ) : null}
+            </Link>
+            {nod.copii.length > 0 ? (
+              <Arbore noduri={nod.copii} nivel={nivel + 1} roluri={roluri} />
             ) : null}
-          </Link>
-          {nod.copii.length > 0 ? <Arbore noduri={nod.copii} nivel={nivel + 1} /> : null}
-        </li>
-      ))}
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -126,18 +161,20 @@ export default async function PaginaOrganigrama() {
   const propriaFisaId =
     scope === "all" ? null : await idFisaProprie(tenant.organizationId, utilizator.id);
   const noduri = await arboreleManagerial(tenant.organizationId, scope, propriaFisaId);
-  const arbore = construieste(RADACINA, grupeaza(noduri));
+
+  // Rolurile din aplicație, pe conturile fișelor vizibile. Fără cheie străină
+  // între `employees` și `organization_members`, PostgREST refuză embed-ul —
+  // vezi nota de la `rolurileConturilor`. Nu cere nicio permisiune în plus:
+  // politica cere doar apartenența la organizație.
+  const roluri = await rolurileConturilor(
+    tenant.organizationId,
+    noduri.map((nod) => nod.user_id),
+  );
+
+  const { arbore, administrator, atasatiImplicit, radaciniFaraManagerVizibil } =
+    construiesteOrganigrama(noduri, roluri);
 
   const posibilTrunchiat = noduri.length >= PLAFON_RANDURI;
-
-  // Rădăcinile „artificiale”: noduri care AU un manager, dar al căror manager
-  // nu e în setul vizibil. Una singură e normală cu scope „team”/„own” (vârful
-  // subarborelui propriu). Mai multe înseamnă manageri inactivi sau șterși —
-  // sau, dacă lista a fost tăiată, oameni pe care ecranul îi arată ca șefi de
-  // sine stătători fără să fie.
-  const radaciniFaraManagerVizibil = arbore.filter(
-    (nod) => nod.manager_employee_id !== null,
-  ).length;
 
   return (
     <div className="space-y-6">
@@ -155,9 +192,21 @@ export default async function PaginaOrganigrama() {
       {posibilTrunchiat ? (
         <Callout fel="atentie" titlu="Organigrama este incompletă">
           Baza a întors {String(noduri.length)} de fișe, plafonul unei singure cereri. Peste această
-          limită lipsesc oameni, iar subordonații celor lipsă apar drept rădăcini separate — deci și
-          ierarhia afișată e greșită, nu doar parțială. Folosiți lista de angajați, filtrată pe
-          departament, până când ecranul primește o limită proprie.
+          limită lipsesc oameni, iar cine avea drept manager pe cineva rămas afară apare aici ca și
+          cum n-ar avea manager deloc — deci și ierarhia afișată e greșită, nu doar parțială.
+          Folosiți lista de angajați, filtrată pe departament, până când ecranul primește o limită
+          proprie.
+        </Callout>
+      ) : administrator !== null && atasatiImplicit > 0 ? (
+        <Callout fel="informativ" titlu="Legături deduse, nu configurate">
+          {atasatiImplicit === 1
+            ? "O persoană este atașată"
+            : `${String(atasatiImplicit)} persoane sunt atașate`}{" "}
+          administratorului cu linie punctată, fiindcă {atasatiImplicit === 1 ? "nu are" : "nu au"}{" "}
+          manager direct pe fișă. Este doar felul în care desenăm ecranul: în baza de date legătura
+          nu există, deci cererile de concediu și pontajul{" "}
+          {atasatiImplicit === 1 ? "persoanei" : "persoanelor"} nu ajung la nimeni spre aprobare.
+          Deschideți fișa fiecăreia și completați „Manager direct” ca ierarhia să devină reală.
         </Callout>
       ) : radaciniFaraManagerVizibil > 1 && scope === "all" ? (
         <Callout fel="informativ">
@@ -177,7 +226,7 @@ export default async function PaginaOrganigrama() {
       ) : (
         <div className="overflow-x-auto pb-4">
           <div className="w-fit min-w-full px-4">
-            <Arbore noduri={arbore} nivel={1} />
+            <Arbore noduri={arbore} nivel={1} roluri={roluri} />
           </div>
         </div>
       )}

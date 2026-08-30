@@ -3,7 +3,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { ChevronRight, FileCheck, FileText, FolderOpen, KeyRound, Pencil } from "lucide-react";
+import {
+  ChevronRight,
+  FileCheck,
+  FileCog,
+  FileText,
+  FolderOpen,
+  KeyRound,
+  Pencil,
+} from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
@@ -34,9 +42,14 @@ import {
   citesteScutiriFiscale,
   idFisaProprie,
   lantulDeManageri,
+  functiiActive,
   piediciStergereAngajat,
   rolurileConturilor,
 } from "@/lib/queries/employees";
+import { coduriEligibile } from "@/lib/documents/inrolare";
+import { CODURI_INROLARE } from "@/lib/documents/variabile";
+
+import { ButonSchimbaFunctia } from "./buton-schimba-functia";
 
 import {
   ETICHETE_CONTRACT,
@@ -50,6 +63,10 @@ import {
 } from "../etichete";
 import { ButonIncheieComponenta } from "./buton-incheie-componenta";
 import { ButonStergeAngajat } from "./buton-sterge-angajat";
+import {
+  DialogRegenereazaDocumente,
+  type StareDocumentRegenerare,
+} from "./dialog-regenereaza-documente";
 import { DateSensibile } from "./date-sensibile";
 import { FormularContractNou } from "./formular-contract-nou";
 import { FormularComponentaSalariala } from "./formular-componenta-salariala";
@@ -161,6 +178,17 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
   // jos — `invitations_select` cere `users:read` sau `employees:invite`, deci
   // pentru un manager ar fi fost oricum zero rânduri.
   const poateInvita = can(permisiuni, "employees:invite", "all");
+  // Tot printre porțile de sus, din același motiv: decide dacă se mai citește
+  // nomenclatorul de funcții pentru caseta „Schimbă funcția".
+  const poateEditaAngajat = can(permisiuni, "employees:update", "all");
+
+  /*
+   * Regenerarea EMITE documente, deci cere aceeași cheie ca emiterea:
+   * `hr_issued_insert` (0005_hr_rls.sql:880-891) verifică `employees:create`.
+   * Poarta decide și dacă se mai citește fișa postului, de care depinde doar
+   * eligibilitatea bifelor din casetă.
+   */
+  const poateRegenera = can(permisiuni, "employees:create", "all");
 
   const dbFisa = await createServerSupabase();
 
@@ -175,6 +203,8 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
     dependentiRes,
     documenteEmiseRes,
     invitatiePendinte,
+    optiuniFunctii,
+    areFisaPostului,
   ] = await Promise.all([
     // Datele sensibile nu se randează deloc dacă scope-ul nu acoperă întreaga organizație.
     scope === "all" ? citesteRezumatDateSensibile(tenant.organizationId, id) : null,
@@ -225,7 +255,12 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
      */
     dbFisa
       .from("hr_issued_documents")
-      .select("id, titlu, numar_afisat, emis_la, anulat_la")
+      // `hr_document_templates(cod)` e nou aici: fără codul șablonului, caseta
+      // de regenerare n-ar putea spune CE document e fiecare rând — `titlu` e
+      // text liber, pe care firma îl poate schimba din editorul de șabloane.
+      .select(
+        "id, titlu, numar_afisat, emis_la, anulat_la, template_id, hr_document_templates(cod)",
+      )
       .eq("organization_id", tenant.organizationId)
       .eq("employee_id", angajat.id)
       .is("deleted_at", null)
@@ -250,6 +285,28 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
           .maybeSingle()
           .then(({ data }) => data)
       : null,
+    // Nomenclatorul se citește doar pentru cine îl poate și folosi: fără
+    // `employees:update = all`, caseta de schimbare a funcției nu se randează,
+    // deci lista ar fi un drum la bază pentru nimic.
+    poateEditaAngajat ? functiiActive(tenant.organizationId) : [],
+    /*
+     * Doar EXISTENȚA fișei postului, nu conținutul ei.
+     *
+     * Fișa postului e singurul dintre cele cinci documente care se sare tăcut
+     * când lipsește (`inrolare.ts`, `coduriEligibile`). Fără verificarea asta,
+     * caseta ar oferi o bifă care nu produce nimic la apăsare — niciun
+     * document, niciun mesaj.
+     */
+    poateRegenera
+      ? dbFisa
+          .from("job_descriptions")
+          .select("id")
+          .eq("employee_id", angajat.id)
+          .is("deleted_at", null)
+          .limit(1)
+          .maybeSingle()
+          .then(({ data }) => data !== null)
+      : false,
   ]);
 
   // Aruncat, nu înghițit cu `?? []`: o listă goală din cauza unei erori arată
@@ -285,9 +342,43 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
     contracteActive.find((c) => !c.este_act_aditional) ?? contracteActive[0] ?? null;
   const contracteIstoric = angajat.contracts.filter((c) => c.status !== "activ");
 
+  /*
+   * Starea per document, pentru bifele casetei de regenerare.
+   *
+   * Se potrivește pe CODUL șablonului, nu pe `titlu`: titlul e text liber, pe
+   * care firma îl poate schimba din editorul de șabloane, deci ar fi fost o
+   * cheie care se rupe exact la firmele care și-au personalizat documentele.
+   * Se ia doar documentul ACTIV — cel anulat de o regenerare anterioară nu mai
+   * e predecesorul nimănui.
+   */
+  const documenteRegenerare = ((): readonly StareDocumentRegenerare[] => {
+    if (!poateRegenera || contractPrincipal === null) return [];
+    const eligibile = coduriEligibile(contractPrincipal.work_mode, areFisaPostului);
+    const activePeCod = new Map(
+      documenteEmise
+        .filter((d) => d.anulat_la === null && typeof d.hr_document_templates?.cod === "string")
+        .map((d) => [d.hr_document_templates?.cod ?? "", d]),
+    );
+
+    return CODURI_INROLARE.map((cod) => {
+      const activ = activePeCod.get(cod);
+      const eligibil = eligibile.includes(cod);
+      return {
+        cod,
+        numarAfisat: activ?.numar_afisat ?? null,
+        emisLaAfisat: activ === undefined ? null : formatDate(activ.emis_la),
+        eligibil,
+        motivNeeligibil: eligibil
+          ? null
+          : cod === "fisa_postului"
+            ? "Angajatul nu are fișa postului completată."
+            : "Nu se aplică modului de lucru din contract.",
+      };
+    });
+  })();
+
   const esteFisaProprie = angajat.user_id === utilizator.id;
   const poateIncarcaPtOricine = can(permisiuni, "users:update", "all");
-  const poateEditaAngajat = can(permisiuni, "employees:update", "all");
   // Pragul `team` e cel mai mic care deschide ecranul: `org_admin` are `all`
   // (toată firma), managerul `team` (doar echipa lui, restul îl oprește RLS).
   const poateAcordaPermisiuni = can(permisiuni, "roles:update", "team");
@@ -445,6 +536,56 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
           cetatenie: angajat.cetatenie,
         }}
       />
+
+      {/*
+        Încadrarea, ÎNAINTEA datelor personale și în secțiune proprie.
+
+        Funcția, departamentul și managerul direct existau până acum doar în
+        linia mică de sub titlu (`Marca 0002 · HR Lead · Producție`), unde se
+        citesc dar nu se pot schimba, și în formularul de editare, unde sunt
+        trei câmpuri din treizeci și șase. Cine tocmai a definit o funcție în
+        nomenclator și vrea s-o pună pe cineva se uită AICI — asta e întrebarea
+        care a cerut ecranul.
+
+        Nu e „date personale": funcția e o decizie a firmei, nu un atribut al
+        omului. De aceea secțiune separată, nu un al patrulea grup acolo.
+      */}
+      <section aria-labelledby="titlu-incadrare" className={CLASA_SECTIUNE}>
+        <h2 id="titlu-incadrare" className="text-sectiune mb-4 font-medium">
+          Încadrare
+        </h2>
+        <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div>
+            <dt className="text-muted-foreground text-nota tracking-wide uppercase">Funcție</dt>
+            <dd className="mt-0.5 flex flex-wrap items-center gap-2">
+              <span
+                className={cn(
+                  "text-corp",
+                  angajat.job_position === null && "text-muted-foreground/70 italic",
+                )}
+              >
+                {angajat.job_position?.denumire ?? "Nealocată"}
+              </span>
+              {poateEditaAngajat ? (
+                <ButonSchimbaFunctia
+                  employeeId={angajat.id}
+                  functieCurentaId={angajat.job_position?.id ?? null}
+                  functii={optiuniFunctii}
+                />
+              ) : null}
+            </dd>
+          </div>
+          <Camp eticheta="Departament" valoare={angajat.department?.denumire ?? null} />
+          {/*
+            Managerul DIRECT, adică ultima verigă a lanțului deja citit pentru
+            sub-antet — nu o a doua interogare. Lanțul de deasupra arată tot
+            drumul până la vârf; aici contează cine aprobă concediile omului,
+            iar „Nedesemnat" e informația care lipsea de pe fișă: fără manager
+            direct, cererile lui nu ajung la nimeni.
+          */}
+          <Camp eticheta="Manager direct" valoare={lantManageri.at(-1)?.full_name ?? null} />
+        </dl>
+      </section>
 
       <section aria-labelledby="titlu-date-personale" className={CLASA_SECTIUNE}>
         <h2 id="titlu-date-personale" className="text-sectiune mb-4 font-medium">
@@ -908,13 +1049,24 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
               </span>
             ) : null}
           </h2>
-          <Link
-            href={`/angajati/${angajat.id}/documente`}
-            className={buton({ varianta: "secundar" })}
-          >
-            <FolderOpen aria-hidden="true" className="size-3.5" />
-            Deschide dosarul
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            {poateRegenera && contractPrincipal !== null ? (
+              <DialogRegenereazaDocumente employeeId={angajat.id} documente={documenteRegenerare} />
+            ) : null}
+            {poateEditaAngajat ? (
+              <Link href="/angajati/sabloane-documente" className={buton({ varianta: "tertiar" })}>
+                <FileCog aria-hidden="true" className="size-3.5" />
+                Modifică șabloane
+              </Link>
+            ) : null}
+            <Link
+              href={`/angajati/${angajat.id}/documente`}
+              className={buton({ varianta: "secundar" })}
+            >
+              <FolderOpen aria-hidden="true" className="size-3.5" />
+              Deschide dosarul
+            </Link>
+          </div>
         </div>
 
         {documenteEmise.length === 0 ? null : (

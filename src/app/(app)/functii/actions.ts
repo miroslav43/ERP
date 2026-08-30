@@ -8,6 +8,7 @@ import { createAction } from "@/lib/actions/create-action";
 import { createServerSupabase } from "@/lib/supabase/server";
 import {
   actualizeazaFunctieSchema,
+  atribuieAngajatiSchema,
   creeazaFunctieSchema,
   dezactiveazaFunctieSchema,
 } from "@/schemas/job-position";
@@ -181,5 +182,136 @@ export const reactiveazaFunctie = createAction<
     }
     revalidatePath("/functii");
     return { id: input.id };
+  },
+});
+
+/**
+ * Cine deține funcția — atribuire și retragere dintr-o singură apăsare.
+ *
+ * ── DE CE STĂ AICI, ÎN NOMENCLATOR ────────────────────────────────────────
+ * `dezactiveazaFunctie`, mai sus în acest fișier, refuză cu „Mutați-i pe altă
+ * funcție înainte de dezactivare". Până acum, unealta la care trimitea mesajul
+ * nu exista în modul: singura cale de a schimba funcția cuiva era formularul
+ * complet al fișei, deschis pentru fiecare om în parte. Aceeași fundătură pe
+ * care `mutaAngajati` a reparat-o la departamente, cu aceeași formă.
+ *
+ * ── PERMISIUNEA E `employees:update`, NU `departments:update` ─────────────
+ * Restul acțiunilor din fișier scriu în `job_positions`, deci cer dreptul pe
+ * structura organizatorică. Asta scrie în `employees`. Cerând `departments`,
+ * ar fi fost o poartă care nu păzește tabela atinsă — iar `employees_update` ar
+ * fi refuzat oricum, tăcut, cu zero rânduri. Ecranul repetă condiția: butonul
+ * nu se randează fără `employees:update = all`.
+ *
+ * ── DE CE DOUĂ SCRIERI ȘI NU UNA ──────────────────────────────────────────
+ * Payload-ul e o STARE („ăștia dețin funcția"), nu o operație. Diferența față
+ * de bază se desface în două mulțimi disjuncte — cei de adăugat și cei de scos
+ * — care cer valori diferite pe aceeași coloană, deci două `UPDATE`-uri.
+ * Ordinea nu contează: mulțimile n-au intersecție prin construcție.
+ *
+ * ── CE NU SE POATE GARANTA, ȘI SE SPUNE ───────────────────────────────────
+ * PostgREST nu deschide o tranzacție peste două cereri: dacă a doua e refuzată
+ * parțial, prima rămâne scrisă. Mesajul spune atunci exact ce s-a întâmplat, cu
+ * cifre — nu „a eșuat", ceea ce ar fi o minciună despre rândurile deja scrise.
+ * Aceeași alegere ca la `mutaAngajati`, din același motiv.
+ */
+export const atribuieAngajatiPeFunctie = createAction<
+  typeof atribuieAngajatiSchema,
+  { atribuiti: number; retrasi: number }
+>({
+  name: "job_positions.assign_employees",
+  permission: "employees:update",
+  minScope: "all",
+  input: atribuieAngajatiSchema,
+  audit: {
+    action: "update",
+    entityType: "job_positions",
+    entityId: (input) => input.job_position_id,
+    allow: ["job_position_id", "employee_ids"],
+  },
+  // `/angajati` arată funcția pe fiecare rând, `/organigrama` pe fiecare nod.
+  revalidate: ["/functii", "/angajati", "/organigrama"],
+  handler: async (ctx, input) => {
+    const db = await createServerSupabase();
+
+    // Funcția se verifică EXPLICIT că e a organizației: `employees.job_position_id`
+    // e o cheie străină simplă, fără componentă pe `organization_id`, deci baza
+    // n-ar opri o funcție împrumutată din altă firmă. Aceeași gaură ca la
+    // `employees.department_id`, aceeași plasă ca în `mutaAngajati`.
+    const { data: functie, error: eroareFunctie } = await db
+      .from("job_positions")
+      .select("id, denumire, activ")
+      .eq("id", input.job_position_id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (eroareFunctie !== null) throw mapPostgrestError(eroareFunctie, ctx.requestId);
+    if (functie === null) throw notFound("Funcția selectată nu a fost găsită.");
+    // O funcție dezactivată nu primește oameni — altfel `dezactiveazaFunctie`
+    // s-ar contrazice singură: refuză închiderea până când funcția e goală, dar
+    // imediat după ce reușești ai putea-o repopula, fără niciun avertisment.
+    // Retragerea rămâne permisă: golirea unei funcții dezactivate e chiar
+    // curățenia pe care refuzul o cere.
+    if (!functie.activ && input.employee_ids.length > 0) {
+      throw businessRule(
+        `Funcția „${functie.denumire}” este dezactivată. Reactivați-o înainte de a atribui persoane pe ea.`,
+      );
+    }
+
+    // Cine o deține ACUM — sub aceleași politici ca lista de pe ecran, deci
+    // aceeași mulțime. Diferența se calculează aici, nu în interfață: ecranul
+    // trimite starea dorită, nu operațiile.
+    const { data: actuali, error: eroareActuali } = await db
+      .from("employees")
+      .select("id")
+      .eq("organization_id", ctx.tenant.organizationId)
+      .eq("job_position_id", input.job_position_id)
+      .is("deleted_at", null);
+    if (eroareActuali !== null) throw mapPostgrestError(eroareActuali, ctx.requestId);
+
+    const idActuali = new Set((actuali ?? []).map((rand) => rand.id));
+    const ceruti = new Set(input.employee_ids);
+    const deAdaugat = input.employee_ids.filter((id) => !idActuali.has(id));
+    const deScos = [...idActuali].filter((id) => !ceruti.has(id));
+
+    let atribuiti = 0;
+    if (deAdaugat.length > 0) {
+      const { data, error } = await db
+        .from("employees")
+        .update({ job_position_id: input.job_position_id, updated_by: ctx.user.id })
+        .in("id", deAdaugat)
+        .eq("organization_id", ctx.tenant.organizationId)
+        .is("deleted_at", null)
+        .select("id");
+      if (error !== null) throw mapPostgrestError(error, ctx.requestId);
+      atribuiti = data?.length ?? 0;
+      // `.select()` după `.update()`: politica `employees_update` refuză prin
+      // `USING` cu ZERO RÂNDURI ȘI FĂRĂ EROARE. La o scriere în masă, un refuz
+      // parțial ar fi altfel raportat drept reușită deplină.
+      if (atribuiti !== deAdaugat.length) {
+        throw businessRule(
+          `Au primit funcția ${String(atribuiti)} din ${String(deAdaugat.length)} persoane. Restul au fost refuzate: fișele au fost șterse între timp sau nu aveți dreptul de a le modifica. Reîncărcați pagina.`,
+        );
+      }
+    }
+
+    let retrasi = 0;
+    if (deScos.length > 0) {
+      const { data, error } = await db
+        .from("employees")
+        .update({ job_position_id: null, updated_by: ctx.user.id })
+        .in("id", deScos)
+        .eq("organization_id", ctx.tenant.organizationId)
+        .is("deleted_at", null)
+        .select("id");
+      if (error !== null) throw mapPostgrestError(error, ctx.requestId);
+      retrasi = data?.length ?? 0;
+      if (retrasi !== deScos.length) {
+        throw businessRule(
+          `Au fost scoase de pe funcție ${String(retrasi)} din ${String(deScos.length)} persoane, dar cele ${String(atribuiti)} atribuiri au rămas scrise. Reîncărcați pagina și reluați retragerea.`,
+        );
+      }
+    }
+
+    return { atribuiti, retrasi };
   },
 });

@@ -18,3 +18,10 @@ de oricine face un push.
 - module atinse: angajati concedii cursuri diurna inventar notificari onboarding pontaj puncte-lucru reges revisal salarizare setari
 - straturi atinse: migrări citiri scheme domeniu configurație
 - pagini rescrise: niciuna (agenții au citit diff-ul și n-au găsit contract schimbat)
+
+## 2026-08-30
+
+- commit-uri în ultimele 24h: 19
+- module atinse: angajati concedii cursuri departamente diurna functii mentenanta onboarding organigrama pontaj rapoarte salarizare setari ssm
+- straturi atinse: migrări citiri scheme domeniu configurație
+- pagini rescrise: modul/angajati.md modul/concedii.md modul/pontaj.md modul/salarizare.md

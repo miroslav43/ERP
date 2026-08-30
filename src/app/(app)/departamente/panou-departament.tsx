@@ -170,6 +170,16 @@ export function PanouDepartament({
           : `${c.marca} · ${c.departamentCurent}`,
     }));
 
+  /*
+   * Se recunoaște după `cod`, nu după `denumire`: denumirea se poate schimba
+   * dintr-un ecran, codul e cheia pe care o caută și triggerele din
+   * `0107_departamentul_conducere.sql`. O firmă care își redenumește
+   * departamentul în „Board” păstrează nota; una care îi schimbă codul o pierde
+   * — și tot atunci pierde și repartizarea automată, deci cele două rămân
+   * consecvente între ele.
+   */
+  const esteConducerea = departament !== null && departament.cod.toLowerCase() === "conducere";
+
   const titlu = departament === null ? "Persoane nerepartizate" : departament.denumire;
   const descriere =
     departament === null
@@ -179,6 +189,28 @@ export function PanouDepartament({
   return (
     <PanouLateral deschis={deschis} laInchidere={inchide} titlu={titlu} descriere={descriere}>
       <div className="space-y-4">
+        {/*
+         * Mecanismul e corect și fără nota asta, dar invizibil: nimic din
+         * ecranul de departamente nu spune că un cofondator se adaugă
+         * INVITÂNDU-L, nu mutându-l. Câmpul de mai jos mută doar oameni care au
+         * deja fișă, deci pe cineva din afara firmei nu-l poate aduce.
+         */}
+        {esteConducerea ? (
+          <Callout
+            fel="informativ"
+            titlu="Conducerea firmei"
+            actiune={
+              <Link href="/setari/membri" className="text-nota font-medium underline">
+                Invită un cofondator
+              </Link>
+            }
+          >
+            Administratorii intră aici automat: invită pe cineva cu rolul „Administrator” și apare
+            singur în listă. Poți aduce aici, cu câmpul de mai jos, și asociați sau directori care
+            nu au cont în aplicație.
+          </Callout>
+        ) : null}
+
         {/*
          * Nota nu e decorativă și nu se poate scoate: scope-ul „team" se rezolvă
          * peste tot pe `manager_path`, niciodată pe `department_id`. Cele două

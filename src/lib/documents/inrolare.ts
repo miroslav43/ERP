@@ -17,6 +17,7 @@ import { notFound } from "@/lib/actions/errors";
 import type { ServerSupabase } from "@/lib/supabase/server";
 
 import { genereazaDocument } from "./generator";
+import { CODURI_INROLARE, type CodInrolare } from "./variabile";
 import {
   valoriActAditionalTelemunca,
   valoriAnexaPi,
@@ -39,6 +40,30 @@ const DURATA_CONFIDENTIALITATE = "doi ani";
 
 /** Modurile de lucru care cer act adițional de telemuncă. */
 const CERE_ACT_TELEMUNCA: readonly string[] = ["telemunca", "domiciliu", "mixt"];
+
+/**
+ * Care dintre cele cinci documente se pot emite pentru un angajat anume.
+ *
+ * Două dintre ele nu se emit întotdeauna: actul de telemuncă doar pentru
+ * `CERE_ACT_TELEMUNCA`, iar fișa postului doar dacă există un rând în
+ * `job_descriptions`. Fără funcția asta, caseta de regenerare ar oferi bife
+ * pentru documente pe care emiterea le sare tăcut — utilizatorul bifează, apasă,
+ * și nu se întâmplă nimic, fără niciun mesaj.
+ *
+ * `deEmis`, mai jos, își construiește lista DIN funcția asta, nu din condiții
+ * scrise a doua oară — altfel caseta și emiterea ar fi putut ajunge să nu mai
+ * spună același lucru, iar diferența s-ar fi văzut ca un buton fără efect.
+ */
+export function coduriEligibile(
+  codModLucru: string,
+  areFisaPostului: boolean,
+): readonly CodInrolare[] {
+  return CODURI_INROLARE.filter((cod) => {
+    if (cod === "fisa_postului") return areFisaPostului;
+    if (cod === "act_aditional_telemunca") return CERE_ACT_TELEMUNCA.includes(codModLucru);
+    return true;
+  });
+}
 
 export type DocumentEmis = Readonly<{
   cod: string;
@@ -133,6 +158,8 @@ export async function genereazaDocumenteInrolare(
     azi: parametri.azi,
   };
 
+  const eligibile = coduriEligibile(parametri.codModLucru, parametri.fisaPostului !== null);
+
   const deEmis: readonly {
     cod: string;
     denumire: string;
@@ -145,15 +172,15 @@ export async function genereazaDocumenteInrolare(
       valori: valoriContractMunca(context),
       contractId: parametri.contractId,
     },
-    ...(parametri.fisaPostului === null
-      ? []
-      : [
+    ...(eligibile.includes("fisa_postului") && parametri.fisaPostului !== null
+      ? [
           {
             cod: "fisa_postului",
             denumire: "Fișa postului",
             valori: valoriFisaPostului(context, parametri.fisaPostului),
           },
-        ]),
+        ]
+      : []),
     {
       cod: "nda",
       denumire: "Acordul de confidențialitate",
@@ -165,7 +192,7 @@ export async function genereazaDocumenteInrolare(
       valori: valoriAnexaPi(context),
       contractId: parametri.contractId,
     },
-    ...(CERE_ACT_TELEMUNCA.includes(parametri.codModLucru)
+    ...(eligibile.includes("act_aditional_telemunca")
       ? [
           {
             cod: "act_aditional_telemunca",

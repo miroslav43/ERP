@@ -111,6 +111,39 @@ export async function structuraDepartamentelor(
  * Ordinea e pe `id`, nu pe nume, fiindcă e cheia keyset a paginării; sortarea
  * pentru ecran se face în pagină, după ce lista e completă.
  */
+/**
+ * Rolul fiecărui membru activ, indexat pe `user_id`.
+ *
+ * ── LA CE FOLOSEȘTE ───────────────────────────────────────────────────────
+ * Ecranul de structură arată cine conduce fiecare departament, dar nu și dacă
+ * omul acela ARE drepturile pe care conducerea le presupune. Un șef cu rolul
+ * `employee` nu vede pontajul oamenilor lui și nu-i poate aproba concediile —
+ * stare perfect tăcută până acum: cardul arăta un manager, iar omul se lovea de
+ * ecrane goale. Harta asta lasă ecranul să pună un semn lângă nume.
+ *
+ * ── DE CE O A DOUA INTEROGARE, ȘI NU UN EMBED ─────────────────────────────
+ * PostgREST nu poate încorpora `organization_members` din `departments`: cele
+ * două se leagă prin `employees.user_id` → `auth.users`, iar între ele nu există
+ * nicio cheie străină declarată. Aceeași lipsă a produs PGRST200 în ecranul de
+ * membri, unde `profiles` a trebuit luat separat din același motiv.
+ *
+ * Fără `citesteTot`: tabela are un rând per om cu cont, adică unități, nu mii —
+ * cea mai mare firmă din baza reală are patru. Plafonul de 1000 nu e în discuție.
+ */
+export async function rolurilePeUtilizator(
+  organizationId: string,
+): Promise<ReadonlyMap<string, string>> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("organization_members")
+    .select("user_id, role")
+    .eq("organization_id", organizationId)
+    .eq("status", "active")
+    .is("deleted_at", null);
+  if (error !== null) throw error;
+  return new Map((data ?? []).map((membru) => [membru.user_id, membru.role]));
+}
+
 export async function angajatiPentruStructura(
   organizationId: string,
   scope: PermissionScope,

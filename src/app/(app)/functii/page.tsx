@@ -16,6 +16,7 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { scrieSortare } from "@/lib/queries/cursor";
 import { listeazaFunctii, type FunctieListata } from "@/lib/queries/job-positions";
+import { angajatiPentruAtribuire } from "@/lib/queries/employees";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 import { filtreFunctiiSchema } from "@/schemas/job-position";
 
@@ -33,6 +34,7 @@ interface ProprietatiTabel {
   readonly organizationId: string;
   readonly parametri: Record<string, string | string[] | undefined>;
   readonly poateEdita: boolean;
+  readonly poateAtribui: boolean;
   readonly poateNumaraAngajati: boolean;
 }
 
@@ -40,14 +42,26 @@ async function TabelFunctii({
   organizationId,
   parametri,
   poateEdita,
+  poateAtribui,
   poateNumaraAngajati,
 }: ProprietatiTabel) {
   const filtre = filtreDinUrl(filtreFunctiiSchema, parametri);
-  const { randuri, totalNefiltrat, faraCor, trunchiat, sortare } = await listeazaFunctii(
-    organizationId,
-    filtre,
-    poateNumaraAngajati,
-  );
+  const [{ randuri, totalNefiltrat, faraCor, trunchiat, sortare }, angajati] = await Promise.all([
+    listeazaFunctii(organizationId, filtre, poateNumaraAngajati),
+    // Fișele se citesc doar pentru cine poate și atribui: fără drept, caseta de
+    // bife nu se randează, deci lista ar fi un drum la bază pentru nimic.
+    poateAtribui ? angajatiPentruAtribuire(organizationId) : [],
+  ]);
+
+  /*
+   * Denumirile funcțiilor, ca să scrie „acum: Sudor" lângă cine deține deja
+   * alta. Se construiește din rândurile DEJA citite, nu dintr-o a doua
+   * interogare — dar tocmai de aceea e parțială: lista e filtrată, deci un om
+   * poate deține o funcție care nu trece de filtrul curent. Caseta cade atunci
+   * pe „altă funcție", ceea ce e adevărat și suficient: bifa mută pe cineva,
+   * iar asta se vede, chiar dacă nu se poate numi de pe unde.
+   */
+  const denumiriFunctii = Object.fromEntries(randuri.map((rand) => [rand.id, rand.denumire]));
 
   const areFiltre = filtre.q !== null || filtre.stare !== null || filtre.cor !== null;
 
@@ -164,7 +178,7 @@ async function TabelFunctii({
       // zgomot care ascunde exact excepția pe care omul o caută.
       celula: (rand) => (rand.activ ? null : <Badge ton="neutru">Inactivă</Badge>),
     },
-    ...(poateEdita
+    ...(poateEdita || poateAtribui
       ? [
           {
             cheie: "actiuni",
@@ -176,7 +190,13 @@ async function TabelFunctii({
             // devreme și hidratarea ar cădea. Vezi `pontaj/perioade/page.tsx`.
             peTelefon: "insigna",
             celula: (rand: FunctieListata) => (
-              <ActiuniFunctie functie={rand} poateEdita={poateEdita} />
+              <ActiuniFunctie
+                functie={rand}
+                poateEdita={poateEdita}
+                poateAtribui={poateAtribui}
+                angajati={angajati}
+                denumiriFunctii={denumiriFunctii}
+              />
             ),
           } satisfies Coloana<FunctieListata>,
         ]
@@ -274,6 +294,14 @@ export default async function PaginaFunctii({ searchParams }: ProprietatiPagina)
 
   const poateCrea = can(permisiuni, "departments:create", "all");
   const poateEdita = can(permisiuni, "departments:update", "all");
+  /*
+   * Atribuirea scrie în `employees`, deci cere `employees:update`, NU
+   * `departments:update` ca restul modulului. Azi cele două se suprapun exact
+   * (org_admin, hr, super_admin — verificat în `role_permissions`), dar sunt
+   * rânduri distincte în seed: legate una de alta, o despărțire viitoare ar
+   * ascunde butonul de la cineva care are dreptul, tăcut.
+   */
+  const poateAtribui = can(permisiuni, "employees:update", "all");
 
   /**
    * Numărătoarea de angajați cere `employees:read = all` EXACT.
@@ -306,7 +334,7 @@ export default async function PaginaFunctii({ searchParams }: ProprietatiPagina)
         fallback={
           <Schelet
             forma="tabel"
-            coloane={5 + (poateNumaraAngajati ? 1 : 0) + (poateEdita ? 1 : 0)}
+            coloane={5 + (poateNumaraAngajati ? 1 : 0) + (poateEdita || poateAtribui ? 1 : 0)}
           />
         }
       >
@@ -314,6 +342,7 @@ export default async function PaginaFunctii({ searchParams }: ProprietatiPagina)
           organizationId={tenant.organizationId}
           parametri={parametri}
           poateEdita={poateEdita}
+          poateAtribui={poateAtribui}
           poateNumaraAngajati={poateNumaraAngajati}
         />
       </Suspense>

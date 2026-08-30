@@ -13,7 +13,10 @@ import { cn } from "@/lib/ui/cn";
 import { PERMISSION_KEYS, type PermissionScope } from "@/config/permissions";
 import { citesteAngajat } from "@/lib/queries/employees";
 
+import { etichetaRol } from "@/lib/membri/etichete";
+
 import { MatricePermisiuni, type RandPermisiune } from "./matrice-permisiuni";
+import { SelectorRol } from "./selector-rol";
 
 export const metadata: Metadata = { title: "Permisiuni suplimentare" };
 
@@ -161,13 +164,29 @@ export default async function PaginaPermisiuniMembru({
         </p>
         <AntetPagina
           titlu="Permisiuni suplimentare"
-          descriere={`Peste ce îi dă rolul de ${membru.role}. ${
+          descriere={`Peste ce îi dă rolul de ${etichetaRol(membru.role)}. ${
             numarSuprascrieri === 0
               ? "Momentan nimic suprascris — vede exact ce vede rolul lui."
               : `${numarSuprascrieri.toLocaleString("ro-RO")} suprascrieri active.`
           }`}
         />
       </div>
+
+      {/*
+        Rolul stă DEASUPRA matricei fiindcă e pârghia mare: schimbat, mută zeci
+        de permisiuni deodată. Suprascrierile de sub el sunt ajustări pe cazuri
+        punctuale — cine începe cu ele pentru ceva ce rezolvă rolul ajunge cu
+        douăzeci de rânduri care trebuie întreținute manual la fiecare schimbare.
+      */}
+      <SelectorRol
+        memberId={membru.id}
+        rolCurent={membru.role}
+        numePersoana={angajat.full_name ?? "Angajatul"}
+        // `users:update` la `all`, nu `roles:update`: politica de pe
+        // `organization_members` cere rolul de administrator, iar un buton activ
+        // pentru altcineva ar produce un refuz tăcut, nu un mesaj.
+        poateSchimba={can(permisiuni, "users:update", "all")}
+      />
 
       <p className="border-border bg-surface text-muted-foreground rounded-panou text-corp border p-3">
         „Ca la rol” înseamnă că permisiunea urmează rolul și se schimbă odată cu el. O valoare

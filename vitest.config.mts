@@ -85,7 +85,19 @@ export default defineConfig({
         test: {
           name: "ui",
           environment: "happy-dom",
-          include: ["src/components/**/*.test.tsx"],
+          /**
+           * `src/**`, nu `src/components/**`.
+           *
+           * Cele 25 de teste de componentă existente stau toate în
+           * `src/components/`, deci lărgirea nu ridică niciun fișier nou. Ce
+           * repară e capcana de mâine: un `*.test.tsx` scris lângă componenta pe
+           * care o verifică — într-un modul din `src/app/` — nu era inclus de
+           * NICIUN proiect. `pnpm test` l-ar fi ignorat fără să-l numere și fără
+           * să se plângă, iar raportul ar fi arătat identic cu unul în care
+           * testul trece. Un test care nu rulează e mai rău decât unul absent:
+           * absența se vede.
+           */
+          include: ["src/**/*.test.tsx"],
           globals: true,
         },
       },

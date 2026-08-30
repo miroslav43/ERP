@@ -9,7 +9,7 @@ import { creeazaInvitatie, ZILE_VALABILITATE } from "@/lib/invitatii/creeaza";
 import { alegeAdresaDeInvitatie, type FelAdresa } from "@/lib/invitatii/adresa";
 
 import { readRequestMeta, writeAuditLog } from "@/lib/actions/audit";
-import { businessRule, notFound } from "@/lib/actions/errors";
+import { businessRule, mapPostgrestError, notFound } from "@/lib/actions/errors";
 import { createAction } from "@/lib/actions/create-action";
 import { createServerSupabase } from "@/lib/supabase/server";
 // Ocolirea RLS e permisă de ESLint în `actions.ts`; motivul concret e scris la
@@ -30,6 +30,7 @@ import { ultimeleCifreIban } from "@/domain/hr/iban";
 import { genereazaEvenimenteReges } from "@/lib/reges/genereaza-evenimente";
 import {
   actualizeazaAngajatSchema,
+  atribuieFunctiaSchema,
   creeazaContractSchema,
   dezvaluieDateSensibileSchema,
   incetareContractSchema,
@@ -148,6 +149,85 @@ export const actualizeazaAngajat = createAction({
     revalidatePath("/angajati");
     revalidatePath(`/angajati/${id}`);
     return { id };
+  },
+});
+
+/**
+ * Funcția unei persoane, schimbată de pe fișa ei.
+ *
+ * ── DE CE O ACȚIUNE PROPRIE, LÂNGĂ `actualizeazaAngajat` ──────────────────
+ * Funcția se putea seta și până acum, dar într-un singur loc: formularul
+ * complet de editare, secțiunea „Angajare", al treilea `<select>` dintre
+ * treizeci și șase de câmpuri. Cine tocmai crease o funcție în nomenclator
+ * n-avea de unde ști că acolo trebuie să meargă — întrebarea care a cerut
+ * schimbarea a fost, textual, „nu-mi dau seama cum să pot seta o funcție unui
+ * angajat".
+ *
+ * Nu se refolosește `actualizeazaAngajat` pentru că schema ei are 36 de câmpuri
+ * cu `.default(...)`: un payload de două câmpuri ar trece de validare și ar
+ * scrie `null` peste restul fișei. Motivul complet stă lângă
+ * `atribuieFunctiaSchema`, în `@/schemas/employee`.
+ *
+ * ── TREI DECIZII CARE NU SE VĂD DIN SEMNĂTURĂ ─────────────────────────────
+ * 1. `minScope: "all"`, nu `"team"`. `actualizeazaAngajat` are azi `"team"`
+ *    deși pagina lui cere `"all"`, deci e invocabilă direct de cineva care n-a
+ *    văzut niciodată ecranul. Discrepanța nu se repetă aici — aceeași alegere
+ *    ca la `mutaAngajati`.
+ * 2. Funcția-țintă se verifică EXPLICIT că e a organizației și că e activă.
+ *    `employees.job_position_id` e o cheie străină simplă, fără componentă pe
+ *    `organization_id`: baza n-ar opri o funcție împrumutată din altă firmă.
+ *    Iar dacă s-ar putea pune o funcție dezactivată, `dezactiveazaFunctie` —
+ *    care refuză închiderea cât timp funcția are angajați — s-ar contrazice
+ *    singură: ai putea repopula imediat ce ai golit.
+ * 3. `.select()` după `.update()`. Politica `employees_update` refuză prin
+ *    `USING` cu ZERO RÂNDURI ȘI FĂRĂ EROARE; fără verificarea rezultatului gol,
+ *    un refuz ar ajunge pe ecran drept succes.
+ */
+export const atribuieFunctia = createAction<typeof atribuieFunctiaSchema, { id: string }>({
+  name: "employees.assign_job_position",
+  permission: "employees:update",
+  minScope: "all",
+  input: atribuieFunctiaSchema,
+  audit: {
+    action: "update",
+    entityType: "employee",
+    entityId: (input) => input.employee_id,
+    allow: ["employee_id", "job_position_id"],
+  },
+  // `/organigrama` scrie funcția pe fiecare nod, deci se învechește și ea.
+  revalidate: ["/angajati", "/functii", "/organigrama"],
+  handler: async (ctx, input) => {
+    const db = await createServerSupabase();
+
+    if (input.job_position_id !== null) {
+      const { data: functie, error: eroareFunctie } = await db
+        .from("job_positions")
+        .select("id, denumire, activ")
+        .eq("id", input.job_position_id)
+        .eq("organization_id", ctx.tenant.organizationId)
+        .maybeSingle();
+      if (eroareFunctie !== null) throw mapPostgrestError(eroareFunctie, ctx.requestId);
+      if (functie === null) throw notFound("Funcția selectată nu a fost găsită.");
+      if (!functie.activ) {
+        throw businessRule(
+          `Funcția „${functie.denumire}” este dezactivată. Reactivați-o din nomenclator înainte de a o atribui.`,
+        );
+      }
+    }
+
+    const { data, error } = await db
+      .from("employees")
+      .update({ job_position_id: input.job_position_id, updated_by: ctx.user.id })
+      .eq("id", input.employee_id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
+    if (error !== null) throw mapPostgrestError(error, ctx.requestId);
+    if (data === null)
+      throw notFound("Fișa de angajat nu a fost găsită sau nu vă este accesibilă.");
+
+    return { id: data.id };
   },
 });
 

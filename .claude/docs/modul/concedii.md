@@ -7,6 +7,7 @@ cai:
   - "src/lib/queries/leave.ts"
   - "src/schemas/leave.ts"
   - "src/domain/leave/**"
+  - "src/lib/documents/cale.ts"
 tabele:
   [
     leave_requests,
@@ -25,8 +26,8 @@ citeste_daca:
   - "cerere care rămâne în aceeași stare → [[date/pontaj]]"
   - "buton de aprobare absent → [[rol/manager]]"
   - "concediu aprobat care nu apare în foaia de prezență → [[modul/pontaj]]"
-scris_pe: c924a7bf10af2d211b0246d582eb2c8293864dfc
-scris_la: 2026-08-28
+scris_pe: 3c9747a4f30ad317e7ea4e01fe0a4e778381411e
+scris_la: 2026-08-30
 tags: [modul, hr]
 ---
 
@@ -62,6 +63,8 @@ Toate trec prin `requireFeature(tenant.organizationId, "leave")`.
 | `actualizeazaTipConcediu`, `comutaActivTipConcediu`                                     | `leave:update` / all   |
 | `creeazaRegulaConcediu`                                                                 | `leave:create` / all   |
 | `dezactiveazaRegulaConcediu`, `seteazaZileConcediuImplicit`, `aplicaDrepturileConcediu` | `leave:update` / all   |
+| `pregatesteIncarcareDocumentConcediu`                                                   | `leave:create` / own   |
+| `linkDocumentConcediu`                                                                  | `leave:read` / own     |
 
 `decideCerere` întoarce `{ id, zilePastrate }`, nu doar identificatorul cererii, iar
 `revalidate` își declară tipul explicit pe forma asta. `zilePastrate` e numărul de zile
@@ -73,6 +76,18 @@ ca `role="alert"` care supraviețuiește închiderii panoului; în plus, acțiun
 angajatului o notificare în `notifications`, cu clientul admin, filtrat pe organizație.
 Notificarea e un plus, nu poarta: dacă INSERT-ul cade, eșecul se loghează și aprobarea
 rămâne dată.
+
+**Octeții documentului justificativ nu trec prin nicio acțiune.**
+`pregatesteIncarcareDocumentConcediu` întoarce `{ cale, token }`, fișierul urcă din
+browser direct în `org-documents` (`uploadToSignedUrl`), iar calea ajunge în
+`creeazaCerereConcediu` printr-un câmp ascuns numit `atasament_path` — exact cheia din
+`creeazaCerereSchema`, ca `fieldErrors` s-o găsească. Fișierul e sus **înainte** ca
+cererea să existe: un abandon lasă un obiect orfan, preferabil unei cereri care trimite
+spre un fișier inexistent. `linkDocumentConcediu` face drumul invers — citește RÂNDUL cu
+clientul utilizatorului, ca RLS să decidă cine vede cererea, și abia calea din rândul
+întors se semnează, pentru un minut. Componentele `incarcare-document.tsx` și
+`link-document.tsx` stau în `src/app/(app)/concedii/`; prima e folosită și de formularul
+din portal, deci se schimbă pentru amândouă ecranele deodată.
 
 ## Citiri
 
@@ -118,6 +133,24 @@ n-ar nimeri niciodată în cache. E consumată și din afara modulului — `[[mo
   loghează, iar `zilePastrate` întoarce `0` — deci absența avertismentului **nu**
   înseamnă că nu există zile suprapuse. Recuperarea se face din pontaj, cu
   `sincronizeazaConcediile`. — `decideCerere`, în `src/app/(app)/concedii/actions.ts`
+- **Cerința de atașament nu lovește toate tipurile la fel.**
+  `internal.leave_requests_pregateste` ridică P0001 la trimiterea unui tip cu
+  `necesita_document` doar dacă `atasament_path` e gol **și** `medical_code_id` e null —
+  un ecran fără încărcare de fișier lasă deci să treacă tipurile cu cod de indemnizație și
+  blochează restul, fără ca diferența să apară nicăieri. Scutite explicit: cheile din
+  `TIPURI_CU_ORIGINAL_FIZIC`. — `supabase/migrations/0106_concediu_document_original.sql`
+- **Segmentul 2 al căii de Storage e un nume de resursă REAL, nu un cuvânt liber.**
+  `app.can_path` îl dă direct lui `app.has_permission`, iar un cuvânt absent din
+  `role_permissions.resource` întoarce `none` — refuz TĂCUT la fiecare încărcare. Calea
+  concediilor e `{org}/leave/{employee_id}/…`, construită exclusiv prin
+  `construiesteCaleDocument`. — `src/lib/documents/cale.ts`,
+  `supabase/migrations/0073_cale_storage_resurse.sql`
+- **Calea primită de la client nu se crede pe cuvânt.** Poarta de Storage păzește
+  scrierea fișierului, nu referința scrisă în rând, deci `creeazaCerereConcediu` verifică
+  separat că `atasament_path` începe cu prefixul fișei pentru care se face cererea. La
+  citire, zero rânduri sub politica de SELECT nu se deosebesc de „nu există": ambele ies
+  ca același `notFound`. — `verificaCaleaDocumentului` și `linkDocumentConcediu`, în
+  `src/app/(app)/concedii/actions.ts`
 - **Contorul de aprobat urmează lista, nu starea cererii.** `numarDeAprobat` și
   `deAprobat` se citesc din aceeași sursă; un `count()` naiv pe `approval_tasks` rămâne
   blocat pe un număr care nu scade.
@@ -127,6 +160,13 @@ n-ar nimeri niciodată în cache. E consumată și din afara modulului — `[[mo
 Migrarea → `src/types/database.ts` → `src/schemas/leave.ts` →
 `src/lib/queries/leave.ts` → `src/app/(app)/concedii/actions.ts` → paginile. Calculul
 zilelor lucrătoare și al drepturilor stă în `src/domain/leave/`, cu teste.
+
+Lista tipurilor al căror act se predă pe hârtie trăiește în două limbaje —
+`TIPURI_CU_ORIGINAL_FIZIC` din `src/domain/leave/documente-fizice.ts` și condiția din
+`internal.leave_requests_pregateste` — fiindcă regula vine din lege, nu din politica unei
+firme, deci nu e o coloană reglabilă pe `leave_types`. `documente-fizice.test.ts` citește
+migrarea și pică dacă se despart: altfel ecranul ar declara fișierul opțional exact acolo
+unde baza îl cere la trimitere.
 
 Forma returnată de o acțiune se mișcă în trei locuri deodată: tipul din `handler`, tipul
 scris explicit în `revalidate` (declarat înaintea handlerului, deci TypeScript n-are de
@@ -140,6 +180,10 @@ Nucleul upsert-ului concediu → foaie de prezență stă la pontaj, nu aici:
 plus acțiunea în bloc `sincronizeazaConcediile` — `[[modul/pontaj]]`. Concediile îl
 cheamă doar punctual, pe zilele unei singure cereri, în `decideCerere`. Indemnizațiile
 intră în state de plată prin `[[modul/salarizare]]`.
+
+Contractul de cale în Storage — bucketul, entitățile permise, limita și tipurile MIME —
+stă în `src/lib/documents/cale.ts`, comun cu `[[modul/angajati]]`. Concediile îl folosesc,
+nu îl definesc: o entitate nouă acolo se adaugă o singură dată, pentru toate modulele.
 
 ## Când NU e suficientă pagina asta
 

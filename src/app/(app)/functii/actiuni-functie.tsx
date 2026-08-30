@@ -10,6 +10,9 @@ import { Buton } from "@/components/ui/buton";
 import { Dialog } from "@/components/ui/dialog";
 import { Formular } from "@/components/ui/formular";
 
+import type { AngajatDeAtribuit } from "@/lib/queries/employees";
+
+import { AtribuieAngajati } from "./atribuie-angajati";
 import { CampuriFunctie } from "./campuri-functie";
 import { actualizeazaFunctie, dezactiveazaFunctie, reactiveazaFunctie } from "./actions";
 
@@ -51,9 +54,25 @@ interface Proprietati {
     numarAngajati: number | null;
   }>;
   readonly poateEdita: boolean;
+  /**
+   * Atribuirea scrie în `employees`, nu în `job_positions`, deci cere ALT drept
+   * decât restul butoanelor din rând: `employees:update = all`, nu
+   * `departments:update`. Pagina calculează condiția pe server — vezi acolo de
+   * ce nu se deduce una din cealaltă.
+   */
+  readonly poateAtribui: boolean;
+  /** Fișele active, pentru caseta de bife. Goală când `poateAtribui` e fals. */
+  readonly angajati: readonly AngajatDeAtribuit[];
+  readonly denumiriFunctii: Readonly<Record<string, string>>;
 }
 
-export function ActiuniFunctie({ functie, poateEdita }: Proprietati) {
+export function ActiuniFunctie({
+  functie,
+  poateEdita,
+  poateAtribui,
+  angajati,
+  denumiriFunctii,
+}: Proprietati) {
   const router = useRouter();
   const [editeaza, setEditeaza] = useState(false);
   const [inCurs, porneste] = useTransition();
@@ -72,7 +91,11 @@ export function ActiuniFunctie({ functie, poateEdita }: Proprietati) {
     setEditeaza(false);
   }, []);
 
-  if (!poateEdita) return null;
+  // Cele două drepturi sunt astăzi deținute de aceleași roluri (org_admin, hr,
+  // super_admin — verificat în `role_permissions`), dar sunt rânduri distincte
+  // în seed. Condiția le ține separate ca despărțirea lor să nu ascundă tăcut
+  // un buton de la cineva care are dreptul.
+  if (!poateEdita && !poateAtribui) return null;
 
   const ocupata = functie.numarAngajati !== null && functie.numarAngajati > 0;
 
@@ -112,18 +135,28 @@ export function ActiuniFunctie({ functie, poateEdita }: Proprietati) {
     // tolerează. Aici nu e nevoie nici de toleranța aia.
     <span className="flex flex-col items-start gap-1">
       <span className="flex flex-wrap items-center gap-1">
-        <Buton
-          varianta="tertiar"
-          onClick={() => {
-            setEditeaza(true);
-          }}
-        >
-          <Pencil aria-hidden="true" className="size-3.5" />
-          Editează
-          <span className="sr-only"> funcția {functie.denumire}</span>
-        </Buton>
+        {poateEdita ? (
+          <Buton
+            varianta="tertiar"
+            onClick={() => {
+              setEditeaza(true);
+            }}
+          >
+            <Pencil aria-hidden="true" className="size-3.5" />
+            Editează
+            <span className="sr-only"> funcția {functie.denumire}</span>
+          </Buton>
+        ) : null}
 
-        {functie.activ ? (
+        {poateAtribui ? (
+          <AtribuieAngajati
+            functie={functie}
+            angajati={angajati}
+            denumiriFunctii={denumiriFunctii}
+          />
+        ) : null}
+
+        {!poateEdita ? null : functie.activ ? (
           <Buton
             varianta="distructiv"
             onClick={comutaActivarea}
@@ -151,10 +184,15 @@ export function ActiuniFunctie({ functie, poateEdita }: Proprietati) {
       {/* Explicația însoțește butonul blocat. `aria-describedby` ar fi cerut ca
           textul să existe și când butonul e liber; aici apare doar când chiar
           există o piedică. */}
-      {ocupata && functie.activ ? (
+      {ocupata && functie.activ && poateEdita ? (
         <span className="text-muted-foreground text-nota block">
           Nu se poate dezactiva: are {functie.numarAngajati}{" "}
           {functie.numarAngajati === 1 ? "angajat alocat" : "angajați alocați"}.
+          {/* Refuzul trimitea până acum către o unealtă care nu exista în modul
+              — „Mutați-i pe altă funcție" era singurul indiciu, iar mutarea se
+              putea face doar din fișa fiecărui om. Acum e butonul de alături,
+              deci mesajul îl numește. */}
+          {poateAtribui ? " Debifați-i din „Atribuie”." : null}
         </span>
       ) : null}
 

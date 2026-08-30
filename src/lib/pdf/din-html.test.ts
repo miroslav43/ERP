@@ -2,7 +2,9 @@
 import { PDFDocument } from "pdf-lib";
 import { describe, expect, it } from "vitest";
 
-import { pdfDinDocument } from "./din-html";
+import { curataHtml } from "@/lib/documents/curata-html";
+
+import { inSegmente, pdfDinDocument } from "./din-html";
 
 /**
  * Randarea în PDF a unui document deja emis.
@@ -114,11 +116,128 @@ describe("pdfDinDocument", () => {
     expect(esteePdf(octeti)).toBe(true);
   });
 
+  it("încorporează fontul aldin când textul are `<strong>`", async () => {
+    /*
+     * De când firmele își editează singure șabloanele, bara editorului are un
+     * buton de îngroșare. Până la `paragrafBogat`, `decodeaza` ștergea TOATE
+     * etichetele, deci `<strong>` ajungea text simplu: formatarea se vedea pe
+     * ecran și dispărea de pe hârtie, fără niciun mesaj.
+     *
+     * Fonturile se încorporează subsetate și DOAR dacă sunt folosite, deci
+     * prezența celui aldin se vede în dimensiune. Fără randarea aldinelor, cele
+     * două PDF-uri de mai jos ar fi fost practic identice.
+     */
+    const cuAldin = await pdfDinDocument({
+      ...BAZA,
+      html: "<p>Salariul de bază este <strong>5.000 lei</strong> pe lună.</p>",
+    });
+    const faraAldin = await pdfDinDocument({
+      ...BAZA,
+      html: "<p>Salariul de bază este 5.000 lei pe lună.</p>",
+    });
+    expect(esteePdf(cuAldin)).toBe(true);
+    expect(cuAldin.length).toBeGreaterThan(faraAldin.length);
+  });
+
+  it("randează `<strong>` și în elementele de listă", async () => {
+    const octeti = await pdfDinDocument({
+      ...BAZA,
+      html: "<ul><li>Concediu de <strong>21 de zile</strong></li><li>Tichete</li></ul>",
+    });
+    expect(esteePdf(octeti)).toBe(true);
+  });
+
   it("nu lasă pagina goală când șablonul n-are blocuri cunoscute", async () => {
     // O firmă care și-a scris propriul șablon poate folosi alt marcaj. Textul
     // degradat e cel puțin documentul; o pagină albă ar arăta ca un defect.
     const fara = await pdfDinDocument({ ...BAZA, html: "Text fără nicio etichetă cunoscută." });
     const gol = await pdfDinDocument({ ...BAZA, html: "" });
     expect(fara.length).toBeGreaterThan(gol.length);
+  });
+});
+
+/**
+ * Tăierea pe `<strong>`, testată direct.
+ *
+ * Diferența dintre „este 5.000 lei" și „este5.000lei" NU se vede în
+ * dimensiunea PDF-ului: se desenează aceleași glife, doar la alte coordonate.
+ * Un test pe octeți ar fi trecut și cu spațiile pierdute — de aceea funcția e
+ * exportată și verificată ca funcție pură.
+ */
+describe("inSegmente", () => {
+  it("păstrează spațiile de la granițele lui `<strong>`", () => {
+    expect(inSegmente("este <strong>5.000</strong> lei")).toEqual([
+      { text: "este ", aldin: false },
+      { text: "5.000", aldin: true },
+      { text: " lei", aldin: false },
+    ]);
+  });
+
+  it("nu inventează spații acolo unde nu erau", () => {
+    // `text<strong>aldin</strong>` e UN cuvânt cu două greutăți. Dacă tăierea
+    // ar adăuga un spațiu, contractul ar scrie „text aldin".
+    expect(inSegmente("este<strong>5.000</strong>lei")).toEqual([
+      { text: "este", aldin: false },
+      { text: "5.000", aldin: true },
+      { text: "lei", aldin: false },
+    ]);
+  });
+
+  it("sare peste bucățile goale", () => {
+    expect(inSegmente("<strong>doar aldin</strong>")).toEqual([
+      { text: "doar aldin", aldin: true },
+    ]);
+  });
+
+  it("decodează entitățile în fiecare bucată", () => {
+    expect(inSegmente("<strong>Ionescu &amp; Fiii</strong>")).toEqual([
+      { text: "Ionescu & Fiii", aldin: true },
+    ]);
+  });
+
+  it("acceptă mai multe porțiuni aldine în același paragraf", () => {
+    expect(inSegmente("a <strong>b</strong> c <strong>d</strong>")).toEqual([
+      { text: "a ", aldin: false },
+      { text: "b", aldin: true },
+      { text: " c ", aldin: false },
+      { text: "d", aldin: true },
+    ]);
+  });
+
+  it("întoarce o singură bucată normală când nu există `<strong>`", () => {
+    expect(inSegmente("text simplu")).toEqual([{ text: "text simplu", aldin: false }]);
+  });
+});
+
+/**
+ * CONTRACTUL DINTRE EDITOR, CURĂȚARE ȘI PDF.
+ *
+ * Cele trei trebuie să acopere aceeași mulțime de etichete. Dacă `curataHtml`
+ * lasă să treacă ceva ce `din-html` nu randează, utilizatorul formatează în
+ * editor, salvarea acceptă, iar formatarea dispare de pe hârtie — fără nicio
+ * eroare, nicăieri. Exact felul de defect tăcut pe care nimic nu-l prinde până
+ * când cineva compară ecranul cu PDF-ul tipărit.
+ */
+describe("editor → curățare → PDF", () => {
+  it("randează tot ce poate produce curățarea", async () => {
+    const dinEditor =
+      "<h2>Art. 1 — Obiectul</h2>" +
+      "<p>Salariul de bază este <strong>{{salariu_brut}}</strong> lei.<br>Plata se face lunar.</p>" +
+      "<ul><li>concediu de <strong>21</strong> de zile</li><li>tichete de masă</li></ul>" +
+      "<ol><li>primul termen</li></ol>";
+
+    // Ce iese din curățare e EXACT ce s-a scris: nimic din marcajul de mai sus
+    // nu e în afara mulțimii de șapte.
+    const curat = curataHtml(dinEditor);
+    expect(curat).toBe(dinEditor);
+
+    const octeti = await pdfDinDocument({ ...BAZA, html: curat });
+    expect(esteePdf(octeti)).toBe(true);
+  });
+
+  it("nu lasă marcaj ostil să ajungă până la randare", async () => {
+    const curat = curataHtml('<p>bun</p><script>alert(1)</script><img src=x onerror="alert(1)">');
+    expect(curat).toBe("<p>bun</p>");
+    expect(esteePdf(await pdfDinDocument({ ...BAZA, html: curat }))).toBe(true);
   });
 });

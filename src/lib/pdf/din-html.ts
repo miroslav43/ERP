@@ -13,14 +13,20 @@
 // în plus.
 //
 // ── DE CE UN SUBSET DE ETICHETE, ȘI NU UN PARSER DE HTML ────────────────────
-// Șabloanele le scriem noi, în migrări, iar `randeaza()` evadează fiecare
-// valoare interpolată (`generator.ts:42`) — deci marcajul care poate ajunge
-// aici e exact cel din `continut_html`, nu ceva venit de la un utilizator. Un
-// parser complet ar fi o dependență nouă și o suprafață de atac pentru zero
-// câștig.
+// ATENȚIE: motivul de aici s-a SCHIMBAT. Până la editorul de șabloane, textul
+// de mai jos spunea „șabloanele le scriem noi, în migrări, deci marcajul nu
+// vine de la un utilizator". De când o firmă își editează singură șablonul
+// (`/angajati/sabloane-documente`), premisa aia e falsă, iar un comentariu care
+// justifică o decizie de securitate cu o premisă moartă e mai rău decât niciunul.
 //
-// O firmă care își scrie propriul șablon poate folosi etichete din afara
-// subsetului: acelea se degradează la text simplu, nu rup randarea.
+// Motivul real, azi: marcajul e curățat la SALVARE de
+// `src/lib/documents/curata-html.ts`, care reconstruiește HTML-ul dintr-o
+// mulțime de șapte etichete, fără niciun atribut. Subsetul de mai jos e capătul
+// celălalt al aceluiași contract — ce poate produce editorul, atât randează
+// PDF-ul. Cele trei fișiere se schimbă împreună.
+//
+// Un șablon mai vechi, sau lipit din afară, poate conține totuși etichete din
+// afara subsetului: acelea se degradează la text simplu, nu rup randarea.
 import "server-only";
 
 import {
@@ -32,11 +38,12 @@ import {
   pornesteDocument,
   type AntetOrganizatie,
 } from "./document";
-import { Cursor, lista, paragraf, titluSectiune } from "./flux";
+import { Cursor, listaBogata, paragrafBogat, titluSectiune, type Segment } from "./flux";
 
 /** Blocurile pe care le produc șabloanele proiectului. */
 const BLOC = /<(h1|h2|p|ul|ol)>([\s\S]*?)<\/\1>/giu;
 const ELEMENT_LISTA = /<li>([\s\S]*?)<\/li>/giu;
+const ALDIN = /<strong>([\s\S]*?)<\/strong>/giu;
 
 /**
  * Entitățile pe care le produce `escapeHtml` din `layout.ts`, plus `&nbsp;`.
@@ -44,7 +51,7 @@ const ELEMENT_LISTA = /<li>([\s\S]*?)<\/li>/giu;
  * Fără decodare, un nume ca „Ionescu & Fiii" s-ar tipări „Ionescu &amp; Fiii" —
  * evadarea e corectă pentru HTML și greșită pentru hârtie.
  */
-function decodeaza(text: string): string {
+function decodeazaBrut(text: string): string {
   return (
     text
       .replace(/<br\s*\/?>/giu, " ")
@@ -58,8 +65,43 @@ function decodeaza(text: string): string {
       // `&amp;` LA FINAL: altfel „&amp;lt;" ar deveni „<" în doi pași.
       .replace(/&amp;/gu, "&")
       .replace(/\s+/gu, " ")
-      .trim()
   );
+}
+
+function decodeaza(text: string): string {
+  return decodeazaBrut(text).trim();
+}
+
+/**
+ * Taie interiorul unui bloc în bucăți normale și aldine, pe `<strong>`.
+ *
+ * Bucățile NU se retează la capete: „text <strong>aldin</strong> încă" are
+ * spațiile exact la granițe, iar un `trim()` per bucată le-ar șterge și cele
+ * trei cuvinte s-ar lipi într-unul singur. Spațiile de la capetele
+ * paragrafului le ignoră oricum `inCuvinte`, care rupe pe `\S+`.
+ */
+export function inSegmente(interior: string): readonly Segment[] {
+  const segmente: Segment[] = [];
+  const adauga = (brut: string, aldin: boolean): void => {
+    const text = decodeazaBrut(brut);
+    if (text !== "") segmente.push({ text, aldin });
+  };
+
+  let pozitie = 0;
+  let potrivire: RegExpExecArray | null;
+  ALDIN.lastIndex = 0;
+  while ((potrivire = ALDIN.exec(interior)) !== null) {
+    adauga(interior.slice(pozitie, potrivire.index), false);
+    adauga(potrivire[1] ?? "", true);
+    pozitie = ALDIN.lastIndex;
+  }
+  adauga(interior.slice(pozitie), false);
+  return segmente;
+}
+
+/** `true` dacă segmentele conțin măcar un caracter care nu e spațiu. */
+function areText(segmente: readonly Segment[]): boolean {
+  return segmente.some((s) => s.text.trim() !== "");
 }
 
 export type ParametriPdfDocument = Readonly<{
@@ -99,19 +141,19 @@ export async function pdfDinDocument(parametri: ParametriPdfDocument): Promise<U
       continue;
     }
     if (eticheta === "ul" || eticheta === "ol") {
-      const elemente: string[] = [];
+      const elemente: (readonly Segment[])[] = [];
       let element: RegExpExecArray | null;
       ELEMENT_LISTA.lastIndex = 0;
       while ((element = ELEMENT_LISTA.exec(interior)) !== null) {
-        const text = decodeaza(element[1] ?? "");
-        if (text !== "") elemente.push(text);
+        const segmente = inSegmente(element[1] ?? "");
+        if (areText(segmente)) elemente.push(segmente);
       }
-      lista(cursor, elemente, { numerotata: eticheta === "ol" });
+      listaBogata(cursor, elemente, { numerotata: eticheta === "ol" });
       cursor.coboara(4);
       continue;
     }
-    const text = decodeaza(interior);
-    if (text !== "") paragraf(cursor, text, { spatiuDupa: 6 });
+    const segmente = inSegmente(interior);
+    if (areText(segmente)) paragrafBogat(cursor, segmente, { spatiuDupa: 6 });
   }
 
   /*
@@ -123,7 +165,7 @@ export async function pdfDinDocument(parametri: ParametriPdfDocument): Promise<U
    */
   if (!aGasitCeva) {
     const brut = decodeaza(parametri.html);
-    if (brut !== "") paragraf(cursor, brut, { spatiuDupa: 6 });
+    if (brut !== "") paragrafBogat(cursor, [{ text: brut, aldin: false }], { spatiuDupa: 6 });
   }
 
   numeroteazaPaginile(
