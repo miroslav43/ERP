@@ -314,7 +314,16 @@ export function evalueazaTermen(
 
 export interface StareContractReges {
   readonly salariuBaza: number;
-  readonly jobPositionId: string | null;
+  /**
+   * Funcția declarată pe contract: denumirea ȘI codul COR.
+   *
+   * Amândouă, fiindcă REVISAL le transmite pe amândouă — o redenumire fără
+   * schimbare de cod rămâne o modificare de funcție de raportat. Până la
+   * migrarea 0110 aici stătea identificatorul din nomenclator, care se
+   * putea schimba fără ca nimic declarat să se schimbe, și invers.
+   */
+  readonly functie: string | null;
+  readonly codCor: string | null;
   readonly normaOreSaptamana: number;
   readonly normaOreZi: number;
   readonly contractDuration: "nedeterminat" | "determinat";
@@ -343,7 +352,9 @@ export function deduceEvenimenteContract(
 
   if (nou.status !== "anulat" && nou.status !== "incetat") {
     if (vechi.salariuBaza !== nou.salariuBaza) tipuri.push("modificare_salariu");
-    if (vechi.jobPositionId !== nou.jobPositionId) tipuri.push("modificare_functie");
+    if (vechi.functie !== nou.functie || vechi.codCor !== nou.codCor) {
+      tipuri.push("modificare_functie");
+    }
     if (vechi.normaOreSaptamana !== nou.normaOreSaptamana || vechi.normaOreZi !== nou.normaOreZi) {
       tipuri.push("modificare_norma");
     }

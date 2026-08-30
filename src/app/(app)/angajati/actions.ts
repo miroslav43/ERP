@@ -12,6 +12,12 @@ import { readRequestMeta, writeAuditLog } from "@/lib/actions/audit";
 import { businessRule, mapPostgrestError, notFound } from "@/lib/actions/errors";
 import { createAction } from "@/lib/actions/create-action";
 import { createServerSupabase } from "@/lib/supabase/server";
+import {
+  aplicaRolurile,
+  aplicaSubordonarea,
+  decideSchimbareaSefului,
+  type ContextSef,
+} from "@/lib/departamente/sef";
 // Ocolirea RLS e permisă de ESLint în `actions.ts`; motivul concret e scris la
 // `stergeAngajat` — o gardă numărată sub RLS ar slăbi odată cu drepturile de
 // citire ale celui pe care îl păzește.
@@ -30,12 +36,13 @@ import { ultimeleCifreIban } from "@/domain/hr/iban";
 import { genereazaEvenimenteReges } from "@/lib/reges/genereaza-evenimente";
 import {
   actualizeazaAngajatSchema,
-  atribuieFunctiaSchema,
   creeazaContractSchema,
   dezvaluieDateSensibileSchema,
   incetareContractSchema,
+  incadrareSchema,
   invitaAngajatulSchema,
   modificaSalariuContractSchema,
+  sefDepartamentSchema,
   stergeAngajatSchema,
 } from "@/schemas/employee";
 
@@ -153,71 +160,117 @@ export const actualizeazaAngajat = createAction({
 });
 
 /**
- * Funcția unei persoane, schimbată de pe fișa ei.
+ * Încadrarea unei persoane, schimbată de pe fișa ei.
  *
  * ── DE CE O ACȚIUNE PROPRIE, LÂNGĂ `actualizeazaAngajat` ──────────────────
- * Funcția se putea seta și până acum, dar într-un singur loc: formularul
- * complet de editare, secțiunea „Angajare", al treilea `<select>` dintre
- * treizeci și șase de câmpuri. Cine tocmai crease o funcție în nomenclator
- * n-avea de unde ști că acolo trebuie să meargă — întrebarea care a cerut
- * schimbarea a fost, textual, „nu-mi dau seama cum să pot seta o funcție unui
+ * Funcția, departamentul și managerul se puteau seta și până acum, dar
+ * într-un singur loc: formularul complet de editare, secțiunea „Angajare", trei
+ * `<select>`-uri dintre treizeci și șase de câmpuri. Întrebarea care a cerut
+ * ecranul a fost, textual, „nu îmi dau seama cum să pot seta o funcție unui
  * angajat".
  *
  * Nu se refolosește `actualizeazaAngajat` pentru că schema ei are 36 de câmpuri
- * cu `.default(...)`: un payload de două câmpuri ar trece de validare și ar
- * scrie `null` peste restul fișei. Motivul complet stă lângă
- * `atribuieFunctiaSchema`, în `@/schemas/employee`.
+ * cu `.default(...)`: un payload de patru câmpuri ar trece de validare și ar
+ * scrie `null` peste restul fișei. Motivul complet stă lângă `incadrareSchema`,
+ * în `@/schemas/employee`.
  *
- * ── TREI DECIZII CARE NU SE VĂD DIN SEMNĂTURĂ ─────────────────────────────
+ * ── PATRU DECIZII CARE NU SE VĂD DIN SEMNĂTURĂ ────────────────────────────
  * 1. `minScope: "all"`, nu `"team"`. `actualizeazaAngajat` are azi `"team"`
  *    deși pagina lui cere `"all"`, deci e invocabilă direct de cineva care n-a
- *    văzut niciodată ecranul. Discrepanța nu se repetă aici — aceeași alegere
- *    ca la `mutaAngajati`.
- * 2. Funcția-țintă se verifică EXPLICIT că e a organizației și că e activă.
- *    `employees.job_position_id` e o cheie străină simplă, fără componentă pe
- *    `organization_id`: baza n-ar opri o funcție împrumutată din altă firmă.
- *    Iar dacă s-ar putea pune o funcție dezactivată, `dezactiveazaFunctie` —
- *    care refuză închiderea cât timp funcția are angajați — s-ar contrazice
- *    singură: ai putea repopula imediat ce ai golit.
- * 3. `.select()` după `.update()`. Politica `employees_update` refuză prin
+ *    văzut niciodată ecranul. Discrepanța nu se repetă aici.
+ * 2. Departamentul se verifică EXPLICIT că e al organizației.
+ *    `employees.department_id` e o cheie străină simplă, fără componentă pe
+ *    `organization_id`: baza n-ar opri un departament împrumutat din altă firmă.
+ * 3. `manager_employee_id` E ÎN LISTA DE AUDIT. Predecesoarea acestei acțiuni
+ *    nu-l accepta deloc, iar comentariul ei explica de ce: golirea lui
+ *    declanșează `tg_employees_manager_path`, care rescrie `manager_path` la
+ *    TOȚI subordonații, iar scope-ul „team" se rezolvă peste tot pe
+ *    `manager_path` — o ramură întreagă devine invizibilă pentru managerul ei,
+ *    fără eroare ȘI fără urmă în jurnal, fiindcă acest câmp nu era auditat
+ *    nicăieri. Cerința cere câmpul pe fișă; atunci măcar să lase urmă.
+ * 4. Ciclul se refuză AICI, nu în bază. `tg_employees_manager_path` aruncă
+ *    P0001 la ciclu, dar mesajul lui e despre lanț, nu despre ce a apăsat omul.
+ * 5. `.select()` după `.update()`. Politica `employees_update` refuză prin
  *    `USING` cu ZERO RÂNDURI ȘI FĂRĂ EROARE; fără verificarea rezultatului gol,
  *    un refuz ar ajunge pe ecran drept succes.
  */
-export const atribuieFunctia = createAction<typeof atribuieFunctiaSchema, { id: string }>({
-  name: "employees.assign_job_position",
+export const actualizeazaIncadrarea = createAction<
+  typeof incadrareSchema,
+  { id: string }
+>({
+  name: "employees.update_incadrare",
   permission: "employees:update",
   minScope: "all",
-  input: atribuieFunctiaSchema,
+  input: incadrareSchema,
   audit: {
     action: "update",
     entityType: "employee",
     entityId: (input) => input.employee_id,
-    allow: ["employee_id", "job_position_id"],
+    allow: [
+      "employee_id",
+      "functie",
+      "cod_cor",
+      "department_id",
+      "manager_employee_id",
+    ],
   },
-  // `/organigrama` scrie funcția pe fiecare nod, deci se învechește și ea.
-  revalidate: ["/angajati", "/functii", "/organigrama"],
+  // `/organigrama` scrie funcția și subordonarea pe fiecare nod, deci se
+  // învechește și ea. `/functii` NU mai e în listă: nomenclatorul a dispărut.
+  revalidate: ["/angajati", "/organigrama"],
   handler: async (ctx, input) => {
     const db = await createServerSupabase();
 
-    if (input.job_position_id !== null) {
-      const { data: functie, error: eroareFunctie } = await db
-        .from("job_positions")
+    if (input.department_id !== null) {
+      const { data: departament, error: eroareDepartament } = await db
+        .from("departments")
         .select("id, denumire, activ")
-        .eq("id", input.job_position_id)
+        .eq("id", input.department_id)
         .eq("organization_id", ctx.tenant.organizationId)
+        .is("deleted_at", null)
         .maybeSingle();
-      if (eroareFunctie !== null) throw mapPostgrestError(eroareFunctie, ctx.requestId);
-      if (functie === null) throw notFound("Funcția selectată nu a fost găsită.");
-      if (!functie.activ) {
+      if (eroareDepartament !== null)
+        throw mapPostgrestError(eroareDepartament, ctx.requestId);
+      if (departament === null)
+        throw notFound("Departamentul selectat nu a fost găsit.");
+      if (!departament.activ) {
         throw businessRule(
-          `Funcția „${functie.denumire}” este dezactivată. Reactivați-o din nomenclator înainte de a o atribui.`,
+          `Departamentul „${departament.denumire}” este dezactivat, deci nu primește oameni.`,
+        );
+      }
+    }
+
+    if (input.manager_employee_id !== null) {
+      const { data: manager, error: eroareManager } = await db
+        .from("employees")
+        .select("id, full_name, manager_path")
+        .eq("id", input.manager_employee_id)
+        .eq("organization_id", ctx.tenant.organizationId)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (eroareManager !== null)
+        throw mapPostgrestError(eroareManager, ctx.requestId);
+      if (manager === null)
+        throw notFound("Managerul selectat nu a fost găsit.");
+
+      // Ciclul: cel ales îl are deja pe angajat în propriul lanț de superiori,
+      // deci legarea invers ar închide bucla. `manager_path` e ținut de trigger
+      // și conține lanțul de la vârf până la om INCLUSIV.
+      if (manager.manager_path.includes(input.employee_id)) {
+        throw businessRule(
+          `„${manager.full_name}” este în subordinea acestui angajat, deci nu îi poate fi manager.`,
         );
       }
     }
 
     const { data, error } = await db
       .from("employees")
-      .update({ job_position_id: input.job_position_id, updated_by: ctx.user.id })
+      .update({
+        functie: input.functie,
+        cod_cor: input.cod_cor,
+        department_id: input.department_id,
+        manager_employee_id: input.manager_employee_id,
+        updated_by: ctx.user.id,
+      })
       .eq("id", input.employee_id)
       .eq("organization_id", ctx.tenant.organizationId)
       .is("deleted_at", null)
@@ -225,12 +278,146 @@ export const atribuieFunctia = createAction<typeof atribuieFunctiaSchema, { id: 
       .maybeSingle();
     if (error !== null) throw mapPostgrestError(error, ctx.requestId);
     if (data === null)
-      throw notFound("Fișa de angajat nu a fost găsită sau nu vă este accesibilă.");
+      throw notFound(
+        "Fișa de angajat nu a fost găsită sau nu vă este accesibilă.",
+      );
 
     return { id: data.id };
   },
 });
 
+/**
+ * Angajatul devine (sau încetează să fie) șeful departamentului lui, de pe fișă.
+ *
+ * ── DE CE E SEPARAT DE DIALOGUL DE ÎNCADRARE ──────────────────────────────
+ * Scrie în ALTĂ tabelă (`departments.manager_employee_id`) și cere ALTĂ
+ * permisiune (`departments:update`). Un `hr` are dreptul de a schimba încadrarea
+ * cuiva, dar nu neapărat de a numi șefi; două acțiuni păstrează distincția pe
+ * care o singură casetă ar fi topit-o.
+ *
+ * ── CE SE ÎNTÂMPLĂ PE LÂNGĂ SCRIEREA COLOANEI ────────────────────────────
+ * Mecanismul livrat în `3c9747a` se refolosește ÎNTREG, nu se rescrie:
+ *   · `decideSchimbareaSefului` + `aplicaRolurile` — șeful primește rolul de
+ *     `manager`, fostul șef îl pierde dacă nu mai conduce nimic altceva. Numai
+ *     dacă apelantul e `org_admin`: `organization_members_update` cere
+ *     `app.has_role(org, ['org_admin'])`, iar un `hr` ajunge până aici cu
+ *     drepturi depline asupra structurii și niciunul asupra rolurilor. Atunci
+ *     structura se scrie, iar rolul rămâne de acordat — semnal, nu eroare.
+ *   · `aplicaSubordonarea` — membrii departamentului trec sub noul șef.
+ *
+ * ── DE CE DEBIFAREA VERIFICĂ CINE E ȘEFUL ACUM ───────────────────────────
+ * `sef: false` golește coloana DOAR dacă șeful curent e chiar acest angajat.
+ * Altfel, două fișe deschise în paralel s-ar putea demite una pe alta: pe fișa
+ * lui A, comutatorul arată „nebifat" fiindcă șef e B, iar o apăsare l-ar
+ * înlătura pe B — o demitere pe care nimeni n-a cerut-o.
+ */
+export const desemneazaSefDepartament = createAction<
+  typeof sefDepartamentSchema,
+  { id: string; rolAcordat: boolean }
+>({
+  name: "departments.set_head_from_employee",
+  permission: "departments:update",
+  minScope: "all",
+  input: sefDepartamentSchema,
+  audit: {
+    action: "update",
+    entityType: "departments",
+    entityId: (input) => input.department_id,
+    allow: ["employee_id", "department_id", "sef"],
+  },
+  revalidate: ["/angajati", "/departamente", "/organigrama"],
+  handler: async (ctx, input) => {
+    const db = await createServerSupabase();
+
+    // Fișa trebuie să fie a organizației ȘI a departamentului: altfel s-ar
+    // putea numi șef al departamentului A cineva care lucrează în B, dintr-un
+    // ecran care nu oferă nicăieri alegerea asta.
+    const { data: angajat, error: eroareAngajat } = await db
+      .from("employees")
+      .select("id, full_name, department_id")
+      .eq("id", input.employee_id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (eroareAngajat !== null)
+      throw mapPostgrestError(eroareAngajat, ctx.requestId);
+    if (angajat === null) throw notFound("Fișa de angajat nu a fost găsită.");
+    if (angajat.department_id !== input.department_id) {
+      throw businessRule(
+        `„${angajat.full_name}” nu mai este în departamentul acesta. Reîncărcați fișa.`,
+      );
+    }
+
+    // Cine conduce ACUM. Se citește înainte de UPDATE: după, coloana are deja
+    // valoarea nouă, iar fostul șef — cel pe care regula îl retrogradează —
+    // n-ar mai fi de aflat decât din jurnal.
+    const { data: inainte, error: eroareInainte } = await db
+      .from("departments")
+      .select("id, parent_id, manager_employee_id")
+      .eq("id", input.department_id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (eroareInainte !== null)
+      throw mapPostgrestError(eroareInainte, ctx.requestId);
+    if (inainte === null) throw notFound("Departamentul nu a fost găsit.");
+
+    const sefAnteriorId = inainte.manager_employee_id;
+    if (!input.sef && sefAnteriorId !== input.employee_id) {
+      // Nu e o eroare: starea cerută e deja cea din bază.
+      return { id: input.department_id, rolAcordat: false };
+    }
+    const sefNouId = input.sef ? input.employee_id : null;
+
+    const { data, error } = await db
+      .from("departments")
+      .update({ manager_employee_id: sefNouId, updated_by: ctx.user.id })
+      .eq("id", input.department_id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
+    if (error !== null) throw mapPostgrestError(error, ctx.requestId);
+    if (data === null)
+      throw notFound("Departamentul nu a fost găsit sau nu vă este accesibil.");
+
+    const contextul: ContextSef = {
+      db,
+      organizationId: ctx.tenant.organizationId,
+      requestId: ctx.requestId,
+      userId: ctx.user.id,
+      memberIdAutor: ctx.tenant.memberId,
+      autorEsteAdministrator: ctx.tenant.role === "org_admin",
+    };
+
+    await aplicaRolurile(
+      contextul,
+      await decideSchimbareaSefului(contextul, {
+        sefAnteriorId,
+        sefNouId,
+        departamentId: input.department_id,
+      }),
+      "Șeful departamentului a fost salvat",
+    );
+
+    // Subordonarea NU e condiționată de rolul autorului, spre deosebire de
+    // scrierea rolului: `employees_update` cere `employees:update`, pe care `hr`
+    // îl are la `all`.
+    if (sefNouId !== null && sefNouId !== sefAnteriorId) {
+      await aplicaSubordonarea(
+        contextul,
+        {
+          departamentId: input.department_id,
+          sefId: sefNouId,
+          parentId: inainte.parent_id,
+        },
+        "Șeful departamentului a fost salvat",
+      );
+    }
+
+    return { id: data.id, rolAcordat: contextul.autorEsteAdministrator };
+  },
+});
 export const creeazaContract = createAction({
   name: "employees.contract.create",
   permission: "employees:create",

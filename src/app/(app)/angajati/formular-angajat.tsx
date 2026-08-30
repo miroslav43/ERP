@@ -8,6 +8,7 @@ import { Lock } from "lucide-react";
 
 import { Buton, buton } from "@/components/ui/buton";
 import { Camp, clasaBifa } from "@/components/ui/camp";
+import { CautaCor } from "@/components/cauta-cor";
 import { Formular, type StareFormular } from "@/components/ui/formular";
 import {
   CAMPURI_EDITABILE_ANGAJAT,
@@ -71,7 +72,8 @@ export interface AngajatDeEditat {
   readonly act_eliberat_la: string | null;
   readonly act_valabil_pana: string | null;
   readonly department_id: string | null;
-  readonly job_position_id: string | null;
+  readonly functie: string | null;
+  readonly cod_cor: string | null;
   readonly manager_employee_id: string | null;
   readonly hired_on: string | null;
   readonly conditii_munca: string;
@@ -85,7 +87,6 @@ export interface AngajatDeEditat {
 
 interface Proprietati {
   readonly departamente: readonly Optiune[];
-  readonly functii: readonly Optiune[];
   readonly colegi: readonly Coleg[];
   readonly angajat: AngajatDeEditat;
 }
@@ -184,7 +185,7 @@ function bifa(stare: StareFormular<{ id: string }>, cheie: string, initial: bool
   return stare.valoriTrimise[cheie] === "on";
 }
 
-export function FormularAngajat({ departamente, functii, colegi, angajat }: Proprietati) {
+export function FormularAngajat({ departamente, colegi, angajat }: Proprietati) {
   const router = useRouter();
 
   const trimite = useCallback(
@@ -629,24 +630,36 @@ export function FormularAngajat({ departamente, functii, colegi, angajat }: Prop
                 </select>
               )}
             </Camp>
+            <Camp nume="functie" eticheta="Funcție" erori={stare.erori["functie"] ?? []}>
+              {(a) => (
+                <input
+                  {...a}
+                  type="text"
+                  maxLength={160}
+                  defaultValue={valoare(stare, "functie", angajat.functie)}
+                  placeholder="Sudor, Operator producție, Director general…"
+                />
+              )}
+            </Camp>
+            {/*
+              Codul COR e ce ajunge în REVISAL; `domain/reges/export.ts` refuză
+              contractul fără el. `CautaCor` randează chiar un `<input
+              name="cod_cor">`, deci formularul îl citește din `FormData` fără
+              să știe nimic despre componentă.
+            */}
             <Camp
-              nume="job_position_id"
-              eticheta="Funcție"
-              fel="select"
-              erori={stare.erori["job_position_id"] ?? []}
+              nume="cod_cor"
+              eticheta="Cod COR"
+              erori={stare.erori["cod_cor"] ?? []}
+              ajutor="Șase cifre din Clasificarea Ocupațiilor din România."
             >
               {(a) => (
-                <select
-                  {...a}
-                  defaultValue={valoare(stare, "job_position_id", angajat.job_position_id)}
-                >
-                  <option value="">Nealocată</option>
-                  {functii.map((optiune) => (
-                    <option key={optiune.id} value={optiune.id}>
-                      {optiune.denumire}
-                    </option>
-                  ))}
-                </select>
+                <CautaCor
+                  idInput={a.id}
+                  valoareInitiala={valoare(stare, "cod_cor", angajat.cod_cor)}
+                  invalid={(stare.erori["cod_cor"] ?? []).length > 0}
+                  descrisDe={a["aria-describedby"]}
+                />
               )}
             </Camp>
             <Camp

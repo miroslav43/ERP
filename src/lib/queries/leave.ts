@@ -827,7 +827,8 @@ export interface RegulaConcediuRand {
   readonly vechime_ani_min: number | null;
   readonly valoare_text: string | null;
   readonly department_id: string | null;
-  readonly job_position_id: string | null;
+  /** Doar pentru `tip_criteriu = 'functie'`: codul COR, nu un id de nomenclator (0110). */
+  readonly cod_cor: string | null;
   readonly zile_suplimentare: number;
   readonly denumire: string;
   readonly activ: boolean;
@@ -844,12 +845,11 @@ export interface ConfigurareConcedii {
   readonly tipuri: readonly TipConcediuConfigurabil[];
   readonly reguli: readonly RegulaConcediuRand[];
   readonly departamente: readonly OptiuneNomenclator[];
-  readonly functii: readonly OptiuneNomenclator[];
 }
 
 export async function configurareConcedii(organizationId: string): Promise<ConfigurareConcedii> {
   const db = await createServerSupabase();
-  const [tipuriRes, reguliRes, departamenteRes, functiiRes] = await Promise.all([
+  const [tipuriRes, reguliRes, departamenteRes] = await Promise.all([
     db
       .from("leave_types")
       .select(
@@ -865,7 +865,7 @@ export async function configurareConcedii(organizationId: string): Promise<Confi
       .from("leave_entitlement_rules")
       .select(
         "id, leave_type_id, tip_criteriu, vechime_ani_min, valoare_text, department_id, " +
-          "job_position_id, zile_suplimentare, denumire, activ, valabil_de_la, valabil_pana_la",
+          "cod_cor, zile_suplimentare, denumire, activ, valabil_de_la, valabil_pana_la",
       )
       .eq("organization_id", organizationId)
       .is("deleted_at", null)
@@ -879,24 +879,14 @@ export async function configurareConcedii(organizationId: string): Promise<Confi
       .is("deleted_at", null)
       .order("denumire")
       .returns<OptiuneNomenclator[]>(),
-    db
-      .from("job_positions")
-      .select("id, denumire")
-      .eq("organization_id", organizationId)
-      .eq("activ", true)
-      .is("deleted_at", null)
-      .order("denumire")
-      .returns<OptiuneNomenclator[]>(),
   ]);
   if (tipuriRes.error !== null) throw tipuriRes.error;
   if (reguliRes.error !== null) throw reguliRes.error;
   if (departamenteRes.error !== null) throw departamenteRes.error;
-  if (functiiRes.error !== null) throw functiiRes.error;
   return {
     tipuri: tipuriRes.data ?? [],
     reguli: reguliRes.data ?? [],
     departamente: departamenteRes.data ?? [],
-    functii: functiiRes.data ?? [],
   };
 }
 

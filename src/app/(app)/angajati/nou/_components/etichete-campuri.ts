@@ -64,7 +64,8 @@ export const ETICHETE_CAMPURI: Readonly<Record<keyof InroleazaAngajatInput, stri
 
   // Pasul 3 — angajare și contract
   department_id: "Departament",
-  job_position_id: "Funcție",
+  functie: "Funcție",
+  cod_cor: "Cod COR",
   manager_employee_id: "Manager direct",
   hired_on: "Data angajării (fișă)",
   conditii_munca: "Condiții de muncă",

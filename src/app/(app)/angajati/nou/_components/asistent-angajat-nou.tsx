@@ -59,7 +59,6 @@ interface OptiuneInventar {
 
 interface Proprietati {
   readonly departamente: readonly Optiune[];
-  readonly functii: readonly Optiune[];
   readonly angajati: readonly OptiuneAngajat[];
   readonly puncteLucru: readonly Optiune[];
   readonly zileConcediuImplicit: number;
@@ -87,7 +86,6 @@ interface RezultatSucces {
 
 export function AsistentAngajatNou({
   departamente,
-  functii,
   angajati,
   puncteLucru,
   zileConcediuImplicit,
@@ -363,7 +361,6 @@ export function AsistentAngajatNou({
         <Pas3Contract
           formular={formular}
           departamente={departamente}
-          functii={functii}
           angajati={angajati}
           puncteLucru={puncteLucru}
           numarUrmator={numarUrmator}

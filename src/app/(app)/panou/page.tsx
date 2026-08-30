@@ -446,7 +446,6 @@ export default async function PanouPage() {
             <Fapt valoare={firma.angajatiActivi} eticheta="angajați activi" />
             <Fapt valoare={firma.inConcediu} eticheta="în concediu" />
             <Fapt valoare={firma.departamente} eticheta="departamente" />
-            <Fapt valoare={firma.functii} eticheta="funcții" />
           </dl>
           {peProcente ? null : (
             <p className="border-border bg-surface text-foreground text-nota border-t px-4 py-2.5">

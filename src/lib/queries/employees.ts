@@ -22,7 +22,17 @@ import {
 } from "./cursor";
 
 const EMBED_DEPARTAMENT = "department:departments!department_id(id, denumire)";
-const EMBED_FUNCTIE = "job_position:job_positions!job_position_id(id, denumire)";
+
+/**
+ * Funcția NU mai e o relație încorporată.
+ *
+ * Până la migrarea 0110 aici stătea `job_position:job_positions!job_position_id(id,
+ * denumire)`, adică un JOIN pe fiecare listare de angajați. Nomenclatorul a fost
+ * desființat: denumirea și codul COR sunt coloane pe `employees`, deci două
+ * coloane simple în loc de un embed. Ecranele care afișau doar numele funcției
+ * cer doar `functie`; constanta asta e pentru cele care au nevoie și de cod.
+ */
+const COLOANE_FUNCTIE = "functie, cod_cor";
 
 export interface RandAngajat {
   readonly id: string;
@@ -39,7 +49,8 @@ export interface RandAngajat {
   readonly user_id: string | null;
   readonly avatar_url: string | null;
   readonly department: { readonly id: string; readonly denumire: string } | null;
-  readonly job_position: { readonly id: string; readonly denumire: string } | null;
+  readonly functie: string | null;
+  readonly cod_cor: string | null;
 }
 
 type RandAngajatBrut = Omit<RandAngajat, "avatar_url">;
@@ -122,7 +133,8 @@ export interface AngajatDetaliu {
   readonly contact_urgenta_telefon: string | null;
   readonly observatii: string | null;
   readonly department: { readonly id: string; readonly denumire: string } | null;
-  readonly job_position: { readonly id: string; readonly denumire: string } | null;
+  readonly functie: string | null;
+  readonly cod_cor: string | null;
   /** Lanțul de manageri de la vârf până la angajat INCLUSIV — vezi tg_employees_manager_path. */
   readonly manager_path: readonly string[];
   /** Contul din portal legat de această fișă — `null` dacă nu are (nu a acceptat invitația). */
@@ -139,7 +151,7 @@ export interface VerigaLant {
   readonly full_name: string;
   readonly marca: string;
   readonly avatar_url: string | null;
-  readonly job_position: { readonly denumire: string } | null;
+  readonly functie: string | null;
 }
 
 interface VerigaLantBrut extends Omit<VerigaLant, "avatar_url"> {
@@ -249,7 +261,7 @@ export async function listeazaAngajati(intrare: IntrareListare): Promise<Rezulta
       cu = cu.contains("manager_path", [propriaFisaId]);
     if (filtre.q !== null) cu = cu.ilike("full_name", `%${filtre.q}%`);
     if (filtre.department_id !== null) cu = cu.eq("department_id", filtre.department_id);
-    if (filtre.job_position_id !== null) cu = cu.eq("job_position_id", filtre.job_position_id);
+    if (filtre.functie !== null) cu = cu.eq("functie", filtre.functie);
     if (filtre.status !== null) cu = cu.eq("status", filtre.status);
     return cu;
   };
@@ -258,7 +270,7 @@ export async function listeazaAngajati(intrare: IntrareListare): Promise<Rezulta
     db
       .from("employees")
       .select(
-        `id, marca, full_name, status, hired_on, is_primary, user_id, ${EMBED_DEPARTAMENT}, ${EMBED_FUNCTIE}`,
+        `id, marca, full_name, status, hired_on, is_primary, user_id, ${EMBED_DEPARTAMENT}, ${COLOANE_FUNCTIE}`,
       ),
   )
     // Identificatorul e MEREU al doilea criteriu: numele nu e unic, iar fără el
@@ -328,7 +340,7 @@ export async function citesteAngajat(
        grad_handicap, serie_act, numar_act, act_eliberat_de, act_eliberat_la,
        nr_persoane_intretinere, is_primary, contact_urgenta_nume, contact_urgenta_telefon,
        observatii, manager_path, user_id,
-       ${EMBED_DEPARTAMENT}, ${EMBED_FUNCTIE},
+       ${EMBED_DEPARTAMENT}, ${COLOANE_FUNCTIE},
        contracts:employment_contracts!employee_id(id, numar, data_contract, valabil_de_la, valabil_pana,
          contract_duration, norma_ore_saptamana, salariu_baza, moneda, work_mode, status, este_act_aditional,
          incetat_la, motiv_incetare),
@@ -491,7 +503,7 @@ export async function lantulDeManageri(
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("employees")
-    .select(`id, full_name, marca, user_id, ${EMBED_FUNCTIE}`)
+    .select("id, full_name, marca, user_id, functie")
     .eq("organization_id", organizationId)
     .in("id", idManageri)
     .is("deleted_at", null)
@@ -524,7 +536,7 @@ export interface NodManagerial {
   readonly user_id: string | null;
   readonly avatar_url: string | null;
   readonly department: { readonly denumire: string } | null;
-  readonly job_position: { readonly denumire: string } | null;
+  readonly functie: string | null;
 }
 
 type NodManagerialBrut = Omit<NodManagerial, "avatar_url">;
@@ -535,7 +547,7 @@ type NodManagerialBrut = Omit<NodManagerial, "avatar_url">;
  * `manager_employee_id` nu se regăsește în acest set, fie pentru că e
  * `null`, fie pentru că managerul lor nu e vizibil la scope „team").
  */
-const COLOANE_NOD_MANAGERIAL = `id, full_name, marca, manager_employee_id, user_id, ${EMBED_DEPARTAMENT}, ${EMBED_FUNCTIE}`;
+const COLOANE_NOD_MANAGERIAL = `id, full_name, marca, manager_employee_id, user_id, ${EMBED_DEPARTAMENT}, functie`;
 
 export async function arboreleManagerial(
   organizationId: string,
@@ -659,7 +671,8 @@ export interface AngajatEditabil {
   readonly act_eliberat_la: string | null;
   readonly act_valabil_pana: string | null;
   readonly department_id: string | null;
-  readonly job_position_id: string | null;
+  readonly functie: string | null;
+  readonly cod_cor: string | null;
   readonly manager_employee_id: string | null;
   readonly hired_on: string | null;
   readonly conditii_munca: string;
@@ -685,7 +698,7 @@ export async function citesteAngajatPentruEditare(
        adresa_resedinta_cod_postal, stare_civila, data_nasterii, gen, cetatenie,
        tip_act_identitate, reges_tip_act, serie_act, numar_act, act_eliberat_de,
        act_eliberat_la, act_valabil_pana,
-       department_id, job_position_id, manager_employee_id, hired_on, conditii_munca,
+       department_id, functie, cod_cor, manager_employee_id, hired_on, conditii_munca,
        grad_handicap, optiune_pilon_ii, contact_urgenta_nume, contact_urgenta_telefon,
        contact_urgenta_relatie, observatii`,
     )
@@ -756,44 +769,6 @@ export async function angajatiPentruPontaj(
     .order("full_name", { ascending: true })
     .limit(500)
     .returns<OptiuneColeg[]>();
-  if (error !== null) throw error;
-  return data ?? [];
-}
-
-export interface AngajatDeAtribuit extends OptiuneColeg {
-  /** Funcția pe care o deține ACUM. `null` = nealocată. */
-  readonly job_position_id: string | null;
-}
-
-/**
- * Angajații pentru caseta „Atribuie angajați" din nomenclatorul de funcții.
- *
- * ── DE CE ADUCE ȘI FUNCȚIA CURENTĂ ────────────────────────────────────────
- * Caseta e un rând de bife, iar ce trimite ea înapoi e o stare completă („ăștia
- * dețin funcția"), nu o operație. Fără `job_position_id` n-ar avea de unde ști
- * pe cine să pre-bifeze, deci fiecare deschidere ar arăta lista goală și prima
- * salvare ar SCOATE tăcut pe toți cei care o aveau deja.
- *
- * Se aduce funcția, nu doar un boolean „o are pe asta": ecranul scrie lângă
- * fiecare nume ce funcție deține în acest moment, ca mutarea cuiva de pe o
- * funcție pe alta să fie o alegere văzută, nu un efect secundar.
- *
- * Aceleași stări ca la `colegiPentruManager` — cine a plecat din firmă n-are
- * funcție de ținut — și aceeași limită explicită de 500.
- */
-export async function angajatiPentruAtribuire(
-  organizationId: string,
-): Promise<readonly AngajatDeAtribuit[]> {
-  const db = await createServerSupabase();
-  const { data, error } = await db
-    .from("employees")
-    .select("id, full_name, marca, job_position_id")
-    .eq("organization_id", organizationId)
-    .is("deleted_at", null)
-    .in("status", ["candidat", "activ", "suspendat", "preaviz"])
-    .order("full_name", { ascending: true })
-    .limit(500)
-    .returns<AngajatDeAtribuit[]>();
   if (error !== null) throw error;
   return data ?? [];
 }
@@ -888,31 +863,34 @@ export async function citesteComponenteSalariale(
 
 // ── Funcții, pentru filtrul listei (0 rânduri ⇒ filtrul se ascunde) ─────────
 
-export interface OptiuneFunctie {
-  readonly id: string;
-  readonly denumire: string;
-}
-
 /**
- * Funcțiile active, pentru `<select>`-ul din bara de filtre.
+ * Denumirile de funcții CHIAR FOLOSITE în firmă, pentru sugestiile din fișă și
+ * pentru `<select>`-ul din bara de filtre.
  *
- * `listeazaAngajati` filtrează după `job_position_id` de la bun început
- * (`employees.ts:221`) — dar niciun control din interfață nu punea vreodată
- * cheia în adresă, iar un `grep` pe tot depozitul găsea o singură apariție, și
- * aceea într-un comentariu. Capacitatea era implementată complet pe server și
- * inaccesibilă. Perechea ei pentru departamente există de mai demult, în
- * `attendance.ts` (`departamente()`), scrisă pentru filtrul de pontaj.
+ * ── DE CE DIN `employees`, ȘI NU DINTR-UN NOMENCLATOR ─────────────────────
+ * Fiindcă nu mai există unul: migrarea 0110 a desființat `job_positions`.
+ * Predecesoarea (`functiiActive`) citea nomenclatorul, adică lista funcțiilor
+ * DEFINITE — care putea conține funcții pe care nu le ținea nimeni și putea
+ * omite... nimic, dar cu prețul unui pas separat de administrare.
+ *
+ * Aici lista se naște din realitate: ce scrie efectiv pe fișe. Consecința utilă
+ * e că filtrul nu poate oferi niciodată o opțiune care întoarce zero rânduri.
+ *
+ * Deduplicarea se face în memorie, nu cu `distinct`: PostgREST nu-l expune, iar
+ * volumele sunt cele reale — cea mai mare firmă are opt angajați.
  */
-export async function functiiActive(organizationId: string): Promise<readonly OptiuneFunctie[]> {
+export async function functiiFolosite(organizationId: string): Promise<readonly string[]> {
   const db = await createServerSupabase();
   const { data, error } = await db
-    .from("job_positions")
-    .select("id, denumire")
+    .from("employees")
+    .select("functie")
     .eq("organization_id", organizationId)
-    .eq("activ", true)
     .is("deleted_at", null)
-    .order("denumire", { ascending: true })
-    .returns<OptiuneFunctie[]>();
+    .not("functie", "is", null)
+    .order("functie", { ascending: true })
+    // Array MUTABIL în generic, deliberat: cu `readonly string[]` tipul se rupe
+    // tăcut și eroarea arată spre `.single()`, adică spre cauza greșită.
+    .returns<{ functie: string }[]>();
   if (error !== null) throw error;
-  return data ?? [];
+  return [...new Set((data ?? []).map((rand) => rand.functie))];
 }

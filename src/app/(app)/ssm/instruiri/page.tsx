@@ -55,7 +55,7 @@ async function Matrice({
       filtre: {
         q: filtre.q,
         department_id: null,
-        job_position_id: null,
+        functie: null,
         status: "activ",
         cursor: filtre.cursor,
         limita: filtre.limita,

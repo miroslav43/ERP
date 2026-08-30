@@ -62,7 +62,7 @@ function etichetaFunctiei(
   nod: NodManagerial,
   roluri: ReadonlyMap<string, string>,
 ): { readonly text: string; readonly derivat: boolean } {
-  if (nod.job_position !== null) return { text: nod.job_position.denumire, derivat: false };
+  if (nod.functie !== null) return { text: nod.functie, derivat: false };
 
   const rol = rolAdministrativ(nod.user_id === null ? null : roluri.get(nod.user_id));
   if (rol !== null) return { text: ETICHETE_ROL_CONT[rol], derivat: true };

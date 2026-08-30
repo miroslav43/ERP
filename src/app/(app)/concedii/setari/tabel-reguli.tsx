@@ -8,6 +8,7 @@ import { Buton } from "@/components/ui/buton";
 import { Tabel, type Coloana } from "@/components/ui/tabel";
 import { formatAmount } from "@/lib/format/money";
 import { formatDate } from "@/lib/format/date";
+import { ocupatiaDupaCod } from "@/domain/hr/cor-nomenclator";
 import type {
   OptiuneNomenclator,
   RegulaConcediuRand,
@@ -24,7 +25,6 @@ import {
 function descrieCriteriu(
   regula: RegulaConcediuRand,
   hartaDepartamente: ReadonlyMap<string, string>,
-  hartaFunctii: ReadonlyMap<string, string>,
 ): string {
   switch (regula.tip_criteriu) {
     case "vechime":
@@ -38,7 +38,8 @@ function descrieCriteriu(
     case "departament":
       return `Departament: ${hartaDepartamente.get(regula.department_id ?? "") ?? "—"}`;
     case "functie":
-      return `Funcție: ${hartaFunctii.get(regula.job_position_id ?? "") ?? "—"}`;
+      if (regula.cod_cor === null) return "Funcție: —";
+      return `Funcție: ${ocupatiaDupaCod(regula.cod_cor)?.denumire ?? regula.cod_cor}`;
     default:
       return ETICHETE_CRITERIU_GRILA[regula.tip_criteriu];
   }
@@ -48,19 +49,16 @@ export function TabelReguli({
   reguli,
   tipuri,
   departamente,
-  functii,
 }: {
   readonly reguli: readonly RegulaConcediuRand[];
   readonly tipuri: readonly TipConcediuConfigurabil[];
   readonly departamente: readonly OptiuneNomenclator[];
-  readonly functii: readonly OptiuneNomenclator[];
 }) {
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
 
   const hartaTipuri = new Map(tipuri.map((t) => [t.id, t.denumire]));
   const hartaDepartamente = new Map(departamente.map((d) => [d.id, d.denumire]));
-  const hartaFunctii = new Map(functii.map((f) => [f.id, f.denumire]));
 
   function dezactiveaza(id: string): void {
     porneste(async () => {
@@ -90,7 +88,7 @@ export function TabelReguli({
       peTelefon: "meta",
       celula: (regula) => (
         <span className="text-muted-foreground">
-          {descrieCriteriu(regula, hartaDepartamente, hartaFunctii)}
+          {descrieCriteriu(regula, hartaDepartamente)}
         </span>
       ),
     },

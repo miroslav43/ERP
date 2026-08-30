@@ -172,7 +172,8 @@ describe("evalueazaTermen", () => {
 describe("deduceEvenimenteContract", () => {
   const baza: StareContractReges = {
     salariuBaza: 5000,
-    jobPositionId: "f1",
+    functie: "Sudor",
+    codCor: "721208",
     normaOreSaptamana: 40,
     normaOreZi: 8,
     contractDuration: "nedeterminat",

@@ -62,7 +62,6 @@ const CLASA_SELECT = "border-foreground/60 rounded-control text-corp mt-1 border
 function filtreActive(
   filtre: ValoriFiltre,
   departamente: readonly Optiune[],
-  functii: readonly Optiune[],
 ): readonly FiltruActiv[] {
   const active: FiltruActiv[] = [];
   if (filtre.q !== null) active.push({ cheie: "q", eticheta: `Caută: ${filtre.q}` });
@@ -79,12 +78,8 @@ function filtreActive(
       eticheta: d === undefined ? "Departament ales" : `Departament: ${d.denumire}`,
     });
   }
-  if (filtre.job_position_id !== null) {
-    const f = functii.find((x) => x.id === filtre.job_position_id);
-    active.push({
-      cheie: "job_position_id",
-      eticheta: f === undefined ? "Funcție aleasă" : `Funcție: ${f.denumire}`,
-    });
+  if (filtre.functie !== null) {
+    active.push({ cheie: "functie", eticheta: `Funcție: ${filtre.functie}` });
   }
   return active;
 }
@@ -103,14 +98,14 @@ export function FiltreAngajati({
   readonly filtre: ValoriFiltre;
   /** Lista goală ascunde filtrul: o firmă fără departamente n-are ce alege. */
   readonly departamente: readonly Optiune[];
-  readonly functii: readonly Optiune[];
+  readonly functii: readonly string[];
 }): ReactElement {
   return (
     // Reperul de căutare stă pe înveliș: `<BaraFiltre>` își randează singură
     // formularul, iar pastilele fac parte din aceeași treabă.
     <div role="search" aria-label="Filtrare angajați">
       <BaraFiltre
-        active={filtreActive(filtre, departamente, functii)}
+        active={filtreActive(filtre, departamente)}
         cheiProprii={[...CHEI_PROPRII]}
         textAplica="Aplică filtrele"
       >
@@ -184,16 +179,16 @@ export function FiltreAngajati({
               Funcție
             </label>
             <select
-              key={filtre.job_position_id ?? ""}
+              key={filtre.functie ?? ""}
               id={ID_FUNCTIE}
-              name="job_position_id"
-              defaultValue={filtre.job_position_id ?? ""}
+              name="functie"
+              defaultValue={filtre.functie ?? ""}
               className={CLASA_SELECT}
             >
               <option value="">Toate</option>
               {functii.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.denumire}
+                <option key={f} value={f}>
+                  {f}
                 </option>
               ))}
             </select>

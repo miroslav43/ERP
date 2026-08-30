@@ -2,7 +2,13 @@
 // Validările de intrare pentru angajați, contracte și încetare. CNP/IBAN vin din @/domain/hr.
 
 import { z } from "zod";
-import { enumOptional, numarCuImplicit, numarObligatoriu, numarOptional } from "./comun";
+import {
+  codCorOptional,
+  enumOptional,
+  numarCuImplicit,
+  numarObligatoriu,
+  numarOptional,
+} from "./comun";
 
 import { normalizeazaCnp, validateazaCnp } from "@/domain/hr/cnp";
 import { normalizeazaIban, validateazaIban } from "@/domain/hr/iban";
@@ -146,7 +152,12 @@ export type SortareAngajati = (typeof SORTARI_ANGAJATI)[number];
 export const filtreAngajatiSchema = z.object({
   q: textOptional(80),
   department_id: uuidOptional,
-  job_position_id: uuidOptional,
+  /**
+   * Denumirea funcției, nu un identificator: după migrarea 0110 funcția e text
+   * pe fișă, iar filtrul se alimentează din denumirile chiar folosite
+   * (`functiiFolosite`), nu dintr-un nomenclator.
+   */
+  functie: textOptional(160),
   status: enumOptional(STATUSURI_ANGAJAT, "Statusul din filtru nu este valid."),
   cursor: textOptional(400),
   limita: numarCuImplicit({
@@ -211,7 +222,16 @@ export const creeazaAngajatSchema = z.object({
   act_eliberat_la: dataOptionala,
   act_valabil_pana: dataOptionala,
   department_id: uuidOptional,
-  job_position_id: uuidOptional,
+  /**
+   * Funcția, ca text liber, și codul COR ales din nomenclator. Perechea a
+   * înlocuit `job_position_id` în migrarea 0110.
+   *
+   * Denumirea poate diferi DELIBERAT de eticheta oficială a ocupației: „Sudor
+   * MAG, schimbul 2" pentru codul 721208. De aceea două câmpuri, nu unul
+   * derivat din celălalt.
+   */
+  functie: textOptional(160),
+  cod_cor: codCorOptional,
   manager_employee_id: uuidOptional,
   hired_on: dataOptionala,
   conditii_munca: z.enum(CONDITII_MUNCA).default("normale"),
@@ -312,7 +332,8 @@ export const CAMPURI_EDITABILE_ANGAJAT = [
   "act_eliberat_la",
   "act_valabil_pana",
   "department_id",
-  "job_position_id",
+  "functie",
+  "cod_cor",
   "manager_employee_id",
   "hired_on",
   "conditii_munca",
@@ -355,7 +376,8 @@ export const actualizeazaAngajatSchema = creeazaAngajatSchema
     act_eliberat_la: true,
     act_valabil_pana: true,
     department_id: true,
-    job_position_id: true,
+    functie: true,
+    cod_cor: true,
     manager_employee_id: true,
     hired_on: true,
     conditii_munca: true,
@@ -413,22 +435,63 @@ export const mutaAngajatiSchema = z.object({
 export type MutaAngajatiInput = z.infer<typeof mutaAngajatiSchema>;
 
 /**
- * Funcția unei singure persoane — schemă îngustă, din exact aceleași motive ca
- * `mutaAngajatiSchema` de mai sus: `actualizeazaAngajatSchema` are 36 de câmpuri
- * cu `.default(...)`, iar un payload parțial i-ar goli fișa. Nota lungă de
- * acolo se aplică literal și aici, inclusiv partea cea mai scumpă —
- * `manager_employee_id → null` rescrie `manager_path` la toți subordonații și
- * ascunde o ramură întreagă de managerul ei, fără eroare.
+ * Încadrarea unei singure persoane: funcția, codul COR, departamentul și
+ * managerul direct — cele patru câmpuri ale secțiunii „Încadrare" de pe fișă.
  *
- * Cu două câmpuri, schema asta n-are ce goli.
+ * ── DE CE O SCHEMĂ ÎNGUSTĂ, ȘI NU `actualizeazaAngajatSchema` ─────────────
+ * Aceleași motive ca la `mutaAngajatiSchema` de mai sus: schema completă are 36
+ * de câmpuri cu `.default(...)`, iar un payload de patru câmpuri ar trece de
+ * validare și ar scrie `null` peste restul fișei.
+ *
+ * ── DE CE MANAGERUL E AICI, DEȘI E CÂMPUL CEL MAI PERICULOS ───────────────
+ * Predecesoarea acestei scheme (`atribuieFunctiaSchema`) îl ținea deoparte, cu
+ * motivul scris în clar: `manager_employee_id → null` declanșează
+ * `tg_employees_manager_path`, care rescrie `manager_path` la TOȚI subordonații,
+ * iar scope-ul „team" se rezolvă peste tot pe `manager_path` — o ramură
+ * întreagă devine invizibilă pentru managerul ei, fără eroare.
+ *
+ * Cerința a fost însă explicită: managerul se editează de pe fișă. Riscul nu
+ * dispare pentru că îl ocolim, se mută doar în formularul de 36 de câmpuri,
+ * unde e la fel de golibil și mai puțin vizibil. Așa că e aici, cu trei plase:
+ *   1. formularul PRE-COMPLETEAZĂ managerul curent, deci golirea e o alegere,
+ *      nu o omisiune;
+ *   2. `manager_employee_id` intră în lista de câmpuri AUDITATE a acțiunii —
+ *      golul pe care nota veche îl semnala fără să-l repare;
+ *   3. schema refuză auto-desemnarea, iar handler-ul refuză ciclul (managerul
+ *      ales aflat deja în subordinea angajatului), pe care baza nu-l oprește.
  */
-export const atribuieFunctiaSchema = z.object({
+export const incadrareSchema = z
+  .object({
+    employee_id: z.uuid("Angajatul selectat nu este valid."),
+    /** `null` = fișă fără funcție declarată, o stare legitimă (candidat, fișă nouă). */
+    functie: textOptional(160),
+    cod_cor: codCorOptional,
+    /** `null` = scoaterea din departament, o stare legitimă. */
+    department_id: uuidOptional,
+    /** `null` = fără manager direct; cererile lui de concediu nu mai ajung la nimeni. */
+    manager_employee_id: uuidOptional,
+  })
+  .refine((v) => v.manager_employee_id === null || v.manager_employee_id !== v.employee_id, {
+    path: ["manager_employee_id"],
+    message: "Un angajat nu poate fi propriul manager.",
+  });
+
+export type IncadrareInput = z.infer<typeof incadrareSchema>;
+
+/**
+ * Desemnarea unui angajat drept șef al departamentului lui, de pe fișă.
+ *
+ * Scrie în `departments`, nu în `employees` — de aceea schemă și acțiune
+ * separate de `incadrareSchema`, cu altă permisiune (`departments:update`).
+ * Debifarea lasă departamentul fără șef, stare legitimă și ea.
+ */
+export const sefDepartamentSchema = z.object({
   employee_id: z.uuid("Angajatul selectat nu este valid."),
-  /** `null` = scoaterea funcției, o stare legitimă (fișă nouă, funcție desființată). */
-  job_position_id: z.uuid("Funcția selectată nu este validă.").nullable().default(null),
+  department_id: z.uuid("Departamentul selectat nu este valid."),
+  sef: z.coerce.boolean().default(false),
 });
 
-export type AtribuieFunctiaInput = z.infer<typeof atribuieFunctiaSchema>;
+export type SefDepartamentInput = z.infer<typeof sefDepartamentSchema>;
 
 // ── Contract ──────────────────────────────────────────────────────────────────
 
@@ -469,7 +532,16 @@ const corpContractSchema = z.object({
    */
   punct_lucru_id: uuidOptional,
   department_id: uuidOptional,
-  job_position_id: uuidOptional,
+  /**
+   * Funcția și codul COR ÎNGHEȚATE pe contract, la semnare.
+   *
+   * Nu se citesc din fișă la fiecare export: codul COR e o declarație făcută la
+   * un moment dat către ITM. Până la 0110 stătea pe nomenclator, deci
+   * corectarea lui rescria retroactiv ce se declarase pentru toate contractele
+   * semnate pe acea funcție.
+   */
+  functie: textOptional(160),
+  cod_cor: codCorOptional,
   conditii_munca: z.enum(CONDITII_MUNCA).default("normale"),
   salariu_baza: numarObligatoriu({
     min: 0,

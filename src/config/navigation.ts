@@ -11,7 +11,6 @@
 import {
   GraduationCap,
   BarChart3,
-  Briefcase,
   CalendarDays,
   Car,
   ClipboardCheck,
@@ -199,17 +198,6 @@ export const NAV_ITEMS: readonly NavItem[] = [
     permission: "reges:read",
     minScope: "all",
     order: 41,
-  },
-  {
-    id: "functii",
-    label: "Funcții",
-    href: "/functii",
-    icon: Briefcase,
-    group: "personal",
-    featureKey: null,
-    permission: "departments:read",
-    minScope: "all",
-    order: 44,
   },
   {
     id: "departamente",

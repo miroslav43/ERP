@@ -79,7 +79,6 @@ export type FirmaAzi = Readonly<{
   angajatiActivi: number;
   inConcediu: number;
   departamente: number;
-  functii: number;
 }>;
 
 export type ContoarePanou = Readonly<{
@@ -322,7 +321,7 @@ export async function stareFirmeiAzi(organizationId: string): Promise<FirmaAzi> 
   const db = await createServerSupabase();
   const azi = aziBucuresti();
 
-  const [activi, concedii, departamente, functii] = await Promise.all([
+  const [activi, concedii, departamente] = await Promise.all([
     numarAngajatiActivi(organizationId),
     citesteTot<{ id: string; employee_id: string }>(
       (dupa, pas) => {
@@ -347,21 +346,14 @@ export async function stareFirmeiAzi(organizationId: string): Promise<FirmaAzi> 
       .select("id", { count: "exact", head: true })
       .eq("organization_id", organizationId)
       .is("deleted_at", null),
-    db
-      .from("job_positions")
-      .select("id", { count: "exact", head: true })
-      .eq("organization_id", organizationId)
-      .is("deleted_at", null),
   ]);
 
   if (departamente.error !== null) throw departamente.error;
-  if (functii.error !== null) throw functii.error;
 
   return {
     angajatiActivi: activi,
     inConcediu: new Set(concedii.map((c) => c.employee_id)).size,
     departamente: departamente.count ?? 0,
-    functii: functii.count ?? 0,
   };
 }
 

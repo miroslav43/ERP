@@ -40,16 +40,19 @@ import {
   citesteComponenteSalariale,
   citesteRezumatDateSensibile,
   citesteScutiriFiscale,
+  colegiPentruManager,
   idFisaProprie,
   lantulDeManageri,
-  functiiActive,
+  functiiFolosite,
   piediciStergereAngajat,
   rolurileConturilor,
 } from "@/lib/queries/employees";
+import { departamente } from "@/lib/queries/attendance";
 import { coduriEligibile } from "@/lib/documents/inrolare";
 import { CODURI_INROLARE } from "@/lib/documents/variabile";
 
-import { ButonSchimbaFunctia } from "./buton-schimba-functia";
+import { DialogIncadrare } from "./dialog-incadrare";
+import { ComutatorSefDepartament } from "./comutator-sef-departament";
 
 import {
   ETICHETE_CONTRACT,
@@ -181,6 +184,9 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
   // Tot printre porțile de sus, din același motiv: decide dacă se mai citește
   // nomenclatorul de funcții pentru caseta „Schimbă funcția".
   const poateEditaAngajat = can(permisiuni, "employees:update", "all");
+  // Comutatorul de șef scrie în `departments`, deci cere ALTĂ permisiune:
+  // un `hr` schimbă încadrarea, dar nu neapărat numește șefi.
+  const poateNumiSefi = can(permisiuni, "departments:update", "all");
 
   /*
    * Regenerarea EMITE documente, deci cere aceeași cheie ca emiterea:
@@ -204,6 +210,9 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
     documenteEmiseRes,
     invitatiePendinte,
     optiuniFunctii,
+    optiuniDepartamente,
+    optiuniColegi,
+    sefulDepartamentului,
     areFisaPostului,
   ] = await Promise.all([
     // Datele sensibile nu se randează deloc dacă scope-ul nu acoperă întreaga organizație.
@@ -285,10 +294,26 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
           .maybeSingle()
           .then(({ data }) => data)
       : null,
-    // Nomenclatorul se citește doar pentru cine îl poate și folosi: fără
-    // `employees:update = all`, caseta de schimbare a funcției nu se randează,
-    // deci lista ar fi un drum la bază pentru nimic.
-    poateEditaAngajat ? functiiActive(tenant.organizationId) : [],
+    // Cele trei liste ale dialogului de încadrare se citesc doar pentru cine îl
+    // poate și folosi: fără `employees:update = all` caseta nu se randează, deci
+    // ar fi trei drumuri la bază pentru nimic.
+    poateEditaAngajat ? functiiFolosite(tenant.organizationId) : [],
+    poateEditaAngajat ? departamente(tenant.organizationId) : [],
+    // Fișa curentă e exclusă din listă chiar de interogare: nimeni nu-și poate
+    // fi propriul manager, iar schema o refuză oricum.
+    poateEditaAngajat ? colegiPentruManager(tenant.organizationId, id) : [],
+    // Cine conduce ACUM departamentul lui — o coloană, ca să se știe dacă
+    // comutatorul pornește bifat. `departamente()` nu o aduce.
+    angajat.department === null
+      ? null
+      : dbFisa
+          .from("departments")
+          .select("manager_employee_id")
+          .eq("organization_id", tenant.organizationId)
+          .eq("id", angajat.department.id)
+          .is("deleted_at", null)
+          .maybeSingle()
+          .then(({ data }) => data),
     /*
      * Doar EXISTENȚA fișei postului, nu conținutul ei.
      *
@@ -466,7 +491,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
           className="min-w-0 flex-1"
           titlu={angajat.full_name}
           descriere={`Marca ${angajat.marca}${
-            angajat.job_position !== null ? ` · ${angajat.job_position.denumire}` : ""
+            angajat.functie !== null ? ` · ${angajat.functie}` : ""
           }${angajat.department !== null ? ` · ${angajat.department.denumire}` : ""}`}
           actiuni={
             <>
@@ -554,25 +579,54 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
         <h2 id="titlu-incadrare" className="text-sectiune mb-4 font-medium">
           Încadrare
         </h2>
+        <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
+          {poateEditaAngajat ? (
+            <DialogIncadrare
+              employeeId={angajat.id}
+              functie={angajat.functie}
+              codCor={angajat.cod_cor}
+              departamentId={angajat.department?.id ?? null}
+              managerId={lantManageri.at(-1)?.id ?? null}
+              departamente={optiuniDepartamente}
+              colegi={optiuniColegi}
+              functiiFolosite={optiuniFunctii}
+            />
+          ) : null}
+          {/*
+            Comutatorul apare DOAR când omul are un departament: „șef al
+            departamentului —" n-ar avea niciun înțeles, iar acțiunea l-ar
+            refuza oricum.
+          */}
+          {poateNumiSefi && angajat.department !== null ? (
+            <ComutatorSefDepartament
+              employeeId={angajat.id}
+              departamentId={angajat.department.id}
+              departamentDenumire={angajat.department.denumire}
+              esteSef={sefulDepartamentului?.manager_employee_id === angajat.id}
+            />
+          ) : null}
+        </div>
         <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div>
             <dt className="text-muted-foreground text-nota tracking-wide uppercase">Funcție</dt>
-            <dd className="mt-0.5 flex flex-wrap items-center gap-2">
+            <dd className="mt-0.5 flex flex-wrap items-baseline gap-2">
               <span
-                className={cn(
-                  "text-corp",
-                  angajat.job_position === null && "text-muted-foreground/70 italic",
-                )}
+                className={cn("text-corp", angajat.functie === null && "text-muted-foreground/70 italic")}
               >
-                {angajat.job_position?.denumire ?? "Nealocată"}
+                {angajat.functie ?? "Nedeclarată"}
               </span>
-              {poateEditaAngajat ? (
-                <ButonSchimbaFunctia
-                  employeeId={angajat.id}
-                  functieCurentaId={angajat.job_position?.id ?? null}
-                  functii={optiuniFunctii}
-                />
-              ) : null}
+              {/*
+                Codul COR lângă denumire, nu într-un câmp separat: el e ce se
+                declară la ITM, iar absența lui BLOCHEAZĂ exportul REVISAL
+                (`domain/reges/export.ts` îl respinge). Pe baza reală, toate
+                cele opt fișe cu funcție îl aveau gol — deci golul trebuie să se
+                vadă, nu să tacă.
+              */}
+              {angajat.cod_cor === null ? (
+                <span className="text-danger text-nota">fără cod COR</span>
+              ) : (
+                <span className="text-muted-foreground text-nota font-mono">{angajat.cod_cor}</span>
+              )}
             </dd>
           </div>
           <Camp eticheta="Departament" valoare={angajat.department?.denumire ?? null} />
@@ -799,7 +853,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
         conditiiMunca={angajat.conditii_munca}
         gradHandicap={angajat.grad_handicap}
         departmentId={angajat.department?.id ?? null}
-        jobPositionId={angajat.job_position?.id ?? null}
+        codCor={angajat.cod_cor}
         poateVedeaRegulile={poateVedeaRegulileConcediu}
       />
 

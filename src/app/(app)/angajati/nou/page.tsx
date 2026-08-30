@@ -27,17 +27,10 @@ export default async function PaginaAngajatNou() {
   }
 
   const db = await createServerSupabase();
-  const [departamente, functii, angajati, organizatie, obiecteInventar, puncteLucru, contor] =
+  const [departamente, angajati, organizatie, obiecteInventar, puncteLucru, contor] =
     await Promise.all([
       db
         .from("departments")
-        .select("id, denumire")
-        .eq("organization_id", tenant.organizationId)
-        .eq("activ", true)
-        .is("deleted_at", null)
-        .order("denumire"),
-      db
-        .from("job_positions")
         .select("id, denumire")
         .eq("organization_id", tenant.organizationId)
         .eq("activ", true)
@@ -95,7 +88,6 @@ export default async function PaginaAngajatNou() {
       />
       <AsistentAngajatNou
         departamente={departamente.data ?? []}
-        functii={functii.data ?? []}
         angajati={(angajati.data ?? []).map((a) => ({
           id: a.id,
           full_name: a.full_name ?? "",
