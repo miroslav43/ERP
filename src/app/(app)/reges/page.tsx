@@ -1,6 +1,4 @@
 // src/app/(app)/reges/page.tsx
-import Link from "next/link";
-
 import { FileCheck2 } from "lucide-react";
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
@@ -16,6 +14,8 @@ import {
   idOrganizatie,
   interogheazaEvenimenteReges,
   interogheazaMesajeReges,
+  interogheazaPropuneriReges,
+  propuneriDeRaspuns,
   type FiltruStare,
   type RandMesaj,
 } from "@/lib/queries/reges";
@@ -30,6 +30,7 @@ import {
 } from "./constante";
 import { ActiuniEveniment, ButonExport } from "./actiuni-client";
 import { ButonAnuleazaMesaj, ButonPregateste, ButonTransmite } from "./coada-client";
+import { NavReges } from "./nav-reges";
 
 export const metadata = { title: "REGES-Online — evidența evenimentelor" };
 
@@ -72,9 +73,15 @@ export default async function PaginaReges(props: {
 
   const supabase = await createServerSupabase();
   const organizationId = idOrganizatie(tenant);
-  const [{ randuri, statistici, azi }, coada] = await Promise.all([
+  // Propunerile se citesc și aici, dar NU se randează: din ele iese doar cifra
+  // de pe fila „Propuneri detașare". Citirea completă, în locul unui `count()`
+  // separat, e ce ține pastila legată de listă — vezi `propuneriDeRaspuns`.
+  // Firma cea mai mare din producție are 8 salariați; costul e o interogare în
+  // paralel cu celelalte două, nu un rând în plus de latență.
+  const [{ randuri, statistici, azi }, coada, propuneri] = await Promise.all([
     interogheazaEvenimenteReges(supabase, organizationId, filtre),
     interogheazaMesajeReges(supabase, organizationId),
+    interogheazaPropuneriReges(supabase, organizationId),
   ]);
 
   // Coada de mesaje API — un strat SUB registrul de evenimente, nu în locul lui.
@@ -252,16 +259,22 @@ export default async function PaginaReges(props: {
 
   return (
     <div className="space-y-6">
+      {/*
+        „Chei API" era buton de acțiune în antet; acum e a treia filă a benzii.
+        Un modul nu-și ține navigarea în două locuri — cine caută secțiunile
+        REGES le găsește pe toate pe același rând.
+      */}
       <AntetPagina
         titlu="REGES-Online (fost Revisal)"
-        actiuni={
-          poateConfigura ? (
-            <Link className={buton({ varianta: "secundar" })} href="/reges/setari">
-              Chei API
-            </Link>
-          ) : undefined
-        }
         descriere={`Registrul general de evidență a salariaților. Netransmiterea în termen a unui eveniment este contravenție, separat pentru fiecare salariat. Situația la ${formatDate(azi)}.`}
+        file={
+          <NavReges
+            activ="registru"
+            poateCiti
+            poateConfigura={poateConfigura}
+            propuneriDeRaspuns={propuneriDeRaspuns(propuneri)}
+          />
+        }
       />
 
       {/*
