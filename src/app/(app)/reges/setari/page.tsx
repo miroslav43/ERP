@@ -6,9 +6,11 @@ import { meetsScope } from "@/config/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { getPermissionMap, scopeFor } from "@/lib/auth/permissions";
 import { formatDate } from "@/lib/format/date";
+import { idOrganizatie, interogheazaPropuneriReges, propuneriDeRaspuns } from "@/lib/queries/reges";
 import { citesteRezumatCredentiale } from "@/lib/reges/credentiale";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
+import { NavReges } from "../nav-reges";
 import { FormularCredentiale } from "./formular-credentiale";
 
 export const metadata = { title: "REGES-Online — chei API" };
@@ -27,15 +29,33 @@ export default async function PaginaSetariReges() {
     );
   }
 
+  // `configure` nu implică `read`: seed-ul din 0087 §16 le dă împreună celor
+  // trei roluri care le au, dar o firmă își poate strânge drepturile per rol
+  // din `role_permissions`, fără deploy. Cine n-are `read` nu vede filele de
+  // registru și nici nu declanșează citirea propunerilor.
+  const poateCiti = meetsScope(scopeFor(permisiuni, "reges:read") ?? undefined, "all");
+
   const supabase = await createServerSupabase();
-  const rezumat = await citesteRezumatCredentiale(supabase, tenant.organizationId);
+  const [rezumat, propuneri] = await Promise.all([
+    citesteRezumatCredentiale(supabase, tenant.organizationId),
+    poateCiti
+      ? interogheazaPropuneriReges(supabase, idOrganizatie(tenant))
+      : Promise.resolve([] as const),
+  ]);
 
   return (
     <div className="space-y-6">
       <AntetPagina
-        firimituri={[{ eticheta: "REGES-Online", href: "/reges" }, { eticheta: "Chei API" }]}
         titlu="Legătura cu REGES-Online"
         descriere="Fiecare firmă are propriul cont de angajator la Inspecția Muncii și propriile chei API. Nu există o cheie comună a aplicației."
+        file={
+          <NavReges
+            activ="setari"
+            poateCiti={poateCiti}
+            poateConfigura={poateConfigura}
+            propuneriDeRaspuns={propuneriDeRaspuns(propuneri)}
+          />
+        }
       />
 
       {rezumat === null ? (

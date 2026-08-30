@@ -368,6 +368,24 @@ export async function interogheazaPropuneriReges(
   }));
 }
 
+/**
+ * Câte propuneri PRIMITE mai așteaptă un răspuns — cifra de pe fila din bandă.
+ *
+ * Funcție pură peste rândurile deja citite, nu o interogare `count()` proprie,
+ * și nu din întâmplare: pastila trebuie să poată ajunge la zero. Un contor cu
+ * predicat propriu se desincronizează de listă în tăcere, iar rezultatul e o
+ * insignă care spune „2 de răspuns" către un ecran unde nu mai e nimic de
+ * răspuns — exact defectul pe care îl are `approval_tasks`, unde starea sarcinii
+ * nu urmează starea cererii-părinte.
+ *
+ * Aici predicatul e scris o singură dată, iar tabelul „Primite" din
+ * `/reges/propuneri` filtrează ACELEAȘI rânduri: dacă lista se golește, cifra
+ * ajunge la zero prin construcție.
+ */
+export function propuneriDeRaspuns(propuneri: readonly RandPropunere[]): number {
+  return propuneri.filter((p) => p.directie === "primita" && p.stare === "noua").length;
+}
+
 // ── Jurnalul apelurilor ─────────────────────────────────────────────────────
 
 export interface RandApel {

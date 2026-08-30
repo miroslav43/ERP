@@ -64,6 +64,11 @@ const SEGMENTE: Readonly<Record<string, string>> = {
   politica: "Politică",
   popriri: "Popriri",
   profil: "Profilul meu",
+  // A ieșit din `NAV_ITEMS` odată cu unificarea REGES într-o singură intrare de
+  // meniu: e filă în pagină acum, nu destinație de rail. Fără rândul ăsta,
+  // fallback-ul ar fi scris „Propuneri", corect ca ortografie și mut despre
+  // ce fel de propuneri.
+  propuneri: "Propuneri detașare",
   sabloane: "Șabloane",
   saptamana: "Săptămână",
   sesizari: "Sesizări",

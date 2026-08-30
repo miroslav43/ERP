@@ -15,10 +15,12 @@ import {
   idOrganizatie,
   interogheazaPropuneriReges,
   optiuniNomenclator,
+  propuneriDeRaspuns,
   type RandPropunere,
 } from "@/lib/queries/reges";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
+import { NavReges } from "../nav-reges";
 import { FormularPropunere } from "./formular-propunere";
 import { RaspunsPropunere } from "./raspuns-propunere";
 
@@ -45,6 +47,7 @@ export default async function PaginaPropuneriReges() {
     );
   }
   const poateRaspunde = meetsScope(scopeFor(permisiuni, "reges:transmit") ?? undefined, "all");
+  const poateConfigura = meetsScope(scopeFor(permisiuni, "reges:configure") ?? undefined, "all");
 
   const supabase = await createServerSupabase();
   const organizationId = idOrganizatie(tenant);
@@ -136,10 +139,22 @@ export default async function PaginaPropuneriReges() {
 
   return (
     <div className="space-y-8">
+      {/*
+        Firimitura „REGES-Online / Propuneri" a dispărut: banda de file spune
+        același lucru și, spre deosebire de ea, duce ÎNAPOI cu un clic, nu doar
+        în sus. Două indicatoare pentru aceeași apartenență ar fi redundante.
+      */}
       <AntetPagina
-        firimituri={[{ eticheta: "REGES-Online", href: "/reges" }, { eticheta: "Propuneri" }]}
         titlu="Propuneri de detașare și mutare"
         descriere="La REGES-Online nu se transmite direct o detașare, ci o propunere, pe care angajatorul destinație o acceptă sau o respinge separat."
+        file={
+          <NavReges
+            activ="propuneri"
+            poateCiti
+            poateConfigura={poateConfigura}
+            propuneriDeRaspuns={propuneriDeRaspuns(propuneri)}
+          />
+        }
       />
 
       {!poateRaspunde ? (

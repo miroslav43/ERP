@@ -10,7 +10,6 @@
  */
 import {
   GraduationCap,
-  ArrowLeftRight,
   BarChart3,
   Briefcase,
   CalendarDays,
@@ -175,6 +174,21 @@ export const NAV_ITEMS: readonly NavItem[] = [
    * niciuna dintre ele — ceea ce însemna că specialistul de personal, exact omul
    * care transmite la ITM, nu vedea intrarea deloc.
    */
+  /*
+   * O SINGURĂ intrare pentru tot modulul.
+   *
+   * „Propuneri detașare" era intrare SOARĂ, la 42 — două rânduri în rail
+   * pentru același registru, deși o detașare din tabelul principal ESTE
+   * propunerea din celălalt ecran, privită din capătul nostru, iar amândouă
+   * pleacă la ITM prin aceeași coadă de mesaje. Propunerile și cheile API sunt
+   * acum FILE în pagină (`./reges/nav-reges.tsx`), cu pastilă pe cele primite
+   * fără răspuns.
+   *
+   * Nu se repetă aici ca sub-intrări, spre deosebire de `/cursuri`: acolo
+   * biblioteca și conformitatea erau destinații pe care nimeni nu le găsea,
+   * fiindcă drumul spre ele era un buton. Aici fila e vizibilă din prima, pe
+   * ecranul unde ajunge oricine deschide REGES.
+   */
   {
     id: "reges",
     label: "REGES-Online",
@@ -185,17 +199,6 @@ export const NAV_ITEMS: readonly NavItem[] = [
     permission: "reges:read",
     minScope: "all",
     order: 41,
-  },
-  {
-    id: "reges-propuneri",
-    label: "Propuneri detașare",
-    href: "/reges/propuneri",
-    icon: ArrowLeftRight,
-    group: "personal",
-    featureKey: "reges",
-    permission: "reges:read",
-    minScope: "all",
-    order: 42,
   },
   {
     id: "functii",
