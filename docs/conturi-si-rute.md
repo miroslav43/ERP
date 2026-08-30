@@ -175,8 +175,6 @@ Poarta e în `(app)/layout.tsx`: `requireTenant()`, apoi **rolul `employee` e re
 | `/flota/aprobari`                | `trip_sheets:approve` ≥ `team` | `fleet`         |
 | `/flota/foi`                     | `trip_sheets:read` ≥ `own`     | `fleet`         |
 | `/flota/foi/[id]`                | `trip_sheets:read` ≥ `own`     | `fleet`         |
-| `/flota/foi/noua`                | `trip_sheets:create` ≥ `own`   | `fleet`         |
-| `/flota/nou`                     | `vehicles:create` ≥ `all`      | `fleet`         |
 | `/functii`                       | `departments:create` ≥ `all`   | `nucleu`        |
 | `/inventar`                      | `inventory:update` ≥ `all`     | `inventory`     |
 | `/inventar/[id]`                 | `inventory:update` ≥ `all`     | `inventory`     |

@@ -1846,6 +1846,31 @@ begin
       ('employee', 'attendance_entries (închide ziua)',     'PERMIS_RAND',
        'update public.attendance_entries set ora_sfarsit = ''16:30'', ore_lucrate = 8 where organization_id = $1 and employee_id = $6 and data = current_date - 2'),
 
+      -- ── Ce cere verificarea limitelor legale, după scriere ───────────────
+      --
+      -- `salveazaZiPontaj` citește acum, DUPĂ ce a scris ziua, regulile firmei
+      -- și zilele angajatului, ca să poată întoarce avertismente. Amândouă
+      -- citirile sunt noi pe calea `employee`.
+      --
+      -- Se probează fiindcă eșecul lor e INVIZIBIL: codul prinde eroarea și
+      -- întoarce listă goală, tocmai ca o salvare reușită să nu devină eroare
+      -- pe ecranul omului. Dacă RLS le-ar refuza, singurul simptom ar fi că
+      -- avertismentele nu apar niciodată — exact felul de tăcere pe care
+      -- memoria proiectului spune că raționamentul a greșit-o de patru ori.
+      --
+      -- `attendance_settings_select` (0013:732) cere `attendance:read >= own`,
+      -- pe care `employee` îl are din seed (0002:1207). Cerința e reală, nu
+      -- teoretică: fără rândul de setări, `limiteleFirmei` întoarce `null` și
+      -- tot mecanismul tace legitim.
+      ('employee', 'attendance_settings (regulile firmei)', 'PERMIS_RAND',
+       'select 1 from public.attendance_settings where organization_id = $1 and deleted_at is null and valabil_de_la <= current_date'),
+
+      -- Fereastra cerută de `zilePontateAngajat`: săptămâna, ziua dinainte și
+      -- perioada de referință, dintr-un drum. Rândurile există — le-au inserat
+      -- cazurile de mai sus, în aceeași buclă.
+      ('employee', 'attendance_entries (perioada de referință)', 'PERMIS_RAND',
+       'select 1 from public.attendance_entries where organization_id = $1 and employee_id = $6 and deleted_at is null and data >= current_date - 120'),
+
       -- Capcana tăcută a modulului: `attendance_entries_update` (0013:795) cere
       -- `approved_at is null`. Un UPDATE respins de `USING` NU aruncă — afectează
       -- zero rânduri și tace. De aceea ecranul de portal afișează zilele aprobate
@@ -3190,6 +3215,312 @@ begin
   end if;
 
   raise notice '(m) drepturile de concediu: angajatul își vede propriile drepturi (%) și zero din altă firmă ✓', v_proprii;
+end $$;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- (l), continuare — cine poate schimba modul de pontare (0115)
+--
+-- `setari_pontare_rapida` decide dacă butonul „Am intrat" există pe telefonul
+-- fiecărui angajat. Are DOUĂ direcții de probat, și a doua e cea care a produs
+-- defectul reparat de 0115:
+--
+--   SCRIERE — `attendance:update = all`. O au `org_admin` și `hr`. `manager`
+--     NU are `attendance:update` deloc, iar `employee` îl are pe `own`, deci
+--     pragul `all` îi refuză pe amândoi.
+--
+--   CITIRE — `attendance:read = own`, adică TOATĂ lumea, angajatul inclusiv.
+--     Pragul ăsta nu e o scăpare, e cerința: cele trei ecrane de pontare rulează
+--     sub identitatea ANGAJATULUI. O politică de SELECT mai strânsă ar întoarce
+--     zero rânduri FĂRĂ EROARE, aplicația ar cădea pe implicite, iar butonul ar
+--     dispărea tăcut de pe telefonul fiecărui om — exact simptomul de la care a
+--     pornit migrarea, ajuns de data asta din altă cauză.
+--
+-- DE CE UPDATE ȘI NU INSERT: fixture-ul are deja rândul fiecărei firme, iar
+-- acțiunea reală face citire-apoi-UPDATE. Un UPDATE respins de `USING` afectează
+-- ZERO RÂNDURI, FĂRĂ EROARE (capcana 17) — deci se numără rândurile, nu se
+-- ascultă erorile.
+-- ─────────────────────────────────────────────────────────────────────────────
+do $$
+declare
+  v_alfa       uuid := pg_temp.id('alfa');
+  v_admin      uuid := pg_temp.id('admin_alfa');
+  v_hr         uuid := pg_temp.id('hr_user_alfa');
+  v_mgr        uuid := pg_temp.id('mgr_user_alfa');
+  v_emp        uuid := pg_temp.id('emp_alfa');
+  v_afectate   int;
+  v_vazute     int;
+  v_mod        text;
+begin
+  -- 1) `hr` SCHIMBĂ modul de pontare. Pozitiv.
+  perform set_config('request.jwt.claim.sub', v_hr::text, true);
+  set local role authenticated;
+  with modificate as (
+    update public.setari_pontare_rapida set mod_pontare_rapida = 'ceas'
+     where organization_id = v_alfa and deleted_at is null
+    returning 1
+  ) select count(*) into v_afectate from modificate;
+  reset role;
+  if v_afectate = 0 then
+    perform pg_temp.esueaza(
+      '(l) FALS-NEGATIV: `hr` are attendance:update=all, dar UPDATE pe setari_pontare_rapida a afectat zero rânduri');
+  end if;
+
+  -- 2) `org_admin` la fel. Pozitiv.
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  with modificate as (
+    update public.setari_pontare_rapida set verificare_pontare = 'optional'
+     where organization_id = v_alfa and deleted_at is null
+    returning 1
+  ) select count(*) into v_afectate from modificate;
+  reset role;
+  if v_afectate = 0 then
+    perform pg_temp.esueaza(
+      '(l) FALS-NEGATIV: `org_admin` nu a putut schimba verificarea pontării');
+  end if;
+
+  -- 3) `manager` NU poate. Negativ — fără el, o politică `using (true)` ar trece.
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  with modificate as (
+    update public.setari_pontare_rapida set mod_pontare_rapida = 'oprit'
+     where organization_id = v_alfa and deleted_at is null
+    returning 1
+  ) select count(*) into v_afectate from modificate;
+  --    Contra-proba, în aceeași identitate: un refuz arată la fel dacă actorul nu
+  --    există deloc, iar un caz negativ vid trece la nesfârșit fără să demonstreze
+  --    nimic. Managerul are `attendance:read = team`, deci TREBUIE să vadă rândul.
+  select count(*) into v_vazute
+    from public.setari_pontare_rapida
+   where organization_id = v_alfa and deleted_at is null;
+  reset role;
+  if v_afectate > 0 then
+    perform pg_temp.esueaza(
+      '(l) FALS-POZITIV: `manager` n-are attendance:update, dar a stins pontarea rapidă a firmei');
+  end if;
+  if v_vazute = 0 then
+    perform pg_temp.esueaza(
+      '(l) CAZ NEGATIV VID: `manager` nu vede rândul, deci refuzul de mai sus nu dovedește nimic '
+      'despre permisiuni — verifică actorul din fixture');
+  end if;
+
+  -- 4) `employee` NU poate scrie...
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  with modificate as (
+    update public.setari_pontare_rapida set mod_pontare_rapida = 'oprit'
+     where organization_id = v_alfa and deleted_at is null
+    returning 1
+  ) select count(*) into v_afectate from modificate;
+  --    ...dar POATE CITI. Cele două se probează sub aceeași identitate, în
+  --    aceeași tranzacție: separate, ar putea trece amândouă cu un actor greșit.
+  select count(*), max(mod_pontare_rapida::text) into v_vazute, v_mod
+    from public.setari_pontare_rapida
+   where organization_id = v_alfa and deleted_at is null;
+  reset role;
+  if v_afectate > 0 then
+    perform pg_temp.esueaza(
+      '(l) FALS-POZITIV: un `employee` și-a schimbat singur modul de pontare al firmei');
+  end if;
+  if v_vazute = 0 then
+    perform pg_temp.esueaza(
+      '(l) REFUZ TĂCUT LA CITIRE: `employee` nu vede setari_pontare_rapida, deci butonul de pontare '
+      'dispare de pe telefonul fiecărui angajat, fără nicio eroare');
+  end if;
+  if v_mod <> 'ceas' then
+    perform pg_temp.esueaza(format(
+      '(l) angajatul citește `%s`, dar `hr` scrisese `ceas` — citirea nu vede scrierea legitimă', v_mod));
+  end if;
+
+  raise notice '(l) pontarea rapidă: hr și org_admin o configurează, manager și employee nu — iar angajatul o CITEȘTE ✓';
+end $$;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- (l), continuare — corectarea și ștergerea documentelor de vehicul
+--
+-- Modulul de flotă avea un singur drum: SE ADAUGĂ. Un RCA cu data pusă anapoda
+-- nu se putea repara, iar o mașină introdusă greșit rămânea în parc pentru
+-- totdeauna. Drumurile noi trec prin `vehicules_update` / `vdoc_update`, care
+-- cer `vehicles:update = all` — adică `org_admin` și `super_admin`, atât.
+--
+-- ── DE CE NU E DE AJUNS CAZUL DIN (l) PUNCTUL 5 ──────────────────────────────
+-- Ștergerea logică a unui vehicul e deja probată mai sus, dar cu `begin …
+-- exception when others` — adică prinde EXCEPȚII, nu numără rânduri. Un UPDATE
+-- respins de `USING` afectează ZERO RÂNDURI, FĂRĂ EROARE (capcana 17), deci
+-- cazul acela ar trece verde și dacă politica ar refuza tot. Aici se numără.
+--
+-- ── CE PROBEAZĂ ÎN PLUS: EFECTUL CARE NU SE VEDE ────────────────────────────
+-- Ștergerea documentului CURENT nu e o linie ștearsă dintr-un tabel: `vdoc_dupa`
+-- cheamă `flota_sincronizeaza_grup`, care alege noul curent dintre rândurile
+-- rămase (`expira_la` maxim) și mută scadența în `expirables`. Iar 0018 §F5 a
+-- reparat aici un defect subtil — steagul `este_curent` rămânea agățat pe rândul
+-- ȘTERS, fiindcă UPDATE-ul de stingere filtra pe `deleted_at is null`. Rezultau
+-- DOUĂ rânduri curente pe același (vehicul, tip), pe care indexul unic parțial
+-- `vdoc_curent_uq` nu le prindea, fiindcă e filtrat exact pe `deleted_at is null`.
+-- Regresia aia nu se vede din aplicație și n-are cod de eroare. Se vede numărând.
+-- ─────────────────────────────────────────────────────────────────────────────
+do $$
+declare
+  v_alfa      uuid := pg_temp.id('alfa');
+  v_admin     uuid := pg_temp.id('admin_alfa');
+  v_hr        uuid := pg_temp.id('hr_user_alfa');
+  v_emp       uuid := pg_temp.id('emp_alfa');
+  v_veh       uuid := pg_temp.id('veh_alfa');
+  v_doc_vechi uuid := pg_temp.id('vdoc_alfa');
+  v_tip_rca   uuid;
+  v_doc_nou   uuid;
+  v_afectate  int;
+  v_curente   int;
+  v_agatate   int;
+  v_vazute    int;
+  v_curent    uuid;
+begin
+  select id into v_tip_rca from public.vehicle_document_types
+   where cod = 'rca' and organization_id is null and deleted_at is null;
+
+  -- 1) `org_admin` CORECTEAZĂ un document existent. Pozitiv, cu rânduri numărate.
+  --    `updated_by` se trimite explicit: pe vehicle_documents nu există trigger
+  --    de actor, iar `WITH CHECK` îl cere nominal (capcana 23).
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  with modificate as (
+    update public.vehicle_documents
+       set emitent = 'Allianz-Țiriac', cost = 1240.50, updated_by = v_admin
+     where id = v_doc_vechi and organization_id = v_alfa and deleted_at is null
+    returning 1
+  ) select count(*) into v_afectate from modificate;
+  reset role;
+  if v_afectate = 0 then
+    perform pg_temp.esueaza(
+      '(l) FALS-NEGATIV: `org_admin` are vehicles:update=all, dar corectarea unui document de '
+      'vehicul a afectat zero rânduri — vdoc_update refuză o scriere legitimă');
+  end if;
+
+  -- 2) Reînnoirea: un RCA cu expirare mai îndepărtată devine CURENT singur.
+  --    `este_curent` nu se trimite — politica de INSERT cere exact `false`, iar
+  --    triggerul recalculează pe urmă tot grupul.
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  insert into public.vehicle_documents
+    (organization_id, vehicle_id, document_type_id, emitent, valabil_de_la, expira_la,
+     created_by, updated_by)
+  values (v_alfa, v_veh, v_tip_rca, 'Groupama', current_date, current_date + 400, v_admin, v_admin)
+  returning id into v_doc_nou;
+  -- Numărătoarea și identitatea, separat: `max(uuid)` nu există în Postgres, iar
+  -- un `select into` peste două rânduri l-ar lua tăcut pe primul — de aceea
+  -- contorul se verifică oricum, mai jos.
+  select count(*) into v_curente
+    from public.vehicle_documents
+   where vehicle_id = v_veh and document_type_id = v_tip_rca and deleted_at is null and este_curent;
+  select id into v_curent
+    from public.vehicle_documents
+   where vehicle_id = v_veh and document_type_id = v_tip_rca and deleted_at is null and este_curent
+   limit 1;
+  reset role;
+  if v_curente <> 1 then
+    perform pg_temp.esueaza(format(
+      '(l) după reînnoire ar trebui UN singur document curent pe (vehicul, tip), sunt %s', v_curente));
+  end if;
+  if v_curent <> v_doc_nou then
+    perform pg_temp.esueaza(
+      '(l) documentul cu expirarea cea mai îndepărtată NU a devenit cel curent — '
+      'flota_sincronizeaza_grup alege ultimul introdus, nu maximul lui expira_la');
+  end if;
+
+  -- 3) `org_admin` ȘTERGE documentul curent. Ștafeta trece la cel vechi, iar
+  --    steagul NU rămâne agățat pe rândul șters (regresia 0018 §F5).
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  with sterse as (
+    update public.vehicle_documents
+       set deleted_at = now(), updated_by = v_admin
+     where id = v_doc_nou and organization_id = v_alfa and deleted_at is null
+    returning 1
+  ) select count(*) into v_afectate from sterse;
+  select count(*) into v_curente
+    from public.vehicle_documents
+   where vehicle_id = v_veh and document_type_id = v_tip_rca and deleted_at is null and este_curent;
+  select id into v_curent
+    from public.vehicle_documents
+   where vehicle_id = v_veh and document_type_id = v_tip_rca and deleted_at is null and este_curent
+   limit 1;
+  select count(*) into v_agatate
+    from public.vehicle_documents
+   where vehicle_id = v_veh and document_type_id = v_tip_rca and deleted_at is not null and este_curent;
+  reset role;
+  if v_afectate = 0 then
+    perform pg_temp.esueaza(
+      '(l) REFUZ TĂCUT: ștergerea logică a unui document de vehicul a afectat zero rânduri, '
+      'fără eroare — verifică dacă `deleted_at is null` s-a întors în vdoc_select (0018 §F2)');
+  end if;
+  if v_curente <> 1 or v_curent <> v_doc_vechi then
+    perform pg_temp.esueaza(
+      '(l) după ștergerea documentului curent, cel anterior NU i-a luat locul — '
+      'semaforul de scadențe rămâne pe o poliță ștearsă');
+  end if;
+  if v_agatate > 0 then
+    perform pg_temp.esueaza(format(
+      '(l) REGRESIE 0018 §F5: %s document(e) ȘTERSE păstrează este_curent = true. Indexul '
+      'vdoc_curent_uq nu le prinde, fiind filtrat pe deleted_at is null', v_agatate));
+  end if;
+
+  -- 4) `org_admin` ȘTERGE vehiculul, cu rânduri numărate.
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  with sterse as (
+    update public.vehicles
+       set deleted_at = now(), updated_by = v_admin
+     where id = v_veh and organization_id = v_alfa and deleted_at is null
+    returning 1
+  ) select count(*) into v_afectate from sterse;
+  reset role;
+  if v_afectate = 0 then
+    perform pg_temp.esueaza(
+      '(l) REFUZ TĂCUT: ștergerea logică a unui vehicul a afectat zero rânduri, fără eroare');
+  end if;
+
+  -- 5) `hr` NU poate corecta un document de vehicul. Negativ.
+  --    `hr` administrează SSM și personalul, dar n-are NICIUN `vehicles:*`
+  --    (capcana 18/26) — deci nici măcar nu vede rândul. Contra-proba nu poate fi
+  --    „vede documentul", ci trebuie luată din altă parte: dacă `hr` n-ar vedea
+  --    NICIUN angajat, actorul ar fi rupt, iar refuzul de mai jos n-ar dovedi nimic.
+  perform set_config('request.jwt.claim.sub', v_hr::text, true);
+  set local role authenticated;
+  with modificate as (
+    update public.vehicle_documents set emitent = 'HR a trecut pe aici', updated_by = v_hr
+     where id = v_doc_vechi
+    returning 1
+  ) select count(*) into v_afectate from modificate;
+  select count(*) into v_vazute from public.employees
+   where organization_id = v_alfa and deleted_at is null;
+  reset role;
+  if v_afectate > 0 then
+    perform pg_temp.esueaza(
+      '(l) FALS-POZITIV: `hr` n-are niciun vehicles:*, dar a modificat un document de vehicul');
+  end if;
+  if v_vazute = 0 then
+    perform pg_temp.esueaza(
+      '(l) CAZ NEGATIV VID: `hr` nu vede niciun angajat, deci refuzul pe documente nu dovedește '
+      'nimic despre permisiuni — verifică actorul din fixture');
+  end if;
+
+  -- 6) `employee` nu poate nici corecta, nici șterge. Negativ.
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  with modificate as (
+    update public.vehicle_documents set deleted_at = now(), updated_by = v_emp
+     where id = v_doc_vechi
+    returning 1
+  ) select count(*) into v_afectate from modificate;
+  reset role;
+  if v_afectate > 0 then
+    perform pg_temp.esueaza(
+      '(l) FALS-POZITIV: un `employee` a șters un document de vehicul al firmei');
+  end if;
+
+  raise notice
+    '(l) flota: org_admin corectează și șterge documente și vehicule, ștafeta lui este_curent '
+    'trece corect, iar hr și employee sunt refuzați ✓';
 end $$;
 
 rollback;

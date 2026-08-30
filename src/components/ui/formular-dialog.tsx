@@ -62,7 +62,14 @@ import { Formular, type StareFormular } from "./formular";
  * de dinainte.
  */
 export type PropsFormularDialog<TData> = Readonly<{
-  /** Butonul care deschide caseta. */
+  /**
+   * Butonul care deschide caseta.
+   *
+   * Uniunea de la coadă e aceeași ca a lui `Buton`, din același motiv: un buton
+   * doar-iconiță fără `aria-label` e mut pentru cititorul de ecran, iar într-un
+   * tabel cu cinci rânduri identice „Modifică" fără complement nici nu spune
+   * CE se modifică. La `marime="iconita"`, `eticheta` rămâne pictograma.
+   */
   declansator: Readonly<{
     eticheta: ReactNode;
     varianta?: VariantaButon;
@@ -70,10 +77,25 @@ export type PropsFormularDialog<TData> = Readonly<{
     pictograma?: ReactNode;
     disabled?: boolean;
     className?: string;
-  }>;
+  }> &
+    (Readonly<{ marime?: "implicit" }> | Readonly<{ marime: "iconita"; "aria-label": string }>);
   titlu: string;
   descriere?: string;
   marime?: PropsDialog["marime"];
+  /**
+   * Caseta pornește deschisă. Implicit `false`.
+   *
+   * Pentru rutele care AU DISPĂRUT în favoarea ei: `/flota?vehicul=nou` trebuie
+   * să ducă unde ducea `/flota/nou`, altfel un link vechi sau butonul dintr-o
+   * stare goală aterizează într-o listă tăcută, iar omul trebuie să ghicească ce
+   * voia să facă.
+   *
+   * Se citește O SINGURĂ DATĂ, la montare — e sămânța unui `useState`, nu o
+   * proprietate controlată. Ca să se redeschidă după o navigare care schimbă
+   * doar parametrul (aceeași rută!), apelantul dă componentei un `key` care se
+   * schimbă odată cu el; altfel React păstrează starea și caseta rămâne închisă.
+   */
+  deschisInitial?: boolean;
   actiune: (date: FormData) => Promise<ActionResult<TData>>;
   /** Textul notificării de confirmare. */
   mesajReusita?: string;
@@ -120,6 +142,7 @@ export function FormularDialog<TData>({
   titlu,
   descriere,
   marime = "mare",
+  deschisInitial = false,
   actiune,
   mesajReusita,
   etichetaTrimite,
@@ -131,7 +154,7 @@ export function FormularDialog<TData>({
   children,
 }: PropsFormularDialog<TData>): ReactElement {
   const router = useRouter();
-  const [deschis, setDeschis] = useState(false);
+  const [deschis, setDeschis] = useState(deschisInitial);
   const idFormular = useId();
 
   const idc = useCallback((sufix: string): string => `${idFormular}-${sufix}`, [idFormular]);
@@ -166,17 +189,33 @@ export function FormularDialog<TData>({
 
   return (
     <>
-      <Buton
-        varianta={declansator.varianta ?? "primar"}
-        disabled={declansator.disabled ?? false}
-        {...(declansator.className === undefined ? {} : { className: declansator.className })}
-        onClick={() => {
-          setDeschis(true);
-        }}
-      >
-        {declansator.pictograma}
-        {declansator.eticheta}
-      </Buton>
+      {declansator.marime === "iconita" ? (
+        <Buton
+          varianta={declansator.varianta ?? "primar"}
+          marime="iconita"
+          aria-label={declansator["aria-label"]}
+          disabled={declansator.disabled ?? false}
+          {...(declansator.className === undefined ? {} : { className: declansator.className })}
+          onClick={() => {
+            setDeschis(true);
+          }}
+        >
+          {declansator.pictograma}
+          {declansator.eticheta}
+        </Buton>
+      ) : (
+        <Buton
+          varianta={declansator.varianta ?? "primar"}
+          disabled={declansator.disabled ?? false}
+          {...(declansator.className === undefined ? {} : { className: declansator.className })}
+          onClick={() => {
+            setDeschis(true);
+          }}
+        >
+          {declansator.pictograma}
+          {declansator.eticheta}
+        </Buton>
+      )}
 
       {deschis ? (
         <Dialog
