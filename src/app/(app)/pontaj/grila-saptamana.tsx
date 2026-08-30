@@ -394,7 +394,14 @@ function BlocZi({
   return (
     <div
       aria-hidden="true"
-      className={`pointer-events-none absolute inset-x-1 overflow-hidden rounded border px-1 py-0.5 ${chenar} ${
+      /*
+        `min-h-9`: înălțimea vine din durată, dar sub un prag nu mai încape
+        nicio literă. O zi deschisă cu ceasul și neînchisă valorează un sfert de
+        oră — 1,5 % dintr-o fereastră de 16 ore, adică 12 px — iar textul ei se
+        tăia prin mijlocul rândului. Un bloc scurt desenat puțin mai înalt decât
+        e minte cu câteva minute; unul ilizibil nu spune nimic.
+      */
+      className={`pointer-events-none absolute inset-x-1 min-h-9 overflow-hidden rounded border px-1 py-0.5 ${chenar} ${
         taiat ? "border-t-transparent" : ""
       }`}
       style={{
