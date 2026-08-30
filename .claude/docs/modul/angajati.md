@@ -29,8 +29,8 @@ capcane: [10, 11, 22, 30]
 citeste_daca:
   - "CNP/IBAN care nu se văd → [[rol/hr]]"
   - "coloană inexistentă la SELECT → [[date/pontaj]]"
-scris_pe: MANUAL
-scris_la: 2026-08-29
+scris_pe: 3c9747a4f30ad317e7ea4e01fe0a4e778381411e
+scris_la: 2026-08-30
 tags: [modul, hr, nucleu]
 ---
 
@@ -55,19 +55,19 @@ adică sunt mereu active.
 
 ## Server Actions
 
-| Funcție                                                                              | Permisiune / minScope      | Fișier            |
-| ------------------------------------------------------------------------------------ | -------------------------- | ----------------- |
-| `inroleazaAngajat`                                                                   | `employees:create` / all   | `nou/actions.ts`  |
-| `actualizeazaAngajat`                                                                | `employees:update` / team  | `[id]/actions.ts` |
-| `creeazaContract`                                                                    | `employees:create` / all   | `[id]/actions.ts` |
-| `inceteazaContract`, `modificaSalariulContractului`                                  | `employees:update` / all   | `[id]/actions.ts` |
-| `dezvaluieDateSensibile`                                                             | `employees:read` / **all** | `[id]/actions.ts` |
-| `pregatesteIncarcareDocument`, `salveazaDocument`                                    | `employees:update` / team  | documente         |
-| `linkDescarcareDocument`                                                             | `employees:read` / team    | documente         |
-| `stergeDocument`                                                                     | `employees:delete` / all   | documente         |
-| `suprascriePermisiunea`                                                              | `roles:update` / team      | permisiuni        |
-| `pregatesteIncarcareaImportului`, `analizeazaImportAngajati`, `aplicaImportAngajati` | all                        | import            |
-| `emiteDocumenteLipsa`, `regenereazaDocumente`                                        | `employees:create` / all   | documente         |
+| Funcție                                                                              | Permisiune / minScope      | Fișier             |
+| ------------------------------------------------------------------------------------ | -------------------------- | ------------------ |
+| `inroleazaAngajat`                                                                   | `employees:create` / all   | `nou/actions.ts`   |
+| `actualizeazaAngajat`                                                                | `employees:update` / team  | `[id]/actions.ts`  |
+| `creeazaContract`                                                                    | `employees:create` / all   | `[id]/actions.ts`  |
+| `inceteazaContract`, `modificaSalariulContractului`                                  | `employees:update` / all   | `[id]/actions.ts`  |
+| `dezvaluieDateSensibile`                                                             | `employees:read` / **all** | `[id]/actions.ts`  |
+| `pregatesteIncarcareDocument`, `salveazaDocument`                                    | `employees:update` / team  | documente          |
+| `linkDescarcareDocument`                                                             | `employees:read` / team    | documente          |
+| `stergeDocument`                                                                     | `employees:delete` / all   | documente          |
+| `suprascriePermisiunea`                                                              | `roles:update` / team      | permisiuni         |
+| `pregatesteIncarcareaImportului`, `analizeazaImportAngajati`, `aplicaImportAngajati` | all                        | import             |
+| `emiteDocumenteLipsa`, `regenereazaDocumente`                                        | `employees:create` / all   | documente          |
 | `salveazaSablonDocument`, `restabilesteSablonPlatforma`                              | `employees:update` / all   | sabloane-documente |
 
 ## Citiri

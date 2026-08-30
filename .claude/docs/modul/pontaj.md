@@ -23,8 +23,8 @@ capcane: [2, 6, 7, 9, 17]
 citeste_daca:
   - "buton de aprobare care nu apare → [[rol/manager]]"
   - "tranziție de perioadă respinsă → [[date/pontaj]]"
-scris_pe: c924a7bf10af2d211b0246d582eb2c8293864dfc
-scris_la: 2026-08-28
+scris_pe: 3c9747a4f30ad317e7ea4e01fe0a4e778381411e
+scris_la: 2026-08-30
 tags: [modul, hr]
 ---
 
@@ -93,7 +93,9 @@ din client sunt păstrate doar de `attendance:create = all`, unde calculul e o s
 
 `setariPontaj` întoarce și `program_start` (nullable), `mod_pontare_rapida` și
 `verificare_pontare` — cine adaugă o coloană de setări o adaugă în DOUĂ locuri:
-lista de câmpuri a lui `setariPontaj` și `CAMPURI_SETARI_PONTAJ`.
+lista de câmpuri a lui `setariPontaj` și `CAMPURI_SETARI_PONTAJ`. Amândouă întorc
+versiunea în vigoare la o dată (`valabil_de_la`), iar `null` e o stare normală: firma
+n-a configurat nimic și apelantul cade pe valori de rezervă.
 
 ## Ce refuză baza tăcut
 
@@ -158,6 +160,22 @@ ora curentă vine de la apelant, fiindcă autoritatea ei e ceasul serverului.
 O sursă nouă de intrare se adaugă în trei locuri deodată: enumul din migrare,
 `SURSE_INTRARE` din `src/schemas/attendance.ts` și `ETICHETE_SURSA` din
 `src/app/(app)/pontaj/etichete.ts`.
+
+**Orele se scriu pe ceas, nu zecimal.** Orice durată sau moment din zi trece prin
+`formatOre`/`formatOraZi` (`src/lib/format/ore.ts`), iar câmpurile sunt `IntrareOra` și
+`IntrareDurata` (`src/components/ui/intrare-ora.tsx`), nu `<input type="time">`. Baza
+rămâne zecimală: câmpul ascuns predă `8.5` pentru `8:30`, deci schemele Zod și acțiunile
+primesc exact ce primeau. Două efecte vizibile doar la rulare — `parseOre` RESPINGE
+zecimalele tastate (`8,5` rămâne marcat greșit, nu devine tăcut `85`), iar o celulă
+`peTelefon: "meta"` din `Tabel` trebuie să întoarcă `<span>`, nu `<div>`: sub 768px se
+randează într-un `<p>`, iar marcajul nevalid dă eroare de hidratare fără ca ceva să
+pară stricat.
+
+Regula după care ies cifrele o scrie în cuvinte `rezumatRegulaPontaj`
+(`src/app/(app)/pontaj/etichete.ts`), compusă pe SERVER și trimisă formularului
+săptămânii ca `regulaFirmei`: steagul `areSetari` nu se deduce din `config`, iar o firmă
+neconfigurată și una configurată pe exact valorile de rezervă ar da altfel același text.
+`src/app/(app)/pontaj/etichete.test.ts` leagă textul de `oreleZilei`.
 
 ## Ce NU e aici
 
