@@ -5,6 +5,7 @@ import { UserMinus } from "lucide-react";
 
 import { Camp } from "@/components/ui/camp";
 import { FormularDialog } from "@/components/ui/formular-dialog";
+import { IntrareData } from "@/components/ui/intrare-data";
 import { todayInBucharest } from "@/lib/format/date";
 
 import { inceteazaContract } from "../actions";
@@ -122,11 +123,10 @@ export function DialogConcediere({
             erori={stare.erori["incetat_la"] ?? []}
           >
             {(a) => (
-              <input
+              <IntrareData
                 {...a}
-                type="date"
                 min={valabilDeLa}
-                defaultValue={stare.valoriTrimise["incetat_la"] ?? todayInBucharest()}
+                implicit={stare.valoriTrimise["incetat_la"] ?? todayInBucharest()}
               />
             )}
           </Camp>

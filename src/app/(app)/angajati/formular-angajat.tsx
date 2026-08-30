@@ -10,6 +10,7 @@ import { Buton, buton } from "@/components/ui/buton";
 import { Camp, clasaBifa } from "@/components/ui/camp";
 import { CautaCor } from "@/components/cauta-cor";
 import { Formular, type StareFormular } from "@/components/ui/formular";
+import { IntrareData } from "@/components/ui/intrare-data";
 import {
   CAMPURI_EDITABILE_ANGAJAT,
   CONDITII_MUNCA,
@@ -260,11 +261,9 @@ export function FormularAngajat({ departamente, colegi, angajat }: Proprietati) 
               erori={stare.erori["data_nasterii"] ?? []}
             >
               {(a) => (
-                <input
+                <IntrareData
                   {...a}
-                  type="date"
-                  autoComplete="bday"
-                  defaultValue={valoare(stare, "data_nasterii", angajat.data_nasterii)}
+                  implicit={valoare(stare, "data_nasterii", angajat.data_nasterii)}
                 />
               )}
             </Camp>
@@ -543,10 +542,9 @@ export function FormularAngajat({ departamente, colegi, angajat }: Proprietati) 
               erori={stare.erori["act_eliberat_la"] ?? []}
             >
               {(a) => (
-                <input
+                <IntrareData
                   {...a}
-                  type="date"
-                  defaultValue={valoare(stare, "act_eliberat_la", angajat.act_eliberat_la)}
+                  implicit={valoare(stare, "act_eliberat_la", angajat.act_eliberat_la)}
                 />
               )}
             </Camp>
@@ -591,10 +589,9 @@ export function FormularAngajat({ departamente, colegi, angajat }: Proprietati) 
               erori={stare.erori["act_valabil_pana"] ?? []}
             >
               {(a) => (
-                <input
+                <IntrareData
                   {...a}
-                  type="date"
-                  defaultValue={valoare(stare, "act_valabil_pana", angajat.act_valabil_pana)}
+                  implicit={valoare(stare, "act_valabil_pana", angajat.act_valabil_pana)}
                 />
               )}
             </Camp>
@@ -603,11 +600,7 @@ export function FormularAngajat({ departamente, colegi, angajat }: Proprietati) 
           <Sectiune titlu="Angajare">
             <Camp nume="hired_on" eticheta="Data angajării" erori={stare.erori["hired_on"] ?? []}>
               {(a) => (
-                <input
-                  {...a}
-                  type="date"
-                  defaultValue={valoare(stare, "hired_on", angajat.hired_on)}
-                />
+                <IntrareData {...a} implicit={valoare(stare, "hired_on", angajat.hired_on)} />
               )}
             </Camp>
             <Camp

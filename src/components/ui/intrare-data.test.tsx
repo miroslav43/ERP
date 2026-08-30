@@ -220,6 +220,20 @@ describe("IntrareData — calendarul", () => {
   });
 });
 
+describe("IntrareData — clasele", () => {
+  /**
+   * `cn` e `tailwind-merge`: un `px-*` venit de la apelant e un SUPERSET al lui
+   * `pr-*`, deci îl șterge. Barele de filtre își scriu de mână clasele
+   * controlului (`px-2 py-2`), iar cu ordinea greșită în `cn` spațiul rezervat
+   * butonului de calendar dispărea — textul trecea pe sub iconiță, fără ca
+   * nimic să se plângă.
+   */
+  it("păstrează loc pentru buton chiar dacă apelantul își dă propriul `px`", () => {
+    randeaza({ className: "px-2" });
+    expect(caseta().className).toContain("pr-10");
+  });
+});
+
 describe("IntrareData — legătura cu `Camp`", () => {
   /**
    * `Camp` dă `aria-invalid` și `aria-describedby` prin funcția de randare.

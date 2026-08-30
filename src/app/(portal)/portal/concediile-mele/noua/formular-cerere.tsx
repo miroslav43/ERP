@@ -10,6 +10,7 @@ import { IncarcareDocumentConcediu } from "@/app/(app)/concedii/incarcare-docume
 import { Buton } from "@/components/ui/buton";
 import { Camp } from "@/components/ui/camp";
 import { Formular } from "@/components/ui/formular";
+import { IntrareData } from "@/components/ui/intrare-data";
 import type { ActionResult } from "@/lib/actions/types";
 import { formatAmount } from "@/lib/format/money";
 
@@ -262,15 +263,14 @@ export function FormularCererePortal({
               erori={stare.erori["data_inceput"] ?? []}
             >
               {(a) => (
-                <input
+                <IntrareData
                   {...a}
-                  type="date"
-                  value={dataInceput}
-                  onChange={(e) => {
-                    setDataInceput(e.target.value);
+                  valoare={dataInceput}
+                  onSchimba={(zi) => {
+                    setDataInceput(zi);
                     // Un interval de o zi e cazul cel mai des întâlnit; completarea
                     // automată scutește o atingere din două.
-                    if (dataSfarsit.length === 0) setDataSfarsit(e.target.value);
+                    if (dataSfarsit.length === 0) setDataSfarsit(zi);
                   }}
                 />
               )}
@@ -283,13 +283,12 @@ export function FormularCererePortal({
               erori={stare.erori["data_sfarsit"] ?? []}
             >
               {(a) => (
-                <input
+                <IntrareData
                   {...a}
-                  type="date"
-                  value={dataSfarsit}
+                  valoare={dataSfarsit}
                   {...(dataInceput.length > 0 ? { min: dataInceput } : {})}
-                  onChange={(e) => {
-                    setDataSfarsit(e.target.value);
+                  onSchimba={(zi) => {
+                    setDataSfarsit(zi);
                   }}
                 />
               )}

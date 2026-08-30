@@ -10,6 +10,7 @@ import { Buton } from "@/components/ui/buton";
 import { Camp } from "@/components/ui/camp";
 import { Dialog } from "@/components/ui/dialog";
 import { Formular } from "@/components/ui/formular";
+import { IntrareData } from "@/components/ui/intrare-data";
 import type { ActionResult } from "@/lib/actions/types";
 import { numaraZileCerere } from "@/domain/leave/zile-cerere";
 import { tipImplicitConcediu } from "@/domain/leave/tip-implicit";
@@ -391,14 +392,13 @@ function FormularCerereNoua({
               erori={stare.erori["data_inceput"] ?? []}
             >
               {(a) => (
-                <input
+                <IntrareData
                   {...a}
-                  type="date"
-                  value={dataInceput}
-                  onChange={(eveniment) => {
-                    setDataInceput(eveniment.target.value);
+                  valoare={dataInceput}
+                  onSchimba={(zi) => {
+                    setDataInceput(zi);
                     // Un interval de o zi e cazul cel mai des întâlnit.
-                    if (dataSfarsit.length === 0) setDataSfarsit(eveniment.target.value);
+                    if (dataSfarsit.length === 0) setDataSfarsit(zi);
                   }}
                 />
               )}
@@ -412,13 +412,12 @@ function FormularCerereNoua({
               erori={stare.erori["data_sfarsit"] ?? []}
             >
               {(a) => (
-                <input
+                <IntrareData
                   {...a}
-                  type="date"
-                  value={dataSfarsit}
+                  valoare={dataSfarsit}
                   {...(dataInceput.length > 0 ? { min: dataInceput } : {})}
-                  onChange={(eveniment) => {
-                    setDataSfarsit(eveniment.target.value);
+                  onSchimba={(zi) => {
+                    setDataSfarsit(zi);
                   }}
                 />
               )}

@@ -4,6 +4,7 @@
 import { Plus } from "lucide-react";
 
 import { Camp } from "@/components/ui/camp";
+import { IntrareData } from "@/components/ui/intrare-data";
 import { FormularDialog } from "@/components/ui/formular-dialog";
 
 import { creeazaContract } from "../actions";
@@ -85,9 +86,7 @@ export function FormularContractNou({ employeeId }: Proprietati) {
             obligatoriu
             erori={stare.erori["data_contract"] ?? []}
           >
-            {(a) => (
-              <input {...a} type="date" defaultValue={stare.valoriTrimise["data_contract"] ?? ""} />
-            )}
+            {(a) => <IntrareData {...a} implicit={stare.valoriTrimise["data_contract"] ?? ""} />}
           </Camp>
 
           <Camp
@@ -97,9 +96,7 @@ export function FormularContractNou({ employeeId }: Proprietati) {
             obligatoriu
             erori={stare.erori["valabil_de_la"] ?? []}
           >
-            {(a) => (
-              <input {...a} type="date" defaultValue={stare.valoriTrimise["valabil_de_la"] ?? ""} />
-            )}
+            {(a) => <IntrareData {...a} implicit={stare.valoriTrimise["valabil_de_la"] ?? ""} />}
           </Camp>
 
           <Camp

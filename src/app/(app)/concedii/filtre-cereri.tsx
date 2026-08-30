@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 
 import { BaraFiltre, type FiltruActiv } from "@/components/ui/bara-filtre";
 import { Combobox } from "@/components/ui/combobox";
+import { IntrareData } from "@/components/ui/intrare-data";
 import { formatDate } from "@/lib/format/date";
 import {
   STATUSURI_CERERE,
@@ -236,13 +237,12 @@ export function FiltreCereri({
           <label htmlFor={ID_DE_LA} className="text-corp block font-medium">
             De la
           </label>
-          <input
+          <IntrareData
             key={filtre.de_la ?? ""}
             id={ID_DE_LA}
             name="de_la"
-            type="date"
-            defaultValue={filtre.de_la ?? ""}
-            className="border-foreground/60 rounded-control text-corp mt-1 border px-2 py-2"
+            implicit={filtre.de_la ?? ""}
+            className="mt-1"
           />
         </div>
 
@@ -250,13 +250,12 @@ export function FiltreCereri({
           <label htmlFor={ID_PANA_LA} className="text-corp block font-medium">
             Până la
           </label>
-          <input
+          <IntrareData
             key={filtre.pana_la ?? ""}
             id={ID_PANA_LA}
             name="pana_la"
-            type="date"
-            defaultValue={filtre.pana_la ?? ""}
-            className="border-foreground/60 rounded-control text-corp mt-1 border px-2 py-2"
+            implicit={filtre.pana_la ?? ""}
+            className="mt-1"
           />
         </div>
       </BaraFiltre>

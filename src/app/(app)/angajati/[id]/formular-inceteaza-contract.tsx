@@ -3,6 +3,7 @@
 
 import { Camp, clasaBifa } from "@/components/ui/camp";
 import { FormularDialog } from "@/components/ui/formular-dialog";
+import { IntrareData } from "@/components/ui/intrare-data";
 
 import { inceteazaContract } from "../actions";
 
@@ -67,9 +68,7 @@ export function FormularInceteazaContract({ contractId }: Proprietati) {
             obligatoriu
             erori={stare.erori["incetat_la"] ?? []}
           >
-            {(a) => (
-              <input {...a} type="date" defaultValue={stare.valoriTrimise["incetat_la"] ?? ""} />
-            )}
+            {(a) => <IntrareData {...a} implicit={stare.valoriTrimise["incetat_la"] ?? ""} />}
           </Camp>
 
           <Camp

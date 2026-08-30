@@ -206,7 +206,11 @@ export function IntrareData({
         onBlur={() => {
           preda(text);
         }}
-        className={cn(clasaControl({ fel: "input" }), "pr-10 tabular-nums", className)}
+        /* `pr-10` vine ULTIMUL, după `className`. `cn` e `tailwind-merge`, iar
+           un `px-*` primit din afară e un SUPERSET al lui `pr-*` și l-ar
+           șterge — barele de filtre își scriu de mână `px-2 py-2`. Fără ordinea
+           asta, textul trece pe sub butonul de calendar, fără nicio eroare. */
+        className={cn(clasaControl({ fel: "input" }), "tabular-nums", className, "pr-10")}
       />
 
       <button

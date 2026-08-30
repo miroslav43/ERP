@@ -4,6 +4,7 @@
 import { Plus } from "lucide-react";
 
 import { Camp } from "@/components/ui/camp";
+import { IntrareData } from "@/components/ui/intrare-data";
 import { FormularDialog } from "@/components/ui/formular-dialog";
 
 import { TIPURI_SCUTIRE } from "@/schemas/employee";
@@ -92,9 +93,7 @@ export function FormularScutireFiscala({ employeeId }: Proprietati) {
             obligatoriu
             erori={stare.erori["valabil_de_la"] ?? []}
           >
-            {(a) => (
-              <input {...a} type="date" defaultValue={stare.valoriTrimise["valabil_de_la"] ?? ""} />
-            )}
+            {(a) => <IntrareData {...a} implicit={stare.valoriTrimise["valabil_de_la"] ?? ""} />}
           </Camp>
 
           <Camp
@@ -104,9 +103,7 @@ export function FormularScutireFiscala({ employeeId }: Proprietati) {
             ajutor="Lăsat gol, scutirea rămâne valabilă pe termen nedefinit."
             erori={stare.erori["valabil_pana"] ?? []}
           >
-            {(a) => (
-              <input {...a} type="date" defaultValue={stare.valoriTrimise["valabil_pana"] ?? ""} />
-            )}
+            {(a) => <IntrareData {...a} implicit={stare.valoriTrimise["valabil_pana"] ?? ""} />}
           </Camp>
 
           <Camp

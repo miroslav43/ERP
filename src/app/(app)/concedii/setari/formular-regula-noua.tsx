@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { CautaCor } from "@/components/cauta-cor";
 
 import { Buton } from "@/components/ui/buton";
+import { IntrareData } from "@/components/ui/intrare-data";
 import type { OptiuneNomenclator, TipConcediuConfigurabil } from "@/lib/queries/leave";
 import {
   CRITERII_GRILA,
@@ -281,12 +282,11 @@ export function FormularRegulaNoua({
         <label htmlFor={id.deLa} className="text-corp">
           Valabilă de la
         </label>
-        <input
+        <IntrareData
           id={id.deLa}
-          type="date"
-          value={valabilDeLa}
-          onChange={(e) => {
-            setValabilDeLa(e.target.value);
+          valoare={valabilDeLa}
+          onSchimba={(zi) => {
+            setValabilDeLa(zi);
           }}
           className={CLASA_CAMP}
         />
@@ -296,12 +296,11 @@ export function FormularRegulaNoua({
         <label htmlFor={id.panaLa} className="text-corp">
           Valabilă până la (opțional)
         </label>
-        <input
+        <IntrareData
           id={id.panaLa}
-          type="date"
-          value={valabilPanaLa}
-          onChange={(e) => {
-            setValabilPanaLa(e.target.value);
+          valoare={valabilPanaLa}
+          onSchimba={(zi) => {
+            setValabilPanaLa(zi);
           }}
           className={CLASA_CAMP}
         />
