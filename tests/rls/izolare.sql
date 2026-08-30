@@ -2983,6 +2983,64 @@ begin
   raise notice '(l) toate cele CINCI roluri (super_admin, org_admin, hr, manager, employee) pot scrie ce au voie și SUNT refuzate unde nu au ✓';
 end $$;
 
+-- ─────────────────────────────────────────────────────────────────────────────
+-- (m) `drepturile_mele_concediu` întoarce DOAR drepturile celui care întreabă
+--
+-- Funcția e SECURITY DEFINER (0107): înăuntru, RLS nu o oprește. Tot ce o ține
+-- în frâu sunt cele două verificări pe care le face ea însăși — apartenența la
+-- organizație și rezolvarea fișei din `app.current_employee_id()`. Dacă vreuna
+-- cade, un angajat citește configurarea altei firme fără să apară nicio eroare.
+--
+-- Verificarea e și POZITIVĂ, nu doar negativă: o funcție care întoarce mereu
+-- zero rânduri ar trece orice probă de izolare și n-ar folosi nimănui.
+-- ─────────────────────────────────────────────────────────────────────────────
+do $$
+declare
+  v_alfa    uuid := pg_temp.id('alfa');
+  v_beta    uuid := pg_temp.id('beta');
+  v_actor   uuid := pg_temp.id('emp_alfa');
+  v_an      integer := extract(year from current_date)::integer;
+  v_proprii integer;
+  v_straine integer;
+  v_scurse  integer;
+begin
+  perform set_config('request.jwt.claim.sub', v_actor::text, true);
+  set local role authenticated;
+
+  select count(*) into v_proprii from public.drepturile_mele_concediu(v_alfa, v_an);
+  select count(*) into v_straine from public.drepturile_mele_concediu(v_beta, v_an);
+
+  -- Fiecare rând întors trebuie să fie un tip AL FIRMEI ALFA. Un `leave_type_id`
+  -- din Beta strecurat aici ar însemna că filtrul pe organizație din corpul
+  -- funcției nu se aplică.
+  select count(*) into v_scurse
+  from public.drepturile_mele_concediu(v_alfa, v_an) d
+  where not exists (
+    select 1 from public.leave_types lt
+    where lt.id = d.leave_type_id and lt.organization_id = v_alfa
+  );
+
+  reset role;
+
+  if v_proprii = 0 then
+    perform pg_temp.esueaza(
+      '(m) un angajat al lui Alfa nu primește NICIUN drept de concediu în firma lui — '
+      'funcția e moartă, iar ecranul „La ce am dreptul" ar fi gol pentru toată lumea');
+  end if;
+
+  if v_straine <> 0 then
+    perform pg_temp.esueaza(format(
+      '(m) SCURGERE: un angajat al lui Alfa a citit %s drepturi din organizația Beta', v_straine));
+  end if;
+
+  if v_scurse <> 0 then
+    perform pg_temp.esueaza(format(
+      '(m) SCURGERE: %s rânduri întoarse pentru Alfa trimit la tipuri de concediu străine', v_scurse));
+  end if;
+
+  raise notice '(m) drepturile de concediu: angajatul își vede propriile drepturi (%) și zero din altă firmă ✓', v_proprii;
+end $$;
+
 rollback;
 
 \echo ''

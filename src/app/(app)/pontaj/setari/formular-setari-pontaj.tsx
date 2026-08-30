@@ -697,9 +697,9 @@ export function FormularSetariPontaj({
             </span>{" "}
             și va înregistra{" "}
             <span className="text-foreground font-medium tabular-nums">
-              {(orePeZi ?? 8).toLocaleString("ro-RO")}
+              {formatOre(orePeZi ?? 8)} h
             </span>{" "}
-            ore lucrate.
+            lucrate.
           </p>
         )}
 

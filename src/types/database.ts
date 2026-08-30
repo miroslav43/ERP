@@ -11941,6 +11941,17 @@ export type Database = {
         }
         Returns: string
       }
+      drepturile_mele_concediu: {
+        Args: { p_an: number; p_organization_id: string }
+        Returns: {
+          denumire: string
+          leave_type_id: string
+          reglementat: boolean
+          scade_din_sold: boolean
+          temei_legal: string | null
+          zile: number
+        }[]
+      }
       hr_read_sensitive: {
         Args: { p_employee: string }
         Returns: {
