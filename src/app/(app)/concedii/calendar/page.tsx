@@ -10,6 +10,7 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { formatMonthYear, todayInBucharest } from "@/lib/format/date";
 import { calendarLunii } from "@/lib/queries/leave";
 
+import { ButonSetariConcedii } from "../buton-setari";
 import { NavConcedii } from "../nav-concedii";
 import { GrilaCalendar, type EvenimentZiCalendar } from "./grila-calendar";
 
@@ -59,6 +60,7 @@ export default async function PaginaCalendarConcedii({ searchParams }: Proprieta
   }
 
   const poateAproba = can(permisiuni, "leave:approve", "team");
+  const poateConfigura = can(permisiuni, "leave:update", "all");
   const parametri = await searchParams;
   const azi = todayInBucharest();
   const anCurent = parametrulNumeric(parametri["an"]) ?? Number(azi.slice(0, 4));
@@ -129,6 +131,9 @@ export default async function PaginaCalendarConcedii({ searchParams }: Proprieta
       <AntetPagina
         titlu="Calendarul de concedii"
         descriere={`Grila lunară a absențelor de echipă, pentru ${formatMonthYear(anCurent, luna)}.`}
+        {...(poateConfigura
+          ? { actiuni: <ButonSetariConcedii poateConfigura={poateConfigura} /> }
+          : {})}
         file={
           <NavConcedii
             poateVedeaEchipa={true}
