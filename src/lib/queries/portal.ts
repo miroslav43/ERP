@@ -304,7 +304,7 @@ export async function documenteleMele(
  * La ce tipuri de concediu are dreptul angajatul și câte zile la fiecare, după
  * setările firmei lui.
  *
- * Trece prin `public.drepturile_mele_concediu` (0107), nu prin tabele, din două
+ * Trece prin `public.drepturile_mele_concediu` (0108), nu prin tabele, din două
  * motive care se cumulează:
  *
  *  - calculul complet (bază + grile de vechime, condiții de muncă, handicap,
