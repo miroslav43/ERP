@@ -193,6 +193,16 @@ cmd_db__migrate() {
   warn "Fă întâi un backup din Supabase Dashboard."
   confirm "Aplic cele ${#restante[@]} migrări?" || { info "Anulat."; return 0; }
 
+  # Jurnalul de erori se creează cu `mktemp`, NU pe o cale fixă în /tmp.
+  # `/tmp/adm-mig.err` a fost scris odată de o rulare cu `sudo`; de atunci
+  # aparținea lui root, iar bash-ul oricui altcuiva pica pe redirectare ÎNAINTE
+  # să pornească psql — deci prima migrare raporta „EȘEC" și tipărea conținutul
+  # RĂMAS de la rularea veche, adică o eroare din altă migrare, din altă zi.
+  # Diagnostic trimis pe pistă falsă de un fișier temporar. Aceeași clasă cu
+  # `.git` deținut de root din memoria proiectului.
+  local jurnal; jurnal=$(mktemp "${TMPDIR:-/tmp}/adm-mig.XXXXXX.err") || {
+    error "Nu pot crea fișierul temporar pentru jurnalul migrărilor."; return 1; }
+
   local ok=0 t0 t1
   for f in "${restante[@]}"; do
     nume=$(basename "$f")
@@ -201,7 +211,7 @@ cmd_db__migrate() {
     # `--single-transaction` NU se folosește: unele migrări au blocuri
     # `begin/commit` proprii, obligatorii pentru `alter type ... add value`
     # (55P04). Le-ar rupe. `ON_ERROR_STOP` oprește la prima eroare.
-    if psql "$u" -v ON_ERROR_STOP=1 -q -f "$f" >/dev/null 2>/tmp/adm-mig.err; then
+    if psql "$u" -v ON_ERROR_STOP=1 -q -f "$f" >/dev/null 2>"$jurnal"; then
       t1=$(date +%s%3N)
       psql "$u" -q -c "insert into internal.migrari_aplicate (nume, suma, durata_ms)
                        values ('$nume', '$(_suma "$f")', $(( t1 - t0 )))
@@ -210,15 +220,17 @@ cmd_db__migrate() {
       ok=$(( ok + 1 ))
     else
       echo -e "${RED}EȘEC${NC}"
-      sed 's/^/      /' /tmp/adm-mig.err | tail -12
+      sed 's/^/      /' "$jurnal" | tail -12
       echo ""
       # Oprire la prima eroare: următoarele presupun starea pe care asta n-a
       # apucat s-o creeze. A merge mai departe ar produce un al doilea eșec,
       # cu altă cauză, care ar ascunde-o pe prima.
       error "Oprit la „$nume”. Aplicate până aici: $ok. Repară și reia."
+      rm -f "$jurnal"
       return 1
     fi
   done
+  rm -f "$jurnal"
 
   echo ""
   success "$ok migrări aplicate."
