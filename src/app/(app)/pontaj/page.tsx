@@ -33,6 +33,7 @@ import { esteLuni, lunieaSaptamanii } from "@/domain/attendance/saptamana";
 import { ziIso } from "@/domain/calendar/grila-lunara";
 
 import { NavPontaj } from "./nav-pontaj";
+import { fileDePontaj } from "./file-pontaj";
 import { FiltrePontaj } from "./filtre-pontaj";
 import { FoaieColectiva } from "./foaie-colectiva";
 import { CalendarLuna, type OmZi } from "./calendar-luna";
@@ -42,8 +43,8 @@ import {
   OPTIUNI_VIZUALIZARE,
   PARAM_SAPTAMANA,
   PARAM_VIZUALIZARE,
-  VIZUALIZARE_IMPLICITA,
-  vizualizareSchema,
+  implicitaPentruScope,
+  vizualizareaCeruta,
   type Vizualizare,
 } from "./vizualizari";
 
@@ -278,16 +279,31 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
   const scope = scopeFor(permisiuni, "attendance:read") ?? "own";
   // `manager` NU are `attendance:create` → foaia e read-only, exact ca RLS.
   const poateEdita = can(permisiuni, "attendance:create", "own");
-  const poateAproba = can(permisiuni, "attendance:approve", "team");
+  /*
+    Aprobarea are DOUĂ porți: permisiunea (cine are dreptul) și alegerea firmei
+    (0118 — dacă pontajul trece printr-un pas de aprobare). Compuse într-un
+    singur boolean de `fileDePontaj`, ele sting deodată fila „Aprobare",
+    secțiunea de decizie din dialogul zilei și butoanele din foaia colectivă.
+
+    Citire în plus, un rând, pe index unic. Nu poate intra în valul de mai jos:
+    `poateAproba` intră în antet, construit înaintea ramurii de vizualizare.
+  */
+  const { poateAproba, poateConfigura } = await fileDePontaj(tenant.organizationId, permisiuni);
   const poateDeschide = can(permisiuni, "attendance:create", "all");
-  const poateConfigura = can(permisiuni, "attendance:update", "all");
 
   const azi = todayInBucharest();
   const anAzi = Number(azi.slice(0, 4));
   const lunaAzi = Number(azi.slice(5, 7));
   const an = anDinUrl(parametri["an"], anAzi);
   const filtre = filtreDinUrl(filtrePontajSchema, parametri);
-  const vizualizare = vizualizareSchema.parse(parametri[PARAM_VIZUALIZARE]);
+  /*
+    Implicita depinde de rol: cine vede și pontajul altora aterizează pe foaia
+    colectivă, nu în propria lui săptămână. Aceeași valoare se dă și
+    comutatorului de mai jos — primitiva o ȘTERGE din adresă, deci două valori
+    diferite ar produce un buton care duce la o adresă citită altfel.
+  */
+  const vizualizareImplicita = implicitaPentruScope(scope);
+  const vizualizare = vizualizareaCeruta(parametri[PARAM_VIZUALIZARE], vizualizareImplicita);
 
   /*
     Săptămâna afișată, ancorată de luna din adresă.
@@ -345,7 +361,7 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
       cheieParametru={PARAM_VIZUALIZARE}
       optiuni={OPTIUNI_VIZUALIZARE}
       curenta={vizualizare}
-      implicita={VIZUALIZARE_IMPLICITA}
+      implicita={vizualizareImplicita}
       parametri={parametriComutator}
       cale="/pontaj"
     />

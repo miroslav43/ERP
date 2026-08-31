@@ -67,6 +67,18 @@ export const SURSE_INTRARE = [
 export type SursaIntrare = (typeof SURSE_INTRARE)[number];
 
 /**
+ * Unde s-a lucrat o zi.
+ *
+ * Stătea mai jos, în secțiunea planului săptămânal, fiindcă acolo s-a născut
+ * (0041). Din 0118 îl folosește și `salveazaZiPontajSchema`, care e declarată
+ * ÎNAINTE — iar un `const` de modul citit înaintea declarației lui e o
+ * ReferenceError la încărcarea modulului, nu o eroare de tip: `tsc` tace, iar
+ * pagina cade la prima cerere. De aceea vocabularul urcă lângă celelalte.
+ */
+export const TIPURI_PREZENTA = ["birou", "homeoffice", "deplasare", "delegatie"] as const;
+export type TipPrezenta = (typeof TIPURI_PREZENTA)[number];
+
+/**
  * Fiecare câmp are `.default(...)`.
  *
  * `filtreDinUrl()` revine la `schema.safeParse({})` când query string-ul e
@@ -133,6 +145,16 @@ export const salveazaZiPontajSchema = z
     ore_suplimentare: z.coerce.number().min(0).max(24).default(0),
     ore_noapte: z.coerce.number().min(0).max(24).default(0),
     tip_zi: enumOptional(TIPURI_ZI, "Alegeți tipul zilei din listă."),
+    /*
+     * Unde s-a lucrat ziua — același vocabular ca planul săptămânal (0041),
+     * ajuns pe pontajul REAL abia în 0118.
+     *
+     * `enumOptional`, nu `z.enum`: un `<select>` neatins trimite `""` prin
+     * `FormData`, iar coloana e nullable fiindcă toate zilele de dinainte de
+     * 0118 și tot ce scrie pontarea rapidă de pe telefon n-au declarat nimic.
+     * „Nedeclarat" e o stare, nu o eroare de completare.
+     */
+    tip_prezenta: enumOptional(TIPURI_PREZENTA, "Alegeți locul de muncă din listă."),
     observatii: textOptional(1000),
   })
   .refine((v) => v.ore_suplimentare <= v.ore_lucrate, {
@@ -192,9 +214,8 @@ export const sincronizeazaConcediileSchema = z.object({
 export type SincronizeazaConcediile = z.output<typeof sincronizeazaConcediileSchema>;
 
 // ── Plan săptămânal (prezență + ore, aprobare individuală) ─────────────────
-
-export const TIPURI_PREZENTA = ["birou", "homeoffice", "deplasare", "delegatie"] as const;
-export type TipPrezenta = (typeof TIPURI_PREZENTA)[number];
+// `TIPURI_PREZENTA` s-a mutat sus, lângă celelalte vocabulare — îl folosește
+// acum și ziua de pontaj real, declarată înaintea acestei secțiuni.
 
 export const STARI_SAPTAMANA_PONTAJ = ["ciorna", "trimisa", "aprobata", "respinsa"] as const;
 export type StareSaptamanaPontaj = (typeof STARI_SAPTAMANA_PONTAJ)[number];
@@ -363,6 +384,18 @@ export const setariPontareRapidaSchema = z
     mod_pontare_rapida: z.enum(MODURI_PONTARE_RAPIDA),
     verificare_pontare: z.enum(VERIFICARI_PONTARE),
     program_start: optional(z.string().regex(/^\d{2}:\d{2}$/u, "Ora trebuie să fie HH:MM.")),
+    /*
+     * Dacă pontajul trece printr-un pas de aprobare (0118).
+     *
+     * Polaritate POZITIVĂ, identică cu numele coloanei: bifat = se cere
+     * aprobare. O bifă „nu are nevoie de aprobare" ar fi cerut o negație între
+     * ecran și bază, adică exact locul unde cineva o repară pe jumătate.
+     *
+     * `z.coerce.boolean()` e convenția depozitului pentru bifele din
+     * `FormData` (`payroll.ts:53`): o casetă nebifată nu trimite deloc cheia,
+     * iar `Boolean(undefined)` e `false` — ceea ce e chiar înțelesul ei.
+     */
+    necesita_aprobare: z.coerce.boolean(),
   })
   .refine(
     (v) => v.program_start !== null || !["confirmare", "ambele"].includes(v.mod_pontare_rapida),

@@ -58,7 +58,7 @@ export const salveazaPontareaRapida = createAction({
   audit: {
     action: "update",
     entityType: "setari_pontare_rapida",
-    allow: ["mod_pontare_rapida", "verificare_pontare", "program_start"],
+    allow: ["mod_pontare_rapida", "verificare_pontare", "program_start", "necesita_aprobare"],
   },
   // Ecranele care desenează butoanele de pontare stau în portal, nu sub
   // `/pontaj`: fără căile astea, patronul pornește pontarea și angajatul se uită
@@ -123,7 +123,9 @@ export const salveazaPontareaRapida = createAction({
       .maybeSingle<{ id: string }>();
     if (error !== null) traduEroare(error);
     if (data === null) {
-      throw businessRule("Setările n-au putut fi salvate. Reîncărcați pagina și încercați din nou.");
+      throw businessRule(
+        "Setările n-au putut fi salvate. Reîncărcați pagina și încercați din nou.",
+      );
     }
     return { id: data.id };
   },

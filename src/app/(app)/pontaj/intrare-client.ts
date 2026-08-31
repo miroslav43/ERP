@@ -23,7 +23,7 @@
 
 import { formatOraZi } from "@/lib/format/ore";
 import type { IntrarePontaj } from "@/lib/queries/attendance";
-import type { TipZi } from "@/schemas/attendance";
+import type { TipPrezenta, TipZi } from "@/schemas/attendance";
 
 export interface IntrareZiClient {
   readonly id: string;
@@ -34,6 +34,13 @@ export interface IntrareZiClient {
   readonly oreSuplimentare: number;
   readonly oreNoapte: number;
   readonly tipZi: TipZi;
+  /**
+   * Unde s-a lucrat ziua (0118). `null` înseamnă NEDECLARAT — o zi de dinainte
+   * de coloană, sau una pusă de pe telefon printr-o apăsare pe „Am intrat".
+   * Nu se colapsează în „la birou": ecranul arată „—", ca să se vadă diferența
+   * dintre o alegere și o lipsă.
+   */
+  readonly tipPrezenta: TipPrezenta | null;
   readonly esteDinConcediu: boolean;
   readonly aprobat: boolean;
   readonly respins: boolean;
@@ -59,6 +66,7 @@ export function intrareaClient(intrare: IntrarePontaj): IntrareZiClient {
     oreSuplimentare: intrare.ore_suplimentare,
     oreNoapte: intrare.ore_noapte,
     tipZi: intrare.tip_zi,
+    tipPrezenta: intrare.tip_prezenta,
     esteDinConcediu: intrare.leave_request_id !== null,
     aprobat: intrare.approved_at !== null,
     respins: intrare.respins_la !== null,

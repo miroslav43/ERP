@@ -27,6 +27,8 @@ export interface RandPontareRapida {
   readonly verificare_pontare: VerificarePontare;
   /** `time` din Postgres, cu secunde: `"08:30:00"`. */
   readonly program_start: string | null;
+  /** 0118 — dacă pontajul trece printr-un pas de aprobare. */
+  readonly necesita_aprobare: boolean;
 }
 
 export interface ConfigPontareRapida {
@@ -34,6 +36,18 @@ export interface ConfigPontareRapida {
   /** `HH:MM`, fără secunde — forma cerută de aritmetica din `calcul-ore`. */
   readonly programStart: string | null;
   readonly verificare: VerificarePontare;
+  /**
+   * Dacă firma cere aprobare pentru pontaj (0118).
+   *
+   * Stinsă, scoate din produs: fila „Aprobare", secțiunea de decizie din
+   * dialogul zilei, chenarul „aprobat" din grilă și așteptarea planului
+   * săptămânal, care se marchează aprobat la trimitere.
+   *
+   * NU ștampilează nimic în bază. Politicile din 0013 țin o zi neaprobată
+   * EDITABILĂ, ceea ce e chiar ce vrea o firmă fără aprobare — iar stingerea
+   * setării rămâne astfel reversibilă.
+   */
+  readonly necesitaAprobare: boolean;
 }
 
 /**
@@ -52,7 +66,19 @@ export interface ConfigPontareRapida {
 export const IMPLICIT_PONTARE_RAPIDA = {
   mod: "ceas",
   verificare: "optional",
-} as const satisfies { readonly mod: ModPontare; readonly verificare: VerificarePontare };
+  /*
+   * `true` — o firmă care n-a configurat nimic păstrează fluxul de dinainte de
+   * 0118, cu fila „Aprobare" la locul ei. Perechea SQL a valorii ăsteia e
+   * `internal.pontaj_necesita_aprobare`, care are același `coalesce(…, true)`:
+   * dacă una dintre ele se schimbă, planul săptămânal și ecranul ar decide
+   * altfel pentru aceeași firmă.
+   */
+  necesitaAprobare: true,
+} as const satisfies {
+  readonly mod: ModPontare;
+  readonly verificare: VerificarePontare;
+  readonly necesitaAprobare: boolean;
+};
 
 /** `"08:30:00"` → `"08:30"`. */
 function faraSecunde(ora: string | null): string | null {
@@ -71,6 +97,7 @@ export function configPontareRapida(rand: RandPontareRapida | null): ConfigPonta
     mod: rand?.mod_pontare_rapida ?? IMPLICIT_PONTARE_RAPIDA.mod,
     programStart: faraSecunde(rand?.program_start ?? null),
     verificare: rand?.verificare_pontare ?? IMPLICIT_PONTARE_RAPIDA.verificare,
+    necesitaAprobare: rand?.necesita_aprobare ?? IMPLICIT_PONTARE_RAPIDA.necesitaAprobare,
   };
 }
 
@@ -92,7 +119,17 @@ export interface PosibilitatiPontare {
  * Fără el, `optional` n-are ce oferi: un îndemn la scanare fără nimic de scanat
  * e mai rău decât tăcerea.
  */
-export function cePoateFace(config: ConfigPontareRapida, areAfis: boolean): PosibilitatiPontare {
+export function cePoateFace(
+  /*
+   * `Pick`, nu `ConfigPontareRapida` întreg: funcția citește exact două câmpuri,
+   * iar cele două ecrane care o cheamă îi construiesc argumentul din starea lor
+   * locală, pe măsură ce omul alege. Cerându-le configurația completă, fiecare
+   * câmp adăugat vreodată în ea (`necesitaAprobare`, în 0118) ar fi rupt două
+   * fișiere care n-au nicio treabă cu el.
+   */
+  config: Pick<ConfigPontareRapida, "mod" | "verificare">,
+  areAfis: boolean,
+): PosibilitatiPontare {
   const cereScanare = config.verificare === "cod_qr";
   const modPermiteCeas = config.mod === "ceas" || config.mod === "ambele";
   const modPermiteConfirmare = config.mod === "confirmare" || config.mod === "ambele";

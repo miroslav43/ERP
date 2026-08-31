@@ -7,6 +7,7 @@ import { oreleZilei } from "@/domain/attendance/calcul-ore";
 import { esteWeekend } from "@/domain/attendance/limite-legale";
 import { setariPontaj } from "@/lib/queries/attendance";
 import { decideSaptamanaPontajSchema, trimiteSaptamanaPontajSchema } from "@/schemas/attendance";
+import { refuzaCandAprobareaEStinsa } from "../aprobarea-firmei";
 import { avertismenteDupaSaptamana, type RezultatCuAvertismente } from "../avertismente";
 import { traduEroare } from "../erori";
 
@@ -165,6 +166,8 @@ export const decideSaptamanaPontaj = createAction<
   },
   revalidate: [...CAI_REVALIDARE],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    await refuzaCandAprobareaEStinsa(ctx.tenant.organizationId);
+
     const { data: sarcina, error: eroareSarcina } = await ctx.supabase
       .from("approval_tasks")
       .select("id, entity_id")

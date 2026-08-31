@@ -219,6 +219,8 @@ export interface IntrarePontaj {
   readonly ore_suplimentare: number;
   readonly ore_noapte: number;
   readonly tip_zi: TipZi;
+  /** Unde s-a lucrat ziua (0118). `null` = nedeclarat, nu „la birou". */
+  readonly tip_prezenta: TipPrezenta | null;
   readonly sursa: SursaIntrare;
   readonly leave_request_id: string | null;
   readonly observatii: string | null;
@@ -230,7 +232,8 @@ export interface IntrarePontaj {
 
 const COLOANE_INTRARE =
   "id, employee_id, data, ora_inceput, ora_sfarsit, ore_lucrate, ore_suplimentare, " +
-  "ore_noapte, tip_zi, sursa, leave_request_id, observatii, approved_at, batch_id, respins_la, motiv_respingere";
+  "ore_noapte, tip_zi, tip_prezenta, sursa, leave_request_id, observatii, approved_at, batch_id, " +
+  "respins_la, motiv_respingere";
 
 export async function intrariLuna(
   organizationId: string,
@@ -803,7 +806,7 @@ export async function setariPontareRapida(
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("setari_pontare_rapida")
-    .select("mod_pontare_rapida, verificare_pontare, program_start")
+    .select("mod_pontare_rapida, verificare_pontare, program_start, necesita_aprobare")
     .eq("organization_id", organizationId)
     .is("deleted_at", null)
     .maybeSingle<RandPontareRapida>();

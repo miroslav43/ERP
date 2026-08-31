@@ -9,6 +9,7 @@ import { avertismenteLuna, type LimiteFirmei } from "@/domain/attendance/limite-
 import {
   CLASE_TIP_ZI,
   CODURI_TIP_ZI,
+  ETICHETE_TIP_PREZENTA,
   ETICHETE_TIP_ZI,
   esteZiLucratoare,
   tipZiAutomat,
@@ -380,13 +381,32 @@ export function FoaieColectiva({
                       needitabilaDinConcediu ||
                       needitabilaAprobata;
 
-                    const titlu = needitabilaDinConcediu
+                    const motivBlocare = needitabilaDinConcediu
                       ? "Completat din concediul aprobat — se modifică din modulul Concedii"
                       : needitabilaAprobata
                         ? "Ziua a fost deja aprobată"
                         : perioadaBlocata
                           ? "Perioada este blocată"
-                          : undefined;
+                          : null;
+
+                    /*
+                     * Locul de muncă (0118) în titlul celulei — singurul spațiu
+                     * care există: căsuța poartă o cifră de patru caractere pe
+                     * un ecran cu 31 de coloane. Doar EXCEPȚIA se scrie; „La
+                     * birou” pe fiecare zi ar fi un tooltip pe toată luna care
+                     * nu spune nimic. Cine vrea să vadă locul fără să treacă cu
+                     * mausul deschide ziua, sau privește săptămâna pe ore, unde
+                     * blocul îl scrie pe el.
+                     */
+                    const locMunca =
+                      intrare === null ||
+                      intrare.tipPrezenta === null ||
+                      intrare.tipPrezenta === "birou"
+                        ? null
+                        : ETICHETE_TIP_PREZENTA[intrare.tipPrezenta];
+
+                    const titlu =
+                      [motivBlocare, locMunca].filter((t) => t !== null).join(" · ") || undefined;
 
                     /*
                      * `ETICHETE_TIP_ZI[tip].slice(0, 3)` tăia eticheta oarbă și

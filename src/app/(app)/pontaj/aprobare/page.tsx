@@ -25,6 +25,7 @@ import {
 import { filtreAprobareSchema } from "@/schemas/attendance";
 
 import { NavPontaj } from "../nav-pontaj";
+import { fileDePontaj } from "../file-pontaj";
 import { ActiuniPerioada } from "../perioade/actiuni-perioada";
 import { AprobareBloc } from "./aprobare-bloc";
 import { ListaSaptamaniDeAprobat } from "./lista-saptamani-de-aprobat";
@@ -183,6 +184,35 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
     );
   }
 
+  /*
+    Firma poate să fi stins pasul de aprobare (0118). Fila nu se mai desenează,
+    dar ruta rămâne validă — o adresă salvată la favorite, un ecran deschis de
+    dinainte de schimbare, un link dintr-o notificare veche. Ecranul spune ce s-a
+    întâmplat și unde se schimbă la loc, în loc să arate o listă goală care s-ar
+    citi drept „nu mai are nimeni nimic de aprobat".
+  */
+  const fileNav = await fileDePontaj(tenant.organizationId, permisiuni);
+  if (!fileNav.poateAproba) {
+    return (
+      <div className="space-y-6">
+        <AntetPagina
+          titlu="Aprobare pontaj"
+          descriere="Firma a stabilit că pontajul nu trece prin aprobare."
+          file={<NavPontaj {...fileNav} />}
+        />
+        <StareGoala
+          fel="initiala"
+          pictograma={CheckCircle2}
+          titlu="Nu se cere aprobare"
+          descriere="Zilele de pontaj se salvează direct, iar planurile săptămânale se închid la trimitere. Reporniți pasul de aprobare din Setări → Pontarea, dacă îl doriți înapoi."
+          {...(fileNav.poateConfigura
+            ? { actiune: { eticheta: "Mergi la Setări", href: "/pontaj/setari" } }
+            : {})}
+        />
+      </div>
+    );
+  }
+
   const poateBloca = can(permisiuni, "attendance:approve", "all");
   const enabledFeatures = await getEnabledFeatures(tenant.organizationId);
   const poateSincroniza =
@@ -206,10 +236,7 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
         titlu="Aprobare pontaj"
         descriere={`Aprobarea în bloc pentru ${formatMonthYear(an, filtre.luna)}.`}
         file={
-          <NavPontaj
-            poateAproba={true}
-            poateConfigura={can(permisiuni, "attendance:update", "all")}
-          />
+          <NavPontaj {...fileNav} />
         }
       />
 

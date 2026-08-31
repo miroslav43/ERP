@@ -58,6 +58,7 @@ function intrare(peste: Partial<IntrareZiClient> = {}): IntrareZiClient {
     oreSuplimentare: 0,
     oreNoapte: 0,
     tipZi: "lucratoare",
+    tipPrezenta: "birou",
     esteDinConcediu: false,
     aprobat: false,
     respins: false,

@@ -16,6 +16,7 @@ import { anDinUrl } from "@/lib/rute/parametri";
 import { listeazaPerioade, type PerioadaPontaj } from "@/lib/queries/attendance";
 
 import { NavPontaj } from "../nav-pontaj";
+import { fileDePontaj } from "../file-pontaj";
 import { TONURI_STATUS_PERIOADA, ETICHETE_STATUS_PERIOADA } from "../etichete";
 import { ActiuniPerioada } from "./actiuni-perioada";
 
@@ -160,7 +161,10 @@ export default async function PaginaPerioadePontaj({ searchParams }: Proprietati
     );
   }
 
-  const poateAproba = can(permisiuni, "attendance:approve", "team");
+  // `poateAproba` nu se mai calculează aici: fila „Aprobare" depinde și de
+  // alegerea firmei de a avea un pas de aprobare (0118), iar condiția compusă
+  // stă într-un singur loc — `file-pontaj.ts`.
+  const fileNav = await fileDePontaj(tenant.organizationId, permisiuni);
   const poateDeschide = can(permisiuni, "attendance:create", "all");
   const poateBloca = can(permisiuni, "attendance:approve", "all");
 
@@ -189,12 +193,7 @@ export default async function PaginaPerioadePontaj({ searchParams }: Proprietati
             </Link>
           </nav>
         }
-        file={
-          <NavPontaj
-            poateAproba={poateAproba}
-            poateConfigura={can(permisiuni, "attendance:update", "all")}
-          />
-        }
+        file={<NavPontaj {...fileNav} />}
       />
 
       <Suspense key={String(an)} fallback={<Schelet forma="tabel" coloane={4} />}>

@@ -11,11 +11,17 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { todayInBucharest } from "@/lib/format/date";
 import { angajatiPentruPontaj, idFisaProprie } from "@/lib/queries/employees";
-import { citesteSaptamanaPontaj, setariPontaj } from "@/lib/queries/attendance";
+import { citesteSaptamanaPontaj, intrariLuna, setariPontaj } from "@/lib/queries/attendance";
 import { adaugaZile, esteLuni, lunieaUrmatoare } from "@/domain/attendance/saptamana";
+import { ziuaInitialaPlan } from "@/domain/attendance/plan-si-fapt";
 
 import { NavPontaj } from "../nav-pontaj";
-import { ETICHETE_STARE_SAPTAMANA, TONURI_STARE_SAPTAMANA, rezumatRegulaPontaj } from "../etichete";
+import { fileDePontaj } from "../file-pontaj";
+import {
+  TONURI_STARE_SAPTAMANA,
+  etichetaStareSaptamana,
+  rezumatRegulaPontaj,
+} from "../etichete";
 import type { ConfigZi } from "@/domain/attendance/calcul-ore";
 
 import { FormularSaptamana } from "./formular-saptamana";
@@ -79,10 +85,14 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
     aveau ore salvate. Sărbătorile rămân treaba calculului de ore, nu a
     implicitelor din formular.
   */
-  const [propriaFisaId, angajati, setari] = await Promise.all([
+  const [propriaFisaId, angajati, setari, fileNav] = await Promise.all([
     idFisaProprie(tenant.organizationId, user.id),
     poateAlegeAngajat ? angajatiPentruPontaj(tenant.organizationId) : [],
     setariPontaj(tenant.organizationId, saptamanaStart),
+    // A patra: ce file se desenează. `poateAproba` din ea ține cont și de
+    // alegerea firmei de a avea un pas de aprobare (0118), nu doar de
+    // permisiune — vezi `file-pontaj.ts`.
+    fileDePontaj(tenant.organizationId, permisiuni),
   ]);
   const fisaTinta = angajatCerut ?? propriaFisaId;
 
@@ -101,19 +111,30 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
         <AntetPagina
           titlu="Planul săptămânii"
           descriere="Contul dumneavoastră nu are fișă de angajat proprie, deci nu are nici săptămână proprie. Alegeți angajatul pentru care completați."
-          file={
-            <NavPontaj
-              poateAproba={can(permisiuni, "attendance:approve", "team")}
-              poateConfigura={can(permisiuni, "attendance:update", "all")}
-            />
-          }
+          file={<NavPontaj {...fileNav} />}
         />
         <AlegeAngajat angajati={angajati} selectat={null} saptamanaStart={saptamanaStart} />
       </div>
     );
   }
 
-  const submisie = await citesteSaptamanaPontaj(tenant.organizationId, fisaTinta, saptamanaStart);
+  /*
+    Planul săptămânii și ce s-a pontat efectiv în ea (0118).
+
+    Până acum ecranul ăsta arăta DOAR planul: pontai marți de acasă, trăgând
+    peste grila orară, și „Planul săptămânii" continua să spună „La birou".
+    Adică exact ecranul care se trimite spre aprobare contrazicea ecranul din
+    care se pontează.
+
+    `intrariLuna(org, [fisa], …)`, nu `intrariProprii`: aceea NU filtrează pe
+    `employee_id` și se bazează pe RLS, care pentru scope `all` nu îngustează
+    nimic — un `hr` ar fi primit pontajul întregii firme peste planul unui singur
+    om. Aceeași capcană e scrisă în `sectiune-saptamana.tsx`.
+  */
+  const [submisie, pontate] = await Promise.all([
+    citesteSaptamanaPontaj(tenant.organizationId, fisaTinta, saptamanaStart),
+    intrariLuna(tenant.organizationId, [fisaTinta], saptamanaStart, adaugaZile(saptamanaStart, 6)),
+  ]);
 
   /*
    * Implicitul se calcula ca 8 ore „La birou” pentru toate cele ȘAPTE zile,
@@ -128,28 +149,11 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
 
   const zileInitiale = Array.from({ length: 7 }, (_, i) => {
     const data = adaugaZile(saptamanaStart, i);
-    const existenta = submisie?.zile.find((z) => z.data === data) ?? null;
-    return {
+    return ziuaInitialaPlan(
       data,
-      tip_prezenta: existenta?.tip_prezenta ?? "birou",
-      /*
-       * `time` din Postgres vine ca `"08:30:00"`; `<input type="time">` cere
-       * `"HH:MM"`. Fără submisie salvată, `existenta` e `null` și ziua pornește
-       * goală — inclusiv weekendul, care e tot ce voia să spună implicitul.
-       *
-       * Aici stătea o poartă `esteZiLucratoare(…) ? … : ""`, care golea câmpul
-       * pe orice zi necalendaristic-lucrătoare. Cum `existenta` e `null` exact
-       * când n-ai ce arăta, poarta nu putea împiedica un „interval presupus":
-       * singurul ei efect era să ASCUNDĂ ore chiar salvate. O sâmbătă lucrată
-       * dispărea de pe ecran, iar următoarea trimitere o trimitea goală — și
-       * `trimite_saptamana_pontaj` face `delete` + reinserare (0084), deci o
-       * ștergea din bază fără nicio eroare. Aceeași pagubă pe o sărbătoare
-       * națională în care cineva chiar a lucrat.
-       */
-      ora_inceput: existenta?.ora_inceput?.slice(0, 5) ?? "",
-      ora_sfarsit: existenta?.ora_sfarsit?.slice(0, 5) ?? "",
-      observatii: existenta?.observatii ?? "",
-    };
+      submisie?.zile.find((z) => z.data === data) ?? null,
+      pontate.find((z) => z.data === data) ?? null,
+    );
   });
 
   // Parametrii după care se derivă orele — aceiași ca la ziua individuală și ca
@@ -167,7 +171,15 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
   // bifat firma în /pontaj/setări (0080).
   const lucreazaWeekendInitial = submisie?.lucreazaWeekend ?? setari?.lucreaza_weekend ?? false;
 
-  const poateEdita = submisie === null || submisie.status !== "aprobata";
+  /*
+    Într-o firmă FĂRĂ pas de aprobare, `aprobata` e pusă de trigger chiar la
+    trimitere (0118 §3) — deci fără ramura a doua, planul s-ar îngheța la prima
+    apăsare, cu un mesaj despre o decizie pe care n-a luat-o nimeni. Perechea de
+    server a ramurii ăsteia e în upsert-ul lui `trimite_saptamana_pontaj`
+    (0118 §5); despărțite, ecranul ar oferi un buton pe care baza îl refuză.
+  */
+  const poateEdita =
+    submisie === null || submisie.status !== "aprobata" || !fileNav.necesitaAprobare;
   const inceputSaptamanii = new Date(`${saptamanaStart}T00:00:00Z`).toLocaleDateString("ro-RO");
 
   // Persoana aleasă călătorește prin navigarea între săptămâni; fără ea,
@@ -179,12 +191,7 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
       <AntetPagina
         titlu="Planul săptămânii"
         descriere={`Declarați, pentru săptămâna care începe ${inceputSaptamanii}, cum veniți la lucru și câte ore planificați — editabil oricând, până la decizia managerului.`}
-        file={
-          <NavPontaj
-            poateAproba={can(permisiuni, "attendance:approve", "team")}
-            poateConfigura={can(permisiuni, "attendance:update", "all")}
-          />
-        }
+        file={<NavPontaj {...fileNav} />}
       />
 
       {poateAlegeAngajat ? (
@@ -206,7 +213,7 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
         </Link>
         {submisie === null ? null : (
           <Badge ton={TONURI_STARE_SAPTAMANA[submisie.status]}>
-            {ETICHETE_STARE_SAPTAMANA[submisie.status]}
+            {etichetaStareSaptamana(submisie.status, fileNav.necesitaAprobare)}
           </Badge>
         )}
       </nav>
@@ -231,6 +238,7 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
         saptamanaStart={saptamanaStart}
         zileInitiale={zileInitiale}
         poateEdita={poateEdita}
+        necesitaAprobare={fileNav.necesitaAprobare}
         config={config}
         // Regula se compune pentru ÎNCEPUTUL săptămânii, aceeași dată pentru
         // care s-au citit setările — altfel textul ar putea descrie altă

@@ -5,13 +5,18 @@ import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
 import { IntrareDurata, IntrareOra } from "@/components/ui/intrare-ora";
-import { TIPURI_ZI_ALEGERE, type TipZi } from "@/schemas/attendance";
+import {
+  TIPURI_PREZENTA,
+  TIPURI_ZI_ALEGERE,
+  type TipPrezenta,
+  type TipZi,
+} from "@/schemas/attendance";
 import {
   oreleZilei,
   type ConfigZi,
   oreSuplimentareDinLucrate,
 } from "@/domain/attendance/calcul-ore";
-import { ETICHETE_TIP_ZI } from "./etichete";
+import { ETICHETE_TIP_PREZENTA, ETICHETE_TIP_ZI } from "./etichete";
 import { decideZiPontaj, salveazaZiPontaj, stergeZiPontaj } from "./actions";
 import type { IntrareZiClient } from "./intrare-client";
 
@@ -42,6 +47,29 @@ interface Proprietati {
 }
 
 const CLASA_CAMP = "mt-1 w-full rounded-control border border-foreground/60 px-3 py-2 text-corp";
+
+/**
+ * Clasele casetei. `m-auto` NU e cosmetic — fără el, dialogul stă în colțul
+ * stânga-sus, peste antetul paginii.
+ *
+ * Un `<dialog>` deschis cu `showModal()` se centrează prin `margin: auto` din
+ * foaia BROWSERULUI. Preflight-ul Tailwind pune `margin: 0` pe `*`, deci o
+ * anulează. Componenta partajată (`ui/dialog.tsx`) scrie clasa explicit și
+ * explică de ce; ecranul ăsta își cheamă `showModal()` de mână și n-o avea.
+ *
+ * E aceeași clasă de defect ca `popover="manual"`, care primește `inset: 0` tot
+ * din foaia browserului: nu se vede într-un test de DOM, fiindcă acolo clasa E
+ * prezentă și doar stilul CALCULAT diferă. Regula se apără prin comentariul
+ * ăsta și prin garda din `celula-zi.test.tsx`.
+ *
+ * `max-h` + `overflow-y-auto`: dialogul are opt câmpuri, iar un `<dialog>`
+ * centrat prin margini automate NU derulează — crește în ambele direcții
+ * deodată, deci pe telefon antetul iese pe sus și „Salvează" pe jos, de
+ * neatins. `dvh`, nu `vh`, pentru bara de adrese care se retrage pe iOS.
+ */
+const CLASA_DIALOG =
+  "border-border bg-surface text-foreground rounded-panou m-auto max-h-[calc(100dvh-4rem)] " +
+  "w-full max-w-md overflow-y-auto border p-0 backdrop:bg-black/40";
 
 /**
  * Editorul unei zile de pontaj, ca `<dialog>` nativ — focus trap și Escape
@@ -100,6 +128,19 @@ export function CelulaZi({
       ? intrare.tipZi
       : "",
   );
+  /*
+    Locul de muncă al zilei (0118).
+
+    Implicitul pentru o zi NOUĂ e „La birou", fiindcă e cazul obișnuit și
+    fiindcă tragerea peste grilă trebuie să ducă la o zi completă dintr-o
+    singură apăsare. O zi EXISTENTĂ își păstrează însă valoarea, inclusiv
+    absența ei: `?? ""` la citire, nu `?? "birou"` — altfel deschiderea unei
+    zile vechi ar fi propus tăcut o declarație pe care apoi „Salvează" ar fi
+    scris-o ca și cum ar fi fost a omului.
+  */
+  const [tipPrezenta, setTipPrezenta] = useState<string>(
+    intrare === null ? "birou" : (intrare.tipPrezenta ?? ""),
+  );
   const [observatii, setObservatii] = useState(intrare?.observatii ?? "");
 
   const idTitlu = useId();
@@ -109,6 +150,7 @@ export function CelulaZi({
   const idOreSuplimentare = useId();
   const idOreNoapte = useId();
   const idTipZi = useId();
+  const idTipPrezenta = useId();
   const idObservatii = useId();
   const idMotivRespingere = useId();
 
@@ -130,6 +172,7 @@ export function CelulaZi({
         ore_suplimentare: oreSuplimentare ?? 0,
         ore_noapte: oreNoapte ?? 0,
         tip_zi: tipZi.length === 0 ? null : (tipZi as TipZi),
+        tip_prezenta: tipPrezenta.length === 0 ? null : (tipPrezenta as TipPrezenta),
         observatii: observatii.length === 0 ? null : observatii,
       });
       if (!rezultat.ok) {
@@ -229,7 +272,7 @@ export function CelulaZi({
       ref={dialogRef}
       aria-labelledby={idTitlu}
       onClose={onInchide}
-      className="border-border bg-surface text-foreground rounded-panou w-full max-w-md border p-0 backdrop:bg-black/40"
+      className={CLASA_DIALOG}
     >
       <form onSubmit={trimite} className="space-y-4 p-5" noValidate>
         <h2 id={idTitlu} className="text-sectiune font-semibold">
@@ -312,6 +355,35 @@ export function CelulaZi({
               {TIPURI_ZI_ALEGERE.map((t) => (
                 <option key={t} value={t}>
                   {ETICHETE_TIP_ZI[t]}
+                </option>
+              ))}
+            </select>
+          </div>
+          {/*
+            Locul de muncă (0118) — același vocabular ca „Planul săptămânii",
+            ajuns și pe ziua pontată efectiv.
+
+            Opțiunea goală rămâne prima și e o VALOARE, nu un câmp neatins:
+            coloana e nullable, iar o zi de dinainte de 0118 sau una pusă de pe
+            telefon chiar nu declară nimic. Colapsată în „La birou", ar fi
+            afirmat, pentru toate zilele din trecut, ceva ce n-a spus nimeni.
+          */}
+          <div>
+            <label htmlFor={idTipPrezenta} className="text-corp block font-medium">
+              Loc de muncă
+            </label>
+            <select
+              id={idTipPrezenta}
+              value={tipPrezenta}
+              onChange={(e) => {
+                setTipPrezenta(e.target.value);
+              }}
+              className={CLASA_CAMP}
+            >
+              <option value="">Nedeclarat</option>
+              {TIPURI_PREZENTA.map((t) => (
+                <option key={t} value={t}>
+                  {ETICHETE_TIP_PREZENTA[t]}
                 </option>
               ))}
             </select>

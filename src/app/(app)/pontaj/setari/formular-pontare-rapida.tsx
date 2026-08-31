@@ -50,6 +50,7 @@ export function FormularPontareRapida({
   const [mod, setMod] = useState<string>(pontare.mod);
   const [verificare, setVerificare] = useState<string>(pontare.verificare);
   const [programStart, setProgramStart] = useState(pontare.programStart ?? "");
+  const [necesitaAprobare, setNecesitaAprobare] = useState(pontare.necesitaAprobare);
 
   const afiseCuCod = afise.filter((a) => a.activ && a.areCod);
   const areAfis = afiseCuCod.length > 0;
@@ -61,7 +62,6 @@ export function FormularPontareRapida({
     {
       mod: mod as ConfigPontareRapida["mod"],
       verificare: verificare as ConfigPontareRapida["verificare"],
-      programStart: null,
     },
     areAfis,
   );
@@ -134,6 +134,7 @@ export function FormularPontareRapida({
         mod_pontare_rapida: mod,
         verificare_pontare: verificare,
         program_start: programStart === "" ? null : programStart,
+        necesita_aprobare: necesitaAprobare,
       });
       if (rezultat.ok) setMesaj("Setările au fost salvate.");
       else setEroare(rezultat.error.message);
@@ -260,6 +261,38 @@ export function FormularPontareRapida({
             ))}
           </ul>
         )}
+      </section>
+
+      {/*
+        ── APROBAREA, CA ALEGERE A FIRMEI (0118) ─────────────────────────────
+        Bifă, nu carduri: spre deosebire de „cum se pontează", alegerea asta nu
+        ramifică restul ecranului și n-are nevoie de patru explicații deodată.
+
+        Polaritate POZITIVĂ, identică cu numele coloanei — bifat = se cere
+        aprobare. O bifă „nu are nevoie de aprobare" ar fi cerut o negație între
+        ecran și bază, adică locul clasic unde cineva o repară pe jumătate.
+
+        Textul de dedesubt spune consecința VĂZUTĂ, nu regula: cine debifează
+        trebuie să afle că-i dispare o filă din navigare, altfel o caută.
+      */}
+      <section className="space-y-2">
+        <h2 className="text-corp font-medium">Aprobarea pontajului</h2>
+        <label className="flex items-start gap-2">
+          <input
+            type="checkbox"
+            checked={necesitaAprobare}
+            onChange={(e) => {
+              setNecesitaAprobare(e.target.checked);
+            }}
+            className="border-foreground/60 rounded-control mt-0.5 size-4 border"
+          />
+          <span className="text-corp">Pontajul trece printr-un pas de aprobare</span>
+        </label>
+        <p className="text-muted-foreground text-nota">
+          {necesitaAprobare
+            ? "Zilele înregistrate așteaptă decizia unui aprobator, iar planurile săptămânale se trimit spre aprobare. Fila „Aprobare” rămâne în navigarea pontajului."
+            : "Zilele se salvează direct, pentru toată lumea — inclusiv pentru angajați — și rămân modificabile până la blocarea lunii. Planul săptămânii se închide în clipa trimiterii, iar fila „Aprobare” dispare din navigare."}
+        </p>
       </section>
 
       <div className="flex flex-wrap items-center gap-3">

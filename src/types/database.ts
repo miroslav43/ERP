@@ -576,6 +576,9 @@ export type Database = {
           respins_de: string | null
           respins_la: string | null
           sursa: Database["public"]["Enums"]["attendance_entry_source"]
+          tip_prezenta:
+            | Database["public"]["Enums"]["attendance_presence_kind"]
+            | null
           tip_zi: Database["public"]["Enums"]["attendance_day_type"]
           updated_at: string
           updated_by: string | null
@@ -604,6 +607,9 @@ export type Database = {
           respins_de?: string | null
           respins_la?: string | null
           sursa?: Database["public"]["Enums"]["attendance_entry_source"]
+          tip_prezenta?:
+            | Database["public"]["Enums"]["attendance_presence_kind"]
+            | null
           tip_zi: Database["public"]["Enums"]["attendance_day_type"]
           updated_at?: string
           updated_by?: string | null
@@ -632,6 +638,9 @@ export type Database = {
           respins_de?: string | null
           respins_la?: string | null
           sursa?: Database["public"]["Enums"]["attendance_entry_source"]
+          tip_prezenta?:
+            | Database["public"]["Enums"]["attendance_presence_kind"]
+            | null
           tip_zi?: Database["public"]["Enums"]["attendance_day_type"]
           updated_at?: string
           updated_by?: string | null
@@ -10628,6 +10637,7 @@ export type Database = {
           deleted_at: string | null
           id: string
           mod_pontare_rapida: Database["public"]["Enums"]["mod_pontare_rapida"]
+          necesita_aprobare: boolean
           organization_id: string
           program_start: string | null
           updated_at: string
@@ -10640,6 +10650,7 @@ export type Database = {
           deleted_at?: string | null
           id?: string
           mod_pontare_rapida?: Database["public"]["Enums"]["mod_pontare_rapida"]
+          necesita_aprobare?: boolean
           organization_id: string
           program_start?: string | null
           updated_at?: string
@@ -10652,6 +10663,7 @@ export type Database = {
           deleted_at?: string | null
           id?: string
           mod_pontare_rapida?: Database["public"]["Enums"]["mod_pontare_rapida"]
+          necesita_aprobare?: boolean
           organization_id?: string
           program_start?: string | null
           updated_at?: string

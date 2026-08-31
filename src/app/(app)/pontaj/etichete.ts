@@ -24,6 +24,25 @@ export const ETICHETE_STARE_SAPTAMANA: Readonly<Record<StareSaptamanaPontaj, str
   respinsa: "Respinsă",
 };
 
+/**
+ * Starea săptămânii, spusă în cuvintele firmei.
+ *
+ * Într-o firmă fără pas de aprobare (0118), `aprobata` nu înseamnă „cineva a
+ * decis" — înseamnă „gata", fiindcă triggerul o pune acolo la trimitere. Badge-ul
+ * „Aprobată" ar fi atunci o afirmație despre o decizie care n-a existat, iar
+ * angajatul ar căuta cine i-a aprobat săptămâna.
+ *
+ * Celelalte trei stări își păstrează numele: `ciorna` chiar e ciornă, iar
+ * `trimisa`/`respinsa` nu se pot produce cât timp aprobarea e stinsă.
+ */
+export function etichetaStareSaptamana(
+  stare: StareSaptamanaPontaj,
+  necesitaAprobare: boolean,
+): string {
+  if (!necesitaAprobare && stare === "aprobata") return "Salvat";
+  return ETICHETE_STARE_SAPTAMANA[stare];
+}
+
 export const TONURI_STARE_SAPTAMANA: Readonly<Record<StareSaptamanaPontaj, TonStare>> = {
   ciorna: "ciorna",
   // Trimisă = se așteaptă decizia altcuiva, nu e încă un succes.

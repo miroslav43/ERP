@@ -11,7 +11,13 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
-import { citesteSaptamanaPontaj, setariPontaj } from "@/lib/queries/attendance";
+import {
+  citesteSaptamanaPontaj,
+  intrariLuna,
+  setariPontaj,
+  setariPontareRapida,
+} from "@/lib/queries/attendance";
+import { configPontareRapida } from "@/domain/attendance/pontare-rapida";
 import { fisaMea } from "@/lib/queries/portal";
 import type { ConfigZi } from "@/domain/attendance/calcul-ore";
 import {
@@ -20,10 +26,11 @@ import {
   lunieaUrmatoare,
   zileleSaptamanii,
 } from "@/domain/attendance/saptamana";
+import { ziuaInitialaPlan } from "@/domain/attendance/plan-si-fapt";
 import { FormularSaptamana } from "@/app/(app)/pontaj/saptamana/formular-saptamana";
 import {
   TONURI_STARE_SAPTAMANA,
-  ETICHETE_STARE_SAPTAMANA,
+  etichetaStareSaptamana,
   rezumatRegulaPontaj,
 } from "@/app/(app)/pontaj/etichete";
 
@@ -58,11 +65,25 @@ export default async function PaginaSaptamanaPortal({
   const cerut = typeof brut === "string" ? brut : "";
   const saptamanaStart = esteLuni(cerut) ? cerut : lunieaUrmatoare(todayInBucharest());
 
-  const submisie = await citesteSaptamanaPontaj(
-    tenant.organizationId,
-    stare.fisa.id,
-    saptamanaStart,
-  );
+  /*
+    Planul și ce s-a pontat efectiv în săptămâna asta (0118) — aceeași
+    precompletare ca pe ecranul de admin. Scrisă în AMÂNDOUĂ locurile deodată,
+    fiindcă exact aici a rămas portalul în urmă data trecută: reparația
+    implicitelor de weekend a stat luni pe pagina de admin înainte să ajungă și
+    pe telefonul de pe care se pontează.
+
+    `intrariLuna(org, [fisa], …)`, nu `intrariProprii`: a doua nu filtrează pe
+    `employee_id` și se bazează pe RLS.
+  */
+  const [submisie, pontate] = await Promise.all([
+    citesteSaptamanaPontaj(tenant.organizationId, stare.fisa.id, saptamanaStart),
+    intrariLuna(
+      tenant.organizationId,
+      [stare.fisa.id],
+      saptamanaStart,
+      adaugaZile(saptamanaStart, 6),
+    ),
+  ]);
 
   /*
    * DEFECT REPARAT: implicitul era `?? 8` pentru TOATE cele șapte zile, deci
@@ -74,26 +95,25 @@ export default async function PaginaSaptamanaPortal({
    * asta; portalul rămăsese în urmă, deși e ecranul deschis de pe telefon,
    * adică exact acela unde nimeni nu verifică șapte câmpuri înainte de a trimite.
    */
-  const setari = await setariPontaj(tenant.organizationId, saptamanaStart);
+  /*
+    Setările juridice ȘI regula de aprobare a firmei (0118). A doua decide ce
+    scrie pe buton și dacă planul rămâne editabil după trimitere — iar ecranul
+    ăsta trebuie s-o afle singur: n-are banda de file, deci nu trece prin
+    `fileDePontaj` ca paginile de sub `/pontaj`.
+  */
+  const [setari, randPontare] = await Promise.all([
+    setariPontaj(tenant.organizationId, saptamanaStart),
+    setariPontareRapida(tenant.organizationId),
+  ]);
+  const { necesitaAprobare } = configPontareRapida(randPontare);
 
-  const zileInitiale = zileleSaptamanii(saptamanaStart).map((data) => {
-    const existenta = submisie?.zile.find((z) => z.data === data) ?? null;
-    return {
+  const zileInitiale = zileleSaptamanii(saptamanaStart).map((data) =>
+    ziuaInitialaPlan(
       data,
-      tip_prezenta: existenta?.tip_prezenta ?? "birou",
-      /*
-       * Ce e salvat se arată, indiferent ce zi e în calendar. Aici stătea o
-       * poartă `esteZiLucratoare(…) ? … : ""` care golea câmpul pe weekend și
-       * pe sărbători. Cum `existenta` e `null` exact când n-ai ce arăta, poarta
-       * nu putea opri niciun „interval presupus" — doar ascundea ore chiar
-       * salvate, pe care următoarea trimitere le ștergea apoi din bază
-       * (`trimite_saptamana_pontaj` face `delete` + reinserare, 0084).
-       */
-      ora_inceput: existenta?.ora_inceput?.slice(0, 5) ?? "",
-      ora_sfarsit: existenta?.ora_sfarsit?.slice(0, 5) ?? "",
-      observatii: existenta?.observatii ?? "",
-    };
-  });
+      submisie?.zile.find((z) => z.data === data) ?? null,
+      pontate.find((z) => z.data === data) ?? null,
+    ),
+  );
 
   const config: ConfigZi = {
     orePeZi: setari?.ore_pe_zi ?? 8,
@@ -109,7 +129,10 @@ export default async function PaginaSaptamanaPortal({
   // O săptămână aprobată nu se mai retrage: `attendance_week_submissions_update`
   // (`0041:388`) n-are ramură pentru autor, deci un UPDATE ar afecta zero rânduri,
   // tăcut. Formularul se blochează, nu lasă butonul activ ca să ducă în refuz.
-  const poateEdita = submisie === null || submisie.status !== "aprobata";
+  // Fără pas de aprobare, `aprobata` e pusă de trigger la trimitere (0118 §3):
+  // fără ramura a treia, planul s-ar îngheța la prima apăsare.
+  const poateEdita =
+    submisie === null || submisie.status !== "aprobata" || !necesitaAprobare;
 
   return (
     <div className={`${LATIMI.formular} space-y-4 p-4`}>
@@ -137,7 +160,7 @@ export default async function PaginaSaptamanaPortal({
         </Link>
         {submisie === null ? null : (
           <Badge ton={TONURI_STARE_SAPTAMANA[submisie.status]}>
-            {ETICHETE_STARE_SAPTAMANA[submisie.status]}
+            {etichetaStareSaptamana(submisie.status, necesitaAprobare)}
           </Badge>
         )}
       </nav>
@@ -164,6 +187,7 @@ export default async function PaginaSaptamanaPortal({
         saptamanaStart={saptamanaStart}
         zileInitiale={zileInitiale}
         poateEdita={poateEdita}
+        necesitaAprobare={necesitaAprobare}
         config={config}
         // Aceeași dată ca la citirea setărilor: începutul săptămânii.
         regulaFirmei={rezumatRegulaPontaj(config, setari !== null)}

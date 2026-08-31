@@ -14,6 +14,7 @@ function rand(peste: Partial<RandPontareRapida> = {}): RandPontareRapida {
     mod_pontare_rapida: "ceas",
     verificare_pontare: "fara",
     program_start: null,
+    necesita_aprobare: true,
     ...peste,
   };
 }

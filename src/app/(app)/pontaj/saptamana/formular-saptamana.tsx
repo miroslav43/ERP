@@ -59,6 +59,16 @@ interface Proprietati {
   readonly saptamanaStart: string;
   readonly zileInitiale: readonly ZiFormular[];
   readonly poateEdita: boolean;
+  /**
+   * Dacă firma cere aprobare pentru pontaj (0118).
+   *
+   * OBLIGATORIE, nu opțională cu implicit: cele două pagini care randează
+   * formularul — cea de admin și cea din portal — trebuie să fie amândouă
+   * obligate de compilator să spună ce regulă e în vigoare. Un implicit ar fi
+   * lăsat portalul să promită „spre aprobare" într-o firmă care nu aprobă
+   * nimic, exact felul de rămânere în urmă deja pățit aici o dată.
+   */
+  readonly necesitaAprobare: boolean;
   /** Parametrii firmei după care se derivă orele — aceiași ca la ziua individuală. */
   readonly config: ConfigZi;
   /**
@@ -91,6 +101,7 @@ export function FormularSaptamana({
   saptamanaStart,
   zileInitiale,
   poateEdita,
+  necesitaAprobare,
   config,
   regulaFirmei,
   lucreazaWeekendInitial,
@@ -351,7 +362,7 @@ export function FormularSaptamana({
             <label htmlFor={idWeekend} className="text-corp">
               Lucrez în weekend
               <span className="text-muted-foreground text-nota block">
-                Debifat, sâmbăta și duminica nu apar în plan și pleacă spre aprobare cu zero ore.
+                Debifat, sâmbăta și duminica nu apar în plan și se trimit cu zero ore.
               </span>
             </label>
           </div>
@@ -435,7 +446,7 @@ export function FormularSaptamana({
               trimite("trimisa");
             }}
           >
-            Trimite spre aprobare
+            {necesitaAprobare ? "Trimite spre aprobare" : "Salvează planul"}
           </Buton>
         </div>
       ) : null}

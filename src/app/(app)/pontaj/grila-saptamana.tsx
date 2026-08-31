@@ -15,7 +15,7 @@ import {
 } from "@/domain/attendance/grila-orara";
 
 import { CelulaZi } from "./celula-zi";
-import { CODURI_TIP_ZI, ETICHETE_TIP_ZI } from "./etichete";
+import { CODURI_TIP_ZI, ETICHETE_TIP_PREZENTA, ETICHETE_TIP_ZI } from "./etichete";
 import type { IntrareZiClient } from "./intrare-client";
 
 /**
@@ -417,6 +417,19 @@ function BlocZi({
           {formatOre(intrare.oreLucrate)} h
         </span>
       ) : null}
+      {/*
+        Locul de muncă (0118) se scrie doar când NU e „la birou".
+
+        Aceeași disciplină ca `tipZi` în numele accesibil de mai jos: se anunță
+        EXCEPȚIA. Un „La birou" pe fiecare bloc din săptămână ar fi al treilea
+        rând de text în casete de 12 px înălțime, și ar acoperi tocmai zilele
+        care chiar au ceva de spus.
+      */}
+      {intrare.tipPrezenta !== null && intrare.tipPrezenta !== "birou" ? (
+        <span className="text-nota text-muted-foreground block truncate">
+          {ETICHETE_TIP_PREZENTA[intrare.tipPrezenta]}
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -441,6 +454,9 @@ function numeAccesibil(zi: ZiGrila, selectie: SelectieOrara | null): string {
     if (intrare.oraInceput !== null && intrare.oraSfarsit === null) bucati.push("în curs");
     if (intrare.oreLucrate > 0) bucati.push(`${formatOre(intrare.oreLucrate)} ore`);
     if (intrare.tipZi !== "lucratoare") bucati.push(ETICHETE_TIP_ZI[intrare.tipZi]);
+    if (intrare.tipPrezenta !== null && intrare.tipPrezenta !== "birou") {
+      bucati.push(ETICHETE_TIP_PREZENTA[intrare.tipPrezenta]);
+    }
     if (intrare.aprobat) bucati.push("aprobat");
     if (intrare.respins) bucati.push("respins");
   }

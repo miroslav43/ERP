@@ -37,6 +37,7 @@ import {
   stergeZiPontajSchema,
 } from "@/schemas/attendance";
 
+import { refuzaCandAprobareaEStinsa } from "./aprobarea-firmei";
 import { avertismenteDupaZi, type RezultatCuAvertismente } from "./avertismente";
 import { tipZiAutomat } from "./etichete";
 import { traduEroare } from "./erori";
@@ -194,6 +195,7 @@ export const salveazaZiPontaj = createAction({
       "ore_suplimentare",
       "ore_noapte",
       "tip_zi",
+      "tip_prezenta",
     ],
   },
   revalidate: [...CAI_REVALIDARE],
@@ -313,6 +315,7 @@ export const salveazaZiPontaj = createAction({
           ore_suplimentare: oreSuplimentare,
           ore_noapte: oreNoapte,
           tip_zi: tipZi,
+          tip_prezenta: input.tip_prezenta,
           observatii: input.observatii,
         })
         .eq("id", existenta.id)
@@ -354,6 +357,7 @@ export const salveazaZiPontaj = createAction({
         ore_suplimentare: oreSuplimentare,
         ore_noapte: oreNoapte,
         tip_zi: tipZi,
+        tip_prezenta: input.tip_prezenta,
         observatii: input.observatii,
       })
       .select("id")
@@ -875,6 +879,9 @@ export const aprobaPontajBloc = createAction({
     ctx,
     input,
   ): Promise<Readonly<{ id: string; liniiAprobate: number; zileDeschise: number }>> => {
+    // (0) Firma mai cere aprobare? Fila e ascunsă, dar ruta și acțiunea rămân.
+    await refuzaCandAprobareaEStinsa(ctx.tenant.organizationId);
+
     // (1) Perioada, cu clientul utilizatorului.
     const { data: perioada, error: eroarePerioada } = await ctx.supabase
       .from("attendance_periods")
@@ -1226,6 +1233,8 @@ export const decideZiPontaj = createAction({
   },
   revalidate: [...CAI_REVALIDARE],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    await refuzaCandAprobareaEStinsa(ctx.tenant.organizationId);
+
     const { data, error } = await ctx.supabase.rpc("decide_zi_pontaj", {
       p_organization_id: ctx.tenant.organizationId,
       p_entry_id: input.entry_id,

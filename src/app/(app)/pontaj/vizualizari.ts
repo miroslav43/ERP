@@ -24,11 +24,41 @@ export type Vizualizare = (typeof VIZUALIZARI)[number];
 export const VIZUALIZARE_IMPLICITA: Vizualizare = "saptamana";
 
 /**
+ * Vizualizarea cu care aterizează un rol pe `/pontaj` curat.
+ *
+ * ── DE CE NU MAI E O CONSTANTĂ ────────────────────────────────────────────
+ * `saptamana` era implicita pentru toată lumea, fiindcă e singura din care te
+ * poți ponta trăgând peste o zonă din zi. Argumentul e bun pentru un angajat și
+ * greșit pentru toți ceilalți: grila orară arată pontajul CELUI CONECTAT, deci
+ * un `org_admin` sau un `hr` care deschidea „Pontaj" ateriza în propria lui
+ * săptămână, nu în firma pe care o administrează. Ca să vadă oamenii, trebuia
+ * să comute de fiecare dată.
+ *
+ * Pragul e scope-ul de CITIRE, nu rolul: cine vede și pontajul altora
+ * (`org_admin`, `hr` — `all`; `manager` — `team`) primește foaia colectivă;
+ * cine se vede doar pe sine rămâne pe grila din care se pontează.
+ *
+ * `scopeFor` întoarce `null` pentru o permisiune absentă, iar baza colapsează
+ * „absent" în `none` — de aceea apelantul normalizează la `"own"` înainte de a
+ * ajunge aici, ca peste tot în pagină.
+ */
+export function implicitaPentruScope(scope: string): Vizualizare {
+  return scope === "own" ? VIZUALIZARE_IMPLICITA : "lista";
+}
+
+/**
  * `.catch()`, nu `.parse()`: un `?vizualizare=` inventat sau repetat în adresă e
  * o cale greșită, nu o eroare — se cade tăcut pe cea implicită, ca la `an` și
  * `luna` (vezi `lib/rute/parametri.ts`).
+ *
+ * Implicita se primește ca argument, fiindcă depinde de rol. Ea trebuie să fie
+ * ACEEAȘI cu cea dată lui `ComutatorVizualizare`: primitiva ȘTERGE din adresă
+ * valoarea implicită, deci două valori diferite ar face ca butonul vizualizării
+ * implicite să ducă la o adresă care se citește altfel decât s-a scris.
  */
-export const vizualizareSchema = z.enum(VIZUALIZARI).catch(VIZUALIZARE_IMPLICITA);
+export function vizualizareaCeruta(brut: unknown, implicita: Vizualizare): Vizualizare {
+  return z.enum(VIZUALIZARI).catch(implicita).parse(brut);
+}
 
 export const OPTIUNI_VIZUALIZARE: readonly OptiuneVizualizare[] = [
   { cheie: "saptamana", eticheta: "Săptămână", pictograma: CalendarClock },

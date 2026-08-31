@@ -1794,6 +1794,24 @@ begin
       ('hr',      'inventory_items (obiect)',         'PERMIS',
        'insert into public.inventory_items (organization_id, denumire, numar_inventar) values ($1,''Obiect (l)'',''L-HR-'' || $5)'),
       -- hr administrează SSM, dar NU are niciun `vehicles:*` (capcana 18/26).
+      -- ── Cine poate stinge pasul de aprobare a pontajului (0118) ─────────
+      -- `necesita_aprobare` e o coloană de CONFIGURARE, deci trece prin
+      -- `setari_pontare_rapida_update`, care cere `attendance:update = all`.
+      -- Cele trei cazuri de mai jos există fiindcă efectul greșit e invizibil:
+      -- un rol care N-AR trebui s-o poată schimba, dar poate, oprește aprobarea
+      -- pentru toată firma dintr-o apăsare, iar cine aproba nu află nimic —
+      -- fila îi dispare pur și simplu din navigare.
+      --
+      -- `PERMIS_RAND`/`ZERO`, nu `PERMIS`/`REFUZAT`: un UPDATE respins de clauza
+      -- `USING` NU aruncă, afectează zero rânduri și tace (capcana 17). Marcate
+      -- altfel, cazurile ar fi verzi și când politica respinge tăcut.
+      ('hr',      'setari_pontare_rapida (stinge aprobarea)', 'PERMIS_RAND',
+       'update public.setari_pontare_rapida set necesita_aprobare = false where organization_id = $1 and deleted_at is null'),
+      ('manager', 'setari_pontare_rapida (fără attendance:update)', 'ZERO',
+       'update public.setari_pontare_rapida set necesita_aprobare = false where organization_id = $1 and deleted_at is null'),
+      ('employee', 'setari_pontare_rapida (fără attendance:update)', 'ZERO',
+       'update public.setari_pontare_rapida set necesita_aprobare = false where organization_id = $1 and deleted_at is null'),
+
       ('hr',      'vehicles (fără drept)',            'REFUZAT',
        'insert into public.vehicles (organization_id, nr_inmatriculare, marca, model, created_by, updated_by) values ($1,''CJ'' || left($5,2) || ''SND'',''Dacia'',''Logan'',auth.uid(),auth.uid())'),
       -- Calea REALĂ de aprobare a managerului. Capcana 4 îi închide scrierea
@@ -1826,8 +1844,13 @@ begin
       -- Ziua trebuie să fie LIBERĂ: `attendance_entries_zi_uq` e index unic
       -- parțial pe (employee_id, data). Fixture-ul ocupă deja `current_date` și
       -- `current_date - 1` (org_admin), iar pregătirea de mai sus `- 5`.
-      ('employee', 'attendance_entries (ziua proprie)',    'PERMIS',
-       'insert into public.attendance_entries (organization_id, employee_id, data, ore_lucrate, tip_zi) values ($1,$6,current_date - 3,8,''lucratoare'')'),
+      -- `tip_prezenta` (0118) intră în ACEEAȘI scriere, nu într-un caz nou: o zi
+      -- în plus ar fi cerut o dată în plus, iar perioada deschisă de fixture
+      -- acoperă doar luna curentă. Ce se probează e că politica de INSERT
+      -- acceptă coloana nouă de la un `employee` — un `with check` care
+      -- enumeră coloane ar fi refuzat-o, tăcut la citire și zgomotos aici.
+      ('employee', 'attendance_entries (ziua proprie, cu locul de muncă)', 'PERMIS',
+       'insert into public.attendance_entries (organization_id, employee_id, data, ore_lucrate, tip_zi, tip_prezenta) values ($1,$6,current_date - 3,8,''lucratoare'',''homeoffice'')'),
 
       -- 0096, jumătatea întâi a ceasului: ziua deschisă are DOAR ora de intrare,
       -- `ora_sfarsit` NULL și ZERO ore. Forma asta n-a fost niciodată produsă de
