@@ -14,22 +14,26 @@
  *   5. altfel                                   ⇒ lucrătoare.
  *
  * NU folosiți `calculeazaZileLucratoare` din `@/domain/calendar`: nu cunoaște
- * zilele de recuperare și nici jumătățile de zi (`leave_day_portion`). Sursa
- * zilelor speciale este `public_holidays` / `organization_holidays` — NU
- * `sarbatoriAnului()` — altfel cifra afișată aici ar diferi de cea scrisă de
- * `internal.leave_requests_pregateste` la INSERT.
+ * zilele de recuperare. Sursa zilelor speciale este `public_holidays` /
+ * `organization_holidays` — NU `sarbatoriAnului()` — altfel cifra afișată aici
+ * ar diferi de cea scrisă de `internal.leave_requests_pregateste` la INSERT.
+ *
+ * ── FĂRĂ JUMĂTĂȚI DE ZI ────────────────────────────────────────────────────
+ * Concediul se cere pe zile ÎNTREGI. Funcția a primit până la 0112 două
+ * porțiuni (`leave_day_portion`) și adăuga 0,5 la extremitățile parțiale;
+ * coloanele mai există în bază, dar o constrângere le ține pe `zi_intreaga`,
+ * iar `app.numara_zile_lucratoare` a pierdut cei doi parametri odată cu ele.
+ * Rezultatul e de acum ÎNTOTDEAUNA un întreg.
  *
  * Funcție PURĂ: seturile de zile speciale se primesc ca parametru, calculate
  * o singură dată pe server și pasate componentei client.
  */
 
-export type PortiuneZi = "zi_intreaga" | "prima_jumatate" | "a_doua_jumatate";
-
 /** Zi calendaristică ISO, `"2026-03-09"`. */
 export type ZiCalendaristica = string;
 
 export interface RezultatZileCerere {
-  /** Zile lucrătoare consumate din sold, cu 0,5 la extremitățile parțiale. */
+  /** Zile lucrătoare consumate din sold — număr întreg, o zi pentru fiecare zi. */
   readonly zileLucratoare: number;
   /** Numărul brut de zile calendaristice ale intervalului (inclusiv capetele). */
   readonly zileCalendaristice: number;
@@ -87,8 +91,7 @@ function esteZiLucratoare(
 }
 
 /**
- * Numără zilele lucrătoare consumate de o cerere de concediu, cu jumătăți de
- * zi la ziua de început/sfârșit atunci când porțiunea nu este „zi întreagă”.
+ * Numără zilele lucrătoare consumate de o cerere de concediu.
  *
  * `sarbatoriRo` = `public_holidays.data` (tara = 'RO') pentru anii relevanți.
  * `liberSuplimentar` = `organization_holidays.data` cu `tip = 'liber_suplimentar'`.
@@ -97,8 +100,6 @@ function esteZiLucratoare(
 export function numaraZileCerere(
   dataInceput: ZiCalendaristica,
   dataSfarsit: ZiCalendaristica,
-  portiuneInceput: PortiuneZi,
-  portiuneSfarsit: PortiuneZi,
   sarbatoriRo: readonly ZiCalendaristica[],
   liberSuplimentar: readonly ZiCalendaristica[],
   zileRecuperare: readonly ZiCalendaristica[],
@@ -121,16 +122,10 @@ export function numaraZileCerere(
     zileCalendaristice += 1;
 
     if (esteZiLucratoare(ziIso, ziua, setSarbatori, setLiber, setRecuperare)) {
-      const portiuneParticala =
-        (ziIso === dataInceput && portiuneInceput !== "zi_intreaga") ||
-        (ziIso === dataSfarsit && portiuneSfarsit !== "zi_intreaga");
-      zileLucratoare += portiuneParticala ? 0.5 : 1;
+      zileLucratoare += 1;
     }
     ziua = adaugaOZi(ziua);
   }
 
-  return {
-    zileLucratoare: Math.round(zileLucratoare * 100) / 100,
-    zileCalendaristice,
-  };
+  return { zileLucratoare, zileCalendaristice };
 }

@@ -17,6 +17,7 @@ import { formatDate, todayInBucharest } from "@/lib/format/date";
 import { formatLei } from "@/lib/format/money";
 import { idDinRuta } from "@/lib/rute/parametri";
 import { citesteVehicul, documenteleVehiculului, tipuriDocument } from "@/lib/queries/fleet";
+import type { DocumentVehicul, TipDocument } from "@/lib/queries/fleet";
 
 import {
   ETICHETE_CATEGORIE,
@@ -26,12 +27,30 @@ import {
   stareScadenta,
   TONURI_STATUS_VEHICUL,
 } from "../etichete";
+import { ButonStergeDocument } from "./buton-sterge-document";
+import { ButonStergeVehicul } from "./buton-sterge-vehicul";
+import { DialogDocument } from "./dialog-document";
+import { DialogVehicul } from "./dialog-vehicul";
 import { FormularDocument } from "./formular-document";
 
 export const metadata: Metadata = { title: "Fișa vehiculului" };
 
 interface ProprietatiPagina {
   readonly params: Promise<{ readonly id: string }>;
+}
+
+/**
+ * Un rând al tabelului de documente: TIPUL, plus documentul curent dacă există.
+ *
+ * Rândul era, până acum, doar tipul — iar `cheieRand` întorcea id-ul TIPULUI.
+ * Adică identificatorul documentului nu ajungea niciodată la client, deci nu
+ * exista nimic de editat sau de șters. Perechea de aici e schimbarea minimă care
+ * face posibile butoanele, fără să renunțe la lucrul important: rândurile rămân
+ * tipurile, ca un tip obligatoriu necompletat să aibă unde să apară.
+ */
+interface RandDocument {
+  readonly tip: TipDocument;
+  readonly documentul: DocumentVehicul | null;
 }
 
 export default async function PaginaVehicul({ params }: ProprietatiPagina) {
@@ -57,6 +76,10 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
   ]);
   const azi = todayInBucharest();
   const poateScrie = can(permisiuni, "vehicles:create", "all");
+  // Modificarea ȘI ștergerea trec amândouă prin `vehicules:update = all`: exact
+  // ce cere `vehicule_update` în bază. O poartă mai largă aici ar lăsa un rol să
+  // apese butonul și să fie respins tăcut, cu zero rânduri și mesaj de reușită.
+  const poateAdministra = can(permisiuni, "vehicles:update", "all");
   const poateVedeaFoi = can(permisiuni, "trip_sheets:read", "own");
 
   const curente = documente.filter((d) => d.este_curent);
@@ -65,53 +88,127 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
   // Se listează TIPURILE, nu documentele: un tip obligatoriu fără document
   // trebuie să apară ca „Lipsește”, roșu. Altfel absența unui RCA arată identic
   // cu absența unei rubrici.
-  const randuriDocumente = tipuri.filter((tip) => dupaTip.has(tip.id) || tip.obligatoriu);
+  const randuriDocumente: readonly RandDocument[] = tipuri
+    .filter((tip) => dupaTip.has(tip.id) || tip.obligatoriu)
+    .map((tip) => ({ tip, documentul: dupaTip.get(tip.id) ?? null }));
 
   // Fără sortare: lista de tipuri nu are cursor, se citește întreagă și e
   // ordonată de nomenclator (`ordine`).
-  const coloaneDocumente: readonly Coloana<(typeof randuriDocumente)[number]>[] = [
+  const coloaneDocumente: readonly Coloana<RandDocument>[] = [
     {
       cheie: "tip",
       antet: "Tip",
       peTelefon: "titlu",
-      celula: (tip) => (
+      celula: (rand) => (
         <>
-          {tip.denumire}
-          {tip.obligatoriu ? (
+          {rand.tip.denumire}
+          {rand.tip.obligatoriu ? (
             <span className="text-muted-foreground text-nota ml-1">(obligatoriu)</span>
           ) : null}
+          {/* Observațiile stau sub denumire, nu într-o coloană a lor: șapte
+              coloane pe un tabel care cade pe card sub 768px sunt deja multe,
+              iar o notă e text lung, nu o valoare de comparat pe verticală. */}
+          {rand.documentul?.observatii === null ||
+          rand.documentul?.observatii === undefined ? null : (
+            <span className="text-muted-foreground text-nota block">
+              {rand.documentul.observatii}
+            </span>
+          )}
         </>
       ),
     },
     {
-      cheie: "numar",
-      antet: "Număr",
+      cheie: "emitent",
+      antet: "Emitent",
       peTelefon: "meta",
-      celula: (tip) => dupaTip.get(tip.id)?.numar ?? "—",
+      celula: (rand) => rand.documentul?.emitent ?? "—",
+    },
+    {
+      cheie: "valabil",
+      antet: "Valabil de la",
+      latime: "ingusta",
+      peTelefon: "meta",
+      celula: (rand) => {
+        const valabil = rand.documentul?.valabil_de_la;
+        return valabil === undefined || valabil === null ? "—" : formatDate(valabil);
+      },
     },
     {
       cheie: "expira",
       antet: "Expiră",
       latime: "ingusta",
       peTelefon: "meta",
-      celula: (tip) => {
-        const expira = dupaTip.get(tip.id)?.expira_la;
+      celula: (rand) => {
+        const expira = rand.documentul?.expira_la;
         return expira === undefined || expira === null ? "—" : formatDate(expira);
+      },
+    },
+    {
+      cheie: "cost",
+      antet: "Cost",
+      numeric: true,
+      latime: "ingusta",
+      peTelefon: "meta",
+      celula: (rand) => {
+        const cost = rand.documentul?.cost;
+        return cost === undefined || cost === null ? "—" : formatLei(cost);
       },
     },
     {
       cheie: "stare",
       antet: "Stare",
       peTelefon: "insigna",
-      celula: (tip) => {
+      celula: (rand) => {
         // Un tip obligatoriu fără document dă `null`, iar în flotă `null`
         // înseamnă `lipsa` — treapta cea mai gravă, fiindcă un document care nu
         // există n-are dată de la care să numere și nu se aprinde niciodată
         // singur. Treapta o hotărăște domeniul, nu pastila.
-        const stare = stareScadenta(dupaTip.get(tip.id)?.expira_la ?? null, azi);
+        const stare = stareScadenta(rand.documentul?.expira_la ?? null, azi);
         return <Scadenta treapta={stare}>{ETICHETE_SCADENTA[stare]}</Scadenta>;
       },
     },
+    // Coloana lipsește cu totul pentru cine n-o poate folosi — un `<th>` care
+    // conduce cinci celule goale e zgomot pentru cititorul de ecran.
+    ...(poateAdministra
+      ? [
+          {
+            cheie: "actiuni",
+            antet: "Acțiuni",
+            antetAscuns: true,
+            latime: "ingusta",
+            peTelefon: "meta",
+            /*
+             * `<span inline-flex>`, nu `<div flex>`: pe telefon celula asta se
+             * randează într-un `<p>`, iar un `<div>` acolo e marcaj nevalid —
+             * browserul închide paragraful singur, arborele nu mai seamănă cu
+             * cel de pe server și React randează de două ori, raportând eroare
+             * de hidratare. Nimic nu se vede stricat; doar consola țipă.
+             */
+            celula: (rand: RandDocument) =>
+              rand.documentul === null ? null : (
+                <span className="inline-flex items-center gap-1">
+                  <DialogDocument
+                    vehiculId={vehicul.id}
+                    documentul={rand.documentul}
+                    denumireTip={rand.tip.denumire}
+                    tipuri={tipuri}
+                  />
+                  <ButonStergeDocument
+                    documentId={rand.documentul.id}
+                    vehiculId={vehicul.id}
+                    denumireTip={rand.tip.denumire}
+                    esteCurent={rand.documentul.este_curent}
+                    expiraLa={
+                      rand.documentul.expira_la === null
+                        ? null
+                        : formatDate(rand.documentul.expira_la)
+                    }
+                  />
+                </span>
+              ),
+          } satisfies Coloana<RandDocument>,
+        ]
+      : []),
   ];
 
   return (
@@ -140,6 +237,17 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
                 >
                   Foile de parcurs
                 </Link>
+              ) : null}
+              {poateAdministra ? (
+                <>
+                  <DialogVehicul vehicul={vehicul} />
+                  <ButonStergeVehicul
+                    id={vehicul.id}
+                    nrInmatriculare={vehicul.nr_inmatriculare}
+                    descriere={`${vehicul.marca} ${vehicul.model}`}
+                    stare={ETICHETE_STATUS_VEHICUL[vehicul.status]}
+                  />
+                </>
               ) : null}
             </div>
           }
@@ -193,9 +301,25 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
                   ? "implicit, din setările flotei"
                   : `${vehicul.prag_salt_km.toLocaleString("ro-RO")} km`,
             },
+            ...(vehicul.motiv_iesire === null
+              ? []
+              : [{ eticheta: "Motivul ieșirii din parc", valoare: vehicul.motiv_iesire }]),
           ]}
         />
       </section>
+
+      {/* Coloana `observatii` exista din 0012 și era citită de `citesteVehicul`,
+          dar niciun ecran n-o arăta și niciun formular n-o scria — moartă în
+          ambele sensuri. Secțiune proprie, nu rubrică în `ListaDefinitii`: acolo
+          sunt patru coloane, iar un text liber de două rânduri le rupe grila. */}
+      {vehicul.observatii === null ? null : (
+        <section aria-labelledby="observatii" className="border-border rounded-panou border p-4">
+          <h2 id="observatii" className="text-corp mb-2 font-semibold">
+            Observații
+          </h2>
+          <p className="text-corp whitespace-pre-line">{vehicul.observatii}</p>
+        </section>
+      )}
 
       <section aria-labelledby="documente" className="space-y-3">
         <h2 id="documente" className="text-sectiune font-semibold">
@@ -205,7 +329,7 @@ export default async function PaginaVehicul({ params }: ProprietatiPagina) {
           caption="Documentele vehiculului, cu starea fiecărei scadențe."
           coloane={coloaneDocumente}
           randuri={randuriDocumente}
-          cheieRand={(tip) => tip.id}
+          cheieRand={(rand) => rand.tip.id}
           gol={
             <p className="text-muted-foreground text-corp">
               Niciun document înregistrat și niciun tip obligatoriu de completat.

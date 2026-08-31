@@ -3,7 +3,14 @@
 import { useRef, useState, type ReactElement } from "react";
 
 import { clasaControl } from "@/components/ui/camp";
-import { formatOre, mascheazaOraZi, normalizeazaOraZi, parseOre } from "@/lib/format/ore";
+import {
+  formatOre,
+  mascheazaDurata,
+  mascheazaOraZi,
+  normalizeazaOraZi,
+  parseOre,
+  plafoneazaMinutele,
+} from "@/lib/format/ore";
 import { cn } from "@/lib/ui/cn";
 
 /**
@@ -54,9 +61,10 @@ type AtributeComune = Readonly<{
  * Filtrul câmpului de DURATĂ. (Ora zilei n-are nevoie de el: masca îi lasă
  * oricum doar cifre, deci literele din `AM`/`PM` n-au pe unde intra.)
  *
- * Durata nu poate primi aceeași mască, fiindcă ora ei nu e plafonată la 23:
- * norma săptămânală e `40:00`, maximul legal `48:00`. Fără plafon, nicio cifră
- * nu spune unde se termină orele și încep minutele.
+ * Durata nu poate primi aceeași mască ca ora din zi, fiindcă ora ei nu e
+ * plafonată la 23: norma săptămânală e `40:00`, maximul legal `48:00`. Are
+ * masca ei — `mascheazaDurata`, două punctele pe a doua cifră — dar filtrul
+ * rămâne, fiindcă masca lasă dinadins să treacă ce nu e cifră.
  *
  * Virgula și punctul RĂMÂN în câmp. Ar fi fost mai simplu să le tăiem, dar
  * atunci `8,5` ar deveni tăcut `85` — optzeci și cinci de ore, o cifră perfect
@@ -157,9 +165,23 @@ export function IntrareOra({
       onSchimba?.("");
       return;
     }
-    const curat = normalizeazaOraZi(brut);
-    // Ciorna rămâne pe ecran cât timp nu e o oră: altfel dispare fără ca omul
-    // să vadă ce a scris greșit.
+    /*
+      Minutul peste 59 se PLAFONEAZĂ, nu se refuză: `17:75` devine `17:59`.
+
+      Refuzul pur părea prudent — masca lasă dinadins pe ecran ce s-a tastat —
+      dar aici se termina prost. Câmpul ascuns de mai jos rămâne gol cât timp
+      ora nu e validă, deci în planul săptămânii intervalul pleca spre server ca
+      `null`: omul completa ora, apăsa „Trimite” și ziua ajungea cu zero ore, cu
+      chenarul roșu rămas într-o pagină pe care n-o mai privea. Fiindcă
+      plafonarea se întâmplă pe a patra cifră (acolo ora se închide și `preda`
+      e chemat de saltul automat), corectura e VIZIBILĂ în clipa tastării, nu
+      descoperită mai târziu.
+
+      Ora peste 23 rămâne respinsă — vezi `plafoneazaMinutele`.
+    */
+    const curat = normalizeazaOraZi(brut) ?? plafoneazaMinutele(brut);
+    // Ciorna rămâne pe ecran cât timp nu e o oră nici după plafonare: altfel
+    // dispare fără ca omul să vadă ce a scris greșit.
     if (curat === null) return;
     setCiorna(null);
     setPropriu(curat);
@@ -230,6 +252,12 @@ export type PropsIntrareDurata = AtributeComune &
     implicit?: number | null | undefined;
     /** Primește ore zecimale, sau `null` când câmpul a fost golit. */
     onSchimba?: ((ore: number | null) => void) | undefined;
+    /**
+     * Exemplul din câmpul gol. Implicit `8:00` — norma zilnică — dar un câmp
+     * care cere maximul săptămânal are alt ordin de mărime, iar un exemplu de
+     * opt ore acolo sugerează exact cifra greșită.
+     */
+    placeholder?: string | undefined;
   }>;
 
 /** Ore zecimale → ce se scrie în câmp. Fără grupare: cifra trebuie să se poată tasta la loc. */
@@ -242,6 +270,11 @@ function scrieDurata(ore: number | null): string {
  *
  * Trimite mai departe zecimala — și în `onSchimba`, și în câmpul ascuns care
  * ajunge în `FormData` — fiindcă `ore_lucrate` rămâne `numeric` în bază.
+ *
+ * Două punctele le pune masca, pe a doua cifră: `0830` → `08:30`, `4800` →
+ * `48:00`. Zero-ul din față e prețul pentru că o durată n-are plafon la 23,
+ * deci nicio cifră nu spune singură unde se termină orele. Cine tastează `:`
+ * cu mâna e lăsat în pace — `8:30` rămâne `8:30`.
  */
 export function IntrareDurata({
   valoare,
@@ -249,6 +282,7 @@ export function IntrareDurata({
   onSchimba,
   name,
   className,
+  placeholder = "8:00",
   ...atribute
 }: PropsIntrareDurata): ReactElement {
   const [ciorna, setCiorna] = useState<string | null>(null);
@@ -281,12 +315,23 @@ export function IntrareDurata({
         type="text"
         inputMode="numeric"
         autoComplete="off"
-        placeholder="8:00"
+        placeholder={placeholder}
         aria-invalid={atribute["aria-invalid"] ?? (invalid ? true : undefined)}
         value={text}
         onBlur={laIesire}
         onChange={(e) => {
-          setCiorna(filtreaza(e.target.value));
+          const brut = filtreaza(e.target.value);
+          const dupa = mascheazaDurata(brut);
+          /*
+            Backspace peste două punctele puse de mască: omul șterge `:` din
+            `08:`, rămân cifrele `08`, iar masca l-ar pune imediat la loc —
+            tasta n-ar face nimic, la nesfârșit. Când ștergerea n-a schimbat
+            rezultatul măștii, se șterge cifra de dinaintea separatorului.
+            Același tipar ca în `IntrareOra`, din același motiv.
+          */
+          setCiorna(
+            brut.length < text.length && dupa === text ? mascheazaDurata(brut.slice(0, -1)) : dupa,
+          );
         }}
         className={clase(className, invalid)}
       />

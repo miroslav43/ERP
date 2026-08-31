@@ -11,10 +11,11 @@ import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, oraInBucharest, todayInBucharest } from "@/lib/format/date";
-import { citestePerioada, setariPontaj } from "@/lib/queries/attendance";
+import { citestePerioada, setariPontaj, setariPontareRapida } from "@/lib/queries/attendance";
 import { fisaMea, pontajulMeu } from "@/lib/queries/portal";
 import { configZiDin, intervalulPropus } from "@/domain/attendance/calcul-ore";
 import { stareaCeasului } from "@/domain/attendance/ceas";
+import { configPontareRapida } from "@/domain/attendance/pontare-rapida";
 
 import { FaraFisa } from "../../fara-fisa";
 import { PontareRapida } from "../../pontare-rapida";
@@ -68,20 +69,19 @@ export default async function PaginaPonteazaCod({
   const an = Number(azi.slice(0, 4));
   const luna = Number(azi.slice(5, 7));
 
-  const [perioada, setari, zile] = await Promise.all([
+  const [perioada, setari, randPontare, zile] = await Promise.all([
     citestePerioada(tenant.organizationId, an, luna),
     setariPontaj(tenant.organizationId, azi),
+    setariPontareRapida(tenant.organizationId),
     pontajulMeu(tenant.organizationId, an, luna, stare.fisa.id),
   ]);
 
-  const modPontare = setari?.mod_pontare_rapida ?? "oprit";
+  const pontare = configPontareRapida(randPontare);
   const ziDeAzi = zile.find((z) => z.data === azi) ?? null;
   const config = configZiDin(setari);
   const stareCeas = stareaCeasului(ziDeAzi, oraInBucharest(new Date()));
   const intervalPropus =
-    setari?.program_start === null || setari?.program_start === undefined
-      ? null
-      : intervalulPropus(setari.program_start.slice(0, 5), config);
+    pontare.programStart === null ? null : intervalulPropus(pontare.programStart, config);
 
   const antet = (
     <AntetPagina
@@ -90,7 +90,7 @@ export default async function PaginaPonteazaCod({
     />
   );
 
-  if (modPontare === "oprit") {
+  if (pontare.mod === "oprit") {
     return (
       <div className={`${LATIMI.formular} space-y-4 p-4`}>
         {antet}
@@ -129,10 +129,9 @@ export default async function PaginaPonteazaCod({
       <section className="bg-surface border-border rounded-panou border p-4">
         <PontareRapida
           stare={stareCeas}
-          mod={modPontare}
+          pontare={pontare}
           intervalPropus={intervalPropus}
           numeFirma={tenant.name}
-          cereCod={(setari?.verificare_pontare ?? "fara") === "cod_qr"}
           lunaDeschisa
           cod={cod}
         />

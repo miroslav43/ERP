@@ -70,7 +70,6 @@ export default async function PaginaReguli({
         denumire={curs.denumire}
         reguli={reguli}
         departamente={tinte.departamente}
-        functii={tinte.functii}
         angajati={angajati}
         poateEdita={poateEdita}
       />

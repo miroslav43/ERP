@@ -54,3 +54,42 @@ export function construiesteSaptamani(an: number, luna: number): readonly (numbe
   }
   return saptamani;
 }
+
+/**
+ * Ziua ISO deplasată cu `zile` zile. `"2026-08-31"` + 1 → `"2026-09-01"`.
+ *
+ * Aritmetica navigării cu săgeți din calendar. E aici, nu în componentă,
+ * fiindcă `new Date("2026-08-31")` interpretat LOCAL și readus cu
+ * `toISOString()` pierde sau câștigă o zi în funcție de fus — iar rezultatul nu
+ * e o eroare, ci un cursor care sare peste o zi la fiecare apăsare.
+ *
+ * `Date.UTC` cu ziua în afara intervalului normalizează singur: ziua 32 a lui
+ * august devine 1 septembrie, ziua 0 a lui ianuarie devine 31 decembrie anul
+ * precedent. Nu e nevoie de niciun caz special pentru capetele de lună sau de an.
+ */
+export function adaugaZileIso(zi: string, zile: number): string {
+  const [an, luna, ziLunii] = zi.split("-").map(Number);
+  if (an === undefined || luna === undefined || ziLunii === undefined) {
+    throw new TypeError(`Zi calendaristică invalidă: ${JSON.stringify(zi)}`);
+  }
+  const mutata = new Date(Date.UTC(an, luna - 1, ziLunii + zile));
+  return ziIso(mutata.getUTCFullYear(), mutata.getUTCMonth() + 1, mutata.getUTCDate());
+}
+
+/**
+ * Luna deplasată cu `luni` luni, cu anul rostogolit corect.
+ *
+ * Săgeata de an nu e un caz aparte: e o deplasare de ±12.
+ *
+ * Scris prin `Date.UTC` și nu prin `%`, fiindcă restul negativ al lui
+ * JavaScript e capcana: `(1 - 1 - 1) % 12` dă `-1`, nu `11`, iar ianuarie
+ * înapoi ar da luna „zero”.
+ */
+export function deplaseazaLuna(
+  an: number,
+  luna: number,
+  luni: number,
+): { readonly an: number; readonly luna: number } {
+  const mutata = new Date(Date.UTC(an, luna - 1 + luni, 1));
+  return { an: mutata.getUTCFullYear(), luna: mutata.getUTCMonth() + 1 };
+}

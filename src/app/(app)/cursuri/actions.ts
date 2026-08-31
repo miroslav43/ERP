@@ -935,7 +935,7 @@ export const creeazaRegula = createAction({
     action: "create",
     entityType: "course_assignment_rules",
     entityId: (_i, d: { id: string }) => d.id,
-    allow: ["course_id", "criteriu", "department_id", "job_position_id", "rol", "employee_id"],
+    allow: ["course_id", "criteriu", "department_id", "cod_cor", "rol", "employee_id"],
   },
   revalidate: RUTE,
   handler: async (ctx: ActionContext, input) => {
@@ -1006,9 +1006,7 @@ export const aplicaRegulile = createAction({
     const [reguli, angajati, membri, existente] = await Promise.all([
       ctx.supabase
         .from("course_assignment_rules")
-        .select(
-          "criteriu, department_id, job_position_id, rol, employee_id, decalaj_zile, termen_zile",
-        )
+        .select("criteriu, department_id, cod_cor, rol, employee_id, decalaj_zile, termen_zile")
         .eq("organization_id", org)
         .eq("course_id", input.course_id)
         .eq("activ", true)
@@ -1016,7 +1014,7 @@ export const aplicaRegulile = createAction({
         .limit(200),
       ctx.supabase
         .from("employees")
-        .select("id, department_id, job_position_id, hired_on, user_id")
+        .select("id, department_id, cod_cor, hired_on, user_id")
         .eq("organization_id", org)
         .in("status", ["activ", "suspendat", "preaviz"])
         .is("deleted_at", null)
@@ -1062,7 +1060,11 @@ export const aplicaRegulile = createAction({
         const potrivit =
           regula.criteriu === "toti" ||
           (regula.criteriu === "departament" && angajat.department_id === regula.department_id) ||
-          (regula.criteriu === "functie" && angajat.job_position_id === regula.job_position_id) ||
+          // Codul COR, nu un id de nomenclator: o fișă FĂRĂ cod nu prinde
+          // regula, altfel toți cei fără ocupație declarată ar primi cursul.
+          (regula.criteriu === "functie" &&
+            angajat.cod_cor !== null &&
+            angajat.cod_cor === regula.cod_cor) ||
           (regula.criteriu === "angajat" && angajat.id === regula.employee_id) ||
           (regula.criteriu === "rol" &&
             angajat.user_id !== null &&

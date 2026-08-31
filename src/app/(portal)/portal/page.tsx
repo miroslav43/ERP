@@ -16,8 +16,8 @@ import { buton } from "@/components/ui/buton";
 import { getEnabledFeatures } from "@/lib/auth/features";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { formatDate, oraInBucharest, todayInBucharest } from "@/lib/format/date";
-import { citestePerioada, setariPontaj } from "@/lib/queries/attendance";
+import { formatDate, formatMonthYear, oraInBucharest, todayInBucharest } from "@/lib/format/date";
+import { citestePerioada, setariPontaj, setariPontareRapida } from "@/lib/queries/attendance";
 import { configZiDin, intervalulPropus } from "@/domain/attendance/calcul-ore";
 import { stareaCeasului } from "@/domain/attendance/ceas";
 import { formatOreCuUnitate } from "@/lib/format/ore";
@@ -31,8 +31,11 @@ import {
   soldurileMele,
   tipuriConcediu,
 } from "@/lib/queries/portal";
+import { citesteFluturasulPropriu, perioadaInregistrarii } from "@/lib/queries/payroll";
 import { meritaPontata } from "@/domain/attendance/zi-de-pontat";
+import { configPontareRapida } from "@/domain/attendance/pontare-rapida";
 
+import { CardSalariu } from "./card-salariu";
 import { ETICHETE_STATUS_CERERE, ETICHETE_TIP_ZI, TONURI_STATUS_CERERE } from "./etichete";
 import { FaraFisa } from "./fara-fisa";
 import { IndemnInstalare } from "./indemn-instalare";
@@ -69,9 +72,21 @@ export default async function PaginaPortal() {
   const poateCereConcediu = moduleActive.has("leave") && can(permisiuni, "leave:create", "own");
   const poatePontaZiua =
     moduleActive.has("attendance") && can(permisiuni, "attendance:create", "own");
+  const vedeSalariu = moduleActive.has("payroll") && can(permisiuni, "payroll:read", "own");
 
-  const [solduri, cereri, tipuri, zile, anunturi, citite, cursuri, perioada, setari] =
-    await Promise.all([
+  const [
+    solduri,
+    cereri,
+    tipuri,
+    zile,
+    anunturi,
+    citite,
+    cursuri,
+    perioada,
+    setari,
+    randPontare,
+    fluturas,
+  ] = await Promise.all([
       vedeConcedii ? soldurileMele(tenant.organizationId, an, fisa.id) : Promise.resolve([]),
       vedeConcedii ? cererileMele(tenant.organizationId, fisa.id, 20) : Promise.resolve([]),
       vedeConcedii
@@ -90,7 +105,26 @@ export default async function PaginaPortal() {
       // pe fiecare deschidere a aplicației.
       poatePontaZiua ? citestePerioada(tenant.organizationId, an, luna) : Promise.resolve(null),
       poatePontaZiua ? setariPontaj(tenant.organizationId, azi) : Promise.resolve(null),
+      poatePontaZiua ? setariPontareRapida(tenant.organizationId) : Promise.resolve(null),
+      vedeSalariu
+        ? citesteFluturasulPropriu(tenant.organizationId, fisa.id)
+        : Promise.resolve(null),
     ]);
+
+  /*
+   * Luna fluturașului NU poate intra în valul de mai sus: se cere după
+   * `period_id`, care abia acum e cunoscut. E un al doilea drum, dar plătit
+   * numai când chiar EXISTĂ un fluturaș — adică nu pe firmele fără salarizare
+   * și nu în lunile necalculate.
+   *
+   * Până la 0113, întrebarea asta întorcea zero rânduri pentru orice angajat:
+   * `payroll_periods_select` cerea `payroll:read = all`. Nu dădea eroare, doar
+   * `null` — de aceea fluturașul din portal a stat fără lună pe el.
+   */
+  const lunaFluturas =
+    fluturas === null
+      ? null
+      : await perioadaInregistrarii(tenant.organizationId, fluturas.period_id);
 
   // Soldul despre care se întreabă e cel de odihnă: dintre tipurile care SCAD
   // din sold, cel cu dreptul anual cel mai mare. Fără filtrul pe
@@ -104,43 +138,62 @@ export default async function PaginaPortal() {
   const ziDeAzi = zile.find((z) => z.data === azi) ?? null;
 
   /*
-   * Pontarea rapidă (0096). Modul e `oprit` până când firma îl aprinde din
-   * `/pontaj/setari`, deci pentru orice organizație existentă ecranul rămâne
-   * exact ce era.
+   * Pontarea rapidă (0096). Implicitul e acum `ceas`, nu `oprit`: firma o poate
+   * stinge din `/pontaj/setari`, dar nu mai poate ajunge stinsă fără să fi ales
+   * asta — cum era până acum pentru toată lumea, din backfill de coloană.
    *
    * Ora vine din ceasul SERVERULUI, ca și la scriere: aici doar decide ce buton
    * se desenează, dar dacă ecranul și acțiunea ar folosi ceasuri diferite,
    * butonul ar arăta „Am ieșit" pentru o zi pe care serverul o crede neîncepută.
    */
-  const modPontare = setari?.mod_pontare_rapida ?? "oprit";
+  const pontare = configPontareRapida(randPontare);
   const configZi = configZiDin(setari);
   const stareCeas = stareaCeasului(ziDeAzi, oraInBucharest(new Date()));
   const intervalPropus =
-    setari?.program_start === null || setari?.program_start === undefined
-      ? null
-      : intervalulPropus(setari.program_start.slice(0, 5), configZi);
+    pontare.programStart === null ? null : intervalulPropus(pontare.programStart, configZi);
   const oreLuna = zile.reduce((total, z) => total + (z.ore_lucrate ?? 0), 0);
   const suplimentareLuna = zile.reduce((total, z) => total + (z.ore_suplimentare ?? 0), 0);
 
   /*
-   * Cardul „Astăzi" se face auzit doar când e ceva de făcut CHIAR AZI: ziua nu e
-   * pontată, omul are dreptul s-o ponteze, iar firma chiar lucrează în ziua asta.
-   * Ultima condiție e cea care lipsea: `ziDeAzi` e `null` și sâmbăta, deci fără
-   * `meritaPontata` cardul ar fi strigat „pontează-te acum" în repausul
-   * săptămânal al fiecărui birou.
+   * Se lucrează azi? `meritaPontata` a păzit până acum doar CULOAREA cardului —
+   * adică nimic: butoanele de pontare se desenau oricum, în cardul alb de
+   * dedesubt. Acum păzește conținutul, ceea ce era rostul lui de la început:
+   * `ziDeAzi` e `null` și sâmbăta, deci fără el cardul ar cere o pontare în
+   * repausul săptămânal al fiecărui birou.
    */
-  const promoveazaPontaj =
-    poatePontaZiua &&
-    ziDeAzi === null &&
-    meritaPontata(
-      azi,
-      setari === null
-        ? null
-        : {
-            lucreazaWeekend: setari.lucreaza_weekend,
-            lucreazaSarbatori: setari.lucreaza_sarbatori,
-          },
-    );
+  const seLucreazaAzi = meritaPontata(
+    azi,
+    setari === null
+      ? null
+      : {
+          lucreazaWeekend: setari.lucreaza_weekend,
+          lucreazaSarbatori: setari.lucreaza_sarbatori,
+        },
+  );
+
+  /*
+   * Butoanele de pontare apar când: omul are dreptul, firma lucrează azi, luna e
+   * deschisă și ziua nu e deja închisă din altă sursă. `PontareRapida` mai
+   * verifică o dată luna și starea ceasului — dublarea e ieftină, iar refuzul
+   * dat aici scutește un card care oferă o atingere pe care serverul o va
+   * respinge.
+   */
+  const lunaDeschisa = perioada !== null && perioada.status === "deschisa";
+
+  const oreAzi = ziDeAzi?.ore_lucrate ?? 0;
+  const suplimentareAzi = ziDeAzi?.ore_suplimentare ?? 0;
+
+  /*
+   * Ce se scrie în locul cifrei mari, când cifra n-ar spune nimic: „Concediu de
+   * odihnă" pe o zi de concediu, „Zi liberă" pe un weekend nepontat. `null`
+   * înseamnă „scrie orele", nu „lipsește ceva".
+   */
+  const etichetaZiDeAzi =
+    ziDeAzi !== null && ziDeAzi.tip_zi !== "lucratoare"
+      ? (ETICHETE_TIP_ZI[ziDeAzi.tip_zi] ?? ziDeAzi.tip_zi)
+      : ziDeAzi === null && !seLucreazaAzi
+        ? "Zi liberă"
+        : null;
 
   /*
    * Contorul de cursuri vine din ACEEAȘI listă pe care o afișează ecranul, nu
@@ -248,106 +301,101 @@ export default async function PaginaPortal() {
             ) : null}
           </section>
         )}
+
+        {/*
+          Cardul de salariu DISPARE când nu există fluturaș — ca și cel de
+          cursuri, care nu devine „0 cursuri". Un card de salariu gol pe ecranul
+          de start al unui angajat e mai rău decât niciunul: pare că firma i-a
+          uitat luna.
+        */}
+        {fluturas === null ? null : <CardSalariu inregistrare={fluturas} perioada={lunaFluturas} />}
       </div>
 
       <div className="space-y-3">
-        {vedePontaj && promoveazaPontaj ? (
+        {!vedePontaj ? null : (
           /*
-            Aceeași croială ca la cardul de sold: fundal plin, o cifră mare și
-            butonul în cardul de care se leagă. Diferă ce spune cifra — acolo e
-            un drept care se consumă, aici e o zi care lipsește.
+            UN SINGUR card, nu două.
+
+            Până acum erau două înfățișări ale aceluiași lucru: una albastră,
+            care STRIGA „Pontează-te acum" și doar naviga la formular, și una
+            albă, dedesubt, care chiar ponta. Cardul cel mai vizibil de pe ecran
+            era exact cel care nu făcea nimic.
+
+            Acum e croiala cardului de sold — fundal plin, o cifră mare, acțiunea
+            înăuntru — iar acțiunea e chiar `PontareRapida`, cea care scrie.
           */
           <section
             aria-labelledby="azi"
             className="bg-primary text-primary-foreground rounded-panou p-4"
           >
             <h2 id="azi" className="text-corp font-medium opacity-90">
-              Astăzi nu e pontat nimic
+              {ziDeAzi === null && seLucreazaAzi ? "Astăzi nu e pontat nimic" : "Astăzi"}
             </h2>
-            <p className="mt-1 text-4xl font-semibold tabular-nums">0 ore</p>
+
+            {etichetaZiDeAzi === null ? (
+              <p className="mt-1 text-4xl font-semibold tabular-nums">
+                {oreAzi.toLocaleString("ro-RO")} ore
+              </p>
+            ) : (
+              <p className="text-titlu mt-1 font-semibold">{etichetaZiDeAzi}</p>
+            )}
+
             <p className="text-corp mt-2 opacity-90">
+              {suplimentareAzi > 0
+                ? `din care ${suplimentareAzi.toLocaleString("ro-RO")} suplimentare · `
+                : null}
               Luna aceasta: {oreLuna.toLocaleString("ro-RO")} ore
               {suplimentareLuna > 0
                 ? ` · ${suplimentareLuna.toLocaleString("ro-RO")} suplimentare`
                 : null}
             </p>
-            <Link
-              href={`/portal/pontajul-meu/zi/${azi}`}
-              className={cn(
-                buton({ varianta: "primar" }),
-                // Cardul e deja `bg-primary`: paleta butonului se INVERSEAZĂ.
-                "bg-primary-foreground text-primary hover:bg-primary-foreground mt-4",
-              )}
-            >
-              <Clock aria-hidden="true" className="size-4" />
-              Pontează-te acum
-            </Link>
-          </section>
-        ) : vedePontaj ? (
-          <section
-            aria-labelledby="azi"
-            className="bg-surface border-border rounded-panou border p-4"
-          >
-            <h2 id="azi" className="text-foreground text-corp font-semibold">
-              Astăzi
-            </h2>
-            {poatePontaZiua && modPontare !== "oprit" ? (
+
+            {/* Butoanele care chiar ponteaza ziua curentă. `inversat`, fiindcă
+                un `varianta="primar"` e tot navy și ar dispărea în card. */}
+            {poatePontaZiua && seLucreazaAzi && pontare.mod !== "oprit" ? (
               <PontareRapida
+                inversat
                 stare={stareCeas}
-                mod={modPontare}
+                pontare={pontare}
                 intervalPropus={intervalPropus}
                 numeFirma={tenant.name}
-                cereCod={(setari?.verificare_pontare ?? "fara") === "cod_qr"}
-                lunaDeschisa={perioada !== null && perioada.status === "deschisa"}
+                lunaDeschisa={lunaDeschisa}
               />
             ) : null}
 
-            {ziDeAzi === null ? (
-              <>
-                {modPontare === "oprit" ? (
-                  <p className="text-muted-foreground text-corp mt-1">
-                    Nu e pontat nimic pe ziua de azi.
-                  </p>
-                ) : null}
-                {/* Formularul cu ore rămâne accesibil chiar și cu pontarea
-                    rapidă pornită: ziua neobișnuită — venit mai târziu, plecat
-                    mai devreme — se completează tot de aici. */}
-                {poatePontaZiua && perioada !== null && perioada.status === "deschisa" ? (
-                  <Link
-                    href={`/portal/pontajul-meu/zi/${azi}`}
-                    className="text-primary text-corp mt-2 inline-block underline-offset-2 hover:underline"
-                  >
-                    {modPontare === "oprit" ? "Completează ziua" : "A fost altfel? Scrie orele"}
-                  </Link>
-                ) : null}
-              </>
-            ) : ziDeAzi.tip_zi !== "lucratoare" ? (
-              <p className="text-foreground text-corp mt-1">
-                {ETICHETE_TIP_ZI[ziDeAzi.tip_zi] ?? ziDeAzi.tip_zi}
-              </p>
-            ) : (
-              <p className="text-foreground text-corp mt-1">
-                <span className="text-titlu font-semibold tabular-nums">
-                  {(ziDeAzi.ore_lucrate ?? 0).toLocaleString("ro-RO")}
-                </span>{" "}
-                ore pontate
-                {(ziDeAzi.ore_suplimentare ?? 0) > 0
-                  ? ` · ${(ziDeAzi.ore_suplimentare ?? 0).toLocaleString("ro-RO")} suplimentare`
-                  : null}
-              </p>
-            )}
-            <p className="text-muted-foreground border-border text-corp mt-3 border-t pt-3">
-              Luna aceasta:{" "}
-              <span className="text-foreground font-medium tabular-nums">
-                {oreLuna.toLocaleString("ro-RO")}
-              </span>{" "}
-              ore
-              {suplimentareLuna > 0
-                ? ` · ${suplimentareLuna.toLocaleString("ro-RO")} suplimentare`
-                : null}
-            </p>
+            {/*
+              Formularul cu ore. Cu pontarea rapidă stinsă de firmă, el E
+              acțiunea, deci primește un buton; cu ea pornită rămâne portița
+              pentru ziua neobișnuită — venit mai târziu, plecat mai devreme —
+              și atunci e un link discret.
+
+              Rămâne accesibil și în zilele nelucrătoare, ca cineva care chiar a
+              muncit sâmbăta să-și poată scrie orele. Ce nu mai face e să CEARĂ
+              pontarea într-o zi liberă.
+            */}
+            {poatePontaZiua && lunaDeschisa ? (
+              pontare.mod === "oprit" && seLucreazaAzi ? (
+                <Link
+                  href={`/portal/pontajul-meu/zi/${azi}`}
+                  className={cn(
+                    buton({ varianta: "primar" }),
+                    "bg-primary-foreground text-primary hover:bg-primary-foreground mt-4",
+                  )}
+                >
+                  <Clock aria-hidden="true" className="size-4" />
+                  Pontează-te acum
+                </Link>
+              ) : (
+                <Link
+                  href={`/portal/pontajul-meu/zi/${azi}`}
+                  className="text-primary-foreground text-corp mt-3 inline-block underline underline-offset-2 opacity-90 hover:opacity-100"
+                >
+                  {seLucreazaAzi ? "A fost altfel? Scrie orele" : "Ați lucrat totuși? Scrie orele"}
+                </Link>
+              )
+            ) : null}
           </section>
-        ) : null}
+        )}
 
         {inAsteptare.length === 0 ? null : (
           <section aria-labelledby="asteapta" className="space-y-2">
@@ -452,11 +500,18 @@ export default async function PaginaPortal() {
               Iconita={Clock}
             />
           ) : null}
-          {moduleActive.has("payroll") && can(permisiuni, "payroll:read", "own") ? (
+          {vedeSalariu ? (
             <Scurtatura
               href="/portal/salariul-meu"
               eticheta="Salariul meu"
-              descriere="Ultimul fluturaș aprobat"
+              // Aceeași lună pe care o scrie cardul de mai sus. Două formulări
+              // diferite pentru același fluturaș, pe același ecran, se citesc ca
+              // două lucruri diferite.
+              descriere={
+                lunaFluturas === null
+                  ? "Ultimul fluturaș aprobat"
+                  : `Fluturașul pe ${formatMonthYear(lunaFluturas.an, lunaFluturas.luna)}`
+              }
               Iconita={Wallet}
             />
           ) : null}

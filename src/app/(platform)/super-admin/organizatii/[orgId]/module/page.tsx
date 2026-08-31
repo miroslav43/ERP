@@ -8,6 +8,7 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { formatDateTime } from "@/lib/format/date";
 import { SELECT_PROFIL, numeAfisat, type RandProfil } from "../../../_lib/platform";
 import { ComutatorModul } from "./comutator-modul";
+import { ComutatorToate } from "./comutator-toate";
 
 type GrupModul = "core" | "hr" | "operations" | "finance" | "communication" | "portal";
 
@@ -105,15 +106,33 @@ export default async function PaginaModule({ params }: { params: Promise<{ orgId
     (modul) => modul.is_core || (hartaActivari.get(modul.feature_key)?.enabled ?? false),
   ).length;
 
+  // Butoanele de sus lucrează DOAR pe modulele comutabile: cele de nucleu sunt
+  // active prin construcție, iar dacă ar intra în numărătoare, „Pornește tot”
+  // ar rămâne veșnic activabil pe o firmă în care nu mai e nimic de pornit.
+  const comutabile = moduleActive.filter((modul) => !modul.is_core);
+  const comutabileActive = comutabile.filter(
+    (modul) => hartaActivari.get(modul.feature_key)?.enabled ?? false,
+  ).length;
+
   return (
     <section className="space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-foreground text-titlu font-semibold">Module — {org.name}</h1>
-        <p className="text-muted-foreground text-corp">
-          {moduleActive.length === 0
-            ? "Catalogul de module este gol."
-            : `${activeCount} din ${moduleActive.length} module sunt disponibile pentru această organizație.`}
-        </p>
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1">
+          <h1 className="text-foreground text-titlu font-semibold">Module — {org.name}</h1>
+          <p className="text-muted-foreground text-corp">
+            {moduleActive.length === 0
+              ? "Catalogul de module este gol."
+              : `${activeCount} din ${moduleActive.length} module sunt disponibile pentru această organizație.`}
+          </p>
+        </div>
+
+        {comutabile.length > 0 ? (
+          <ComutatorToate
+            organizationId={org.id}
+            comutabile={comutabile.length}
+            active={comutabileActive}
+          />
+        ) : null}
       </header>
 
       {moduleActive.length === 0 ? (

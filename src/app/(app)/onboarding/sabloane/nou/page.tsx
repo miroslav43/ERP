@@ -43,7 +43,6 @@ export default async function PaginaSablonNou() {
 
       <AsistentSablon
         departamente={optiuni.departamente}
-        posturi={optiuni.posturi}
         cursuri={optiuni.cursuri}
         materiale={optiuni.materiale}
         angajati={optiuni.angajati}

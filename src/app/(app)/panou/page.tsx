@@ -283,7 +283,10 @@ export default async function PanouPage() {
               actiuni: (
                 <>
                   {poateCereConcediu ? (
-                    <Link href="/concedii/noua" className={buton({ varianta: "secundar" })}>
+                    // `?cerere=noua` deschide caseta de cerere direct pe listă:
+                    // formularul nu mai are rută proprie (vezi
+                    // `concedii/dialog-cerere-noua.tsx`).
+                    <Link href="/concedii?cerere=noua" className={buton({ varianta: "secundar" })}>
                       <CalendarPlus aria-hidden="true" className="size-4" />
                       Cerere de concediu
                     </Link>
@@ -446,7 +449,6 @@ export default async function PanouPage() {
             <Fapt valoare={firma.angajatiActivi} eticheta="angajați activi" />
             <Fapt valoare={firma.inConcediu} eticheta="în concediu" />
             <Fapt valoare={firma.departamente} eticheta="departamente" />
-            <Fapt valoare={firma.functii} eticheta="funcții" />
           </dl>
           {peProcente ? null : (
             <p className="border-border bg-surface text-foreground text-nota border-t px-4 py-2.5">

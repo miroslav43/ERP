@@ -5,6 +5,7 @@ import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { Buton } from "@/components/ui/buton";
+import { IntrareData } from "@/components/ui/intrare-data";
 import { RELATII_INTRETINERE, type RelatieIntretinere } from "@/schemas/employee";
 import { formatDate } from "@/lib/format/date";
 
@@ -143,25 +144,19 @@ export function SectiuneDependenti({
             <label htmlFor={idNastere} className="text-corp font-medium">
               Data nașterii
             </label>
-            <input id={idNastere} name="data_nasterii" type="date" className={CLASA_CAMP} />
+            <IntrareData id={idNastere} name="data_nasterii" className={CLASA_CAMP} />
           </div>
           <div className="flex flex-col gap-1">
             <label htmlFor={idDeLa} className="text-corp font-medium">
               În întreținere de la *
             </label>
-            <input
-              id={idDeLa}
-              name="in_intretinere_de_la"
-              type="date"
-              required
-              className={CLASA_CAMP}
-            />
+            <IntrareData id={idDeLa} name="in_intretinere_de_la" required className={CLASA_CAMP} />
           </div>
           <div className="flex flex-col gap-1">
             <label htmlFor={idPanaLa} className="text-corp font-medium">
               Până la
             </label>
-            <input id={idPanaLa} name="in_intretinere_pana_la" type="date" className={CLASA_CAMP} />
+            <IntrareData id={idPanaLa} name="in_intretinere_pana_la" className={CLASA_CAMP} />
           </div>
           <div className="flex gap-2 sm:col-span-2">
             <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">

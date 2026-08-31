@@ -756,7 +756,7 @@ export type AngajatOptiune = Readonly<{
   id: string;
   nume: string;
   department_id: string | null;
-  job_position_id: string | null;
+  cod_cor: string | null;
 }>;
 
 /*
@@ -778,7 +778,7 @@ type AngajatBrut = Readonly<{
   id: string;
   full_name: string;
   department_id: string | null;
-  job_position_id: string | null;
+  cod_cor: string | null;
 }>;
 
 export async function angajatiPentruAtribuire(
@@ -787,7 +787,7 @@ export async function angajatiPentruAtribuire(
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("employees")
-    .select("id, full_name, department_id, job_position_id")
+    .select("id, full_name, department_id, cod_cor")
     .eq("organization_id", organizationId)
     .in("status", ["activ", "suspendat", "preaviz"])
     .is("deleted_at", null)
@@ -802,7 +802,7 @@ export async function angajatiPentruAtribuire(
     // să dispară vizual, nu să arate un semn de întrebare.
     nume: a.full_name || "—",
     department_id: a.department_id,
-    job_position_id: a.job_position_id,
+    cod_cor: a.cod_cor,
   }));
 }
 
@@ -931,7 +931,7 @@ export type RandRegula = Readonly<{
   course_id: string;
   criteriu: CursCriteriu;
   department_id: string | null;
-  job_position_id: string | null;
+  cod_cor: string | null;
   rol: string | null;
   employee_id: string | null;
   decalaj_zile: number;
@@ -947,7 +947,7 @@ export async function regulileCursului(
   const { data, error } = await db
     .from("course_assignment_rules")
     .select(
-      "id, course_id, criteriu, department_id, job_position_id, rol, employee_id, decalaj_zile, termen_zile, activ",
+      "id, course_id, criteriu, department_id, cod_cor, rol, employee_id, decalaj_zile, termen_zile, activ",
     )
     .eq("organization_id", organizationId)
     .eq("course_id", courseId)
@@ -964,11 +964,9 @@ export type OptiuneDenumita = Readonly<{ id: string; denumire: string }>;
 /** Departamente și funcții, pentru selectoarele regulii. Plafon 300 fiecare. */
 export async function tinteRegula(
   organizationId: string,
-): Promise<
-  Readonly<{ departamente: readonly OptiuneDenumita[]; functii: readonly OptiuneDenumita[] }>
-> {
+): Promise<Readonly<{ departamente: readonly OptiuneDenumita[] }>> {
   const db = await createServerSupabase();
-  const [dep, fun] = await Promise.all([
+  const [dep] = await Promise.all([
     db
       .from("departments")
       .select("id, denumire")
@@ -977,18 +975,12 @@ export async function tinteRegula(
       .order("denumire", { ascending: true })
       .limit(300)
       .returns<OptiuneDenumita[]>(),
-    db
-      .from("job_positions")
-      .select("id, denumire")
-      .eq("organization_id", organizationId)
-      .is("deleted_at", null)
-      .order("denumire", { ascending: true })
-      .limit(300)
-      .returns<OptiuneDenumita[]>(),
   ]);
   if (dep.error !== null) throw dep.error;
-  if (fun.error !== null) throw fun.error;
-  return { departamente: dep.data ?? [], functii: fun.data ?? [] };
+  // Funcțiile nu se mai citesc din bază: după migrarea 0110 ținta unei reguli
+  // „funcție" e un cod COR, iar nomenclatorul lui trăiește în cod
+  // (`domain/hr/cor-nomenclator`), nu într-o tabelă.
+  return { departamente: dep.data ?? [] };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

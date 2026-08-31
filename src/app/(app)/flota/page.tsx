@@ -1,13 +1,11 @@
 // src/app/(app)/flota/page.tsx
 import { Suspense } from "react";
-import Link from "next/link";
 import type { Metadata } from "next";
-import { Car, CarFront } from "lucide-react";
+import { Car } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
-import { buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Paginare } from "@/components/ui/paginare";
 import { Scadenta } from "@/components/ui/scadenta";
@@ -33,6 +31,7 @@ import {
   ETICHETE_STATUS_VEHICUL,
   TONURI_STATUS_VEHICUL,
 } from "./etichete";
+import { DialogVehiculNou } from "./dialog-vehicul-nou";
 import { FiltreVehicule } from "./filtre-vehicule";
 import { NavFlota } from "./nav-flota";
 
@@ -98,7 +97,9 @@ async function TabelVehicule({
         {...(areFiltre
           ? { actiune: { eticheta: "Șterge filtrele", href: faraFiltre } }
           : poateAdauga
-            ? { actiune: { eticheta: "Adaugă vehicul", href: "/flota/nou" } }
+            ? // `/flota/nou` a dispărut: formularul e o casetă pe pagina asta.
+              // Parametrul o deschide, exact ca `?cerere=noua` la concedii.
+              { actiune: { eticheta: "Adaugă vehicul", href: "/flota?vehicul=nou" } }
             : {})}
       />
     );
@@ -304,6 +305,11 @@ export default async function PaginaFlota({ searchParams }: ProprietatiPagina) {
   const parametri = await searchParams;
   const scope = scopeFor(permisiuni, "vehicles:read");
   const poateAdauga = can(permisiuni, "vehicles:create", "all");
+  // Ținut în afara lui `filtreVehiculeSchema`: nu e un filtru al listei, e
+  // adresa fostei rute `/flota/nou`. Starea goală trimite aici, iar `key`-ul de
+  // mai jos forțează remontarea casetei — o navigare pe ACEEAȘI rută păstrează
+  // altfel starea clientului, iar caseta n-ar mai apărea.
+  const deschideCaseta = parametri["vehicul"] === "nou";
 
   return (
     <div className="space-y-6">
@@ -317,10 +323,10 @@ export default async function PaginaFlota({ searchParams }: ProprietatiPagina) {
         {...(poateAdauga
           ? {
               actiuni: (
-                <Link href="/flota/nou" className={buton({ varianta: "primar" })}>
-                  <CarFront aria-hidden="true" className="size-4" />
-                  Vehicul nou
-                </Link>
+                <DialogVehiculNou
+                  key={deschideCaseta ? "vehicul-nou" : "listă"}
+                  deschisInitial={deschideCaseta}
+                />
               ),
             }
           : {})}

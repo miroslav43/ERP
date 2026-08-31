@@ -1,13 +1,11 @@
 // src/app/(app)/flota/foi/page.tsx
 import { Suspense } from "react";
-import Link from "next/link";
 import type { Metadata } from "next";
-import { ClipboardList, FilePlus2 } from "lucide-react";
+import { ClipboardList } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
 import { Badge } from "@/components/ui/badge";
-import { buton } from "@/components/ui/buton";
 import { StareGoala } from "@/components/ui/stare-goala";
 import { Paginare } from "@/components/ui/paginare";
 import { Schelet } from "@/components/ui/schelet";
@@ -23,6 +21,8 @@ import { filtreFoiSchema } from "@/schemas/fleet";
 
 import { ETICHETE_STATUS_FOAIE, TONURI_STATUS_FOAIE } from "../etichete";
 import { NavFlota } from "../nav-flota";
+import { dateFoaieNoua } from "./date-foaie-noua";
+import { DialogFoaieNoua } from "./dialog-foaie-noua";
 import { FiltreFoi } from "./filtre-foi";
 
 export const metadata: Metadata = { title: "Foi de parcurs" };
@@ -202,6 +202,8 @@ export default async function PaginaFoi({ searchParams }: ProprietatiPagina) {
   const parametri = await searchParams;
   const poateCrea = can(permisiuni, "trip_sheets:create", "own");
   const scope = scopeFor(permisiuni, "trip_sheets:read");
+  // `/flota/foi/noua` a dispărut; parametrul deschide caseta care i-a luat locul.
+  const deschideCaseta = parametri["foaie"] === "noua";
 
   /*
    * Vehiculele pentru filtru se citesc AICI, nu în tabel: bara trebuie să fie pe
@@ -212,14 +214,21 @@ export default async function PaginaFoi({ searchParams }: ProprietatiPagina) {
    * `trip_sheets:read` la scope „team” și niciun drept pe `vehicles`. Bara nu
    * randează atunci câmpul de vehicul — un `<select>` cu o singură opțiune,
    * „Toate”, ar fi arătat ca un filtru stricat.
+   *
+   * Datele casetei merg în paralel cu ea, și numai pentru cine chiar o poate
+   * deschide: fără `trip_sheets:create` ar fi două drumuri la bază pentru un
+   * buton care nu se randează.
    */
-  const { randuri: vehiculeFiltru } = await listeazaVehicule(tenant.organizationId, {
-    status: null,
-    categorie: null,
-    cauta: null,
-    cursor: null,
-    limita: 100,
-  });
+  const [{ randuri: vehiculeFiltru }, dateFoaie] = await Promise.all([
+    listeazaVehicule(tenant.organizationId, {
+      status: null,
+      categorie: null,
+      cauta: null,
+      cursor: null,
+      limita: 100,
+    }),
+    poateCrea ? dateFoaieNoua(tenant.organizationId) : Promise.resolve(null),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -234,16 +243,17 @@ export default async function PaginaFoi({ searchParams }: ProprietatiPagina) {
               ? "Cursele echipei dumneavoastră, cu kilometrii și starea aprobării."
               : "Cursele dumneavoastră, cu kilometrii și starea aprobării."
         }
-        {...(poateCrea
-          ? {
+        {...(dateFoaie === null
+          ? {}
+          : {
               actiuni: (
-                <Link href="/flota/foi/noua" className={buton({ varianta: "primar" })}>
-                  <FilePlus2 aria-hidden="true" className="size-4" />
-                  Foaie nouă
-                </Link>
+                <DialogFoaieNoua
+                  key={deschideCaseta ? "foaie-noua" : "listă"}
+                  date={dateFoaie}
+                  deschisInitial={deschideCaseta}
+                />
               ),
-            }
-          : {})}
+            })}
         file={
           <NavFlota
             poateVedeaFoi={can(permisiuni, "trip_sheets:read", "own")}

@@ -25,8 +25,26 @@ export interface RandAnunt {
  */
 export const LIMITA_ANUNTURI = 200;
 
+/**
+ * Rândul din avizierul de administrare — cu conținut, spre deosebire de cel
+ * din portal.
+ *
+ * `continut` nu era citit deloc, iar lista arăta doar titluri: ca să afli ce
+ * scrie într-un anunț trebuia să-l deschizi, unul câte unul. Coloana intră aici
+ * pentru extrasul de două rânduri din card.
+ *
+ * Costul e mărginit de `LIMITA_ANUNTURI` și de constrângerea
+ * `announcements_continut_len` (10 000 de caractere): 200 × 10 KB e plafonul
+ * teoretic al interogării, iar un anunț real are câteva sute de caractere.
+ * Portalul rămâne pe `RandAnunt`, fără conținut — acolo lista e doar un cuprins
+ * către fișa fiecărui anunț.
+ */
+export interface RandAnuntCuExtras extends RandAnunt {
+  readonly continut: string;
+}
+
 export interface ListaAnunturi {
-  readonly randuri: readonly RandAnunt[];
+  readonly randuri: readonly RandAnuntCuExtras[];
   /** Adevărat când s-a atins limita, deci pe disc mai există anunțuri neafișate. */
   readonly trunchiat: boolean;
 }
@@ -38,13 +56,13 @@ export async function listeazaAnunturi(
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("announcements")
-    .select("id, titlu, fixat, publicat_la, expira_la, created_at")
+    .select("id, titlu, continut, fixat, publicat_la, expira_la, created_at")
     .eq("organization_id", organizationId)
     .is("deleted_at", null)
     .order("fixat", { ascending: false })
     .order("publicat_la", { ascending: false, nullsFirst: true })
     .limit(limita)
-    .returns<RandAnunt[]>();
+    .returns<RandAnuntCuExtras[]>();
   if (error !== null) throw error;
   const randuri = data ?? [];
   return { randuri, trunchiat: randuri.length >= limita };

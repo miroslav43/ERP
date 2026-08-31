@@ -1888,6 +1888,7 @@ export type Database = {
       checklist_templates: {
         Row: {
           activ: boolean
+          cod_cor: string | null
           created_at: string
           created_by: string | null
           deleted_at: string | null
@@ -1905,6 +1906,7 @@ export type Database = {
         }
         Insert: {
           activ?: boolean
+          cod_cor?: string | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
@@ -1922,6 +1924,7 @@ export type Database = {
         }
         Update: {
           activ?: boolean
+          cod_cor?: string | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
@@ -2216,6 +2219,7 @@ export type Database = {
       course_assignment_rules: {
         Row: {
           activ: boolean
+          cod_cor: string | null
           course_id: string
           created_at: string
           created_by: string | null
@@ -2234,6 +2238,7 @@ export type Database = {
         }
         Insert: {
           activ?: boolean
+          cod_cor?: string | null
           course_id: string
           created_at?: string
           created_by?: string | null
@@ -2252,6 +2257,7 @@ export type Database = {
         }
         Update: {
           activ?: boolean
+          cod_cor?: string | null
           course_id?: string
           created_at?: string
           created_by?: string | null
@@ -3920,6 +3926,7 @@ export type Database = {
           adresa_strada: string | null
           adresa_tara: string
           cetatenie: string
+          cod_cor: string | null
           conditii_munca: Database["public"]["Enums"]["conditii_munca"]
           contact_urgenta_nume: string | null
           contact_urgenta_relatie: string | null
@@ -3933,6 +3940,7 @@ export type Database = {
           email_serviciu: string | null
           first_name: string
           full_name: string | null
+          functie: string | null
           gen: Database["public"]["Enums"]["gen"]
           grad_handicap: string | null
           hired_on: string | null
@@ -3976,6 +3984,7 @@ export type Database = {
           adresa_strada?: string | null
           adresa_tara?: string
           cetatenie?: string
+          cod_cor?: string | null
           conditii_munca?: Database["public"]["Enums"]["conditii_munca"]
           contact_urgenta_nume?: string | null
           contact_urgenta_relatie?: string | null
@@ -3989,6 +3998,7 @@ export type Database = {
           email_serviciu?: string | null
           first_name: string
           full_name?: string | null
+          functie?: string | null
           gen?: Database["public"]["Enums"]["gen"]
           grad_handicap?: string | null
           hired_on?: string | null
@@ -4032,6 +4042,7 @@ export type Database = {
           adresa_strada?: string | null
           adresa_tara?: string
           cetatenie?: string
+          cod_cor?: string | null
           conditii_munca?: Database["public"]["Enums"]["conditii_munca"]
           contact_urgenta_nume?: string | null
           contact_urgenta_relatie?: string | null
@@ -4045,6 +4056,7 @@ export type Database = {
           email_serviciu?: string | null
           first_name?: string
           full_name?: string | null
+          functie?: string | null
           gen?: Database["public"]["Enums"]["gen"]
           grad_handicap?: string | null
           hired_on?: string | null
@@ -4107,6 +4119,7 @@ export type Database = {
       }
       employment_contracts: {
         Row: {
+          cod_cor: string | null
           cod_revisal: string | null
           conditii_munca: Database["public"]["Enums"]["conditii_munca"]
           contract_duration: Database["public"]["Enums"]["contract_duration"]
@@ -4119,6 +4132,7 @@ export type Database = {
           employee_id: string
           este_act_aditional: boolean
           fisier_path: string | null
+          functie: string | null
           id: string
           incetat_la: string | null
           job_position_id: string | null
@@ -4154,6 +4168,7 @@ export type Database = {
           zile_concediu_anual: number
         }
         Insert: {
+          cod_cor?: string | null
           cod_revisal?: string | null
           conditii_munca?: Database["public"]["Enums"]["conditii_munca"]
           contract_duration?: Database["public"]["Enums"]["contract_duration"]
@@ -4166,6 +4181,7 @@ export type Database = {
           employee_id: string
           este_act_aditional?: boolean
           fisier_path?: string | null
+          functie?: string | null
           id?: string
           incetat_la?: string | null
           job_position_id?: string | null
@@ -4201,6 +4217,7 @@ export type Database = {
           zile_concediu_anual?: number
         }
         Update: {
+          cod_cor?: string | null
           cod_revisal?: string | null
           conditii_munca?: Database["public"]["Enums"]["conditii_munca"]
           contract_duration?: Database["public"]["Enums"]["contract_duration"]
@@ -4213,6 +4230,7 @@ export type Database = {
           employee_id?: string
           este_act_aditional?: boolean
           fisier_path?: string | null
+          functie?: string | null
           id?: string
           incetat_la?: string | null
           job_position_id?: string | null
@@ -6207,6 +6225,7 @@ export type Database = {
         Row: {
           activ: boolean
           categorie: string | null
+          cod_cor: string | null
           created_at: string
           deleted_at: string | null
           denumire: string
@@ -6227,6 +6246,7 @@ export type Database = {
         Insert: {
           activ?: boolean
           categorie?: string | null
+          cod_cor?: string | null
           created_at?: string
           deleted_at?: string | null
           denumire: string
@@ -6247,6 +6267,7 @@ export type Database = {
         Update: {
           activ?: boolean
           categorie?: string | null
+          cod_cor?: string | null
           created_at?: string
           deleted_at?: string | null
           denumire?: string
@@ -7790,6 +7811,7 @@ export type Database = {
           activ: boolean
           bonus_type: Database["public"]["Enums"]["payroll_bonus_type"]
           cod: string
+          cod_cor: string | null
           created_at: string
           created_by: string | null
           deleted_at: string | null
@@ -7816,6 +7838,7 @@ export type Database = {
           activ?: boolean
           bonus_type?: Database["public"]["Enums"]["payroll_bonus_type"]
           cod: string
+          cod_cor?: string | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
@@ -7842,6 +7865,7 @@ export type Database = {
           activ?: boolean
           bonus_type?: Database["public"]["Enums"]["payroll_bonus_type"]
           cod?: string
+          cod_cor?: string | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
@@ -10597,6 +10621,53 @@ export type Database = {
           },
         ]
       }
+      setari_pontare_rapida: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          mod_pontare_rapida: Database["public"]["Enums"]["mod_pontare_rapida"]
+          organization_id: string
+          program_start: string | null
+          updated_at: string
+          updated_by: string | null
+          verificare_pontare: Database["public"]["Enums"]["verificare_pontare"]
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          mod_pontare_rapida?: Database["public"]["Enums"]["mod_pontare_rapida"]
+          organization_id: string
+          program_start?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          verificare_pontare?: Database["public"]["Enums"]["verificare_pontare"]
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          mod_pontare_rapida?: Database["public"]["Enums"]["mod_pontare_rapida"]
+          organization_id?: string
+          program_start?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          verificare_pontare?: Database["public"]["Enums"]["verificare_pontare"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "setari_pontare_rapida_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ssm_legal_parameters: {
         Row: {
           cod: string
@@ -12538,7 +12609,7 @@ export type Database = {
         | "motocicleta"
         | "altele"
       vehicle_status: "activ" | "in_service" | "vandut" | "casat"
-      verificare_pontare: "fara" | "cod_qr"
+      verificare_pontare: "fara" | "cod_qr" | "optional"
       work_mode: "sediu" | "telemunca" | "domiciliu" | "mixt"
     }
     CompositeTypes: {
@@ -13085,7 +13156,7 @@ export const Constants = {
         "altele",
       ],
       vehicle_status: ["activ", "in_service", "vandut", "casat"],
-      verificare_pontare: ["fara", "cod_qr"],
+      verificare_pontare: ["fara", "cod_qr", "optional"],
       work_mode: ["sediu", "telemunca", "domiciliu", "mixt"],
     },
   },

@@ -4,11 +4,9 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { CalendarPlus } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina } from "@/components/ui/antet-pagina";
-import { buton } from "@/components/ui/buton";
 import { Schelet } from "@/components/ui/schelet";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
@@ -23,6 +21,8 @@ import { fisaProprie } from "@/lib/queries/portal";
 import { filtreDinUrl } from "@/lib/rute/parametri";
 
 import { ButonSetariConcedii } from "./buton-setari";
+import { dateCerereNoua } from "./date-cerere-noua";
+import { DialogCerereNoua } from "./dialog-cerere-noua";
 import { FiltreCereri } from "./filtre-cereri";
 import { NavConcedii } from "./nav-concedii";
 import { TabelCereri } from "./tabel-cereri";
@@ -86,10 +86,16 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
   const poateConfigura = can(permisiuni, "leave:update", "all");
 
   const parametri = await searchParams;
+  // `/concedii?cerere=noua` — adresa care deschide caseta direct, folosită de
+  // butonul din panou și de starea goală a listei.
+  const deschideCaseta = parametri["cerere"] === "noua";
   // Aceleași filtre pe care le folosește lista — vezi nota din `FiltreCereri`.
   const filtre = filtreDinUrl(filtreCereriSchema, parametri);
   const db = await createServerSupabase();
-  const [{ data: tipuri }, deAprobat] = await Promise.all([
+  // Datele casetei de cerere nouă pleacă ODATĂ cu restul paginii, nu la
+  // apăsarea butonului: altfel deschiderea casetei ar fi însemnat exact
+  // așteptarea de care am scăpat desființând pagina `/concedii/noua`.
+  const [{ data: tipuri }, deAprobat, dateCerere] = await Promise.all([
     db
       .from("leave_types")
       .select("id, denumire, culoare")
@@ -99,6 +105,11 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
       .order("denumire")
       .returns<OptiuneTip[]>(),
     poateAproba ? numarDeAprobat(tenant.organizationId, user.id) : Promise.resolve(0),
+    poateCrea
+      ? dateCerereNoua(tenant.organizationId, {
+          poateAlegeAngajat: can(permisiuni, "leave:create", "all"),
+        })
+      : Promise.resolve(null),
   ]);
 
   return (
@@ -117,12 +128,17 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
               actiuni: (
                 <>
                   <ButonSetariConcedii poateConfigura={poateConfigura} />
-                  {poateCrea ? (
-                    <Link href="/concedii/noua" className={buton({ varianta: "primar" })}>
-                      <CalendarPlus aria-hidden="true" className="size-4" />
-                      Cerere nouă
-                    </Link>
-                  ) : null}
+                  {dateCerere === null ? null : (
+                    // `key` forțează remontarea când parametrul se schimbă: o
+                    // navigare pe ACEEAȘI rută (starea goală a listei trimite
+                    // la `/concedii?cerere=noua`) păstrează altfel starea
+                    // clientului, iar caseta nu s-ar mai deschide.
+                    <DialogCerereNoua
+                      key={deschideCaseta ? "cerere-noua" : "listă"}
+                      date={dateCerere}
+                      deschisInitial={deschideCaseta}
+                    />
+                  )}
                 </>
               ),
             }
@@ -168,7 +184,7 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
                 }
           }
           {...(poateCrea && fisaMea !== null
-            ? { actiuneGol: { eticheta: "Cerere nouă", href: "/concedii/noua" } }
+            ? { actiuneGol: { eticheta: "Cerere nouă", href: "/concedii?cerere=noua" } }
             : poateVedeaEchipa && fisaMea === null
               ? { actiuneGol: { eticheta: "Vezi cererile echipei", href: "/concedii/echipa" } }
               : {})}

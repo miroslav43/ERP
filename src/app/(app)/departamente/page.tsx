@@ -104,7 +104,7 @@ export default async function PaginaDepartamente({ searchParams }: ProprietatiPa
       full_name: a.full_name,
       marca: a.marca,
       avatar_url: urlAvatar(avataruri.get(a.user_id ?? "") ?? null),
-      functie: a.job_position?.denumire ?? null,
+      functie: a.functie,
       status: a.status,
       esteActiv: a.status === "activ",
       departamentCurent:

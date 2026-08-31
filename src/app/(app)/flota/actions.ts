@@ -2,14 +2,18 @@
 "use server";
 
 import { createAction } from "@/lib/actions/create-action";
-import { businessRule } from "@/lib/actions/errors";
+import { businessRule, notFound } from "@/lib/actions/errors";
 import { createServerSupabase } from "@/lib/supabase/server";
 import {
+  actualizeazaDocumentSchema,
+  actualizeazaVehiculSchema,
   alimentareSchema,
   confirmaAnomalieSchema,
   decizieFoaieSchema,
   documentVehiculSchema,
   foaieNouaSchema,
+  stergeDocumentSchema,
+  stergeVehiculSchema,
   trimiteFoaieSchema,
   vehiculNouSchema,
 } from "@/schemas/fleet";
@@ -63,6 +67,133 @@ export const creeazaVehicul = createAction({
 });
 
 /**
+ * Modificarea unui vehicul, inclusiv ieșirea lui din parc.
+ *
+ * ── DE CE `minScope: "all"` ȘI NU „team" ─────────────────────────────────────
+ * `vehicule_update` cere literal `app.has_permission(…,'vehicles','update') =
+ * 'all'`. O poartă mai largă în aplicație ar lăsa un rol să treacă de acțiune și
+ * să fie respins tăcut de `USING` — zero rânduri, fără eroare, cu mesaj de
+ * reușită pe ecran. Poarta aplicației trebuie să fie EXACT cea a bazei.
+ *
+ * ── CE NU SE TRIMITE ─────────────────────────────────────────────────────────
+ * `km_curent` (îl ridică triggerul de aprobare a foilor), `data_iesire` (o pune
+ * `internal.vehicles_normalizeaza` din `status`) și `deleted_at`.
+ *
+ * `updated_by` se trimite EXPLICIT: pe `vehicles` nu există trigger de actor —
+ * singurul atașat e `vehicles_set_updated_at` — iar `WITH CHECK` îl cere
+ * nominal. Omiterea lui dă 42501, adică „Nu aveți dreptul…", care trimite
+ * investigația exact în direcția greșită (capcana #23).
+ */
+export const actualizeazaVehicul = createAction({
+  name: "fleet.vehicle.update",
+  feature: "fleet",
+  permission: "vehicles:update",
+  minScope: "all",
+  input: actualizeazaVehiculSchema,
+  audit: {
+    action: "update",
+    entityType: "vehicle",
+    entityId: (input) => input.id,
+    allow: [
+      "id",
+      "nr_inmatriculare",
+      "marca",
+      "model",
+      "vin",
+      "categorie",
+      "tip_combustibil",
+      "an_fabricatie",
+      "employee_id",
+      "department_id",
+      "data_achizitie",
+      "status",
+      "motiv_iesire",
+    ],
+  },
+  revalidate: (input) => ["/flota", `/flota/${input.id}`],
+  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    const db = await createServerSupabase();
+    const { id, ...campuri } = input;
+
+    const { data, error } = await db
+      .from("vehicles")
+      .update({ ...campuri, updated_by: ctx.user.id })
+      .eq("id", id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
+    if (error !== null) traduEroare(error);
+    if (data === null) {
+      throw notFound(
+        "Vehiculul nu a fost găsit sau nu aveți dreptul de a-l modifica. Reîncărcați parcul auto.",
+      );
+    }
+
+    return { id: data.id };
+  },
+});
+
+/**
+ * Ștergerea vehiculului. Logică, prin `deleted_at` — nu există politică DELETE
+ * și niciun grant de DELETE pe tabelă (0012, secțiunea 11).
+ *
+ * ── DE CE MERGE, DEȘI PARE CĂ N-AR TREBUI ────────────────────────────────────
+ * `vehicule_update` are `deleted_at is null` în `USING`, dar NU în `WITH CHECK`:
+ * rândul dinainte trebuie să fie viu, cel de după poate fi mort. Iar `0018` §F2
+ * a scos `deleted_at is null` din `vehicule_select` tocmai fiindcă Postgres
+ * reverifică vizibilitatea rândului NOU prin politicile de SELECT — rândul
+ * tocmai șters devenea invizibil pentru propria politică și UPDATE-ul pica cu
+ * 42501, pentru orice rol.
+ *
+ * Ce se întâmplă în urmă: `internal.vehicles_dupa` vede că `deleted_at` s-a
+ * schimbat și cheamă `flota_resincronizeaza_vehicul`, care scoate scadențele
+ * vehiculului din semafor (`is_active = false` în `expirables`) fără să șteargă
+ * istoricul. Foile de parcurs și documentele rămân în bază.
+ *
+ * `vehicles:delete` NU e cheia folosită, deși seed-ul din 0002 o acordă lui
+ * `super_admin` și `org_admin`: nicio politică RLS nu o consultă, deci un rol
+ * care ar avea-o fără `vehicles:update` ar trece de poartă și ar fi respins
+ * tăcut de bază. Poarta e cea pe care o verifică efectiv Postgres.
+ */
+export const stergeVehicul = createAction({
+  name: "fleet.vehicle.remove",
+  feature: "fleet",
+  permission: "vehicles:update",
+  minScope: "all",
+  input: stergeVehiculSchema,
+  audit: {
+    action: "delete",
+    entityType: "vehicle",
+    entityId: (input) => input.id,
+    allow: ["id"],
+  },
+  revalidate: ["/flota"],
+  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    const db = await createServerSupabase();
+
+    const { data, error } = await db
+      .from("vehicles")
+      .update({ deleted_at: ctx.now.toISOString(), updated_by: ctx.user.id })
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      // Garda contra dublei ștergeri: fără ea, un al doilea clic ar suprascrie
+      // data ștergerii și ar raporta din nou reușită.
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
+    if (error !== null) traduEroare(error);
+    if (data === null) {
+      throw businessRule(
+        "Vehiculul nu a fost șters: fusese deja scos din parc sau nu aveți dreptul de a-l administra. Reîncărcați parcul auto.",
+      );
+    }
+
+    return { id: data.id };
+  },
+});
+
+/**
  * Adăugarea ȘI reînnoirea unui document — o singură acțiune, un singur INSERT.
  *
  * Reînnoirea NU e un UPDATE pe rândul vechi și nici o ștergere urmată de
@@ -84,9 +215,9 @@ export const adaugaDocument = createAction({
     action: "create",
     entityType: "vehicle_document",
     entityId: (_input, data: Readonly<{ id: string }>) => data.id,
-    allow: ["vehicle_id", "document_type_id", "numar", "emitent", "valabil_de_la", "expira_la"],
+    allow: ["vehicle_id", "document_type_id", "emitent", "valabil_de_la", "expira_la"],
   },
-  revalidate: ["/flota"],
+  revalidate: (input) => ["/flota", `/flota/${input.vehicle_id}`],
   handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
     const db = await createServerSupabase();
     const { data, error } = await db
@@ -100,6 +231,112 @@ export const adaugaDocument = createAction({
       .select("id")
       .single();
     if (error !== null) traduEroare(error);
+
+    return { id: data.id };
+  },
+});
+
+/**
+ * Corectarea unui document deja introdus.
+ *
+ * ── ASTA NU E REÎNNOIRE ──────────────────────────────────────────────────────
+ * Reînnoirea rămâne `adaugaDocument`: polița nouă e un rând nou, cel vechi
+ * rămâne ca istoric. Acțiunea de aici e pentru cifra greșită — data pusă
+ * anapoda, emitentul scris pe jumătate, costul uitat.
+ *
+ * `este_curent` nu se trimite nici aici. `internal.vdoc_inainte` îl păstrează pe
+ * cel vechi la UPDATE (`new.este_curent := old.este_curent`), iar `vdoc_dupa`
+ * recalculează pe urmă tot grupul: dacă tocmai ai mutat data de expirare mai
+ * departe decât a documentului curent, acesta devine curent singur.
+ *
+ * `document_type_id` E modificabil — cine a ales „RCA" în loc de „CASCO" trebuie
+ * să poată repara fără să șteargă și să reintroducă. `vdoc_dupa` resincronizează
+ * AMÂNDOUĂ grupurile în cazul ăsta, vechiul și noul.
+ */
+export const actualizeazaDocument = createAction({
+  name: "fleet.document.update",
+  feature: "fleet",
+  permission: "vehicles:update",
+  minScope: "all",
+  input: actualizeazaDocumentSchema,
+  audit: {
+    action: "update",
+    entityType: "vehicle_document",
+    entityId: (input) => input.id,
+    allow: ["id", "vehicle_id", "document_type_id", "emitent", "valabil_de_la", "expira_la"],
+  },
+  revalidate: (input) => ["/flota", `/flota/${input.vehicle_id}`],
+  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    const db = await createServerSupabase();
+    // `vehicle_id` NU se scrie: e în schemă doar ca `revalidate` să poată
+    // compune calea fișei. Mutarea unui document de pe o mașină pe alta nu e o
+    // corectură, e o altă operațiune.
+    const { id, vehicle_id: _vehicul, ...campuri } = input;
+
+    const { data, error } = await db
+      .from("vehicle_documents")
+      .update({ ...campuri, updated_by: ctx.user.id })
+      .eq("id", id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
+    if (error !== null) traduEroare(error);
+    if (data === null) {
+      throw notFound(
+        "Documentul nu a fost găsit sau nu aveți dreptul de a-l modifica. Reîncărcați fișa vehiculului.",
+      );
+    }
+
+    return { id: data.id };
+  },
+});
+
+/**
+ * Ștergerea logică a unui document.
+ *
+ * Efectul cel mai important nu se vede în codul de aici: `vdoc_dupa` rulează pe
+ * UPDATE și cheamă `flota_sincronizeaza_grup`, care recalculează documentul
+ * curent din rândurile RĂMASE. Ștergi RCA-ul curent, iar cel de anul trecut îi
+ * ia locul automat, cu semaforul și rândul din `expirables` mutate odată cu el.
+ * Dacă nu mai rămâne niciunul, scadența se închide logic — istoricul nu se
+ * pierde.
+ *
+ * `0018` §F5 a reparat aici un defect subtil: steagul `este_curent` rămânea
+ * agățat pe rândul șters, fiindcă UPDATE-ul de stingere din funcție filtra pe
+ * `deleted_at is null`. Rezultau două rânduri cu `este_curent = true`, pe care
+ * indexul unic parțial nu le prindea.
+ */
+export const stergeDocument = createAction({
+  name: "fleet.document.remove",
+  feature: "fleet",
+  permission: "vehicles:update",
+  minScope: "all",
+  input: stergeDocumentSchema,
+  audit: {
+    action: "delete",
+    entityType: "vehicle_document",
+    entityId: (input) => input.id,
+    allow: ["id", "vehicle_id"],
+  },
+  revalidate: (input) => ["/flota", `/flota/${input.vehicle_id}`],
+  handler: async (ctx, input): Promise<Readonly<{ id: string }>> => {
+    const db = await createServerSupabase();
+
+    const { data, error } = await db
+      .from("vehicle_documents")
+      .update({ deleted_at: ctx.now.toISOString(), updated_by: ctx.user.id })
+      .eq("id", input.id)
+      .eq("organization_id", ctx.tenant.organizationId)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
+    if (error !== null) traduEroare(error);
+    if (data === null) {
+      throw businessRule(
+        "Documentul nu a fost șters: fusese deja scos sau nu aveți dreptul de a administra parcul auto. Reîncărcați fișa vehiculului.",
+      );
+    }
 
     return { id: data.id };
   },

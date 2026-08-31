@@ -35,6 +35,7 @@ import { useId, useState, type ReactElement } from "react";
 import { BaraActiuni } from "@/components/ui/bara-actiuni";
 import { Buton } from "@/components/ui/buton";
 import { Camp } from "@/components/ui/camp";
+import { IntrareData } from "@/components/ui/intrare-data";
 import { PanouLateral } from "@/components/ui/dialog";
 import { Formular } from "@/components/ui/formular";
 import type { CriteriuSablon } from "@/domain/evaluations/criterii";
@@ -260,10 +261,9 @@ export function FormularEvaluareNoua({
                 erori={stare.erori["data_evaluarii"] ?? []}
               >
                 {(a) => (
-                  <input
+                  <IntrareData
                     {...a}
-                    type="date"
-                    defaultValue={
+                    implicit={
                       stare.valoriTrimise.data_evaluarii ?? ciorna?.data_evaluarii ?? aziIso()
                     }
                   />

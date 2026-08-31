@@ -1,24 +1,45 @@
 // src/app/(app)/anunturi/page.tsx
-import Link from "next/link";
 import type { Metadata } from "next";
+import { Megaphone } from "lucide-react";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
 import { AntetPagina, LATIMI } from "@/components/ui/antet-pagina";
-import { Badge } from "@/components/ui/badge";
+import { ComutatorVizualizare } from "@/components/ui/comutator-vizualizare";
 import { StareGoala } from "@/components/ui/stare-goala";
+import {
+  FILTRU_IMPLICIT,
+  filtruDinAdresa,
+  numaraPeStari,
+  potrivesteFiltru,
+  stareAnunt,
+  type FiltruStareAnunt,
+} from "@/domain/announcements/anunt";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { formatDateTime } from "@/lib/format/date";
-import { LIMITA_ANUNTURI, listeazaAnunturi } from "@/lib/queries/announcements";
-import { Megaphone, Pin } from "lucide-react";
+import { idFisaProprie } from "@/lib/queries/employees";
+import { idAnunturiCitite, LIMITA_ANUNTURI, listeazaAnunturi } from "@/lib/queries/announcements";
 
-import { FormularAnuntNou } from "./formular-anunt-nou";
+import { CardAnunt } from "./card-anunt";
+import { DialogAnuntNou } from "./dialog-anunt-nou";
 
 export const metadata: Metadata = { title: "Anunțuri" };
 
-export default async function PaginaAnunturi() {
-  const { tenant } = await requireTenant();
+interface ProprietatiPagina {
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+/** Antetul unei grupe. `text-eticheta` e treapta scrisă anume pentru majuscule cu tracking. */
+function AntetGrupa({ children }: { readonly children: string }) {
+  return (
+    <h2 className="text-muted-foreground text-eticheta font-medium tracking-[0.14em] uppercase">
+      {children}
+    </h2>
+  );
+}
+
+export default async function PaginaAnunturi({ searchParams }: ProprietatiPagina) {
+  const { tenant, user } = await requireTenant();
   await requireFeature(tenant.organizationId, "announcements");
   const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
@@ -31,85 +52,151 @@ export default async function PaginaAnunturi() {
   }
 
   const poateAdministra = can(permisiuni, "announcements:update", "all");
-  const { randuri: anunturi, trunchiat } = await listeazaAnunturi(tenant.organizationId);
+  const parametri = await searchParams;
+
+  /*
+   * Fișa proprie pleacă ODATĂ cu lista, nu după ea: marcajul „necitit" n-are
+   * nevoie de niciun rând din listă ca să fie cerut, iar în serie ar fi adăugat
+   * un drum întreg la bază pentru o bulină.
+   *
+   * Poate lipsi — un administrator invitat e membru fără să fie angajat. Fără
+   * fișă nu există `announcement_reads`, deci niciun anunț nu apare ca necitit,
+   * ceea ce e corect: n-are cine să confirme.
+   */
+  const [{ randuri: anunturi, trunchiat }, propriaFisaId] = await Promise.all([
+    listeazaAnunturi(tenant.organizationId),
+    idFisaProprie(tenant.organizationId, user.id),
+  ]);
+  const citite =
+    propriaFisaId === null
+      ? new Set<string>()
+      : await idAnunturiCitite(tenant.organizationId, propriaFisaId);
+
+  /*
+   * Starea și filtrarea se fac ÎN MEMORIE, nu în interogare. Lista e deja
+   * plafonată la `LIMITA_ANUNTURI`, deci nu e nimic de economisit la rețea — în
+   * schimb, contoarele de pe comutator („Ciorne 3") au nevoie de TOATE rândurile
+   * ca să spună adevărul. Cu filtrarea în SQL, fiecare segment ar fi cerut o
+   * interogare proprie doar ca să-și afle propriul număr.
+   */
   const acum = new Date();
+  const cuStare = anunturi.map((anunt) => ({ anunt, stare: stareAnunt(anunt, acum) }));
+  const contoare = numaraPeStari(cuStare.map((x) => x.stare));
+
+  // Filtrul e al administratorului: RLS îi arată angajatului doar anunțurile
+  // active, deci pentru el toate cele patru segmente ar da aceeași listă.
+  const filtru: FiltruStareAnunt = poateAdministra
+    ? filtruDinAdresa(parametri["stare"])
+    : FILTRU_IMPLICIT;
+
+  const vizibile = cuStare.filter((x) => potrivesteFiltru(x.stare, filtru));
+  const fixate = vizibile.filter((x) => x.anunt.fixat);
+  const restul = vizibile.filter((x) => !x.anunt.fixat);
+
+  const necitite = cuStare.filter((x) => x.stare === "activ" && !citite.has(x.anunt.id)).length;
+
+  const descriere =
+    necitite > 0
+      ? `Avizierul organizației. ${necitite === 1 ? "Un anunț nu e citit încă" : `${String(necitite)} anunțuri nu sunt citite încă`}.`
+      : "Avizierul organizației.";
 
   return (
     <div className={`${LATIMI.formular} space-y-6`}>
-      <AntetPagina titlu="Anunțuri" descriere="Avizierul organizației." />
+      <AntetPagina
+        titlu="Anunțuri"
+        descriere={descriere}
+        actiuni={poateAdministra ? <DialogAnuntNou /> : undefined}
+        file={
+          poateAdministra && anunturi.length > 0 ? (
+            <ComutatorVizualizare
+              /*
+               * `self-start` fiindcă `file` e copil al unui `flex flex-col`:
+               * implicitul `align-self: stretch` întindea comutatorul pe toată
+               * lățimea antetului, cu un chenar gol de 600px în dreapta ultimului
+               * segment. `inline-flex` din primitivă nu-l apără — regula de
+               * aliniere a părintelui bate nivelul de afișare al copilului.
+               *
+               * `flex-wrap` fiindcă la 390px cele patru segmente cu contoare fac
+               * 409px: măsurat, pagina depășea ecranul cu 19px, iar „Expirate"
+               * era tăiat. Împreună cu `self-start`, grupul se strânge la lățimea
+               * disponibilă și trece pe două rânduri.
+               */
+              className="flex-wrap self-start"
+              eticheta="Starea anunțurilor"
+              cheieParametru="stare"
+              curenta={filtru}
+              implicita={FILTRU_IMPLICIT}
+              parametri={parametri}
+              cale="/anunturi"
+              optiuni={[
+                { cheie: "toate", eticheta: `Toate ${String(contoare.toate)}` },
+                { cheie: "active", eticheta: `Active ${String(contoare.active)}` },
+                { cheie: "ciorne", eticheta: `Ciorne ${String(contoare.ciorne)}` },
+                { cheie: "expirate", eticheta: `Expirate ${String(contoare.expirate)}` },
+              ]}
+            />
+          ) : undefined
+        }
+      />
 
-      {poateAdministra ? <FormularAnuntNou /> : null}
-
-      {anunturi.length === 0 ? (
-        <StareGoala
-          fel="initiala"
-          pictograma={Megaphone}
-          titlu="Niciun anunț"
-          descriere={
-            poateAdministra
-              ? "Scrieți primul anunț mai sus."
-              : "Nu există încă niciun anunț publicat."
-          }
-        />
+      {vizibile.length === 0 ? (
+        anunturi.length === 0 ? (
+          <StareGoala
+            fel="initiala"
+            pictograma={Megaphone}
+            titlu="Niciun anunț"
+            descriere={
+              poateAdministra
+                ? "Scrieți primul anunț. Publicarea trimite o notificare fiecărui membru activ al firmei."
+                : "Nu există încă niciun anunț publicat."
+            }
+          />
+        ) : (
+          <StareGoala
+            fel="filtrata"
+            pictograma={Megaphone}
+            titlu="Niciun anunț în starea asta"
+            descriere="Avizierul are anunțuri, dar niciunul nu intră în segmentul ales."
+            actiune={{ eticheta: "Arată toate anunțurile", href: "/anunturi" }}
+          />
+        )
       ) : (
-        <ul className="divide-border border-border rounded-panou divide-y border">
-          {anunturi.map((a) => {
-            const ciorna = a.publicat_la === null;
-            const expirat =
-              a.expira_la !== null && new Date(a.expira_la).getTime() < acum.getTime();
-            return (
-              <li key={a.id} className="p-4">
-                {/*
-                  Pastilele stau ÎN AFARA linkului: înăuntru se subliniau odată
-                  cu titlul la hover și intrau în numele accesibil al linkului,
-                  care ajungea „Ciornă Expirat Titlu”.
-                */}
-                <div className="flex flex-wrap items-center gap-2">
-                  {a.fixat ? (
-                    <>
-                      <Pin className="text-primary size-4 shrink-0" aria-hidden="true" />
-                      {/* Fără asta, „fixat” e o pictogramă mută: la cititorul de ecran informația dispărea complet. */}
-                      <span className="sr-only">Fixat în capul listei.</span>
-                    </>
-                  ) : null}
-                  <Link
-                    href={`/anunturi/${a.id}`}
-                    className="font-medium underline-offset-2 hover:underline"
-                  >
-                    {a.titlu}
-                  </Link>
-                  {/*
-                    „Ciornă” și „Expirat” erau caracter cu caracter aceeași
-                    pastilă gri — două stări cu consecințe opuse (una n-a fost
-                    încă văzută de nimeni, cealaltă n-o mai vede nimeni).
-                    `Badge` le separă prin bulină goală vs. pictogramă de
-                    avertisment, deci și fără culoare, și la imprimantă.
-                  */}
-                  {ciorna ? <Badge ton="ciorna">Ciornă</Badge> : null}
-                  {expirat ? (
-                    <Badge ton="neutru" cuAvertisment>
-                      Expirat
-                    </Badge>
-                  ) : null}
-                </div>
-                <p className="text-muted-foreground text-nota mt-1">
-                  {a.publicat_la === null
-                    ? `Creat ${formatDateTime(a.created_at)}`
-                    : `Publicat ${formatDateTime(a.publicat_la)}`}
-                  {/*
-                    `expira_la` se citea din bază doar ca să se calculeze
-                    pastila; data în sine nu apărea nicăieri în listă, deci
-                    „mai e valabil o zi” nu se putea afla decât deschizând
-                    fiecare anunț.
-                  */}
-                  {a.expira_la === null
-                    ? ""
-                    : ` · ${expirat ? "a expirat" : "expiră"} ${formatDateTime(a.expira_la)}`}
-                </p>
-              </li>
-            );
-          })}
-        </ul>
+        <div className="space-y-6">
+          {fixate.length === 0 ? null : (
+            <section className="space-y-2">
+              <AntetGrupa>Fixate</AntetGrupa>
+              <ul className="space-y-2">
+                {fixate.map(({ anunt, stare }) => (
+                  <CardAnunt
+                    key={anunt.id}
+                    anunt={anunt}
+                    stare={stare}
+                    necitit={stare === "activ" && propriaFisaId !== null && !citite.has(anunt.id)}
+                  />
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {restul.length === 0 ? null : (
+            <section className="space-y-2">
+              {/* Antetul celei de-a doua grupe apare doar dacă există o primă
+                  grupă de care să o despartă. Singur, ar fi o etichetă pusă
+                  peste tot ce e pe ecran — adică pe nimic. */}
+              {fixate.length === 0 ? null : <AntetGrupa>Restul anunțurilor</AntetGrupa>}
+              <ul className="space-y-2">
+                {restul.map(({ anunt, stare }) => (
+                  <CardAnunt
+                    key={anunt.id}
+                    anunt={anunt}
+                    stare={stare}
+                    necitit={stare === "activ" && propriaFisaId !== null && !citite.has(anunt.id)}
+                  />
+                ))}
+              </ul>
+            </section>
+          )}
+        </div>
       )}
 
       {trunchiat ? (

@@ -42,7 +42,6 @@ apare și în alte module, iar tiparul de tranziție de aici se copiază.
 | Rută                                     | Poartă                                                          |
 | ---------------------------------------- | --------------------------------------------------------------- |
 | `/concedii`                              | `leave:read` own/team/all după scope; creare own; aprobare team |
-| `/concedii/noua`                         | `leave:create` own (all pentru altcineva)                       |
 | `/concedii/[id]`                         | `leave:read` own/team; `leave:update` own                       |
 | `/concedii/aprobari`                     | `leave:approve` team                                            |
 | `/concedii/echipa`, `/concedii/calendar` | `leave:read` team                                               |
@@ -50,6 +49,23 @@ apare și în alte module, iar tiparul de tranziție de aici se copiază.
 | `/concedii/setari`                       | `leave:update` all                                              |
 
 Toate trec prin `requireFeature(tenant.organizationId, "leave")`.
+
+**Cererea nouă NU mai are rută.** `/concedii/noua` a dispărut în favoarea unei casete
+deschise din listă (`dialog-cerere-noua.tsx`); datele formularului se citesc în
+`date-cerere-noua.ts`, într-un singur `Promise.all`, ODATĂ cu lista — deci deschiderea
+casetei nu atinge rețeaua. `/concedii?cerere=noua` o deschide direct (butonul din panou,
+starea goală a listei); pagina remontează componenta prin `key`, fiindcă o navigare pe
+aceeași rută ar păstra altfel starea clientului. `soldAnual` e memoizată cu `cache()`,
+ca `zileNelucratoare`: lista o cere de două ori, o dată pentru rezumat și o dată pentru
+soldul din casetă.
+
+**Concediul se cere doar pe ZILE ÎNTREGI.** Jumătățile de zi au ieșit în
+`0112_concediu_doar_zi_intreaga.sql`: coloanele `portiune_inceput`/`portiune_sfarsit` și
+`leave_request_days.portiune` mai există, dar o constrângere le ține pe `zi_intreaga`,
+`app.numara_zile_lucratoare` a pierdut cei doi parametri, iar `numaraZileCerere` întoarce
+de acum întotdeauna un întreg. Enum-urile `leave_day_portion` și cele două etichete
+`jumatate_in_*` din `leave_rounding_mode` rămân în bază — Postgres nu știe să scoată o
+valoare dintr-un enum — dar nicio coloană nu le mai poate primi.
 
 ## Server Actions
 
@@ -156,6 +172,9 @@ n-ar nimeri niciodată în cache. E consumată și din afara modulului — `[[mo
   blocat pe un număr care nu scade.
 
 ## Ce se mișcă împreună
+
+Tipul preselectat în formular e `odihna`, prin `src/domain/leave/tip-implicit.ts` — nu
+primul din listă, fiindcă ordinea alfabetică începe cu „Concediu creștere copil".
 
 Migrarea → `src/types/database.ts` → `src/schemas/leave.ts` →
 `src/lib/queries/leave.ts` → `src/app/(app)/concedii/actions.ts` → paginile. Calculul

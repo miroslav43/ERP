@@ -12,16 +12,10 @@ import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { todayInBucharest } from "@/lib/format/date";
 import { angajatiPentruPontaj, idFisaProprie } from "@/lib/queries/employees";
 import { citesteSaptamanaPontaj, setariPontaj } from "@/lib/queries/attendance";
-import { zileNelucratoare } from "@/lib/queries/leave";
 import { adaugaZile, esteLuni, lunieaUrmatoare } from "@/domain/attendance/saptamana";
 
 import { NavPontaj } from "../nav-pontaj";
-import {
-  ETICHETE_STARE_SAPTAMANA,
-  TONURI_STARE_SAPTAMANA,
-  esteZiLucratoare,
-  rezumatRegulaPontaj,
-} from "../etichete";
+import { ETICHETE_STARE_SAPTAMANA, TONURI_STARE_SAPTAMANA, rezumatRegulaPontaj } from "../etichete";
 import type { ConfigZi } from "@/domain/attendance/calcul-ore";
 
 import { FormularSaptamana } from "./formular-saptamana";
@@ -71,26 +65,24 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
       : null;
 
   /*
-    Patru citiri independente, un singur val.
+    Trei citiri independente, un singur val.
     Erau în serie: fișa proprie, lista de angajați, apoi — după două ramuri de
-    ieșire și după `submisie` — setările și zilele nelucrătoare. Niciuna dintre
-    cele patru nu depinde de alta; doar `submisie` are nevoie de `fisaTinta`.
+    ieșire și după `submisie` — setările. Niciuna dintre cele trei nu depinde de
+    alta; doar `submisie` are nevoie de `fisaTinta`.
 
-    Setările și sărbătorile se citesc și pe ramurile de ieșire, unde nu se
-    folosesc. E o interogare de setări în plus pe un drum rar (cont fără fișă
-    proprie), în schimbul a două valuri pe drumul normal. `zileNelucratoare` e
-    memoizat, deci acolo nu se plătește nimic în plus.
+    Setările se citesc și pe ramurile de ieșire, unde nu se folosesc: o
+    interogare în plus pe un drum rar (cont fără fișă proprie), în schimbul unui
+    val mai puțin pe drumul normal.
+
+    A patra citire, `zileNelucratoare`, a dispărut odată cu poarta
+    `esteZiLucratoare` de mai jos: singurul ei consumator golea câmpuri care
+    aveau ore salvate. Sărbătorile rămân treaba calculului de ore, nu a
+    implicitelor din formular.
   */
-  const saptamanaSfarsit = adaugaZile(saptamanaStart, 6);
-  const anInceput = Number(saptamanaStart.slice(0, 4));
-  const anSfarsit = Number(saptamanaSfarsit.slice(0, 4));
-
-  const [propriaFisaId, angajati, setari, { nationale, organizatie }] = await Promise.all([
+  const [propriaFisaId, angajati, setari] = await Promise.all([
     idFisaProprie(tenant.organizationId, user.id),
     poateAlegeAngajat ? angajatiPentruPontaj(tenant.organizationId) : [],
     setariPontaj(tenant.organizationId, saptamanaStart),
-    // O săptămână poate călări două ani (28 decembrie – 3 ianuarie).
-    zileNelucratoare(tenant.organizationId, anInceput, anSfarsit),
   ]);
   const fisaTinta = angajatCerut ?? propriaFisaId;
 
@@ -109,7 +101,12 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
         <AntetPagina
           titlu="Planul săptămânii"
           descriere="Contul dumneavoastră nu are fișă de angajat proprie, deci nu are nici săptămână proprie. Alegeți angajatul pentru care completați."
-          file={<NavPontaj poateAproba={can(permisiuni, "attendance:approve", "team")} />}
+          file={
+            <NavPontaj
+              poateAproba={can(permisiuni, "attendance:approve", "team")}
+              poateConfigura={can(permisiuni, "attendance:update", "all")}
+            />
+          }
         />
         <AlegeAngajat angajati={angajati} selectat={null} saptamanaStart={saptamanaStart} />
       </div>
@@ -128,25 +125,29 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
    * oricine are nevoie, dar acum e o alegere, nu o valoare moștenită.
    */
   const orePeZi = setari?.ore_pe_zi ?? 8;
-  const setNationale = new Set(nationale.map((z) => z.data));
-  const setRecuperare = new Set(
-    organizatie.filter((z) => z.tip === "zi_recuperare").map((z) => z.data),
-  );
-  const setLiber = new Set(
-    organizatie.filter((z) => z.tip === "liber_suplimentar").map((z) => z.data),
-  );
 
   const zileInitiale = Array.from({ length: 7 }, (_, i) => {
     const data = adaugaZile(saptamanaStart, i);
     const existenta = submisie?.zile.find((z) => z.data === data) ?? null;
-    const lucratoare = esteZiLucratoare(data, setNationale, setRecuperare, setLiber);
     return {
       data,
       tip_prezenta: existenta?.tip_prezenta ?? "birou",
-      // `time` din Postgres vine ca `"08:30:00"`; `<input type="time">` cere
-      // `"HH:MM"`. O zi nelucrătoare pornete fără interval, nu cu unul presupus.
-      ora_inceput: lucratoare ? (existenta?.ora_inceput?.slice(0, 5) ?? "") : "",
-      ora_sfarsit: lucratoare ? (existenta?.ora_sfarsit?.slice(0, 5) ?? "") : "",
+      /*
+       * `time` din Postgres vine ca `"08:30:00"`; `<input type="time">` cere
+       * `"HH:MM"`. Fără submisie salvată, `existenta` e `null` și ziua pornește
+       * goală — inclusiv weekendul, care e tot ce voia să spună implicitul.
+       *
+       * Aici stătea o poartă `esteZiLucratoare(…) ? … : ""`, care golea câmpul
+       * pe orice zi necalendaristic-lucrătoare. Cum `existenta` e `null` exact
+       * când n-ai ce arăta, poarta nu putea împiedica un „interval presupus":
+       * singurul ei efect era să ASCUNDĂ ore chiar salvate. O sâmbătă lucrată
+       * dispărea de pe ecran, iar următoarea trimitere o trimitea goală — și
+       * `trimite_saptamana_pontaj` face `delete` + reinserare (0084), deci o
+       * ștergea din bază fără nicio eroare. Aceeași pagubă pe o sărbătoare
+       * națională în care cineva chiar a lucrat.
+       */
+      ora_inceput: existenta?.ora_inceput?.slice(0, 5) ?? "",
+      ora_sfarsit: existenta?.ora_sfarsit?.slice(0, 5) ?? "",
       observatii: existenta?.observatii ?? "",
     };
   });
@@ -178,7 +179,12 @@ export default async function PaginaSaptamanaPontaj({ searchParams }: Proprietat
       <AntetPagina
         titlu="Planul săptămânii"
         descriere={`Declarați, pentru săptămâna care începe ${inceputSaptamanii}, cum veniți la lucru și câte ore planificați — editabil oricând, până la decizia managerului.`}
-        file={<NavPontaj poateAproba={can(permisiuni, "attendance:approve", "team")} />}
+        file={
+          <NavPontaj
+            poateAproba={can(permisiuni, "attendance:approve", "team")}
+            poateConfigura={can(permisiuni, "attendance:update", "all")}
+          />
+        }
       />
 
       {poateAlegeAngajat ? (

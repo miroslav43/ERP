@@ -76,7 +76,7 @@ export default async function PaginaSetariConcedii({ searchParams }: Proprietati
   const parametri = await searchParams;
   const an = anDinUrl(parametri["an"], Number(todayInBucharest().slice(0, 4)));
 
-  const [{ tipuri, reguli, departamente, functii }, previzualizare] = await Promise.all([
+  const [{ tipuri, reguli, departamente }, previzualizare] = await Promise.all([
     configurareConcedii(tenant.organizationId),
     previzualizeazaDrepturi(tenant.organizationId, an),
   ]);
@@ -213,17 +213,8 @@ export default async function PaginaSetariConcedii({ searchParams }: Proprietati
           simultan (ex. vechime + condiții deosebite). Nu se pot adăuga grile pe tipurile
           reglementate legal.
         </p>
-        <TabelReguli
-          reguli={reguli}
-          tipuri={tipuri}
-          departamente={departamente}
-          functii={functii}
-        />
-        <FormularRegulaNoua
-          tipuri={tipuriAdaptabile}
-          departamente={departamente}
-          functii={functii}
-        />
+        <TabelReguli reguli={reguli} tipuri={tipuri} departamente={departamente} />
+        <FormularRegulaNoua tipuri={tipuriAdaptabile} departamente={departamente} />
       </section>
 
       <section

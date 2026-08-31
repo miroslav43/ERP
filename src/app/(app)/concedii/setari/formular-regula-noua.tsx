@@ -4,7 +4,10 @@
 import { useId, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { CautaCor } from "@/components/cauta-cor";
+
 import { Buton } from "@/components/ui/buton";
+import { IntrareData } from "@/components/ui/intrare-data";
 import type { OptiuneNomenclator, TipConcediuConfigurabil } from "@/lib/queries/leave";
 import {
   CRITERII_GRILA,
@@ -25,11 +28,9 @@ const CLASA_CAMP = "w-full rounded-control border border-foreground/60 px-3 py-2
 export function FormularRegulaNoua({
   tipuri,
   departamente,
-  functii,
 }: {
   readonly tipuri: readonly TipConcediuConfigurabil[];
   readonly departamente: readonly OptiuneNomenclator[];
-  readonly functii: readonly OptiuneNomenclator[];
 }) {
   const router = useRouter();
   const [inCurs, porneste] = useTransition();
@@ -42,7 +43,9 @@ export function FormularRegulaNoua({
   const [valoareCondMunca, setValoareCondMunca] = useState<string>(VALORI_CONDITII_MUNCA_GRILA[0]);
   const [valoareHandicap, setValoareHandicap] = useState<string>(VALORI_GRAD_HANDICAP_GRILA[0]);
   const [departmentId, setDepartmentId] = useState(departamente[0]?.id ?? "");
-  const [jobPositionId, setJobPositionId] = useState(functii[0]?.id ?? "");
+  // Codul COR, nu un id de nomenclator: după 0110 regula se potrivește pe
+  // ocupație, iar ocupațiile sunt cele 4422 din Clasificarea Ocupațiilor.
+  const [codCor, setCodCor] = useState("");
   const [zileSuplimentare, setZileSuplimentare] = useState("2");
   const [denumire, setDenumire] = useState("");
   const [valabilDeLa, setValabilDeLa] = useState("");
@@ -81,7 +84,7 @@ export function FormularRegulaNoua({
               ? valoareHandicap
               : null,
         department_id: tipCriteriu === "departament" ? departmentId : null,
-        job_position_id: tipCriteriu === "functie" ? jobPositionId : null,
+        cod_cor: tipCriteriu === "functie" ? codCor : null,
         zile_suplimentare: Number(zileSuplimentare),
         denumire,
         valabil_de_la: valabilDeLa,
@@ -231,20 +234,13 @@ export function FormularRegulaNoua({
           <label htmlFor={id.functie} className="text-corp">
             Funcție
           </label>
-          <select
-            id={id.functie}
-            value={jobPositionId}
-            onChange={(e) => {
-              setJobPositionId(e.target.value);
+          <CautaCor
+            idInput={id.functie}
+            valoareInitiala={codCor}
+            laText={(valoare) => {
+              setCodCor(valoare.trim());
             }}
-            className={CLASA_CAMP}
-          >
-            {functii.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.denumire}
-              </option>
-            ))}
-          </select>
+          />
         </div>
       ) : null}
 
@@ -286,12 +282,11 @@ export function FormularRegulaNoua({
         <label htmlFor={id.deLa} className="text-corp">
           Valabilă de la
         </label>
-        <input
+        <IntrareData
           id={id.deLa}
-          type="date"
-          value={valabilDeLa}
-          onChange={(e) => {
-            setValabilDeLa(e.target.value);
+          valoare={valabilDeLa}
+          onSchimba={(zi) => {
+            setValabilDeLa(zi);
           }}
           className={CLASA_CAMP}
         />
@@ -301,12 +296,11 @@ export function FormularRegulaNoua({
         <label htmlFor={id.panaLa} className="text-corp">
           Valabilă până la (opțional)
         </label>
-        <input
+        <IntrareData
           id={id.panaLa}
-          type="date"
-          value={valabilPanaLa}
-          onChange={(e) => {
-            setValabilPanaLa(e.target.value);
+          valoare={valabilPanaLa}
+          onSchimba={(zi) => {
+            setValabilPanaLa(zi);
           }}
           className={CLASA_CAMP}
         />

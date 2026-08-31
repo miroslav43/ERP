@@ -5,7 +5,6 @@ import type { TonStare } from "@/components/ui/badge";
 import type {
   CriteriuGrila,
   ModRotunjireAcumulare,
-  PortiuneZi,
   StatusCerere,
   StatusSarcinaAprobare,
 } from "@/schemas/leave";
@@ -62,21 +61,13 @@ export const TONURI_STATUS_SARCINA: Readonly<Record<StatusSarcinaAprobare, TonSt
   anulata: "neutru",
 };
 
-export const ETICHETE_PORTIUNE: Readonly<Record<PortiuneZi, string>> = {
-  zi_intreaga: "Zi întreagă",
-  prima_jumatate: "Prima jumătate a zilei",
-  a_doua_jumatate: "A doua jumătate a zilei",
-};
-
 // ── Setări concedii ────────────────────────────────────────────────────────────
 
 export const ETICHETE_MOD_ROTUNJIRE: Readonly<Record<ModRotunjireAcumulare, string>> = {
   fara_rotunjire: "Fără rotunjire",
-  jumatate_in_sus: "La jumătate de zi, în sus",
-  jumatate_in_jos: "La jumătate de zi, în jos",
   zi_in_sus: "La zi întreagă, în sus",
   zi_in_jos: "La zi întreagă, în jos",
-  matematic: "Matematic (0,5 rotunjește în sus)",
+  matematic: "Matematic (de la 0,5 în sus)",
 };
 
 export const ETICHETE_CRITERIU_GRILA: Readonly<Record<CriteriuGrila, string>> = {

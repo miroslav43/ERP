@@ -98,7 +98,7 @@ export type FiltreFoi = z.output<typeof filtreFoiSchema>;
  * tăcut la prima modificare — iar cea care contează e a bazei, fiindcă indexul
  * unic se aplică peste valoarea normalizată de ea.
  */
-export const vehiculNouSchema = z.object({
+const campuriVehicul = {
   nr_inmatriculare: z.string().trim().min(3).max(16),
   marca: z.string().trim().min(1).max(60),
   model: z.string().trim().min(1).max(60),
@@ -126,20 +126,86 @@ export const vehiculNouSchema = z.object({
   valoare_achizitie: z.coerce.number().min(0).nullable().default(null),
   prag_salt_km: z.coerce.number().int().min(10).max(100000).nullable().default(null),
   observatii: z.string().trim().max(2000).nullable().default(null),
-});
+};
+
+export const vehiculNouSchema = z.object(campuriVehicul);
 export type VehiculNou = z.output<typeof vehiculNouSchema>;
 
-export const documentVehiculSchema = z.object({
-  vehicle_id: z.uuid(),
+/**
+ * `status` apare la MODIFICARE, nu la creare.
+ *
+ * `vehicule_insert` cere literal `status = 'activ'`, `data_iesire is null` și
+ * `motiv_iesire is null`: un vehicul nu poate intra direct „vândut” fără să fi
+ * existat vreodată în parc. `vehicule_update` nu are restricția, deci ieșirea
+ * din parc se face de aici.
+ *
+ * `data_iesire` NU e în schemă deliberat: `internal.vehicles_normalizeaza()` o
+ * pune singură la `vandut`/`casat` și o golește la orice altă stare. Trimisă și
+ * din client, ar fi a doua sursă pentru aceeași dată.
+ */
+export const actualizeazaVehiculSchema = z
+  .object({
+    id: z.uuid(),
+    ...campuriVehicul,
+    status: z.enum(STATUS_VEHICUL),
+    motiv_iesire: z.string().trim().max(500).nullable().default(null),
+  })
+  .superRefine((v, ctx) => {
+    // Baza acceptă un vehicul casat fără motiv. Noi nu: peste un an, „de ce a
+    // ieșit mașina asta din parc?” e singura întrebare care se mai pune despre
+    // ea, iar răspunsul nu se mai poate reconstitui din nimic altceva.
+    if ((v.status === "vandut" || v.status === "casat") && v.motiv_iesire === null) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["motiv_iesire"],
+        message: "Scrieți de ce iese vehiculul din parc.",
+      });
+    }
+  });
+export type ActualizeazaVehicul = z.output<typeof actualizeazaVehiculSchema>;
+
+export const stergeVehiculSchema = z.object({ id: z.uuid() });
+
+/**
+ * `numar` a fost scos din formular și din tabel.
+ *
+ * Seria poliței sau numărul procesului-verbal de ITP nu se folosea la nimic:
+ * nu se caută după el, nu intră în niciun raport și nu ajunge în `expirables`.
+ * Coloana rămâne în bază cu valorile deja scrise — o coloană scoasă din
+ * interfață nu e un motiv să ștergi date.
+ */
+const campuriDocument = {
   document_type_id: z.uuid(),
-  numar: z.string().trim().max(64).nullable().default(null),
   emitent: z.string().trim().max(120).nullable().default(null),
   valabil_de_la: z.iso.date().nullable().default(null),
   expira_la: z.iso.date().nullable().default(null),
   cost: z.coerce.number().min(0).nullable().default(null),
   observatii: z.string().trim().max(1000).nullable().default(null),
+};
+
+export const documentVehiculSchema = z.object({
+  vehicle_id: z.uuid(),
+  ...campuriDocument,
 });
 export type DocumentVehicul = z.output<typeof documentVehiculSchema>;
+
+/**
+ * `vehicle_id` călătorește prin schemele de modificare și de ștergere fără să
+ * fie scris niciodată: `revalidate` are nevoie de el ca să compună calea fișei
+ * (`/flota/<vehicul>`), iar acțiunea primește doar `input`, nu și rândul din
+ * bază. Filtrarea scrierii se face pe `id` + `organization_id`, nu pe el.
+ */
+export const actualizeazaDocumentSchema = z.object({
+  id: z.uuid(),
+  vehicle_id: z.uuid(),
+  ...campuriDocument,
+});
+export type ActualizeazaDocument = z.output<typeof actualizeazaDocumentSchema>;
+
+export const stergeDocumentSchema = z.object({
+  id: z.uuid(),
+  vehicle_id: z.uuid(),
+});
 
 /**
  * `employee_id` și `km_plecare` sunt OBLIGATORII, deși planul le dădea ca

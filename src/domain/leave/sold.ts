@@ -8,14 +8,14 @@
  * NU există o regulă legală unică de rotunjire (vezi nota C din migrare):
  * Codul Muncii stabilește dreptul minim anual, nu cum se rotunjesc
  * fracțiile. De aceea modul e parametru, niciodată o constantă în cod.
+ *
+ * Cele două moduri care rotunjeau la jumătate de zi au dispărut în 0112,
+ * odată cu concediul pe jumătate de zi: dădeau un sold de forma „12,5 zile"
+ * din care ultima jumătate nu se mai putea cheltui pe nicio cerere. Migrarea
+ * le-a mutat pe `zi_in_sus` / `zi_in_jos` și le refuză printr-o constrângere
+ * pe `leave_types.mod_rotunjire_acumulare`.
  */
-export type ModRotunjire =
-  | "fara_rotunjire"
-  | "jumatate_in_sus"
-  | "jumatate_in_jos"
-  | "zi_in_sus"
-  | "zi_in_jos"
-  | "matematic";
+export type ModRotunjire = "fara_rotunjire" | "zi_in_sus" | "zi_in_jos" | "matematic";
 
 /**
  * Rotunjește un număr de zile de concediu conform modului configurat.
@@ -28,10 +28,6 @@ export function rotunjesteZileConcediu(valoare: number, mod: ModRotunjire): numb
   switch (mod) {
     case "fara_rotunjire":
       return laDouaZecimale;
-    case "jumatate_in_sus":
-      return Math.ceil(laDouaZecimale * 2) / 2;
-    case "jumatate_in_jos":
-      return Math.floor(laDouaZecimale * 2) / 2;
     case "zi_in_sus":
       return Math.ceil(laDouaZecimale);
     case "zi_in_jos":

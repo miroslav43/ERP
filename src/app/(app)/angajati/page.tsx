@@ -22,7 +22,7 @@ import { scrieSortare } from "@/lib/queries/cursor";
 import {
   idFisaProprie,
   listeazaAngajati,
-  functiiActive,
+  functiiFolosite,
   rolurileConturilor,
 } from "@/lib/queries/employees";
 import { filtreAngajatiSchema } from "@/schemas/employee";
@@ -64,7 +64,7 @@ async function TabelAngajati({ organizationId, scope, userId, parametri }: Propr
     const areFiltre =
       filtre.q !== null ||
       filtre.department_id !== null ||
-      filtre.job_position_id !== null ||
+      filtre.functie !== null ||
       filtre.status !== null;
     return (
       <StareGoala
@@ -140,7 +140,7 @@ async function TabelAngajati({ organizationId, scope, userId, parametri }: Propr
       cheie: "functie",
       antet: "Funcție",
       peTelefon: "meta",
-      celula: (r) => r.job_position?.denumire ?? "—",
+      celula: (r) => r.functie ?? "—",
     },
     {
       cheie: "angajat_din",
@@ -231,7 +231,7 @@ export default async function PaginaAngajati({ searchParams }: ProprietatiPagina
    */
   const [departamente, functii] = await Promise.all([
     listaDepartamente(tenant.organizationId),
-    functiiActive(tenant.organizationId),
+    functiiFolosite(tenant.organizationId),
   ]);
   const poateCrea = scopeFor(permisiuni, "employees:create") === "all";
 

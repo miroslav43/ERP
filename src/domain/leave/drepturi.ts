@@ -30,8 +30,8 @@ export interface RegulaConcediu {
   readonly valoareText: string | null;
   /** Doar pentru `"departament"`. */
   readonly departmentId: string | null;
-  /** Doar pentru `"functie"`. */
-  readonly jobPositionId: string | null;
+  /** Doar pentru `"functie"`: codul COR al ocupației, nu un id de nomenclator (0110). */
+  readonly codCor: string | null;
   readonly zileSuplimentare: number;
   readonly activ: boolean;
   readonly valabilDeLa: Date;
@@ -44,7 +44,7 @@ export interface AngajatPentruDrept {
   readonly conditiiMunca: string;
   readonly gradHandicap: string | null;
   readonly departmentId: string | null;
-  readonly jobPositionId: string | null;
+  readonly codCor: string | null;
 }
 
 /**
@@ -102,11 +102,7 @@ function seAplicaRegula(
         regula.departmentId === angajat.departmentId
       );
     case "functie":
-      return (
-        regula.jobPositionId !== null &&
-        angajat.jobPositionId !== null &&
-        regula.jobPositionId === angajat.jobPositionId
-      );
+      return regula.codCor !== null && angajat.codCor !== null && regula.codCor === angajat.codCor;
     default: {
       const necunoscut: never = regula.tipCriteriu;
       throw new RangeError(`Criteriu de grilă de concediu necunoscut: ${String(necunoscut)}`);

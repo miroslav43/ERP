@@ -120,3 +120,35 @@ describe("ZonaToast — mai multe deodată", () => {
     goleste();
   });
 });
+
+/**
+ * Clasele astea arată redundante și NU sunt. Testul le apără de o curățare
+ * bine intenționată, fiindcă defectul pe care îl previn nu se vede în niciun
+ * test de DOM: happy-dom nu implementează foaia de stil a browserului pentru
+ * popover, deci aici totul pare în regulă indiferent ce scriem.
+ *
+ * Ce se întâmplă într-un browser adevărat, măsurat în headless_shell pe un
+ * ecran de 780px: un popover deschis primește `inset: 0` de la browser, iar cu
+ * `top` și `bottom` amândouă fixate câștigă `top` — banda de notificări sare
+ * SUS. Cu `top-auto`, revine la `y=745`. Defectul a existat de la introducerea
+ * popover-ului și a fost găsit abia făcând o captură.
+ */
+describe("ZonaToast — poziționarea, apărată de la distanță", () => {
+  const radacina = (): HTMLElement => {
+    const { container } = render(<ZonaToast />);
+    const el = container.querySelector("[popover]");
+    if (el === null) throw new Error("zona de notificări nu s-a randat");
+    return el as HTMLElement;
+  };
+
+  it("anulează `top`-ul pe care i-l dă browserul popover-ului", () => {
+    expect(radacina().className).toContain("top-auto");
+  });
+
+  it("lasă loc dedesubt pentru bula asistentului, diferit pe cele două zone", () => {
+    const { container } = render(<ZonaToast zona="portal" />);
+    const portal = container.querySelector("[popover]");
+    expect(portal?.className).toContain("8rem");
+    expect(radacina().className).toContain("4.5rem");
+  });
+});

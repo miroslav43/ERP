@@ -13,13 +13,24 @@ import {
 } from "@/domain/attendance/calcul-ore";
 import { ETICHETE_TIP_ZI } from "./etichete";
 import { decideZiPontaj, salveazaZiPontaj, stergeZiPontaj } from "./actions";
-import type { IntrareZiClient } from "./foaie-colectiva";
+import type { IntrareZiClient } from "./intrare-client";
 
 interface Proprietati {
   readonly angajatId: string | null;
   readonly data: string;
   readonly eticheta: string;
   readonly intrare: IntrareZiClient | null;
+  /**
+   * Intervalul tras pe grila orară, pentru o zi care încă n-are unul — sau
+   * pentru una căreia omul tocmai i-l redefinește prin tragere.
+   *
+   * Bate `intrare`: cine trage peste un bloc existent vrea intervalul TRAS, nu
+   * pe cel salvat. Grila trimite proprietățile astea NUMAI după o tragere
+   * adevărată; un click simplu pe o zi deja pontată le lasă nedefinite, deci
+   * dialogul se deschide pe valorile ei.
+   */
+  readonly oraInceputInitiala?: string | undefined;
+  readonly oraSfarsitInitiala?: string | undefined;
   readonly poateSterge: boolean;
   /** Pragul de ore/zi al organizației (`attendance_settings.ore_pe_zi`) — peste el, orele devin suplimentare automat. */
   /** Fereastra de noapte a organizației (`attendance_settings.noapte_start/_sfarsit`). */
@@ -46,6 +57,8 @@ export function CelulaZi({
   data,
   eticheta,
   intrare,
+  oraInceputInitiala,
+  oraSfarsitInitiala,
   poateSterge,
   config,
   poateAproba,
@@ -55,13 +68,31 @@ export function CelulaZi({
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [inCurs, porneste] = useTransition();
   const [eroare, setEroare] = useState<string | null>(null);
-  const [oraInceput, setOraInceput] = useState(intrare?.oraInceput ?? "");
-  const [oraSfarsit, setOraSfarsit] = useState(intrare?.oraSfarsit ?? "");
-  const [oreLucrate, setOreLucrate] = useState<number | null>(intrare?.oreLucrate ?? 8);
-  const [oreSuplimentare, setOreSuplimentare] = useState<number | null>(
-    intrare?.oreSuplimentare ?? 0,
+  /*
+    Orele de pornire, când intervalul vine dintr-o selecție trasă pe grilă.
+
+    Se derivă DOAR pentru intervalul precompletat, niciodată pentru cel citit
+    din `intrare`: o zi salvată de cineva cu `attendance:create = all` poate avea
+    dinadins alte ore decât cele care ies din interval (pauză neobișnuită, tură
+    peste miezul nopții), iar o derivare la deschidere i le-ar rescrie tăcut,
+    fără ca omul să atingă vreun câmp.
+  */
+  const derivateInitiale =
+    oraInceputInitiala === undefined || oraSfarsitInitiala === undefined
+      ? null
+      : oreleZilei(oraInceputInitiala, oraSfarsitInitiala, config);
+
+  const [oraInceput, setOraInceput] = useState(oraInceputInitiala ?? intrare?.oraInceput ?? "");
+  const [oraSfarsit, setOraSfarsit] = useState(oraSfarsitInitiala ?? intrare?.oraSfarsit ?? "");
+  const [oreLucrate, setOreLucrate] = useState<number | null>(
+    derivateInitiale?.lucrate ?? intrare?.oreLucrate ?? 8,
   );
-  const [oreNoapte, setOreNoapte] = useState<number | null>(intrare?.oreNoapte ?? 0);
+  const [oreSuplimentare, setOreSuplimentare] = useState<number | null>(
+    derivateInitiale?.suplimentare ?? intrare?.oreSuplimentare ?? 0,
+  );
+  const [oreNoapte, setOreNoapte] = useState<number | null>(
+    derivateInitiale?.noapte ?? intrare?.oreNoapte ?? 0,
+  );
   const [motivRespingere, setMotivRespingere] = useState("");
   const [ceareMotiv, setCereMotiv] = useState(false);
   const [tipZi, setTipZi] = useState<string>(

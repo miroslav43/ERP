@@ -21,16 +21,34 @@ export function ComutatorModul({
   activInitial,
 }: Proprietati) {
   const [activ, setActiv] = useState(activInitial);
-  const [mesaj, setMesaj] = useState<string | null>(null);
+  const [servit, setServit] = useState(activInitial);
+  const [confirmare, setConfirmare] = useState<{ activ: boolean; text: string } | null>(null);
   const [eroare, setEroare] = useState<string | null>(null);
   const [inCurs, startTransition] = useTransition();
   const router = useRouter();
   const idStare = useId();
 
+  /**
+   * Serverul e sursa de adevăr, `useState` nu o știe.
+   *
+   * `useState(activInitial)` citește proprietatea O SINGURĂ DATĂ, la montare;
+   * după `router.refresh()` — sau după „Pornește tot”, care schimbă starea a
+   * cincisprezece comutatoare deodată — componenta primește altă valoare, iar
+   * comutatorul continuă să deseneze ce ținea el minte. Comparația de mai jos e
+   * tiparul din documentația React („adjusting state when a prop changes”):
+   * se face ÎN TIMPUL randării, nu într-un `useEffect`, care ar mai desena o
+   * dată ecranul cu starea veche înainte să-l corecteze.
+   */
+  if (servit !== activInitial) {
+    setServit(activInitial);
+    setActiv(activInitial);
+    setEroare(null);
+  }
+
   function comuta(): void {
     const dorit = !activ;
     setEroare(null);
-    setMesaj(null);
+    setConfirmare(null);
     startTransition(async () => {
       const rezultat = await comutaModul({ organizationId, featureKey, enabled: dorit });
       if (!rezultat.ok) {
@@ -38,10 +56,16 @@ export function ComutatorModul({
         return;
       }
       setActiv(rezultat.data.enabled);
-      setMesaj(rezultat.data.mesaj);
+      setConfirmare({ activ: rezultat.data.enabled, text: rezultat.data.mesaj });
       router.refresh();
     });
   }
+
+  // Confirmarea se leagă de starea pe care o descrie. Altfel „Modulul Pontaj a
+  // fost activat” ar rămâne scris sub un comutator pe care „Oprește tot” tocmai
+  // l-a stins.
+  const eticheta =
+    confirmare && confirmare.activ === activ ? confirmare.text : activ ? "Activ" : "Inactiv";
 
   return (
     <div className="flex flex-col items-end gap-1">
@@ -72,7 +96,7 @@ export function ComutatorModul({
             Se salvează…
           </span>
         ) : (
-          (mesaj ?? (activ ? "Activ" : "Inactiv"))
+          eticheta
         )}
       </p>
 

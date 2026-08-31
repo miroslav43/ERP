@@ -335,6 +335,42 @@ export async function citesteFluturasulPropriu(
   return data;
 }
 
+/**
+ * Luna unei perioade de salarizare — anul și luna, atât.
+ *
+ * ── DE CE EXISTĂ SEPARAT DE `citesteFluturasulPropriu` ──────────────────────
+ * Ar fi părut mai ieftin un embed: `perioada:payroll_periods!period_id(an, luna)`
+ * lipit în `COLOANE_INREGISTRARE`, un singur drum la bază. Nu se face, din două
+ * motive care s-au verificat amândouă în acest repo:
+ *
+ *   1. `COLOANE_INREGISTRARE` e folosit și de `citesteInregistrare`, calea
+ *      administrativă, care are deja luna din altă parte. Un embed acolo ar fi
+ *      cost plătit degeaba pe fiecare fluturaș din stat.
+ *
+ *   2. Un embed refuzat de RLS întoarce `null` în loc de rând, fără eroare —
+ *      exact defectul închis de 0027. O citire separată care întoarce `null` se
+ *      citește la fel, dar apelantul VEDE că a întrebat.
+ *
+ * Angajatul obișnuit (`payroll:read = own`) ajunge aici de la 0113 încoace, și
+ * numai pentru perioadele aprobate/închise în care are propriul fluturaș.
+ * Înainte primea zero rânduri, iar portalul scria fluturașul fără lună.
+ */
+export async function perioadaInregistrarii(
+  organizationId: string,
+  periodId: string,
+): Promise<{ readonly an: number; readonly luna: number } | null> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("payroll_periods")
+    .select("an, luna")
+    .eq("organization_id", organizationId)
+    .eq("id", periodId)
+    .is("deleted_at", null)
+    .maybeSingle<{ an: number; luna: number }>();
+  if (error !== null) throw error;
+  return data;
+}
+
 // ── Zile lucrătoare, pentru numărătoarea din calcul ─────────────────────────
 
 /**
@@ -359,15 +395,7 @@ export async function zileLucratoareLuna(
   const ultimaZi = new Date(Date.UTC(an, luna, 0)).getUTCDate();
   const finala = `${String(an)}-${String(luna).padStart(2, "0")}-${String(ultimaZi).padStart(2, "0")}`;
 
-  const rezultat = numaraZileCerere(
-    prima,
-    finala,
-    "zi_intreaga",
-    "zi_intreaga",
-    sarbatoriRo,
-    liberSuplimentar,
-    zileRecuperare,
-  );
+  const rezultat = numaraZileCerere(prima, finala, sarbatoriRo, liberSuplimentar, zileRecuperare);
   return rezultat.zileLucratoare;
 }
 

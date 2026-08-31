@@ -119,7 +119,6 @@ export default async function PaginaSablon({ params }: ProprietatiPagina) {
           să schimbe un termen n-are de ce să reparcurgă tot. */}
       <AsistentSablon
         departamente={optiuni.departamente}
-        posturi={optiuni.posturi}
         cursuri={optiuni.cursuri}
         materiale={optiuni.materiale}
         angajati={optiuni.angajati}

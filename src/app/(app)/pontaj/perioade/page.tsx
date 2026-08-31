@@ -189,7 +189,12 @@ export default async function PaginaPerioadePontaj({ searchParams }: Proprietati
             </Link>
           </nav>
         }
-        file={<NavPontaj poateAproba={poateAproba} />}
+        file={
+          <NavPontaj
+            poateAproba={poateAproba}
+            poateConfigura={can(permisiuni, "attendance:update", "all")}
+          />
+        }
       />
 
       <Suspense key={String(an)} fallback={<Schelet forma="tabel" coloane={4} />}>

@@ -16,7 +16,6 @@ import { autorulPoateRetrage } from "@/domain/leave/verificari";
 import { citesteCerere, zileleCererii } from "@/lib/queries/leave";
 import { fisaMea, tipuriConcediu } from "@/lib/queries/portal";
 import { ActiuniCerere } from "@/app/(app)/concedii/[id]/actiuni-cerere";
-import { ETICHETE_PORTIUNE } from "@/app/(app)/concedii/etichete";
 
 import { FaraFisa } from "../../fara-fisa";
 import { ETICHETE_STATUS_CERERE, TONURI_STATUS_CERERE } from "../../etichete";
@@ -105,19 +104,6 @@ export default async function PaginaCerereaMea({
               {cerere.zile_calendaristice.toLocaleString("ro-RO")}
             </dd>
           </div>
-          {cerere.portiune_inceput === "zi_intreaga" &&
-          cerere.portiune_sfarsit === "zi_intreaga" ? null : (
-            <>
-              <div>
-                <dt className="text-muted-foreground text-nota">Prima zi</dt>
-                <dd className="text-foreground">{ETICHETE_PORTIUNE[cerere.portiune_inceput]}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground text-nota">Ultima zi</dt>
-                <dd className="text-foreground">{ETICHETE_PORTIUNE[cerere.portiune_sfarsit]}</dd>
-              </div>
-            </>
-          )}
           {cerere.trimisa_la === null ? null : (
             <div>
               <dt className="text-muted-foreground text-nota">Trimisă</dt>
@@ -150,9 +136,7 @@ export default async function PaginaCerereaMea({
               <li key={zi.data} className="flex items-center justify-between gap-3 px-4 py-2">
                 <span className="text-foreground text-corp">{formatDate(zi.data)}</span>
                 <span className="text-muted-foreground text-nota">
-                  {zi.este_lucratoare
-                    ? ETICHETE_PORTIUNE[zi.portiune]
-                    : "Nelucrătoare — nu se scade"}
+                  {zi.este_lucratoare ? "Zi lucrătoare" : "Nelucrătoare — nu se scade"}
                 </span>
               </li>
             ))}

@@ -544,7 +544,7 @@ export async function citesteDetaliuMesaj(
           .from("employment_contracts")
           // prettier-ignore
           .select(
-            "id, numar, contract_duration, norma_ore_saptamana, norma_ore_zi, work_mode, special_regime, reges_contract_id, reges_tip_contract, reges_tip_norma, reges_norma_timp, reges_repartizare, reges_temei_incetare, job_positions(cod_cor)",
+            "id, numar, contract_duration, norma_ore_saptamana, norma_ore_zi, work_mode, special_regime, reges_contract_id, reges_tip_contract, reges_tip_norma, reges_norma_timp, reges_repartizare, reges_temei_incetare, functie, cod_cor",
           )
           .eq("id", data.contract_id)
           .eq("organization_id", organizationId)
@@ -602,7 +602,7 @@ export async function citesteDetaliuMesaj(
             normaOreZi: c.norma_ore_zi,
             modLucru: c.work_mode,
             regimSpecial: c.special_regime,
-            codCor: c.job_positions?.cod_cor ?? null,
+            codCor: c.cod_cor,
             tipContract: c.reges_tip_contract,
             tipNorma: c.reges_tip_norma,
             normaTimp: c.reges_norma_timp,

@@ -3,13 +3,14 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { numaraZileCerere, type PortiuneZi } from "@/domain/leave/zile-cerere";
+import { numaraZileCerere } from "@/domain/leave/zile-cerere";
+import { tipImplicitConcediu } from "@/domain/leave/tip-implicit";
 import { creeazaCerereConcediu } from "@/app/(app)/concedii/actions";
-import { ETICHETE_PORTIUNE } from "@/app/(app)/concedii/etichete";
 import { IncarcareDocumentConcediu } from "@/app/(app)/concedii/incarcare-document";
 import { Buton } from "@/components/ui/buton";
 import { Camp } from "@/components/ui/camp";
 import { Formular } from "@/components/ui/formular";
+import { IntrareData } from "@/components/ui/intrare-data";
 import type { ActionResult } from "@/lib/actions/types";
 import { formatAmount } from "@/lib/format/money";
 
@@ -22,10 +23,6 @@ import { formatAmount } from "@/lib/format/money";
  * storage — pe telefon, absurd; iar redirecționarea de după salvare duce în
  * aplicația mare. Se dublează RANDAREA, nu regula: aceeași funcție pură
  * `numaraZileCerere` și exact aceeași Server Action.
- *
- * Jumătățile de zi apar doar la cerere. Sunt reale și folosite, dar patru
- * controale în plus pe un ecran de telefon, pentru un caz din douăzeci, mută
- * costul asupra celor nouăsprezece.
  *
  * Pânza e a portalului, dar controalele sunt ale aceleiași primitive `Camp`:
  * ținta de atingere de 44px vine din `pointer-coarse:h-11`, nu dintr-un
@@ -63,8 +60,6 @@ const ETICHETE_PLATITOR: Readonly<Record<CodMedical["platitor"], string>> = {
   fnuass: "suportat integral de FNUASS",
   mixt: "primele zile de firmă, restul de la FNUASS",
 };
-
-const PORTIUNI: readonly PortiuneZi[] = ["zi_intreaga", "prima_jumatate", "a_doua_jumatate"];
 
 type CerereCreata = Readonly<{ id: string }>;
 
@@ -115,17 +110,13 @@ export function FormularCererePortal({
   readonly soldPeTip: Readonly<Record<string, number>>;
 }) {
   const router = useRouter();
-  const primulTip = tipuri[0];
 
   // Controlate rămân doar câmpurile care hrănesc previzualizarea sau deschid
   // alte câmpuri; starea lor supraviețuiește oricum unei erori de validare.
   // Restul sunt necontrolate și își reiau valoarea din `stare.valoriTrimise`.
-  const [leaveTypeId, setLeaveTypeId] = useState(primulTip?.id ?? "");
+  const [leaveTypeId, setLeaveTypeId] = useState(tipImplicitConcediu(tipuri)?.id ?? "");
   const [dataInceput, setDataInceput] = useState("");
   const [dataSfarsit, setDataSfarsit] = useState("");
-  const [portiuneInceput, setPortiuneInceput] = useState<PortiuneZi>("zi_intreaga");
-  const [portiuneSfarsit, setPortiuneSfarsit] = useState<PortiuneZi>("zi_intreaga");
-  const [aratăJumatati, setAratăJumatati] = useState(false);
   const [variantaId, setVariantaId] = useState("");
   const [medicalCodeId, setMedicalCodeId] = useState("");
 
@@ -150,8 +141,6 @@ export function FormularCererePortal({
       return numaraZileCerere(
         dataInceput,
         dataSfarsit,
-        portiuneInceput,
-        portiuneSfarsit,
         sarbatoriRo,
         liberSuplimentar,
         zileRecuperare,
@@ -161,15 +150,7 @@ export function FormularCererePortal({
       // previzualizarea dispare, iar acțiunea refuză explicit la trimitere.
       return null;
     }
-  }, [
-    dataInceput,
-    dataSfarsit,
-    portiuneInceput,
-    portiuneSfarsit,
-    sarbatoriRo,
-    liberSuplimentar,
-    zileRecuperare,
-  ]);
+  }, [dataInceput, dataSfarsit, sarbatoriRo, liberSuplimentar, zileRecuperare]);
 
   const ramase = tip === null ? null : (soldPeTip[tip.id] ?? null);
   const dupaCerere =
@@ -178,8 +159,8 @@ export function FormularCererePortal({
   /**
    * Numele din `FormData` sunt EXACT cheile lui `creeazaCerereSchema`
    * (`src/schemas/leave.ts`): `leave_type_id`, `data_inceput`, `data_sfarsit`,
-   * `portiune_inceput`, `portiune_sfarsit`, `motiv`, `leave_variant_id`,
-   * `medical_code_id`, `serie_certificat`, `numar_certificat`. Fără potrivirea
+   * `motiv`, `leave_variant_id`, `medical_code_id`, `serie_certificat`,
+   * `numar_certificat`. Fără potrivirea
    * asta, `fieldErrors` întors de acțiune n-ar mai găsi niciun câmp, iar
    * mesajul ar dispărea în tăcere.
    *
@@ -216,8 +197,6 @@ export function FormularCererePortal({
       leave_type_id: String(date.get("leave_type_id") ?? ""),
       data_inceput: String(date.get("data_inceput") ?? ""),
       data_sfarsit: String(date.get("data_sfarsit") ?? ""),
-      portiune_inceput: String(date.get("portiune_inceput") ?? "zi_intreaga"),
-      portiune_sfarsit: String(date.get("portiune_sfarsit") ?? "zi_intreaga"),
       motiv: textSauNull(date, "motiv"),
       atasament_path: textSauNull(date, "atasament_path"),
       leave_variant_id: textSauNull(date, "leave_variant_id"),
@@ -284,15 +263,14 @@ export function FormularCererePortal({
               erori={stare.erori["data_inceput"] ?? []}
             >
               {(a) => (
-                <input
+                <IntrareData
                   {...a}
-                  type="date"
-                  value={dataInceput}
-                  onChange={(e) => {
-                    setDataInceput(e.target.value);
+                  valoare={dataInceput}
+                  onSchimba={(zi) => {
+                    setDataInceput(zi);
                     // Un interval de o zi e cazul cel mai des întâlnit; completarea
                     // automată scutește o atingere din două.
-                    if (dataSfarsit.length === 0) setDataSfarsit(e.target.value);
+                    if (dataSfarsit.length === 0) setDataSfarsit(zi);
                   }}
                 />
               )}
@@ -305,76 +283,17 @@ export function FormularCererePortal({
               erori={stare.erori["data_sfarsit"] ?? []}
             >
               {(a) => (
-                <input
+                <IntrareData
                   {...a}
-                  type="date"
-                  value={dataSfarsit}
+                  valoare={dataSfarsit}
                   {...(dataInceput.length > 0 ? { min: dataInceput } : {})}
-                  onChange={(e) => {
-                    setDataSfarsit(e.target.value);
+                  onSchimba={(zi) => {
+                    setDataSfarsit(zi);
                   }}
                 />
               )}
             </Camp>
           </div>
-
-          {aratăJumatati ? (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Camp
-                nume="portiune_inceput"
-                eticheta="Prima zi"
-                fel="select"
-                erori={stare.erori["portiune_inceput"] ?? []}
-              >
-                {(a) => (
-                  <select
-                    {...a}
-                    value={portiuneInceput}
-                    onChange={(e) => {
-                      setPortiuneInceput(e.target.value as PortiuneZi);
-                    }}
-                  >
-                    {PORTIUNI.map((p) => (
-                      <option key={p} value={p}>
-                        {ETICHETE_PORTIUNE[p]}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </Camp>
-              <Camp
-                nume="portiune_sfarsit"
-                eticheta="Ultima zi"
-                fel="select"
-                erori={stare.erori["portiune_sfarsit"] ?? []}
-              >
-                {(a) => (
-                  <select
-                    {...a}
-                    value={portiuneSfarsit}
-                    onChange={(e) => {
-                      setPortiuneSfarsit(e.target.value as PortiuneZi);
-                    }}
-                  >
-                    {PORTIUNI.map((p) => (
-                      <option key={p} value={p}>
-                        {ETICHETE_PORTIUNE[p]}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </Camp>
-            </div>
-          ) : (
-            <Buton
-              varianta="link"
-              onClick={() => {
-                setAratăJumatati(true);
-              }}
-            >
-              Am nevoie de jumătăți de zi
-            </Buton>
-          )}
 
           {varianteTip.length > 0 && (
             <Camp

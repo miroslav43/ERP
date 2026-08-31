@@ -4,8 +4,10 @@
 import { createAction } from "@/lib/actions/create-action";
 import { businessRule, notFound } from "@/lib/actions/errors";
 import { oreleZilei } from "@/domain/attendance/calcul-ore";
+import { esteWeekend } from "@/domain/attendance/limite-legale";
 import { setariPontaj } from "@/lib/queries/attendance";
 import { decideSaptamanaPontajSchema, trimiteSaptamanaPontajSchema } from "@/schemas/attendance";
+import { avertismenteDupaSaptamana, type RezultatCuAvertismente } from "../avertismente";
 import { traduEroare } from "../erori";
 
 const CAI_REVALIDARE = [
@@ -24,7 +26,7 @@ const CAI_REVALIDARE = [
  */
 export const trimiteSaptamanaPontaj = createAction<
   typeof trimiteSaptamanaPontajSchema,
-  Readonly<{ id: string }>
+  RezultatCuAvertismente
 >({
   name: "attendance.week.submit",
   feature: "attendance",
@@ -61,12 +63,13 @@ export const trimiteSaptamanaPontaj = createAction<
       pauzaObligatoriePesteOre: setari?.pauza_obligatorie_peste_ore ?? 0,
     };
 
-    const zile = input.zile.map((zi) => {
+    /** Ce se trimite spre RPC, plus cifrele pe care le verifică limitele legale. */
+    const derivatePeZi = input.zile.map((zi) => {
       // Fără interval = zi nelucrată (weekend debifat, sărbătoare): zero ore,
       // nu norma presupusă. Vechiul implicit `8` din RPC e exact ce umplea
       // sâmbăta și duminica în portal.
       if (zi.ora_inceput === null || zi.ora_sfarsit === null) {
-        return { ...zi, ora_inceput: null, ora_sfarsit: null, ore_planificate: 0 };
+        return { zi: { ...zi, ora_inceput: null, ora_sfarsit: null, ore_planificate: 0 } };
       }
       const derivate = oreleZilei(zi.ora_inceput, zi.ora_sfarsit, config);
       if (derivate === null) {
@@ -74,22 +77,66 @@ export const trimiteSaptamanaPontaj = createAction<
           `Pe ${zi.data}, ora de ieșire trebuie să fie după ora de intrare, în aceeași zi.`,
         );
       }
-      return { ...zi, ore_planificate: derivate.lucrate };
+      return { zi: { ...zi, ore_planificate: derivate.lucrate }, derivate };
     });
+    const zile = derivatePeZi.map((d) => d.zi);
 
     const { data, error } = await ctx.supabase.rpc("trimite_saptamana_pontaj", {
       p_organization_id: ctx.tenant.organizationId,
       p_saptamana_start: input.saptamana_start,
       p_status: input.status,
       p_zile: zile,
-      p_lucreaza_weekend: input.lucreaza_weekend,
+      /*
+       * DIN SETĂRI **SAU** DIN CE S-A COMPLETAT CHIAR ACUM.
+       *
+       * Steagul se salvează pe submisie și e ce vede aprobatorul ca CONTEXT:
+       * „la firma asta se lucrează în weekend". De aceea nu se crede de la
+       * client: o cerere fabricată ar declara asta la o firmă de birou, iar
+       * sâmbăta lucrată ar apărea drept program obișnuit.
+       *
+       * Dar numai din setări nu se poate: aceeași coloană decide, la
+       * REÎNCĂRCARE, dacă se mai desenează coloanele de weekend
+       * (`lucreazaWeekendInitial`, în ambele pagini de săptămână). O firmă cu
+       * `lucreaza_weekend = false` în care cineva chiar a lucrat sâmbăta
+       * salva ziua corect, primea caseta debifată înapoi, iar următoarea
+       * trimitere — o corectură pe luni — o trimitea goală. RPC-ul face
+       * `delete` + reinserare (0084), deci orele dispăreau din bază fără
+       * nicio eroare.
+       *
+       * `esteWeekend` pe DATĂ, nu pe indice: schema acceptă `.min(1).max(7)`
+       * zile, deci poziția 5 nu e garantat sâmbăta. Ce se declară rămâne
+       * astfel un fapt observat — „săptămâna asta chiar are weekend lucrat" —
+       * nu o afirmație a clientului.
+       */
+      p_lucreaza_weekend:
+        (setari?.lucreaza_weekend ?? false) ||
+        derivatePeZi.some(({ zi }) => zi.ora_inceput !== null && esteWeekend(zi.data)),
       // Cine are `attendance:create = all` completează și pentru altcineva
       // (0084). `null` înseamnă propria fișă. Autorizarea rămâne în bază, în
       // `app.poate_scrie_pontaj` — aici nu se decide nimic, doar se transmite.
       p_employee_id: input.employee_id,
     });
     if (error !== null) traduEroare(error);
-    return { id: data };
+
+    return {
+      id: data,
+      // Planul e scris; abia acum se spune ce e în neregulă cu el. Sursa sunt
+      // zilele TRIMISE, nu `attendance_entries`: săptămâna planificată e în
+      // viitor, unde nu există încă niciun pontaj de citit.
+      avertismente: await avertismenteDupaSaptamana({
+        organizationId: ctx.tenant.organizationId,
+        saptamanaStart: input.saptamana_start,
+        setari,
+        zile: derivatePeZi.map(({ zi, derivate }) => ({
+          data: zi.data,
+          oraInceput: zi.ora_inceput,
+          oraSfarsit: zi.ora_sfarsit,
+          oreLucrate: zi.ore_planificate,
+          oreSuplimentare: derivate?.suplimentare ?? 0,
+          oreNoapte: derivate?.noapte ?? 0,
+        })),
+      }),
+    };
   },
 });
 

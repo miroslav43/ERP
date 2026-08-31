@@ -24,11 +24,11 @@ describe("calculeazaAcumulareProportionala", () => {
       zi(2025, 6, 15),
       2025,
       21,
-      "jumatate_in_sus",
+      "zi_in_sus",
       zi(2026, 1, 15),
     );
-    // 21 / 12 = 1,75 pe lună × 7 luni (iunie-decembrie) = 12,25 -> rotunjit la 0,5 în sus = 12,5
-    expect(zile).toBe(12.5);
+    // 21 / 12 = 1,75 pe lună × 7 luni (iunie-decembrie) = 12,25 -> rotunjit la zi în sus = 13
+    expect(zile).toBe(13);
   });
 
   it("angajat anul trecut are dreptul anual integral pentru anul curent", () => {
@@ -88,8 +88,12 @@ describe("rotunjesteZileConcediu", () => {
     expect(rotunjesteZileConcediu(12.256, "fara_rotunjire")).toBe(12.26);
   });
 
-  it("jumatate_in_jos rotunjește în jos la cel mai apropiat 0,5", () => {
-    expect(rotunjesteZileConcediu(12.4, "jumatate_in_jos")).toBe(12);
+  it("zi_in_sus rotunjește în sus la ziua întreagă", () => {
+    // Modul implicit după 0112, în locul lui `jumatate_in_sus`: aceeași
+    // direcție (favorabilă salariatului), dar fără jumătatea de zi care nu se
+    // mai poate cheltui pe nicio cerere.
+    expect(rotunjesteZileConcediu(12.25, "zi_in_sus")).toBe(13);
+    expect(rotunjesteZileConcediu(12, "zi_in_sus")).toBe(12);
   });
 
   it("zi_in_jos rotunjește în jos la ziua întreagă", () => {
@@ -99,5 +103,19 @@ describe("rotunjesteZileConcediu", () => {
   it("matematic rotunjește standard la cea mai apropiată zi", () => {
     expect(rotunjesteZileConcediu(12.5, "matematic")).toBe(13);
     expect(rotunjesteZileConcediu(12.4, "matematic")).toBe(12);
+  });
+});
+
+describe("modurile de rotunjire pe jumătate de zi au dispărut", () => {
+  it("niciun mod rămas nu poate produce o jumătate de zi", () => {
+    // Poarta: dacă cineva reintroduce `jumatate_in_*` în tipul `ModRotunjire`,
+    // testul cade — cu excepția lui `fara_rotunjire`, care păstrează fracția
+    // brută tocmai fiindcă nu rotunjește nimic.
+    const moduri = ["zi_in_sus", "zi_in_jos", "matematic"] as const;
+    for (const mod of moduri) {
+      for (const valoare of [12.25, 12.5, 12.75, 0.5, 19.99]) {
+        expect(Number.isInteger(rotunjesteZileConcediu(valoare, mod))).toBe(true);
+      }
+    }
   });
 });

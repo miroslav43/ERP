@@ -20,7 +20,7 @@ export interface FisaProprie {
   readonly marca: string;
   readonly hired_on: string | null;
   readonly department_id: string | null;
-  readonly job_position_id: string | null;
+  readonly functie: string | null;
   readonly status: string;
 }
 
@@ -112,7 +112,7 @@ export async function fisaProprie(
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("employees")
-    .select("id, full_name, marca, hired_on, department_id, job_position_id, status")
+    .select("id, full_name, marca, hired_on, department_id, functie, status")
     .eq("organization_id", organizationId)
     .eq("user_id", userId)
     .order("is_primary", { ascending: false })
@@ -161,7 +161,7 @@ export const fisaMea = cache(async (organizationId: string, userId: string): Pro
   // față, spune dacă există vreuna principală.
   const { data, error } = await db
     .from("employees")
-    .select("id, full_name, marca, hired_on, department_id, job_position_id, status, is_primary")
+    .select("id, full_name, marca, hired_on, department_id, functie, status, is_primary")
     .eq("organization_id", organizationId)
     .eq("user_id", userId)
     .is("deleted_at", null)

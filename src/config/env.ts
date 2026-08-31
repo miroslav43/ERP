@@ -97,6 +97,26 @@ const serverSchema = z
      * inclusiv CI-ul.
      */
     REGES_CRON_SECRET: z.string().default(""),
+    /**
+     * Cheia OpenRouter cu care răspunde asistentul din colțul dreapta-jos.
+     *
+     * `default("")` e din nou comutatorul de pornire, cu aceeași motivație ca
+     * `REGES_CRON_SECRET`: `/api/asistent` răspunde 404 cât timp cheia e goală,
+     * iar bula nu se randează. Variabilă obligatorie ar fi oprit la boot fiecare
+     * mediu care nu vrea asistentul — CI-ul inclusiv.
+     *
+     * 404, nu 401: o rută oprită nu-și anunță existența. Tiparul e cel din
+     * `api/reges/reconciliere/route.ts`.
+     */
+    OPENROUTER_API_KEY: z.string().default(""),
+    /**
+     * Modelul se schimbă dintr-o variabilă, nu dintr-un deploy de cod.
+     *
+     * `gemini-3.7-flash` costă $0,75/M la intrare și $3,75/M la ieșire — sub
+     * jumătate din `gemini-3.5-flash`, la aceeași fereastră de 1M token. Sarcina
+     * („alege ruta potrivită din lista dată și explică drumul") nu cere mai mult.
+     */
+    OPENROUTER_MODEL_ASISTENT: z.string().min(1).default("google/gemini-3.7-flash"),
   })
   .refine((env) => env.HR_ENCRYPTION_ACTIVE_KEY in env.HR_ENCRYPTION_KEYS, {
     error: "HR_ENCRYPTION_ACTIVE_KEY nu are corespondent în HR_ENCRYPTION_KEYS",

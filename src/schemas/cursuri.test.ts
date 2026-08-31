@@ -178,12 +178,14 @@ describe("testul grilă — oglinda cheii de răspuns", () => {
 describe("regula de atribuire — oglinda lui course_assignment_rules_criteriu_ck", () => {
   const CURS = "8b867d05-d4c0-4a42-9bc7-ce21abe20ac4";
   const TINTA = "774fb27a-98e7-4224-927c-49613223e00d";
+  /** Ținta criteriului „funcție" e un COD COR real, nu un uuid (0110). */
+  const COD_COR = "721208";
 
   const regula = (peste: Record<string, unknown>) => ({
     course_id: CURS,
     criteriu: "toti",
     department_id: "",
-    job_position_id: "",
+    cod_cor: "",
     rol: "",
     employee_id: "",
     decalaj_zile: "0",
@@ -196,10 +198,10 @@ describe("regula de atribuire — oglinda lui course_assignment_rules_criteriu_c
   });
 
   it("fiecare criteriu cere exact ținta lui", () => {
-    for (const [criteriu, camp] of [
-      ["departament", "department_id"],
-      ["functie", "job_position_id"],
-      ["angajat", "employee_id"],
+    for (const [criteriu, camp, tinta] of [
+      ["departament", "department_id", TINTA],
+      ["functie", "cod_cor", COD_COR],
+      ["angajat", "employee_id", TINTA],
     ] as const) {
       // Fără țintă: pică pe câmpul potrivit.
       const fara = creeazaRegulaSchema.safeParse(regula({ criteriu }));
@@ -208,7 +210,7 @@ describe("regula de atribuire — oglinda lui course_assignment_rules_criteriu_c
 
       // Cu ținta lui: trece.
       expect(
-        creeazaRegulaSchema.safeParse(regula({ criteriu, [camp]: TINTA })).success,
+        creeazaRegulaSchema.safeParse(regula({ criteriu, [camp]: tinta })).success,
         criteriu,
       ).toBe(true);
     }
@@ -229,7 +231,7 @@ describe("regula de atribuire — oglinda lui course_assignment_rules_criteriu_c
 
   it("două ținte deodată sunt refuzate", () => {
     const r = creeazaRegulaSchema.safeParse(
-      regula({ criteriu: "departament", department_id: TINTA, job_position_id: TINTA }),
+      regula({ criteriu: "departament", department_id: TINTA, cod_cor: COD_COR }),
     );
     expect(r.success).toBe(false);
   });

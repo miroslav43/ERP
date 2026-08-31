@@ -12,7 +12,7 @@ import { ETICHETE_STATUS } from "./etichete";
  * ── CE REPARĂ MIGRAREA ────────────────────────────────────────────────────
  * Vechiul `aplica()` pornea dintr-un `new URLSearchParams()` GOL și îl
  * repopula doar cu `q` și `status`. Verificat pe adresa
- * `q=Popescu&status=activ&sort=-nume&limita=50&department_id=…&job_position_id=…`,
+ * `q=Popescu&status=activ&sort=-nume&limita=50&department_id=…&functie=…`,
  * o apăsare pe „Aplică filtrele” lăsa în urmă exact `q=Popescu&status=activ`:
  * sortarea, mărimea paginii, departamentul și funcția dispăreau tăcut.
  *
@@ -39,13 +39,13 @@ import { ETICHETE_STATUS } from "./etichete";
 /**
  * Cheile administrate de bară.
  *
- * `department_id` și `job_position_id` sunt NOI aici, dar nu în produs:
+ * `department_id` și `functie` sunt NOI aici, dar nu în produs:
  * `listeazaAngajati` le filtrează din prima zi (`queries/employees.ts:219-222`),
  * iar un `grep` pe tot depozitul găsea o singură apariție a lor — într-un
  * comentariu. Capacitate implementată complet pe server și inaccesibilă din
  * interfață. `sort`, `limita` și `cursor` NU sunt aici: nu sunt filtre.
  */
-const CHEI_PROPRII = ["q", "status", "department_id", "job_position_id"] as const;
+const CHEI_PROPRII = ["q", "status", "department_id", "functie"] as const;
 
 // Fără `useId`: componenta e un Server Component și apare o singură dată pe pagină.
 const ID_CAUTARE = "filtre-angajati-cautare";
@@ -62,7 +62,6 @@ const CLASA_SELECT = "border-foreground/60 rounded-control text-corp mt-1 border
 function filtreActive(
   filtre: ValoriFiltre,
   departamente: readonly Optiune[],
-  functii: readonly Optiune[],
 ): readonly FiltruActiv[] {
   const active: FiltruActiv[] = [];
   if (filtre.q !== null) active.push({ cheie: "q", eticheta: `Caută: ${filtre.q}` });
@@ -79,12 +78,8 @@ function filtreActive(
       eticheta: d === undefined ? "Departament ales" : `Departament: ${d.denumire}`,
     });
   }
-  if (filtre.job_position_id !== null) {
-    const f = functii.find((x) => x.id === filtre.job_position_id);
-    active.push({
-      cheie: "job_position_id",
-      eticheta: f === undefined ? "Funcție aleasă" : `Funcție: ${f.denumire}`,
-    });
+  if (filtre.functie !== null) {
+    active.push({ cheie: "functie", eticheta: `Funcție: ${filtre.functie}` });
   }
   return active;
 }
@@ -103,14 +98,14 @@ export function FiltreAngajati({
   readonly filtre: ValoriFiltre;
   /** Lista goală ascunde filtrul: o firmă fără departamente n-are ce alege. */
   readonly departamente: readonly Optiune[];
-  readonly functii: readonly Optiune[];
+  readonly functii: readonly string[];
 }): ReactElement {
   return (
     // Reperul de căutare stă pe înveliș: `<BaraFiltre>` își randează singură
     // formularul, iar pastilele fac parte din aceeași treabă.
     <div role="search" aria-label="Filtrare angajați">
       <BaraFiltre
-        active={filtreActive(filtre, departamente, functii)}
+        active={filtreActive(filtre, departamente)}
         cheiProprii={[...CHEI_PROPRII]}
         textAplica="Aplică filtrele"
       >
@@ -184,16 +179,16 @@ export function FiltreAngajati({
               Funcție
             </label>
             <select
-              key={filtre.job_position_id ?? ""}
+              key={filtre.functie ?? ""}
               id={ID_FUNCTIE}
-              name="job_position_id"
-              defaultValue={filtre.job_position_id ?? ""}
+              name="functie"
+              defaultValue={filtre.functie ?? ""}
               className={CLASA_SELECT}
             >
               <option value="">Toate</option>
               {functii.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.denumire}
+                <option key={f} value={f}>
+                  {f}
                 </option>
               ))}
             </select>

@@ -5,6 +5,7 @@ import {
   adaugaZile,
   esteLuni,
   intervalDeTrimis,
+  lunieaSaptamanii,
   lunieaUrmatoare,
   zileleSaptamanii,
 } from "./saptamana";
@@ -68,6 +69,43 @@ describe("lunieaUrmatoare", () => {
     let zi = "2026-01-01";
     for (let i = 0; i < 400; i += 1) {
       expect(lunieaUrmatoare(zi) > zi, zi).toBe(true);
+      zi = adaugaZile(zi, 1);
+    }
+  });
+});
+
+describe("lunieaSaptamanii", () => {
+  it("lunea rămâne ea însăși", () => {
+    expect(lunieaSaptamanii("2026-08-24")).toBe("2026-08-24");
+  });
+
+  it("orice zi a săptămânii dă aceeași luni", () => {
+    // 24 august 2026 e luni; 25…30 sunt restul săptămânii ei.
+    for (const zi of ["2026-08-25", "2026-08-28", "2026-08-29", "2026-08-30"]) {
+      expect(lunieaSaptamanii(zi), zi).toBe("2026-08-24");
+    }
+  });
+
+  it("duminica se întoarce la lunea DINAINTE, nu la cea de mâine", () => {
+    // Ramura care desparte `lunieaSaptamanii` de `lunieaUrmatoare`: pentru
+    // 30 august 2026, duminică, una dă 24 august, cealaltă 31.
+    expect(lunieaSaptamanii("2026-08-30")).toBe("2026-08-24");
+    expect(lunieaUrmatoare("2026-08-30")).toBe("2026-08-31");
+  });
+
+  it("trece peste granița lunii și a anului", () => {
+    // 1 ianuarie 2027 e vineri: săptămâna lui începe în decembrie 2026.
+    expect(lunieaSaptamanii("2027-01-01")).toBe("2026-12-28");
+    expect(lunieaSaptamanii("2026-09-02")).toBe("2026-08-31");
+  });
+
+  it("rezultatul e o luni, nu e niciodată în viitor, și e la mai puțin de 7 zile", () => {
+    let zi = "2026-01-01";
+    for (let i = 0; i < 400; i += 1) {
+      const luni = lunieaSaptamanii(zi);
+      expect(esteLuni(luni), zi).toBe(true);
+      expect(luni <= zi, zi).toBe(true);
+      expect(adaugaZile(luni, 7) > zi, zi).toBe(true);
       zi = adaugaZile(zi, 1);
     }
   });

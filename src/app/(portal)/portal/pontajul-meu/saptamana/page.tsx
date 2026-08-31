@@ -12,7 +12,6 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
 import { citesteSaptamanaPontaj, setariPontaj } from "@/lib/queries/attendance";
-import { zileNelucratoare } from "@/lib/queries/leave";
 import { fisaMea } from "@/lib/queries/portal";
 import type { ConfigZi } from "@/domain/attendance/calcul-ore";
 import {
@@ -25,7 +24,6 @@ import { FormularSaptamana } from "@/app/(app)/pontaj/saptamana/formular-saptama
 import {
   TONURI_STARE_SAPTAMANA,
   ETICHETE_STARE_SAPTAMANA,
-  esteZiLucratoare,
   rezumatRegulaPontaj,
 } from "@/app/(app)/pontaj/etichete";
 
@@ -76,32 +74,23 @@ export default async function PaginaSaptamanaPortal({
    * asta; portalul rămăsese în urmă, deși e ecranul deschis de pe telefon,
    * adică exact acela unde nimeni nu verifică șapte câmpuri înainte de a trimite.
    */
-  const saptamanaSfarsit = adaugaZile(saptamanaStart, 6);
-  const [setari, { nationale, organizatie }] = await Promise.all([
-    setariPontaj(tenant.organizationId, saptamanaStart),
-    // O săptămână poate călări două ani (28 decembrie – 3 ianuarie).
-    zileNelucratoare(
-      tenant.organizationId,
-      Number(saptamanaStart.slice(0, 4)),
-      Number(saptamanaSfarsit.slice(0, 4)),
-    ),
-  ]);
-  const setNationale = new Set(nationale.map((z) => z.data));
-  const setRecuperare = new Set(
-    organizatie.filter((z) => z.tip === "zi_recuperare").map((z) => z.data),
-  );
-  const setLiber = new Set(
-    organizatie.filter((z) => z.tip === "liber_suplimentar").map((z) => z.data),
-  );
+  const setari = await setariPontaj(tenant.organizationId, saptamanaStart);
 
   const zileInitiale = zileleSaptamanii(saptamanaStart).map((data) => {
     const existenta = submisie?.zile.find((z) => z.data === data) ?? null;
-    const lucratoare = esteZiLucratoare(data, setNationale, setRecuperare, setLiber);
     return {
       data,
       tip_prezenta: existenta?.tip_prezenta ?? "birou",
-      ora_inceput: lucratoare ? (existenta?.ora_inceput?.slice(0, 5) ?? "") : "",
-      ora_sfarsit: lucratoare ? (existenta?.ora_sfarsit?.slice(0, 5) ?? "") : "",
+      /*
+       * Ce e salvat se arată, indiferent ce zi e în calendar. Aici stătea o
+       * poartă `esteZiLucratoare(…) ? … : ""` care golea câmpul pe weekend și
+       * pe sărbători. Cum `existenta` e `null` exact când n-ai ce arăta, poarta
+       * nu putea opri niciun „interval presupus" — doar ascundea ore chiar
+       * salvate, pe care următoarea trimitere le ștergea apoi din bază
+       * (`trimite_saptamana_pontaj` face `delete` + reinserare, 0084).
+       */
+      ora_inceput: existenta?.ora_inceput?.slice(0, 5) ?? "",
+      ora_sfarsit: existenta?.ora_sfarsit?.slice(0, 5) ?? "",
       observatii: existenta?.observatii ?? "",
     };
   });

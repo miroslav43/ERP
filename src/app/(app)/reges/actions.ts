@@ -159,7 +159,7 @@ const actiuneExporta = createAction<typeof exportaSchema, ExportReges>({
         : supabase
             .from("employment_contracts")
             .select(
-              "id, numar, data_contract, valabil_de_la, valabil_pana, contract_duration, norma_ore_saptamana, norma_ore_zi, job_position_id, conditii_munca, salariu_baza, moneda, cod_revisal, temei_incetare, incetat_la",
+              "id, numar, data_contract, valabil_de_la, valabil_pana, contract_duration, norma_ore_saptamana, norma_ore_zi, functie, cod_cor, conditii_munca, salariu_baza, moneda, cod_revisal, temei_incetare, incetat_la",
             )
             .in("id", idContracte),
       supabase
@@ -174,31 +174,19 @@ const actiuneExporta = createAction<typeof exportaSchema, ExportReges>({
     if (contracte.error) throw mapPostgrestError(contracte.error, ctx.requestId);
     if (organizatie.error) throw mapPostgrestError(organizatie.error, ctx.requestId);
 
-    const idFunctii = [
-      ...new Set(
-        (contracte.data ?? []).map((c) => c.job_position_id).filter((v): v is string => v !== null),
-      ),
-    ];
-    const functii =
-      idFunctii.length === 0
-        ? { data: [], error: null }
-        : await supabase.from("job_positions").select("id, denumire, cod_cor").in("id", idFunctii);
-    if (functii.error) throw mapPostgrestError(functii.error, ctx.requestId);
-
+    // Nicio interogare pentru funcție: după migrarea 0110, denumirea și codul
+    // COR stau PE CONTRACT, înghețate la semnare. Înainte se citea
+    // nomenclatorul, deci o corectare de cod rescria retroactiv ce se
+    // declarase la ITM pentru toate contractele de pe acea funcție.
     const hartaAngajati = new Map((angajati.data ?? []).map((a) => [a.id, a]));
     const hartaCnp = new Map((sensibile.data ?? []).map((s) => [s.employee_id, s.cnp_last4]));
     const hartaContracte = new Map((contracte.data ?? []).map((c) => [c.id, c]));
-    const hartaFunctii = new Map((functii.data ?? []).map((f) => [f.id, f]));
 
     const intrari: IntrareExport[] = (evenimente ?? []).flatMap((eveniment) => {
       const angajat = hartaAngajati.get(eveniment.employee_id);
       if (angajat === undefined) return [];
       const contract =
         eveniment.contract_id === null ? undefined : hartaContracte.get(eveniment.contract_id);
-      const functie =
-        contract?.job_position_id === undefined || contract.job_position_id === null
-          ? undefined
-          : hartaFunctii.get(contract.job_position_id);
       return [
         {
           evenimentId: eveniment.id,
@@ -226,8 +214,8 @@ const actiuneExporta = createAction<typeof exportaSchema, ExportReges>({
                   durata: contract.contract_duration,
                   normaOreSaptamana: Number(contract.norma_ore_saptamana),
                   normaOreZi: Number(contract.norma_ore_zi),
-                  codCor: functie?.cod_cor ?? null,
-                  denumireFunctie: functie?.denumire ?? null,
+                  codCor: contract?.cod_cor ?? null,
+                  denumireFunctie: contract?.functie ?? null,
                   conditiiMunca: contract.conditii_munca,
                   salariuBaza: Number(contract.salariu_baza),
                   moneda: contract.moneda,

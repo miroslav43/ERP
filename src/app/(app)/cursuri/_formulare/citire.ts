@@ -225,7 +225,7 @@ export function intrareRegula(
     course_id: input.cursId,
     criteriu,
     department_id: criteriu === "departament" ? tinta : null,
-    job_position_id: criteriu === "functie" ? tinta : null,
+    cod_cor: criteriu === "functie" ? tinta : null,
     rol: criteriu === "rol" ? tinta : null,
     employee_id: criteriu === "angajat" ? tinta : null,
     decalaj_zile: input.decalaj,

@@ -83,7 +83,7 @@ function Ramura({
                   {esteEu ? <span className="text-primary text-nota ml-2">(tu)</span> : null}
                 </p>
                 <p className="text-muted-foreground text-nota truncate">
-                  {[nod.job_position?.denumire, nod.department?.denumire]
+                  {[nod.functie, nod.department?.denumire]
                     .filter((v): v is string => v !== undefined && v !== null)
                     .join(" · ")}
                 </p>

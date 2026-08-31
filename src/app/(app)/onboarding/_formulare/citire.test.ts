@@ -19,7 +19,7 @@ function sablon(partial: Partial<StareSablon> = {}): StareSablon {
     tip: "onboarding",
     descriere: "",
     department_id: "",
-    job_position_id: "",
+    cod_cor: "",
     activ: true,
     valabil_de_la: "2026-01-01",
     valabil_pana_la: "",

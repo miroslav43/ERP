@@ -40,16 +40,19 @@ import {
   citesteComponenteSalariale,
   citesteRezumatDateSensibile,
   citesteScutiriFiscale,
+  colegiPentruManager,
   idFisaProprie,
   lantulDeManageri,
-  functiiActive,
+  functiiFolosite,
   piediciStergereAngajat,
   rolurileConturilor,
 } from "@/lib/queries/employees";
+import { departamente } from "@/lib/queries/attendance";
 import { coduriEligibile } from "@/lib/documents/inrolare";
 import { CODURI_INROLARE } from "@/lib/documents/variabile";
 
-import { ButonSchimbaFunctia } from "./buton-schimba-functia";
+import { DialogIncadrare } from "./dialog-incadrare";
+import { ComutatorSefDepartament } from "./comutator-sef-departament";
 
 import {
   ETICHETE_CONTRACT,
@@ -68,6 +71,7 @@ import {
   type StareDocumentRegenerare,
 } from "./dialog-regenereaza-documente";
 import { DateSensibile } from "./date-sensibile";
+import { DialogConcediere } from "./dialog-concediere";
 import { FormularContractNou } from "./formular-contract-nou";
 import { FormularComponentaSalariala } from "./formular-componenta-salariala";
 import {
@@ -181,6 +185,9 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
   // Tot printre porțile de sus, din același motiv: decide dacă se mai citește
   // nomenclatorul de funcții pentru caseta „Schimbă funcția".
   const poateEditaAngajat = can(permisiuni, "employees:update", "all");
+  // Comutatorul de șef scrie în `departments`, deci cere ALTĂ permisiune:
+  // un `hr` schimbă încadrarea, dar nu neapărat numește șefi.
+  const poateNumiSefi = can(permisiuni, "departments:update", "all");
 
   /*
    * Regenerarea EMITE documente, deci cere aceeași cheie ca emiterea:
@@ -204,6 +211,9 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
     documenteEmiseRes,
     invitatiePendinte,
     optiuniFunctii,
+    optiuniDepartamente,
+    optiuniColegi,
+    sefulDepartamentului,
     areFisaPostului,
   ] = await Promise.all([
     // Datele sensibile nu se randează deloc dacă scope-ul nu acoperă întreaga organizație.
@@ -285,10 +295,26 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
           .maybeSingle()
           .then(({ data }) => data)
       : null,
-    // Nomenclatorul se citește doar pentru cine îl poate și folosi: fără
-    // `employees:update = all`, caseta de schimbare a funcției nu se randează,
-    // deci lista ar fi un drum la bază pentru nimic.
-    poateEditaAngajat ? functiiActive(tenant.organizationId) : [],
+    // Cele trei liste ale dialogului de încadrare se citesc doar pentru cine îl
+    // poate și folosi: fără `employees:update = all` caseta nu se randează, deci
+    // ar fi trei drumuri la bază pentru nimic.
+    poateEditaAngajat ? functiiFolosite(tenant.organizationId) : [],
+    poateEditaAngajat ? departamente(tenant.organizationId) : [],
+    // Fișa curentă e exclusă din listă chiar de interogare: nimeni nu-și poate
+    // fi propriul manager, iar schema o refuză oricum.
+    poateEditaAngajat ? colegiPentruManager(tenant.organizationId, id) : [],
+    // Cine conduce ACUM departamentul lui — o coloană, ca să se știe dacă
+    // comutatorul pornește bifat. `departamente()` nu o aduce.
+    angajat.department === null
+      ? null
+      : dbFisa
+          .from("departments")
+          .select("manager_employee_id")
+          .eq("organization_id", tenant.organizationId)
+          .eq("id", angajat.department.id)
+          .is("deleted_at", null)
+          .maybeSingle()
+          .then(({ data }) => data),
     /*
      * Doar EXISTENȚA fișei postului, nu conținutul ei.
      *
@@ -341,6 +367,17 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
   const contractPrincipal =
     contracteActive.find((c) => !c.este_act_aditional) ?? contracteActive[0] ?? null;
   const contracteIstoric = angajat.contracts.filter((c) => c.status !== "activ");
+
+  /*
+   * Ce țintește concedierea de la finalul paginii: primul contract de BAZĂ
+   * activ, niciodată un act adițional.
+   *
+   * `inceteazaContract` arhivează fișa doar când nu mai rămâne niciun contract
+   * cu `este_act_aditional = false` activ. Un act adițional încetat n-ar scoate
+   * pe nimeni din efectiv, deci butonul care promite exact asta n-are voie
+   * să-l țintească — ar „reuși" fără să facă ce scrie pe el.
+   */
+  const contracteDeBazaActive = contracteActive.filter((c) => !c.este_act_aditional);
 
   /*
    * Starea per document, pentru bifele casetei de regenerare.
@@ -400,6 +437,22 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
   const rolCont = rolAdministrativ(roluriConturi.get(angajat.user_id ?? "") ?? null);
   const stareAfisata = etichetaStare(angajat.status, rolCont);
 
+  /*
+   * Cele două fețe ale secțiunii de la finalul paginii, niciodată amândouă.
+   *
+   * Cât timp există contract activ, ștergerea e refuzată de
+   * `mesajRefuzStergere` — deci un buton „Șterge fișa” lângă „Concediază” ar fi
+   * arătat, din două, unul care nu poate funcționa. Invers, după încetare nu mai
+   * e pe cine concedia. Ordinea de pe ecran ajunge astfel ordinea reală: întâi
+   * pleacă omul, abia apoi (dacă chiar e nevoie) dispare fișa.
+   *
+   * Numărul de contracte vine din `piediciStergere`, nu din lista randată:
+   * aceeași sursă pe care o citește acțiunea, deci ecranul nu poate promite
+   * altceva decât acceptă serverul. `null` = rolul n-are `employees:delete`.
+   */
+  const contractDeConcediat = poateEditaAngajat ? (contracteDeBazaActive[0] ?? null) : null;
+  const poateStergeFisa = piediciStergere !== null && piediciStergere.contracteActive === 0;
+
   const dependenti = dependentiRes.data ?? [];
 
   // Nota „fără cont" și lanțul managerial coboară sub titlu, prin prop-ul
@@ -445,70 +498,85 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
 
   return (
     <div className="space-y-6">
-      <div className={cn(CLASA_SECTIUNE, "flex flex-wrap items-start gap-4")}>
-        {esteFisaProprie ? (
-          <IncarcareAvatar
-            urlInitial={angajat.avatar_url}
-            nume={angajat.full_name}
-            pregateste={pregatesteIncarcareAvatarulPropriu}
-            salveaza={salveazaAvatarulPropriu}
-          />
-        ) : poateIncarcaPtOricine && angajat.user_id !== null ? (
-          <IncarcareAvatarAdmin
-            employeeId={angajat.id}
-            urlInitial={angajat.avatar_url}
-            nume={angajat.full_name}
-          />
-        ) : (
-          <AvatarAngajat url={angajat.avatar_url} nume={angajat.full_name} marime="lg" />
-        )}
-        <AntetPagina
-          className="min-w-0 flex-1"
-          titlu={angajat.full_name}
-          descriere={`Marca ${angajat.marca}${
-            angajat.job_position !== null ? ` · ${angajat.job_position.denumire}` : ""
-          }${angajat.department !== null ? ` · ${angajat.department.denumire}` : ""}`}
-          actiuni={
-            <>
-              {poateAcordaPermisiuni ? (
-                <Link
-                  href={`/angajati/${angajat.id}/permisiuni`}
-                  className={buton({ varianta: "secundar" })}
-                >
-                  <KeyRound aria-hidden="true" className="size-3.5" />
-                  Permisiuni
-                </Link>
-              ) : null}
-              {poateEditaAngajat ? (
-                <Link
-                  href={`/angajati/${angajat.id}/editeaza`}
-                  className={buton({ varianta: "secundar" })}
-                >
-                  <Pencil aria-hidden="true" className="size-3.5" />
-                  Editează fișa
-                </Link>
-              ) : null}
-              {piediciStergere === null ? null : (
-                <ButonStergeAngajat
-                  id={angajat.id}
-                  nume={angajat.full_name}
-                  marca={angajat.marca}
-                  status={stareAfisata}
-                  piedici={piediciStergere}
-                />
-              )}
-              {rolCont === null ? null : (
-                <Badge className="text-corp px-3 py-1" ton="neutru">
-                  {ETICHETE_ROL_CONT[rolCont]}
+      {/*
+        `@container` + `@2xl:`, NU `lg:`.
+
+        Pragul care contează aici e lățimea CARDULUI, nu a ferestrei, iar cele
+        două merg în sens invers exact pe intervalul care se rupea: meniul
+        lateral devine fix la `md` (768px) și ia 16rem. La 767px conținutul are
+        ~719px și încape; la 768px are ~464px și nu mai încape. Un prag pe
+        fereastră ar fi făcut layout-ul mai strâmt fix acolo unde ecranul se
+        lățește. Interogarea pe container măsoară ce rămâne după meniu, deci
+        prinde și meniul colapsat, și fișa pusă vreodată într-o coloană.
+
+        Blocul de încărcare a fotografiei are `min-w-56` înăuntru: cu avatarul
+        și spațiul dintre ele, cere ~320px și nu coboară sub atât. Sub 42rem de
+        card îl las pe un rând propriu, ca antetul să primească toată lățimea.
+      */}
+      <div className={cn(CLASA_SECTIUNE, "@container")}>
+        <div className="flex flex-col gap-4 @2xl:flex-row @2xl:items-start">
+          {esteFisaProprie ? (
+            <IncarcareAvatar
+              urlInitial={angajat.avatar_url}
+              nume={angajat.full_name}
+              pregateste={pregatesteIncarcareAvatarulPropriu}
+              salveaza={salveazaAvatarulPropriu}
+            />
+          ) : poateIncarcaPtOricine && angajat.user_id !== null ? (
+            <IncarcareAvatarAdmin
+              employeeId={angajat.id}
+              urlInitial={angajat.avatar_url}
+              nume={angajat.full_name}
+            />
+          ) : (
+            <AvatarAngajat url={angajat.avatar_url} nume={angajat.full_name} marime="lg" />
+          )}
+          <AntetPagina
+            className="min-w-0 @2xl:flex-1"
+            titlu={angajat.full_name}
+            descriere={`Marca ${angajat.marca}${
+              angajat.functie !== null ? ` · ${angajat.functie}` : ""
+            }${angajat.department !== null ? ` · ${angajat.department.denumire}` : ""}`}
+            /*
+              Ștergerea NU mai e aici. Antetul e locul lucrurilor pe care le
+              faci des cu fișa deschisă — permisiuni, editare — iar ea era a
+              treia, lipită de ele, la un pixel distanță de „Editează fișa".
+              A coborât în secțiunea de la finalul paginii, lângă concediere,
+              unde ordinea de pe ecran spune ce se întâmplă în ce ordine.
+            */
+            actiuni={
+              <>
+                {poateAcordaPermisiuni ? (
+                  <Link
+                    href={`/angajati/${angajat.id}/permisiuni`}
+                    className={buton({ varianta: "secundar" })}
+                  >
+                    <KeyRound aria-hidden="true" className="size-3.5" />
+                    Permisiuni
+                  </Link>
+                ) : null}
+                {poateEditaAngajat ? (
+                  <Link
+                    href={`/angajati/${angajat.id}/editeaza`}
+                    className={buton({ varianta: "secundar" })}
+                  >
+                    <Pencil aria-hidden="true" className="size-3.5" />
+                    Editează fișa
+                  </Link>
+                ) : null}
+                {rolCont === null ? null : (
+                  <Badge className="text-corp px-3 py-1" ton="neutru">
+                    {ETICHETE_ROL_CONT[rolCont]}
+                  </Badge>
+                )}
+                <Badge className="text-corp px-3 py-1" ton={TONURI_STATUS[angajat.status]}>
+                  {stareAfisata}
                 </Badge>
-              )}
-              <Badge className="text-corp px-3 py-1" ton={TONURI_STATUS[angajat.status]}>
-                {stareAfisata}
-              </Badge>
-            </>
-          }
-          {...(subAntet === null ? {} : { file: subAntet })}
-        />
+              </>
+            }
+            {...(subAntet === null ? {} : { file: subAntet })}
+          />
+        </div>
       </div>
 
       {/*
@@ -554,25 +622,57 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
         <h2 id="titlu-incadrare" className="text-sectiune mb-4 font-medium">
           Încadrare
         </h2>
+        <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
+          {poateEditaAngajat ? (
+            <DialogIncadrare
+              employeeId={angajat.id}
+              functie={angajat.functie}
+              codCor={angajat.cod_cor}
+              departamentId={angajat.department?.id ?? null}
+              managerId={lantManageri.at(-1)?.id ?? null}
+              departamente={optiuniDepartamente}
+              colegi={optiuniColegi}
+              functiiFolosite={optiuniFunctii}
+            />
+          ) : null}
+          {/*
+            Comutatorul apare DOAR când omul are un departament: „șef al
+            departamentului —" n-ar avea niciun înțeles, iar acțiunea l-ar
+            refuza oricum.
+          */}
+          {poateNumiSefi && angajat.department !== null ? (
+            <ComutatorSefDepartament
+              employeeId={angajat.id}
+              departamentId={angajat.department.id}
+              departamentDenumire={angajat.department.denumire}
+              esteSef={sefulDepartamentului?.manager_employee_id === angajat.id}
+            />
+          ) : null}
+        </div>
         <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div>
             <dt className="text-muted-foreground text-nota tracking-wide uppercase">Funcție</dt>
-            <dd className="mt-0.5 flex flex-wrap items-center gap-2">
+            <dd className="mt-0.5 flex flex-wrap items-baseline gap-2">
               <span
                 className={cn(
                   "text-corp",
-                  angajat.job_position === null && "text-muted-foreground/70 italic",
+                  angajat.functie === null && "text-muted-foreground/70 italic",
                 )}
               >
-                {angajat.job_position?.denumire ?? "Nealocată"}
+                {angajat.functie ?? "Nedeclarată"}
               </span>
-              {poateEditaAngajat ? (
-                <ButonSchimbaFunctia
-                  employeeId={angajat.id}
-                  functieCurentaId={angajat.job_position?.id ?? null}
-                  functii={optiuniFunctii}
-                />
-              ) : null}
+              {/*
+                Codul COR lângă denumire, nu într-un câmp separat: el e ce se
+                declară la ITM, iar absența lui BLOCHEAZĂ exportul REVISAL
+                (`domain/reges/export.ts` îl respinge). Pe baza reală, toate
+                cele opt fișe cu funcție îl aveau gol — deci golul trebuie să se
+                vadă, nu să tacă.
+              */}
+              {angajat.cod_cor === null ? (
+                <span className="text-danger text-nota">fără cod COR</span>
+              ) : (
+                <span className="text-muted-foreground text-nota font-mono">{angajat.cod_cor}</span>
+              )}
             </dd>
           </div>
           <Camp eticheta="Departament" valoare={angajat.department?.denumire ?? null} />
@@ -799,7 +899,7 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
         conditiiMunca={angajat.conditii_munca}
         gradHandicap={angajat.grad_handicap}
         departmentId={angajat.department?.id ?? null}
-        jobPositionId={angajat.job_position?.id ?? null}
+        codCor={angajat.cod_cor}
         poateVedeaRegulile={poateVedeaRegulileConcediu}
       />
 
@@ -1149,6 +1249,84 @@ export default async function PaginaFisaAngajat({ params }: ProprietatiPagina) {
           banca={rezumatSensibil.banca}
         />
       ) : null}
+
+      {/*
+        Sfârșitul fișei, la propriu — ULTIMA secțiune, sub datele sensibile.
+
+        Poziția e argumentul. Cât timp „Șterge fișa” stătea în antet, cea mai
+        ireversibilă operațiune a modulului era la un pixel de „Editează fișa”,
+        adică exact lângă lucrul pe care omul îl face de zeci de ori pe zi.
+        Aici ajungi doar derulând peste tot ce are omul în firmă — contracte,
+        salariu, documente, concedii — ceea ce e fix contextul în care se ia
+        decizia asta.
+
+        Chenarul roșu e singurul din produs care marchează o SECȚIUNE, nu un
+        buton. Butonul distructiv e conturat și se inversează la hover
+        (`buton.tsx`), dar aici semnalul trebuie să existe și înainte ca ochiul
+        să ajungă la buton.
+      */}
+      {contractDeConcediat === null && !poateStergeFisa ? null : (
+        <section
+          aria-labelledby="titlu-incetare-colaborare"
+          className={cn(CLASA_SECTIUNE, "border-danger/40")}
+        >
+          <h2 id="titlu-incetare-colaborare" className="text-sectiune font-medium">
+            Încetarea colaborării
+          </h2>
+
+          {contractDeConcediat === null ? (
+            <p className="text-muted-foreground text-corp mt-1 max-w-prose text-pretty">
+              {angajat.full_name} nu mai are niciun contract activ. Fișa rămâne în evidență cu tot
+              istoricul — pontaj, concedii, documente — fiindcă adeverințele de vechime se emit din
+              el și după plecare. Ștergerea o scoate din listă, din căutare, din organigramă și din
+              pontaj.
+            </p>
+          ) : (
+            <>
+              <p className="text-muted-foreground text-corp mt-1 max-w-prose text-pretty">
+                {angajat.full_name} este în efectiv, cu contractul nr. {contractDeConcediat.numar}{" "}
+                de la {formatDate(contractDeConcediat.valabil_de_la)}. Concedierea îl încetează la
+                data pe care o alegi, trimite evenimentul de încetare către REGES și trece fișa în
+                arhivă.
+              </p>
+              {/*
+                Nuanța nu e cosmetică: la cumul de funcții, `inceteazaContract`
+                arhivează fișa doar după ce CADE ȘI ultimul contract de bază.
+                Fără rândul ăsta, butonul ar promite o ieșire din efectiv care
+                nu se întâmplă, iar omul ar crede că a rămas un bug.
+              */}
+              {contracteDeBazaActive.length > 1 ? (
+                <p className="text-danger text-nota mt-2 max-w-prose">
+                  Are {contracteDeBazaActive.length} contracte de bază active. Concedierea îl
+                  încetează doar pe cel de mai sus; fișa iese din efectiv abia după ce se încheie și
+                  celelalte.
+                </p>
+              ) : null}
+            </>
+          )}
+
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            {contractDeConcediat === null ? null : (
+              <DialogConcediere
+                contractId={contractDeConcediat.id}
+                numarContract={contractDeConcediat.numar}
+                nume={angajat.full_name}
+                marca={angajat.marca}
+                valabilDeLa={contractDeConcediat.valabil_de_la}
+              />
+            )}
+            {poateStergeFisa && piediciStergere !== null ? (
+              <ButonStergeAngajat
+                id={angajat.id}
+                nume={angajat.full_name}
+                marca={angajat.marca}
+                status={stareAfisata}
+                piedici={piediciStergere}
+              />
+            ) : null}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

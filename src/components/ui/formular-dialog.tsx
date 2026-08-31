@@ -9,6 +9,7 @@ import {
   useState,
   type ReactElement,
   type ReactNode,
+  type RefObject,
 } from "react";
 import { useRouter } from "next/navigation";
 
@@ -62,7 +63,14 @@ import { Formular, type StareFormular } from "./formular";
  * de dinainte.
  */
 export type PropsFormularDialog<TData> = Readonly<{
-  /** Butonul care deschide caseta. */
+  /**
+   * Butonul care deschide caseta.
+   *
+   * Uniunea de la coadă e aceeași ca a lui `Buton`, din același motiv: un buton
+   * doar-iconiță fără `aria-label` e mut pentru cititorul de ecran, iar într-un
+   * tabel cu cinci rânduri identice „Modifică" fără complement nici nu spune
+   * CE se modifică. La `marime="iconita"`, `eticheta` rămâne pictograma.
+   */
   declansator: Readonly<{
     eticheta: ReactNode;
     varianta?: VariantaButon;
@@ -70,10 +78,25 @@ export type PropsFormularDialog<TData> = Readonly<{
     pictograma?: ReactNode;
     disabled?: boolean;
     className?: string;
-  }>;
+  }> &
+    (Readonly<{ marime?: "implicit" }> | Readonly<{ marime: "iconita"; "aria-label": string }>);
   titlu: string;
   descriere?: string;
   marime?: PropsDialog["marime"];
+  /**
+   * Caseta pornește deschisă. Implicit `false`.
+   *
+   * Pentru rutele care AU DISPĂRUT în favoarea ei: `/flota?vehicul=nou` trebuie
+   * să ducă unde ducea `/flota/nou`, altfel un link vechi sau butonul dintr-o
+   * stare goală aterizează într-o listă tăcută, iar omul trebuie să ghicească ce
+   * voia să facă.
+   *
+   * Se citește O SINGURĂ DATĂ, la montare — e sămânța unui `useState`, nu o
+   * proprietate controlată. Ca să se redeschidă după o navigare care schimbă
+   * doar parametrul (aceeași rută!), apelantul dă componentei un `key` care se
+   * schimbă odată cu el; altfel React păstrează starea și caseta rămâne închisă.
+   */
+  deschisInitial?: boolean;
   actiune: (date: FormData) => Promise<ActionResult<TData>>;
   /** Textul notificării de confirmare. */
   mesajReusita?: string;
@@ -101,6 +124,20 @@ export type PropsFormularDialog<TData> = Readonly<{
    */
   laReusita?: (data: TData) => void;
   /**
+   * Golirea stării pe care apelantul o ține ÎN AFARA casetei, chemată ori de
+   * câte ori caseta se închide — și după reușită, și după renunțare.
+   *
+   * Câmpurile obișnuite n-au nevoie de asta: `{deschis ? <Dialog>… : null}`
+   * remontează tot interiorul, deci fiecare `defaultValue` se reia singur. Are
+   * nevoie doar starea pe care apelantul e OBLIGAT s-o țină mai sus — de
+   * exemplu `dialog-returnare.tsx`, unde `mesajReusita` diferă după ce s-a ales
+   * și trebuie citită din afara lui `children`. Fără golire, alegerea unei
+   * vizite abandonate supraviețuia în notificarea următoarei.
+   *
+   * NU trebuie memorat de apelant — vezi comentariul de la `refCallback`.
+   */
+  laResetare?: () => void;
+  /**
    * Sare peste `router.refresh()`. Pentru formularele care își duc singure
    * rezultatul mai departe, unde reîmprospătarea rutei curente ar fi muncă
    * aruncată.
@@ -115,11 +152,33 @@ export type PropsFormularDialog<TData> = Readonly<{
   children: (stare: StareFormular<TData>, idc: (sufix: string) => string) => ReactNode;
 }>;
 
+/**
+ * Copiază `inCurs` într-o referință din afara dialogului. Randează `null`.
+ *
+ * Scrierea se face în efect, nu în timpul randării: un `ref.current = …` pus
+ * direct în corpul componentei ar fi un efect secundar într-o fază pe care
+ * React o poate relua sau abandona. Efectul rulează după commit, adică înainte
+ * ca omul să apuce să apese Escape.
+ */
+function OglindaInCurs({
+  inCurs,
+  oglindaRef,
+}: {
+  readonly inCurs: boolean;
+  readonly oglindaRef: RefObject<boolean>;
+}): null {
+  useEffect(() => {
+    oglindaRef.current = inCurs;
+  }, [inCurs, oglindaRef]);
+  return null;
+}
+
 export function FormularDialog<TData>({
   declansator,
   titlu,
   descriere,
   marime = "mare",
+  deschisInitial = false,
   actiune,
   mesajReusita,
   etichetaTrimite,
@@ -127,11 +186,12 @@ export function FormularDialog<TData>({
   textInCurs,
   etichetaRenuntare = "Renunță",
   laReusita,
+  laResetare,
   faraReimprospatare,
   children,
 }: PropsFormularDialog<TData>): ReactElement {
   const router = useRouter();
-  const [deschis, setDeschis] = useState(false);
+  const [deschis, setDeschis] = useState(deschisInitial);
   const idFormular = useId();
 
   const idc = useCallback((sufix: string): string => `${idFormular}-${sufix}`, [idFormular]);
@@ -151,8 +211,28 @@ export function FormularDialog<TData>({
     refCallback.current = laReusita;
   }, [laReusita]);
 
+  const refResetare = useRef(laResetare);
+  useEffect(() => {
+    refResetare.current = laResetare;
+  }, [laResetare]);
+
+  /**
+   * `inCurs` trăiește în `Formular`, adică ÎNĂUNTRUL dialogului. Oglinda asta îl
+   * ridică până aici, unde se decide închiderea.
+   *
+   * Butonul „Renunță" era deja păzit (`disabled={stare.inCurs}`), dar Escape,
+   * clicul pe `::backdrop` și X-ul din antet ajung direct la `laInchidere` —
+   * niciunul nu trecea pe lângă poarta aceea. Caseta se demonta cu o trimitere
+   * în zbor: la întoarcerea răspunsului nu mai exista nici toast-ul de eroare,
+   * nici `router.refresh()`, nici `laReusita`. Omul credea că a anulat, deși
+   * cererea plecase și putea foarte bine să reușească.
+   */
+  const refInCurs = useRef(false);
+
   const inchide = useCallback((): void => {
+    if (refInCurs.current) return;
     setDeschis(false);
+    refResetare.current?.();
   }, []);
 
   const laReusitaInterna = useCallback(
@@ -160,23 +240,40 @@ export function FormularDialog<TData>({
       setDeschis(false);
       if (faraReimprospatare !== true) router.refresh();
       refCallback.current?.(data);
+      refResetare.current?.();
     },
     [router, faraReimprospatare],
   );
 
   return (
     <>
-      <Buton
-        varianta={declansator.varianta ?? "primar"}
-        disabled={declansator.disabled ?? false}
-        {...(declansator.className === undefined ? {} : { className: declansator.className })}
-        onClick={() => {
-          setDeschis(true);
-        }}
-      >
-        {declansator.pictograma}
-        {declansator.eticheta}
-      </Buton>
+      {declansator.marime === "iconita" ? (
+        <Buton
+          varianta={declansator.varianta ?? "primar"}
+          marime="iconita"
+          aria-label={declansator["aria-label"]}
+          disabled={declansator.disabled ?? false}
+          {...(declansator.className === undefined ? {} : { className: declansator.className })}
+          onClick={() => {
+            setDeschis(true);
+          }}
+        >
+          {declansator.pictograma}
+          {declansator.eticheta}
+        </Buton>
+      ) : (
+        <Buton
+          varianta={declansator.varianta ?? "primar"}
+          disabled={declansator.disabled ?? false}
+          {...(declansator.className === undefined ? {} : { className: declansator.className })}
+          onClick={() => {
+            setDeschis(true);
+          }}
+        >
+          {declansator.pictograma}
+          {declansator.eticheta}
+        </Buton>
+      )}
 
       {deschis ? (
         <Dialog
@@ -193,6 +290,7 @@ export function FormularDialog<TData>({
           >
             {(stare) => (
               <>
+                <OglindaInCurs inCurs={stare.inCurs} oglindaRef={refInCurs} />
                 {children(stare, idc)}
                 <BaraActiuni aliniere="final" separata lipitaPeTelefon>
                   <Buton varianta="secundar" onClick={inchide} disabled={stare.inCurs}>

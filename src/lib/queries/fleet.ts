@@ -68,7 +68,6 @@ export interface Vehicul extends RandVehicul {
 export interface DocumentVehicul {
   readonly id: string;
   readonly document_type_id: string;
-  readonly numar: string | null;
   readonly emitent: string | null;
   readonly valabil_de_la: string | null;
   readonly expira_la: string | null;
@@ -93,7 +92,6 @@ export interface ScadentaVehicul {
   readonly vehicle_id: string;
   readonly document_type_id: string;
   readonly expira_la: string | null;
-  readonly numar: string | null;
 }
 
 export interface RandFoaie {
@@ -357,7 +355,7 @@ export async function scadenteCurente(
   const db = await createServerSupabase();
   const { data, error } = await db
     .from("vehicle_documents")
-    .select("vehicle_id, document_type_id, expira_la, numar")
+    .select("vehicle_id, document_type_id, expira_la")
     .in("vehicle_id", [...idVehicule])
     .eq("este_curent", true)
     .is("deleted_at", null)
@@ -374,7 +372,7 @@ export async function documenteleVehiculului(
   const { data, error } = await db
     .from("vehicle_documents")
     .select(
-      "id, document_type_id, numar, emitent, valabil_de_la, expira_la, cost, " +
+      "id, document_type_id, emitent, valabil_de_la, expira_la, cost, " +
         "fisier_path, este_curent, observatii",
     )
     .eq("vehicle_id", vehiculId)

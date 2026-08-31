@@ -1,178 +1,99 @@
 "use client";
 
-import { useId, useState, useTransition } from "react";
+import { useCallback, useId, useState } from "react";
 import { useRouter } from "next/navigation";
+import type { ReactElement } from "react";
 
+import { BaraActiuni } from "@/components/ui/bara-actiuni";
 import { Buton } from "@/components/ui/buton";
+import { Formular } from "@/components/ui/formular";
+import type { TipDocument } from "@/lib/queries/fleet";
 
 import { adaugaDocument } from "../actions";
-
-interface TipDocument {
-  readonly id: string;
-  readonly cod: string;
-  readonly denumire: string;
-  readonly cere_expirare: boolean;
-}
+import { CampuriDocument } from "./campuri-document";
+import { valoriDocument } from "./valori-document";
 
 /**
- * Adăugarea ȘI reînnoirea unui document — același formular, aceeași acțiune.
+ * Adăugarea ȘI reînnoirea, în același panou.
  *
- * Reînnoirea nu are ecran separat fiindcă nu e o operațiune separată: se
- * introduce polița nouă, iar baza decide care e cea curentă, după `expira_la`
- * maxim. Polița veche rămâne în istoric. Un buton „Reînnoiește" ar sugera că
- * cea veche dispare — și ar fi greșit.
+ * Nu există buton „Reînnoiește" și nici ecran separat: reînnoirea e o inserare
+ * nouă, atât. Documentul vechi rămâne ca istoric, iar `internal.vdoc_dupa`
+ * recalculează care e cel curent — cel cu `expira_la` maxim, nu ultimul
+ * introdus. Un RCA cumpărat cu trei săptămâni înainte să expire cel vechi devine
+ * curent imediat, fără ca cineva să bifeze ceva.
+ *
+ * ── DE CE RĂMÂNE ÎN PAGINĂ, CÂND CELELALTE DOUĂ AU DEVENIT CASETE ────────────
+ * Vehiculul nou și foaia de parcurs se adaugă rar, de undeva din listă. Aici
+ * ești deja pe fișa mașinii, cu tabelul scadențelor sub ochi, și completezi de
+ * obicei mai multe documente unul după altul. Un panou deschis e exact ce
+ * trebuie; o casetă ar cere trei clicuri în plus la fiecare rând.
+ *
+ * ── DE CE `key` PE FORMULAR ──────────────────────────────────────────────────
+ * `Formular` reține `valoriTrimise` ca să nu piardă ce a scris omul când
+ * acțiunea e refuzată. La REUȘITĂ, aceleași valori ar rămâne pe câmpuri, iar
+ * următorul document ar porni cu emitentul poliței precedente. Remontarea prin
+ * `key` golește starea; e mai ieftin decât un formular controlat.
  */
-export function FormularDocument({
-  vehiculId,
-  tipuri,
-}: {
+interface Proprietati {
   readonly vehiculId: string;
   readonly tipuri: readonly TipDocument[];
-}) {
+}
+
+export function FormularDocument({ vehiculId, tipuri }: Proprietati): ReactElement {
   const router = useRouter();
-  const [inCurs, porneste] = useTransition();
-  const [eroare, setEroare] = useState<string | null>(null);
-  const [reusit, setReusit] = useState(false);
-  const idTip = useId();
-  const idNumar = useId();
-  const idEmitent = useId();
-  const idDeLa = useId();
-  const idExpira = useId();
-  const idCost = useId();
+  const idFormular = useId();
+  const [generatie, setGeneratie] = useState(0);
 
-  function trimite(formular: FormData): void {
-    setEroare(null);
-    setReusit(false);
-    const gol = (cheie: string) => {
-      const v = String(formular.get(cheie) ?? "").trim();
-      return v.length === 0 ? null : v;
-    };
-    const cost = gol("cost");
+  const idc = useCallback(
+    (sufix: string): string => `${idFormular}-${String(generatie)}-${sufix}`,
+    [idFormular, generatie],
+  );
 
-    porneste(async () => {
-      const rezultat = await adaugaDocument({
-        vehicle_id: vehiculId,
-        document_type_id: String(formular.get("document_type_id") ?? ""),
-        numar: gol("numar"),
-        emitent: gol("emitent"),
-        valabil_de_la: gol("valabil_de_la"),
-        expira_la: gol("expira_la"),
-        cost: cost === null ? null : Number(cost),
-        observatii: null,
-      });
-      if (!rezultat.ok) {
-        setEroare(rezultat.error.message);
-        return;
-      }
-      setReusit(true);
-      router.refresh();
-    });
-  }
+  const trimite = useCallback(
+    async (date: FormData) => adaugaDocument({ vehicle_id: vehiculId, ...valoriDocument(date) }),
+    [vehiculId],
+  );
+
+  const laReusita = useCallback((): void => {
+    setGeneratie((g) => g + 1);
+    router.refresh();
+  }, [router]);
 
   return (
-    <form
-      action={trimite}
-      className="border-border rounded-panou grid gap-3 border p-4 sm:grid-cols-2 lg:grid-cols-3"
+    <section
+      aria-labelledby={`${idFormular}-titlu`}
+      className="border-border rounded-panou border p-4"
     >
-      <p className="text-corp font-medium sm:col-span-2 lg:col-span-3">
+      <h3 id={`${idFormular}-titlu`} className="text-corp mb-3 font-semibold">
         Adaugă sau reînnoiește un document
-      </p>
+      </h3>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idTip} className="text-corp">
-          Tip document
-        </label>
-        <select
-          id={idTip}
-          name="document_type_id"
-          required
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        >
-          {tipuri.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.denumire}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idNumar} className="text-corp">
-          Număr
-        </label>
-        <input
-          id={idNumar}
-          name="numar"
-          maxLength={64}
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        />
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idEmitent} className="text-corp">
-          Emitent
-        </label>
-        <input
-          id={idEmitent}
-          name="emitent"
-          maxLength={120}
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        />
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idDeLa} className="text-corp">
-          Valabil de la
-        </label>
-        <input
-          id={idDeLa}
-          name="valabil_de_la"
-          type="date"
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        />
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idExpira} className="text-corp">
-          Expiră la
-        </label>
-        <input
-          id={idExpira}
-          name="expira_la"
-          type="date"
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        />
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <label htmlFor={idCost} className="text-corp">
-          Cost (lei)
-        </label>
-        <input
-          id={idCost}
-          name="cost"
-          type="number"
-          min="0"
-          step="0.01"
-          className="border-foreground/60 rounded-control text-corp border px-3 py-2"
-        />
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-3">
-        <Buton type="submit" varianta="primar" inCurs={inCurs} textInCurs="Se salvează…">
-          Salvează documentul
-        </Buton>
-        {eroare === null ? null : (
-          <p role="alert" className="text-danger text-corp">
-            {eroare}
-          </p>
+      <Formular
+        key={generatie}
+        actiune={trimite}
+        laReusita={laReusita}
+        mesajReusita="Documentul a fost salvat."
+      >
+        {(stare) => (
+          <>
+            <CampuriDocument stare={stare} idc={idc} tipuri={tipuri} />
+            <BaraActiuni aliniere="start">
+              <Buton
+                type="submit"
+                varianta="primar"
+                inCurs={stare.inCurs}
+                textInCurs="Se salvează…"
+              >
+                Salvează documentul
+              </Buton>
+              <p className="text-muted-foreground text-nota">
+                Reînnoirea se face tot de aici: documentul cu data de expirare cea mai îndepărtată
+                devine automat cel curent.
+              </p>
+            </BaraActiuni>
+          </>
         )}
-        {reusit ? (
-          <p role="status" className="text-foreground text-corp">
-            Document salvat. Cel cu data de expirare cea mai îndepărtată devine documentul curent.
-          </p>
-        ) : null}
-      </div>
-    </form>
+      </Formular>
+    </section>
   );
 }

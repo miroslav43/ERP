@@ -4,6 +4,7 @@
 // handlers și scripturi). Fiecare interogare trece prin RLS.
 
 import { createServerSupabase } from "@/lib/supabase/server";
+import type { RandPontareRapida } from "@/domain/attendance/pontare-rapida";
 import type {
   FiltrePontaj,
   StareSaptamanaPontaj,
@@ -285,6 +286,23 @@ export interface SetariPontaj {
   readonly ore_pe_zi: number;
   readonly ore_pe_saptamana: number;
   readonly ore_maxime_saptamanale: number;
+  /**
+   * Limitele care se verifică DUPĂ scriere, prin `limiteleFirmei`
+   * (`src/domain/attendance/limite-legale.ts`). Stau în aceeași citire ca
+   * parametrii de calcul, nu într-una separată: acțiunile aveau deja rândul în
+   * mână pentru `configZiDin`, iar un al doilea drum la bază pentru trei
+   * numere din ACELAȘI rând ar fi fost plătit la fiecare zi salvată.
+   */
+  readonly perioada_referinta_luni: number;
+  readonly repaus_zilnic_minim_ore: number;
+  readonly repaus_saptamanal_minim_ore: number;
+  /**
+   * Termenul zilei libere pentru munca din sărbătoare. Perechea lui,
+   * `termen_compensare_suplimentare_zile`, NU se citește aici: tabela pe care
+   * ar guverna-o (`overtime_compensation`) n-are niciun scriitor în tot
+   * produsul, deci n-ar avea ce număra.
+   */
+  readonly termen_compensare_sarbatoare_zile: number;
   readonly pauza_masa_minute: number;
   /** Când e inclusă în program, pauza e plătită și NU se scade din interval. */
   readonly pauza_masa_inclusa_in_program: boolean;
@@ -307,16 +325,12 @@ export interface SetariPontaj {
   readonly noapte_sfarsit: string;
   /** Minimul de ore de noapte de la care se acordă sporul (art. 126; 0 = fără prag). */
   readonly prag_ore_noapte: number;
-  /**
-   * Ora la care începe programul obișnuit (0096). `null` când firma n-a declarat
-   * unul — și atunci butonul „Confirm ziua” nu se poate afișa, fiindcă
-   * `intervalulPropus` n-are de unde porni.
+  /*
+   * Cele trei câmpuri de pontare rapidă au plecat de aici în 0115: se citesc din
+   * `setariPontareRapida`, nu din rândul versionat. Un ecran care le cerea
+   * împreună cu parametrii juridici lega două ritmuri diferite — regula de
+   * calcul are nevoie de istoric, butonul de pe telefon nu.
    */
-  readonly program_start: string | null;
-  /** Ce fel de pontare rapidă oferă firma: `oprit`/`confirmare`/`ceas`/`ambele`. */
-  readonly mod_pontare_rapida: string;
-  /** Cum se verifică prezența: `fara` (pe încredere) sau `cod_qr`. */
-  readonly verificare_pontare: string;
 }
 
 /** Nu există seed pentru `attendance_settings` — `null` e normal, nu o eroare. */
@@ -328,12 +342,13 @@ export async function setariPontaj(
   const { data, error } = await db
     .from("attendance_settings")
     .select(
-      "ore_pe_zi, ore_pe_saptamana, ore_maxime_saptamanale, pauza_masa_minute, " +
+      "ore_pe_zi, ore_pe_saptamana, ore_maxime_saptamanale, " +
+        "perioada_referinta_luni, repaus_zilnic_minim_ore, repaus_saptamanal_minim_ore, " +
+        "termen_compensare_sarbatoare_zile, pauza_masa_minute, " +
         "pauza_masa_inclusa_in_program, pauza_obligatorie_peste_ore, " +
         "lucreaza_noaptea, lucreaza_weekend, lucreaza_sarbatori, admite_ore_suplimentare, " +
         "spor_suplimentare_procent, spor_noapte_procent, spor_weekend_procent, spor_sarbatoare_procent, " +
-        "noapte_start, noapte_sfarsit, prag_ore_noapte, " +
-        "program_start, mod_pontare_rapida, verificare_pontare",
+        "noapte_start, noapte_sfarsit, prag_ore_noapte",
     )
     .eq("organization_id", organizationId)
     .lte("valabil_de_la", dataInceput)
@@ -343,6 +358,65 @@ export async function setariPontaj(
     .maybeSingle<SetariPontaj>();
   if (error !== null) throw error;
   return data;
+}
+
+// ── Zilele unui singur angajat, pentru verificarea limitelor legale ─────────
+
+export interface ZiPontataAngajat {
+  readonly data: string;
+  readonly ora_inceput: string | null;
+  readonly ora_sfarsit: string | null;
+  readonly ore_lucrate: number;
+  readonly ore_suplimentare: number;
+  readonly ore_noapte: number;
+  readonly tip_zi: TipZi;
+}
+
+/**
+ * Plafonul cerut de la PostgREST. Peste `max_rows = 1000` răspunsul se taie
+ * TĂCUT, deci limita se cere explicit, mai jos decât pragul care taie.
+ *
+ * De ce e sigur: `attendance_entries_zi_uq` (0013) e unic pe
+ * (organizație, angajat, zi) — un angajat NU poate avea două rânduri în
+ * aceeași zi. Intervalul cel mai larg pe care îl cere apelantul e perioada de
+ * referință maximă (12 luni) plus săptămâna zilei salvate, adică sub 380 de
+ * zile calendaristice. 500 lasă marjă și rămâne departe de trunchiere.
+ */
+const MAXIM_ZILE_ANGAJAT = 500;
+
+/**
+ * Zilele pontate ale UNUI angajat, într-un interval închis.
+ *
+ * Nu are cursor keyset fiindcă nu e o listă de ecran, ci intrarea unei funcții
+ * pure: `avertismenteZi` are nevoie de săptămâna întreagă și de perioada de
+ * referință deodată, iar o pagină a doua ar însemna o verificare făcută pe
+ * jumătate din date, fără ca cineva să afle.
+ *
+ * Fără filtru pe `employee_id`? NU — aici filtrul e obligatoriu: pentru scope
+ * `all` (`hr`, `org_admin`) RLS nu îngustează nimic, iar suma ar aduna orele
+ * întregii firme într-o singură medie. Vezi `intrariProprii`, care merge pe
+ * cealaltă cale, și capcana #10.
+ */
+export async function zilePontateAngajat(
+  organizationId: string,
+  employeeId: string,
+  deLa: string,
+  panaLa: string,
+): Promise<readonly ZiPontataAngajat[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("attendance_entries")
+    .select("data, ora_inceput, ora_sfarsit, ore_lucrate, ore_suplimentare, ore_noapte, tip_zi")
+    .eq("organization_id", organizationId)
+    .eq("employee_id", employeeId)
+    .gte("data", deLa)
+    .lte("data", panaLa)
+    .is("deleted_at", null)
+    .order("data", { ascending: true })
+    .limit(MAXIM_ZILE_ANGAJAT)
+    .returns<ZiPontataAngajat[]>();
+  if (error !== null) throw error;
+  return data ?? [];
 }
 
 // ── Aprobarea ────────────────────────────────────────────────────────────────
@@ -661,13 +735,10 @@ export interface SetariPontajComplete {
   readonly pauza_masa_inclusa_in_program: boolean;
   readonly pauza_obligatorie_peste_ore: number;
   readonly observatii_juridice: string | null;
-  readonly program_start: string | null;
-  readonly mod_pontare_rapida: string;
-  readonly verificare_pontare: string;
 }
 
 const CAMPURI_SETARI_PONTAJ =
-  "id, valabil_de_la, ore_pe_zi, ore_pe_saptamana, ore_maxime_saptamanale, perioada_referinta_luni, repaus_zilnic_minim_ore, repaus_saptamanal_minim_ore, lucreaza_noaptea, lucreaza_weekend, lucreaza_sarbatori, admite_ore_suplimentare, spor_suplimentare_procent, spor_noapte_procent, spor_weekend_procent, spor_sarbatoare_procent, noapte_start, noapte_sfarsit, prag_ore_noapte, termen_compensare_suplimentare_zile, termen_compensare_sarbatoare_zile, pauza_masa_minute, pauza_masa_inclusa_in_program, pauza_obligatorie_peste_ore, observatii_juridice, program_start, mod_pontare_rapida, verificare_pontare";
+  "id, valabil_de_la, ore_pe_zi, ore_pe_saptamana, ore_maxime_saptamanale, perioada_referinta_luni, repaus_zilnic_minim_ore, repaus_saptamanal_minim_ore, lucreaza_noaptea, lucreaza_weekend, lucreaza_sarbatori, admite_ore_suplimentare, spor_suplimentare_procent, spor_noapte_procent, spor_weekend_procent, spor_sarbatoare_procent, noapte_start, noapte_sfarsit, prag_ore_noapte, termen_compensare_suplimentare_zile, termen_compensare_sarbatoare_zile, pauza_masa_minute, pauza_masa_inclusa_in_program, pauza_obligatorie_peste_ore, observatii_juridice";
 
 /**
  * Parametrii de dreptul muncii în vigoare la o dată dată.
@@ -709,4 +780,73 @@ export async function istoricSetariPontaj(
     .returns<SetariPontajComplete[]>();
   if (error !== null) throw error;
   return data ?? [];
+}
+
+// ── Pontarea rapidă (0115) ───────────────────────────────────────────────────
+
+/**
+ * Configurația de pontare rapidă a firmei.
+ *
+ * Tabelă separată de `attendance_settings` și NEVESIONATĂ: nu există nimic de
+ * reconstituit pentru o lună trecută, iar ținerea celor trei câmpuri în rândul
+ * versionat obliga pe oricine voia să pornească un buton să reconfirme
+ * optsprezece cifre de dreptul muncii și să aleagă o dată de intrare în vigoare.
+ *
+ * `null` e o stare NORMALĂ — firma n-a salvat niciodată nimic. Apelantul NU
+ * cade pe literale: trece rezultatul prin `configPontareRapida`
+ * (`src/domain/attendance/pontare-rapida.ts`), care ține implicitele într-un
+ * singur loc, cu teste.
+ */
+export async function setariPontareRapida(
+  organizationId: string,
+): Promise<RandPontareRapida | null> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("setari_pontare_rapida")
+    .select("mod_pontare_rapida, verificare_pontare, program_start")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .maybeSingle<RandPontareRapida>();
+  if (error !== null) throw error;
+  return data;
+}
+
+export interface AfisPontare {
+  readonly id: string;
+  readonly denumire: string;
+  readonly activ: boolean;
+  /** Are cod generat, deci se poate tipări un afiș. */
+  readonly areCod: boolean;
+}
+
+/**
+ * Punctele de lucru și starea afișului lor de pontare.
+ *
+ * `cod_pontaj` NU se selectează niciodată: e un secret operațional — cine îl
+ * vede poate ponta de oriunde — iar ecranul are nevoie doar de „are cod / n-are
+ * cod". Aceeași regulă ca în `puncte-lucru/page.tsx`, unde codul nu traversează
+ * granița server/client.
+ *
+ * Poarta e `puncte_lucru_select` (0030), care cere `departments:read` diferit de
+ * `none`. Cele trei roluri care ajung la ecranul de setări — `super_admin`,
+ * `org_admin`, `hr` — îl au pe `all`, deci lista nu se golește tăcut pentru
+ * niciunul.
+ */
+export async function afiseDePontare(organizationId: string): Promise<readonly AfisPontare[]> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("puncte_lucru")
+    .select("id, denumire, activ, cod_pontaj")
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .order("sediu_principal", { ascending: false })
+    .order("denumire")
+    .returns<{ id: string; denumire: string; activ: boolean; cod_pontaj: string | null }[]>();
+  if (error !== null) throw error;
+  return (data ?? []).map((p) => ({
+    id: p.id,
+    denumire: p.denumire,
+    activ: p.activ,
+    areCod: p.cod_pontaj !== null,
+  }));
 }

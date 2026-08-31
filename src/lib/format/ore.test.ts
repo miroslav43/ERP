@@ -4,9 +4,11 @@ import {
   formatOraZi,
   formatOre,
   formatOreCuUnitate,
+  mascheazaDurata,
   mascheazaOraZi,
   normalizeazaOraZi,
   parseOre,
+  plafoneazaMinutele,
 } from "./ore";
 
 describe("formatOre", () => {
@@ -93,6 +95,14 @@ describe("parseOre", () => {
     expect(parseOre("8")).toBe(8);
   });
 
+  it("acceptă ce lasă masca după ea: două puncte fără minute", () => {
+    // `mascheazaDurata` pune `:` pe a doua cifră, deci cine scrie `48` și
+    // pleacă din câmp lasă `48:`. Refuzat, ar fi însemnat câmp roșu și valoare
+    // nesalvată pentru cineva care n-a greșit nimic.
+    expect(parseOre("48:")).toBe(48);
+    expect(parseOre("8h")).toBe(8);
+  });
+
   it("acceptă și scrierea cu h, cum o tastează oamenii", () => {
     expect(parseOre("8h30")).toBe(8.5);
     expect(parseOre("8 h 30")).toBe(8.5);
@@ -143,7 +153,10 @@ describe("mascheazaOraZi", () => {
     expect(mascheazaOraZi("2359")).toBe("23:59");
   });
 
-  it("nu corectează minutul — un câmp care rescrie tăcut e mai rău decât unul care refuză", () => {
+  it("nu corectează minutul — corectura e treaba câmpului, la predare", () => {
+    // Masca arată exact ce s-a tastat, iar validatorul îl respinge. Plafonarea
+    // la `17:59` se face în `plafoneazaMinutele`, chemată de `IntrareOra` când
+    // ora se închide — două roluri, nu unul care face tăcut amândouă.
     expect(mascheazaOraZi("1775")).toBe("17:75");
     expect(normalizeazaOraZi("17:75")).toBeNull();
   });
@@ -152,6 +165,49 @@ describe("mascheazaOraZi", () => {
     expect(mascheazaOraZi("17:30")).toBe("17:30");
     expect(mascheazaOraZi("5:30 PM")).toBe("05:30");
     expect(mascheazaOraZi("")).toBe("");
+  });
+});
+
+describe("mascheazaDurata", () => {
+  it("pune două punctele pe a doua cifră", () => {
+    // Regula orei din zi nu se poate împrumuta: `48` e o durată perfect
+    // validă, deci nicio cifră nu spune singură unde se termină orele.
+    expect(mascheazaDurata("0")).toBe("0");
+    expect(mascheazaDurata("08")).toBe("08:");
+    expect(mascheazaDurata("08:3")).toBe("08:3");
+    expect(mascheazaDurata("08:30")).toBe("08:30");
+  });
+
+  it("scrie maximul legal din patru taste", () => {
+    expect(mascheazaDurata("48")).toBe("48:");
+    expect(mascheazaDurata("4800")).toBe("48:00");
+    expect(mascheazaDurata("1200")).toBe("12:00");
+  });
+
+  it("păstrează două punctele tastate de om acolo unde le-a pus", () => {
+    // Obiceiul vechi — `8:30`, cu ora dintr-o singură cifră — rămâne valabil.
+    expect(mascheazaDurata("8:")).toBe("8:");
+    expect(mascheazaDurata("8:30")).toBe("8:30");
+  });
+
+  it("nu deschide un al treilea câmp și nu trece de patru cifre", () => {
+    expect(mascheazaDurata("08:3:0")).toBe("08:30");
+    expect(mascheazaDurata("48005")).toBe("48:00");
+  });
+
+  it("lasă neatins ce nu e cifră — altfel `8,5` ar deveni tăcut `85`", () => {
+    // Optzeci și cinci de ore e o cifră perfect plauzibilă într-un total
+    // săptămânal. Rămasă pe ecran, virgula e respinsă vizibil de `parseOre`.
+    expect(mascheazaDurata("8,5")).toBe("8,5");
+    expect(mascheazaDurata("8.5")).toBe("8.5");
+    expect(mascheazaDurata("8h30")).toBe("8h30");
+    expect(mascheazaDurata("")).toBe("");
+  });
+
+  it("închide bucla cu parseOre pe ce lasă în câmp", () => {
+    expect(parseOre(mascheazaDurata("48"))).toBe(48);
+    expect(parseOre(mascheazaDurata("0830"))).toBe(8.5);
+    expect(parseOre(mascheazaDurata("4800"))).toBe(48);
   });
 });
 
@@ -186,5 +242,38 @@ describe("normalizeazaOraZi", () => {
     expect(normalizeazaOraZi("8:75")).toBeNull();
     expect(normalizeazaOraZi("5:30 PM")).toBeNull();
     expect(normalizeazaOraZi("")).toBeNull();
+  });
+});
+
+describe("plafoneazaMinutele", () => {
+  it("aduce minutul peste 59 la ultimul minut al aceleiași ore", () => {
+    expect(plafoneazaMinutele("17:75")).toBe("17:59");
+    expect(plafoneazaMinutele("8:99")).toBe("08:59");
+    expect(plafoneazaMinutele("0:60")).toBe("00:59");
+  });
+
+  it("citește și forma fără două puncte, ca masca", () => {
+    // `preda` primește textul mascat, dar funcția trebuie să despartă la fel ca
+    // `normalizeazaOraZi` — altfel două ecrane ar citi altfel același șir.
+    expect(plafoneazaMinutele("1775")).toBe("17:59");
+    expect(plafoneazaMinutele("875")).toBe("08:59");
+  });
+
+  it("lasă neatinsă ora care era deja bună", () => {
+    expect(plafoneazaMinutele("17:59")).toBe("17:59");
+    expect(plafoneazaMinutele("08:30")).toBe("08:30");
+    expect(plafoneazaMinutele("17:")).toBe("17:00");
+    expect(plafoneazaMinutele("8")).toBe("08:00");
+  });
+
+  it("NU plafonează ora — `25:30` ar deveni `23:30`, adică alt moment din zi", () => {
+    expect(plafoneazaMinutele("25:30")).toBeNull();
+    expect(plafoneazaMinutele("24:00")).toBeNull();
+  });
+
+  it("respinge ce nu e nici măcar o încercare de oră", () => {
+    expect(plafoneazaMinutele("5:30 PM")).toBeNull();
+    expect(plafoneazaMinutele("abc")).toBeNull();
+    expect(plafoneazaMinutele("")).toBeNull();
   });
 });

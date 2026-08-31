@@ -6,6 +6,7 @@ import { businessRule } from "@/lib/actions/errors";
 import { formatDate, todayInBucharest } from "@/lib/format/date";
 import { genereazaEvenimenteReges } from "@/lib/reges/genereaza-evenimente";
 import { genereazaDocumenteInrolare, type DocumentEmis } from "@/lib/documents/inrolare";
+import { alegeSablon } from "@/domain/checklist/potrivire-sablon";
 import { creeazaInvitatie } from "@/lib/invitatii/creeaza";
 import { adresaRealaDinFisa } from "@/lib/invitatii/adresa";
 import { inroleazaAngajatSchema } from "@/schemas/employee";
@@ -70,7 +71,8 @@ const CAMPURI_ANGAJAT = [
   "act_eliberat_la",
   "act_valabil_pana",
   "department_id",
-  "job_position_id",
+  "functie",
+  "cod_cor",
   "manager_employee_id",
   "hired_on",
   "conditii_munca",
@@ -283,7 +285,11 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
           loc_munca: denumireLocMunca,
           punct_lucru_id,
           department_id: fisa.department_id,
-          job_position_id: fisa.job_position_id,
+          // Înghețate la semnare: codul COR e o declarație făcută ACUM
+          // către ITM, nu o valoare care se recitește din fișă la fiecare
+          // export. Vezi antetul migrării 0110.
+          functie: fisa.functie,
+          cod_cor: fisa.cod_cor,
           conditii_munca: fisa.conditii_munca,
           salariu_baza,
           moneda,
@@ -358,7 +364,6 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
         .insert({
           organization_id: ctx.tenant.organizationId,
           employee_id: angajat.id,
-          job_position_id: fisa.job_position_id,
           contract_id: contract.id,
           titlu: `Fișa postului — ${angajat.full_name ?? ""}`,
           atributii: [...listaAtributii],
@@ -495,15 +500,17 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
     // Generarea documentelor nu blochează înrolarea deja reușită — eșecul se
     // vede în jurnalul serverului, iar datele rămân disponibile pentru
     // regenerare manuală (același principiu ca la evenimentele REVISAL, mai jos).
-    const [randFunctie, randDepartament] = await Promise.all([
-      fisa.job_position_id === null
-        ? Promise.resolve(null)
-        : db.from("job_positions").select("denumire").eq("id", fisa.job_position_id).maybeSingle(),
+    // Funcția NU mai cere o interogare: după migrarea 0110 e text pe fișă.
+    // Departamentul rămâne o cheie străină, deci pe el încă trebuie mers.
+    const randDepartament =
       fisa.department_id === null
-        ? Promise.resolve(null)
-        : db.from("departments").select("denumire").eq("id", fisa.department_id).maybeSingle(),
-    ]);
-    const denumireFunctie = randFunctie?.data?.denumire ?? null;
+        ? null
+        : await db
+            .from("departments")
+            .select("denumire")
+            .eq("id", fisa.department_id)
+            .maybeSingle();
+    const denumireFunctie = fisa.functie;
     const denumireDepartament = randDepartament?.data?.denumire ?? null;
 
     const { documente, avertismente: avertismenteDocumente } = await genereazaDocumenteInrolare(
@@ -628,23 +635,19 @@ export const inroleazaAngajat = createAction<typeof inroleazaAngajatSchema, Rezu
     try {
       const { data: sabloane } = await db
         .from("checklist_templates")
-        .select("id, denumire, department_id, job_position_id")
+        .select("id, denumire, department_id, cod_cor")
         .eq("organization_id", ctx.tenant.organizationId)
         .eq("tip", "onboarding")
         .eq("activ", true)
         .is("deleted_at", null)
         .order("created_at", { ascending: false });
 
-      const potrivite = (sabloane ?? []).filter(
-        (s) =>
-          (s.job_position_id === null || s.job_position_id === fisa.job_position_id) &&
-          (s.department_id === null || s.department_id === fisa.department_id),
-      );
-      const specificitate = (s: (typeof potrivite)[number]): number =>
-        (s.job_position_id === null ? 0 : 2) + (s.department_id === null ? 0 : 1);
-      const ales = [...potrivite].sort((a, b) => specificitate(b) - specificitate(a))[0];
+      const ales = alegeSablon(sabloane ?? [], {
+        department_id: fisa.department_id,
+        cod_cor: fisa.cod_cor,
+      });
 
-      if (ales === undefined) {
+      if (ales === null) {
         avertismente.push(
           "Nu există niciun șablon de integrare activ, deci nu s-a pornit niciun checklist. Creați unul din Integrare → Șabloane.",
         );

@@ -205,7 +205,12 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
       <AntetPagina
         titlu="Aprobare pontaj"
         descriere={`Aprobarea în bloc pentru ${formatMonthYear(an, filtre.luna)}.`}
-        file={<NavPontaj poateAproba={true} />}
+        file={
+          <NavPontaj
+            poateAproba={true}
+            poateConfigura={can(permisiuni, "attendance:update", "all")}
+          />
+        }
       />
 
       <ListaSaptamaniDeAprobat sarcini={sarciniSaptamana} />

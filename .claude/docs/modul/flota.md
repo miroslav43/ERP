@@ -23,8 +23,9 @@ capcane: [18, 19, 21, 22, 23]
 citeste_daca:
   - "vehicul care nu apare în listă → [[rol/manager]]"
   - "42501 la salvarea unui vehicul → capcana #23"
-scris_pe: c72c3e8dbdab4bbee1ff6f55e311080155c5c4a2
-scris_la: 2026-08-28
+  - "tip de document care lipsește din listă → 0116, cele patru de transport sunt activ=false"
+scris_pe: d28998af68b63913b9e7c4fe692f398571d0321b
+scris_la: 2026-08-30
 tags: [modul, operations]
 ---
 
@@ -39,22 +40,36 @@ patru din cele cinci capcane de mai jos nu produc nicio eroare.
 | Rută                                 | Poartă                                                              |
 | ------------------------------------ | ------------------------------------------------------------------- |
 | `/flota`, `/flota/[id]`              | `vehicles:read` own; creare cere `vehicles:create` all              |
-| `/flota/nou`                         | `vehicles:create` all                                               |
 | `/flota/foi`, `/flota/foi/[id]`      | `trip_sheets:read`/`update` own                                     |
-| `/flota/foi/noua`                    | `trip_sheets:create` own                                            |
 | `/flota/aprobari`, `/flota/anomalii` | `trip_sheets:approve` team; confirmarea cere `vehicles:update` team |
+
+**Vehiculul nou și foaia nouă NU mai au rută.** `/flota/nou` și `/flota/foi/noua` au
+dispărut, fără redirect, în favoarea unor casete pe listă — tiparul din `[[modul/concedii]]`.
+Se deschid prin parametru: `/flota?vehicul=nou` și `/flota/foi?foaie=noua`, cu
+`deschisInitial` + `key` pe componentă (o navigare pe ACEEAȘI rută nu remontează, deci
+fără `key` caseta nu s-ar mai deschide a doua oară). Citirile fostei pagini de foaie stau
+în `foi/date-foaie-noua.ts`, `server-only`, chemat doar pentru cine are `trip_sheets:create`.
 
 ## Server Actions
 
 `src/app/(app)/flota/actions.ts`.
 
-| Funcție                            | Permisiune / minScope        |
-| ---------------------------------- | ---------------------------- |
-| `creeazaVehicul`, `adaugaDocument` | `vehicles:create` / all      |
-| `creeazaFoaie`                     | `trip_sheets:create` / own   |
-| `trimiteFoaie`, `adaugaAlimentare` | `trip_sheets:update` / own   |
-| `decideFoaie`                      | `trip_sheets:approve` / team |
-| `confirmaAnomalie`                 | `vehicles:update` / team     |
+| Funcție                                  | Permisiune / minScope        |
+| ---------------------------------------- | ---------------------------- |
+| `creeazaVehicul`, `adaugaDocument`       | `vehicles:create` / all      |
+| `actualizeazaVehicul`, `stergeVehicul`   | `vehicles:update` / all      |
+| `actualizeazaDocument`, `stergeDocument` | `vehicles:update` / all      |
+| `creeazaFoaie`                           | `trip_sheets:create` / own   |
+| `trimiteFoaie`, `adaugaAlimentare`       | `trip_sheets:update` / own   |
+| `decideFoaie`                            | `trip_sheets:approve` / team |
+| `confirmaAnomalie`                       | `vehicles:update` / team     |
+
+Cele patru scrieri noi sunt toate `minScope: "all"`, fiindcă politicile cer literal
+`has_permission(...) = 'all'`. **`vehicles:delete` NU se folosește**, deși seed-ul din
+`0002_authz.sql:1153` îl acordă lui `super_admin` și `org_admin`: nicio politică RLS nu-l
+consultă, deci un rol care l-ar avea fără `vehicles:update` ar trece de poarta acțiunii și
+ar fi respins tăcut de bază. Ștergerea e logică, prin `deleted_at` — nu există politică
+DELETE și niciun grant de DELETE pe tabelele flotei.
 
 ## Citiri
 
@@ -80,6 +95,11 @@ Citește secțiunea asta înainte de orice scriere în modul.
 - **Reînnoirea unui document e un INSERT NOU, atât.** Nu trimite `este_curent` (triggerul
   îl forțează la false, iar politica de INSERT cere exact false), nu face UPDATE pe cel
   vechi și nu-l șterge întâi. Sincronizarea alege curentul după `max(expira_la)`. — capcana #21
+- **`actualizeazaDocument` NU e reînnoire** — e corectura cifrei greșite pe rândul
+  existent. Ștergerea unui document nu e nici ea o linie ștearsă: `vdoc_dupa` promovează
+  automat documentul anterior și mută scadența în `expirables`. Ambele drumuri sunt probate
+  în `tests/rls/izolare.sql`, verificarea `(l)`, cu rânduri NUMĂRATE — un UPDATE respins de
+  `USING` nu ridică eroare, deci un `begin/exception` n-ar dovedi nimic.
 - **`vehicles` și `vehicle_documents` cer `created_by` ȘI `updated_by` trimise
   explicit** din client — spre deosebire de tabelele acoperite de `internal.set_actor`.
   Omiterea lor dă **42501**, adică „Nu aveți dreptul…", un mesaj care trimite
@@ -99,6 +119,22 @@ Citește secțiunea asta înainte de orice scriere în modul.
 Migrarea → `src/types/database.ts` → `src/schemas/fleet.ts` →
 `src/lib/queries/fleet.ts` → acțiuni → pagini. Anomaliile de kilometraj și calculul de
 consum stau în `src/domain/fleet/`.
+
+## Nomenclatorul de tipuri de document
+
+`vehicle_document_types` e o TABELĂ, nu un enum — ca primul client de transport să nu
+ceară o migrare de platformă. Are unsprezece rânduri de platformă, dar **doar șapte
+active** de la `0116`: ITP, RCA, CASCO, rovinietă, revizie, stingător, trusă medicală.
+Licența de transport, copia conformă, verificarea tahograf și certificatul ADR au
+`activ = false` — se reactivează cu un `UPDATE`, pentru toate firmele deodată.
+
+Un tip PROPRIU firmei nu poate purta codul unuia de platformă (`vdt_normalizeaza`, 0018 §F6):
+`kind`-ul din `expirables` se deduce din `cod`, iar o coliziune ar face două tipuri să scrie
+peste aceeași scadență. Dezactivarea nu îngheață documentele existente — de la 0018 §F4,
+`vdoc_inainte` revalidează tipul doar la INSERT sau când `document_type_id` chiar se schimbă.
+
+Coloana `numar` a ieșit din interfață (formular și tabel) — nu se căuta după ea, nu intra
+în niciun raport și nu ajungea în `expirables`. Rămâne în bază cu valorile deja scrise.
 
 ## Ce NU e aici
 

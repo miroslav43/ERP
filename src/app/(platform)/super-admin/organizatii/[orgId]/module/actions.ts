@@ -33,12 +33,26 @@ const schemaComutare = z.object({
   enabled: z.boolean({ error: "Valoare invalidă pentru comutator." }),
 });
 
+/** Aceleași două câmpuri, pentru comutarea în bloc. */
+const schemaComutareTotala = z.object({
+  organizationId: z.uuid({ error: "Organizație invalidă." }),
+  enabled: z.boolean({ error: "Valoare invalidă pentru comutator." }),
+});
+
 const CAMPURI_AUDIT = ["feature_key", "enabled"] as const;
+const CAMPURI_AUDIT_TOTAL = ["module", "enabled"] as const;
 
 export type RezultatComutare = Readonly<{
   featureKey: string;
   enabled: boolean;
   schimbat: boolean;
+  mesaj: string;
+}>;
+
+export type RezultatComutareTotala = Readonly<{
+  enabled: boolean;
+  schimbate: number;
+  neatinse: number;
   mesaj: string;
 }>;
 
@@ -179,4 +193,192 @@ export async function comutaModul(raw: unknown): Promise<ActionResult<RezultatCo
     schimbat: true,
     mesaj: `Modulul „${modul.denumire}” a fost ${input.enabled ? "activat" : "dezactivat"}.`,
   });
+}
+
+/**
+ * Comută TOATE modulele comutabile ale unei organizații dintr-o singură dată.
+ *
+ * Modulele de nucleu sunt sărite, nu respinse: `comutaModul` întoarce CONFLICT
+ * pentru ele, dar aici un singur modul de nucleu ar face butonul să pară că a
+ * eșuat, deși restul s-a aplicat. Ele nu se pot dezactiva prin construcție, deci
+ * nu au ce căuta în mulțimea pe care o atinge acțiunea.
+ *
+ * Scrierile pleacă în DOUĂ instrucțiuni (un `insert` pentru rândurile lipsă, un
+ * `update` peste identificatorii existenți), nu într-o buclă de câte un apel per
+ * modul. PostgREST nu ne dă o tranzacție peste amândouă, deci atomicitatea NU e
+ * garantată — dar fereastra în care starea e pe jumătate aplicată scade de la
+ * 15 pași la unul singur, iar fiecare instrucțiune în parte e atomică.
+ */
+export async function comutaToateModulele(
+  raw: unknown,
+): Promise<ActionResult<RezultatComutareTotala>> {
+  const requestId = idCerere();
+
+  const parsare = schemaComutareTotala.safeParse(raw);
+  if (!parsare.success) {
+    return esuat(
+      "VALIDARE",
+      "Datele trimise nu sunt valide.",
+      requestId,
+      campuriInvalide(z.flattenError(parsare.error).fieldErrors),
+    );
+  }
+  const input = parsare.data;
+
+  const actor = await requirePlatformAdmin().catch(() => null);
+  if (!actor) {
+    return esuat("INTERZIS", "Nu ai dreptul să administrezi modulele organizațiilor.", requestId);
+  }
+
+  const admin = createAdminSupabase();
+
+  const [rezModule, rezOrg] = await Promise.all([
+    admin.from("features").select("feature_key").eq("is_core", false),
+    admin
+      .from("organizations")
+      .select("id, name, status, deleted_at")
+      .eq("id", input.organizationId)
+      .maybeSingle(),
+  ]);
+
+  if (rezModule.error || rezOrg.error) {
+    const mesaj = rezModule.error?.message ?? rezOrg.error?.message ?? "";
+    const tradus = traduEroareBd(mesaj);
+    return esuat(tradus.code, tradus.message, requestId);
+  }
+
+  const org = rezOrg.data;
+  if (!org || org.deleted_at !== null) {
+    return esuat("NEGASIT", "Organizația nu a fost găsită.", requestId);
+  }
+
+  const comutabile = rezModule.data ?? [];
+  if (comutabile.length === 0) {
+    return esuat("NEGASIT", "Catalogul nu conține niciun modul comutabil.", requestId);
+  }
+
+  const { data: existente, error: erExistente } = await admin
+    .from("organization_features")
+    .select("id, feature_key, enabled")
+    .eq("organization_id", org.id)
+    .is("deleted_at", null);
+
+  if (erExistente) {
+    const tradus = traduEroareBd(erExistente.message);
+    return esuat(tradus.code, tradus.message, requestId);
+  }
+
+  const hartaExistente = new Map((existente ?? []).map((rand) => [rand.feature_key, rand]));
+
+  // Absența rândului înseamnă „inactiv”, deci la oprire nu e nimic de inserat:
+  // un rând nou cu `enabled = false` ar fi zgomot în bază și în jurnal.
+  const deInserat = input.enabled
+    ? comutabile.filter((modul) => !hartaExistente.has(modul.feature_key))
+    : [];
+  const deActualizat = comutabile.flatMap((modul) => {
+    const existent = hartaExistente.get(modul.feature_key);
+    return existent && existent.enabled !== input.enabled ? [existent] : [];
+  });
+
+  const cheiSchimbate = [
+    ...deInserat.map((modul) => modul.feature_key),
+    ...deActualizat.map((rand) => rand.feature_key),
+  ];
+
+  if (cheiSchimbate.length === 0) {
+    return reusit({
+      enabled: input.enabled,
+      schimbate: 0,
+      neatinse: comutabile.length,
+      mesaj: `Toate modulele erau deja ${input.enabled ? "active" : "inactive"}.`,
+    });
+  }
+
+  const acum = new Date().toISOString();
+  // Datele de activare se scriu doar la activare, ca istoricul „activat de” să
+  // rămână vizibil după o oprire.
+  const campuriActivare = input.enabled ? { activated_at: acum, activated_by: actor.id } : {};
+
+  if (deInserat.length > 0) {
+    const { error } = await admin.from("organization_features").insert(
+      deInserat.map((modul) => ({
+        organization_id: org.id,
+        feature_key: modul.feature_key,
+        enabled: input.enabled,
+        ...campuriActivare,
+      })),
+    );
+    if (error) {
+      return await esecAuditat(error.message, requestId, org.id, cheiSchimbate, input.enabled);
+    }
+  }
+
+  if (deActualizat.length > 0) {
+    const { error } = await admin
+      .from("organization_features")
+      .update({ enabled: input.enabled, ...campuriActivare })
+      .in(
+        "id",
+        deActualizat.map((rand) => rand.id),
+      );
+    if (error) {
+      return await esecAuditat(error.message, requestId, org.id, cheiSchimbate, input.enabled);
+    }
+  }
+
+  const server = await createServerSupabase();
+  await scrieAudit(server, {
+    actiune: "feature_toggled",
+    status: "success",
+    organizationId: org.id,
+    entityType: "organization_features",
+    entityId: null,
+    before: doarCampuri(
+      { module: cheiSchimbate.join(", "), enabled: !input.enabled },
+      CAMPURI_AUDIT_TOTAL,
+    ),
+    after: doarCampuri(
+      { module: cheiSchimbate.join(", "), enabled: input.enabled },
+      CAMPURI_AUDIT_TOTAL,
+    ),
+    requestId,
+  });
+
+  revalidatePath(`/super-admin/organizatii/${org.id}/module`);
+
+  const verb = input.enabled ? "activate" : "dezactivate";
+  const neatinse = comutabile.length - cheiSchimbate.length;
+  return reusit({
+    enabled: input.enabled,
+    schimbate: cheiSchimbate.length,
+    neatinse,
+    mesaj:
+      neatinse === 0
+        ? `${cheiSchimbate.length} module ${verb}.`
+        : `${cheiSchimbate.length} module ${verb}; ${neatinse} erau deja așa.`,
+  });
+}
+
+/** Jurnalizează eșecul comutării în bloc și întoarce eroarea tradusă. */
+async function esecAuditat(
+  mesajBd: string,
+  requestId: string,
+  organizationId: string,
+  chei: readonly string[],
+  enabled: boolean,
+): Promise<ActionResult<RezultatComutareTotala>> {
+  const tradus = traduEroareBd(mesajBd);
+  const server = await createServerSupabase();
+  await scrieAudit(server, {
+    actiune: "feature_toggled",
+    status: "failure",
+    organizationId,
+    entityType: "organization_features",
+    entityId: null,
+    before: doarCampuri({ module: chei.join(", "), enabled: !enabled }, CAMPURI_AUDIT_TOTAL),
+    after: doarCampuri({ module: chei.join(", "), enabled }, CAMPURI_AUDIT_TOTAL),
+    requestId,
+    errorCode: tradus.code,
+  });
+  return esuat(tradus.code, tradus.message, requestId);
 }

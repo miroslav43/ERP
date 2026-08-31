@@ -188,14 +188,28 @@ describe("IntrareOra", () => {
     expect(camp("Ora").value).toBe("02:50");
   });
 
-  it("ține pe ecran minutul greșit și marchează câmpul, în loc să-l rescrie", () => {
-    // Minutul NU se corectează: un câmp care schimbă tăcut ce-ai tastat pe un
-    // pontaj e mai rău decât unul care refuză.
-    render(<IntrareOra aria-label="Ora" />);
+  it("plafonează minutul peste 59 în clipa în care ora se închide", () => {
+    /*
+      Înainte, `17:75` rămânea pe ecran, marcat roșu, și atât. Câmpul ascuns —
+      singurul care ajunge în `FormData` — rămâne gol cât timp ora nu e validă,
+      deci în planul săptămânii intervalul pleca spre server ca `null`: ziua se
+      salva cu zero ore, iar chenarul roșu rămânea într-o pagină pe care omul
+      n-o mai privea. Ce se verifică aici e tocmai capătul acela: că valoarea
+      chiar ajunge în formular.
+
+      Plafonarea se întâmplă pe `change`, nu pe `blur`: a patra cifră închide
+      ora și declanșează saltul automat, care predă valoarea pe loc.
+    */
+    const laSchimbare = vi.fn();
+    const { container } = render(
+      <IntrareOra aria-label="Ora" name="ora_inceput" onSchimba={laSchimbare} />,
+    );
     fireEvent.change(camp("Ora"), { target: { value: "1775" } });
-    fireEvent.blur(camp("Ora"));
-    expect(camp("Ora").value).toBe("17:75");
-    expect(camp("Ora").getAttribute("aria-invalid")).toBe("true");
+
+    expect(camp("Ora").value).toBe("17:59");
+    expect(camp("Ora").getAttribute("aria-invalid")).toBeNull();
+    expect(campAscuns(container).value).toBe("17:59");
+    expect(laSchimbare).toHaveBeenCalledWith("17:59");
   });
 });
 
@@ -203,6 +217,53 @@ describe("IntrareDurata", () => {
   it("scrie jumătatea de oră ca 8:30, nu ca 8,5", () => {
     render(<IntrareDurata aria-label="Ore" implicit={8.5} />);
     expect(camp("Ore").value).toBe("8:30");
+  });
+
+  it("pune singură două punctele, pe a doua cifră", () => {
+    // Ce se cere de la om: patru cifre, cu zero-ul din față. Nicio tastă `:`.
+    const laSchimbare = vi.fn();
+    const { container } = render(
+      <IntrareDurata aria-label="Ore" name="ore_pe_zi" onSchimba={laSchimbare} />,
+    );
+
+    fireEvent.change(camp("Ore"), { target: { value: "0" } });
+    expect(camp("Ore").value).toBe("0");
+    fireEvent.change(camp("Ore"), { target: { value: "08" } });
+    expect(camp("Ore").value).toBe("08:");
+    fireEvent.change(camp("Ore"), { target: { value: "08:3" } });
+    fireEvent.change(camp("Ore"), { target: { value: "08:30" } });
+    expect(camp("Ore").value).toBe("08:30");
+
+    fireEvent.blur(camp("Ore"));
+    expect(laSchimbare).toHaveBeenCalledWith(8.5);
+    expect(campAscuns(container).value).toBe("8.5");
+  });
+
+  it("salvează ora rotundă lăsată de mască, `48:` — nu o respinge", () => {
+    // Cine scrie maximul săptămânal tastează `48` și pleacă. În câmp a rămas
+    // `48:`, pus de mască: refuzat, ar fi însemnat câmp roșu fără nicio vină.
+    const laSchimbare = vi.fn();
+    render(<IntrareDurata aria-label="Ore" onSchimba={laSchimbare} />);
+    fireEvent.change(camp("Ore"), { target: { value: "48" } });
+    fireEvent.blur(camp("Ore"));
+    expect(laSchimbare).toHaveBeenCalledWith(48);
+    expect(camp("Ore").value).toBe("48:00");
+  });
+
+  it("lasă backspace-ul să șteargă două punctele puse de mască", () => {
+    // Fără regula asta, tasta ar fi fost inertă: cifrele rămân `08`, iar masca
+    // pune `:` la loc, la nesfârșit.
+    render(<IntrareDurata aria-label="Ore" />);
+    fireEvent.change(camp("Ore"), { target: { value: "08" } });
+    expect(camp("Ore").value).toBe("08:");
+    fireEvent.change(camp("Ore"), { target: { value: "08" } });
+    expect(camp("Ore").value).toBe("0");
+  });
+
+  it("arată exemplul cerut de câmp, nu norma zilnică peste tot", () => {
+    // Un `8:00` sub „maxim săptămânal" sugerează exact cifra greșită.
+    render(<IntrareDurata aria-label="Ore" placeholder="48:00" />);
+    expect(camp("Ore").placeholder).toBe("48:00");
   });
 
   it("trimite mai departe zecimala, fiindcă baza înmulțește cu tariful orar", () => {

@@ -19,10 +19,12 @@ import {
   ETICHETE_REGIM_SPECIAL,
 } from "../../etichete";
 import { mesajCamp } from "./erori-formular";
+import { CautaCor } from "@/components/cauta-cor";
 
 export const CAMPURI_PAS_3 = [
   "department_id",
-  "job_position_id",
+  "functie",
+  "cod_cor",
   "manager_employee_id",
   "hired_on",
   "conditii_munca",
@@ -61,7 +63,6 @@ interface OptiuneAngajat {
 interface Proprietati {
   readonly formular: UseFormReturn<InroleazaAngajatInput>;
   readonly departamente: readonly Optiune[];
-  readonly functii: readonly Optiune[];
   readonly angajati: readonly OptiuneAngajat[];
   readonly puncteLucru: readonly Optiune[];
   /** Următorul număr liber, doar ca text de ajutor. Alocarea reală e la salvare. */
@@ -74,7 +75,6 @@ const ALTA_LOCATIE = "ALTA";
 export function Pas3Contract({
   formular,
   departamente,
-  functii,
   angajati,
   puncteLucru,
   numarUrmator,
@@ -139,21 +139,40 @@ export function Pas3Contract({
               </select>
             )}
           </Camp>
+          <Camp nume="functie" eticheta="Funcție" erori={mesajCamp(errors.functie)}>
+            {(atribute) => (
+              <input
+                {...atribute}
+                {...register("functie")}
+                type="text"
+                maxLength={160}
+                placeholder="Sudor, Operator producție, Director general…"
+              />
+            )}
+          </Camp>
+          {/*
+            Codul COR e câmp propriu, nu dedus din denumire: el ajunge pe
+            contract și în REVISAL, iar `domain/reges/export.ts` refuză
+            contractul fără el. `CautaCor` randează chiar un `<input
+            name="cod_cor">`, deci `register` îl leagă ca pe orice câmp.
+          */}
           <Camp
-            nume="job_position_id"
-            eticheta="Funcție"
-            fel="select"
-            erori={mesajCamp(errors.job_position_id)}
+            nume="cod_cor"
+            eticheta="Cod COR"
+            erori={mesajCamp(errors.cod_cor)}
+            ajutor="Șase cifre din Clasificarea Ocupațiilor din România."
           >
             {(atribute) => (
-              <select {...atribute} {...register("job_position_id")}>
-                <option value="">— Nealocată —</option>
-                {functii.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.denumire}
-                  </option>
-                ))}
-              </select>
+              <CautaCor
+                idInput={atribute.id}
+                invalid={atribute["aria-invalid"] === true}
+                descrisDe={atribute["aria-describedby"]}
+                laText={(valoare) => {
+                  setValue("cod_cor", valoare.trim() === "" ? null : valoare.trim(), {
+                    shouldValidate: true,
+                  });
+                }}
+              />
             )}
           </Camp>
           <Camp

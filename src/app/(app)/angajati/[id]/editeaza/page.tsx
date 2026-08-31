@@ -40,16 +40,9 @@ export default async function PaginaEditeazaAngajat({ params }: ProprietatiPagin
   if (angajat === null) notFound();
 
   const db = await createServerSupabase();
-  const [departamente, functii, colegi] = await Promise.all([
+  const [departamente, colegi] = await Promise.all([
     db
       .from("departments")
-      .select("id, denumire")
-      .eq("organization_id", tenant.organizationId)
-      .eq("activ", true)
-      .is("deleted_at", null)
-      .order("denumire"),
-    db
-      .from("job_positions")
       .select("id, denumire")
       .eq("organization_id", tenant.organizationId)
       .eq("activ", true)
@@ -76,12 +69,7 @@ export default async function PaginaEditeazaAngajat({ params }: ProprietatiPagin
           descriere="Toate câmpurile afișate pe fișă se completează aici. CNP-ul și IBAN-ul rămân neschimbate dacă lăsați câmpurile goale."
         />
       </div>
-      <FormularAngajat
-        departamente={departamente.data ?? []}
-        functii={functii.data ?? []}
-        colegi={colegi}
-        angajat={angajat}
-      />
+      <FormularAngajat departamente={departamente.data ?? []} colegi={colegi} angajat={angajat} />
     </div>
   );
 }

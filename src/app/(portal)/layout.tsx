@@ -24,6 +24,7 @@ import { BaraPortal } from "./_components/bara-portal";
 import { RailPortal } from "./_components/rail-portal";
 import { monoCifre } from "@/lib/ui/fonturi";
 import { ZonaToast } from "@/components/ui/toast";
+import { ZonaAsistent } from "@/components/asistent/zona-asistent";
 
 export const dynamic = "force-dynamic";
 
@@ -122,7 +123,8 @@ export default async function PortalLayout({ children }: { children: ReactNode }
       <BaraPortal primare={bara.primare} secundare={bara.secundare} />
       {/* Montată o singură dată pe zonă. `arataToast()` se poate chema de
           oriunde, fără provider — depozitarul e la nivel de modul. */}
-      <ZonaToast />
+      <ZonaToast zona="portal" />
+      {features.has("asistent") ? <ZonaAsistent zona="portal" /> : null}
     </div>
   );
 }

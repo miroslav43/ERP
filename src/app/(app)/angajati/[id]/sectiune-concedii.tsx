@@ -7,6 +7,7 @@ import Link from "next/link";
 
 import { formatAmount } from "@/lib/format/money";
 import { todayInBucharest } from "@/lib/format/date";
+import { ocupatiaDupaCod } from "@/domain/hr/cor-nomenclator";
 import {
   configurareConcedii,
   grupeazaSoldDupaAngajat,
@@ -44,7 +45,7 @@ function laRegulaDomeniu(rand: RegulaConcediuRand): RegulaConcediu {
     vechimeAniMin: rand.vechime_ani_min,
     valoareText: rand.valoare_text,
     departmentId: rand.department_id,
-    jobPositionId: rand.job_position_id,
+    codCor: rand.cod_cor,
     zileSuplimentare: rand.zile_suplimentare,
     activ: rand.activ,
     valabilDeLa: laDataObligatorie(rand.valabil_de_la),
@@ -55,7 +56,6 @@ function laRegulaDomeniu(rand: RegulaConcediuRand): RegulaConcediu {
 function descrieRegula(
   regula: RegulaConcediuRand,
   hartaDepartamente: ReadonlyMap<string, string>,
-  hartaFunctii: ReadonlyMap<string, string>,
 ): string {
   switch (regula.tip_criteriu) {
     case "vechime":
@@ -73,7 +73,10 @@ function descrieRegula(
     case "departament":
       return `departament: ${hartaDepartamente.get(regula.department_id ?? "") ?? "—"}`;
     case "functie":
-      return `funcție: ${hartaFunctii.get(regula.job_position_id ?? "") ?? "—"}`;
+      // Denumirea ocupației vine din Clasificarea Ocupațiilor, nu dintr-o
+      // tabelă: după 0110 regula reține codul, iar codul e cheia oficială.
+      if (regula.cod_cor === null) return "funcție: —";
+      return `funcție: ${ocupatiaDupaCod(regula.cod_cor)?.denumire ?? regula.cod_cor}`;
     default:
       return ETICHETE_CRITERIU_GRILA[regula.tip_criteriu];
   }
@@ -109,7 +112,7 @@ interface Proprietati {
   readonly conditiiMunca: string;
   readonly gradHandicap: string | null;
   readonly departmentId: string | null;
-  readonly jobPositionId: string | null;
+  readonly codCor: string | null;
   /** `leave:read = all` — fără el se văd cifrele, dar nu și motivul lor. */
   readonly poateVedeaRegulile: boolean;
 }
@@ -122,7 +125,7 @@ export async function SectiuneConcedii({
   conditiiMunca,
   gradHandicap,
   departmentId,
-  jobPositionId,
+  codCor,
   poateVedeaRegulile,
 }: Proprietati) {
   const anCurent = Number(todayInBucharest().slice(0, 4));
@@ -132,7 +135,7 @@ export async function SectiuneConcedii({
     conditiiMunca,
     gradHandicap,
     departmentId,
-    jobPositionId,
+    codCor,
   };
 
   const [{ tipuri, solduri }, configurare] = await Promise.all([
@@ -142,14 +145,12 @@ export async function SectiuneConcedii({
       : Promise.resolve({
           reguli: [] as readonly RegulaConcediuRand[],
           departamente: [],
-          functii: [],
         }),
   ]);
 
   if (tipuri.length === 0) return null;
 
   const hartaDepartamente = new Map(configurare.departamente.map((d) => [d.id, d.denumire]));
-  const hartaFunctii = new Map(configurare.functii.map((f) => [f.id, f.denumire]));
 
   const randuri: readonly RandAfisat[] = imperecheazaSold(
     tipuri,
@@ -203,7 +204,7 @@ export async function SectiuneConcedii({
                   {regulileOriginale
                     .map(
                       (r) =>
-                        ` + ${formatAmount(r.zile_suplimentare)} ${descrieRegula(r, hartaDepartamente, hartaFunctii)}`,
+                        ` + ${formatAmount(r.zile_suplimentare)} ${descrieRegula(r, hartaDepartamente)}`,
                     )
                     .join("")}
                   )

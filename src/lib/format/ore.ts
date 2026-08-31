@@ -101,6 +101,12 @@ export function formatOraZi(valoare: string | null | undefined): string | null {
  * Acceptă `"8:30"`, `"08:30"`, `"8"`, `"8h30"`, `"8 h 30"` și un `"−1:30"` cu
  * oricare dintre cele două semne minus. Întoarce `null` pentru orice altceva.
  *
+ * Minutele sunt opționale ȘI DUPĂ separator: `"48:"` e patruzeci și opt de ore
+ * fix. Nu e o scăpare de tastare, ci ce lasă în urmă masca — `mascheazaDurata`
+ * pune două punctele pe a doua cifră, deci cine scrie `48` și trece la câmpul
+ * următor n-a văzut niciodată altceva în câmp. Fără regula asta, exact acei
+ * oameni ar fi plecat cu un câmp roșu și cu valoarea nesalvată.
+ *
  * **Zecimalele se RESPING deliberat.** `"8,5"` și `"8.5"` întorc `null`, deși
  * ar fi banal de acceptat: cât timp câmpul le înghite, oamenii continuă să le
  * tasteze, iar jumătate din ecrane rămân în cealaltă convenție. Câmpul spune
@@ -113,7 +119,7 @@ export function parseOre(input: string): number | null {
     .replace(/\s+/gu, "");
   if (curatat.length === 0) return null;
 
-  const potrivire = /^(-?)(\d{1,4})(?:[:h](\d{1,2}))?$/iu.exec(curatat);
+  const potrivire = /^(-?)(\d{1,4})(?:[:h](\d{1,2})?)?$/iu.exec(curatat);
   if (potrivire === null) return null;
 
   const minute = potrivire[3] === undefined ? 0 : Number(potrivire[3]);
@@ -139,6 +145,20 @@ export function parseOre(input: string): number | null {
  * `"830"` → `"08:30"`, `"1730"` → `"17:30"`, `"17:5"` → `"17:05"`.
  */
 export function normalizeazaOraZi(input: string): string | null {
+  const partit = despartOraZi(input);
+  if (partit === null) return null;
+  return valideazaCeas(partit.ore, partit.minute);
+}
+
+/**
+ * Ce a tastat omul → perechea (ore, minute), FĂRĂ verificarea intervalelor.
+ *
+ * Despărțirea e separată de validare fiindcă are doi consumatori cu verdicte
+ * diferite pe aceeași intrare: `normalizeazaOraZi` respinge `"17:75"`, iar
+ * `plafoneazaMinutele` îl aduce la `"17:59"`. A doua copie a regulilor de
+ * despărțire ar fi însemnat două ecrane care citesc altfel același șir.
+ */
+function despartOraZi(input: string): { readonly ore: number; readonly minute: number } | null {
   const brut = input.trim();
   if (brut.length === 0) return null;
 
@@ -152,14 +172,42 @@ export function normalizeazaOraZi(input: string): string | null {
   const cuDouaPuncte = /^(\d{1,2}):(\d{1,2})?(?::[0-5]\d(?:\.\d+)?)?$/u.exec(brut);
   if (cuDouaPuncte !== null) {
     const minute = cuDouaPuncte[2];
-    return valideazaCeas(Number(cuDouaPuncte[1]), minute === undefined ? 0 : Number(minute));
+    return {
+      ore: Number(cuDouaPuncte[1]),
+      minute: minute === undefined ? 0 : Number(minute),
+    };
   }
 
   if (!/^\d{1,4}$/u.test(brut)) return null;
-  if (brut.length <= 2) return valideazaCeas(Number(brut), 0);
+  if (brut.length <= 2) return { ore: Number(brut), minute: 0 };
   // `830` sunt trei cifre: prima e ora, ultimele două minutele.
   const taietura = brut.length - 2;
-  return valideazaCeas(Number(brut.slice(0, taietura)), Number(brut.slice(taietura)));
+  return { ore: Number(brut.slice(0, taietura)), minute: Number(brut.slice(taietura)) };
+}
+
+/**
+ * Minutul tastat peste 59, adus la ultimul minut valid: `"17:75"` → `"17:59"`.
+ *
+ * ── DE CE EXISTĂ, DEȘI MASCA REFUZĂ SĂ CORECTEZE ──────────────────────────
+ * `mascheazaOraZi` lasă dinadins `17:75` pe ecran, ca omul să vadă ce a tastat.
+ * Atât timp cât acolo se oprea, valoarea nu ajungea nicăieri: câmpul ascuns al
+ * lui `IntrareOra` rămâne gol când ora nu e validă, deci intervalul dispărea
+ * TĂCUT la trimiterea planului săptămânii — omul completa ora, apăsa „Trimite”
+ * și pleca fără ea. Un minut plafonat vizibil e mai bun decât un interval
+ * pierdut fără urmă.
+ *
+ * ── DE CE NU SE PLAFONEAZĂ ȘI ORA ─────────────────────────────────────────
+ * `"25:30"` rămâne respins. Masca îl face oricum netastabil (`25` devine
+ * `02:5`), iar aducerea lui la `23:30` ar muta valoarea cu două ore — o
+ * rescriere cu totul de alt ordin decât ultimele cincisprezece minute ale unei
+ * ore pe care omul a numit-o deja corect.
+ */
+export function plafoneazaMinutele(input: string): string | null {
+  const partit = despartOraZi(input);
+  if (partit === null) return null;
+  if (!Number.isInteger(partit.ore) || !Number.isInteger(partit.minute)) return null;
+  if (partit.ore > 23) return null;
+  return `${douaCifre(partit.ore)}:${douaCifre(Math.min(partit.minute, MINUTE_PE_ORA - 1))}`;
 }
 
 /**
@@ -187,6 +235,42 @@ export function mascheazaOraZi(input: string): string {
   if (cifre.length === 1) return cifre;
   if (Number(cifre.slice(0, 2)) > 23) return oraDintrOCifra;
   return `${cifre.slice(0, 2)}:${cifre.slice(2, 4)}`;
+}
+
+/**
+ * Masca de tastare a DURATELOR: două punctele apar pe a doua cifră.
+ *
+ * `"0"` → `"0"` · `"08"` → `"08:"` · `"08:30"` → `"08:30"` · `"4800"` → `"48:00"`.
+ *
+ * ── DE CE ALTĂ REGULĂ DECÂT LA ORA DIN ZI ─────────────────────────────────
+ * `mascheazaOraZi` ghicește unde se termină ora din faptul că o oră din zi nu
+ * trece de 23: `8` nu poate începe o oră de două cifre, deci închide ora din
+ * prima tastă. O DURATĂ n-are plafonul ăsta — norma săptămânală e `40:00`,
+ * maximul legal `48:00` — așa că nicio cifră nu spune singură unde se termină
+ * orele. Rămâne o singură regulă neambiguă: primele două cifre sunt orele.
+ * Consecința e că `8:30` se tastează `0830`, cu zero-ul din față.
+ *
+ * ── CE NU ATINGE ──────────────────────────────────────────────────────────
+ * Un `:` tastat de om se PĂSTREAZĂ unde l-a pus: `8:30` rămâne `8:30`, ca
+ * obiceiul vechi să nu se strice peste noapte.
+ *
+ * Tot ce nu e cifră sau două puncte iese neatins — `8,5`, `8.5`, `8h30`.
+ * Virgula tăiată ar face din `8,5` un `85` perfect plauzibil într-un total
+ * săptămânal; lăsată pe ecran, e respinsă vizibil de `parseOre`.
+ */
+export function mascheazaDurata(input: string): string {
+  if (/[^\d:]/u.test(input)) return input;
+
+  const separator = input.indexOf(":");
+  const inainte = separator === -1 ? input : input.slice(0, separator);
+  const dupa = separator === -1 ? "" : input.slice(separator + 1).replace(/:/gu, "");
+  const ore = inainte.slice(0, 2);
+  // Cifrele care nu mai încap în locul orelor sunt deja minute — `830` → `83:0`
+  // — iar un al doilea `:` tastat din greșeală nu deschide un al treilea câmp.
+  const minute = `${inainte.slice(2)}${dupa}`.slice(0, 2);
+
+  if (separator === -1 && ore.length < 2) return ore;
+  return `${ore}:${minute}`;
 }
 
 function valideazaCeas(ore: number, minute: number): string | null {

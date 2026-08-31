@@ -168,7 +168,7 @@ export const EN: ContinutLanding = {
 
   module: {
     supratitlu: "Modules",
-    titlu: "Fourteen modules. You switch on only what you use.",
+    titlu: "Fifteen modules. You switch on only what you use.",
     lead: "What is not enabled does not appear in the menu, does not appear in search, and cannot be opened by typing the address. Modules are toggled per company.",
     grupuri: [
       {
@@ -183,6 +183,16 @@ export const EN: ContinutLanding = {
               "Accounts are created by invitation only",
               "Five roles, each with its own scope",
               "A log that is appended to, never rewritten",
+            ],
+          },
+          {
+            cheie: "asistent",
+            titlu: "AI assistant",
+            text: "An assistant that answers \u201cwhere do I do X?\u201d and hands you the button that takes you there. It cannot point you at a screen you may not open: its list of destinations is filtered by your own permissions.",
+            puncte: [
+              "It tells you the click path, then shortens it to one button",
+              "It answers with real figures too: leave balance, what awaits approval",
+              "It executes nothing \u2014 it explains and takes you there; you press",
             ],
           },
         ],
@@ -613,8 +623,8 @@ export const EN: ContinutLanding = {
         text: "We keep the register of employment events and their deadlines, and we export the complete data. The official application's format is validated with the labour inspectorate, not assumed.",
       },
       {
-        titlu: "There is no AI assistant",
-        text: "Neither deterministic nor otherwise. When there is one, this page will say what it does and what it does not.",
+        titlu: "The AI assistant shows you the way, it does not do the work",
+        text: "It answers \u201cwhere do I do X?\u201d and takes you there. It files nothing, approves nothing, deletes nothing \u2014 you press. It gives no legal or tax advice. It can be wrong in an explanation, but it cannot send you to a screen you may not open. Your question goes to an external model provider (OpenRouter) to be answered; data from personnel records leaves only if you ask about it. The module can be switched off entirely, per company.",
       },
       {
         titlu: "Documents are saved as PDF from the browser",
