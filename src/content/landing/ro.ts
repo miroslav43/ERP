@@ -163,7 +163,7 @@ export const RO: ContinutLanding = {
 
   module: {
     supratitlu: "Module",
-    titlu: "Paisprezece module. Pornești doar ce folosești.",
+    titlu: "Cincisprezece module. Pornești doar ce folosești.",
     lead: "Ce nu e activat nu apare în meniu, nu apare în căutare și nu poate fi deschis prin adresă directă. Modulele se comută per firmă.",
     grupuri: [
       {
@@ -178,6 +178,16 @@ export const RO: ContinutLanding = {
               "Conturile se creează exclusiv prin invitație",
               "Cinci roluri, fiecare cu domeniu propriu",
               "Jurnal care se adaugă, nu se rescrie",
+            ],
+          },
+          {
+            cheie: "asistent",
+            titlu: "Asistent AI",
+            text: "Un asistent care răspunde la „unde se face X?” și îți dă butonul care te duce acolo. Nu-ți poate arăta un ecran la care n-ai acces: lista lui de destinații e filtrată pe permisiunile tale.",
+            puncte: [
+              "Îți spune drumul de click, apoi ți-l scurtează la un buton",
+              "Răspunde și cu cifre reale: sold de concediu, ce ai de aprobat",
+              "Nu execută nimic — explică și te duce, apeși tu",
             ],
           },
         ],
@@ -605,8 +615,8 @@ export const RO: ContinutLanding = {
         text: "Ținem evidența evenimentelor și termenele lor, și exportăm datele complete. Formatul aplicației oficiale se validează cu Inspecția Muncii, nu se presupune.",
       },
       {
-        titlu: "Nu avem asistent cu inteligență artificială",
-        text: "Nici determinist, nici de alt fel. Când o să avem, o să scrie aici ce face și ce nu.",
+        titlu: "Asistentul AI îți arată drumul, nu-ți face treaba",
+        text: "Răspunde la „unde se face X?” și te duce acolo. Nu depune cereri, nu aprobă, nu șterge — apeși tu. Nu dă sfaturi juridice sau fiscale. Poate greși într-o explicație, dar nu te poate trimite la un ecran la care n-ai acces. Întrebarea ta pleacă la un furnizor extern de model (OpenRouter) ca să primească răspuns; datele din fișe pleacă doar dacă întrebi ceva despre ele. Modulul se poate stinge cu totul, per firmă.",
       },
       {
         titlu: "Documentele se salvează ca PDF din browser",

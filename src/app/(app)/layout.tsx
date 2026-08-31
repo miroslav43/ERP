@@ -14,6 +14,7 @@ import { POARTA_PORTAL_ACTIVA, RUTA_PORTAL } from "@/config/routes";
 import { monoCifre } from "@/lib/ui/fonturi";
 import type { AuthUser, Tenant } from "@/lib/tenant/types";
 import { ZonaToast } from "@/components/ui/toast";
+import { ZonaAsistent } from "@/components/asistent/zona-asistent";
 
 export const dynamic = "force-dynamic";
 
@@ -164,6 +165,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           {/* Montată o singură dată pe zonă. `arataToast()` se poate chema de
               oriunde, fără provider — depozitarul e la nivel de modul. */}
           <ZonaToast />
+          {features.has("asistent") ? <ZonaAsistent zona="app" /> : null}
         </div>
       </SidebarProvider>
     </>

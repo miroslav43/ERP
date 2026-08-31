@@ -123,8 +123,19 @@ export function ZonaToast(): ReactElement {
       data-tipar="ascunde"
       popover="manual"
       className={cn(
-        "z-plutitor fixed inset-x-0 bottom-0 m-0 flex w-full flex-col items-center gap-2 border-0 bg-transparent p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]",
-        "md:inset-x-auto md:right-0 md:bottom-0 md:w-auto md:items-end",
+        /*
+         * Banda urcă peste bula asistentului, care stă în același colț pe
+         * `z-plutitor`. Fără decalajul ăsta, un toast apărut cât timp bula e
+         * închisă se randează exact sub butonul rotund: se vede pe jumătate și
+         * nu se poate închide, fiindcă bula îi fură clicul.
+         *
+         * Decalajul e necondiționat, nu legat de prezența asistentului: un
+         * toast care plutește cu o bulă mai sus nu deranjează pe nimeni, iar o
+         * clasă calculată din starea altui modul ar fi o legătură pe care
+         * nimeni nu o mai găsește peste șase luni.
+         */
+        "z-plutitor fixed inset-x-0 bottom-0 m-0 flex w-full flex-col items-center gap-2 border-0 bg-transparent p-3 pb-[calc(4.5rem+env(safe-area-inset-bottom))]",
+        "md:inset-x-auto md:right-0 md:bottom-0 md:w-auto md:items-end md:pb-[5.5rem]",
         lista.length === 0 ? "pointer-events-none" : "",
       )}
     >

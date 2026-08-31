@@ -127,10 +127,20 @@ describe("regulile de scriere ale paginii", () => {
   });
 
   it("nu promite nimic din lista interzisă", () => {
+    /*
+     * `asistent (AI|cu inteligen)` A FOST pe lista asta, și pe drept: pagina
+     * declara în secțiunea de onestitate că nu există un asemenea asistent, iar
+     * tiparul împiedica restul copy-ului să-l promită totuși.
+     *
+     * A fost scos pe 2026-08-31, când asistentul a fost livrat ca modul
+     * `asistent`, cu comutator per firmă. Regula pe care o apăra testul —
+     * „nu promitem ce nu avem" — rămâne; s-a schimbat doar ce avem. Secțiunea
+     * de onestitate spune acum ce face și ce nu, exact cum promitea vechiul ei
+     * text („când o să avem, o să scrie aici ce face și ce nu").
+     */
     const interzise = [
       /conform legisla[țt]iei [îi]n vigoare/i,
       /ISO\s?27001/i,
-      /asistent\s+(AI|cu inteligen)/i,
       /facturare [șs]i [îi]ncas[ăa]ri/i,
       /[îi]ncearc[ăa] gratuit/i,
       /software (de salarizare )?certificat(?!\.)/i,

@@ -21,6 +21,7 @@ import {
   ScrollText,
   ShieldCheck,
   Smartphone,
+  Sparkles,
   UserPlus,
   Wallet,
   Wrench,
@@ -54,6 +55,7 @@ export const FEATURE_KEYS = [
   "employee_portal",
   "evaluations",
   "ticketing",
+  "asistent",
 ] as const;
 
 export type FeatureKey = (typeof FEATURE_KEYS)[number];
@@ -149,6 +151,22 @@ export const FEATURES: Readonly<Record<FeatureKey, FeatureMeta>> = {
     grup: "operations",
     isCore: false,
     sortOrder: 140,
+  },
+  /**
+   * Grupul e `core` fiindcă asistentul nu ține de un domeniu anume: răspunde
+   * despre Pontaj, Concedii și Salarizare deopotrivă. `isCore` rămâne `false` —
+   * aplicația funcționează întreagă fără el.
+   *
+   * Al doilea comutator, independent de acesta, e `OPENROUTER_API_KEY`: cheie
+   * goală ⇒ ruta răspunde 404 și bula nu se randează, oricât ar fi modulul de
+   * activ în `organization_features`.
+   */
+  asistent: {
+    denumire: "Asistent AI",
+    icon: Sparkles,
+    grup: "core",
+    isCore: false,
+    sortOrder: 200,
   },
 };
 
