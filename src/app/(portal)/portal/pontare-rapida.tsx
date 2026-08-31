@@ -126,8 +126,18 @@ export function PontareRapida({
    * fiindcă `optional` e implicitul, și ar arăta spre un perete gol.
    * `oferaScanare` rămâne pentru ecranul de setări, unde afișele CHIAR se pot
    * citi.
+   *
+   * Cu cod prezent, cerința de dovadă e DEJA satisfăcută: omul tocmai a scanat
+   * afișul. `cePoateFace` primește doar configul, deci nu poate ști asta singură
+   * — și ar stinge `poateCeas`/`poateConfirma` tocmai pe drumul pe care serverul
+   * îl acceptă (`cumSeTrateazaCodul("cod_qr", cod)` → `de_rezolvat`). Întrebarea
+   * se pune, atunci, ca pentru o firmă fără verificare; poarta rămâne întreagă
+   * pe ecranul de start și pe `/portal/ceas`, unde `cod` e `null`.
    */
-  const posibilitati = cePoateFace(pontare, false);
+  const posibilitati = cePoateFace(
+    cod === null ? pontare : { ...pontare, verificare: "fara" },
+    false,
+  );
 
   if (stare.fel === "alta_sursa") return null;
 
