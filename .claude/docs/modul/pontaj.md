@@ -24,8 +24,8 @@ capcane: [2, 6, 7, 9, 17]
 citeste_daca:
   - "buton de aprobare care nu apare → [[rol/manager]]"
   - "tranziție de perioadă respinsă → [[date/pontaj]]"
-scris_pe: 3c9747a4f30ad317e7ea4e01fe0a4e778381411e
-scris_la: 2026-08-30
+scris_pe: 2e9e70f178c4a0c33ce2e8ad0a4d0f7f9e3a4d68
+scris_la: 2026-08-31
 tags: [modul, hr]
 ---
 
@@ -38,6 +38,18 @@ completat de mână prin `salveazaZiPontaj`), **săptămâna planificată**
 **pontarea rapidă** (`0096_pontaj_rapid.sql` — ceas „Am intrat"/„Am ieșit" sau
 confirmarea zilei standard, apăsate din portal, scrise tot în `attendance_entries` cu
 `sursa = pontare_rapida`).
+
+## Paginile modulului
+
+Pagina asta e trunchiul: ce e modulul, cine ajunge unde, cum arată cele trei vizualizări
+și ce refuză baza fără să spună. Restul s-a spart pe subarborele de rute, fiindcă trecuse
+de plafonul dur de 12 KB al convenției (`.claude/docs/meta/conventii.md`).
+
+| Pagină                     | Ce ține                                                                   |
+| -------------------------- | ------------------------------------------------------------------------- |
+| [[modul/pontaj/actiuni]]   | cele treisprezece Server Actions, citirile din `queries/attendance.ts`, ce se mișcă împreună la o schimbare de formă |
+| [[modul/pontaj/saptamana]] | planul săptămânal, RPC-ul care face `delete` + reinserare, legătura plan ↔ fapt |
+| [[modul/pontaj/setari]]    | pontarea rapidă (0115), aprobarea ca alegere a firmei (0118), limitele legale |
 
 ## Rute și cine ajunge
 
@@ -56,12 +68,21 @@ Toate trec întâi prin `requireFeature(tenant.organizationId, "attendance")`.
 
 ## Cele trei vizualizări ale lui `/pontaj`
 
-`?vizualizare=` cu `saptamana` (IMPLICITĂ, deci absentă din adresă) · `luna` · `lista`.
+`?vizualizare=` cu `saptamana` · `luna` · `lista`. **Implicita depinde de ROL**
+(0118): `implicitaPentruScope` din `vizualizari.ts` dă `lista` pentru cine vede și
+pontajul altora (`scope !== "own"` — `org_admin`, `hr`, `all`; `manager`, `team`) și
+`saptamana` pentru angajat. Valoarea implicită e ștearsă din adresă de
+`ComutatorVizualizare`, deci `/pontaj` curat înseamnă lucruri diferite pentru roluri
+diferite — iar pagina TREBUIE să dea aceeași implicită și schemei
+(`vizualizareaCeruta`), și comutatorului, altfel butonul vizualizării implicite duce
+la o adresă care se citește altfel decât s-a scris.
 Enumul și opțiunile stau în `vizualizari.ts`; comutarea folosește primitiva
 `ComutatorVizualizare`, deci starea e în adresă și nu se livrează JavaScript pentru ea.
 
-- **`saptamana`** — grila orară a pontajului PROPRIU, `?saptamana=<luni ISO>`. Se pontează
-  trăgând peste o zonă dintr-o zi; la eliberare se deschide `CelulaZi` cu intervalul
+- **`saptamana`** — grila orară a pontajului PROPRIU, `?saptamana=<luni ISO>`.
+  Implicită doar pentru `employee`: pentru un `org_admin` sau `hr` grila arată propria
+  lui săptămână, deci ateriza în ea în loc să vadă firma pe care o administrează.
+  Se pontează trăgând peste o zonă dintr-o zi; la eliberare se deschide `CelulaZi` cu intervalul
   precompletat (`oraInceputInitiala`/`oraSfarsitInitiala`, care BAT `intrare`). Fereastra
   e 06:00–22:00, lărgită de `intervalulGrilei` cât să cuprindă orice intrare din afara ei.
   Tragerea e doar cu mausul: pe telefon `touch-action: none` ar bloca derularea paginii,
@@ -79,129 +100,6 @@ produce un interval pe care `oreleZilei` îl acceptă.
 Săptămâna se ancorează în luna din adresă (`an`+`luna`), iar comutatorul completează
 cheia care lipsește în cealaltă direcție — altfel comutarea ar sări în altă perioadă
 decât cea de pe ecran.
-
-## Server Actions
-
-Toate în `src/app/(app)/pontaj/actions.ts`, cu excepțiile notate.
-
-| Funcție                                           | Permisiune / minScope          | Ce scrie                                |
-| ------------------------------------------------- | ------------------------------ | --------------------------------------- |
-| `deschidePerioada`                                | `attendance:create` / all      | perioada lunii, status `deschisa`       |
-| `salveazaZiPontaj`                                | `attendance:create` / own      | o zi în `attendance_entries`            |
-| `pontezaIntrarea`, `pontezaIesirea`               | `attendance:create` / own      | ora de intrare/ieșire pe ziua curentă   |
-| `confirmaZiuaStandard`                            | `attendance:create` / own      | ziua completă, din setări               |
-| `stergeZiPontaj`                                  | `attendance:create` / own      | `deleted_at` pe zi                      |
-| `aprobaPontajBloc`                                | `attendance:approve` / team    | lotul + liniile lui închise             |
-| `decideZiPontaj`                                  | `attendance:approve` / team    | verdictul pe o zi                       |
-| `blocheazaPerioada`, `redeschidePerioada`         | `attendance:approve` / **all** | statusul perioadei                      |
-| `sincronizeazaConcediile`                         | `attendance:create` / all      | zilele care vin din concedii aprobate   |
-| `trimiteSaptamanaPontaj` (`saptamana/actions.ts`) | `attendance:create` / own      | submisia săptămânii                     |
-| `decideSaptamanaPontaj` (`saptamana/actions.ts`)  | `attendance:approve` / team    | verdictul pe săptămână                  |
-| `salveazaSetariPontaj` (`setari/actions.ts`)      | `attendance:update` / all      | `attendance_settings` (versiune nouă)   |
-| `salveazaPontareaRapida` (`setari/actions.ts`)    | `attendance:update` / all      | `setari_pontare_rapida` (un rând/firmă) |
-
-Pontarea rapidă — `pontezaIntrarea`, `pontezaIesirea`, `confirmaZiuaStandard` — nu
-primește de la client nici ora, nici orele, nici angajatul: schemele ei au un singur
-câmp, `cod_punct_lucru`. Ora vine din `ctx.now`, orele se derivă din `configZiDin` +
-`oreleZilei`, fișa se rezolvă din sesiune cu `fisaProprie`. Preambulul comun
-(`pregatirePontareRapida`) refuză întâi pe `mod_pontare_rapida`, apoi decide ce face cu
-codul prin `cumSeTrateazaCodul`. `pontezaIntrarea` e **idempotentă**: a doua atingere pe
-o zi deja deschisă întoarce aceeași zi cu `reluare: true`, nu 23505.
-
-`salveazaZiPontaj` rescrie orele pe server pentru orice scope diferit de `all`: cu
-interval complet le derivă, iar fără oră de sfârșit le pune **zero**. Cifrele venite
-din client sunt păstrate doar de `attendance:create = all`, unde calculul e o sugestie.
-
-`trimiteSaptamanaPontaj` citește `p_lucreaza_weekend` din `attendance_settings`, NU din
-formular — câmpul a plecat din `trimiteSaptamanaPontajSchema`. Steagul se salvează pe
-submisie fiindcă aprobatorul trebuie să vadă ce regulă era ATUNCI, dar regula e a firmei:
-venind de la client, o cerere fabricată putea declara „aici se lucrează în weekend" la o
-firmă de birou. Caseta din formular a rămas ce a fost mereu în fapt — alege dacă zilele de
-weekend pleacă cu interval (`intervalDeTrimis`). **Atenție**: `createAction` primește
-`rawInput: unknown`, deci un câmp rămas într-un apelant NU produce eroare de tip; Zod îl
-taie tăcut. Câmpurile scoase din scheme se caută de mână prin apelanți.
-
-## Limitele legale: se AVERTIZEAZĂ, nu se refuză
-
-`src/domain/attendance/limite-legale.ts` (pur, cu teste) + `pontaj/avertismente.ts`
-(citirile) + `pontaj/lista-avertismente.tsx` (ecranul). Cele două acțiuni de scriere —
-`salveazaZiPontaj` și `trimiteSaptamanaPontaj` — întorc `{ id, avertismente }`, calculate
-DUPĂ scriere. Forma veche a rezultatului a rămas întreagă; `avertismente` s-a adăugat
-lângă ea.
-
-Codurile: `repaus_zilnic` · `repaus_saptamanal` · `saptamana_peste_maxim` ·
-`saptamana_peste_norma` · `medie_perioada_referinta` · `suplimentare_nepermise` ·
-`noapte_nepermisa` · `zi_de_repaus_lucrata` · `sarbatoare_lucrata` ·
-`compensare_sarbatoare`. Severitatea `informativ` e pentru ce e legal și doar merită spus
-(norma depășită = ore suplimentare); `avertisment` e pentru o limită a firmei depășită.
-
-Trei reguli care nu se pot deduce din cod citindu-l pe sărite:
-
-- **Firma fără rând în `attendance_settings` nu primește NICIUN avertisment.**
-  `limiteleFirmei(null)` întoarce `null`, iar toate cele trei intrări publice ies cu
-  listă goală. Un plafon implicit ar fi pus o cifră juridică neconfirmată pe ecran.
-- **Aceleași coduri și aceeași aritmetică sunt deja în SQL**, în `app.verifica_pontaj`
-  (`0013_attendance.sql:582`), care NU e apelabilă: trăiește în schema `app`, iar
-  PostgREST expune doar `public`. Cine schimbă formula într-un loc o schimbă în amândouă.
-- **`termen_compensare_suplimentare_zile` rămâne neacoperit**, deliberat:
-  `overtime_compensation` n-are niciun scriitor în tot produsul — nici trigger, nici cod —
-  deci n-ar avea ce număra. Perechea lui, `termen_compensare_sarbatoare_zile`, se
-  verifică: triggerul `internal.pontaj_genereaza_compensare_sarbatoare` (`0013:387`) chiar
-  scrie rândul în `holiday_compensation`, de unde salarizarea plătește.
-
-Ce se vede unde: formularul zilei din portal RĂMÂNE pe ecran când există avertismente (o
-navigare imediată le-ar fi făcut să clipească); formularul săptămânii le arată sub cifre;
-foaia colectivă le calculează în CLIENT, din luna deja încărcată, fără nicio citire nouă —
-de aceea acolo lipsesc media pe perioada de referință și repausul de la granița lunii, iar
-panoul o spune.
-
-## Citiri
-
-`src/lib/queries/attendance.ts`, funcții libere cu `organizationId` primul argument:
-`citestePerioada`, `citestePerioadaDupaId`, `listeazaPerioade`,
-`listeazaAngajatiPontaj` (cursor keyset, `limita + 1`), `angajatiPontajDupaId`,
-`intrariLuna`, `intrariProprii`, `zilePontateAngajat`, `setariPontaj`,
-`setariPontajComplete`, `istoricSetariPontaj`, `loturiPerioadei`, `liniiDeAprobat`,
-`citesteSaptamanaPontaj`, `saptamaniDeAprobat`, `departamente`, `setariPontareRapida`,
-`afiseDePontare`.
-
-`zilePontateAngajat` e singura care cere explicit `employee_id` și n-are cursor: aduce
-dintr-un drum reuniunea celor trei ferestre de care are nevoie verificarea limitelor
-(săptămâna, ziua dinainte, perioada de referință) și le taie în TypeScript. Filtrul pe
-angajat NU e opțional acolo — pentru scope `all` RLS nu îngustează nimic, iar media s-ar
-calcula pe orele întregii firme. Nu poate fi trunchiată de `max_rows`, fiindcă
-`attendance_entries_zi_uq` garantează cel mult un rând pe angajat pe zi: sub 380 de
-rânduri chiar la o perioadă de referință de 12 luni.
-
-`setariPontaj` întoarce DOAR parametrii juridici (cele trei câmpuri de pontare rapidă
-au plecat în 0115) — cine adaugă o coloană de setări o adaugă în DOUĂ locuri:
-lista de câmpuri a lui `setariPontaj` și `CAMPURI_SETARI_PONTAJ`. Amândouă întorc
-versiunea în vigoare la o dată (`valabil_de_la`), iar `null` e o stare normală: firma
-n-a configurat nimic și apelantul cade pe valori de rezervă.
-
-## Pontarea rapidă are tabela ei (0115)
-
-`setari_pontare_rapida` — **un rând per firmă, fără `valabil_de_la`**. Cele trei coloane
-(`mod_pontare_rapida`, `verificare_pontare`, `program_start`) au plecat din
-`attendance_settings`, unde stăteau într-o scriere VERSIONATĂ: pornirea unui buton de
-pontare cerea reconfirmarea a optsprezece cifre de dreptul muncii și o dată de intrare în
-vigoare. Coloanele vechi rămân pe loc, marcate ca înlocuite (tiparul 0082) — nu se mai
-citesc din cod.
-
-**Lipsa rândului e o stare normală**, cu implicite utile: `IMPLICIT_PONTARE_RAPIDA` din
-`src/domain/attendance/pontare-rapida.ts` = `ceas` + `optional`. Implicitul din COD
-decide, nu `default`-ul coloanei — două din trei firme n-aveau niciun rând de setări, iar
-`oprit` din a treia era backfill de `ALTER TABLE` (0096), nealegerea nimănui. Consecință:
-butonul „Am intrat" apare fără ca firma să configureze ceva.
-
-`verificare_pontare` are **trei** valori. `optional` (0115) e cea care lipsea: afișul
-pontează pentru cine îl scanează, iar butonul obișnuit rămâne. `cod_qr` înseamnă
-OBLIGATORIU — butonul nu se mai desenează deloc, deci cine n-are afișul la îndemână nu
-mai poate ponta.
-
-Cine adaugă o setare operațională o pune în tabela asta, nu în `attendance_settings`, și
-o trece prin `configPontareRapida` — cele cinci ecrane nu mai recompun regula fiecare cu
-`?? "oprit"`.
 
 ## Ce refuză baza tăcut
 
@@ -264,48 +162,6 @@ ca un `throw`):
   `0013_attendance.sql` conțin cifrele („perioada 08.2026 este blocată"), iar traducerea
   generică le-ar înlocui cu un text fără informație. `error.details` și `error.hint` nu
   se propagă niciodată.
-
-## Ce se mișcă împreună
-
-O schimbare de formă a zilei de pontaj atinge, în ordine: migrarea →
-`src/types/database.ts` → `src/schemas/attendance.ts` →
-`src/lib/queries/attendance.ts` → `src/app/(app)/pontaj/actions.ts` →
-**`intrare-client.ts`** (singurul loc care construiește forma de client, și singurul care
-normalizează ora) → `page.tsx` + componenta de celulă. Calculul orelor stă separat, în
-`src/domain/attendance/`, cu teste:
-`calcul-ore.ts` (`oreleZilei`, inversa `intervalulPropus` și valorile de rezervă din
-`configZiDin` — un singur loc, nu patru copii), `grila-orara.ts` (fereastra orară, alinierea la sferturi, poziția blocului — tot ce se
-poate greși TĂCUT desenând o săptămână), `ceas.ts` (`stareaCeasului`,
-`minuteScurse`, `formatDurata`) și `zi-de-pontat.ts` (`meritaPontata`). Toate sunt pure:
-ora curentă vine de la apelant, fiindcă autoritatea ei e ceasul serverului.
-
-O sursă nouă de intrare se adaugă în trei locuri deodată: enumul din migrare,
-`SURSE_INTRARE` din `src/schemas/attendance.ts` și `ETICHETE_SURSA` din
-`src/app/(app)/pontaj/etichete.ts`.
-
-**Orele se scriu pe ceas, nu zecimal.** Orice durată sau moment din zi trece prin
-`formatOre`/`formatOraZi` (`src/lib/format/ore.ts`), iar câmpurile sunt `IntrareOra` și
-`IntrareDurata` (`src/components/ui/intrare-ora.tsx`), nu `<input type="time">`. Baza
-rămâne zecimală: câmpul ascuns predă `8.5` pentru `8:30`, deci schemele Zod și acțiunile
-primesc exact ce primeau. Două efecte vizibile doar la rulare — `parseOre` RESPINGE
-zecimalele tastate (`8,5` rămâne marcat greșit, nu devine tăcut `85`), iar o celulă
-`peTelefon: "meta"` din `Tabel` trebuie să întoarcă `<span>`, nu `<div>`: sub 768px se
-randează într-un `<p>`, iar marcajul nevalid dă eroare de hidratare fără ca ceva să
-pară stricat.
-
-Amândouă câmpurile pun singure două punctele, dar după REGULI DIFERITE.
-`mascheazaOraZi` ghicește unde se termină ora din faptul că o oră din zi nu trece de 23
-(`8` → `08:`, `25` → `02:5`); o durată n-are plafonul ăsta — `40:00`, `48:00` — deci
-`mascheazaDurata` taie fix după a doua cifră, iar `8:30` se tastează `0830`. Un `:`
-tastat de om se păstrează unde l-a pus. Consecința în `parseOre`: `48:` e o intrare
-VALIDĂ (48 de ore fix), fiindcă exact atât lasă masca în urmă când cineva scrie `48` și
-pleacă din câmp.
-
-Regula după care ies cifrele o scrie în cuvinte `rezumatRegulaPontaj`
-(`src/app/(app)/pontaj/etichete.ts`), compusă pe SERVER și trimisă formularului
-săptămânii ca `regulaFirmei`: steagul `areSetari` nu se deduce din `config`, iar o firmă
-neconfigurată și una configurată pe exact valorile de rezervă ar da altfel același text.
-`src/app/(app)/pontaj/etichete.test.ts` leagă textul de `oreleZilei`.
 
 ## Ce NU e aici
 
