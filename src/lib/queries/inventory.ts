@@ -250,7 +250,13 @@ export async function angajatiActivi(organizationId: string): Promise<readonly A
     .eq("organization_id", organizationId)
     .eq("status", "activ")
     .is("deleted_at", null)
-    .order("full_name");
+    .order("full_name")
+    // `max_rows = 1000` (supabase/config.toml) TRUNCHIAZĂ TĂCUT, fără eroare și
+    // fără vreun semn în date. O limită cerută explicit spune cel puțin unde se
+    // oprește lista; geamăna din `flota/foi/date-foaie-noua.ts` cere același
+    // 500. Peste atâția angajați activi, selectorul are oricum nevoie de
+    // căutare, nu de încă o mie de opțiuni.
+    .limit(500);
   if (error !== null) throw error;
   return data ?? [];
 }

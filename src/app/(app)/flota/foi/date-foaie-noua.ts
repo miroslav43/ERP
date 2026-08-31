@@ -47,13 +47,24 @@ export async function dateFoaieNoua(organizationId: string): Promise<DateFoaieNo
       .limit(500),
   ]);
 
+  /*
+   * `error` se verifică, nu se ocolește cu `?? []`.
+   *
+   * Interogarea asta e scrisă direct aici, în afara stratului `src/lib/queries`,
+   * unde regula e `if (error !== null) throw error`. Fără ea, orice eșec — o
+   * politică restrânsă, o coloană redenumită, o indisponibilitate de moment —
+   * devenea o listă goală: caseta „Foaie nouă" se deschidea cu selectorul de
+   * șofer gol, iar omul citea „firma n-are angajați activi" în loc de o eroare.
+   */
+  if (angajati.error !== null) throw angajati.error;
+
   return {
     vehicule: parcul.randuri.map((v) => ({
       id: v.id,
       nr_inmatriculare: v.nr_inmatriculare,
       km_curent: v.km_curent,
     })),
-    angajati: (angajati.data ?? []).map((a) => ({
+    angajati: angajati.data.map((a) => ({
       id: a.id,
       full_name: a.full_name,
       marca: a.marca,

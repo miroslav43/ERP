@@ -16,6 +16,7 @@ import { fisaMea, pontajulMeu } from "@/lib/queries/portal";
 import { configZiDin, intervalulPropus } from "@/domain/attendance/calcul-ore";
 import { stareaCeasului } from "@/domain/attendance/ceas";
 import { configPontareRapida } from "@/domain/attendance/pontare-rapida";
+import { meritaPontata } from "@/domain/attendance/zi-de-pontat";
 
 import { FaraFisa } from "../fara-fisa";
 import { PontareRapida } from "../pontare-rapida";
@@ -70,6 +71,19 @@ export default async function PaginaCeas() {
   const intervalPropus =
     pontare.programStart === null ? null : intervalulPropus(pontare.programStart, config);
 
+  // `setari === null` (firmă neconfigurată) → `meritaPontata` întoarce `false`,
+  // exact ca pe ecranul de start: fără regim declarat nu se presupune că se
+  // lucrează sâmbăta.
+  const seLucreazaAzi = meritaPontata(
+    azi,
+    setari === null
+      ? null
+      : {
+          lucreazaWeekend: setari.lucreaza_weekend,
+          lucreazaSarbatori: setari.lucreaza_sarbatori,
+        },
+  );
+
   const antet = <AntetPagina titlu={formatDate(azi)} descriere="Pontajul dumneavoastră de azi." />;
 
   // Firma n-a aprins pontarea rapidă: scurtătura n-are ce face, dar nici nu
@@ -111,13 +125,41 @@ export default async function PaginaCeas() {
     <div className={`${LATIMI.formular} space-y-4 p-4`}>
       {antet}
       <section className="bg-surface border-border rounded-panou border p-4">
-        <PontareRapida
-          stare={stareCeas}
-          pontare={pontare}
-          intervalPropus={intervalPropus}
-          numeFirma={tenant.name}
-          lunaDeschisa
-        />
+        {/*
+          Aceeași poartă ca pe ecranul de start (`portal/page.tsx`), din același
+          motiv scris acolo: fără ea, cardul cere o pontare în repausul
+          săptămânal al fiecărui birou.
+
+          Scurtătura din manifest duce DIRECT aici, sărind peste ecranul de
+          start. Duminică, ecranul de start arăta „Zi liberă" și doar linkul
+          discret spre scrierea orelor, în timp ce scurtătura arăta „Am intrat".
+          Apăsat, scria o zi de repaus cu `sursa = pontare_rapida`, iar la
+          calculul lunii ora apărea într-un fel de muncă pe care firma îl
+          declarase inexistent (`SAL_ORE_IN_MOD_NEDECLARAT`) — pentru o zi pe
+          care celălalt ecran al aceleiași aplicații refuzase s-o propună.
+        */}
+        {seLucreazaAzi ? (
+          <PontareRapida
+            stare={stareCeas}
+            pontare={pontare}
+            intervalPropus={intervalPropus}
+            numeFirma={tenant.name}
+            lunaDeschisa
+          />
+        ) : (
+          <div className="space-y-2">
+            <p className="text-foreground text-corp font-medium">Astăzi e zi liberă</p>
+            <p className="text-muted-foreground text-corp">
+              La {tenant.name} nu se lucrează azi, deci nu e nimic de pontat.
+            </p>
+            <Link
+              href={`/portal/pontajul-meu/zi/${azi}`}
+              className={buton({ varianta: "secundar" })}
+            >
+              Ați lucrat totuși? Scrie orele
+            </Link>
+          </div>
+        )}
         {stareCeas.fel === "alta_sursa" ? (
           <p className="text-muted-foreground text-corp">
             Ziua de azi e deja înregistrată — din concediu, din foaia colectivă sau ca absență.

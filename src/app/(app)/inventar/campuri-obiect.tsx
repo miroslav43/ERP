@@ -209,11 +209,23 @@ export function CampuriObiect<TData>({
         erori={stare.erori["valoare"] ?? []}
       >
         {(a) => (
+          /*
+           * `text`, nu `number`, tocmai ca să treacă virgula.
+           *
+           * Schema acceptă ambele separatoare — `/^-?\d+([.,]\d+)?$/u`, apoi
+           * `replace(",", ".")` — și un test o verifică. Dar pe `type="number"`
+           * virgula nu e un caracter valid: browserul o ignoră la tastare. Cu
+           * `inputMode="decimal"` era chiar mai rău, fiindcă tastatura
+           * românească de telefon OFERĂ tasta virgulă, pe care apoi câmpul o
+           * arunca. Cine scria „140,50" rămânea cu „14050" — de o sută de ori
+           * mai mult — fără să vadă nimic întâmplându-se.
+           *
+           * Validarea rămâne a schemei; `min`/`step` erau oricum decorative pe
+           * un câmp opțional care se trimite ca text.
+           */
           <input
             {...a}
-            type="number"
-            step="0.01"
-            min="0"
+            type="text"
             inputMode="decimal"
             defaultValue={trimis["valoare"] ?? cifra(obiect?.valoare)}
           />

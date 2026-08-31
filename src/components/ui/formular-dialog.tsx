@@ -9,6 +9,7 @@ import {
   useState,
   type ReactElement,
   type ReactNode,
+  type RefObject,
 } from "react";
 import { useRouter } from "next/navigation";
 
@@ -123,6 +124,20 @@ export type PropsFormularDialog<TData> = Readonly<{
    */
   laReusita?: (data: TData) => void;
   /**
+   * Golirea stării pe care apelantul o ține ÎN AFARA casetei, chemată ori de
+   * câte ori caseta se închide — și după reușită, și după renunțare.
+   *
+   * Câmpurile obișnuite n-au nevoie de asta: `{deschis ? <Dialog>… : null}`
+   * remontează tot interiorul, deci fiecare `defaultValue` se reia singur. Are
+   * nevoie doar starea pe care apelantul e OBLIGAT s-o țină mai sus — de
+   * exemplu `dialog-returnare.tsx`, unde `mesajReusita` diferă după ce s-a ales
+   * și trebuie citită din afara lui `children`. Fără golire, alegerea unei
+   * vizite abandonate supraviețuia în notificarea următoarei.
+   *
+   * NU trebuie memorat de apelant — vezi comentariul de la `refCallback`.
+   */
+  laResetare?: () => void;
+  /**
    * Sare peste `router.refresh()`. Pentru formularele care își duc singure
    * rezultatul mai departe, unde reîmprospătarea rutei curente ar fi muncă
    * aruncată.
@@ -137,6 +152,27 @@ export type PropsFormularDialog<TData> = Readonly<{
   children: (stare: StareFormular<TData>, idc: (sufix: string) => string) => ReactNode;
 }>;
 
+/**
+ * Copiază `inCurs` într-o referință din afara dialogului. Randează `null`.
+ *
+ * Scrierea se face în efect, nu în timpul randării: un `ref.current = …` pus
+ * direct în corpul componentei ar fi un efect secundar într-o fază pe care
+ * React o poate relua sau abandona. Efectul rulează după commit, adică înainte
+ * ca omul să apuce să apese Escape.
+ */
+function OglindaInCurs({
+  inCurs,
+  oglindaRef,
+}: {
+  readonly inCurs: boolean;
+  readonly oglindaRef: RefObject<boolean>;
+}): null {
+  useEffect(() => {
+    oglindaRef.current = inCurs;
+  }, [inCurs, oglindaRef]);
+  return null;
+}
+
 export function FormularDialog<TData>({
   declansator,
   titlu,
@@ -150,6 +186,7 @@ export function FormularDialog<TData>({
   textInCurs,
   etichetaRenuntare = "Renunță",
   laReusita,
+  laResetare,
   faraReimprospatare,
   children,
 }: PropsFormularDialog<TData>): ReactElement {
@@ -174,8 +211,28 @@ export function FormularDialog<TData>({
     refCallback.current = laReusita;
   }, [laReusita]);
 
+  const refResetare = useRef(laResetare);
+  useEffect(() => {
+    refResetare.current = laResetare;
+  }, [laResetare]);
+
+  /**
+   * `inCurs` trăiește în `Formular`, adică ÎNĂUNTRUL dialogului. Oglinda asta îl
+   * ridică până aici, unde se decide închiderea.
+   *
+   * Butonul „Renunță" era deja păzit (`disabled={stare.inCurs}`), dar Escape,
+   * clicul pe `::backdrop` și X-ul din antet ajung direct la `laInchidere` —
+   * niciunul nu trecea pe lângă poarta aceea. Caseta se demonta cu o trimitere
+   * în zbor: la întoarcerea răspunsului nu mai exista nici toast-ul de eroare,
+   * nici `router.refresh()`, nici `laReusita`. Omul credea că a anulat, deși
+   * cererea plecase și putea foarte bine să reușească.
+   */
+  const refInCurs = useRef(false);
+
   const inchide = useCallback((): void => {
+    if (refInCurs.current) return;
     setDeschis(false);
+    refResetare.current?.();
   }, []);
 
   const laReusitaInterna = useCallback(
@@ -183,6 +240,7 @@ export function FormularDialog<TData>({
       setDeschis(false);
       if (faraReimprospatare !== true) router.refresh();
       refCallback.current?.(data);
+      refResetare.current?.();
     },
     [router, faraReimprospatare],
   );
@@ -232,6 +290,7 @@ export function FormularDialog<TData>({
           >
             {(stare) => (
               <>
+                <OglindaInCurs inCurs={stare.inCurs} oglindaRef={refInCurs} />
                 {children(stare, idc)}
                 <BaraActiuni aliniere="final" separata lipitaPeTelefon>
                   <Buton varianta="secundar" onClick={inchide} disabled={stare.inCurs}>

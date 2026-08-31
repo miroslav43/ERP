@@ -1,9 +1,11 @@
 "use client";
 
 import { FilePlus2 } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useState } from "react";
 import type { ReactElement } from "react";
 
+import { buton } from "@/components/ui/buton";
 import { Camp } from "@/components/ui/camp";
 import { FormularDialog } from "@/components/ui/formular-dialog";
 import type { ActionResult } from "@/lib/actions/types";
@@ -134,23 +136,42 @@ export function DialogFoaieNoua({ date, deschisInitial = false }: Proprietati): 
     setKmPlecare(String(primulVehicul?.km_curent ?? 0));
   }, [primulVehicul]);
 
+  /*
+   * Parc gol: NU un declanșator dezactivat.
+   *
+   * Explicația fusese pusă în `descriere`, care se randează doar ÎNĂUNTRUL
+   * dialogului deschis — iar un buton dezactivat nu-l deschide niciodată. Omul
+   * primea un buton gri, fără `title`, fără text alternativ: o ușă închisă fără
+   * bilet pe ea, exact ce voia să evite comentariul de aici.
+   *
+   * `parcGol` nu înseamnă doar „firmă fără mașini". Cu scope `own`/`team`,
+   * `app.poate_vedea_vehicul` cere `p_sofer_id = current_employee_id`, deci un
+   * angajat cu `trip_sheets:create` dar fără mașină alocată vede zero vehicule
+   * într-un parc plin. Pentru amândoi, singurul lucru util e drumul spre parcul
+   * auto — deci un link, nu un buton mort.
+   *
+   * Întoarcerea timpurie stă DUPĂ toate hook-urile: ordinea lor rămâne aceeași
+   * la fiecare randare.
+   */
+  if (parcGol) {
+    return (
+      <Link href="/flota" className={buton({ varianta: "secundar" })}>
+        <FilePlus2 aria-hidden="true" className="size-4" />
+        Adăugați întâi un vehicul
+      </Link>
+    );
+  }
+
   return (
     <FormularDialog
       declansator={{
         eticheta: "Foaie nouă",
         pictograma: <FilePlus2 aria-hidden="true" className="size-4" />,
-        disabled: parcGol,
       }}
       titlu="Foaie de parcurs nouă"
-      // Starea goală a fostei pagini a devenit descrierea casetei: un buton
-      // dezactivat fără explicație e o ușă închisă fără bilet pe ea.
-      descriere={
-        parcGol
-          ? "Nu există niciun vehicul activ în parc. O foaie de parcurs are nevoie de unul — adăugați-l întâi din Parcul auto."
-          : "Kilometrajul de plecare se completează singur din ultimul cunoscut al vehiculului. Verificați-l înainte de salvare: unul mai mic decât ultimul e refuzat de sistem."
-      }
+      descriere="Kilometrajul de plecare se completează singur din ultimul cunoscut al vehiculului. Verificați-l înainte de salvare: unul mai mic decât ultimul e refuzat de sistem."
       marime="mare"
-      deschisInitial={deschisInitial && !parcGol}
+      deschisInitial={deschisInitial}
       actiune={trimiteFoaia}
       mesajReusita="Foaia de parcurs a fost salvată ca ciornă."
       etichetaTrimite="Salvează ciorna"
@@ -197,6 +218,15 @@ export function DialogFoaieNoua({ date, deschisInitial = false }: Proprietati): 
           >
             {(a) => (
               <select {...a} defaultValue={stare.valoriTrimise["employee_id"] ?? ""}>
+                {/*
+                  Fără opțiunea goală, `defaultValue=""` nu se potrivește cu
+                  nimic și browserul alege PRIMUL angajat după `full_name`.
+                  Câmpul e `obligatoriu`, dar nu putea rămâne gol: foaia se
+                  înregistra pe un om care n-a fost în cursă, iar kilometrii și
+                  consumul i se atribuiau. Cu opțiunea goală, `z.uuid()` refuză
+                  șirul gol și mesajul ajunge pe câmp prin `stare.erori`.
+                */}
+                <option value="">Alegeți șoferul</option>
                 {date.angajati.map((ang) => (
                   <option key={ang.id} value={ang.id}>
                     {ang.full_name ?? ang.marca} ({ang.marca})

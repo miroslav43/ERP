@@ -1,7 +1,7 @@
 "use client";
 
 import { Undo2 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import type { ReactElement } from "react";
 
 import { Camp } from "@/components/ui/camp";
@@ -38,6 +38,19 @@ interface Proprietati {
 export function DialogReturnare({ alocareId }: Proprietati): ReactElement {
   const [stareLaReturnare, setStareLaReturnare] = useState<StareObiect>("bun");
 
+  /*
+   * Starea asta e SINGURA din casetă care nu se golește singură.
+   *
+   * `FormularDialog` remontează tot ce e înăuntru la fiecare deschidere, dar
+   * `stareLaReturnare` trebuie citită din AFARĂ, pentru `mesajReusita`. Deci
+   * trăiește în componenta care nu se demontează, iar o alegere abandonată —
+   * „Defect", ales din greșeală și închis cu Escape — rămânea selectată data
+   * următoare. Cine nu observa trimitea un obiect bun în „În reparație".
+   */
+  const laResetare = useCallback((): void => {
+    setStareLaReturnare("bun");
+  }, []);
+
   async function trimite(date: FormData) {
     return returneazaObiect({
       id: alocareId,
@@ -64,6 +77,7 @@ export function DialogReturnare({ alocareId }: Proprietati): ReactElement {
       }
       etichetaTrimite="Înregistrează returnarea"
       textInCurs="Se înregistrează…"
+      laResetare={laResetare}
     >
       {(stare, idc) => (
         <div className="grid gap-4 sm:grid-cols-2">

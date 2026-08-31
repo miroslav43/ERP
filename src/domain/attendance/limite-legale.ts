@@ -196,7 +196,16 @@ function ore(valoare: number): string {
   return formatOre(valoare);
 }
 
-function esteWeekend(iso: string): boolean {
+/**
+ * Sâmbătă sau duminică, după DATĂ, nu după poziția în listă.
+ *
+ * Exportată fiindcă `trimiteSaptamanaPontaj` are nevoie de exact aceeași
+ * întrebare, iar acolo indicele nu e de încredere: schema acceptă
+ * `.min(1).max(7)` zile, deci o cerere fabricată poate trimite trei zile în
+ * care poziția 5 nu mai e sâmbăta. `INDICI_WEEKEND` din `saptamana.ts` rămâne
+ * pentru formular, unde cele șapte rânduri sunt construite de noi.
+ */
+export function esteWeekend(iso: string): boolean {
   return WEEKEND.has(new Date(`${iso}T00:00:00Z`).getUTCDay());
 }
 

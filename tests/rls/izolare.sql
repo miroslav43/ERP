@@ -3250,7 +3250,58 @@ declare
   v_afectate   int;
   v_vazute     int;
   v_mod        text;
+  v_reusit     boolean;
+  v_eroare     text;
 begin
+  -- 0) `hr` CREEAZĂ primul rând. Pozitiv — și e calea pe care o parcurge azi
+  --    ORICE firmă: 0115 nu seedează nimic („lipsa rândului e o stare validă"),
+  --    deci prima apăsare pe „Salvează" din /pontaj/setari intră pe ramura
+  --    `existent === null`, adică pe INSERT.
+  --
+  --    Fără proba asta, tot blocul de mai jos atinge exclusiv politica de
+  --    UPDATE, fiindcă fixture-ul își pune singur rândul. Iar
+  --    `setari_pontare_rapida_insert` are condițiile cele mai fragile din trio:
+  --    `created_by = auth.uid()` ȘI `updated_by = auth.uid()`, amândouă puse de
+  --    triggerul BEFORE `trg_setari_pontare_rapida_00_actor` — deci amândouă
+  --    depind de faptul că el chiar rulează, și rulează PRIMUL. O reordonare a
+  --    triggerelor ar lăsa suita verde raportând 11/11 + (l) ✓, în timp ce
+  --    niciun org_admin din produs n-ar putea salva nimic.
+  --
+  --    Ștergerea se face sub rolul de fixture, nu sub `authenticated`: proiectul
+  --    n-are politici DELETE nicăieri, deci un `delete` sub rol ar fi un no-op
+  --    tăcut, iar proba ar rămâne tot pe UPDATE fără ca nimeni să observe.
+  delete from public.setari_pontare_rapida where organization_id = v_alfa;
+
+  perform set_config('request.jwt.claim.sub', v_hr::text, true);
+  set local role authenticated;
+  begin
+    with creat as (
+      insert into public.setari_pontare_rapida
+        (organization_id, mod_pontare_rapida, verificare_pontare, program_start)
+      values (v_alfa, 'ambele', 'optional', '08:30')
+      returning 1
+    ) select count(*) into v_afectate from creat;
+    v_reusit := true;
+  exception when others then
+    -- Un WITH CHECK respins la INSERT RIDICĂ 42501, nu întoarce zero rânduri —
+    -- spre deosebire de UPDATE. Se prind amândouă: excepția, și cazul în care
+    -- inserarea trece dar `RETURNING` nu vede rândul, fiindcă politica de SELECT
+    -- îl ascunde (clasa de defect din care s-a născut capcana 20).
+    v_reusit := false;
+    v_eroare := format('%s (%s)', sqlerrm, sqlstate);
+  end;
+  reset role;
+
+  if not v_reusit then
+    perform pg_temp.esueaza(format(
+      '(l) FALS-NEGATIV: `hr` are attendance:update=all, dar INSERT-ul PRIMULUI rând din '
+      'setari_pontare_rapida a fost refuzat: %s', v_eroare));
+  elsif v_afectate = 0 then
+    perform pg_temp.esueaza(
+      '(l) INSERT-ul a trecut, dar RETURNING n-a văzut rândul — politica de SELECT îl ascunde '
+      'de cel care tocmai l-a scris, iar acțiunea ar raporta CONFLICT pe o scriere reușită');
+  end if;
+
   -- 1) `hr` SCHIMBĂ modul de pontare. Pozitiv.
   perform set_config('request.jwt.claim.sub', v_hr::text, true);
   set local role authenticated;

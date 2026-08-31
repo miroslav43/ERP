@@ -4,6 +4,7 @@
 import { createAction } from "@/lib/actions/create-action";
 import { businessRule, notFound } from "@/lib/actions/errors";
 import { oreleZilei } from "@/domain/attendance/calcul-ore";
+import { esteWeekend } from "@/domain/attendance/limite-legale";
 import { setariPontaj } from "@/lib/queries/attendance";
 import { decideSaptamanaPontajSchema, trimiteSaptamanaPontajSchema } from "@/schemas/attendance";
 import { avertismenteDupaSaptamana, type RezultatCuAvertismente } from "../avertismente";
@@ -86,20 +87,30 @@ export const trimiteSaptamanaPontaj = createAction<
       p_status: input.status,
       p_zile: zile,
       /*
-       * DIN SETĂRI, nu de la client — aceeași regulă ca la orele rederivate
-       * mai sus, din același motiv.
+       * DIN SETĂRI **SAU** DIN CE S-A COMPLETAT CHIAR ACUM.
        *
        * Steagul se salvează pe submisie și e ce vede aprobatorul ca CONTEXT:
-       * „la firma asta se lucrează în weekend". Venind din formular, o cerere
-       * fabricată putea declara asta la o firmă de birou, iar sâmbăta lucrată
-       * apărea drept program obișnuit. Caseta din formular rămâne, dar face
-       * exact ce spune că face — alege dacă zilele de weekend pleacă cu
-       * interval (`intervalDeTrimis`), nu ce regulă are firma.
+       * „la firma asta se lucrează în weekend". De aceea nu se crede de la
+       * client: o cerere fabricată ar declara asta la o firmă de birou, iar
+       * sâmbăta lucrată ar apărea drept program obișnuit.
        *
-       * `?? false` e valoarea de rezervă care exista deja în AMBELE pagini de
-       * săptămână pentru firma neconfigurată; nu se inventează una nouă aici.
+       * Dar numai din setări nu se poate: aceeași coloană decide, la
+       * REÎNCĂRCARE, dacă se mai desenează coloanele de weekend
+       * (`lucreazaWeekendInitial`, în ambele pagini de săptămână). O firmă cu
+       * `lucreaza_weekend = false` în care cineva chiar a lucrat sâmbăta
+       * salva ziua corect, primea caseta debifată înapoi, iar următoarea
+       * trimitere — o corectură pe luni — o trimitea goală. RPC-ul face
+       * `delete` + reinserare (0084), deci orele dispăreau din bază fără
+       * nicio eroare.
+       *
+       * `esteWeekend` pe DATĂ, nu pe indice: schema acceptă `.min(1).max(7)`
+       * zile, deci poziția 5 nu e garantat sâmbăta. Ce se declară rămâne
+       * astfel un fapt observat — „săptămâna asta chiar are weekend lucrat" —
+       * nu o afirmație a clientului.
        */
-      p_lucreaza_weekend: setari?.lucreaza_weekend ?? false,
+      p_lucreaza_weekend:
+        (setari?.lucreaza_weekend ?? false) ||
+        derivatePeZi.some(({ zi }) => zi.ora_inceput !== null && esteWeekend(zi.data)),
       // Cine are `attendance:create = all` completează și pentru altcineva
       // (0084). `null` înseamnă propria fișă. Autorizarea rămâne în bază, în
       // `app.poate_scrie_pontaj` — aici nu se decide nimic, doar se transmite.

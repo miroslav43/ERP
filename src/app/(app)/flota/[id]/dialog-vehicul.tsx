@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { ReactElement } from "react";
 
 import { Camp } from "@/components/ui/camp";
+import type { StareFormular } from "@/components/ui/formular";
 import { FormularDialog } from "@/components/ui/formular-dialog";
 import { STATUS_VEHICUL } from "@/schemas/fleet";
 import type { StatusVehicul } from "@/schemas/fleet";
@@ -45,9 +46,83 @@ interface Proprietati {
 
 const IESE_DIN_PARC: ReadonlySet<StatusVehicul> = new Set<StatusVehicul>(["vandut", "casat"]);
 
-export function DialogVehicul({ vehicul }: Proprietati): ReactElement {
+/**
+ * Starea + motivul, ca subcomponent — NU ca stare a casetei.
+ *
+ * `FormularDialog` randează `{deschis ? <Dialog>… : null}`, deci interiorul se
+ * REMONTEAZĂ la fiecare deschidere; componenta din jur, nu. Cât timp `status`
+ * stătea în `DialogVehicul`, selectul era singurul câmp care nu-și relua
+ * valoarea din `vehicul`: toate celelalte se remontau cu `defaultValue`, el
+ * rămânea pe ultima alegere ABANDONATĂ.
+ *
+ * Concret: cineva deschidea „Modifică", alegea „Casat" din curiozitate, apăsa
+ * „Renunță" — și la a doua deschidere, venită pentru cu totul altceva, găsea
+ * selectul tot pe „Casat" și câmpul de motiv gol lângă el. Completat ca să
+ * treacă de validare, vehiculul ieșea din parc fără ca nimeni s-o fi vrut.
+ *
+ * Mutat aici, `useState` se inițializează din nou la fiecare deschidere.
+ */
+function StareaVehiculului<TData>({
+  stare,
+  idc,
+  vehicul,
+}: {
+  readonly stare: StareFormular<TData>;
+  readonly idc: (sufix: string) => string;
+  readonly vehicul: Proprietati["vehicul"];
+}): ReactElement {
   const [status, setStatus] = useState<StatusVehicul>(vehicul.status);
 
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      <Camp
+        nume="status"
+        id={idc("status")}
+        eticheta="Starea vehiculului"
+        fel="select"
+        erori={stare.erori["status"] ?? []}
+      >
+        {(a) => (
+          <select
+            {...a}
+            value={status}
+            onChange={(e) => {
+              setStatus(e.target.value as StatusVehicul);
+            }}
+          >
+            {STATUS_VEHICUL.map((s) => (
+              <option key={s} value={s}>
+                {ETICHETE_STATUS_VEHICUL[s]}
+              </option>
+            ))}
+          </select>
+        )}
+      </Camp>
+
+      {IESE_DIN_PARC.has(status) ? (
+        <Camp
+          nume="motiv_iesire"
+          id={idc("motiv_iesire")}
+          eticheta="Motivul ieșirii din parc"
+          obligatoriu
+          ajutor="Cui s-a vândut, de ce s-a casat. Data ieșirii se completează singură."
+          erori={stare.erori["motiv_iesire"] ?? []}
+        >
+          {(a) => (
+            <input
+              {...a}
+              type="text"
+              maxLength={500}
+              defaultValue={stare.valoriTrimise["motiv_iesire"] ?? vehicul.motiv_iesire ?? ""}
+            />
+          )}
+        </Camp>
+      ) : null}
+    </div>
+  );
+}
+
+export function DialogVehicul({ vehicul }: Proprietati): ReactElement {
   async function trimite(date: FormData) {
     return actualizeazaVehicul({
       id: vehicul.id,
@@ -80,51 +155,7 @@ export function DialogVehicul({ vehicul }: Proprietati): ReactElement {
           <input type="hidden" name="employee_id" value={vehicul.employee_id ?? ""} />
           <input type="hidden" name="department_id" value={vehicul.department_id ?? ""} />
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Camp
-              nume="status"
-              id={idc("status")}
-              eticheta="Starea vehiculului"
-              fel="select"
-              erori={stare.erori["status"] ?? []}
-            >
-              {(a) => (
-                <select
-                  {...a}
-                  value={status}
-                  onChange={(e) => {
-                    setStatus(e.target.value as StatusVehicul);
-                  }}
-                >
-                  {STATUS_VEHICUL.map((s) => (
-                    <option key={s} value={s}>
-                      {ETICHETE_STATUS_VEHICUL[s]}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </Camp>
-
-            {IESE_DIN_PARC.has(status) ? (
-              <Camp
-                nume="motiv_iesire"
-                id={idc("motiv_iesire")}
-                eticheta="Motivul ieșirii din parc"
-                obligatoriu
-                ajutor="Cui s-a vândut, de ce s-a casat. Data ieșirii se completează singură."
-                erori={stare.erori["motiv_iesire"] ?? []}
-              >
-                {(a) => (
-                  <input
-                    {...a}
-                    type="text"
-                    maxLength={500}
-                    defaultValue={stare.valoriTrimise["motiv_iesire"] ?? vehicul.motiv_iesire ?? ""}
-                  />
-                )}
-              </Camp>
-            ) : null}
-          </div>
+          <StareaVehiculului stare={stare} idc={idc} vehicul={vehicul} />
 
           <CampuriVehicul stare={stare} idc={idc} vehicul={vehicul} />
         </>

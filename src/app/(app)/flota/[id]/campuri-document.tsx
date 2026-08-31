@@ -72,6 +72,18 @@ export function CampuriDocument<TData>({
               trimis["document_type_id"] ?? documentul?.document_type_id ?? tipImplicit ?? ""
             }
           >
+            {/*
+              Opțiunea goală NU e decor. Fără ea, `defaultValue=""` nu se
+              potrivește cu nimic din listă, iar browserul selectează PRIMA
+              opțiune — care, după `.order("ordine")`, e mereu ITP (`ordine 10`
+              în seed-ul din 0012). Cine adăuga o poliță RCA fără să deschidă
+              lista o scria ca ITP, `flota_sincronizeaza_grup` o făcea
+              `este_curent` pe grupul ITP, iar `sync_expirable` îi muta scadența
+              în `expirables`: fișa vehiculului arăta un ITP valabil care nu
+              există, cu RCA rămas pe rândul roșu. `z.uuid()` nu se plângea
+              niciodată — primise un UUID perfect valid.
+            */}
+            <option value="">Alegeți tipul documentului</option>
             {tipuri.map((tip) => (
               <option key={tip.id} value={tip.id}>
                 {tip.denumire}
