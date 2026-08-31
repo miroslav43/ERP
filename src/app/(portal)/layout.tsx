@@ -123,7 +123,7 @@ export default async function PortalLayout({ children }: { children: ReactNode }
       <BaraPortal primare={bara.primare} secundare={bara.secundare} />
       {/* Montată o singură dată pe zonă. `arataToast()` se poate chema de
           oriunde, fără provider — depozitarul e la nivel de modul. */}
-      <ZonaToast />
+      <ZonaToast zona="portal" />
       {features.has("asistent") ? <ZonaAsistent zona="portal" /> : null}
     </div>
   );

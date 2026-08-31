@@ -93,7 +93,27 @@ const CULOARE: Readonly<Record<FelToast, string>> = {
   informativ: "text-muted-foreground",
 };
 
-export function ZonaToast(): ReactElement {
+/**
+ * Cât spațiu se lasă liber sub bandă, pe telefon.
+ *
+ * Colțul din dreapta-jos e împărțit cu bula asistentului, iar bula stă la
+ * înălțimi diferite în cele două zone: în portal e ridicată peste bara de
+ * navigație de jos. Un singur număr n-ar fi mers pentru amândouă — ar fi
+ * acoperit bula într-una dintre ele, iar un toast de eroare nu se stinge
+ * singur, deci ar fi blocat-o până îl închide cineva.
+ *
+ * Ridicarea e necondiționată de prezența asistentului: în portal, banda trecea
+ * oricum peste bara de jos, fiindcă popover-ul o pune în top layer, deasupra
+ * lui `z-20`. Deci decalajul repară două lucruri deodată.
+ */
+const JOS: Readonly<Record<ZonaToastare, string>> = {
+  app: "pb-[calc(4.5rem+env(safe-area-inset-bottom))]",
+  portal: "pb-[calc(8rem+env(safe-area-inset-bottom))]",
+};
+
+export type ZonaToastare = "app" | "portal";
+
+export function ZonaToast({ zona = "app" }: Readonly<{ zona?: ZonaToastare }>): ReactElement {
   const [lista, setLista] = useState<readonly ToastAfisat[]>(coada);
   const invelis = useRef<HTMLDivElement | null>(null);
 
@@ -124,17 +144,23 @@ export function ZonaToast(): ReactElement {
       popover="manual"
       className={cn(
         /*
-         * Banda urcă peste bula asistentului, care stă în același colț pe
-         * `z-plutitor`. Fără decalajul ăsta, un toast apărut cât timp bula e
-         * închisă se randează exact sub butonul rotund: se vede pe jumătate și
-         * nu se poate închide, fiindcă bula îi fură clicul.
+         * `top-auto` repară o poziționare greșită care exista de dinainte:
+         * banda apărea SUS, nu jos.
          *
-         * Decalajul e necondiționat, nu legat de prezența asistentului: un
-         * toast care plutește cu o bulă mai sus nu deranjează pe nimeni, iar o
-         * clasă calculată din starea altui modul ar fi o legătură pe care
-         * nimeni nu o mai găsește peste șase luni.
+         * Foaia de stil a browserului dă oricărui popover deschis `inset: 0`,
+         * adică și `top: 0`. Cu `top` și `bottom` amândouă fixate și o înălțime
+         * definită, `top` câștigă — regula de rezolvare a suprapunerii din CSS.
+         * Deci `bottom-0` de mai jos era, pur și simplu, ignorat.
+         *
+         * Măsurat în headless_shell, pe același element: fără `top-auto` ⇒
+         * `y=0`; cu el ⇒ `y=745` pe un ecran de 780. Popover-ul e necesar
+         * (altfel un `<dialog>` deschis acoperă banda), deci se anulează doar
+         * `top`-ul, nu mecanismul.
          */
-        "z-plutitor fixed inset-x-0 bottom-0 m-0 flex w-full flex-col items-center gap-2 border-0 bg-transparent p-3 pb-[calc(4.5rem+env(safe-area-inset-bottom))]",
+        "z-plutitor fixed inset-x-0 top-auto bottom-0 m-0 flex w-full flex-col items-center gap-2 border-0 bg-transparent p-3",
+        JOS[zona],
+        // Pe desktop bula stă la 24px de margine în ambele zone, deci un
+        // singur decalaj ajunge.
         "md:inset-x-auto md:right-0 md:bottom-0 md:w-auto md:items-end md:pb-[5.5rem]",
         lista.length === 0 ? "pointer-events-none" : "",
       )}

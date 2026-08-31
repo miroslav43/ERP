@@ -50,8 +50,22 @@ export function ZonaAsistent({ zona }: Readonly<{ zona: "app" | "portal" }>): Re
       data-tipar="ascunde"
       popover="manual"
       className={cn(
-        "z-plutitor pointer-events-none fixed inset-0 m-0 flex flex-col items-end justify-end",
-        "border-0 bg-transparent p-0",
+        /*
+         * `h-full w-full` NU e redundant lângă `inset-0`, și asta a costat o
+         * captură ca să se vadă.
+         *
+         * Foaia de stil a browserului dă oricărui popover deschis
+         * `width: fit-content; height: fit-content`, iar acelea bat un `inset-0`
+         * care n-are dimensiune explicită lângă el: învelișul se strânge la
+         * 0×0 în colțul din stânga-sus, cu bulă cu tot. Măsurat în
+         * headless_shell: `inset:0` singur ⇒ `0×0`; cu `width/height:100%` ⇒
+         * `360×780`.
+         *
+         * Nu se vede din cod, nu se vede din teste — se vede doar deschizând
+         * pagina.
+         */
+        "z-plutitor pointer-events-none fixed inset-0 m-0 h-full w-full",
+        "flex flex-col items-end justify-end border-0 bg-transparent p-0",
       )}
     >
       <div
