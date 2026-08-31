@@ -17,13 +17,11 @@
 -- `/portal/ponteaza/<cod>` și citește „Pontarea prin cod nu e activată. Afișul
 -- pe care l-ați scanat e probabil vechi."
 --
--- S-a încercat întâi mutarea implicitului pe coloană (o migrare `0114`, scrisă
--- și ștearsă în aceeași zi, de aici golul din numerotare). NU repară nimic:
--- `alter column … set default` nu atinge rânduri existente și nu creează rânduri
--- lipsă, iar `update … where mod_pontare_rapida = 'oprit'` n-are ce actualiza
--- într-o firmă cu zero rânduri. Pentru Wiselearning ar fi fost un no-op complet.
---
--- Ce decide comportamentul e implicitul din APLICAȚIE, nu cel al coloanei — de
+-- `0114_pontare_rapida_implicit_ceas.sql` (scrisă azi, neaplicată) NU repară
+-- asta: `alter column … set default` nu atinge rânduri existente și nu creează
+-- rânduri lipsă, iar `update … where mod_pontare_rapida = 'oprit'` n-are ce
+-- actualiza într-o firmă cu zero rânduri. Pentru Wiselearning e un no-op. Ce
+-- decide comportamentul e implicitul din APLICAȚIE, nu cel al coloanei — de
 -- aceea migrarea asta nu seedează nimic: lipsa rândului devine o stare validă,
 -- cu implicite utile, exact ca `configZiDin` pentru orele de lucru.
 --
@@ -260,8 +258,7 @@ commit;
 --   Fără el, o firmă își poate bloca tăcut toată pontarea, cerând scanarea unui
 --   afiș care nu există.
 --
--- · GOLUL DIN NUMEROTARE, la 0114. Numărul a fost ocupat câteva ore de o
---   încercare de a muta implicitul pe `attendance_settings.mod_pontare_rapida` —
---   coloana pe care migrarea asta o scoate din uz. N-a fost aplicată nicăieri și
---   a fost ștearsă. Golul se lasă așa: renumerotarea unei migrări deja împinse ar
---   fi mai scumpă decât un număr lipsă.
+-- · RELAȚIA CU 0114. `0114_pontare_rapida_implicit_ceas.sql` mută implicitul pe
+--   coloana din attendance_settings, pe care migrarea asta o scoate din uz.
+--   Rămâne inofensivă dacă se aplică — nu se editează și nu se șterge, fiind
+--   munca altei sesiuni.
