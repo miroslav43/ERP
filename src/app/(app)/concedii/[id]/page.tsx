@@ -141,7 +141,9 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
         // Firimitura, nu banda de file: pe o fișă, „unde sunt” valorează mai
         // mult decât „ce alte ecrane mai există”.
         firimituri={[
-          { eticheta: "Concedii", href: "/concedii" },
+          // `?vedere=cereri`: părintele unei fișe de cerere e LISTA, iar
+          // `/concedii` gol duce acum pe calendar pentru cine vede echipa.
+          { eticheta: "Concedii", href: "/concedii?vedere=cereri" },
           {
             eticheta: `${formatDate(cerere.data_inceput)} – ${formatDate(cerere.data_sfarsit)}`,
           },
@@ -307,7 +309,12 @@ export default async function PaginaDetaliuCerere({ params }: ProprietatiPagina)
       ) : null}
 
       {poateAnula ? (
-        <ActiuniCerere cerereId={cerere.id} esteCiorna={esteCiorna} esteAprobata={esteAprobata} />
+        <ActiuniCerere
+          cerereId={cerere.id}
+          esteCiorna={esteCiorna}
+          esteAprobata={esteAprobata}
+          poateAprobaPeLoc={can(permisiuni, "leave:approve", "all")}
+        />
       ) : null}
     </div>
   );

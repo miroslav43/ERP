@@ -30,10 +30,17 @@ export function ActiuniCerere({
   cerereId,
   esteCiorna = false,
   esteAprobata = false,
+  poateAprobaPeLoc = false,
 }: {
   readonly cerereId: string;
   /** Numai o ciornă se poate trimite; restul stărilor n-au buton de trimitere. */
   readonly esteCiorna?: boolean;
+  /**
+   * Cine se uită are `leave:approve = all`: ciorna nu pleacă spre nimeni, se
+   * aprobă pe loc. Schimbă doar textul butonului — decizia o ia acțiunea, care
+   * verifică singură permisiunea.
+   */
+  readonly poateAprobaPeLoc?: boolean;
   /**
    * Cererea e deja APROBATĂ, iar angajatul o retrage (0079).
    *
@@ -48,6 +55,15 @@ export function ActiuniCerere({
   const router = useRouter();
   const [eroare, setEroare] = useState<string | null>(null);
   const [confirmareCeruta, setConfirmareCeruta] = useState(false);
+  /**
+   * Zile de concediu peste care exista deja o linie de pontaj scrisă de om.
+   *
+   * Ține de STARE, nu de o notificare trecătoare: e singurul loc unde numărul
+   * ajunge la cineva care poate repara, iar consecința tăcerii e că ziua se
+   * plătește și ca lucrată, și ca zi de concediu. `role="alert"`, ca în
+   * `DecizieAprobare` — supraviețuiește reîmprospătării paginii.
+   */
+  const [zilePastrate, setZilePastrate] = useState(0);
   const [inCurs, porneste] = useTransition();
 
   function trimite(): void {
@@ -59,6 +75,7 @@ export function ActiuniCerere({
         setEroare(rezultat.error.message);
         return;
       }
+      setZilePastrate(rezultat.data.zilePastrate);
       router.refresh();
     });
   }
@@ -83,12 +100,12 @@ export function ActiuniCerere({
           <Buton
             varianta="primar"
             inCurs={inCurs}
-            textInCurs="Se trimite…"
+            textInCurs={poateAprobaPeLoc ? "Se înregistrează…" : "Se trimite…"}
             onClick={trimite}
             disabled={confirmareCeruta}
           >
             <Send aria-hidden="true" className="size-4" />
-            Trimite spre aprobare
+            {poateAprobaPeLoc ? "Trimite și aprobă" : "Trimite spre aprobare"}
           </Buton>
         ) : null}
 
@@ -154,6 +171,19 @@ export function ActiuniCerere({
           încărcare a fișei. `Callout fel="eroare"` își pune singur
           `role="alert"`, deci mesajul se anunță la apariție. */}
       {eroare === null ? null : <Callout fel="eroare">{eroare}</Callout>}
+
+      {/* Aprobarea pe loc scrie imediat zilele în pontaj, iar sincronizarea
+          SARE peste zilele pe care angajatul și le-a pontat singur — le
+          păstrează ca lucrate. Fără rândul ăsta, ziua ar rămâne și plătită ca
+          muncă, și scăzută din sold, fără ca nimeni să afle. */}
+      {zilePastrate === 0 ? null : (
+        <Callout fel="atentie" titlu="Zile pontate peste concediu">
+          {zilePastrate === 1
+            ? "O zi din acest concediu era deja pontată ca lucrată și a rămas așa."
+            : `${String(zilePastrate)} zile din acest concediu erau deja pontate ca lucrate și au rămas așa.`}{" "}
+          Verificați-le în pontaj: altfel se plătesc și ca muncă, și ca zile de concediu.
+        </Callout>
+      )}
     </div>
   );
 }

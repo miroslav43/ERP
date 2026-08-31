@@ -11,6 +11,7 @@ import { Camp } from "@/components/ui/camp";
 import { Dialog } from "@/components/ui/dialog";
 import { Formular } from "@/components/ui/formular";
 import { IntrareData } from "@/components/ui/intrare-data";
+import { arataToast } from "@/components/ui/toast";
 import type { ActionResult } from "@/lib/actions/types";
 import { numaraZileCerere } from "@/domain/leave/zile-cerere";
 import { tipImplicitConcediu } from "@/domain/leave/tip-implicit";
@@ -100,6 +101,17 @@ export interface DateCerereNoua {
   readonly angajati: readonly Angajat[] | null;
   /** Zile rămase pe tip, doar când cererea e strict proprie. */
   readonly soldPropriu: Readonly<Record<string, number>> | null;
+  /**
+   * Cine se uită are `leave:approve = all`, deci cererea pe care o depune se
+   * aprobă pe loc (v. `aprobaPeLoc` din `actions.ts`).
+   *
+   * Se calculează pe SERVER și ajunge aici ca proprietate, nu se deduce din
+   * rezultatul acțiunii: butonul trebuie să spună ce face ÎNAINTE de apăsare.
+   * „Trimite spre aprobare" pe un buton care aprobă instantaneu e o minciună
+   * mică, dar exact felul de minciună după care oamenii încetează să citească
+   * butoanele.
+   */
+  readonly poateAprobaPeLoc: boolean;
 }
 
 const ETICHETE_PLATITOR: Readonly<Record<CodMedical["platitor"], string>> = {
@@ -108,7 +120,18 @@ const ETICHETE_PLATITOR: Readonly<Record<CodMedical["platitor"], string>> = {
   mixt: "primele zile de firmă, restul de la FNUASS",
 };
 
-type CerereCreata = Readonly<{ id: string }>;
+type CerereCreata = Readonly<{
+  id: string;
+  /** Cererea a sărit lanțul de aprobare — a scris-o cineva cu `leave:approve = all`. */
+  aprobataInstant: boolean;
+  /**
+   * Zile de concediu peste care exista deja o linie de pontaj scrisă de om.
+   * Nu se aruncă: ziua rămâne „lucrată" ȘI scade din sold, deci se plătește de
+   * două ori dacă nimeni nu se uită. Ecranul e singurul loc unde ajunge la
+   * cineva care poate repara.
+   */
+  zilePastrate: number;
+}>;
 
 /**
  * Refuz construit în client, în forma exactă a unui `ActionResult`, ca mesajul
@@ -198,6 +221,7 @@ function FormularCerereNoua({
     zileRecuperare,
     angajati,
     soldPropriu,
+    poateAprobaPeLoc,
   },
   laInchidere,
 }: {
@@ -312,19 +336,46 @@ function FormularCerereNoua({
    * `Formular`, iar o funcție nouă la fiecare randare ar reporni efectul după
    * succes, adică ar afișa notificarea de două ori.
    */
-  const laReusita = useCallback((): void => {
-    laInchidere();
-    router.refresh();
-  }, [laInchidere, router]);
+  const laReusita = useCallback(
+    (data: CerereCreata): void => {
+      /*
+       * Zilele păstrate NU se pot pierde aici.
+       *
+       * Cererea aprobată pe loc intră imediat în pontaj, iar sincronizarea sare
+       * peste zilele pe care angajatul și le-a pontat singur. Ele rămân
+       * „lucrate" ȘI scad din soldul de concediu — adică se plătesc de două
+       * ori. Aceeași notificare o dă și ecranul de aprobări (`DecizieAprobare`);
+       * pe drumul ăsta nu exista niciun aprobator care s-o vadă.
+       *
+       * `fel: "eroare"`, nu „reușită": notificările de reușită se sting singure
+       * după șase secunde, erorile nu. Numărul ăsta trebuie citit.
+       */
+      if (data.zilePastrate > 0) {
+        arataToast({
+          fel: "eroare",
+          text: `Atenție: ${String(data.zilePastrate)} ${
+            data.zilePastrate === 1
+              ? "zi de concediu era deja pontată ca lucrată și a rămas așa"
+              : "zile de concediu erau deja pontate ca lucrate și au rămas așa"
+          }. Verificați-le în pontaj — altfel se plătesc de două ori.`,
+        });
+      }
+      laInchidere();
+      router.refresh();
+    },
+    [laInchidere, router],
+  );
 
   return (
     <Formular
       actiune={trimiteCererea}
       laReusita={laReusita}
       mesajReusita={
-        intentia === "trimitere"
-          ? "Cererea a fost trimisă spre aprobare."
-          : "Cererea a fost salvată ca ciornă."
+        intentia === "ciorna"
+          ? "Cererea a fost salvată ca ciornă."
+          : poateAprobaPeLoc
+            ? "Cererea a fost înregistrată și aprobată."
+            : "Cererea a fost trimisă spre aprobare."
       }
       className="gap-6"
     >
@@ -619,13 +670,15 @@ function FormularCerereNoua({
               type="submit"
               varianta="primar"
               inCurs={stare.inCurs}
-              textInCurs="Se trimite…"
+              textInCurs={poateAprobaPeLoc ? "Se înregistrează…" : "Se trimite…"}
               onClick={() => {
                 trimiteSpreAprobare.current = true;
                 setIntentia("trimitere");
               }}
             >
-              Trimite spre aprobare
+              {/* Butonul spune ce face. Pentru cine are `leave:approve = all`,
+                  cererea nu pleacă nicăieri: se aprobă pe loc. */}
+              {poateAprobaPeLoc ? "Înregistrează și aprobă" : "Trimite spre aprobare"}
             </Buton>
           </BaraActiuni>
         </>

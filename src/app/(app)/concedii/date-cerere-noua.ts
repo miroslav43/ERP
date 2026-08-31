@@ -38,6 +38,8 @@ export async function dateCerereNoua(
   optiuni: Readonly<{
     /** `leave:create = all` — poate depune cererea în numele altcuiva. */
     poateAlegeAngajat: boolean;
+    /** `leave:approve = all` — cererea lui se aprobă pe loc, fără lanț. */
+    poateAprobaPeLoc: boolean;
   }>,
 ): Promise<DateCerereNoua> {
   const anCurent = Number(todayInBucharest().slice(0, 4));
@@ -102,5 +104,6 @@ export async function dateCerereNoua(
     zileRecuperare: zile.organizatie.filter((z) => z.tip === "zi_recuperare").map((z) => z.data),
     angajati: angajatiRes?.data ?? null,
     soldPropriu,
+    poateAprobaPeLoc: optiuni.poateAprobaPeLoc,
   };
 }

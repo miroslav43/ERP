@@ -4,8 +4,10 @@
 import { z } from "zod";
 
 import { createAction } from "@/lib/actions/create-action";
+import { readRequestMeta, writeAuditLog } from "@/lib/actions/audit";
 import { businessRule, invalidInput, notFound } from "@/lib/actions/errors";
-import { createAdminSupabase } from "@/lib/supabase/admin";
+import { can, getPermissionMap } from "@/lib/auth/permissions";
+import { createAdminSupabase, type AdminSupabase } from "@/lib/supabase/admin";
 import type { ActionContext } from "@/lib/actions/types";
 import { numaraZileCerere } from "@/domain/leave/zile-cerere";
 import {
@@ -230,6 +232,262 @@ async function verificaInainteDeTrimitere(
   }
 }
 
+/**
+ * Ce urmează unei cereri care tocmai a trecut pe „aprobată”: zilele intră în
+ * foaia de prezență, iar suprapunerile păstrate se numără și se anunță.
+ *
+ * ── BEST-EFFORT, ȘI DE CE ─────────────────────────────────────────────────
+ * Tot corpul stă într-un `try`. Un eșec tipic e „luna n-are încă perioadă de
+ * pontaj deschisă” (`internal.pontaj_intrare_pregateste` refuză INSERT-ul), iar
+ * el NU trebuie să dea aprobarea înapoi: decizia e luată, pontajul se poate
+ * recupera oricând din `/pontaj` cu `sincronizeazaConcediile`. Consecința e că
+ * `0` întors de aici înseamnă „nicio zi păstrată SAU sincronizarea n-a rulat” —
+ * absența avertismentului nu e o garanție.
+ *
+ * ── DUBLA PLATĂ, SCOASĂ LA SUPRAFAȚĂ ──────────────────────────────────────
+ * `sincronizeazaZileleDeConcediu` sare peste orice zi a cărei `sursa` NU e
+ * `sincronizare_concedii` — adică peste zilele pe care angajatul le-a pontat el
+ * însuși — și le numără în `pastrate`. Numărul ăla era ARUNCAT, iar consecința
+ * era tăcută în ambele capete: ziua rămâne „lucrătoare, 8 ore” ȘI se scade o zi
+ * din soldul de concediu. Salarizarea agregă `ore_lucrate` fără să se plângă,
+ * deci ziua se plătește de două ori.
+ *
+ * NU se suprascrie ziua pontată: dacă omul chiar a muncit atunci, ștergerea
+ * declarației lui ar distruge singura dovadă. Se raportează celui care a decis
+ * și se anunță angajatul; decizia rămâne a oamenilor.
+ *
+ * Clientul e cel ADMIN, primit ca parametru: cine aprobă nu are neapărat
+ * `attendance:create`, iar filtrul pe organizație e explicit peste tot.
+ */
+async function sincronizeazaConcediulAprobat(
+  admin: AdminSupabase,
+  organizationId: string,
+  cerereId: string,
+  requestId: string,
+): Promise<number> {
+  try {
+    // `tip_zi_pontaj` decide dacă zilele astea se plătesc sau nu (0064).
+    // Embed-ul poate veni NULL dacă tipul a fost șters logic între timp —
+    // atunci cade pe „concediu", comportamentul de dinainte de 0064.
+    const { data: cerere, error: eroareCerere } = await admin
+      .from("leave_requests")
+      .select("employee_id, tip:leave_types!leave_requests_leave_type_id_fkey(tip_zi_pontaj)")
+      .eq("id", cerereId)
+      .eq("organization_id", organizationId)
+      .single<{
+        readonly employee_id: string;
+        readonly tip: { readonly tip_zi_pontaj: TipZiPontaj } | null;
+      }>();
+    if (eroareCerere !== null) throw eroareCerere;
+    const tipZi: TipZiPontaj = cerere.tip?.tip_zi_pontaj ?? "concediu";
+
+    // Contul angajatului, pentru notificare. Poate lipsi: o fișă există și
+    // fără cont (`invitations.email` e obligatoriu, deci angajatul fără
+    // adresă de e-mail n-a putut fi invitat încă). Atunci se sare peste
+    // notificare — numărul ajunge oricum la cel care a decis.
+    const { data: angajat, error: eroareAngajat } = await admin
+      .from("employees")
+      .select("user_id")
+      .eq("id", cerere.employee_id)
+      .eq("organization_id", organizationId)
+      .maybeSingle();
+    if (eroareAngajat !== null) throw eroareAngajat;
+    const userAngajat = angajat?.user_id ?? null;
+
+    const { data: zileCerere, error: eroareZile } = await admin
+      .from("leave_request_days")
+      .select("data, leave_request_id")
+      .eq("organization_id", organizationId)
+      .eq("leave_request_id", cerereId)
+      .eq("este_lucratoare", true);
+    if (eroareZile !== null) throw eroareZile;
+
+    const zile = (zileCerere ?? []).map((z) => ({
+      employee_id: cerere.employee_id,
+      data: z.data,
+      leave_request_id: z.leave_request_id,
+      tip_zi: tipZi,
+    }));
+    const sincronizare = await sincronizeazaZileleDeConcediu(admin, organizationId, zile);
+
+    if (sincronizare.pastrate > 0 && userAngajat !== null) {
+      const { error: eroareNotificare } = await admin.from("notifications").insert({
+        organization_id: organizationId,
+        user_id: userAngajat,
+        kind: "warning" as const,
+        title: "Zile pontate care se suprapun cu concediul",
+        body: `Aveți ${String(sincronizare.pastrate)} ${sincronizare.pastrate === 1 ? "zi pontată care se suprapune" : "zile pontate care se suprapun"} cu concediul aprobat. Au rămas înregistrate ca zile lucrate — verificați-le cu responsabilul de pontaj.`,
+        link: "/portal/pontajul-meu",
+        entity_type: "leave_request",
+        entity_id: cerereId,
+      });
+      if (eroareNotificare !== null) {
+        // Notificarea e un plus, nu poarta: dacă ea cade, aprobarea NU se
+        // dă înapoi. Numărul ajunge oricum la ecran prin rezultat.
+        console.error("[concedii] notificarea de zile suprapuse a eșuat", {
+          leaveRequestId: cerereId,
+          requestId,
+          eroare: eroareNotificare,
+        });
+      }
+    }
+    return sincronizare.pastrate;
+  } catch (eroare) {
+    console.error("[pontaj] sincronizarea automată cu concediul aprobat a eșuat", {
+      leaveRequestId: cerereId,
+      requestId,
+      eroare,
+    });
+    return 0;
+  }
+}
+
+/** Urma scrisă în sarcina de aprobare, ca lanțul să spună CE s-a întâmplat. */
+const COMENTARIU_APROBARE_PE_LOC =
+  "Aprobată pe loc: cererea a fost înregistrată de un administrator al organizației.";
+
+/**
+ * Are cel care scrie cererea dreptul de a o și aproba, pe loc?
+ *
+ * `leave:approve = all` — adică `org_admin` și `super_admin`, și EXACT ei.
+ * `manager` are `approve = team`, deci rămâne pe fluxul normal: el e o treaptă
+ * din lanț, nu capătul lui. `hr` nu mai are deloc dreptul de a decide, i l-a
+ * luat explicit `0056_concedii_hr_nu_aproba.sql` („HR-ul primește cererea DUPĂ
+ * ce a fost aprobată, ca s-o înregistreze”) — deci nici pe ușa asta nu i se dă
+ * înapoi.
+ *
+ * `getPermissionMap` e memoizată cu `cache()` pe cerere și a fost deja chemată
+ * de `createAction` ca să rezolve scope-ul acțiunii: apelul de aici e gratis.
+ */
+async function poateAprobaPeLoc(ctx: ActionContext): Promise<boolean> {
+  const permisiuni = await getPermissionMap(
+    ctx.tenant.organizationId,
+    ctx.tenant.role,
+    ctx.tenant.memberId,
+  );
+  return can(permisiuni, "leave:approve", "all");
+}
+
+/**
+ * Aprobarea pe loc a unei cereri tocmai trimise de un administrator.
+ *
+ * ── DE CE CLIENTUL ADMIN, ȘI UNDE E LIMITA ────────────────────────────────
+ * Politica `leave_requests_update` (0079) are ramura celui care decide
+ * condiționată de `employee_id <> app.current_employee_id(organization_id)`:
+ * NIMENI nu se aprobă pe sine, nici patronul. Regula e deliberată și rămâne în
+ * picioare pentru fluxul normal — un aprobator nu-și poate semna propriul
+ * concediu din ecranul de aprobări.
+ *
+ * Aici se ocolește, o singură dată și explicit, fiindcă e chiar comportamentul
+ * cerut: cine are `leave:approve = all` e capătul lanțului de aprobare din
+ * firmă, deci cererea lui n-are pe cine să mai aștepte. Alternativa era
+ * escaladarea către ceilalți patroni, care într-o firmă cu un singur patron
+ * ajunge oricum la auto-aprobarea scrisă în bază („Pas fără destinatar”, 0017).
+ * Nu se dă nimănui un drept nou: predicatul e chiar permisiunea de aprobare.
+ *
+ * Filtrele pe `organization_id` sunt explicite pe fiecare interogare — sunt
+ * singurul lucru care ține locul lui RLS cât timp clientul e cel de serviciu.
+ *
+ * ── URMA ──────────────────────────────────────────────────────────────────
+ * Trei locuri, nu unul: `approval_tasks` primește decizia cu un comentariu care
+ * spune de ce, `leave_requests.decis_de` primește administratorul, iar
+ * `audit_logs` primește un rând propriu, cu `eveniment: aprobare_pe_loc`.
+ * Fără al treilea, jurnalul ar fi arătat doar „cerere creată”, iar aprobarea
+ * ar fi trebuit dedusă din altă tabelă.
+ */
+async function aprobaPeLoc(ctx: ActionContext, cerereId: string): Promise<number> {
+  const admin = createAdminSupabase();
+  const acum = ctx.now.toISOString();
+
+  // (1) Sarcinile deschise, TOATE deodată. `trg_approval_tasks_anuleaza_surori`
+  // rulează AFTER, la sfârșitul comenzii: găsește surorile deja ieșite din
+  // `in_asteptare` și nu mai are ce anula. Un singur UPDATE acoperă și
+  // eventualele trepte multiple ale fluxului — altfel cererea ar fi ajuns
+  // „aprobată” cu o treaptă rămasă atârnată în ecranul de aprobări, exact
+  // capcana „contorul urmează lista, nu starea cererii”.
+  //
+  // ZERO rânduri e cazul NORMAL aici, nu un refuz — o organizație fără flux
+  // activ de aprobare nu produce nicio sarcină. De aceea nu se face `.select()`
+  // ca la o tranziție: clientul e cel de serviciu, deci RLS nici nu poate
+  // respinge tăcut. Aceeași distincție ca la măturarea din `decideCerere`.
+  const { error: eroareSarcini } = await admin
+    .from("approval_tasks")
+    .update({ status: "aprobata", decis_la: acum, comentariu: COMENTARIU_APROBARE_PE_LOC })
+    .eq("organization_id", ctx.tenant.organizationId)
+    .eq("entity_type", "leave_request")
+    .eq("entity_id", cerereId)
+    .eq("status", "in_asteptare")
+    .is("deleted_at", null);
+  if (eroareSarcini !== null) throw eroareSarcini;
+
+  // (2) Cererea. `.eq("status", "trimisa")` + `.select()`: e o tranziție, iar
+  // un UPDATE care nu prinde niciun rând NU dă eroare (capcana 17). Fără el,
+  // ecranul ar anunța o aprobare care nu s-a produs.
+  const { data, error } = await admin
+    .from("leave_requests")
+    .update({ status: "aprobata", decis_de: ctx.user.id })
+    .eq("id", cerereId)
+    .eq("organization_id", ctx.tenant.organizationId)
+    .eq("status", "trimisa")
+    .select("id")
+    .maybeSingle();
+  if (error !== null) throw traduEroare(error);
+  if (data === null) {
+    throw businessRule(
+      "Cererea a fost înregistrată, dar nu a putut fi aprobată pe loc. Deschideți-o din listă și decideți-o din ecranul de aprobări.",
+    );
+  }
+
+  await writeAuditLog(ctx.supabase, {
+    organizationId: ctx.tenant.organizationId,
+    action: "update",
+    status: "success",
+    // `leave_request`, la singular: aceeași valoare pe care o scrie `createAction`
+    // pentru celelalte acțiuni ale modulului. Numele TABELEI („leave_requests")
+    // e convenția triggerelor din SQL; amestecate, cele două fac ca o căutare în
+    // jurnal după entitate să întoarcă jumătate din istoric.
+    entityType: "leave_request",
+    entityId: cerereId,
+    before: null,
+    after: { eveniment: "aprobare_pe_loc", motiv: "leave:approve = all" },
+    errorCode: null,
+    requestId: ctx.requestId,
+    meta: await readRequestMeta(),
+  });
+
+  return await sincronizeazaConcediulAprobat(
+    admin,
+    ctx.tenant.organizationId,
+    cerereId,
+    ctx.requestId,
+  );
+}
+
+/**
+ * Ce întorc creerea și trimiterea unei cereri.
+ *
+ * `aprobataInstant` și `zilePastrate` NU sunt decor: primul schimbă mesajul de
+ * pe ecran (o cerere aprobată pe loc nu mai „a plecat spre aprobare”), al
+ * doilea e numărul de zile care se vor plăti și ca lucrate, și ca zile de
+ * concediu, dacă nimeni nu se uită la ele. Cine adaugă un apelant nou trebuie
+ * să le afișeze pe amândouă.
+ */
+interface CerereTrimisa {
+  readonly id: string;
+  readonly zileLucratoare: number;
+  readonly aprobataInstant: boolean;
+  readonly zilePastrate: number;
+}
+
+/** Căile atinse de o aprobare — soldul, aprobările, calendarul, pontajul. */
+const CAI_APROBARE: readonly string[] = [
+  "/concedii/aprobari",
+  "/concedii/echipa",
+  "/concedii/calendar",
+  "/pontaj",
+  "/portal/pontajul-meu",
+];
+
 export const creeazaCerereConcediu = createAction({
   name: "leave.request.create",
   feature: "leave",
@@ -239,7 +497,11 @@ export const creeazaCerereConcediu = createAction({
   audit: {
     action: "create",
     entityType: "leave_request",
-    entityId: (_input, data: Readonly<{ id: string }>) => data.id,
+    // Tipul lui `data` se scrie explicit ȘI aici, nu doar în `revalidate`:
+    // `TData` se infereaza din PRIMA adnotare pe care o vede TypeScript în
+    // obiectul literal, iar `audit` e declarat înaintea lui `revalidate`. Cu
+    // două adnotări diferite, câștigă asta — și restul obiectului cade.
+    entityId: (_input, data: CerereTrimisa) => data.id,
     // „motiv”, seria și numărul certificatului NU intră aici (0017/I5): sunt
     // date de sănătate (art. 9 GDPR) și nu se scriu în jurnalul de audit.
     allow: [
@@ -256,8 +518,17 @@ export const creeazaCerereConcediu = createAction({
       // audit e citibil de oricine are `audit:read`. Nu-l adăuga.
     ],
   },
-  revalidate: ["/concedii", "/concedii/sold", ...CAI_PORTAL_CONCEDII],
-  handler: async (ctx, input): Promise<Readonly<{ id: string; zileLucratoare: number }>> => {
+  // Funcție, nu listă fixă: o cerere aprobată pe loc atinge și aprobările, și
+  // calendarul, și pontajul. Tipul lui `data` se scrie EXPLICIT — `revalidate`
+  // e declarat înaintea lui `handler` în obiectul literal, deci TypeScript n-are
+  // încă de unde-l infera, iar adnotarea de aici fixează forma pentru handler.
+  revalidate: (_input, data: CerereTrimisa) => [
+    "/concedii",
+    "/concedii/sold",
+    ...CAI_PORTAL_CONCEDII,
+    ...(data.aprobataInstant ? CAI_APROBARE : []),
+  ],
+  handler: async (ctx, input): Promise<CerereTrimisa> => {
     // ── (1) Angajatul țintă ────────────────────────────────────────────────
     // Rolul `employee` are `leave:create = own`: nu poate crea decât pentru
     // sine, chiar dacă a trimis explicit un `employee_id` străin. Cu scope
@@ -394,7 +665,18 @@ export const creeazaCerereConcediu = createAction({
       .single();
     if (error !== null) throw traduEroare(error);
 
-    return { id: data.id, zileLucratoare: data.zile_lucratoare };
+    // ── (8) Aprobarea pe loc ────────────────────────────────────────────────
+    // O CIORNĂ nu se aprobă: n-a plecat nicăieri, nu are lanț de aprobare și
+    // `leave_request_days` îi poartă statusul. Se aprobă doar ce chiar a plecat.
+    const aprobataInstant = input.trimite && (await poateAprobaPeLoc(ctx));
+    const zilePastrate = aprobataInstant ? await aprobaPeLoc(ctx, data.id) : 0;
+
+    return {
+      id: data.id,
+      zileLucratoare: data.zile_lucratoare,
+      aprobataInstant,
+      zilePastrate,
+    };
   },
 });
 
@@ -566,14 +848,15 @@ export const trimiteCerere = createAction({
     entityId: (input) => input.id,
     allow: ["id"],
   },
-  revalidate: (input) => [
+  revalidate: (input, data: CerereTrimisa) => [
     "/concedii",
     "/concedii/sold",
     "/concedii/aprobari",
     ...CAI_PORTAL_CONCEDII,
     `/portal/concediile-mele/${input.id}`,
+    ...(data.aprobataInstant ? CAI_APROBARE : []),
   ],
-  handler: async (ctx, input): Promise<Readonly<{ id: string; zileLucratoare: number }>> => {
+  handler: async (ctx, input): Promise<CerereTrimisa> => {
     const { data: cerere, error: eroareCerere } = await ctx.supabase
       .from("leave_requests")
       .select(
@@ -663,7 +946,18 @@ export const trimiteCerere = createAction({
       );
     }
 
-    return { id: data.id, zileLucratoare: data.zile_lucratoare };
+    // Aceeași regulă ca la creare: ciorna ridicată de un administrator nu mai
+    // are pe cine să aștepte. Fără ramura asta, drumul „salvez ciornă, o
+    // trimit mâine” ar fi ocolit tăcut comportamentul cerut.
+    const aprobataInstant = await poateAprobaPeLoc(ctx);
+    const zilePastrate = aprobataInstant ? await aprobaPeLoc(ctx, data.id) : 0;
+
+    return {
+      id: data.id,
+      zileLucratoare: data.zile_lucratoare,
+      aprobataInstant,
+      zilePastrate,
+    };
   },
 });
 
@@ -832,106 +1126,15 @@ export const decideCerere = createAction({
 
       // (6) Pontajul reflectă concediul de îndată ce cererea e aprobată — nu
       // mai așteaptă butonul manual „Sincronizează” din /pontaj/aprobare.
-      // Best-effort, cu clientul admin (aprobatorul nu are neapărat
-      // `attendance:create`): un eșec aici (ex. luna nu are încă o perioadă
-      // de pontaj deschisă) nu trebuie să anuleze aprobarea concediului.
-      try {
-        // `tip_zi_pontaj` decide dacă zilele astea se plătesc sau nu (0064).
-        // Embed-ul poate veni NULL dacă tipul a fost șters logic între timp —
-        // atunci cade pe „concediu", comportamentul de dinainte de 0064.
-        const { data: cerere, error: eroareCerere } = await admin
-          .from("leave_requests")
-          .select("employee_id, tip:leave_types!leave_requests_leave_type_id_fkey(tip_zi_pontaj)")
-          .eq("id", sarcina.entity_id)
-          .eq("organization_id", ctx.tenant.organizationId)
-          .single<{
-            readonly employee_id: string;
-            readonly tip: { readonly tip_zi_pontaj: TipZiPontaj } | null;
-          }>();
-        if (eroareCerere !== null) throw eroareCerere;
-        const tipZi: TipZiPontaj = cerere.tip?.tip_zi_pontaj ?? "concediu";
-
-        // Contul angajatului, pentru notificare. Poate lipsi: o fișă există și
-        // fără cont (`invitations.email` e obligatoriu, deci angajatul fără
-        // adresă de e-mail n-a putut fi invitat încă). Atunci se sare peste
-        // notificare — numărul ajunge oricum la aprobator.
-        const { data: angajat, error: eroareAngajat } = await admin
-          .from("employees")
-          .select("user_id")
-          .eq("id", cerere.employee_id)
-          .eq("organization_id", ctx.tenant.organizationId)
-          .maybeSingle();
-        if (eroareAngajat !== null) throw eroareAngajat;
-        const userAngajat = angajat?.user_id ?? null;
-
-        const { data: zileCerere, error: eroareZile } = await admin
-          .from("leave_request_days")
-          .select("data, leave_request_id")
-          .eq("organization_id", ctx.tenant.organizationId)
-          .eq("leave_request_id", sarcina.entity_id)
-          .eq("este_lucratoare", true);
-        if (eroareZile !== null) throw eroareZile;
-
-        const zile = (zileCerere ?? []).map((z) => ({
-          employee_id: cerere.employee_id,
-          data: z.data,
-          leave_request_id: z.leave_request_id,
-          tip_zi: tipZi,
-        }));
-        const sincronizare = await sincronizeazaZileleDeConcediu(
-          admin,
-          ctx.tenant.organizationId,
-          zile,
-        );
-
-        /*
-         * DUBLA PLATĂ, SCOASĂ LA SUPRAFAȚĂ.
-         *
-         * `sincronizeazaZileleDeConcediu` sare peste orice zi a cărei `sursa` NU
-         * e `sincronizare_concedii` — adică peste zilele pe care angajatul le-a
-         * pontat el însuși — și le numără în `pastrate`. Numărul ăla era
-         * ARUNCAT aici, iar consecința era tăcută în ambele capete: ziua rămâne
-         * „lucrătoare, 8 ore" ȘI se scade o zi din soldul de concediu.
-         * Salarizarea agregă `ore_lucrate` fără să se plângă, deci ziua se
-         * plătește de două ori.
-         *
-         * Era rar cât timp angajații pontau greu. Pontarea dintr-o atingere
-         * (0096) face cazul frecvent — de aceea reparația vine în ACEEAȘI
-         * livrare cu butonul, nu după.
-         *
-         * NU se suprascrie ziua pontată: dacă omul chiar a muncit atunci,
-         * ștergerea declarației lui ar distruge singura dovadă. Se raportează
-         * aprobatorului și se anunță angajatul; decizia rămâne a oamenilor.
-         */
-        zilePastrate = sincronizare.pastrate;
-        if (sincronizare.pastrate > 0 && userAngajat !== null) {
-          const { error: eroareNotificare } = await admin.from("notifications").insert({
-            organization_id: ctx.tenant.organizationId,
-            user_id: userAngajat,
-            kind: "warning" as const,
-            title: "Zile pontate care se suprapun cu concediul",
-            body: `Aveți ${String(sincronizare.pastrate)} ${sincronizare.pastrate === 1 ? "zi pontată care se suprapune" : "zile pontate care se suprapun"} cu concediul aprobat. Au rămas înregistrate ca zile lucrate — verificați-le cu responsabilul de pontaj.`,
-            link: "/portal/pontajul-meu",
-            entity_type: "leave_request",
-            entity_id: sarcina.entity_id,
-          });
-          if (eroareNotificare !== null) {
-            // Notificarea e un plus, nu poarta: dacă ea cade, aprobarea NU se
-            // dă înapoi. Numărul ajunge oricum la aprobator prin rezultat.
-            console.error("[concedii] notificarea de zile suprapuse a eșuat", {
-              leaveRequestId: sarcina.entity_id,
-              requestId: ctx.requestId,
-              eroare: eroareNotificare,
-            });
-          }
-        }
-      } catch (eroare) {
-        console.error("[pontaj] sincronizarea automată cu concediul aprobat a eșuat", {
-          leaveRequestId: sarcina.entity_id,
-          requestId: ctx.requestId,
-          eroare,
-        });
-      }
+      // Corpul a plecat în `sincronizeazaConcediulAprobat`: de la aprobarea pe
+      // loc a patronului încoace are DOI apelanți, iar o a doua copie ar fi
+      // însemnat două locuri în care se poate uita notificarea de dublă plată.
+      zilePastrate = await sincronizeazaConcediulAprobat(
+        admin,
+        ctx.tenant.organizationId,
+        sarcina.entity_id,
+        ctx.requestId,
+      );
     }
 
     // `zilePastrate` NU e un detaliu tehnic: e numărul de zile care se vor plăti

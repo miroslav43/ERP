@@ -23,6 +23,7 @@ import type {
   VizualizareCereri,
 } from "@/schemas/leave";
 
+import { citesteTot } from "./citeste-tot";
 import {
   codificaCursor as codificaKeyset,
   decodificaCursor as decodificaKeyset,
@@ -726,6 +727,67 @@ export async function calendarLunii(
     .returns<RandZiCalendar[]>();
   if (error !== null) throw error;
   return data ?? [];
+}
+
+export interface AngajatPlanificator {
+  readonly id: string;
+  readonly full_name: string | null;
+  readonly marca: string;
+}
+
+/**
+ * Rândurile planificatorului: angajații vizibili, activi ÎN LUNA AFIȘATĂ.
+ *
+ * ── DE CE TOȚI, NU DOAR CEI CARE LIPSESC ──────────────────────────────────
+ * Grila lunară se construiește exclusiv din absențe, deci n-are nevoie de o
+ * listă de oameni. Planificatorul are rânduri fixe: întrebarea lui e „cine e
+ * disponibil în săptămâna 12", iar un rând gol e chiar răspunsul. Fără el,
+ * ecranul ar arăta doar cine lipsește — adică exact informația pe care o dă
+ * deja celălalt.
+ *
+ * ── DE CE FEREASTRA hired_on/terminated_on ────────────────────────────────
+ * Fără ea, grila crește la nesfârșit cu foști angajați: fiecare plecare lasă un
+ * rând permanent gol, iar peste doi ani planificatorul devine ilizibil exact în
+ * firmele cu mișcare de personal. Cine a plecat pe 10 martie rămâne pe grila lui
+ * martie — acolo chiar a lucrat — și dispare din aprilie.
+ *
+ * ── DE CE `citesteTot` ────────────────────────────────────────────────────
+ * PostgREST taie la `max_rows = 1000` FĂRĂ eroare. Într-o listă paginată
+ * tăierea se vede; aici ar însemna pur și simplu că oameni lipsesc din grilă,
+ * iar cine planifică ar crede că sunt disponibili. RLS taie oricum rândurile
+ * pe care rolul nu are voie să le vadă: managerul primește subordonații lui,
+ * `hr`/`org_admin` toată firma.
+ */
+export async function angajatiPlanificator(
+  organizationId: string,
+  primaZi: string,
+  ultimaZi: string,
+): Promise<readonly AngajatPlanificator[]> {
+  const db = await createServerSupabase();
+  const randuri = await citesteTot<AngajatPlanificator>(
+    async (dupa, pas) => {
+      let interogare = db
+        .from("employees")
+        .select("id, full_name, marca")
+        .eq("organization_id", organizationId)
+        .is("deleted_at", null)
+        .or(`hired_on.is.null,hired_on.lte.${ultimaZi}`)
+        .or(`terminated_on.is.null,terminated_on.gte.${primaZi}`)
+        .order("id", { ascending: true })
+        .limit(pas);
+      if (dupa !== null) interogare = interogare.gt("id", dupa);
+      return await interogare.returns<AngajatPlanificator[]>();
+    },
+    (a) => a.id,
+    { nume: "angajații din planificatorul de concedii" },
+  );
+
+  // Sortarea pe nume se face AICI, nu în `order()`: citirea completă cere
+  // ordonare după cheia keyset (`id`), iar `localeCompare` cu „ro" ordonează
+  // diacriticele cum le așteaptă cititorul, spre deosebire de colația bazei.
+  return [...randuri].sort((a, b) =>
+    (a.full_name ?? a.marca).localeCompare(b.full_name ?? b.marca, "ro"),
+  );
 }
 
 // ── Zilele nelucrătoare (sărbători + calendarul propriu al organizației) ─────

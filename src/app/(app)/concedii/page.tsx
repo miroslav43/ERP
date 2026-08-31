@@ -3,6 +3,7 @@
 // comentariul lui `NavConcedii` pentru de ce separarea e rută, nu filtru.
 import { Suspense } from "react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
@@ -71,6 +72,29 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
     );
   }
 
+  const parametri = await searchParams;
+
+  /*
+   * PRIMA PAGINĂ A MODULULUI, după cine se uită.
+   *
+   * Cine vede echipa (org_admin, hr, manager) deschide „Concedii" ca să
+   * planifice, nu ca să-și citească propriile cereri: aterizează pe calendar.
+   * `employee` n-are `leave:read = team`, deci rămâne pe lista lui, fără nicio
+   * ramură scrisă special pentru el.
+   *
+   * Redirectarea se face DOAR de pe adresa complet goală. Orice parametru —
+   * fila „Cererile mele" (`?vedere=cereri`), butonul din panou
+   * (`?cerere=noua`), un filtru, o pagină de cursor — înseamnă că omul a cerut
+   * ANUME lista, iar întoarcerea lui pe calendar ar fi făcut-o inaccesibilă.
+   *
+   * Ruta nu se mută: `/concedii` apare în vreo zece locuri (asistent, hărți de
+   * notificări, indicii de eroare din salarizare, `revalidate` din acțiuni), iar
+   * o mutare ar fi cerut sincronizarea tuturor pentru un efect de navigare.
+   */
+  if (Object.keys(parametri).length === 0 && can(permisiuni, "leave:read", "team")) {
+    redirect("/concedii/calendar");
+  }
+
   // Fișa proprie: fără ea, „ale mele” n-are subiect. Poate lipsi — un
   // administrator invitat e membru fără să fie angajat.
   const fisaMea = await fisaProprie(tenant.organizationId, user.id);
@@ -85,7 +109,6 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
   const poateAproba = can(permisiuni, "leave:approve", "team");
   const poateConfigura = can(permisiuni, "leave:update", "all");
 
-  const parametri = await searchParams;
   // `/concedii?cerere=noua` — adresa care deschide caseta direct, folosită de
   // butonul din panou și de starea goală a listei.
   const deschideCaseta = parametri["cerere"] === "noua";
@@ -108,6 +131,10 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
     poateCrea
       ? dateCerereNoua(tenant.organizationId, {
           poateAlegeAngajat: can(permisiuni, "leave:create", "all"),
+          // Aceeași condiție ca `poateAprobaPeLoc` din `actions.ts`. Aici e
+          // doar text de buton; acțiunea o verifică din nou, singură, iar
+          // ecranul nu e niciodată bariera.
+          poateAprobaPeLoc: can(permisiuni, "leave:approve", "all"),
         })
       : Promise.resolve(null),
   ]);

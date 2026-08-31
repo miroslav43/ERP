@@ -1,7 +1,4 @@
 // src/app/(app)/concedii/calendar/grila-calendar.tsx
-import Link from "next/link";
-
-import { Buton, buton } from "@/components/ui/buton";
 import { celMaiBunContrast, cernealaPentruFundal, PRAG_TEXT_MIC } from "@/domain/leave/contrast";
 import type { StatusCerere } from "@/schemas/leave";
 
@@ -12,34 +9,12 @@ export interface EvenimentZiCalendar {
   readonly status: StatusCerere;
 }
 
-interface LunaTinta {
-  readonly an: number;
-  readonly luna: number;
-}
-
 interface Proprietati {
   readonly an: number;
   readonly luna: number;
   /** Cheia e ziua ISO (`"2026-03-09"`); serializabil peste granița server/client. */
   readonly zileHarta: Readonly<Record<string, readonly EvenimentZiCalendar[]>>;
-  readonly lunaAnterioara: LunaTinta;
-  readonly lunaUrmatoare: LunaTinta;
 }
-
-const LUNI_AN = [
-  "ianuarie",
-  "februarie",
-  "martie",
-  "aprilie",
-  "mai",
-  "iunie",
-  "iulie",
-  "august",
-  "septembrie",
-  "octombrie",
-  "noiembrie",
-  "decembrie",
-] as const;
 
 const ZILE_SAPTAMANA = [
   "Luni",
@@ -152,79 +127,34 @@ function tipuriDinLuna(
     .sort((a, b) => a.denumire.localeCompare(b.denumire, "ro"));
 }
 
-export function GrilaCalendar({ an, luna, zileHarta, lunaAnterioara, lunaUrmatoare }: Proprietati) {
+/**
+ * Navigarea lunară NU mai stă aici: a plecat în `navigare-luna.tsx`, comună cu
+ * planificatorul. Componenta asta randează exclusiv grila și legenda ei.
+ */
+export function GrilaCalendar({ an, luna, zileHarta }: Proprietati) {
   const saptamani = construiesteSaptamani(an, luna);
   const areEvenimente = Object.keys(zileHarta).length > 0;
   const legenda = tipuriDinLuna(zileHarta);
 
   return (
     <div className="space-y-3">
-      <nav
-        aria-label="Navigare lunară"
-        className="text-corp flex flex-wrap items-center justify-between gap-3"
-      >
-        <Link
-          href={`/concedii/calendar?an=${String(lunaAnterioara.an)}&luna=${String(lunaAnterioara.luna)}`}
-          className={buton({ varianta: "secundar" })}
-        >
-          ← Luna anterioară
-        </Link>
-
-        {/*
-          Luna la care te uiți, SCRISĂ, plus salt direct.
-          Cu doar două săgeți, ajungeai din martie în octombrie prin șapte
-          clicuri și nu vedeai nicăieri unde ai ajuns — reclamația „îți e foarte
-          greu să îți dai seama la ce lună te uiți". Formularul e un GET simplu:
-          nu are nevoie de `useState`, iar luna rămâne în URL, ca până acum.
-        */}
-        <form method="get" action="/concedii/calendar" className="flex items-center gap-2">
-          <label htmlFor="calendar-luna" className="sr-only">
-            Luna afișată
-          </label>
-          <select
-            id="calendar-luna"
-            name="luna"
-            defaultValue={String(luna)}
-            className="border-foreground/60 rounded-control text-corp border px-2 py-1.5"
-          >
-            {LUNI_AN.map((eticheta, index) => (
-              <option key={eticheta} value={String(index + 1)}>
-                {eticheta}
-              </option>
-            ))}
-          </select>
-          <label htmlFor="calendar-an" className="sr-only">
-            Anul afișat
-          </label>
-          <input
-            id="calendar-an"
-            name="an"
-            type="number"
-            min={2000}
-            max={2199}
-            defaultValue={String(an)}
-            className="border-foreground/60 rounded-control text-corp w-20 border px-2 py-1.5"
-          />
-          <Buton type="submit" varianta="secundar">
-            Mergi
-          </Buton>
-        </form>
-
-        <Link
-          href={`/concedii/calendar?an=${String(lunaUrmatoare.an)}&luna=${String(lunaUrmatoare.luna)}`}
-          className={buton({ varianta: "secundar" })}
-        >
-          Luna următoare →
-        </Link>
-      </nav>
-
       {!areEvenimente ? (
         <p className="border-foreground/60 text-muted-foreground rounded-panou text-corp border border-dashed p-4 text-center">
           Nicio absență de echipă înregistrată în această lună.
         </p>
       ) : null}
 
-      <div className="overflow-x-auto">
+      {/*
+        `relative`: pastilele poartă fiecare un `<span class="sr-only">`,
+        poziționat ABSOLUT. Un element absolut e clipuit de un container cu
+        `overflow` doar dacă blocul lui conținător e containerul ori un
+        descendent al lui — altfel rămâne agățat de blocul inițial și își ține
+        poziția statică din interiorul tabelului de 56rem. Măsurat pe 390 px,
+        pagina se târa 3 px lateral, cu tot cu antet. Defectul e vechi, dar se
+        vede abia acum, când planificatorul de alături l-a scos la iveală în
+        forma lui mare (296 px). Aceeași reparație, același motiv.
+      */}
+      <div className="relative overflow-x-auto">
         <table className="text-corp w-full min-w-[56rem] table-fixed border-collapse text-left">
           <caption className="sr-only">Grila lunară a absențelor de echipă</caption>
           <thead>

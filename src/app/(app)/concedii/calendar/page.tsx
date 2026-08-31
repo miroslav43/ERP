@@ -1,4 +1,13 @@
 // src/app/(app)/concedii/calendar/page.tsx
+//
+// Calendarul de concedii, în două forme ale ACELORAȘI date:
+//   • `planificator` (implicit) — un rând per angajat, o coloană per zi;
+//   • `grila`                   — luna în săptămâni, absențele adunate în ziua lor.
+//
+// Ruta e una singură, deliberat. Două rute ar fi însemnat două antete, două
+// file de navigare și două seturi de parametri de lună care se despart la
+// prima modificare. Vederea trăiește în URL (`?vedere=`), deci se poate pune la
+// favorite și supraviețuiește lui „înapoi".
 import type { Metadata } from "next";
 
 import { AccesRestrictionat } from "@/components/feedback/acces-restrictionat";
@@ -8,11 +17,20 @@ import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { formatMonthYear, todayInBucharest } from "@/lib/format/date";
-import { calendarLunii } from "@/lib/queries/leave";
+import { angajatiPlanificator, calendarLunii, zileNelucratoare } from "@/lib/queries/leave";
+import {
+  cheieCelula,
+  stareDinStatus,
+  zilelePlanificatorului,
+  type AbsentaCelula,
+} from "@/domain/leave/planificator";
 
 import { ButonSetariConcedii } from "../buton-setari";
 import { NavConcedii } from "../nav-concedii";
 import { GrilaCalendar, type EvenimentZiCalendar } from "./grila-calendar";
+import { NavigareLuna } from "./navigare-luna";
+import { PlanificatorConcedii, type RandAngajatPlanificator } from "./planificator-concedii";
+import { VEDERI_CALENDAR, vedereDinParametru } from "./vedere";
 
 export const metadata: Metadata = { title: "Calendarul de concedii" };
 
@@ -66,11 +84,24 @@ export default async function PaginaCalendarConcedii({ searchParams }: Proprieta
   const anCurent = parametrulNumeric(parametri["an"]) ?? Number(azi.slice(0, 4));
   const lunaBruta = parametrulNumeric(parametri["luna"]) ?? Number(azi.slice(5, 7));
   const luna = lunaBruta < 1 || lunaBruta > 12 ? Number(azi.slice(5, 7)) : lunaBruta;
+  const vedere = vedereDinParametru(parametri["vedere"]);
 
   const primaZi = primaZiLunii(anCurent, luna);
   const ultimaZi = ultimaZiLunii(anCurent, luna);
 
-  const randuri = await calendarLunii(tenant.organizationId, primaZi, ultimaZi);
+  // Rândurile planificatorului și zilele nelucrătoare se citesc DOAR pentru
+  // vederea care le folosește: grila lunară nu are rânduri fixe și nu umbrește
+  // weekendul, deci cele două cereri ar fi fost muncă aruncată la fiecare
+  // afișare a ei.
+  const [randuri, angajatiRanduri, nelucratoare] = await Promise.all([
+    calendarLunii(tenant.organizationId, primaZi, ultimaZi),
+    vedere === "planificator"
+      ? angajatiPlanificator(tenant.organizationId, primaZi, ultimaZi)
+      : Promise.resolve([]),
+    vedere === "planificator"
+      ? zileNelucratoare(tenant.organizationId, anCurent, anCurent)
+      : Promise.resolve({ nationale: [], organizatie: [] }),
+  ]);
 
   const idAngajati = [
     ...new Set(
@@ -105,32 +136,66 @@ export default async function PaginaCalendarConcedii({ searchParams }: Proprieta
   const hartaAngajati = new Map((angajati ?? []).map((a) => [a.id, a]));
   const hartaTipuri = new Map((tipuri ?? []).map((t) => [t.id, t]));
 
+  // O singură trecere prin zilele lunii construiește amândouă hărțile: cea pe
+  // zi (grila) și cea pe angajat × zi (planificatorul). Numai una dintre ele
+  // ajunge la randare, dar bucla ar fi fost oricum aceeași.
   const zileHarta = new Map<string, EvenimentZiCalendar[]>();
+  const celule = new Map<string, AbsentaCelula[]>();
   for (const rand of randuri) {
     if (rand.cerere === null) continue;
     const angajat = hartaAngajati.get(rand.cerere.employee_id);
     const tip = hartaTipuri.get(rand.cerere.leave_type_id);
+    const tipDenumire = tip?.denumire ?? "Concediu";
+    const tipCuloare = tip?.culoare ?? "#94a3b8";
+
     const eveniment: EvenimentZiCalendar = {
       employeeLabel: angajat === undefined ? "Angajat" : `${angajat.full_name} (${angajat.marca})`,
-      tipDenumire: tip?.denumire ?? "Concediu",
-      tipCuloare: tip?.culoare ?? "#94a3b8",
+      tipDenumire,
+      tipCuloare,
       status: rand.status,
     };
     const existent = zileHarta.get(rand.data);
     if (existent === undefined) zileHarta.set(rand.data, [eveniment]);
     else existent.push(eveniment);
+
+    const cheie = cheieCelula(rand.cerere.employee_id, rand.data);
+    const absenta: AbsentaCelula = {
+      tipId: rand.cerere.leave_type_id,
+      tipDenumire,
+      tipCuloare,
+      stare: stareDinStatus(rand.status),
+    };
+    const celulaExistenta = celule.get(cheie);
+    if (celulaExistenta === undefined) celule.set(cheie, [absenta]);
+    else celulaExistenta.push(absenta);
   }
+
+  const zile = zilelePlanificatorului(
+    anCurent,
+    luna,
+    nelucratoare.nationale.map((z) => z.data),
+    nelucratoare.organizatie.filter((z) => z.tip === "liber_suplimentar").map((z) => z.data),
+    nelucratoare.organizatie.filter((z) => z.tip === "zi_recuperare").map((z) => z.data),
+  );
+  const randuriAngajati: readonly RandAngajatPlanificator[] = angajatiRanduri.map((a) => ({
+    id: a.id,
+    nume: a.full_name ?? a.marca,
+    marca: a.marca,
+  }));
 
   const lunaAnterioara =
     luna === 1 ? { an: anCurent - 1, luna: 12 } : { an: anCurent, luna: luna - 1 };
   const lunaUrmatoare =
     luna === 12 ? { an: anCurent + 1, luna: 1 } : { an: anCurent, luna: luna + 1 };
 
+  const descriereVedere =
+    VEDERI_CALENDAR.find((v) => v.cheie === vedere)?.descriere ?? VEDERI_CALENDAR[0].descriere;
+
   return (
     <div className="space-y-6">
       <AntetPagina
         titlu="Calendarul de concedii"
-        descriere={`Grila lunară a absențelor de echipă, pentru ${formatMonthYear(anCurent, luna)}.`}
+        descriere={`${descriereVedere} ${formatMonthYear(anCurent, luna)}.`}
         {...(poateConfigura
           ? { actiuni: <ButonSetariConcedii poateConfigura={poateConfigura} /> }
           : {})}
@@ -143,13 +208,24 @@ export default async function PaginaCalendarConcedii({ searchParams }: Proprieta
         }
       />
 
-      <GrilaCalendar
+      <NavigareLuna
         an={anCurent}
         luna={luna}
-        zileHarta={Object.fromEntries(zileHarta)}
+        vedere={vedere}
         lunaAnterioara={lunaAnterioara}
         lunaUrmatoare={lunaUrmatoare}
       />
+
+      {vedere === "planificator" ? (
+        <PlanificatorConcedii
+          zile={zile}
+          angajati={randuriAngajati}
+          celule={Object.fromEntries(celule)}
+          azi={azi}
+        />
+      ) : (
+        <GrilaCalendar an={anCurent} luna={luna} zileHarta={Object.fromEntries(zileHarta)} />
+      )}
     </div>
   );
 }

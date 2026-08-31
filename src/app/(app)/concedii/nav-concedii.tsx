@@ -63,14 +63,25 @@ export function NavConcedii({
   const contextLuna = an !== null && luna !== null ? `?an=${an}&luna=${luna}` : "";
 
   const file: readonly IntrareFila[] = [
-    { href: "/concedii", eticheta: "Cererile mele" },
-    ...(poateVedeaEchipa ? [{ href: "/concedii/echipa", eticheta: "Echipa" }] : []),
-    { href: "/concedii/sold", eticheta: "Soldul meu" },
-    ...(poateAproba
-      ? [{ href: "/concedii/aprobari", eticheta: "Aprobări", contor: deAprobat }]
-      : []),
+    // Calendarul e PRIMUL pentru cine vede echipa: e ecranul cu care încep
+    // managerii, HR-ul și patronul, iar `/concedii` gol îi și trimite acolo
+    // (v. redirectarea din `page.tsx`). Pentru `employee`, `poateVedeaCalendar`
+    // e fals, fila lipsește, iar prima rămâne „Cererile mele" — exact ce-i
+    // trebuie cuiva care nu vede pe nimeni altcineva.
     ...(poateVedeaCalendar
       ? [{ href: `/concedii/calendar${contextLuna}`, eticheta: "Calendar echipă" }]
+      : []),
+    // `?vedere=cereri` nu e decor: `/concedii` FĂRĂ niciun parametru redirectează
+    // spre calendar pentru cine îl vede, deci fila fără parametru s-ar fi
+    // redirectat pe ea însăși și lista de cereri ar fi devenit inaccesibilă.
+    { href: "/concedii?vedere=cereri", eticheta: "Cererile mele" },
+    ...(poateVedeaEchipa ? [{ href: "/concedii/echipa", eticheta: "Echipa" }] : []),
+    // Pagina arată soldul PROPRIU doar pentru cine nu vede mai mult de-atât;
+    // cu scope „team"/„all" listează toți angajații vizibili, secțiune cu
+    // secțiune. Eticheta urmează comportamentul, nu invers.
+    { href: "/concedii/sold", eticheta: poateVedeaEchipa ? "Soldul echipei" : "Soldul meu" },
+    ...(poateAproba
+      ? [{ href: "/concedii/aprobari", eticheta: "Aprobări", contor: deAprobat }]
       : []),
   ];
 

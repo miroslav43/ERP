@@ -91,6 +91,30 @@ function esteZiLucratoare(
 }
 
 /**
+ * Aceeași ordine de decizie, pentru apelanții care au doar ziua ISO.
+ *
+ * Planificatorul de concedii umbrește coloanele nelucrătoare
+ * (`@/domain/leave/planificator`) și TREBUIE să umbrească exact ce nu numără
+ * `numaraZileCerere`. Cu două implementări paralele, prima divergență ar fi o
+ * zi liberă pe ecran din care baza a scăzut totuși o zi de sold — și nimic
+ * n-ar semnala-o. Deci una singură, exportată.
+ */
+export function esteZiLucratoareIso(
+  ziIso: ZiCalendaristica,
+  sarbatoriRo: ReadonlySet<ZiCalendaristica>,
+  liberSuplimentar: ReadonlySet<ZiCalendaristica>,
+  zileRecuperare: ReadonlySet<ZiCalendaristica>,
+): boolean {
+  return esteZiLucratoare(
+    ziIso,
+    parseZi(ziIso, "Ziua"),
+    sarbatoriRo,
+    liberSuplimentar,
+    zileRecuperare,
+  );
+}
+
+/**
  * Numără zilele lucrătoare consumate de o cerere de concediu.
  *
  * `sarbatoriRo` = `public_holidays.data` (tara = 'RO') pentru anii relevanți.
