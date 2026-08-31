@@ -3597,6 +3597,296 @@ begin
     'trece corect, iar hr și employee sunt refuzați ✓';
 end $$;
 
+-- ─────────────────────────────────────────────────────────────────────────────
+-- (l), continuare — aprobarea PE LOC a cererii scrise de patron (d1dde83)
+--
+-- `creeazaCerereConcediu` și `trimiteCerere` aprobă imediat cererea scrisă de
+-- cineva cu `leave:approve = all`. Drumul ăsta ocolește RLS prin clientul de
+-- serviciu, deliberat și într-un singur loc — `aprobaPeLoc` din
+-- `src/app/(app)/concedii/actions.ts`. Ocolirea are DOUĂ presupuneri, și dacă
+-- oricare dintre ele e falsă, funcția e stricată fără ca nimic să se plângă:
+--
+--   (1) prin clientul UTILIZATORULUI, patronul chiar NU-și poate aproba
+--       propria cerere — altfel ocolirea nu are motiv să existe și trebuie
+--       scoasă, fiindcă un client de serviciu în plus e o suprafață în plus;
+--   (2) prin clientul de SERVICIU tranziția chiar TRECE — niciun trigger BEFORE
+--       n-o refuză, iar `trg_approval_tasks_anuleaza_surori` nu răstoarnă în
+--       „anulată" sarcinile pe care tocmai le-am trecut pe „aprobată".
+--
+-- A doua e cea care nu se poate deduce din citirea politicilor: depinde de
+-- momentul în care Postgres execută triggerele AFTER ale unei comenzi care
+-- atinge mai multe rânduri deodată.
+-- ─────────────────────────────────────────────────────────────────────────────
+do $$
+declare
+  v_alfa       uuid := pg_temp.id('alfa');
+  v_admin      uuid := pg_temp.id('admin_alfa');
+  v_emp_user   uuid := pg_temp.id('emp_alfa');
+  v_ang_alfa   uuid := pg_temp.id('ang_alfa');
+  v_mgr_user   uuid := pg_temp.id('mgr_user_alfa');
+  v_hr_user    uuid := pg_temp.id('hr_user_alfa');
+  v_ang_admin  uuid;
+  v_tip        uuid;
+  v_cerere_a   uuid;
+  v_cerere_b   uuid;
+  v_afectate   integer;
+  v_in_asteptare integer;
+  v_aprobate   integer;
+  v_anulate    integer;
+  v_zile       integer;
+  v_zile_apr   integer;
+  v_scope      text;
+begin
+  select id into v_ang_admin from public.employees
+   where organization_id = v_alfa and user_id = v_admin and is_primary and deleted_at is null;
+  if v_ang_admin is null then
+    perform pg_temp.esueaza(
+      '(l) aprobare pe loc: patronul nu are fișă de angajat în fixture, deci `current_employee_id` '
+      'e null și proba n-ar dovedi nimic despre bariera „nu te aprobi singur"');
+  end if;
+
+  select id into v_tip from public.leave_types
+   where organization_id = v_alfa and key = 'odihna' and deleted_at is null;
+
+  -- ── P0. Patronul își scrie propria cerere, ca utilizator obișnuit ──────────
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  insert into public.leave_requests
+    (organization_id, employee_id, leave_type_id, data_inceput, data_sfarsit, motiv, status, created_by)
+  values (v_alfa, v_ang_admin, v_tip, current_date + 300, current_date + 301,
+          'Proba (l) — cerere proprie a patronului', 'trimisa', v_admin)
+  returning id into v_cerere_a;
+  reset role;
+  if v_cerere_a is null then
+    perform pg_temp.esueaza('(l) FALS-NEGATIV: patronul nu-și poate scrie propria cerere de concediu');
+  end if;
+
+  -- ── P1. …dar NU și-o poate aproba. Cazul negativ care justifică ocolirea ───
+  -- Ramura „celui care decide" din `leave_requests_update` (0079) cere
+  -- `employee_id <> app.current_employee_id(...)`. Refuzul poate veni fie ca
+  -- excepție pe `WITH CHECK`, fie ca zero rânduri pe `USING`; ambele sunt
+  -- refuzuri, iar proba le acceptă pe amândouă. Ce NU se acceptă e succesul.
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  begin
+    with modificate as (
+      update public.leave_requests set status = 'aprobata', decis_de = v_admin
+       where id = v_cerere_a
+      returning 1
+    ) select count(*) into v_afectate from modificate;
+  exception when others then
+    v_afectate := 0;
+  end;
+  reset role;
+  if v_afectate > 0 then
+    perform pg_temp.esueaza(
+      '(l) FALS-POZITIV: patronul și-a aprobat propria cerere prin clientul utilizatorului. '
+      'Bariera din 0079 a căzut — `aprobaPeLoc` nu mai are motiv să folosească clientul de '
+      'serviciu și trebuie rescrisă, iar ecranul de aprobări permite acum autosemnarea.');
+  end if;
+
+  -- ── P2. Clientul de SERVICIU o poate face — drumul lui `aprobaPeLoc` ───────
+  -- Fără claim JWT, `auth.uid()` întoarce null: exact ce vede baza dinspre
+  -- `createAdminSupabase()`. Filtrele pe organizație și pe status sunt cele
+  -- scrise în acțiune, litera cu literă.
+  perform set_config('request.jwt.claim.sub', '', true);
+  with modificate as (
+    update public.leave_requests set status = 'aprobata', decis_de = v_admin
+     where id = v_cerere_a and organization_id = v_alfa and status = 'trimisa'
+    returning 1
+  ) select count(*) into v_afectate from modificate;
+  if v_afectate <> 1 then
+    perform pg_temp.esueaza(format(
+      '(l) FALS-NEGATIV: clientul de serviciu NU a putut aproba cererea patronului (rânduri: %s). '
+      'Aprobarea pe loc e moartă în producție, iar utilizatorul primește „înregistrată și aprobată" '
+      'pentru o cerere rămasă în așteptare.', v_afectate));
+  end if;
+
+  -- ── P3. Sarcinile deschise se închid în BLOC, și rămân închise ─────────────
+  -- Cererea B e scrisă de patron PENTRU altcineva: aici fluxul chiar produce
+  -- sarcini în așteptare (managerul direct al Anei), spre deosebire de cererea
+  -- proprie, unde escaladarea îl exclude chiar pe autor.
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  insert into public.leave_requests
+    (organization_id, employee_id, leave_type_id, data_inceput, data_sfarsit, motiv, status, created_by)
+  values (v_alfa, v_ang_alfa, v_tip, current_date + 320, current_date + 322,
+          'Proba (l) — cerere scrisă de patron pentru angajat', 'trimisa', v_admin)
+  returning id into v_cerere_b;
+  reset role;
+
+  select count(*) into v_in_asteptare from public.approval_tasks
+   where entity_type = 'leave_request' and entity_id = v_cerere_b
+     and status = 'in_asteptare' and deleted_at is null;
+  if v_in_asteptare = 0 then
+    perform pg_temp.esueaza(
+      '(l) CAZ VID: cererea scrisă de patron pentru un angajat n-a produs nicio sarcină de '
+      'aprobare, deci închiderea lor în bloc nu dovedește nimic. Verifică fluxul seedat.');
+  end if;
+
+  -- Exact UPDATE-ul din `aprobaPeLoc`, cu clientul de serviciu.
+  perform set_config('request.jwt.claim.sub', '', true);
+  update public.approval_tasks
+     set status = 'aprobata', decis_la = now(),
+         comentariu = 'Aprobată pe loc: cererea a fost înregistrată de un administrator al organizației.'
+   where organization_id = v_alfa and entity_type = 'leave_request'
+     and entity_id = v_cerere_b and status = 'in_asteptare' and deleted_at is null;
+
+  select count(*) filter (where status = 'aprobata'),
+         count(*) filter (where status = 'anulata'),
+         count(*) filter (where status = 'in_asteptare')
+    into v_aprobate, v_anulate, v_in_asteptare
+    from public.approval_tasks
+   where entity_type = 'leave_request' and entity_id = v_cerere_b and deleted_at is null;
+
+  if v_in_asteptare > 0 then
+    perform pg_temp.esueaza(format(
+      '(l) au rămas %s sarcini „în așteptare" după aprobarea pe loc — ecranul de Aprobări '
+      'le va arăta la nesfârșit, pentru o cerere deja aprobată (capcana „contorul urmează lista").',
+      v_in_asteptare));
+  end if;
+  if v_anulate > 0 then
+    perform pg_temp.esueaza(format(
+      '(l) `trg_approval_tasks_anuleaza_surori` a răsturnat %s sarcini din „aprobată" în „anulată". '
+      'Presupunerea că triggerul AFTER rulează la SFÂRȘITUL comenzii, când toate surorile au ieșit '
+      'deja din „în așteptare", e falsă — `aprobaPeLoc` trebuie să închidă sarcinile una câte una.',
+      v_anulate));
+  end if;
+  if v_aprobate = 0 then
+    perform pg_temp.esueaza('(l) nicio sarcină nu a rămas „aprobată" după închiderea în bloc');
+  end if;
+
+  -- ── P4. Zilele cererii preiau statusul — de ele depind planificatorul,
+  -- soldul și sincronizarea în pontaj ───────────────────────────────────────
+  with modificate as (
+    update public.leave_requests set status = 'aprobata', decis_de = v_admin
+     where id = v_cerere_b and organization_id = v_alfa and status = 'trimisa'
+    returning 1
+  ) select count(*) into v_afectate from modificate;
+  if v_afectate <> 1 then
+    perform pg_temp.esueaza('(l) cererea scrisă pentru un angajat nu a putut fi aprobată de serviciu');
+  end if;
+
+  select count(*), count(*) filter (where status = 'aprobata')
+    into v_zile, v_zile_apr
+    from public.leave_request_days where leave_request_id = v_cerere_b;
+  if v_zile = 0 then
+    perform pg_temp.esueaza('(l) cererea aprobată pe loc n-are nicio zi în `leave_request_days`');
+  end if;
+  if v_zile_apr <> v_zile then
+    perform pg_temp.esueaza(format(
+      '(l) doar %s din %s zile au trecut pe „aprobată" — planificatorul le-ar desena hașurat, '
+      'iar `recalc_sold` n-ar scădea zilele din sold.', v_zile_apr, v_zile));
+  end if;
+
+  -- ── P5. Cazurile negative de permisiune: cine NU declanșează aprobarea ─────
+  -- `poateAprobaPeLoc` cere EXACT `leave:approve = all`. Dacă `manager` sau `hr`
+  -- ajung acolo, cererile lor s-ar aproba singure, peste lanțul de aprobare —
+  -- iar pentru `hr` ar însemna întoarcerea dreptului pe care 0056 i l-a luat.
+  perform set_config('request.jwt.claim.sub', v_mgr_user::text, true);
+  set local role authenticated;
+  select app.has_permission(v_alfa, 'leave', 'approve') into v_scope;
+  reset role;
+  if v_scope = 'all' then
+    perform pg_temp.esueaza(format(
+      '(l) FALS-POZITIV: rolul `manager` are leave:approve = %s. Cererile lui s-ar aproba pe loc, '
+      'deși el e o treaptă din lanț, nu capătul lui.', v_scope));
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_hr_user::text, true);
+  set local role authenticated;
+  select app.has_permission(v_alfa, 'leave', 'approve') into v_scope;
+  reset role;
+  if v_scope = 'all' then
+    perform pg_temp.esueaza(format(
+      '(l) FALS-POZITIV: rolul `hr` are leave:approve = %s, deși 0056 i l-a scos explicit. '
+      'Cererile înregistrate de HR s-ar aproba singure.', v_scope));
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  select app.has_permission(v_alfa, 'leave', 'approve') into v_scope;
+  reset role;
+  if v_scope is distinct from 'all' then
+    perform pg_temp.esueaza(format(
+      '(l) FALS-NEGATIV: rolul `org_admin` are leave:approve = %s, deci aprobarea pe loc nu se '
+      'declanșează pentru nimeni și funcția e moartă.', coalesce(v_scope, 'null')));
+  end if;
+
+  raise notice
+    '(l) aprobarea pe loc: patronul NU se aprobă singur prin RLS, clientul de serviciu poate, '
+    'sarcinile se închid în bloc fără să fie răsturnate, zilele preiau starea, iar manager și hr '
+    'rămân în afara drumului ✓';
+end $$;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- (l), continuare — rândurile planificatorului nu pierd angajați
+--
+-- `angajatiPlanificator` (src/lib/queries/leave.ts) filtrează fereastra lunii cu
+-- `(hired_on is null or hired_on <= ultima)` și `(terminated_on is null or
+-- terminated_on >= prima)`. Ramura de NULL nu e teoretică: pe baza reală, doi
+-- angajați din trei firme n-au `hired_on`. Un filtru scris fără ea i-ar fi șters
+-- din grilă — tăcut, iar cine planifică i-ar fi crezut disponibili.
+-- ─────────────────────────────────────────────────────────────────────────────
+do $$
+declare
+  v_alfa      uuid := pg_temp.id('alfa');
+  v_admin     uuid := pg_temp.id('admin_alfa');
+  v_ang_alfa  uuid := pg_temp.id('ang_alfa');
+  v_prima     date := date_trunc('month', current_date)::date;
+  v_ultima    date := (date_trunc('month', current_date) + interval '1 month - 1 day')::date;
+  v_fara_data integer;
+  v_vizibili  integer;
+  v_plecat    integer;
+begin
+  -- Ana n-are dată de angajare; un al doilea angajat a plecat luna trecută.
+  update public.employees set hired_on = null where id = v_ang_alfa;
+  update public.employees set terminated_on = v_prima - 10
+   where organization_id = v_alfa and id <> v_ang_alfa and deleted_at is null
+     and id = (select id from public.employees
+                where organization_id = v_alfa and id <> v_ang_alfa and deleted_at is null
+                order by id limit 1)
+  returning 1 into v_plecat;
+
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  select count(*) into v_vizibili from public.employees
+   where organization_id = v_alfa and deleted_at is null
+     and (hired_on is null or hired_on <= v_ultima)
+     and (terminated_on is null or terminated_on >= v_prima);
+  select count(*) into v_fara_data from public.employees
+   where organization_id = v_alfa and deleted_at is null and hired_on is null
+     and (hired_on is null or hired_on <= v_ultima)
+     and (terminated_on is null or terminated_on >= v_prima);
+  reset role;
+
+  if v_fara_data = 0 then
+    perform pg_temp.esueaza(
+      '(l) planificator: angajatul FĂRĂ dată de angajare a dispărut din fereastra lunii. '
+      'Ramura `hired_on is null` din `angajatiPlanificator` nu funcționează, iar grila ar fi '
+      'arătat mai puțini oameni decât are firma — fără nicio eroare.');
+  end if;
+  if v_vizibili = 0 then
+    perform pg_temp.esueaza('(l) planificator: fereastra lunii nu lasă niciun angajat vizibil');
+  end if;
+  if v_plecat is not null then
+    perform set_config('request.jwt.claim.sub', v_admin::text, true);
+    set local role authenticated;
+    select count(*) into v_plecat from public.employees
+     where organization_id = v_alfa and deleted_at is null
+       and terminated_on is not null and terminated_on < v_prima
+       and (terminated_on is null or terminated_on >= v_prima);
+    reset role;
+    if v_plecat > 0 then
+      perform pg_temp.esueaza(format(
+        '(l) planificator: %s angajați plecați ÎNAINTE de luna afișată au rămas în grilă. '
+        'Fereastra crește la nesfârșit cu foști angajați.', v_plecat));
+    end if;
+  end if;
+
+  raise notice '(l) planificator: fereastra lunii păstrează angajatul fără dată de angajare și scoate plecații ✓';
+end $$;
+
 rollback;
 
 \echo ''
