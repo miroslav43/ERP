@@ -1,6 +1,6 @@
 # Deploy — Administrativo (ERP)
 
-Aplicația rulează containerizat pe VM-ul `62.171.154.194`, la **https://infomeditatii.ro**.
+Aplicația rulează containerizat pe VM-ul `62.171.154.194`, la **https://administrativo.ro**.
 Tot ce ține de operare trece prin `./administrativo.sh`.
 
 ```bash
@@ -178,10 +178,27 @@ sistemul de fișiere după valoarea literală a `HR_ENCRYPTION_KEYS`, ca să ver
 ## Configurări din afara repo-ului
 
 **Supabase Dashboard → Authentication → URL Configuration**
-`Site URL` și `Redirect URLs` trebuie să conțină `https://infomeditatii.ro` și
-`https://infomeditatii.ro/auth/callback`. Fără ele, login-ul redirecționează greșit.
+`Site URL` și `Redirect URLs`: `https://administrativo.ro` și
+`https://administrativo.ro/auth/callback`.
 
-**Cloudflare** — zona `infomeditatii.ro` e proxied (188.114.x). Modul SSL/TLS trebuie să fie
+De corectat o afirmație care a stat aici până la 2026-09-03 („fără ele, login-ul redirecționează
+greșit"): **nu mai e adevărată**. Aplicația nu mai lasă Supabase să compună niciun link.
+`src/app/(auth)/autentificare/actions.ts` cheamă `auth.admin.generateLink()`, care produce doar
+`hashed_token`, fără să trimită nimic; e-mailul îl compune șablonul nostru din
+`NEXT_PUBLIC_APP_URL` și pleacă prin Resend, iar `src/app/auth/callback/route.ts` îl consumă cu
+`verifyOtp({ token_hash })`. Nicăieri în `src/` nu se pasează `redirectTo` sau `emailRedirectTo`,
+deci lista de redirecturi din Supabase nu e consultată pe acest drum. Schimbarea a fost făcută
+tocmai fiindcă `Site URL` producea linkuri către `localhost:3000`.
+
+Rămâne de aliniat pentru corectitudine și pentru orice flux viitor care ar trece prin GoTrue —
+dar nu blochează o mutare de domeniu și nu poate strica login-ul dacă întârzie.
+
+**Resend → Domains / Webhooks** — domeniul din `EMAIL_FROM` trebuie validat (SPF + DKIM),
+iar endpoint-ul de webhook e un URL absolut: `https://administrativo.ro/api/webhooks/resend`.
+Webhook-ul rămas pe un domeniu vechi nu dă nicio eroare — doar îngheață starea fiecărui email
+pe „trimis", fiindcă evenimentele `delivered`/`bounced` nu mai ajung niciodată.
+
+**Cloudflare** — zona `administrativo.ro` e proxied (188.114.x). Modul SSL/TLS trebuie să fie
 **Full (strict)**; certificatul Let's Encrypt de pe origine îl face valid.
 
 ---
@@ -189,8 +206,10 @@ sistemul de fișiere după valoarea literală a `HR_ENCRYPTION_KEYS`, ca să ver
 ## Certificate
 
 Emise de containerul `certbot` partajat, stocate în volumul `strawboss_letsencrypt`.
-Reînnoirea e automată (buclă la 12h). Certificatul pentru `infomeditatii.ro` a fost **refolosit** de
-la Eduvora — același domeniu, aceeași filiație; nu s-a rulat certbot la migrare.
+Reînnoirea e automată (buclă la 12h). Certificatul pentru `administrativo.ro` acoperă și
+`www.administrativo.ro` — o singură filiație, emisă la mutarea din 3 septembrie 2026. Numele
+filiației e PRIMUL domeniu dat lui certbot, iar `ssl_certificate` din vhost trebuie să arate spre
+`/etc/letsencrypt/live/administrativo.ro/`, nu spre subdomeniu.
 
 ```bash
 ./administrativo.sh ssl:status    # ce certificate există și când expiră
@@ -248,7 +267,23 @@ publica ce ai vrut și a publica ce s-a nimerit.
 ## Istoric
 
 **2026-08-21** — `infomeditatii.ro` a fost preluat de la „Eduvora" (FastAPI/uvicorn pe host, systemd
-`infomeditatii.service:8000`). Vechiul vhost e păstrat ca
-`/srv/apps/Strawboss/nginx/conf.d/30-infomeditatii.ro.conf.eduvora.bak`.
-Revenire completă: `./administrativo.sh nginx:restore` + `sudo systemctl start infomeditatii`.
-Domeniul e provizoriu — la mutare, singura modificare e `NEXT_PUBLIC_APP_URL` + rebuild + vhost nou.
+`infomeditatii.service:8000`), ca domeniu provizoriu.
+
+**2026-09-03** — mutare pe domeniul definitiv **`administrativo.ro`**. Ce a cerut, în ordine:
+
+1. `ops/_lib.sh` — `ADM_DOMAIN` + `ADM_VHOST` (de aici se alimentează toate comenzile).
+2. `.env.production` — `NEXT_PUBLIC_APP_URL` și `EMAIL_FROM`.
+3. Vhost temporar doar `:80`, pentru provocarea ACME, **înainte** de certbot: fără el, o cerere
+   pentru un `server_name` necunoscut cade pe primul server block încărcat (`10-nortiauno.com`),
+   care nu servește `/.well-known/`, iar HTTP-01 eșuează fără să spună de ce.
+4. `ssl:issue` pentru apex + `www`.
+5. Vhost complet. Cele două vhost-uri au coexistat câteva minute, ca niciun domeniu să nu cadă —
+   posibil doar fiindcă maparea `$connection_upgrade` a fost scoasă din cel vechi: două declarații
+   cu același nume fac `nginx -t` să pice cu „duplicate map name" și blochează reload-ul pentru
+   TOATE site-urile de pe VM, nu doar pentru al nostru.
+6. Rebuild + `stack:deploy` — `NEXT_PUBLIC_APP_URL` e copt în bundle, deci un redeploy pe imaginea
+   veche ar fi lăsat login-ul să arunce utilizatorii pe domeniul vechi.
+7. Ștergerea vhost-ului vechi și a backup-ului `.eduvora.bak`; oprirea `infomeditatii.service`.
+8. În afara repo-ului: Supabase URL Configuration, Resend (domeniu + webhook), Cloudflare.
+
+Domeniul vechi e retras complet — nu mai există vhost, nici serviciu systemd pe :8000.
