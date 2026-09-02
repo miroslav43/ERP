@@ -45,7 +45,7 @@ export function DeschideLuna({
         pictograma: <Plus className="size-4" />,
       }}
       titlu={`Deschide ${numeLuna(an, luna)}`}
-      descriere="Liniile se preiau din setul funcției angajatului, cu ținta lui dacă are una pusă anume."
+      descriere="Liniile se preiau din setul funcției angajatului."
       etichetaTrimite="Deschide luna"
       mesajReusita="Luna a fost deschisă."
       actiune={deschideLunaKpi}

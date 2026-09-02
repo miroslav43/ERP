@@ -119,7 +119,18 @@ export function Dialog({
         // automate, iar anulând-o doar pe cea de jos caseta cade la baza
         // ecranului fără poziționare absolută. Degetul ajunge la butoane, iar
         // tastatura virtuală nu mai acoperă câmpul activ.
-        "rounded-t-panou m-auto mb-0 max-h-[92dvh] w-full max-w-none rounded-b-none",
+        // ── DE CE ARE ȘI O PODEA, NU DOAR UN PLAFON ────────────────────────
+        // Antetul e `shrink-0`, corpul e `flex-1 min-h-0`, iar înălțimea casetei
+        // vine din conținut. Nimic nu garanta deci corpului vreo înălțime: pe un
+        // ecran scund, sau cu o descriere de un rând întreg, antetul lua tot, iar
+        // sub el rămâneau câțiva pixeli în care primul câmp era tăiat pe
+        // jumătate. Caseta părea o bandă, nu o fereastră.
+        //
+        // `min()`, nu o valoare fixă: podeaua nu are voie să depășească plafonul.
+        // Un `min-h-96` simplu ar fi ieșit din ecran pe o fereastră de 300px —
+        // adică ar fi mutat aceeași problemă mai jos, unde nici măcar butoanele
+        // nu se mai văd.
+        "rounded-t-panou m-auto mb-0 max-h-[92dvh] min-h-[min(24rem,92dvh)] w-full max-w-none rounded-b-none",
         // `dvh`, nu `vh`: pe iOS Safari `100vh` include bara de adrese care se
         // retrage, deci subsolul ar sta sub linia vizibilă exact cât timp bara
         // e afișată — adică fix când omul deschide dialogul.
