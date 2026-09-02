@@ -94,7 +94,7 @@ cmd_nginx__reload() {
   success "Reload făcut."
 }
 
-# @cmd nginx:vhost "Instalează vhost-ul infomeditatii.ro → aplicație (cu backup)"
+# @cmd nginx:vhost "Instalează vhost-ul administrativo.ro → aplicație (cu backup)"
 cmd_nginx__vhost() {
   header "Instalez vhost-ul pentru ${ADM_DOMAIN}"
   require_cmd docker
@@ -119,9 +119,18 @@ cmd_nginx__vhost() {
   _ok "certificat" "prezent pentru ${ADM_DOMAIN}"
 
   # Backup: al fișierului (revenire instant) și al întregului director.
-  if [ -f "$dest" ] && [ ! -f "${dest}.eduvora.bak" ]; then
-    cp "$dest" "${dest}.eduvora.bak"
-    _ok "backup vhost" "${ADM_VHOST}.eduvora.bak"
+  #
+  # Backup-ul se rescrie la FIECARE instalare, intenționat. Până la 2026-09-03
+  # condiția era `[ ! -f "$bak" ]`, adică se salva o singură dată, prima —
+  # backup-ul rămânea înghețat pe configurația Eduvora de dinaintea preluării
+  # domeniului. Consecința: dacă a doua instalare pica la `nginx -t`, „revenirea
+  # la varianta anterioară" de mai jos restaura un vhost vechi de săptămâni,
+  # care trimitea spre un serviciu systemd oprit între timp. Un rollback care
+  # repară testul și strică site-ul e mai rău decât niciun rollback.
+  local bak="${dest}.anterior.bak"
+  if [ -f "$dest" ]; then
+    cp "$dest" "$bak"
+    _ok "backup vhost" "$(basename "$bak")"
   fi
   local snap="/tmp/confd-backup-$(date +%Y%m%d-%H%M%S).tar.gz"
   tar czf "$snap" -C "$(dirname "$ADM_NGINX_CONFD")" "$(basename "$ADM_NGINX_CONFD")" 2>/dev/null
@@ -135,7 +144,15 @@ cmd_nginx__vhost() {
 
   docker exec "$ADM_NGINX" nginx -t || {
     error "Config invalid — REVIN la varianta anterioară."
-    [ -f "${dest}.eduvora.bak" ] && cat "${dest}.eduvora.bak" > "$dest"
+    if [ -f "$bak" ]; then
+      cat "$bak" > "$dest"
+    else
+      # Prima instalare: nu există „anterior". Fișierul nou e singurul vinovat,
+      # deci se scoate de tot — altfel rămâne pe disc un config invalid, iar
+      # următorul reload al ORICUI de pe VM eșuează.
+      rm -f "$dest"
+      warn "Nu exista backup (prima instalare) — am șters vhost-ul invalid."
+    fi
     exit 1
   }
   _ok "nginx -t" "valid"
@@ -144,14 +161,18 @@ cmd_nginx__vhost() {
   success "Vhost activ — ${ADM_DOMAIN} trimite acum spre ${ADM_SERVICE}:${ADM_PORT}."
 }
 
-# @cmd nginx:restore "Revenire la vhost-ul anterior (Eduvora)"
+# @cmd nginx:restore "Revenire la vhost-ul instalat anterior"
 cmd_nginx__restore() {
   header "Revenire vhost ${ADM_DOMAIN}"
   local dest="${ADM_NGINX_CONFD}/${ADM_VHOST}"
-  [ -f "${dest}.eduvora.bak" ] || { error "Nu există backup."; exit 1; }
-  cat "${dest}.eduvora.bak" > "$dest"
+  local bak="${dest}.anterior.bak"
+  [ -f "$bak" ] || { error "Nu există backup ($(basename "$bak"))."; exit 1; }
+
+  # Scriere in-place, ca la instalare: `mv`/`rm` ar atinge inode-ul directorului
+  # și ar face montarea conf.d stale pentru tot VM-ul.
+  cat "$bak" > "$dest"
   docker exec "$ADM_NGINX" nginx -t && docker exec "$ADM_NGINX" nginx -s reload
-  success "Vhost revenit. Pornește și serviciul: sudo systemctl start infomeditatii"
+  success "Vhost revenit la versiunea anterioară."
 }
 
 # @cmd ssl:status "Certificatele din volum și expirarea lor"
@@ -172,7 +193,7 @@ cmd_ssl__status() {
     done
 }
 
-# @cmd ssl:issue "Emite/reînnoiește certificatul pentru infomeditatii.ro"
+# @cmd ssl:issue "Emite/reînnoiește certificatul pentru administrativo.ro"
 cmd_ssl__issue() {
   header "Emitere certificat"
   require_cmd docker

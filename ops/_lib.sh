@@ -13,12 +13,12 @@ readonly ADM_SERVICE="administrativo-web"        # serviciul din stack
 readonly ADM_IMAGE="administrativo-web"          # numele imaginii
 readonly ADM_PORT=3000
 readonly ADM_OVERLAY="strawboss-net"             # overlay-ul partajat cu nginx
-readonly ADM_DOMAIN="infomeditatii.ro"
+readonly ADM_DOMAIN="administrativo.ro"
 
 # Edge-ul partajat al VM-ului. Deservește TOATE cele ~9 site-uri de aici.
 readonly ADM_NGINX="strawboss-nginx-1"
 readonly ADM_NGINX_CONFD="/srv/apps/Strawboss/nginx/conf.d"
-readonly ADM_VHOST="30-infomeditatii.ro.conf"
+readonly ADM_VHOST="30-administrativo.ro.conf"
 readonly ADM_STRAWBOSS_ROOT="/srv/apps/Strawboss"
 
 # ---------------------------------------------------------------------------

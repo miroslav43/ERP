@@ -47,7 +47,7 @@ _auto_help() {
   echo '  /  _  \ (_| | | | | | | | | | | \__ \ |_| | | (_| | |_| |\ V / (_) |'
   echo '  \_/ \_/\__,_|_| |_| |_|_|_| |_|_|___/\__|_|  \__,_|\__|_| \_/ \___/'
   echo -e "  ${NC}"
-  echo -e "  ${DIM}ERP — centru de comandă  ${NC}${GRAY}·${NC}${DIM}  https://infomeditatii.ro${NC}"
+  echo -e "  ${DIM}ERP — centru de comandă  ${NC}${GRAY}·${NC}${DIM}  https://administrativo.ro${NC}"
   echo ""
 
   local current_section=""
