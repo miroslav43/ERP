@@ -26,8 +26,8 @@ citeste_daca:
   - "cerere care rămâne în aceeași stare → [[date/pontaj]]"
   - "buton de aprobare absent → [[rol/manager]]"
   - "concediu aprobat care nu apare în foaia de prezență → [[modul/pontaj]]"
-scris_pe: 3c9747a4f30ad317e7ea4e01fe0a4e778381411e
-scris_la: 2026-08-30
+scris_pe: 0815fbff2c885cd44b5768ee25f084f16a9e95b8
+scris_la: 2026-09-03
 tags: [modul, hr]
 ---
 
@@ -36,6 +36,18 @@ tags: [modul, hr]
 Cereri de concediu cu lanț de aprobare, solduri anuale calculate din reguli de drept, și
 un calendar de echipă. E **motorul generic de aprobare** al proiectului: `approval_tasks`
 apare și în alte module, iar tiparul de tranziție de aici se copiază.
+
+## Paginile modulului
+
+Pagina asta e trunchiul: ce e modulul, cine ajunge unde și **ce refuză baza fără să
+spună** — secțiunea pentru care se deschide pagina dintr-un bug. Restul s-a spart pe
+subarborele de rute și pe secțiunea de acțiuni, fiindcă trunchiul trecuse de plafonul dur
+de 12 KB al convenției (`.claude/docs/meta/conventii.md`).
+
+| Pagină                     | Ce ține                                                                                          |
+| -------------------------- | ------------------------------------------------------------------------------------------------ |
+| [[modul/concedii/actiuni]] | cele șase scrieri ale cererii, cele unsprezece citiri, ce se mișcă la o schimbare de formă       |
+| [[modul/concedii/setari]]  | tipurile reglementate legal, grilele de zile suplimentare, zilele de bază, aplicarea drepturilor |
 
 ## Rute și cine ajunge
 
@@ -46,7 +58,7 @@ apare și în alte module, iar tiparul de tranziție de aici se copiază.
 | `/concedii/aprobari`                     | `leave:approve` team                                            |
 | `/concedii/echipa`, `/concedii/calendar` | `leave:read` team                                               |
 | `/concedii/sold`                         | `leave:read` own/team/all                                       |
-| `/concedii/setari`                       | `leave:update` all                                              |
+| `/concedii/setari`                       | `leave:update` all — v. [[modul/concedii/setari]]               |
 
 Toate trec prin `requireFeature(tenant.organizationId, "leave")`.
 
@@ -67,57 +79,11 @@ de acum întotdeauna un întreg. Enum-urile `leave_day_portion` și cele două e
 `jumatate_in_*` din `leave_rounding_mode` rămân în bază — Postgres nu știe să scoată o
 valoare dintr-un enum — dar nicio coloană nu le mai poate primi.
 
-## Server Actions
+## Server Actions și citiri
 
-`src/app/(app)/concedii/actions.ts` (cererea) și `setari/actions.ts` (configurarea).
-
-| Funcție                                                                                 | Permisiune / minScope  |
-| --------------------------------------------------------------------------------------- | ---------------------- |
-| `creeazaCerereConcediu`                                                                 | `leave:create` / own   |
-| `trimiteCerere`, `anuleazaCerere`                                                       | `leave:update` / own   |
-| `decideCerere`                                                                          | `leave:approve` / team |
-| `actualizeazaTipConcediu`, `comutaActivTipConcediu`                                     | `leave:update` / all   |
-| `creeazaRegulaConcediu`                                                                 | `leave:create` / all   |
-| `dezactiveazaRegulaConcediu`, `seteazaZileConcediuImplicit`, `aplicaDrepturileConcediu` | `leave:update` / all   |
-| `pregatesteIncarcareDocumentConcediu`                                                   | `leave:create` / own   |
-| `linkDocumentConcediu`                                                                  | `leave:read` / own     |
-
-`decideCerere` întoarce `{ id, zilePastrate }`, nu doar identificatorul cererii, iar
-`revalidate` își declară tipul explicit pe forma asta. `zilePastrate` e numărul de zile
-de concediu peste care exista deja o linie de pontaj scrisă de om — v. „Ce refuză baza
-tăcut". Cine adaugă un apelant nou trebuie să-l **afișeze**: e singurul loc în care
-cineva care poate repara se uită la ecran. Azi îl consumă `DecizieAprobare`
-(`src/app/(app)/concedii/aprobari/decizie-aprobare.tsx`, folosită și de `/concedii/[id]`),
-ca `role="alert"` care supraviețuiește închiderii panoului; în plus, acțiunea îi scrie
-angajatului o notificare în `notifications`, cu clientul admin, filtrat pe organizație.
-Notificarea e un plus, nu poarta: dacă INSERT-ul cade, eșecul se loghează și aprobarea
-rămâne dată.
-
-**Octeții documentului justificativ nu trec prin nicio acțiune.**
-`pregatesteIncarcareDocumentConcediu` întoarce `{ cale, token }`, fișierul urcă din
-browser direct în `org-documents` (`uploadToSignedUrl`), iar calea ajunge în
-`creeazaCerereConcediu` printr-un câmp ascuns numit `atasament_path` — exact cheia din
-`creeazaCerereSchema`, ca `fieldErrors` s-o găsească. Fișierul e sus **înainte** ca
-cererea să existe: un abandon lasă un obiect orfan, preferabil unei cereri care trimite
-spre un fișier inexistent. `linkDocumentConcediu` face drumul invers — citește RÂNDUL cu
-clientul utilizatorului, ca RLS să decidă cine vede cererea, și abia calea din rândul
-întors se semnează, pentru un minut. Componentele `incarcare-document.tsx` și
-`link-document.tsx` stau în `src/app/(app)/concedii/`; prima e folosită și de formularul
-din portal, deci se schimbă pentru amândouă ecranele deodată.
-
-## Citiri
-
-`src/lib/queries/leave.ts`: `listeazaCereri`, `citesteCerere`, `zileleCererii`,
-`lantulAprobarii`, `soldAnual`, `istoricSold`, `numarDeAprobat`, `deAprobat`,
-`calendarLunii`, `zileNelucratoare`, `configurareConcedii`, `previzualizeazaDrepturi`,
-`coduriIndemnizatieMedicala`, `varianteConcediu`.
-
-`zileNelucratoare` e memoizată pe cerere cu `cache()` din React, ca `resolveTenant` și
-`getPermissionMap` — o pagină care o cheamă din corpul ei și din secțiunea streamată
-plătește un singur val. Memoizarea ține doar fiindcă argumentele sunt primitive
-(`organizationId`, doi ani): `cache()` compară prin identitate, deci un argument-obiect
-n-ar nimeri niciodată în cache. E consumată și din afara modulului — `[[modul/pontaj]]`,
-`[[modul/salarizare]]` și portal — deci semnătura ei nu se schimbă local.
+`src/app/(app)/concedii/actions.ts` și `src/lib/queries/leave.ts`, cu tot ce se
+mișcă împreună când se schimbă forma returnată de o acțiune: [[modul/concedii/actiuni]].
+Cele șase scrieri de configurare și citirile lor: [[modul/concedii/setari]].
 
 ## Ce refuză baza tăcut
 
@@ -179,18 +145,6 @@ primul din listă, fiindcă ordinea alfabetică începe cu „Concediu creștere
 Migrarea → `src/types/database.ts` → `src/schemas/leave.ts` →
 `src/lib/queries/leave.ts` → `src/app/(app)/concedii/actions.ts` → paginile. Calculul
 zilelor lucrătoare și al drepturilor stă în `src/domain/leave/`, cu teste.
-
-Lista tipurilor al căror act se predă pe hârtie trăiește în două limbaje —
-`TIPURI_CU_ORIGINAL_FIZIC` din `src/domain/leave/documente-fizice.ts` și condiția din
-`internal.leave_requests_pregateste` — fiindcă regula vine din lege, nu din politica unei
-firme, deci nu e o coloană reglabilă pe `leave_types`. `documente-fizice.test.ts` citește
-migrarea și pică dacă se despart: altfel ecranul ar declara fișierul opțional exact acolo
-unde baza îl cere la trimitere.
-
-Forma returnată de o acțiune se mișcă în trei locuri deodată: tipul din `handler`, tipul
-scris explicit în `revalidate` (declarat înaintea handlerului, deci TypeScript n-are de
-unde-l infera) și componenta client care citește `rezultat.data`. `decideCerere` le are
-pe toate trei.
 
 ## Ce NU e aici
 
