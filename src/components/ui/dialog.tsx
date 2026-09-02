@@ -131,6 +131,19 @@ export function Dialog({
         // adică ar fi mutat aceeași problemă mai jos, unde nici măcar butoanele
         // nu se mai văd.
         "rounded-t-panou m-auto mb-0 max-h-[92dvh] min-h-[min(24rem,92dvh)] w-full max-w-none rounded-b-none",
+        // ── FEREASTRĂ SCUNDĂ: SE DERULEAZĂ TOT, CA UN ÎNTREG ───────────────
+        // Împărțirea antet-fix / corp-derulabil e bună cât timp există spațiu.
+        // Sub un prag, se întoarce împotriva ei: antetul are ~85px și NU se
+        // comprimă, deci pe o fereastră de 150px rămân 51px de corp — un câmp
+        // tăiat pe jumătate, cu derulare într-o fantă. Măsurat pe aplicația
+        // reală, nu presupus.
+        //
+        // Sub 26rem înălțime de fereastră, caseta redevine un singur bloc
+        // derulabil: titlul iese din ecran când derulezi, exact ca într-o
+        // pagină obișnuită, iar tot spațiul disponibil ajunge la conținut.
+        // Pragul e sub cel la care apare derularea (~220px), deci ecranele
+        // normale nu-l ating niciodată.
+        "[@media(max-height:26rem)]:block [@media(max-height:26rem)]:overflow-y-auto",
         // `dvh`, nu `vh`: pe iOS Safari `100vh` include bara de adrese care se
         // retrage, deci subsolul ar sta sub linia vizibilă exact cât timp bara
         // e afișată — adică fix când omul deschide dialogul.
@@ -160,7 +173,12 @@ export function Dialog({
       </div>
 
       {children === undefined ? null : (
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">{children}</div>
+        // `overflow-visible` sub prag: altfel ar rămâne un derulator imbricat
+        // în interiorul celui al casetei, iar degetul ar prinde când unul, când
+        // celălalt.
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 [@media(max-height:26rem)]:overflow-visible">
+          {children}
+        </div>
       )}
       {subsol === undefined ? null : (
         <div className="border-border bg-surface flex shrink-0 flex-wrap justify-end gap-2 border-t p-4">
