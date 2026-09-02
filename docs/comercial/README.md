@@ -52,21 +52,21 @@ dacă rândurile stau pe o singură linie fiecare — recompilează și verific�
 
 ## Ce se completează înainte de trimitere către un client
 
-| Unde              | Ce                                                        |
-| ----------------- | --------------------------------------------------------- |
-| Ultima pagină     | e-mailul și adresa de web (restul datelor firmei sunt puse) |
-| Preambul, §1      | paleta de brand, dacă firma are alte culori               |
-| Paginile de prețuri | modulele și pachetele, dacă oferta se schimbă           |
+| Unde                | Ce                                                          |
+| ------------------- | ----------------------------------------------------------- |
+| Ultima pagină       | e-mailul și adresa de web (restul datelor firmei sunt puse) |
+| Preambul, §1        | paleta de brand, dacă firma are alte culori                 |
+| Paginile de prețuri | modulele și pachetele, dacă oferta se schimbă               |
 
 ## Sigla
 
 `sigla/` conține sigla-cuvânt, în trei formate:
 
-| Fișier | Pentru ce |
-| ------ | --------- |
-| `sigla-administrativo.pdf` | vectorial — tipar, alte documente LaTeX |
-| `sigla-administrativo-transparent.png` | 2400 px lățime, fundal transparent |
-| `sigla-administrativo-alb.png` | 2400 px lățime, fundal alb |
+| Fișier                                 | Pentru ce                               |
+| -------------------------------------- | --------------------------------------- |
+| `sigla-administrativo.pdf`             | vectorial — tipar, alte documente LaTeX |
+| `sigla-administrativo-transparent.png` | 2400 px lățime, fundal transparent      |
+| `sigla-administrativo-alb.png`         | 2400 px lățime, fundal alb              |
 
 Sigla NU e o imagine în prezentare: pe copertă e scrisă ca text, cu același font
 ca subsolul (TeX Gyre Adventor, regular, fără bold). Așa rămâne vectorială, se
