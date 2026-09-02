@@ -1,0 +1,25 @@
+% =====================================================================
+%  Administrativo — sigla-cuvânt (wordmark)
+%
+%  Aceeași literă ca subsolul prezentării: TeX Gyre Adventor, regular,
+%  în brandSlate. Fontul se încarcă pe NUME DE FIȘIER, nu de familie —
+%  la fel ca în prezentare, ca să iasă identic pe orice instalare.
+%
+%  Compilare:  tectonic -X compile sigla-administrativo.tex
+%  Rezultatul e vectorial și cu fundal TRANSPARENT; variantele PNG se
+%  scot din el (vezi README).
+% =====================================================================
+\documentclass[border=14pt]{standalone}
+
+\usepackage{fontspec}
+\usepackage{xcolor}
+
+\definecolor{brandSlate}{HTML}{475569}
+
+\newfontfamily\titlufont{texgyreadventor}[Extension=.otf,
+  UprightFont=*-regular, BoldFont=*-bold,
+  ItalicFont=*-italic, BoldItalicFont=*-bolditalic]
+
+\begin{document}
+{\titlufont\fontsize{96}{110}\selectfont\color{brandSlate} ADMINISTRATIVO}
+\end{document}

@@ -69,10 +69,18 @@ describe("niciun fișier text urmărit nu conține octeți NUL", () => {
         // Binarele urmărite intenționat. `.ttf` s-a adăugat odată cu fonturile
         // pentru PDF (`src/lib/pdf/fonturi/`): sunt binare, ca `.woff`, iar
         // verificarea de mai jos caută octeți NUL în fișiere de TEXT.
+        //
+        // `.pdf` și `.docx` s-au adăugat odată cu materialele comerciale din
+        // `docs/comercial/` — prezentarea compilată, oferta și sigla. Sunt
+        // livrabile binare, urmărite deliberat, și au înroșit testul ăsta din
+        // clipa primului commit de ofertă: un PDF conține octeți NUL prin
+        // construcție, iar asta nu spune nimic despre capcana #11.
         ":!:*.ico",
         ":!:*.png",
         ":!:*.woff*",
         ":!:*.ttf",
+        ":!:*.pdf",
+        ":!:*.docx",
       ],
       { cwd: RADACINA, encoding: "buffer", maxBuffer: 8 * 1024 * 1024 },
     );

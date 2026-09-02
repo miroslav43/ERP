@@ -224,3 +224,30 @@ export const numarCuImplicit = (optiuni: OptiuniNumar & Readonly<{ implicit: num
     .transform((v): unknown => (numarGol(v) ? optiuni.implicit : v))
     .pipe(miezNumar(optiuni))
     .default(optiuni.implicit as never);
+
+/**
+ * Listele structurate călătoresc prin `FormData` ca JSON într-un câmp ascuns.
+ *
+ * Tiparul dominant al aplicației e `Formular` + `FormData` + Server Action
+ * (`react-hook-form` apare în 4 fișiere din 118), iar `FormData` e plat: nu
+ * poate purta un array de obiecte fără o convenție de nume gen
+ * `criterii[0][denumire]`, care s-ar reparsa manual în acțiune. Un singur câmp
+ * cu JSON păstrează tiparul și mută parsarea în Zod, unde erorile ies pe câmp.
+ *
+ * Textul nevalid dă un mesaj de formular, nu o excepție: un `JSON.parse` care
+ * aruncă în `preprocess` ar ieși ca EROARE_INTERNA, adică „e stricat ceva la
+ * noi", nu „datele trimise nu sunt bune".
+ *
+ * Stă aici, nu în `evaluation.ts` unde s-a născut, fiindcă îl folosește și
+ * `kpi.ts`. Două copii ale aceleiași parsări pot diverge tăcut exact în
+ * tratarea textului stricat.
+ */
+export const jsonDinFormData = <T extends z.ZodType>(schema: T) =>
+  z.preprocess((valoare) => {
+    if (typeof valoare !== "string") return valoare;
+    try {
+      return JSON.parse(valoare) as unknown;
+    } catch {
+      return z.NEVER;
+    }
+  }, schema);

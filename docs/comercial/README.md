@@ -1,6 +1,22 @@
 # Prezentare comercială (sales deck)
 
-`prezentare-comerciala.tex` → `prezentare-comerciala.pdf`, 26 de pagini, 16:9.
+`prezentare-comerciala.tex` → `prezentare-comerciala.pdf`, 35 de pagini, 16:9.
+
+## Structura
+
+1. **Copertă**
+2. **Două slide-uri generale** — „Ce este Administrativo” (ce e, pentru cine,
+   pe ce lege stă) și „Harta modulelor” (toate modulele pe o pagină, în exact
+   grupele din meniul aplicației).
+3. **Douăzeci de slide-uri de modul**, unul câte unul, în ordinea din hartă.
+4. **Secțiunea comercială** — de ce abonament și nu licență, harta de parcurs,
+   pachete și prețuri, cum se începe.
+
+Ordinea modulelor și denumirile lor sunt luate din
+[`src/config/features.ts`](../../src/config/features.ts) și
+[`src/config/navigation.ts`](../../src/config/navigation.ts). **Când apare un
+modul nou acolo, apare și aici** — altfel prezentarea începe să vândă mai puțin
+decât există.
 
 ## Compilare
 
@@ -17,20 +33,56 @@ Fonturile TeX Gyre (Heros pentru text, Adventor pentru titluri) sunt încărcate
 și tectonic, care nu vede fontconfig-ul sistemului. Acoperă ș/ț cu virgulă
 dedesubt (U+0219/U+021B).
 
+## Cum se adaugă un modul
+
+Un slide de modul **nu se scrie de mână** și nu se copiază de la vecin: se
+apelează macro-ul `\modul`, definit în preambul, cu cinci argumente —
+
+```latex
+\modul{Titlul slide-ului}{grupul din meniu}{%
+  Paragraful de deschidere, două-trei rânduri.}{%
+  \pct{iconiță}{funcționalitate}\par\vspace{2pt}
+  ...}{%
+  \pctv{check}{\textbf{beneficiu}, formulat ca rezultat}\par\vspace{4pt}
+  ...}
+```
+
+Cinci funcționalități și patru beneficii încap. Șase funcționalități încap doar
+dacă rândurile stau pe o singură linie fiecare — recompilează și verifică.
+
 ## Ce se completează înainte de trimitere către un client
 
-| Unde                  | Ce                                                        |
-| --------------------- | --------------------------------------------------------- |
-| Pagina 1 și 26        | `\logoPlaceholder` → `\includegraphics{sigla.pdf}`        |
-| Pagina 13             | slide-ul „MODUL SUPLIMENTAR EXISTENT — DE COMPLETAT”      |
-| Pagina 26             | telefonul, e-mailul și adresa de web, azi între paranteze |
-| Preambul, secțiunea 1 | paleta de brand, dacă firma are alte culori               |
+| Unde                | Ce                                                          |
+| ------------------- | ----------------------------------------------------------- |
+| Ultima pagină       | e-mailul și adresa de web (restul datelor firmei sunt puse) |
+| Preambul, §1        | paleta de brand, dacă firma are alte culori                 |
+| Paginile de prețuri | modulele și pachetele, dacă oferta se schimbă               |
 
-Pentru fiecare modul existent în plus, se duplică un slide de modul și se
-completează după același tipar: pastile de status, descriere scurtă, cinci
-funcționalități, patru beneficii.
+## Sigla
 
-## Două capcane care au costat timp — nu le reintroduce
+`sigla/` conține sigla-cuvânt, în trei formate:
+
+| Fișier                                 | Pentru ce                               |
+| -------------------------------------- | --------------------------------------- |
+| `sigla-administrativo.pdf`             | vectorial — tipar, alte documente LaTeX |
+| `sigla-administrativo-transparent.png` | 2400 px lățime, fundal transparent      |
+| `sigla-administrativo-alb.png`         | 2400 px lățime, fundal alb              |
+
+Sigla NU e o imagine în prezentare: pe copertă e scrisă ca text, cu același font
+ca subsolul (TeX Gyre Adventor, regular, fără bold). Așa rămâne vectorială, se
+scalează fără pierdere și nu depinde de un fișier care poate lipsi. Fișierele din
+`sigla/` sunt pentru materialele DIN AFARA prezentării.
+
+Regenerarea PNG-urilor, după orice modificare a `sigla-administrativo.tex`:
+
+```bash
+cd sigla && tectonic -X compile sigla-administrativo.tex
+```
+
+apoi exportă PDF-ul la 2400 px lățime, o dată cu fundal transparent și o dată pe
+alb (orice unealtă de conversie merge; culoarea literei e `#475569`).
+
+## Trei capcane care au costat timp — nu le reintroduce
 
 1. **Un `{...}` imediat după titlul cadrului este înghițit de beamer ca
    SUBTITLU**, iar șablonul de `frametitle` nu-l afișează: paragraful dispare
@@ -39,6 +91,11 @@ funcționalități, patru beneficii.
 2. **`\vspace` în mod orizontal nu rupe paragraful.** De aceea `\pct` / `\pctv`
    își deschid și își închid singure paragraful (`\par` la ambele capete);
    altfel primul rând de listă se lipea de textul introductiv.
+3. **Mărimea fontului trebuie deschisă ÎNAINTE de paragraf, nu doar pe text.**
+   TeX fixează `\baselineskip` la `\par`, din mărimea curentă în acel moment:
+   `{\tiny textul}\par` dă litere mici pe rânduri de 11pt. `\celula` deschide
+   `\tiny` înaintea paragrafului și îl închide DUPĂ `\par` — cu varianta greșită,
+   harta modulelor depășea pagina cu 3 cm.
 
 ## Verificare
 

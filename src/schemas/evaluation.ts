@@ -1,34 +1,11 @@
 // src/schemas/evaluation.ts
 import { z } from "zod";
-import { textOptional } from "./comun";
+import { jsonDinFormData, textOptional } from "./comun";
 
 import { MAXIM_CRITERII, SCALE_PERMISE, TIPURI_CRITERIU } from "@/domain/evaluations/criterii";
 
 export const STATUSURI_EVALUARE = ["draft", "finalizat"] as const;
 export type StatusEvaluare = (typeof STATUSURI_EVALUARE)[number];
-
-/**
- * Listele structurate călătoresc prin `FormData` ca JSON într-un câmp ascuns.
- *
- * Tiparul dominant al aplicației e `Formular` + `FormData` + Server Action
- * (`react-hook-form` apare în 4 fișiere din 118), iar `FormData` e plat: nu
- * poate purta un array de obiecte fără o convenție de nume gen
- * `criterii[0][denumire]`, care s-ar reparsa manual în acțiune. Un singur câmp
- * cu JSON păstrează tiparul și mută parsarea în Zod, unde erorile ies pe câmp.
- *
- * Textul nevalid dă un mesaj de formular, nu o excepție: un `JSON.parse` care
- * aruncă în `preprocess` ar ieși ca EROARE_INTERNA, adică „e stricat ceva la
- * noi", nu „datele trimise nu sunt bune".
- */
-const jsonDinFormData = <T extends z.ZodType>(schema: T) =>
-  z.preprocess((valoare) => {
-    if (typeof valoare !== "string") return valoare;
-    try {
-      return JSON.parse(valoare) as unknown;
-    } catch {
-      return z.NEVER;
-    }
-  }, schema);
 
 // ── Șabloane ──────────────────────────────────────────────────────────────────
 

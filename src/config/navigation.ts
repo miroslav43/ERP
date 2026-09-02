@@ -9,7 +9,6 @@
  * iar RLS respinge rândul chiar dacă primele trei sunt ocolite.
  */
 import {
-  GraduationCap,
   BarChart3,
   CalendarDays,
   Car,
@@ -18,7 +17,9 @@ import {
   Clock,
   FileText,
   FolderTree,
+  Gauge,
   Gavel,
+  GraduationCap,
   HardHat,
   House,
   LayoutDashboard,
@@ -672,6 +673,24 @@ export const PORTAL_NAV_ITEMS: readonly PortalNavItem[] = [
     // salariul sau pontajul. Punctul de intrare real e cardul promovat din
     // /portal, care apare doar cât timp există restanțe.
     prioritateBara: 5,
+  },
+  {
+    id: "portal-kpi",
+    label: "KPI-ul meu",
+    href: "/portal/kpi-ul-meu",
+    icon: Gauge,
+    group: "munca",
+    featureKey: "evaluations",
+    // `own` — angajatul are `evaluations:read = own` din 0070:271. Poarta e
+    // aceeași ca a modulului mare; ce diferă e scope-ul, iar RLS îl duce până
+    // la rândurile lui.
+    permission: "evaluations:read",
+    minScope: "own",
+    order: 41,
+    exact: false,
+    // Fără prioritate pe bara de jos: KPI-ul se consultă, nu se acționează.
+    // Cele patru sloturi rămân la pontaj, concedii, salariu și cursuri.
+    prioritateBara: null,
   },
   {
     id: "portal-anunturi",

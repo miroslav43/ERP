@@ -422,6 +422,32 @@ const INTRARI: readonly Intrare[] = [
     minScope: "team",
     descriere: "Grilele de evaluare, reutilizabile de la un ciclu la altul.",
   },
+  {
+    id: "evaluari.kpi",
+    href: "/evaluari/kpi",
+    eticheta: "KPI lunar",
+    zona: "app",
+    parinte: "evaluari",
+    fila: "KPI lunar",
+    featureKey: "evaluations",
+    permission: "evaluations:read",
+    minScope: "team",
+    descriere:
+      "Indicatorii lunari ai echipei: cât din țintă a realizat fiecare om, lună de lună. Aici se deschide și se completează luna unui subordonat direct.",
+  },
+  {
+    id: "evaluari.kpi.seturi",
+    href: "/evaluari/kpi/seturi",
+    eticheta: "Seturi de indicatori",
+    zona: "app",
+    parinte: "evaluari",
+    fila: "KPI lunar",
+    featureKey: "evaluations",
+    permission: "evaluations:read",
+    minScope: "team",
+    descriere:
+      "Ce se măsoară la fiecare funcție — indicatorii, țintele implicite și ponderea fiecăruia în scorul lunar.",
+  },
 
   // ── Integrare angajați ─────────────────────────────────────────────────────
   {
@@ -1156,6 +1182,19 @@ const INTRARI: readonly Intrare[] = [
     permission: "payroll:read",
     minScope: "own",
     descriere: "Fluturașii tăi de salariu, lună de lună, cu descărcare în PDF.",
+  },
+  {
+    id: "portal.kpi",
+    href: "/portal/kpi-ul-meu",
+    eticheta: "KPI-ul meu",
+    zona: "portal",
+    parinte: "portal-kpi",
+    fila: null,
+    featureKey: "evaluations",
+    permission: "evaluations:read",
+    minScope: "own",
+    descriere:
+      "Indicatorii tăi lunari: ce ținte ai, cât ai realizat și scorul lunii — inclusiv luna în curs, cât timp managerul încă o completează.",
   },
   {
     id: "portal.documente",

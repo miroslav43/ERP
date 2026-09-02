@@ -6080,6 +6080,376 @@ export type Database = {
           },
         ]
       }
+      kpi_evaluari_lunare: {
+        Row: {
+          an: number
+          concluzie: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          employee_id: string
+          evaluator_id: string | null
+          finalizat_la: string | null
+          id: string
+          luna: number
+          organization_id: string
+          perioada: string
+          scor_procent: number | null
+          set_id: string
+          status: Database["public"]["Enums"]["evaluation_status"]
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          an: number
+          concluzie?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          employee_id: string
+          evaluator_id?: string | null
+          finalizat_la?: string | null
+          id?: string
+          luna: number
+          organization_id: string
+          scor_procent?: number | null
+          set_id: string
+          status?: Database["public"]["Enums"]["evaluation_status"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          an?: number
+          concluzie?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          employee_id?: string
+          evaluator_id?: string | null
+          finalizat_la?: string | null
+          id?: string
+          luna?: number
+          organization_id?: string
+          scor_procent?: number | null
+          set_id?: string
+          status?: Database["public"]["Enums"]["evaluation_status"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kpi_evaluari_lunare_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_evaluari_lunare_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_evaluari_lunare_set_id_fkey"
+            columns: ["set_id"]
+            isOneToOne: false
+            referencedRelation: "kpi_seturi"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kpi_indicatori: {
+        Row: {
+          cod: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          denumire: string
+          descriere: string | null
+          id: string
+          ordine: number
+          organization_id: string
+          pondere: number
+          scala_max: number | null
+          sens: Database["public"]["Enums"]["kpi_sens"] | null
+          set_id: string
+          tinta_implicita: number | null
+          tip: Database["public"]["Enums"]["kpi_indicator_tip"]
+          unitate: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          cod: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire: string
+          descriere?: string | null
+          id?: string
+          ordine?: number
+          organization_id: string
+          pondere: number
+          scala_max?: number | null
+          sens?: Database["public"]["Enums"]["kpi_sens"] | null
+          set_id: string
+          tinta_implicita?: number | null
+          tip: Database["public"]["Enums"]["kpi_indicator_tip"]
+          unitate?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          cod?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire?: string
+          descriere?: string | null
+          id?: string
+          ordine?: number
+          organization_id?: string
+          pondere?: number
+          scala_max?: number | null
+          sens?: Database["public"]["Enums"]["kpi_sens"] | null
+          set_id?: string
+          tinta_implicita?: number | null
+          tip?: Database["public"]["Enums"]["kpi_indicator_tip"]
+          unitate?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kpi_indicatori_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_indicatori_set_id_fkey"
+            columns: ["set_id"]
+            isOneToOne: false
+            referencedRelation: "kpi_seturi"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kpi_seturi: {
+        Row: {
+          activ: boolean
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          denumire: string
+          descriere: string | null
+          functie: string
+          functie_norm: string
+          id: string
+          organization_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          activ?: boolean
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire: string
+          descriere?: string | null
+          functie: string
+          id?: string
+          organization_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          activ?: boolean
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire?: string
+          descriere?: string | null
+          functie?: string
+          id?: string
+          organization_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kpi_seturi_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kpi_tinte_angajat: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          employee_id: string
+          id: string
+          indicator_id: string
+          motiv: string | null
+          organization_id: string
+          tinta: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          employee_id: string
+          id?: string
+          indicator_id: string
+          motiv?: string | null
+          organization_id: string
+          tinta: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          employee_id?: string
+          id?: string
+          indicator_id?: string
+          motiv?: string | null
+          organization_id?: string
+          tinta?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kpi_tinte_angajat_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_tinte_angajat_indicator_id_fkey"
+            columns: ["indicator_id"]
+            isOneToOne: false
+            referencedRelation: "kpi_indicatori"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_tinte_angajat_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kpi_valori: {
+        Row: {
+          cod: string
+          comentariu: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          denumire: string
+          evaluare_id: string
+          id: string
+          indicator_id: string | null
+          nota: number | null
+          ordine: number
+          organization_id: string
+          pondere: number
+          procent: number | null
+          realizat: number | null
+          scala_max: number | null
+          sens: Database["public"]["Enums"]["kpi_sens"] | null
+          tinta: number | null
+          tip: Database["public"]["Enums"]["kpi_indicator_tip"]
+          unitate: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          cod: string
+          comentariu?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire: string
+          evaluare_id: string
+          id?: string
+          indicator_id?: string | null
+          nota?: number | null
+          ordine?: number
+          organization_id: string
+          pondere: number
+          procent?: number | null
+          realizat?: number | null
+          scala_max?: number | null
+          sens?: Database["public"]["Enums"]["kpi_sens"] | null
+          tinta?: number | null
+          tip: Database["public"]["Enums"]["kpi_indicator_tip"]
+          unitate?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          cod?: string
+          comentariu?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          denumire?: string
+          evaluare_id?: string
+          id?: string
+          indicator_id?: string | null
+          nota?: number | null
+          ordine?: number
+          organization_id?: string
+          pondere?: number
+          procent?: number | null
+          realizat?: number | null
+          scala_max?: number | null
+          sens?: Database["public"]["Enums"]["kpi_sens"] | null
+          tinta?: number | null
+          tip?: Database["public"]["Enums"]["kpi_indicator_tip"]
+          unitate?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kpi_valori_evaluare_id_fkey"
+            columns: ["evaluare_id"]
+            isOneToOne: false
+            referencedRelation: "kpi_evaluari_lunare"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_valori_indicator_id_fkey"
+            columns: ["indicator_id"]
+            isOneToOne: false
+            referencedRelation: "kpi_indicatori"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kpi_valori_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leave_accruals: {
         Row: {
           an: number
@@ -12421,6 +12791,8 @@ export type Database = {
       inventory_item_stare: "nou" | "bun" | "uzat" | "defect"
       inventory_item_status: "in_stoc" | "alocat" | "in_reparatie" | "casat"
       invitation_status: "pending" | "accepted" | "expired" | "revoked"
+      kpi_indicator_tip: "masurat" | "apreciat"
+      kpi_sens: "crestere" | "descrestere"
       leave_accrual_event:
         | "drept_initial"
         | "acumulare_lunara"
@@ -12947,6 +13319,8 @@ export const Constants = {
       inventory_item_stare: ["nou", "bun", "uzat", "defect"],
       inventory_item_status: ["in_stoc", "alocat", "in_reparatie", "casat"],
       invitation_status: ["pending", "accepted", "expired", "revoked"],
+      kpi_indicator_tip: ["masurat", "apreciat"],
+      kpi_sens: ["crestere", "descrestere"],
       leave_accrual_event: [
         "drept_initial",
         "acumulare_lunara",

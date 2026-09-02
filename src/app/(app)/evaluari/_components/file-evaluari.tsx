@@ -15,15 +15,17 @@ import type { ReactElement } from "react";
 
 import { BandaFile, Fila } from "@/components/ui/file";
 
-export type FilaEvaluari = "evaluari" | "sabloane";
+export type FilaEvaluari = "evaluari" | "kpi" | "sabloane";
 
 export function FileEvaluari({
   activa,
   nrEvaluari,
+  nrKpi,
   nrSabloane,
 }: Readonly<{
   activa: FilaEvaluari;
   nrEvaluari?: number;
+  nrKpi?: number;
   nrSabloane?: number;
 }>): ReactElement {
   return (
@@ -34,6 +36,13 @@ export function FileEvaluari({
         {...(nrEvaluari === undefined ? {} : { contor: nrEvaluari })}
       >
         Evaluări
+      </Fila>
+      <Fila
+        href="/evaluari/kpi"
+        activ={activa === "kpi"}
+        {...(nrKpi === undefined ? {} : { contor: nrKpi })}
+      >
+        KPI lunar
       </Fila>
       <Fila
         href="/evaluari/sabloane"

@@ -66,10 +66,10 @@ fără `key` caseta nu s-ar mai deschide a doua oară). Citirile fostei pagini d
 
 Cele patru scrieri noi sunt toate `minScope: "all"`, fiindcă politicile cer literal
 `has_permission(...) = 'all'`. **`vehicles:delete` NU se folosește**, deși seed-ul din
-`0002_authz.sql:1153` îl acordă lui `super_admin` și `org_admin`: nicio politică RLS nu-l
-consultă, deci un rol care l-ar avea fără `vehicles:update` ar trece de poarta acțiunii și
-ar fi respins tăcut de bază. Ștergerea e logică, prin `deleted_at` — nu există politică
-DELETE și niciun grant de DELETE pe tabelele flotei.
+`0002_authz.sql:1153` îl acordă lui `super_admin` și `org_admin`: politicile flotei se
+uită numai la `vehicles:update`, deci cheia rămâne inertă — poarta care contează e a bazei,
+nu a acțiunii. Ștergerea e logică, prin `deleted_at`: cele șase tabele ale flotei primesc
+grant doar pe `select`, `insert` și `update` (`0012_fleet.sql:1080`).
 
 ## Citiri
 
