@@ -65,7 +65,11 @@ begin
     ('admin_beta', v_admin_beta), ('emp_beta', v_emp_beta),
     ('mgr_user_alfa', v_mgr_alfa), ('hr_user_alfa', v_hr_alfa),
     ('mgr2_alfa', gen_random_uuid()), ('hr_ang_alfa', gen_random_uuid()),
-    ('sub_alfa', gen_random_uuid());
+    ('sub_alfa', gen_random_uuid()),
+    -- KPI lunar (0119), câte o pereche alfa/beta pentru verificarea (c).
+    ('kpiset_alfa', gen_random_uuid()), ('kpiset_beta', gen_random_uuid()),
+    ('kpiind_alfa', gen_random_uuid()), ('kpiind_beta', gen_random_uuid()),
+    ('kpiluna_alfa', gen_random_uuid()), ('kpiluna_beta', gen_random_uuid());
 
   insert into auth.users (id, email) values
     (v_admin_alfa, 'admin-' || v_sufix || '@alfa.test'), (v_emp_alfa, 'angajat-' || v_sufix || '@alfa.test'),
@@ -1035,6 +1039,46 @@ begin
           (select val from t_ids where cheie='etpl_alfa'), current_date),
          (v_beta, (select val from t_ids where cheie='ang_beta'),
           (select val from t_ids where cheie='etpl_beta'), current_date);
+
+  -- KPI lunar (0119). Verificarea (c) cere rânduri pentru AMÂNDOUĂ organizațiile:
+  -- fără perechea Beta, izolarea celor cinci tabele n-ar fi demonstrată, doar
+  -- presupusă. Funcția e alta decât cea folosită în (m), ca indexul parțial
+  -- `kpi_seturi_functie_uniq` (un set ACTIV per funcție) să nu se ciocnească.
+  insert into public.kpi_seturi (id, organization_id, functie, denumire)
+  values ((select val from t_ids where cheie='kpiset_alfa'), v_alfa, 'Funcție fixture', 'Set fixture Alfa'),
+         ((select val from t_ids where cheie='kpiset_beta'), v_beta, 'Funcție fixture', 'Set fixture Beta');
+
+  insert into public.kpi_indicatori (id, organization_id, set_id, cod, denumire, tip, sens,
+                                     tinta_implicita, unitate, pondere)
+  values ((select val from t_ids where cheie='kpiind_alfa'), v_alfa,
+          (select val from t_ids where cheie='kpiset_alfa'),
+          'vizite', 'Vizite clienți', 'masurat', 'crestere', 40, 'buc', 100),
+         ((select val from t_ids where cheie='kpiind_beta'), v_beta,
+          (select val from t_ids where cheie='kpiset_beta'),
+          'vizite', 'Vizite clienți', 'masurat', 'crestere', 40, 'buc', 100);
+
+  insert into public.kpi_tinte_angajat (organization_id, employee_id, indicator_id, tinta)
+  values (v_alfa, (select val from t_ids where cheie='ang_alfa'),
+          (select val from t_ids where cheie='kpiind_alfa'), 25),
+         (v_beta, (select val from t_ids where cheie='ang_beta'),
+          (select val from t_ids where cheie='kpiind_beta'), 25);
+
+  insert into public.kpi_evaluari_lunare (id, organization_id, employee_id, set_id, an, luna)
+  values ((select val from t_ids where cheie='kpiluna_alfa'), v_alfa,
+          (select val from t_ids where cheie='ang_alfa'),
+          (select val from t_ids where cheie='kpiset_alfa'), 2098, 1),
+         ((select val from t_ids where cheie='kpiluna_beta'), v_beta,
+          (select val from t_ids where cheie='ang_beta'),
+          (select val from t_ids where cheie='kpiset_beta'), 2098, 1);
+
+  insert into public.kpi_valori (organization_id, evaluare_id, indicator_id, cod, denumire,
+                                 tip, sens, unitate, pondere, tinta, realizat)
+  values (v_alfa, (select val from t_ids where cheie='kpiluna_alfa'),
+          (select val from t_ids where cheie='kpiind_alfa'),
+          'vizite', 'Vizite clienți', 'masurat', 'crestere', 'buc', 100, 25, 20),
+         (v_beta, (select val from t_ids where cheie='kpiluna_beta'),
+          (select val from t_ids where cheie='kpiind_beta'),
+          'vizite', 'Vizite clienți', 'masurat', 'crestere', 'buc', 100, 25, 20);
 
   insert into public.attendance_week_submissions (id, organization_id, employee_id, saptamana_start)
   values ((select val from t_ids where cheie='wsub_alfa'), v_alfa,
@@ -3886,6 +3930,230 @@ begin
 
   raise notice '(l) planificator: fereastra lunii păstrează angajatul fără dată de angajare și scoate plecații ✓';
 end $$;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- (m) KPI lunar: managerul DIRECT scrie, subarborele doar citește
+--
+-- Verificarea (l) dovedește că `org_admin` poate scrie. KPI-ul lunar (0119) are
+-- însă o poartă pe care niciun alt modul n-o are: scrierea cere managerul
+-- DIRECT (`app.este_manager_direct`, pe `manager_employee_id`), în timp ce
+-- citirea rămâne pe subarbore (`app.is_manager_of`, pe `manager_path`). Cele
+-- două se comportă identic pentru un lanț de un nivel — și diferit abia de la
+-- al doilea. Fixture-ul comun n-are nivelul doi, deci secțiunea și-l face.
+--
+-- Entitățile sunt CREATE AICI, nu împrumutate: mutarea unei fișe existente sub
+-- alt manager ar schimba tăcut premisele verificărilor (c)–(k).
+--
+-- Se probează și cele două lucruri pe care le poate strica o politică fără să
+-- ridice vreo eroare:
+--   · luna FINALIZATĂ e imuabilă — `using (... and status = 'draft')` o scoate
+--     din raza oricărui UPDATE, inclusiv al lui `org_admin`;
+--   · evaluarea ANUALĂ în draft NU se vede din portal — reparația din 0119 §11.
+-- ─────────────────────────────────────────────────────────────────────────────
+do $$
+declare
+  v_alfa     uuid := pg_temp.id('alfa');
+  v_admin    uuid := pg_temp.id('admin_alfa');
+  v_mgr      uuid := pg_temp.id('mgr_user_alfa');
+  v_emp      uuid := pg_temp.id('emp_alfa');
+  v_hr       uuid := pg_temp.id('hr_user_alfa');
+  v_sub      uuid := pg_temp.id('sub_alfa');       -- subordonat DIRECT al lui mgr2_alfa
+  v_ang      uuid := pg_temp.id('ang_alfa');       -- fișa contului `employee`
+  v_nepot    uuid;
+  v_set      uuid;
+  v_luna_sub uuid;
+  v_luna_ang uuid;
+  v_val      uuid;
+  v_sablon   uuid;
+  n          int;
+  reusit     boolean;
+begin
+  -- ── Nivelul doi: nepotul managerului ─────────────────────────────────────
+  insert into public.employees (organization_id, marca, first_name, last_name,
+                                manager_employee_id, hired_on, status, functie)
+  values (v_alfa, '013', 'Nelu', 'Nepot', v_sub, current_date - 100, 'activ', 'Agent vânzări')
+  returning id into v_nepot;
+
+  update public.employees set functie = 'Agent vânzări' where id in (v_sub, v_ang);
+
+  -- ── 1. Managerul poate defini un set pe funcție ──────────────────────────
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  begin
+    insert into public.kpi_seturi (organization_id, functie, denumire)
+    values (v_alfa, 'Agent vânzări', 'Indicatori agent')
+    returning id into v_set;
+  exception when others then
+    reset role;
+    perform pg_temp.esueaza(format('(m) managerul NU poate crea un set KPI: %s (%s)', sqlerrm, sqlstate));
+  end;
+  reset role;
+  if v_set is null then
+    perform pg_temp.esueaza('(m) setul KPI nu a fost creat de manager');
+  end if;
+
+  insert into public.kpi_indicatori (organization_id, set_id, cod, denumire, tip, sens,
+                                     tinta_implicita, unitate, pondere)
+  values (v_alfa, v_set, 'vizite', 'Vizite clienți', 'masurat', 'crestere', 40, 'buc', 100);
+
+  -- ── 2. Angajatul NU poate defini un set ──────────────────────────────────
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  reusit := false;
+  begin
+    insert into public.kpi_seturi (organization_id, functie, denumire)
+    values (v_alfa, 'Inventat de angajat', 'Nu are voie');
+    reusit := true;
+  exception when others then reusit := false;
+  end;
+  reset role;
+  if reusit then
+    perform pg_temp.esueaza('(m) FALS-POZITIV: un `employee` a creat un set de indicatori');
+  end if;
+
+  -- ── 3. Managerul deschide luna subordonatului DIRECT ─────────────────────
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  begin
+    insert into public.kpi_evaluari_lunare (organization_id, employee_id, set_id, an, luna)
+    values (v_alfa, v_sub, v_set, 2099, 1)
+    returning id into v_luna_sub;
+  exception when others then
+    reset role;
+    perform pg_temp.esueaza(format('(m) managerul NU poate deschide luna subordonatului DIRECT: %s (%s)', sqlerrm, sqlstate));
+  end;
+  reset role;
+  if v_luna_sub is null then
+    perform pg_temp.esueaza('(m) luna subordonatului direct nu a fost creată');
+  end if;
+
+  -- ── 4. …dar NU pe a nepotului. Aici se despart cele două predicate. ──────
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  reusit := false;
+  begin
+    insert into public.kpi_evaluari_lunare (organization_id, employee_id, set_id, an, luna)
+    values (v_alfa, v_nepot, v_set, 2099, 2);
+    reusit := true;
+  exception when others then reusit := false;
+  end;
+  reset role;
+  if reusit then
+    perform pg_temp.esueaza(
+      '(m) FALS-POZITIV: managerul a deschis luna unui angajat din SUBARBORE, nu subordonat direct — '
+      || '`can_access_kpi` folosește `is_manager_of` în loc de `este_manager_direct`');
+  end if;
+
+  -- ── 5. Citirea rămâne însă pe subarbore ──────────────────────────────────
+  insert into public.kpi_evaluari_lunare (organization_id, employee_id, set_id, an, luna)
+  values (v_alfa, v_nepot, v_set, 2099, 2);
+
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  select count(*) into n from public.kpi_evaluari_lunare where employee_id = v_nepot;
+  reset role;
+  if n = 0 then
+    perform pg_temp.esueaza('(m) managerul nu VEDE luna nepotului — citirea ar trebui să urmeze subarborele');
+  end if;
+
+  -- ── 6. Angajatul își vede luna în DRAFT (cerința produsului) ─────────────
+  insert into public.kpi_evaluari_lunare (organization_id, employee_id, set_id, an, luna, status)
+  values (v_alfa, v_ang, v_set, 2099, 3, 'draft')
+  returning id into v_luna_ang;
+
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  select count(*) into n from public.kpi_evaluari_lunare where id = v_luna_ang;
+  reset role;
+  if n <> 1 then
+    perform pg_temp.esueaza('(m) angajatul NU-și vede luna în lucru — portalul ar rămâne gol până la finalizare');
+  end if;
+
+  -- …dar numai pe a lui.
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  select count(*) into n from public.kpi_evaluari_lunare where employee_id = v_sub;
+  reset role;
+  if n <> 0 then
+    perform pg_temp.esueaza('(m) SCURGERE: angajatul vede KPI-ul altui om');
+  end if;
+
+  -- ── 7. Angajatul nu-și poate SCRIE valorile ──────────────────────────────
+  insert into public.kpi_valori (organization_id, evaluare_id, cod, denumire, tip, sens, unitate, pondere, tinta)
+  values (v_alfa, v_luna_ang, 'vizite', 'Vizite clienți', 'masurat', 'crestere', 'buc', 100, 40)
+  returning id into v_val;
+
+  perform set_config('request.jwt.claim.sub', v_emp::text, true);
+  set local role authenticated;
+  with modificate as (update public.kpi_valori set realizat = 999 where id = v_val returning 1)
+  select count(*) into n from modificate;
+  reset role;
+  if n <> 0 then
+    perform pg_temp.esueaza('(m) FALS-POZITIV: angajatul și-a scris singur realizarea');
+  end if;
+
+  -- ── 8. Luna FINALIZATĂ nu se redeschide — nici de administrator ──────────
+  update public.kpi_evaluari_lunare
+     set status = 'finalizat', finalizat_la = now()
+   where id = v_luna_sub;
+
+  perform set_config('request.jwt.claim.sub', v_mgr::text, true);
+  set local role authenticated;
+  with modificate as (update public.kpi_evaluari_lunare set concluzie = 'rescrisă' where id = v_luna_sub returning 1)
+  select count(*) into n from modificate;
+  reset role;
+  if n <> 0 then
+    perform pg_temp.esueaza('(m) managerul a modificat o lună FINALIZATĂ');
+  end if;
+
+  perform set_config('request.jwt.claim.sub', v_admin::text, true);
+  set local role authenticated;
+  with modificate as (update public.kpi_evaluari_lunare set concluzie = 'rescrisă' where id = v_luna_sub returning 1)
+  select count(*) into n from modificate;
+  reset role;
+  if n <> 0 then
+    perform pg_temp.esueaza('(m) `org_admin` a modificat o lună FINALIZATĂ — imuabilitatea nu ține');
+  end if;
+
+  -- ── 9. HR-ul, cu scope `all`, deschide luna oricui ───────────────────────
+  perform set_config('request.jwt.claim.sub', v_hr::text, true);
+  set local role authenticated;
+  reusit := false;
+  begin
+    insert into public.kpi_evaluari_lunare (organization_id, employee_id, set_id, an, luna)
+    values (v_alfa, v_nepot, v_set, 2099, 4);
+    reusit := true;
+  exception when others then reusit := false;
+  end;
+  reset role;
+  if not reusit then
+    perform pg_temp.esueaza('(m) `hr` NU poate deschide o lună, deși are evaluations:create = all');
+  end if;
+
+  -- ── 10. Evaluarea ANUALĂ în draft rămâne ascunsă angajatului (0119 §11) ──
+  select id into v_sablon from public.evaluation_templates where deleted_at is null limit 1;
+  if v_sablon is not null then
+    insert into public.employee_evaluations (organization_id, employee_id, template_id,
+                                             data_evaluarii, status, concluzie)
+    values (v_alfa, v_ang, v_sablon, current_date, 'draft', 'concluzie pe jumătate scrisă');
+
+    perform set_config('request.jwt.claim.sub', v_emp::text, true);
+    set local role authenticated;
+    select count(*) into n from public.employee_evaluations
+     where employee_id = v_ang and status = 'draft';
+    reset role;
+    if n <> 0 then
+      perform pg_temp.esueaza(
+        '(m) angajatul își vede evaluarea ANUALĂ în draft — concluzia managerului, pe jumătate scrisă');
+    end if;
+  end if;
+
+  raise notice '(m) KPI lunar: managerul direct scrie, subarborele citește, luna închisă e imuabilă ✓';
+exception when others then
+  reset role;
+  perform pg_temp.esueaza(format('(m) verificarea KPI a eșuat: %s (%s)', sqlerrm, sqlstate));
+end $$;
+
 
 rollback;
 
