@@ -1,0 +1,85 @@
+# Umami — măsurare fără cookie-uri, pe infrastructura proprie.
+#
+# Stack separat de `administrativo-web`, deliberat: e alt produs, cu ciclul lui
+# de viață. O actualizare de Umami nu trebuie să atingă aplicația, iar o
+# repornire a aplicației nu trebuie să oprească măsurarea.
+#
+#   docker stack deploy -c deploy/umami/docker-stack.yml umami
+#
+# ── DE CE UMAMI, CÂND EXISTĂ DEJA GA4 ────────────────────────────────────────
+# GA4 e sub consimțământ, cum și trebuie: cookie-urile de analiză nu intră în
+# excepția de „strict necesare". Consecința practică e că majoritatea
+# vizitatorilor nu apasă „Accept", deci GA4 raportează o felie, nu întregul.
+#
+# Umami nu scrie cookie-uri și nu urmărește oameni între site-uri, deci nu cere
+# consimțământ — și numără pe toată lumea. Cele două nu se dublează: unul dă
+# cifra reală, celălalt dă legătura cu Search Console și cu restul ecosistemului
+# Google.
+#
+# Și, dincolo de asta: un ERP care își vinde disciplina datelor nu poate avea
+# măsurarea la altcineva. Aici datele nu pleacă de pe VM.
+
+services:
+  umami-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: umami
+      POSTGRES_USER: umami
+      # Se citește din mediul de pe VM. NU se scrie aici.
+      POSTGRES_PASSWORD: ${UMAMI_DB_PASSWORD:?lipsește UMAMI_DB_PASSWORD}
+    volumes:
+      - umami-db:/var/lib/postgresql/data
+    networks:
+      - strawboss-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U umami -d umami"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    deploy:
+      replicas: 1
+      # `restart_policy` pe `any`: baza trebuie să revină și după un OOM.
+      restart_policy:
+        condition: any
+        delay: 10s
+
+  umami:
+    image: ghcr.io/umami-software/umami:postgresql-latest
+    environment:
+      DATABASE_URL: postgresql://umami:${UMAMI_DB_PASSWORD:?lipsește UMAMI_DB_PASSWORD}@umami-db:5432/umami
+      DATABASE_TYPE: postgresql
+      # Semnează sesiunile panoului. Se generează O DATĂ, cu `openssl rand -hex 32`,
+      # și NU se mai schimbă: o valoare nouă deconectează pe toată lumea.
+      APP_SECRET: ${UMAMI_APP_SECRET:?lipsește UMAMI_APP_SECRET}
+      # Fără telemetrie către autorii Umami. Ar fi contradictoriu.
+      DISABLE_TELEMETRY: "1"
+      # Panoul stă în spatele nginx-ului partajat, care termină TLS-ul.
+      TRACKER_SCRIPT_NAME: "script.js"
+    networks:
+      - strawboss-net
+    depends_on:
+      - umami-db
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/heartbeat || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    deploy:
+      replicas: 1
+      update_config:
+        order: start-first
+        failure_action: rollback
+      restart_policy:
+        condition: any
+        delay: 10s
+
+volumes:
+  umami-db:
+
+networks:
+  # Aceeași rețea ca aplicația și ca nginx-ul partajat. `external: true` =>
+  # Swarm doar se atașează. NU o gestionează și NU o șterge: o folosesc și
+  # `administrativo-web`, și `strawboss-app`.
+  strawboss-net:
+    external: true

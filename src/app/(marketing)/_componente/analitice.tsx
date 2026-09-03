@@ -66,7 +66,28 @@ gtag('js', new Date());
 gtag('config', '${ID_GA}');
 `;
 
+/**
+ * Umami, pe infrastructura proprie. Fără cookie-uri, deci fără consimțământ.
+ *
+ * ── DE CE DOUĂ INSTRUMENTE ────────────────────────────────────────────────
+ * GA4 e sub consimțământ, cum și trebuie — iar majoritatea vizitatorilor nu
+ * apasă „Accept". Consecința: GA4 raportează o felie, nu întregul. Umami nu
+ * scrie cookie-uri și nu urmărește oameni între site-uri, deci numără pe toată
+ * lumea. Unul dă cifra reală, celălalt dă legătura cu Search Console.
+ *
+ * ── DE CE E OPȚIONAL ÎN COD ───────────────────────────────────────────────
+ * Identificatorul sitului se naște în panoul Umami, după prima autentificare —
+ * nu se poate scrie în avans. Până când ambele variabile există, componenta nu
+ * randează nimic și nimic nu se strică. Ca și `NEXT_PUBLIC_APP_URL`, se coacă la
+ * BUILD: completarea lor cere o imagine nouă, nu doar un restart.
+ */
+const UMAMI_SRC = process.env.NEXT_PUBLIC_UMAMI_SRC?.trim();
+const UMAMI_ID = process.env.NEXT_PUBLIC_UMAMI_ID?.trim();
+
 export function Analitice() {
+  const cuUmami =
+    UMAMI_SRC !== undefined && UMAMI_SRC !== "" && UMAMI_ID !== undefined && UMAMI_ID !== "";
+
   return (
     <>
       {/* Rulează la parsare, înaintea bibliotecii. Ordinea e tot mecanismul. */}
@@ -78,6 +99,9 @@ export function Analitice() {
       <Script id="ga-pornire" strategy="afterInteractive">
         {PORNIRE_GA}
       </Script>
+      {cuUmami && (
+        <Script src={UMAMI_SRC} data-website-id={UMAMI_ID} strategy="afterInteractive" defer />
+      )}
       <BaraConsimtamant />
     </>
   );
