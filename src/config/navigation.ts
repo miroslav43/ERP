@@ -10,6 +10,7 @@
  */
 import {
   BarChart3,
+  BookMarked,
   CalendarDays,
   Car,
   ClipboardCheck,
@@ -519,6 +520,29 @@ export const NAV_ITEMS: readonly NavItem[] = [
       // deploy. Ecranul doar o face vizibilă; absența lui nu blochează nimic.
       // Modulele organizației se comută azi din Super-Admin, pe fișa firmei.
     ],
+  },
+  /**
+   * Registrul de intrare-ieșire (0120).
+   *
+   * Lângă jurnalul de audit, nu în „Personal", deși cele mai multe documente
+   * înregistrate azi vin de acolo: amândouă sunt suprafețe de evidență
+   * append-only, arătate la un control, nu unelte de lucru zilnic. Registrul
+   * acoperă însă toate modulele — pontaj, inventar, diurnă, SSM, salarizare —
+   * deci n-are unde altundeva să stea decât în „Administrare".
+   *
+   * `featureKey: null` — e nucleu. Un registru care se poate stinge dintr-un
+   * comutator ar fi exact obligația de la Legea 16/1996 art. 7 făcută opțională.
+   */
+  {
+    id: "registru",
+    label: "Registrul documentelor",
+    href: "/registru",
+    icon: BookMarked,
+    group: "administrare",
+    featureKey: null,
+    permission: "registru:read",
+    minScope: "all",
+    order: 145,
   },
   {
     id: "audit",

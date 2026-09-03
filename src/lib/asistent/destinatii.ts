@@ -76,6 +76,8 @@ export type Destinatie = Intrare &
 export const EXCLUSE: Readonly<Record<string, string>> = {
   "/portal/instalare":
     "Se ajunge la ea din banda de instalare a portalului, nu prin navigare; a trimite pe cineva acolo din senin n-are înțeles.",
+  "/registru/listare":
+    "Vederea de tipar a registrului, deschisă în filă nouă din butonul „Listează registrul”. Fără filtrele alese în arhivă nu înseamnă nimic, iar trimis direct ar da o listare pe anul curent, fără context — destinația utilă e /registru.",
 };
 
 const INTRARI: readonly Intrare[] = [
@@ -1072,6 +1074,19 @@ const INTRARI: readonly Intrare[] = [
     permission: "users:update",
     minScope: "all",
     descriere: "Conturile care au acces în aplicație, rolurile lor și invitațiile trimise.",
+  },
+  {
+    id: "registru",
+    href: "/registru",
+    eticheta: "Registrul documentelor",
+    zona: "app",
+    parinte: "registru",
+    fila: null,
+    featureKey: null,
+    permission: "registru:read",
+    minScope: "all",
+    descriere:
+      "Numerele de înregistrare ale tuturor documentelor firmei, pe an — ce a intrat, ce a ieșit și ce s-a întocmit pentru uz intern. Aici se caută „al câtelea document” și de aici se listează registrul cerut la un control.",
   },
   {
     id: "setari.audit",

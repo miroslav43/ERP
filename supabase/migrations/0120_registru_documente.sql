@@ -243,7 +243,16 @@ values
   (null, 'org_admin',   'registru', 'update', 'all'),
   (null, 'hr',          'registru', 'read',   'all'),
   (null, 'hr',          'registru', 'export', 'all')
-on conflict (organization_id, role, resource, action) where deleted_at is null do nothing;
+-- ⚠️ CINCI coloane, nu patru — `member_id` E ÎN INDEX. Forma din 0002
+-- (`(organization_id, role, resource, action)`) era corectă când a fost scrisă,
+-- dar indexul a fost recreat de atunci ca
+--   role_permissions_uq (organization_id, member_id, role, resource, action)
+--   NULLS NOT DISTINCT where deleted_at is null
+-- Copiată din 0002, clauza dă „there is no unique or exclusion constraint
+-- matching the ON CONFLICT specification” și oprește toată migrarea. Prins de
+-- bancul local; nicio recitire a lui 0002 n-ar fi arătat-o.
+on conflict (organization_id, member_id, role, resource, action)
+  where deleted_at is null do nothing;
 
 -- `manager` și `employee` nu primesc niciun rând: absența permisiunii = refuz.
 
