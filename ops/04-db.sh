@@ -120,6 +120,103 @@ cmd_db__status() {
   fi
 }
 
+# Tipurile și tabelele pe care le CREEAZĂ un fișier de migrare, câte unul pe
+# linie, în forma „tip|schema|nume" sau „tabela|schema|nume".
+#
+# Doar `create type` și `create table`: sunt singurele care nu se pot executa de
+# două ori fără eroare, deci prezența lor în bază e dovada că fișierul a rulat.
+# `create or replace function` e idempotent, iar politicile se pot rescrie —
+# niciunul nu spune nimic despre „a rulat sau nu".
+_obiecte_declarate() {
+  # Normalizarea spațiilor se face cu `sed`, care lucrează LINIE CU LINIE.
+  # `tr -s '[:space:]' ' '` ar strânge și liniile noi, contopind toate
+  # potrivirile lui grep într-un singur rând — parserul ar raporta atunci un
+  # singur obiect, cu tipul primei potriviri și numele ultimeia.
+  grep -ioE '^[[:space:]]*create[[:space:]]+(type|table([[:space:]]+if[[:space:]]+not[[:space:]]+exists)?)[[:space:]]+[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*' "$1" \
+  | sed -E 's/[[:space:]]+/ /g; s/^ //' \
+  | awk '{ split($NF, p, "."); print (tolower($2) == "type" ? "tip|" : "tabela|") p[1] "|" p[2] }'
+}
+
+# @cmd db:mark "Marchează O migrare ca aplicată, după ce verifică în bază că e"
+cmd_db__mark() {
+  header "Marchez o migrare ca aplicată"
+  require_cmd psql
+
+  local nume="${1:-}"
+  if [ -z "$nume" ]; then
+    error "Lipsește numele migrării."
+    echo -e "     ${DIM}Exemplu: ./administrativo.sh db:mark 0119_kpi_lunar.sql${NC}"
+    return 1
+  fi
+  nume="$(basename "$nume")"
+  local f="$ADMINISTRATIVO_ROOT/supabase/migrations/$nume"
+  [ -f "$f" ] || { error "Nu există fișierul: supabase/migrations/$nume"; return 1; }
+
+  _load_env_db
+  local u; u=$(_db_url_sau_mori)
+  _db_registru "$u"
+
+  local deja; deja=$(psql "$u" -tAc "select suma from internal.migrari_aplicate where nume = '$nume';")
+  if [ -n "$deja" ]; then
+    _infol "$nume" "deja în registru (suma ${deja})"
+    return 0
+  fi
+
+  # ── Garda ──────────────────────────────────────────────────────────────────
+  # Fără ea, comanda asta ar fi doar o versiune mai comodă a greșelii pe care o
+  # previne: a marca drept aplicată o migrare care n-a rulat o scoate DEFINITIV
+  # din calea lui `db:migrate`. Nimeni n-o mai rulează vreodată, iar lipsa se
+  # descoperă abia când o citire dă 42P01 pe o tabelă care „ar trebui" să existe.
+  #
+  # S-a întâmplat cât pe ce pe 3 septembrie 2026: 0119 era aplicată dar
+  # neînregistrată (aplicată prin `aplica-cloud.sh`, care NU scrie în registru),
+  # iar `db:baseline` — singura unealtă de marcare de atunci — ar fi marcat în
+  # aceeași trecere și 0120, apărută în arbore între timp și neaplicată deloc.
+  local valori="" linie kind ns nm n_obiecte=0
+  while IFS='|' read -r kind ns nm; do
+    [ -z "${nm:-}" ] && continue
+    valori+="('$kind','$ns','$nm'),"
+    n_obiecte=$(( n_obiecte + 1 ))
+  done < <(_obiecte_declarate "$f")
+
+  if [ "$n_obiecte" -eq 0 ]; then
+    error "$nume nu creează niciun tip sau tabelă — nu pot verifica dacă a rulat."
+    echo -e "     ${DIM}Migrările de politici sau de date se verifică manual, apoi:${NC}"
+    echo -e "     ${DIM}psql \"\$DATABASE_URL\" -c \"insert into internal.migrari_aplicate${NC}"
+    echo -e "     ${DIM}  (nume, suma) values ('$nume', '$(_suma "$f")');\"${NC}"
+    return 1
+  fi
+
+  local lipsa
+  lipsa=$(psql "$u" -tA -c "
+    with asteptat(kind, ns, nm) as (values ${valori%,})
+    select a.kind || ' ' || a.ns || '.' || a.nm
+    from asteptat a
+    where not (case a.kind
+      when 'tip' then exists (
+        select 1 from pg_type t join pg_namespace n on n.oid = t.typnamespace
+        where n.nspname = a.ns and t.typname = a.nm)
+      else exists (
+        select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace
+        where n.nspname = a.ns and c.relname = a.nm and c.relkind = 'r')
+    end);")
+
+  if [ -n "$lipsa" ]; then
+    error "$nume NU e aplicată — lipsesc din bază:"
+    echo "$lipsa" | sed 's/^/      /'
+    echo -e "     ${DIM}Aplic-o normal: ./administrativo.sh db:migrate${NC}"
+    return 1
+  fi
+  _ok "verificare" "toate cele $n_obiecte obiecte există în bază"
+
+  # `durata_ms` rămâne NULL, deliberat: e semnalul onest că rândul a fost
+  # MARCAT, nu cronometrat de o rulare reală.
+  psql "$u" -v ON_ERROR_STOP=1 -q -c \
+    "insert into internal.migrari_aplicate (nume, suma) values ('$nume', '$(_suma "$f")')
+     on conflict (nume) do nothing;" >/dev/null
+  success "$nume trecută în registru (suma $(_suma "$f"), durata NULL = marcată)."
+}
+
 # @cmd db:baseline "Marchează migrările curente ca aplicate, fără să le ruleze"
 cmd_db__baseline() {
   header "Însămânțez registrul"
@@ -127,6 +224,36 @@ cmd_db__baseline() {
   _load_env_db
   local u; u=$(_db_url_sau_mori)
   _db_registru "$u"
+
+  # Baseline e o unealtă de ÎNSĂMÂNȚARE: se rulează o dată, pe o bază despre
+  # care știi că e la zi, când registrul e gol. Pe un registru deja populat
+  # întrebarea nu mai e „e baza la zi?", ci „ce anume lipsește din registru?" —
+  # iar răspunsul poate cuprinde și migrări care chiar n-au rulat. Marcându-le,
+  # baseline le scoate DEFINITIV din calea lui `db:migrate`: nu le mai aplică
+  # nimeni niciodată, iar lipsa iese la iveală abia ca 42P01 într-o citire.
+  #
+  # 3 septembrie 2026: registrul avea 119 rânduri și lipseau două — 0119
+  # (aplicată prin `aplica-cloud.sh`, care nu înregistrează) și 0120 (apărută în
+  # arborele partajat cu un minut înainte, neaplicată deloc). Un baseline le-ar
+  # fi marcat pe amândouă la fel.
+  local populat; populat=$(psql "$u" -tAc "select count(*) from internal.migrari_aplicate;")
+  if [ "${populat:-0}" -gt 0 ]; then
+    error "Registrul are deja ${populat} rânduri — baseline e pentru însămânțare, nu pentru completare."
+    local f nume lipsa=()
+    for f in "$ADMINISTRATIVO_ROOT"/supabase/migrations/*.sql; do
+      nume=$(basename "$f")
+      [ -z "$(psql "$u" -tAc "select 1 from internal.migrari_aplicate where nume = '$nume';")" ] \
+        && lipsa+=("$nume")
+    done
+    if [ "${#lipsa[@]}" -gt 0 ]; then
+      echo -e "     ${DIM}Neînregistrate acum (unele pot fi chiar NEAPLICATE):${NC}"
+      printf '      %s\n' "${lipsa[@]}"
+    fi
+    echo -e "     ${DIM}Pentru una deja aplicată: ./administrativo.sh db:mark <migrare>${NC}"
+    echo -e "     ${DIM}   (verifică în bază înainte de a marca)${NC}"
+    echo -e "     ${DIM}Pentru una neaplicată:    ./administrativo.sh db:migrate${NC}"
+    return 1
+  fi
 
   warn "Marchez TOATE migrările de pe disc drept aplicate, FĂRĂ să le rulez."
   warn "Se folosește o singură dată, pe o bază despre care știi că e la zi."
