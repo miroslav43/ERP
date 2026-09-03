@@ -52,8 +52,12 @@ const TON_SENS = {
 
 export default async function PaginaRegistru({ searchParams }: ProprietatiPagina) {
   const { tenant } = await requireTenant();
-  await requireFeature(tenant.organizationId, "nucleu");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  // Două citiri independente, pe tabele diferite. Înlănțuite erau două
+  // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
+  const [, permisiuni] = await Promise.all([
+    requireFeature(tenant.organizationId, "nucleu"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+  ]);
 
   // `registru:read` e cheie PROPRIE, nu `compliance:read` refolosit: rolul `hr`
   // nu are `compliance:read` în seed, deci exact omul care emite documentele ar
