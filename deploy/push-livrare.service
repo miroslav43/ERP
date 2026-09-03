@@ -15,9 +15,18 @@
 #   printf 'PUSH_CRON_SECRET=%s\n' "$(openssl rand -base64 32)" \
 #     | sudo tee /etc/administrativo/push.env >/dev/null
 #   sudo chmod 600 /etc/administrativo/push.env
-# ACEEAȘI valoare trebuie pusă și în .env.production, apoi stack:deploy —
-# `curl` nu primește secretul pe linia de comandă: ar fi vizibil în `ps` pentru
-# orice utilizator al mașinii, de aceea vine din `EnvironmentFile` de mai jos.
+# ACEEAȘI valoare trebuie pusă și în .env.production, apoi stack:deploy.
+#
+# `EnvironmentFile` ține secretul în afara acestui fișier (versionat în git) și
+# în afara istoricului shell-ului de la instalare — dar NU e, singur, o apărare
+# împotriva lui `ps`. Dacă valoarea ar ajunge pe linia de comandă a lui `curl`
+# (ca la `-H "Authorization: Bearer $PUSH_CRON_SECRET"`), ar deveni literal în
+# argv-ul procesului, vizibil oricărui utilizator local cât timp `curl` rulează
+# — `/proc/<pid>/cmdline` e lizibil de orice utilizator pe acest VM. De-asta
+# antetul de mai jos NU merge prin `-H`, ci printr-un fișier de configurare
+# `curl` primit pe stdin (`-K -`, cu `--oauth2-bearer`, care produce exact
+# `Authorization: Bearer <token>`): secretul trece prin pipe, niciodată prin
+# argv. Sunt DOUĂ apărări diferite, pentru DOUĂ expuneri diferite.
 #
 # DE CE UN TIMER, ȘI NU pg_cron
 # Proiectul are pg_cron cu mai multe joburi, dar acelea rulează PL/pgSQL în
@@ -41,14 +50,23 @@ Wants=network-online.target
 Type=oneshot
 EnvironmentFile=/etc/administrativo/push.env
 # Doar 200 e succes. Orice alt cod — inclusiv un 404, care aici înseamnă secret
-# nepotrivit sau gol, nu rută lipsă — se scrie în jurnal și iese cu eroare, ca
-# `journalctl -u push-livrare` să arate imediat o instalare stricată.
+# nepotrivit sau gol, nu rută lipsă — iese cu eroare. Corpul răspunsului se
+# scrie în jurnal DOAR la eșec (ca la REGES): la o rulare pe minut, un
+# `{"luate":0,...}` logat de sute de ori pe zi ar umfla jurnalul degeaba.
+#
+# `%%s` de mai jos, nu `%s`: pe linia `ExecStart=`, systemd însuși expandează
+# `%`-specificatori înainte ca shell-ul să vadă comanda, iar `%s` e specificatorul
+# lui pentru „shell-ul utilizatorului" (vezi systemd.unit(5), tabelul de
+# specificatori). Neescapat, `%s` ar dispărea din formatul lui `printf` cu mult
+# înainte ca `$PUSH_CRON_SECRET` să fie substituit. `%{http_code}` de la `curl -w`
+# nu are nevoie de escapare: `%{` nu se potrivește cu niciun specificator systemd
+# (un singur caracter după `%`), deci rămâne literal.
 ExecStart=/bin/sh -c '\
-  cod=$(curl -sS -m 60 -o /tmp/push-raspuns.json -w "%{http_code}" \
-        -X POST -H "Authorization: Bearer $PUSH_CRON_SECRET" \
-        http://127.0.0.1:3000/api/push/livreaza); \
-  echo "push: HTTP $cod $(cat /tmp/push-raspuns.json)"; \
-  case "$cod" in 200) exit 0 ;; *) exit 1 ;; esac'
+  cod=$(printf "oauth2-bearer = %%s\n" "$PUSH_CRON_SECRET" \
+        | curl -sS -m 60 -o /tmp/push-raspuns.json -w "%{http_code}" -K - \
+               -X POST http://127.0.0.1:3000/api/push/livreaza); \
+  echo "push: HTTP $cod"; \
+  case "$cod" in 200) exit 0 ;; *) cat /tmp/push-raspuns.json; exit 1 ;; esac'
 TimeoutStartSec=90
 
 [Install]
