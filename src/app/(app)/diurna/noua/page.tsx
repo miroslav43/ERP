@@ -25,8 +25,12 @@ interface AngajatMinim {
 
 export default async function PaginaDeplasareNoua() {
   const { tenant } = await requireTenant();
-  await requireFeature(tenant.organizationId, "per_diem");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  // Două citiri independente, pe tabele diferite. Înlănțuite erau două
+  // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
+  const [, permisiuni] = await Promise.all([
+    requireFeature(tenant.organizationId, "per_diem"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+  ]);
 
   if (!can(permisiuni, "per_diem:create", "own")) {
     return (
