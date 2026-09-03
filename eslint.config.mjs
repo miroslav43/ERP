@@ -103,6 +103,10 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     "docs/design/**",
     ".remember/**",
+    // Aplicația mobilă are propriul lanț de unelte, propriul tsconfig și
+    // propriul lockfile. Regulile de aici — granița server/client, restricția pe
+    // clientul admin — n-au niciun înțeles în React Native.
+    "mobil/**",
   ]),
 ]);
 

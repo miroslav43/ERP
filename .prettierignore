@@ -7,3 +7,6 @@ src/types/database.ts
 # Director de lucru al plugin-ului remember — ignorat de git prin
 # .remember/.gitignore, deci n-are ce căuta în verificarea de formatare.
 .remember
+
+# Aplicația mobilă are propriul lanț de unelte și propriul lockfile.
+mobil/

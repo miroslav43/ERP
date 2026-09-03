@@ -19,6 +19,8 @@ docs/
 supabase/
 tests/
 scripts/checks/
+# Aplicația mobilă nu intră în imaginea serverului: se construiește la EAS.
+mobil/
 
 *.log
 *.tsbuildinfo
