@@ -64,36 +64,35 @@ const RUTE_PUBLICE: readonly string[] = [
  */
 export const PARAM_REDIRECT = "redirect";
 
-/**
- * Fișierele de metadate generate de Next primesc un sufix de conținut în URL:
- * `opengraph-image` ajunge `/opengraph-image-pwu6ef?…`. Nu se potrivesc nici pe
- * egalitate, nici pe prefixul cu bară, deci au nevoie de o ramură proprie.
- *
- * Fără ea, robotul de previzualizare al oricărei aplicații de mesagerie —
- * WhatsApp, Facebook, LinkedIn, Slack — primește un redirect către
- * autentificare în loc de imagine, iar linkul apare gol oriunde e distribuit.
- * Robotul nu are sesiune și nu va avea niciodată.
- */
-const PREFIXE_METADATE: readonly string[] = [
-  "/opengraph-image",
-  "/twitter-image",
-  "/icon",
-  "/apple-icon",
-];
-
 function estePublica(pathname: string): boolean {
   if (pathname === "/") return true;
-  if (PREFIXE_METADATE.some((prefix) => pathname.startsWith(prefix))) return true;
   return RUTE_PUBLICE.some((ruta) => pathname === ruta || pathname.startsWith(`${ruta}/`));
 }
 
 export async function proxy(request: NextRequest): Promise<NextResponse> {
-  const { response, autentificat } = await updateSession(request);
   const { pathname, search } = request.nextUrl;
 
   // Rutele de API răspund în JSON și își verifică singure sesiunea. Un redirect
   // 307 către o pagină HTML le-ar strica pe toate, inclusiv webhook-urile.
-  if (pathname.startsWith("/api/")) return response;
+  //
+  // Ies ÎNAINTEA lui `updateSession()`, nu după: verificarea se făcea oricum,
+  // iar rezultatul se arunca imediat. Un drum plătit degeaba pe fiecare apel de
+  // API.
+  if (pathname.startsWith("/api/")) return NextResponse.next({ request });
+
+  // Prefetch-ul de <Link> nu are nevoie de sesiune reîmprospătată. Dacă ruta e
+  // închisă, pagina o refuză singură prin `requireTenant()`, iar navigarea REALĂ
+  // care urmează trece pe aici normal și reînnoiește cookie-urile.
+  //
+  // Contează cât cântărește: meniul are ~52 de intrări, iar `staleTimes.dynamic`
+  // era la implicitul 0, deci fiecare navigare re-prefetcha tot. Jurnalul nginx
+  // arată 74,7% din trafic ca `?_rsc=` — 11 745 de cereri pentru 336 de
+  // documente — cu vârfuri de 38 într-o secundă, pe replici cu un singur fir JS.
+  if (request.headers.get("Next-Router-Prefetch") === "1") {
+    return NextResponse.next({ request });
+  }
+
+  const { response, autentificat } = await updateSession(request);
 
   /** Copiază cookie-urile reîmprospătate pe răspunsul de redirect. */
   const cuCookies = (destinatie: URL): NextResponse => {
@@ -152,7 +151,21 @@ export const config = {
      * HTML de login ca JSON și logea la fiecare încărcare de pagină
      * „Manifest: Line: 1, column: 1, Syntax error.”, iar aplicația nu putea fi
      * instalată pe ecranul de start.
+     *
+     * `icon`, `apple-icon`, `opengraph-image` și `twitter-image` sunt rute de
+     * metadate generate de Next, servite FĂRĂ extensie și cu un sufix de
+     * conținut în URL (`/icon1-pwu6ef`), deci regexul de extensii de mai jos nu
+     * le prinde. Sunt trimise cu `max-age=0, must-revalidate` și
+     * `cf-cache-status: DYNAMIC`, deci browserul le re-cere la fiecare
+     * încărcare de pagină. Măsurat A/B pe origine, 8 perechi intercalate: fără
+     * cookie mediana ~21 ms, cu cookie de sesiune ~90 ms — +69 ms fiecare, de
+     * 2–3 ori pe pagină, pentru o icoană.
+     *
+     * Fără excluderea asta, robotul de previzualizare al oricărei aplicații de
+     * mesagerie — WhatsApp, Facebook, LinkedIn, Slack — ar primi un redirect
+     * către autentificare în loc de imagine, iar linkul ar apărea gol oriunde
+     * e distribuit. Robotul nu are sesiune și nu va avea niciodată.
      */
-    "/((?!_next/static|_next/image|healthz|readyz|favicon\.ico|robots\.txt|sitemap\.xml|manifest\.webmanifest|.*\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|css|js|woff|woff2|ttf|otf|map)$).*)",
+    "/((?!_next/static|_next/image|healthz|readyz|favicon\.ico|robots\.txt|sitemap\.xml|manifest\.webmanifest|icon|apple-icon|opengraph-image|twitter-image|.*\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|css|js|woff|woff2|ttf|otf|map)$).*)",
   ],
 };
