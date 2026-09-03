@@ -91,11 +91,12 @@ export default async function PaginaDepartamente({ searchParams }: ProprietatiPa
     structuraDepartamentelor(tenant.organizationId),
     angajatiPentruStructura(tenant.organizationId, scopeAngajati ?? "none", propriaFisaId),
     rolurilePeUtilizator(tenant.organizationId),
-    // `toateAvatarurile`, nu `avataturiPeUtilizatori`: fără filtrul pe listă de
-    // conturi, citirea nu mai depinde de `angajati`/`structura` și poate pleca
-    // în același val cu ele. Politica `profiles_select` restrânge deja prin
-    // `app.shares_org(id)` — filtrul nu adăuga izolare.
-    toateAvatarurile(),
+    // `toateAvatarurile`, nu `avataturiPeUtilizatori`: fără filtrul pe listă
+    // de CONTURI (id-urile din `angajati`), citirea nu mai depinde de
+    // `angajati`/`structura` și poate pleca în același val cu ele. Rămâne
+    // însă filtrată pe ORGANIZAȚIE — `app.shares_org` din `profiles_select`
+    // se uită la toate organizațiile autorului cererii, nu doar la asta.
+    toateAvatarurile(tenant.organizationId),
   ]);
 
   const denumirePeDepartament = new Map(structura.map((d) => [d.id, d.denumire]));
