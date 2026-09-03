@@ -23,6 +23,12 @@
 --      redactat — `internal.audit_campuri_excluse`)
 -- (14) POZITIVĂ — `service_role` poate citi și scrie în ambele tabele (ruta
 --      /api/push/livreaza chiar are ce privilegii presupune că are)
+-- (15) NEGATIVĂ — `app.push_ia_din_coada` NU preia livrarea unui dispozitiv
+--      retras (Runda 1, defectul C1: join fără `d.deleted_at is null`)
+-- (16) POZITIVĂ — un rând `in_asteptare` normal e preluat și lăsat pe `in_lucru`
+-- (17) POZITIVĂ — un `in_lucru` vechi de peste 10 minute e recuperat
+-- (18) NEGATIVĂ — un `in_lucru` proaspăt NU e recuperat
+-- (19) NEGATIVĂ — o notificare ștearsă nu e preluată
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   psql "$BANC_URL" -f tests/rls/proba-push.sql
@@ -52,6 +58,11 @@ declare
   v_in_coada  int;
   v_randuri   int;
   v_esecuri   int := 0;
+  -- Steag pentru (3): evită numărarea DUBLĂ a aceluiași eșec — o dată în
+  -- handler-ul de excepție al INSERT-ului, a doua oară la verificarea
+  -- ulterioară a cozii (unde `v_notif` rămâne oricum null, ca simptom al
+  -- ACELUIAȘI eșec, nu ca un al doilea defect distinct).
+  v_ins_3_ok  boolean := true;
 begin
   raise notice '';
   raise notice '  PROBA PUSH (0122)';
@@ -130,8 +141,10 @@ begin
     values (v_org, v_u_ang, 'approval', 'Concediu aprobat.', '/portal/concediile-mele');
   exception when others then
     -- Incrementat explicit: fără el, verificarea depinde de coincidența că
-    -- `v_notif` rămâne null mai jos (secțiunea 149-150) și declanșează
-    -- eșecul ACOLO, nu aici — o invariantă falsă, nu una garantată.
+    -- `v_notif` rămâne null mai jos și declanșează eșecul ACOLO, nu aici — o
+    -- invariantă falsă, nu una garantată. `v_ins_3_ok` oprește verificarea de
+    -- mai jos să numere A DOUA OARĂ același eșec.
+    v_ins_3_ok := false;
     v_esecuri := v_esecuri + 1;
     raise notice '  (3) EȘEC    hr nu a putut insera notificarea pentru employee: %', sqlerrm;
   end;
@@ -149,8 +162,11 @@ begin
       v_esecuri := v_esecuri + 1;
       raise notice '  (3) EȘEC    hr → coadă: % rânduri (așteptat 1) — declanșatorul nu e security definer?', v_in_coada;
     end if;
-  else
+  elsif v_ins_3_ok then
+    -- INSERT-ul a reușit (v_ins_3_ok încă `true`), dar `v_notif` nu s-a găsit
+    -- — un eșec DISTINCT de cel din handler-ul de mai sus, deci se numără.
     v_esecuri := v_esecuri + 1;
+    raise notice '  (3) EȘEC    notificarea inserată de hr nu a fost găsită la recitire';
   end if;
 
   -- ── (4) POZITIVĂ: actor nul, ca joburile pg_cron ───────────────────────
@@ -389,11 +405,125 @@ begin
   end;
   reset role;
 
+  -- ── (15)-(19): exercită DIRECT app.push_ia_din_coada / public.push_ia_din_coada ──
+  -- Verificările (1)-(14) ating tabelele; niciuna cheamă funcția de preluare.
+  -- Golul ăsta a lăsat nevăzută reparația C1 (join fără `d.deleted_at is
+  -- null`, secțiunea 5b a migrării) — funcția n-a rulat NICIODATĂ înainte de
+  -- acest bloc, nici `skip locked`, nici recuperarea la 10 minute, nici
+  -- filtrul de dispozitiv/notificare retrase.
+  declare
+    v_disp_ret2     uuid;
+    v_disp_activ    uuid;
+    v_notif_a       uuid;
+    v_notif_b       uuid;
+    v_notif_c       uuid;
+    v_notif_d       uuid;
+    v_notif_stearsa uuid;
+    v_livr_retras   uuid;
+    v_livr_normal   uuid;
+    v_livr_vechi    uuid;
+    v_livr_proaspat uuid;
+    v_livr_stearsa  uuid;
+    v_ids           uuid[];
+    v_stare         public.stare_livrare_push;
+    v_updated_la    timestamptz;
+  begin
+    -- Fixturi: un dispozitiv retras CU o livrare încă `in_asteptare` (C1) și
+    -- un dispozitiv activ cu patru livrări, câte una pentru fiecare stare care
+    -- contează la preluare.
+    insert into public.dispozitive_push (organization_id, user_id, jeton, platforma)
+    values (v_org, v_u_ang, 'ExponentPushToken[proba-preluare-ret-' || v_sufix || ']', 'android')
+    returning id into v_disp_ret2;
+    insert into public.dispozitive_push (organization_id, user_id, jeton, platforma)
+    values (v_org, v_u_ang, 'ExponentPushToken[proba-preluare-act-' || v_sufix || ']', 'ios')
+    returning id into v_disp_activ;
+
+    insert into public.notifications (organization_id, user_id, kind, title)
+    values (v_org, v_u_ang, 'reminder', 'Către dispozitiv retras.') returning id into v_notif_a;
+    insert into public.notifications (organization_id, user_id, kind, title)
+    values (v_org, v_u_ang, 'reminder', 'Livrare normală.') returning id into v_notif_b;
+    insert into public.notifications (organization_id, user_id, kind, title)
+    values (v_org, v_u_ang, 'reminder', 'in_lucru vechi, de recuperat.') returning id into v_notif_c;
+    insert into public.notifications (organization_id, user_id, kind, title)
+    values (v_org, v_u_ang, 'reminder', 'in_lucru proaspăt, NU se recuperează.') returning id into v_notif_d;
+    insert into public.notifications (organization_id, user_id, kind, title)
+    values (v_org, v_u_ang, 'reminder', 'Notificare ștearsă înainte de livrare.') returning id into v_notif_stearsa;
+
+    select id into v_livr_retras   from public.push_livrari where dispozitiv_id = v_disp_ret2  and notification_id = v_notif_a;
+    select id into v_livr_normal   from public.push_livrari where dispozitiv_id = v_disp_activ and notification_id = v_notif_b;
+    select id into v_livr_vechi    from public.push_livrari where dispozitiv_id = v_disp_activ and notification_id = v_notif_c;
+    select id into v_livr_proaspat from public.push_livrari where dispozitiv_id = v_disp_activ and notification_id = v_notif_d;
+    select id into v_livr_stearsa  from public.push_livrari where dispozitiv_id = v_disp_activ and notification_id = v_notif_stearsa;
+
+    -- Dispozitivul lui (15) e retras DUPĂ punerea în coadă — exact secvența
+    -- scenariului C1: telefon predat mai departe, cu livrări deja în așteptare.
+    update public.dispozitive_push set deleted_at = now() where id = v_disp_ret2;
+    -- (17): un `in_lucru` vechi de 11 minute — peste pragul de 10 din funcție.
+    update public.push_livrari set stare = 'in_lucru', updated_at = now() - interval '11 minutes'
+     where id = v_livr_vechi;
+    -- (18): un `in_lucru` proaspăt — NU trebuie recuperat.
+    update public.push_livrari set stare = 'in_lucru', updated_at = now()
+     where id = v_livr_proaspat;
+    -- (19): notificarea e ștearsă după ce a umplut coada.
+    update public.notifications set deleted_at = now() where id = v_notif_stearsa;
+
+    set local role service_role;
+    select coalesce(array_agg(id), '{}') into v_ids from public.push_ia_din_coada(1000);
+    reset role;
+
+    if v_livr_retras = any(v_ids) then
+      v_esecuri := v_esecuri + 1;
+      raise notice '  (15) EȘEC   preluarea a întors livrarea unui dispozitiv retras';
+    else
+      raise notice '  (15) OK     dispozitiv retras — livrarea lui nu e preluată';
+    end if;
+
+    if v_livr_normal = any(v_ids) then
+      select stare into v_stare from public.push_livrari where id = v_livr_normal;
+      if v_stare = 'in_lucru' then
+        raise notice '  (16) OK     rând in_asteptare — preluat și lăsat pe in_lucru';
+      else
+        v_esecuri := v_esecuri + 1;
+        raise notice '  (16) EȘEC   rândul a fost preluat dar starea e % (așteptat in_lucru)', v_stare;
+      end if;
+    else
+      v_esecuri := v_esecuri + 1;
+      raise notice '  (16) EȘEC   un rând in_asteptare normal NU a fost preluat';
+    end if;
+
+    if v_livr_vechi = any(v_ids) then
+      raise notice '  (17) OK     in_lucru vechi de peste 10 minute — recuperat';
+    else
+      v_esecuri := v_esecuri + 1;
+      raise notice '  (17) EȘEC   in_lucru vechi de peste 10 minute NU a fost recuperat';
+    end if;
+
+    if v_livr_proaspat = any(v_ids) then
+      v_esecuri := v_esecuri + 1;
+      raise notice '  (18) EȘEC   in_lucru proaspăt a fost recuperat (nu trebuia)';
+    else
+      select updated_at into v_updated_la from public.push_livrari where id = v_livr_proaspat;
+      if v_updated_la > now() - interval '1 minute' then
+        raise notice '  (18) OK     in_lucru proaspăt nu e recuperat, rămâne neatins';
+      else
+        v_esecuri := v_esecuri + 1;
+        raise notice '  (18) EȘEC   in_lucru proaspăt neatins ca id, dar updated_at s-a schimbat oricum';
+      end if;
+    end if;
+
+    if v_livr_stearsa = any(v_ids) then
+      v_esecuri := v_esecuri + 1;
+      raise notice '  (19) EȘEC   preluarea a întors o livrare a unei notificări șterse';
+    else
+      raise notice '  (19) OK     notificare ștearsă — livrarea ei nu e preluată';
+    end if;
+  end;
+
   raise notice '  ─────────────────────────────────────────────────────────';
   if v_esecuri > 0 then
     raise exception 'PROBA PUSH: % verificări căzute.', v_esecuri;
   end if;
-  raise notice '  PROBA PUSH: 14/14.';
+  raise notice '  PROBA PUSH: 19/19.';
 end;
 $$;
 

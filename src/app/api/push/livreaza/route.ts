@@ -53,8 +53,13 @@ export async function POST(cerere: Request): Promise<Response> {
     const raport = await golesteCoada(db);
     return Response.json(raport, { status: 200 });
   } catch (eroare) {
-    const mesaj = eroare instanceof Error ? eroare.message : "Eroare necunoscută.";
-    console.error("[push-livreaza]", mesaj);
-    return Response.json({ ok: false, error: mesaj }, { status: 500 });
+    // Obiectul complet, nu doar `.message`: stiva contează la depanare, iar
+    // `journalctl` e singurul loc unde ajunge — tiparul e cel din
+    // `api/reges/reconciliere/route.ts`.
+    console.error("[push-livreaza] golirea cozii a eșuat", eroare);
+    // Mesaj FIX în corp, nu detaliul intern al excepției: `api/reges/reconciliere`
+    // face la fel — corpul de răspuns nu e locul unde ajunge un mesaj de eroare
+    // intern de bază de date.
+    return Response.json({ ok: false, eroare: "Golirea cozii de push a eșuat." }, { status: 500 });
   }
 }

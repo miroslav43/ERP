@@ -21,6 +21,16 @@ create type public.platforma_mobila as enum ('ios', 'android');
 -- cât timp trimite, iar timerul următor — la un minut — le poate lua din nou:
 -- aceeași notificare, de două ori pe telefon. Blocarea din `for update skip
 -- locked` ține doar până la commit, adică mult mai puțin decât trimiterea.
+--
+-- `esuat` NU e scrisă de nicio cale de cod din `golesteCoada`
+-- (src/lib/push/coada.ts): un bilet de eroare de la Expo lasă rândul pe
+-- `in_asteptare` (reîncercabil, până la MAX_INCERCARI încercări), nu pe
+-- `esuat`. Motivul: `RezultatBilet` (src/lib/push/expo.ts) nu distinge o
+-- eroare REÎNCERCABILĂ de una PERMANENTĂ — ambele ajung `{ fel: "eroare" }}` —
+-- deci `golesteCoada` n-are cum să decidă când o scriere merită starea
+-- terminală `esuat` în loc de o nouă reîncercare. Rămâne rezervată pentru
+-- ziua în care `trimiteLot` face distincția (sau pentru o marcare manuală,
+-- din altă unealtă) — nu se șterge din enum doar fiindcă azi n-o scrie nimeni.
 create type public.stare_livrare_push as enum (
   'in_asteptare', 'in_lucru', 'trimis', 'esuat', 'abandonat'
 );
@@ -192,7 +202,24 @@ begin
     from luate, public.dispozitive_push d, public.notifications n
    where l.id = luate.id
      and d.id = l.dispozitiv_id
+     -- `d.deleted_at is null`: FĂRĂ clauza asta, un dispozitiv retras (telefon
+     -- predat mai departe, `deleted_at` pus de `/api/dispozitive` sau de
+     -- această funcție, secțiunea de mai jos) tot livrează rândurile lui
+     -- încă `in_asteptare` — pe jetonul lui, adică pe TELEFONUL FIZIC ajuns
+     -- între timp la altcineva. Trigger-ul care UMPLE coada (secțiunea 5)
+     -- deja filtrează `d.deleted_at is null`; partea care o GOLEA nu o făcea
+     -- — asimetria era dovada omisiunii, nu a unei alegeri. Rândul rămâne pe
+     -- `in_asteptare`, neluat de nimeni — cine retrage dispozitivul e
+     -- responsabil să-i abandoneze și coada (vezi `retrageDispozitivPrinAdmin`
+     -- din `api/dispozitive/route.ts`, și golirea best-effort din
+     -- `golesteCoada` la un bilet `DeviceNotRegistered`).
+     and d.deleted_at is null
      and n.id = l.notification_id
+     -- `n.deleted_at is null`: o notificare ștearsă între punerea în coadă și
+     -- livrare (rar, dar posibil — nimic n-o interzice) nu mai are ce conținut
+     -- să trimită; fără clauză, `n.title`/`n.body`/`n.link` ies din rândul
+     -- șters, nu dintr-o versiune curentă.
+     and n.deleted_at is null
   returning l.id, l.incercari, d.jeton, d.id, n.title, n.body, n.link;
 end;
 $$;

@@ -9,6 +9,15 @@ import { construiesteMesaj } from "./mesaj";
  *
  * Trăiește aici, nu în `route.ts`, ca să se poată testa cu un client fals.
  * Ruta rămâne doar poarta: secretul, metoda, codul de răspuns.
+ *
+ * INVARIANTA RAPORTULUI
+ * `trimise + esuate + abandonate` poate fi STRICT mai mic decât `luate`: o
+ * scriere de stare care eșuează (rețea, termenul din `fetchCuTermen()`) nu se
+ * numără la niciun contor — rândul rămâne `in_lucru` și e recuperat peste 10
+ * minute de `push_ia_din_coada`. Diferența dintre `luate` și suma celorlalte
+ * patru e deci numărul de scrieri eșuate în această rulare, vizibil în
+ * `journalctl` prin mesajele `console.error` de mai jos, nu ascuns într-un
+ * contor fals.
  */
 
 /** După atâtea încercări, rândul se abandonează. */
@@ -33,6 +42,12 @@ type RandCoada = {
   readonly corp: string | null;
   readonly link: string | null;
 };
+
+function logEsecScriere(context: string, eroare: { message: string }): void {
+  // `console.error`, nu aruncare: o singură scriere picată nu trebuie să
+  // oprească prelucrarea restului lotului. Rândul ei rămâne recuperabil.
+  console.error(`[push-coada] ${context}: ${eroare.message}.`);
+}
 
 export async function golesteCoada(
   db: AdminSupabase,
@@ -75,9 +90,7 @@ export async function golesteCoada(
     if (rezultat === undefined || rezultat.fel === "eroare") {
       const incercari = rand.incercari + 1;
       const renunta = incercari >= MAX_INCERCARI;
-      if (renunta) abandonate += 1;
-      else esuate += 1;
-      await db
+      const { error: eroareScriere } = await db
         .from("push_livrari")
         .update({
           stare: renunta ? "abandonat" : "in_asteptare",
@@ -85,24 +98,97 @@ export async function golesteCoada(
           eroare: rezultat?.fel === "eroare" ? rezultat.mesaj : "Fără bilet de la Expo.",
         })
         .eq("id", rand.id);
+      // `postgrest-js` NU aruncă la un `fetch` picat (timeout din
+      // `fetchCuTermen()`, rețea căzută) — rezolvă cu `{ error }`. Netratat,
+      // rândul ar rămâne `in_lucru` (recuperat peste 10 minute — retrimis a
+      // doua oară, dacă biletul era deja „ok" altundeva), iar raportul ar
+      // număra o scriere care n-a avut loc.
+      if (eroareScriere !== null) {
+        logEsecScriere(
+          `scrierea reîncercării/abandonării a picat pentru rândul ${rand.id}`,
+          eroareScriere,
+        );
+        continue;
+      }
+      if (renunta) abandonate += 1;
+      else esuate += 1;
       continue;
     }
 
     if (rezultat.fel === "jeton-mort") {
-      jetoaneRetrase += 1;
-      abandonate += 1;
-      // Retragerea e `deleted_at`, nu DELETE: jurnalul trebuie să poată spune de
-      // ce a încetat omul să primească notificări.
-      await db.from("dispozitive_push").update({ deleted_at: acum }).eq("id", rand.dispozitiv_id);
-      await db
+      // Retragerea e `deleted_at`, nu DELETE: jurnalul trebuie să poată spune
+      // de ce a încetat omul să primească notificări. `is("deleted_at", null)`
+      // face tranziția idempotentă: dacă alt rând din același lot (același
+      // dispozitiv, două notificări) sau ruta `/api/dispozitive` a retras deja
+      // dispozitivul, `retras` iese `null`, fără eroare — cursă benignă.
+      const { data: retras, error: eroareRetragere } = await db
+        .from("dispozitive_push")
+        .update({ deleted_at: acum })
+        .eq("id", rand.dispozitiv_id)
+        .is("deleted_at", null)
+        .select("organization_id, user_id")
+        .maybeSingle();
+
+      if (eroareRetragere !== null) {
+        logEsecScriere(`retragerea dispozitivului ${rand.dispozitiv_id} a eșuat`, eroareRetragere);
+      } else if (retras !== null) {
+        jetoaneRetrase += 1;
+        // Auditul manual e OBLIGATORIU (contractul din
+        // `src/lib/supabase/admin.ts`): triggerul generic ar scrie
+        // `actor_id = auth.uid()`, adică NULL sub `service_role` — la fel ca
+        // fără rândul ăsta. Diferența față de `retrageDispozitivPrinAdmin` din
+        // `api/dispozitive/route.ts`: acolo un OM preia telefonul (actorId
+        // real); aici Expo confirmă un telefon mort — nu există niciun actor
+        // uman de înregistrat, deci `actor_id` rămâne explicit `null`.
+        const { error: eroareAudit } = await db.from("audit_logs").insert({
+          organization_id: retras.organization_id,
+          actor_id: null,
+          action: "delete",
+          status: "success",
+          entity_type: "dispozitive_push",
+          entity_id: rand.dispozitiv_id,
+          before: { user_id: retras.user_id, deleted_at: null },
+          after: {
+            user_id: retras.user_id,
+            deleted_at: acum,
+            motiv: "Jeton neînregistrat (Expo: DeviceNotRegistered).",
+          },
+        });
+        if (eroareAudit !== null) {
+          logEsecScriere(
+            `auditul retragerii dispozitivului ${rand.dispozitiv_id} a eșuat`,
+            eroareAudit,
+          );
+        }
+      }
+
+      const { error: eroareScriere } = await db
         .from("push_livrari")
         .update({ stare: "abandonat", eroare: "Jeton neînregistrat." })
         .eq("id", rand.id);
+      if (eroareScriere !== null) {
+        logEsecScriere(`scrierea abandonării a picat pentru rândul ${rand.id}`, eroareScriere);
+        continue;
+      }
+      abandonate += 1;
+      // Cunoscut, neadresat aici: alte livrări încă `in_asteptare` ale
+      // ACELUIAȘI dispozitiv (alte notificări puse în coadă înainte de
+      // retragere) nu sunt abandonate în bloc — rămân de reîncercat până la
+      // `MAX_INCERCARI`. Nu e o scurgere (jetonul e mort, deci și acelea vor
+      // primi `jeton-mort` la rândul lor, exact ca asta), doar risipă de
+      // apeluri către Expo.
       continue;
     }
 
+    const { error: eroareScriere } = await db
+      .from("push_livrari")
+      .update({ stare: "trimis", trimis_la: acum })
+      .eq("id", rand.id);
+    if (eroareScriere !== null) {
+      logEsecScriere(`scrierea confirmării a picat pentru rândul ${rand.id}`, eroareScriere);
+      continue;
+    }
     trimise += 1;
-    await db.from("push_livrari").update({ stare: "trimis", trimis_la: acum }).eq("id", rand.id);
   }
 
   return { luate: randuri.length, trimise, esuate, abandonate, jetoaneRetrase };
