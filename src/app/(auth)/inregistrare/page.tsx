@@ -1,6 +1,8 @@
 // src/app/(auth)/inregistrare/page.tsx
 import type { Metadata } from "next";
 
+import { ScriptUmami } from "@/app/(marketing)/_componente/analitice";
+
 import { FormularInregistrare } from "./formular-inregistrare";
 
 /**
@@ -18,5 +20,18 @@ import { FormularInregistrare } from "./formular-inregistrare";
 export const metadata: Metadata = { title: "Creează contul firmei" };
 
 export default function PaginaInregistrare() {
-  return <FormularInregistrare />;
+  return (
+    <>
+      <FormularInregistrare />
+      {/*
+        Măsurarea, DOAR aici, nu pe tot grupul `(auth)`: alături stă
+        `/invitatie/[token]`, iar o vizualizare de pagină de acolo ar duce
+        tokenul de acces în raportul de analiză.
+
+        Fără scriptul ăsta, `data-umami-event` de pe butonul de trimitere n-ar
+        pleca niciodată — pagina de conversie ar fi fost singura nemăsurată.
+      */}
+      <ScriptUmami />
+    </>
+  );
 }

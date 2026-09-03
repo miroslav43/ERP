@@ -60,6 +60,7 @@ export function Antet({ text, acasa }: { text: ContinutLanding; acasa: string })
           </Link>
           <Link
             href={text.hero.ctaPrimar.href}
+            data-umami-event="cta-antet"
             className="bg-mk-cerneala text-mk-text-inv hidden h-10 items-center rounded px-4 text-[0.9375rem] font-medium transition-opacity hover:opacity-90 md:inline-flex"
           >
             {text.antet.demo}
@@ -87,6 +88,7 @@ export function Antet({ text, acasa }: { text: ContinutLanding; acasa: string })
                   <li>
                     <Link
                       href={text.hero.ctaPrimar.href}
+                      data-umami-event="cta-antet"
                       className="block text-[0.9375rem] font-medium"
                     >
                       {text.antet.demo}

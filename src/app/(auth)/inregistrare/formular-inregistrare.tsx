@@ -177,8 +177,15 @@ export function FormularInregistrare() {
           )}
         </div>
 
+        {/*
+          Marchează TRIMITEREA, nu reușita: evenimentul pleacă la clic, iar
+          rezultatul se vede din numărul de organizații create. Diferența dintre
+          cele două cifre e chiar rata de eșec a formularului — CUI duplicat,
+          validare picată — care altfel n-ar fi vizibilă nicăieri.
+        */}
         <button
           type="submit"
+          data-umami-event="inregistrare-trimisa"
           disabled={inCurs}
           className="bg-primary text-primary-foreground rounded-control text-corp mt-2 inline-flex h-11 items-center justify-center px-5 font-medium transition-opacity hover:opacity-90 disabled:opacity-60"
         >

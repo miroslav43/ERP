@@ -84,10 +84,42 @@ gtag('config', '${ID_GA}');
 const UMAMI_SRC = process.env.NEXT_PUBLIC_UMAMI_SRC?.trim();
 const UMAMI_ID = process.env.NEXT_PUBLIC_UMAMI_ID?.trim();
 
-export function Analitice() {
-  const cuUmami =
-    UMAMI_SRC !== undefined && UMAMI_SRC !== "" && UMAMI_ID !== undefined && UMAMI_ID !== "";
+/**
+ * Doar Umami, fără GA4 și fără bara de consimțământ.
+ *
+ * ── PENTRU CE E ───────────────────────────────────────────────────────────
+ * `/inregistrare` stă în grupul `(auth)`, unde `Analitice` NU se montează. Fără
+ * componenta asta, `data-umami-event="inregistrare-trimisa"` n-ar pleca
+ * niciodată: scriptul nu e încărcat acolo. Adică tocmai pagina de conversie ar
+ * fi fost singura nemăsurată.
+ *
+ * ── DE CE NU SE MONTEAZĂ PE TOT `(auth)` ──────────────────────────────────
+ * Fiindcă acolo stă și `/invitatie/[token]`. O vizualizare de pagină ar duce
+ * TOKENUL în raportul de analiză — un secret de acces, copiat într-un sistem
+ * care n-are ce face cu el și care îl păstrează. Se montează pe pagina anume,
+ * nu pe grup.
+ *
+ * ── DE CE FĂRĂ GA4 ────────────────────────────────────────────────────────
+ * GA4 cere consimțământ, iar bara de consimțământ trăiește în `(marketing)`.
+ * Umami nu scrie cookie-uri, deci nu cere nimic și poate fi singur aici.
+ */
+export function ScriptUmami() {
+  if (UMAMI_SRC === undefined || UMAMI_SRC === "" || UMAMI_ID === undefined || UMAMI_ID === "") {
+    return null;
+  }
+  return (
+    <Script
+      src={UMAMI_SRC}
+      data-website-id={UMAMI_ID}
+      data-domains="administrativo.ro"
+      data-do-not-track="true"
+      strategy="afterInteractive"
+      defer
+    />
+  );
+}
 
+export function Analitice() {
   return (
     <>
       {/* Rulează la parsare, înaintea bibliotecii. Ordinea e tot mecanismul. */}
@@ -99,9 +131,12 @@ export function Analitice() {
       <Script id="ga-pornire" strategy="afterInteractive">
         {PORNIRE_GA}
       </Script>
-      {cuUmami && (
-        <Script src={UMAMI_SRC} data-website-id={UMAMI_ID} strategy="afterInteractive" defer />
-      )}
+      {/*
+        Aceeași componentă ca pe `/inregistrare`. Atributele scriptului —
+        `data-domains`, `data-do-not-track` — se scriu într-un singur loc:
+        două copii ar fi două copii care ajung să difere.
+      */}
+      <ScriptUmami />
       <BaraConsimtamant />
     </>
   );

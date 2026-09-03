@@ -50,15 +50,26 @@ export function BandaHero({ text }: ProprietatiBanda) {
         <p className="text-mk-text-slab mt-7 max-w-[58ch] text-[1.1875rem] leading-[1.6] text-pretty">
           {text.hero.lead}
         </p>
+        {/*
+          `data-umami-event` marchează butonul ca eveniment cu nume.
+
+          Fără el, Umami ar raporta doar vizualizări de pagină — s-ar vedea că
+          lumea ajunge pe `/inregistrare`, dar nu DE UNDE: din erou, din antet
+          sau de pe un card de preț. Exact întrebarea de care depinde ce
+          schimbăm data viitoare. Numele sunt scurte și stabile: se compară în
+          timp, deci nu se redenumesc după ce au început să adune date.
+        */}
         <div className="mt-9 flex flex-wrap gap-3">
           <Link
             href={text.hero.ctaPrimar.href}
+            data-umami-event="cta-erou"
             className="bg-mk-cerneala text-mk-text-inv inline-flex h-12 items-center rounded px-6 text-[0.9375rem] font-medium transition-opacity hover:opacity-90"
           >
             {text.hero.ctaPrimar.eticheta}
           </Link>
           <a
             href={text.hero.ctaSecundar.href}
+            data-umami-event="cta-erou-secundar"
             className="border-mk-rigla hover:border-mk-text inline-flex h-12 items-center rounded border px-6 text-[0.9375rem] font-medium transition-colors"
           >
             {text.hero.ctaSecundar.eticheta}
@@ -150,6 +161,7 @@ export function BandaPornire({ text }: ProprietatiBanda) {
             </p>
             <Link
               href={bloc.legatura.href}
+              data-umami-event={`pornire-${bloc.legatura.href.replace(/^\//, "")}`}
               className="mt-4 inline-block text-[0.9375rem] underline underline-offset-4"
             >
               {bloc.legatura.eticheta}
@@ -293,6 +305,10 @@ export function GrilaPachete({ text }: ProprietatiBanda) {
             </ul>
             <Link
               href={text.hero.ctaPrimar.href}
+              // Numele poartă pachetul: altfel s-ar ști că cineva a apăsat un
+              // card de preț, dar nu pe CARE — adică nu s-ar putea spune ce
+              // pachet se vinde singur și care are nevoie de o conversație.
+              data-umami-event={`cta-pret-${plan.cheie}`}
               className={`mt-6 inline-flex h-11 items-center justify-center rounded px-4 text-[0.9375rem] font-medium transition-opacity hover:opacity-90 ${
                 pachet.recomandat === true
                   ? "bg-mk-cerneala text-mk-text-inv"

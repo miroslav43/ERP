@@ -53,8 +53,25 @@ services:
       APP_SECRET: ${UMAMI_APP_SECRET:?lipsește UMAMI_APP_SECRET}
       # Fără telemetrie către autorii Umami. Ar fi contradictoriu.
       DISABLE_TELEMETRY: "1"
-      # Panoul stă în spatele nginx-ului partajat, care termină TLS-ul.
-      TRACKER_SCRIPT_NAME: "script.js"
+      # ── ADRESA REALĂ A VIZITATORULUI ────────────────────────────────────
+      # Fără linia asta, Umami vede adresa CONTAINERULUI nginx pentru toată
+      # lumea. Consecințele n-ar fi arătat ca o defecțiune, ci ca date:
+      #   · harta pe țări ar fi arătat 100% dintr-un singur loc;
+      #   · numărul de vizitatori UNICI ar fi fost greșit, fiindcă Umami
+      #     identifică sesiunea dintr-un hash de IP + user-agent — toți
+      #     vizitatorii cu același browser ar fi devenit o singură persoană.
+      #
+      # `x-forwarded-for` e antetul pe care îl pune vhost-ul din
+      # `deploy/nginx/31-analitice.administrativo.ro.conf`. Merge fiindcă
+      # subdomeniul e DNS-only: `$remote_addr` la nginx E adresa vizitatorului.
+      # DACĂ subdomeniul ajunge vreodată în spatele proxy-ului Cloudflare,
+      # valoarea de aici trebuie să devină `cf-connecting-ip` — altfel toți
+      # vizitatorii apar din centrele de date Cloudflare.
+      CLIENT_IP_HEADER: x-forwarded-for
+      # `TRACKER_SCRIPT_NAME` NU se setează, deliberat. Redenumirea scriptului
+      # e mecanismul prin care Umami trece de extensiile de confidențialitate.
+      # Cine a instalat un blocant a spus deja ce vrea; un produs care își face
+      # reclamă din respectul pentru date n-are cum să-l ocolească.
     networks:
       - strawboss-net
     depends_on:
