@@ -31,8 +31,12 @@ export default async function PaginaAnunt({ params }: ProprietatiPagina) {
   const id = idDinRuta((await params).id);
 
   const { tenant, user } = await requireTenant();
-  await requireFeature(tenant.organizationId, "announcements");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  // Două citiri independente, pe tabele diferite. Înlănțuite erau două
+  // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
+  const [, permisiuni] = await Promise.all([
+    requireFeature(tenant.organizationId, "announcements"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+  ]);
 
   if (!can(permisiuni, "announcements:read", "own")) {
     return (
