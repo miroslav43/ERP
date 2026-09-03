@@ -129,8 +129,22 @@ export function createAction<TSchema extends z.ZodType, TData>(
     }
     const tenant = resolution.tenant;
 
-    // ── 3. MODULUL ACTIV (verificat pe server, nu doar ascuns în meniu) ───
-    const features = await getEnabledFeatures(tenant.organizationId);
+    // ── 3+4. MODULUL ACTIV ȘI PERMISIUNEA ─────────────────────────────────
+    // Cele două CITIRI sunt independente — tabele diferite
+    // (`organization_features` și `role_permissions`), amândouă depinzând doar
+    // de `tenant` — dar erau înlănțuite: două dus-întorsuri seriale spre
+    // PostgREST, ~110 ms fiecare de pe VM. Postgres însuși le execută în 1–2 ms;
+    // costul era integral rețea.
+    //
+    // Se paralelizează CITIRILE. DECIZIILE rămân în ordinea de dinainte: modul
+    // dezactivat înaintea permisiunii lipsă, ca un apelant fără drept să
+    // primească exact același mesaj ca înainte.
+    const [features, permissions] = await Promise.all([
+      getEnabledFeatures(tenant.organizationId),
+      getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    ]);
+
+    // Verificat pe server, nu doar ascuns în meniu.
     if (def.feature !== undefined && !features.has(def.feature)) {
       return refuza(
         "MODUL_DEZACTIVAT",
@@ -139,10 +153,8 @@ export function createAction<TSchema extends z.ZodType, TData>(
       );
     }
 
-    // ── 4. PERMISIUNEA ────────────────────────────────────────────────────
     // Absența cheii se tratează ca `none`: refuz. `none` explicit din
     // role_permissions bate implicitul global al platformei.
-    const permissions = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
     const scope = permissions.get(def.permission) ?? "none";
     if (RANK[scope] < RANK[def.minScope]) {
       return refuza(
