@@ -17,8 +17,12 @@ export const metadata = { title: "REGES-Online — chei API" };
 
 export default async function PaginaSetariReges() {
   const { tenant } = await requireTenant();
-  await requireFeature(tenant.organizationId, "reges");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  // Două citiri independente, pe tabele diferite. Înlănțuite erau două
+  // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
+  const [, permisiuni] = await Promise.all([
+    requireFeature(tenant.organizationId, "reges"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+  ]);
 
   // Ecranul cere `configure`, nu `read`: cheile API dau drept de scriere în
   // registrul oficial al Inspecției Muncii, deci nu sunt „setări" obișnuite.

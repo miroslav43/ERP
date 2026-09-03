@@ -52,8 +52,12 @@ export default async function PaginaReges(props: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { tenant } = await requireTenant();
-  await requireFeature(tenant.organizationId, "reges"); // modul dezactivat ⇒ 404
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  // Două citiri independente, pe tabele diferite. Înlănțuite erau două
+  // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
+  const [, permisiuni] = await Promise.all([
+    requireFeature(tenant.organizationId, "reges"), // modul dezactivat ⇒ 404
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+  ]);
 
   const scopCitire = scopeFor(permisiuni, "reges:read") ?? undefined;
   if (!meetsScope(scopCitire, "all")) {

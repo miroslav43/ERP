@@ -48,8 +48,12 @@ const COLOANE_APELURI: readonly Coloana<RandApel>[] = [
 
 export default async function PaginaMesajReges(props: { params: Promise<{ id: string }> }) {
   const { tenant } = await requireTenant();
-  await requireFeature(tenant.organizationId, "reges");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  // Două citiri independente, pe tabele diferite. Înlănțuite erau două
+  // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
+  const [, permisiuni] = await Promise.all([
+    requireFeature(tenant.organizationId, "reges"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+  ]);
 
   if (!meetsScope(scopeFor(permisiuni, "reges:read") ?? undefined, "all")) {
     return (
