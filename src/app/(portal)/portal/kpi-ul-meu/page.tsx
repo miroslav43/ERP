@@ -44,8 +44,12 @@ export const metadata: Metadata = { title: "KPI-ul meu" };
 
 export default async function PaginaKpiulMeu() {
   const { tenant, user } = await requireTenant();
-  await requireFeature(tenant.organizationId, "kpi");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  // Două citiri independente, pe tabele diferite. Înlănțuite erau două
+  // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
+  const [, permisiuni] = await Promise.all([
+    requireFeature(tenant.organizationId, "kpi"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+  ]);
 
   if (!can(permisiuni, "evaluations:read", "own")) {
     return (
