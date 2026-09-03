@@ -29,7 +29,18 @@ type ProprietatiBanda = { readonly text: ContinutLanding };
 export function BandaHero({ text }: ProprietatiBanda) {
   return (
     <section id="sus" className="bg-mk-hartie text-mk-text">
-      <div className="max-w-mk mx-auto w-full px-[clamp(1rem,4vw,2.5rem)] pt-16 pb-20 sm:pt-24 sm:pb-32">
+      {/*
+        `mk-intra` animă cei cinci copii direcți ai acestui container —
+        supratitlu, titlu, lead, butoane, foaie — cu 60ms decalaj între ei.
+        Regula stă în `globals.css`; aici e doar declarația că banda o folosește.
+
+        E singura mișcare de intrare de pe sit. Nu există reveal la scroll,
+        deliberat: starea de bază a fiecărui element e starea FINALĂ, iar
+        animația doar se stinge spre ea. Un element pornit din `opacity: 0` ar
+        rămâne invizibil pentru cine cere mișcare redusă și pentru crawlerele
+        care nu execută JavaScript.
+      */}
+      <div className="mk-intra max-w-mk mx-auto w-full px-[clamp(1rem,4vw,2.5rem)] pt-16 pb-20 sm:pt-24 sm:pb-32">
         <p className="font-mk-date text-mk-text-slab text-[0.6875rem] font-medium tracking-[0.14em] uppercase">
           {text.hero.supratitlu}
         </p>

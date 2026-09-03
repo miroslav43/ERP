@@ -601,6 +601,25 @@ dialog[open]::backdrop {
   /* Geometrie. Pasul vertical e 8px, fără excepție. */
   --mk-celula: 34px;
   --mk-celula-mica: 30px;
+
+  /*
+   * Mișcarea, în două valori.
+   *
+   * Stratul de marketing MOȘTENEȘTE cele două durate ale aplicației —
+   * `--default-transition-duration` de 120ms pentru hover, focus și apăsare,
+   * `--durata-lent` de 240ms pentru panouri — și adaugă una singură, pentru
+   * apariția eroului. Trei durate în tot produsul, nu șapte.
+   *
+   * Curba e quart-out: pleacă repede și se așază lung. `--ease-linistit`
+   * (cubic-bezier(0.2, 0.7, 0.3, 1)) rămâne pentru ce se schimbă PE LOC, adică
+   * pentru culoare; asta e pentru ce INTRĂ. Niciodată `ease-in` pe ceva care
+   * apare — un element care pornește încet pare că se blochează.
+   *
+   * Nimic peste 400ms: peste pragul ăsta mișcarea nu mai însoțește acțiunea, o
+   * întârzie.
+   */
+  --mk-viteza-intrare: 320ms;
+  --mk-ease-intrare: cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 @theme inline {
@@ -753,6 +772,84 @@ dialog[open]::backdrop {
 .mk-anim [data-celula] {
   animation: mk-baleiaza 300ms cubic-bezier(0.2, 0.7, 0.3, 1) backwards;
   animation-delay: calc(var(--mk-coloana, 0) * 10ms);
+}
+
+/*
+ * ── INTRAREA EROULUI ─────────────────────────────────────────────────────────
+ *
+ * Singura mișcare de pe pagină în afara baleierii foii, și tot vocabularul de
+ * animație al stratului de marketing încape în cele douăzeci de linii de mai jos.
+ *
+ * ── DE CE NU EXISTĂ REVEAL LA SCROLL ─────────────────────────────────────────
+ * Nu din lene. Din 2.138 de reguli `:hover` măsurate pe nouă site-uri de
+ * referință, 3,2% ating `transform`; Linear are 136 de reguli de hover și zero
+ * ridicări. „Premium" în 2026 înseamnă mai puțină mișcare, nu mai multă. Iar
+ * NN/g contraindică explicit animațiile declanșate la derulare pe siturile
+ * orientate pe sarcini — „medical, financial, B2B", adică exact acesta.
+ *
+ * Practic: un reveal la scroll cere ca starea de bază să fie `opacity: 0`, ceea
+ * ce e o capcană tăcută. Regula globală `prefers-reduced-motion` din capul
+ * fișierului taie `animation-duration` la 0,01ms cu `!important`; un element
+ * pornit din invizibil ar rămâne invizibil PERMANENT pentru cine cere mișcare
+ * redusă. Aceleași reguli ar ascunde conținutul și de crawlerele care nu execută
+ * JavaScript — GPTBot, ClaudeBot, PerplexityBot.
+ *
+ * Aici starea de bază e starea FINALĂ. `backwards` face ca `from` să existe doar
+ * pe durata animației, exact tiparul lui `mk-baleiaza` de mai sus. Sub mișcare
+ * redusă animația durează 0,01ms și eroul e pur și simplu acolo, întreg.
+ *
+ * Distanța e 12px și scara pornește de la .985: praguri sub care mișcarea se
+ * simte, dar nu se vede. Decalajul de 60ms pe cel mult cinci frați — peste
+ * cinci, grupul intră deodată.
+ */
+@keyframes mk-intra {
+  from {
+    opacity: 0;
+    translate: 0 12px;
+  }
+}
+
+.mk-intra > * {
+  animation: mk-intra var(--mk-viteza-intrare) var(--mk-ease-intrare) backwards;
+}
+
+/*
+ * Decalajul se dă din CSS, prin poziție, nu dintr-o variabilă pusă inline pe
+ * fiecare element: altfel fiecare copil nou al eroului ar trebui să-și amintească
+ * să-și declare rangul, iar unul uitat ar intra fără decalaj, fără să cadă nimic.
+ *
+ * De la al cincilea încolo, decalajul se oprește. Peste cinci frați, o cascadă
+ * de 60ms devine o coadă pe care omul o AȘTEAPTĂ — restul intră împreună.
+ */
+.mk-intra > *:nth-child(2) {
+  animation-delay: 60ms;
+}
+.mk-intra > *:nth-child(3) {
+  animation-delay: 120ms;
+}
+.mk-intra > *:nth-child(4) {
+  animation-delay: 180ms;
+}
+.mk-intra > *:nth-child(n + 5) {
+  animation-delay: 240ms;
+}
+
+/*
+ * Sub mișcare redusă, animația se scoate CU TOTUL — nu se scurtează.
+ *
+ * Regula globală din capul fișierului taie `animation-duration` la 0,01ms, dar
+ * NU atinge `animation-delay`. Cu `backwards`, în cele 240ms de întârziere
+ * elementul stă la cadrul `from`, adică invizibil. Măsurat: foaia lipsea un sfert
+ * de secundă pentru cineva care ceruse explicit să nu se miște nimic.
+ *
+ * Nu e defectul grav — acela ar fi fost invizibilitatea permanentă, și de el ne
+ * apără faptul că starea de bază e cea finală. Dar e mișcare deghizată în
+ * absența ei, iar `animation: none` o scoate fără reziduu.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .mk-intra > * {
+    animation: none;
+  }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
