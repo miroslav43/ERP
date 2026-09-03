@@ -142,7 +142,11 @@ function clientFals(config: ConfigClientFals = {}) {
 function rand(peste: Partial<Rand> = {}): Rand {
   return {
     id: "l1",
-    incercari: 0,
+    // Reflectă valoarea DEJA incrementată de `push_ia_din_coada` la preluare
+    // (0122, secțiunea 5b, Runda 2) — un rând claimat pentru prima oară vine
+    // din RPC cu `incercari = 1`, nu `0`. `golesteCoada` nu mai adaugă un
+    // `+ 1` în TypeScript.
+    incercari: 1,
     jeton: "ExponentPushToken[a]",
     dispozitiv_id: "d1",
     titlu: "Concediu aprobat.",
@@ -258,9 +262,14 @@ describe("golesteCoada", () => {
     spyEroare.mockRestore();
   });
 
-  it("o eroare obișnuită lasă rândul reîncercabil și incrementează", async () => {
+  it("o eroare obișnuită lasă rândul reîncercabil, cu numărul de încercări NEATINS de TypeScript", async () => {
     mockExpo([{ status: "error", message: "boom", details: { error: "MessageTooBig" } }]);
-    const db = clientFals({ randuriRpc: [rand({ incercari: 1 })] });
+    // `incercari: 2` simulează a doua preluare a aceluiași rând (deja
+    // incrementat de SQL, de la 1 la 2) — `golesteCoada` scrie EXACT această
+    // valoare înapoi, fără un `+ 1` suplimentar (Runda 2: incrementul s-a
+    // mutat în `push_ia_din_coada`, ca să avanseze chiar și când scrierea
+    // asta eșuează constant).
+    const db = clientFals({ randuriRpc: [rand({ incercari: 2 })] });
     const raport = await golesteCoada(db as unknown as AdminSupabase);
     expect(raport.esuate).toBe(1);
     expect(db.actualizari[0]?.date.stare).toBe("in_asteptare");
@@ -270,10 +279,14 @@ describe("golesteCoada", () => {
 
   it("abandonează după MAX_INCERCARI", async () => {
     mockExpo([{ status: "error", message: "boom", details: { error: "MessageTooBig" } }]);
-    const db = clientFals({ randuriRpc: [rand({ incercari: MAX_INCERCARI - 1 })] });
+    // `incercari: MAX_INCERCARI` — valoarea vine DEJA la prag din preluare
+    // (SQL incrementează la fiecare claim), nu `MAX_INCERCARI - 1` + 1 ca
+    // înainte de Runda 2.
+    const db = clientFals({ randuriRpc: [rand({ incercari: MAX_INCERCARI })] });
     const raport = await golesteCoada(db as unknown as AdminSupabase);
     expect(raport.abandonate).toBe(1);
     expect(db.actualizari[0]?.date.stare).toBe("abandonat");
+    expect(db.actualizari[0]?.date.incercari).toBe(MAX_INCERCARI);
   });
 
   it("o scriere de stare eșuată nu se numără ca succes și nu blochează restul lotului", async () => {
@@ -311,7 +324,7 @@ describe("golesteCoada", () => {
       randuriRpc: [
         rand({ id: "l1", dispozitiv_id: "d1" }),
         rand({ id: "l2", dispozitiv_id: "d2" }),
-        rand({ id: "l3", dispozitiv_id: "d3", incercari: 0 }),
+        rand({ id: "l3", dispozitiv_id: "d3", incercari: 1 }),
       ],
     });
     const raport = await golesteCoada(db as unknown as AdminSupabase);
@@ -319,6 +332,7 @@ describe("golesteCoada", () => {
     expect(db.actualizari.find((a) => a.id === "l1")?.date.stare).toBe("trimis");
     expect(db.actualizari.find((a) => a.id === "l2")?.date.stare).toBe("abandonat");
     expect(db.actualizari.find((a) => a.id === "l3")?.date.stare).toBe("in_asteptare");
+    // Scris exact ce a venit din preluare (1) — TypeScript nu mai incrementează.
     expect(db.actualizari.find((a) => a.id === "l3")?.date.incercari).toBe(1);
     // Doar dispozitivul mort (l2 → d2) se retrage — nu d1, nu d3.
     expect(db.retrase).toEqual(["d2"]);

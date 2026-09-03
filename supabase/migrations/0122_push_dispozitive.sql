@@ -26,7 +26,7 @@ create type public.platforma_mobila as enum ('ios', 'android');
 -- (src/lib/push/coada.ts): un bilet de eroare de la Expo lasă rândul pe
 -- `in_asteptare` (reîncercabil, până la MAX_INCERCARI încercări), nu pe
 -- `esuat`. Motivul: `RezultatBilet` (src/lib/push/expo.ts) nu distinge o
--- eroare REÎNCERCABILĂ de una PERMANENTĂ — ambele ajung `{ fel: "eroare" }}` —
+-- eroare REÎNCERCABILĂ de una PERMANENTĂ — ambele ajung `{ fel: "eroare" }` —
 -- deci `golesteCoada` n-are cum să decidă când o scriere merită starea
 -- terminală `esuat` în loc de o nouă reîncercare. Rămâne rezervată pentru
 -- ziua în care `trimiteLot` face distincția (sau pentru o marcare manuală,
@@ -163,10 +163,39 @@ create trigger trg_notifications_push
 -- 5b. Preluarea din coadă, pentru ruta /api/push/livreaza.
 ---------------------------------------------------------------------------
 
--- `for update skip locked` în loc de un simplu select: aplicația rulează cu DOUĂ
--- replici Swarm, iar timerul poate suprapune două rulări. Fără `skip locked`,
--- amândouă ar lua aceleași rânduri și ar trimite fiecare aceeași notificare.
--- Aceeași grijă ca la închirierea REGES, altă unealtă pentru aceeași problemă.
+-- `for update of l skip locked` în loc de un simplu select: aplicația rulează
+-- cu DOUĂ replici Swarm, iar timerul poate suprapune două rulări. Fără
+-- `skip locked`, amândouă ar lua aceleași rânduri și ar trimite fiecare
+-- aceeași notificare. Aceeași grijă ca la închirierea REGES, altă unealtă
+-- pentru aceeași problemă. `of l`, explicit: blochează DOAR `push_livrari` —
+-- fără el, un `for update` peste un join ar bloca și rândurile din
+-- `dispozitive_push`/`notifications`, tabele pe care alte tranzacții (de
+-- exemplu `/api/dispozitive`, care face UPDATE pe `dispozitive_push`) au
+-- nevoie să le scrie fără să aștepte după un timer de golire a cozii.
+--
+-- FILTRELE PE DISPOZITIV/NOTIFICARE RETRASE STAU ÎN CTE, NU ÎN UPDATE-UL DE
+-- MAI JOS — asta e reparația Rundei 2, distinctă de reparația Rundei 1
+-- (care adăugase filtrele, dar în locul greșit). `limit p_plafon` stă în CTE:
+-- dacă filtrele ar sta doar în `UPDATE ... FROM`, CTE-ul tot ar SELECTA (și
+-- bloca via `for update`) rândurile orfane — cele mai VECHI, deci primele la
+-- `order by l.created_at` — care apoi ar fi eliminate de join fără să producă
+-- niciun rezultat. Cu destui orfani (>= p_plafon), preluarea ar întoarce ZERO
+-- rânduri LA NESFÂRȘIT, deși coada are livrări valide în spate — un blocaj de
+-- cap de coadă identic la exterior cu un timer mort. Reprodus empiric pe banc
+-- înainte de reparație: plafon 3 cu 3 orfani → 0 rânduri; plafon 4 → rândul
+-- valid trece. Verificarea (20) din tests/rls/proba-push.sql e garda de
+-- regresie. Cu filtrele mutate în join-ul CTE-ului, orfanii nu mai INTRĂ
+-- niciodată în candidați — nu mai concurează pe `limit` cu rândurile valide.
+--
+-- `incercari = l.incercari + 1` la preluare, nu doar la scrierea din
+-- `golesteCoada`: o scriere care eșuează DETERMINIST pe partea TypeScript
+-- (grant retras pe `push_livrari`, de exemplu) lăsa altfel `incercari`
+-- neschimbat la nesfârșit — rândul era recuperat mereu la +10 minute și
+-- mesajul pleca din nou spre Expo, la infinit, fiindcă MAX_INCERCARI nu se
+-- atingea niciodată. Incrementul de aici rulează cu privilegiile funcției
+-- (`security definer`), independent de orice grant/eroare pe partea de
+-- service_role — contorul avansează chiar și când scrierea ulterioară din
+-- `coada.ts` eșuează constant.
 create or replace function app.push_ia_din_coada(p_plafon int default 100)
 returns table (
   id            uuid,
@@ -186,6 +215,8 @@ begin
   with luate as (
     select l.id
     from public.push_livrari l
+    join public.dispozitive_push d on d.id = l.dispozitiv_id and d.deleted_at is null
+    join public.notifications n on n.id = l.notification_id and n.deleted_at is null
     where l.deleted_at is null
       and (
         l.stare = 'in_asteptare'
@@ -195,31 +226,18 @@ begin
       )
     order by l.created_at
     limit p_plafon
-    for update skip locked
+    for update of l skip locked
   )
+  -- Join-ul spre `d`/`n` de mai jos NU repetă `deleted_at is null`: CTE-ul de
+  -- mai sus rulează în ACEEAȘI comandă, deci pe ACELAȘI snapshot MVCC —
+  -- rândurile din `luate` au trecut deja filtrul o dată, iar repetarea lui
+  -- aici n-ar verifica nimic diferit, doar ar duplica sursa de adevăr.
   update public.push_livrari l
-     set stare = 'in_lucru', updated_at = now()
+     set stare = 'in_lucru', updated_at = now(), incercari = l.incercari + 1
     from luate, public.dispozitive_push d, public.notifications n
    where l.id = luate.id
      and d.id = l.dispozitiv_id
-     -- `d.deleted_at is null`: FĂRĂ clauza asta, un dispozitiv retras (telefon
-     -- predat mai departe, `deleted_at` pus de `/api/dispozitive` sau de
-     -- această funcție, secțiunea de mai jos) tot livrează rândurile lui
-     -- încă `in_asteptare` — pe jetonul lui, adică pe TELEFONUL FIZIC ajuns
-     -- între timp la altcineva. Trigger-ul care UMPLE coada (secțiunea 5)
-     -- deja filtrează `d.deleted_at is null`; partea care o GOLEA nu o făcea
-     -- — asimetria era dovada omisiunii, nu a unei alegeri. Rândul rămâne pe
-     -- `in_asteptare`, neluat de nimeni — cine retrage dispozitivul e
-     -- responsabil să-i abandoneze și coada (vezi `retrageDispozitivPrinAdmin`
-     -- din `api/dispozitive/route.ts`, și golirea best-effort din
-     -- `golesteCoada` la un bilet `DeviceNotRegistered`).
-     and d.deleted_at is null
      and n.id = l.notification_id
-     -- `n.deleted_at is null`: o notificare ștearsă între punerea în coadă și
-     -- livrare (rar, dar posibil — nimic n-o interzice) nu mai are ce conținut
-     -- să trimită; fără clauză, `n.title`/`n.body`/`n.link` ies din rândul
-     -- șters, nu dintr-o versiune curentă.
-     and n.deleted_at is null
   returning l.id, l.incercari, d.jeton, d.id, n.title, n.body, n.link;
 end;
 $$;

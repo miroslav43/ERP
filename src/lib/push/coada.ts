@@ -88,13 +88,18 @@ export async function golesteCoada(
     // mai scurt decât cozile trimise nu trebuie să blocheze rândul în
     // `in_lucru` la nesfârșit, tratăm absența ca eroare reîncercabilă.
     if (rezultat === undefined || rezultat.fel === "eroare") {
-      const incercari = rand.incercari + 1;
-      const renunta = incercari >= MAX_INCERCARI;
+      // `rand.incercari` e DEJA incrementat de `push_ia_din_coada` la
+      // preluare (0122, secțiunea 5b) — NU se mai adaugă un `+ 1` aici.
+      // Motivul mutării: incrementul de-acolo rulează cu privilegiile
+      // funcției, independent de scrierea de mai jos — dacă tocmai ASTA
+      // scriere eșuează constant, contorul tot avansează la fiecare
+      // preluare, iar rândul ajunge totuși la `MAX_INCERCARI`.
+      const renunta = rand.incercari >= MAX_INCERCARI;
       const { error: eroareScriere } = await db
         .from("push_livrari")
         .update({
           stare: renunta ? "abandonat" : "in_asteptare",
-          incercari,
+          incercari: rand.incercari,
           eroare: rezultat?.fel === "eroare" ? rezultat.mesaj : "Fără bilet de la Expo.",
         })
         .eq("id", rand.id);
@@ -173,10 +178,14 @@ export async function golesteCoada(
       abandonate += 1;
       // Cunoscut, neadresat aici: alte livrări încă `in_asteptare` ale
       // ACELUIAȘI dispozitiv (alte notificări puse în coadă înainte de
-      // retragere) nu sunt abandonate în bloc — rămân de reîncercat până la
-      // `MAX_INCERCARI`. Nu e o scurgere (jetonul e mort, deci și acelea vor
-      // primi `jeton-mort` la rândul lor, exact ca asta), doar risipă de
-      // apeluri către Expo.
+      // retragere) nu sunt abandonate în bloc. De la reparația Rundei 2
+      // (filtrul pe `d.deleted_at`/`n.deleted_at` mutat în CTE-ul lui
+      // `push_ia_din_coada`), NU mai sunt „risipă de apeluri către Expo" —
+      // dispozitivul retras le face invizibile pentru preluare, deci nu mai
+      // ajung NICIODATĂ la Expo. Rămân sediment: blocate pe `in_asteptare`
+      // la nesfârșit, fără niciun job care să le curețe — `push_livrari` nu
+      // e atinsă de `retention_policies` (cheiată pe `organization_id`, pe
+      // care coada n-o are; secțiunea 7 a migrării).
       continue;
     }
 

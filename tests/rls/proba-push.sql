@@ -29,6 +29,9 @@
 -- (17) POZITIVĂ — un `in_lucru` vechi de peste 10 minute e recuperat
 -- (18) NEGATIVĂ — un `in_lucru` proaspăt NU e recuperat
 -- (19) NEGATIVĂ — o notificare ștearsă nu e preluată
+-- (20) POZITIVĂ — orfani vechi (dispozitiv/notificare retrase) NU blochează
+--      capul cozii; un rând valid mai nou tot e preluat, chiar cu plafon mic
+--      (Runda 2, defectul „blocaj de cap de coadă")
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   psql "$BANC_URL" -f tests/rls/proba-push.sql
@@ -426,7 +429,6 @@ begin
     v_livr_stearsa  uuid;
     v_ids           uuid[];
     v_stare         public.stare_livrare_push;
-    v_updated_la    timestamptz;
   begin
     -- Fixturi: un dispozitiv retras CU o livrare încă `in_asteptare` (C1) și
     -- un dispozitiv activ cu patru livrări, câte una pentru fiecare stare care
@@ -471,7 +473,15 @@ begin
     select coalesce(array_agg(id), '{}') into v_ids from public.push_ia_din_coada(1000);
     reset role;
 
-    if v_livr_retras = any(v_ids) then
+    -- `v_livr_retras is null` verificat EXPLICIT: `null = any(v_ids)` dă
+    -- `null`, care intră pe ramura ELSE (succes) — dacă fixtura n-ar fi
+    -- existat, verificarea ar fi raportat „OK" fără să fi verificat nimic.
+    -- (15) e chiar garda de regresie a C1, deci trebuie să nu poată trece în
+    -- gol.
+    if v_livr_retras is null then
+      v_esecuri := v_esecuri + 1;
+      raise notice '  (15) EȘEC   fixtura livrării pentru dispozitivul retras nu s-a creat';
+    elsif v_livr_retras = any(v_ids) then
       v_esecuri := v_esecuri + 1;
       raise notice '  (15) EȘEC   preluarea a întors livrarea unui dispozitiv retras';
     else
@@ -498,20 +508,24 @@ begin
       raise notice '  (17) EȘEC   in_lucru vechi de peste 10 minute NU a fost recuperat';
     end if;
 
+    -- Verificarea principală e suficientă (id-ul absent din `v_ids`): o a
+    -- doua ramură care re-verifica `updated_at` a fost scoasă — `now()` e
+    -- constant pe toată tranzacția, iar fixtura de mai sus scrie tot
+    -- `updated_at = now()`, deci comparația cu `now() - interval '1 minute'`
+    -- ar fi ieșit adevărată indiferent dacă funcția ar fi atins rândul sau
+    -- nu — o ramură care nu poate cădea NICIODATĂ nu verifică nimic.
     if v_livr_proaspat = any(v_ids) then
       v_esecuri := v_esecuri + 1;
       raise notice '  (18) EȘEC   in_lucru proaspăt a fost recuperat (nu trebuia)';
     else
-      select updated_at into v_updated_la from public.push_livrari where id = v_livr_proaspat;
-      if v_updated_la > now() - interval '1 minute' then
-        raise notice '  (18) OK     in_lucru proaspăt nu e recuperat, rămâne neatins';
-      else
-        v_esecuri := v_esecuri + 1;
-        raise notice '  (18) EȘEC   in_lucru proaspăt neatins ca id, dar updated_at s-a schimbat oricum';
-      end if;
+      raise notice '  (18) OK     in_lucru proaspăt nu e recuperat, rămâne neatins';
     end if;
 
-    if v_livr_stearsa = any(v_ids) then
+    -- Aceeași gardă ca la (15): `null = any(v_ids)` ar trece tăcut pe OK.
+    if v_livr_stearsa is null then
+      v_esecuri := v_esecuri + 1;
+      raise notice '  (19) EȘEC   fixtura livrării pentru notificarea ștearsă nu s-a creat';
+    elsif v_livr_stearsa = any(v_ids) then
       v_esecuri := v_esecuri + 1;
       raise notice '  (19) EȘEC   preluarea a întors o livrare a unei notificări șterse';
     else
@@ -519,11 +533,109 @@ begin
     end if;
   end;
 
+  -- ── (20) POZITIVĂ: orfani vechi NU blochează capul cozii ────────────────
+  -- Regresie pentru defectul găsit în Runda 2: `limit p_plafon` stătea în
+  -- CTE, ÎNAINTE de filtrele pe dispozitiv/notificare retrase — orfanii,
+  -- fiind cei mai vechi (`order by created_at`), umpleau plafonul la fiecare
+  -- rulare și blocau COMPLET rândurile valide din spatele lor, fără nicio
+  -- eroare. Trei orfani mai vechi + un rând valid mai nou, plafon mic (2) —
+  -- dacă bug-ul ar reveni (filtrele mutate înapoi din CTE), rândul valid n-ar
+  -- mai fi preluat.
+  declare
+    v_u_blocaj   uuid := gen_random_uuid();
+    v_disp_o1    uuid;
+    v_disp_o2    uuid;
+    v_disp_o3    uuid;
+    v_disp_valid uuid;
+    v_notif_o1   uuid;
+    v_notif_o2   uuid;
+    v_notif_o3   uuid;
+    v_notif_v    uuid;
+    v_livr_valid uuid;
+    v_ids20      uuid[];
+  begin
+    -- Utilizator DEDICAT, nu `v_u_ang`: până la acest punct, `v_u_ang` mai
+    -- are cel puțin un dispozitiv ACTIV rămas din verificarea (16)
+    -- (`v_disp_activ`) — orice notificare nouă pentru `v_u_ang` ar pune în
+    -- coadă și pentru ACELA, contaminând numărătoarea candidaților valizi
+    -- cu rânduri neintenționate. Cu un user nou, fără niciun dispozitiv la
+    -- pornire, fiecare notificare de mai jos umple coada DOAR pentru
+    -- dispozitivul creat chiar înainte de ea.
+    insert into auth.users (id, email) values (v_u_blocaj, 'blocaj-' || v_sufix || '@exemplu.ro');
+    insert into public.organization_members (organization_id, user_id, role)
+    values (v_org, v_u_blocaj, 'employee');
+
+    -- Fiecare orfan e un ciclu STRICT SERIALIZAT: dispozitiv → notificare
+    -- (trigger-ul pune în coadă DOAR pentru dispozitivele active ale
+    -- utilizatorului, iar la acest pas e singurul) → retragere. Trei
+    -- dispozitive create dintr-o dată, ÎNAINTE de notificări, ar face ca
+    -- fiecare notificare să umple coada pentru TOATE cele trei deodată —
+    -- exact contaminarea de evitat mai sus, doar mutată în interiorul
+    -- blocului.
+    insert into public.dispozitive_push (organization_id, user_id, jeton, platforma) values
+      (v_org, v_u_blocaj, 'ExponentPushToken[proba-blocaj-o1-' || v_sufix || ']', 'android')
+      returning id into v_disp_o1;
+    insert into public.notifications (organization_id, user_id, kind, title)
+    values (v_org, v_u_blocaj, 'reminder', 'Orfan 1.') returning id into v_notif_o1;
+    update public.dispozitive_push set deleted_at = now() where id = v_disp_o1;
+
+    insert into public.dispozitive_push (organization_id, user_id, jeton, platforma) values
+      (v_org, v_u_blocaj, 'ExponentPushToken[proba-blocaj-o2-' || v_sufix || ']', 'android')
+      returning id into v_disp_o2;
+    insert into public.notifications (organization_id, user_id, kind, title)
+    values (v_org, v_u_blocaj, 'reminder', 'Orfan 2.') returning id into v_notif_o2;
+    update public.dispozitive_push set deleted_at = now() where id = v_disp_o2;
+
+    insert into public.dispozitive_push (organization_id, user_id, jeton, platforma) values
+      (v_org, v_u_blocaj, 'ExponentPushToken[proba-blocaj-o3-' || v_sufix || ']', 'android')
+      returning id into v_disp_o3;
+    insert into public.notifications (organization_id, user_id, kind, title)
+    values (v_org, v_u_blocaj, 'reminder', 'Orfan 3.') returning id into v_notif_o3;
+    update public.dispozitive_push set deleted_at = now() where id = v_disp_o3;
+
+    -- Backdatate explicit, nu doar create înaintea rândului valid: `now()`
+    -- e ÎNGHEȚAT pe toată tranzacția (`current_timestamp`, nu
+    -- `clock_timestamp()`), deci toate rândurile din acest fișier ar avea
+    -- altfel EXACT același `created_at` — ordinea „cine-i mai vechi" nu s-ar
+    -- putea baza pe simpla ordine de inserare fără o garanție explicită.
+    update public.push_livrari set created_at = now() - interval '1 hour'
+     where dispozitiv_id in (v_disp_o1, v_disp_o2, v_disp_o3);
+
+    -- Rândul valid: singurul dispozitiv activ al lui `v_u_blocaj` în acest
+    -- moment (cele trei orfane sunt deja retrase) — notificarea umple coada
+    -- STRICT pentru el.
+    insert into public.dispozitive_push (organization_id, user_id, jeton, platforma) values
+      (v_org, v_u_blocaj, 'ExponentPushToken[proba-blocaj-valid-' || v_sufix || ']', 'android')
+      returning id into v_disp_valid;
+    insert into public.notifications (organization_id, user_id, kind, title)
+    values (v_org, v_u_blocaj, 'reminder', 'Rândul valid, mai nou.') returning id into v_notif_v;
+
+    select id into v_livr_valid from public.push_livrari
+     where dispozitiv_id = v_disp_valid and notification_id = v_notif_v;
+
+    set local role service_role;
+    -- Plafon 2, cu 3 orfani mai vechi: sub bug-ul vechi, CTE-ul ar lua cei
+    -- doi orfani cei mai vechi (limita), i-ar bloca, iar UPDATE-ul de mai jos
+    -- i-ar elimina — rezultat gol, rândul valid neatins niciodată.
+    select coalesce(array_agg(id), '{}') into v_ids20 from public.push_ia_din_coada(2);
+    reset role;
+
+    if v_livr_valid is null then
+      v_esecuri := v_esecuri + 1;
+      raise notice '  (20) EȘEC   fixtura rândului valid nu s-a creat';
+    elsif v_livr_valid = any(v_ids20) then
+      raise notice '  (20) OK     3 orfani vechi + plafon 2 — rândul valid tot e preluat (fără blocaj de cap de coadă)';
+    else
+      v_esecuri := v_esecuri + 1;
+      raise notice '  (20) EȘEC   BLOCAJ DE CAP DE COADĂ — rândul valid NU a fost preluat cu plafon mic și orfani vechi';
+    end if;
+  end;
+
   raise notice '  ─────────────────────────────────────────────────────────';
   if v_esecuri > 0 then
     raise exception 'PROBA PUSH: % verificări căzute.', v_esecuri;
   end if;
-  raise notice '  PROBA PUSH: 19/19.';
+  raise notice '  PROBA PUSH: 20/20.';
 end;
 $$;
 
