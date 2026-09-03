@@ -20,8 +20,12 @@ interface ProprietatiPagina {
 
 export default async function PaginaTichetNou({ searchParams }: ProprietatiPagina) {
   const { tenant, user } = await requireTenant();
-  await requireFeature(tenant.organizationId, "ticketing");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  // Două citiri independente, pe tabele diferite. Înlănțuite erau două
+  // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
+  const [, permisiuni] = await Promise.all([
+    requireFeature(tenant.organizationId, "ticketing"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+  ]);
 
   if (!can(permisiuni, "tickets:create", "own")) {
     return <AccesRestrictionat mesaj="Nu aveți dreptul de a deschide tichete." />;
