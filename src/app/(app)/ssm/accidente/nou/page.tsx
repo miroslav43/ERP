@@ -17,8 +17,12 @@ export const metadata: Metadata = { title: "Accident nou" };
 export default async function PaginaAccidentNou() {
   await requireUser();
   const { tenant } = await requireTenant();
-  await requireFeature(tenant.organizationId, "ssm");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  // Două citiri independente, pe tabele diferite. Înlănțuite erau două
+  // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
+  const [, permisiuni] = await Promise.all([
+    requireFeature(tenant.organizationId, "ssm"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+  ]);
 
   if (!can(permisiuni, "ssm:create", "team")) {
     return (
