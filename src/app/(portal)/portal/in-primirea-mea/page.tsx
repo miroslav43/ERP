@@ -20,8 +20,12 @@ export const metadata: Metadata = { title: "În primirea mea" };
 
 export default async function PaginaInPrimireaMea() {
   const { tenant, user } = await requireTenant();
-  await requireFeature(tenant.organizationId, "inventory");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  // Două citiri independente, pe tabele diferite. Înlănțuite erau două
+  // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
+  const [, permisiuni] = await Promise.all([
+    requireFeature(tenant.organizationId, "inventory"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+  ]);
 
   if (!can(permisiuni, "inventory:read", "own")) {
     return (
