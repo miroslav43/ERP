@@ -44,8 +44,12 @@ export default async function PaginaSaptamanaPortal({
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { tenant, user } = await requireTenant();
-  await requireFeature(tenant.organizationId, "attendance");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  // Două citiri independente, pe tabele diferite. Înlănțuite erau două
+  // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
+  const [, permisiuni] = await Promise.all([
+    requireFeature(tenant.organizationId, "attendance"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+  ]);
 
   if (!can(permisiuni, "attendance:create", "own")) {
     return (
@@ -131,8 +135,7 @@ export default async function PaginaSaptamanaPortal({
   // tăcut. Formularul se blochează, nu lasă butonul activ ca să ducă în refuz.
   // Fără pas de aprobare, `aprobata` e pusă de trigger la trimitere (0118 §3):
   // fără ramura a treia, planul s-ar îngheța la prima apăsare.
-  const poateEdita =
-    submisie === null || submisie.status !== "aprobata" || !necesitaAprobare;
+  const poateEdita = submisie === null || submisie.status !== "aprobata" || !necesitaAprobare;
 
   return (
     <div className={`${LATIMI.formular} space-y-4 p-4`}>
