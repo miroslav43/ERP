@@ -1,12 +1,14 @@
 import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useEffect, useRef } from "react";
-import { Alert, Platform, SafeAreaView, StyleSheet } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Alert, Platform, Pressable, SafeAreaView, StyleSheet, Text } from "react-native";
 import { WebView, type WebViewMessageEvent, type WebViewNavigation } from "react-native-webview";
 
 import { cereJeton, scriptDeInregistrare } from "./push";
 import { eDescarcare, eTiparire, scriptDeAducere, salveazaPdf, tipareste } from "./fisiere";
+import { Lacat } from "./lacat";
+import { Scanner } from "./scanner";
 
 /**
  * Portalul de angajat, într-un WebView.
@@ -377,6 +379,24 @@ export default function App() {
     }
   }, []);
 
+  // SCANNER QR (Task 10)
+  //
+  // Stare ținută în `App`, nu în `Scanner` însuși: `mergiLa` are nevoie de
+  // `webview`, iar lacătul (`Lacat`, în `lacat.tsx`) trebuie să poată acoperi
+  // ecranul indiferent dacă scanner-ul e deschis — motiv pentru care butonul
+  // și `Scanner` stau amândoi ÎN interiorul `copil`-ului dat lui `Lacat`, mai
+  // jos: vălul biometric se desenează PESTE ele.
+  const [scannerDeschis, setScannerDeschis] = useState(false);
+  const inchideScanner = useCallback(() => setScannerDeschis(false), []);
+
+  // Navigarea către calea de pontare validată de `Scanner` (deja verificată
+  // acolo, cu regex ancorat pe domeniul nostru) — același idiom ca la
+  // deep link-ul de notificare, mai jos: `location.assign` injectat, nu un
+  // apel nativ, ca sesiunea din cookie jar-ul WebView-ului să rămână intactă.
+  const mergiLa = useCallback((cale: string) => {
+    webview.current?.injectJavaScript(`location.assign(${JSON.stringify(cale)}); true;`);
+  }, []);
+
   useEffect(() => {
     // Curățenie la demontare: dacă `App` ar fi vreodată demontată cu o
     // recuperare încă programată, n-o lăsăm să scrie într-un ref al unei
@@ -411,60 +431,87 @@ export default function App() {
   }, []);
 
   return (
-    <SafeAreaView style={stiluri.ecran}>
-      <StatusBar style="light" />
-      <WebView
-        ref={webview}
-        source={{ uri: URL_PORTAL }}
-        // Sesiunea trăiește în cookie jar-ul propriu al aplicației, separat de
-        // Safari și Chrome. De aceea login-ul de aici e o sesiune NOUĂ, nu o
-        // copie — iar rotația refresh token-ului Supabase o tratează normal.
-        sharedCookiesEnabled
-        thirdPartyCookiesEnabled
-        // Fără asta, un `history.back()` din portal închide aplicația.
-        allowsBackForwardNavigationGestures
-        onLoadEnd={(eveniment) => inregistreazaDacaPePortal(eveniment.nativeEvent.url)}
-        onNavigationStateChange={(stare: WebViewNavigation) =>
-          inregistreazaDacaPePortal(stare.url)
-        }
-        // Fluturașul (`eDescarcare`) e o navigare directă spre `/api/export/`,
-        // dintr-un `<a>` simplu — se vede imediat aici. Adeverința
-        // (`eTiparire`) pleacă dintr-un `<Link>` (next/link) către un Route
-        // Handler fără pagină RSC de preluat: Next încearcă întâi o preluare
-        // RSC internă (invizibilă pentru WebView, e doar un `fetch` de
-        // pagină), primește HTML în loc de payload RSC, și cade pe o
-        // navigare grea de browser — ACEEA e ce prindem aici, nu click-ul
-        // însuși. Verificat DIRECT în sursa Next.js instalată (rundă de
-        // revizuire, nu doar în documentație): `next/dist/client/components/
-        // router-reducer/fetch-server-response.js:130-141` cade pe
-        // `doMpaNavigation`, care duce la `completeHardNavigation` — navigarea
-        // grea reală. URL-ul folosit acolo e cel canonic, cu marcatorul
-        // `_rsc` explicit șters (iar proiectul n-are `trailingSlash`), deci
-        // regexul tolerant din `eTiparire` (`/`/`?` opțional după
-        // `adeverinta`) nu era strict necesar — rămâne totuși ca marjă
-        // ieftină, nu maschează nimic: interceptarea chiar se declanșează.
-        //
-        // Prima încărcare, din `source={{ uri: URL_PORTAL }}`, TRECE și ea
-        // prin acest handler — dar `URL_PORTAL` nu conține `/api/export/` și
-        // nu se potrivește cu regexul din `eTiparire`, deci ambele predicate
-        // sunt false și `return true` o lasă să navigheze normal.
-        onShouldStartLoadWithRequest={(cerere) => {
-          if (eDescarcare(cerere.url)) {
-            porneșteAducerea(cerere.url, "pdf");
-            return false;
-          }
-          if (eTiparire(cerere.url)) {
-            porneșteAducerea(cerere.url, "html");
-            return false;
-          }
-          return true;
-        }}
-        onMessage={primesteMesaj}
-      />
-    </SafeAreaView>
+    <Lacat
+      copil={
+        <SafeAreaView style={stiluri.ecran}>
+          <StatusBar style="light" />
+          <WebView
+            ref={webview}
+            source={{ uri: URL_PORTAL }}
+            // Sesiunea trăiește în cookie jar-ul propriu al aplicației, separat de
+            // Safari și Chrome. De aceea login-ul de aici e o sesiune NOUĂ, nu o
+            // copie — iar rotația refresh token-ului Supabase o tratează normal.
+            sharedCookiesEnabled
+            thirdPartyCookiesEnabled
+            // Fără asta, un `history.back()` din portal închide aplicația.
+            allowsBackForwardNavigationGestures
+            onLoadEnd={(eveniment) => inregistreazaDacaPePortal(eveniment.nativeEvent.url)}
+            onNavigationStateChange={(stare: WebViewNavigation) =>
+              inregistreazaDacaPePortal(stare.url)
+            }
+            // Fluturașul (`eDescarcare`) e o navigare directă spre `/api/export/`,
+            // dintr-un `<a>` simplu — se vede imediat aici. Adeverința
+            // (`eTiparire`) pleacă dintr-un `<Link>` (next/link) către un Route
+            // Handler fără pagină RSC de preluat: Next încearcă întâi o preluare
+            // RSC internă (invizibilă pentru WebView, e doar un `fetch` de
+            // pagină), primește HTML în loc de payload RSC, și cade pe o
+            // navigare grea de browser — ACEEA e ce prindem aici, nu click-ul
+            // însuși. Verificat DIRECT în sursa Next.js instalată (rundă de
+            // revizuire, nu doar în documentație): `next/dist/client/components/
+            // router-reducer/fetch-server-response.js:130-141` cade pe
+            // `doMpaNavigation`, care duce la `completeHardNavigation` — navigarea
+            // grea reală. URL-ul folosit acolo e cel canonic, cu marcatorul
+            // `_rsc` explicit șters (iar proiectul n-are `trailingSlash`), deci
+            // regexul tolerant din `eTiparire` (`/`/`?` opțional după
+            // `adeverinta`) nu era strict necesar — rămâne totuși ca marjă
+            // ieftină, nu maschează nimic: interceptarea chiar se declanșează.
+            //
+            // Prima încărcare, din `source={{ uri: URL_PORTAL }}`, TRECE și ea
+            // prin acest handler — dar `URL_PORTAL` nu conține `/api/export/` și
+            // nu se potrivește cu regexul din `eTiparire`, deci ambele predicate
+            // sunt false și `return true` o lasă să navigheze normal.
+            onShouldStartLoadWithRequest={(cerere) => {
+              if (eDescarcare(cerere.url)) {
+                porneșteAducerea(cerere.url, "pdf");
+                return false;
+              }
+              if (eTiparire(cerere.url)) {
+                porneșteAducerea(cerere.url, "html");
+                return false;
+              }
+              return true;
+            }}
+            onMessage={primesteMesaj}
+          />
+          {/*
+            Butonul stă DEASUPRA WebView-ului, nu în portal: pe web n-are ce
+            căuta — acolo scanarea o face aplicația de cameră a telefonului
+            (vezi `src/app/(portal)/portal/ponteaza/page.tsx`). E frate cu
+            `WebView`, nu copil al lui, deci rămâne vizibil pe orice ecran al
+            portalului, indiferent unde a navigat omul înăuntru.
+          */}
+          <Pressable style={stiluri.butonScanner} onPress={() => setScannerDeschis(true)}>
+            <Text style={stiluri.butonScannerText}>Scanează codul</Text>
+          </Pressable>
+          <Scanner deschis={scannerDeschis} inchide={inchideScanner} mergiLa={mergiLa} />
+        </SafeAreaView>
+      }
+    />
   );
 }
 
 const stiluri = StyleSheet.create({
   ecran: { flex: 1, backgroundColor: "#0f1e3d" },
+  butonScanner: {
+    position: "absolute",
+    right: 16,
+    bottom: 24,
+    backgroundColor: "#0f1e3d",
+    borderColor: "#faf7f0",
+    borderWidth: 1,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 24,
+  },
+  butonScannerText: { color: "#faf7f0", fontSize: 15, fontWeight: "600" },
 });
