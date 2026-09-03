@@ -2,10 +2,11 @@ import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useRef } from "react";
-import { Platform, SafeAreaView, StyleSheet } from "react-native";
+import { Alert, Platform, SafeAreaView, StyleSheet } from "react-native";
 import { WebView, type WebViewMessageEvent, type WebViewNavigation } from "react-native-webview";
 
 import { cereJeton, scriptDeInregistrare } from "./push";
+import { eDescarcare, eTiparire, scriptDeAducere, salveazaPdf, tipareste } from "./fisiere";
 
 /**
  * Portalul de angajat, într-un WebView.
@@ -28,6 +29,17 @@ const URL_PORTAL =
  * (`POST /api/dispozitive` face UPSERT pe jeton, nu poate dubla rândul).
  */
 const TIMP_RECUPERARE_MS = 8000;
+
+/**
+ * Aceeași idee de recuperare ca mai sus, pentru descărcare/tipărire
+ * (`porneșteAducerea`, mai jos): dacă scriptul injectat de `scriptDeAducere`
+ * nu răspunde deloc — pagina a navigat peste `fetch`-ul în zbor, exact cursa
+ * descrisă mai sus — omul rămâne cu un ecran mort, fără mesaj. 20 de secunde,
+ * nu 8: un PDF de fluturaș se citește ca `data:` URI (`FileReader`, în pagină)
+ * înainte de `postMessage`, pe lângă cererea de rețea propriu-zisă — mai lent
+ * decât cererea JSON mică de la înregistrarea jetonului.
+ */
+const TIMP_RECUPERARE_FISIER_MS = 20000;
 
 // Notificarea primită cât aplicația e deschisă trebuie să se afișeze oricum —
 // altfel un om care stă în aplicație nu vede că i s-a aprobat o cerere decât
@@ -54,10 +66,18 @@ function esteCaleInterna(cale: unknown): cale is string {
 
 /**
  * Mesajele venite din pagină, prin `window.ReactNativeWebView.postMessage`.
- * Câmpul `fel` le deosebește: Task 9 va adăuga alte valori (descărcări,
- * tipărire) fără să rescrie `onMessage` — vezi dispecerul din `primesteMesaj`.
+ * Câmpul `fel` le deosebește — vezi dispecerul din `primesteMesaj`. Valorile de
+ * azi: `"jeton"` (înregistrarea push-ului, `push.ts`), `"pdf"` și `"html"`
+ * (descărcarea/tipărirea, `fisiere.ts`). `nume`/`date` sunt tipate lax
+ * (`unknown`) fiindcă doar `"pdf"`/`"html"` le populează — verificate cu
+ * `typeof` la locul de folosire, ca la `esteCaleInterna`, nu presupuse.
  */
-type MesajDinPagina = { readonly fel: string; readonly ok?: boolean };
+type MesajDinPagina = {
+  readonly fel: string;
+  readonly ok?: boolean;
+  readonly nume?: unknown;
+  readonly date?: unknown;
+};
 
 function parseazaMesaj(dateBrute: string): MesajDinPagina | null {
   try {
@@ -93,6 +113,14 @@ export default function App() {
   // Temporizatorul de recuperare pentru încercarea curentă — vezi
   // RECUPEREAZĂ DIN „ÎN CURS", mai jos. `null` când nu e nimic în zbor.
   const timpRecuperare = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Același tipar de recuperare, pentru descărcare/tipărire — vezi
+  // `porneșteAducerea` și ramurile `"pdf"`/`"html"` din `primesteMesaj`, mai
+  // jos. Un singur ref, comun celor două operații: sunt pornite de pe ecrane
+  // diferite ale portalului (fluturaș vs. adeverință), deci practic nu pornesc
+  // simultan; dacă totuși s-ar suprapune, un al doilea tap ar înlocui pur și
+  // simplu temporizatorul primului — cel mult lipsește o alertă de eroare
+  // pentru o încercare deja depășită de următoarea, niciodată o blocare.
+  const timpRecuperareFisier = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // MOMENTUL ÎNREGISTRĂRII
   //
@@ -191,8 +219,35 @@ export default function App() {
     })();
   }, []);
 
-  // Dispecer pe `fel` — vezi `MesajDinPagina`. Task 9 adaugă alte ramuri aici
-  // (descărcări, tipărire) fără să rescrie ramura `"jeton"`.
+  // DESCĂRCARE / TIPĂRIRE (Task 9)
+  //
+  // Pornește aducerea unui fișier din pagină, cf. `fisiere.ts`. Apelată din
+  // `onShouldStartLoadWithRequest`, mai jos, DUPĂ ce interceptarea a decis să
+  // blocheze navigarea (`return false`) — deci `injectJavaScript` rulează în
+  // continuare pe pagina PE CARE OMUL A APĂSAT butonul, nu pe una nouă.
+  //
+  // Temporizatorul de recuperare pornește AICI, nu doar la eșec — pentru că
+  // singura cale prin care aflăm dacă `fetch`-ul din pagină a murit tăcut
+  // (navigare peste el) este ABSENȚA oricărui mesaj, niciodată un eveniment
+  // explicit de eșec. Fără temporizator, cazul ăla ar lăsa omul cu ecranul
+  // neschimbat, la nesfârșit, fără nicio explicație — exact defectul pe care
+  // sarcina asta trebuie să-l închidă, nu să-l reproducă sub altă formă.
+  const porneșteAducerea = useCallback((url: string, fel: "pdf" | "html") => {
+    webview.current?.injectJavaScript(scriptDeAducere(url, fel));
+    if (timpRecuperareFisier.current !== null) clearTimeout(timpRecuperareFisier.current);
+    timpRecuperareFisier.current = setTimeout(() => {
+      timpRecuperareFisier.current = null;
+      Alert.alert(
+        "Nu am primit răspuns",
+        fel === "pdf"
+          ? "Descărcarea fluturașului a durat prea mult. Încearcă din nou."
+          : "Deschiderea adeverinței a durat prea mult. Încearcă din nou.",
+      );
+    }, TIMP_RECUPERARE_FISIER_MS);
+  }, []);
+
+  // Dispecer pe `fel` — vezi `MesajDinPagina`. `"pdf"`/`"html"` (Task 9) merg
+  // pe lângă `"jeton"`, fără să-l rescrie.
   const primesteMesaj = useCallback((eveniment: WebViewMessageEvent) => {
     const mesaj = parseazaMesaj(eveniment.nativeEvent.data);
     if (mesaj === null) return;
@@ -210,6 +265,54 @@ export default function App() {
         // `/portal` (cursa de mai sus), fie fetch-ul a eșuat pe rețea —
         // ambele se rezolvă singure la o navigare ulterioară relevantă.
         break;
+      case "pdf":
+      case "html": {
+        // Mesajul a sosit — indiferent de `ok` — deci recuperarea de mai sus
+        // nu mai are ce recupera.
+        if (timpRecuperareFisier.current !== null) {
+          clearTimeout(timpRecuperareFisier.current);
+          timpRecuperareFisier.current = null;
+        }
+        if (mesaj.ok !== true) {
+          // `raspuns.ok` fals în pagină (401/403/404/409/500 — vezi rutele
+          // reale în `fisiere.ts`) sau `fetch`/`FileReader` a aruncat. Omul
+          // primește un motiv, nu tăcere.
+          Alert.alert(
+            "Nu s-a putut termina",
+            mesaj.fel === "pdf"
+              ? "Fluturașul nu a putut fi descărcat. Verifică dacă luna e aprobată și încearcă din nou."
+              : "Adeverința nu a putut fi deschisă pentru tipărire.",
+          );
+          break;
+        }
+        // Conținutul chiar a ajuns — restul e nativ (`expo-file-system`,
+        // `expo-sharing`, `expo-print`), deci poate arunca independent de
+        // orice a mers bine până aici. Prins separat, cu mesaj propriu: omul
+        // nu trebuie să priceapă diferența, doar să știe că ceva a eșuat.
+        void (async () => {
+          try {
+            if (mesaj.fel === "pdf") {
+              if (typeof mesaj.nume === "string" && typeof mesaj.date === "string") {
+                await salveazaPdf(mesaj.nume, mesaj.date);
+              }
+            } else if (typeof mesaj.date === "string") {
+              await tipareste(mesaj.date);
+            }
+          } catch {
+            // `expo-sharing`/`expo-print` au aruncat — de exemplu foaia de
+            // partajare nu e disponibilă pe acest dispozitiv. Fișierul PDF
+            // tot a fost scris în cache, la `salveazaPdf`, dar omul n-are de
+            // unde ști asta fără o alertă explicită.
+            Alert.alert(
+              "Nu s-a putut termina",
+              mesaj.fel === "pdf"
+                ? "Fluturașul a fost adus, dar nu s-a putut trimite mai departe."
+                : "Adeverința a fost adusă, dar tipărirea nu a putut porni.",
+            );
+          }
+        })();
+        break;
+      }
       default:
         break;
     }
@@ -221,6 +324,7 @@ export default function App() {
     // instanțe dispărute.
     return () => {
       if (timpRecuperare.current !== null) clearTimeout(timpRecuperare.current);
+      if (timpRecuperareFisier.current !== null) clearTimeout(timpRecuperareFisier.current);
     };
   }, []);
 
@@ -255,6 +359,27 @@ export default function App() {
         onNavigationStateChange={(stare: WebViewNavigation) =>
           inregistreazaDacaPePortal(stare.url)
         }
+        // Fluturașul (`eDescarcare`) e o navigare directă spre `/api/export/`,
+        // dintr-un `<a>` simplu — se vede imediat aici. Adeverința
+        // (`eTiparire`) pleacă dintr-un `<Link>` (next/link) către un Route
+        // Handler fără pagină RSC de preluat: Next încearcă întâi o
+        // preluare RSC internă (invizibilă pentru WebView, e doar un `fetch`
+        // de pagină), primește HTML în loc de payload RSC, și cade pe o
+        // navigare grea de browser — ACEEA e ce prindem aici, nu click-ul
+        // însuși. Verificat în codul Next.js instalat: același mecanism de
+        // fallback descris pentru un CDN care taie antetul `rsc`
+        // (`node_modules/next/dist/docs/.../cdn-caching.md`).
+        onShouldStartLoadWithRequest={(cerere) => {
+          if (eDescarcare(cerere.url)) {
+            porneșteAducerea(cerere.url, "pdf");
+            return false;
+          }
+          if (eTiparire(cerere.url)) {
+            porneșteAducerea(cerere.url, "html");
+            return false;
+          }
+          return true;
+        }}
         onMessage={primesteMesaj}
       />
     </SafeAreaView>
