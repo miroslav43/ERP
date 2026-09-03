@@ -2,6 +2,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 import { RANK } from "@/config/permissions";
 import { getEnabledFeatures } from "@/lib/auth/features";
@@ -242,17 +243,26 @@ export function createAction<TSchema extends z.ZodType, TData>(
     }
 
     // ── 7. AUDITUL DE SUCCES ──────────────────────────────────────────────
-    await writeAuditLog(supabase, {
-      organizationId: tenant.organizationId,
-      action: def.audit.action,
-      status: "success",
-      entityType: def.audit.entityType,
-      entityId: def.audit.entityId?.(input, data) ?? null,
-      before: null,
-      after: redactPayload(input, def.audit.allow),
-      errorCode: null,
-      requestId,
-      meta,
+    // În `after()`, nu `await`: rândul de audit se scrie după ce răspunsul a
+    // plecat spre client, deci nu mai adaugă ~110 ms la fiecare salvare.
+    //
+    // NUMAI succesele. Auditul de REFUZ (din `refuza()`, mai sus) rămâne
+    // `await`-uit: un refuz pierdut e o gaură în urmă, pe când un succes pierdut
+    // e o linie lipsă dintr-un jurnal care are deja rândul de date scris. Cele
+    // două nu au aceeași valoare, deci nu merită același preț.
+    after(async () => {
+      await writeAuditLog(supabase, {
+        organizationId: tenant.organizationId,
+        action: def.audit.action,
+        status: "success",
+        entityType: def.audit.entityType,
+        entityId: def.audit.entityId?.(input, data) ?? null,
+        before: null,
+        after: redactPayload(input, def.audit.allow),
+        errorCode: null,
+        requestId,
+        meta,
+      });
     });
 
     // ── 8. REVALIDAREA ────────────────────────────────────────────────────
