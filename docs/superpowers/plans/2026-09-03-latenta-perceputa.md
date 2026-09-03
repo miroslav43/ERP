@@ -1312,12 +1312,18 @@ Confirmă: `:133` e `const features = await getEnabledFeatures(...)`, `:145` e
 1. **Ordinea refuzurilor.** `MODUL_DEZACTIVAT` trebuie să rămână înaintea lui `INTERZIS`. Un
    apelant căruia i s-a dezactivat modulul **și** îi lipsește permisiunea trebuie să primească
    același cod ca înainte.
-2. **Cursa de erori.** Dacă `getPermissionMap` aruncă (ex. `organizationId` non-UUID,
-   `permissions.ts:68-70`) înaintea unui `notFound()` din `getEnabledFeatures`, rejectul lui câștigă
-   și un 404 devine 500. Practic nereproductibil cu un tenant valid — `resolveTenant` l-a validat
-   deja — dar e schimbarea reală de comportament a acestei sarcini. Contra-partea e sigură:
-   `Promise.all` atașează handler pe fiecare element, deci al doilea reject nu devine unhandled
-   rejection.
+2. **Cursa de erori.** ⚠️ **CORECTAT după revizie, 2026-09-03:** prima versiune a acestui pas
+   avertiza că un `notFound()` din `getEnabledFeatures` ar putea deveni 500. **Premisa era falsă pe
+   acest traseu.** `notFound()` aparține lui `requireFeature()` (`features.ts:84-90`), folosit în
+   **pagini** — vezi Sarcina 9, unde avertismentul e corect. `createAction` cheamă
+   `getEnabledFeatures()` (`features.ts:38-75`), care nu cheamă niciodată `notFound()`: întoarce un
+   `Set` sau aruncă un `Error` generic.
+
+   Ce rămâne adevărat: dacă oricare dintre cele două citiri aruncă, `Promise.all` respinge cu prima
+   eroare, iar acum nu se mai poate ști care a fost. Înainte, ordinea serială o făcea evidentă din
+   stiva de apel. Ambele aruncă `Error` generic și niciuna nu e prinsă de un `try/catch` în
+   `createAction` — nici înainte, nici după. Contra-partea e sigură: `Promise.all` atașează handler
+   pe fiecare element, deci al doilea reject nu devine unhandled rejection.
 
 - [ ] **Pas 4: Rulează lanțul**
 
