@@ -42,6 +42,10 @@ const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
   ["/de-ce-nu", "Limitele asumate ale produsului și comparația cu felul de a lucra fără el."],
   ["/intrebari", "Întrebările frecvente, cu răspunsuri."],
   [
+    "/unelte/foaie-de-pontaj",
+    "Unealtă gratuită: generează o foaie de pontaj lunară cu sărbătorile legale calculate. Fără cont.",
+  ],
+  [
     "/comparatie/excel",
     "Pontaj în foaie de calcul față de aplicație: unde se rupe Excel-ul și unde nu.",
   ],

@@ -61,6 +61,13 @@ const PAGINI: readonly Pagina[] = [
   { cale: "/de-ce-nu", prioritate: 0.5, limba: "ro", traducere: null, actualizat: "2026-09-03" },
   { cale: "/domenii", prioritate: 0.5, limba: "ro", traducere: null, actualizat: "2026-09-03" },
   {
+    cale: "/unelte/foaie-de-pontaj",
+    prioritate: 0.7,
+    limba: "ro",
+    traducere: null,
+    actualizat: "2026-09-03",
+  },
+  {
     cale: "/comparatie/excel",
     prioritate: 0.6,
     limba: "ro",
