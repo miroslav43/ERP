@@ -190,13 +190,48 @@ create trigger trg_notifications_push
 -- `incercari = l.incercari + 1` la preluare, nu doar la scrierea din
 -- `golesteCoada`: o scriere care eșuează DETERMINIST pe partea TypeScript
 -- (grant retras pe `push_livrari`, de exemplu) lăsa altfel `incercari`
--- neschimbat la nesfârșit — rândul era recuperat mereu la +10 minute și
--- mesajul pleca din nou spre Expo, la infinit, fiindcă MAX_INCERCARI nu se
--- atingea niciodată. Incrementul de aici rulează cu privilegiile funcției
--- (`security definer`), independent de orice grant/eroare pe partea de
--- service_role — contorul avansează chiar și când scrierea ulterioară din
+-- neschimbat la nesfârșit. Incrementul de aici rulează cu privilegiile
+-- funcției (`security definer`), independent de orice grant/eroare pe partea
+-- de service_role — contorul avansează chiar și când scrierea ulterioară din
 -- `coada.ts` eșuează constant.
-create or replace function app.push_ia_din_coada(p_plafon int default 100)
+--
+-- DAR incrementul, SINGUR, nu oprește nimic — corecție față de comentariul
+-- din Runda 2, care afirma greșit că problema era rezolvată aici. Contorul
+-- avansa, dar NIMENI nu-l citea la preluare: CTE-ul de mai jos n-avea niciun
+-- predicat pe `incercari`, iar singurul loc care scria starea `abandonat`
+-- era `coada.ts` — exact scrierea care eșuează în scenariul invocat. Efect
+-- reprodus empiric: opt cicluri de recuperare cu scrierea din TypeScript
+-- eșuând determinist, `incercari` ajunge la 8, MESAJUL PLEACĂ SPRE EXPO DE
+-- OPT ORI. Reparat mai jos, cu pasul de curățare.
+--
+-- PASUL 1 — curățare, ÎNAINTE de preluare: abandonă direct, prin
+-- `security definer`, rândurile fără nicio șansă de livrare — `incercari`
+-- deja la prag SAU dispozitiv/notificare retrase — indiferent cine le-a
+-- adus în starea asta și indiferent dacă scrierea normală din TypeScript
+-- funcționează. Aleasă în locul unui simplu predicat `and l.incercari <
+-- p_max_incercari` în CTE (varianta care doar le-ar fi lăsat blocate pe
+-- 'in_asteptare'/'in_lucru' la nesfârșit, NEluate, dar NEabandonate — sediment
+-- identic celui de mai jos) fiindcă scoate rândurile din
+-- `push_livrari_de_trimis_idx` (indexul parțial pe
+-- `stare in ('in_asteptare','in_lucru')`), nu doar din rezultatul întors.
+--
+-- ACEEAȘI curățare prinde și livrările-surori ale unui dispozitiv retras de
+-- `golesteCoada` la un bilet `DeviceNotRegistered` (sau de
+-- `retrageDispozitivPrinAdmin` din `api/dispozitive/route.ts`) — rânduri
+-- care, înainte de reparația asta, rămâneau pe 'in_asteptare' la nesfârșit,
+-- parcurse prin același index fierbinte la fiecare preluare, fără să fie
+-- luate NICIODATĂ (join-ul din Pasul 2 le exclude oricum). Asimetria dintre
+-- cele două căi de retragere a dispozitivului (una abandona explicit coada,
+-- cealaltă nu) dispare: orice rând orfan, indiferent pe unde a ajuns orfan,
+-- e curățat aici, o singură dată, centralizat.
+--
+-- Domeniul WHERE de mai jos oglindește STRICT eligibilitatea de preluare din
+-- Pasul 2 (`stare = 'in_asteptare'` sau `in_lucru` mai vechi de 10 minute):
+-- un rând `in_lucru` PROASPĂT nu e atins aici, deci acest pas nu poate intra
+-- în conflict cu o preluare concurentă (altă replică) încă activă pe el —
+-- doar rândurile pe care Pasul 2 ar fi fost oricum dispus să le atingă intră
+-- în discuție.
+create or replace function app.push_ia_din_coada(p_plafon int default 100, p_max_incercari int default 5)
 returns table (
   id            uuid,
   incercari     int,
@@ -211,6 +246,32 @@ security definer
 set search_path = ''
 as $$
 begin
+  update public.push_livrari l
+     set stare = 'abandonat', updated_at = now(),
+         eroare = case
+           when l.incercari >= p_max_incercari then 'Abandonat: numărul maxim de încercări atins.'
+           else 'Abandonat: dispozitivul sau notificarea nu mai există.'
+         end
+   where l.deleted_at is null
+     and (
+       l.stare = 'in_asteptare'
+       or (l.stare = 'in_lucru' and l.updated_at < now() - interval '10 minutes')
+     )
+     and (
+       l.incercari >= p_max_incercari
+       or not exists (
+         select 1 from public.dispozitive_push d
+          where d.id = l.dispozitiv_id and d.deleted_at is null
+       )
+       or not exists (
+         select 1 from public.notifications n
+          where n.id = l.notification_id and n.deleted_at is null
+       )
+     );
+
+  -- PASUL 2 — preluarea propriu-zisă, neschimbată față de Runda 2 în afara
+  -- curățării de mai sus (care a rulat deja, deci rândurile abandonate acolo
+  -- nu mai pot fi candidate aici — starea lor nu mai e 'in_asteptare'/'in_lucru').
   return query
   with luate as (
     select l.id
@@ -242,12 +303,12 @@ begin
 end;
 $$;
 
-revoke all on function app.push_ia_din_coada(int) from public, anon, authenticated;
+revoke all on function app.push_ia_din_coada(int, int) from public, anon, authenticated;
 
 -- `.rpc()` nu ajunge la schema `app` — PostgREST expune doar `public`. Funcția
 -- rămâne în `app` (convenția: logica stă acolo) și primește un înveliș
 -- `public` care doar o cheamă.
-create or replace function public.push_ia_din_coada(p_plafon int default 100)
+create or replace function public.push_ia_din_coada(p_plafon int default 100, p_max_incercari int default 5)
 returns table (
   id uuid, incercari int, jeton text, dispozitiv_id uuid,
   titlu text, corp text, link text
@@ -255,10 +316,10 @@ returns table (
 language sql
 security definer
 set search_path = ''
-as $$ select * from app.push_ia_din_coada(p_plafon) $$;
+as $$ select * from app.push_ia_din_coada(p_plafon, p_max_incercari) $$;
 
-revoke all on function public.push_ia_din_coada(int) from public, anon, authenticated;
-grant execute on function public.push_ia_din_coada(int) to service_role;
+revoke all on function public.push_ia_din_coada(int, int) from public, anon, authenticated;
+grant execute on function public.push_ia_din_coada(int, int) to service_role;
 
 ---------------------------------------------------------------------------
 -- 6. RLS

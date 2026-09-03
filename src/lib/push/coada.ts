@@ -57,7 +57,10 @@ export async function golesteCoada(
   // utilizator — rulează pentru toți destinatarii deodată, dintr-un timer.
   // `push_livrari` n-are oricum nicio politică: e închisă și pentru
   // `authenticated`. Filtrarea o face funcția SQL, nu o clauză din TypeScript.
-  const { data, error } = await db.rpc("push_ia_din_coada", { p_plafon: plafon });
+  const { data, error } = await db.rpc("push_ia_din_coada", {
+    p_plafon: plafon,
+    p_max_incercari: MAX_INCERCARI,
+  });
   if (error !== null) throw new Error(`Preluarea din coadă a eșuat: ${error.message}.`);
 
   // `data` poate fi `null` (RPC fără rânduri întoarce uneori `null`, nu array
@@ -89,17 +92,22 @@ export async function golesteCoada(
     // `in_lucru` la nesfârșit, tratăm absența ca eroare reîncercabilă.
     if (rezultat === undefined || rezultat.fel === "eroare") {
       // `rand.incercari` e DEJA incrementat de `push_ia_din_coada` la
-      // preluare (0122, secțiunea 5b) — NU se mai adaugă un `+ 1` aici.
-      // Motivul mutării: incrementul de-acolo rulează cu privilegiile
-      // funcției, independent de scrierea de mai jos — dacă tocmai ASTA
-      // scriere eșuează constant, contorul tot avansează la fiecare
-      // preluare, iar rândul ajunge totuși la `MAX_INCERCARI`.
+      // preluare (0122, secțiunea 5b) — NU se mai scrie înapoi aici, și cu
+      // atât mai puțin cu un `+ 1` suplimentar. Motivul: SQL-ul a scris deja
+      // exact această valoare; o rescriere de-aici ar fi azi un no-op, dar la
+      // o suprapunere de recuperare (rândul reluat de altă preluare între
+      // citirea asta și scrierea de mai jos) ar rescrie o valoare STAGNANTĂ
+      // peste incrementul unei preluări mai noi. Decizia `renunta` tot
+      // folosește `rand.incercari` — corectă pentru RUNDA curentă; dacă
+      // scrierea de mai jos eșuează constant, `push_ia_din_coada` are acum
+      // propriul ei plasă de siguranță (Pasul 1, secțiunea 5b): abandonă
+      // direct rândurile cu `incercari` la prag, indiferent ce scrie
+      // TypeScript.
       const renunta = rand.incercari >= MAX_INCERCARI;
       const { error: eroareScriere } = await db
         .from("push_livrari")
         .update({
           stare: renunta ? "abandonat" : "in_asteptare",
-          incercari: rand.incercari,
           eroare: rezultat?.fel === "eroare" ? rezultat.mesaj : "Fără bilet de la Expo.",
         })
         .eq("id", rand.id);
@@ -176,16 +184,14 @@ export async function golesteCoada(
         continue;
       }
       abandonate += 1;
-      // Cunoscut, neadresat aici: alte livrări încă `in_asteptare` ale
-      // ACELUIAȘI dispozitiv (alte notificări puse în coadă înainte de
-      // retragere) nu sunt abandonate în bloc. De la reparația Rundei 2
-      // (filtrul pe `d.deleted_at`/`n.deleted_at` mutat în CTE-ul lui
-      // `push_ia_din_coada`), NU mai sunt „risipă de apeluri către Expo" —
-      // dispozitivul retras le face invizibile pentru preluare, deci nu mai
-      // ajung NICIODATĂ la Expo. Rămân sediment: blocate pe `in_asteptare`
-      // la nesfârșit, fără niciun job care să le curețe — `push_livrari` nu
-      // e atinsă de `retention_policies` (cheiată pe `organization_id`, pe
-      // care coada n-o are; secțiunea 7 a migrării).
+      // NU se abandonează aici, explicit, și celelalte livrări încă
+      // `in_asteptare` ale ACELUIAȘI dispozitiv (alte notificări puse în
+      // coadă înainte de retragere) — nu mai e nevoie. De la reparația Rundei
+      // 3 (Pasul 1 din `push_ia_din_coada`, 0122 secțiunea 5b), funcția SQL
+      // le curăță ea însăși la URMĂTOAREA preluare: orice rând orfan
+      // (dispozitiv sau notificare retrase), indiferent pe ce cale a ajuns
+      // orfan, e scos direct din `push_livrari_de_trimis_idx` — nu mai
+      // rămâne sediment.
       continue;
     }
 

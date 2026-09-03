@@ -12831,7 +12831,7 @@ export type Database = {
         }[]
       }
       push_ia_din_coada: {
-        Args: { p_plafon?: number }
+        Args: { p_max_incercari?: number; p_plafon?: number }
         Returns: {
           corp: string
           dispozitiv_id: string

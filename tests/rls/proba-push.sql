@@ -32,6 +32,9 @@
 -- (20) POZITIVĂ — orfani vechi (dispozitiv/notificare retrase) NU blochează
 --      capul cozii; un rând valid mai nou tot e preluat, chiar cu plafon mic
 --      (Runda 2, defectul „blocaj de cap de coadă")
+-- (21) NEGATIVĂ — un rând cu `incercari` deja la pragul `p_max_incercari`
+--      NU mai e preluat; e abandonat direct de funcție (Runda 3, defectul
+--      „contorul avansează, dar nimeni nu-l citește")
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   psql "$BANC_URL" -f tests/rls/proba-push.sql
@@ -553,7 +556,19 @@ begin
     v_notif_v    uuid;
     v_livr_valid uuid;
     v_ids20      uuid[];
+    v_cnt_orfani int;
   begin
+    -- Golește tot ce a rămas eligibil din verificările (1)-(19), cu plafon
+    -- mare și un prag de încercări generos (nu se abandonează nimic aici —
+    -- doar se scoate din calea preluării de mai jos). Determinismul
+    -- verificării (20) NU trebuie să depindă TĂCUT de faptul că apelul cu
+    -- plafon 1000 din blocul (15)-(19) a golit deja candidații valizi rămași
+    -- — dacă acel apel ar dispărea sau și-ar scădea plafonul, (20) ar putea
+    -- pica fals-negativ, fără nicio legătură cu blocajul de cap de coadă.
+    -- Golirea explicită de-aici face verificarea auto-suficientă.
+    set local role service_role;
+    perform public.push_ia_din_coada(10000, 2147483647);
+    reset role;
     -- Utilizator DEDICAT, nu `v_u_ang`: până la acest punct, `v_u_ang` mai
     -- are cel puțin un dispozitiv ACTIV rămas din verificarea (16)
     -- (`v_disp_activ`) — orice notificare nouă pentru `v_u_ang` ar pune în
@@ -613,6 +628,13 @@ begin
     select id into v_livr_valid from public.push_livrari
      where dispozitiv_id = v_disp_valid and notification_id = v_notif_v;
 
+    -- Gardă, aceeași clasă reparată la (15)/(19): dacă fixtura orfanilor nu
+    -- s-a creat corect, verificarea de mai jos ar testa un scenariu cu mai
+    -- puțin de trei orfani (sau chiar niciunul) și ar putea trece „OK" fără
+    -- să fi verificat nimic despre blocajul de cap de coadă.
+    select count(*) into v_cnt_orfani from public.push_livrari
+     where dispozitiv_id in (v_disp_o1, v_disp_o2, v_disp_o3);
+
     set local role service_role;
     -- Plafon 2, cu 3 orfani mai vechi: sub bug-ul vechi, CTE-ul ar lua cei
     -- doi orfani cei mai vechi (limita), i-ar bloca, iar UPDATE-ul de mai jos
@@ -620,7 +642,10 @@ begin
     select coalesce(array_agg(id), '{}') into v_ids20 from public.push_ia_din_coada(2);
     reset role;
 
-    if v_livr_valid is null then
+    if v_cnt_orfani <> 3 then
+      v_esecuri := v_esecuri + 1;
+      raise notice '  (20) EȘEC   fixtura orfanilor nu s-a creat corect: % rânduri (așteptat 3)', v_cnt_orfani;
+    elsif v_livr_valid is null then
       v_esecuri := v_esecuri + 1;
       raise notice '  (20) EȘEC   fixtura rândului valid nu s-a creat';
     elsif v_livr_valid = any(v_ids20) then
@@ -631,11 +656,70 @@ begin
     end if;
   end;
 
+  -- ── (21) NEGATIVĂ: un rând cu `incercari` la prag NU mai e preluat ──────
+  -- Regresie pentru al doilea defect găsit în Runda 3: incrementul lui
+  -- `incercari` la preluare (Runda 2) nu oprea nimic de unul singur — CTE-ul
+  -- n-avea niciun predicat pe el, iar singurul loc care scria `abandonat`
+  -- era `coada.ts` — exact scrierea care eșuează în scenariul invocat de
+  -- revizuire. Reprodus acolo empiric: opt cicluri de recuperare cu scrierea
+  -- din TypeScript eșuând determinist → `incercari` ajunge la 8, mesajul
+  -- pleacă spre Expo de opt ori. Pasul 1 din `push_ia_din_coada` (0122,
+  -- secțiunea 5b) abandonă acum direct un asemenea rând, ÎNAINTE de
+  -- preluare — indiferent dacă scrierea din TypeScript merge sau nu.
+  declare
+    v_u_prag     uuid := gen_random_uuid();
+    v_disp_prag  uuid;
+    v_notif_prag uuid;
+    v_livr_prag  uuid;
+    v_ids21      uuid[];
+    v_stare_prag public.stare_livrare_push;
+  begin
+    -- Utilizator dedicat, ca la (20): evită fan-out-ul trigger-ului către
+    -- alte dispozitive active ale lui `v_u_ang`.
+    insert into auth.users (id, email) values (v_u_prag, 'prag-' || v_sufix || '@exemplu.ro');
+    insert into public.organization_members (organization_id, user_id, role)
+    values (v_org, v_u_prag, 'employee');
+
+    insert into public.dispozitive_push (organization_id, user_id, jeton, platforma) values
+      (v_org, v_u_prag, 'ExponentPushToken[proba-prag-' || v_sufix || ']', 'android')
+      returning id into v_disp_prag;
+    insert into public.notifications (organization_id, user_id, kind, title)
+    values (v_org, v_u_prag, 'reminder', 'La pragul de încercări.') returning id into v_notif_prag;
+
+    select id into v_livr_prag from public.push_livrari
+     where dispozitiv_id = v_disp_prag and notification_id = v_notif_prag;
+
+    if v_livr_prag is null then
+      v_esecuri := v_esecuri + 1;
+      raise notice '  (21) EȘEC   fixtura rândului la prag nu s-a creat';
+    else
+      -- `incercari = 5`, EGAL cu `p_max_incercari` implicit al funcției
+      -- (apelul de mai jos nu-l suprascrie — folosește implicitul).
+      update public.push_livrari set incercari = 5 where id = v_livr_prag;
+
+      set local role service_role;
+      select coalesce(array_agg(id), '{}') into v_ids21 from public.push_ia_din_coada(1000);
+      reset role;
+
+      select stare into v_stare_prag from public.push_livrari where id = v_livr_prag;
+
+      if v_livr_prag = any(v_ids21) then
+        v_esecuri := v_esecuri + 1;
+        raise notice '  (21) EȘEC   rândul cu incercari la prag a fost preluat (retrimis spre Expo)';
+      elsif v_stare_prag <> 'abandonat' then
+        v_esecuri := v_esecuri + 1;
+        raise notice '  (21) EȘEC   rândul nu a fost preluat, dar starea e % (așteptat abandonat)', v_stare_prag;
+      else
+        raise notice '  (21) OK     rând cu incercari la prag — abandonat direct, niciodată preluat';
+      end if;
+    end if;
+  end;
+
   raise notice '  ─────────────────────────────────────────────────────────';
   if v_esecuri > 0 then
     raise exception 'PROBA PUSH: % verificări căzute.', v_esecuri;
   end if;
-  raise notice '  PROBA PUSH: 20/20.';
+  raise notice '  PROBA PUSH: 21/21.';
 end;
 $$;
 
