@@ -47,8 +47,9 @@ export function meetsScope(granted: PermissionScope | undefined, min: MinScope):
  *
  * Resurse: announcements, attendance, audit, branding, checklists, compliance,
  * courses, departments, employees, features, inventory, leave, maintenance,
- * organizations, payroll, per_diem, reports, roles, ssm, trip_sheets, users,
- * vehicles. Acțiuni: read, create, update, delete, approve, export.
+ * organizations, payroll, per_diem, reges, registru, reports, roles, ssm,
+ * trip_sheets, users, vehicles.
+ * Acțiuni: read, create, update, delete, approve, export, transmit, configure.
  */
 export const PERMISSION_KEYS = [
   "announcements:read",
@@ -162,6 +163,28 @@ export const PERMISSION_KEYS = [
   "reges:transmit",
   "reges:configure",
   "reges:export",
+  /**
+   * Registrul de înregistrare a documentelor (0120).
+   *
+   * Trei chei, nu patru: nu există `create`, fiindcă nimeni nu înregistrează din
+   * interfață. Registrul se scrie din triggerele de pe tabelele sursă, prin
+   * `internal.inregistreaza_document` — dreptul care contează e dreptul de a
+   * scrie DOCUMENTUL, verificat deja de RLS-ul acelei tabele. Altfel un
+   * `employee` care depune o cerere de concediu — o INTRARE în registru, cerută
+   * de Legea 16/1996 art. 7 — ar avea nevoie de o cheie de registru pe care nu
+   * trebuie s-o aibă.
+   *
+   * `update` acoperă închiderea și redeschiderea exercițiului financiar (OMFP
+   * 2634/2015 pct. 58 lit. h) și e a administratorului: `hr` primește `read` și
+   * `export`, dar nu `update`.
+   *
+   * `read` e cheie PROPRIE, nu `compliance:read` refolosit: rolul `hr` nu are
+   * `compliance:read` în seed, deci pagina ar fi întors zero rânduri fără nicio
+   * eroare — chiar omului care emite documentele.
+   */
+  "registru:read",
+  "registru:export",
+  "registru:update",
   "reports:read",
   "roles:read",
   "roles:update",

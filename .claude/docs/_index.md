@@ -8,7 +8,6 @@ tabele: []
 permisiuni: []
 capcane: []
 neverificat:
-  - "cauta-vault.mjs — se livrează în etapa 2; referința e deliberat înainte de fișier"
   - "lipsește politica — text care ENUMERĂ formulările interzise de clasa P, nu le folosește"
 scris_pe: MANUAL
 scris_la: 2026-08-28

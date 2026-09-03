@@ -10478,6 +10478,159 @@ export type Database = {
           },
         ]
       }
+      registru_documente: {
+        Row: {
+          id: string;
+          organization_id: string;
+          an: number;
+          numar: number;
+          numar_afisat: string;
+          data_inregistrare: string;
+          sens: Database["public"]["Enums"]["registru_sens"];
+          tip_document: string;
+          continut_rezumat: string;
+          numar_document_emitent: string | null;
+          data_document_emitent: string | null;
+          emitent: string | null;
+          destinatar: string | null;
+          numar_file: number | null;
+          numar_anexe: number | null;
+          compartiment: string | null;
+          data_expedierii: string | null;
+          mod_rezolvare: string | null;
+          conexat_la: string | null;
+          entitate_tip: string;
+          entitate_id: string | null;
+          punct_lucru_id: string | null;
+          inregistrat_retroactiv: boolean;
+          anulat_la: string | null;
+          motiv_anulare: string | null;
+          created_at: string;
+          created_by: string | null;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          an: number;
+          numar: number;
+          numar_afisat: string;
+          data_inregistrare: string;
+          sens: Database["public"]["Enums"]["registru_sens"];
+          tip_document: string;
+          continut_rezumat: string;
+          numar_document_emitent?: string | null;
+          data_document_emitent?: string | null;
+          emitent?: string | null;
+          destinatar?: string | null;
+          numar_file?: number | null;
+          numar_anexe?: number | null;
+          compartiment?: string | null;
+          data_expedierii?: string | null;
+          mod_rezolvare?: string | null;
+          conexat_la?: string | null;
+          entitate_tip: string;
+          entitate_id?: string | null;
+          punct_lucru_id?: string | null;
+          inregistrat_retroactiv?: boolean;
+          anulat_la?: string | null;
+          motiv_anulare?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          an?: number;
+          numar?: number;
+          numar_afisat?: string;
+          data_inregistrare?: string;
+          sens?: Database["public"]["Enums"]["registru_sens"];
+          tip_document?: string;
+          continut_rezumat?: string;
+          numar_document_emitent?: string | null;
+          data_document_emitent?: string | null;
+          emitent?: string | null;
+          destinatar?: string | null;
+          numar_file?: number | null;
+          numar_anexe?: number | null;
+          compartiment?: string | null;
+          data_expedierii?: string | null;
+          mod_rezolvare?: string | null;
+          conexat_la?: string | null;
+          entitate_tip?: string;
+          entitate_id?: string | null;
+          punct_lucru_id?: string | null;
+          inregistrat_retroactiv?: boolean;
+          anulat_la?: string | null;
+          motiv_anulare?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [];
+      };
+      registru_exercitii: {
+        Row: {
+          id: string;
+          organization_id: string;
+          an: number;
+          stare: Database["public"]["Enums"]["registru_stare_exercitiu"];
+          numar_de_pornire: number;
+          inchis_la: string | null;
+          inchis_de: string | null;
+          total_inregistrari: number | null;
+          amprenta: string | null;
+          redeschis_la: string | null;
+          redeschis_de: string | null;
+          motiv_redeschidere: string | null;
+          created_at: string;
+          created_by: string | null;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          organization_id: string;
+          an: number;
+          stare?: Database["public"]["Enums"]["registru_stare_exercitiu"];
+          numar_de_pornire?: number;
+          inchis_la?: string | null;
+          inchis_de?: string | null;
+          total_inregistrari?: number | null;
+          amprenta?: string | null;
+          redeschis_la?: string | null;
+          redeschis_de?: string | null;
+          motiv_redeschidere?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          organization_id?: string;
+          an?: number;
+          stare?: Database["public"]["Enums"]["registru_stare_exercitiu"];
+          numar_de_pornire?: number;
+          inchis_la?: string | null;
+          inchis_de?: string | null;
+          total_inregistrari?: number | null;
+          amprenta?: string | null;
+          redeschis_la?: string | null;
+          redeschis_de?: string | null;
+          motiv_redeschidere?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [];
+      };
       retention_policies: {
         Row: {
           anonymize_only: boolean
@@ -12936,6 +13089,8 @@ export type Database = {
         | "contract"
         | "propunere_detasare"
         | "propunere_mutare"
+      registru_sens: "intrare" | "iesire" | "intern"
+      registru_stare_exercitiu: "deschis" | "inchis"
       salary_component_kind:
         | "spor_procent"
         | "spor_suma"
@@ -13479,6 +13634,8 @@ export const Constants = {
         "propunere_detasare",
         "propunere_mutare",
       ],
+      registru_sens: ["intrare", "iesire", "intern"],
+      registru_stare_exercitiu: ["deschis", "inchis"],
       salary_component_kind: [
         "spor_procent",
         "spor_suma",
