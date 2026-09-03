@@ -78,7 +78,30 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   // Rolul contează: doar `org_admin` poate completa datele. Unui `hr` sau
   // `manager` i-am cere capitalul social și IBAN-ul firmei — o fundătură cu
   // câmpuri pe care n-are cum să le știe. Ei primesc un ecran care explică.
-  const stare = await stareFirmei(tenant.organizationId);
+  //
+  // `stareFirmei` și `getEnabledFeatures` (mai jos) depind AMÂNDOUĂ doar de
+  // `tenant.organizationId` și nu se consumă una pe alta — pot porni în ACELAȘI
+  // val, nu în serie. NU într-un `Promise.all` simplu, totuși: cele două eșuează
+  // diferit. `stareFirmei` e fail-open (întoarce `null` la eroare — vezi
+  // docblock-ul din stare-firma.ts), dar `getEnabledFeatures` ARUNCĂ
+  // (features.ts:51-53). Un `Promise.all` obișnuit respinge tot valul la prima
+  // excepție care apare, INDIFERENT că `stareFirmei` s-a rezolvat deja cu bine —
+  // o eroare pe `organization_features` ar da 500 exact firmei `pending`, aflată
+  // în plin onboarding, ÎNAINTE ca redirectul ei să apuce să fie evaluat. E cea
+  // care are cel mai mult nevoie să ajungă la ecranul ei.
+  //
+  // De aceea pornim ambele promisiuni aici, dar despachetăm STARE întâi, decidem
+  // redirectul, și abia apoi despachetăm modulele.
+  const starePromise = stareFirmei(tenant.organizationId);
+  const featuresPromise = getEnabledFeatures(tenant.organizationId);
+  // Dacă redirectăm mai jos, `featuresPromise` rămâne neașteptată pe acea cale.
+  // `.catch()` gol atașat AICI, la creare — nu în ramura de redirect — ca o
+  // eventuală respingere să nu devină unhandledRejection indiferent cât
+  // durează `starePromise` față de ea; promisiunea originală rămâne cea
+  // așteptată mai jos, deci eroarea reală tot ajunge acolo.
+  featuresPromise.catch(() => {});
+
+  const stare = await starePromise;
   if (stare === "pending") {
     redirect(tenant.role === "org_admin" ? "/bun-venit" : "/firma-in-configurare");
   }
@@ -89,10 +112,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
    * meniul, în `<MeniuLateral>` — e memoizată cu `React.cache()`, deci n-o
    * plătește nimeni de două ori, dar nu mai ține primul pixel.
    */
-  const [features, store] = await Promise.all([
-    getEnabledFeatures(tenant.organizationId),
-    cookies(),
-  ]);
+  const [features, store] = await Promise.all([featuresPromise, cookies()]);
 
   return (
     <>
