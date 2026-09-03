@@ -113,14 +113,31 @@ export default function App() {
   // Temporizatorul de recuperare pentru încercarea curentă — vezi
   // RECUPEREAZĂ DIN „ÎN CURS", mai jos. `null` când nu e nimic în zbor.
   const timpRecuperare = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Același tipar de recuperare, pentru descărcare/tipărire — vezi
-  // `porneșteAducerea` și ramurile `"pdf"`/`"html"` din `primesteMesaj`, mai
-  // jos. Un singur ref, comun celor două operații: sunt pornite de pe ecrane
-  // diferite ale portalului (fluturaș vs. adeverință), deci practic nu pornesc
-  // simultan; dacă totuși s-ar suprapune, un al doilea tap ar înlocui pur și
-  // simplu temporizatorul primului — cel mult lipsește o alertă de eroare
-  // pentru o încercare deja depășită de următoarea, niciodată o blocare.
-  const timpRecuperareFisier = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // GARDĂ DE REINTRARE, pentru descărcare/tipărire — vezi `porneșteAducerea`
+  // și ramurile `"pdf"`/`"html"` din `primesteMesaj`, mai jos. Oglindește
+  // `inCurs` de mai sus, dar ȚINUTĂ PE FEL, nu comună: `"pdf"` (fluturaș) și
+  // `"html"` (adeverință) pornesc de pe ecrane diferite ale portalului, ca
+  // acțiuni ale omului complet independente — un fluturaș încă în curs n-are
+  // niciun motiv să blocheze o adeverință cerută separat. Ce blochează garda
+  // e strict UN AL DOILEA tap PE ACELAȘI fel cât primul e încă în zbor:
+  // fără ea, dublu-tap pe „Descarcă fluturașul" (interacțiunea firească pe o
+  // rețea lentă, când omul nu vede nimic mișcând) pornește DOUĂ `fetch`-uri
+  // spre aceeași rută, în același realm — dacă ambele reușesc, ramura `"pdf"`
+  // din `primesteMesaj` rulează de două ori, deci `Sharing.shareAsync` e
+  // chemat de două ori; pe iOS, o a doua prezentare de share sheet peste una
+  // încă pe ecran e instabilă și ARUNCĂ — omul ar vedea alerta de eroare deși
+  // fișierul chiar a fost adus și prima foaie chiar a pornit. Exact confuzia
+  // pe care sarcina asta există s-o elimine, pe cea mai obișnuită interacțiune
+  // de eșec posibilă.
+  const inCursFisier = useRef<{ pdf: boolean; html: boolean }>({ pdf: false, html: false });
+  // Temporizatoarele de recuperare, tot pe fel — aceeași motivație ca la
+  // `timpRecuperare`: dacă pagina navighează peste `fetch`-ul în zbor (realm-ul
+  // moare), niciun mesaj nu mai vine NICIODATĂ, deci garda de mai sus ar rămâne
+  // `true` la nesfârșit fără un temporizator care s-o elibereze singur.
+  const timpRecuperareFisier = useRef<{
+    pdf: ReturnType<typeof setTimeout> | null;
+    html: ReturnType<typeof setTimeout> | null;
+  }>({ pdf: null, html: null });
 
   // MOMENTUL ÎNREGISTRĂRII
   //
@@ -226,17 +243,29 @@ export default function App() {
   // blocheze navigarea (`return false`) — deci `injectJavaScript` rulează în
   // continuare pe pagina PE CARE OMUL A APĂSAT butonul, nu pe una nouă.
   //
+  // GARDA DE REINTRARE (rundă de revizuire — vezi `inCursFisier`, mai sus):
+  // dacă operația pentru ACEST fel e deja în curs, al doilea tap nu mai
+  // pornește un al doilea `fetch` — doar iese. Garda rămâne `true` pe TOATĂ
+  // durata operației, inclusiv partea nativă (`salveazaPdf`/`tipareste`),
+  // eliberată abia în `primesteMesaj`, mai jos — niciodată aici, la pornire.
+  //
   // Temporizatorul de recuperare pornește AICI, nu doar la eșec — pentru că
   // singura cale prin care aflăm dacă `fetch`-ul din pagină a murit tăcut
   // (navigare peste el) este ABSENȚA oricărui mesaj, niciodată un eveniment
   // explicit de eșec. Fără temporizator, cazul ăla ar lăsa omul cu ecranul
   // neschimbat, la nesfârșit, fără nicio explicație — exact defectul pe care
-  // sarcina asta trebuie să-l închidă, nu să-l reproducă sub altă formă.
+  // sarcina asta trebuie să-l închidă, nu să-l reproducă sub altă formă. La
+  // expirare, temporizatorul eliberează și garda de mai sus — altfel un
+  // `fetch` mort ar bloca PERMANENT orice încercare ulterioară pe același fel.
   const porneșteAducerea = useCallback((url: string, fel: "pdf" | "html") => {
+    if (inCursFisier.current[fel]) return;
+    inCursFisier.current[fel] = true;
     webview.current?.injectJavaScript(scriptDeAducere(url, fel));
-    if (timpRecuperareFisier.current !== null) clearTimeout(timpRecuperareFisier.current);
-    timpRecuperareFisier.current = setTimeout(() => {
-      timpRecuperareFisier.current = null;
+    const activ = timpRecuperareFisier.current[fel];
+    if (activ !== null) clearTimeout(activ);
+    timpRecuperareFisier.current[fel] = setTimeout(() => {
+      timpRecuperareFisier.current[fel] = null;
+      inCursFisier.current[fel] = false;
       Alert.alert(
         "Nu am primit răspuns",
         fel === "pdf"
@@ -267,19 +296,26 @@ export default function App() {
         break;
       case "pdf":
       case "html": {
+        // Îngustat de `switch` la `"pdf" | "html"` — indexează sigur în
+        // refs-urile pe fel, de mai sus.
+        const fel = mesaj.fel;
         // Mesajul a sosit — indiferent de `ok` — deci recuperarea de mai sus
         // nu mai are ce recupera.
-        if (timpRecuperareFisier.current !== null) {
-          clearTimeout(timpRecuperareFisier.current);
-          timpRecuperareFisier.current = null;
+        const activ = timpRecuperareFisier.current[fel];
+        if (activ !== null) {
+          clearTimeout(activ);
+          timpRecuperareFisier.current[fel] = null;
         }
         if (mesaj.ok !== true) {
           // `raspuns.ok` fals în pagină (401/403/404/409/500 — vezi rutele
           // reale în `fisiere.ts`) sau `fetch`/`FileReader` a aruncat. Omul
-          // primește un motiv, nu tăcere.
+          // primește un motiv, nu tăcere. Operația s-a încheiat (cu eșec) —
+          // eliberăm garda de reintrare, ca un tap următor să poată porni
+          // una nouă.
+          inCursFisier.current[fel] = false;
           Alert.alert(
             "Nu s-a putut termina",
-            mesaj.fel === "pdf"
+            fel === "pdf"
               ? "Fluturașul nu a putut fi descărcat. Verifică dacă luna e aprobată și încearcă din nou."
               : "Adeverința nu a putut fi deschisă pentru tipărire.",
           );
@@ -289,14 +325,35 @@ export default function App() {
         // `expo-sharing`, `expo-print`), deci poate arunca independent de
         // orice a mers bine până aici. Prins separat, cu mesaj propriu: omul
         // nu trebuie să priceapă diferența, doar să știe că ceva a eșuat.
+        //
+        // Garda de reintrare (`inCursFisier`) rămâne `true` pe toată durata
+        // blocului de mai jos — eliberată abia în `finally`, NU la sosirea
+        // mesajului: cât `Sharing.shareAsync`/`Print.printAsync` e încă pe
+        // ecran, un al doilea tap pe același buton ar porni o a doua
+        // prezentare peste prima — exact instabilitatea (share sheet dublu pe
+        // iOS) pe care garda există s-o evite, nu doar dublarea `fetch`-ului.
         void (async () => {
           try {
-            if (mesaj.fel === "pdf") {
+            if (fel === "pdf") {
               if (typeof mesaj.nume === "string" && typeof mesaj.date === "string") {
                 await salveazaPdf(mesaj.nume, mesaj.date);
+              } else {
+                // `ok: true`, dar scriptul n-a populat `nume`/`date` cum ar
+                // fi trebuit (n-ar trebui să se întâmple azi, cf.
+                // `scriptDeAducere`) — rămâne totuși o ramură care poate fi
+                // atinsă, deci nu are voie să fie mută.
+                Alert.alert(
+                  "Nu s-a putut termina",
+                  "Fluturașul a fost adus într-o formă neașteptată.",
+                );
               }
             } else if (typeof mesaj.date === "string") {
               await tipareste(mesaj.date);
+            } else {
+              Alert.alert(
+                "Nu s-a putut termina",
+                "Adeverința a fost adusă într-o formă neașteptată.",
+              );
             }
           } catch {
             // `expo-sharing`/`expo-print` au aruncat — de exemplu foaia de
@@ -305,10 +362,12 @@ export default function App() {
             // unde ști asta fără o alertă explicită.
             Alert.alert(
               "Nu s-a putut termina",
-              mesaj.fel === "pdf"
+              fel === "pdf"
                 ? "Fluturașul a fost adus, dar nu s-a putut trimite mai departe."
                 : "Adeverința a fost adusă, dar tipărirea nu a putut porni.",
             );
+          } finally {
+            inCursFisier.current[fel] = false;
           }
         })();
         break;
@@ -321,10 +380,19 @@ export default function App() {
   useEffect(() => {
     // Curățenie la demontare: dacă `App` ar fi vreodată demontată cu o
     // recuperare încă programată, n-o lăsăm să scrie într-un ref al unei
-    // instanțe dispărute.
+    // instanțe dispărute. Doar temporizatoarele — `inCursFisier`/`inCurs` nu
+    // au nevoie de resetare explicită aici: sunt simple `ref`-uri, nu stare
+    // reactivă, deci mor o dată cu obiectul `App` demontat; o eventuală
+    // scriere ulterioară dintr-un `finally` încă în zbor (vezi `primesteMesaj`)
+    // ar cădea pe un obiect pe care nimeni nu-l mai citește, fără efect.
     return () => {
       if (timpRecuperare.current !== null) clearTimeout(timpRecuperare.current);
-      if (timpRecuperareFisier.current !== null) clearTimeout(timpRecuperareFisier.current);
+      if (timpRecuperareFisier.current.pdf !== null) {
+        clearTimeout(timpRecuperareFisier.current.pdf);
+      }
+      if (timpRecuperareFisier.current.html !== null) {
+        clearTimeout(timpRecuperareFisier.current.html);
+      }
     };
   }, []);
 
@@ -362,13 +430,24 @@ export default function App() {
         // Fluturașul (`eDescarcare`) e o navigare directă spre `/api/export/`,
         // dintr-un `<a>` simplu — se vede imediat aici. Adeverința
         // (`eTiparire`) pleacă dintr-un `<Link>` (next/link) către un Route
-        // Handler fără pagină RSC de preluat: Next încearcă întâi o
-        // preluare RSC internă (invizibilă pentru WebView, e doar un `fetch`
-        // de pagină), primește HTML în loc de payload RSC, și cade pe o
+        // Handler fără pagină RSC de preluat: Next încearcă întâi o preluare
+        // RSC internă (invizibilă pentru WebView, e doar un `fetch` de
+        // pagină), primește HTML în loc de payload RSC, și cade pe o
         // navigare grea de browser — ACEEA e ce prindem aici, nu click-ul
-        // însuși. Verificat în codul Next.js instalat: același mecanism de
-        // fallback descris pentru un CDN care taie antetul `rsc`
-        // (`node_modules/next/dist/docs/.../cdn-caching.md`).
+        // însuși. Verificat DIRECT în sursa Next.js instalată (rundă de
+        // revizuire, nu doar în documentație): `next/dist/client/components/
+        // router-reducer/fetch-server-response.js:130-141` cade pe
+        // `doMpaNavigation`, care duce la `completeHardNavigation` — navigarea
+        // grea reală. URL-ul folosit acolo e cel canonic, cu marcatorul
+        // `_rsc` explicit șters (iar proiectul n-are `trailingSlash`), deci
+        // regexul tolerant din `eTiparire` (`/`/`?` opțional după
+        // `adeverinta`) nu era strict necesar — rămâne totuși ca marjă
+        // ieftină, nu maschează nimic: interceptarea chiar se declanșează.
+        //
+        // Prima încărcare, din `source={{ uri: URL_PORTAL }}`, TRECE și ea
+        // prin acest handler — dar `URL_PORTAL` nu conține `/api/export/` și
+        // nu se potrivește cu regexul din `eTiparire`, deci ambele predicate
+        // sunt false și `return true` o lasă să navigheze normal.
         onShouldStartLoadWithRequest={(cerere) => {
           if (eDescarcare(cerere.url)) {
             porneșteAducerea(cerere.url, "pdf");
