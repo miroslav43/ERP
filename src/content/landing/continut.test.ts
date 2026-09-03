@@ -12,6 +12,7 @@ import {
   PRETURI_MODULE,
   sumaSeparat,
 } from "./preturi";
+import { ADRESA_FIRMA, CONTACT, FIRMA } from "./contact";
 import { EN } from "./en";
 import { RO } from "./ro";
 import type { ContinutLanding } from "./tipuri";
@@ -117,6 +118,28 @@ describe("landing-ul nu poate minți despre module", () => {
     }
   });
 
+  it("înregistrarea self-serve pornește exact modulele pachetului de bază", () => {
+    /*
+     * Două locuri trebuie să spună același lucru: `MODULE_NUCLEU` de aici, care
+     * decide ce SE VINDE la 149 lei, și lista din `0121_inregistrare_publica.sql`,
+     * care decide ce SE PORNEȘTE la crearea contului.
+     *
+     * Despărțite, nu cade nimic — firma primește pur și simplu altceva decât a
+     * citit pe pagină. Iar prima variantă a migrării chiar era despărțită:
+     * activa doar `is_core`, adică singurul `nucleu`, deci un cont nou n-avea
+     * nici pontaj, nici concedii, nici portal. Exact ce promite eroul.
+     */
+    const sql = readFileSync("supabase/migrations/0121_inregistrare_publica.sql", "utf8");
+    const bloc = sql.slice(sql.indexOf("insert into public.organization_features"));
+    const inLista = [...bloc.slice(0, 600).matchAll(/'([a-z_]+)'/g)].map((m) => m[1] ?? "");
+
+    for (const cheie of MODULE_NUCLEU) {
+      // `nucleu` intră prin `is_core = true`, nu prin lista literală.
+      if (cheie === "nucleu") continue;
+      expect(inLista, `0121 nu pornește ${cheie}, deși e vândut în Nucleu HR`).toContain(cheie);
+    }
+  });
+
   it("reducerea afișată e reală: pachetul costă mai puțin decât suma modulelor", () => {
     for (const pachet of PACHETE) {
       const separat = sumaSeparat(pachet);
@@ -194,6 +217,26 @@ describe("regulile de scriere ale paginii", () => {
         expect(permise.has(suma), `${limba}: suma ${suma} nu există în preturi.ts`).toBe(true);
       }
     }
+  });
+
+  it("identitatea juridică e completă și e pe adresa proprie", () => {
+    /*
+     * Legea 365/2002 art. 5 cere denumirea, sediul, codul de înregistrare și
+     * datele de contact „în formă clară, vizibil și permanent, în interiorul
+     * paginii de web", pentru orice furnizor de servicii ale societății
+     * informaționale — inclusiv B2B pur. Sancțiunea, art. 22: 1.000–100.000 lei.
+     *
+     * Testul nu apără doar litera legii. Un ERP care cere acces la datele de
+     * personal ale unei firme, promovat de pe o adresă de Gmail, pierde la
+     * întrebarea „e firmă reală?" înainte de a apuca să răspundă la ea.
+     */
+    expect(FIRMA.denumire).toMatch(/S\.?R\.?L\.?/i);
+    expect(FIRMA.cui).toMatch(/^\d{2,10}$/);
+    expect(FIRMA.regCom, "numărul din registrul comerțului").toMatch(/^J\d{2}\/\d+\/\d{4}$/);
+    expect(ADRESA_FIRMA).toContain(FIRMA.oras);
+    expect(CONTACT.email, "adresa trebuie să fie pe domeniul propriu").toMatch(
+      /@administrativo\.ro$/,
+    );
   });
 
   it("mențiunea de TVA însoțește prețurile, în ambele limbi", () => {

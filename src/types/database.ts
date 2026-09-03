@@ -6112,6 +6112,7 @@ export type Database = {
           id?: string
           luna: number
           organization_id: string
+          perioada?: string
           scor_procent?: number | null
           set_id: string
           status?: Database["public"]["Enums"]["evaluation_status"]
@@ -6130,6 +6131,7 @@ export type Database = {
           id?: string
           luna?: number
           organization_id?: string
+          perioada?: string
           scor_procent?: number | null
           set_id?: string
           status?: Database["public"]["Enums"]["evaluation_status"]
@@ -6261,6 +6263,7 @@ export type Database = {
           denumire: string
           descriere?: string | null
           functie: string
+          functie_norm?: string
           id?: string
           organization_id: string
           updated_at?: string
@@ -6274,6 +6277,7 @@ export type Database = {
           denumire?: string
           descriere?: string | null
           functie?: string
+          functie_norm?: string
           id?: string
           organization_id?: string
           updated_at?: string
@@ -10480,157 +10484,187 @@ export type Database = {
       }
       registru_documente: {
         Row: {
-          id: string;
-          organization_id: string;
-          an: number;
-          numar: number;
-          numar_afisat: string;
-          data_inregistrare: string;
-          sens: Database["public"]["Enums"]["registru_sens"];
-          tip_document: string;
-          continut_rezumat: string;
-          numar_document_emitent: string | null;
-          data_document_emitent: string | null;
-          emitent: string | null;
-          destinatar: string | null;
-          numar_file: number | null;
-          numar_anexe: number | null;
-          compartiment: string | null;
-          data_expedierii: string | null;
-          mod_rezolvare: string | null;
-          conexat_la: string | null;
-          entitate_tip: string;
-          entitate_id: string | null;
-          punct_lucru_id: string | null;
-          inregistrat_retroactiv: boolean;
-          anulat_la: string | null;
-          motiv_anulare: string | null;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-        };
+          an: number
+          anulat_la: string | null
+          compartiment: string | null
+          conexat_la: string | null
+          continut_rezumat: string
+          created_at: string
+          created_by: string | null
+          data_document_emitent: string | null
+          data_expedierii: string | null
+          data_inregistrare: string
+          destinatar: string | null
+          emitent: string | null
+          entitate_id: string | null
+          entitate_tip: string
+          id: string
+          inregistrat_retroactiv: boolean
+          mod_rezolvare: string | null
+          motiv_anulare: string | null
+          numar: number
+          numar_afisat: string
+          numar_anexe: number | null
+          numar_document_emitent: string | null
+          numar_file: number | null
+          organization_id: string
+          punct_lucru_id: string | null
+          sens: Database["public"]["Enums"]["registru_sens"]
+          tip_document: string
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          an: number;
-          numar: number;
-          numar_afisat: string;
-          data_inregistrare: string;
-          sens: Database["public"]["Enums"]["registru_sens"];
-          tip_document: string;
-          continut_rezumat: string;
-          numar_document_emitent?: string | null;
-          data_document_emitent?: string | null;
-          emitent?: string | null;
-          destinatar?: string | null;
-          numar_file?: number | null;
-          numar_anexe?: number | null;
-          compartiment?: string | null;
-          data_expedierii?: string | null;
-          mod_rezolvare?: string | null;
-          conexat_la?: string | null;
-          entitate_tip: string;
-          entitate_id?: string | null;
-          punct_lucru_id?: string | null;
-          inregistrat_retroactiv?: boolean;
-          anulat_la?: string | null;
-          motiv_anulare?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-        };
+          an: number
+          anulat_la?: string | null
+          compartiment?: string | null
+          conexat_la?: string | null
+          continut_rezumat: string
+          created_at?: string
+          created_by?: string | null
+          data_document_emitent?: string | null
+          data_expedierii?: string | null
+          data_inregistrare: string
+          destinatar?: string | null
+          emitent?: string | null
+          entitate_id?: string | null
+          entitate_tip: string
+          id?: string
+          inregistrat_retroactiv?: boolean
+          mod_rezolvare?: string | null
+          motiv_anulare?: string | null
+          numar: number
+          numar_afisat: string
+          numar_anexe?: number | null
+          numar_document_emitent?: string | null
+          numar_file?: number | null
+          organization_id: string
+          punct_lucru_id?: string | null
+          sens: Database["public"]["Enums"]["registru_sens"]
+          tip_document: string
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          an?: number;
-          numar?: number;
-          numar_afisat?: string;
-          data_inregistrare?: string;
-          sens?: Database["public"]["Enums"]["registru_sens"];
-          tip_document?: string;
-          continut_rezumat?: string;
-          numar_document_emitent?: string | null;
-          data_document_emitent?: string | null;
-          emitent?: string | null;
-          destinatar?: string | null;
-          numar_file?: number | null;
-          numar_anexe?: number | null;
-          compartiment?: string | null;
-          data_expedierii?: string | null;
-          mod_rezolvare?: string | null;
-          conexat_la?: string | null;
-          entitate_tip?: string;
-          entitate_id?: string | null;
-          punct_lucru_id?: string | null;
-          inregistrat_retroactiv?: boolean;
-          anulat_la?: string | null;
-          motiv_anulare?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-        };
-        Relationships: [];
-      };
+          an?: number
+          anulat_la?: string | null
+          compartiment?: string | null
+          conexat_la?: string | null
+          continut_rezumat?: string
+          created_at?: string
+          created_by?: string | null
+          data_document_emitent?: string | null
+          data_expedierii?: string | null
+          data_inregistrare?: string
+          destinatar?: string | null
+          emitent?: string | null
+          entitate_id?: string | null
+          entitate_tip?: string
+          id?: string
+          inregistrat_retroactiv?: boolean
+          mod_rezolvare?: string | null
+          motiv_anulare?: string | null
+          numar?: number
+          numar_afisat?: string
+          numar_anexe?: number | null
+          numar_document_emitent?: string | null
+          numar_file?: number | null
+          organization_id?: string
+          punct_lucru_id?: string | null
+          sens?: Database["public"]["Enums"]["registru_sens"]
+          tip_document?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registru_documente_conexat_la_fkey"
+            columns: ["conexat_la"]
+            isOneToOne: false
+            referencedRelation: "registru_documente"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registru_documente_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registru_documente_punct_lucru_id_fkey"
+            columns: ["punct_lucru_id"]
+            isOneToOne: false
+            referencedRelation: "puncte_lucru"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       registru_exercitii: {
         Row: {
-          id: string;
-          organization_id: string;
-          an: number;
-          stare: Database["public"]["Enums"]["registru_stare_exercitiu"];
-          numar_de_pornire: number;
-          inchis_la: string | null;
-          inchis_de: string | null;
-          total_inregistrari: number | null;
-          amprenta: string | null;
-          redeschis_la: string | null;
-          redeschis_de: string | null;
-          motiv_redeschidere: string | null;
-          created_at: string;
-          created_by: string | null;
-          updated_at: string;
-          updated_by: string | null;
-        };
+          amprenta: string | null
+          an: number
+          created_at: string
+          created_by: string | null
+          id: string
+          inchis_de: string | null
+          inchis_la: string | null
+          motiv_redeschidere: string | null
+          numar_de_pornire: number
+          organization_id: string
+          redeschis_de: string | null
+          redeschis_la: string | null
+          stare: Database["public"]["Enums"]["registru_stare_exercitiu"]
+          total_inregistrari: number | null
+          updated_at: string
+          updated_by: string | null
+        }
         Insert: {
-          id?: string;
-          organization_id: string;
-          an: number;
-          stare?: Database["public"]["Enums"]["registru_stare_exercitiu"];
-          numar_de_pornire?: number;
-          inchis_la?: string | null;
-          inchis_de?: string | null;
-          total_inregistrari?: number | null;
-          amprenta?: string | null;
-          redeschis_la?: string | null;
-          redeschis_de?: string | null;
-          motiv_redeschidere?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-        };
+          amprenta?: string | null
+          an: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          inchis_de?: string | null
+          inchis_la?: string | null
+          motiv_redeschidere?: string | null
+          numar_de_pornire?: number
+          organization_id: string
+          redeschis_de?: string | null
+          redeschis_la?: string | null
+          stare?: Database["public"]["Enums"]["registru_stare_exercitiu"]
+          total_inregistrari?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
         Update: {
-          id?: string;
-          organization_id?: string;
-          an?: number;
-          stare?: Database["public"]["Enums"]["registru_stare_exercitiu"];
-          numar_de_pornire?: number;
-          inchis_la?: string | null;
-          inchis_de?: string | null;
-          total_inregistrari?: number | null;
-          amprenta?: string | null;
-          redeschis_la?: string | null;
-          redeschis_de?: string | null;
-          motiv_redeschidere?: string | null;
-          created_at?: string;
-          created_by?: string | null;
-          updated_at?: string;
-          updated_by?: string | null;
-        };
-        Relationships: [];
-      };
+          amprenta?: string | null
+          an?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          inchis_de?: string | null
+          inchis_la?: string | null
+          motiv_redeschidere?: string | null
+          numar_de_pornire?: number
+          organization_id?: string
+          redeschis_de?: string | null
+          redeschis_la?: string | null
+          stare?: Database["public"]["Enums"]["registru_stare_exercitiu"]
+          total_inregistrari?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registru_exercitii_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       retention_policies: {
         Row: {
           anonymize_only: boolean
@@ -12554,7 +12588,7 @@ export type Database = {
           leave_type_id: string
           reglementat: boolean
           scade_din_sold: boolean
-          temei_legal: string | null
+          temei_legal: string
           zile: number
         }[]
       }
@@ -12594,6 +12628,19 @@ export type Database = {
           p_iban_tag?: string | null
         }
         Returns: string
+      }
+      inregistreaza_organizatie: {
+        Args: {
+          p_cui: string
+          p_email: string
+          p_expira_la: string
+          p_firma: string
+          p_nume: string
+          p_prenume: string
+          p_telefon?: string | null
+          p_token_hash: string
+        }
+        Returns: Json
       }
       log_audit_event: {
         Args: {

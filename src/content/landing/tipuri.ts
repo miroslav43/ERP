@@ -29,6 +29,15 @@ export type ContinutLanding = Readonly<{
   antet: Readonly<{
     navigare: readonly Legatura[];
     autentificare: string;
+    /**
+     * Eticheta butonului principal din antet.
+     *
+     * E forma SCURTĂ a lui `hero.ctaPrimar.eticheta` — antetul n-are loc pentru
+     * „Creează cont · prima lună gratuită". Destinația e comună: antetul citește
+     * `hero.ctaPrimar.href`, deci nu pot duce în locuri diferite. Ce trebuie
+     * ținut împreună e doar SENSUL: cât timp eroul spune „creează cont", aici nu
+     * poate scrie „cere o demonstrație".
+     */
     demo: string;
     meniu: string;
     sariLaContinut: string;

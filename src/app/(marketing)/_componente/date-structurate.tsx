@@ -55,11 +55,20 @@ const ORGANIZATIE = {
   // declară: firma nu e înregistrată în scopuri de TVA, iar un `vatID` fals ar fi
   // o afirmație greșită despre o entitate juridică reală.
   taxID: FIRMA.cui,
+  // Numărul din registrul comerțului, ca identificator secundar. `identifier` cu
+  // `PropertyValue` e forma pe care schema.org o dă pentru coduri de registru
+  // care nu au proprietate proprie.
+  identifier: {
+    "@type": "PropertyValue",
+    name: "Registrul Comerțului",
+    value: FIRMA.regCom,
+  },
   address: {
     "@type": "PostalAddress",
     streetAddress: FIRMA.strada,
     addressLocality: FIRMA.oras,
     addressRegion: FIRMA.judet,
+    postalCode: FIRMA.codPostal,
     addressCountry: FIRMA.codTara,
   },
   contactPoint: {

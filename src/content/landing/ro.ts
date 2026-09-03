@@ -34,7 +34,7 @@ export const RO: ContinutLanding = {
       { eticheta: "Întrebări", href: "/intrebari" },
     ],
     autentificare: "Autentificare",
-    demo: "Cere o demonstrație",
+    demo: "Creează cont",
     meniu: "Meniu",
     sariLaContinut: "Sari la conținutul principal",
   },
@@ -56,7 +56,7 @@ export const RO: ContinutLanding = {
     supratitlu: "Pentru firme cu 5–50 de angajați",
     titlu: "Pontaj, concedii și dosare de personal, într-un singur cont",
     lead: "Evidența zilnică a orelor, așa cum cere art. 119 din Codul muncii. Concediile, dosarul fiecărui om și transmiterea în REGES-ONLINE, în același loc. Fără Excel, fără WhatsApp.",
-    ctaPrimar: { eticheta: "Cere o demonstrație", href: "/cere-demo" },
+    ctaPrimar: { eticheta: "Creează cont · prima lună gratuită", href: "/inregistrare" },
     ctaSecundar: { eticheta: "Vezi prețurile", href: "/#preturi" },
   },
 

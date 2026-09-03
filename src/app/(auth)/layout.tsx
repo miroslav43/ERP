@@ -85,8 +85,8 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         </div>
 
         <p className="text-muted-foreground text-nota mt-6 text-center text-balance">
-          Conturile se creează exclusiv prin invitație. Dacă nu aveți încă acces, cereți o invitație
-          administratorului organizației dvs.
+          Angajații intră pe invitație, de la administratorul firmei lor. Dacă înregistrezi o firmă
+          nouă, contul îl creezi singur.
         </p>
       </main>
     </div>

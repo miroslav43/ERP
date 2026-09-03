@@ -33,7 +33,7 @@ export const EN: ContinutLanding = {
       { eticheta: "Contact", href: "/en/#contact" },
     ],
     autentificare: "Sign in",
-    demo: "Book a walkthrough",
+    demo: "Create an account",
     meniu: "Menu",
     sariLaContinut: "Skip to main content",
   },
@@ -44,7 +44,7 @@ export const EN: ContinutLanding = {
     supratitlu: "For companies with 5–50 employees",
     titlu: "Attendance, leave and personnel files in one account",
     lead: "Daily working-time records, exactly as the Romanian Labour Code requires. Leave, every person's file and REGES-ONLINE reporting in the same place. No spreadsheets, no chat threads.",
-    ctaPrimar: { eticheta: "Book a walkthrough", href: "/cere-demo" },
+    ctaPrimar: { eticheta: "Create an account · first month free", href: "/inregistrare" },
     ctaSecundar: { eticheta: "See pricing", href: "/en/#preturi" },
   },
 

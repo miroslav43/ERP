@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { CONTACT } from "@/content/landing/contact";
+import { ADRESA_FIRMA, CONTACT, FIRMA } from "@/content/landing/contact";
 import type { ContinutLanding } from "@/content/landing/tipuri";
 
 import { Marca } from "./marca";
@@ -66,6 +66,32 @@ export function Subsol({ text }: { text: ContinutLanding }) {
               <li className="text-mk-text-inv-slab">{text.contact.program}</li>
             </ul>
           </div>
+        </div>
+      </div>
+
+      {/*
+        Identitatea juridică a furnizorului.
+
+        Legea 365/2002 art. 5 o cere „în formă clară, vizibil și permanent, în
+        interiorul paginii de web" — inclusiv în relația pur B2B, fiindcă art. 1
+        definește destinatarul ca persoană fizică SAU juridică. Sancțiunea, art.
+        22: 1.000–100.000 lei.
+
+        Dincolo de lege: un ERP care cere acces la datele de personal ale unei
+        firme trebuie să spună cine e. Datele vin din `contact.ts`, copiate din
+        rândul real al firmei din bază — nu transcrise.
+      */}
+      <div className="border-mk-rigla-inv border-t">
+        <div className="max-w-mk mx-auto w-full px-[clamp(1rem,4vw,2.5rem)] py-5">
+          <p className="text-mk-text-inv-slab font-mk-date text-[0.75rem] leading-[1.7]">
+            <span className="text-mk-text-inv">{FIRMA.denumire}</span>
+            {" · "}
+            {ADRESA_FIRMA}
+            {" · "}
+            CUI {FIRMA.cui}
+            {" · "}
+            {FIRMA.regCom}
+          </p>
         </div>
       </div>
 

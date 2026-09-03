@@ -7,11 +7,7 @@
 export const CONTACT = {
   telefon: "0767 991 625",
   telefonLegatura: "tel:+40767991625",
-  // DE MUTAT pe domeniu (contact@administrativo.ro) imediat ce cutia poștală
-  // există. Un ERP care cere acces la datele de personal ale unei firme, promovat
-  // de pe o adresă personală, pierde la întrebarea „e firmă reală?”. Se schimbă
-  // aici, într-un singur loc.
-  email: "maleticimiroslavzvonco@gmail.com",
+  email: "contact@administrativo.ro",
 } as const;
 
 /**
@@ -24,17 +20,21 @@ export const CONTACT = {
  * inclusiv în relația pur B2B, fiindcă art. 1 definește destinatarul ca persoană
  * fizică SAU juridică. Sancțiunea, art. 22: 1.000–100.000 lei.
  *
- * LIPSEȘTE numărul de ordine de la registrul comerțului (J35/…/…), care e tot
- * pe lista obligatorie. Se completează înainte de publicare.
+ * Valorile de mai jos sunt copiate din rândul real al firmei din
+ * `public.organizations` (CUI 50321210), nu transcrise din memorie — inclusiv
+ * `platitor_tva = false`, care e chiar coloana din bază.
  */
 export const FIRMA = {
-  denumire: "WISELEARNING SRL",
+  denumire: "WISELEARNING S.R.L.",
   strada: "Str. Metalurgiei nr. 2",
   oras: "Timișoara",
   judet: "jud. Timiș",
+  codPostal: "300001",
   tara: "România",
   codTara: "RO",
   cui: "50321210",
+  /** Numărul de ordine în registrul comerțului. Cerut de L. 365/2002 art. 5. */
+  regCom: "J35/2618/2024",
   /**
    * Firma NU e înregistrată în scopuri de TVA, deci sumele afișate sunt finale.
    * E un avantaj de comunicat, nu o omisiune: concurența afișează prețuri fără
