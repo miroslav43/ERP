@@ -28,11 +28,10 @@ export const RO: ContinutLanding = {
 
   antet: {
     navigare: [
-      { eticheta: "Module", href: "/#module" },
-      { eticheta: "Cum se pontează", href: "/#pontaj" },
-      { eticheta: "Cine ce vede", href: "/#roluri" },
+      { eticheta: "Module", href: "/module" },
+      { eticheta: "Cum se pontează", href: "/pontaj-pe-telefon" },
       { eticheta: "Prețuri", href: "/preturi" },
-      { eticheta: "Întrebări", href: "/#intrebari" },
+      { eticheta: "Întrebări", href: "/intrebari" },
     ],
     autentificare: "Autentificare",
     demo: "Cere o demonstrație",
@@ -41,11 +40,24 @@ export const RO: ContinutLanding = {
   },
 
   hero: {
-    supratitlu: "ERP și HR pentru firme din România",
-    titlu: "Firma ta are deja procedurile. Administrativo le ține minte.",
-    lead: "Pontaj, concedii, salarizare, SSM, parc auto și inventar într-o singură bază de date. Fiecare coleg vede exact ce ține de rolul lui, iar regula asta e impusă în baza de date, nu în meniu.",
+    /*
+     * Titlul de dinainte — „Firma ta are deja procedurile. Administrativo le
+     * ține minte." — era o frază de poziționare, nu una de căutare: nu conținea
+     * niciun cuvânt pe care cineva l-ar tasta. Cel de acum numește cele trei
+     * lucruri care se rezolvă, în ordinea în care sunt căutate.
+     *
+     * Supratitlul califică vizitatorul înainte de a citi titlul: firma de opt
+     * oameni se recunoaște, cea de trei sute pleacă — și bine face.
+     *
+     * A doua acțiune duce la preț, nu la lista de limite. „Vezi ce nu facem" e
+     * exact conversația de la a treia vizită, iar în erou punea o obiecție
+     * înaintea unui motiv.
+     */
+    supratitlu: "Pentru firme cu 5–50 de angajați",
+    titlu: "Pontaj, concedii și dosare de personal, într-un singur cont",
+    lead: "Evidența zilnică a orelor, așa cum cere art. 119 din Codul muncii. Concediile, dosarul fiecărui om și transmiterea în REGES-ONLINE, în același loc. Fără Excel, fără WhatsApp.",
     ctaPrimar: { eticheta: "Cere o demonstrație", href: "/cere-demo" },
-    ctaSecundar: { eticheta: "Vezi ce nu facem", href: "/#onestitate" },
+    ctaSecundar: { eticheta: "Vezi prețurile", href: "/#preturi" },
   },
 
   foaie: {
@@ -75,30 +87,35 @@ export const RO: ContinutLanding = {
   },
 
   dovada: {
+    /*
+     * Banda asta enumera inventarul — module, roluri, sărbători, clase CAEN.
+     * Descria produsul, nu ce primește cumpărătorul, și stătea imediat sub erou,
+     * adică exact acolo unde se decide dacă merită derulat mai departe.
+     *
+     * Acum poartă riscul asumat de noi: prima lună, prețul, costul de pornire.
+     * Rândul de module rămâne — e singura cifră din pagină legată de sursă
+     * (`FEATURE_KEYS`) printr-un test.
+     */
     randuri: [
-      /*
-       * 17, nu 14. Cifra vine din `FEATURE_KEYS` (`src/config/features.ts`) —
-       * nucleul plus șaisprezece module opționale — iar `continut.test.ts`
-       * verifică în ambele sensuri că pagina le listează exact pe toate. Banda
-       * asta spunea 14 și titlul secțiunii de module spunea „cincisprezece”, în
-       * timp ce catalogul de dedesubt afișa șaptesprezece rânduri. Trei cifre
-       * pentru același lucru, pe aceeași pagină.
-       */
-      { valoare: "17", eticheta: "module", nota: "Fiecare cu ecrane livrate, nu cu promisiuni." },
       {
-        valoare: "5",
-        eticheta: "roluri",
-        nota: "Cu domeniu propriu, ajustabile fără o nouă livrare.",
+        valoare: "1",
+        eticheta: "lună gratuită",
+        nota: "Pentru orice configurație. Fără card cerut la înscriere.",
+      },
+      {
+        valoare: "149",
+        eticheta: "lei pe lună",
+        nota: "Nucleul, până la 20 de angajați. Preț final — nu se mai adaugă TVA.",
+      },
+      {
+        valoare: "0",
+        eticheta: "lei de pornire",
+        nota: "Fără cost de implementare și fără instruire facturată separat.",
       },
       {
         valoare: "17",
-        eticheta: "sărbători legale",
-        nota: "Calculate, inclusiv Paștele ortodox și zilele care depind de el.",
-      },
-      {
-        valoare: "651",
-        eticheta: "clase CAEN Rev. 3",
-        nota: "Nomenclatorul complet, cu regulile de compoziție pe formă juridică.",
+        eticheta: "module",
+        nota: "Pornești doar ce folosești. Restul nu apare nici în meniu, nici pe factură.",
       },
     ],
   },
@@ -560,6 +577,7 @@ export const RO: ContinutLanding = {
       randuri: ["Popa I.", "Ilie M.", "Radu A.", "Marin D.", "Vlad C.", "Toma S."],
       ascunse: 4,
     },
+    legaturaPagina: { eticheta: "Cum ținem datele separate", href: "/incredere" },
   },
 
   conformitate: {
@@ -722,82 +740,73 @@ export const RO: ContinutLanding = {
     ],
   },
 
+  pornire: {
+    supratitlu: "Primii pași",
+    titlu: "Primul pontaj, în aceeași zi",
+    lead: "Nu se instalează nimic pe calculatoarele voastre și nu se migrează nimic. Îți faci contul, urci lista de angajați dintr-un fișier și pontezi luna în curs.",
+    blocuri: [
+      {
+        titlu: "Pontajul, de pe telefonul omului",
+        text: "Se deschide o adresă în browser și se adaugă pe ecranul de start. Fără magazin de aplicații, fără actualizări de instalat, fără un telefon care nu mai are loc.",
+        legatura: { eticheta: "Cum se pontează", href: "/pontaj-pe-telefon" },
+      },
+      {
+        titlu: "Concediile și scadențele",
+        text: "Cererea se aprobă o dată și devine zi de concediu pe foaie. Instruirile de securitate, ITP-urile și vizitele la medicina muncii ajung în aceeași listă de termene, cu alertă înainte.",
+        legatura: { eticheta: "Vezi modulele", href: "/module" },
+      },
+      {
+        titlu: "Cine ce vede",
+        text: "Cinci roluri, fiecare cu domeniul lui. Un manager vede echipa, un angajat vede doar propria fișă, iar regula nu e în meniu — e în baza de date.",
+        legatura: { eticheta: "Cum ținem datele separate", href: "/incredere" },
+      },
+    ],
+    nota: "În același abonament mai sunt module pentru REGES-ONLINE, salarizare, SSM, parc auto, inventar, diurne, cursuri și integrarea angajaților noi.",
+    legaturaModule: { eticheta: "Lista completă a modulelor", href: "/module" },
+  },
+
   preturi: {
     supratitlu: "Prețuri",
-    titlu: "Plătești modulele pe care le pornești",
-    lead: "Nu publicăm o grilă, fiindcă n-ar fi adevărată: prețul depinde de câți oameni ai și de ce module îți trebuie. Îți facem o ofertă după prima discuție și îți spunem de la început ce nu-ți trebuie.",
+    titlu: "149 de lei pe lună, până la 20 de angajați",
+    lead: "Un nucleu care vine mereu și module care se aprind separat. Prima lună e gratuită, nu se facturează pornirea, iar sumele de mai jos sunt cele finale — nu se mai adaugă TVA.",
     planuri: [
       {
-        cheie: "start",
-        nume: "Start",
-        pentru: "Firme mici, care vor să scoată pontajul din Excel",
-        pret: "Preț la cerere",
-        module: ["nucleu", "attendance", "leave", "employee_portal"],
+        cheie: "nucleu",
+        nume: "Nucleu HR",
+        pentru: "Punctul de plecare: pontaj, concedii, dosare și portalul angajatului",
       },
       {
-        cheie: "profesional",
-        nume: "Profesional",
-        pentru: "Firme care fac și salarizarea intern",
-        pret: "Preț la cerere",
-        recomandat: true,
-        module: [
-          "nucleu",
-          "attendance",
-          "leave",
-          "employee_portal",
-          "payroll",
-          "onboarding",
-          "announcements",
-        ],
+        cheie: "hr_extins",
+        nume: "HR extins",
+        pentru: "Peste nucleu: REGES-ONLINE, integrare, cursuri, SSM și evaluări",
       },
       {
-        cheie: "business",
-        nume: "Business",
-        pentru: "Firme cu oameni pe teren, mașini și echipamente",
-        pret: "Preț la cerere",
-        module: [
-          "nucleu",
-          "attendance",
-          "leave",
-          "employee_portal",
-          "payroll",
-          "onboarding",
-          "announcements",
-          "ssm",
-          "fleet",
-          "maintenance",
-          "inventory",
-          "per_diem",
-          "ticketing",
-        ],
+        cheie: "operational",
+        nume: "Operațional",
+        pentru: "Peste nucleu: parc auto, mentenanță, inventar, anunțuri și tichete",
       },
       {
-        cheie: "enterprise",
-        nume: "Enterprise",
-        pentru: "Organizații care au nevoie de reguli proprii",
-        pret: "Preț la cerere",
-        module: [
-          "nucleu",
-          "attendance",
-          "leave",
-          "employee_portal",
-          "payroll",
-          "onboarding",
-          "announcements",
-          "ssm",
-          "fleet",
-          "maintenance",
-          "inventory",
-          "per_diem",
-          "ticketing",
-          "evaluations",
-        ],
+        cheie: "financiar",
+        nume: "Financiar",
+        pentru: "Peste nucleu: salarizare, diurne și deplasări",
+      },
+      {
+        cheie: "tot",
+        nume: "Toată aplicația",
+        pentru: "Tot ce există azi, plus asistentul. Modulele noi intră automat.",
       },
     ],
     capModul: "Modul",
-    cta: "Cere ofertă",
-    nota: "Toate planurile includ nucleul: roluri, invitații, jurnal de audit și izolarea între firme. Aceea nu e opțiune.",
-    legaturaPagina: { eticheta: "Vezi ce include fiecare plan", href: "/preturi" },
+    inLocDe: "în loc de",
+    pesteNucleu: "Tot ce e în Nucleu HR, plus:",
+    mentiuneTva:
+      "Preț final. Nu suntem înregistrați în scopuri de TVA, deci nu se mai adaugă nimic.",
+    pestePrag:
+      "Peste 20 de angajați prețul crește în trepte — cere o ofertă și îți spunem cifra pentru câți oameni ai.",
+    primaLuna:
+      "Prima lună e gratuită, pentru orice configurație. Fără cost de pornire și fără implementare facturată separat.",
+    nota: "Cele trei pachete din mijloc sunt axe paralele peste același nucleu, nu trepte: pornești doar axa de care ai nevoie. Suma tăiată e cât ar costa aceleași module cumpărate unul câte unul.",
+    legaturaPagina: { eticheta: "Vezi prețul fiecărui modul", href: "/preturi" },
   },
 
   implementare: {
@@ -915,28 +924,27 @@ export const RO: ContinutLanding = {
       {
         titlu: "Produs",
         legaturi: [
-          { eticheta: "Module", href: "/#module" },
-          { eticheta: "Moduri de pontaj", href: "/#pontaj" },
-          { eticheta: "Cine ce vede", href: "/#roluri" },
-          { eticheta: "Izolarea datelor", href: "/#izolare" },
+          { eticheta: "Toate modulele", href: "/module" },
+          { eticheta: "Pontaj de pe telefon", href: "/pontaj-pe-telefon" },
+          { eticheta: "Izolarea datelor", href: "/incredere" },
           { eticheta: "Prețuri", href: "/preturi" },
         ],
       },
       {
         titlu: "Domenii",
         legaturi: [
-          { eticheta: "Construcții și instalații", href: "/#verticale" },
-          { eticheta: "Producție și fabrici", href: "/#verticale" },
-          { eticheta: "Transport și logistică", href: "/#verticale" },
-          { eticheta: "Servicii, birouri și comerț", href: "/#verticale" },
+          { eticheta: "Construcții și instalații", href: "/domenii" },
+          { eticheta: "Producție și fabrici", href: "/domenii" },
+          { eticheta: "Transport și logistică", href: "/domenii" },
+          { eticheta: "Servicii, birouri și comerț", href: "/domenii" },
         ],
       },
       {
         titlu: "Înainte să întrebi",
         legaturi: [
-          { eticheta: "Ce nu facem", href: "/#onestitate" },
-          { eticheta: "Conformitate", href: "/#conformitate" },
-          { eticheta: "Întrebări frecvente", href: "/#intrebari" },
+          { eticheta: "Ce nu facem", href: "/de-ce-nu" },
+          { eticheta: "Conformitate", href: "/incredere" },
+          { eticheta: "Întrebări frecvente", href: "/intrebari" },
           { eticheta: "Cum începem", href: "/#implementare" },
         ],
       },

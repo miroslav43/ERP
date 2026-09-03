@@ -4,6 +4,14 @@ import { describe, expect, it } from "vitest";
 
 import { FEATURE_KEYS, isFeatureKey } from "@/config/features";
 
+import {
+  MODULE_NUCLEU,
+  moduleleDin,
+  PACHETE,
+  PRAG_ANGAJATI,
+  PRETURI_MODULE,
+  sumaSeparat,
+} from "./preturi";
 import { EN } from "./en";
 import { RO } from "./ro";
 import type { ContinutLanding } from "./tipuri";
@@ -70,30 +78,52 @@ describe("landing-ul nu poate minți despre module", () => {
     }
   });
 
-  it("planurile de preț conțin doar module reale", () => {
-    for (const [limba, text] of LIMBI) {
-      for (const plan of text.preturi.planuri) {
-        for (const cheie of plan.module) {
-          expect(isFeatureKey(cheie), `${limba}/${plan.cheie}: ${cheie}`).toBe(true);
-        }
-        // Nucleul nu e opțiune: e inclus în orice plan.
-        expect(plan.module, `${limba}/${plan.cheie}`).toContain("nucleu");
+  it("pachetele conțin doar module reale, iar nucleul e în toate", () => {
+    for (const pachet of PACHETE) {
+      for (const cheie of moduleleDin(pachet)) {
+        expect(isFeatureKey(cheie), `${pachet.cheie}: ${cheie}`).toBe(true);
+      }
+      // Nucleul nu e opțiune: vine cu orice pachet.
+      expect(moduleleDin(pachet), pachet.cheie).toContain("nucleu");
+      // Și nu se repetă: `optionale` conține doar ce se adaugă PESTE nucleu.
+      for (const cheie of pachet.optionale) {
+        expect(MODULE_NUCLEU, `${pachet.cheie}: ${cheie} e deja în nucleu`).not.toContain(cheie);
       }
     }
   });
 
-  it("planurile cresc: fiecare îl conține pe cel dinainte", () => {
-    for (const [limba, text] of LIMBI) {
-      const planuri = text.preturi.planuri;
-      for (let i = 1; i < planuri.length; i += 1) {
-        const anterior = planuri[i - 1]?.module ?? [];
-        const curent = new Set(planuri[i]?.module ?? []);
-        for (const cheie of anterior) {
-          expect(curent.has(cheie), `${limba}: ${planuri[i]?.cheie} nu include ${cheie}`).toBe(
-            true,
-          );
-        }
-      }
+  it("pachetul complet conține fiecare modul din catalog", () => {
+    /*
+     * Testul de dinainte verifica o SCARĂ: fiecare plan îl conține pe cel de
+     * dinainte. Invarianta aceea a încetat să descrie oferta — `hr_extins`,
+     * `operational` și `financiar` sunt trei axe paralele peste același nucleu,
+     * nu trepte. Ce a rămas adevărat, și e mai util, e că „toată aplicația”
+     * chiar înseamnă toată aplicația: un modul nou adăugat în catalog și uitat
+     * din pachetul complet ar fi vândut ca inclus fără să fie.
+     */
+    const tot = PACHETE.find((p) => p.cheie === "tot");
+    expect(tot, "pachetul `tot` lipsește").toBeDefined();
+    if (tot === undefined) return;
+    expect([...moduleleDin(tot)].sort()).toEqual([...FEATURE_KEYS].sort());
+  });
+
+  it("fiecare modul din catalog are ori preț, ori loc în nucleu", () => {
+    // Un modul fără niciunul dintre cele două n-ar apărea pe `/preturi` decât ca
+    // rând gol — și nu s-ar putea cumpăra.
+    for (const cheie of FEATURE_KEYS) {
+      const arePret = PRETURI_MODULE[cheie] !== undefined;
+      const eInNucleu = (MODULE_NUCLEU as readonly string[]).includes(cheie);
+      expect(arePret !== eInNucleu, `${cheie}: nici preț, nici nucleu (sau amândouă)`).toBe(true);
+    }
+  });
+
+  it("reducerea afișată e reală: pachetul costă mai puțin decât suma modulelor", () => {
+    for (const pachet of PACHETE) {
+      const separat = sumaSeparat(pachet);
+      expect(
+        pachet.pret <= separat,
+        `${pachet.cheie}: ${pachet.pret} > ${separat} — „reducerea” e o majorare`,
+      ).toBe(true);
     }
   });
 });
@@ -133,14 +163,45 @@ describe("regulile de scriere ale paginii", () => {
     expect(cuSedila).toEqual([]);
   });
 
-  it("niciun preț în lei în copy — planurile sunt „preț la cerere”", () => {
+  it("orice sumă scrisă în copy vine din tabelul canonic", () => {
+    /*
+     * ── DE CE S-A INVERSAT GARDA ────────────────────────────────────────────
+     * Testul ăsta interzicea ORICE cifră urmată de „lei”, „RON” sau „EUR” în
+     * conținut, iar planurile trebuiau să spună „preț la cerere”. Regula avea un
+     * motiv bun cât timp nu exista ofertă publicată.
+     *
+     * Acum există, iar interdicția ar fi devenit o piedică. Ce rămâne de apărat
+     * e altceva: ca o sumă scrisă în text să nu se despartă tăcut de sumele din
+     * `preturi.ts`. O ofertă actualizată acolo și uitată în copy nu cade nicăieri
+     * — pagina afișează în continuare tariful de anul trecut, cu aceeași
+     * încredere.
+     *
+     * Se acceptă doar sumele care EXISTĂ în tabel: prețurile pachetelor,
+     * prețurile modulelor, sumele calculate „în loc de”, și pragul de angajați.
+     */
+    const permise = new Set<number>([
+      PRAG_ANGAJATI,
+      ...PACHETE.map((p) => p.pret),
+      ...PACHETE.map(sumaSeparat),
+      ...Object.values(PRETURI_MODULE),
+    ]);
+
     for (const [limba, text] of LIMBI) {
-      expect(JSON.stringify(text), limba).not.toMatch(/\d[\d.,\s]*\s*(lei|LEI|RON|EUR|€)\b/);
-    }
-    for (const [limba, text] of LIMBI) {
-      for (const plan of text.preturi.planuri) {
-        expect(plan.pret, `${limba}/${plan.cheie}`).not.toMatch(/\d/);
+      const sume = [...JSON.stringify(text).matchAll(/(\d[\d.]*)\s*(lei|LEI|RON|EUR|€)\b/g)].map(
+        (m) => Number((m[1] ?? "").replace(/\./g, "")),
+      );
+      for (const suma of sume) {
+        expect(permise.has(suma), `${limba}: suma ${suma} nu există în preturi.ts`).toBe(true);
       }
+    }
+  });
+
+  it("mențiunea de TVA însoțește prețurile, în ambele limbi", () => {
+    // Sumele sunt FINALE — firma nu e înregistrată în scopuri de TVA. Fără
+    // mențiune, cititorul presupune că se mai adaugă 21%, exact ca la concurență,
+    // și ne citește cu o cincime mai scump decât suntem.
+    for (const [limba, text] of LIMBI) {
+      expect(text.preturi.mentiuneTva, limba).toMatch(/TVA|VAT/);
     }
   });
 

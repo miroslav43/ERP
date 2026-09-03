@@ -1,40 +1,39 @@
 import type { ContinutLanding } from "@/content/landing/tipuri";
 
 import {
-  BandaClienti,
   BandaContact,
   BandaDovada,
   BandaHero,
   BandaImplementare,
-  BandaIntrebari,
+  BandaIncredereScurt,
+  BandaPornire,
   BandaPreturi,
   BandaRealitatea,
 } from "./benzi/comercial";
-import {
-  BandaComparatie,
-  BandaConformitate,
-  BandaIzolare,
-  BandaOnestitate,
-  BandaVerticale,
-} from "./benzi/incredere";
-import {
-  BandaEcrane,
-  BandaFluxuri,
-  BandaModule,
-  BandaPlatforma,
-  BandaPontajLivrat,
-  BandaPontajViitor,
-  BandaRoluri,
-} from "./benzi/produs";
 
 /**
- * Orchestrarea landing-ului: nouăsprezece benzi, în ordine.
+ * Pagina de start: opt benzi.
  *
- * Fișierul ăsta avea 624 de linii și conținea marcajul tuturor benzilor. Nu era
- * o problemă de gust: o bandă nu putea fi mutată pe o pagină proprie fără să fie
- * rescrisă, deci tot conținutul era condamnat să rămână pe `/`. Acum e o listă
- * de compunere — ce se vede pe pagina de start se citește dintr-o privire, iar o
- * bandă se mută pe altă pagină mutându-i rândul.
+ * ── CE S-A SCHIMBAT ȘI DE CE ──────────────────────────────────────────────
+ * Erau nouăsprezece benzi și 4.291 de cuvinte vizibile pe un singur URL. Nu
+ * lungimea era boala, ci faptul că fiecare secțiune era un cluster de căutare
+ * propriu — module, roluri, conformitate, onestitate, comparație — îngropat ca
+ * fragment într-o pagină de 415 KB, unde nu putea ieși pe nimic. Ca pagină
+ * proprie, fiecare poate.
+ *
+ * Nimic nu s-a șters. Totul s-a mutat, iar banda `pornire` e drumul spre ce a
+ * plecat.
+ *
+ * ── ORDINEA, ȘI DE CE ASTA ────────────────────────────────────────────────
+ *   1. eroul + foaia   ce e și pentru cine, plus singura dovadă care nu se poate
+ *                      copia: produsul care rulează în pagină
+ *   2. dovada          ce riscăm noi — prima lună, prețul, costul de pornire
+ *   3. realitatea      situația recunoscută, în limbajul patronului
+ *   4. pornirea        trei drumuri, fiecare cu pagina lui
+ *   5. prețul          auto-calificarea pe buget, înainte de orice conversație
+ *   6. încrederea      obiecția de securitate, blocată înainte să apară
+ *   7. implementarea   cinci pași, singurul loc numerotat din pagină
+ *   8. contactul       formularul, pe hârtie fiindcă acolo stau controalele native
  *
  * Componenta nu conține niciun text: tot ce se citește vine din `text`, adică
  * din `ro.ts` sau `en.ts`. De aceea aceeași funcție randează ambele limbi.
@@ -45,26 +44,10 @@ export function PaginaLanding({ text }: { text: ContinutLanding }) {
       <BandaHero text={text} />
       <BandaDovada text={text} />
       <BandaRealitatea text={text} />
-      <BandaPlatforma text={text} />
-      <BandaModule text={text} />
-      <BandaEcrane text={text} />
-      {/* Cele două benzi de pontaj sunt o pereche: hârtia spune ce merge azi,
-          cerneala ce e pe foaia de parcurs. Despărțite, fraza-graniță dintre ele
-          („de aici în jos vorbesc despre ce vreau să construiesc”) rămâne fără
-          obiect. */}
-      <BandaPontajLivrat text={text} />
-      <BandaPontajViitor text={text} />
-      <BandaFluxuri text={text} />
-      <BandaRoluri text={text} />
-      <BandaIzolare text={text} />
-      <BandaConformitate text={text} />
-      <BandaOnestitate text={text} />
-      <BandaVerticale text={text} />
-      <BandaComparatie text={text} />
+      <BandaPornire text={text} />
       <BandaPreturi text={text} />
+      <BandaIncredereScurt text={text} />
       <BandaImplementare text={text} />
-      <BandaIntrebari text={text} />
-      <BandaClienti text={text} />
       <BandaContact text={text} />
     </>
   );

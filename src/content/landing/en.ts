@@ -27,11 +27,10 @@ export const EN: ContinutLanding = {
 
   antet: {
     navigare: [
-      { eticheta: "Modules", href: "/en/#module" },
-      { eticheta: "Clocking in", href: "/en/#pontaj" },
-      { eticheta: "Who sees what", href: "/en/#roluri" },
+      { eticheta: "First steps", href: "/en/#pornire" },
       { eticheta: "Pricing", href: "/en/preturi" },
-      { eticheta: "Questions", href: "/en/#intrebari" },
+      { eticheta: "Security", href: "/en/#incredere" },
+      { eticheta: "Contact", href: "/en/#contact" },
     ],
     autentificare: "Sign in",
     demo: "Book a walkthrough",
@@ -40,11 +39,13 @@ export const EN: ContinutLanding = {
   },
 
   hero: {
-    supratitlu: "ERP and HR for companies in Romania",
-    titlu: "Your company already has procedures. Administrativo remembers them.",
-    lead: "Attendance, leave, payroll, occupational safety, fleet and inventory in one database. Every colleague sees exactly what their role covers, and that rule is enforced in the database, not in the menu.",
+    // Vezi nota din `ro.ts`: titlul numește ce se rezolvă, supratitlul califică
+    // dimensiunea firmei, iar a doua acțiune duce la preț, nu la limite.
+    supratitlu: "For companies with 5–50 employees",
+    titlu: "Attendance, leave and personnel files in one account",
+    lead: "Daily working-time records, exactly as the Romanian Labour Code requires. Leave, every person's file and REGES-ONLINE reporting in the same place. No spreadsheets, no chat threads.",
     ctaPrimar: { eticheta: "Book a walkthrough", href: "/cere-demo" },
-    ctaSecundar: { eticheta: "See what we don't do", href: "/en/#onestitate" },
+    ctaSecundar: { eticheta: "See pricing", href: "/en/#preturi" },
   },
 
   foaie: {
@@ -74,23 +75,27 @@ export const EN: ContinutLanding = {
   },
 
   dovada: {
+    // Vezi nota din `ro.ts`: banda poartă riscul asumat de noi, nu inventarul.
     randuri: [
-      // Vezi nota din `ro.ts`: cifra vine din `FEATURE_KEYS`, nu din memorie.
-      { valoare: "17", eticheta: "modules", nota: "Each with shipped screens, not promises." },
       {
-        valoare: "5",
-        eticheta: "roles",
-        nota: "Each with its own scope, adjustable without a new release.",
+        valoare: "1",
+        eticheta: "free month",
+        nota: "For any configuration. No card asked for at sign-up.",
+      },
+      {
+        valoare: "149",
+        eticheta: "RON a month",
+        nota: "The core, up to 20 employees. Final price — no VAT is added.",
+      },
+      {
+        valoare: "0",
+        eticheta: "RON to start",
+        nota: "No implementation fee and no separately billed training.",
       },
       {
         valoare: "17",
-        eticheta: "public holidays",
-        nota: "Computed, including Orthodox Easter and the days that depend on it.",
-      },
-      {
-        valoare: "651",
-        eticheta: "CAEN Rev. 3 classes",
-        nota: "The full Romanian activity-code list, with the composition rules per legal form.",
+        eticheta: "modules",
+        nota: "You switch on only what you use. The rest appears neither in the menu nor on the invoice.",
       },
     ],
   },
@@ -555,6 +560,7 @@ export const EN: ContinutLanding = {
       randuri: ["Popa I.", "Ilie M.", "Radu A.", "Marin D.", "Vlad C.", "Toma S."],
       ascunse: 4,
     },
+    legaturaPagina: { eticheta: "How we keep data separate", href: "/incredere" },
   },
 
   conformitate: {
@@ -717,82 +723,73 @@ export const EN: ContinutLanding = {
     ],
   },
 
+  pornire: {
+    supratitlu: "First steps",
+    titlu: "The first timesheet, the same day",
+    lead: "Nothing gets installed on your computers and nothing has to be migrated. You create the account, upload the employee list from a file, and record the current month.",
+    blocuri: [
+      {
+        titlu: "Clocking in, from the worker's phone",
+        text: "You open an address in the browser and add it to the home screen. No app store, no updates to install, no phone that has run out of space.",
+        legatura: { eticheta: "How clocking in works", href: "/pontaj-pe-telefon" },
+      },
+      {
+        titlu: "Leave and due dates",
+        text: "A request is approved once and becomes a leave day on the sheet. Safety briefings, vehicle inspections and occupational medicine visits land in the same list of deadlines, with a warning before expiry.",
+        legatura: { eticheta: "See the modules", href: "/module" },
+      },
+      {
+        titlu: "Who sees what",
+        text: "Five roles, each with its own scope. A manager sees the team, an employee sees only their own file, and the rule is not in the menu — it is in the database.",
+        legatura: { eticheta: "How we keep data separate", href: "/incredere" },
+      },
+    ],
+    nota: "The same subscription also carries modules for REGES-ONLINE reporting, payroll, occupational safety, fleet, inventory, per diem, courses and onboarding.",
+    legaturaModule: { eticheta: "The full module list", href: "/module" },
+  },
+
   preturi: {
     supratitlu: "Pricing",
-    titlu: "You pay for the modules you switch on",
-    lead: "We do not publish a grid, because it would not be true: the price depends on how many people you have and which modules you need. We quote after the first conversation, and we tell you up front what you do not need.",
+    titlu: "149 RON a month, up to 20 employees",
+    lead: "A core that always comes along and modules you switch on separately. The first month is free, setup is not billed, and the amounts below are final — no VAT is added.",
     planuri: [
       {
-        cheie: "start",
-        nume: "Start",
-        pentru: "Small companies getting attendance out of a spreadsheet",
-        pret: "Price on request",
-        module: ["nucleu", "attendance", "leave", "employee_portal"],
+        cheie: "nucleu",
+        nume: "HR core",
+        pentru: "The starting point: attendance, leave, personnel files and the employee portal",
       },
       {
-        cheie: "profesional",
-        nume: "Professional",
-        pentru: "Companies that also run payroll in-house",
-        pret: "Price on request",
-        recomandat: true,
-        module: [
-          "nucleu",
-          "attendance",
-          "leave",
-          "employee_portal",
-          "payroll",
-          "onboarding",
-          "announcements",
-        ],
+        cheie: "hr_extins",
+        nume: "Extended HR",
+        pentru: "On top of the core: REGES-ONLINE, onboarding, courses, safety and reviews",
       },
       {
-        cheie: "business",
-        nume: "Business",
-        pentru: "Companies with field crews, vehicles and equipment",
-        pret: "Price on request",
-        module: [
-          "nucleu",
-          "attendance",
-          "leave",
-          "employee_portal",
-          "payroll",
-          "onboarding",
-          "announcements",
-          "ssm",
-          "fleet",
-          "maintenance",
-          "inventory",
-          "per_diem",
-          "ticketing",
-        ],
+        cheie: "operational",
+        nume: "Operations",
+        pentru: "On top of the core: fleet, maintenance, inventory, announcements and tickets",
       },
       {
-        cheie: "enterprise",
-        nume: "Enterprise",
-        pentru: "Organisations that need rules of their own",
-        pret: "Price on request",
-        module: [
-          "nucleu",
-          "attendance",
-          "leave",
-          "employee_portal",
-          "payroll",
-          "onboarding",
-          "announcements",
-          "ssm",
-          "fleet",
-          "maintenance",
-          "inventory",
-          "per_diem",
-          "ticketing",
-          "evaluations",
-        ],
+        cheie: "financiar",
+        nume: "Finance",
+        pentru: "On top of the core: payroll, per diem and travel",
+      },
+      {
+        cheie: "tot",
+        nume: "The whole application",
+        pentru:
+          "Everything that exists today, plus the assistant. New modules are included automatically.",
       },
     ],
     capModul: "Module",
-    cta: "Request a quote",
-    nota: "Every plan includes the core: roles, invitations, audit log and isolation between companies. That is not an option.",
-    legaturaPagina: { eticheta: "See what each plan includes", href: "/en/preturi" },
+    inLocDe: "instead of",
+    pesteNucleu: "Everything in the HR core, plus:",
+    mentiuneTva: "Final price. We are not registered for VAT, so nothing is added on top.",
+    pestePrag:
+      "Above 20 employees the price rises in steps — ask for a quote and we will give you the figure for your headcount.",
+    primaLuna:
+      "The first month is free, for any configuration. No setup fee and no separately billed implementation.",
+    nota: "The three middle packages are parallel axes over the same core, not rungs: you switch on only the axis you need. The struck-through figure is what the same modules would cost bought one by one.",
+    legaturaPagina: { eticheta: "See the price of each module", href: "/preturi" },
   },
 
   implementare: {
@@ -910,29 +907,19 @@ export const EN: ContinutLanding = {
       {
         titlu: "Product",
         legaturi: [
-          { eticheta: "Modules", href: "/en/#module" },
-          { eticheta: "Clocking in", href: "/en/#pontaj" },
-          { eticheta: "Who sees what", href: "/en/#roluri" },
-          { eticheta: "Data isolation", href: "/en/#izolare" },
+          { eticheta: "First steps", href: "/en/#pornire" },
           { eticheta: "Pricing", href: "/en/preturi" },
-        ],
-      },
-      {
-        titlu: "Verticals",
-        legaturi: [
-          { eticheta: "Construction and installations", href: "/en/#verticale" },
-          { eticheta: "Manufacturing", href: "/en/#verticale" },
-          { eticheta: "Transport and logistics", href: "/en/#verticale" },
-          { eticheta: "Services, offices and retail", href: "/en/#verticale" },
-        ],
-      },
-      {
-        titlu: "Before you ask",
-        legaturi: [
-          { eticheta: "What we don't do", href: "/en/#onestitate" },
-          { eticheta: "Compliance", href: "/en/#conformitate" },
-          { eticheta: "Frequently asked", href: "/en/#intrebari" },
+          { eticheta: "Data isolation", href: "/en/#incredere" },
           { eticheta: "How we start", href: "/en/#implementare" },
+        ],
+      },
+      {
+        titlu: "In Romanian",
+        legaturi: [
+          { eticheta: "All modules", href: "/module" },
+          { eticheta: "Clocking in by phone", href: "/pontaj-pe-telefon" },
+          { eticheta: "What we don't do", href: "/de-ce-nu" },
+          { eticheta: "Frequently asked", href: "/intrebari" },
         ],
       },
       {

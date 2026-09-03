@@ -112,6 +112,22 @@ export function Foaia({ text }: { text: ContinutLanding["foaie"] }) {
   const celulaBaza =
     "border-mk-liniatura border-r px-0.5 py-1.5 text-center align-middle font-mk-date text-[0.8125rem] tabular-nums";
 
+  /*
+   * Coloanele SUP și NPT dispar sub 640px, și motivul e aritmetic, nu de gust.
+   *
+   * Tabelul e `table-fixed w-full`: lățimile fixe se iau întâi, iar zilele împart
+   * ce rămâne. Numele ia 104px, iar ORE + SUP + NPT iau 3 × 52 = 156px. Pe un
+   * ecran de 390px rămân 98px pentru cele cinci zile ale ferestrei implicite,
+   * adică 19,6px de coloană — măsurat exact atât. „8:00” are nevoie de vreo 28px,
+   * așa că cifrele se suprapuneau peste liniatură.
+   *
+   * Se taie SUP și NPT, nu zile: sunt „DIN CARE”, nu „în plus” — orele lucrate le
+   * includ deja, iar nota care spune asta rămâne sub tabel. O săptămână întreagă
+   * cu ORE spune mai mult decât trei zile cu toate trei totalurile. Fără ele,
+   * zilele primesc 202/5 ≈ 40px.
+   */
+  const doarLat = "hidden sm:table-cell";
+
   return (
     <figure
       className={`mk-foaie mt-12 ${baleiaza ? "mk-anim" : ""}`}
@@ -157,7 +173,10 @@ export function Foaia({ text }: { text: ContinutLanding["foaie"] }) {
             <tr className="border-mk-rigla border-b">
               <th
                 scope="col"
-                className="border-mk-liniatura font-mk-date text-mk-text-slab w-[104px] border-r px-2 py-1.5 text-left text-[0.6875rem] font-medium tracking-[0.06em] uppercase"
+                /* Numele se strânge pe mobil: cei 28px eliberați se duc în
+                   coloana ORE, care trebuie să încapă „1.198:30” pe rândul de
+                   total. „Popa I.” intră lejer în 76px. */
+                className="border-mk-liniatura font-mk-date text-mk-text-slab w-[76px] border-r px-2 py-1.5 text-left text-[0.6875rem] font-medium tracking-[0.06em] uppercase sm:w-[104px]"
               >
                 {text.capAngajat}
               </th>
@@ -195,8 +214,10 @@ export function Foaia({ text }: { text: ContinutLanding["foaie"] }) {
                 <th
                   key={cap}
                   scope="col"
-                  className={`font-mk-date w-[52px] px-1 py-1.5 text-right text-[0.6875rem] font-medium tracking-[0.06em] uppercase ${
-                    i === 0 ? "border-mk-rigla border-l" : ""
+                  className={`font-mk-date px-1 py-1.5 text-right text-[0.6875rem] font-medium tracking-[0.06em] uppercase ${
+                    i === 0
+                      ? "border-mk-rigla w-[72px] border-l sm:w-[52px]"
+                      : `w-[52px] ${doarLat}`
                   }`}
                 >
                   {cap}
@@ -275,10 +296,14 @@ export function Foaia({ text }: { text: ContinutLanding["foaie"] }) {
                   >
                     {formateazaOre(rand.ore)}
                   </td>
-                  <td className="font-mk-date text-mk-text-slab px-1 py-1.5 text-right text-[0.8125rem] tabular-nums">
+                  <td
+                    className={`font-mk-date text-mk-text-slab px-1 py-1.5 text-right text-[0.8125rem] tabular-nums ${doarLat}`}
+                  >
                     {rand.suplimentare === 0 ? "—" : formateazaOre(rand.suplimentare)}
                   </td>
-                  <td className="font-mk-date text-mk-text-slab px-1 py-1.5 text-right text-[0.8125rem] tabular-nums">
+                  <td
+                    className={`font-mk-date text-mk-text-slab px-1 py-1.5 text-right text-[0.8125rem] tabular-nums ${doarLat}`}
+                  >
                     {rand.noapte === 0 ? "—" : formateazaOre(rand.noapte)}
                   </td>
                 </tr>
@@ -321,10 +346,14 @@ export function Foaia({ text }: { text: ContinutLanding["foaie"] }) {
               <td className="font-mk-date border-mk-rigla-inv border-l px-1 py-2 text-right text-[0.875rem] font-medium tabular-nums">
                 {formateazaOre(FOAIA.total)}
               </td>
-              <td className="font-mk-date px-1 py-2 text-right text-[0.8125rem] tabular-nums">
+              <td
+                className={`font-mk-date px-1 py-2 text-right text-[0.8125rem] tabular-nums ${doarLat}`}
+              >
                 {formateazaOre(FOAIA.suplimentare)}
               </td>
-              <td className="font-mk-date px-1 py-2 text-right text-[0.8125rem] tabular-nums">
+              <td
+                className={`font-mk-date px-1 py-2 text-right text-[0.8125rem] tabular-nums ${doarLat}`}
+              >
                 {formateazaOre(FOAIA.noapte)}
               </td>
             </tr>

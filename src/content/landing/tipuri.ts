@@ -8,6 +8,8 @@
  */
 import type { FeatureKey } from "@/config/features";
 
+import type { CheiePachet } from "./preturi";
+
 export type Legatura = Readonly<{ eticheta: string; href: string }>;
 
 /** Rândul generic de registru: cod mono la stânga, titlu, text, sub-puncte. */
@@ -152,6 +154,14 @@ export type ContinutLanding = Readonly<{
       randuri: readonly string[];
       ascunse: number;
     }>;
+    /**
+     * Linkul către pagina de încredere.
+     *
+     * Pe pagina de start banda asta apare în formă scurtă — supratitlu, titlu,
+     * lead și atât. Cele patru straturi și vinieta care pierde patru rânduri sub
+     * politică rămân pe `/incredere`, unde au loc să fie citite.
+     */
+    legaturaPagina: Legatura;
   }>;
 
   conformitate: Readonly<{
@@ -193,20 +203,61 @@ export type ContinutLanding = Readonly<{
     perechi: readonly Readonly<{ azi: string; noi: string }>[];
   }>;
 
+  /**
+   * „Ce pornești întâi” — banda care a înlocuit catalogul de șapte sute de
+   * cuvinte de pe pagina de start.
+   *
+   * Rolul ei nu e să enumere, ci să RAMIFICE: trei drumuri, fiecare cu pagina
+   * lui. Fără ea, paginile care au preluat conținutul mutat ar fi accesibile
+   * doar din subsol — orfane pentru vizitator și aproape orfane pentru un motor.
+   */
+  pornire: Readonly<{
+    supratitlu: string;
+    titlu: string;
+    lead: string;
+    blocuri: readonly Readonly<{ titlu: string; text: string; legatura: Legatura }>[];
+    nota: string;
+    legaturaModule: Legatura;
+  }>;
+
+  /**
+   * Prețurile.
+   *
+   * Aici stă DOAR ce se traduce: numele pachetului, pentru cine e, notele.
+   * Sumele și componența pachetelor stau în `preturi.ts` — o sumă în lei e
+   * aceeași în ambele limbi, iar scrisă în două fișiere devine două lucruri care
+   * trebuie schimbate împreună.
+   *
+   * `cheie` leagă rândul de aici de pachetul din `preturi.ts`. Tipul e uniunea
+   * literală `CheiePachet`, nu `string`: un pachet redenumit acolo și uitat aici
+   * cade la `tsc`, nu la vizitator.
+   */
   preturi: Readonly<{
     supratitlu: string;
     titlu: string;
     lead: string;
     planuri: readonly Readonly<{
-      cheie: string;
+      cheie: CheiePachet;
       nume: string;
       pentru: string;
-      pret: string;
-      module: readonly FeatureKey[];
-      recomandat?: boolean;
     }>[];
     capModul: string;
-    cta: string;
+    /** Eticheta sumei tăiate, ex. „în loc de”. Cifra se calculează, nu se scrie. */
+    inLocDe: string;
+    /** Rândul care înlocuiește repetarea nucleului pe fiecare card. */
+    pesteNucleu: string;
+    /** Mențiunea obligatorie de lângă fiecare cifră: preț final, fără TVA. */
+    mentiuneTva: string;
+    /** Ce se întâmplă peste pragul de angajați din `preturi.ts`. */
+    pestePrag: string;
+    /** Oferta de intrare: prima lună gratuită. */
+    primaLuna: string;
+    /*
+     * NU există `cta` aici. Butonul fiecărui card e chiar `hero.ctaPrimar` —
+     * aceeași etichetă, aceeași destinație. Repetarea aceluiași obiectiv nu se
+     * penalizează; ce se penalizează sunt obiective concurente. Iar practic:
+     * când apare înregistrarea self-serve, se schimbă UN token, nu două.
+     */
     nota: string;
     legaturaPagina: Legatura;
   }>;

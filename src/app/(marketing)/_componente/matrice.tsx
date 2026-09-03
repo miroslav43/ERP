@@ -16,7 +16,20 @@ import type { ContinutLanding } from "@/content/landing/tipuri";
 export function MatriceRoluri({ text }: { text: ContinutLanding["roluri"] }) {
   return (
     <div className="mt-10">
-      <div className="border-mk-rigla overflow-x-auto border">
+      {/*
+        `relative` NU e decorativ, și lipsa lui era un defect vizibil.
+
+        `sr-only` e `position: absolute`. Un descendent absolut e decupat de un
+        strămoș cu `overflow` doar dacă acel strămoș îi e și BLOC-CONTAINER —
+        adică doar dacă e poziționat. Fără `relative` aici, cele nouă spanuri
+        „(fără drept)" își luau blocul-container de la rădăcina documentului,
+        scăpau din tabel și lărgeau PAGINA: pe un ecran de 390px, `scrollWidth`
+        ajungea la 625px, iar tot situl se târa laterat sub deget.
+
+        Simptomul nu arată niciodată spre cauză: pagina se mișcă, dar elementul
+        vinovat e invizibil prin construcție.
+      */}
+      <div className="border-mk-rigla relative overflow-x-auto border">
         <table className="w-full border-collapse text-left">
           <thead>
             <tr className="border-mk-rigla border-b">
