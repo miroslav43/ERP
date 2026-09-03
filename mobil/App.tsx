@@ -17,6 +17,18 @@ import { cereJeton, scriptDeInregistrare } from "./push";
 const URL_PORTAL =
   (Constants.expoConfig?.extra?.urlPortal as string) ?? "https://administrativo.ro/portal";
 
+/**
+ * Cât așteptăm confirmarea din pagină înainte să presupunem că n-a mai venit
+ * și eliberăm garda temporară `inCurs`. Vezi RECUPERAREA DIN „ÎN CURS" din
+ * `App`: scriptul injectat răspunde întotdeauna PRIN EL ÎNSUȘI, dar o
+ * navigare hard (ex. tap pe notificare → `location.assign`) distruge realm-ul
+ * JS al paginii curente și, cu el, promisiunea `fetch` în zbor — răspunsul nu
+ * mai pleacă niciodată. 8 secunde e generos față de o cerere JSON mică, dar
+ * fără cost real dacă întârzie: reîncercarea e idempotentă pe server
+ * (`POST /api/dispozitive` face UPSERT pe jeton, nu poate dubla rândul).
+ */
+const TIMP_RECUPERARE_MS = 8000;
+
 // Notificarea primită cât aplicația e deschisă trebuie să se afișeze oricum —
 // altfel un om care stă în aplicație nu vede că i s-a aprobat o cerere decât
 // dacă navighează singur în portal ca s-o verifice.
@@ -74,8 +86,13 @@ export default function App() {
   // TEMPORARĂ. Previne pornirea a două încercări în paralel (`onLoadEnd` și
   // `onNavigationStateChange` se pot declanșa aproape simultan pentru
   // aceeași navigare). Se eliberează la ORICE ieșire — succes sau eșec — ca
-  // o navigare ulterioară relevantă să poată reîncerca.
+  // o navigare ulterioară relevantă să poată reîncerca. Vezi RECUPEREAZĂ DIN
+  // „ÎN CURS" mai jos: ieșirile NU sunt doar `cereJeton` → `null` și mesajul
+  // din pagină — mai e și temporizatorul din `timpRecuperare`.
   const inCurs = useRef(false);
+  // Temporizatorul de recuperare pentru încercarea curentă — vezi
+  // RECUPEREAZĂ DIN „ÎN CURS", mai jos. `null` când nu e nimic în zbor.
+  const timpRecuperare = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // MOMENTUL ÎNREGISTRĂRII
   //
@@ -127,6 +144,23 @@ export default function App() {
   // momentul (posibil depășit de redirect) al acestui eveniment. Scriptul
   // raportează înapoi prin `postMessage`, iar `primesteMesaj` (mai jos) pune
   // garda permanentă doar la confirmarea `ok: true`.
+  //
+  // RECUPEREAZĂ DIN „ÎN CURS" (a doua reparație, rundă separată de revizuire)
+  // Comentariul de-aici spunea inițial că `inCurs` „nu poate rămâne blocată
+  // la nesfârșit" pentru că scriptul injectat răspunde întotdeauna. Era GREȘIT:
+  // un `injectJavaScript('location.assign(...); true;')` — exact ce face
+  // ascultătorul de tap-pe-notificare, mai jos — e o navigare HARD, care
+  // distruge realm-ul JS al paginii curente. Dacă tap-ul ăla survine cât
+  // `fetch("/api/dispozitive")` e în zbor (fereastră lărgită pe rețea slabă:
+  // `fetch` n-are timeout implicit), promisiunea e abandonată ODATĂ CU
+  // realm-ul — `.then`/`.catch` nu mai rulează NICIODATĂ, `postMessage` nu
+  // mai pleacă, iar fără altă cale de ieșire, `inCurs.current` ar rămâne
+  // `true` PERMANENT: efectul practic identic cu cursa originală — jetonul nu
+  // se mai înregistrează niciodată în sesiunea aia. Un back-gesture sau un al
+  // doilea redirect de la server ar produce aceeași tăcere.
+  // Reparația: `timpRecuperare`, un `setTimeout` pornit exact când injectăm
+  // scriptul. Dacă `primesteMesaj` nu anulează timer-ul înainte să expire,
+  // presupunem că răspunsul nu mai vine și eliberăm garda noi înșine.
   const inregistreazaDacaPePortal = useCallback((url: string) => {
     if (inregistrat.current || inCurs.current) return;
     if (!/\/portal(?:\/|$)/.test(url)) return;
@@ -143,10 +177,17 @@ export default function App() {
       }
       const platforma = Platform.OS === "ios" ? "ios" : "android";
       webview.current?.injectJavaScript(scriptDeInregistrare(jeton, platforma));
-      // `inCurs` rămâne `true` până vine confirmarea din pagină, prin
-      // `onMessage` — scriptul injectat răspunde întotdeauna, pe ambele
-      // ramuri (a nimerit `/portal` sau nu, fetch-ul a reușit sau nu), deci
-      // garda nu poate rămâne blocată la nesfârșit.
+      // De-acum, DOUĂ căi eliberează `inCurs` — niciodată zero:
+      // (a) confirmarea din pagină, prin `onMessage` (`primesteMesaj`, mai
+      //     jos), care anulează și temporizatorul de mai jos; sau
+      // (b) temporizatorul, dacă (a) nu vine până la urmă — pagina a navigat
+      //     hard peste `fetch`-ul în zbor, sau conexiunea a murit fără să mai
+      //     declanșeze `.catch` (realm-ul a dispărut odată cu ea).
+      if (timpRecuperare.current !== null) clearTimeout(timpRecuperare.current);
+      timpRecuperare.current = setTimeout(() => {
+        inCurs.current = false;
+        timpRecuperare.current = null;
+      }, TIMP_RECUPERARE_MS);
     })();
   }, []);
 
@@ -157,6 +198,12 @@ export default function App() {
     if (mesaj === null) return;
     switch (mesaj.fel) {
       case "jeton":
+        // Confirmarea a venit la timp — anulăm temporizatorul de recuperare
+        // ca să nu elibereze garda peste o încercare deja lămurită.
+        if (timpRecuperare.current !== null) {
+          clearTimeout(timpRecuperare.current);
+          timpRecuperare.current = null;
+        }
         inCurs.current = false;
         if (mesaj.ok === true) inregistrat.current = true;
         // La `ok: false` nu facem nimic altceva: fie pagina nu era încă
@@ -166,6 +213,15 @@ export default function App() {
       default:
         break;
     }
+  }, []);
+
+  useEffect(() => {
+    // Curățenie la demontare: dacă `App` ar fi vreodată demontată cu o
+    // recuperare încă programată, n-o lăsăm să scrie într-un ref al unei
+    // instanțe dispărute.
+    return () => {
+      if (timpRecuperare.current !== null) clearTimeout(timpRecuperare.current);
+    };
   }, []);
 
   useEffect(() => {
