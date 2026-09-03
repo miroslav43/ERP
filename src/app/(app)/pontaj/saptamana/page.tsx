@@ -17,11 +17,7 @@ import { ziuaInitialaPlan } from "@/domain/attendance/plan-si-fapt";
 
 import { NavPontaj } from "../nav-pontaj";
 import { fileDePontaj } from "../file-pontaj";
-import {
-  TONURI_STARE_SAPTAMANA,
-  etichetaStareSaptamana,
-  rezumatRegulaPontaj,
-} from "../etichete";
+import { TONURI_STARE_SAPTAMANA, etichetaStareSaptamana, rezumatRegulaPontaj } from "../etichete";
 import type { ConfigZi } from "@/domain/attendance/calcul-ore";
 
 import { FormularSaptamana } from "./formular-saptamana";
@@ -35,8 +31,12 @@ interface ProprietatiPagina {
 
 export default async function PaginaSaptamanaPontaj({ searchParams }: ProprietatiPagina) {
   const { user, tenant } = await requireTenant();
-  await requireFeature(tenant.organizationId, "attendance");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  // Două citiri independente, pe tabele diferite. Înlănțuite erau două
+  // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
+  const [, permisiuni] = await Promise.all([
+    requireFeature(tenant.organizationId, "attendance"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+  ]);
 
   if (!can(permisiuni, "attendance:create", "own")) {
     return (

@@ -175,8 +175,12 @@ async function ContinutAprobare({
 
 export default async function PaginaAprobarePontaj({ searchParams }: ProprietatiPagina) {
   const { user, tenant } = await requireTenant();
-  await requireFeature(tenant.organizationId, "attendance");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  // Două citiri independente, pe tabele diferite. Înlănțuite erau două
+  // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
+  const [, permisiuni] = await Promise.all([
+    requireFeature(tenant.organizationId, "attendance"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+  ]);
 
   if (!can(permisiuni, "attendance:approve", "team")) {
     return (
@@ -235,9 +239,7 @@ export default async function PaginaAprobarePontaj({ searchParams }: Proprietati
       <AntetPagina
         titlu="Aprobare pontaj"
         descriere={`Aprobarea în bloc pentru ${formatMonthYear(an, filtre.luna)}.`}
-        file={
-          <NavPontaj {...fileNav} />
-        }
+        file={<NavPontaj {...fileNav} />}
       />
 
       <ListaSaptamaniDeAprobat sarcini={sarciniSaptamana} />
