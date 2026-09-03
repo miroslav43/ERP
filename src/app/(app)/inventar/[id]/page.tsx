@@ -63,8 +63,12 @@ const CLASA_SECTIUNE = "border-border bg-surface rounded-panou border p-5 shadow
 export default async function PaginaFisaObiect({ params }: ProprietatiPagina) {
   const id = idDinRuta((await params).id);
   const { tenant } = await requireTenant();
-  await requireFeature(tenant.organizationId, "inventory");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  // Două citiri independente, pe tabele diferite. Înlănțuite erau două
+  // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
+  const [, permisiuni] = await Promise.all([
+    requireFeature(tenant.organizationId, "inventory"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+  ]);
   const scope = scopeFor(permisiuni, "inventory:read");
 
   if (scope === null || scope === "none") {
