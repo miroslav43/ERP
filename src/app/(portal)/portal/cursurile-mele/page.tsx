@@ -30,8 +30,12 @@ export const metadata: Metadata = { title: TITLURI.portal };
 
 export default async function PaginaCursurileMele() {
   const { tenant, user } = await requireTenant();
-  await requireFeature(tenant.organizationId, "courses");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  // Două citiri independente, pe tabele diferite. Înlănțuite erau două
+  // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
+  const [, permisiuni] = await Promise.all([
+    requireFeature(tenant.organizationId, "courses"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+  ]);
 
   const scope = scopeFor(permisiuni, "courses:read");
   if (scope === null || scope === "none" || !can(permisiuni, "courses:read", "own")) {
