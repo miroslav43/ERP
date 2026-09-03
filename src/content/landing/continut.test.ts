@@ -354,6 +354,41 @@ describe("legăturile interne duc undeva", () => {
     }
   });
 
+  it("llms.txt și sitemap-ul arată aceleași pagini", async () => {
+    /*
+     * Două hărți ale aceluiași sit, scrise în două locuri. Fără verificarea
+     * asta, o pagină nouă ajunge în `sitemap.ts` — fiindcă acolo se uită
+     * oricine adaugă o rută — și lipsește din `llms.txt`, care e mai ușor de
+     * uitat. Rezultatul nu e o eroare, e o hartă incompletă dată exact
+     * sistemelor care nu pot verifica singure ce lipsește.
+     *
+     * Excepțiile sunt DECLARATE, nu tăcute: `/en*` lipsește din llms.txt
+     * fiindcă rezumatul e în română și o dublură în engleză n-ar adăuga nimic.
+     */
+    const { default: sitemap } = await import("@/app/sitemap");
+    const { ADRESA_SITE } = await import("./contact");
+    const sursa = readFileSync("src/app/llms.txt/route.ts", "utf8");
+
+    /*
+     * Se citește DOAR blocul `PAGINI`, iar căile se extrag fără să depindă de
+     * formatare: prettier rupe o intrare lungă pe trei rânduri, iar un tipar
+     * legat de `["` la început de pereche rata exact intrările lungi — adică
+     * pe cele cu descrieri bogate, cele care contează.
+     */
+    const bloc = sursa.slice(sursa.indexOf("const PAGINI"), sursa.indexOf("function construieste"));
+    const inLlms = new Set([...bloc.matchAll(/"(\/[^"]*)"/g)].map((m) => m[1] ?? ""));
+    const inSitemap = sitemap()
+      .map((i) => i.url.replace(ADRESA_SITE, "") || "/")
+      .filter((c) => !c.startsWith("/en"));
+
+    for (const cale of inSitemap) {
+      expect(inLlms.has(cale), `${cale} e în sitemap dar lipsește din llms.txt`).toBe(true);
+    }
+    for (const cale of inLlms) {
+      expect(RUTE.has(cale), `${cale} e în llms.txt dar n-are page.tsx`).toBe(true);
+    }
+  });
+
   it("fiecare pagină din sitemap e publică și există", async () => {
     // Un URL în sitemap care întoarce redirect e un raport de eroare în Search
     // Console și buget de crawl aruncat. Se verifică amândouă condițiile: să

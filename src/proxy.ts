@@ -148,8 +148,8 @@ export const config = {
      * către Supabase, cu termen scurt și cu verdict propriu — vezi
      * `src/app/readyz/route.ts`.
      *
-     * `manifest.webmanifest` stă lângă `robots.txt` și `sitemap.xml` — toate
-     * trei sunt rute de metadate generate de Next (`manifest.ts`, `robots.ts`,
+     * `manifest.webmanifest` stă lângă `robots.txt`, `sitemap.xml` și
+     * `llms.txt` — toate sunt rute de metadate generate de Next (`manifest.ts`, `robots.ts`,
      * `sitemap.ts`) și niciuna nu poartă sesiune. Browserul cere manifestul cu
      * `credentials: "omit"`, deci cererea ajunge fără cookie-uri chiar și
      * pentru un utilizator autentificat: trecută prin proxy, era văzută ca
@@ -172,6 +172,6 @@ export const config = {
      * către autentificare în loc de imagine, iar linkul ar apărea gol oriunde
      * e distribuit. Robotul nu are sesiune și nu va avea niciodată.
      */
-    "/((?!_next/static|_next/image|healthz|readyz|favicon\.ico|robots\.txt|sitemap\.xml|manifest\.webmanifest|icon|apple-icon|opengraph-image|twitter-image|.*\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|css|js|woff|woff2|ttf|otf|map)$).*)",
+    "/((?!_next/static|_next/image|healthz|readyz|favicon\.ico|robots\.txt|sitemap\.xml|llms\.txt|manifest\.webmanifest|icon|apple-icon|opengraph-image|twitter-image|.*\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|css|js|woff|woff2|ttf|otf|map)$).*)",
   ],
 };

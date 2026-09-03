@@ -2,62 +2,58 @@
 import type { Metadata } from "next";
 
 import { RO } from "@/content/landing/ro";
+import {
+  AVERTISMENT,
+  DATA_TERMENI,
+  SECTIUNI_ANEXA,
+  SECTIUNI_TERMENI,
+  VERSIUNE_TERMENI,
+  type SectiuneLegala,
+} from "@/content/legal/termeni";
 
 import { Cadru } from "../../_componente/cadru";
 
+/**
+ * Termenii și condițiile.
+ *
+ * Pagina era un SCHELET: titluri de secțiune cu note „ce va scrie aici" și
+ * marcajul „DE COMPLETAT DE JURIST" repetat de zece ori. Onest, dar inutil —
+ * iar de când situl publică prețuri și are un formular cu bifă de acceptare, e
+ * și insuficient: bifa trimite undeva.
+ *
+ * Acum e o redactare completă. Ce rămâne neschimbat e onestitatea despre stadiu:
+ * avertismentul de sus spune că textul n-a trecut încă pe la un jurist, o
+ * singură dată și la vedere, în loc de zece marcaje care goleau fiecare
+ * secțiune de sens.
+ */
 export const metadata: Metadata = {
   title: "Termeni și condiții",
   description:
-    "Schelet de termeni și condiții pentru Administrativo, în curs de redactare juridică.",
+    "Condițiile în care se folosește Administrativo: obiect, preț, durată, disponibilitate, răspundere, plus anexa de prelucrare a datelor cerută de articolul 28 din RGPD.",
   // Fără `languages`: pagina n-are variantă engleză, iar o pereche hreflang
   // declarată către o rută inexistentă invalidează întreaga grupă, nu doar
   // rândul greșit. Se adaugă odată cu traducerea, nu înainte.
   alternates: { canonical: "/legal/termeni" },
 };
 
-const SECTIUNI = [
-  {
-    titlu: "1. Părțile contractante",
-    nota: "Denumirea completă a furnizorului, CUI, sediu, date de contact și reprezentant legal.",
-  },
-  {
-    titlu: "2. Obiectul serviciului",
-    nota: "Ce anume se pune la dispoziție, sub formă de abonament, și ce nu este inclus.",
-  },
-  {
-    titlu: "3. Conturi, roluri și responsabilitatea clientului",
-    nota: "Cine administrează conturile din organizație și cine răspunde pentru accesul acordat colegilor.",
-  },
-  {
-    titlu: "4. Planuri, prețuri și facturare",
-    nota: "Planurile disponibile, limita de utilizatori, perioada de probă, modul și termenul de facturare.",
-  },
-  {
-    titlu: "5. Disponibilitate și suport",
-    nota: "Nivelul de disponibilitate asumat, ferestrele de mentenanță și canalele de suport.",
-  },
-  {
-    titlu: "6. Datele clientului",
-    nota: "Cine deține datele introduse, cum se exportă și ce se întâmplă cu ele la încetarea contractului.",
-  },
-  { titlu: "7. Utilizare acceptabilă", nota: "Interdicții clare și consecințele încălcării lor." },
-  {
-    titlu: "8. Limitarea răspunderii",
-    nota: "Plafon de răspundere și excluderi, formulate conform legislației aplicabile.",
-  },
-  {
-    titlu: "9. Suspendarea și încetarea",
-    nota: "Motivele de suspendare a organizației, termenul de notificare și procedura de reziliere.",
-  },
-  {
-    titlu: "10. Modificarea termenilor",
-    nota: "Cum se anunță modificările și de când produc efecte.",
-  },
-  {
-    titlu: "11. Legea aplicabilă și soluționarea litigiilor",
-    nota: "Legea română, instanțe competente, ANPC și platforma SOL.",
-  },
-] as const;
+function Sectiuni({ sectiuni }: { sectiuni: readonly SectiuneLegala[] }) {
+  return (
+    <div className="mt-10 space-y-9">
+      {sectiuni.map((sectiune) => (
+        <section key={sectiune.titlu}>
+          <h2 className="font-mk-display text-[1.125rem] leading-[1.3] font-semibold">
+            {sectiune.titlu}
+          </h2>
+          {sectiune.paragrafe.map((paragraf) => (
+            <p key={paragraf} className="text-mk-text-slab mt-3 text-[0.9375rem] leading-[1.7]">
+              {paragraf}
+            </p>
+          ))}
+        </section>
+      ))}
+    </div>
+  );
+}
 
 export default function PaginaTermeni() {
   return (
@@ -66,24 +62,31 @@ export default function PaginaTermeni() {
         <h1 className="font-mk-display text-[clamp(2rem,4vw,3rem)] leading-[1.04] font-semibold tracking-[-0.02em]">
           Termeni și condiții
         </h1>
-        <p className="text-mk-text-slab mt-4 text-base leading-relaxed">
-          Documentul este în curs de redactare. Preferăm să spunem deschis acest lucru decât să
-          publicăm un text care pare valabil juridic, dar nu este. Mai jos este structura convenită,
-          cu marcajele rămase de completat.
-        </p>
-        <p className="border-mk-sl bg-mk-sl-hartie text-mk-sl-apasat mt-6 rounded border p-4 text-sm">
-          DE COMPLETAT DE JURIST — niciunul dintre paragrafele de mai jos nu are, în acest moment,
-          valoare contractuală.
+        <p className="font-mk-date text-mk-text-slab mt-4 text-[0.6875rem] tracking-[0.14em] uppercase">
+          Versiunea {VERSIUNE_TERMENI} · {DATA_TERMENI}
         </p>
 
-        <div className="mt-10 space-y-8">
-          {SECTIUNI.map((sectiune) => (
-            <section key={sectiune.titlu}>
-              <h2 className="font-mk-display text-[1.125rem] font-semibold">{sectiune.titlu}</h2>
-              <p className="text-mk-text-slab mt-2 text-sm leading-relaxed">{sectiune.nota}</p>
-              <p className="text-mk-sl-apasat mt-2 text-sm font-medium">DE COMPLETAT DE JURIST</p>
-            </section>
-          ))}
+        {/*
+          Un singur avertisment, sus, în locul celor zece marcaje care goleau
+          fiecare secțiune. Spune același lucru — textul n-a trecut pe la un
+          jurist — dar lasă documentul să fie citit.
+        */}
+        <p className="border-mk-sl bg-mk-sl-hartie text-mk-sl-apasat mt-6 rounded border p-4 text-[0.875rem] leading-[1.6]">
+          {AVERTISMENT}
+        </p>
+
+        <Sectiuni sectiuni={SECTIUNI_TERMENI} />
+
+        <div className="border-mk-rigla mt-16 border-t pt-10">
+          <h2 className="font-mk-display text-[1.5rem] leading-[1.15] font-semibold tracking-[-0.015em]">
+            Anexă — prelucrarea datelor cu caracter personal
+          </h2>
+          <p className="text-mk-text-slab mt-3 text-[0.9375rem] leading-[1.7]">
+            Anexa are valoarea acordului dintre operator și persoana împuternicită cerut de
+            articolul 28 din Regulamentul general privind protecția datelor. Face parte din contract
+            și se aplică din momentul creării contului.
+          </p>
+          <Sectiuni sectiuni={SECTIUNI_ANEXA} />
         </div>
       </div>
     </Cadru>
