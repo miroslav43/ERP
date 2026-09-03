@@ -74,16 +74,43 @@ export async function cereJeton(): Promise<string | null> {
  * `credentials: "same-origin"` e explicit deși e implicitul lui `fetch`:
  * documentează intenția — cererea trebuie să poarte cookie-ul de sesiune al
  * paginii, nu să pornească fără el.
+ *
+ * VERIFICAREA `location.pathname` E DECISIVĂ, NU DECORATIVĂ
+ * Partea nativă decide CÂND injectează scriptul pe baza unui eveniment de
+ * navigare al WebView-ului — dar (verificat empiric, pe cursa descrisă în
+ * `App.tsx`, secțiunea „MOMENTUL ÎNREGISTRĂRII") evenimentul ăla poate purta
+ * încă URL-ul dinaintea unui redirect server-side, nu URL-ul unde pagina
+ * chiar aterizează. Scriptul ăsta rulează ÎN pagină, exact la momentul în
+ * care execută `fetch`-ul — e singurul cod din tot lanțul care știe sigur pe
+ * ce pagină e, chiar atunci. Dacă nu e pe `/portal`, nu încearcă deloc
+ * fetch-ul (ar fi oricum respins cu 401, fără sesiune) și raportează eșecul.
+ *
+ * RAPORTAREA ÎNAPOI, PRIN `postMessage`
+ * Fără ea, partea nativă n-ar afla NICIODATĂ dacă injectarea a nimerit pe
+ * pagina greșită — ar bloca reîncercarea crezând, greșit, că a reușit. Mesajul
+ * are câmpul `fel: "jeton"` ca să poată coexista cu alte mesaje pe același
+ * canal (Task 9: descărcări, tipărire) — `onMessage` din `App.tsx` e un
+ * dispecer pe `fel`, nu un singur consumator.
  */
 export function scriptDeInregistrare(jeton: string, platforma: "ios" | "android"): string {
   const corp = JSON.stringify({ jeton, platforma });
   return `
-    fetch("/api/dispozitive", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: ${JSON.stringify(corp)},
-      credentials: "same-origin"
-    }).catch(function () {});
+    (function () {
+      if (!location.pathname.startsWith("/portal")) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ fel: "jeton", ok: false }));
+        return;
+      }
+      fetch("/api/dispozitive", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: ${JSON.stringify(corp)},
+        credentials: "same-origin"
+      }).then(function (raspuns) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ fel: "jeton", ok: raspuns.ok }));
+      }).catch(function () {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ fel: "jeton", ok: false }));
+      });
+    })();
     true;
   `;
 }
