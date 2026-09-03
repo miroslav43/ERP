@@ -15,7 +15,6 @@ import { AntetPagina } from "@/components/ui/antet-pagina";
 import { can, getPermissionMap } from "@/lib/auth/permissions";
 import { requireFeature } from "@/lib/auth/features";
 import { requireTenant } from "@/lib/tenant/resolve-tenant";
-import { createServerSupabase } from "@/lib/supabase/server";
 import { formatMonthYear, todayInBucharest } from "@/lib/format/date";
 import { angajatiPlanificator, calendarLunii, zileNelucratoare } from "@/lib/queries/leave";
 import {
@@ -36,18 +35,6 @@ export const metadata: Metadata = { title: "Calendarul de concedii" };
 
 interface ProprietatiPagina {
   readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
-}
-
-interface AngajatMinim {
-  readonly id: string;
-  readonly full_name: string;
-  readonly marca: string;
-}
-
-interface TipMinim {
-  readonly id: string;
-  readonly denumire: string;
-  readonly culoare: string;
 }
 
 function primaZiLunii(an: number, luna: number): string {
@@ -107,53 +94,22 @@ export default async function PaginaCalendarConcedii({ searchParams }: Proprieta
       : Promise.resolve({ nationale: [], organizatie: [] }),
   ]);
 
-  const idAngajati = [
-    ...new Set(
-      randuri.map((r) => r.cerere?.employee_id).filter((id): id is string => id !== undefined),
-    ),
-  ];
-  const idTipuri = [
-    ...new Set(
-      randuri.map((r) => r.cerere?.leave_type_id).filter((id): id is string => id !== undefined),
-    ),
-  ];
-
-  const db = await createServerSupabase();
-  const [{ data: angajati }, { data: tipuri }] = await Promise.all([
-    idAngajati.length === 0
-      ? Promise.resolve({ data: [] as AngajatMinim[] })
-      : db
-          .from("employees")
-          .select("id, full_name, marca")
-          .eq("organization_id", tenant.organizationId)
-          .in("id", idAngajati)
-          .returns<AngajatMinim[]>(),
-    idTipuri.length === 0
-      ? Promise.resolve({ data: [] as TipMinim[] })
-      : db
-          .from("leave_types")
-          .select("id, denumire, culoare")
-          .eq("organization_id", tenant.organizationId)
-          .in("id", idTipuri)
-          .returns<TipMinim[]>(),
-  ]);
-  const hartaAngajati = new Map((angajati ?? []).map((a) => [a.id, a]));
-  const hartaTipuri = new Map((tipuri ?? []).map((t) => [t.id, t]));
-
-  // O singură trecere prin zilele lunii construiește amândouă hărțile: cea pe
-  // zi (grila) și cea pe angajat × zi (planificatorul). Numai una dintre ele
-  // ajunge la randare, dar bucla ar fi fost oricum aceeași.
+  // Angajatul și tipul vin deja traduși din `calendarLunii`, prin embed
+  // imbricat PostgREST — nu mai există aici un al doilea val de interogări
+  // care să le traducă din id-uri. Un embed to-one filtrat de RLS întoarce
+  // NULL, nu elimină rândul, deci ambele rămân opționale.
   const zileHarta = new Map<string, EvenimentZiCalendar[]>();
   const celule = new Map<string, AbsentaCelula[]>();
   for (const rand of randuri) {
     if (rand.cerere === null) continue;
-    const angajat = hartaAngajati.get(rand.cerere.employee_id);
-    const tip = hartaTipuri.get(rand.cerere.leave_type_id);
+    const angajat = rand.cerere.angajat;
+    const tip = rand.cerere.tip;
     const tipDenumire = tip?.denumire ?? "Concediu";
     const tipCuloare = tip?.culoare ?? "#94a3b8";
 
     const eveniment: EvenimentZiCalendar = {
-      employeeLabel: angajat === undefined ? "Angajat" : `${angajat.full_name} (${angajat.marca})`,
+      employeeLabel:
+        angajat === null ? "Angajat" : `${angajat.full_name ?? angajat.marca} (${angajat.marca})`,
       tipDenumire,
       tipCuloare,
       status: rand.status,

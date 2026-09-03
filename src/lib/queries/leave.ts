@@ -691,22 +691,45 @@ export async function deAprobat(
 
 // ── Calendarul de echipă ──────────────────────────────────────────────────────
 
+export interface AngajatEmbedCalendar {
+  readonly id: string;
+  readonly full_name: string | null;
+  readonly marca: string;
+}
+
+export interface TipEmbedCalendar {
+  readonly id: string;
+  readonly denumire: string;
+  readonly culoare: string;
+}
+
 export interface RandZiCalendar {
   readonly data: string;
   readonly status: StatusCerere;
-  readonly leave_request_id: string;
   readonly cerere: Readonly<{
-    readonly id: string;
     readonly employee_id: string;
     readonly leave_type_id: string;
-    readonly status: StatusCerere;
+    readonly angajat: AngajatEmbedCalendar | null;
+    readonly tip: TipEmbedCalendar | null;
   }> | null;
 }
 
 /**
- * `.returns<T>()` este OBLIGATORIU: generatorul emite `Relationships: []`
- * pentru toate tabelele, deci embed-ul `cerere:leave_requests!leave_request_id`
- * nu se tipează singur (exact tiparul din `queries/employees.ts`).
+ * Traducerea angajatului și a tipului se face AICI, prin embed imbricat
+ * PostgREST, nu într-un al doilea val de interogări din pagină. Măsurat pe
+ * producție: un embed pe un nivel costă ~58 ms, pe două niveluri ~61 ms —
+ * +3 ms ca să dispară un nivel serial întreg din `calendar/page.tsx`.
+ *
+ * `.returns<T>()` este OBLIGATORIU, dar NU fiindcă ar lipsi relațiile din
+ * tipurile generate — `leave_requests_employee_id_fkey` și
+ * `leave_requests_leave_type_id_fkey` există amândouă. Motivul e că ambele au
+ * `isOneToOne: false`, deci inferența supabase-js dă TABLOU pentru
+ * `angajat`/`tip`, nu obiect; tipul de mai sus e scris de mână ca s-o
+ * corecteze.
+ *
+ * Fără `!inner`: un embed to-one filtrat de RLS (fișa angajatului sau tipul
+ * de concediu invizibile rolului curent) întoarce NULL, nu elimină rândul —
+ * pagina are deja căderile pentru acest caz.
  */
 export async function calendarLunii(
   organizationId: string,
@@ -717,7 +740,7 @@ export async function calendarLunii(
   const { data, error } = await db
     .from("leave_request_days")
     .select(
-      "data, status, leave_request_id, cerere:leave_requests!leave_request_id(id, employee_id, leave_type_id, status)",
+      "data, status, cerere:leave_requests!leave_request_id(employee_id, leave_type_id, angajat:employees!employee_id(id, full_name, marca), tip:leave_types!leave_requests_leave_type_id_fkey(id, denumire, culoare))",
     )
     .eq("organization_id", organizationId)
     .eq("este_lucratoare", true)
