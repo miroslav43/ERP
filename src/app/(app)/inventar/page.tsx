@@ -257,8 +257,15 @@ async function TabelInventar({
 
 export default async function PaginaInventar({ searchParams }: ProprietatiPagina) {
   const { tenant } = await requireTenant();
-  await requireFeature(tenant.organizationId, "inventory");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  // Trei citiri independente, pe tabele diferite. `categorii()` nu primește
+  // niciun argument și nu depinde de permisiuni — n-are de ce să mai aștepte
+  // valul de mai jos. Înlănțuite erau trei dus-întorsuri seriale spre
+  // PostgREST; costul e integral rețea, nu bază.
+  const [, permisiuni, listaCategorii] = await Promise.all([
+    requireFeature(tenant.organizationId, "inventory"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    categorii(),
+  ]);
   const scope = scopeFor(permisiuni, "inventory:read");
 
   if (scope === null || scope === "none") {
@@ -272,7 +279,6 @@ export default async function PaginaInventar({ searchParams }: ProprietatiPagina
   // Ruta `/inventar/nou` a dispărut; ce ducea acolo duce acum aici, cu caseta
   // deschisă. Vezi `dialog-obiect-nou.tsx`.
   const deschideCaseta = parametri["obiect"] === "nou";
-  const listaCategorii = await categorii();
   // Aceleași filtre pe care le vede lista: bara le arată în câmpuri și ca pastile.
   const filtre = filtreDinUrl(filtreInventarSchema, parametri);
 
