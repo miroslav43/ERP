@@ -409,8 +409,12 @@ function Panou({
 
 export default async function PaginaMentenanta() {
   const { tenant } = await requireTenant();
-  await requireFeature(tenant.organizationId, "maintenance");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  // Două citiri independente, pe tabele diferite. Înlănțuite erau două
+  // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
+  const [, permisiuni] = await Promise.all([
+    requireFeature(tenant.organizationId, "maintenance"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+  ]);
 
   // `can(..., "own")`, nu `scopeFor(...) !== null`: „none” e refuz explicit
   // ȘI e truthy, deci a doua formă ar lăsa poarta deschisă.
