@@ -1,0 +1,55 @@
+# deploy/push-livrare.service
+#
+# Golește coada de notificări push (`push_livrari`).
+#
+# Instalare pe VM:
+#   sudo cp deploy/push-livrare.{service,timer} /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now push-livrare.timer
+#   systemctl list-timers push-livrare    # verificarea că e programat
+#
+# Secretul se citește din /etc/administrativo/push.env, care conține o linie:
+#   PUSH_CRON_SECRET=<aceeași valoare ca în .env.production>
+# Generare: `openssl rand -base64 32`. Fișierul are 0600 și aparține lui root:
+#   sudo install -d -m 700 /etc/administrativo
+#   printf 'PUSH_CRON_SECRET=%s\n' "$(openssl rand -base64 32)" \
+#     | sudo tee /etc/administrativo/push.env >/dev/null
+#   sudo chmod 600 /etc/administrativo/push.env
+# ACEEAȘI valoare trebuie pusă și în .env.production, apoi stack:deploy —
+# `curl` nu primește secretul pe linia de comandă: ar fi vizibil în `ps` pentru
+# orice utilizator al mașinii, de aceea vine din `EnvironmentFile` de mai jos.
+#
+# DE CE UN TIMER, ȘI NU pg_cron
+# Proiectul are pg_cron cu mai multe joburi, dar acelea rulează PL/pgSQL în
+# interiorul Postgres-ului. Livrarea trebuie să iasă pe HTTP către exp.host, iar
+# `pg_net` nu e activat pe instanța noastră de Supabase. Un job SQL n-are cum să
+# facă apelul — vezi și comentariul din `api/reges/reconciliere/route.ts`.
+#
+# DE CE E SIGUR CU DOUĂ REPLICI
+# Nu decide serviciul, ci baza: `public.push_ia_din_coada` ia rândurile cu
+# `for update skip locked`. O a doua replică — sau o suprapunere de timere —
+# primește alt lot din coadă, sau niciunul, niciodată același rând de două ori.
+# Spre deosebire de REGES, aici nu există o stare „lucrează deja altcineva":
+# nu e nevoie de închiriere și nici de un cod 409 tratat ca succes.
+
+[Unit]
+Description=Livrarea notificărilor push (Administrativo)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/administrativo/push.env
+# Doar 200 e succes. Orice alt cod — inclusiv un 404, care aici înseamnă secret
+# nepotrivit sau gol, nu rută lipsă — se scrie în jurnal și iese cu eroare, ca
+# `journalctl -u push-livrare` să arate imediat o instalare stricată.
+ExecStart=/bin/sh -c '\
+  cod=$(curl -sS -m 60 -o /tmp/push-raspuns.json -w "%{http_code}" \
+        -X POST -H "Authorization: Bearer $PUSH_CRON_SECRET" \
+        http://127.0.0.1:3000/api/push/livreaza); \
+  echo "push: HTTP $cod $(cat /tmp/push-raspuns.json)"; \
+  case "$cod" in 200) exit 0 ;; *) exit 1 ;; esac'
+TimeoutStartSec=90
+
+[Install]
+WantedBy=multi-user.target

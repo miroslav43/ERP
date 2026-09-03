@@ -201,6 +201,15 @@ pe „trimis", fiindcă evenimentele `delivered`/`bounced` nu mai ajung niciodat
 **Cloudflare** — zona `administrativo.ro` e proxied (188.114.x). Modul SSL/TLS trebuie să fie
 **Full (strict)**; certificatul Let's Encrypt de pe origine îl face valid.
 
+**Timer systemd pentru golirea cozii de push** — `deploy/push-livrare.{service,timer}`
+golesc `push_livrari` la un minut, prin `POST /api/push/livreaza`. Ruta nu se poate autoporni
+și nu poate fi chemată din `pg_cron`: `pg_net` nu e activat pe instanța noastră de Supabase
+(aceeași constrângere ca la ciclul REGES, ale cărui unități — `deploy/reges-reconciliere.*` —
+nu sunt încă documentate aici). Secretul e `PUSH_CRON_SECRET`, generat cu
+`openssl rand -base64 32` și pus în **două** locuri: `.env.production` pe VM și
+`/etc/administrativo/push.env` (`0600`, root) — pașii de instalare și verificare sunt în
+comentariul din `deploy/push-livrare.service`, nu repetați aici.
+
 ---
 
 ## Certificate

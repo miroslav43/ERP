@@ -1,0 +1,28 @@
+# deploy/push-livrare.timer
+#
+# La un minut, nu la zece ca la REGES. O notificare push care ajunge pe telefon
+# la trei minute după ce cererea a fost aprobată nu mai e o notificare, e un
+# raport — utilitatea ei stă tocmai în a sosi cât ecranul e încă relevant.
+# Costul e o cerere HTTP locală în plus pe minut, care nu atinge baza dacă n-are
+# ce lua: `push_ia_din_coada` întoarce zero rânduri și ruta răspunde imediat.
+#
+# `Persistent=false`, spre deosebire de REGES (`Persistent=true`): o coadă
+# rămasă în urmă cât VM-ul a fost oprit se golește oricum la prima rulare de
+# după pornire — timerul următor tot vine, cel mult cu un minut întârziere. Nu
+# există fereastră pierdută de recuperat, așa cum există la un ciclu de 10
+# minute; iar o notificare veche de câteva ore n-ar trebui trimisă abia acum,
+# de două ori, doar fiindcă VM-ul a fost oprit.
+
+[Unit]
+Description=Programează livrarea notificărilor push
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+Persistent=false
+# Împrăștie pornirea, ca timerul să nu cadă exact peste alte joburi de pe VM.
+RandomizedDelaySec=10
+Unit=push-livrare.service
+
+[Install]
+WantedBy=timers.target
