@@ -129,19 +129,74 @@ Ordinea e parte din design: instrumentul întâi, feedbackul al doilea, milisecu
 Azi cele 3 376 de cereri din ultimele 72 h nu conțin nicio durată. Fără ele, nici lentoarea nu se
 poate confirma retroactiv, nici reparația nu se poate dovedi. **Se face prima.**
 
-- `cp <vhost> <vhost>.bak`
-- în blocul `http`: `log_format durate '$remote_addr "$request" $status rt=$request_time urt=$upstream_response_time';`
-- în `server{}`-ul aplicației: `access_log /var/log/nginx/administrativo.log durate;`
-- `docker exec strawboss-nginx-1 nginx -t` → dacă pică, restaurează `.bak` și **nu** da reload
-- `nginx -s reload`
+**Corecție față de prima versiune a spec-ului: fișierul E în repo.** Vhostul live e
+`/srv/apps/Strawboss/nginx/conf.d/30-administrativo.ro.conf`, dar **sursa lui de adevăr e
+`deploy/nginx/30-administrativo.ro.conf` din acest repo** (identice byte-cu-byte azi), iar
+`./administrativo.sh nginx:vhost` scrie copia live din ea (`ops/06-nginx.sh:103,:142`). Dacă se
+modifică doar copia din `/srv/apps/Strawboss`, **prima rulare viitoare de `nginx:vhost` — a ta sau
+a altei sesiuni — șterge tăcut jurnalizarea.** Se modifică repo-ul și se instalează cu `nginx:vhost`.
 
-Fișiere: în afara repo-ului, sub `/srv/apps/Strawboss`. Nu intră în commit-ul aplicației.
+**Domeniul activ e `administrativo.ro`.** `infomeditatii.ro` nu mai are niciun server block; apare
+o singură dată în `nginx -T`, într-un comentariu. Măsurătorile din §2 au fost filtrate pe IP tocmai
+pentru că formatul `main` n-are `$host`.
+
+Ce se scrie, și unde:
+
+- `log_format` **nu** poate sta în blocul `http` din `/etc/nginx/nginx.conf`: acel fișier trăiește
+  doar în container și **nu e bind-montat**, deci orice editare se pierde la prima recreare. Locul
+  corect e la nivel de fișier în `conf.d`, care e inclus exact în contextul `http`
+  (`nginx.conf:31`) — exact ca `map $connection_upgrade`, deja prezent în vhost la `:34-37`.
+- **O singură declarație.** Un `log_format durate` declarat de două ori face `nginx -t` să pice cu
+  „duplicate log_format" și blochează reload-ul pentru **toate cele 10 site-uri** de pe VM.
+- Formatul include `$host` chiar dacă jurnalul e per-vhost: costă zero și face seria comparabilă cu
+  istoricul din `docker logs`.
+- `access_log` declarat în `server{}` **suprascrie** moștenirea din `http`, nu se adaugă la ea.
+  Traficul ar dispărea din `docker logs strawboss-nginx-1` și `./administrativo.sh logs:nginx`
+  (`ops/07-logs.sh:33`) ar rămâne gol, fără nicio eroare. Se declară **două** directive `access_log`
+  în același server block. Dar **nu** se trimite a doua copie în `/dev/stdout`: jurnalul json-file al
+  nginx are deja 780 MB, fără `max-size`, pe un disc ocupat 81%.
+- Backupul: `<vhost>.anterior.bak` (convenția existentă, `ops/06-nginx.sh:130`). Un `.bak` care s-ar
+  termina în `.conf` ar fi încărcat de `include conf.d/*.conf` și ar produce `server_name` și `map`
+  duplicate — adică exact reload-ul care dă jos tot VM-ul.
+- **Nu edita `conf.d` cu `mv`/`rm`/rsync-cu-redenumire.** Dacă inode-ul directorului e înlocuit cât
+  timp containerul rulează, montarea devine stale: înăuntru directorul apare gol, `nginx -t` **trece**
+  (un config gol e valid), iar primul reload încarcă zero server-blocks și lasă fără serviciu toate
+  site-urile. Scriere in-place, apoi `./administrativo.sh nginx:vhost`, care face backup, `nginx -t`
+  și rollback automat (`ops/06-nginx.sh:145-157`).
+- Jurnalul nou trăiește la `/var/log/nginx/administrativo.log`, în stratul de scriere al containerului
+  — **nu** se adaugă bind-mount, fiindcă ar cere `docker compose up -d nginx`, care recreează edge-ul
+  partajat (interzis de `DEPLOY.md:79-81`). Se citește cu
+  `docker exec strawboss-nginx-1 tail -n 500 /var/log/nginx/administrativo.log`.
+  **Consecință de acceptat:** se pierde la recrearea containerului, deci seria de referință se copiază
+  în afara containerului înainte de orice altă schimbare. Și `nginx:alpine` n-are logrotate — fișierul
+  crește nelimitat; se trunchiază manual sau se șterge după ce seria e strânsă.
+
+**Care termen contează:** `$request_time` se măsoară de la primul octet citit de la client până la
+ultimul trimis, deci include rețeaua clientului. Pentru comparația „înainte/după" a intervențiilor
+2–6 termenul onest e `$upstream_response_time`; `$request_time` rămâne util fiindcă e ce simte omul.
 
 ### 1 · Feedback la clic — `src/components/data/rand-tabel.tsx`
 
 `gestioneazaClick` la `:34-38` face `router.push(destinatie)` gol. Se înfășoară în `useTransition`,
-iar starea de pending se leagă la voalul global prin `useSemnalIncarcare` din
-`@/components/incarcare/use-incarcare.ts` (hook existent, folosit în 12 locuri).
+iar starea de pending merge în **două** locuri: un afordant **local** pe rând, imediat, și voalul
+**global** prin `useSemnalIncarcare` din `@/components/incarcare/use-incarcare.ts` (hook existent,
+folosit în 11 locuri: 10 chemări de `useSemnalIncarcare` + 1 de `useSemnalPanaLaRuta`).
+
+**De ce două straturi, și nu doar voalul.** `PRAG_VOAL = 400` (`src/lib/incarcare/praguri.ts:24`)
+întârzie deliberat afișarea — pragul Doherty, argumentat la `:16-23`: sub 400 ms feedbackul devine
+clipire. Deci voalul singur lasă primele 400 ms mute. Mai important, voalul acoperă tot ecranul și
+**structural nu poate spune PE CARE rând s-a dat clic** — informația care lipsește de fapt pe o
+listă de rânduri identice. Afordantul local o dă: `aria-busy="true"` plus o estompare a rândului
+apucat, în același cadru cu clicul.
+
+`PRAG_VOAL` **nu se coboară.** Cu `DURATA_MINIMA_VOAL = 450` (`praguri.ts:35`), un prag mic face
+voalul să stea 450 ms peste o navigare de 200 ms — mai lent *perceput* decât fără voal. Iar după
+intervențiile 2–6 navigarea aterizează la ~450 ms, exact în zona aceea.
+
+**Amânat, nu respins:** `SenzorLink` primește deja `pending` de la `useLinkStatus` și îl trimite
+doar la voal, fără afordant local. Aceeași jumătate lipsește deci și pentru meniu, paginare și
+antetul sortabil (6 locuri de randare, `sidebar-nav.tsx:177,198`, `paginare.tsx:95,113`,
+`tabel.tsx:280`, `rand-notificare.tsx:118`). Nu intră în acest lot.
 
 **De ce nu se refolosește `SenzorLink`.** `src/components/incarcare/senzor-link.tsx` rezolvă deja
 exact această problemă pentru `<Link>`, prin `useLinkStatus` (Next 16.3). Nu se poate folosi aici:
@@ -158,29 +213,87 @@ clipească pe navigările instantanee: nu se aprinde nimic sub 400 ms.
 **Capcană:** `useTransition` și `useSemnalIncarcare` trebuie declarate **înaintea** lui
 `if (href === null)` de la `:29`. `useRouter()` e deja acolo; celelalte două trebuie să-l urmeze
 imediat, nu să ajungă sub ramura de ieșire — altfel se încalcă Rules of Hooks și componenta
-crapă exact pe rândurile fără destinație.
+crapă exact pe rândurile fără destinație. Rândurile cu `href === null` sunt reale: comentariul de
+la `:22` spune că apar când entitatea legată e ascunsă de RLS.
 
-Repară 19 pagini de listă: angajati, concedii, diurna, flota, inventar, salarizare, cursuri,
-mentenanță, onboarding, reges, ssm, ticketing, super-admin/organizatii ș.a.
+**Suprafața reală: UN fișier.** `RandTabel` nu e importat de nicio pagină — `grep -rln "RandTabel"
+src/app` întoarce zero rânduri. Ajunge la ecrane exclusiv prin `Tabel` (`src/components/ui/tabel.tsx:182`),
+care îl randează doar când primește prop-ul `href`. O singură editare acoperă **20 de fișiere,
+21 de instanțe** (`reges/page.tsx` are două, la `:345` și `:368`) și **22 de rute**
+(`concedii/tabel-cereri.tsx` servește `/concedii` și `/concedii/echipa`; `ticketing/tabel-tichete.tsx`
+servește `/ticketing` și `/ticketing/coada`).
 
-Separat, în același pas: cele 13 fișiere care declară `inCurs` fără să-l lege de nimic (trei îl
-aruncă din start cu `const [, porneste]`).
+**Eticheta rămâne generică, deliberat.** `Tabel` trimite azi doar `key` și `href` (`tabel.tsx:182-184`),
+deci voalul va scrie „Se încarcă…" (`panou-incarcare.tsx:61`), nu „Se încarcă lista de angajați…".
+Refolosirea lui `caption` ar produce „Se încarcă Lista angajaților…" — majusculă și fără articolul
+cerut de convenție — deci ar cere normalizarea a 20 de texte. Nu merită: afordantul local răspunde
+deja la „care rând", iar voalul la 400 ms trebuie doar să spună „încă lucrez". Amânat.
 
-**Milisecunde reale salvate: zero.** Intervalul până la primul semn vizual: de la infinit la
-sub 100 ms. Asta e plângerea literală.
+**Lotul „fișiere cu pending nelegat" nu există.** Prima versiune a spec-ului a spus 13, un inventar
+ulterior a spus 10; la verificare fișier cu fișier sunt **zero**. Cei ~106 care declară un pending îl
+duc într-un `<Buton inCurs textInCurs>` cu rotiță, `aria-busy` și blocare (`buton.tsx:120-125`), sau
+au semn propriu (`concedii/incarcare-document.tsx:139`), sau folosesc `useSemnalPanaLaRuta`
+(`formular.tsx:11,104`). `use-actiune-rand.ts` e un hook care nu randează nimic, iar toți cei trei
+consumatori ai lui leagă `inCurs` de un buton.
+
+Toate trei estimările au greșit la fel: au numărat **declarații**, nu **efecte**. Aceeași formă a
+produs și „19 pagini de listă" (20 de fișiere, dar **un singur** punct de editare) și „lipsesc 36 de
+`loading.tsx`" (zero pagini descoperite). `rand-tabel.tsx` era singurul loc real.
+
+**Milisecunde reale salvate: zero.** Ce se schimbă: primul semn vizual pe rândul apucat, de la
+**niciodată** la **același cadru cu clicul**; voalul global rămâne la 400 ms, ca peste tot.
 
 ### 2 · `getClaims()` — `current-user.ts:20` și `middleware.ts:76`
 
-Ambele docblock-uri argumentează azi explicit pentru `getUser()` („getUser() validează token-ul la
-GoTrue… singurul rezultat de încredere pe server”). **Se rescriu**, nu se șterg: noul comentariu
-trebuie să spună de ce verificarea locală e suficientă și care e fereastra acceptată — altfel
-următoarea sesiune „repară” înapoi la `getUser()`.
+Sunt exact **9** apeluri `supabase.auth.getUser()` în `src/` și **zero** `auth.getSession()`. Doar
+**două** sunt pe calea critică și se schimbă: `middleware.ts:76` și `current-user.ts:20`. Celelalte
+șapte sunt pe căi rare de autentificare (login, resetare, invitație, comutare de firmă) și **rămân
+neatinse** — acolo se stabilește sau se schimbă sesiunea, nu se citește.
 
-`current-user.ts` mapează din claims: `claims.sub` → `id`, `claims.email` → `email`,
-`claims.user_metadata?.full_name` → `fullName`. Tipul `AuthUser` rămâne neschimbat, deci nimic
-din aval nu se atinge.
+**Trei docblock-uri se rescriu**, nu două: `current-user.ts:18-19`, `middleware.ts:73-75` și
+`middleware.ts:67-69` (acesta din urmă spune „`getUser()` de mai jos rulează la FIECARE request care
+trece de matcher" și justifică `fetchCuTermen`; motivul rămâne valid — protejează `jwks.json` și
+reînnoirea — dar propoziția nu mai e adevărată literal). Se rescriu, nu se șterg: comentariul nou
+trebuie să spună de ce verificarea locală e suficientă și care e fereastra acceptată, altfel
+următoarea sesiune „repară" înapoi la `getUser()`.
 
-**Câștig: 270 ms → 1,7 ms pe fiecare cerere.**
+Cinci capcane verificate, fiecare capabilă să rupă schimbarea:
+
+1. **Garda pe eroare nu e suficientă.** `getClaims()` are **trei** variante de retur, nu două: pe
+   lângă succes și `{ data: null, error: AuthError }`, există `{ data: null, error: null }` — vizitator
+   fără sesiune. Un port mecanic al liniei actuale în `if (error !== null)` lasă `data` null și dă
+   TypeError. Garda corectă: `if (error !== null || data === null) return null;`
+2. **`JwtPayload` se importă din `@supabase/supabase-js`**, care face `export * from "@supabase/auth-js"`
+   (`index.d.mts:7`). **Niciodată** direct din `@supabase/auth-js`: nu e dependință directă și nu e
+   hoistat în `node_modules/@supabase/`. Un import direct de acolo e exact clasa de cale inventată
+   care a produs istoric 91 de erori de compilare.
+3. **`claims.email` e `string | undefined`** (`JwtPayload:1679`), iar `AuthUser.email` e `string`:
+   fallback-ul `?? ""` de la `current-user.ts:30` se **păstrează**. La fel, `claims.user_metadata` e
+   `UserMetadata | undefined` — accesul cere `?.` înainte de `["full_name"]`. Iar anotarea explicită
+   `const numeBrut: unknown` de la `:23` se păstrează: `UserMetadata` e `{ [key: string]: any }`, și
+   anotarea e singurul lucru care ține `any` afară din tipul dedus (regulile `no-unsafe-*` nu sunt
+   pornite, deci nimic nu ar semnala).
+4. **`import type { User }` de la `middleware.ts:5` devine neutilizat** în clipa în care
+   `SessionUpdate.user` nu mai e `User | null`. `noUnusedLocals: true` face typecheck-ul să pice pe
+   el — se scoate în același edit. Consumatorul unic al valorii, `src/proxy.ts:94`, o compară **doar
+   cu null**, nu citește niciun câmp: tipul poate deveni un boolean.
+5. **Nu se pasează niciodată jwt-ul explicit.** `getClaims(token)` sare complet peste `getSession()`
+   (`GoTrueClient.js:5320-5326`), deci reîmprospătarea **dispare**. Forma corectă e `getClaims()` fără
+   argument.
+
+**Neatinse, confirmat:** `src/app/readyz/route.ts` nu folosește deloc clientul Supabase — face `fetch`
+brut la `/auth/v1/health`. `/auth/callback` folosește `verifyOtp`/`exchangeCodeForSession`, nu
+`getUser`. `src/lib/supabase/optiuni-cookie.ts` n-are nimic de schimbat.
+
+**Câștig: 270 ms → 1,7 ms pe fiecare cerere.** Formulare onestă a porții: `getClaims` nu șterge apelul
+de rețea, îl **rărește** — la primul apel după pornirea procesului și la fiecare expirare a TTL-ului
+JWKS de 10 minute, `fetchJwk` cere `/.well-known/jwks.json`. Poarta „zero cereri `/auth/v1/user`" e
+corectă; una „zero cereri către Supabase" ar fi falsă.
+
+**Risc rezidual, de notat:** `validateExp` din auth-js n-are toleranță de ceas. Marja de 90 s a lui
+`getSession()` acoperă cazul normal, dar pe o replică cu ceasul în urmă cu mai mult, `getClaims` ar
+respinge un token pe care GoTrue l-ar accepta. Simptomul ar fi deconectări la navigare, nu o eroare
+vizibilă.
 
 ### 3 · `staleTimes` — `next.config.ts`
 
@@ -225,6 +338,12 @@ deci fiecare clic începe cu TCP+TLS de la zero: **+125 ms**.
 
 `register()` cu `setGlobalDispatcher(new Agent({ keepAliveTimeout: 30_000 }))`.
 
+**`undici` NU e dependință a proiectului.** Apare în lockfile doar ca dependință **opțională** a lui
+jsdom (`pnpm-lock.yaml:6184-6193`), iar `node_modules/undici` nu există. Intervenția cere deci și
+`package.json` **și** `pnpm-lock.yaml` regenerat — altfel `pnpm install --frozen-lockfile`
+(`Dockerfile:36`) oprește build-ul înainte să ajungă la `next build`. Se verifică și că modulul e
+trasat în `.next/standalone` (`outputFileTracing`) înainte de a declara intervenția livrată.
+
 **Risc:** `ECONNRESET` la reutilizarea unui socket pe care marginea l-a închis. undici reia automat
 un `GET`, **nu** un `POST`. De aceea 30 s și nu 60 — și de aceea pragul real al marginii Cloudflare
 se măsoară înainte de a alege altă valoare.
@@ -242,9 +361,48 @@ b. Auditul de **succes** de la `:233` e `await`-uit pe calea fericită. Se mută
    `:101`) rămâne sincron: un refuz care se pierde e o gaură în urmă, un succes pierdut e o linie
    lipsă dintr-un jurnal care are deja rândul de date.
 
-c. Același tipar aplicat preambulului paginilor, întâi pe cele 10–15 pagini grele
-   (`/pontaj` 11 `await`, `/concedii` 9, `/angajati` 9, `/mentenanta/echipamente/[id]` 10).
-   Lanțul „listă → nume angajați” e o dependență reală și rămâne serial.
+c. Același tipar la preambulul paginilor. **Corecție de scară față de prima versiune: sunt 110 din
+   117 de pagini, nu 10–15.** Tiparul e identic peste tot: `await requireFeature(...)` urmat pe linia
+   IMEDIAT următoare de `await getPermissionMap(...)` — două citiri independente, pe tabele diferite
+   (`organization_features` vs `role_permissions`), amândouă depinzând doar de `tenant`. Transformare
+   mecanică.
+
+   **Se sparge pe subarbori de rute** (pontaj, concedii, angajați, ssm, mentenanță…), niciodată într-un
+   commit de 110 fișiere: repo-ul are sesiuni concurente, iar o singură sesiune care le atinge pe toate
+   se ciocnește aproape sigur de altcineva.
+
+   **Câștigul e zero la încărcarea completă, și asta trebuie spus.** `(app)/layout.tsx:92-95` cheamă deja
+   `getEnabledFeatures(tenant.organizationId)`, iar el și `getPermissionMap` sunt amândoi `React.cache()`.
+   Când layoutul se randează în același request cu pagina, `requireFeature` din pagină e cache hit.
+   Câștigul apare **exclusiv** acolo unde layoutul NU se re-randează — adică la navigarea pe client,
+   care e chiar plângerea. Deci poarta empirică se pune pe o navigare client, nu pe un `curl`.
+
+   **`requireFeature` nu întoarce boolean — face `notFound()`** (`features.ts:89`). Într-un `Promise.all`
+   cu `getPermissionMap`, dacă acesta din urmă aruncă primul (organizationId non-UUID la
+   `permissions.ts:68-70`), rejectul lui câștigă cursa și un 404 devine 500. Practic nereproductibil cu
+   un tenant valid, dar se scrie. Contra-partea e sigură: `Promise.all` atașează handler pe fiecare
+   element, deci al doilea reject nu devine unhandled rejection.
+
+   **Poarta `can()` rămâne DUPĂ await**, nu între cele două apeluri — altfel ordinea „modul dezactivat
+   (404) înaintea permisiunii lipsă (`AccesRestrictionat`)" se pierde.
+
+   **Condiționalele nu se pierd.** Multe citiri sunt păzite de o permisiune. În `Promise.all` ele rămân
+   ternare în interiorul array-ului; tiparul există deja în cod:
+   `scope === "all" ? citesteRezumatDateSensibile(...) : null` (`angajati/[id]:220`) și
+   `poateAproba ? numarDeAprobat(...) : Promise.resolve(0)` (`concedii/echipa:71`).
+
+   **`grep -c "await "` supraevaluează:** `await params`, `await searchParams` și
+   `await createServerSupabase()` (doar `await cookies()`) nu sunt dus-întorsuri de rețea. Două awaituri
+   din TOP 8 sunt deja cache hit-uri cu câștig zero: `pontaj/page.tsx:108` și `pontaj/aprobare/page.tsx:217`.
+
+   **Ieșirile devreme blochează contopirea:** `pontaj/aprobare:195-214`, `pontaj/page.tsx:370-392`,
+   `mentenanta/echipamente/[id]:80`, `onboarding/[id]:48`. Mutarea unei citiri deasupra unei astfel de
+   ieșiri o face plătită degeaba pe ramura scurtă.
+
+   Lanțul „listă → nume angajați" e o dependență reală și rămâne serial. Iar `angajatiDupaId` există în
+   cinci module cu semnătură identică dar tipuri locale (`checklist.ts:666`, `maintenance.ts:901`,
+   `fleet.ts:678`, `per-diem.ts:525`, `ssm.ts:971`): importul rămâne din modulul paginii, o „unificare"
+   ar fi exact calea inventată de evitat.
 
 ## 5. Ce s-a respins, cu motiv
 
@@ -323,15 +481,52 @@ de imagine. Ambele sunt exact ce prinde `next build` și `tsc` tace.
 
 Poarta empirică, per intervenție:
 
-| # | cum se dovedește |
-| --- | --- |
-| 0 | `rt=` apare în `/var/log/nginx/administrativo.log`; se strâng cifre înainte de orice altă schimbare |
-| 1 | clic pe un rând → voalul se aprinde sub 100 ms; verificare vizuală headless (playwright-core + headless_shell din cache, rețeta existentă a proiectului) |
-| 2 | `curl` cu sesiune validă → zero cereri `/auth/v1/user` în `query_logs` pentru o navigare; sesiunea supraviețuiește peste ora de expirare (test manual, o oră) |
-| 3 | jurnalul nginx: proporția `?_rsc=` scade sub 74,7% |
-| 4 | `curl -H 'Next-Router-Prefetch: 1'` nu mai apare în `query_logs`; `/icon1` cu cookie revine la ~21 ms |
-| 5 | două cereri la 6 s distanță: a doua nu mai plătește TLS |
-| 6 | `rt=` median pe POST-uri scade; auditul de succes apare în continuare în `audit_logs` |
+| # | TDD? | cum se dovedește |
+| --- | --- | --- |
+| 0 | nu | `rt=` apare în `/var/log/nginx/administrativo.log`; seria se **copiază în afara containerului** înainte de orice altă schimbare |
+| 1 | **da** | test Vitest pe `RandTabel`: clicul pune sursa în depozitar și `aria-busy` pe `<tr>` |
+| 2 | **da** | test unitar pe maparea claims → `AuthUser`, inclusiv varianta `{data: null, error: null}`; empiric: zero cereri `/auth/v1/user` în `query_logs` pentru o navigare, iar sesiunea supraviețuiește peste ora de expirare |
+| 3 | parțial | `tsc` prinde cheia dacă `NextConfig` o tipizează; empiric: proporția `?_rsc=` din jurnal scade sub 74,7% |
+| 4 | **da** | test pe `proxy()` cu `NextRequest` construit: `/api/*` și `Next-Router-Prefetch: 1` ies fără `updateSession`; empiric `/icon1` cu cookie revine la ~21 ms |
+| 5 | nu | două cereri la 6 s distanță: a doua nu mai plătește TLS |
+| 6 | **da** (6a) | test că `getEnabledFeatures` și `getPermissionMap` pornesc în același tick; 6b cere `vi.mock("next/server")` — testul dovedește că auditul e **programat**, nu că e în afara căii critice |
+
+**Trei intervenții nu sunt TDD-abile, și planul trebuie s-o spună în loc s-o mascheze:** 0 (nginx, în
+afara codului), 5 (`register()` e chemat de runtime; un test ar verifica cel mult că fișierul exportă
+o funcție) și 6b în sens strict. Pentru ele poarta e cea empirică, nu vitest.
+
+**Patru capcane de test, verificate:**
+
+1. Proiectul `ui` din `vitest.config.mts:84-102` **nu are aliasul `server-only` și nu are variabile de
+   mediu** (spre deosebire de `unit`, `:46-59` și `:70-80`). Orice `.test.tsx` care ajunge prin lanțul
+   de importuri la un fișier cu `import "server-only"` sau la `@/config/env` cade cu „Cannot find
+   package 'server-only'" — o eroare care **nu** arată spre cauză.
+2. `useTransition` cu un `push` mockuit **sincron** nu produce un `pending` observabil: trece
+   true→false într-un singur ciclu. Mock-ul trebuie să întoarcă o promisiune care nu se rezolvă:
+   `push: vi.fn(() => new Promise(() => {}))`.
+3. Starea depozitarului **se scurge între teste** (`surse` și `cronometre` sunt variabile de modul,
+   `depozit.ts:37-40`). `goleste()` în `beforeEach` **și** `afterEach`, ca în `zona-incarcare.test.tsx:28-35`.
+4. `React.cache()` **nu memoizează în afara unui render**. Nu scrie un test care afirmă „un singur apel
+   pentru N invocări" — va pica, și nu pentru că implementarea e greșită.
+
+**Linia de bază, măsurată pe 2026-09-03 la 07:57:** typecheck curat · lint 0 erori / 1 avertisment
+preexistent (`panou-membri.tsx:173`, react-hook-form) · **teste 2902 ✓ / 1 ✗**. Eșecul e
+`src/content/landing/continut.test.ts` („nicio sedilă turcească în stratul de marketing") și e
+**preexistent, din diff-ul necomis al altei sesiuni** în `src/content/landing/contact.ts` — un citat
+din Legea 365/2002 lipit cu sedilă turcească (U+015F/U+0163). Implementatorul trebuie să constate roșeața **înainte**
+de a scrie primul rând, altfel o va atribui muncii lui.
+
+**Arborele e murdar cu 11 fișiere ale altei sesiuni**, iar build-ul Docker ia întreg directorul ca
+context. Un rebuild pentru intervențiile 3 și 5 ar publica munca lor nerevizuită. Se folosește rețeta
+de worktree curat din `DEPLOY.md:245-263`. Și: producția rulează azi
+`administrativo-web:d191d89-20260903001528` — tag cu marcaj de timp, adică **construit dintr-un arbore
+murdar**, deci imaginea live nu corespunde niciunui commit curat. Se notează de la ce imagine se
+pornește, altfel comparația `rt=` înainte/după măsoară și diferențe de cod nelegate de intervenții.
+
+**Ordinea obligatorie pentru 3 și 5:** întâi `nginx:vhost` + reload pentru jurnalizare, apoi se strânge
+seria de referință, **abia apoi** rebuild. Un rebuild înaintea jurnalizării face câștigul imposibil de
+dovedit — adică anulează exact motivul pentru care pasul 0 e primul. `./administrativo.sh prod` nu
+atinge nginx și nu reinstalează vhostul, doar avertizează (`ops/01-main.sh:87-90`).
 
 **Poarta finală, singura care contează:** `rt=` median pe navigare și pe salvare, comparat cu seria
 strânsă la pasul 0.
