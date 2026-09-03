@@ -61,8 +61,12 @@ function SelectorAnAplicare({ an }: { readonly an: number }) {
 
 export default async function PaginaSetariConcedii({ searchParams }: ProprietatiPagina) {
   const { tenant } = await requireTenant();
-  await requireFeature(tenant.organizationId, "leave");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  // Două citiri independente, pe tabele diferite. Înlănțuite erau două
+  // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
+  const [, permisiuni] = await Promise.all([
+    requireFeature(tenant.organizationId, "leave"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+  ]);
 
   if (!can(permisiuni, "leave:update", "all")) {
     return (
