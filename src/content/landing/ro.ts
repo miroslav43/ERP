@@ -113,7 +113,7 @@ export const RO: ContinutLanding = {
         nota: "Fără cost de implementare și fără instruire facturată separat.",
       },
       {
-        valoare: "17",
+        valoare: "19",
         eticheta: "module",
         nota: "Pornești doar ce folosești. Restul nu apare nici în meniu, nici pe factură.",
       },
@@ -196,7 +196,7 @@ export const RO: ContinutLanding = {
 
   module: {
     supratitlu: "Module",
-    titlu: "Șaptesprezece module. Pornești doar ce folosești.",
+    titlu: "Nouăsprezece module. Pornești doar ce folosești.",
     lead: "Ce nu e activat nu apare în meniu, nu apare în căutare și nu poate fi deschis prin adresă directă. Modulele se comută per firmă.",
     grupuri: [
       {
@@ -279,6 +279,16 @@ export const RO: ContinutLanding = {
             text: "Șabloane pe criterii. Evaluarea se deschide din fișa omului și rămâne în dosarul lui.",
             puncte: ["Criterii proprii firmei", "Istoric pe angajat"],
           },
+          {
+            cheie: "kpi",
+            titlu: "KPI-uri",
+            text: "Indicatori de performanță pe angajat și pe echipă, cu ținte lunare. Aceeași cifră o vede și omul, nu doar șeful.",
+            puncte: [
+              "Seturi de indicatori refolosibile, definite o dată pe firmă",
+              "Luna se închide, iar valorile nu se mai rescriu",
+              "Angajatul își vede indicatorul în portal, cu ținta lângă rezultat",
+            ],
+          },
         ],
       },
       {
@@ -354,6 +364,15 @@ export const RO: ContinutLanding = {
               "Ziua trecerii de frontieră se plătește o singură dată, unei singure țări",
               "Barem pe țări și curs la data plecării",
               "Decont printabil",
+            ],
+          },
+          {
+            cheie: "rapoarte",
+            titlu: "Rapoarte",
+            text: "Venituri, concedii și tichete, agregate pe toată organizația. Agregarea se face în SQL, nu în aplicație — aceeași decizie ca la pontaj.",
+            puncte: [
+              "Prag de proprietar, nu de manager: cere drept „toate”, nu „echipa”",
+              "Export în Excel, cu aceleași cifre ca pe ecran",
             ],
           },
         ],
@@ -972,8 +991,8 @@ export const RO: ContinutLanding = {
   pagini: {
     module: {
       supratitlu: "Ce e înăuntru",
-      titlu: "Șaptesprezece module, pornite câte unul",
-      lead: "Un nucleu care vine mereu și șaisprezece module care se aprind și se sting separat. Plătești ce ai pornit, iar ce nu folosești nu apare nici în meniu, nici pe factură.",
+      titlu: "Nouăsprezece module, pornite câte unul",
+      lead: "Patru module vin în nucleu, iar cincisprezece se aprind și se sting separat. Plătești ce ai pornit, iar ce nu folosești nu apare nici în meniu, nici pe factură.",
     },
     incredere: {
       supratitlu: "Unde stă bariera",

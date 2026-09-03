@@ -38,6 +38,7 @@ export const PRETURI_MODULE: Readonly<Partial<Record<FeatureKey, number>>> = {
   courses: 39,
   ssm: 29,
   evaluations: 25,
+  kpi: 30,
   fleet: 35,
   maintenance: 25,
   inventory: 25,
@@ -45,6 +46,7 @@ export const PRETURI_MODULE: Readonly<Partial<Record<FeatureKey, number>>> = {
   ticketing: 25,
   payroll: 69,
   per_diem: 25,
+  rapoarte: 20,
   asistent: 39,
 };
 
@@ -87,7 +89,7 @@ export const PACHETE: readonly Pachet[] = [
   { cheie: "nucleu", optionale: [], pret: PRET_NUCLEU },
   {
     cheie: "hr_extins",
-    optionale: ["reges", "onboarding", "courses", "ssm", "evaluations"],
+    optionale: ["reges", "onboarding", "courses", "ssm", "evaluations", "kpi"],
     pret: 249,
     recomandat: true,
   },
@@ -96,7 +98,7 @@ export const PACHETE: readonly Pachet[] = [
     optionale: ["fleet", "maintenance", "inventory", "announcements", "ticketing"],
     pret: 229,
   },
-  { cheie: "financiar", optionale: ["payroll", "per_diem"], pret: 219 },
+  { cheie: "financiar", optionale: ["payroll", "per_diem", "rapoarte"], pret: 219 },
   {
     cheie: "tot",
     optionale: [
@@ -105,6 +107,7 @@ export const PACHETE: readonly Pachet[] = [
       "courses",
       "ssm",
       "evaluations",
+      "kpi",
       "fleet",
       "maintenance",
       "inventory",
@@ -112,6 +115,7 @@ export const PACHETE: readonly Pachet[] = [
       "ticketing",
       "payroll",
       "per_diem",
+      "rapoarte",
       "asistent",
     ],
     pret: 499,

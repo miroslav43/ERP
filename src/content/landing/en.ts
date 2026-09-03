@@ -93,7 +93,7 @@ export const EN: ContinutLanding = {
         nota: "No implementation fee and no separately billed training.",
       },
       {
-        valoare: "17",
+        valoare: "19",
         eticheta: "modules",
         nota: "You switch on only what you use. The rest appears neither in the menu nor on the invoice.",
       },
@@ -176,7 +176,7 @@ export const EN: ContinutLanding = {
 
   module: {
     supratitlu: "Modules",
-    titlu: "Seventeen modules. You switch on only what you use.",
+    titlu: "Nineteen modules. You switch on only what you use.",
     lead: "What is not enabled does not appear in the menu, does not appear in search, and cannot be opened by typing the address. Modules are toggled per company.",
     grupuri: [
       {
@@ -259,6 +259,16 @@ export const EN: ContinutLanding = {
             text: "Templates built from your own criteria. A review opens from the person's file and stays in it.",
             puncte: ["Criteria you define", "History per employee"],
           },
+          {
+            cheie: "kpi",
+            titlu: "KPIs",
+            text: "Performance indicators per employee and per team, with monthly targets. The employee sees the same figure their manager does.",
+            puncte: [
+              "Reusable indicator sets, defined once per company",
+              "A closed month can no longer be rewritten",
+              "The employee sees their indicator in the portal, target next to result",
+            ],
+          },
         ],
       },
       {
@@ -334,6 +344,15 @@ export const EN: ContinutLanding = {
               "A border-crossing day is paid once, to one country",
               "Country rates and the exchange rate on the departure date",
               "A printable expense report",
+            ],
+          },
+          {
+            cheie: "rapoarte",
+            titlu: "Reports",
+            text: "Income, leave and meal vouchers, aggregated across the organisation. The aggregation runs in SQL, not in the application — the same decision as for attendance.",
+            puncte: [
+              "An owner-level threshold, not a manager one: it needs the „all” scope",
+              "Excel export, with the same figures as on screen",
             ],
           },
         ],
@@ -941,8 +960,8 @@ export const EN: ContinutLanding = {
   pagini: {
     module: {
       supratitlu: "What is inside",
-      titlu: "Seventeen modules, switched on one at a time",
-      lead: "A core that always comes along and sixteen modules that turn on and off separately. You pay for what you switched on; what you do not use appears neither in the menu nor on the invoice.",
+      titlu: "Nineteen modules, switched on one at a time",
+      lead: "Four modules come with the core, and fifteen turn on and off separately. You pay for what you switched on; what you do not use appears neither in the menu nor on the invoice.",
     },
     incredere: {
       supratitlu: "Where the barrier sits",

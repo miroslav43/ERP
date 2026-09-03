@@ -160,7 +160,7 @@ export default async function PaginaKpi({ searchParams }: ProprietatiPagina) {
   // Două citiri independente, pe tabele diferite. Înlănțuite erau două
   // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
   const [, permisiuni] = await Promise.all([
-    requireFeature(tenant.organizationId, "evaluations"),
+    requireFeature(tenant.organizationId, "kpi"),
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
   ]);
 

@@ -477,7 +477,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     href: "/rapoarte",
     icon: BarChart3,
     group: "financiar",
-    featureKey: "payroll",
+    featureKey: "rapoarte",
     permission: "payroll:read",
     // "all", nu "team" ca la salarizare: date agregate pe toată organizația
     // (venit, concediu, tichete per angajat) — prag de proprietar, nu de manager.
@@ -704,7 +704,7 @@ export const PORTAL_NAV_ITEMS: readonly PortalNavItem[] = [
     href: "/portal/kpi-ul-meu",
     icon: Gauge,
     group: "munca",
-    featureKey: "evaluations",
+    featureKey: "kpi",
     // `own` — angajatul are `evaluations:read = own` din 0070:271. Poarta e
     // aceeași ca a modulului mare; ce diferă e scope-ul, iar RLS îl duce până
     // la rândurile lui.

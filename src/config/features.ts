@@ -8,7 +8,9 @@
  * Dacă cele două diverg, `isFeatureKey` taie cheile necunoscute la citire.
  */
 import {
+  Gauge,
   GraduationCap,
+  BarChart3,
   CalendarDays,
   Car,
   ClipboardCheck,
@@ -55,6 +57,8 @@ export const FEATURE_KEYS = [
   "employee_portal",
   "evaluations",
   "ticketing",
+  "rapoarte",
+  "kpi",
   "asistent",
 ] as const;
 
@@ -138,6 +142,28 @@ export const FEATURES: Readonly<Record<FeatureKey, FeatureMeta>> = {
     isCore: false,
     sortOrder: 120,
   },
+  /*
+   * Rapoarte și KPI au devenit module PROPRII pe 2026-09-03.
+   *
+   * Ecranele existau de mult, dar erau păzite de cheile altor module —
+   * `/rapoarte` de `payroll`, `/evaluari/kpi` de `evaluations`. Consecința era
+   * comercială: oferta le vindea separat, la 20 și 30 de lei, deși erau deja
+   * incluse în cei 69 ai Salarizării și în cei 25 ai Evaluărilor. Cine le-ar fi
+   * cumpărat singure ar fi plătit pentru ecrane care nu s-ar fi deschis —
+   * `requireFeature` ar fi cerut modulul-părinte.
+   *
+   * KPI poate sta singur: are tabele proprii (`kpi_seturi`, `kpi_indicatori`,
+   * `kpi_evaluari_lunare`, `kpi_valori`) și nu citește nimic din evaluări în
+   * afară de `employees`. Verificat, nu presupus.
+   */
+  rapoarte: {
+    denumire: "Rapoarte",
+    icon: BarChart3,
+    grup: "finance",
+    isCore: false,
+    sortOrder: 65,
+  },
+  kpi: { denumire: "KPI-uri", icon: Gauge, grup: "hr", isCore: false, sortOrder: 135 },
   evaluations: {
     denumire: "Evaluări angajați",
     icon: ClipboardCheck,

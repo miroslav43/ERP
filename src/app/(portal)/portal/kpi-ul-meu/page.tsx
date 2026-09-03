@@ -44,7 +44,7 @@ export const metadata: Metadata = { title: "KPI-ul meu" };
 
 export default async function PaginaKpiulMeu() {
   const { tenant, user } = await requireTenant();
-  await requireFeature(tenant.organizationId, "evaluations");
+  await requireFeature(tenant.organizationId, "kpi");
   const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 
   if (!can(permisiuni, "evaluations:read", "own")) {

@@ -71,7 +71,7 @@ function randIndicator(
 
 export const creeazaSetKpi = createAction<typeof creeazaSetKpiSchema, Readonly<{ id: string }>>({
   name: "kpi_seturi.create",
-  feature: "evaluations",
+  feature: "kpi",
   permission: "evaluations:update",
   minScope: "team",
   input: creeazaSetKpiSchema,
@@ -156,7 +156,7 @@ export const actualizeazaSetKpi = createAction<
   Readonly<{ id: string }>
 >({
   name: "kpi_seturi.update",
-  feature: "evaluations",
+  feature: "kpi",
   permission: "evaluations:update",
   minScope: "team",
   input: actualizeazaSetKpiSchema,
@@ -252,7 +252,7 @@ export const actualizeazaSetKpi = createAction<
 export const arhiveazaSetKpi = createAction<typeof arhiveazaSetKpiSchema, Readonly<{ id: string }>>(
   {
     name: "kpi_seturi.archive",
-    feature: "evaluations",
+    feature: "kpi",
     permission: "evaluations:update",
     minScope: "team",
     input: arhiveazaSetKpiSchema,
@@ -298,7 +298,7 @@ export const seteazaTintaKpi = createAction<
   Readonly<{ id: string; employee_id: string }>
 >({
   name: "kpi_tinte_angajat.set",
-  feature: "evaluations",
+  feature: "kpi",
   permission: "evaluations:update",
   minScope: "team",
   input: seteazaTintaKpiSchema,
@@ -361,7 +361,7 @@ export const stergeTintaKpi = createAction<
   Readonly<{ id: string; employee_id: string }>
 >({
   name: "kpi_tinte_angajat.remove",
-  feature: "evaluations",
+  feature: "kpi",
   permission: "evaluations:update",
   minScope: "team",
   input: stergeTintaKpiSchema,
@@ -414,7 +414,7 @@ export const deschideLunaKpi = createAction<
   Readonly<{ id: string; employee_id: string }>
 >({
   name: "kpi_evaluari_lunare.open",
-  feature: "evaluations",
+  feature: "kpi",
   permission: "evaluations:create",
   minScope: "team",
   input: deschideLunaKpiSchema,
@@ -595,7 +595,7 @@ export const salveazaLunaKpi = createAction<
   Readonly<{ id: string; employee_id: string; procent: number | null }>
 >({
   name: "kpi_evaluari_lunare.save",
-  feature: "evaluations",
+  feature: "kpi",
   permission: "evaluations:update",
   minScope: "team",
   input: salveazaLunaKpiSchema,
@@ -696,7 +696,7 @@ export const finalizeazaLunaKpi = createAction<
   Readonly<{ id: string; employee_id: string }>
 >({
   name: "kpi_evaluari_lunare.finalize",
-  feature: "evaluations",
+  feature: "kpi",
   permission: "evaluations:update",
   minScope: "team",
   input: finalizeazaLunaKpiSchema,
