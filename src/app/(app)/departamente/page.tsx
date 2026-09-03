@@ -17,7 +17,7 @@ import {
   rolurilePeUtilizator,
   structuraDepartamentelor,
 } from "@/lib/queries/departments";
-import { avataturiPeUtilizatori } from "@/lib/queries/profile";
+import { toateAvatarurile } from "@/lib/queries/profile";
 import { idFisaProprie } from "@/lib/queries/employees";
 
 import { FormularDepartamentNou } from "./formular-departament-nou";
@@ -53,8 +53,12 @@ export default async function PaginaDepartamente({ searchParams }: ProprietatiPa
   const vizualizare = vizualizareSchema.parse(parametri["vizualizare"]);
 
   const { tenant, user } = await requireTenant();
-  await requireFeature(tenant.organizationId, "nucleu");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  // Două citiri independente, pe tabele diferite. Înlănțuite erau două
+  // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
+  const [, permisiuni] = await Promise.all([
+    requireFeature(tenant.organizationId, "nucleu"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+  ]);
 
   // AMBELE ramuri sunt necesare, și lipsa celei dintâi era un defect real:
   // `getPermissionMap` scoate `none` din hartă (`permissions.ts:127`), iar
@@ -83,16 +87,15 @@ export default async function PaginaDepartamente({ searchParams }: ProprietatiPa
       ? null
       : await idFisaProprie(tenant.organizationId, user.id);
 
-  const [structura, angajati, rolurileMembrilor] = await Promise.all([
+  const [structura, angajati, rolurileMembrilor, avataruri] = await Promise.all([
     structuraDepartamentelor(tenant.organizationId),
     angajatiPentruStructura(tenant.organizationId, scopeAngajati ?? "none", propriaFisaId),
     rolurilePeUtilizator(tenant.organizationId),
-  ]);
-
-  // Un singur apel pentru avatarele angajaților ȘI ale managerilor.
-  const avataruri = await avataturiPeUtilizatori([
-    ...angajati.map((a) => a.user_id),
-    ...structura.map((d) => d.manager?.user_id ?? null),
+    // `toateAvatarurile`, nu `avataturiPeUtilizatori`: fără filtrul pe listă de
+    // conturi, citirea nu mai depinde de `angajati`/`structura` și poate pleca
+    // în același val cu ele. Politica `profiles_select` restrânge deja prin
+    // `app.shares_org(id)` — filtrul nu adăuga izolare.
+    toateAvatarurile(),
   ]);
 
   const denumirePeDepartament = new Map(structura.map((d) => [d.id, d.denumire]));
