@@ -9,8 +9,11 @@ import { updateSession } from "@/lib/supabase/middleware";
  * CVE-2025-29927 a arătat că middleware-ul Next.js poate fi sărit complet
  * dintr-un simplu antet de request. Orice verificare de drepturi făcută aici ar
  * fi ocolibilă. Prin urmare face exact trei lucruri, toate de confort:
- *   1. reîmprospătează cookie-urile de sesiune Supabase (obligatoriu — altfel
- *      token-ul expiră în mijlocul navigării);
+ *   1. reîmprospătează cookie-urile de sesiune Supabase pentru MAJORITATEA
+ *      cererilor (altfel token-ul expiră în mijlocul navigării) — cu două
+ *      excepții care ies din funcție ÎNAINTE de `updateSession()`, mai jos:
+ *      rutele `/api/` (își verifică singure sesiunea) și prefetch-urile de
+ *      `<Link>` (navigarea reală care urmează trece normal prin aici);
  *   2. redirect grosier către autentificare pentru vizitatorii nelogați;
  *   3. duce utilizatorul deja autentificat de pe landing în aplicație.
  *
@@ -42,6 +45,9 @@ const RUTE_PUBLICE: readonly string[] = [
   "/resetare-parola",
   "/parola-noua",
   "/auth",
+  // Înregistrarea self-serve. Fără linia asta, formularul de creare a firmei
+  // ar fi păzit de ecranul de autentificare — adică exact invers.
+  "/inregistrare",
   "/cere-demo",
   "/preturi",
   "/legal",

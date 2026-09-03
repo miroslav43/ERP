@@ -22,8 +22,8 @@ import { ImageResponse } from "next/og";
  * (`app-icons.md:64`). Ruta emisă e `/icon1` — verificată în
  * `.next/app-path-routes-manifest.json`, unde rutele de metadate de la rădăcină
  * apar cu URL curat (`/icon`, `/apple-icon`), fără hash de conținut. Proxy-ul o
- * lasă să treacă fără sesiune: `PREFIXE_METADATE` conține „/icon", iar
- * potrivirea e pe prefix (`src/proxy.ts:69`).
+ * lasă să treacă fără sesiune: `config.matcher` din `src/proxy.ts` exclude
+ * explicit `icon` (vezi comentariul de deasupra lui, din același fișier).
  *
  * Zona de siguranță e aceeași ca la 512: Android decupează varianta `maskable`
  * în forma temei și taie până la 20% pe fiecare margine, deci litera stă

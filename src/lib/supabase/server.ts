@@ -39,11 +39,25 @@ export async function createServerSupabase(): Promise<ServerSupabase> {
             for (const { name, value, options } of cookiesToSet) {
               store.set(name, value, options);
             }
-          } catch {
+          } catch (eroare) {
             // Capcană: `cookies().set()` aruncă dacă suntem într-un Server
-            // Component (răspunsul a început deja). Refresh-ul token-ului e
-            // făcut oricum de middleware, deci pierderea e inofensivă aici.
-            // Într-o Server Action apelul reușește și cookie-ul se scrie.
+            // Component (răspunsul a început deja). Într-o Server Action apelul
+            // reușește și cookie-ul se scrie.
+            //
+            // Reîmprospătarea prin `updateSession()` din `proxy.ts` acoperă
+            // MAJORITATEA cererilor, dar nu pe toate: rutele `/api/` și
+            // prefetch-urile de `<Link>` ies din proxy ÎNAINTE de
+            // `updateSession()` (vezi comentariile de acolo). O cerere ajunsă
+            // aici pe una din căile alea poate găsi refresh-tokenul deja ROTIT
+            // de GoTrue (sub 90 s până la expirare) — iar scrierea eșuată de mai
+            // sus înseamnă că rotația aia se pierde: browserul rămâne cu un
+            // token deja consumat, pe care GoTrue îl revocă la următoarea
+            // folosire. Simptomul e „deconectare aleatorie", fără nimic altceva
+            // în jurnal — de-aia avertismentul de mai jos.
+            console.warn(
+              "createServerSupabase: scrierea cookie-ului de sesiune a eșuat într-un Server Component — posibilă rotație de refresh-token pierdută, utilizatorul poate fi deconectat la următoarea cerere",
+              eroare,
+            );
           }
         },
       },

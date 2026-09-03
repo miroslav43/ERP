@@ -38,7 +38,7 @@ export type SessionUpdate = Readonly<{
 /**
  * Reîmprospătează cookie-urile de sesiune Supabase și spune dacă requestul are
  * un utilizator autentificat. NU decide nimic despre organizație și nu
- * autorizează nimic — vezi comentariul din `src/middleware.ts`.
+ * autorizează nimic — vezi comentariul din `src/proxy.ts`.
  */
 export async function updateSession(request: NextRequest): Promise<SessionUpdate> {
   let response = NextResponse.next({ request });
