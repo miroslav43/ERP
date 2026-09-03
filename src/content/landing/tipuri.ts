@@ -250,4 +250,32 @@ export type ContinutLanding = Readonly<{
     copyright: string;
     notaDiacritice: string;
   }>;
+
+  /**
+   * Antetele paginilor publice secundare.
+   *
+   * Fiecare pagină secundară e compusă din benzi care au deja `<h2>`-ul lor
+   * (`Banda` îl randează). Ce le lipsește e un `<h1>` propriu — și, mai
+   * important, un motiv de a exista scris în cuvintele cuiva care a ajuns acolo
+   * dintr-o căutare, nu derulând pagina de start.
+   *
+   * Aici stă DOAR ce se vede pe ecran. Titlul SEO și descrierea meta rămân în
+   * `metadata` din fișierul rutei: sunt altă propoziție, pentru alt cititor
+   * (rezultatul de căutare), și n-au voie să fie aceleași cu `<h1>`-ul.
+   */
+  pagini: Readonly<{
+    module: AntetPagina;
+    incredere: AntetPagina;
+    deCeNu: AntetPagina;
+    intrebari: AntetPagina;
+    domenii: AntetPagina;
+    pontajTelefon: AntetPagina;
+  }>;
+}>;
+
+/** Antetul unei pagini publice secundare: supratitlu mono, `<h1>`, lead. */
+export type AntetPagina = Readonly<{
+  supratitlu: string;
+  titlu: string;
+  lead: string;
 }>;

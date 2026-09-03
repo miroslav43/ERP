@@ -45,6 +45,21 @@ const PAGINI: readonly Pagina[] = [
     actualizat: "2026-08-22",
   },
   { cale: "/cere-demo", prioritate: 0.7, limba: "ro", traducere: null, actualizat: "2026-08-22" },
+  // Paginile care au preluat conținutul mutat de pe pagina de start. Fără
+  // traducere: engleza are azi doar `/en` și `/en/preturi`, iar o pereche
+  // declarată către o rută inexistentă e mai rea decât nicio pereche.
+  { cale: "/module", prioritate: 0.8, limba: "ro", traducere: null, actualizat: "2026-09-03" },
+  {
+    cale: "/pontaj-pe-telefon",
+    prioritate: 0.8,
+    limba: "ro",
+    traducere: null,
+    actualizat: "2026-09-03",
+  },
+  { cale: "/incredere", prioritate: 0.6, limba: "ro", traducere: null, actualizat: "2026-09-03" },
+  { cale: "/intrebari", prioritate: 0.6, limba: "ro", traducere: null, actualizat: "2026-09-03" },
+  { cale: "/de-ce-nu", prioritate: 0.5, limba: "ro", traducere: null, actualizat: "2026-09-03" },
+  { cale: "/domenii", prioritate: 0.5, limba: "ro", traducere: null, actualizat: "2026-09-03" },
   {
     cale: "/legal/termeni",
     prioritate: 0.3,

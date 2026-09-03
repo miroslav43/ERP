@@ -26,7 +26,15 @@ import { updateSession } from "@/lib/supabase/middleware";
  * `proxy.ts`. Funcția exportată se numește acum `proxy`.
  */
 
-/** Rutele accesibile fără sesiune. Restul aplicației e închis implicit. */
+/**
+ * Rutele accesibile fără sesiune. Restul aplicației e închis implicit.
+ *
+ * O pagină publică ABSENTĂ de aici nu dă 404 și nu dă eroare: dă un 307 către
+ * autentificare. Vizitatorul venit dintr-o căutare primește un formular de login
+ * în locul paginii pe care o căuta, iar robotul primește același lucru și
+ * indexează ecranul de autentificare. De aceea `continut.test.ts` verifică lista
+ * asta din conținut, nu dintr-o enumerare scrisă de mână.
+ */
 const RUTE_PUBLICE: readonly string[] = [
   "/en", // landing-ul în engleză; fără linia asta, /en trimite la autentificare
   "/autentificare",
@@ -37,6 +45,13 @@ const RUTE_PUBLICE: readonly string[] = [
   "/cere-demo",
   "/preturi",
   "/legal",
+  // Paginile care au preluat conținutul mutat de pe pagina de start.
+  "/module",
+  "/incredere",
+  "/de-ce-nu",
+  "/intrebari",
+  "/domenii",
+  "/pontaj-pe-telefon",
 ];
 
 /**

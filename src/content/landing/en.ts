@@ -75,7 +75,8 @@ export const EN: ContinutLanding = {
 
   dovada: {
     randuri: [
-      { valoare: "14", eticheta: "modules", nota: "Each with shipped screens, not promises." },
+      // Vezi nota din `ro.ts`: cifra vine din `FEATURE_KEYS`, nu din memorie.
+      { valoare: "17", eticheta: "modules", nota: "Each with shipped screens, not promises." },
       {
         valoare: "5",
         eticheta: "roles",
@@ -170,7 +171,7 @@ export const EN: ContinutLanding = {
 
   module: {
     supratitlu: "Modules",
-    titlu: "Fifteen modules. You switch on only what you use.",
+    titlu: "Seventeen modules. You switch on only what you use.",
     lead: "What is not enabled does not appear in the menu, does not appear in search, and cannot be opened by typing the address. Modules are toggled per company.",
     grupuri: [
       {
@@ -946,5 +947,40 @@ export const EN: ContinutLanding = {
     copyright: "All rights reserved.",
     notaDiacritice:
       "We write Romanian ș and ț with a comma below, not a cedilla. It is the correct form, and it is checked automatically on every release.",
+  },
+
+  // Vezi nota din `ro.ts`: antetele paginilor secundare, scrise pentru cineva
+  // care aterizează direct pe ele.
+  pagini: {
+    module: {
+      supratitlu: "What is inside",
+      titlu: "Seventeen modules, switched on one at a time",
+      lead: "A core that always comes along and sixteen modules that turn on and off separately. You pay for what you switched on; what you do not use appears neither in the menu nor on the invoice.",
+    },
+    incredere: {
+      supratitlu: "Where the barrier sits",
+      titlu: "One company's data never reaches another. The rule lives in Postgres.",
+      lead: "Not in the menu, not in an application filter. Below: where the barrier actually sits, what happens when a write breaks it, and how long we keep each kind of data.",
+    },
+    deCeNu: {
+      supratitlu: "Before you ask",
+      titlu: "What we do not do, written before the third meeting",
+      lead: "The limits other vendors mention after you have signed. They are here because it is cheaper for both of us that you find out now, alongside an honest comparison with how you work today.",
+    },
+    intrebari: {
+      supratitlu: "Questions",
+      titlu: "What people ask before they sign",
+      lead: "The answers we give on the phone anyway, written down once. If your question is not here, call — the number is in the footer and a person answers.",
+    },
+    domenii: {
+      supratitlu: "By industry",
+      titlu: "The same modules, a different order of importance",
+      lead: "We do not sell different versions per industry. Only what you switch on first and what lands on the first screen changes, and below is exactly what that means for four kinds of company.",
+    },
+    pontajTelefon: {
+      supratitlu: "Clocking in by phone",
+      titlu: "Clocking in from the browser, with nothing to install",
+      lead: "The person on site opens an address, adds it to the home screen and clocks in. No App Store or Google Play account, no updates to install, no phone that has run out of space.",
+    },
   },
 };

@@ -52,6 +52,24 @@ describe("landing-ul nu poate minți despre module", () => {
     }
   });
 
+  it("cifra afișată în banda de dovadă e chiar numărul de module din catalog", () => {
+    /*
+     * Trei cifre au coexistat pe aceeași pagină pentru același lucru: banda de
+     * dovadă spunea 14, titlul secțiunii de module spunea „cincisprezece”, iar
+     * catalogul de dedesubt randa șaptesprezece rânduri. Niciuna nu era greșită
+     * când a fost scrisă — au rămas în urmă pe rând, la fiecare modul adăugat,
+     * fiindcă nimic nu le lega de sursă.
+     *
+     * Testele de mai sus verificau deja CATALOGUL. Cifra din vitrină nu era
+     * verificată de nimic, deci era singura care putea minți fără să cadă nimic.
+     */
+    for (const [limba, text] of LIMBI) {
+      const rand = text.dovada.randuri.find((r) => /^(module|modules)$/i.test(r.eticheta));
+      expect(rand, `${limba}: banda de dovadă n-are rândul de module`).toBeDefined();
+      expect(rand?.valoare, limba).toBe(String(FEATURE_KEYS.length));
+    }
+  });
+
   it("planurile de preț conțin doar module reale", () => {
     for (const [limba, text] of LIMBI) {
       for (const plan of text.preturi.planuri) {
@@ -186,9 +204,64 @@ describe("legăturile interne duc undeva", () => {
     }
   });
 
-  it("rutele publice noi sunt pe lista albă din proxy", () => {
-    for (const ruta of ["/en", "/preturi", "/cere-demo", "/legal"]) {
-      expect(PUBLICE, `lipsește ${ruta}`).toContain(`"${ruta}"`);
+  /**
+   * Lista albă din `proxy.ts`, citită din sursă.
+   *
+   * Se citește ca text, nu se importă: `proxy.ts` trage după el clientul
+   * Supabase și `next/server`, iar testul ăsta n-are nevoie de niciunul.
+   */
+  const RUTE_PUBLICE = [
+    // Ancorat pe `=`, nu pe prima paranteză dreaptă: adnotarea de tip e
+    // `readonly string[]`, deci un `[^[]*` se oprește la paranteza DIN TIP și
+    // captează un literal gol. Lista goală ar face testul să treacă pentru
+    // linkuri și să cadă pentru sitemap — adică exact invers decât pare.
+    ...(PUBLICE.match(/const RUTE_PUBLICE[^=]*=\s*\[([\s\S]*?)\n\]/)?.[1] ?? "").matchAll(
+      /"(\/[^"]*)"/g,
+    ),
+  ].map((m) => m[1] ?? "");
+
+  /** Aceeași regulă ca `estePublica()` din proxy: egalitate sau prefix cu bară. */
+  const estePublica = (cale: string): boolean =>
+    cale === "/" || RUTE_PUBLICE.some((r) => cale === r || cale.startsWith(`${r}/`));
+
+  it("fiecare link intern din conținut duce către o rută PUBLICĂ", () => {
+    /*
+     * Testul de dinainte verifica doar că lista albă conține patru rute scrise
+     * de mână. Nu prindea cazul real: o pagină publică nouă, linkuită din subsol,
+     * uitată din `RUTE_PUBLICE`.
+     *
+     * Simptomul e cel mai neplăcut cu putință, fiindcă nu e o eroare. Proxy-ul
+     * întoarce 307 către autentificare: vizitatorul venit dintr-o căutare
+     * primește un formular de login în locul paginii pe care o căuta, iar
+     * robotul primește același lucru și indexează ecranul de autentificare în
+     * locul conținutului. Nimic nu cade, nimic nu se logează.
+     */
+    expect(RUTE_PUBLICE.length, "nu s-a putut citi RUTE_PUBLICE din proxy.ts").toBeGreaterThan(5);
+    for (const [limba, text] of LIMBI) {
+      const linkuri = [...JSON.stringify(text).matchAll(/"(\/[^"#]*)(?:#[^"]*)?"/g)]
+        .map((m) => m[1] ?? "")
+        .filter((href) => href !== "" && !href.startsWith("//"));
+      for (const href of new Set(linkuri)) {
+        const cale = href === "/" ? "/" : href.replace(/\/$/, "");
+        expect(estePublica(cale), `${limba}: ${href} cere sesiune — 307 spre autentificare`).toBe(
+          true,
+        );
+      }
+    }
+  });
+
+  it("fiecare pagină din sitemap e publică și există", async () => {
+    // Un URL în sitemap care întoarce redirect e un raport de eroare în Search
+    // Console și buget de crawl aruncat. Se verifică amândouă condițiile: să
+    // aibă `page.tsx` și să treacă de proxy.
+    const { ADRESA_SITE } = await import("./contact");
+    const { default: sitemap } = await import("@/app/sitemap");
+    const cai = sitemap().map((intrare) => intrare.url.replace(ADRESA_SITE, "") || "/");
+
+    expect(cai.length, "sitemap gol").toBeGreaterThan(0);
+    for (const cale of cai) {
+      expect(RUTE.has(cale), `${cale} e în sitemap dar n-are page.tsx`).toBe(true);
+      expect(estePublica(cale), `${cale} e în sitemap dar cere sesiune`).toBe(true);
     }
   });
 

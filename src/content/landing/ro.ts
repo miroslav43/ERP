@@ -76,7 +76,15 @@ export const RO: ContinutLanding = {
 
   dovada: {
     randuri: [
-      { valoare: "14", eticheta: "module", nota: "Fiecare cu ecrane livrate, nu cu promisiuni." },
+      /*
+       * 17, nu 14. Cifra vine din `FEATURE_KEYS` (`src/config/features.ts`) —
+       * nucleul plus șaisprezece module opționale — iar `continut.test.ts`
+       * verifică în ambele sensuri că pagina le listează exact pe toate. Banda
+       * asta spunea 14 și titlul secțiunii de module spunea „cincisprezece”, în
+       * timp ce catalogul de dedesubt afișa șaptesprezece rânduri. Trei cifre
+       * pentru același lucru, pe aceeași pagină.
+       */
+      { valoare: "17", eticheta: "module", nota: "Fiecare cu ecrane livrate, nu cu promisiuni." },
       {
         valoare: "5",
         eticheta: "roluri",
@@ -171,7 +179,7 @@ export const RO: ContinutLanding = {
 
   module: {
     supratitlu: "Module",
-    titlu: "Cincisprezece module. Pornești doar ce folosești.",
+    titlu: "Șaptesprezece module. Pornești doar ce folosești.",
     lead: "Ce nu e activat nu apare în meniu, nu apare în căutare și nu poate fi deschis prin adresă directă. Modulele se comută per firmă.",
     grupuri: [
       {
@@ -944,5 +952,45 @@ export const RO: ContinutLanding = {
     copyright: "Toate drepturile rezervate.",
     notaDiacritice:
       "Scriem ș și ț cu virgulă dedesubt, nu cu sedilă. E felul corect, și e verificat automat la fiecare livrare.",
+  },
+
+  /*
+   * Antetele paginilor secundare.
+   *
+   * Sunt scrise pentru cineva care a ajuns acolo DIRECT dintr-o căutare, nu
+   * derulând pagina de start. De aceea fiecare își spune singură despre ce e,
+   * fără să presupună că vizitatorul a citit ceva înainte.
+   */
+  pagini: {
+    module: {
+      supratitlu: "Ce e înăuntru",
+      titlu: "Șaptesprezece module, pornite câte unul",
+      lead: "Un nucleu care vine mereu și șaisprezece module care se aprind și se sting separat. Plătești ce ai pornit, iar ce nu folosești nu apare nici în meniu, nici pe factură.",
+    },
+    incredere: {
+      supratitlu: "Unde stă bariera",
+      titlu: "Datele unei firme nu ajung la alta. Regula stă în Postgres.",
+      lead: "Nu în meniu, nu într-un filtru de aplicație. Mai jos e unde anume stă bariera, ce se întâmplă când o scriere o încalcă, și cât timp ținem fiecare fel de dată.",
+    },
+    deCeNu: {
+      supratitlu: "Înainte să întrebi",
+      titlu: "Ce nu facem, scris înainte de a treia întâlnire",
+      lead: "Lista limitelor pe care alți furnizori le spun după ce ai semnat. E aici fiindcă e mai ieftin pentru amândoi să afli acum, plus o comparație onestă cu felul în care lucrezi azi.",
+    },
+    intrebari: {
+      supratitlu: "Întrebări",
+      titlu: "Ce ne întreabă lumea înainte să semneze",
+      lead: "Răspunsurile pe care le dăm oricum la telefon, scrise o dată. Dacă întrebarea ta nu e aici, sună — numărul e în subsol și răspunde un om.",
+    },
+    domenii: {
+      supratitlu: "Pe domenii",
+      titlu: "Aceleași module, altă ordine de importanță",
+      lead: "Nu vindem versiuni diferite pe industrii. Se schimbă doar ce pornești întâi și ce ajunge pe primul ecran, iar mai jos scrie exact ce anume, pentru patru feluri de firmă.",
+    },
+    pontajTelefon: {
+      supratitlu: "Pontaj de pe telefon",
+      titlu: "Se pontează din browser, fără instalare din magazin",
+      lead: "Omul de pe șantier deschide o adresă, o adaugă pe ecranul de start și pontează. Fără cont în App Store sau Google Play, fără actualizări de instalat, fără un telefon care nu mai are loc.",
+    },
   },
 };
