@@ -24,8 +24,12 @@ export const metadata: Metadata = { title: "Sesizările mele" };
 
 export default async function PaginaSesizariPortal() {
   const { tenant } = await requireTenant();
-  await requireFeature(tenant.organizationId, "maintenance");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  // Două citiri independente, pe tabele diferite. Înlănțuite erau două
+  // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
+  const [, permisiuni] = await Promise.all([
+    requireFeature(tenant.organizationId, "maintenance"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+  ]);
 
   if (!can(permisiuni, "maintenance:read", "own")) {
     return (
