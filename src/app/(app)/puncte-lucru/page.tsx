@@ -35,27 +35,42 @@ interface RandPunctLucru {
 
 export default async function PaginaPuncteLucru() {
   const { tenant } = await requireTenant();
-  await requireFeature(tenant.organizationId, "nucleu");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  // Patru dus-întorsuri seriale spre PostgREST deveneau patru niveluri:
+  // requireFeature, getPermissionMap, createServerSupabase și selectul
+  // propriu-zis. Ultimele două rămân un lanț (selectul are nevoie de client),
+  // dar lanțul pleacă în același val cu primele două — patru niveluri devin
+  // două.
+  const [, permisiuni, rezultatPuncte] = await Promise.all([
+    requireFeature(tenant.organizationId, "nucleu"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+    createServerSupabase().then((db) =>
+      db
+        .from("puncte_lucru")
+        .select(
+          "id, denumire, adresa, judet, oras, cod_postal, sediu_principal, activ, observatii, cod_pontaj",
+        )
+        .eq("organization_id", tenant.organizationId)
+        .is("deleted_at", null)
+        .order("sediu_principal", { ascending: false })
+        .order("denumire")
+        .returns<RandPunctLucru[]>(),
+    ),
+  ]);
 
-  if (scopeFor(permisiuni, "departments:read") === "none") {
+  // CORECTAT: `getPermissionMap` scoate `none` din hartă (`permissions.ts`),
+  // iar `scopeFor` întoarce `null` pentru o cheie absentă — comparația doar cu
+  // `"none"` nu era NICIODATĂ adevărată, deci poarta nu refuza pe nimeni. Un
+  // `manager` (fără niciun rând `departments:*` în seed) trecea și primea un
+  // ecran gol. Forma corectă e în `/departamente`.
+  const scopePuncteLucru = scopeFor(permisiuni, "departments:read");
+  if (scopePuncteLucru === null || scopePuncteLucru === "none") {
     return <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta punctele de lucru." />;
   }
 
   const poateCrea = can(permisiuni, "departments:create", "all");
   const poateEdita = can(permisiuni, "departments:update", "all");
 
-  const db = await createServerSupabase();
-  const { data, error } = await db
-    .from("puncte_lucru")
-    .select(
-      "id, denumire, adresa, judet, oras, cod_postal, sediu_principal, activ, observatii, cod_pontaj",
-    )
-    .eq("organization_id", tenant.organizationId)
-    .is("deleted_at", null)
-    .order("sediu_principal", { ascending: false })
-    .order("denumire")
-    .returns<RandPunctLucru[]>();
+  const { data, error } = rezultatPuncte;
   if (error !== null) throw error;
 
   const puncte = data ?? [];
