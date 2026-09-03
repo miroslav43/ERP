@@ -106,6 +106,19 @@ alter table public.notification_preferences
 --
 -- Preferința absentă înseamnă TRIMITE. Baza colapsează „absent" în „fals" doar
 -- dacă i se cere; aici `coalesce` o cere explicit.
+--
+-- Dispozitivul se potrivește DOAR pe `user_id`, nu și pe `organization_id`:
+-- un angajat poate fi membru în mai multe firme
+-- (`organization_members` e unic pe `(organization_id, user_id)`), dar are UN
+-- singur telefon, deci un singur jeton Expo (unicitatea de pe `jeton`, mai
+-- sus, nu admite un al doilea rând). Cu potrivirea pe organization_id, o
+-- notificare din a doua firmă n-ar găsi niciun dispozitiv — angajatul n-ar
+-- primi push de la locul de muncă în care jetonul lui nu era încă legat.
+-- `organization_id` rămâne pe rândul din `dispozitive_push` — pentru
+-- izolarea rândului însuși (RLS, mai jos) și pentru audit — dar nu mai
+-- participă la această potrivire. Preferința rămâne scopată pe organizație:
+-- oprirea notificărilor de la o firmă nu trebuie să oprească push-ul de la
+-- cealaltă.
 ---------------------------------------------------------------------------
 
 create or replace function internal.push_pune_in_coada()
@@ -119,7 +132,6 @@ begin
   select new.id, d.id
   from public.dispozitive_push d
   where d.user_id = new.user_id
-    and d.organization_id = new.organization_id
     and d.deleted_at is null
     and coalesce(
           (select p.push
@@ -200,23 +212,41 @@ with check (
 -- 7. Actor, audit, drepturi
 ---------------------------------------------------------------------------
 
--- R9 (0002, secțiunea 4) redactează valorile pe nume de coloană, după tipare
--- în ENGLEZĂ: `%token%`. Coloana de aici e `jeton` — cuvântul românesc, cerut
--- de restul schemei — și nu se potrivește cu niciun tipar existent. Fără
--- lărgire, jetonul Expo complet (o capabilitate purtătoare: cine îl are
--- trimite push arbitrar pe telefonul omului) ajungea în clar în
--- `audit_logs.after` la fiecare INSERT/UPDATE pe `dispozitive_push`, vizibil
--- oricărui `org_admin`/`hr` cu `audit:read=all` din organizația respectivă.
--- `create or replace`: lărgește lista existentă, nu o înlocuiește — aditiv
--- pentru toate tabelele deja audiate, niciodată mai permisiv.
-create or replace function internal.audit_forbidden_patterns()
-returns text[]
-language sql
-immutable
-set search_path = ''
-as $$
-  select array['%ciphertext%', '%\_iv', '%auth\_tag%', '%hash%', '%token%', '%secret%', '%parol%', '%jeton%'];
+-- NU se atinge `internal.audit_forbidden_patterns()` (0002, lărgit de
+-- `0010b_fix_garda_audit.sql`) — e lista greșită pentru asta, exact avertismentul
+-- din `0017_fix_concedii.sql:798-801`. `create or replace` pe ea nu adaugă un
+-- tipar, ÎNLOCUIEȘTE tot corpul: un `%jeton%` acolo ar fi redactat corect
+-- valoarea jetonului, dar ar face și `attach_audit()` să refuze (garda R9,
+-- aceeași listă) orice tabelă viitoare cu o coloană al cărei NUME conține
+-- „jeton" — și, mai grav, ar retrograda `%secret%` la forma lui largă din
+-- 0002, redeschizând exact falsul-pozitiv pe care 0010b l-a închis
+-- (`safety_committee_meetings.secretar_employee_id`, auditată de
+-- `0011_ssm.sql`, ar începe din nou să fie respinsă sau — dacă cineva
+-- retrage și restrângerea din comentariu fără să observe — redactată tăcut
+-- în registrul obligatoriu ITM).
+--
+-- Mecanismul corect e cel din 0017: o listă albă PER TABELĂ, care exclude
+-- complet câmpul din `before`/`after` (înlocuit cu un marcaj
+-- `campuri_sensibile_atinse`), fără să atingă garda de atașare. Se adaugă o
+-- ramură, ca la `leave_requests`; ramura existentă rămâne neschimbată.
+create or replace function internal.audit_campuri_excluse(p_table text)
+returns text[] language sql immutable set search_path = '' as $$
+  select case p_table
+    when 'leave_requests' then
+      array['medical_code_id', 'serie_certificat', 'numar_certificat', 'motiv', 'atasament_path']
+    -- Jetonul Expo e o capabilitate purtătoare (cine îl are trimite push
+    -- arbitrar pe telefonul omului); restul rândului — organization_id,
+    -- platforma, deleted_at — chiar merită urmărit în audit.
+    when 'dispozitive_push' then
+      array['jeton']
+    else '{}'::text[]
+  end;
 $$;
+
+revoke all on function internal.audit_campuri_excluse(text) from public, anon, authenticated;
+
+comment on function internal.audit_campuri_excluse(text) is
+  'Listă albă de câmpuri excluse din audit_logs, per tabelă (tg_table_name). Citită din tg_table_name, NU din TG_ARGV — o re-rulare a internal.attach_audit(tabelă) nu o poate șterge tăcut (0017). Extinsă în 0122 cu `dispozitive_push`.';
 
 do $$
 declare
@@ -227,37 +257,41 @@ begin
     execute format(
       'create trigger trg_%1$s_actor before insert or update on public.%1$I for each row execute function internal.set_actor()',
       v_tabela);
-    -- `push_livrari` NU intră la audit generic: n-are `organization_id` (e
-    -- coadă de sistem, nu tabelă de business), deci fiecare tranziție de
-    -- stare ar scrie un rând de audit cu `organization_id = null` —
-    -- invizibil pentru orice `org_admin` (politica `audit_logs_select` cere
-    -- `organization_id = any(current_org_ids())`) și neatins de
-    -- `retention_policies` (cheiată tot pe `organization_id`). Ar crește la
-    -- nesfârșit, fără ca vreo firmă-client să-l poată vedea sau curăța.
+    if v_tabela = 'dispozitive_push' then
+      execute format('select internal.attach_audit(%L)', v_tabela);
+    else
+      -- `push_livrari` NU intră la audit generic: n-are `organization_id` (e
+      -- coadă de sistem, nu tabelă de business), deci fiecare tranziție de
+      -- stare ar scrie un rând de audit cu `organization_id = null` —
+      -- invizibil pentru orice `org_admin` (politica `audit_logs_select` cere
+      -- `organization_id = any(current_org_ids())`) și neatins de
+      -- `retention_policies` (cheiată tot pe `organization_id`). Ar crește la
+      -- nesfârșit, fără ca vreo firmă-client să-l poată vedea sau curăța.
+      null;
+    end if;
     execute format('revoke all on table public.%I from public, anon', v_tabela);
     execute format('revoke delete on table public.%I from authenticated', v_tabela);
   end loop;
 end;
 $$;
 
--- `internal.attach_audit('dispozitive_push')` s-ar refuza singur (eroarea R9:
--- „tabela ... conține coloane sensibile (jeton)"), acum că lista de mai sus
--- include `%jeton%` — exact ca la `employee_sensitive_data`,
--- `organization_sensitive_data`, `reges_credentiale`, care de aceea NU au deloc
--- audit generic. Diferența e că acolo aproape TOT rândul e sensibil (CNP, IBAN,
--- credențiale), pe când aici doar valoarea `jeton` e — restul rândului
--- (organization_id, platforma, deleted_at) chiar merită urmărit, mai ales după
--- fixul de mai sus la politica de UPDATE. Atașăm deci direct
--- `internal.audit_trigger()`, ocolind deliberat gardianul din
--- `attach_audit()`: `scrub_jsonb()`, apelat de `audit_trigger()`, redactează
--- oricum valoarea `jeton` la rulare, cu aceeași listă lărgită.
-create trigger audit_dispozitive_push
-  after insert or update on public.dispozitive_push
-  for each row execute function internal.audit_trigger();
-
 -- Granturi diferite per tabelă: coada nu se atinge din sesiunea unui utilizator.
 grant select, insert, update on table public.dispozitive_push to authenticated;
 revoke all on table public.push_livrari from authenticated;
+
+-- `service_role` NU capătă privilegii de tabelă automat. `bypassrls` (0001,
+-- atributul rolului) ocolește POLITICILE, dar `GRANT` e un strat separat —
+-- fără el, ruta primește „permission denied", nu „0 rânduri". Verificat
+-- empiric pe banc: fără liniile astea, `set role service_role` urmat de un
+-- SELECT sau UPDATE pe oricare din cele două tabele cade cu 42501.
+-- `0001_kernel.sql:649` are un `grant all on all tables` de o singură dată,
+-- la bootstrap — nu acoperă tabele create în migrări ulterioare, iar repo-ul
+-- n-are niciun `alter default privileges`. Fără INSERT/DELETE: ruta
+-- (/api/push/livreaza) nu creează dispozitive noi (le înregistrează
+-- aplicația) și nu șterge nimic (soft-delete peste tot, ca la orice tabelă
+-- din schemă).
+grant select, update on table public.dispozitive_push to service_role;
+grant select, update on table public.push_livrari     to service_role;
 
 revoke all on function internal.push_pune_in_coada() from public, anon;
 

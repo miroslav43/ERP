@@ -4,12 +4,25 @@
 --
 -- (1) POZITIVĂ — un `employee` își poate înregistra jetonul
 -- (2) NEGATIVĂ — nu vede jetonul altcuiva
--- (3) POZITIVĂ — un `manager` care scrie o notificare pentru `employee` umple coada
+-- (3) POZITIVĂ — un `hr` care scrie o notificare pentru `employee`, sub
+--     `authenticated` (nu superuser), umple coada — dovedește `security
+--     definer` cu RLS-ul real de pe `notifications`, nu ocolit
 -- (4) POZITIVĂ — un actor NUL (ca joburile pg_cron) umple coada la fel
 -- (5) NEGATIVĂ — preferința `push = false` oprește punerea în coadă
 -- (6) NEGATIVĂ — `push_livrari` e închisă pentru `authenticated`
 -- (7) NEGATIVĂ — proprietarul nu-și poate muta dispozitivul în altă organizație
 -- (8) POZITIVĂ — proprietarul își poate retrage propriul jeton (soft-delete)
+-- (9) POZITIVĂ — angajat membru în DOUĂ firme, UN dispozitiv, primește coadă
+--     din ambele
+-- (10) NEGATIVĂ — nu poate înregistra un dispozitiv pentru alt `user_id`
+-- (11) NEGATIVĂ — nu poate înregistra un dispozitiv într-o organizație în
+--      care nu e membru
+-- (12) REGRESIE — `internal.audit_forbidden_patterns()` NU prinde
+--      `secretar_employee_id` (garda R9 nu s-a lărgit la loc — 0010b/0017)
+-- (13) POZITIVĂ — jetonul nu ajunge în clar în `audit_logs` (exclus, nu
+--      redactat — `internal.audit_campuri_excluse`)
+-- (14) POZITIVĂ — `service_role` poate citi și scrie în ambele tabele (ruta
+--      /api/push/livreaza chiar are ce privilegii presupune că are)
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   psql "$BANC_URL" -f tests/rls/proba-push.sql
@@ -23,17 +36,22 @@ begin;
 
 do $$
 declare
-  v_sufix    text := left(replace(gen_random_uuid()::text, '-', ''), 8);
-  v_org      uuid := gen_random_uuid();
-  v_org2     uuid := gen_random_uuid();
-  v_u_mgr    uuid := gen_random_uuid();
-  v_u_ang    uuid := gen_random_uuid();
-  v_u_alt    uuid := gen_random_uuid();
-  v_disp     uuid;
-  v_notif    uuid;
-  v_vazute   int;
-  v_in_coada int;
-  v_esecuri  int := 0;
+  v_sufix     text := left(replace(gen_random_uuid()::text, '-', ''), 8);
+  v_org       uuid := gen_random_uuid();
+  v_org2      uuid := gen_random_uuid();
+  v_u_mgr     uuid := gen_random_uuid();
+  v_u_ang     uuid := gen_random_uuid();
+  v_u_alt     uuid := gen_random_uuid();
+  v_u_hr      uuid := gen_random_uuid();
+  v_u_multi   uuid := gen_random_uuid();
+  v_disp      uuid;
+  v_disp_multi uuid;
+  v_notif     uuid;
+  v_notif2    uuid;
+  v_vazute    int;
+  v_in_coada  int;
+  v_randuri   int;
+  v_esecuri   int := 0;
 begin
   raise notice '';
   raise notice '  PROBA PUSH (0122)';
@@ -48,12 +66,18 @@ begin
   insert into auth.users (id, email) values
     (v_u_mgr, 'mgr-' || v_sufix || '@exemplu.ro'),
     (v_u_ang, 'ang-' || v_sufix || '@exemplu.ro'),
-    (v_u_alt, 'alt-' || v_sufix || '@exemplu.ro');
+    (v_u_alt, 'alt-' || v_sufix || '@exemplu.ro'),
+    (v_u_hr, 'hr-' || v_sufix || '@exemplu.ro'),
+    (v_u_multi, 'multi-' || v_sufix || '@exemplu.ro');
 
   insert into public.organization_members (organization_id, user_id, role) values
     (v_org, v_u_mgr, 'manager'),
     (v_org, v_u_ang, 'employee'),
-    (v_org, v_u_alt, 'employee');
+    (v_org, v_u_alt, 'employee'),
+    (v_org, v_u_hr, 'hr'),
+    -- (9): angajat cu contract în ambele firme, un singur telefon.
+    (v_org, v_u_multi, 'employee'),
+    (v_org2, v_u_multi, 'employee');
 
   -- ── (1) POZITIVĂ: angajatul își înregistrează jetonul ──────────────────
   perform set_config('request.jwt.claim.sub', v_u_ang::text, true);
@@ -81,27 +105,48 @@ begin
     raise notice '  (2) EȘEC    alt employee VEDE % jetoane străine', v_vazute;
   end if;
 
-  -- ── (3) POZITIVĂ: managerul scrie o notificare, coada se umple ─────────
-  -- Fără `set local role authenticated`: în producție notificarea de aprobare
-  -- NU e un INSERT brut al clientului, ci efectul unui declanșator SECURITY
-  -- DEFINER de pe tabela de business (vezi
-  -- internal.leave_requests_notifica_aprobatorii din 0048), care ocolește RLS
-  -- la fel ca internal.push_pune_in_coada mai jos. `notifications_insert`
-  -- oricum refuză un INSERT direct pentru altcineva, în afara `announcements`
-  -- — indiferent de rol — deci trecerea prin `authenticated` aici ar testa o
-  -- politică străină de push, nu declanșatorul. Jetonul JWT rămâne setat, doar
-  -- ca actorul de audit să fie managerul, nu un rol anonim.
-  perform set_config('request.jwt.claim.sub', v_u_mgr::text, true);
-  insert into public.notifications (organization_id, user_id, kind, title, link)
-  values (v_org, v_u_ang, 'approval', 'Concediu aprobat.', '/portal/concediile-mele')
-  returning id into v_notif;
+  -- ── (3) POZITIVĂ: hr scrie o notificare pentru employee, coada se umple ──
+  -- SUB `authenticated`, nu superuser: `postgres` (rolul de conectare al
+  -- bancului) e superuser și ocolește RLS indiferent de FORCE, ceea ce ar
+  -- face verificarea asta oarbă la exact ce testează — dacă declanșatorul de
+  -- pe `dispozitive_push` chiar are nevoie de `security definer`. `hr` are
+  -- `announcements:create=all` (0002_authz.sql:1202), singurul drept care
+  -- lasă `notifications_insert` să admită un INSERT pentru altcineva
+  -- (0002_authz.sql:1036-1044) — `kind`-ul notificării nu contează pentru
+  -- acea politică, doar dreptul de „announcements”. `manager` NU are acest
+  -- drept (doar `announcements:read`), de-aia nu poate juca rolul de aici.
+  --
+  -- FĂRĂ `returning id`: `notifications_select` cere `user_id = auth.uid()`,
+  -- iar destinatarul e employee, nu hr — un RETURNING pe INSERT cere ca
+  -- rândul nou să treacă și politica SELECT (aceeași mecanică descoperită la
+  -- UPDATE, secțiunea 6), deci hr nu-și poate „vedea" propriul INSERT făcut
+  -- pentru altcineva. E comportament real al `notifications`, neschimbat de
+  -- 0122 — de aceea căutăm id-ul separat, ca proprietarul bazei (fără RLS),
+  -- nu ca hr.
+  perform set_config('request.jwt.claim.sub', v_u_hr::text, true);
+  set local role authenticated;
+  begin
+    insert into public.notifications (organization_id, user_id, kind, title, link)
+    values (v_org, v_u_ang, 'approval', 'Concediu aprobat.', '/portal/concediile-mele');
+  exception when others then
+    raise notice '  (3) EȘEC    hr nu a putut insera notificarea pentru employee: %', sqlerrm;
+  end;
+  reset role;
 
-  select count(*) into v_in_coada from public.push_livrari where notification_id = v_notif;
-  if v_in_coada = 1 then
-    raise notice '  (3) OK      manager → coadă: 1 rând';
+  select id into v_notif from public.notifications
+   where organization_id = v_org and user_id = v_u_ang and kind = 'approval'
+   order by created_at desc limit 1;
+
+  if v_notif is not null then
+    select count(*) into v_in_coada from public.push_livrari where notification_id = v_notif;
+    if v_in_coada = 1 then
+      raise notice '  (3) OK      hr (sub authenticated) → coadă: 1 rând';
+    else
+      v_esecuri := v_esecuri + 1;
+      raise notice '  (3) EȘEC    hr → coadă: % rânduri (așteptat 1) — declanșatorul nu e security definer?', v_in_coada;
+    end if;
   else
     v_esecuri := v_esecuri + 1;
-    raise notice '  (3) EȘEC    manager → coadă: % rânduri (așteptat 1) — declanșatorul nu e security definer?', v_in_coada;
   end if;
 
   -- ── (4) POZITIVĂ: actor nul, ca joburile pg_cron ───────────────────────
@@ -163,8 +208,12 @@ begin
     update public.dispozitive_push set organization_id = v_org2 where id = v_disp;
     raise notice '  (7) EȘEC    dispozitivul A FOST mutat în altă organizație';
     v_esecuri := v_esecuri + 1;
-  exception when others then
-    raise notice '  (7) OK      mutarea în altă organizație e refuzată (%)', sqlstate;
+  exception
+    when insufficient_privilege then
+      raise notice '  (7) OK      mutarea în altă organizație e refuzată (42501)';
+    when others then
+      v_esecuri := v_esecuri + 1;
+      raise notice '  (7) EȘEC    refuzat, dar cu alt cod decât 42501 (%): %', sqlstate, sqlerrm;
   end;
   reset role;
 
@@ -172,14 +221,165 @@ begin
   -- Soft-delete pe rândul propriu, exact mecanismul descris în §8 al
   -- migrării. Dacă politica SELECT ar cere `deleted_at is null`, Postgres ar
   -- respinge update-ul — rândul nou nu mai trece propria politică de citire.
+  -- `get diagnostics` obligatoriu: un UPDATE respins de clauza USING
+  -- afectează ZERO rânduri, FĂRĂ nicio eroare — un `exception when others`
+  -- singur ar raporta OK și pentru un refuz tăcut (de exemplu dacă cineva
+  -- readuce `deleted_at is null` în USING-ul politicii de UPDATE).
   perform set_config('request.jwt.claim.sub', v_u_ang::text, true);
   set local role authenticated;
   begin
     update public.dispozitive_push set deleted_at = now() where id = v_disp;
-    raise notice '  (8) OK      proprietarul își retrage propriul jeton';
+    get diagnostics v_randuri = row_count;
+    if v_randuri = 1 then
+      raise notice '  (8) OK      proprietarul își retrage propriul jeton (1 rând)';
+    else
+      v_esecuri := v_esecuri + 1;
+      raise notice '  (8) EȘEC    retragerea a afectat % rânduri (așteptat 1) — refuz tăcut', v_randuri;
+    end if;
   exception when others then
     v_esecuri := v_esecuri + 1;
     raise notice '  (8) EȘEC    retragerea propriului jeton e refuzată: %', sqlerrm;
+  end;
+  reset role;
+
+  -- ── (9) POZITIVĂ: angajat în DOUĂ firme, UN dispozitiv, coadă din ambele ──
+  -- Declanșatorul potrivește doar pe user_id (secțiunea 5 a migrării); dacă
+  -- ar potrivi și pe organization_id, notificarea din a doua firmă n-ar găsi
+  -- niciun dispozitiv, fiindcă acesta e înregistrat cu organization_id-ul
+  -- primei. Un singur INSERT în dispozitive_push, două notificări din firme
+  -- diferite, două rânduri de coadă.
+  perform set_config('request.jwt.claim.sub', v_u_multi::text, true);
+  set local role authenticated;
+  begin
+    insert into public.dispozitive_push (organization_id, user_id, jeton, platforma)
+    values (v_org, v_u_multi, 'ExponentPushToken[proba-multi-' || v_sufix || ']', 'ios')
+    returning id into v_disp_multi;
+  exception when others then
+    v_disp_multi := null;
+    raise notice '  (9) EȘEC    angajatul multi-firmă nu-și poate înregistra dispozitivul: %', sqlerrm;
+  end;
+  reset role;
+
+  if v_disp_multi is not null then
+    perform set_config('request.jwt.claim.sub', '', true);
+    insert into public.notifications (organization_id, user_id, kind, title)
+    values (v_org, v_u_multi, 'reminder', 'Memento din firma 1.')
+    returning id into v_notif;
+    insert into public.notifications (organization_id, user_id, kind, title)
+    values (v_org2, v_u_multi, 'reminder', 'Memento din firma 2.')
+    returning id into v_notif2;
+
+    select count(*) into v_in_coada
+      from public.push_livrari where dispozitiv_id = v_disp_multi and notification_id = v_notif;
+    select count(*) into v_randuri
+      from public.push_livrari where dispozitiv_id = v_disp_multi and notification_id = v_notif2;
+    if v_in_coada = 1 and v_randuri = 1 then
+      raise notice '  (9) OK      un dispozitiv, coadă din ambele firme (1 + 1)';
+    else
+      v_esecuri := v_esecuri + 1;
+      raise notice '  (9) EȘEC    firma 1: % rânduri, firma 2: % rânduri (așteptat 1 și 1)', v_in_coada, v_randuri;
+    end if;
+  else
+    v_esecuri := v_esecuri + 1;
+  end if;
+
+  -- ── (10) NEGATIVĂ: nu poate înregistra un dispozitiv pentru alt user_id ──
+  perform set_config('request.jwt.claim.sub', v_u_ang::text, true);
+  set local role authenticated;
+  begin
+    insert into public.dispozitive_push (organization_id, user_id, jeton, platforma)
+    values (v_org, v_u_alt, 'ExponentPushToken[proba-fals-' || v_sufix || ']', 'android');
+    raise notice '  (10) EȘEC   a înregistrat un dispozitiv pentru alt user_id';
+    v_esecuri := v_esecuri + 1;
+  exception
+    when insufficient_privilege then
+      raise notice '  (10) OK     refuzat (42501) — nu poate înregistra pentru alt user_id';
+    when others then
+      v_esecuri := v_esecuri + 1;
+      raise notice '  (10) EȘEC   refuzat, dar cu alt cod decât 42501 (%): %', sqlstate, sqlerrm;
+  end;
+  reset role;
+
+  -- ── (11) NEGATIVĂ: nu poate înregistra într-o organizație unde nu e membru ─
+  perform set_config('request.jwt.claim.sub', v_u_ang::text, true);
+  set local role authenticated;
+  begin
+    insert into public.dispozitive_push (organization_id, user_id, jeton, platforma)
+    values (v_org2, v_u_ang, 'ExponentPushToken[proba-strain-' || v_sufix || ']', 'android');
+    raise notice '  (11) EȘEC   a înregistrat un dispozitiv într-o organizație străină';
+    v_esecuri := v_esecuri + 1;
+  exception
+    when insufficient_privilege then
+      raise notice '  (11) OK     refuzat (42501) — nu poate înregistra într-o organizație străină';
+    when others then
+      v_esecuri := v_esecuri + 1;
+      raise notice '  (11) EȘEC   refuzat, dar cu alt cod decât 42501 (%): %', sqlstate, sqlerrm;
+  end;
+  reset role;
+
+  -- ── (12) REGRESIE: garda R9 nu s-a lărgit la loc ────────────────────────
+  -- Dacă vreo sesiune viitoare rescrie internal.audit_forbidden_patterns() ca
+  -- să adauge un tipar pentru push, redeschide exact falsul-pozitiv pe care
+  -- 0010b_fix_garda_audit.sql l-a închis pentru
+  -- safety_committee_meetings.secretar_employee_id (registrul SSM obligatoriu
+  -- ITM). Verificarea asta trebuie să rămână în probă, nu doar în 0010b.
+  if 'secretar_employee_id' ilike any (internal.audit_forbidden_patterns()) then
+    v_esecuri := v_esecuri + 1;
+    raise notice '  (12) EȘEC   garda R9 prinde din nou „secretar_employee_id” — 0010b a fost anulată';
+  else
+    raise notice '  (12) OK     garda R9 tot nu prinde „secretar_employee_id”';
+  end if;
+
+  -- ── (13) POZITIVĂ: jetonul nu ajunge în clar în audit_logs ──────────────
+  -- Mecanismul e internal.audit_campuri_excluse('dispozitive_push') =
+  -- array['jeton'] (secțiunea 7), NU internal.audit_forbidden_patterns() —
+  -- vezi nota din migrare. Efectul e diferit de un „[redactat]” pe valoare:
+  -- cheia `jeton` dispare complet din `before`/`after`, iar
+  -- `campuri_sensibile_atinse` listează că s-a atins (0017, tiparul de la
+  -- leave_requests). Verificăm ambele fețe: jetonul brut nu apare NICĂIERI
+  -- în `after`, și marcajul chiar spune că jetonul s-a schimbat.
+  declare
+    v_after jsonb;
+  begin
+    select after into v_after from public.audit_logs
+     where entity_type = 'dispozitive_push' and entity_id = v_disp_multi
+     order by created_at desc limit 1;
+
+    if v_after is null then
+      v_esecuri := v_esecuri + 1;
+      raise notice '  (13) EȘEC   nu există rând de audit pentru dispozitivul multi-firmă';
+    elsif v_after ? 'jeton' then
+      v_esecuri := v_esecuri + 1;
+      raise notice '  (13) EȘEC   cheia "jeton" e încă în audit_logs.after: %', v_after ->> 'jeton';
+    elsif v_after::text like '%proba-multi-' || v_sufix || '%' then
+      v_esecuri := v_esecuri + 1;
+      raise notice '  (13) EȘEC   jetonul brut apare undeva în after: %', v_after::text;
+    elsif not (v_after -> 'campuri_sensibile_atinse' ? 'jeton') then
+      v_esecuri := v_esecuri + 1;
+      raise notice '  (13) EȘEC   campuri_sensibile_atinse nu conține "jeton": %', v_after -> 'campuri_sensibile_atinse';
+    else
+      raise notice '  (13) OK     jetonul e exclus din audit (nu doar redactat), marcat în campuri_sensibile_atinse';
+    end if;
+  end;
+
+  -- ── (14) POZITIVĂ: service_role poate citi și scrie ambele tabele ───────
+  -- `bypassrls` (atributul rolului, 0001) ocolește POLITICILE, dar GRANT e
+  -- un strat separat: fără el, ruta primește „permission denied", nu „0
+  -- rânduri" — verificat empiric, ÎNAINTE de a adăuga granturile din
+  -- secțiunea 7, fiecare SELECT și UPDATE de mai jos cădea cu 42501.
+  -- `where false` la UPDATE: testăm PRIVILEGIUL, nu mutăm date — un rol fără
+  -- GRANT primește 42501 chiar și pentru un UPDATE care n-ar atinge niciun
+  -- rând.
+  set local role service_role;
+  begin
+    perform count(*) from public.dispozitive_push;
+    perform count(*) from public.push_livrari;
+    update public.dispozitive_push set vazut_la = now() where false;
+    update public.push_livrari set stare = 'in_lucru' where false;
+    raise notice '  (14) OK     service_role citește și scrie ambele tabele';
+  exception when others then
+    v_esecuri := v_esecuri + 1;
+    raise notice '  (14) EȘEC   service_role nu are privilegiile așteptate: % (%)', sqlerrm, sqlstate;
   end;
   reset role;
 
@@ -187,7 +387,7 @@ begin
   if v_esecuri > 0 then
     raise exception 'PROBA PUSH: % verificări căzute.', v_esecuri;
   end if;
-  raise notice '  PROBA PUSH: 8/8.';
+  raise notice '  PROBA PUSH: 14/14.';
 end;
 $$;
 
