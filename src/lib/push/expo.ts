@@ -61,9 +61,19 @@ async function trimiteUnLot(lot: readonly MesajPush[]): Promise<readonly Rezulta
     return lot.map(() => ({ fel: "eroare", mesaj: `HTTP ${raspuns.status}.` }) as const);
   }
 
-  let corp: { data?: Bilet[] };
+  let bilete: Bilet[];
   try {
-    corp = (await raspuns.json()) as { data?: Bilet[] };
+    const corp = (await raspuns.json()) as { data?: Bilet[] } | null;
+    // `?.` nu e cosmetic: un corp literal `null` e JSON VALID, deci `.json()`
+    // rezolvă cu `null` fără să arunce. Fără `?.`, `corp.data` ar arunca
+    // TypeError chiar aici — catch-ul de mai jos tot l-ar prinde, dar rezultatul
+    // ar fi „eroare" prin mesajul generic de corp nevalid, nu prin ramura
+    // normală „fără bilet" a lui `citesteBilet`. `?.` ține `null` pe drumul
+    // firesc, nu pe cel de avarie.
+    // `Array.isArray` acoperă un `data` care e string, număr sau obiect:
+    // indexarea lui ar întoarce `undefined` tăcut, iar toate mesajele ar cădea
+    // pe ramura „fără bilet" fără să se vadă de ce.
+    bilete = Array.isArray(corp?.data) ? corp.data : [];
   } catch {
     // 200 cu corp nevalid. Se tratează ca eroare de lot, NU se aruncă: apelantul
     // potrivește pozițional rândurile din coadă cu rezultatele, iar o excepție
@@ -71,7 +81,6 @@ async function trimiteUnLot(lot: readonly MesajPush[]): Promise<readonly Rezulta
     // s-ar retrimite la următoarea golire, ca push duplicat.
     return lot.map(() => ({ fel: "eroare", mesaj: "Răspuns nevalid de la Expo." }) as const);
   }
-  const bilete = corp.data ?? [];
   return lot.map((_, i) => citesteBilet(bilete[i]));
 }
 

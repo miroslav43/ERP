@@ -122,4 +122,41 @@ describe("trimiteLot", () => {
     expect(rezultate[0]?.fel).toBe("ok");
     expect(rezultate[149]?.fel).toBe("eroare");
   });
+
+  it("un corp literal null nu aruncă — e JSON valid, deci .json() nu se plânge", async () => {
+    vi.stubGlobal("fetch", () =>
+      Promise.resolve(
+        new Response("null", { status: 200, headers: { "Content-Type": "application/json" } }),
+      ),
+    );
+    const rezultate = await trimiteLot([
+      mesaj("ExponentPushToken[a]"),
+      mesaj("ExponentPushToken[b]"),
+    ]);
+    expect(rezultate).toHaveLength(2);
+    expect(rezultate.every((r) => r.fel === "eroare")).toBe(true);
+    // Verifică ȘI drumul: `corp?.data` trebuie să dea `undefined`, deci `bilete`
+    // rămâne `[]` prin ramura normală, nu prin catch-ul de „corp nevalid". Fără
+    // asertul ăsta pe `.mesaj`, mutantul care scoate `?.` ar trece nedetectat —
+    // `corp.data` ar arunca, catch-ul l-ar prinde tot, iar `.fel` ar rămâne
+    // „eroare" în ambele cazuri.
+    expect(rezultate[0]).toEqual({
+      fel: "eroare",
+      mesaj: "Răspuns fără bilet pentru acest mesaj.",
+    });
+  });
+
+  it("un `data` care nu e array nu lasă mesaje fără rezultat", async () => {
+    vi.stubGlobal("fetch", () =>
+      Promise.resolve(
+        new Response(JSON.stringify({ data: "boom" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+    const rezultate = await trimiteLot([mesaj("ExponentPushToken[a]")]);
+    expect(rezultate).toHaveLength(1);
+    expect(rezultate[0]?.fel).toBe("eroare");
+  });
 });
