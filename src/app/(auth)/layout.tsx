@@ -1,6 +1,24 @@
 // src/app/(auth)/layout.tsx
+import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
+
+/**
+ * Niciun ecran de autentificare nu are ce căuta într-un index de căutare.
+ *
+ * Cel mai neplăcut e `/invitatie/[token]`: URL-uri care poartă un token de acces
+ * pot ajunge în index dacă cineva le lipește undeva public. Regula stă pe layout,
+ * nu pe cele cinci pagini, fiindcă metadata se moștenește — o pagină nouă în
+ * `(auth)` e protejată din clipa în care e creată, fără să-și amintească cineva.
+ *
+ * `noindex`, NU `Disallow` în robots.txt. O cale interzisă în robots.txt nu poate
+ * fi citită, deci robotul nu ajunge niciodată să vadă `noindex`, iar URL-ul poate
+ * rămâne în index fără conținut. Ca să scoți ceva din index, trebuie să-l lași să
+ * intre.
+ */
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 /**
  * Shell-ul ecranelor publice de autentificare. Sobru și îngust: singura sarcină

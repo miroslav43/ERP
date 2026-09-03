@@ -18,9 +18,11 @@ export const EN: ContinutLanding = {
   cealaltaLimba: { eticheta: "RO", href: "/" },
 
   meta: {
-    titlu: "Administrativo — attendance, leave and payroll for companies in Romania",
+    // Vezi nota din `ro.ts`: sub 60 de caractere, marca scoasă din față, termenul
+    // căutat și dimensiunea firmei în locul ei.
+    titlu: "Time tracking and HR for companies with 5–50 employees",
     descriere:
-      "ERP and HR for companies in Romania: attendance, leave, payroll, occupational safety, fleet and inventory, with access rights enforced in the database rather than in the menu.",
+      "Daily working-time records as required by Romanian law, leave, personnel files and REGES-ONLINE reporting in one account. Built for companies with 5–50 employees.",
   },
 
   antet: {

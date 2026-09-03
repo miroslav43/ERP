@@ -13,9 +13,17 @@ export const RO: ContinutLanding = {
   cealaltaLimba: { eticheta: "EN", href: "/en" },
 
   meta: {
-    titlu: "Administrativo — pontaj, concedii și salarizare pentru firme din România",
+    /*
+     * 56 de caractere. Precedentul avea 75 și se trunchia în rezultatele Google,
+     * care taie în jurul a ~60. Numele mărcii a ieșit din față: pe rezultatul
+     * propriu apare oricum sub titlu, iar cine caută „administrativo” ne
+     * găsește. Locul câștigat s-a dus pe termenii care se tastează efectiv —
+     * „program de pontaj” — și pe dimensiunea firmei, care califică vizitatorul
+     * înainte de clic.
+     */
+    titlu: "Program de pontaj și HR pentru firme cu 5–50 de angajați",
     descriere:
-      "ERP și HR pentru firme din România: pontaj, concedii, salarizare, SSM, parc auto și inventar, cu drepturi de acces impuse în baza de date, nu în meniu.",
+      "Evidența zilnică a orelor conform art. 119, concedii, dosare de personal și REGES-ONLINE, într-un singur cont. Pentru firme cu 5–50 de angajați.",
   },
 
   antet: {

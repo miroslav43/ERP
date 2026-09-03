@@ -9,6 +9,9 @@ export const metadata: Metadata = {
   title: "Politica de confidențialitate",
   description:
     "Ce date colectăm în Administrativo, de ce, și care sunt drepturile tale conform GDPR. Document în curs de validare juridică.",
+  // Vezi nota din `legal/termeni`: canonical da, `languages` nu — nu există
+  // varianta engleză.
+  alternates: { canonical: "/legal/confidentialitate" },
 };
 
 const SECTIUNI = [

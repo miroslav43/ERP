@@ -6,6 +6,8 @@ import type { ReactNode } from "react";
 import { ADRESA_SITE } from "@/content/landing/contact";
 import { RO } from "@/content/landing/ro";
 
+import { DateStructurate } from "./_componente/date-structurate";
+
 /**
  * Fonturile stratului de marketing.
  *
@@ -63,6 +65,13 @@ export const viewport: Viewport = { themeColor: "#ECEFEC" };
 export default function LayoutMarketing({ children }: { children: ReactNode }) {
   return (
     <div className={`${firaCondensed.variable} ${firaMono.variable} mk bg-mk-hartie text-mk-text`}>
+      {/*
+        Stă pe LAYOUT, nu pe pagina de start: identitatea firmei și a sitului sunt
+        aceleași pe toate paginile publice, iar o pagină nouă le primește fără să
+        și le declare. Nodurile specifice unei pagini (ofertă, articol) se adaugă
+        în pagina lor, legate prin `@id` de nodurile de aici.
+      */}
+      <DateStructurate />
       {children}
     </div>
   );

@@ -9,6 +9,10 @@ export const metadata: Metadata = {
   title: "Termeni și condiții",
   description:
     "Schelet de termeni și condiții pentru Administrativo, în curs de redactare juridică.",
+  // Fără `languages`: pagina n-are variantă engleză, iar o pereche hreflang
+  // declarată către o rută inexistentă invalidează întreaga grupă, nu doar
+  // rândul greșit. Se adaugă odată cu traducerea, nu înainte.
+  alternates: { canonical: "/legal/termeni" },
 };
 
 const SECTIUNI = [

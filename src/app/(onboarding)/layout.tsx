@@ -1,5 +1,16 @@
 // src/app/(onboarding)/layout.tsx
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
+
+/**
+ * Zona de înrolare e vizibilă doar cu sesiune validă și nu are conținut public.
+ * `noindex` din același motiv ca în `(auth)`, și pe layout din același motiv:
+ * metadata se moștenește, deci o pagină nouă e acoperită fără să ceară nimănui
+ * să-și amintească.
+ */
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 /**
  * Shell-ul zonei de înrolare: cele două ecrane pe care le vede cineva care

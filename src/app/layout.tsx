@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 
 import { ZonaIncarcare } from "@/components/incarcare/zona-incarcare";
+import { ADRESA_SITE } from "@/content/landing/contact";
 
 /**
  * Subsetul `latin-ext` este obligatoriu, nu opțional.
@@ -19,15 +20,32 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  /**
+   * `metadataBase` stă AICI, nu doar în `(marketing)/layout.tsx`.
+   *
+   * Fără el, orice rută din afara grupului de marketing — `/autentificare`,
+   * `/invitatie/[token]`, ecranele portalului — rezolvă URL-urile relative din
+   * Open Graph pe un origin de rezervă dedus de Next, și emite un avertisment la
+   * build. O singură bază, moștenită de tot arborele; grupurile o pot suprascrie,
+   * dar nu mai trebuie s-o inventeze.
+   */
+  metadataBase: new URL(ADRESA_SITE),
   title: {
     default: "Administrativo",
     template: "%s · Administrativo",
   },
   description:
     "Sistem de administrare a personalului pentru firme din România: pontaj, concedii, salarii, SSM, flotă și inventar.",
-  // `favicon.ico` rămâne pentru browserele vechi; varianta SVG e clară la orice
-  // densitate de ecran și e chiar marca desenată în antet.
-  icons: { icon: [{ url: "/marca.svg", type: "image/svg+xml" }] },
+  /*
+   * NU se declară `icons` aici.
+   *
+   * A existat un `icons: { icon: "/marca.svg" }` care n-a ajuns niciodată în
+   * `<head>`: metadatele bazate pe FIȘIER au prioritate mai mare și suprascriu
+   * obiectul `metadata` (`generate-metadata.md`). Iar fișierele există —
+   * `icon.tsx` (512), `icon1.tsx` (192), `apple-icon.tsx` (180), `favicon.ico`.
+   * Declarația era cod mort care arăta ca o configurație activă, iar
+   * `public/marca.svg` pe care o numea nu e folosit de nicio pagină.
+   */
 };
 
 /**
