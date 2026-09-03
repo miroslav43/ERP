@@ -27,8 +27,12 @@ function descrieTip(c: CriteriuSablon): string {
 
 export default async function PaginaSabloaneEvaluare() {
   const { tenant } = await requireTenant();
-  await requireFeature(tenant.organizationId, "evaluations");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  // Două citiri independente, pe tabele diferite. Înlănțuite erau două
+  // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
+  const [, permisiuni] = await Promise.all([
+    requireFeature(tenant.organizationId, "evaluations"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+  ]);
 
   // Citirea urmează cheia modulului, nu pe cea a fișelor de angajat: `0070` a
   // mutat modulul pe `evaluations:*`, iar pagina rămăsese pe `employees:read`.

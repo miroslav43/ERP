@@ -32,8 +32,12 @@ export const metadata: Metadata = { title: "Seturi de indicatori" };
 
 export default async function PaginaSeturiKpi() {
   const { tenant } = await requireTenant();
-  await requireFeature(tenant.organizationId, "evaluations");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  // Două citiri independente, pe tabele diferite. Înlănțuite erau două
+  // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
+  const [, permisiuni] = await Promise.all([
+    requireFeature(tenant.organizationId, "evaluations"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+  ]);
 
   if (!can(permisiuni, "evaluations:read", "team")) {
     return <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta evaluările." />;
