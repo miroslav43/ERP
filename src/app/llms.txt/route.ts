@@ -28,7 +28,7 @@ import { RO } from "@/content/landing/ro";
 
 /** Ce se schimbă rar și e util într-un rezumat. */
 const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
-  ["/", "Pagina de start: ce face produsul, pentru cine, cât costă."],
+  ["/", "Ce face produsul, pentru cine e și cât costă."],
   ["/preturi", "Prețul fiecărui pachet și al fiecărui modul luat separat."],
   ["/module", "Cele nouăsprezece module, ce face fiecare, cum se leagă între ele."],
   [
@@ -56,7 +56,7 @@ function construieste(): string {
   l(`> ${RO.meta.descriere}`);
   l();
   l(
-    `Produs software (SaaS) pentru administrarea personalului, făcut pentru firme din România cu 5-50 de angajati. Se folosește din browser; nu se instalează nimic local.`,
+    `Produs software (SaaS) pentru administrarea personalului, făcut pentru firme din România cu 5–50 de angajați. Se folosește din browser; nu se instalează nimic local.`,
   );
   l();
 
