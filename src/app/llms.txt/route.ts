@@ -41,6 +41,10 @@ const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
   ],
   ["/de-ce-nu", "Limitele asumate ale produsului și comparația cu felul de a lucra fără el."],
   ["/intrebari", "Întrebările frecvente, cu răspunsuri."],
+  [
+    "/comparatie/excel",
+    "Pontaj în foaie de calcul față de aplicație: unde se rupe Excel-ul și unde nu.",
+  ],
   ["/domenii", "Ce se schimbă pentru construcții, producție, transport și servicii."],
   ["/cere-demo", "Formular pentru o demonstrație cu un om."],
   ["/legal/termeni", "Termenii contractuali și anexa de prelucrare a datelor (RGPD art. 28)."],

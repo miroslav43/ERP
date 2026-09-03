@@ -672,8 +672,8 @@ export const RO: ContinutLanding = {
         text: "Răspunde la „unde se face X?” și te duce acolo. Nu depune cereri, nu aprobă, nu șterge — apeși tu. Nu dă sfaturi juridice sau fiscale. Poate greși într-o explicație, dar nu te poate trimite la un ecran la care n-ai acces. Întrebarea ta pleacă la un furnizor extern de model (OpenRouter) ca să primească răspuns; datele din fișe pleacă doar dacă întrebi ceva despre ele. Modulul se poate stinge cu totul, per firmă.",
       },
       {
-        titlu: "Documentele se salvează ca PDF din browser",
-        text: "Generăm HTML de tipărit, cu numerotare pe serie și sumă de control. N-avem librărie de PDF în stivă, și n-am pretins că avem.",
+        titlu: "PDF-ul e o randare a documentului emis, nu un al doilea document",
+        text: "Documentul de referință e rândul din bază: el poartă numărul alocat pe serie, amprenta SHA-256 și codul de verificare. PDF-ul se compune din el, pe server. Un PDF făcut separat, din aceleași date, ar fi un al doilea izvor de adevăr — două hârtii cu același număr, a căror potrivire n-o garantează nimeni.",
       },
       {
         titlu: "Cotele fiscale trebuie confirmate de contabilul tău",

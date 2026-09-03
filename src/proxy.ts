@@ -58,6 +58,7 @@ const RUTE_PUBLICE: readonly string[] = [
   "/intrebari",
   "/domenii",
   "/pontaj-pe-telefon",
+  "/comparatie",
 ];
 
 /**

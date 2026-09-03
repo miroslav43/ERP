@@ -84,6 +84,21 @@ export function BandaModule({ text }: ProprietatiBanda) {
                 titlu={modul.titlu}
                 text={modul.text}
                 puncte={modul.puncte}
+                /*
+                  Linkul către pagina modulului. Fără el, cele nouăsprezece
+                  pagini generate ar fi accesibile doar tastând adresa — adică
+                  orfane, pentru vizitator și pentru un motor deopotrivă.
+                */
+                dreapta={
+                  <p className="mt-3">
+                    <Link
+                      href={`/module/${modul.cheie}`}
+                      className="text-[0.9375rem] underline underline-offset-4"
+                    >
+                      Despre {modul.titlu.toLocaleLowerCase("ro-RO")}
+                    </Link>
+                  </p>
+                }
               />
             ))}
           </Registru>

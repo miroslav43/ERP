@@ -655,8 +655,8 @@ export const EN: ContinutLanding = {
         text: "It answers \u201cwhere do I do X?\u201d and takes you there. It files nothing, approves nothing, deletes nothing \u2014 you press. It gives no legal or tax advice. It can be wrong in an explanation, but it cannot send you to a screen you may not open. Your question goes to an external model provider (OpenRouter) to be answered; data from personnel records leaves only if you ask about it. The module can be switched off entirely, per company.",
       },
       {
-        titlu: "Documents are saved as PDF from the browser",
-        text: "We generate printable HTML with series numbering and a checksum. There is no PDF library in the stack, and we have not claimed there is.",
+        titlu: "The PDF is a rendering of the issued document, not a second document",
+        text: "The document of record is the row in the database: it carries the number allocated on its series, the SHA-256 fingerprint and the verification code. The PDF is composed from it, on the server. A PDF built separately from the same data would be a second source of truth — two papers with the same number, whose agreement nobody guarantees.",
       },
       {
         titlu: "Tax rates must be confirmed by your accountant",
