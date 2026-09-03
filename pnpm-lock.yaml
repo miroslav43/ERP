@@ -75,8 +75,8 @@ importers:
         specifier: ^3.6.0
         version: 3.6.0
       undici:
-        specifier: ^8.10.1
-        version: 8.10.1
+        specifier: ^7.29.0
+        version: 7.29.0
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -3522,9 +3522,9 @@ packages:
   undici-types@6.21.0:
     resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
 
-  undici@8.10.0:
-    resolution: {integrity: sha512-HvltHd7avK13QIw/oLe4qoOLyoVSoafqJ2jYOrtMRBkbYT31eiBQ8O0ehRKZiEZCMEyLFQNIADpgCWC5fALvYQ==}
-    engines: {node: '>=22.19.0'}
+  undici@7.29.0:
+    resolution: {integrity: sha512-IDxfleLmmbSskfWSUATiN1nfn2rDuvnMOqb5CWR92iIfojA0Ud+ulOAAEQ57LPr9rWmsreUyf5lwyao+7GNNVw==}
+    engines: {node: '>=20.18.1'}
 
   undici@8.10.1:
     resolution: {integrity: sha512-YQ3WlbqjYMmNpdvDH64jAgLjxuAR9+649calDWhbshYaeQGO2bR4nI94ORJmwI3J9YhoKQnpyGOK+0zlWS5N5Q==}
@@ -6188,7 +6188,7 @@ snapshots:
       saxes: 6.0.0
       symbol-tree: 3.2.4
       tough-cookie: 6.0.2
-      undici: 8.10.0
+      undici: 8.10.1
       w3c-xmlserializer: 5.0.0
       webidl-conversions: 8.0.1
       whatwg-mimetype: 5.0.0
@@ -7218,10 +7218,10 @@ snapshots:
 
   undici-types@6.21.0: {}
 
-  undici@8.10.0:
-    optional: true
+  undici@7.29.0: {}
 
-  undici@8.10.1: {}
+  undici@8.10.1:
+    optional: true
 
   unrs-resolver@1.12.2:
     dependencies:
