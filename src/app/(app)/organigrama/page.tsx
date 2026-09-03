@@ -17,7 +17,7 @@ import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import {
   arboreleManagerial,
   idFisaProprie,
-  rolurileConturilor,
+  toateRolurileConturilor,
   type NodManagerial,
 } from "@/lib/queries/employees";
 
@@ -146,8 +146,12 @@ function Arbore({
 export default async function PaginaOrganigrama() {
   const utilizator = await requireUser();
   const { tenant } = await requireTenant();
-  await requireFeature(tenant.organizationId, "nucleu");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  // Două citiri independente, pe tabele diferite. Înlănțuite erau două
+  // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
+  const [, permisiuni] = await Promise.all([
+    requireFeature(tenant.organizationId, "nucleu"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+  ]);
   const scope = scopeFor(permisiuni, "employees:read");
 
   if (scope === null || scope === "none") {
@@ -158,18 +162,17 @@ export default async function PaginaOrganigrama() {
     );
   }
 
-  const propriaFisaId =
-    scope === "all" ? null : await idFisaProprie(tenant.organizationId, utilizator.id);
+  // Rolurile din aplicație, pe TOATE conturile organizației — `toateRolurileConturilor`,
+  // nu `rolurileConturilor`: fără filtrul pe id-uri, harta nu mai depinde de
+  // arbore și poate pleca în același val cu fișa proprie. Fără cheie străină
+  // între `employees` și `organization_members`, PostgREST refuză embed-ul.
+  // Nu cere nicio permisiune în plus: politica cere doar apartenența la
+  // organizație.
+  const [propriaFisaId, roluri] = await Promise.all([
+    scope === "all" ? null : idFisaProprie(tenant.organizationId, utilizator.id),
+    toateRolurileConturilor(tenant.organizationId),
+  ]);
   const noduri = await arboreleManagerial(tenant.organizationId, scope, propriaFisaId);
-
-  // Rolurile din aplicație, pe conturile fișelor vizibile. Fără cheie străină
-  // între `employees` și `organization_members`, PostgREST refuză embed-ul —
-  // vezi nota de la `rolurileConturilor`. Nu cere nicio permisiune în plus:
-  // politica cere doar apartenența la organizație.
-  const roluri = await rolurileConturilor(
-    tenant.organizationId,
-    noduri.map((nod) => nod.user_id),
-  );
 
   const { arbore, administrator, atasatiImplicit, radaciniFaraManagerVizibil } =
     construiesteOrganigrama(noduri, roluri);

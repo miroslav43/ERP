@@ -429,6 +429,43 @@ export async function rolurileConturilor(
 }
 
 /**
+ * Toate rolurile din organizație — varianta FĂRĂ filtrul pe listă de conturi
+ * din `rolurileConturilor`.
+ *
+ * ── DE CE O FUNCȚIE NOUĂ, NU `rolurileConturilor` MODIFICATĂ ──────────────
+ * `rolurileConturilor` are alți apelanți (`angajati/page.tsx`,
+ * `angajati/[id]/page.tsx`) pentru care filtrul pe id-uri e util — nu li se
+ * schimbă semnătura sau comportamentul.
+ *
+ * ── DE CE FĂRĂ FILTRU AICI ─────────────────────────────────────────────────
+ * Organigrama are nevoie de hartă ÎNAINTE să existe arborele, ca cele două
+ * citiri să plece în același val — dar filtrul `.in("user_id", ids)` cerea
+ * exact `ids`-urile arborelui, deci hărțuia o dependență artificială. RLS
+ * restrânge deja rândurile la organizație; filtrul nu adăuga izolare, doar
+ * întârziere. Harta rezultată e un SUPERSET al conturilor din arbore —
+ * `construiesteOrganigrama` (domain/hr/organigrama.ts) iterează peste rândurile
+ * ARBORELUI și consultă harta doar prin `.get()`, niciodată invers, deci
+ * intrările în plus nu sunt citite niciodată.
+ */
+export async function toateRolurileConturilor(
+  organizationId: string,
+): Promise<ReadonlyMap<string, string>> {
+  const db = await createServerSupabase();
+  const { data, error } = await db
+    .from("organization_members")
+    .select("user_id, role")
+    .eq("organization_id", organizationId)
+    .eq("status", "active")
+    .is("deleted_at", null)
+    .returns<RolMembru[]>();
+  if (error !== null) throw error;
+
+  return new Map(
+    data.flatMap((rand) => (rand.user_id === null ? [] : [[rand.user_id, rand.role] as const])),
+  );
+}
+
+/**
  * Piedicile la ștergerea unei fișe, numărate în bază — pentru ECRAN.
  *
  * ── DE CE SE NUMĂRĂ ÎNAINTE DE CLIC ───────────────────────────────────────
