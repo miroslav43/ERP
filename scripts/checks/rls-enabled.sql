@@ -63,11 +63,17 @@ declare
                                    -- conține date de business și nu se atinge
                                    -- din aplicație: doar service_role, prin
                                    -- reges_ia_inchirierea / reges_lasa_inchirierea.
-    'employee_marca_counters'      -- contorul de mărci per organizație: se
+    'employee_marca_counters',     -- contorul de mărci per organizație: se
                                    -- incrementează atomic doar prin
                                    -- urmatoarea_marca (SECURITY DEFINER).
                                    -- O politică de UPDATE ar permite unui client
                                    -- să sară peste numerotare. Închis în 0033.
+    'push_livrari'                 -- coada de livrare push: e populată de
+                                   -- declanșatorul SECURITY DEFINER de pe
+                                   -- notifications și citită doar de rută, prin
+                                   -- service_role (bypassrls). Niciun rol de
+                                   -- aplicație n-are ce căuta direct în coadă.
+                                   -- Închis în 0122.
   ];
 
   -- Tabele pentru care ABSENȚA privilegiilor este intenționată: accesul trece

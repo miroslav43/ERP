@@ -156,6 +156,13 @@ begin
   insert into public.notification_preferences (organization_id, user_id, kind)
   values (v_alfa, v_emp_alfa, 'info'), (v_beta, v_emp_beta, 'info');
 
+  -- Push (0122): coada de livrare se umple din `notifications` prin declanșator,
+  -- dar `dispozitive_push` are propriile politici RLS și trebuie populată direct
+  -- pentru ca verificarea (c) să demonstreze ceva pe ea.
+  insert into public.dispozitive_push (organization_id, user_id, jeton, platforma)
+  values (v_alfa, v_emp_alfa, 'ExponentPushToken[fixture-' || v_sufix || '-alfa]', 'android'),
+         (v_beta, v_emp_beta, 'ExponentPushToken[fixture-' || v_sufix || '-beta]', 'ios');
+
   insert into public.retention_policies (organization_id, entity_type, retention_months)
   values (v_alfa, 'audit_logs', 36), (v_beta, 'audit_logs', 36);
 

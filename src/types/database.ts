@@ -3222,6 +3222,56 @@ export type Database = {
           },
         ]
       }
+      dispozitive_push: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          jeton: string
+          organization_id: string
+          platforma: Database["public"]["Enums"]["platforma_mobila"]
+          updated_at: string
+          updated_by: string | null
+          user_id: string
+          vazut_la: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          jeton: string
+          organization_id: string
+          platforma: Database["public"]["Enums"]["platforma_mobila"]
+          updated_at?: string
+          updated_by?: string | null
+          user_id: string
+          vazut_la?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          id?: string
+          jeton?: string
+          organization_id?: string
+          platforma?: Database["public"]["Enums"]["platforma_mobila"]
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string
+          vazut_la?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dispozitive_push_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_sequences: {
         Row: {
           created_at: string
@@ -7299,6 +7349,7 @@ export type Database = {
           in_app: boolean
           kind: Database["public"]["Enums"]["notification_kind"]
           organization_id: string
+          push: boolean
           updated_at: string
           updated_by: string | null
           user_id: string
@@ -7312,6 +7363,7 @@ export type Database = {
           in_app?: boolean
           kind: Database["public"]["Enums"]["notification_kind"]
           organization_id: string
+          push?: boolean
           updated_at?: string
           updated_by?: string | null
           user_id: string
@@ -7325,6 +7377,7 @@ export type Database = {
           in_app?: boolean
           kind?: Database["public"]["Enums"]["notification_kind"]
           organization_id?: string
+          push?: boolean
           updated_at?: string
           updated_by?: string | null
           user_id?: string
@@ -9801,6 +9854,66 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      push_livrari: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          dispozitiv_id: string
+          eroare: string | null
+          id: string
+          incercari: number
+          notification_id: string
+          stare: Database["public"]["Enums"]["stare_livrare_push"]
+          trimis_la: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          dispozitiv_id: string
+          eroare?: string | null
+          id?: string
+          incercari?: number
+          notification_id: string
+          stare?: Database["public"]["Enums"]["stare_livrare_push"]
+          trimis_la?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          dispozitiv_id?: string
+          eroare?: string | null
+          id?: string
+          incercari?: number
+          notification_id?: string
+          stare?: Database["public"]["Enums"]["stare_livrare_push"]
+          trimis_la?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_livrari_dispozitiv_id_fkey"
+            columns: ["dispozitiv_id"]
+            isOneToOne: false
+            referencedRelation: "dispozitive_push"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_livrari_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
             referencedColumns: ["id"]
           },
         ]
@@ -13072,6 +13185,7 @@ export type Database = {
         | "durata_maxima"
       permission_scope: "none" | "own" | "team" | "all"
       plan_type: "trial" | "starter" | "professional" | "enterprise"
+      platforma_mobila: "ios" | "android"
       reges_directie_propunere: "trimisa" | "primita"
       reges_fel_propunere: "detasare" | "mutare"
       reges_mediu: "test" | "productie"
@@ -13156,6 +13270,12 @@ export type Database = {
         | "amanata"
         | "anulata"
       stare_civila: "necasatorit" | "casatorit" | "divortat" | "vaduv"
+      stare_livrare_push:
+        | "in_asteptare"
+        | "in_lucru"
+        | "trimis"
+        | "esuat"
+        | "abandonat"
       subscription_status_type:
         | "trialing"
         | "active"
@@ -13611,6 +13731,7 @@ export const Constants = {
       ],
       permission_scope: ["none", "own", "team", "all"],
       plan_type: ["trial", "starter", "professional", "enterprise"],
+      platforma_mobila: ["ios", "android"],
       reges_directie_propunere: ["trimisa", "primita"],
       reges_fel_propunere: ["detasare", "mutare"],
       reges_mediu: ["test", "productie"],
@@ -13703,6 +13824,13 @@ export const Constants = {
         "anulata",
       ],
       stare_civila: ["necasatorit", "casatorit", "divortat", "vaduv"],
+      stare_livrare_push: [
+        "in_asteptare",
+        "in_lucru",
+        "trimis",
+        "esuat",
+        "abandonat",
+      ],
       subscription_status_type: [
         "trialing",
         "active",
