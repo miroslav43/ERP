@@ -32,15 +32,37 @@ _build_image() {
 
   header "Construiesc imaginea (tag: $tag)"
 
-  # Cele trei NEXT_PUBLIC_* se dau ca build args fiindcă `next build` le
-  # înlocuiește textual în bundle-ul de client. Variabilele de server NU se dau:
+  # Variabilele NEXT_PUBLIC_* se dau ca build args fiindcă `next build` le
+  # înlocuiește textual în bundle-ul de client. Cele de server NU se dau:
   # Dockerfile folosește placeholdere doar cât să treacă validarea Zod, iar
   # valorile reale ajung la runtime prin docker-stack.yml. Așa niciun secret nu
   # intră în vreun layer, nici măcar în cel aruncat.
+  # ── GARDĂ: o variabilă NEXT_PUBLIC_* uitată din lista de mai jos ──────────
+  # `next build` inlinuiește variabilele `NEXT_PUBLIC_*` în bundle-ul de client
+  # DIN MEDIUL BUILD-ULUI. Una care există în `.env.production` dar nu e trecută
+  # prin `--build-arg` ajunge `undefined` în browser — și nu cade nimic: codul
+  # care o citește pur și simplu nu face nimic.
+  #
+  # S-a întâmplat deja, cu `NEXT_PUBLIC_UMAMI_*`: erau completate corect, imaginea
+  # s-a construit, s-a livrat, iar scriptul de măsurare lipsea din pagină. Nicio
+  # eroare, nicăieri. Verificarea de mai jos costă o secundă.
+  local lipsa=()
+  local cheie
+  while IFS= read -r cheie; do
+    grep -q -- "--build-arg ${cheie}=" "${BASH_SOURCE[0]}" || lipsa+=("$cheie")
+  done < <(grep -oE '^NEXT_PUBLIC_[A-Z0-9_]+' "$(_env_file)" | sort -u)
+  if [ ${#lipsa[@]} -gt 0 ]; then
+    warn "Variabile NEXT_PUBLIC_* din .env.production care NU se trimit la build:"
+    printf '       %s\n' "${lipsa[@]}"
+    warn "Vor fi 'undefined' în browser. Adaugă-le în docker build de mai jos ȘI ca ARG în Dockerfile."
+  fi
+
   docker build \
     --build-arg NEXT_PUBLIC_SUPABASE_URL="$NEXT_PUBLIC_SUPABASE_URL" \
     --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY="$NEXT_PUBLIC_SUPABASE_ANON_KEY" \
     --build-arg NEXT_PUBLIC_APP_URL="$NEXT_PUBLIC_APP_URL" \
+    --build-arg NEXT_PUBLIC_UMAMI_SRC="${NEXT_PUBLIC_UMAMI_SRC:-}" \
+    --build-arg NEXT_PUBLIC_UMAMI_ID="${NEXT_PUBLIC_UMAMI_ID:-}" \
     -t "${ADM_IMAGE}:${tag}" \
     -t "${ADM_IMAGE}:latest" \
     "$ADMINISTRATIVO_ROOT"

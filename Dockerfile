@@ -53,9 +53,17 @@ COPY . .
 ARG NEXT_PUBLIC_SUPABASE_URL
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
 ARG NEXT_PUBLIC_APP_URL
+# Măsurarea. OPȚIONALE: lipsa lor nu oprește build-ul, iar `ScriptUmami` pur și
+# simplu nu randează nimic. De aceea absența lor nu se vede ca eroare, ci ca
+# lipsă de date — exact ce s-a întâmplat la prima livrare, când erau completate
+# în `.env.production` dar nu erau trecute prin `--build-arg`.
+ARG NEXT_PUBLIC_UMAMI_SRC
+ARG NEXT_PUBLIC_UMAMI_ID
 ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL \
     NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY \
-    NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+    NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL \
+    NEXT_PUBLIC_UMAMI_SRC=$NEXT_PUBLIC_UMAMI_SRC \
+    NEXT_PUBLIC_UMAMI_ID=$NEXT_PUBLIC_UMAMI_ID
 
 # --- Variabile de server: PLACEHOLDERE, deliberat ---------------------------
 # `src/config/env.ts` validează cu Zod la IMPORT de modul, iar `next build`
