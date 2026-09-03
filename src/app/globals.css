@@ -736,6 +736,112 @@ dialog[open]::backdrop {
 }
 
 /*
+ * Luna întreagă: SUP și NPT ies, ca pe telefon.
+ *
+ * ── ARITMETICA, FIINDCĂ DE ACOLO VINE ────────────────────────────────────
+ * Tabelul e `table-fixed w-full`. Lățimile fixe se iau întâi, iar zilele împart
+ * ce rămâne. La treizeci de coloane: numele 104px + ORE/SUP/NPT 3 × 52 = 260px
+ * fix, dintr-un container care ajunge la 1160px (`--container-mk` 1240px minus
+ * marginile). Rămân 900px pentru treizeci de zile, adică 29px de coloană — dar
+ * „8:00” cere 34, iar „64:00” de pe rândul de total cere 42. Cifrele se
+ * suprapuneau peste liniatură.
+ *
+ * Nu era o regresie: luna întreagă N-A ÎNCĂPUT NICIODATĂ la `--mk-celula` de
+ * 34px. 30 × 34 + 260 = 1280px, adică peste containerul care o ține.
+ *
+ * Cu numele la 76px și ORE la 72px rămân 1012px pentru treizeci de zile: 33,7px
+ * de coloană, adică exact tokenul. Se taie SUP și NPT fiindcă sunt „DIN CARE”,
+ * nu „în plus” — orele lucrate le includ deja, nota de sub tabel o spune, iar
+ * la ferestrele mai mici, unde e loc, reapar.
+ *
+ * Regula e NESTRATIFICATĂ, deci bate utilitarele `sm:` din componentă fără să
+ * aibă nevoie de specificitate mai mare.
+ */
+/* Codul stă lângă oră, despărțit de un spațiu, la orice fereastră în afară de
+   luna întreagă. Spațiul e în CSS, nu în marcaj, ca să dispară curat când cele
+   două se așază pe rânduri diferite. */
+.mk-cod::before {
+  content: "\00a0";
+}
+
+/*
+ * ── MODUL DENS AL FOII ────────────────────────────────────────────────────
+ *
+ * Se aplică în DOUĂ benzi de lățime, nu la o anumită fereastră, fiindcă
+ * problema e a raportului dintre numărul de coloane și spațiul disponibil:
+ *
+ *   ≥1280px      luna întreagă, 30 de coloane într-un container de max. 1160px
+ *   768–1023px   jumătatea de lună, 15 coloane într-un container de ~707px
+ *
+ * În ambele, o coloană iese la ~29px. Între 1024 și 1279 jumătatea de lună are
+ * 54px de coloană și n-are nevoie de nimic; sub 768 fereastra e săptămâna, cu
+ * 40px, tratată deja de utilitarele `sm:` din componentă.
+ *
+ * Selectorul e `.mk-foaie` simplu, fără `:not([data-fereastra])`: peste 1280px
+ * componenta pune întotdeauna fereastra pe „luna întreagă” (`setFereastra(null)`),
+ * deci atributul lipsește oricum, iar în banda de mijloc regula trebuie să
+ * prindă și varianta cu JS, și pe cea fără.
+ *
+ * ── CE FACE, ȘI DE CE FIECARE BUCATĂ ──────────────────────────────────────
+ * Aritmetica a fost măsurată pe rând, nu dedusă. La 34px de coloană „8:00”
+ * intră, dar „10:00” cere 42px, „64:00” de pe rândul de total cere 37, iar
+ * „0:00 CO” cere 58 — fiindcă era o singură bucată de text nedespărțită. O
+ * primă variantă a reparației se oprea la lățimi și lăsa jumătate din
+ * suprapuneri pe ecran.
+ *
+ *   1. SUP și NPT ies. Sunt „DIN CARE”, nu „în plus”: orele lucrate le includ
+ *      deja, iar nota de sub tabel o spune. Eliberează 104px.
+ *   2. Numele se strânge la 76px, ORE crește la 72 — „1.198:30” de pe totalul
+ *      general are nevoie de ele.
+ *   3. Cifrele coboară la 10px. Cu 34px de coloană, „10:00” devine 30px plus
+ *      marginea.
+ *   4. Ora și codul se așază pe două rânduri, în loc să stea alături.
+ *
+ * 10px e mic, și e o alegere asumată: fereastra asta e monumentul de densitate
+ * — o lună întreagă, opt oameni, pe un ecran. Cine vrea cifrele mari are
+ * săptămâna, unde tipografia rămâne neatinsă, plus recapitulația de sub tabel,
+ * care nu se micșorează niciodată.
+ */
+@media (min-width: 1280px), (min-width: 768px) and (max-width: 1023.98px) {
+  .mk-foaie [data-col="sup"],
+  .mk-foaie [data-col="npt"] {
+    display: none;
+  }
+
+  .mk-foaie [data-col="nume"] {
+    width: 76px;
+  }
+
+  .mk-foaie [data-zi] {
+    font-size: 0.625rem;
+  }
+}
+
+/*
+ * Ora peste cod, pe două rânduri, de la 768px în sus — la ORICE fereastră, nu
+ * doar la cele două benzi dense de mai sus.
+ *
+ * Peste 768px fereastra e jumătatea de lună (15 coloane) sau luna (30). În
+ * niciuna dintre ele „0:00 CO”, care cere 58px, nu intră pe un rând: la
+ * jumătatea de lună coloana are 45px, la lună are 34. Sub 768px fereastra e
+ * săptămâna, cu 65px de coloană, unde alături e mai lizibil decât dedesubt.
+ */
+@media (min-width: 768px) {
+  .mk-foaie .mk-ore-cod {
+    white-space: normal;
+  }
+
+  .mk-foaie .mk-ore-cod > span {
+    display: block;
+    line-height: 1.15;
+  }
+
+  .mk-foaie .mk-cod::before {
+    content: none;
+  }
+}
+
+/*
  * Inelul de focus din interiorul foii merge spre INTERIOR. Cu offset pozitiv ar
  * fi acoperit de celula vecină, iar regula globală din capul fișierului e
  * nestratificată, deci ar bate orice utilitar Tailwind — de aceea corectura stă

@@ -173,6 +173,7 @@ export function Foaia({ text }: { text: ContinutLanding["foaie"] }) {
             <tr className="border-mk-rigla border-b">
               <th
                 scope="col"
+                data-col="nume"
                 /* Numele se strânge pe mobil: cei 28px eliberați se duc în
                    coloana ORE, care trebuie să încapă „1.198:30” pe rândul de
                    total. „Popa I.” intră lejer în 76px. */
@@ -214,9 +215,13 @@ export function Foaia({ text }: { text: ContinutLanding["foaie"] }) {
                 <th
                   key={cap}
                   scope="col"
+                  data-col={["ore", "sup", "npt"][i]}
                   className={`font-mk-date px-1 py-1.5 text-right text-[0.6875rem] font-medium tracking-[0.06em] uppercase ${
                     i === 0
-                      ? "border-mk-rigla w-[72px] border-l sm:w-[52px]"
+                      ? // 72px la ORICE lățime, nu doar pe mobil: rândul de total
+                        // afișează „1.198:30”, care cere 68px. La 52 se tăia
+                        // peste 640px — adică exact acolo unde părea că e loc.
+                        "border-mk-rigla w-[72px] border-l"
                       : `w-[52px] ${doarLat}`
                   }`}
                 >
@@ -233,6 +238,7 @@ export function Foaia({ text }: { text: ContinutLanding["foaie"] }) {
                 <tr key={rand.nume} className="border-mk-liniatura border-b last:border-b-0">
                   <th
                     scope="row"
+                    data-col="nume"
                     className="border-mk-liniatura border-r px-2 py-1.5 text-left text-[0.8125rem] font-normal"
                     data-activ={randE ? "" : undefined}
                   >
@@ -280,8 +286,20 @@ export function Foaia({ text }: { text: ContinutLanding["foaie"] }) {
                         ) : celula.tip === "sarbatoare" ? (
                           cod
                         ) : (
-                          <span className="whitespace-nowrap">
-                            {formateazaOre(celula.ore)}&nbsp;{cod}
+                          /*
+                           * Ora și codul, în două elemente distincte.
+                           *
+                           * Erau un singur text cu `&nbsp;` între ele, deci
+                           * indivizibil: „0:00 CO” cere 58px, iar la fereastra
+                           * lunii întregi coloana are 34. Separate, CSS-ul le
+                           * poate așeza unul sub altul acolo unde nu încap
+                           * alături — vezi `.mk-cod` în `globals.css`. Spațiul
+                           * dintre ele vine tot din CSS, ca să dispară odată cu
+                           * așezarea pe un rând.
+                           */
+                          <span className="mk-ore-cod whitespace-nowrap">
+                            <span>{formateazaOre(celula.ore)}</span>
+                            <span className="mk-cod">{cod}</span>
                           </span>
                         )}
                         {zi !== undefined && zi.nelucratoare && (
@@ -291,17 +309,20 @@ export function Foaia({ text }: { text: ContinutLanding["foaie"] }) {
                     );
                   })}
                   <td
+                    data-col="ore"
                     className="border-mk-rigla font-mk-date border-l px-1 py-1.5 text-right text-[0.875rem] font-medium tabular-nums"
                     data-activ={randE ? "" : undefined}
                   >
                     {formateazaOre(rand.ore)}
                   </td>
                   <td
+                    data-col="sup"
                     className={`font-mk-date text-mk-text-slab px-1 py-1.5 text-right text-[0.8125rem] tabular-nums ${doarLat}`}
                   >
                     {rand.suplimentare === 0 ? "—" : formateazaOre(rand.suplimentare)}
                   </td>
                   <td
+                    data-col="npt"
                     className={`font-mk-date text-mk-text-slab px-1 py-1.5 text-right text-[0.8125rem] tabular-nums ${doarLat}`}
                   >
                     {rand.noapte === 0 ? "—" : formateazaOre(rand.noapte)}
@@ -317,6 +338,7 @@ export function Foaia({ text }: { text: ContinutLanding["foaie"] }) {
             <tr>
               <th
                 scope="row"
+                data-col="nume"
                 className="font-mk-date px-2 py-2 text-left text-[0.6875rem] font-medium tracking-[0.14em] uppercase"
               >
                 {text.randTotal}
@@ -343,15 +365,20 @@ export function Foaia({ text }: { text: ContinutLanding["foaie"] }) {
                   </td>
                 );
               })}
-              <td className="font-mk-date border-mk-rigla-inv border-l px-1 py-2 text-right text-[0.875rem] font-medium tabular-nums">
+              <td
+                data-col="ore"
+                className="font-mk-date border-mk-rigla-inv border-l px-1 py-2 text-right text-[0.875rem] font-medium tabular-nums"
+              >
                 {formateazaOre(FOAIA.total)}
               </td>
               <td
+                data-col="sup"
                 className={`font-mk-date px-1 py-2 text-right text-[0.8125rem] tabular-nums ${doarLat}`}
               >
                 {formateazaOre(FOAIA.suplimentare)}
               </td>
               <td
+                data-col="npt"
                 className={`font-mk-date px-1 py-2 text-right text-[0.8125rem] tabular-nums ${doarLat}`}
               >
                 {formateazaOre(FOAIA.noapte)}

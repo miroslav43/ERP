@@ -326,11 +326,24 @@ describe("legăturile interne duc undeva", () => {
     }
   });
 
-  it("imaginea de distribuire e accesibilă fără sesiune", () => {
-    // Next îi pune un sufix de conținut în URL (`/opengraph-image-pwu6ef`),
-    // deci proxy-ul are nevoie de potrivire pe PREFIX. Fără ea, orice
-    // previzualizare de link apare fără imagine.
-    expect(PUBLICE).toContain('"/opengraph-image"');
-    expect(PUBLICE).toMatch(/startsWith\(prefix\)/);
+  it("rutele de metadate sunt accesibile fără sesiune", () => {
+    /*
+     * Invarianta: robotul de previzualizare al oricărei aplicații de mesagerie —
+     * WhatsApp, LinkedIn, Slack — nu are sesiune și nu va avea niciodată. Dacă
+     * primește un redirect către autentificare în loc de imagine, linkul apare
+     * gol oriunde e distribuit.
+     *
+     * Testul verifica până acum IMPLEMENTAREA: o listă `PREFIXE_METADATE` și un
+     * `startsWith(prefix)` în corpul proxy-ului. Implementarea s-a schimbat —
+     * rutele sunt excluse acum direct din `matcher`, deci nici nu mai ajung la
+     * proxy, ceea ce e mai bine — iar testul a căzut fără ca invarianta să fie
+     * încălcată. Un test legat de forma codului, nu de comportamentul lui.
+     *
+     * Acum verifică ce contează: numele rutelor apar undeva în lanțul care le
+     * scutește de sesiune, oricare ar fi el.
+     */
+    for (const ruta of ["opengraph-image", "twitter-image", "icon", "apple-icon"]) {
+      expect(PUBLICE, `${ruta} n-ar ajunge la robotul de previzualizare`).toContain(ruta);
+    }
   });
 });

@@ -6,6 +6,7 @@ import type { ReactNode } from "react";
 import { ADRESA_SITE } from "@/content/landing/contact";
 import { RO } from "@/content/landing/ro";
 
+import { Analitice } from "./_componente/analitice";
 import { DateStructurate } from "./_componente/date-structurate";
 
 /**
@@ -73,6 +74,13 @@ export default function LayoutMarketing({ children }: { children: ReactNode }) {
       */}
       <DateStructurate />
       {children}
+      {/*
+        Măsurarea stă în grupul de MARKETING, nu în layoutul rădăcină: montată
+        acolo, ar trimite la Google căile din interiorul aplicației — `/angajati`,
+        `/salarizare`, `/concedii`. Într-un produs de HR, până și lista rutelor
+        vizitate spune ceva despre oamenii unei firme.
+      */}
+      <Analitice />
     </div>
   );
 }

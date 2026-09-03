@@ -45,7 +45,7 @@ const SECTIUNI = [
   },
   {
     titlu: "8. Cookie-uri",
-    nota: "Cookie-ul de sesiune este strict necesar pentru autentificare. DE CONFIRMAT dacă se adaugă vreun instrument de analiză.",
+    nota: "Cookie-ul de sesiune este strict necesar pentru autentificare și nu cere consimțământ. Pe paginile publice folosim Google Analytics 4, ale cărui cookie-uri sunt refuzate implicit și se activează numai după acceptul din bara de jos; refuzul se ține minte și nu schimbă nimic din felul în care funcționează situl. Rămâne DE REDACTAT juridic: durata fiecărui cookie și lista lor exactă.",
   },
   {
     titlu: "9. Securitate",
