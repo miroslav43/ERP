@@ -36,6 +36,27 @@ const nextConfig: NextConfig = {
     ],
   },
 
+  /**
+   * Cache-ul de rutare al clientului, pentru rutele dinamice.
+   *
+   * Implicitul e 0 din v15.0.0 („not cached”), iar interacțiunea cu scheletele
+   * de încărcare e contraintuitivă: o rută CU `loading.tsx` se prefetchează în
+   * găleata `dynamic`, una FĂRĂ în `static` (5 min) — vezi tabelul din
+   * `node_modules/next/dist/docs/01-app/02-guides/prefetching.md:61-62`.
+   * Proiectul are 88 de `loading.tsx` care acoperă toate cele 117 pagini, deci
+   * TOT prefetch-ul cădea în găleata neîncărcată: învechit în clipa în care
+   * ateriza, re-cerut la fiecare navigare. Jurnalul nginx: 11 745 de cereri
+   * pentru 336 de documente.
+   *
+   * 15 secunde, nu mai mult: e o fereastră în care poți vedea o listă fără
+   * scrierea altcuiva. Scrierile TALE sunt acoperite oricum de `revalidate:`
+   * din `createAction`. Nu e risc de izolare — Router Cache-ul e per-browser,
+   * iar comutarea firmei îl purjează de două ori independent.
+   */
+  experimental: {
+    staleTimes: { dynamic: 15 },
+  },
+
   reactCompiler: true,
 
   // Fără cheie `typescript`: build-ul de imagine relaxa verificarea
