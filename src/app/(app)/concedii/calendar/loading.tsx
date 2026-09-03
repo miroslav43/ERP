@@ -1,7 +1,8 @@
 // src/app/(app)/concedii/calendar/loading.tsx
-// Grila lunii: șapte zile pe săptămână, șase săptămâni afișate.
+// Vederea implicită e planificatorul (`vedere.ts`), nu grila lunară: un rând
+// pe angajat, o coloană pe zi — până la 31 într-o lună, nu șapte pe săptămână.
 import { Schelet } from "@/components/ui/schelet";
 
 export default function Incarcare() {
-  return <Schelet forma="tabel" coloane={7} randuri={6} />;
+  return <Schelet forma="tabel" coloane={31} randuri={6} />;
 }

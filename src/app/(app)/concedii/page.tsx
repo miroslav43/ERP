@@ -99,10 +99,6 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
     redirect("/concedii/calendar");
   }
 
-  // Fișa proprie: fără ea, „ale mele” n-are subiect. Poate lipsi — un
-  // administrator invitat e membru fără să fie angajat.
-  const fisaMea = await fisaProprie(tenant.organizationId, user.id);
-
   const scope: "own" | "team" | "all" = can(permisiuni, "leave:read", "all")
     ? "all"
     : can(permisiuni, "leave:read", "team")
@@ -122,7 +118,12 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
   // Datele casetei de cerere nouă pleacă ODATĂ cu restul paginii, nu la
   // apăsarea butonului: altfel deschiderea casetei ar fi însemnat exact
   // așteptarea de care am scăpat desființând pagina `/concedii/noua`.
-  const [{ data: tipuri }, deAprobat, dateCerere] = await Promise.all([
+  //
+  // Fișa proprie intră tot aici, nu ca `await` separat înainte: fără ea,
+  // „ale mele” n-are subiect (poate lipsi — un administrator invitat e
+  // membru fără să fie angajat), dar interogarea e independentă de
+  // celelalte trei, iar prima ei folosire e mult mai jos, la randare.
+  const [{ data: tipuri }, deAprobat, dateCerere, fisaMea] = await Promise.all([
     db
       .from("leave_types")
       .select("id, denumire, culoare")
@@ -141,6 +142,7 @@ export default async function PaginaConcedii({ searchParams }: ProprietatiPagina
           poateAprobaPeLoc: can(permisiuni, "leave:approve", "all"),
         })
       : Promise.resolve(null),
+    fisaProprie(tenant.organizationId, user.id),
   ]);
 
   return (
