@@ -34,8 +34,12 @@ export default async function PaginaCursuri({
 }) {
   const parametri = await searchParams;
   const { tenant } = await requireTenant();
-  await requireFeature(tenant.organizationId, "courses");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  // Două citiri independente, pe tabele diferite. Înlănțuite erau două
+  // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
+  const [, permisiuni] = await Promise.all([
+    requireFeature(tenant.organizationId, "courses"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+  ]);
 
   /*
    * AMBELE ramuri, nu doar `=== "none"`: `getPermissionMap` SCOATE `none` din

@@ -30,8 +30,12 @@ export default async function PaginaEditareCurs({
   const cursId = idDinRuta(id);
 
   const { tenant } = await requireTenant();
-  await requireFeature(tenant.organizationId, "courses");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  // Două citiri independente, pe tabele diferite. Înlănțuite erau două
+  // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
+  const [, permisiuni] = await Promise.all([
+    requireFeature(tenant.organizationId, "courses"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+  ]);
 
   if (!can(permisiuni, "courses:update", "team")) {
     return <AccesRestrictionat mesaj="Nu aveți dreptul de a modifica cursurile." />;

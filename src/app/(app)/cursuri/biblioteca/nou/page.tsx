@@ -15,8 +15,12 @@ export const metadata: Metadata = { title: "Material nou" };
 
 export default async function PaginaMaterialNou() {
   const { tenant } = await requireTenant();
-  await requireFeature(tenant.organizationId, "courses");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  // Două citiri independente, pe tabele diferite. Înlănțuite erau două
+  // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
+  const [, permisiuni] = await Promise.all([
+    requireFeature(tenant.organizationId, "courses"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+  ]);
 
   if (!can(permisiuni, "courses:create", "team")) {
     return <AccesRestrictionat mesaj="Nu aveți dreptul de a adăuga materiale." />;
