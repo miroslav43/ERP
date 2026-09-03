@@ -68,6 +68,7 @@ describe("trimiteLot", () => {
     ]);
     const rezultate = await trimiteLot([mesaj("ExponentPushToken[a]")]);
     expect(rezultate[0]?.fel).toBe("eroare");
+    expect(rezultate[0]).toEqual({ fel: "eroare", mesaj: "MessageTooBig" });
   });
 
   it("sparge loturile mai mari de 100 și păstrează ordinea", async () => {
@@ -98,5 +99,27 @@ describe("trimiteLot", () => {
     vi.stubGlobal("fetch", () => Promise.resolve(new Response("nope", { status: 502 })));
     const rezultate = await trimiteLot([mesaj("ExponentPushToken[a]")]);
     expect(rezultate[0]?.fel).toBe("eroare");
+  });
+
+  it("un corp JSON nevalid la 200 nu aruncă și nu pierde loturile de dinainte", async () => {
+    let apel = 0;
+    vi.stubGlobal("fetch", () => {
+      apel += 1;
+      // Primul lot reușește, al doilea întoarce 200 cu corp nevalid.
+      const corp =
+        apel === 1
+          ? JSON.stringify({
+              data: Array.from({ length: MAX_PE_LOT }, () => ({ status: "ok", id: "x" })),
+            })
+          : "nu e json";
+      return Promise.resolve(
+        new Response(corp, { status: 200, headers: { "Content-Type": "application/json" } }),
+      );
+    });
+    const mesaje = Array.from({ length: 150 }, (_, i) => mesaj(`ExponentPushToken[${i}]`));
+    const rezultate = await trimiteLot(mesaje);
+    expect(rezultate).toHaveLength(150);
+    expect(rezultate[0]?.fel).toBe("ok");
+    expect(rezultate[149]?.fel).toBe("eroare");
   });
 });

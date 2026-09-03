@@ -61,7 +61,16 @@ async function trimiteUnLot(lot: readonly MesajPush[]): Promise<readonly Rezulta
     return lot.map(() => ({ fel: "eroare", mesaj: `HTTP ${raspuns.status}.` }) as const);
   }
 
-  const corp = (await raspuns.json()) as { data?: Bilet[] };
+  let corp: { data?: Bilet[] };
+  try {
+    corp = (await raspuns.json()) as { data?: Bilet[] };
+  } catch {
+    // 200 cu corp nevalid. Se tratează ca eroare de lot, NU se aruncă: apelantul
+    // potrivește pozițional rândurile din coadă cu rezultatele, iar o excepție
+    // aici ar pierde și loturile trimise cu succes înaintea acestuia — care
+    // s-ar retrimite la următoarea golire, ca push duplicat.
+    return lot.map(() => ({ fel: "eroare", mesaj: "Răspuns nevalid de la Expo." }) as const);
+  }
   const bilete = corp.data ?? [];
   return lot.map((_, i) => citesteBilet(bilete[i]));
 }
