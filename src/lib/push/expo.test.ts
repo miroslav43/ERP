@@ -159,4 +159,22 @@ describe("trimiteLot", () => {
     expect(rezultate).toHaveLength(1);
     expect(rezultate[0]?.fel).toBe("eroare");
   });
+
+  it("un `null` în array-ul de bilete nu aruncă", async () => {
+    vi.stubGlobal("fetch", () =>
+      Promise.resolve(
+        new Response(JSON.stringify({ data: [null, { status: "ok", id: "x" }] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+    const rezultate = await trimiteLot([
+      mesaj("ExponentPushToken[a]"),
+      mesaj("ExponentPushToken[b]"),
+    ]);
+    expect(rezultate).toHaveLength(2);
+    expect(rezultate[0]?.fel).toBe("eroare");
+    expect(rezultate[1]?.fel).toBe("ok");
+  });
 });

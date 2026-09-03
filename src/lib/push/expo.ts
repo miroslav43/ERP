@@ -26,11 +26,14 @@ type Bilet = {
   details?: { error?: string };
 };
 
-function citesteBilet(bilet: Bilet | undefined): RezultatBilet {
-  if (bilet === undefined) {
-    // Expo a răspuns cu mai puține bilete decât mesaje. Fără ramura asta,
-    // apelantul ar potrivi pozițional greșit și ar marca drept trimis un mesaj
-    // despre care nu știe nimic.
+function citesteBilet(bilet: Bilet | undefined | null): RezultatBilet {
+  if (bilet === undefined || bilet === null) {
+    // `undefined`: Expo a răspuns cu mai puține bilete decât mesaje. `null`:
+    // array-ul de bilete conține el însuși `null` pe o poziție — o formă pe
+    // care tipul `Bilet[]` n-o arată, fiindcă valoarea vine dintr-un `as` peste
+    // un corp JSON, iar `Array.isArray` acceptă un array cu elemente `null`.
+    // Fără ramura asta, `bilet.status` mai jos ar arunca în afara oricărui
+    // try din `trimiteUnLot` și ar rupe contractul pozițional.
     return { fel: "eroare", mesaj: "Răspuns fără bilet pentru acest mesaj." };
   }
   if (bilet.status === "ok") return { fel: "ok" };
