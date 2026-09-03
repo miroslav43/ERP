@@ -17,8 +17,12 @@ export const metadata: Metadata = { title: "Setări salarizare" };
 
 export default async function PaginaSetariSalarizare() {
   const { tenant } = await requireTenant();
-  await requireFeature(tenant.organizationId, "payroll");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  // Două citiri independente, pe tabele diferite. Înlănțuite erau două
+  // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
+  const [, permisiuni] = await Promise.all([
+    requireFeature(tenant.organizationId, "payroll"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+  ]);
 
   if (!can(permisiuni, "payroll:update", "all")) {
     return (

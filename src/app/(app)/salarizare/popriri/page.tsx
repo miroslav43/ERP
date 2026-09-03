@@ -20,8 +20,12 @@ export const metadata: Metadata = { title: "Popriri" };
 
 export default async function PaginaPopriri() {
   const { tenant } = await requireTenant();
-  await requireFeature(tenant.organizationId, "payroll");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  // Două citiri independente, pe tabele diferite. Înlănțuite erau două
+  // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
+  const [, permisiuni] = await Promise.all([
+    requireFeature(tenant.organizationId, "payroll"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+  ]);
 
   if (scopeFor(permisiuni, "payroll:read") === "none") {
     return <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta popririle." />;
