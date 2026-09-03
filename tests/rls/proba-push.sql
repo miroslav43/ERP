@@ -8,6 +8,8 @@
 -- (4) POZITIVĂ — un actor NUL (ca joburile pg_cron) umple coada la fel
 -- (5) NEGATIVĂ — preferința `push = false` oprește punerea în coadă
 -- (6) NEGATIVĂ — `push_livrari` e închisă pentru `authenticated`
+-- (7) NEGATIVĂ — proprietarul nu-și poate muta dispozitivul în altă organizație
+-- (8) POZITIVĂ — proprietarul își poate retrage propriul jeton (soft-delete)
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   psql "$BANC_URL" -f tests/rls/proba-push.sql
@@ -23,6 +25,7 @@ do $$
 declare
   v_sufix    text := left(replace(gen_random_uuid()::text, '-', ''), 8);
   v_org      uuid := gen_random_uuid();
+  v_org2     uuid := gen_random_uuid();
   v_u_mgr    uuid := gen_random_uuid();
   v_u_ang    uuid := gen_random_uuid();
   v_u_alt    uuid := gen_random_uuid();
@@ -38,7 +41,9 @@ begin
 
   insert into public.organizations (id, slug, name, cui) values
     (v_org, 'proba-push-' || v_sufix, 'Proba Push SRL',
-     'RO' || (89000000 + (random() * 900000)::int)::text);
+     'RO' || (89000000 + (random() * 900000)::int)::text),
+    (v_org2, 'proba-push2-' || v_sufix, 'Proba Push Doi SRL',
+     'RO' || (79000000 + (random() * 900000)::int)::text);
 
   insert into auth.users (id, email) values
     (v_u_mgr, 'mgr-' || v_sufix || '@exemplu.ro'),
@@ -147,11 +152,42 @@ begin
     raise notice '  (6) EȘEC    authenticated vede % rânduri din coadă', v_vazute;
   end if;
 
+  -- ── (7) NEGATIVĂ: nu-și poate muta dispozitivul în altă organizație ────
+  -- `employee` nu e membru al `v_org2`. Fără `organization_id` în politica de
+  -- UPDATE, rândul rămâne al lui (user_id neschimbat) și update-ul reușește —
+  -- dispozitivul „aterizează" în firma străină, vizibil în auditul ei și
+  -- abonat la notificările ei pentru același user_id.
+  perform set_config('request.jwt.claim.sub', v_u_ang::text, true);
+  set local role authenticated;
+  begin
+    update public.dispozitive_push set organization_id = v_org2 where id = v_disp;
+    raise notice '  (7) EȘEC    dispozitivul A FOST mutat în altă organizație';
+    v_esecuri := v_esecuri + 1;
+  exception when others then
+    raise notice '  (7) OK      mutarea în altă organizație e refuzată (%)', sqlstate;
+  end;
+  reset role;
+
+  -- ── (8) POZITIVĂ: proprietarul își retrage propriul jeton ──────────────
+  -- Soft-delete pe rândul propriu, exact mecanismul descris în §8 al
+  -- migrării. Dacă politica SELECT ar cere `deleted_at is null`, Postgres ar
+  -- respinge update-ul — rândul nou nu mai trece propria politică de citire.
+  perform set_config('request.jwt.claim.sub', v_u_ang::text, true);
+  set local role authenticated;
+  begin
+    update public.dispozitive_push set deleted_at = now() where id = v_disp;
+    raise notice '  (8) OK      proprietarul își retrage propriul jeton';
+  exception when others then
+    v_esecuri := v_esecuri + 1;
+    raise notice '  (8) EȘEC    retragerea propriului jeton e refuzată: %', sqlerrm;
+  end;
+  reset role;
+
   raise notice '  ─────────────────────────────────────────────────────────';
   if v_esecuri > 0 then
     raise exception 'PROBA PUSH: % verificări căzute.', v_esecuri;
   end if;
-  raise notice '  PROBA PUSH: 6/6.';
+  raise notice '  PROBA PUSH: 8/8.';
 end;
 $$;
 

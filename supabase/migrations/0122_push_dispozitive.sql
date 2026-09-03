@@ -150,8 +150,18 @@ alter table public.push_livrari     force row level security;
 -- există resursă „dispozitivul meu" în role_permissions, iar una inventată ar
 -- întoarce `none`, adică refuz tăcut pentru toată lumea. Aceeași alegere ca la
 -- notifications (0002, secțiunea 6.11).
+--
+-- FĂRĂ `and deleted_at is null` aici, spre deosebire de `notifications_select`:
+-- Postgres cere ca rândul NOU al unui UPDATE să treacă politica SELECT (nu doar
+-- WITH CHECK — verificat empiric, se reproduce identic pe o tabelă minimală,
+-- indiferent de RETURNING). Cu clauza inclusă, retragerea propriului jeton
+-- (`deleted_at = now()`, singurul mecanism descris în §8) era respinsă cu
+-- „new row violates row-level security policy" — proprietarul rândului nu-l
+-- mai putea nici măcar șterge din propria coadă. Rândurile proprii rămân
+-- vizibile după soft-delete; izolarea între utilizatori (user_id) și cea între
+-- organizații (via politica de UPDATE, mai jos) nu se ating.
 create policy dispozitive_push_select on public.dispozitive_push for select to authenticated
-using (user_id = (select auth.uid()) and deleted_at is null);
+using (user_id = (select auth.uid()));
 
 create policy dispozitive_push_insert on public.dispozitive_push for insert to authenticated
 with check (
@@ -160,9 +170,25 @@ with check (
   and deleted_at is null
 );
 
+-- `organization_id` verificat și în USING, și în WITH CHECK: fără el, un
+-- `authenticated` din organizația A putea muta propriul dispozitiv (rândul
+-- rămâne al lui — `user_id` neschimbat) în organizația B, cu un simplu UPDATE.
+-- Rândul „aterizează" acolo pentru totdeauna: vizibil în auditul organizației
+-- B, iar declanșatorul de pe `notifications` (secțiunea 5) îl potrivește doar
+-- pe `user_id`+`organization_id`, deci orice notificare pentru acel user_id în
+-- org B trimite push către un telefon care n-are nicio legătură cu ea.
+-- Verificat empiric: fără clauza asta, UPDATE-ul reușea (1 rând), fără nicio
+-- eroare — exact refuzul tăcut pe care proiectul îl tratează drept cea mai
+-- costisitoare clasă de defect.
 create policy dispozitive_push_update on public.dispozitive_push for update to authenticated
-using (user_id = (select auth.uid()) and deleted_at is null)
-with check (user_id = (select auth.uid()));
+using (
+  user_id = (select auth.uid())
+  and organization_id = any ((select app.current_org_ids())::uuid[])
+)
+with check (
+  user_id = (select auth.uid())
+  and organization_id = any ((select app.current_org_ids())::uuid[])
+);
 
 -- push_livrari — NICIO politică. RLS activat și forțat înseamnă că e inaccesibilă
 -- oricărui rol de aplicație; o citește doar ruta, prin service_role (bypassrls,
@@ -174,6 +200,24 @@ with check (user_id = (select auth.uid()));
 -- 7. Actor, audit, drepturi
 ---------------------------------------------------------------------------
 
+-- R9 (0002, secțiunea 4) redactează valorile pe nume de coloană, după tipare
+-- în ENGLEZĂ: `%token%`. Coloana de aici e `jeton` — cuvântul românesc, cerut
+-- de restul schemei — și nu se potrivește cu niciun tipar existent. Fără
+-- lărgire, jetonul Expo complet (o capabilitate purtătoare: cine îl are
+-- trimite push arbitrar pe telefonul omului) ajungea în clar în
+-- `audit_logs.after` la fiecare INSERT/UPDATE pe `dispozitive_push`, vizibil
+-- oricărui `org_admin`/`hr` cu `audit:read=all` din organizația respectivă.
+-- `create or replace`: lărgește lista existentă, nu o înlocuiește — aditiv
+-- pentru toate tabelele deja audiate, niciodată mai permisiv.
+create or replace function internal.audit_forbidden_patterns()
+returns text[]
+language sql
+immutable
+set search_path = ''
+as $$
+  select array['%ciphertext%', '%\_iv', '%auth\_tag%', '%hash%', '%token%', '%secret%', '%parol%', '%jeton%'];
+$$;
+
 do $$
 declare
   v_tabela text;
@@ -183,12 +227,33 @@ begin
     execute format(
       'create trigger trg_%1$s_actor before insert or update on public.%1$I for each row execute function internal.set_actor()',
       v_tabela);
-    execute format('select internal.attach_audit(%L)', v_tabela);
+    -- `push_livrari` NU intră la audit generic: n-are `organization_id` (e
+    -- coadă de sistem, nu tabelă de business), deci fiecare tranziție de
+    -- stare ar scrie un rând de audit cu `organization_id = null` —
+    -- invizibil pentru orice `org_admin` (politica `audit_logs_select` cere
+    -- `organization_id = any(current_org_ids())`) și neatins de
+    -- `retention_policies` (cheiată tot pe `organization_id`). Ar crește la
+    -- nesfârșit, fără ca vreo firmă-client să-l poată vedea sau curăța.
     execute format('revoke all on table public.%I from public, anon', v_tabela);
     execute format('revoke delete on table public.%I from authenticated', v_tabela);
   end loop;
 end;
 $$;
+
+-- `internal.attach_audit('dispozitive_push')` s-ar refuza singur (eroarea R9:
+-- „tabela ... conține coloane sensibile (jeton)"), acum că lista de mai sus
+-- include `%jeton%` — exact ca la `employee_sensitive_data`,
+-- `organization_sensitive_data`, `reges_credentiale`, care de aceea NU au deloc
+-- audit generic. Diferența e că acolo aproape TOT rândul e sensibil (CNP, IBAN,
+-- credențiale), pe când aici doar valoarea `jeton` e — restul rândului
+-- (organization_id, platforma, deleted_at) chiar merită urmărit, mai ales după
+-- fixul de mai sus la politica de UPDATE. Atașăm deci direct
+-- `internal.audit_trigger()`, ocolind deliberat gardianul din
+-- `attach_audit()`: `scrub_jsonb()`, apelat de `audit_trigger()`, redactează
+-- oricum valoarea `jeton` la rulare, cu aceeași listă lărgită.
+create trigger audit_dispozitive_push
+  after insert or update on public.dispozitive_push
+  for each row execute function internal.audit_trigger();
 
 -- Granturi diferite per tabelă: coada nu se atinge din sesiunea unui utilizator.
 grant select, insert, update on table public.dispozitive_push to authenticated;
