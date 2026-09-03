@@ -88,7 +88,7 @@ function estePublica(pathname: string): boolean {
 }
 
 export async function proxy(request: NextRequest): Promise<NextResponse> {
-  const { response, user } = await updateSession(request);
+  const { response, autentificat } = await updateSession(request);
   const { pathname, search } = request.nextUrl;
 
   // Rutele de API răspund în JSON și își verifică singure sesiunea. Un redirect
@@ -106,7 +106,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     return redirect;
   };
 
-  if (user !== null) {
+  if (autentificat) {
     // Autentificat pe landing → direct în aplicație. Pe host unic, `/` este
     // pagina publică de prezentare; nu are ce arăta cuiva care e deja înăuntru.
     if (pathname === "/") {

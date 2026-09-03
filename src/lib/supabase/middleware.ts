@@ -2,7 +2,6 @@
 import "server-only";
 
 import { createServerClient } from "@supabase/ssr";
-import type { User } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "@/types/database";
 
@@ -27,7 +26,13 @@ if (SUPABASE_URL === "" || SUPABASE_ANON_KEY === "") {
 
 export type SessionUpdate = Readonly<{
   response: NextResponse;
-  user: User | null;
+  /**
+   * Doar dacă cererea are o sesiune validă. Un `User` întreg ar fi fost o
+   * promisiune pe care verificarea locală n-o poate ține: `getClaims()` întoarce
+   * claim-urile din token, nu rândul din baza de auth. Singurul consumator —
+   * `src/proxy.ts` — nu citea oricum niciun câmp.
+   */
+  autentificat: boolean;
 }>;
 
 /**
@@ -64,16 +69,24 @@ export async function updateSession(request: NextRequest): Promise<SessionUpdate
     // Aici cookie-urile sb-* chiar se rescriu spre browser, la fiecare cerere
     // de document: e locul în care durata sesiunii se reînnoiește efectiv.
     cookieOptions: OPTIUNI_COOKIE,
-    // Locul cel mai expus din aplicație: `getUser()` de mai jos rulează la
-    // FIECARE request care trece de matcher. Un apel fără termen aici agață tot
-    // traficul autentificat deodată, ceea ce s-a și întâmplat pe 23 august.
+    // `fetchCuTermen` rămâne obligatoriu și după trecerea la verificarea locală:
+    // acoperă în continuare reînnoirea de token (o dată pe oră per utilizator) și
+    // aducerea JWKS-ului (o dată la 10 minute per proces). Un apel fără termen pe
+    // oricare din ele agață traficul autentificat, ceea ce s-a și întâmplat pe 23
+    // august — doar că acum se întâmplă mai rar, nu deloc.
     global: { fetch: fetchCuTermen() },
   });
 
-  // getUser(), niciodată getSession(): getSession decodează doar cookie-ul,
-  // care este dată venită de la client. getUser() validează token-ul la
-  // serverul de auth și este singurul rezultat de încredere pe server.
-  const { data } = await supabase.auth.getUser();
+  // getClaims(), nu getUser(): verifică semnătura ES256 LOCAL, cu JWKS-ul
+  // cache-uit la nivel de modul, în loc să întrebe GoTrue peste rețea la fiecare
+  // cerere care trece de matcher — inclusiv fiecare navigare RSC. ~90 ms → 1,7 ms.
+  // getSession() singur NU e o alternativă: acela doar decodează cookie-ul, adică
+  // date venite de la client, fără să verifice nimic.
+  //
+  // Fără argument: `getClaims(token)` ar sări peste `getSession()` și ar pierde
+  // reînnoirea cookie-urilor sb-*, care e chiar motivul pentru care middleware-ul
+  // ăsta există.
+  const { data, error } = await supabase.auth.getClaims();
 
-  return { response, user: data.user };
+  return { response, autentificat: error === null && data !== null };
 }
