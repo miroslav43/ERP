@@ -43,8 +43,12 @@ export default async function PaginaAfisPontare({
 }) {
   const { id } = await params;
   const { tenant } = await requireTenant();
-  await requireFeature(tenant.organizationId, "nucleu");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  // Două citiri independente, pe tabele diferite. Înlănțuite erau două
+  // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
+  const [, permisiuni] = await Promise.all([
+    requireFeature(tenant.organizationId, "nucleu"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+  ]);
 
   // `departments:update`, nu `:read`: afișul poartă codul în clar, iar cine îl
   // vede poate ponta de oriunde. E un secret operațional, nu o listă.
