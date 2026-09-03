@@ -129,6 +129,10 @@ begin
     insert into public.notifications (organization_id, user_id, kind, title, link)
     values (v_org, v_u_ang, 'approval', 'Concediu aprobat.', '/portal/concediile-mele');
   exception when others then
+    -- Incrementat explicit: fără el, verificarea depinde de coincidența că
+    -- `v_notif` rămâne null mai jos (secțiunea 149-150) și declanșează
+    -- eșecul ACOLO, nu aici — o invariantă falsă, nu una garantată.
+    v_esecuri := v_esecuri + 1;
     raise notice '  (3) EȘEC    hr nu a putut insera notificarea pentru employee: %', sqlerrm;
   end;
   reset role;
@@ -200,8 +204,10 @@ begin
   -- ── (7) NEGATIVĂ: nu-și poate muta dispozitivul în altă organizație ────
   -- `employee` nu e membru al `v_org2`. Fără `organization_id` în politica de
   -- UPDATE, rândul rămâne al lui (user_id neschimbat) și update-ul reușește —
-  -- dispozitivul „aterizează" în firma străină, vizibil în auditul ei și
-  -- abonat la notificările ei pentru același user_id.
+  -- dispozitivul „aterizează" în firma străină, vizibil în auditul ei.
+  -- (Declanșatorul de pe `notifications` potrivește oricum doar pe `user_id`
+  -- — secțiunea 5 a migrării — deci mutarea rândului nu schimbă ce
+  -- notificări ajung push; riscul e izolarea rândului și a auditului.)
   perform set_config('request.jwt.claim.sub', v_u_ang::text, true);
   set local role authenticated;
   begin

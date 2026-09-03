@@ -150,6 +150,72 @@ create trigger trg_notifications_push
   for each row execute function internal.push_pune_in_coada();
 
 ---------------------------------------------------------------------------
+-- 5b. Preluarea din coadă, pentru ruta /api/push/livreaza.
+---------------------------------------------------------------------------
+
+-- `for update skip locked` în loc de un simplu select: aplicația rulează cu DOUĂ
+-- replici Swarm, iar timerul poate suprapune două rulări. Fără `skip locked`,
+-- amândouă ar lua aceleași rânduri și ar trimite fiecare aceeași notificare.
+-- Aceeași grijă ca la închirierea REGES, altă unealtă pentru aceeași problemă.
+create or replace function app.push_ia_din_coada(p_plafon int default 100)
+returns table (
+  id            uuid,
+  incercari     int,
+  jeton         text,
+  dispozitiv_id uuid,
+  titlu         text,
+  corp          text,
+  link          text
+)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  return query
+  with luate as (
+    select l.id
+    from public.push_livrari l
+    where l.deleted_at is null
+      and (
+        l.stare = 'in_asteptare'
+        -- Recuperare: o rută căzută la jumătate lasă rânduri pe 'in_lucru'.
+        -- Fără clauza asta ar rămâne acolo pentru totdeauna, tăcut.
+        or (l.stare = 'in_lucru' and l.updated_at < now() - interval '10 minutes')
+      )
+    order by l.created_at
+    limit p_plafon
+    for update skip locked
+  )
+  update public.push_livrari l
+     set stare = 'in_lucru', updated_at = now()
+    from luate, public.dispozitive_push d, public.notifications n
+   where l.id = luate.id
+     and d.id = l.dispozitiv_id
+     and n.id = l.notification_id
+  returning l.id, l.incercari, d.jeton, d.id, n.title, n.body, n.link;
+end;
+$$;
+
+revoke all on function app.push_ia_din_coada(int) from public, anon, authenticated;
+
+-- `.rpc()` nu ajunge la schema `app` — PostgREST expune doar `public`. Funcția
+-- rămâne în `app` (convenția: logica stă acolo) și primește un înveliș
+-- `public` care doar o cheamă.
+create or replace function public.push_ia_din_coada(p_plafon int default 100)
+returns table (
+  id uuid, incercari int, jeton text, dispozitiv_id uuid,
+  titlu text, corp text, link text
+)
+language sql
+security definer
+set search_path = ''
+as $$ select * from app.push_ia_din_coada(p_plafon) $$;
+
+revoke all on function public.push_ia_din_coada(int) from public, anon, authenticated;
+grant execute on function public.push_ia_din_coada(int) to service_role;
+
+---------------------------------------------------------------------------
 -- 6. RLS
 ---------------------------------------------------------------------------
 
@@ -186,9 +252,11 @@ with check (
 -- `authenticated` din organizația A putea muta propriul dispozitiv (rândul
 -- rămâne al lui — `user_id` neschimbat) în organizația B, cu un simplu UPDATE.
 -- Rândul „aterizează" acolo pentru totdeauna: vizibil în auditul organizației
--- B, iar declanșatorul de pe `notifications` (secțiunea 5) îl potrivește doar
--- pe `user_id`+`organization_id`, deci orice notificare pentru acel user_id în
--- org B trimite push către un telefon care n-are nicio legătură cu ea.
+-- B, deși omul n-a fost niciodată membru acolo — coloana `organization_id`
+-- devine o minciună despre apartenență. (Declanșatorul de pe `notifications`,
+-- secțiunea 5, potrivește oricum DOAR pe `user_id` — mutarea rândului nu
+-- schimbă ce notificări ajung push către el, deci riscul e izolarea rândului
+-- și a auditului, nu o abonare nouă.)
 -- Verificat empiric: fără clauza asta, UPDATE-ul reușea (1 rând), fără nicio
 -- eroare — exact refuzul tăcut pe care proiectul îl tratează drept cea mai
 -- costisitoare clasă de defect.
@@ -286,7 +354,9 @@ revoke all on table public.push_livrari from authenticated;
 -- SELECT sau UPDATE pe oricare din cele două tabele cade cu 42501.
 -- `0001_kernel.sql:649` are un `grant all on all tables` de o singură dată,
 -- la bootstrap — nu acoperă tabele create în migrări ulterioare, iar repo-ul
--- n-are niciun `alter default privileges`. Fără INSERT/DELETE: ruta
+-- n-are niciun `alter default privileges` PE TABELE (cele trei din
+-- `0002_authz.sql:1559-1561` sunt `on functions`, nu ajută aici). Fără
+-- INSERT/DELETE: ruta
 -- (/api/push/livreaza) nu creează dispozitive noi (le înregistrează
 -- aplicația) și nu șterge nimic (soft-delete peste tot, ca la orice tabelă
 -- din schemă).

@@ -12830,6 +12830,18 @@ export type Database = {
           zile_sarbatoare_lucrate: number
         }[]
       }
+      push_ia_din_coada: {
+        Args: { p_plafon?: number }
+        Returns: {
+          corp: string
+          dispozitiv_id: string
+          id: string
+          incercari: number
+          jeton: string
+          link: string
+          titlu: string
+        }[]
+      }
       reges_ia_inchirierea: {
         Args: { p_cheie: string; p_detinator: string; p_secunde?: number }
         Returns: boolean

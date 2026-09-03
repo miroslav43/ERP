@@ -117,6 +117,15 @@ const serverSchema = z
      * („alege ruta potrivită din lista dată și explică drumul") nu cere mai mult.
      */
     OPENROUTER_MODEL_ASISTENT: z.string().min(1).default("google/gemini-3.7-flash"),
+    /**
+     * Secretul cu care timerul de pe gazdă cheamă `/api/push/livreaza`.
+     *
+     * `default("")` e comutatorul de pornire, ca la `REGES_CRON_SECRET`: ruta
+     * refuză orice cerere cât timp secretul e gol, deci o instalare care n-a
+     * apucat să-l pună are livrarea oprită, nu deschisă. Variabilă obligatorie
+     * ar fi oprit la boot fiecare mediu fără push — CI-ul inclusiv.
+     */
+    PUSH_CRON_SECRET: z.string().default(""),
   })
   .refine((env) => env.HR_ENCRYPTION_ACTIVE_KEY in env.HR_ENCRYPTION_KEYS, {
     error: "HR_ENCRYPTION_ACTIVE_KEY nu are corespondent în HR_ENCRYPTION_KEYS",
