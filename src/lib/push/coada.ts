@@ -186,12 +186,17 @@ export async function golesteCoada(
       abandonate += 1;
       // NU se abandonează aici, explicit, și celelalte livrări încă
       // `in_asteptare` ale ACELUIAȘI dispozitiv (alte notificări puse în
-      // coadă înainte de retragere) — nu mai e nevoie. De la reparația Rundei
-      // 3 (Pasul 1 din `push_ia_din_coada`, 0122 secțiunea 5b), funcția SQL
-      // le curăță ea însăși la URMĂTOAREA preluare: orice rând orfan
-      // (dispozitiv sau notificare retrase), indiferent pe ce cale a ajuns
-      // orfan, e scos direct din `push_livrari_de_trimis_idx` — nu mai
-      // rămâne sediment.
+      // coadă înainte de retragere) — nu mai e nevoie. Pasul 1 din
+      // `push_ia_din_coada` (0122, secțiunea 5b) le curăță el, la preluările
+      // următoare: orice rând orfan, indiferent pe ce cale a ajuns orfan, e
+      // scos din `push_livrari_de_trimis_idx`.
+      //
+      // „PRELUĂRILE URMĂTOARE", nu „următoarea": Pasul 1 e plafonat la
+      // `p_plafon`, deci un sediment de N rânduri se scurge în cel mult
+      // ceil(N / plafon) rulări, nu într-una singură. Între timp, rândurile
+      // necurățate rămân candidate pentru CTE-ul Pasului 2 — care le
+      // filtrează el, prin `d.deleted_at is null`. Nu ajung deci NICIODATĂ
+      // la Expo; doar dispar din index mai încet.
       continue;
     }
 

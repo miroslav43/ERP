@@ -23,18 +23,31 @@
 --      redactat — `internal.audit_campuri_excluse`)
 -- (14) POZITIVĂ — `service_role` poate citi și scrie în ambele tabele (ruta
 --      /api/push/livreaza chiar are ce privilegii presupune că are)
--- (15) NEGATIVĂ — `app.push_ia_din_coada` NU preia livrarea unui dispozitiv
---      retras (Runda 1, defectul C1: join fără `d.deleted_at is null`)
+-- (15) NEGATIVĂ — Pasul 1 din `push_ia_din_coada` ABANDONEAZĂ livrarea unui
+--      dispozitiv retras, deci ea nu e preluată
 -- (16) POZITIVĂ — un rând `in_asteptare` normal e preluat și lăsat pe `in_lucru`
 -- (17) POZITIVĂ — un `in_lucru` vechi de peste 10 minute e recuperat
 -- (18) NEGATIVĂ — un `in_lucru` proaspăt NU e recuperat
--- (19) NEGATIVĂ — o notificare ștearsă nu e preluată
--- (20) POZITIVĂ — orfani vechi (dispozitiv/notificare retrase) NU blochează
---      capul cozii; un rând valid mai nou tot e preluat, chiar cu plafon mic
+-- (19) NEGATIVĂ — Pasul 1 abandonează și livrarea unei notificări șterse
+-- (20) POZITIVĂ — orfani rămași NECURĂȚAȚI de Pasul 1 (plafonul lui) NU
+--      blochează capul cozii: rândul valid mai nou tot e preluat
 --      (Runda 2, defectul „blocaj de cap de coadă")
--- (21) NEGATIVĂ — un rând cu `incercari` deja la pragul `p_max_incercari`
---      NU mai e preluat; e abandonat direct de funcție (Runda 3, defectul
+-- (21) NEGATIVĂ — un rând cu `incercari` la pragul `p_max_incercari` e
+--      abandonat direct de Pasul 1, iar unul cu `incercari` sub prag e
+--      preluat: implicitul `5` e prins din AMBELE părți (Runda 3, defectul
 --      „contorul avansează, dar nimeni nu-l citește")
+-- (22) NEGATIVĂ — orfanii rămași necurățați de Pasul 1 NU sunt PRELUAȚI de
+--      Pasul 2: garda vie a filtrului `d.deleted_at is null` din CTE
+--      (Runda 4 — până la ea, Pasul 1 golea orfanii înainte, iar defectul
+--      critic al Rundei 1 se putea reintroduce complet cu proba pe verde)
+-- (23) NEGATIVĂ — rândurile peste prag rămase necurățate de Pasul 1 NU sunt
+--      preluate de Pasul 2: garda vie a predicatului `l.incercari <
+--      p_max_incercari` din CTE (Runda 4)
+--
+-- (20)/(22)/(23) își asertează EXPLICIT premisa — că Pasul 1 chiar a lăsat
+-- rânduri în urmă. Fără asertarea premisei, o schimbare care scoate plafonul
+-- Pasului 1 nu le-ar face să cadă, ci VACUE: ar raporta „OK" fără să mai
+-- verifice nimic. Exact așa au devenit vacue (15)/(19)/(20) în Runda 3.
 --
 -- Rulare, pe bancul local (NICIODATĂ pe cloud):
 --   psql "$BANC_URL" -f tests/rls/proba-push.sql
@@ -432,6 +445,9 @@ begin
     v_livr_stearsa  uuid;
     v_ids           uuid[];
     v_stare         public.stare_livrare_push;
+    v_stare_ret     public.stare_livrare_push;
+    v_stare_st      public.stare_livrare_push;
+    v_eroare_ret    text;
   begin
     -- Fixturi: un dispozitiv retras CU o livrare încă `in_asteptare` (C1) și
     -- un dispozitiv activ cu patru livrări, câte una pentru fiecare stare care
@@ -476,19 +492,35 @@ begin
     select coalesce(array_agg(id), '{}') into v_ids from public.push_ia_din_coada(1000);
     reset role;
 
+    select stare, eroare into v_stare_ret, v_eroare_ret
+      from public.push_livrari where id = v_livr_retras;
+
+    -- CE VERIFICĂ (15), EXACT: aici sunt puține rânduri, mult sub plafonul
+    -- 1000 al apelului, deci PASUL 1 ajunge la orfan și îl abandonează
+    -- înaintea Pasului 2. Verificarea e deci garda Pasului 1 — nu a
+    -- join-ului `d.deleted_at is null` din CTE-ul Pasului 2, cum a susținut
+    -- (greșit) până în Runda 4. De-aia asertează și STAREA finală, nu doar
+    -- absența din rezultat: „nu e preluat" singur ar fi trecut și dacă
+    -- funcția n-ar fi făcut absolut nimic cu rândul. Garda vie a Pasului 2 e
+    -- (22), unde plafonul lasă deliberat orfani necurățați.
+    --
     -- `v_livr_retras is null` verificat EXPLICIT: `null = any(v_ids)` dă
     -- `null`, care intră pe ramura ELSE (succes) — dacă fixtura n-ar fi
     -- existat, verificarea ar fi raportat „OK" fără să fi verificat nimic.
-    -- (15) e chiar garda de regresie a C1, deci trebuie să nu poată trece în
-    -- gol.
     if v_livr_retras is null then
       v_esecuri := v_esecuri + 1;
       raise notice '  (15) EȘEC   fixtura livrării pentru dispozitivul retras nu s-a creat';
     elsif v_livr_retras = any(v_ids) then
       v_esecuri := v_esecuri + 1;
       raise notice '  (15) EȘEC   preluarea a întors livrarea unui dispozitiv retras';
+    elsif v_stare_ret <> 'abandonat' then
+      v_esecuri := v_esecuri + 1;
+      raise notice '  (15) EȘEC   livrarea dispozitivului retras nu e preluată, dar starea e % (așteptat abandonat)', v_stare_ret;
+    elsif v_eroare_ret is distinct from 'Abandonat: dispozitivul sau notificarea nu mai există.' then
+      v_esecuri := v_esecuri + 1;
+      raise notice '  (15) EȘEC   motivul abandonării nu e cel al orfanilor: %', coalesce(v_eroare_ret, '(null)');
     else
-      raise notice '  (15) OK     dispozitiv retras — livrarea lui nu e preluată';
+      raise notice '  (15) OK     dispozitiv retras — Pasul 1 îl abandonează, nu e preluat';
     end if;
 
     if v_livr_normal = any(v_ids) then
@@ -524,48 +556,79 @@ begin
       raise notice '  (18) OK     in_lucru proaspăt nu e recuperat, rămâne neatins';
     end if;
 
-    -- Aceeași gardă ca la (15): `null = any(v_ids)` ar trece tăcut pe OK.
+    select stare into v_stare_st from public.push_livrari where id = v_livr_stearsa;
+
+    -- Aceeași gardă ca la (15), și același contract: cu atât de puține
+    -- rânduri, Pasul 1 abandonează orfanul înaintea Pasului 2, deci starea
+    -- finală face parte din ce se asertează. `null = any(v_ids)` ar trece
+    -- tăcut pe OK, de-aia fixtura se verifică explicit.
     if v_livr_stearsa is null then
       v_esecuri := v_esecuri + 1;
       raise notice '  (19) EȘEC   fixtura livrării pentru notificarea ștearsă nu s-a creat';
     elsif v_livr_stearsa = any(v_ids) then
       v_esecuri := v_esecuri + 1;
       raise notice '  (19) EȘEC   preluarea a întors o livrare a unei notificări șterse';
+    elsif v_stare_st <> 'abandonat' then
+      v_esecuri := v_esecuri + 1;
+      raise notice '  (19) EȘEC   livrarea notificării șterse nu e preluată, dar starea e % (așteptat abandonat)', v_stare_st;
     else
-      raise notice '  (19) OK     notificare ștearsă — livrarea ei nu e preluată';
+      raise notice '  (19) OK     notificare ștearsă — Pasul 1 abandonează livrarea ei';
     end if;
   end;
 
-  -- ── (20) POZITIVĂ: orfani vechi NU blochează capul cozii ────────────────
-  -- Regresie pentru defectul găsit în Runda 2: `limit p_plafon` stătea în
-  -- CTE, ÎNAINTE de filtrele pe dispozitiv/notificare retrase — orfanii,
-  -- fiind cei mai vechi (`order by created_at`), umpleau plafonul la fiecare
-  -- rulare și blocau COMPLET rândurile valide din spatele lor, fără nicio
-  -- eroare. Trei orfani mai vechi + un rând valid mai nou, plafon mic (2) —
-  -- dacă bug-ul ar reveni (filtrele mutate înapoi din CTE), rândul valid n-ar
-  -- mai fi preluat.
+  -- ── (20)+(22): orfanii NECURĂȚAȚI de Pasul 1 ───────────────────────────
+  -- O singură fixtură, două verificări distincte:
+  --   (20) POZITIVĂ — orfanii rămași nu blochează capul cozii; rândul valid,
+  --        mai nou, tot e preluat (regresia defectului din Runda 2: `limit
+  --        p_plafon` înaintea filtrelor de orfan, deci rezultat gol la
+  --        nesfârșit cu coada plină).
+  --   (22) NEGATIVĂ — orfanii rămași nu sunt PRELUAȚI (regresia defectului
+  --        critic din Runda 1: livrarea unui dispozitiv retras pleacă spre
+  --        telefonul noului proprietar).
+  --
+  -- DE CE RĂMÂN ORFANI ÎN URMĂ, ȘI DE CE CONTEAZĂ ASTA
+  -- Pasul 1 al funcției e plafonat la `p_plafon`, ca Pasul 2. Cu patru orfani
+  -- și un apel cu plafon 2, Pasul 1 curăță exact doi, iar ceilalți DOI rămân
+  -- `in_asteptare`, mai vechi decât rândul valid — adică sunt candidați VII
+  -- pentru CTE-ul Pasului 2. Doar filtrele din acel CTE îi mai țin afară.
+  -- Fără plafon (până în Runda 4), Pasul 1 îi golea pe toți înainte, iar
+  -- filtrele Pasului 2 nu mai puteau fi exercitate de nicio verificare:
+  -- revizuirea a scos TOATE filtrele `deleted_at` din Pasul 2 și proba a
+  -- raportat 21/21.
+  --
+  -- Premisa („au rămas exact doi orfani necurățați") se ASERTEAZĂ, nu se
+  -- presupune. Dacă plafonul Pasului 1 dispare, verificările astea două
+  -- trebuie să CADĂ zgomotos, nu să redevină vacue.
   declare
     v_u_blocaj   uuid := gen_random_uuid();
     v_disp_o1    uuid;
     v_disp_o2    uuid;
     v_disp_o3    uuid;
+    v_disp_o4    uuid;
     v_disp_valid uuid;
     v_notif_o1   uuid;
     v_notif_o2   uuid;
     v_notif_o3   uuid;
+    v_notif_o4   uuid;
     v_notif_v    uuid;
     v_livr_valid uuid;
     v_ids20      uuid[];
     v_cnt_orfani int;
+    v_orfani_vii uuid[];
   begin
-    -- Golește tot ce a rămas eligibil din verificările (1)-(19), cu plafon
-    -- mare și un prag de încercări generos (nu se abandonează nimic aici —
-    -- doar se scoate din calea preluării de mai jos). Determinismul
-    -- verificării (20) NU trebuie să depindă TĂCUT de faptul că apelul cu
-    -- plafon 1000 din blocul (15)-(19) a golit deja candidații valizi rămași
-    -- — dacă acel apel ar dispărea sau și-ar scădea plafonul, (20) ar putea
-    -- pica fals-negativ, fără nicio legătură cu blocajul de cap de coadă.
-    -- Golirea explicită de-aici face verificarea auto-suficientă.
+    -- Golește tot ce a rămas eligibil din verificările (1)-(19): plafon mare
+    -- și un prag de încercări imposibil de atins, ca ramura de prag a
+    -- Pasului 1 să nu intre în discuție. ATENȚIE, corectând o afirmație
+    -- falsă de aici din Runda 3: apelul ăsta ABANDONEAZĂ orfanii rămași (e
+    -- exact ce face Pasul 1) — nu doar „îi scoate din calea preluării".
+    -- Măsurat, nu dedus. Pentru rândurile VALIDE, ele sunt într-adevăr doar
+    -- scoase din cale: trec pe `in_lucru` proaspăt.
+    --
+    -- Determinismul verificărilor de mai jos NU trebuie să depindă TĂCUT de
+    -- faptul că apelul cu plafon 1000 din blocul (15)-(19) a golit deja
+    -- candidații rămași — dacă acel apel ar dispărea sau și-ar scădea
+    -- plafonul, (20)/(22) ar putea pica fals-negativ, fără nicio legătură cu
+    -- ce verifică. Golirea explicită de-aici le face auto-suficiente.
     set local role service_role;
     perform public.push_ia_din_coada(10000, 2147483647);
     reset role;
@@ -582,11 +645,17 @@ begin
 
     -- Fiecare orfan e un ciclu STRICT SERIALIZAT: dispozitiv → notificare
     -- (trigger-ul pune în coadă DOAR pentru dispozitivele active ale
-    -- utilizatorului, iar la acest pas e singurul) → retragere. Trei
+    -- utilizatorului, iar la acest pas e singurul) → retragere. Patru
     -- dispozitive create dintr-o dată, ÎNAINTE de notificări, ar face ca
-    -- fiecare notificare să umple coada pentru TOATE cele trei deodată —
-    -- exact contaminarea de evitat mai sus, doar mutată în interiorul
-    -- blocului.
+    -- fiecare notificare să umple coada pentru TOATE patru deodată — exact
+    -- contaminarea de evitat mai sus, doar mutată în interiorul blocului.
+    --
+    -- PATRU, nu trei: apelul de mai jos are plafon 2, deci Pasul 1 curăță
+    -- exact doi, iar ceilalți doi rămân candidați vii pentru Pasul 2. Cu
+    -- trei orfani și plafon 2 ar rămâne doar unul — ar merge, dar doi fac
+    -- verificarea (20) strictă: sub defectul din Runda 2 (filtrele scoase din
+    -- CTE), cei doi orfani rămași, fiind mai vechi, ar umple singuri `limit
+    -- 2` și rândul valid n-ar mai fi preluat DELOC.
     insert into public.dispozitive_push (organization_id, user_id, jeton, platforma) values
       (v_org, v_u_blocaj, 'ExponentPushToken[proba-blocaj-o1-' || v_sufix || ']', 'android')
       returning id into v_disp_o1;
@@ -608,16 +677,23 @@ begin
     values (v_org, v_u_blocaj, 'reminder', 'Orfan 3.') returning id into v_notif_o3;
     update public.dispozitive_push set deleted_at = now() where id = v_disp_o3;
 
+    insert into public.dispozitive_push (organization_id, user_id, jeton, platforma) values
+      (v_org, v_u_blocaj, 'ExponentPushToken[proba-blocaj-o4-' || v_sufix || ']', 'android')
+      returning id into v_disp_o4;
+    insert into public.notifications (organization_id, user_id, kind, title)
+    values (v_org, v_u_blocaj, 'reminder', 'Orfan 4.') returning id into v_notif_o4;
+    update public.dispozitive_push set deleted_at = now() where id = v_disp_o4;
+
     -- Backdatate explicit, nu doar create înaintea rândului valid: `now()`
     -- e ÎNGHEȚAT pe toată tranzacția (`current_timestamp`, nu
     -- `clock_timestamp()`), deci toate rândurile din acest fișier ar avea
     -- altfel EXACT același `created_at` — ordinea „cine-i mai vechi" nu s-ar
     -- putea baza pe simpla ordine de inserare fără o garanție explicită.
     update public.push_livrari set created_at = now() - interval '1 hour'
-     where dispozitiv_id in (v_disp_o1, v_disp_o2, v_disp_o3);
+     where dispozitiv_id in (v_disp_o1, v_disp_o2, v_disp_o3, v_disp_o4);
 
     -- Rândul valid: singurul dispozitiv activ al lui `v_u_blocaj` în acest
-    -- moment (cele trei orfane sunt deja retrase) — notificarea umple coada
+    -- moment (cele patru orfane sunt deja retrase) — notificarea umple coada
     -- STRICT pentru el.
     insert into public.dispozitive_push (organization_id, user_id, jeton, platforma) values
       (v_org, v_u_blocaj, 'ExponentPushToken[proba-blocaj-valid-' || v_sufix || ']', 'android')
@@ -629,34 +705,64 @@ begin
      where dispozitiv_id = v_disp_valid and notification_id = v_notif_v;
 
     -- Gardă, aceeași clasă reparată la (15)/(19): dacă fixtura orfanilor nu
-    -- s-a creat corect, verificarea de mai jos ar testa un scenariu cu mai
-    -- puțin de trei orfani (sau chiar niciunul) și ar putea trece „OK" fără
-    -- să fi verificat nimic despre blocajul de cap de coadă.
+    -- s-a creat corect, verificările de mai jos ar testa un scenariu cu mai
+    -- puțini orfani (sau chiar niciunul) și ar putea trece „OK" fără să fi
+    -- verificat nimic.
     select count(*) into v_cnt_orfani from public.push_livrari
-     where dispozitiv_id in (v_disp_o1, v_disp_o2, v_disp_o3);
+     where dispozitiv_id in (v_disp_o1, v_disp_o2, v_disp_o3, v_disp_o4);
 
     set local role service_role;
-    -- Plafon 2, cu 3 orfani mai vechi: sub bug-ul vechi, CTE-ul ar lua cei
-    -- doi orfani cei mai vechi (limita), i-ar bloca, iar UPDATE-ul de mai jos
-    -- i-ar elimina — rezultat gol, rândul valid neatins niciodată.
+    -- Plafon 2, cu 4 orfani mai vechi: Pasul 1 curăță doi, Pasul 2 vede
+    -- ceilalți doi ca fiind candidații cei mai vechi. Sub defectul Rundei 2
+    -- (filtrele scoase din CTE), ei ar umple `limit 2` și rândul valid n-ar
+    -- fi preluat; sub defectul Rundei 1 (filtrele lipsă cu totul), ei ar fi
+    -- chiar ÎNTORȘI, adică trimiși spre telefonul altcuiva.
     select coalesce(array_agg(id), '{}') into v_ids20 from public.push_ia_din_coada(2);
     reset role;
 
-    if v_cnt_orfani <> 3 then
+    -- Orfanii pe care Pasul 1 NU i-a curățat — premisa amândurora
+    -- verificărilor de mai jos. Dacă e goală, ele n-au ce exercita.
+    select coalesce(array_agg(id), '{}') into v_orfani_vii
+      from public.push_livrari
+     where dispozitiv_id in (v_disp_o1, v_disp_o2, v_disp_o3, v_disp_o4)
+       and stare <> 'abandonat';
+
+    if v_cnt_orfani <> 4 then
       v_esecuri := v_esecuri + 1;
-      raise notice '  (20) EȘEC   fixtura orfanilor nu s-a creat corect: % rânduri (așteptat 3)', v_cnt_orfani;
+      raise notice '  (20) EȘEC   fixtura orfanilor nu s-a creat corect: % rânduri (așteptat 4)', v_cnt_orfani;
+      v_esecuri := v_esecuri + 1;
+      raise notice '  (22) EȘEC   fixtura orfanilor nu s-a creat corect (vezi 20)';
     elsif v_livr_valid is null then
       v_esecuri := v_esecuri + 1;
       raise notice '  (20) EȘEC   fixtura rândului valid nu s-a creat';
-    elsif v_livr_valid = any(v_ids20) then
-      raise notice '  (20) OK     3 orfani vechi + plafon 2 — rândul valid tot e preluat (fără blocaj de cap de coadă)';
-    else
       v_esecuri := v_esecuri + 1;
-      raise notice '  (20) EȘEC   BLOCAJ DE CAP DE COADĂ — rândul valid NU a fost preluat cu plafon mic și orfani vechi';
+      raise notice '  (22) EȘEC   fixtura rândului valid nu s-a creat (vezi 20)';
+    elsif cardinality(v_orfani_vii) <> 2 then
+      -- PREMISA, nu concluzia. Cu plafonul 2 al apelului, Pasul 1 curăță
+      -- exact doi din patru. Dacă aici sunt zero, Pasul 1 nu mai e plafonat
+      -- și AMBELE verificări au devenit vacue — cade, zgomotos.
+      v_esecuri := v_esecuri + 1;
+      raise notice '  (20) EȘEC   premisă ruptă: Pasul 1 a lăsat % orfani necurățați (așteptat 2); verificarea ar fi vacuă', cardinality(v_orfani_vii);
+      v_esecuri := v_esecuri + 1;
+      raise notice '  (22) EȘEC   premisă ruptă: niciun orfan viu de exercitat pe Pasul 2 (vezi 20)';
+    else
+      if v_livr_valid = any(v_ids20) then
+        raise notice '  (20) OK     2 orfani vii mai vechi + plafon 2 — rândul valid tot e preluat (fără blocaj de cap de coadă)';
+      else
+        v_esecuri := v_esecuri + 1;
+        raise notice '  (20) EȘEC   BLOCAJ DE CAP DE COADĂ — rândul valid NU a fost preluat cu plafon mic și orfani vii mai vechi';
+      end if;
+
+      if v_orfani_vii && v_ids20 then
+        v_esecuri := v_esecuri + 1;
+        raise notice '  (22) EȘEC   SCURGERE — Pasul 2 a preluat un orfan pe care Pasul 1 nu-l curățase (dispozitiv retras)';
+      else
+        raise notice '  (22) OK     orfanii vii nu sunt preluați de Pasul 2 (filtrul deleted_at din CTE)';
+      end if;
     end if;
   end;
 
-  -- ── (21) NEGATIVĂ: un rând cu `incercari` la prag NU mai e preluat ──────
+  -- ── (21) NEGATIVĂ: pragul implicit, prins din AMBELE părți ─────────────
   -- Regresie pentru al doilea defect găsit în Runda 3: incrementul lui
   -- `incercari` la preluare (Runda 2) nu oprea nimic de unul singur — CTE-ul
   -- n-avea niciun predicat pe el, iar singurul loc care scria `abandonat`
@@ -666,19 +772,40 @@ begin
   -- pleacă spre Expo de opt ori. Pasul 1 din `push_ia_din_coada` (0122,
   -- secțiunea 5b) abandonă acum direct un asemenea rând, ÎNAINTE de
   -- preluare — indiferent dacă scrierea din TypeScript merge sau nu.
+  --
+  -- DOUĂ rânduri, nu unul: `incercari = 5` (la prag, trebuie abandonat) și
+  -- `incercari = 4` (sub prag, trebuie preluat). Apelul NU dă
+  -- `p_max_incercari`, deci exercită implicitul funcției. Cu un singur rând
+  -- la 5, verificarea prindea implicitul doar pe o parte — un implicit mutat
+  -- la 3 ar fi trecut la fel de bine (5 >= 3). Cu perechea, pragul e fixat
+  -- EXACT la 5: mutat în sus, rândul de 5 e preluat; mutat în jos, rândul de
+  -- 4 e abandonat. Sursa de adevăr rămâne `MAX_INCERCARI` din
+  -- `src/lib/push/coada.ts`, pe care `golesteCoada` îl trimite explicit —
+  -- vezi testul din `src/lib/push/coada.test.ts` care păzește acel argument.
   declare
     v_u_prag     uuid := gen_random_uuid();
+    v_u_sub      uuid := gen_random_uuid();
     v_disp_prag  uuid;
+    v_disp_sub   uuid;
     v_notif_prag uuid;
+    v_notif_sub  uuid;
     v_livr_prag  uuid;
+    v_livr_sub   uuid;
     v_ids21      uuid[];
     v_stare_prag public.stare_livrare_push;
+    v_er_prag    text;
   begin
-    -- Utilizator dedicat, ca la (20): evită fan-out-ul trigger-ului către
-    -- alte dispozitive active ale lui `v_u_ang`.
-    insert into auth.users (id, email) values (v_u_prag, 'prag-' || v_sufix || '@exemplu.ro');
-    insert into public.organization_members (organization_id, user_id, role)
-    values (v_org, v_u_prag, 'employee');
+    -- Doi utilizatori dedicați, nu doi dispozitivi ai aceluiași: trigger-ul
+    -- de punere în coadă potrivește TOATE dispozitivele active ale unui
+    -- `user_id`, deci al doilea dispozitiv ar primi și el o livrare pentru
+    -- prima notificare — un al treilea rând, neintenționat, cu `incercari`
+    -- zero. Aceeași capcană care a produs 13 rânduri în loc de 4 la (20).
+    insert into auth.users (id, email) values
+      (v_u_prag, 'prag-' || v_sufix || '@exemplu.ro'),
+      (v_u_sub, 'subprag-' || v_sufix || '@exemplu.ro');
+    insert into public.organization_members (organization_id, user_id, role) values
+      (v_org, v_u_prag, 'employee'),
+      (v_org, v_u_sub, 'employee');
 
     insert into public.dispozitive_push (organization_id, user_id, jeton, platforma) values
       (v_org, v_u_prag, 'ExponentPushToken[proba-prag-' || v_sufix || ']', 'android')
@@ -686,22 +813,31 @@ begin
     insert into public.notifications (organization_id, user_id, kind, title)
     values (v_org, v_u_prag, 'reminder', 'La pragul de încercări.') returning id into v_notif_prag;
 
+    insert into public.dispozitive_push (organization_id, user_id, jeton, platforma) values
+      (v_org, v_u_sub, 'ExponentPushToken[proba-subprag-' || v_sufix || ']', 'android')
+      returning id into v_disp_sub;
+    insert into public.notifications (organization_id, user_id, kind, title)
+    values (v_org, v_u_sub, 'reminder', 'Cu o încercare sub prag.') returning id into v_notif_sub;
+
     select id into v_livr_prag from public.push_livrari
      where dispozitiv_id = v_disp_prag and notification_id = v_notif_prag;
+    select id into v_livr_sub from public.push_livrari
+     where dispozitiv_id = v_disp_sub and notification_id = v_notif_sub;
 
-    if v_livr_prag is null then
+    if v_livr_prag is null or v_livr_sub is null then
       v_esecuri := v_esecuri + 1;
-      raise notice '  (21) EȘEC   fixtura rândului la prag nu s-a creat';
+      raise notice '  (21) EȘEC   fixturile rândurilor de prag nu s-au creat';
     else
-      -- `incercari = 5`, EGAL cu `p_max_incercari` implicit al funcției
-      -- (apelul de mai jos nu-l suprascrie — folosește implicitul).
+      -- 5 = implicitul `p_max_incercari` al funcției; 4 = exact sub el.
       update public.push_livrari set incercari = 5 where id = v_livr_prag;
+      update public.push_livrari set incercari = 4 where id = v_livr_sub;
 
       set local role service_role;
       select coalesce(array_agg(id), '{}') into v_ids21 from public.push_ia_din_coada(1000);
       reset role;
 
-      select stare into v_stare_prag from public.push_livrari where id = v_livr_prag;
+      select stare, eroare into v_stare_prag, v_er_prag
+        from public.push_livrari where id = v_livr_prag;
 
       if v_livr_prag = any(v_ids21) then
         v_esecuri := v_esecuri + 1;
@@ -709,9 +845,90 @@ begin
       elsif v_stare_prag <> 'abandonat' then
         v_esecuri := v_esecuri + 1;
         raise notice '  (21) EȘEC   rândul nu a fost preluat, dar starea e % (așteptat abandonat)', v_stare_prag;
+      elsif v_er_prag not like 'Abandonat la pragul de încercări.%' then
+        v_esecuri := v_esecuri + 1;
+        raise notice '  (21) EȘEC   motivul abandonării nu e cel al pragului: %', coalesce(v_er_prag, '(null)');
+      elsif not (v_livr_sub = any(v_ids21)) then
+        -- Partea cealaltă a pragului: dacă implicitul ar coborî sub 5, rândul
+        -- ăsta ar fi abandonat în loc să fie preluat, iar verificarea cade.
+        v_esecuri := v_esecuri + 1;
+        raise notice '  (21) EȘEC   rândul cu incercari = 4 (sub prag) NU a fost preluat — pragul implicit s-a mutat sub 5';
       else
-        raise notice '  (21) OK     rând cu incercari la prag — abandonat direct, niciodată preluat';
+        raise notice '  (21) OK     incercari = 5 abandonat, incercari = 4 preluat — pragul implicit e fix la 5';
       end if;
+    end if;
+  end;
+
+  -- ── (23) NEGATIVĂ: rândurile peste prag rămase necurățate de Pasul 1 ────
+  -- Perechea lui (22), pentru celălalt filtru al CTE-ului Pasului 2:
+  -- `l.incercari < p_max_incercari`. Aceeași mecanică — plafonul Pasului 1
+  -- lasă deliberat rânduri în urmă — și aceeași asertare a premisei.
+  --
+  -- DE CE E NECESAR FILTRUL, nu doar frumos: fără el, un sediment de rânduri
+  -- peste prag mai mare decât plafonul ar fi PRELUAT de Pasul 2 și retrimis
+  -- spre Expo, adică exact defectul închis în Runda 3, reapărut pe drumul
+  -- deschis de plafonarea Pasului 1. Protecția din Pasul 1 fără filtrul din
+  -- Pasul 2 ar fi o protecție cu o ieșire neenumerată.
+  declare
+    v_u_sed      uuid := gen_random_uuid();
+    v_disp_sed   uuid;
+    v_cnt_sed    int;
+    v_ids23      uuid[];
+    v_peste_vii  uuid[];
+  begin
+    -- Golire, ca la (20)/(22): verificarea nu trebuie să depindă de ce au
+    -- lăsat blocurile anterioare. (Golirea ABANDONEAZĂ orfanii rămași și
+    -- trece rândurile valide pe `in_lucru` proaspăt.)
+    set local role service_role;
+    perform public.push_ia_din_coada(10000, 2147483647);
+    reset role;
+
+    insert into auth.users (id, email) values (v_u_sed, 'sediment-' || v_sufix || '@exemplu.ro');
+    insert into public.organization_members (organization_id, user_id, role)
+    values (v_org, v_u_sed, 'employee');
+
+    -- UN dispozitiv, ACTIV, și trei notificări: trigger-ul face un rând de
+    -- coadă per dispozitiv activ, deci trei rânduri, toate pentru același
+    -- telefon. Fan-out-ul care a stricat (20) în Runda 2 nu poate apărea cu
+    -- un singur dispozitiv, deci nu e nevoie de serializarea de acolo. Și,
+    -- important: dispozitivul rămâne activ, ca SINGURUL motiv pentru care
+    -- rândurile n-au șansă să fie `incercari`, nu orfanajul — verificarea
+    -- atacă exact predicatul de prag din CTE, nu filtrul `deleted_at`.
+    insert into public.dispozitive_push (organization_id, user_id, jeton, platforma) values
+      (v_org, v_u_sed, 'ExponentPushToken[proba-sed-' || v_sufix || ']', 'android')
+      returning id into v_disp_sed;
+    insert into public.notifications (organization_id, user_id, kind, title) values
+      (v_org, v_u_sed, 'reminder', 'Sediment 1.'),
+      (v_org, v_u_sed, 'reminder', 'Sediment 2.'),
+      (v_org, v_u_sed, 'reminder', 'Sediment 3.');
+
+    update public.push_livrari set incercari = 3 where dispozitiv_id = v_disp_sed;
+    select count(*) into v_cnt_sed from public.push_livrari where dispozitiv_id = v_disp_sed;
+
+    set local role service_role;
+    -- Plafon 2, prag 3: Pasul 1 curăță două din cele trei rânduri peste prag;
+    -- al treilea rămâne `in_asteptare`, candidat viu pentru CTE-ul Pasului 2.
+    -- `p_max_incercari` e dat EXPLICIT (3, nu implicitul 5): verificarea
+    -- probează parametrul, nu valoarea implicită — (21) o face pe aceea.
+    select coalesce(array_agg(id), '{}') into v_ids23 from public.push_ia_din_coada(2, 3);
+    reset role;
+
+    select coalesce(array_agg(id), '{}') into v_peste_vii
+      from public.push_livrari
+     where dispozitiv_id = v_disp_sed
+       and stare <> 'abandonat';
+
+    if v_cnt_sed <> 3 then
+      v_esecuri := v_esecuri + 1;
+      raise notice '  (23) EȘEC   fixtura sedimentului nu s-a creat corect: % rânduri (așteptat 3)', v_cnt_sed;
+    elsif cardinality(v_peste_vii) <> 1 then
+      v_esecuri := v_esecuri + 1;
+      raise notice '  (23) EȘEC   premisă ruptă: Pasul 1 a lăsat % rânduri peste prag (așteptat 1); verificarea ar fi vacuă', cardinality(v_peste_vii);
+    elsif v_peste_vii && v_ids23 then
+      v_esecuri := v_esecuri + 1;
+      raise notice '  (23) EȘEC   Pasul 2 a preluat un rând peste prag pe care Pasul 1 nu-l curățase (retrimis spre Expo)';
+    else
+      raise notice '  (23) OK     rândul peste prag rămas viu nu e preluat de Pasul 2 (predicatul incercari din CTE)';
     end if;
   end;
 
@@ -719,7 +936,7 @@ begin
   if v_esecuri > 0 then
     raise exception 'PROBA PUSH: % verificări căzute.', v_esecuri;
   end if;
-  raise notice '  PROBA PUSH: 21/21.';
+  raise notice '  PROBA PUSH: 23/23.';
 end;
 $$;
 

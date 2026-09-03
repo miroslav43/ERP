@@ -59,12 +59,15 @@ function clientFals(config: ConfigClientFals = {}) {
   const actualizari: { id: string; date: Record<string, unknown> }[] = [];
   const retrase: string[] = [];
   const audituri: Record<string, unknown>[] = [];
+  const apeluriRpc: { nume: string; args: unknown }[] = [];
 
   return {
     actualizari,
     retrase,
     audituri,
-    rpc: (_nume: string, _args: unknown) => {
+    apeluriRpc,
+    rpc: (nume: string, args: unknown) => {
+      apeluriRpc.push({ nume, args });
       if (config.eroareRpc) return Promise.resolve({ data: null, error: config.eroareRpc });
       return Promise.resolve({
         data: config.randuriRpc === undefined ? [] : config.randuriRpc,
@@ -198,6 +201,21 @@ describe("golesteCoada", () => {
     const raport = await golesteCoada(db as unknown as AdminSupabase);
     expect(raport).toEqual({ luate: 0, trimise: 0, esuate: 0, abandonate: 0, jetoaneRetrase: 0 });
     expect(apeluri).toHaveLength(0);
+  });
+
+  it("trimite plafonul și MAX_INCERCARI explicit către rpc", async () => {
+    // GARDA CUPLAJULUI cu `p_max_incercari` din 0122. Funcția SQL are un
+    // implicit (5), dar sursa de adevăr e `MAX_INCERCARI` de aici — iar
+    // singurul lucru care leagă cele două valori e argumentul de mai jos.
+    // Fără testul ăsta, cineva poate scoate `p_max_incercari` din apel și
+    // nimic nu cade: baza ar folosi tăcut implicitul ei, care poate să nu
+    // mai fie aceeași valoare. Pragul din SQL e păzit separat, din partea
+    // cealaltă, de verificarea (21) din tests/rls/proba-push.sql.
+    const db = clientFals({ randuriRpc: [] });
+    await golesteCoada(db as unknown as AdminSupabase, 42);
+    expect(db.apeluriRpc).toHaveLength(1);
+    expect(db.apeluriRpc[0]?.nume).toBe("push_ia_din_coada");
+    expect(db.apeluriRpc[0]?.args).toEqual({ p_plafon: 42, p_max_incercari: MAX_INCERCARI });
   });
 
   it("o eroare de la rpc se propagă ca excepție, cu mesaj în română", async () => {

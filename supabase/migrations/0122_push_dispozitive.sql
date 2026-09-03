@@ -163,6 +163,21 @@ create trigger trg_notifications_push
 -- 5b. Preluarea din coadă, pentru ruta /api/push/livreaza.
 ---------------------------------------------------------------------------
 
+-- Semnăturile VECHI se scot EXPLICIT, înaintea creării. `create or replace` NU
+-- înlocuiește o funcție cu alt NUMĂR de parametri — creează una NOUĂ, lângă
+-- cea veche. Pe o bază care a apucat o versiune anterioară a acestei migrări
+-- (un singur parametru, `p_plafon`), cele două ajung să coexiste — și, atenție,
+-- migrarea se aplică FĂRĂ NICIO EROARE, fiindcă apelul din învelișul `public`
+-- dă două argumente, deci nu e ambiguu. Cade abia mai târziu ORICE apel cu UN
+-- singur argument: 42725, „function public.push_ia_din_coada(integer) is not
+-- unique" — adică `tests/rls/proba-push.sql` și orice apel manual din psql.
+-- O migrare care se aplică verde și lasă în urmă o capcană e mai rea decât una
+-- care cade. Reprodus pe banc, în ambele sensuri. Pe o bază curată
+-- (`internal.migrari_aplicate` nu are 0122 pe cloud, verificat înainte de
+-- editarea în loc), `if exists` face liniile astea un no-op.
+drop function if exists public.push_ia_din_coada(int);
+drop function if exists app.push_ia_din_coada(int);
+
 -- `for update of l skip locked` în loc de un simplu select: aplicația rulează
 -- cu DOUĂ replici Swarm, iar timerul poate suprapune două rulări. Fără
 -- `skip locked`, amândouă ar lua aceleași rânduri și ar trimite fiecare
@@ -173,64 +188,94 @@ create trigger trg_notifications_push
 -- exemplu `/api/dispozitive`, care face UPDATE pe `dispozitive_push`) au
 -- nevoie să le scrie fără să aștepte după un timer de golire a cozii.
 --
--- FILTRELE PE DISPOZITIV/NOTIFICARE RETRASE STAU ÎN CTE, NU ÎN UPDATE-UL DE
--- MAI JOS — asta e reparația Rundei 2, distinctă de reparația Rundei 1
--- (care adăugase filtrele, dar în locul greșit). `limit p_plafon` stă în CTE:
--- dacă filtrele ar sta doar în `UPDATE ... FROM`, CTE-ul tot ar SELECTA (și
--- bloca via `for update`) rândurile orfane — cele mai VECHI, deci primele la
--- `order by l.created_at` — care apoi ar fi eliminate de join fără să producă
--- niciun rezultat. Cu destui orfani (>= p_plafon), preluarea ar întoarce ZERO
--- rânduri LA NESFÂRȘIT, deși coada are livrări valide în spate — un blocaj de
--- cap de coadă identic la exterior cu un timer mort. Reprodus empiric pe banc
--- înainte de reparație: plafon 3 cu 3 orfani → 0 rânduri; plafon 4 → rândul
--- valid trece. Verificarea (20) din tests/rls/proba-push.sql e garda de
--- regresie. Cu filtrele mutate în join-ul CTE-ului, orfanii nu mai INTRĂ
--- niciodată în candidați — nu mai concurează pe `limit` cu rândurile valide.
+-- `p_max_incercari` NU are aici sursa de adevăr: o are `MAX_INCERCARI` din
+-- `src/lib/push/coada.ts`, pe care `golesteCoada` îl trimite EXPLICIT la
+-- fiecare apel. Implicitul `5` de mai jos e doar plasa pentru un apel manual
+-- din psql. Dacă cineva scoate argumentul din TypeScript, cade testul
+-- „trimite plafonul și MAX_INCERCARI explicit către rpc" din
+-- `src/lib/push/coada.test.ts`; dacă cineva mută implicitul de aici, cade
+-- verificarea (21) din tests/rls/proba-push.sql, care îl prinde din AMBELE
+-- părți (un rând cu `incercari = 5` trebuie abandonat, unul cu 4 trebuie
+-- preluat).
 --
--- `incercari = l.incercari + 1` la preluare, nu doar la scrierea din
--- `golesteCoada`: o scriere care eșuează DETERMINIST pe partea TypeScript
--- (grant retras pe `push_livrari`, de exemplu) lăsa altfel `incercari`
--- neschimbat la nesfârșit. Incrementul de aici rulează cu privilegiile
--- funcției (`security definer`), independent de orice grant/eroare pe partea
--- de service_role — contorul avansează chiar și când scrierea ulterioară din
--- `coada.ts` eșuează constant.
---
--- DAR incrementul, SINGUR, nu oprește nimic — corecție față de comentariul
--- din Runda 2, care afirma greșit că problema era rezolvată aici. Contorul
--- avansa, dar NIMENI nu-l citea la preluare: CTE-ul de mai jos n-avea niciun
--- predicat pe `incercari`, iar singurul loc care scria starea `abandonat`
--- era `coada.ts` — exact scrierea care eșuează în scenariul invocat. Efect
--- reprodus empiric: opt cicluri de recuperare cu scrierea din TypeScript
--- eșuând determinist, `incercari` ajunge la 8, MESAJUL PLEACĂ SPRE EXPO DE
--- OPT ORI. Reparat mai jos, cu pasul de curățare.
+-- FUNCȚIA ARE DOI PAȘI, ȘI FIECARE ARE PROPRIA GARDĂ DE REGRESIE.
 --
 -- PASUL 1 — curățare, ÎNAINTE de preluare: abandonă direct, prin
 -- `security definer`, rândurile fără nicio șansă de livrare — `incercari`
--- deja la prag SAU dispozitiv/notificare retrase — indiferent cine le-a
--- adus în starea asta și indiferent dacă scrierea normală din TypeScript
--- funcționează. Aleasă în locul unui simplu predicat `and l.incercari <
--- p_max_incercari` în CTE (varianta care doar le-ar fi lăsat blocate pe
--- 'in_asteptare'/'in_lucru' la nesfârșit, NEluate, dar NEabandonate — sediment
--- identic celui de mai jos) fiindcă scoate rândurile din
+-- deja la prag SAU dispozitiv/notificare retrase — indiferent cine le-a adus
+-- în starea asta și indiferent dacă scrierea normală din `coada.ts`
+-- funcționează. Fără el, un rând al cărui UPDATE din TypeScript eșuează
+-- DETERMINIST (grant retras pe `push_livrari`, de exemplu) era reluat la
+-- fiecare recuperare de 10 minute și retrimis spre Expo la nesfârșit:
+-- `incercari` creștea, dar nimeni nu-l citea. Reprodus empiric în Runda 3 —
+-- opt cicluri, opt trimiteri. Marcarea directă, în locul unui simplu predicat
+-- în CTE-ul Pasului 2, fiindcă scoate rândul ȘI din
 -- `push_livrari_de_trimis_idx` (indexul parțial pe
 -- `stare in ('in_asteptare','in_lucru')`), nu doar din rezultatul întors.
+-- ACEEAȘI curățare prinde livrările-surori ale unui dispozitiv retras, pe
+-- oricare din cele două căi de retragere (`golesteCoada` la un bilet
+-- `DeviceNotRegistered`, sau `retrageDispozitivPrinAdmin` din
+-- `api/dispozitive/route.ts`) — asimetria dintre ele dispare.
+-- Gărzile Pasului 1: verificările (15), (19) și (21).
 --
--- ACEEAȘI curățare prinde și livrările-surori ale unui dispozitiv retras de
--- `golesteCoada` la un bilet `DeviceNotRegistered` (sau de
--- `retrageDispozitivPrinAdmin` din `api/dispozitive/route.ts`) — rânduri
--- care, înainte de reparația asta, rămâneau pe 'in_asteptare' la nesfârșit,
--- parcurse prin același index fierbinte la fiecare preluare, fără să fie
--- luate NICIODATĂ (join-ul din Pasul 2 le exclude oricum). Asimetria dintre
--- cele două căi de retragere a dispozitivului (una abandona explicit coada,
--- cealaltă nu) dispare: orice rând orfan, indiferent pe unde a ajuns orfan,
--- e curățat aici, o singură dată, centralizat.
+-- PASUL 2 — preluarea propriu-zisă. CTE-ul filtrează ÎNCĂ O DATĂ dispozitivul
+-- retras, notificarea ștearsă și pragul de încercări, deși Pasul 1 tocmai a
+-- abandonat exact acele rânduri. NU e redundanță: Pasul 1 e plafonat (mai
+-- jos), deci la un sediment mai mare decât plafonul rămân în urmă rânduri
+-- fără șansă ÎNCĂ eligibile. Nefiltrate aici, ele ar fi PRELUATE și trimise —
+-- adică livrate pe telefonul noului proprietar, o scurgere de conținut între
+-- utilizatori — și ar ocupa `limit p_plafon`, blocând capul cozii. Filtrele
+-- stau în CTE, nu în `UPDATE ... FROM`: dacă ar sta doar acolo, CTE-ul tot
+-- le-ar SELECTA (și bloca, via `for update`) în dreptul limitei, iar UPDATE-ul
+-- le-ar elimina abia după — rezultat gol LA NESFÂRȘIT, cu coada plină de
+-- livrări valide în spate, fără nicio eroare. Reprodus empiric în Runda 2.
+-- Gărzile Pasului 2: verificările (20) și (22) pentru dispozitivul retras,
+-- (23) pentru pragul de încercări.
 --
--- Domeniul WHERE de mai jos oglindește STRICT eligibilitatea de preluare din
+-- DE CE E PLAFONAT ȘI PASUL 1
+-- (a) O primă rulare peste un sediment mare ar fi altfel un UPDATE fără
+--     limită superioară, pornit dintr-o rută HTTP cu termen: peste termen,
+--     tranzacția se derulează înapoi, NIMIC nu se curăță, iar rularea
+--     următoare reia exact aceeași muncă — o oprire tăcută, din aceeași
+--     familie cu blocajul de cap de coadă.
+-- (b) Plafonul e ȘI ce face gărzile Pasului 2 verificabile. Fără el, Pasul 1
+--     golea ÎNTOTDEAUNA orfanii înaintea Pasului 2, deci filtrele din CTE nu
+--     puteau fi exercitate de nicio probă rulabilă într-o singură tranzacție:
+--     revizuirea a reinstalat funcția FĂRĂ NICIUN filtru `deleted_at` în
+--     Pasul 2 și proba a raportat 21/21. Un test care nu poate cădea e mai
+--     rău decât unul absent — absența se vede. Cu plafonul, verificările
+--     (20)/(22)/(23) lasă deliberat rânduri fără șansă în urma Pasului 1 și
+--     cer Pasului 2 să nu le atingă; fiecare își asertează EXPLICIT premisa
+--     (au rămas rânduri necurățate), ca să cadă zgomotos, nu să redevină
+--     vacue, dacă plafonul dispare.
+-- Plafonul e `p_plafon`, nu un parametru nou: înseamnă „cât are voie să
+-- atingă o rulare", aplicat fiecăruia dintre cei doi pași — deci o rulare
+-- atinge cel mult 2 × p_plafon rânduri, iar semnătura rămâne neschimbată.
+-- Sedimentul se scurge în cel mult ceil(N / p_plafon) rulări: cu timerul la
+-- un minut și plafonul implicit 100, 144.000 de rânduri pe zi.
+--
+-- `for update ... skip locked` și în Pasul 1: fără el, UPDATE-ul simplu ar
+-- AȘTEPTA după un rând blocat de Pasul 2 al celeilalte replici. Cu el, rândul
+-- e sărit și curățat la rularea următoare. (Nici înainte nu putea abandona un
+-- rând preluat de cealaltă replică — după commit-ul acesteia rândul e
+-- `in_lucru` proaspăt, deci în afara domeniului — dar aștepta degeaba.)
+--
+-- Domeniul WHERE al Pasului 1 oglindește STRICT eligibilitatea de preluare din
 -- Pasul 2 (`stare = 'in_asteptare'` sau `in_lucru` mai vechi de 10 minute):
 -- un rând `in_lucru` PROASPĂT nu e atins aici, deci acest pas nu poate intra
--- în conflict cu o preluare concurentă (altă replică) încă activă pe el —
--- doar rândurile pe care Pasul 2 ar fi fost oricum dispus să le atingă intră
--- în discuție.
+-- în conflict cu o preluare concurentă (altă replică) încă activă pe el.
+--
+-- `eroare` NU se suprascrie orb la pragul de încercări: ultima eroare reală
+-- de la Expo e chiar informația din care înțelegi DE CE a murit rândul, iar
+-- pe calea „scrierea din TypeScript e ruptă" e tot ce a rămas. Se păstrează,
+-- prefixată cu motivul abandonării. Se scrie o singură dată — un rând
+-- `abandonat` iese din domeniul de mai sus, deci nu poate fi reprefixat.
+--
+-- `incercari = l.incercari + 1` la preluare, nu doar la scrierea din
+-- `golesteCoada`: o scriere care eșuează determinist pe partea TypeScript
+-- lăsa altfel contorul neschimbat la nesfârșit. Incrementul de aici rulează
+-- cu privilegiile funcției (`security definer`), independent de orice
+-- grant sau eroare de pe partea `service_role`.
 create or replace function app.push_ia_din_coada(p_plafon int default 100, p_max_incercari int default 5)
 returns table (
   id            uuid,
@@ -246,32 +291,45 @@ security definer
 set search_path = ''
 as $$
 begin
+  -- PASUL 1 — curățare plafonată.
+  with fara_sansa as (
+    select l.id
+    from public.push_livrari l
+    where l.deleted_at is null
+      and (
+        l.stare = 'in_asteptare'
+        or (l.stare = 'in_lucru' and l.updated_at < now() - interval '10 minutes')
+      )
+      and (
+        l.incercari >= p_max_incercari
+        or not exists (
+          select 1 from public.dispozitive_push d
+           where d.id = l.dispozitiv_id and d.deleted_at is null
+        )
+        or not exists (
+          select 1 from public.notifications n
+           where n.id = l.notification_id and n.deleted_at is null
+        )
+      )
+    order by l.created_at
+    limit p_plafon
+    for update of l skip locked
+  )
   update public.push_livrari l
-     set stare = 'abandonat', updated_at = now(),
+     set stare = 'abandonat',
+         updated_at = now(),
          eroare = case
-           when l.incercari >= p_max_incercari then 'Abandonat: numărul maxim de încercări atins.'
+           when l.incercari >= p_max_incercari
+             then 'Abandonat la pragul de încercări. Ultima eroare: '
+                  || coalesce(l.eroare, '(niciuna înregistrată)')
            else 'Abandonat: dispozitivul sau notificarea nu mai există.'
          end
-   where l.deleted_at is null
-     and (
-       l.stare = 'in_asteptare'
-       or (l.stare = 'in_lucru' and l.updated_at < now() - interval '10 minutes')
-     )
-     and (
-       l.incercari >= p_max_incercari
-       or not exists (
-         select 1 from public.dispozitive_push d
-          where d.id = l.dispozitiv_id and d.deleted_at is null
-       )
-       or not exists (
-         select 1 from public.notifications n
-          where n.id = l.notification_id and n.deleted_at is null
-       )
-     );
+    from fara_sansa
+   where l.id = fara_sansa.id;
 
-  -- PASUL 2 — preluarea propriu-zisă, neschimbată față de Runda 2 în afara
-  -- curățării de mai sus (care a rulat deja, deci rândurile abandonate acolo
-  -- nu mai pot fi candidate aici — starea lor nu mai e 'in_asteptare'/'in_lucru').
+  -- PASUL 2 — preluarea propriu-zisă. Filtrele din CTE nu repetă degeaba
+  -- Pasul 1: ele prind exact rândurile pe care plafonul Pasului 1 le-a lăsat
+  -- necurățate (vezi comentariul de deasupra funcției).
   return query
   with luate as (
     select l.id
@@ -279,6 +337,7 @@ begin
     join public.dispozitive_push d on d.id = l.dispozitiv_id and d.deleted_at is null
     join public.notifications n on n.id = l.notification_id and n.deleted_at is null
     where l.deleted_at is null
+      and l.incercari < p_max_incercari
       and (
         l.stare = 'in_asteptare'
         -- Recuperare: o rută căzută la jumătate lasă rânduri pe 'in_lucru'.
