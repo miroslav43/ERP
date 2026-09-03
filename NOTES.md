@@ -11,13 +11,15 @@ Planul complet aprobat: [`docs/design/00-PLAN-APROBAT.md`](docs/design/00-PLAN-A
 
 ## 1. De configurat înainte de a continua
 
-| Ce                            | Stare                        | Acțiune                                                                                                          |
-| ----------------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Server MCP Supabase           | ✅ conectat și autentificat  | Proiect `nybmhorngsajoqaxjlbr`, regiune **aws-1-eu-west-1**.                                                     |
-| Chei Supabase în `.env.local` | ⚠️ parțial                   | URL și cheia publicabilă sunt setate. `SUPABASE_SERVICE_ROLE_KEY` lipsește — Dashboard → Project Settings → API. |
-| Proiect Supabase de test      | ⛔ neconfigurat              | Testele de izolare RLS își resetează baza; nu pot rula pe proiectul de dezvoltare.                               |
-| DNS Resend                    | ⛔ amânat deliberat          | `EMAIL_MODE="test"` până la Faza 11.                                                                             |
-| `HR_ENCRYPTION_KEYS`          | ⚠️ chei locale de dezvoltare | Cheile de producție se generează separat și **nu** trec prin repo. Vezi §4.                                      |
+| Ce                            | Stare                        | Acțiune                                                                                                                                                                                                                                              |
+| ----------------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Server MCP Supabase           | ⚠️ per stație                | Proiect `nybmhorngsajoqaxjlbr`, regiune **aws-1-eu-west-1**. Autorizarea OAuth NU se moștenește între mașini: pe una nouă serverul expune doar `authenticate`, iar `execute_sql`/`get_advisors` lipsesc până la parcurgerea fluxului.                |
+| Chei Supabase în `.env.local` | ✅ complet                   | URL, cheia publicabilă, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_PASSWORD`. Opționale, încă nesetate: `OPENROUTER_API_KEY`, `OPENROUTER_MODEL_ASISTENT`, `REGES_CRON_SECRET`, `RESEND_WEBHOOK_SECRET`.                                              |
+| Proiect Supabase de test      | ⛔ neconfigurat              | Testele de izolare RLS își resetează baza; nu pot rula pe proiectul de dezvoltare.                                                                                                                                                                   |
+| DNS Resend                    | ⛔ amânat deliberat          | `EMAIL_MODE="test"` până la Faza 11.                                                                                                                                                                                                                 |
+| `HR_ENCRYPTION_KEYS`          | ⚠️ chei locale de dezvoltare | Cheile de producție se generează separat și **nu** trec prin repo. Vezi §4.                                                                                                                                                                          |
+| Client `psql`                 | ⚠️ per stație                | Singura cale permisă de aplicare a migrărilor. `aplica-cloud.sh` îl caută în PATH, apoi în Postgres.app și `libpq` (macOS) și în `C:\PostgreSQL` (Windows); calea exactă se poate impune cu `ADMINISTRATIVO_PSQL`.                                   |
+| `gh` + token GitHub           | ⚠️ per stație                | Fără `gh` nu se poate verifica CI (`gh run list --workflow=documentatie.yml`). Serverul MCP GitHub citește `GITHUB_PERSONAL_ACCESS_TOKEN` din mediu; nesetat, antetul pleacă gol și serverul răspunde 400 „Authorization header is badly formatted". |
 
 ### Conexiunea directă la baza din cloud
 
@@ -47,7 +49,9 @@ date reale (dezvoltare, test, producție) trăiesc în cloud.
 Postgres nativ local rămâne însă, ca simplu banc de probă pentru DDL. Distincția
 contează: Supabase local înseamnă un stack întreg în Docker (Postgres + GoTrue +
 PostgREST + Storage + Studio), pe care clientul nu îl vrea și nu îi este necesar.
-Postgres simplu este un singur proces, deja instalat, în care o migrare se aplică
+Postgres simplu este un singur proces, instalat pe stația pe care s-a scris nota
+asta — **nu presupune că există și pe a ta**; pe macOS vine din Postgres.app sau
+din `libpq`, ambele în afara PATH-ului implicit. În el o migrare se aplică
 în câteva secunde:
 
 ```bash
