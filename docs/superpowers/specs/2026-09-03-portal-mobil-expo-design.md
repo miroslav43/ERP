@@ -2,10 +2,11 @@
 
 **Data:** 2026-09-03
 **Stare:** aprobat în discuție, neimplementat
-**Migrarea următoare liberă la scriere:** `0121` (ultima pe disc:
-`0120_registru_documente.sql`). Numărul se reconfirmă la implementare — repo-ul e
-lucrat de sesiuni concurente, iar la coliziune decide `internal.migrari_aplicate`:
-se mută migrarea **neaplicată**.
+**Numărul migrării: `0122` sau mai departe, de reconfirmat.** La ora scrierii
+ultima pe disc era `0120_registru_documente.sql`, dar în aceeași oră o altă sesiune
+a adăugat `0121_inregistrare_publica.sql` — dovada, în timp real, că numărul nu se
+scrie în avans. Se ia liberul de la momentul implementării, iar la coliziune decide
+`internal.migrari_aplicate`: se mută migrarea **neaplicată**.
 
 ---
 
