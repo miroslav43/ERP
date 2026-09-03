@@ -21,8 +21,12 @@ export const metadata: Metadata = { title: "Șabloane de documente" };
 
 export default async function PaginaSabloaneDocumente() {
   const { tenant } = await requireTenant();
-  await requireFeature(tenant.organizationId, "nucleu");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  // Două citiri independente, pe tabele diferite. Înlănțuite erau două
+  // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
+  const [, permisiuni] = await Promise.all([
+    requireFeature(tenant.organizationId, "nucleu"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+  ]);
 
   // Aceeași poartă ca la scriere: `hr_templates_insert`/`_update` cer
   // `employees` la scope `all`. O pagină vizibilă unui rol care n-ar putea

@@ -11,8 +11,13 @@ export const metadata = { title: "Import angajați" };
 
 export default async function PaginaImportAngajati() {
   const { tenant } = await requireTenant();
-  await requireFeature(tenant.organizationId, "nucleu"); // modul dezactivat → 404
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+  // Două citiri independente, pe tabele diferite. Înlănțuite erau două
+  // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
+  // (`requireFeature` tot dă 404 pentru modul dezactivat.)
+  const [, permisiuni] = await Promise.all([
+    requireFeature(tenant.organizationId, "nucleu"),
+    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+  ]);
   const scop = scopeFor(permisiuni, "employees:create");
 
   // Dreptul se verifică și la afișare, nu doar în acțiune: scope „none” = refuz explicit.
