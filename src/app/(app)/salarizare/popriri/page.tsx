@@ -27,7 +27,11 @@ export default async function PaginaPopriri() {
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
   ]);
 
-  if (scopeFor(permisiuni, "payroll:read") === "none") {
+  // `getPermissionMap` scoate `none` din hartă (`permissions.ts`), iar
+  // `scopeFor` întoarce `null` pentru o cheie absentă — comparația doar cu
+  // `"none"` nu era NICIODATĂ adevărată, deci poarta nu refuza pe nimeni.
+  const scopePopriri = scopeFor(permisiuni, "payroll:read");
+  if (scopePopriri === null || scopePopriri === "none") {
     return <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta popririle." />;
   }
 

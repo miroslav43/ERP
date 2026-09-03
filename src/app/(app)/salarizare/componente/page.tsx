@@ -45,7 +45,11 @@ export default async function PaginaComponenteSalariale() {
     getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
   ]);
 
-  if (scopeFor(permisiuni, "payroll:read") === "none") {
+  // `getPermissionMap` scoate `none` din hartă (`permissions.ts`), iar
+  // `scopeFor` întoarce `null` pentru o cheie absentă — comparația doar cu
+  // `"none"` nu era NICIODATĂ adevărată, deci poarta nu refuza pe nimeni.
+  const scopeComponente = scopeFor(permisiuni, "payroll:read");
+  if (scopeComponente === null || scopeComponente === "none") {
     return <AccesRestrictionat mesaj="Nu aveți dreptul de a consulta sporurile și primele." />;
   }
 

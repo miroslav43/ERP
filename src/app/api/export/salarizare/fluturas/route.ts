@@ -74,7 +74,11 @@ export async function GET(cerere: Request): Promise<Response> {
 
   // Poarta minimă: cine n-are `payroll:read` deloc nu are ce căuta aici. Cine
   // are `own` primește, prin RLS, exact rândul lui.
-  if (scopeFor(permisiuni, "payroll:read") === "none") {
+  // `getPermissionMap` scoate `none` din hartă (`permissions.ts`), iar
+  // `scopeFor` întoarce `null` pentru o cheie absentă — comparația doar cu
+  // `"none"` nu era NICIODATĂ adevărată, deci poarta nu refuza pe nimeni.
+  const scopeSalarii = scopeFor(permisiuni, "payroll:read");
+  if (scopeSalarii === null || scopeSalarii === "none") {
     return raspunsText("Nu aveți dreptul de a consulta salarii.", 403);
   }
 
