@@ -50,6 +50,7 @@ function contract(c: Partial<ContractIntern> = {}): ContractIntern {
     moneda: "ron",
     codCor: "251401",
     regesCorId: "11111111-1111-4111-8111-111111111111",
+    sporuri: [],
     regesContractId: null,
     ...c,
   };
@@ -152,9 +153,51 @@ describe("contract", () => {
     });
   });
 
+  it("pune salariul de bază într-un OBIECT, fără `sporuri` când nu există", () => {
+    const m = mapeazaContract(contract(), "sal-1", CTX);
+    // `sporuri: []` NU e același lucru cu absența câmpului pentru un
+    // deserializator strict — de aceea se omite, nu se trimite gol.
+    expect(m.continut?.salariu).toStrictEqual({ salariuBaza: 4000 });
+  });
+
+  it("duce sporurile în `salariu.sporuri`, fără `$type` și fără monedă", () => {
+    const m = mapeazaContract(
+      contract({
+        sporuri: [
+          { referintaTipSpor: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", valoare: 10.5, esteProcent: true },
+          { referintaTipSpor: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", valoare: 250, esteProcent: false },
+        ],
+      }),
+      "sal-1",
+      CTX,
+    );
+
+    expect(m.continut?.salariu).toStrictEqual({
+      salariuBaza: 4000,
+      sporuri: [
+        { referintaTipSpor: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", valoare: 10.5, esteProcent: true },
+        { referintaTipSpor: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", valoare: 250, esteProcent: false },
+      ],
+    });
+  });
+
+  it("taie zgomotul de virgulă mobilă și din valoarea sporului", () => {
+    const m = mapeazaContract(
+      contract({
+        sporuri: [
+          { referintaTipSpor: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", valoare: 10.500000000000002, esteProcent: true },
+        ],
+      }),
+      "sal-1",
+      CTX,
+    );
+
+    expect(m.continut?.salariu.sporuri?.[0]?.valoare).toBe(10.5);
+  });
+
   it("taie zgomotul de virgulă mobilă din salariu", () => {
     const m = mapeazaContract(contract({ salariuBaza: 4000.0000000000005 }), "sal-1", CTX);
-    expect(m.continut?.salariu).toBe(4000);
+    expect(m.continut?.salariu.salariuBaza).toBe(4000);
   });
 });
 

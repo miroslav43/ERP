@@ -32,7 +32,12 @@ import {
   type ContractIntern,
   type SalariatIntern,
 } from "@/domain/reges/mapare";
-import type { ContextAntet, MesajContract, MesajSalariat } from "@/domain/reges/mesaj";
+import type {
+  ContextAntet,
+  MesajContract,
+  MesajSalariat,
+  SporSalarial,
+} from "@/domain/reges/mesaj";
 import {
   propuneNormaTimpMunca,
   propuneTipContract,
@@ -115,6 +120,59 @@ export async function idCor(db: OriceSupabase, codCor: string | null): Promise<s
   return data?.reges_id ?? null;
 }
 
+/**
+ * Sporurile active ale unui contract, gata de pus în mesaj.
+ *
+ * ACTIVE LA O DATĂ, nu „toate cele scrise vreodată": `salary_components` are
+ * `valabil_de_la`/`valabil_pana`, iar un spor expirat rămâne în tabelă ca
+ * istoric de salarizare. Trimis la ITM, ar declara un pachet salarial pe care
+ * omul nu-l mai are.
+ *
+ * Doar felurile `spor_procent` și `spor_suma`. `indemnizatie`,
+ * `prima_recurenta` și `beneficiu_natura` sunt componente de salarizare
+ * INTERNĂ — schema REGES nu le cunoaște, iar trimise ca sporuri ar umfla
+ * pachetul declarat.
+ *
+ * Un tip fără `reges_tip_spor_id` iese cu referință goală, NU se sare peste el:
+ * `verificaContract` oprește atunci mesajul și spune ce lipsește. Sărirea tăcută
+ * ar declara un salariu mai mic decât cel real, fără ca nimeni să afle.
+ */
+export async function sporurileContractului(
+  db: OriceSupabase,
+  organizationId: string,
+  contractId: string,
+  laData: string,
+): Promise<readonly SporSalarial[]> {
+  const { data, error } = await db
+    .from("salary_components")
+    .select("kind, procent, suma, tip:salary_component_types!component_type_id(reges_tip_spor_id)")
+    .eq("organization_id", organizationId)
+    .eq("contract_id", contractId)
+    .in("kind", ["spor_procent", "spor_suma"])
+    .lte("valabil_de_la", laData)
+    .is("deleted_at", null)
+    .returns<
+      {
+        readonly kind: "spor_procent" | "spor_suma";
+        readonly procent: number | null;
+        readonly suma: number | null;
+        readonly tip: { readonly reges_tip_spor_id: string | null } | null;
+      }[]
+    >();
+  if (error !== null) throw error;
+
+  return (data ?? [])
+    .map((c) => {
+      const esteProcent = c.kind === "spor_procent";
+      return {
+        referintaTipSpor: c.tip?.reges_tip_spor_id ?? "",
+        valoare: (esteProcent ? c.procent : c.suma) ?? 0,
+        esteProcent,
+      };
+    })
+    .filter((s) => s.valoare !== 0 || s.referintaTipSpor === "");
+}
+
 export type RandAngajat = Readonly<{
   first_name: string;
   last_name: string;
@@ -184,7 +242,11 @@ export type RandContract = Readonly<{
   cod_cor: string | null;
 }>;
 
-function contractIntern(c: RandContract, regesCorId: string | null): ContractIntern {
+function contractIntern(
+  c: RandContract,
+  regesCorId: string | null,
+  sporuri: readonly SporSalarial[],
+): ContractIntern {
   return {
     numar: c.numar,
     dataContract: c.data_contract,
@@ -207,6 +269,7 @@ function contractIntern(c: RandContract, regesCorId: string | null): ContractInt
     moneda: c.moneda,
     codCor: c.cod_cor ?? "",
     regesCorId,
+    sporuri,
     regesContractId: c.reges_contract_id,
   };
 }
@@ -220,11 +283,13 @@ export function compuneContract(
    * citire pentru tot lotul dacă vrea.
    */
   regesCorId: string | null,
+  /** Rezolvate de apelant cu `sporurileContractului`, din același motiv ca `regesCorId`. */
+  sporuri: readonly SporSalarial[],
   ctx: Omit<ContextAntet, "operatie"> & {
     readonly operatie?: "AdaugareContract" | "ModificareContract";
   },
 ): RezultatCompunere<MesajContract> {
-  const intern = contractIntern(contract, regesCorId);
+  const intern = contractIntern(contract, regesCorId, sporuri);
   const probleme = verificaContract(intern);
   if (probleme.length > 0) return { ok: false, probleme };
   return { ok: true, mesaj: mapeazaContract(intern, regesSalariatId, ctx) };

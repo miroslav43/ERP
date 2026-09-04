@@ -128,6 +128,35 @@ export function verificaContract(c: ContractIntern): readonly Problema[] {
         "Sincronizați nomenclatoarele din REGES → Setări, apoi încercați din nou.",
     });
   }
+  /*
+   * Sporurile. Un spor fără referință de nomenclator NU are voie să plece:
+   * schema cere un UUID, iar un șir gol trece de validarea de formă și e
+   * refuzat asincron, ore mai târziu. Același raționament ca la COR.
+   */
+  c.sporuri.forEach((spor, i) => {
+    if (spor.referintaTipSpor.trim() === "") {
+      probleme.push({
+        camp: `sporuri[${String(i)}].referintaTipSpor`,
+        mesaj:
+          "Tipul de spor nu are corespondent în nomenclatorul REGES. Sincronizați " +
+          "nomenclatoarele, iar pentru sporurile proprii firmei înregistrați-le întâi în REGES.",
+      });
+    }
+    if (!(spor.valoare > 0)) {
+      probleme.push({
+        camp: `sporuri[${String(i)}].valoare`,
+        mesaj: "Valoarea sporului trebuie să fie mai mare decât zero.",
+      });
+    }
+    // Un procent peste 100 e aproape sigur o sumă introdusă pe rândul greșit.
+    if (spor.esteProcent && spor.valoare > 100) {
+      probleme.push({
+        camp: `sporuri[${String(i)}].valoare`,
+        mesaj: "Un spor procentual nu poate depăși 100%. Verificați dacă nu e o sumă fixă.",
+      });
+    }
+  });
+
   if (!(c.salariuBaza > 0)) {
     probleme.push({
       camp: "salariuBaza",

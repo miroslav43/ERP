@@ -33,6 +33,7 @@ import type {
   TipNorma,
 } from "./operatii";
 import type { ZiIso } from "./formate";
+import type { SporSalarial } from "./mesaj";
 
 export type SalariatIntern = Readonly<{
   /** CNP în clar. Vine decriptat, la momentul trimiterii — nu se persistă. */
@@ -63,6 +64,12 @@ export type ContractIntern = Readonly<{
   repartizare: Repartizare;
   salariuBaza: number;
   moneda: string;
+  /**
+   * Sporurile active la data trimiterii, deja rezolvate în UUID-uri de
+   * nomenclator. Tabloul gol e cazul obișnuit: majoritatea contractelor n-au
+   * niciun spor, iar schema cere ca `sporuri` să lipsească atunci, nu să fie `[]`.
+   */
+  sporuri: readonly SporSalarial[];
   /** Codul COR de șase cifre. Rămâne, pentru validare și pentru mesajele de eroare. */
   codCor: string;
   /**
@@ -152,7 +159,22 @@ export function mapeazaContract(
     tipDurata: contract.durataDeterminata ? "Determinata" : "Nedeterminata",
     tipNorma: contract.tipNorma,
     timpMunca: { norma: contract.normaTimpMunca, repartizare: contract.repartizare },
-    salariu: zecimal(contract.salariuBaza),
+    salariu: {
+      salariuBaza: zecimal(contract.salariuBaza),
+      // Omis când e gol: un tablou vid nu e același lucru cu absența câmpului
+      // pentru un deserializator strict.
+      ...(contract.sporuri.length === 0
+        ? {}
+        : {
+            sporuri: contract.sporuri.map((s) => ({
+              referintaTipSpor: s.referintaTipSpor,
+              // Aceeași tăiere a zgomotului de virgulă mobilă ca la salariu:
+              // un spor de 10,5% nu are voie să plece ca 10,500000000000001.
+              valoare: zecimal(s.valoare),
+              esteProcent: s.esteProcent,
+            })),
+          }),
+    },
     moneda: contract.moneda.trim().toUpperCase(),
     // `verificaContract` garantează că nu e null când s-a ajuns aici.
     cor: referinta(contract.regesCorId ?? ""),

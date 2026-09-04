@@ -78,6 +78,41 @@ export type MesajSalariat = Readonly<{
  */
 export type Cor = Referinta;
 
+/**
+ * Un spor din pachetul salarial, în forma cerută de schema REGES 2026.
+ *
+ * FĂRĂ `$type` și FĂRĂ monedă, spre deosebire de aproape tot restul mesajului:
+ * sporurile sunt elemente ale obiectului `salariu`, nu entități polimorfe, iar
+ * moneda e a contractului întreg. Adăugarea oricăruia dintre ele face
+ * deserializarea să eșueze pe server cu 400 fără explicație.
+ *
+ * `referintaTipSpor` e UUID-ul BRUT, nu un obiect `Referinta`. Poate veni din
+ * nomenclatorul general (`TipSpor`) sau din cel al angajatorului — schema nu
+ * face distincția, doar noi.
+ *
+ * `esteProcent` decide cum se citește `valoare`: procent din salariul de bază
+ * sau sumă fixă. La noi distincția e chiar `salary_component_kind`
+ * (`spor_procent` / `spor_suma`), deci nu se deduce, se traduce.
+ */
+export type SporSalarial = Readonly<{
+  referintaTipSpor: string;
+  valoare: number;
+  esteProcent: boolean;
+}>;
+
+/**
+ * Pachetul salarial. Până la schema 2026, `salariu` era un NUMĂR simplu.
+ *
+ * Sporurile intră aici, nu lângă `salariu` în `continutContract`: sunt parte
+ * din remunerație, iar schema le cere înăuntru. `sporuri` se omite când e gol —
+ * un tablou vid nu e același lucru cu absența lui pentru un deserializator
+ * strict.
+ */
+export type Salariu = Readonly<{
+  salariuBaza: number;
+  sporuri?: readonly SporSalarial[];
+}>;
+
 export type TimpMunca = Readonly<{
   norma: NormaTimpMunca;
   repartizare: Repartizare;
@@ -93,7 +128,7 @@ export type ContinutContract = Readonly<{
   tipDurata: TipDurata;
   tipNorma: TipNorma;
   timpMunca: TimpMunca;
-  salariu: number;
+  salariu: Salariu;
   moneda: string;
   cor: Cor;
   dataConsemnare?: string;

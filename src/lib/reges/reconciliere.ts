@@ -42,6 +42,7 @@ import {
   compuneReactivare,
   compuneSuspendare,
   idCor,
+  sporurileContractului,
 } from "./compune";
 import { citesteCredentiale, type CredentialeReges } from "./credentiale";
 import { jetonValid } from "./jeton";
@@ -194,7 +195,14 @@ async function trimiteUnul(
     // prin perechea `{ cod, versiune }` din fișierele Revisal vechi. Citirea
     // atinge oglinda locală, nu ITM.
     const regesCorId = await idCor(db, rand.cod_cor);
-    const compus = compuneContract(rand, regesSalariatId, regesCorId, {
+    // Sporurile ACTIVE la data trimiterii, nu toate cele scrise vreodată.
+    const sporuri = await sporurileContractului(
+      db,
+      mesaj.organization_id,
+      mesaj.contract_id,
+      new Date().toISOString().slice(0, 10),
+    );
+    const compus = compuneContract(rand, regesSalariatId, regesCorId, sporuri, {
       ...ctx,
       operatie: mesaj.operatie,
     });

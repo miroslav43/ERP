@@ -40,6 +40,7 @@ function contract(c: Partial<ContractIntern> = {}): ContractIntern {
     moneda: "RON",
     codCor: "251401",
     regesCorId: "11111111-1111-4111-8111-111111111111",
+    sporuri: [],
     regesContractId: null,
     ...c,
   };
@@ -157,5 +158,45 @@ describe("acțiuni", () => {
     expect(
       verificaSuspendare({ dataInceput: "2026-09-20", dataSfarsit: null, temeiLegal: "Art54" }),
     ).toEqual([]);
+  });
+});
+
+describe("sporuri", () => {
+  const spor = (peste: Record<string, unknown> = {}) => ({
+    referintaTipSpor: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    valoare: 10,
+    esteProcent: true,
+    ...peste,
+  });
+
+  it("oprește mesajul când tipul de spor n-are corespondent în nomenclator", () => {
+    const problema = verificaContract(
+      contract({ sporuri: [spor({ referintaTipSpor: "" })] }),
+    ).find((p) => p.camp === "sporuri[0].referintaTipSpor");
+    expect(problema?.mesaj).toContain("nomenclatorul REGES");
+  });
+
+  it("refuză o valoare de zero sau negativă", () => {
+    expect(campuri(verificaContract(contract({ sporuri: [spor({ valoare: 0 })] })))).toContain(
+      "sporuri[0].valoare",
+    );
+  });
+
+  it("refuză un procent peste 100 — aproape sigur o sumă pe rândul greșit", () => {
+    expect(campuri(verificaContract(contract({ sporuri: [spor({ valoare: 250 })] })))).toContain(
+      "sporuri[0].valoare",
+    );
+  });
+
+  it("acceptă aceeași cifră ca SUMĂ fixă", () => {
+    expect(
+      campuri(verificaContract(contract({ sporuri: [spor({ valoare: 250, esteProcent: false })] }))),
+    ).not.toContain("sporuri[0].valoare");
+  });
+
+  it("numerotează problemele pe poziția din tablou", () => {
+    const c = contract({ sporuri: [spor(), spor({ valoare: -1 })] });
+    expect(campuri(verificaContract(c))).toContain("sporuri[1].valoare");
+    expect(campuri(verificaContract(c))).not.toContain("sporuri[0].valoare");
   });
 });

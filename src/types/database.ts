@@ -11180,6 +11180,7 @@ export type Database = {
           kind: Database["public"]["Enums"]["salary_component_kind"]
           ordine: number
           organization_id: string | null
+          reges_tip_spor_id: string | null
           updated_at: string
           updated_by: string | null
         }
@@ -11198,6 +11199,7 @@ export type Database = {
           kind: Database["public"]["Enums"]["salary_component_kind"]
           ordine?: number
           organization_id?: string | null
+          reges_tip_spor_id?: string | null
           updated_at?: string
           updated_by?: string | null
         }
@@ -11216,6 +11218,7 @@ export type Database = {
           kind?: Database["public"]["Enums"]["salary_component_kind"]
           ordine?: number
           organization_id?: string | null
+          reges_tip_spor_id?: string | null
           updated_at?: string
           updated_by?: string | null
         }
