@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
+import { ZonaToast } from "@/components/ui/toast";
 import { monoCifre } from "@/lib/ui/fonturi";
 
 /**
@@ -36,6 +37,14 @@ export default function LayoutVitrina({ children }: { children: ReactNode }) {
       data-zona="vitrina"
     >
       {children}
+      {/*
+        `Formular` (`@/components/ui/formular.tsx:108`) predă mesajul de
+        reușită printr-un TOAST, nu printr-un text randat de el însuși.
+        `ZonaToast` e montată azi doar în `(app)` și `(portal)` — fără ea aici,
+        vizitatorul apasă „Trimite” pe formularul demo, cererea intră în
+        `sessionStorage`, și ecranul nu spune nimic.
+      */}
+      <ZonaToast />
     </div>
   );
 }
