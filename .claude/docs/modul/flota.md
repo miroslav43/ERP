@@ -19,13 +19,13 @@ permisiuni:
     trip_sheets:approve,
   ]
 feature: fleet
-capcane: [18, 19, 21, 22, 23]
+capcane: [18, 19, 21, 22, 23, 26]
 citeste_daca:
   - "vehicul care nu apare în listă → [[rol/manager]]"
   - "42501 la salvarea unui vehicul → capcana #23"
   - "tip de document care lipsește din listă → 0116, cele patru de transport sunt activ=false"
-scris_pe: d28998af68b63913b9e7c4fe692f398571d0321b
-scris_la: 2026-08-30
+scris_pe: 711e5225e1df2ceab9324037466c87fda8abd8a0
+scris_la: 2026-09-04
 tags: [modul, operations]
 ---
 
@@ -42,6 +42,11 @@ patru din cele cinci capcane de mai jos nu produc nicio eroare.
 | `/flota`, `/flota/[id]`              | `vehicles:read` own; creare cere `vehicles:create` all              |
 | `/flota/foi`, `/flota/foi/[id]`      | `trip_sheets:read`/`update` own                                     |
 | `/flota/aprobari`, `/flota/anomalii` | `trip_sheets:approve` team; confirmarea cere `vehicles:update` team |
+
+**Fișa vehiculului nu mai e doar de citit.** Modificarea și ștergerea stau amândouă în
+spatele lui `vehicles:update` all — `poateAdministra` din `[id]/page.tsx`, exact poarta
+pe care o cere `vehicule_update` în bază. Sub ea intră și coloana „Acțiuni" a tabelului
+de documente: pentru cine n-o poate folosi lipsește cu totul, nu apare goală.
 
 **Vehiculul nou și foaia nouă NU mai au rută.** `/flota/nou` și `/flota/foi/noua` au
 dispărut, fără redirect, în favoarea unor casete pe listă — tiparul din `[[modul/concedii]]`.
@@ -71,6 +76,14 @@ uită numai la `vehicles:update`, deci cheia rămâne inertă — poarta care co
 nu a acțiunii. Ștergerea e logică, prin `deleted_at`: cele șase tabele ale flotei primesc
 grant doar pe `select`, `insert` și `update` (`0012_fleet.sql:1080`).
 
+**Ieșirea din parc trece obligatoriu prin `actualizeazaVehicul`.** `vehicule_insert` cere
+literal `status = 'activ'`, deci `vehiculNouSchema` nici n-are câmpul: `status` și
+`motiv_iesire` există doar în `actualizeazaVehiculSchema`, care cere motivul printr-un
+`superRefine` la `vandut`/`casat`. `data_iesire` nu se trimite niciodată din client — o
+pune `internal.vehicles_normalizeaza` din `status` și o golește la întoarcerea în parc.
+Ștergerea e altceva: e pentru rândul care n-ar fi trebuit să existe, iar
+`internal.vehicles_dupa` scoate atunci scadențele vehiculului din semafor.
+
 ## Citiri
 
 `src/lib/queries/fleet.ts`: `listeazaVehicule`, `citesteVehicul`, `scadenteCurente`,
@@ -86,7 +99,9 @@ Citește secțiunea asta înainte de orice scriere în modul.
   `/flota/aprobari`, embed-ul `vehicles!vehicle_id` vine **NULL, fără eroare**. Tipează
   câmpul `| null` și afișează „—". Nu compensa cu `createAdminSupabase`: ESLint îl
   permite doar în `actions.ts`, route handlers, scripts și tests. În plus, un vehicul cu
-  `employee_id` NULL e invizibil pentru oricine nu are `vehicles:read = all`. — capcana #18
+  `employee_id` NULL e invizibil pentru oricine nu are `vehicles:read = all`. De aceea
+  caseta „Foaie nouă" se randează ca link spre parcul auto când lista de vehicule vine
+  goală — un buton dezactivat n-ar spune de ce. — capcana #18
 - **Semaforul de scadențe NU se citește din `expirables`.** Politica de acolo cere ȘI
   dreptul pe vehicul ȘI `compliance:read`, pe care în seed îl au doar `super_admin` și
   `org_admin`. Pentru `hr`, `manager` și `employee` tabela întoarce **zero rânduri,
@@ -119,6 +134,14 @@ Citește secțiunea asta înainte de orice scriere în modul.
 Migrarea → `src/types/database.ts` → `src/schemas/fleet.ts` →
 `src/lib/queries/fleet.ts` → acțiuni → pagini. Anomaliile de kilometraj și calculul de
 consum stau în `src/domain/fleet/`.
+
+Formularele nu mai citesc `FormData` fiecare pe cont propriu: `flota/valori-vehicul.ts` și
+`flota/[id]/valori-document.ts` sunt singura traducere spre încărcătura acțiunilor,
+folosite și la creare și la modificare, ca și `CampuriVehicul`/`CampuriDocument`. Două
+capcane tăcute stau acolo, prinse de `valori-vehicul.test.ts` și `valori-document.test.ts`:
+`Number("")` e `0`, nu `NaN` (un cost necompletat s-ar salva ca „0 lei"), iar
+`actualizeazaVehicul` trimite obiectul ÎNTREG — `employee_id` și `department_id` călătoresc
+prin câmpuri ascunse, altfel orice salvare a fișei ar șterge alocarea făcută altundeva.
 
 ## Nomenclatorul de tipuri de document
 

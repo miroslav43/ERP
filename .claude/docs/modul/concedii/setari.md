@@ -10,8 +10,8 @@ tabele: [leave_types, leave_type_variants, leave_entitlement_rules, leave_balanc
 permisiuni: [leave:read, leave:create, leave:update]
 feature: leave
 capcane: [17]
-scris_pe: 0815fbff2c885cd44b5768ee25f084f16a9e95b8
-scris_la: 2026-09-03
+scris_pe: 711e5225e1df2ceab9324037466c87fda8abd8a0
+scris_la: 2026-09-04
 tags: [modul, hr]
 ---
 
@@ -29,6 +29,14 @@ Trunchiul modulului — cererea, aprobarea, soldul — e [[modul/concedii]].
 `/concedii/setari` cere `leave:update` cu scope `all`. În seed-ul din `0002_authz.sql`,
 `hr` are `leave` pe `all`, iar `manager` îl are pe `team` cu doar `{read,approve}` — deci
 pagina nu e ascunsă de manager, e refuzată prin `AccesRestrictionat`.
+
+Preambulul pornește `requireFeature(..., "leave")` și `getPermissionMap` împreună, într-un
+`Promise.all`, nu înlănțuite ca în tiparul canonic: sunt două citiri independente, pe
+tabele diferite, iar înlănțuirea costa un dus-întors în plus, integral rețea. Ordinea
+porților rămâne aceeași — `requireFeature` cheamă `notFound()`, iar `Promise.all` respinge
+la prima respingere, deci un modul dezactivat dă tot 404 înainte ca harta de permisiuni să
+ajungă la `can()`. Tiparul e al întregului modul, nu al acestei pagini ([[modul/concedii]]);
+cine îl „repară" înapoi în formă serială reintroduce latența, nu o verificare.
 
 Ecranul are câte o zonă per obiect: `tabel-tipuri-reglementate.tsx` și
 `card-tip-adaptabil.tsx` pentru tipuri, `tabel-reguli.tsx` cu `formular-regula-noua.tsx`
