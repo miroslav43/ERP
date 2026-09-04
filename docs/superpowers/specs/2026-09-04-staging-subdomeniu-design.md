@@ -225,7 +225,8 @@ Două rânduri din tabel nu sunt cosmetice și, dacă se ratează, defectul e t�
 | `ops/_lib.sh:154` | `_env_file()` → `.env.${ADM_MEDIU}` (producția păstrează numele `.env.production`) |
 | `ops/05-docker.sh` | numele imaginii și al stack-ului din variabile |
 | `ops/06-nginx.sh` | vhost și domeniu din variabile; `ssl:issue` pe domeniul cerut |
-| `docker-stack.yml` | cheia serviciului, numărul de replici, numele secretelor |
+| `docker-stack.yml` | numărul de replici și `name:` la secrete (nu cheia serviciului — vezi §6) |
+| `.stack-staging.generat.yml` | **generat la fiecare deploy**, adăugat în `.gitignore`, niciodată editat de mână |
 | `deploy/nginx/32-staging.administrativo.ro.conf` | **nou**, copiat după `31-analitice…` |
 | `.github/workflows/staging.yml` | **nou** |
 | `ops/08-curatenie.sh` | **nou** (§11) |
@@ -236,40 +237,114 @@ valoare.
 
 ---
 
-## 6. Proba obligatorie, înaintea oricărei linii de cod
+## 6. Cum se obține o cheie de serviciu diferită — RULAT, nu dedus
 
-Cheia serviciului trebuie parametrizată în YAML — adică o variabilă pe poziția
-unei **chei**, nu a unei valori:
+Patru variante, probate pe stack-uri de unică folosință și pe rețele overlay
+efemere, 2026-09-04 la 22:0x. Trei au căzut.
+
+**(a) Variabilă pe poziția cheii — RESPINSĂ.**
 
 ```yaml
 services:
-  ${ADM_SERVICE:-administrativo-web}:
-    image: ${ADM_IMAGE:-administrativo-web}:${IMAGE_TAG:-latest}
+  ${ADM_SERVICE:-administrativo-web}:      # ← ce părea evident
+```
+```
+services  Additional property ${ADM_SERVICIU:-nume-implicit} is not allowed
 ```
 
-Interpolarea *ar trebui* să funcționeze, fiindcă `docker stack deploy`
-substituie variabilele peste textul fișierului înainte de a-l parsa. Dar dacă nu
-funcționează, aliasul colizionează și **cade producția** (§2.4).
+Schema Compose se validează **înaintea** interpolării. Cheile nu se
+parametrizează. (Designul inițial pornise de la presupunerea contrară.)
 
-**Deci se probează întâi, pe un stack de unică folosință**, cu un nume care nu
-seamănă cu nimic din producție, verificând `docker service inspect …
-{{.Aliases}}` pe serviciul rezultat. Costă două minute și decide arhitectura.
+**(b) Alias explicit pe rețea, cheie identică — RESPINSĂ.**
 
-**Plan de rezervă dacă proba pică:** serviciul de staging publică un port în
-`mode: host`, iar vhost-ul trimite direct acolo, fără să atingă deloc spațiul de
-aliasuri al rețelei partajate.
+```yaml
+    networks:
+      strawboss-net:
+        aliases: [administrativo-web-staging]
+```
+```
+Aliasuri: [administrativo-web-staging administrativo-web]
+```
 
-Ce **nu** merge, verificat prin raționament pe convertorul de stack: să lași
-cheia identică și să adaugi `networks.strawboss-net.aliases`. Aliasul egal cu
-numele scurt al serviciului e adăugat *întotdeauna*, iar cele declarate de tine
-se adaugă pe lângă el. Coliziunea rămâne.
+Aliasul scurt implicit se **adaugă**, nu se înlocuiește. Coliziunea din §2.4
+rămâne întreagă.
+
+**(c) `extends` — RESPINSĂ.**
+
+```
+extends: Support for `extends` is not implemented yet.
+```
+
+**(d) Fișier de stack generat, cu o singură substituție ancorată — REȚINUTĂ.**
+
+```bash
+sed 's/^  administrativo-web:$/  administrativo-web-staging:/' \
+    docker-stack.yml > .stack-staging.generat.yml
+grep -q '^  administrativo-web-staging:$' … || moarte "redenumirea nu a avut loc."
+grep -q '^  administrativo-web:$'         … && moarte "cheia veche a rămas."
+```
+```
+Aliasuri: [administrativo-web-staging]        ← singurul alias înregistrat
+```
+
+Cele două gărzi nu sunt decorative: dacă cineva redenumește serviciul în fișierul
+de bază, `sed` nu mai potrivește nimic și ar produce **tăcut** un fișier cu cheia
+de producție, adică exact coliziunea. Gărzile transformă asta într-o oprire
+zgomotoasă. Fișierul generat e efemer și intră în `.gitignore` — nu se editează
+niciodată de mână.
+
+**Ce NU rezolvă generarea, și se rezolvă prin interpolare normală:** numele
+secretelor. `name:` e o valoare, deci acceptă variabile — probat în aceeași
+rulare:
+
+```yaml
+secrets:
+  supabase_service_role_key:
+    external: true
+    name: ${ADM_SECRET_PREFIX:-}supabase_service_role_key
+```
+```
+Secret montat: staging_proba_cheie -> /run/secrets/proba_cheie
+```
+
+Secretul extern al staging-ului se montează pe **calea logică** pe care o
+așteaptă `deploy/entrypoint.sh`. Codul aplicației rămâne neatins.
+
+**Variantă respinsă din alt motiv (nu probată, respinsă prin structură):** un
+singur stack cu ambele servicii, partajând configurația prin ancore YAML. Ar fi
+curat, dar `docker stack deploy` deployează *toate* serviciile din fișier — deci
+fiecare deploy de staging ar reevalua și serviciul de producție. Cuplează exact
+ce separăm.
 
 ---
 
 ## 7. Rețeaua
 
-**DNS** — un `A` record `staging.administrativo.ro → 62.171.154.194`, adăugat de
-utilizator la registrar. Nu se poate automatiza din repo.
+**DNS** — făcut de utilizator pe 2026-09-04. Verificat:
+
+```
+staging.administrativo.ro → 188.114.96.3, 188.114.97.3
+administrativo.ro         → 188.114.97.2, 188.114.96.2
+NS: bryce.ns.cloudflare.com, meera.ns.cloudflare.com
+```
+
+### 7.1 Cloudflare stă în față — la fel ca producția
+
+Adresele returnate sunt ale Cloudflare, nu `62.171.154.194`: înregistrarea e
+proxată (norul portocaliu), exact ca domeniul principal. Nu e o problemă, e
+aceeași topologie care merge azi — dar are două urmări.
+
+**Emiterea certificatului.** Provocarea HTTP-01 trebuie să treacă prin Cloudflare
+până la origine. Că merge e dovedit pe această mașină: volumul nginx conține deja
+11 certificate Let's Encrypt, printre care `analitice.administrativo.ro` — un
+subdomeniu al aceluiași domeniu, în aceleași condiții. Dacă totuși pică (tipic:
+„Always Use HTTPS" redirecționează provocarea spre un HTTPS pe care originea
+încă nu-l poate servi pentru acest nume), leacul e să treci înregistrarea pe
+„DNS only" cât durează emiterea, apoi să repui proxy-ul.
+
+**Adresa reală a vizitatorului.** Traficul ajunge la nginx cu IP-ul Cloudflare;
+adresa clientului vine în `CF-Connecting-IP`. Contează pentru limitarea de rată
+și pentru jurnale, nu pentru deploy.
 
 **Certificat** — fluxul ACME existent, parametrizat pe domeniu. Ordinea contează
 și e deja impusă de cod: `ops/06-nginx.sh:113` refuză să instaleze un vhost cu
@@ -309,9 +384,26 @@ atinge inode-ul directorului și ar face montarea stale pentru tot VM-ul.
 
 ## 8. Baza de staging
 
-Proiect Supabase nou. `db:migrate` îl construiește de la zero fără cod special:
-`internal.migrari_aplicate` e goală pe un proiect nou, deci „aplică doar ce
-lipsește" înseamnă „aplică tot".
+Proiect Supabase nou, creat de utilizator pe 2026-09-04:
+`mjyuonhcltjoxektopcg.supabase.co`. `db:migrate` îl construiește de la zero fără
+cod special: `internal.migrari_aplicate` e goală pe un proiect nou, deci „aplică
+doar ce lipsește" înseamnă „aplică tot".
+
+Cele opt variabile cerute de `ADM_REQUIRED_ENV` (`ops/_lib.sh:143-152`), cu
+proveniența fiecăreia:
+
+| Variabilă | De unde vine |
+| --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | proiectul de staging ✅ |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | cheia publicabilă a proiectului ✅ (`env.ts:31` cere doar `min(1)`, deci formatul nou `sb_publishable_…` trece) |
+| `NEXT_PUBLIC_APP_URL` | `https://staging.administrativo.ro` ✅ |
+| `SUPABASE_SERVICE_ROLE_KEY` | **cheia secretă a proiectului — de furnizat** |
+| `HR_ENCRYPTION_KEYS` | generată pentru staging, JSON `{"1":"<base64>"}` |
+| `HR_ENCRYPTION_ACTIVE_KEY` | `1`, trebuie să existe în cheia de mai sus (`env.ts:130`) |
+| `HR_HASH_KEY` | generată, base64 de 32 de octeți (`env.ts:85`) |
+| `TENANT_COOKIE_SECRET` | generată, base64 de 32 de octeți (`env.ts:74`) |
+
+Cele patru generate sunt **diferite** de ale producției, intenționat (§3.1).
 
 - Chei de criptare **proprii**, diferite de producție (§3.1).
 - Secrete Docker proprii, prefixate `staging_`.
@@ -409,7 +501,8 @@ producție, unde problema există deja.
 
 ## 12. Ordinea de livrare
 
-1. **Proba aliasului** (§6). Decide arhitectura; nimic altceva nu începe înainte.
+1. ~~Proba aliasului~~ — **făcută 2026-09-04, rezultatul e în §6.** Varianta
+   reținută: fișier de stack generat, cu două gărzi.
 2. Parametrizarea `ops/` + `docker-stack.yml`, cu producția neschimbată la byte.
    Poartă: un `./administrativo.sh status` și un `docker:build` fără `ADM_MEDIU`
    dau exact ce dau azi.
@@ -444,7 +537,9 @@ producție, unde problema există deja.
   fiecare deploy de producție, cu cele două replici pornite lângă el. Staging nu
   adaugă un vârf nou, ci o a doua ocazie pentru unul cunoscut. Se măsoară la
   primul build de staging.
-- **Interpolarea variabilelor pe poziția de cheie YAML** — §6, se probează.
+- **Emiterea certificatului cu Cloudflare în față** (§7.1). Două subdomenii au
+  deja certificate Let's Encrypt în aceleași condiții, deci calea e dovedită în
+  practică pe acest VM — dar nu de mine, în sesiunea asta.
 - **Dacă `strawboss-nginx-1` are `conf.d` montat citibil-scriibil** pentru un
   fișier nou: `cmd_nginx__vhost` verifică montarea, dar n-a fost exercitat
   niciodată cu un nume de fișier nou.
