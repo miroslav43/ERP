@@ -945,6 +945,8 @@ export const RO: ContinutLanding = {
         legaturi: [
           { eticheta: "Toate modulele", href: "/module" },
           { eticheta: "Pontaj de pe telefon", href: "/pontaj-pe-telefon" },
+          { eticheta: "Foaie de pontaj gratuită", href: "/unelte/foaie-de-pontaj" },
+          { eticheta: "Excel sau aplicație", href: "/comparatie/excel" },
           { eticheta: "Izolarea datelor", href: "/incredere" },
           { eticheta: "Prețuri", href: "/preturi" },
         ],
@@ -961,6 +963,8 @@ export const RO: ContinutLanding = {
       {
         titlu: "Înainte să întrebi",
         legaturi: [
+          { eticheta: "Evidența orelor (art. 119)", href: "/evidenta-orelor-de-munca" },
+          { eticheta: "REGES-ONLINE: termene", href: "/reges-online" },
           { eticheta: "Ce nu facem", href: "/de-ce-nu" },
           { eticheta: "Conformitate", href: "/incredere" },
           { eticheta: "Întrebări frecvente", href: "/intrebari" },

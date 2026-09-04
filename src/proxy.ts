@@ -60,6 +60,10 @@ const RUTE_PUBLICE: readonly string[] = [
   "/pontaj-pe-telefon",
   "/comparatie",
   "/unelte",
+  // Paginile care explică o obligație legală. Slug ASCII, fără diacritice —
+  // conținutul le are, adresa nu.
+  "/evidenta-orelor-de-munca",
+  "/reges-online",
 ];
 
 /**

@@ -278,6 +278,24 @@ export default async function PaginaFoaieDePontaj({ searchParams }: Proprietati)
             poate dovedi peste șase luni cine a modificat-o. Pentru astea e nevoie de un loc în care
             datele să stea, nu de un fișier mai bun.
           </p>
+          {/*
+            Nota asta scade conversia și rămâne aici oricum.
+
+            Foaia are o singură căsuță pe zi, iar art. 119 cere ora de începere ȘI
+            de sfârșit. O unealtă care lasă impresia că te pune în legalitate,
+            când nu te pune, e mai rea decât una care lipsește — și e exact
+            reproșul pe care îl facem șabloanelor de pe bloguri.
+          */}
+          <p className="text-mk-text-slab text-[0.9375rem] leading-[1.7]">
+            Și o precizare care ne dezavantajează: foaia asta are o căsuță pe zi, adică numărul de
+            ore. Art. 119 din Codul muncii cere ora de începere <em>și</em> ora de sfârșit, zilnic,
+            ținute la locul de muncă. Pentru evidența cerută de lege, foaia lunară e util
+            complementară, nu suficientă —{" "}
+            <Link href="/evidenta-orelor-de-munca" className="underline underline-offset-4">
+              ce cere exact art. 119
+            </Link>
+            .
+          </p>
         </div>
         <div className="mt-8 flex flex-wrap gap-3" data-tipar="ascunde">
           <Link

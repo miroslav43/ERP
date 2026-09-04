@@ -60,6 +60,23 @@ const PAGINI: readonly Pagina[] = [
   { cale: "/intrebari", prioritate: 0.6, limba: "ro", traducere: null, actualizat: "2026-09-03" },
   { cale: "/de-ce-nu", prioritate: 0.5, limba: "ro", traducere: null, actualizat: "2026-09-03" },
   { cale: "/domenii", prioritate: 0.5, limba: "ro", traducere: null, actualizat: "2026-09-03" },
+  // Paginile de obligație legală. Prioritate mare: sunt singurele care pot
+  // câștiga o căutare pe un domeniu fără vechime, fiindcă răspund la o
+  // întrebare precisă, cu articolul de lege lângă fiecare afirmație.
+  {
+    cale: "/evidenta-orelor-de-munca",
+    prioritate: 0.9,
+    limba: "ro",
+    traducere: null,
+    actualizat: "2026-09-03",
+  },
+  {
+    cale: "/reges-online",
+    prioritate: 0.9,
+    limba: "ro",
+    traducere: null,
+    actualizat: "2026-09-03",
+  },
   {
     cale: "/unelte/foaie-de-pontaj",
     prioritate: 0.7,

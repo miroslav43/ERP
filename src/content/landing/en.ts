@@ -937,6 +937,11 @@ export const EN: ContinutLanding = {
         legaturi: [
           { eticheta: "All modules", href: "/module" },
           { eticheta: "Clocking in by phone", href: "/pontaj-pe-telefon" },
+          // Paginile de lege rămân doar în română, și e corect așa: sunt despre
+          // obligații din dreptul muncii românesc, iar o traducere le-ar face
+          // citabile în locul textului oficial, care e tot în română.
+          { eticheta: "Working-time records", href: "/evidenta-orelor-de-munca" },
+          { eticheta: "REGES-ONLINE deadlines", href: "/reges-online" },
           { eticheta: "What we don't do", href: "/de-ce-nu" },
           { eticheta: "Frequently asked", href: "/intrebari" },
         ],
