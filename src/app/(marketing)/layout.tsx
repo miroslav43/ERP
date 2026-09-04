@@ -53,6 +53,24 @@ export const metadata: Metadata = {
     description: RO.meta.descriere,
   },
   twitter: { card: "summary_large_image" },
+  /*
+   * Dovada de proprietate pentru Search Console și Bing.
+   *
+   * Se citește din mediu la RANDARE, nu la build: nu e un `NEXT_PUBLIC_*`, deci
+   * nu se coace în pachetul de client, iar schimbarea ei nu cere reconstrucție.
+   * Absentă, câmpul lipsește complet din HTML — `undefined` nu emite nimic.
+   *
+   * E calea a doua, nu prima. Verificarea recomandată e pe DOMENIU, printr-un
+   * TXT în DNS: acoperă dintr-o dată toate subdomeniile și amândouă protocoalele,
+   * nu cere nicio livrare, și nu se pierde dacă cineva schimbă antetul paginii.
+   * Eticheta din HTML rămâne pentru cazul în care DNS-ul nu e la îndemână.
+   */
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION,
+    other: process.env.BING_SITE_VERIFICATION
+      ? { "msvalidate.01": process.env.BING_SITE_VERIFICATION }
+      : {},
+  },
   robots: { index: true, follow: true },
 };
 

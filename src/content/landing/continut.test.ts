@@ -384,7 +384,7 @@ describe("legăturile interne duc undeva", () => {
      * Excepțiile sunt DECLARATE, nu tăcute: `/en*` lipsește din llms.txt
      * fiindcă rezumatul e în română și o dublură în engleză n-ar adăuga nimic.
      */
-    const { default: sitemap } = await import("@/app/sitemap");
+    const { intrariSitemap: sitemap } = await import("./harta");
     const { ADRESA_SITE } = await import("./contact");
     const sursa = readFileSync("src/app/llms.txt/route.ts", "utf8");
 
@@ -413,7 +413,7 @@ describe("legăturile interne duc undeva", () => {
     // Console și buget de crawl aruncat. Se verifică amândouă condițiile: să
     // aibă `page.tsx` și să treacă de proxy.
     const { ADRESA_SITE } = await import("./contact");
-    const { default: sitemap } = await import("@/app/sitemap");
+    const { intrariSitemap: sitemap } = await import("./harta");
     const cai = sitemap().map((intrare) => intrare.url.replace(ADRESA_SITE, "") || "/");
 
     expect(cai.length, "sitemap gol").toBeGreaterThan(0);
@@ -421,6 +421,37 @@ describe("legăturile interne duc undeva", () => {
       expect(existaRuta(cale), `${cale} e în sitemap dar n-are page.tsx`).toBe(true);
       expect(estePublica(cale), `${cale} e în sitemap dar cere sesiune`).toBe(true);
     }
+  });
+
+  it("rândurile din sitemap vin grupate pe secțiuni, fără întreruperi", async () => {
+    /*
+     * Foaia de stil `sitemap.xsl` deduce eticheta grupei din prefixul adresei și
+     * scrie un cap de grupă ori de câte ori eticheta rândului curent diferă de a
+     * celui dinainte. Tiparul ăsta presupune că rândurile aceleiași secțiuni sunt
+     * ADIACENTE.
+     *
+     * Dacă cineva adaugă o pagină de domeniu la coada listei, nu cade nimic și nu
+     * se strică niciun XML: pagina randată capătă pur și simplu un al doilea cap
+     * „Domenii" mai jos, ca și cum ar fi altă secțiune. Un defect pur vizual, pe
+     * care nu-l vede nimeni până nu deschide fișierul în browser — adică rar.
+     *
+     * `sectiune` din `harta.ts` e sursa ordinii; testul verifică doar că ordinea
+     * chiar e respectată.
+     */
+    const { intrariSitemap } = await import("./harta");
+    const vazute = new Set<string>();
+    let anterioara: string | null = null;
+
+    for (const intrare of intrariSitemap()) {
+      if (intrare.sectiune === anterioara) continue;
+      expect(
+        vazute.has(intrare.sectiune),
+        `secțiunea „${intrare.sectiune}" reapare după ce s-a trecut la alta — ${intrare.url}`,
+      ).toBe(false);
+      vazute.add(intrare.sectiune);
+      anterioara = intrare.sectiune;
+    }
+    expect(vazute.size, "nicio secțiune").toBeGreaterThan(1);
   });
 
   it("paginile de domeniu din hărți sunt exact cele generate", async () => {
@@ -438,7 +469,7 @@ describe("legăturile interne duc undeva", () => {
      */
     const { DOMENII } = await import("./domenii");
     const { ADRESA_SITE } = await import("./contact");
-    const { default: sitemap } = await import("@/app/sitemap");
+    const { intrariSitemap: sitemap } = await import("./harta");
 
     const asteptate = new Set(DOMENII.map((d) => `/domenii/${d.slug}`));
     const dinSitemap = new Set(
