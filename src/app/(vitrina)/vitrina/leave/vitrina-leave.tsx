@@ -59,8 +59,15 @@ export function VitrinaConcedii({ azi }: { readonly azi: string }) {
   // `sessionStorage` (prin `citesteDepozit`) le ține peste o reîncărcare a
   // filei, dar le uită la închiderea ei — exact promisiunea de pe pagina
   // publică: „nimic nu pleacă spre server, nimic nu supraviețuiește sesiunii".
+  //
+  // Garda de formă e obligatorie aici: mai jos, `cereri` se iterează cu
+  // `for...of` — o valoare non-tablou stocată sub aceeași cheie (o sesiune
+  // veche, o schemă viitoare) ar arunca `TypeError` și ar căda tot ecranul
+  // public. `Array.isArray` nu verifică FORMA elementelor, doar că e tablou —
+  // suficient cât să evite prăbușirea; un element individual greșit tipat tot
+  // ar trece, dar acela e un defect de altă natură.
   const [cereri, setCereri] = useState<readonly CerereDemo[]>(() =>
-    citesteDepozit<readonly CerereDemo[]>(CHEIE_CONCEDII, []),
+    citesteDepozit<readonly CerereDemo[]>(CHEIE_CONCEDII, [], Array.isArray),
   );
   const [casetaDeschisa, setCasetaDeschisa] = useState(false);
 

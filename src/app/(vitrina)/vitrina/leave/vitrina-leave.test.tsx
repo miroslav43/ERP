@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ZonaToast, golesteToasturi } from "@/components/ui/toast";
+import { CHEIE_CONCEDII } from "@/demo/depozit";
 import { angajatiVizibili } from "@/demo/roluri";
 
 import { VitrinaConcedii } from "./vitrina-leave";
@@ -33,6 +34,10 @@ vi.mock("next/navigation", () => ({
 // între teste (`src/components/ui/formular.test.tsx:9-14`).
 beforeEach(() => {
   golesteToasturi();
+});
+
+afterEach(() => {
+  window.sessionStorage.clear();
 });
 
 /** `ZonaToast` alături de vitrină: fără ea, mesajul de reușită al lui `Formular` nu apare nicăieri. */
@@ -104,6 +109,18 @@ describe("vitrina de concedii", () => {
 
     expect(screen.queryAllByText(/Toma Gabriela/)).toHaveLength(0);
     expect(screen.getAllByText(/Popescu Ion/).length).toBeGreaterThan(0);
+  });
+
+  it("nu cade dacă sub cheia de depozit stă altceva decât un tablou de cereri", () => {
+    // Declanșatorul realist: extinderea demonstrației la alte module schimbă
+    // forma stocată sub aceeași cheie, iar un vizitator cu sesiune veche
+    // prinde exact asta. `cereri` se iterează cu `for...of` — fără garda de
+    // formă din `citesteDepozit`, asta ar arunca `TypeError` la montare.
+    window.sessionStorage.setItem(CHEIE_CONCEDII, JSON.stringify({ nu: "un tablou de cereri" }));
+    expect(() => render(<VitrinaConcedii azi="2026-03-10" />)).not.toThrow();
+    for (const angajat of angajatiVizibili("org_admin")) {
+      expect(screen.getAllByText(new RegExp(angajat.nume)).length).toBeGreaterThan(0);
+    }
   });
 
   it("managerul nu vede butonul de cerere nouă — nu are `leave:create`", async () => {
