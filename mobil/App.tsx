@@ -173,8 +173,29 @@ function esteIncorporareDeCurs(url: string): boolean {
  * numele firmei. `Linking.openURL` poate respinge (schemă necunoscută, niciun
  * browser instalat) — omul trebuie să afle, nu să atingă un link care pare
  * mort.
+ *
+ * ── DOAR PE iOS, ȘI ĂSTA E UN FAPT DESPRE ANDROID, NU O PREFERINȚĂ (rundă 5)
+ * Pe Android, un `target="_blank"` NU ajunge niciodată aici — verificat în
+ * sursa instalată: `RNCWebViewManagerImpl.kt:79` pune
+ * `setSupportMultipleWindows(true)`, iar `WebView.android.tsx:298` trimite
+ * `hasOnOpenWindowEvent = false` fiindcă nu dăm prop-ul `onOpenWindow`; deci
+ * `RNCWebChromeClient.java:88-114` creează un WebView ORFAN, FĂRĂ să-i pună
+ * vreun client, și îi predă navigarea. `shouldOverrideUrlLoading`-ul nostru
+ * nu-l vede.
+ *
+ * Consecința: pe Android, singurele navigări care ar ajunge aici sunt
+ * SUBCADRELE playerului de film (portalul n-are nicio navigare de prim-cadru
+ * către altă origine — `src/app/(portal)/legaturi-portal.test.ts` o ține). Cu
+ * alte cuvinte, `Linking.openURL` s-ar declanșa acolo EXACT pe cazurile în
+ * care greșește: omul se uită la lecție, playerul își navighează un subcadru
+ * (`googleads.g.doubleclick.net`, pe un film monetizat), și browserul
+ * telefonului sare peste el în mijlocul lecției. Pe Android blocăm deci tăcut
+ * — proprietatea de securitate e aceeași (navigarea nu se face), fără saltul
+ * în browser. Linkul „Deschideți la sursă" era deja mort acolo, dinainte de
+ * poarta asta.
  */
 function deschideInBrowser(url: string): void {
+  if (Platform.OS !== "ios") return;
   void Linking.openURL(url).catch(() => {
     Alert.alert(
       "Nu am putut deschide linkul",
@@ -793,11 +814,29 @@ export default function App() {
             // Poarta stă deci AICI, unde avem URL-ul întreg, `URL` adevărat
             // (egalitate de origine, nu prefix) și, pe iOS, `isTopFrame`.
             //
-            // SCHIMBARE DE COMPORTAMENT VIZIBILĂ: ce se deschidea în aplicație
-            // se deschide de acum în browserul telefonului. E intenția, nu un
-            // efect secundar — un material de curs de pe YouTube n-are ce
-            // căuta înăuntrul aplicației semnate cu numele firmei, iar linkul
-            // nu se pierde: `deschideInBrowser` îl duce unde trebuie.
+            // SCHIMBARE DE COMPORTAMENT VIZIBILĂ, DAR NUMAI PE iOS (precizat
+            // la rundă 5): acolo, „Deschideți la sursă" se deschide de-acum în
+            // browserul telefonului în loc de aplicație — intenția, nu un
+            // efect secundar. Pe Android linkul ăla nu trecea și nu trece prin
+            // poarta asta (vezi `deschideInBrowser` pentru de ce), deci acolo
+            // nu se schimbă nimic pentru om.
+            //
+            // CÂT DE ÎNCHISĂ E POARTA, EXACT: pentru CADRUL PRINCIPAL. Trei
+            // căi rămân deschise, toate limitări ale bibliotecii, declarate
+            // aici ca să nu se creadă mai mult decât e:
+            // · subcadrele pe iOS trec necondiționat (regula de mai jos) —
+            //   deliberat, altfel filmul de curs nu s-ar încărca;
+            // · puntea de rezervă de pe Android (`RNCWebView.java:449`,
+            //   dispozitive fără `WEB_MESSAGE_LISTENER`, adică WebView < 88)
+            //   raportează URL-ul paginii DE SUS, nu al cadrului care a scris
+            //   — deci acolo un `<iframe>` poate încă forja un mesaj care
+            //   trece de verificarea din `primesteMesaj`;
+            // · pe Android poarta CEDEAZĂ DESCHIS: `RNCWebViewClient.java:42`
+            //   dă 250 ms firului JS să răspundă, iar la expirare
+            //   `:111-113` scrie „defaulting to allow loading" și lasă
+            //   navigarea să treacă — exact la pornire, sub congestie.
+            // Închiderea completă ar cere `onOpenWindow` plus cod nativ
+            // propriu; e altă amploare decât o rundă de reparații.
             onShouldStartLoadWithRequest={(cerere) => {
               // Ambele verifică ACUM și originea, nu doar calea — rundă 3 de
               // revizuire, vezi comentariul din `fisiere.ts`.
@@ -845,7 +884,20 @@ export default function App() {
           <Pressable style={stiluri.butonScanner} onPress={() => setScannerDeschis(true)}>
             <Text style={stiluri.butonScannerText}>Scanează codul</Text>
           </Pressable>
-          <Scanner deschis={scannerDeschis} inchide={inchideScanner} mergiLa={mergiLa} />
+          {/*
+            `originePortal` e DESTINAȚIA, nu filtrul de acceptare (rundă 5):
+            scanner-ul își păstrează lista albă literală de domenii de pe afiș,
+            dar remontează calea validată pe originea portalului configurat.
+            Fără asta, o a doua intrare în `DOMENII_PERMISE` (un domeniu vechi,
+            exact ce invită comentariul de acolo) ar fi trimis codul de pontaj
+            prin poarta de mai sus, adică AFARĂ din sesiune.
+          */}
+          <Scanner
+            deschis={scannerDeschis}
+            inchide={inchideScanner}
+            mergiLa={mergiLa}
+            originePortal={ORIGINEA_PORTALULUI}
+          />
         </SafeAreaView>
       }
     />
