@@ -32,7 +32,17 @@ FEREASTRA_PALNIE="${UMAMI_FEREASTRA:-24}"
 D=$'\e[1m'; N=$'\e[0m'; R=$'\e[31m'; V=$'\e[32m'
 mor() { printf "${R}✗ %s${N}\n" "$*" >&2; exit 1; }
 
-[ -n "${UMAMI_ADMIN_PAROLA:-}" ] || mor "UMAMI_ADMIN_PAROLA lipsește. Rulează: UMAMI_ADMIN_PAROLA='...' bash $0"
+# Parola se ia din `.env.production` dacă nu vine din mediu.
+#
+# Se citește cu `grep`, nu cu `source`: fișierul are zeci de variabile, iar un
+# `source` le-ar aduce pe toate în shell — inclusiv chei de service_role — ca
+# apoi să fie moștenite de orice proces pornit de aici. Un script care are nevoie
+# de un singur secret nu are voie să le încarce pe toate.
+if [ -z "${UMAMI_ADMIN_PAROLA:-}" ] && [ -f .env.production ]; then
+  UMAMI_ADMIN_PAROLA="$(grep -m1 '^UMAMI_ADMIN_PAROLA=' .env.production | cut -d= -f2- | sed 's/^"\(.*\)"$/\1/; s/^'"'"'\(.*\)'"'"'$/\1/')"
+fi
+
+[ -n "${UMAMI_ADMIN_PAROLA:-}" ] || mor "UMAMI_ADMIN_PAROLA lipsește — nici din mediu, nici din .env.production"
 command -v jq >/dev/null || mor "jq nu e instalat"
 
 printf "${D}1. autentificare${N} — %s ca %s\n" "$GAZDA" "$UTILIZATOR"
@@ -47,8 +57,14 @@ printf "   ${V}✓${N} token obținut\n\n"
 
 api() { curl -sS --max-time 25 -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' "$@"; }
 
+# `websiteId` e OBLIGATORIU la GET, deși la POST vine în corp. Fără el, ruta
+# întoarce 400, iar un `jq` peste eroare produce lista goală — adică exact
+# aparența unui site fără rapoarte. Prima rulare a scriptului a raportat „gata"
+# cu lista de verificare goală din motivul ăsta, deși cele opt erau create.
+LISTA="$GAZDA/api/reports?websiteId=$SITE&pageSize=200"
+
 printf "${D}2. ce există deja${N}\n"
-EXISTENTE="$(api "$GAZDA/api/reports?pageSize=200" | jq -r '(.data // [])[].name' 2>/dev/null || true)"
+EXISTENTE="$(api "$LISTA" | jq -r '(.data // [])[].name' 2>/dev/null || true)"
 if [ -z "$EXISTENTE" ]; then printf "   (niciun raport)\n\n"; else printf '%s\n' "$EXISTENTE" | sed 's/^/   · /'; printf '\n'; fi
 
 creeaza() {
@@ -117,9 +133,22 @@ creeaza "Din pagina de lege în cont"        funnel \
 # Nu „am trimis cererile", ci „ce e acolo acum". Un POST care întoarce 200 și un
 # raport care apare în listă nu sunt același lucru.
 printf "\n${D}5. ce e acum în Umami${N}\n"
-api "$GAZDA/api/reports?pageSize=200" \
-  | jq -r '(.data // [])[] | "   \(.type | ascii_upcase | .[0:6] | . + "      " | .[0:7])\(.name)"' \
-  || printf "   ${R}nu s-a putut citi lista${N}\n"
+FINAL="$(api "$LISTA")"
+NR="$(printf '%s' "$FINAL" | jq -r '(.data // []) | length' 2>/dev/null || echo 0)"
+if [ "${NR:-0}" -eq 0 ]; then
+  # Lista goală după opt creări reușite nu e „gata", e o verificare care n-a
+  # funcționat. Se spune, nu se trece peste.
+  printf "   ${R}✗ lista a venit goală — verificarea NU confirmă nimic${N}\n"
+  printf "   răspuns: %s\n" "$(printf '%s' "$FINAL" | head -c 200)"
+  exit 1
+fi
+printf '%s' "$FINAL" | jq -r '(.data // []) | sort_by(.type, .name)[] | "   \(.type | . + "      " | .[0:7])\(.name)"'
+printf "   ${V}%s rapoarte confirmate prin citire${N}\n" "$NR"
 
-printf "\n${V}Gata.${N} Se văd în %s → administrativo → Reports.\n" "$GAZDA"
-printf "Goal-urile și pâlniile apar și în secțiunile ${D}Goals${N} și ${D}Funnels${N} ale site-ului.\n"
+# Adresele se scriu întregi. În Umami 3.x nu mai există o listă unificată
+# „Reports" — pagina aia e goală, deși rapoartele există. Trimit la secțiunile în
+# care chiar se văd, verificate cu browser, nu presupuse din documentație.
+printf "\n${V}Gata.${N} Se văd aici:\n"
+printf "   ${D}%s/websites/%s/goals${N}\n" "$GAZDA" "$SITE"
+printf "   ${D}%s/websites/%s/funnels${N}\n" "$GAZDA" "$SITE"
+printf "sau în meniul din stânga, la ${D}Behavior → Goals${N} și ${D}Funnels${N}.\n"
