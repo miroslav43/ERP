@@ -386,16 +386,18 @@ describe("legăturile interne duc undeva", () => {
      */
     const { intrariSitemap: sitemap } = await import("./harta");
     const { ADRESA_SITE } = await import("./contact");
-    const sursa = readFileSync("src/app/llms.txt/route.ts", "utf8");
 
     /*
-     * Se citește DOAR blocul `PAGINI`, iar căile se extrag fără să depindă de
-     * formatare: prettier rupe o intrare lungă pe trei rânduri, iar un tipar
-     * legat de `["` la început de pereche rata exact intrările lungi — adică
-     * pe cele cu descrieri bogate, cele care contează.
+     * Lista se IMPORTĂ, nu se mai citește ca text.
+     *
+     * Regexul peste sursă a funcționat cât timp fiecare intrare era un literal
+     * scris de mână. Fișele celor nouăsprezece module se generează acum din
+     * catalog, iar o cale construită prin interpolare nu apare nicăieri în
+     * sursă ca șir — regexul le-ar fi ratat pe toate și ar fi raportat că
+     * lipsesc din llms.txt, deși sunt acolo.
      */
-    const bloc = sursa.slice(sursa.indexOf("const PAGINI"), sursa.indexOf("function construieste"));
-    const inLlms = new Set([...bloc.matchAll(/"(\/[^"]*)"/g)].map((m) => m[1] ?? ""));
+    const { PAGINI: LLMS } = await import("@/app/llms.txt/route");
+    const inLlms = new Set(LLMS.map(([cale]) => cale));
     const inSitemap = sitemap()
       .map((i) => i.url.replace(ADRESA_SITE, "") || "/")
       .filter((c) => !c.startsWith("/en"));
@@ -477,9 +479,8 @@ describe("legăturile interne duc undeva", () => {
         .map((i) => i.url.replace(ADRESA_SITE, ""))
         .filter((c) => c.startsWith("/domenii/")),
     );
-    const sursa = readFileSync("src/app/llms.txt/route.ts", "utf8");
-    const bloc = sursa.slice(sursa.indexOf("const PAGINI"), sursa.indexOf("function construieste"));
-    const dinLlms = new Set([...bloc.matchAll(/"(\/domenii\/[^"]*)"/g)].map((m) => m[1] ?? ""));
+    const { PAGINI: LLMS } = await import("@/app/llms.txt/route");
+    const dinLlms = new Set(LLMS.map(([cale]) => cale).filter((c) => c.startsWith("/domenii/")));
 
     expect(asteptate.size, "niciun domeniu definit").toBeGreaterThan(0);
     expect([...dinSitemap].sort()).toEqual([...asteptate].sort());

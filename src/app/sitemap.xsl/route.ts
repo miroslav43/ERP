@@ -36,11 +36,23 @@ const XSL = `<?xml version="1.0" encoding="UTF-8"?>
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <xsl:output method="html" encoding="UTF-8" indent="yes"/>
 
-  <!-- Eticheta grupei, dedusă din prefixul adresei. -->
+  <!--
+    Eticheta grupei, dedusă din prefixul adresei.
+
+    Lista trebuie să acopere fiecare valoare de sectiune din harta.ts. Nu există
+    test care să lege cele două: testul de grupare citește datele, nu foaia
+    asta. O secțiune uitată aici NU strică nimic vizibil — rândurile ei cad
+    tăcut în ramura implicită și se lipesc de grupa dinainte. S-a întâmplat deja
+    o dată, cu cele nouăsprezece fișe de modul.
+
+    Prefixul de module se testează CU bară finală, ca să nu prindă și
+    pagina-hub, care rămâne între cele principale.
+  -->
   <xsl:template name="sectiune">
     <xsl:param name="u"/>
     <xsl:choose>
       <xsl:when test="contains($u, '/legal/')">Legal</xsl:when>
+      <xsl:when test="contains($u, '/module/')">Module</xsl:when>
       <xsl:when test="contains($u, '/domenii')">Domenii</xsl:when>
       <xsl:when test="contains($u, '/ghid/') or contains($u, '/reges-online') or contains($u, '/evidenta-orelor')">Obligații legale</xsl:when>
       <xsl:when test="contains($u, '/unelte/') or contains($u, '/comparatie/')">Unelte și comparații</xsl:when>

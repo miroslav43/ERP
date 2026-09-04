@@ -1,4 +1,5 @@
 import { ADRESA_SITE } from "./contact";
+import { RO } from "./ro";
 
 /**
  * Harta paginilor publice — sursa unică pentru `sitemap.xml`.
@@ -41,6 +42,31 @@ export type Pagina = Readonly<{
    */
   sectiune: string;
 }>;
+
+/**
+ * Paginile celor nouăsprezece module, generate din catalog.
+ *
+ * ── DE CE GENERATE, NU SCRISE ─────────────────────────────────────────────
+ * Sunt exact aceleași chei pe care `generateStaticParams` le prerandează în
+ * `/module/[modul]`. Scrise de mână, cele două liste s-ar fi despărțit la primul
+ * modul adăugat: harta ar fi trimis motoarele către o adresă care dă 404, sau ar
+ * fi lăsat un modul nou nedescoperit. Cu sursa comună, despărțirea nu e posibilă.
+ *
+ * Ordinea din catalog e păstrată, deci rândurile ies grupate, ca restul hărții.
+ */
+const MODULE: readonly Pagina[] = RO.module.grupuri.flatMap((grup) =>
+  grup.module.map((modul) => ({
+    cale: `/module/${modul.cheie}`,
+    // Sub paginile principale, peste cele legale: sunt destinații reale, dar
+    // pentru cineva care caută „program de pontaj", pagina de intrare e
+    // `/module`, nu fișa unui modul anume.
+    prioritate: 0.6,
+    limba: "ro" as const,
+    traducere: null,
+    actualizat: "2026-09-04",
+    sectiune: "Module",
+  })),
+);
 
 export const PAGINI: readonly Pagina[] = [
   {
@@ -99,6 +125,8 @@ export const PAGINI: readonly Pagina[] = [
     actualizat: "2026-08-22",
     sectiune: "Principale",
   },
+
+  ...MODULE,
 
   // Prioritate mare, deliberat: sunt singurele pagini care pot câștiga o căutare
   // pe un domeniu fără vechime, fiindcă răspund la o întrebare precisă, cu
