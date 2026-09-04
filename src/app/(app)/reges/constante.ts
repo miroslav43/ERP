@@ -111,6 +111,19 @@ export const transmiteSchema = z.object({
 });
 export type TransmiteInput = z.infer<typeof transmiteSchema>;
 
+/**
+ * Înregistrarea unui spor PROPRIU firmei în nomenclatorul REGES.
+ *
+ * `componentTypeId` e un tip din `salary_component_types` — nu denumirea
+ * scrisă de mână: denumirea pleacă din rândul existent, ca sporul înregistrat
+ * la ITM să poarte exact numele pe care îl vede lumea pe fluturaș.
+ */
+export const sporAngajatorSchema = z.object({
+  componentTypeId: z.uuid("Tipul de spor selectat nu este valid."),
+  dataInceputValabilitate: z.iso.date("Alegeți data de la care se aplică sporul."),
+});
+export type SporAngajatorInput = z.infer<typeof sporAngajatorSchema>;
+
 export const anuleazaMesajSchema = z.object({
   mesajId: z.uuid("Mesajul selectat nu este valid."),
   motiv: z
