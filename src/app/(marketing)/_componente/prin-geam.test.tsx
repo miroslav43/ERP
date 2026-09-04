@@ -31,7 +31,35 @@ describe("banda prin geam", () => {
     expect(cadru?.getAttribute("loading")).toBe("lazy");
     expect(cadru?.getAttribute("title")).toMatch(/Concedii/);
     // Fără raport fix, iframe-ul sosește târziu și împinge pagina: CLS garantat.
-    expect(container.querySelector("figure")?.getAttribute("style") ?? "").toMatch(/aspect-ratio/);
+    // Raportul de aspect stă pe `div`-ul care înfășoară DOAR iframe-ul, nu pe
+    // `<figure>` — vezi testul de mai jos pentru motivul structural.
+    expect(cadru?.parentElement?.getAttribute("style") ?? "").toMatch(/aspect-ratio/);
+  });
+
+  it("avertismentul de sub cadru nu e strămoșit de elementul cu overflow-hidden", () => {
+    /*
+     * happy-dom nu calculează layout real (dimensiuni și poziții rămân 0),
+     * deci un test de geometrie — cel folosit efectiv de revizor, cu CSS
+     * compilat real randat în Chromium headless — nu e posibil aici. Ce SE
+     * poate verifica e structura care garantează absența clipping-ului:
+     * elementul cu `overflow-hidden` (care poartă și raportul de aspect fix)
+     * nu trebuie să fie strămoșul lui `<figcaption>`. Dacă ar fi, iframe-ul
+     * `h-full` ar umple tot content-box-ul fixat de `aspect-ratio`, iar
+     * textul avertismentului — „Date fictive. Nimic din ce faci aici nu se
+     * salvează." — ar fi împins sub marginea vizibilă și tăiat de
+     * `overflow-hidden`. Regresie verificată empiric de revizor: la 600px
+     * lățime, raport 16:10, 6,5px din text ieșeau din casetă.
+     */
+    const { container } = render(<PrinGeam cheie="leave" titlu="Concedii" />);
+    const legenda = container.querySelector("figcaption");
+    const cuOverflow = container.querySelector(".overflow-hidden");
+
+    expect(legenda).not.toBeNull();
+    expect(cuOverflow).not.toBeNull();
+    expect(cuOverflow?.getAttribute("style") ?? "").toMatch(/aspect-ratio/);
+    expect(legenda === null || cuOverflow === null ? false : cuOverflow.contains(legenda)).toBe(
+      false,
+    );
   });
 
   it("oferă o cale de deschidere accesibilă cu tastatura", () => {

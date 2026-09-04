@@ -61,23 +61,35 @@ export function PrinGeam({ cheie, titlu }: { readonly cheie: string; readonly ti
             Raportul de aspect e FIX și nu se poate scoate: iframe-ul e leneș,
             deci sosește după layout, iar fără rezervarea locului ar împinge
             pagina în jos — CLS garantat pe o pagină publică.
+
+            ── DE CE `overflow-hidden` ȘI `aspect-ratio` STAU PE UN `div`
+               INTERIOR, NU PE `<figure>` ─────────────────────────────────
+            Cu amândouă pe `<figure>`, iframe-ul (`h-full`) umple exact
+            content-box-ul fixat de `aspect-ratio` — iar `<figcaption>`, frate
+            în același element cu `overflow-hidden`, e împins sub marginea
+            vizibilă și TĂIAT: verificat empiric (CSS compilat real,
+            Chromium headless, 600px lățime) — 6,5px din „Date fictive. Nimic
+            din ce faci aici nu se salvează." ieșeau din casetă, ilizibile.
+            Pe o pagină publică, un avertisment invizibil nu atenuează nimic.
+            Separând cele două reguli pe un `div` care înfășoară DOAR
+            iframe-ul, `<figcaption>` rămâne în afara zonei tăiate, în fluxul
+            normal al lui `<figure>`.
           */}
-          <figure
-            className="border-mk-rigla mt-6 overflow-hidden border p-3 sm:p-6"
-            style={{ aspectRatio: "16 / 10" }}
-          >
-            <iframe
-              src={`/vitrina/${cheie}`}
-              title={`Demonstrație interactivă: ${titlu}`}
-              loading="lazy"
-              // Chenarul e un CITAT, nu o zonă de lucru: nu primește nici
-              // indicatorul de tastatură, nici clicuri. Interacțiunea are
-              // butonul ei, de dedesubt.
-              tabIndex={-1}
-              aria-hidden="true"
-              className="h-full w-full border-0"
-              style={{ pointerEvents: "none" }}
-            />
+          <figure className="border-mk-rigla mt-6 border p-3 sm:p-6">
+            <div className="overflow-hidden" style={{ aspectRatio: "16 / 10" }}>
+              <iframe
+                src={`/vitrina/${cheie}`}
+                title={`Demonstrație interactivă: ${titlu}`}
+                loading="lazy"
+                // Chenarul e un CITAT, nu o zonă de lucru: nu primește nici
+                // indicatorul de tastatură, nici clicuri. Interacțiunea are
+                // butonul ei, de dedesubt.
+                tabIndex={-1}
+                aria-hidden="true"
+                className="h-full w-full border-0"
+                style={{ pointerEvents: "none" }}
+              />
+            </div>
             <figcaption className="text-mk-text-slab mt-3 text-[0.8125rem]">
               Date fictive. Nimic din ce faci aici nu se salvează.
             </figcaption>

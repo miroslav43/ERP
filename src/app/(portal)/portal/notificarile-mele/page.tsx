@@ -9,7 +9,10 @@ import { listeazaNotificarile } from "@/lib/queries/notifications";
 import { trimiteMarcheazaToateCitite } from "@/app/(app)/notificari/actions";
 import { RandNotificare } from "@/app/(app)/notificari/rand-notificare";
 
+import { createServerSupabase } from "@/lib/supabase/server";
+
 import { caleaDePortal } from "./legaturi";
+import { CONTEXT_GOL, contexteDestinatar } from "./context";
 import { ButonTrimite } from "@/components/incarcare/buton-trimite";
 
 export const metadata: Metadata = { title: "Notificările mele" };
@@ -25,11 +28,25 @@ export const metadata: Metadata = { title: "Notificările mele" };
  * Singura diferență reală față de ecranul din `(app)`: fiecare legătură trece
  * prin `caleaDePortal`. Triggerele din bază scriu rute de aplicație mare, iar un
  * angajat care le urmează brut e scos din portal de poarta de rol.
+ *
+ * `contexteDestinatar` e a doua parte a aceleiași traduceri: `/concedii/<uuid>`
+ * și `/ticketing/<uuid>` duc la ecrane „ale mele" păzite de `notFound()`, iar
+ * aceleași legături ajung, din triggere, și la HR sau la aprobatori. Fără
+ * context, `caleaDePortal` le lasă netraduse — deci rândul se randează ca text,
+ * niciodată ca un clic care duce într-o pagină goală.
  */
 export default async function PaginaNotificarileMele() {
   const { user, tenant } = await requireTenant();
   const notificari = await listeazaNotificarile(tenant.organizationId, user.id);
   const numarNecitite = notificari.filter((n) => n.read_at === null).length;
+
+  const db = await createServerSupabase();
+  const contexte = await contexteDestinatar(
+    db,
+    [tenant.organizationId],
+    notificari.map((n) => n.link),
+  );
+  const context = contexte.get(user.id) ?? CONTEXT_GOL;
 
   return (
     <div className={`${LATIMI.lista} space-y-4 p-4`}>
@@ -64,7 +81,10 @@ export default async function PaginaNotificarileMele() {
         <ul className="divide-border border-border bg-surface rounded-panou divide-y border">
           {notificari.map((notificare) => (
             <li key={notificare.id}>
-              <RandNotificare notificare={notificare} href={caleaDePortal(notificare.link)} />
+              <RandNotificare
+                notificare={notificare}
+                href={caleaDePortal(notificare.link, context)}
+              />
             </li>
           ))}
         </ul>

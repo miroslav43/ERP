@@ -6,7 +6,10 @@
  * nu în producție, pe telefonul cuiva.
  */
 
-import { caleaDePortal } from "@/app/(portal)/portal/notificarile-mele/legaturi";
+import {
+  caleaDePortal,
+  type ContextDestinatar,
+} from "@/app/(portal)/portal/notificarile-mele/legaturi";
 
 /** Ce afișează efectiv iOS și Android înainte de a tăia singure. */
 const MAX_TITLU = 100;
@@ -64,11 +67,17 @@ export type MesajPush = {
  * cineva adaugă un tip nou de notificare — iar divergența s-ar vedea doar pe
  * telefon. Ce nu poate traduce (legăturile de aprobator) cade pe
  * `CALE_IMPLICITA`: în cutia poștală, unde mesajul se citește oricum întreg.
+ *
+ * `context` e a treia poartă, și singura care nu se poate decide din link:
+ * `/concedii/<uuid>` duce în portal la „cererea MEA", dar aceeași legătură e
+ * trimisă de triggere și HR-ului, și aprobatorilor. Fără context, nu se
+ * traduce — vezi `ContextDestinatar`. Omiterea lui e sigură prin construcție:
+ * costă o aterizare directă, nu produce un 404.
  */
-function caleDeDeschis(link: string | null): string {
+function caleDeDeschis(link: string | null, context: ContextDestinatar | undefined): string {
   if (link === null) return CALE_IMPLICITA;
   if (!/^\/[^/\\]/.test(link)) return CALE_IMPLICITA;
-  return caleaDePortal(link) ?? CALE_IMPLICITA;
+  return caleaDePortal(link, context) ?? CALE_IMPLICITA;
 }
 
 export function construiesteMesaj(
@@ -77,13 +86,14 @@ export function construiesteMesaj(
     titlu: string;
     corp: string | null;
     link: string | null;
+    context?: ContextDestinatar;
   }>,
 ): MesajPush {
   return {
     to: args.jeton,
     title: args.titlu.slice(0, MAX_TITLU),
     body: (args.corp ?? "").slice(0, MAX_CORP),
-    data: { cale: caleDeDeschis(args.link) },
+    data: { cale: caleDeDeschis(args.link, args.context) },
     sound: "default",
     // Canalul se creează în aplicație, la pornire. Android ignoră notificările
     // trimise pe un canal inexistent, fără nicio eroare la expeditor.

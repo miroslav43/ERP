@@ -19,10 +19,18 @@ export const dynamic = "force-dynamic";
  * Pornește un ciclu de reconciliere REGES.
  *
  * CINE O CHEAMĂ
- * Un systemd timer de pe VM, la câteva minute:
+ * Un systemd timer de pe VM, la câteva minute —
+ * `deploy/reges-reconciliere.service`, care e sursa de adevăr pentru comandă:
  *
- *   curl -fsS -X POST -H "Authorization: Bearer $REGES_CRON_SECRET" \
- *        https://<domeniu>/api/reges/reconciliere
+ *   printf 'oauth2-bearer = %s\n' "$REGES_CRON_SECRET" \
+ *     | curl -sS -K - --resolve administrativo.ro:443:127.0.0.1 \
+ *            -X POST https://administrativo.ro/api/reges/reconciliere
+ *
+ * NU cu `-H "Authorization: Bearer $REGES_CRON_SECRET"`, cum scria aici până la
+ * 2026-09-04: shell-ul substituie variabila înainte de `exec`, deci secretul
+ * ajunge în argv-ul lui `curl` și în `/proc/<pid>/cmdline`, lizibil de orice
+ * utilizator local. `-K -` îl trece prin pipe. Antetul produs e identic, deci
+ * `secretPotrivit` de mai jos nu se schimbă.
  *
  * DE CE NU `pg_cron`
  * Proiectul are deja pg_cron și trei joburi pe el, dar acelea rulează PL/pgSQL

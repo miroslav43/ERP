@@ -44,7 +44,54 @@ type ConfigClientFals = {
   dejaRetrase?: ReadonlySet<string>;
   /** Dacă scrierea în `audit_logs` trebuie să eșueze. */
   auditEsueaza?: boolean;
+
+  /*
+   * Citirile de context (`contextePeDispozitiv` → `contexteDestinatar`).
+   * Implicit, `dispozitive_push` întoarce câte un rând pentru FIECARE id cerut,
+   * al aceluiași `user-1` din `org-1` — forma în care testele vechi n-aveau
+   * nevoie să știe de ele.
+   */
+  dispozitive?: readonly { id: string; user_id: string; organization_id: string }[];
+  eroareCitireDispozitive?: { message: string };
+  /** `leave_requests`: cererea → fișa solicitantului. */
+  cereri?: readonly { id: string; employee_id: string }[];
+  /** `tickets`: tichetul → fișa solicitantului. */
+  tichete?: readonly { id: string; solicitant_employee_id: string | null }[];
+  /** `employees`: fișa → contul. */
+  fise?: readonly { id: string; user_id: string | null }[];
 };
+
+/**
+ * Un lanț `.select().in().in().is()` care se rezolvă la `{ data, error }`.
+ *
+ * PostgREST întoarce același obiect indiferent câte filtre s-au pus, deci
+ * fake-ul acceptă orice ordine și orice număr de filtre și le ignoră pe toate
+ * în afară de cel pe `id` — singurul de care depinde ce se întoarce. Filtrul pe
+ * `organization_id` e verificat SEPARAT, de testul care îl cere explicit.
+ */
+function lantCitire<T extends { id: string }>(
+  randuri: readonly T[],
+  jurnal?: { filtre: { coloana: string; valori: readonly string[] }[] },
+) {
+  const construieste = (rezultat: readonly T[]) => {
+    const nod = {
+      in(coloana: string, valori: readonly string[]) {
+        jurnal?.filtre.push({ coloana, valori });
+        return coloana === "id"
+          ? construieste(rezultat.filter((r) => valori.includes(r.id)))
+          : construieste(rezultat);
+      },
+      is(_coloana: string, _valoare: null) {
+        return construieste(rezultat);
+      },
+      then<R>(rezolva: (v: { data: readonly T[]; error: null }) => R): Promise<R> {
+        return Promise.resolve(rezolva({ data: rezultat, error: null }));
+      },
+    };
+    return nod;
+  };
+  return construieste(randuri);
+}
 
 /**
  * Client fals: expune doar ce folosește `golesteCoada`. Un mock al întregului
@@ -60,12 +107,14 @@ function clientFals(config: ConfigClientFals = {}) {
   const retrase: string[] = [];
   const audituri: Record<string, unknown>[] = [];
   const apeluriRpc: { nume: string; args: unknown }[] = [];
+  const jurnalCereri = { filtre: [] as { coloana: string; valori: readonly string[] }[] };
 
   return {
     actualizari,
     retrase,
     audituri,
     apeluriRpc,
+    jurnalCereri,
     rpc: (nume: string, args: unknown) => {
       apeluriRpc.push({ nume, args });
       if (config.eroareRpc) return Promise.resolve({ data: null, error: config.eroareRpc });
@@ -92,6 +141,22 @@ function clientFals(config: ConfigClientFals = {}) {
       }
       if (tabela === "dispozitive_push") {
         return {
+          select(_coloane: string) {
+            return {
+              in(_coloana: string, ids: readonly string[]) {
+                if (config.eroareCitireDispozitive !== undefined) {
+                  return Promise.resolve({ data: null, error: config.eroareCitireDispozitive });
+                }
+                const randuri =
+                  config.dispozitive ??
+                  ids.map((id) => ({ id, user_id: "user-1", organization_id: "org-1" }));
+                return Promise.resolve({
+                  data: randuri.filter((d) => ids.includes(d.id)),
+                  error: null,
+                });
+              },
+            };
+          },
           update(_date: Record<string, unknown>) {
             return {
               eq(_coloana: string, id: string) {
@@ -136,6 +201,15 @@ function clientFals(config: ConfigClientFals = {}) {
             return Promise.resolve({ error: null });
           },
         };
+      }
+      if (tabela === "leave_requests") {
+        return { select: (_c: string) => lantCitire(config.cereri ?? [], jurnalCereri) };
+      }
+      if (tabela === "tickets") {
+        return { select: (_c: string) => lantCitire(config.tichete ?? []) };
+      }
+      if (tabela === "employees") {
+        return { select: (_c: string) => lantCitire(config.fise ?? []) };
       }
       throw new Error(`clientFals: tabelă neașteptată „${tabela}”.`);
     },
@@ -374,5 +448,108 @@ describe("golesteCoada", () => {
     expect(raport.esuate).toBe(1);
     expect(db.actualizari.find((a) => a.id === "l2")?.date.stare).toBe("in_asteptare");
     expect(db.actualizari.find((a) => a.id === "l2")?.date.eroare).toBe("Fără bilet de la Expo.");
+  });
+});
+
+/**
+ * Contextul de proprietate al legăturii — decizia A din 2026-09-04.
+ *
+ * Verifică LANȚUL, nu doar `caleaDePortal` (care are propriile teste pure): că
+ * `golesteCoada` chiar rezolvă cine deține cererea și chiar trimite rezultatul
+ * mai departe în mesajul către Expo.
+ */
+describe("golesteCoada — traducerea legăturii depinde de destinatar", () => {
+  const CERERE = "3f8c1d2e-1111-4222-8333-444455556666";
+
+  /** Calea din primul mesaj trimis către Expo în ultima rulare. */
+  function caleaTrimisa(): string {
+    const apel = vi.mocked(expoModule.trimiteLot).mock.calls.at(-1);
+    const mesaje = apel?.[0];
+    if (mesaje === undefined || mesaje[0] === undefined) {
+      throw new Error("trimiteLot n-a fost chemat cu niciun mesaj.");
+    }
+    return mesaje[0].data.cale;
+  }
+
+  it("cererea PROPRIE se traduce în ecranul ei", async () => {
+    mockExpo([{ status: "ok", id: "b1" }]);
+    const db = clientFals({
+      randuriRpc: [rand({ link: `/concedii/${CERERE}` })],
+      dispozitive: [{ id: "d1", user_id: "user-1", organization_id: "org-1" }],
+      cereri: [{ id: CERERE, employee_id: "fisa-1" }],
+      fise: [{ id: "fisa-1", user_id: "user-1" }],
+    });
+    const raport = await golesteCoada(db as unknown as AdminSupabase);
+    expect(raport.trimise).toBe(1);
+    expect(caleaTrimisa()).toBe(`/portal/concediile-mele/${CERERE}`);
+  });
+
+  it("cererea ALTCUIVA cade pe cutia poștală, nu pe un 404", async () => {
+    // Exact rândurile din `0056:95` (HR) și `0079:338` (aprobatori): aceeași
+    // legătură, alt destinatar. Zece din cele 15 din baza vie erau așa.
+    mockExpo([{ status: "ok", id: "b1" }]);
+    const db = clientFals({
+      randuriRpc: [rand({ link: `/concedii/${CERERE}` })],
+      dispozitive: [{ id: "d1", user_id: "user-hr", organization_id: "org-1" }],
+      cereri: [{ id: CERERE, employee_id: "fisa-1" }],
+      fise: [{ id: "fisa-1", user_id: "user-1" }],
+    });
+    const raport = await golesteCoada(db as unknown as AdminSupabase);
+    // Notificarea PLEACĂ — se schimbă doar unde aterizează.
+    expect(raport.trimise).toBe(1);
+    expect(caleaTrimisa()).toBe("/portal/notificarile-mele");
+  });
+
+  it("fișa fără cont de utilizator nu se potrivește cu nimeni", async () => {
+    // `employees.user_id` e nullable: un angajat fără cont. Fără garda din
+    // `utilizatoriiFiselor`, un `undefined` ar fi putut deveni cheie în hartă.
+    mockExpo([{ status: "ok", id: "b1" }]);
+    const db = clientFals({
+      randuriRpc: [rand({ link: `/concedii/${CERERE}` })],
+      cereri: [{ id: CERERE, employee_id: "fisa-1" }],
+      fise: [{ id: "fisa-1", user_id: null }],
+    });
+    await golesteCoada(db as unknown as AdminSupabase);
+    expect(caleaTrimisa()).toBe("/portal/notificarile-mele");
+  });
+
+  it("citirea dispozitivelor picată NU oprește livrarea", async () => {
+    // Degradare, nu eșec: contextul iese gol, legătura rămâne netradusă, omul
+    // primește mesajul în cutia poștală. O notificare nelivrată ar fi mai rău.
+    mockExpo([{ status: "ok", id: "b1" }]);
+    const db = clientFals({
+      randuriRpc: [rand({ link: `/concedii/${CERERE}` })],
+      eroareCitireDispozitive: { message: "citire eșuată (simulat)." },
+    });
+    const raport = await golesteCoada(db as unknown as AdminSupabase);
+    expect(raport.trimise).toBe(1);
+    expect(caleaTrimisa()).toBe("/portal/notificarile-mele");
+  });
+
+  it("filtrează explicit pe `organization_id` — contractul service_role", async () => {
+    // `createAdminSupabase()` ocolește RLS; contractul din
+    // `src/lib/supabase/admin.ts` cere ca filtrul de firmă să fie scris de
+    // mână. Fără el, un id de cerere ghicit ar traversa granița dintre firme.
+    mockExpo([{ status: "ok", id: "b1" }]);
+    const db = clientFals({
+      randuriRpc: [rand({ link: `/concedii/${CERERE}` })],
+      dispozitive: [{ id: "d1", user_id: "user-1", organization_id: "org-9" }],
+      cereri: [{ id: CERERE, employee_id: "fisa-1" }],
+      fise: [{ id: "fisa-1", user_id: "user-1" }],
+    });
+    await golesteCoada(db as unknown as AdminSupabase);
+    const peOrganizatie = db.jurnalCereri.filtre.find((f) => f.coloana === "organization_id");
+    expect(peOrganizatie, "citirea cererilor n-a filtrat pe organization_id").toBeDefined();
+    expect(peOrganizatie?.valori).toEqual(["org-9"]);
+  });
+
+  it("nu atinge deloc baza pentru legături care nu depind de destinatar", async () => {
+    // `/pontaj/saptamana` se traduce din listă. Dacă lotul n-are nicio
+    // legătură cu proprietar, cele trei citiri de context nu trebuie făcute.
+    mockExpo([{ status: "ok", id: "b1" }]);
+    const db = clientFals({ randuriRpc: [rand({ link: "/pontaj/saptamana" })] });
+    await golesteCoada(db as unknown as AdminSupabase);
+    expect(caleaTrimisa()).toBe("/portal/pontajul-meu/saptamana");
+    expect(db.jurnalCereri.filtre).toHaveLength(0);
   });
 });

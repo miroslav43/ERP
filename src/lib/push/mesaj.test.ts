@@ -1,8 +1,20 @@
 import { describe, expect, it } from "vitest";
 
+import type { ContextDestinatar } from "@/app/(portal)/portal/notificarile-mele/legaturi";
+
 import { construiesteMesaj } from "./mesaj";
 
 const JETON = "ExponentPushToken[abcdef]";
+const ID = "3f8c1d2e-1111-4222-8333-444455556666";
+
+const AL_MEU: ContextDestinatar = {
+  concediiProprii: new Set([ID]),
+  ticheteProprii: new Set([ID]),
+};
+const AL_ALTCUIVA: ContextDestinatar = {
+  concediiProprii: new Set<string>(),
+  ticheteProprii: new Set<string>(),
+};
 
 describe("construiesteMesaj", () => {
   it("duce titlul și corpul mai departe", () => {
@@ -49,7 +61,6 @@ describe("construiesteMesaj", () => {
     // erau pe `/portal/…`. Netraduse, fiecare atingere de notificare îl scotea
     // pe angajat din portal: poarta de rol din `(app)/layout.tsx` îl aducea
     // înapoi la `/portal`, fără niciun mesaj pe ecran.
-    const ID = "3f8c1d2e-1111-4222-8333-444455556666";
     const perechi: readonly (readonly [string, string])[] = [
       ["/pontaj/saptamana", "/portal/pontajul-meu/saptamana"],
       [`/concedii/${ID}`, `/portal/concediile-mele/${ID}`],
@@ -57,8 +68,39 @@ describe("construiesteMesaj", () => {
       [`/ticketing/${ID}`, `/portal/tichetele-mele/${ID}`],
     ];
     for (const [link, asteptat] of perechi) {
-      const mesaj = construiesteMesaj({ jeton: JETON, titlu: "X.", corp: null, link });
+      const mesaj = construiesteMesaj({
+        jeton: JETON,
+        titlu: "X.",
+        corp: null,
+        link,
+        context: AL_MEU,
+      });
       expect(mesaj.data.cale, link).toBe(asteptat);
+    }
+  });
+
+  it("cererea ALTCUIVA cade pe cutia poștală, nu pe un 404", () => {
+    // Notificarea de HR (`0056:95`) și cea de aprobator (`0079:338`) poartă
+    // aceeași legătură ca a solicitantului, dar `concediile-mele/[id]` cheamă
+    // `notFound()` pentru cererea altcuiva. Pe telefon, un 404 dintr-o
+    // notificare arată ca o notificare falsă.
+    for (const link of [`/concedii/${ID}`, `/ticketing/${ID}`]) {
+      const mesaj = construiesteMesaj({
+        jeton: JETON,
+        titlu: "X.",
+        corp: null,
+        link,
+        context: AL_ALTCUIVA,
+      });
+      expect(mesaj.data.cale, link).toBe("/portal/notificarile-mele");
+    }
+  });
+
+  it("fără context, nu traduce ce depinde de destinatar", () => {
+    // `context` e opțional în semnătură; implicitul trebuie să fie cel sigur.
+    for (const link of [`/concedii/${ID}`, `/ticketing/${ID}`]) {
+      const mesaj = construiesteMesaj({ jeton: JETON, titlu: "X.", corp: null, link });
+      expect(mesaj.data.cale, link).toBe("/portal/notificarile-mele");
     }
   });
 
