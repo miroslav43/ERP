@@ -872,6 +872,11 @@ export default function App() {
   // layout.tsx` redirecționează spre un `/autentificare` FĂRĂ parametru de
   // destinație, deci un assign de-acolo s-ar întoarce tot la login. Se consumă
   // la tranziția de după autentificare, când URL-ul e în sfârșit `/portal`.
+  // Răspunsul de pornire se citește O SINGURĂ DATĂ pe viața procesului — vezi
+  // efectul de mai jos. `useRef`, nu o variabilă de modul: două instanțe de
+  // `App` (Fast Refresh în dezvoltare) trebuie să se poarte independent.
+  const raspunsInitialCitit = useRef(false);
+
   const trateazaRaspunsulLaNotificare = useCallback(
     (raspuns: Notifications.NotificationResponse) => {
       const cale = raspuns.notification.request.content.data?.cale;
@@ -916,17 +921,30 @@ export default function App() {
     // sărim O SINGURĂ DATĂ — un al doilea tap real pe aceeași notificare vine
     // mai târziu, cu garda deja consumată.
     let identificatorInitial: string | null = null;
-    try {
-      const initial = Notifications.getLastNotificationResponse();
-      if (initial !== null) {
-        identificatorInitial = initial.notification.request.identifier;
-        trateazaRaspunsulLaNotificare(initial);
+    //
+    // CITIREA INIȚIALĂ SE FACE O SINGURĂ DATĂ PE VIAȚA PROCESULUI, nu o dată
+    // pe rulare a efectului. Azi efectul nu se re-rulează niciodată, fiindcă
+    // `trateazaRaspunsulLaNotificare` depinde de `mergiLa`, iar `mergiLa` are
+    // lista de dependențe goală. Dar asta e stabilitate ACCIDENTALĂ: în ziua
+    // în care cineva adaugă o dependență acolo — un `useState` pentru un mesaj,
+    // orice — efectul se re-abonează ȘI recitește răspunsul inițial, iar omul
+    // e mutat din senin, în mijlocul sesiunii, la calea unei notificări atinse
+    // acum o oră. Garda de mai jos face comportamentul independent de asta.
+    if (!raspunsInitialCitit.current) {
+      raspunsInitialCitit.current = true;
+      try {
+        const initial = Notifications.getLastNotificationResponse();
+        if (initial !== null) {
+          identificatorInitial = initial.notification.request.identifier;
+          trateazaRaspunsulLaNotificare(initial);
+        }
+      } catch {
+        // `getLastNotificationResponse` ARUNCĂ `UnavailabilityError` dacă
+        // modulul nativ nu expune funcția (verificat în sursa instalată,
+        // `NotificationsEmitter.js`). Nu e motiv să rămânem și fără
+        // ascultător: pornirea la rece se pierde, dar tap-urile cu aplicația
+        // deschisă merg.
       }
-    } catch {
-      // `getLastNotificationResponse` ARUNCĂ `UnavailabilityError` dacă modulul
-      // nativ nu expune funcția (verificat în sursa instalată,
-      // `NotificationsEmitter.js`). Nu e motiv să rămânem și fără ascultător:
-      // pornirea la rece se pierde, dar tap-urile cu aplicația deschisă merg.
     }
     const abonament = Notifications.addNotificationResponseReceivedListener((raspuns) => {
       if (identificatorInitial !== null) {

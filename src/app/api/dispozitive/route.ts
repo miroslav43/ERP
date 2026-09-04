@@ -96,11 +96,25 @@ async function retrageDispozitivPrinAdmin(
     return null;
   }
 
+  // DOAR `in_asteptare`, NU și `in_lucru` (corectat 2026-09-04).
+  //
+  // `in_lucru` înseamnă că `golesteCoada` a preluat deja rândul, sub
+  // `for update skip locked`, și e în zbor spre `exp.host`. Marcându-l
+  // `abandonat` de aici intram într-o cursă scriere-scriere cu el: ruta de
+  // livrare îl suprascrie apoi cu `trimis`, iar notificarea CHIAR a plecat —
+  // deci „abandonat" ar fi fost, oricum, o minciună în jurnal.
+  //
+  // Lăsat în pace, rândul își primește starea reală de la cel care l-a
+  // trimis. Nu scapă nimic: dispozitivul e deja retras, iar dacă livrarea
+  // eșuează și rândul revine pe `in_asteptare`, Pasul 1 din
+  // `push_ia_din_coada` îl abandonează la următoarea preluare, ca pe orice
+  // rând orfan. Un rând rămas agățat pe `in_lucru` e recuperat după 10 minute
+  // și trece pe același drum.
   const { error: eroareCoada } = await admin
     .from("push_livrari")
     .update({ stare: "abandonat", eroare: motiv })
     .eq("dispozitiv_id", retras.id)
-    .in("stare", ["in_asteptare", "in_lucru"])
+    .eq("stare", "in_asteptare")
     .is("deleted_at", null);
   if (eroareCoada !== null) {
     return "Abandonarea livrărilor din coadă a eșuat.";
