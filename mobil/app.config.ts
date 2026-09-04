@@ -32,7 +32,29 @@ const config: ExpoConfig = {
     adaptiveIcon: { foregroundImage: "./assets/icon.png", backgroundColor: "#0f1e3d" },
     permissions: ["CAMERA", "USE_BIOMETRIC", "POST_NOTIFICATIONS"],
   },
-  plugins: ["expo-notifications", "expo-camera", "expo-local-authentication"],
+  // `expo-file-system`, `expo-print`, `expo-sharing`, `expo-device`,
+  // `expo-constants` și `expo-linking` NU apar aici, deliberat: fiecare își
+  // aduce singur, prin AndroidManifest.xml propriu (merge automat la
+  // `prebuild`, verificat în `node_modules/<pachet>/android/.../AndroidManifest.xml`),
+  // tot ce-i trebuie — INTERNET și un FileProvider la `expo-file-system`,
+  // FileProvider + intent SEND la `expo-sharing`, nimic la `expo-print`/
+  // `expo-device`/`expo-constants`. Niciunul n-are `ios.infoPlist` de scris
+  // (nu ating camera rolă foto, nu cer bibliotecă media), deci n-au ce
+  // configura prin `plugins`. `salveazaPdf` (fisiere.ts) scrie doar în
+  // `FileSystem.cacheDirectory` — director privat al aplicației — nu are
+  // nevoie de READ/WRITE_EXTERNAL_STORAGE.
+  plugins: [
+    // `recordAudioAndroid: false` + `microphonePermission: false`: implicitul
+    // pachetului CERE microfon (permisiune RECORD_AUDIO pe Android,
+    // NSMicrophoneUsageDescription pe iOS) pentru filmare — `scanner.tsx`
+    // scanează doar coduri QR, nu filmează și nu înregistrează sunet. Fără
+    // asta, aplicația ar cere o permisiune nefolosită, cu text generic în
+    // engleză (nu textele scrise pentru angajat, ca la cameră/Face ID mai
+    // jos) — exact ce riscă respingere la revizuirea magazinului.
+    ["expo-camera", { recordAudioAndroid: false, microphonePermission: false }],
+    "expo-notifications",
+    "expo-local-authentication",
+  ],
   extra: { urlPortal: URL_PORTAL, eas: { projectId: "" } },
 };
 
