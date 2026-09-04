@@ -67,7 +67,16 @@ export type MesajSalariat = Readonly<{
   info: InfoSalariat;
 }>;
 
-export type Cor = Readonly<{ cod: string; versiune?: number }>;
+/**
+ * Funcția, referențiată prin identificatorul din nomenclatorul `Cor`.
+ *
+ * NU perechea `{ cod, versiune }`: aceea e forma din fișierele XML ale
+ * Revisal-ului vechi. REGES-Online cere identificatorul unic al poziției din
+ * nomenclator, exact ca la salariat și contract — de aceea folosește chiar
+ * `Referinta`, nu un tip propriu. Rezolvarea codului COR în UUID se face în
+ * `compune.ts`, din oglinda locală a nomenclatorului.
+ */
+export type Cor = Referinta;
 
 export type TimpMunca = Readonly<{
   norma: NormaTimpMunca;

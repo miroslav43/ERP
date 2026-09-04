@@ -39,7 +39,7 @@ function contract(c: Partial<ContractIntern> = {}): ContractIntern {
     salariuBaza: 4000,
     moneda: "RON",
     codCor: "251401",
-    versiuneCor: null,
+    regesCorId: "11111111-1111-4111-8111-111111111111",
     regesContractId: null,
     ...c,
   };
@@ -100,6 +100,20 @@ describe("contract", () => {
   it("cere cod COR de șase cifre — fără el registrul respinge contractul", () => {
     expect(campuri(verificaContract(contract({ codCor: "" })))).toContain("codCor");
     expect(campuri(verificaContract(contract({ codCor: "2514" })))).toContain("codCor");
+  });
+
+  it("oprește mesajul când codul COR nu are corespondent în nomenclator", () => {
+    // Codul e bine format, dar oglinda locală nu-l cunoaște — deci `cor` n-are
+    // ce referință să poarte. O referință inventată ar trece de validarea de
+    // schemă și ar fi refuzată ASINCRON, ore mai târziu.
+    const problema = verificaContract(contract({ regesCorId: null })).find(
+      (p) => p.camp === "codCor",
+    );
+    expect(problema?.mesaj).toContain("nu există în nomenclatorul REGES");
+  });
+
+  it("trece când codul are corespondent", () => {
+    expect(campuri(verificaContract(contract()))).not.toContain("codCor");
   });
 
   it("refuză salariul zero sau negativ", () => {
