@@ -1,16 +1,18 @@
 name: Revizuire
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Revizuire multi-agent la FIECARE push pe main. Fără PR, fără merge.
+# Revizuire multi-agent NOCTURNĂ, pe toate commit-urile de la ultima rulare.
+# Fără PR, fără merge. Un raport pe zi, pe WhatsApp, nu unul pe fiecare push.
 #
-# DE CE NU `anthropics/claude-code-action`: acțiunea NU suportă evenimentul
-# `push`. Nu e o scăpare de documentație, e o listă albă în cod —
-# `src/github/context.ts` acceptă doar issues, issue_comment, pull_request,
-# pull_request_review, pull_request_review_comment, workflow_dispatch,
-# repository_dispatch, schedule, workflow_run; orice altceva cade pe
-# `default: throw new Error("Unsupported event type")` înainte ca promptul să
-# fie măcar citit. Rulăm deci CLI-ul Claude Code direct, care nu are nicio
-# restricție de eveniment.
+# Ziua se taie în bucăți care încap sub pragul de triaj și se revizuiesc
+# secvențial — vezi pasul „Calculează intervalele de diff”. Fără tăiere, o zi
+# obișnuită depășește pragul și revizuirea s-ar sări în tăcere.
+#
+# DE CE NU `anthropics/claude-code-action`: acțiunea acceptă `schedule`, deci
+# restricția de eveniment nu ne-ar mai încurca azi — dar rămânem pe CLI pentru
+# motivul de mai jos, care e despre credențialul git, nu despre eveniment.
+# (Istoric: pe vremea declanșatorului `push`, acțiunea nici nu putea fi
+# folosită — `src/github/context.ts` respinge `push` printr-o listă albă în cod.)
 #
 # BONUS al rulării directe: acțiunea își înlocuiește propriul credențial git
 # peste cel pus de actions/checkout, cu un token de GitHub App — iar push-urile
