@@ -151,6 +151,85 @@ describe("landing-ul nu poate minți despre module", () => {
   });
 });
 
+describe("fișele de modul nu promit ce nu există", () => {
+  /**
+   * Codul aplicației, fără stratul de conținut.
+   *
+   * Excluderea lui `src/content` e esențială: fișele însele conțin cheile, iar
+   * fără excludere testul s-ar potrivi cu propria sursă și ar trece întotdeauna.
+   */
+  const COD_APLICATIE = [...fisiere("src/app", [".ts", ".tsx"]), ...fisiere("src/lib", [".ts"])]
+    .filter((f) => !f.startsWith("src/content/"))
+    .map((f) => readFileSync(f, "utf8"))
+    .join("\n");
+
+  it("fiecare permisiune din tabel e verificată undeva în aplicație", async () => {
+    /*
+     * Tabelele de roluri au fost scrise din `role_permissions`, unde stau
+     * valorile efective. Dar baza acordă mai mult decât verifică aplicația: opt
+     * chei — `attendance:export`, `attendance:delete`, `ssm:approve`,
+     * `ssm:export`, `ssm:delete`, `payroll:delete`, `vehicles:export`,
+     * `per_diem:export` — sunt acordate unor roluri și nu sunt cerute de niciun
+     * fișier din `src/`.
+     *
+     * Publicate ca rânduri de tabel, ar fi promis funcții care nu există: un
+     * export de pontaj și o ștergere de pontaj pe care nimeni nu le poate
+     * apăsa. Prima variantă a fișelor chiar le conținea.
+     *
+     * Testul ăsta e singurul lucru care leagă ce SCRIEM pe pagină de ce FACE
+     * aplicația. Un grant nou în bază nu-l trece; îl trece doar o funcție reală.
+     */
+    const { FISE } = await import("./fise-module");
+    expect(FISE.length, "nicio fișă").toBeGreaterThan(0);
+
+    for (const fisa of FISE) {
+      for (const actiune of fisa.actiuni) {
+        expect(
+          COD_APLICATIE.includes(`"${actiune.cheie}"`),
+          `${fisa.cheie}: „${actiune.ce}" promite ${actiune.cheie}, dar nicio pagină și nicio acțiune n-o verifică`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("modulele și legăturile lor sunt chei reale din catalog", async () => {
+    const { FISE } = await import("./fise-module");
+    for (const fisa of FISE) {
+      expect(isFeatureKey(fisa.cheie), `fișă pentru un modul inexistent: ${fisa.cheie}`).toBe(true);
+      for (const legatura of fisa.legaturi) {
+        expect(
+          isFeatureKey(legatura.catre),
+          `${fisa.cheie} trimite către modulul inexistent ${legatura.catre}`,
+        ).toBe(true);
+        expect(legatura.catre, `${fisa.cheie} se leagă de el însuși`).not.toBe(fisa.cheie);
+      }
+    }
+  });
+
+  it("fiecare fișă are destul conținut propriu ca să merite indexată", () => {
+    /*
+     * Pragul nu e o cifră magică: paginile au pornit de la ~39 de cuvinte
+     * proprii, iar la volumul ăla verdictul obișnuit în Search Console e
+     * „crawled, currently not indexed". 250 e pragul sub care o fișă nouă,
+     * scrisă în grabă, ar readuce exact problema pentru care există fișele.
+     */
+    return import("./fise-module").then(({ FISE }) => {
+      for (const fisa of FISE) {
+        const cuvinte = [
+          ...fisa.intro,
+          fisa.notaPermisiuni,
+          ...fisa.legaturi.map((l) => l.text),
+          ...fisa.nuFace,
+        ]
+          .join(" ")
+          .split(/\s+/)
+          .filter(Boolean).length;
+        expect(cuvinte, `${fisa.cheie}: doar ${cuvinte} cuvinte proprii`).toBeGreaterThan(250);
+      }
+    });
+  });
+});
+
 describe("engleza nu e o traducere pe jumătate", () => {
   it("are aceeași structură ca româna", () => {
     expect(EN.module.grupuri).toHaveLength(RO.module.grupuri.length);
