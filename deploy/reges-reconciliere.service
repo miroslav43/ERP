@@ -10,18 +10,45 @@
 #
 # Secretul se citește din /etc/administrativo/reges.env, care conține o linie:
 #   REGES_CRON_SECRET=<aceeași valoare ca în .env.production>
-# Fișierul are 0600 și aparține lui root: `curl` ar expune secretul în `ps` dacă
-# ar fi dat pe linia de comandă.
+# Fișierul are 0600 și aparține lui root.
+#
+# ATENȚIE: 0600 apără fișierul, NU procesul. Până la 2026-09-04 comentariul de
+# aici spunea că e de-ajuns, iar `ExecStart` dădea totuși secretul prin
+# `-H "Authorization: Bearer $REGES_CRON_SECRET"` — shell-ul îl substituie
+# ÎNAINTE de `exec`, deci valoarea ajungea literal în argv-ul lui `curl`, adică
+# în `/proc/<pid>/cmdline`, lizibil de orice utilizator local. Sunt două apărări
+# diferite pentru două expuneri diferite; a doua e `-K -` cu `--oauth2-bearer`
+# (secretul trece prin pipe, niciodată prin argv), la fel ca în
+# `deploy/push-livrare.service`.
+#
+# ── DE CE PRIN nginx, ȘI NU PRIN 127.0.0.1:3000 (corectat 2026-09-04) ────────
+# Adresa asta n-a funcționat niciodată, iar unitatea a fost citată drept
+# „tiparul din casă" tocmai fiindcă nimeni n-a exercitat-o:
+#   · `systemctl list-timers --all` pe VM nu conține `reges-reconciliere.timer`,
+#     iar `/etc/systemd/system/` n-are niciun fișier de unitate al proiectului —
+#     unitatea n-a fost INSTALATĂ vreodată;
+#   · `ss -ltn` nu arată nimic pe 3000; `curl http://127.0.0.1:3000/…` dă
+#     `(7) Failed to connect`, cod 000. Serviciul Swarm `administrativo-web` nu
+#     publică porturi (`docker-stack.yml` n-are bloc `ports:`) — se ajunge la el
+#     doar prin overlay-ul `strawboss-net`, ca `administrativo-web:3000`, iar
+#     gazda nu e pe acel overlay.
+# Calea reală e nginx-ul local: `--resolve administrativo.ro:443:127.0.0.1`
+# păstrează numele (deci SNI, `Host:` și certificatul) și schimbă doar IP-ul,
+# ocolind Cloudflare. Certificatul de pe origine e valid pentru nume, deci fără
+# `-k`. FĂRĂ `-L`: vhost-ul de pe 80 face `return 301`, iar `curl -L` degradează
+# POST-ul la GET. Aici mergem direct pe 443, deci nu apare redirect — regula
+# rămâne scrisă ca să nu fie adăugat „ca să fie".
 #
 # DE CE UN TIMER, ȘI NU pg_cron
-# Proiectul are pg_cron cu trei joburi, dar acelea rulează PL/pgSQL în interiorul
-# Postgres-ului. Ciclul REGES trebuie să iasă pe HTTP către Inspecția Muncii, iar
-# `pg_net` nu e activat pe instanța noastră. Un job SQL n-are cum să facă apelul.
+# Proiectul are pg_cron cu mai multe joburi, dar acelea rulează PL/pgSQL în
+# interiorul Postgres-ului. Ciclul REGES trebuie să iasă pe HTTP către Inspecția
+# Muncii, iar `pg_net` nu e activat pe instanța noastră. Un job SQL n-are cum să
+# facă apelul.
 #
 # DE CE E SIGUR CU DOUĂ REPLICI
 # Nu decide timerul, ci baza: ruta ia întâi o închiriere din `reges_inchiriere`.
 # O a doua cerere — altă replică, sau o suprapunere de timere — primește 409 și
-# se retrage. De aceea `--fail` de mai jos EXCLUDE 409: nu e o pană.
+# se retrage. De aceea `case` de mai jos tratează 409 ca succes: nu e o pană.
 
 [Unit]
 Description=Ciclu de reconciliere REGES-Online (Administrativo)
@@ -31,13 +58,25 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 EnvironmentFile=/etc/administrativo/reges.env
-# 409 = „lucrează deja altcineva", stare normală. `-o /dev/null -w %{http_code}`
-# scrie codul în jurnal, ca `journalctl -u reges-reconciliere` să arate ce s-a
-# întâmplat fără să deschidă nimeni baza.
+# Corpul răspunsului trece prin /tmp. `PrivateTmp=yes` îi dă unității propriul
+# /tmp, montat în afara celui al gazdei și șters la ieșire: fără el, fișierul ar
+# fi lizibil de orice utilizator local, iar răspunsul de eroare al rutei poate
+# conține date de angajat (CNP-uri respinse de REGES, de exemplu).
+PrivateTmp=yes
+# 409 = „lucrează deja altcineva", stare normală. Codul se scrie în jurnal, ca
+# `journalctl -u reges-reconciliere` să arate ce s-a întâmplat fără să deschidă
+# nimeni baza; corpul, doar la eșec.
+#
+# `%%s`, nu `%s`: systemd expandează `%`-specificatorii pe linia `ExecStart=`
+# înainte ca shell-ul să vadă comanda, iar `%s` e specificatorul lui pentru
+# „shell-ul utilizatorului" (systemd.unit(5)). Neescapat, ar dispărea din
+# formatul lui `printf`. `%{http_code}` nu are nevoie: `%{` nu se potrivește cu
+# niciun specificator systemd.
 ExecStart=/bin/sh -c '\
-  cod=$(curl -sS -m 300 -o /tmp/reges-raspuns.json -w "%{http_code}" \
-        -X POST -H "Authorization: Bearer $REGES_CRON_SECRET" \
-        http://127.0.0.1:3000/api/reges/reconciliere); \
+  cod=$(printf "oauth2-bearer = %%s\n" "$REGES_CRON_SECRET" \
+        | curl -sS -m 300 -o /tmp/reges-raspuns.json -w "%{http_code}" -K - \
+               --resolve administrativo.ro:443:127.0.0.1 \
+               -X POST https://administrativo.ro/api/reges/reconciliere); \
   echo "reges: HTTP $cod"; \
   case "$cod" in 200|409) exit 0 ;; *) cat /tmp/reges-raspuns.json; exit 1 ;; esac'
 TimeoutStartSec=360

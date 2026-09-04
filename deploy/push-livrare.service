@@ -90,6 +90,11 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 EnvironmentFile=/etc/administrativo/push.env
+# Corpul răspunsului trece prin /tmp. `PrivateTmp=yes` îi dă unității propriul
+# /tmp, montat în afara celui al gazdei și șters la ieșire: fără el, fișierul ar
+# fi lizibil de orice utilizator local, iar raportul de eroare al rutei poate
+# purta id-uri de dispozitiv și mesaje de la Expo.
+PrivateTmp=yes
 # Doar 200 e succes. Orice alt cod — inclusiv un 404, care aici înseamnă secret
 # nepotrivit sau gol, nu rută lipsă — iese cu eroare. Corpul răspunsului se
 # scrie în jurnal DOAR la eșec (ca la REGES): la o rulare pe minut, un
