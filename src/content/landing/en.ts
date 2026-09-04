@@ -222,7 +222,7 @@ export const EN: ContinutLanding = {
           {
             cheie: "leave",
             titlu: "Leave",
-            text: "The request travels the approval chain, the balance recalculates itself, and half days at either end are counted correctly.",
+            text: "The request travels the approval chain, the balance recalculates itself, and non-working days and public holidays drop out of the count automatically.",
             puncte: [
               "Eleven leave types, each with its legal basis noted",
               "Annual entitlement by seniority, working conditions, disability or age",

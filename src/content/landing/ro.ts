@@ -242,7 +242,7 @@ export const RO: ContinutLanding = {
           {
             cheie: "leave",
             titlu: "Concedii",
-            text: "Cererea trece pe lanțul de aprobare, soldul se recalculează singur, iar jumătățile de zi de la capete se numără corect.",
+            text: "Cererea trece pe lanțul de aprobare, soldul se recalculează singur, iar zilele nelucrătoare și sărbătorile legale se scot automat din numărătoare.",
             puncte: [
               "Unsprezece tipuri, fiecare cu temeiul legal notat",
               "Drept anual pe vechime, condiții de muncă, handicap sau vârstă",

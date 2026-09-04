@@ -587,3 +587,20 @@ describe("legăturile interne duc undeva", () => {
     }
   });
 });
+
+describe("promisiuni contrazise de bază", () => {
+  /**
+   * `0112_concediu_doar_zi_intreaga.sql` interzice prin `check` orice altceva
+   * decât `zi_intreaga`. Un text de vânzare care promite jumătăți de zi e o
+   * minciună publicată, nu o inexactitate.
+   */
+  it("nu promite jumătăți de zi la concedii", () => {
+    const modulRo = RO.module.grupuri.flatMap((g) => g.module).find((m) => m.cheie === "leave");
+    const modulEn = EN.module.grupuri.flatMap((g) => g.module).find((m) => m.cheie === "leave");
+
+    expect(modulRo).toBeDefined();
+    expect(modulEn).toBeDefined();
+    expect(`${modulRo?.text} ${modulRo?.puncte.join(" ")}`).not.toMatch(/jumăt/i);
+    expect(`${modulEn?.text} ${modulEn?.puncte.join(" ")}`).not.toMatch(/half[- ]day/i);
+  });
+});

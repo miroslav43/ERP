@@ -143,11 +143,6 @@ export const MESAJE: readonly MesajIncarcare[] = [
   },
   // src/domain/leave/zile-cerere.ts
   {
-    text: "O cerere poate începe sau se poate încheia cu jumătate de zi, iar soldul scade cu 0,5.",
-    categorie: "Concedii",
-  },
-  // src/domain/leave/zile-cerere.ts
-  {
     text: "Zilele de recuperare declarate de firmă sunt lucrătoare chiar și când cad sâmbăta.",
     categorie: "Concedii",
   },
