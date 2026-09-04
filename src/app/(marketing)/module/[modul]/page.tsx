@@ -11,6 +11,7 @@ import { RO } from "@/content/landing/ro";
 import { AntetSecundar } from "../../_componente/antet-secundar";
 import { Banda } from "../../_componente/banda";
 import { Cadru } from "../../_componente/cadru";
+import { arePrinGeam, PrinGeam } from "../../_componente/prin-geam";
 import { RandRegistru, Registru } from "../../_componente/registru";
 
 /**
@@ -120,6 +121,13 @@ export default async function PaginaModul({ params }: Proprietati) {
           lead: modul.text,
         }}
       />
+
+      {/*
+        Chenarul „prin geam", doar pentru modulele cu vitrină construită
+        (`CU_VITRINA` din `prin-geam.tsx`). Opțional prin construcție, exact ca
+        `fisa` de mai jos: modulele fără vitrină nu randează nimic aici.
+      */}
+      {arePrinGeam(cheie) && <PrinGeam cheie={cheie} titlu={modul.titlu} />}
 
       <Banda inaltime="medie">
         <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
