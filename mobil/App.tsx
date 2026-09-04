@@ -21,6 +21,24 @@ const URL_PORTAL =
   (Constants.expoConfig?.extra?.urlPortal as string) ?? "https://administrativo.ro/portal";
 
 /**
+ * Doar schema+host-ul din `URL_PORTAL`, calculat o singură dată — folosit la
+ * deep link-ul de notificare, mai jos, ca să construim un URL ABSOLUT în loc
+ * de o cale relativă (rundă 2 de revizuire: reparația de la scanner nu se
+ * propagase aici, deși comentariul deep link-ului îl citează pe cel de
+ * acolo ca referință). `try/catch` fiindcă `URL_PORTAL` trece printr-un
+ * `as string` pe o valoare de configurare (`extra.urlPortal`) — dacă ar
+ * ajunge vreodată malformată, o excepție necaptată AICI, la nivel de modul,
+ * ar opri pornirea întregii aplicații; fallback-ul e domeniul de producție.
+ */
+const ORIGINEA_PORTALULUI = (() => {
+  try {
+    return new URL(URL_PORTAL).origin;
+  } catch {
+    return "https://administrativo.ro";
+  }
+})();
+
+/**
  * Cât așteptăm confirmarea din pagină înainte să presupunem că n-a mai venit
  * și eliberăm garda temporară `inCurs`. Vezi RECUPERAREA DIN „ÎN CURS" din
  * `App`: scriptul injectat răspunde întotdeauna PRIN EL ÎNSUȘI, dar o
@@ -144,6 +162,20 @@ export default function App() {
   // rămasă deschisă", mai jos (Task 10, rundă de revizuire) — vezi
   // comentariul de la efectul care o folosește.
   const alertaFisierAratata = useRef(false);
+  // ADEVĂRATUL semnal pentru „fereastra nativă (foaia de partajare/
+  // previzualizarea de tipărire) e efectiv PE ECRAN" — rundă 2 de revizuire.
+  // `inCursFisier` (mai sus) e `true` din momentul injectării scriptului, cu
+  // mult ÎNAINTE ca fereastra nativă să existe: acoperă și cererea de rețea
+  // (`fetch` în pagină, până la `TIMP_RECUPERARE_FISIER_MS` = 20s) și
+  // conversia `FileReader`/base64. Folosirea lui `inCursFisier` ca semnal
+  // pentru alertă ar declanșa-o și pentru o simplă întârziere de rețea, fără
+  // nicio fereastră deschisă — un mesaj FALS. Ref-ul ăsta devine `true`
+  // abia chiar înainte de `salveazaPdf`/`tipareste` (unde chiar se prezintă
+  // fereastra) și `false` în `finally`, o dată cu `inCursFisier`.
+  const ferestraFisierDeschisa = useRef<{ pdf: boolean; html: boolean }>({
+    pdf: false,
+    html: false,
+  });
 
   // MOMENTUL ÎNREGISTRĂRII
   //
@@ -342,6 +374,9 @@ export default function App() {
           try {
             if (fel === "pdf") {
               if (typeof mesaj.nume === "string" && typeof mesaj.date === "string") {
+                // Din acest punct chiar se scrie fișierul și se prezintă
+                // foaia de partajare — vezi `ferestraFisierDeschisa`, sus.
+                ferestraFisierDeschisa.current.pdf = true;
                 await salveazaPdf(mesaj.nume, mesaj.date);
               } else {
                 // `ok: true`, dar scriptul n-a populat `nume`/`date` cum ar
@@ -354,6 +389,9 @@ export default function App() {
                 );
               }
             } else if (typeof mesaj.date === "string") {
+              // Din acest punct chiar se prezintă previzualizarea de
+              // tipărire — vezi `ferestraFisierDeschisa`, sus.
+              ferestraFisierDeschisa.current.html = true;
               await tipareste(mesaj.date);
             } else {
               Alert.alert(
@@ -374,6 +412,7 @@ export default function App() {
             );
           } finally {
             inCursFisier.current[fel] = false;
+            ferestraFisierDeschisa.current[fel] = false;
           }
         })();
         break;
@@ -411,9 +450,9 @@ export default function App() {
     webview.current?.injectJavaScript(`location.assign(${JSON.stringify(url)}); true;`);
   }, []);
 
-  // ACOPERIREA FOII DE PARTAJARE / PREVIZUALIZĂRII DE TIPĂRIRE LĂSATE
-  // DESCHISE PESTE O TRECERE ÎN FUNDAL (Task 9 + Task 10, reparație de la
-  // revizuire — același principiu ca la `Scanner`, aplicat unde se poate)
+  // ACOPERIREA (PARȚIALĂ) A FOII DE PARTAJARE / PREVIZUALIZĂRII DE TIPĂRIRE
+  // LĂSATE DESCHISE PESTE O TRECERE ÎN FUNDAL (Task 9 + Task 10, reparație de
+  // la revizuire — același principiu ca la `Scanner`, aplicat unde se poate)
   //
   // `Sharing.shareAsync`/`Print.printAsync` (`fisiere.ts`) prezintă
   // `UIActivityViewController`/`UIPrintInteractionController` — aceeași
@@ -432,42 +471,67 @@ export default function App() {
   // — deci ar eșua exact ca orice altă încercare de a presenta peste o
   // fereastră deja prezentată.
   //
-  // Singurul mecanism din trusa asta care CHIAR iese deasupra: `Alert.alert`.
-  // `RCTAlertController` își creează propria `UIWindow`, cu
-  // `windowLevel = UIWindowLevelAlert + 1` (verificat în
+  // LIMITAREA REALĂ, declarată EXACT (rundă 2 de revizuire — varianta de
+  // mai jos era prea îngustă): partea GRAVĂ a expunerii e INSTANTANEUL DIN
+  // SWITCHER (iOS) / MINIATURA DIN „RECENTE" (Android), nu interacțiunea de
+  // DUPĂ revenire. Alerta de mai jos se declanșează pe `"active"` — adică
+  // DUPĂ ce instantaneul a fost deja făcut, cu fereastra nativă (fluturaș
+  // sau adeverință, nemascate) pe ecran. Vălul nu ajută nici el: fereastra
+  // e prezentată de controller-ul RĂDĂCINĂ, deasupra întregului arbore
+  // React, deci și deasupra oricărui văl am desena noi. NU EXISTĂ nicio
+  // mitigare din JavaScript pentru instantaneul în sine — nici pe iOS, nici
+  // pe Android. Ce rămâne, mai jos, e strict pentru fereastra de
+  // INTERACȚIUNE de după revenire (cineva care ține telefonul ar putea
+  // altfel atinge direct foaia de partajare, fără să treacă vreodată prin
+  // lacăt) — nu pentru ce a apucat să fie fotografiat înainte.
+  //
+  // Singurul mecanism din trusa asta care iese deasupra ACELEI ferestre de
+  // interacțiune: `Alert.alert`. `RCTAlertController` își creează propria
+  // `UIWindow`, cu `windowLevel = UIWindowLevelAlert + 1` (verificat în
   // `RCTAlertController.mm:32`) — mai sus decât fereastra normală a
   // aplicației, deci și decât orice foaie de partajare sau previzualizare de
   // tipărire prezentată acolo. NU e o închidere: fereastra nativă rămâne
   // prezentă dedesubt, doar acoperită (fundalul întunecat al alertei) și
-  // netangibilă cât alerta e pe ecran — dar blochează interacțiunea directă
-  // cu conținutul expus exact în momentul critic al revenirii din fundal,
-  // până omul confirmă.
+  // netangibilă cât alerta e pe ecran.
   //
-  // PE ANDROID NU EXISTĂ ECHIVALENT — verificat, nu presupus: `shareAsync`
-  // pornește un CHOOSER printr-un `Intent` separat
+  // PE ANDROID NU EXISTĂ ECHIVALENT NICI PENTRU ATÂT — verificat, nu
+  // presupus: `shareAsync` pornește un CHOOSER printr-un `Intent` separat
   // (`SharingModule.kt`, `startActivityForResult`), iar tipărirea trece prin
   // `PrintManager` (`PrintModule.kt`) — ambele sunt ACTIVITĂȚI/procese
   // separate de a noastră, nu ferestre în interiorul ei. O alertă RN pe
   // Android e legată de `FragmentManager`-ul PROPRIEI Activity
-  // (`DialogModule.kt`) și nu poate apărea peste o Activity străină. Rămâne
-  // o limitare cunoscută a platformei, nerezolvabilă din `mobil/` fără cod
+  // (`DialogModule.kt`) și nu poate apărea peste o Activity străină. Nici
+  // fereastra de interacțiune de după revenire nu are deci vreo mitigare pe
+  // Android — doar instantaneul e comun cu iOS, restul e mai rău. Rămâne o
+  // limitare cunoscută a platformei, nerezolvabilă din `mobil/` fără cod
   // nativ propriu — semnalată în raport, nu ascunsă.
   useEffect(() => {
     if (Platform.OS !== "ios") return;
     const abonament = AppState.addEventListener("change", (stare) => {
       if (stare !== "active") return;
-      if (!inCursFisier.current.pdf && !inCursFisier.current.html) return;
+      // `ferestraFisierDeschisa`, NU `inCursFisier`: cel din urmă e `true`
+      // din momentul injectării scriptului, cu mult înainte să existe vreo
+      // fereastră nativă (cerere de rețea + citire `FileReader`, până la
+      // `TIMP_RECUPERARE_FISIER_MS` = 20s) — folosit ca semnal, alerta ar fi
+      // apărut și pentru un simplu fluturaș care se descarcă mai greu pe o
+      // rețea slabă, cu mesajul „o fereastră a rămas deschisă", FALS.
+      if (!ferestraFisierDeschisa.current.pdf && !ferestraFisierDeschisa.current.html) return;
       // Gardă: „active" poate reveni de mai multe ori înainte ca omul să
       // apuce să atingă „OK" (de exemplu o tranziție scurtă prin
       // „inactive"→„active" imediat după cea care a declanșat deja alerta) —
       // fără gardă, ar apărea o a doua alertă suprapusă peste prima.
       if (alertaFisierAratata.current) return;
       alertaFisierAratata.current = true;
+      // Un singur buton („OK") pe iOS: nu are nici gest de swipe, nici tap
+      // în afara casetei care s-o închidă — practic necancelabilă oricum,
+      // deci `cancelable` (opțiune gândită pentru Android, unde efectul ăsta
+      // n-are cum să ruleze — vezi garda de mai sus) n-ar fi adăugat nimic
+      // real; omisă intenționat, nu o garanție care sugerează mai mult decât
+      // există.
       Alert.alert(
         "Reveniți în aplicație",
         "O fereastră de partajare sau tipărire a rămas deschisă cât aplicația era în fundal.",
         [{ text: "OK", onPress: () => { alertaFisierAratata.current = false; } }],
-        { cancelable: false },
       );
     });
     return () => abonament.remove();
@@ -497,14 +561,27 @@ export default function App() {
     // validată de bază ȘI de `construiesteMesaj` — a treia verificare
     // (`esteCaleInterna`, mai sus) e aici pentru că e singura care rulează în
     // procesul care chiar navighează.
+    //
+    // Construim un URL ABSOLUT (`ORIGINEA_PORTALULUI` + calea validată), nu
+    // navigăm cu o cale relativă (reparație rundă 2 de revizuire — scăpată
+    // la reparația inițială a lui `mergiLa`, deși comentariul de-atunci
+    // trimitea EXACT aici drept referință). `originWhitelist` nu e setat pe
+    // `WebView`, iar `onShouldStartLoadWithRequest` lasă să treacă orice
+    // navigare care nu e descărcare sau tipărire — deci WebView-ul poate fi
+    // legitim pe alt origin (un link extern din portal, de exemplu) în
+    // momentul în care omul atinge notificarea. O cale relativă s-ar fi
+    // rezolvat pe ORIGINEA DOCUMENTULUI curent, nu pe a noastră. Impactul e
+    // mai mic decât la codul QR — calea de notificare nu poartă un secret,
+    // doar o rută — dar forma defectului e identică, deci reparația e
+    // identică: `mergiLa`, care primește deja un URL absolut.
     const abonament = Notifications.addNotificationResponseReceivedListener((raspuns) => {
       const cale = raspuns.notification.request.content.data?.cale;
       if (esteCaleInterna(cale)) {
-        webview.current?.injectJavaScript(`location.assign(${JSON.stringify(cale)}); true;`);
+        mergiLa(`${ORIGINEA_PORTALULUI}${cale}`);
       }
     });
     return () => abonament.remove();
-  }, []);
+  }, [mergiLa]);
 
   return (
     <Lacat

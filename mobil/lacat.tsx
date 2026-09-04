@@ -3,6 +3,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Pressable, StyleSheet, Text, View } from "react-native";
 
 /**
+ * Cât așteptăm `hasHardwareAsync`/`isEnrolledAsync` înainte să presupunem că
+ * n-o să răspundă niciodată — vezi comentariul din `verificaDisponibilitatea`.
+ */
+const TIMP_LIMITA_VERIFICARE_MS = 4000;
+
+/**
  * Ecran opac peste WebView, deblocat cu Face ID sau amprentă.
  *
  * NU atinge sesiunea. Biometrie eșuată înseamnă ecran acoperit, nu
@@ -51,7 +57,8 @@ import { AppState, Pressable, StyleSheet, Text, View } from "react-native";
  * cerere de autentificare.
  *
  * ── VĂLUL APARE ȘI PE „INACTIVE", DAR AUTENTIFICAREA SE CERE DOAR DUPĂ UN
- *    „BACKGROUND" REAL (a doua reparație de la aceeași revizuire) ──────────
+ *    „BACKGROUND" REAL (a doua reparație de la aceeași revizuire — declarată
+ *    mai precis la runda 2, vezi cele două paragrafe de mai jos) ───────────
  * Pe iOS, `AppState` trece prin „inactive" ÎNAINTEA lui „background" — iar
  * instantaneul folosit la cardul din switcher se face în jurul acelei
  * tranziții. Dacă am acoperi ecranul abia la „background", instantaneul ar
@@ -62,6 +69,29 @@ import { AppState, Pressable, StyleSheet, Text, View } from "react-native";
  * chiar părăsește aplicația) — la revenire, vălul dispare SINGUR, fără să
  * ceară biometrie, ca să nu transforme orice notificare într-o
  * reautentificare.
+ *
+ * DOUĂ LIMITĂRI REALE ALE ACOPERIRII DE MAI SUS — declarate exact, nu doar
+ * „nu putem închide fereastra" (rundă 2 de revizuire, ambele verificate în
+ * sursă, nu presupuse):
+ *
+ * 1. PE ANDROID, „inactive" NU EXISTĂ. `AppStateModule.kt` (React Native
+ *    instalat) definește exact două stări — `APP_STATE_ACTIVE = "active"` și
+ *    `APP_STATE_BACKGROUND = "background"` — `onHostPause()` trece direct pe
+ *    `"background"`, fără nicio stare intermediară. Condiția
+ *    `stare === "inactive" || stare === "background"` de mai jos e deci, pe
+ *    Android, echivalentă cu `stare === "background"`: acoperirea suplimentară
+ *    n-are efect acolo. Miniatura din „Recente" pe Android rămâne apărată
+ *    DOAR de cursa de pe „background", descrisă la punctul 2.
+ * 2. CHIAR ȘI PE iOS, acoperirea pe „inactive" MĂREȘTE fereastra de risc, nu
+ *    o ÎNCHIDE determinist. Vălul se desenează printr-un `setState` React,
+ *    livrat spre partea nativă prin puntea JSI — asincron. Instantaneul
+ *    pentru cardul din switcher se face pe firul principal, imediat în jurul
+ *    lui `applicationWillResignActive:`/`applicationDidEnterBackground:`. Nu
+ *    există nicio garanție că randarea vălului apucă să se termine ÎNAINTE
+ *    ca sistemul să facă instantaneul — e o cursă ATENUATĂ (fereastra de
+ *    expunere s-a micșorat față de „doar pe background"), nu o reparație
+ *    determinist corectă. Nedovedit dacă pierde vreodată cursa asta pe un
+ *    telefon real — vezi „Ce rămâne de probat".
  *
  * ── PORTIȚA DE SIGURANȚĂ, DACĂ TOT CE-I MAI SUS AR DA GREȘ ──────────────────
  * `blocat` e stare React simplă, ținută doar în memorie — niciodată scrisă pe
@@ -91,9 +121,29 @@ export function Lacat({ copil }: { readonly copil: React.ReactNode }) {
 
   const verificaDisponibilitatea = useCallback(async () => {
     try {
-      const are = await LocalAuthentication.hasHardwareAsync();
-      const inregistrat = are ? await LocalAuthentication.isEnrolledAsync() : false;
-      disponibil.current = are && inregistrat;
+      // `Promise.race` cu un timeout — reparație rundă 2 de revizuire.
+      // `try/catch` de mai jos prindea deja o interogare care ARUNCĂ, dar nu
+      // și una care nu se termină NICIODATĂ: `blocat` pornește `null`
+      // (vezi mai sus) și rămâne `null` la infinit dacă promisiunea asta nu
+      // se decide — ecran navy plin, fără text, cu `Pressable` dezactivat
+      // (`disabled={blocat !== true}`), deci `deblocheaza` nici nu poate fi
+      // apelat manual. Restart-ul ar reintra pe exact aceeași cale
+      // nedeterminată. Impact maxim, probabilitate mică — dar „PIN-ul
+      // telefonului deblochează întotdeauna" (mai sus) NU acoperă starea
+      // asta: promisiunea aia trăiește în `authenticateAsync`, la care nu se
+      // ajunge niciodată din `null`. La expirarea temporizatorului tratăm ca
+      // „indisponibil" — consecventă cu „fără biometrie, fără lacăt": în
+      // incertitudine, alegem să NU blocăm omul definitiv afară.
+      const rezultat = await Promise.race([
+        (async () => {
+          const are = await LocalAuthentication.hasHardwareAsync();
+          return are ? await LocalAuthentication.isEnrolledAsync() : false;
+        })(),
+        new Promise<boolean>((rezolva) => {
+          setTimeout(() => rezolva(false), TIMP_LIMITA_VERIFICARE_MS);
+        }),
+      ]);
+      disponibil.current = rezultat;
     } catch {
       // Eroare nativă neașteptată la interogarea hardware-ului — tratăm ca
       // „nu e disponibil", nu ca „aplicația nu pornește".
@@ -123,13 +173,23 @@ export function Lacat({ copil }: { readonly copil: React.ReactNode }) {
             necesitaAutentificare.current = false;
             return;
           }
-          if (!necesitaAutentificare.current) {
+          if (necesitaAutentificare.current) {
+            // O trecere reală în fundal a avut loc ȘI biometria e
+            // disponibilă ACUM — vălul trebuie să fie sus, indiferent ce
+            // era pus la momentul lui „background". Reparație rundă 2 de
+            // revizuire: până acum, ramura asta nu făcea NIMIC — presupunea
+            // că `blocat` era deja `true` de la „background". Fals dacă
+            // biometria nu era disponibilă ATUNCI (deci `setBlocat(true)`
+            // nu se apucase să ruleze) și a devenit disponibilă exact cât
+            // aplicația era în fundal (înrolată din Setări) — omul revenea
+            // direct în portal, fără văl, la prima întoarcere după înrolare.
+            setBlocat(true);
+          } else {
             // Am acoperit ecranul doar pentru o tranziție scurtă prin
             // „inactive" — n-a existat niciodată o trecere reală în fundal,
             // deci nu cerem biometrie.
             setBlocat(false);
           }
-          // Altfel vălul rămâne, cu text de acțiune, așteptând tap + autentificare.
         });
       }
     });
