@@ -106,14 +106,34 @@ const eslintConfig = defineConfig([
      * minciună publicată, fără ca nimic să cadă.
      *
      * Regula o face imposibilă mecanic, exact cum lista de mai sus ține
-     * `service_role` în șapte locuri numărate. Trei familii interzise:
+     * `service_role` în șapte locuri numărate. Cinci familii interzise:
      *
      *   `server-only`   — marca fișierelor care rup build-ul dacă ajung în
      *                     bundle-ul de client; într-un demo n-are ce căuta;
      *   `@/lib/supabase/*` — orice client de bază, cu sau fără RLS;
      *   `next/headers`  — `cookies()`/`headers()` ar face pagina dinamică pe
      *                     sesiunea vizitatorului, adică ar lega demonstrația de
-     *                     cine o privește.
+     *                     cine o privește;
+     *   fișiere `actions` — orice cale terminată în `/actions` (glob cu dublu
+     *                     asterisc drept prefix, ca pe linia excepțiilor de mai
+     *                     sus). Sunt fișierele de Server Actions (`"use server"`),
+     *                     importabile dintr-un fișier de client PRIN
+     *                     CONSTRUCȚIE — ăsta e chiar rostul directivei. Un
+     *                     import direct dintr-un `.../concedii/actions` ar
+     *                     trece de toate celelalte patru familii și ar scrie
+     *                     efectiv în baza reală, sub sesiunea vizitatorului
+     *                     dacă are una — lovește direct promisiunea „nimic nu
+     *                     pleacă spre server";
+     *   `next/cache`    — `revalidatePath`/`revalidateTag` acționează asupra
+     *                     cache-ului aplicației reale; demonstrația n-are ce
+     *                     revalida.
+     *
+     * Tiparul pe fișiere `actions` NU e un ban pe tot directorul de aplicație:
+     * componente reale precum `PlanificatorConcedii`
+     * (`@/app/(app)/concedii/calendar/planificator-concedii`) rămân
+     * importabile — asta ține promisiunea „când modific aplicația, se modifică
+     * și demo-ul". Tiparul prinde doar fișierul de Server Actions propriu-zis,
+     * indiferent din ce modul, nu restul arborelui `(app)`.
      *
      * Blocul vine DUPĂ excepțiile de mai sus, deci le bate pentru fișierele
      * lui; `@/lib/supabase/*` acoperă și clientul admin, care e tot acolo.
@@ -135,6 +155,11 @@ const eslintConfig = defineConfig([
               message:
                 "`cookies()`/`headers()` leagă demonstrația de sesiunea vizitatorului. Vitrina trebuie să arate la fel pentru oricine, fără să știe cine privește.",
             },
+            {
+              name: "next/cache",
+              message:
+                "`revalidatePath`/`revalidateTag` rulează pe server și acționează asupra cache-ului aplicației reale. Stratul de demonstrație n-are nimic de revalidat — dacă apare aici, ceva vrea să acționeze asupra aplicației reale, nu doar s-o arate.",
+            },
           ],
           patterns: [
             {
@@ -142,6 +167,12 @@ const eslintConfig = defineConfig([
               allowTypeImports: true,
               message:
                 "Stratul de demonstrație nu atinge baza de date. Datele lui sunt fabricate (`src/demo/lume.ts`) și trăiesc doar în sesiunea de browser — pagina publică promite exact asta.",
+            },
+            {
+              group: ["**/actions", "@/**/actions"],
+              allowTypeImports: true,
+              message:
+                'Fișierul țintă e o Server Action `"use server"` — importabilă dintr-un fișier de client prin construcție, dar execută pe server, sub sesiunea vizitatorului, și scrie în baza reală. Stratul de demonstrație arată aplicația, n-are voie s-o acționeze; dacă e nevoie de un tip, importă-l cu `import type`.',
             },
           ],
         },

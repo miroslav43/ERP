@@ -38,6 +38,7 @@ beforeEach(() => {
 
 afterEach(() => {
   window.sessionStorage.clear();
+  vi.unstubAllGlobals();
 });
 
 /** `ZonaToast` alături de vitrină: fără ea, mesajul de reușită al lui `Formular` nu apare nicăieri. */
@@ -111,13 +112,53 @@ describe("vitrina de concedii", () => {
     expect(screen.getAllByText(/Popescu Ion/).length).toBeGreaterThan(0);
   });
 
-  it("nu cade dacă sub cheia de depozit stă altceva decât un tablou de cereri", () => {
+  it("nu cade dacă sub cheia de depozit stă altceva decât un tablou de cereri", async () => {
     // Declanșatorul realist: extinderea demonstrației la alte module schimbă
     // forma stocată sub aceeași cheie, iar un vizitator cu sesiune veche
     // prinde exact asta. `cereri` se iterează cu `for...of` — fără garda de
-    // formă din `citesteDepozit`, asta ar arunca `TypeError` la montare.
+    // formă din `citesteDepozit`, asta ar arunca `TypeError`.
+    //
+    // Citirea NU se întâmplă în `render()`: inițializatorul lui `useState`
+    // pornește gol dinadins (nepotrivirea de hidratare, `0ed3f9f`), iar
+    // depozitul se citește într-un `requestAnimationFrame` programat din
+    // `useEffect` (`vitrina-leave.tsx:97-108`), DUPĂ ce `render()` s-a
+    // întors. Un `expect(() => render(...)).not.toThrow()` nu mai vede nimic
+    // din două motive suprapuse: (a) cadrul rulează în afara apelului lui
+    // `render()`, deci excepția n-are cum să iasă din el; (b) sub happy-dom,
+    // `requestAnimationFrame` rulează prin `TIMER.setImmediate`, care își
+    // prinde singur excepția într-un `try/catch` și o dispecerizează ca
+    // eveniment de eroare pe `window`, nu ca excepție sincronă
+    // (`happy-dom/lib/window/BrowserWindow.js:2118-2129`).
+    //
+    // Un simplu `await waitFor(...)` NU repară asta: verificarea de mai jos
+    // (angajații apar pe calendar) e deja adevărată din primul randaj, cu
+    // `cereri` gol — `waitFor` face o verificare SINCRONĂ înainte de orice
+    // așteptare și, găsind-o adevărată pe loc, se întoarce imediat, fără să
+    // mai lase bucla de evenimente să ajungă la cadrul programat. Verificat
+    // empiric: un `waitFor` naiv aici rămâne verde chiar cu garda scoasă din
+    // `citesteDepozit`.
+    //
+    // Reparația reală: `requestAnimationFrame` se înlocuiește cu unul care nu
+    // programează nimic, ci doar REȚINE cadrul — testul îl declanșează
+    // singur, într-un `act`, când vrea el, nu bucla de evenimente. Dacă
+    // depozitul stricat trece de gardă, `setCereri` primește un obiect, nu un
+    // tablou, `for...of` aruncă în timpul randării, iar `act` propagă
+    // excepția direct în test — fără nicio cursă cu timere reale.
+    const cadre: Array<FrameRequestCallback> = [];
+    vi.stubGlobal("requestAnimationFrame", (cadru: FrameRequestCallback) => {
+      cadre.push(cadru);
+      return cadre.length;
+    });
+    vi.stubGlobal("cancelAnimationFrame", () => {});
+
     window.sessionStorage.setItem(CHEIE_CONCEDII, JSON.stringify({ nu: "un tablou de cereri" }));
-    expect(() => render(<VitrinaConcedii azi="2026-03-10" />)).not.toThrow();
+    render(<VitrinaConcedii azi="2026-03-10" />);
+    expect(cadre).toHaveLength(1);
+
+    await act(async () => {
+      cadre[0]!(0);
+    });
+
     for (const angajat of angajatiVizibili("org_admin")) {
       expect(screen.getAllByText(new RegExp(angajat.nume)).length).toBeGreaterThan(0);
     }

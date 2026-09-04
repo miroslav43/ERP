@@ -79,6 +79,14 @@ describe("catalogul vitrinelor", () => {
     expect(arePrinGeam("toString")).toBe(false);
   });
 
+  it("nu întoarce funcția moștenită de pe `Object.prototype` drept notă", () => {
+    // Aceeași capcană ca mai sus, dar pe `notaVitrinei`: `VITRINE["toString"]`
+    // cu acces direct cu paranteze întoarce FUNCȚIA moștenită, nu `undefined`
+    // — React ar primi un copil de tip funcție în loc de text sau nimic.
+    expect(notaVitrinei("constructor")).toBeUndefined();
+    expect(notaVitrinei("toString")).toBeUndefined();
+  });
+
   it("fiecare vitrină își declară subsetul, ca pagina să nu se contrazică", () => {
     // `ro.ts` promite unsprezece tipuri de concediu; `src/demo/lume.ts` are
     // trei. Nota e singurul loc unde diferența e spusă cu voce tare.

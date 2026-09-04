@@ -44,5 +44,9 @@ export function arePrinGeam(cheie: string): boolean {
 
 /** Nota de subset a vitrinei, sau `undefined` dacă modulul n-are vitrină. */
 export function notaVitrinei(cheie: string): string | undefined {
-  return VITRINE[cheie];
+  // `Object.hasOwn`, nu acces direct cu paranteze: `VITRINE["toString"]`
+  // întoarce funcția MOȘTENITĂ de pe `Object.prototype`, nu `undefined` — un
+  // acces naiv i-ar da lui React un copil de tip funcție. Perechea ei,
+  // `arePrinGeam`, se apără deja la fel.
+  return Object.hasOwn(VITRINE, cheie) ? VITRINE[cheie] : undefined;
 }
