@@ -9,11 +9,11 @@ cai:
   - "supabase/migrations/0005_hr_rls.sql"
 tabele: [employees, organization_members, departments]
 permisiuni: [employees:read]
-capcane: [18]
+capcane: [2, 18]
 citeste_daca:
   - "scope `team` care vede prea mult sau prea puțin → secțiunea `manager_path`"
-scris_pe: 0815fbff2c885cd44b5768ee25f084f16a9e95b8
-scris_la: 2026-09-03
+scris_pe: 15d4ef4edaef4834d88bfbcc49db567d17f5bca4
+scris_la: 2026-09-04
 tags: [modul]
 ---
 
@@ -68,10 +68,22 @@ diurnă.
 `"none"` dă `AccesRestrictionat`. Cu scope diferit de `all`, pagina trimite propria fișă,
 ca arborele să pornească de acolo.
 
-Rolurile conturilor vin dintr-o **a doua** interogare, `rolurileConturilor`, nu dintr-un
-embed: între `employees` și `organization_members` nu există cheie străină, iar PostgREST
-refuză embed-ul fără ea. Nu cere permisiune în plus — politica cere doar apartenența la
+Rolurile conturilor vin dintr-o **a doua** interogare, nu dintr-un embed: între
+`employees` și `organization_members` nu există cheie străină, iar PostgREST refuză
+embed-ul fără ea. Nu cere permisiune în plus — politica cere doar apartenența la
 organizație.
+
+Funcția chemată aici e `toateRolurileConturilor(organizationId)`, nu `rolurileConturilor`
+— aceasta din urmă rămâne, cu filtrul ei pe listă de id-uri, pentru [[modul/angajati]].
+Fără filtru, harta nu mai depinde de arbore, deci pleacă în același val cu `idFisaProprie`
+în loc să aștepte `arboreleManagerial`. Harta e prin urmare un **superset** al conturilor
+din arbore, inclusiv sub scope `team`: nu ajunge pe ecran, fiindcă
+`construiesteOrganigrama` (`src/domain/hr/organigrama.ts`) iterează peste rândurile
+arborelui și consultă harta doar prin `.get()`, niciodată invers.
+
+Harta contează pentru două lucruri de pe ecran: eticheta de funcție a fișelor care n-au
+una (`etichetaFunctiei` scrie rolul de cont, cu cursive) și identificarea
+administratorului unic, de care atârnă avertismentul despre legăturile deduse.
 
 `construiesteOrganigrama` întoarce, pe lângă arbore, și `radaciniFaraManagerVizibil`:
 oameni al căror șef există, dar nu e vizibil sub scope-ul curent. Ei nu se aruncă și nu se
@@ -83,6 +95,12 @@ diferită de „n-are șef".
 - **Un angajat fără fișă principală de angajat are `team` peste mulțimea vidă.**
   Subordonarea trăiește în `employees`, nu în `organization_members`; un cont de manager
   fără fișă vede liste goale peste tot, fără nicio eroare.
+- **Harta de roluri nu cere limită, deci se taie la plafonul `max_rows`.**
+  `toateRolurileConturilor` citește toți membrii activi ai organizației fără paginare;
+  peste plafon PostgREST trunchiază fără eroare și fără antet. Efectul nu e o listă mai
+  scurtă, ci un ecran care minte în două feluri: fișele fără funcție pierd eticheta
+  derivată din rol, iar administratorul poate să nu mai fie găsit — atunci nimeni nu mai
+  e atașat implicit și avertismentul despre legăturile deduse dispare. — capcana #2
 - **Embed-urile care traversează spre module fără permisiune vin NULL, nu în eroare** —
   cazul canonic e `vehicles!vehicle_id` pentru un manager. — capcana #18
 
