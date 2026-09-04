@@ -16,8 +16,8 @@ const SEDILE = /[şŞţŢ]/u;
 const LUNGIME_MAXIMA = 120;
 
 describe("mesajele „Știați că…”", () => {
-  it("sunt o sută", () => {
-    expect(MESAJE).toHaveLength(100);
+  it("sunt nouăzeci și nouă", () => {
+    expect(MESAJE).toHaveLength(99);
   });
 
   it("încap într-o așteptare: cel mult 120 de caractere", () => {
@@ -47,5 +47,17 @@ describe("mesajele „Știați că…”", () => {
     for (let i = 0; i < 200; i++) {
       expect(mesajAleator(exclus).text).not.toBe(exclus);
     }
+  });
+
+  it("niciun mesaj din categoria „Concedii” nu promite jumătăți de zi (scoase de migrarea 0112_concediu_doar_zi_intreaga.sql)", () => {
+    // Nu se caută șirul exact de azi, ci fraza care ar recidiva: „jumătate”
+    // (de zi) sau soldul fracționat „0,5”. Restricția la categoria „Concedii”
+    // e intenționată — „0,5 zile” la diurnă (fereastra incompletă) e adevărat
+    // și despre altă funcție; testul nu trebuie să-l pice.
+    const PROMISIUNE_JUMATATE_ZI = /jum[aă]tate|0,5/iu;
+    const concedii = MESAJE.filter((m) => m.categorie === "Concedii");
+    expect(concedii.filter((m) => PROMISIUNE_JUMATATE_ZI.test(m.text)).map((m) => m.text)).toEqual(
+      [],
+    );
   });
 });
