@@ -12,8 +12,9 @@ permisiuni: [departments:read, departments:create, departments:update]
 capcane: [17]
 citeste_daca:
   - "cod de pontaj care nu mai merge după tipărire → secțiunea „rotește”"
-scris_pe: 0815fbff2c885cd44b5768ee25f084f16a9e95b8
-scris_la: 2026-09-03
+  - "poartă de citire scrisă doar pe „none” → secțiunea „Rute”"
+scris_pe: 711e5225e1df2ceab9324037466c87fda8abd8a0
+scris_la: 2026-09-04
 tags: [modul]
 ---
 
@@ -29,10 +30,27 @@ o cheie inventată ar întoarce `none` — refuz tăcut.
 
 ## Rute
 
-| Rută                      | Poartă                                                                                              |
-| ------------------------- | --------------------------------------------------------------------------------------------------- |
-| `/puncte-lucru`           | `requireFeature(..., "nucleu")`; scrierea cere `departments:create` / `departments:update` la `all` |
-| `/puncte-lucru/[id]/afis` | afișul tipăribil, cu codul                                                                          |
+| Rută                      | Poartă                                                                                                                   |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `/puncte-lucru`           | `requireFeature(..., "nucleu")` + `departments:read`; scrierea cere `departments:create` / `departments:update` la `all` |
+| `/puncte-lucru/[id]/afis` | afișul tipăribil, cu codul — cere `departments:update` la `all`, nu `:read`                                              |
+
+Poarta de citire a listei se scrie cu `scopeFor`, respinsă pe `null` **și** pe `"none"`:
+`getPermissionMap` scoate scope-ul `none` din hartă după rezolvare (`permissions.ts:127`),
+iar `scopeFor` întoarce `null` pentru o cheie absentă (`permissions.ts:142-144`) — o
+comparație scrisă doar pe `=== "none"` nu se închide niciodată. Ăsta a fost un defect
+real aici: `manager` n-are niciun rând `departments:*` în seed, trecea de poartă și primea
+un ecran gol în loc de `AccesRestrictionat`. Aceeași formă completă e în
+[[modul/departamente]].
+
+Afișul cere `departments:update`, nu `:read`, fiindcă poartă codul în clar, iar cine îl
+vede poate ponta de oriunde — e un secret operațional, nu o listă.
+
+Preambulul ambelor pagini pornește `requireFeature` și `getPermissionMap` prin
+`Promise.all` — citiri independente, pe tabele diferite. În `/puncte-lucru`, selectul de
+puncte pleacă în același val (înlănțuit doar de `createServerSupabase()`), iar `error` se
+verifică după poartă, ca înainte: `Promise.all` schimbă doar ordinea în timp a cererilor,
+nu ordinea deciziilor — respingerea lui `requireFeature` se propagă la fel ca înlănțuită.
 
 ## Server Actions
 
