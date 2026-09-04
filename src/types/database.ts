@@ -7022,6 +7022,7 @@ export type Database = {
           reglementat: boolean
           scade_din_sold: boolean
           se_reporteaza: boolean
+          suspenda_contract: boolean
           temei_legal: string | null
           termen_reportare: number | null
           tip_zi_pontaj: Database["public"]["Enums"]["attendance_day_type"]
@@ -7046,6 +7047,7 @@ export type Database = {
           reglementat?: boolean
           scade_din_sold?: boolean
           se_reporteaza?: boolean
+          suspenda_contract?: boolean
           temei_legal?: string | null
           termen_reportare?: number | null
           tip_zi_pontaj?: Database["public"]["Enums"]["attendance_day_type"]
@@ -7070,6 +7072,7 @@ export type Database = {
           reglementat?: boolean
           scade_din_sold?: boolean
           se_reporteaza?: boolean
+          suspenda_contract?: boolean
           temei_legal?: string | null
           termen_reportare?: number | null
           tip_zi_pontaj?: Database["public"]["Enums"]["attendance_day_type"]
