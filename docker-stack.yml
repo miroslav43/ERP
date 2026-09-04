@@ -61,8 +61,25 @@ services:
       - RESEND_API_KEY=${RESEND_API_KEY:-}
       - RESEND_WEBHOOK_SECRET=${RESEND_WEBHOOK_SECRET:-}
       # Ciclul de reconciliere REGES. Gol ⇒ ruta refuză tot, ciclul e oprit.
-      # Îl pornește un systemd timer de pe gazdă, cu un POST spre nginx.
+      # Ar trebui pornit de un systemd timer de pe gazdă — dar unitatea
+      # `deploy/reges-reconciliere.{service,timer}` NU e instalată pe acest VM
+      # (verificat: `systemctl list-timers --all` n-o conține), iar adresa din ea
+      # (`http://127.0.0.1:3000`) n-ar funcționa nici dacă ar fi: serviciul Swarm
+      # nu publică porturi. Ciclul REGES e deci OPRIT azi, indiferent de valoarea
+      # de mai jos.
       - REGES_CRON_SECRET=${REGES_CRON_SECRET:-}
+      # Golirea cozii de notificări push (`push_livrari`). Gol ⇒ ruta
+      # `/api/push/livreaza` răspunde 404 la orice cerere, coada NU se golește
+      # niciodată, iar notificările se adună fără ca nimic să semnaleze.
+      #
+      # LIPSEA DE-AICI PÂNĂ LA REVIZUIREA FINALĂ, și asta era suficient ca tot
+      # lanțul să tacă: blocul `environment:` enumeră EXPLICIT fiecare variabilă
+      # care ajunge în container, iar Swarm nu propagă ce nu e enumerat. O
+      # valoare pusă corect în `.env.production` rămânea în shell-ul de deploy;
+      # în container, `serverEnv.PUSH_CRON_SECRET` era `""`, deci ruta refuza
+      # inclusiv apelurile cu secretul potrivit — cu un 404, adică exact codul
+      # care arată ca „rută inexistentă".
+      - PUSH_CRON_SECRET=${PUSH_CRON_SECRET:-}
       # Asistentul AI din colțul dreapta-jos. Gol ⇒ /api/asistent răspunde 404
       # și bula nu se randează, oricâte firme au modulul `asistent` activ.
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}

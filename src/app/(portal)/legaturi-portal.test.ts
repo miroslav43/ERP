@@ -63,14 +63,24 @@ describe("legăturile portalului", () => {
     expect(fisiere.length).toBeGreaterThan(5);
   });
 
-  it("niciun `href` absolut nu duce în afara portalului", () => {
+  it("niciun `href` literal nu duce în afara portalului", () => {
     const scapate: string[] = [];
 
     for (const cale of fisiere) {
       const sursa = readFileSync(cale, "utf8");
-      for (const potrivire of sursa.matchAll(/href=(?:"|\{`)(\/[^"`{}\s]*)/gu)) {
+      // Fără `\/` la începutul grupului (lărgire la revizuirea finală): până
+      // acum tiparul cerea ca href-ul să înceapă cu `/`, deci un
+      // `href="https://…"`, `mailto:` sau `tel:` îi era INVIZIBIL — adică exact
+      // formele care scot omul din portal cel mai brutal. `mobil/App.tsx`
+      // citează testul ăsta ca garanție că portalul n-are navigări de prim-cadru
+      // către altă origine; garanția aia nu putea fi dată de un tipar care nu
+      // vede originile străine.
+      for (const potrivire of sursa.matchAll(/href=(?:"|\{`)([^"`{}\s]*)/gu)) {
         const href = potrivire[1] ?? "";
         if (href === "/portal" || href.startsWith("/portal/")) continue;
+        // Ancoră în pagină (`#continut`, ținta legăturii „Sari la conținut") —
+        // nu e o navigare, deci n-are cum să iasă din portal.
+        if (href.startsWith("#")) continue;
         if (IESIRI_PERMISE.some((permis) => href.startsWith(permis))) continue;
         scapate.push(`${cale.replace(process.cwd(), "")} → ${href}`);
       }

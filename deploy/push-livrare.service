@@ -17,6 +17,18 @@
 #   sudo chmod 600 /etc/administrativo/push.env
 # ACEEAȘI valoare trebuie pusă și în .env.production, apoi stack:deploy.
 #
+# Pentru ca `stack:deploy` chiar s-o ducă în container, variabila trebuie să fie
+# ENUMERATĂ în blocul `environment:` din docker-stack.yml — Swarm nu propagă ce
+# nu e enumerat. Lipsea de-acolo până la revizuirea finală: secretul din
+# .env.production nu ajungea nicăieri, `serverEnv.PUSH_CRON_SECRET` rămânea gol
+# în container, iar ruta răspundea 404 și la un apel cu secretul CORECT.
+# Verificarea după deploy, de pe VM (fără secret pe linia de comandă, ca mai
+# jos — aici doar forma greșită, ca să vedem că ruta există și răspunde):
+#   curl -sS -o /dev/null -w '%{http_code}\n' --resolve administrativo.ro:443:127.0.0.1 \
+#        -X POST https://administrativo.ro/api/push/livreaza
+# 404 = ruta răspunde (secret gol sau greșit). 502 = containerul nu răspunde.
+# `curl: (7)` = ai nimerit o adresă la care nu ascultă nimeni.
+#
 # `EnvironmentFile` ține secretul în afara acestui fișier (versionat în git) și
 # în afara istoricului shell-ului de la instalare — dar NU e, singur, o apărare
 # împotriva lui `ps`. Dacă valoarea ar ajunge pe linia de comandă a lui `curl`
@@ -33,6 +45,35 @@
 # interiorul Postgres-ului. Livrarea trebuie să iasă pe HTTP către exp.host, iar
 # `pg_net` nu e activat pe instanța noastră de Supabase. Un job SQL n-are cum să
 # facă apelul — vezi și comentariul din `api/reges/reconciliere/route.ts`.
+#
+# ── DE CE PRIN nginx, ȘI NU PRIN 127.0.0.1:3000 (revizuirea finală) ──────────
+# Unitatea asta a fost scrisă după modelul lui `deploy/reges-reconciliere.
+# service`, care face POST către `http://127.0.0.1:3000`. ACELA NU E UN
+# PRECEDENT FUNCȚIONAL, și nimic din repo nu spunea asta:
+#   · `systemctl list-timers --all` pe VM nu conține niciun
+#     `reges-reconciliere.timer` — unitatea n-a fost instalată NICIODATĂ, deci
+#     adresa ei n-a fost nici măcar o dată exercitată;
+#   · `ss -ltn` nu arată nimic pe 3000, iar `curl http://127.0.0.1:3000/…` dă
+#     `(7) Failed to connect`, cod 000. Serviciul Swarm `administrativo-web` NU
+#     publică porturi (vezi `docker-stack.yml`: are `networks: [strawboss-net]`,
+#     niciun bloc `ports:`). Se ajunge la el DOAR prin overlay, ca
+#     `administrativo-web:3000` — iar gazda nu e pe acel overlay.
+# Deci calea reală e nginx-ul local, exact ca pentru un vizitator, dar fără
+# ocolul prin Cloudflare: `--resolve administrativo.ro:443:127.0.0.1` ține
+# numele (deci SNI, `Host:` și certificatul) și schimbă doar adresa IP la care
+# se conectează. Certificatul Let's Encrypt de pe origine e valid pentru numele
+# ăsta, deci nu e nevoie de `-k`.
+#
+# Alternativa era `ports: ["127.0.0.1:3000:3000"]` în `docker-stack.yml`. N-am
+# ales-o: schimbă suprafața serviciului, cere un `stack:deploy` ca să intre în
+# vigoare, iar în Swarm legarea pe o adresă anume are subtilități de mod
+# (`ingress` vs `host`) pe care varianta de mai sus nu le are deloc.
+#
+# FĂRĂ `-L`, NICIODATĂ. Vhost-ul de pe 80 face `return 301` (vezi
+# `deploy/nginx/30-administrativo.ro.conf`), iar `curl -L` degradează un POST la
+# GET pe 301/302 — ruta n-are handler GET, deci ar răspunde 405 și coada n-ar
+# fi golită. Aici mergem direct pe 443, deci nu apare niciun redirect, dar
+# regula rămâne scrisă ca să nu fie adăugat „ca să fie".
 #
 # DE CE E SIGUR CU DOUĂ REPLICI
 # Nu decide serviciul, ci baza: `public.push_ia_din_coada` ia rândurile cu
@@ -64,7 +105,8 @@ EnvironmentFile=/etc/administrativo/push.env
 ExecStart=/bin/sh -c '\
   cod=$(printf "oauth2-bearer = %%s\n" "$PUSH_CRON_SECRET" \
         | curl -sS -m 60 -o /tmp/push-raspuns.json -w "%{http_code}" -K - \
-               -X POST http://127.0.0.1:3000/api/push/livreaza); \
+               --resolve administrativo.ro:443:127.0.0.1 \
+               -X POST https://administrativo.ro/api/push/livreaza); \
   echo "push: HTTP $cod"; \
   case "$cod" in 200) exit 0 ;; *) cat /tmp/push-raspuns.json; exit 1 ;; esac'
 TimeoutStartSec=90

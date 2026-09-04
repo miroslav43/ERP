@@ -91,10 +91,36 @@ pnpm dlx eas-cli@latest init
 ```
 
 **Cere:** un cont expo.dev (gratuit, fără DUNS, fără card). **Produce:** un
-`projectId` nou, pe care `eas init` îl scrie singur în `app.config.ts`, la
-`extra.eas.projectId` (azi `""`). **Eșecul arată ca:** `eas init` refuză dacă
-`slug`/`owner` din config nu se potrivesc cu ce alegi la crearea proiectului —
-răspunsul e să accepți ce propune CLI-ul, nu să editezi manual.
+`projectId` nou — pe care **trebuie să-l scrii de mână** în `app.config.ts`, la
+`extra.eas.projectId` (azi `""`):
+
+```ts
+extra: { urlPortal: URL_PORTAL, eas: { projectId: "<id-ul-tipărit-de-eas-init>" } },
+```
+
+**`eas init` NU îl scrie singur aici, deși pentru majoritatea proiectelor o
+face.** Verificat în sursa instalată, `@expo/config@57.0.9`,
+`build/Config.js:347-405` — `modifyConfigAsync` scrie automat în exact două
+situații: (1) proiectul **nu** are config dinamic (`:351`), sau (2) are ȘI un
+`app.json` static, ȘI configul dinamic exportă o **funcție** (`:367`). `mobil/`
+n-are `app.json`, iar `app.config.ts:67` exportă un **obiect**. Amândouă cad,
+deci funcția ajunge la ramura finală și întoarce
+`{ type: 'warn', message: 'Cannot automatically write to dynamic config at: app.config.ts' }`.
+
+**Cum arată eșecul, exact:** `eas init` **reușește** — proiectul chiar se
+creează pe expo.dev — dar în locul confirmării vezi avertismentul de mai sus, iar
+`extra.eas.projectId` rămâne `""`. Nimic nu se rupe pe loc; se rupe abia pe
+telefon, unde `getExpoPushTokenAsync()` aruncă (vezi comentariul de la `cereJeton`,
+`push.ts:51`), `cereJeton()` întoarce `null` și push-ul pur și simplu nu se
+înregistrează niciodată, tăcut.
+
+**De unde iei identificatorul**, dacă ai închis terminalul: `pnpm dlx
+eas-cli@latest project:info`, sau de pe expo.dev → proiectul → *Project settings*
+→ *Project ID* (un UUID).
+
+**Celălalt eșec posibil:** `eas init` refuză dacă `slug`/`owner` din config nu se
+potrivesc cu ce alegi la crearea proiectului — acolo răspunsul e să accepți ce
+propune CLI-ul, nu să editezi manual.
 
 **Până la acest pas, `push.ts` → `cereJeton()` → `getExpoPushTokenAsync()`
 ARUNCĂ** (verificat în cod, comentariul de la `cereJeton`): funcția prinde

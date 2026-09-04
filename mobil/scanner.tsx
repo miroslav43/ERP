@@ -70,9 +70,24 @@ import { AppState, Linking, Modal, Pressable, StyleSheet, Text, View } from "rea
  * e întotdeauna `originePortal` — portalul configurat al buildului. Calea
  * validată se remontează pe el. Proprietatea de securitate e neschimbată
  * (cale ancorată, domeniu din listă albă), dar navigarea e garantat
- * pe-originea-noastră, deci nu poate ieși niciodată din sesiune. Bonus: un
- * afiș de producție devine scanabil și pe un build de dezvoltare, ceea ce
- * înainte era imposibil (vezi nota 18 din „Ce rămâne de probat").
+ * pe-originea-noastră, deci nu poate ieși niciodată din sesiune.
+ *
+ * ── „BONUSUL" DE LA RUNDA 5 ERA FALS; SE RETRAGE (revizuirea finală) ────────
+ * Comentariul de-aici a susținut o vreme că, prin remontare, „un afiș de
+ * producție devine scanabil și pe un build de dezvoltare". Nu devine. Pe un
+ * build cu `URL_PORTAL` pe `http://` — adică orice build îndreptat spre un Next
+ * local — `urlPontareValidat` iese pe PRIMA linie: `domeniuValid(originePortal)`
+ * cere `https://`, deci `http://localhost:3000` nu trece, iar funcția întoarce
+ * `null` pentru ORICE cod, inclusiv pentru un afiș de producție perfect valid.
+ * Scannerul e INERT acolo, iar singurul semnal e indiciul generic de după opt
+ * rateuri — omul ar concluziona că e stricat scannerul, sau afișul. Nota 18 din
+ * runda 1 („proba de scanare nu e executabilă pe un build de dezvoltare")
+ * rămâne deci adevărată și a fost retrasă greșit; proba se face pe un build cu
+ * `URL_PORTAL=https://administrativo.ro/portal`.
+ *
+ * Nu e un defect de reparat aici: fail-closed pe o origine care nu e `https` e
+ * exact comportamentul dorit pentru codul de pontaj. E o limitare de mediu, de
+ * declarat — nu un beneficiu de anunțat.
  */
 const DOMENII_PERMISE = ["https://administrativo.ro"];
 const CALE_PONTARE = /^\/portal\/ponteaza\/[A-Za-z0-9_-]+$/;
