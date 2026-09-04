@@ -24,7 +24,7 @@ tichete, sesizări, KPI, integrare, echipă. Se instalează deja ca PWA
    `public.notifications`, vizibile doar cuiva care deschide portalul.
 2. **Nicio prezență în magazine.** „Caută Administrativo în Play Store" e o
    propoziție; „Safari → partajare → derulează → Add to Home Screen" e un training.
-3. **Sesiune fragilă pe iOS.** Instalarea PWA pe iOS *copiază* cookie-urile din
+3. **Sesiune fragilă pe iOS.** Instalarea PWA pe iOS _copiază_ cookie-urile din
    Safari (WebKit 17.2+), producând două depozite cu **același** refresh token; cu
    rotația Supabase activă, folosirea alternativă le poate revoca pe amândouă.
 
@@ -89,7 +89,7 @@ niciodată clientul de browser Supabase.** `getBrowserSupabase` apare în șapte
 fișiere, toate în `src/app/(app)/` — cursuri, angajați, onboarding, concedii, avatar
 — și în niciunul din `(portal)`. Deci în portal nimic nu rescrie cookie-ul din
 JavaScript; sesiunea e pusă exclusiv de server. Plafonul ITP de 7 zile al Safari
-lovește storage-ul *scriptabil*, nu `Set-Cookie` de la server.
+lovește storage-ul _scriptabil_, nu `Set-Cookie` de la server.
 
 Lacătul biometric (`expo-local-authentication`) acoperă ecranul la revenire și **nu
 atinge sesiunea**. Biometrie eșuată = ecran acoperit, nu deconectare.
@@ -102,15 +102,15 @@ DELETE**, `search_path = ''`, granturi în bucla `do $$`.
 
 ### 5.1 `public.dispozitive_push`
 
-| coloană | notă |
-|---|---|
-| `id` | uuid pk |
-| `user_id` | fk `auth.users`, on delete cascade |
-| `organization_id` | fk `organizations`, on delete cascade |
-| `jeton` | text, `ExponentPushToken[…]`, check de formă |
-| `platforma` | enum nou `public.platforma_mobila` = `('ios','android')` |
-| `vazut_la` | timestamptz — ultima dată când aplicația a confirmat jetonul |
-| coada de audit | `created_at/by`, `updated_at/by`, `deleted_at` |
+| coloană           | notă                                                         |
+| ----------------- | ------------------------------------------------------------ |
+| `id`              | uuid pk                                                      |
+| `user_id`         | fk `auth.users`, on delete cascade                           |
+| `organization_id` | fk `organizations`, on delete cascade                        |
+| `jeton`           | text, `ExponentPushToken[…]`, check de formă                 |
+| `platforma`       | enum nou `public.platforma_mobila` = `('ios','android')`     |
+| `vazut_la`        | timestamptz — ultima dată când aplicația a confirmat jetonul |
+| coada de audit    | `created_at/by`, `updated_at/by`, `deleted_at`               |
 
 Index unic parțial pe `(jeton)` where `deleted_at is null`. Index pe
 `(user_id, organization_id)` where `deleted_at is null`.
@@ -122,16 +122,16 @@ pe care o urmează deja modulul Notificări.
 
 ### 5.2 `public.push_livrari` (coada)
 
-| coloană | notă |
-|---|---|
-| `id` | uuid pk |
-| `notification_id` | fk `notifications`, on delete cascade |
-| `dispozitiv_id` | fk `dispozitive_push`, on delete cascade |
-| `stare` | enum nou `public.stare_livrare_push` = `('in_asteptare','trimis','esuat','abandonat')` |
-| `incercari` | int not null default 0 |
-| `trimis_la` | timestamptz |
-| `eroare` | text |
-| coada de audit | idem |
+| coloană           | notă                                                                                   |
+| ----------------- | -------------------------------------------------------------------------------------- |
+| `id`              | uuid pk                                                                                |
+| `notification_id` | fk `notifications`, on delete cascade                                                  |
+| `dispozitiv_id`   | fk `dispozitive_push`, on delete cascade                                               |
+| `stare`           | enum nou `public.stare_livrare_push` = `('in_asteptare','trimis','esuat','abandonat')` |
+| `incercari`       | int not null default 0                                                                 |
+| `trimis_la`       | timestamptz                                                                            |
+| `eroare`          | text                                                                                   |
+| coada de audit    | idem                                                                                   |
 
 Index parțial pe `(stare, created_at)` where `stare = 'in_asteptare'`.
 
@@ -231,10 +231,10 @@ nimic** — nici `node_modules/`, nici lockfile. Reprodus de trei ori, inclusiv 
 
 Cele două ieșiri care funcționează:
 
-| soluție | verdict |
-|---|---|
-| `pnpm install --ignore-workspace` | merge, dar cere ca fiecare om **și EAS Build** să-și amintească flagul |
-| `mobil/pnpm-workspace.yaml` cu `packages: ["."]` | **ales** — `pnpm install` simplu funcționează, fără flag |
+| soluție                                          | verdict                                                                |
+| ------------------------------------------------ | ---------------------------------------------------------------------- |
+| `pnpm install --ignore-workspace`                | merge, dar cere ca fiecare om **și EAS Build** să-și amintească flagul |
+| `mobil/pnpm-workspace.yaml` cu `packages: ["."]` | **ales** — `pnpm install` simplu funcționează, fără flag               |
 
 Ce **nu** se face: adăugarea lui `packages:` în `pnpm-workspace.yaml` de la rădăcină.
 Ar schimba semantica instalării pentru toate sesiunile concurente și pentru CI, ca
@@ -242,25 +242,25 @@ să rezolve o problemă locală de amplasare.
 
 ### Pachete
 
-| pachet | pentru ce |
-|---|---|
-| `react-native-webview` | portalul întreg |
-| `expo-notifications` | jetonul push, permisiunea, atingerea notificării |
-| `expo-local-authentication` | lacătul la deschidere |
-| `expo-camera` | scannerul QR |
-| `expo-print` + `expo-sharing` | tipărirea adeverinței, salvarea fluturașului |
-| `expo-linking` | deep link-uri |
+| pachet                        | pentru ce                                        |
+| ----------------------------- | ------------------------------------------------ |
+| `react-native-webview`        | portalul întreg                                  |
+| `expo-notifications`          | jetonul push, permisiunea, atingerea notificării |
+| `expo-local-authentication`   | lacătul la deschidere                            |
+| `expo-camera`                 | scannerul QR                                     |
+| `expo-print` + `expo-sharing` | tipărirea adeverinței, salvarea fluturașului     |
+| `expo-linking`                | deep link-uri                                    |
 
-Fără `expo-router`: nu există navigație de gestionat, WebView-ul *este* navigația.
+Fără `expo-router`: nu există navigație de gestionat, WebView-ul _este_ navigația.
 Estimare: sub 500 de linii de TypeScript nativ, total.
 
 ## 8. Descărcări și tipărire — obligatorii, nu opționale
 
 Verificat în cod: două căi se rup **tăcut** într-un WebView netratat.
 
-| cale | ce întoarce | ce se întâmplă netratat |
-|---|---|---|
-| `/api/export/salarizare/fluturas?…` | PDF, `content-disposition: attachment` | descărcarea eșuează fără mesaj |
+| cale                                     | ce întoarce                            | ce se întâmplă netratat                |
+| ---------------------------------------- | -------------------------------------- | -------------------------------------- |
+| `/api/export/salarizare/fluturas?…`      | PDF, `content-disposition: attachment` | descărcarea eșuează fără mesaj         |
 | `/portal/cursurile-mele/[id]/adeverinta` | HTML de tipărit (`new Response(html)`) | nu există buton de tipărire în WebView |
 
 Tratare, prin `onShouldStartLoadWithRequest`:
@@ -320,7 +320,7 @@ ajunge să aibă, a crescut peste rolul de înveliș.
    verificat dacă asta scutește sau dacă e nevoie de un ecran.
 4. **`sent_email_at` e avertismentul din casă.** Coloană proiectată în `0001` și
    niciodată scrisă de nimeni: trimiterea pe email a fost gândită și nu a fost
-   construită. Push-ul are coadă, `incercari` și `eroare` tocmai ca să se *vadă*
+   construită. Push-ul are coadă, `incercari` și `eroare` tocmai ca să se _vadă_
    când nu funcționează, în loc să tacă.
 
 ## 12. Ordinea de construcție

@@ -87,29 +87,27 @@ export default async function PaginaPortal() {
     randPontare,
     fluturas,
   ] = await Promise.all([
-      vedeConcedii ? soldurileMele(tenant.organizationId, an, fisa.id) : Promise.resolve([]),
-      vedeConcedii ? cererileMele(tenant.organizationId, fisa.id, 20) : Promise.resolve([]),
-      vedeConcedii
-        ? tipuriConcediu(tenant.organizationId)
-        : Promise.resolve(new Map<string, { denumire: string; scade_din_sold: boolean }>()),
-      vedePontaj ? pontajulMeu(tenant.organizationId, an, luna, fisa.id) : Promise.resolve([]),
-      vedeAnunturi
-        ? anunturiPublicate(tenant.organizationId, new Date().toISOString())
-        : Promise.resolve([]),
-      vedeAnunturi
-        ? idAnunturiCitite(tenant.organizationId, fisa.id)
-        : Promise.resolve(new Set<string>()),
-      vedeCursuri ? cursurileMele(tenant.organizationId, fisa.id) : Promise.resolve([]),
-      // Perioada și setările intră în ACELAȘI `Promise.all`, nu după el: puse în
-      // urma unei interogări deja plecate, ar plăti un al doilea drum dus-întors
-      // pe fiecare deschidere a aplicației.
-      poatePontaZiua ? citestePerioada(tenant.organizationId, an, luna) : Promise.resolve(null),
-      poatePontaZiua ? setariPontaj(tenant.organizationId, azi) : Promise.resolve(null),
-      poatePontaZiua ? setariPontareRapida(tenant.organizationId) : Promise.resolve(null),
-      vedeSalariu
-        ? citesteFluturasulPropriu(tenant.organizationId, fisa.id)
-        : Promise.resolve(null),
-    ]);
+    vedeConcedii ? soldurileMele(tenant.organizationId, an, fisa.id) : Promise.resolve([]),
+    vedeConcedii ? cererileMele(tenant.organizationId, fisa.id, 20) : Promise.resolve([]),
+    vedeConcedii
+      ? tipuriConcediu(tenant.organizationId)
+      : Promise.resolve(new Map<string, { denumire: string; scade_din_sold: boolean }>()),
+    vedePontaj ? pontajulMeu(tenant.organizationId, an, luna, fisa.id) : Promise.resolve([]),
+    vedeAnunturi
+      ? anunturiPublicate(tenant.organizationId, new Date().toISOString())
+      : Promise.resolve([]),
+    vedeAnunturi
+      ? idAnunturiCitite(tenant.organizationId, fisa.id)
+      : Promise.resolve(new Set<string>()),
+    vedeCursuri ? cursurileMele(tenant.organizationId, fisa.id) : Promise.resolve([]),
+    // Perioada și setările intră în ACELAȘI `Promise.all`, nu după el: puse în
+    // urma unei interogări deja plecate, ar plăti un al doilea drum dus-întors
+    // pe fiecare deschidere a aplicației.
+    poatePontaZiua ? citestePerioada(tenant.organizationId, an, luna) : Promise.resolve(null),
+    poatePontaZiua ? setariPontaj(tenant.organizationId, azi) : Promise.resolve(null),
+    poatePontaZiua ? setariPontareRapida(tenant.organizationId) : Promise.resolve(null),
+    vedeSalariu ? citesteFluturasulPropriu(tenant.organizationId, fisa.id) : Promise.resolve(null),
+  ]);
 
   /*
    * Luna fluturașului NU poate intra în valul de mai sus: se cere după

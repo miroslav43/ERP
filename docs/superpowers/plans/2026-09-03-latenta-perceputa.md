@@ -52,21 +52,21 @@ spec; se citesc amândouă.
 
 ## Structura fișierelor
 
-| fișier | responsabilitate | sarcină |
-| --- | --- | --- |
-| `deploy/nginx/30-administrativo.ro.conf` | **sursa de adevăr** a vhostului; `log_format` + `access_log` | 0 |
-| `src/components/data/rand-tabel.tsx` | rândul apăsabil; capătă tranziție + afordant local | 1 |
-| `src/components/data/rand-tabel.test.tsx` | **nou** — apără feedbackul la clic | 1 |
-| `src/lib/auth/current-user.ts` | „cine e utilizatorul?"; trece pe verificare locală | 2 |
-| `src/lib/auth/current-user.test.ts` | **nou** — apără maparea claims → `AuthUser` | 2 |
-| `src/lib/supabase/middleware.ts` | reîmprospătarea sesiunii; trece pe verificare locală | 3 |
-| `src/proxy.ts` | ieșiri devreme + matcher | 3, 4 |
-| `src/proxy.test.ts` | **nou** — apără ordinea ieșirilor | 4 |
-| `next.config.ts` | `staleTimes.dynamic` | 5 |
-| `src/instrumentation.ts` | **nou** — dispatcher undici cu keep-alive lung | 6 |
-| `package.json`, `pnpm-lock.yaml` | `undici` ca dependință reală | 6 |
-| `src/lib/actions/create-action.ts` | preambulul acțiunii: `Promise.all` + audit în `after()` | 7, 8 |
-| `src/app/(app)/**/page.tsx` | preambulul paginii: `Promise.all` | 9 |
+| fișier                                    | responsabilitate                                             | sarcină |
+| ----------------------------------------- | ------------------------------------------------------------ | ------- |
+| `deploy/nginx/30-administrativo.ro.conf`  | **sursa de adevăr** a vhostului; `log_format` + `access_log` | 0       |
+| `src/components/data/rand-tabel.tsx`      | rândul apăsabil; capătă tranziție + afordant local           | 1       |
+| `src/components/data/rand-tabel.test.tsx` | **nou** — apără feedbackul la clic                           | 1       |
+| `src/lib/auth/current-user.ts`            | „cine e utilizatorul?"; trece pe verificare locală           | 2       |
+| `src/lib/auth/current-user.test.ts`       | **nou** — apără maparea claims → `AuthUser`                  | 2       |
+| `src/lib/supabase/middleware.ts`          | reîmprospătarea sesiunii; trece pe verificare locală         | 3       |
+| `src/proxy.ts`                            | ieșiri devreme + matcher                                     | 3, 4    |
+| `src/proxy.test.ts`                       | **nou** — apără ordinea ieșirilor                            | 4       |
+| `next.config.ts`                          | `staleTimes.dynamic`                                         | 5       |
+| `src/instrumentation.ts`                  | **nou** — dispatcher undici cu keep-alive lung               | 6       |
+| `package.json`, `pnpm-lock.yaml`          | `undici` ca dependință reală                                 | 6       |
+| `src/lib/actions/create-action.ts`        | preambulul acțiunii: `Promise.all` + audit în `after()`      | 7, 8    |
+| `src/app/(app)/**/page.tsx`               | preambulul paginii: `Promise.all`                            | 9       |
 
 ---
 
@@ -78,9 +78,11 @@ nici reparația nu se dovedește — adică toate sarcinile care urmează ar fi 
 **Nu e TDD.** E în afara codului aplicației; poarta e empirică.
 
 **Fișiere:**
+
 - Modifică: `deploy/nginx/30-administrativo.ro.conf`
 
 **Interfețe:**
+
 - Produce: jurnalul `/var/log/nginx/administrativo.log`, format `durate`, citit de toate sarcinile
   următoare ca serie de referință.
 
@@ -201,10 +203,12 @@ Claude-Session: https://claude.ai/code/session_019x5wtXrnS5AeUPpXchWSJ4" -- depl
 ## Sarcina 1: Feedback la clicul pe un rând de tabel
 
 **Fișiere:**
+
 - Modifică: `src/components/data/rand-tabel.tsx`
 - Creează: `src/components/data/rand-tabel.test.tsx`
 
 **Interfețe:**
+
 - Consumă: `useSemnalIncarcare(activ: boolean, eticheta?: string | undefined): void` din
   `@/components/incarcare/use-incarcare`; `goleste(): void` și
   `surseCurente(): readonly Sursa[]` din `@/lib/incarcare/depozit`.
@@ -466,10 +470,12 @@ Claude-Session: https://claude.ai/code/session_019x5wtXrnS5AeUPpXchWSJ4" -- src/
 **Postul cel mai mare din registru.** ~90 ms de rețea per randare → ~1,7 ms de verificare locală.
 
 **Fișiere:**
+
 - Modifică: `src/lib/auth/current-user.ts:1-33`
 - Creează: `src/lib/auth/current-user.test.ts`
 
 **Interfețe:**
+
 - Consumă: `createServerSupabase(): Promise<ServerSupabase>` din `@/lib/supabase/server`.
 - Produce: `getCurrentUser(): Promise<AuthUser | null>` — **semnătură neschimbată**.
   `AuthUser = Readonly<{ id: string; email: string; fullName: string | null }>`
@@ -477,6 +483,7 @@ Claude-Session: https://claude.ai/code/session_019x5wtXrnS5AeUPpXchWSJ4" -- src/
   `listUserOrganizations`, `requireUser`) nu se ating.
 
 **Fapte verificate, de care depinde codul:**
+
 - `getClaims()` fără argument cheamă `getSession()` (`GoTrueClient.js:5325`), care cheamă
   `_callRefreshToken()` la expirare (`:2554`) — **reîmprospătarea se păstrează**.
 - `JwtPayload extends RequiredClaims` (`types.d.ts:1660-1695`): `sub: string` e obligatoriu,
@@ -705,10 +712,12 @@ Claude-Session: https://claude.ai/code/session_019x5wtXrnS5AeUPpXchWSJ4" -- src/
 Al doilea dintre cele două apeluri. Rulează la **fiecare** cerere care trece de matcher.
 
 **Fișiere:**
+
 - Modifică: `src/lib/supabase/middleware.ts:5, 30-34, 67-79`
 - Modifică: `src/proxy.ts:76, 94`
 
 **Interfețe:**
+
 - Consumă: nimic nou.
 - Produce: `updateSession(request: NextRequest): Promise<SessionUpdate>` unde
   `SessionUpdate = Readonly<{ response: NextResponse; autentificat: boolean }>`.
@@ -826,10 +835,12 @@ Trei tăieturi independente în același fișier. Împreună scot cea mai mare p
 34,9× (11 745 de cereri pentru 336 de documente).
 
 **Fișiere:**
+
 - Modifică: `src/proxy.ts:33-46, 62-72, 76-81, 141`
 - Creează: `src/proxy.test.ts`
 
 **Interfețe:**
+
 - Consumă: `updateSession` din Sarcina 3 (`autentificat: boolean`).
 - Produce: `proxy(request: NextRequest): Promise<NextResponse>` — semnătură neschimbată.
 
@@ -1026,6 +1037,7 @@ Cauza rădăcină a amplificării. Cele 88 de `loading.tsx` — corecte — pun 
 învechit în clipa în care aterizează.
 
 **Fișiere:**
+
 - Modifică: `next.config.ts`
 
 **Nu e TDD.** Poarta e `tsc` plus jurnalul nginx după deploy.
@@ -1117,6 +1129,7 @@ Supabase nu trimite antet `Keep-Alive`, deci undici aplică implicitul de **4 00
 mai rar de-atât: fiecare clic începe cu TCP+TLS de la zero, **+125 ms** măsurat.
 
 **Fișiere:**
+
 - Creează: `src/instrumentation.ts`
 - Modifică: `package.json`, `pnpm-lock.yaml`
 
@@ -1245,9 +1258,11 @@ Claude-Session: https://claude.ai/code/session_019x5wtXrnS5AeUPpXchWSJ4" -- src/
 ## Sarcina 7: `Promise.all` în preambulul lui `createAction`
 
 **Fișiere:**
+
 - Modifică: `src/lib/actions/create-action.ts:130-152`
 
 **Interfețe:**
+
 - Consumă: `getEnabledFeatures(organizationId: string)` din `@/lib/auth/features`;
   `getPermissionMap(organizationId: string, role: AppRole, memberId: string)` din
   `@/lib/auth/permissions`. Semnăturile nu se schimbă.
@@ -1271,40 +1286,40 @@ Confirmă: `:133` e `const features = await getEnabledFeatures(...)`, `:145` e
 - [ ] **Pas 2: Unește citirile, păstrează ordinea deciziilor**
 
 ```ts
-    // ── 3+4. MODULUL ACTIV ȘI PERMISIUNEA ─────────────────────────────────
-    // Cele două CITIRI sunt independente — tabele diferite
-    // (`organization_features` și `role_permissions`), amândouă depinzând doar
-    // de `tenant` — dar erau înlănțuite: două dus-întorsuri seriale spre
-    // PostgREST, ~110 ms fiecare de pe VM. Postgres însuși le execută în 1–2 ms;
-    // costul era integral rețea.
-    //
-    // Se paralelizează CITIRILE. DECIZIILE rămân în ordinea de dinainte: modul
-    // dezactivat înaintea permisiunii lipsă, ca un apelant fără drept să
-    // primească exact același mesaj ca înainte.
-    const [features, permissions] = await Promise.all([
-      getEnabledFeatures(tenant.organizationId),
-      getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
-    ]);
+// ── 3+4. MODULUL ACTIV ȘI PERMISIUNEA ─────────────────────────────────
+// Cele două CITIRI sunt independente — tabele diferite
+// (`organization_features` și `role_permissions`), amândouă depinzând doar
+// de `tenant` — dar erau înlănțuite: două dus-întorsuri seriale spre
+// PostgREST, ~110 ms fiecare de pe VM. Postgres însuși le execută în 1–2 ms;
+// costul era integral rețea.
+//
+// Se paralelizează CITIRILE. DECIZIILE rămân în ordinea de dinainte: modul
+// dezactivat înaintea permisiunii lipsă, ca un apelant fără drept să
+// primească exact același mesaj ca înainte.
+const [features, permissions] = await Promise.all([
+  getEnabledFeatures(tenant.organizationId),
+  getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+]);
 
-    // Verificat pe server, nu doar ascuns în meniu.
-    if (def.feature !== undefined && !features.has(def.feature)) {
-      return refuza(
-        "MODUL_DEZACTIVAT",
-        "Modulul necesar acestei operațiuni nu este activ pentru organizația dvs.",
-        tenant.organizationId,
-      );
-    }
+// Verificat pe server, nu doar ascuns în meniu.
+if (def.feature !== undefined && !features.has(def.feature)) {
+  return refuza(
+    "MODUL_DEZACTIVAT",
+    "Modulul necesar acestei operațiuni nu este activ pentru organizația dvs.",
+    tenant.organizationId,
+  );
+}
 
-    // Absența cheii se tratează ca `none`: refuz. `none` explicit din
-    // role_permissions bate implicitul global al platformei.
-    const scope = permissions.get(def.permission) ?? "none";
-    if (RANK[scope] < RANK[def.minScope]) {
-      return refuza(
-        "INTERZIS",
-        "Nu aveți permisiunea necesară pentru această acțiune.",
-        tenant.organizationId,
-      );
-    }
+// Absența cheii se tratează ca `none`: refuz. `none` explicit din
+// role_permissions bate implicitul global al platformei.
+const scope = permissions.get(def.permission) ?? "none";
+if (RANK[scope] < RANK[def.minScope]) {
+  return refuza(
+    "INTERZIS",
+    "Nu aveți permisiunea necesară pentru această acțiune.",
+    tenant.organizationId,
+  );
+}
 ```
 
 - [ ] **Pas 3: Verifică cele două invariante, prin citire**
@@ -1365,6 +1380,7 @@ Claude-Session: https://claude.ai/code/session_019x5wtXrnS5AeUPpXchWSJ4" -- src/
 înainte ca răspunsul să plece.
 
 **Fișiere:**
+
 - Modifică: `src/lib/actions/create-action.ts:1-20 (importuri), 230-247`
 
 - [ ] **Pas 1: Confirmă că `after` e disponibil și necitit azi**
@@ -1382,28 +1398,28 @@ fost trimis (sau prerenderizarea s-a terminat), în același context de request.
 Adaugă `after` la importurile din `next/server` (sau creează importul dacă nu există), apoi:
 
 ```ts
-    // ── 7. AUDITUL DE SUCCES ──────────────────────────────────────────────
-    // În `after()`, nu `await`: rândul de audit se scrie după ce răspunsul a
-    // plecat spre client, deci nu mai adaugă ~110 ms la fiecare salvare.
-    //
-    // NUMAI succesele. Auditul de REFUZ (din `refuza()`, mai sus) rămâne
-    // `await`-uit: un refuz pierdut e o gaură în urmă, pe când un succes pierdut
-    // e o linie lipsă dintr-un jurnal care are deja rândul de date scris. Cele
-    // două nu au aceeași valoare, deci nu merită același preț.
-    after(async () => {
-      await writeAuditLog(supabase, {
-        organizationId: tenant.organizationId,
-        action: def.audit.action,
-        status: "success",
-        entityType: def.audit.entityType,
-        entityId: def.audit.entityId?.(input, data) ?? null,
-        before: null,
-        after: redactPayload(input, def.audit.allow),
-        errorCode: null,
-        requestId,
-        meta,
-      });
-    });
+// ── 7. AUDITUL DE SUCCES ──────────────────────────────────────────────
+// În `after()`, nu `await`: rândul de audit se scrie după ce răspunsul a
+// plecat spre client, deci nu mai adaugă ~110 ms la fiecare salvare.
+//
+// NUMAI succesele. Auditul de REFUZ (din `refuza()`, mai sus) rămâne
+// `await`-uit: un refuz pierdut e o gaură în urmă, pe când un succes pierdut
+// e o linie lipsă dintr-un jurnal care are deja rândul de date scris. Cele
+// două nu au aceeași valoare, deci nu merită același preț.
+after(async () => {
+  await writeAuditLog(supabase, {
+    organizationId: tenant.organizationId,
+    action: def.audit.action,
+    status: "success",
+    entityType: def.audit.entityType,
+    entityId: def.audit.entityId?.(input, data) ?? null,
+    before: null,
+    after: redactPayload(input, def.audit.allow),
+    errorCode: null,
+    requestId,
+    meta,
+  });
+});
 ```
 
 **Capcană:** câmpul obiectului se numește `after` și acum e și numele funcției importate. Nu e o
@@ -1486,23 +1502,23 @@ restul.
 Forma de dinainte:
 
 ```ts
-  const { tenant } = await requireTenant();
-  await requireFeature("pontaj");
-  const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
+const { tenant } = await requireTenant();
+await requireFeature("pontaj");
+const permisiuni = await getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId);
 ```
 
 Forma de după:
 
 ```ts
-  const { tenant } = await requireTenant();
-  // Două citiri independente, pe tabele diferite. Înlănțuite erau două
-  // dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
-  // Câștigul se vede la navigarea pe CLIENT, unde layoutul nu se re-randează —
-  // la o încărcare completă `requireFeature` e cache hit din layout.
-  const [, permisiuni] = await Promise.all([
-    requireFeature("pontaj"),
-    getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
-  ]);
+const { tenant } = await requireTenant();
+// Două citiri independente, pe tabele diferite. Înlănțuite erau două
+// dus-întorsuri seriale spre PostgREST; costul e integral rețea, nu bază.
+// Câștigul se vede la navigarea pe CLIENT, unde layoutul nu se re-randează —
+// la o încărcare completă `requireFeature` e cache hit din layout.
+const [, permisiuni] = await Promise.all([
+  requireFeature("pontaj"),
+  getPermissionMap(tenant.organizationId, tenant.role, tenant.memberId),
+]);
 ```
 
 **Trei reguli, în fiecare fișier:**
@@ -1565,12 +1581,12 @@ Repetă pentru fiecare subarbore.
 **Nu există niciun fișier care să ducă lipsă de feedback.** Spec-ul a spus 13, inventarul a spus 10;
 la numărătoare **sunt zero**. Verificat fișier cu fișier pe 2026-09-03:
 
-| candidat | de ce e corect deja |
-| --- | --- |
-| `src/app/(app)/ssm/use-actiune-rand.ts` | e un hook, nu randează nimic. **Toți** cei trei consumatori leagă `inCurs` de `<Buton inCurs>`: `suspendare-autorizatie.tsx:53,87,92`, `actiuni-eip.tsx:51,109,115,130` |
-| `src/app/(app)/concedii/incarcare-document.tsx` | are semn propriu la `:139` — `{inCurs ? <p>Se încarcă documentul…</p> : null}` |
-| `src/components/ui/formular.tsx` | folosește `useSemnalPanaLaRuta` (`:11`, `:104`), nu `useSemnalIncarcare` — de aceea nu apărea în `grep` |
-| celelalte ~103 | duc pending-ul într-un `<Buton inCurs textInCurs>`, care are deja rotiță, `aria-busy` și blocare (`buton.tsx:120-125`) |
+| candidat                                        | de ce e corect deja                                                                                                                                                     |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/app/(app)/ssm/use-actiune-rand.ts`         | e un hook, nu randează nimic. **Toți** cei trei consumatori leagă `inCurs` de `<Buton inCurs>`: `suspendare-autorizatie.tsx:53,87,92`, `actiuni-eip.tsx:51,109,115,130` |
+| `src/app/(app)/concedii/incarcare-document.tsx` | are semn propriu la `:139` — `{inCurs ? <p>Se încarcă documentul…</p> : null}`                                                                                          |
+| `src/components/ui/formular.tsx`                | folosește `useSemnalPanaLaRuta` (`:11`, `:104`), nu `useSemnalIncarcare` — de aceea nu apărea în `grep`                                                                 |
+| celelalte ~103                                  | duc pending-ul într-un `<Buton inCurs textInCurs>`, care are deja rotiță, `aria-busy` și blocare (`buton.tsx:120-125`)                                                  |
 
 **De ce toate cele trei estimări au greșit, în aceeași direcție:** au numărat **declarații**, nu
 **efecte**. `grep -rl "useTransition"` găsește 106 fișiere; câte dintre ele chiar lasă utilizatorul
@@ -1648,19 +1664,19 @@ Compară cu seria de referință din Sarcina 0, pasul 6. **Compară `urt=` cu `u
 
 - [ ] **Pas 6: Verifică porțile care cer producția**
 
-| ce | cum |
-| --- | --- |
-| getClaims (S2, S3) | `mcp__supabase__query_logs`: zero `/auth/v1/user` pentru o navigare autentificată |
-| sesiunea supraviețuiește | rămâi logat peste ora de expirare a tokenului |
-| prefetch (S4, S5) | proporția `?_rsc=` din jurnal scade sub 74,7% |
-| faviconuri (S4) | `/icon1` cu cookie de sesiune revine la ~21 ms |
-| keep-alive (S6) | două cereri la 6 s distanță: a doua nu mai plătește TLS |
-| audit în `after()` (S8) | rândurile de succes apar în continuare în `audit_logs` |
+| ce                       | cum                                                                               |
+| ------------------------ | --------------------------------------------------------------------------------- |
+| getClaims (S2, S3)       | `mcp__supabase__query_logs`: zero `/auth/v1/user` pentru o navigare autentificată |
+| sesiunea supraviețuiește | rămâi logat peste ora de expirare a tokenului                                     |
+| prefetch (S4, S5)        | proporția `?_rsc=` din jurnal scade sub 74,7%                                     |
+| faviconuri (S4)          | `/icon1` cu cookie de sesiune revine la ~21 ms                                    |
+| keep-alive (S6)          | două cereri la 6 s distanță: a doua nu mai plătește TLS                           |
+| audit în `after()` (S8)  | rândurile de succes apar în continuare în `audit_logs`                            |
 
 - [ ] **Pas 7: Cere măsurătoarea din browserul utilizatorului**
 
 Noi am măsurat de pe VM; el e în Timișoara, pe RCS & RDS, rutat prin Frankfurt. DevTools → Network,
-*Disable cache*, un clic din meniu, sortare după **Time**: dacă prima linie e documentul cu 1–3 s,
+_Disable cache_, un clic din meniu, sortare după **Time**: dacă prima linie e documentul cu 1–3 s,
 mai e server; dacă sunt 30 de linii mici, mai e coadă de prefetch. Tab **Performance**: dacă bara
 galbenă trece de 300 ms, ipoteza rămasă e hidratarea — 247 KB pe `/panou`, nemăsurată de nimeni.
 

@@ -10,3 +10,9 @@ src/types/database.ts
 
 # Aplicația mobilă are propriul lanț de unelte și propriul lockfile.
 mobil/
+
+# Director de lucru al plugin-ului superpowers. E exclus din git prin
+# `.git/info/exclude`, care e LOCAL și necomis — deci CI nu vede fișierele, dar
+# `prettier --check .` de pe mașina cuiva le vede și raportează 20 de avertismente
+# care nu există în CI. Ignorarea aliniază cele două verdicte.
+.superpowers

@@ -26,8 +26,8 @@ Postgres 17 · Next.js 16.3 Route Handlers · Vitest.
 
 Specificația, §5.5, propunea `pg_cron` + `pg_net` pentru golirea cozii.
 **Nu se aplică.** `src/app/api/reges/reconciliere/route.ts:29` spune explicit, în
-comentariu: *„`pg_net` nu e activat pe instanța noastră. Un job SQL n-are cum să
-facă apelul."*
+comentariu: _„`pg_net` nu e activat pe instanța noastră. Un job SQL n-are cum să
+facă apelul."_
 
 Tiparul din casă, care funcționează deja în producție, e un **timer systemd pe
 VM** care cheamă ruta cu `Authorization: Bearer` — vezi
@@ -67,9 +67,9 @@ Se aplică la fiecare sarcină, fără repetare:
   „admin"; **nu muta logica în `actions.ts` din cauza lui.**
 - **`.rpc()` nu ajunge la schema `app`** — PostgREST expune doar `public`.
 - **Git:** repo-ul e lucrat de sesiuni concurente. `git status --short -- <căile
-  tale>` înainte de orice `git add`; niciodată `-A` sau `.`. `git commit --only
-  -- <căile tale>`. `git fetch origin main`, `git merge` (nu rebase), `git push
-  origin main` la finalul fiecărei sarcini.
+tale>` înainte de orice `git add`; niciodată `-A` sau `.`. `git commit --only
+-- <căile tale>`. `git fetch origin main`, `git merge` (nu rebase), `git push
+origin main` la finalul fiecărei sarcini.
 - **Un UPDATE respins de `USING` afectează zero rânduri, fără eroare.** Orice
   tranziție face `.select()` după `.update()` și tratează rezultatul gol drept
   conflict.
@@ -78,20 +78,20 @@ Se aplică la fiecare sarcină, fără repetare:
 
 ## Harta fișierelor
 
-| Fișier | Răspundere |
-|---|---|
-| `supabase/migrations/0122_push_dispozitive.sql` | două tabele, un enum-pereche, coloana `push`, declanșatorul de coadă |
-| `tests/rls/proba-push.sql` | proba reală per rol: pozitivă și negativă |
-| `src/lib/push/mesaj.ts` | pur: `notification` → mesaj Expo. Fără I/O |
-| `src/lib/push/mesaj.test.ts` | testele lui |
-| `src/lib/push/expo.ts` | clientul HTTP către Expo Push API; interpretarea biletelor |
-| `src/lib/push/expo.test.ts` | testele lui, cu `fetch` mock |
-| `src/app/api/push/livreaza/route.ts` | golește coada; secret partajat; `skip locked` |
-| `src/app/api/dispozitive/route.ts` | `POST` înregistrează jetonul, `DELETE` îl retrage |
-| `deploy/push-livrare.service` · `.timer` | timerul de pe VM |
-| `src/config/env.ts` | `PUSH_CRON_SECRET` |
-| `mobil/` | aplicația Expo |
-| `tsconfig.json` · `eslint.config.mjs` · `vitest.config.mts` · `.prettierignore` · `.dockerignore` | excluderea lui `mobil/` |
+| Fișier                                                                                            | Răspundere                                                           |
+| ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `supabase/migrations/0122_push_dispozitive.sql`                                                   | două tabele, un enum-pereche, coloana `push`, declanșatorul de coadă |
+| `tests/rls/proba-push.sql`                                                                        | proba reală per rol: pozitivă și negativă                            |
+| `src/lib/push/mesaj.ts`                                                                           | pur: `notification` → mesaj Expo. Fără I/O                           |
+| `src/lib/push/mesaj.test.ts`                                                                      | testele lui                                                          |
+| `src/lib/push/expo.ts`                                                                            | clientul HTTP către Expo Push API; interpretarea biletelor           |
+| `src/lib/push/expo.test.ts`                                                                       | testele lui, cu `fetch` mock                                         |
+| `src/app/api/push/livreaza/route.ts`                                                              | golește coada; secret partajat; `skip locked`                        |
+| `src/app/api/dispozitive/route.ts`                                                                | `POST` înregistrează jetonul, `DELETE` îl retrage                    |
+| `deploy/push-livrare.service` · `.timer`                                                          | timerul de pe VM                                                     |
+| `src/config/env.ts`                                                                               | `PUSH_CRON_SECRET`                                                   |
+| `mobil/`                                                                                          | aplicația Expo                                                       |
+| `tsconfig.json` · `eslint.config.mjs` · `vitest.config.mts` · `.prettierignore` · `.dockerignore` | excluderea lui `mobil/`                                              |
 
 ---
 
@@ -120,11 +120,13 @@ așteptare extern, măsurat în zile-săptămâni, și blochează Task 11.
 ## Task 1: Migrarea `0122` și proba reală
 
 **Fișiere:**
+
 - Creează: `supabase/migrations/0122_push_dispozitive.sql`
 - Creează: `tests/rls/proba-push.sql`
 - Modifică: `src/types/database.ts` (regenerat, nu editat de mână)
 
 **Interfețe:**
+
 - Produce: tabelele `public.dispozitive_push`, `public.push_livrari`; enum-urile
   `public.platforma_mobila` (`'ios' | 'android'`), `public.stare_livrare_push`
   (`'in_asteptare' | 'trimis' | 'esuat' | 'abandonat'`); coloana
@@ -585,10 +587,12 @@ acum, pentru migrarea asta. Un „da" anterior nu acoperă o migrare nouă. Coma
 ## Task 2: Traducerea notificare → mesaj push
 
 **Fișiere:**
+
 - Creează: `src/lib/push/mesaj.ts`
 - Test: `src/lib/push/mesaj.test.ts`
 
 **Interfețe:**
+
 - Consumă: tipul `Tables<"notifications">` din `@/types/database` (Task 1).
 - Produce:
   ```ts
@@ -762,22 +766,24 @@ git merge origin/main --no-edit && git push origin main
 ## Task 3: Clientul Expo Push
 
 **Fișiere:**
+
 - Creează: `src/lib/push/expo.ts`
 - Test: `src/lib/push/expo.test.ts`
 
 **Interfețe:**
+
 - Consumă: `MesajPush` din `./mesaj` (Task 2).
 - Produce:
+
   ```ts
   export type RezultatBilet =
     | { readonly fel: "ok" }
     | { readonly fel: "jeton-mort" }
     | { readonly fel: "eroare"; readonly mesaj: string };
   export const MAX_PE_LOT = 100;
-  export async function trimiteLot(
-    mesaje: readonly MesajPush[],
-  ): Promise<readonly RezultatBilet[]>;
+  export async function trimiteLot(mesaje: readonly MesajPush[]): Promise<readonly RezultatBilet[]>;
   ```
+
   `trimiteLot` întoarce **exact un rezultat per mesaj, în aceeași ordine** —
   ruta din Task 4 se bazează pe potrivirea pozițională.
 
@@ -840,9 +846,7 @@ describe("trimiteLot", () => {
   it("recunoaște jetonul mort după DeviceNotRegistered", async () => {
     mockFetch([
       {
-        data: [
-          { status: "error", message: "…", details: { error: "DeviceNotRegistered" } },
-        ],
+        data: [{ status: "error", message: "…", details: { error: "DeviceNotRegistered" } }],
       },
     ]);
     const rezultate = await trimiteLot([mesaj("ExponentPushToken[a]")]);
@@ -851,7 +855,9 @@ describe("trimiteLot", () => {
 
   it("orice altă eroare rămâne reîncercabilă", async () => {
     mockFetch([
-      { data: [{ status: "error", message: "MessageTooBig", details: { error: "MessageTooBig" } }] },
+      {
+        data: [{ status: "error", message: "MessageTooBig", details: { error: "MessageTooBig" } }],
+      },
     ]);
     const rezultate = await trimiteLot([mesaj("ExponentPushToken[a]")]);
     expect(rezultate[0]?.fel).toBe("eroare");
@@ -873,7 +879,10 @@ describe("trimiteLot", () => {
     // Expo a răspuns cu mai puține bilete decât mesaje trimise. Fără plasa asta,
     // ruta ar potrivi pozițional greșit și ar marca un mesaj netrimis ca trimis.
     mockFetch([{ data: [{ status: "ok", id: "x" }] }]);
-    const rezultate = await trimiteLot([mesaj("ExponentPushToken[a]"), mesaj("ExponentPushToken[b]")]);
+    const rezultate = await trimiteLot([
+      mesaj("ExponentPushToken[a]"),
+      mesaj("ExponentPushToken[b]"),
+    ]);
     expect(rezultate).toHaveLength(2);
     expect(rezultate[1]?.fel).toBe("eroare");
   });
@@ -972,9 +981,7 @@ async function trimiteUnLot(lot: readonly MesajPush[]): Promise<readonly Rezulta
  * Întoarce EXACT un rezultat per mesaj, în aceeași ordine. Apelantul se bazează
  * pe potrivirea pozițională ca să știe ce rând din coadă a plecat.
  */
-export async function trimiteLot(
-  mesaje: readonly MesajPush[],
-): Promise<readonly RezultatBilet[]> {
+export async function trimiteLot(mesaje: readonly MesajPush[]): Promise<readonly RezultatBilet[]> {
   const rezultate: RezultatBilet[] = [];
   for (let i = 0; i < mesaje.length; i += MAX_PE_LOT) {
     // Serial, nu în paralel: loturile sunt puține, iar Expo limitează debitul.
@@ -1011,12 +1018,14 @@ git merge origin/main --no-edit && git push origin main
 ## Task 4: Ruta care golește coada
 
 **Fișiere:**
+
 - Creează: `src/app/api/push/livreaza/route.ts`
 - Creează: `src/lib/push/coada.ts`
 - Test: `src/lib/push/coada.test.ts`
 - Modifică: `src/config/env.ts` (adaugă `PUSH_CRON_SECRET`)
 
 **Interfețe:**
+
 - Consumă: `trimiteLot`, `RezultatBilet` (Task 3); `construiesteMesaj` (Task 2);
   tabelele din Task 1.
 - Produce:
@@ -1029,10 +1038,7 @@ git merge origin/main --no-edit && git push origin main
     readonly abandonate: number;
     readonly jetoaneRetrase: number;
   };
-  export async function golesteCoada(
-    db: AdminSupabase,
-    plafon?: number,
-  ): Promise<RaportLivrare>;
+  export async function golesteCoada(db: AdminSupabase, plafon?: number): Promise<RaportLivrare>;
   ```
 
 Logica stă în `src/lib/push/coada.ts`, nu în `route.ts`, ca să fie testabilă cu
@@ -1464,11 +1470,13 @@ git merge origin/main --no-edit && git push origin main
 ## Task 5: Înregistrarea jetonului
 
 **Fișiere:**
+
 - Creează: `src/app/api/dispozitive/route.ts`
 - Test: `src/lib/push/jeton.test.ts`
 - Creează: `src/lib/push/jeton.ts`
 
 **Interfețe:**
+
 - Produce:
   ```ts
   export const jetonSchema: z.ZodObject<{
@@ -1668,6 +1676,7 @@ git merge origin/main --no-edit && git push origin main
 ## Task 6: Timerul de pe VM
 
 **Fișiere:**
+
 - Creează: `deploy/push-livrare.service`
 - Creează: `deploy/push-livrare.timer`
 - Modifică: `DEPLOY.md` (sau documentul de operare echivalent — verifică ce există)
@@ -1782,6 +1791,7 @@ git merge origin/main --no-edit && git push origin main
 ## Task 7: Scheletul aplicației Expo
 
 **Fișiere:**
+
 - Creează: `mobil/package.json`, `mobil/pnpm-workspace.yaml`, `mobil/app.config.ts`,
   `mobil/App.tsx`, `mobil/tsconfig.json`, `mobil/.gitignore`, `mobil/README.md`
 - Modifică: `tsconfig.json`, `eslint.config.mjs`, `vitest.config.mts`,
@@ -1883,7 +1893,8 @@ import { WebView } from "react-native-webview";
  * deci fiecare livrare web apare instantaneu și în aplicație, fără review de
  * magazin. Ce se adaugă aici e strict ce browserul de pe telefon nu poate da.
  */
-const URL_PORTAL = (Constants.expoConfig?.extra?.urlPortal as string) ?? "https://administrativo.ro/portal";
+const URL_PORTAL =
+  (Constants.expoConfig?.extra?.urlPortal as string) ?? "https://administrativo.ro/portal";
 
 export default function App() {
   const webview = useRef<WebView>(null);
@@ -1940,8 +1951,10 @@ const config: ExpoConfig = {
     infoPlist: {
       // Textele apar în dialogul de permisiune. Formulate pentru un angajat,
       // nu pentru un dezvoltator — magazinele resping textele generice.
-      NSCameraUsageDescription: "Camera se folosește doar pentru scanarea codului de pontare afișat la punctul de lucru.",
-      NSFaceIDUsageDescription: "Face ID deblochează aplicația, ca datele dumneavoastră de salariu și pontaj să nu fie vizibile dacă telefonul ajunge în altă mână.",
+      NSCameraUsageDescription:
+        "Camera se folosește doar pentru scanarea codului de pontare afișat la punctul de lucru.",
+      NSFaceIDUsageDescription:
+        "Face ID deblochează aplicația, ca datele dumneavoastră de salariu și pontaj să nu fie vizibile dacă telefonul ajunge în altă mână.",
     },
   },
   android: {
@@ -1983,12 +1996,15 @@ git merge origin/main --no-edit && git push origin main
 ## Task 8: Push nativ, capăt la capăt
 
 **Fișiere:**
+
 - Creează: `mobil/push.ts`
 - Modifică: `mobil/App.tsx`
 
 **Interfețe:**
+
 - Consumă: `POST /api/dispozitive` (Task 5).
 - Produce:
+
   ```ts
   export async function cereJeton(): Promise<string | null>;
   export function scriptDeInregistrare(jeton: string, platforma: "ios" | "android"): string;
@@ -2082,27 +2098,27 @@ Notifications.setNotificationHandler({
 Și în componentă:
 
 ```tsx
-  // Jetonul se înregistrează DUPĂ ce pagina s-a încărcat: înainte, `fetch` din
-  // pagină n-ar avea încă cookie-urile sesiunii.
-  const inregistreaza = async () => {
-    const jeton = await cereJeton();
-    if (jeton === null) return;
-    const platforma = Platform.OS === "ios" ? "ios" : "android";
-    webview.current?.injectJavaScript(scriptDeInregistrare(jeton, platforma));
-  };
+// Jetonul se înregistrează DUPĂ ce pagina s-a încărcat: înainte, `fetch` din
+// pagină n-ar avea încă cookie-urile sesiunii.
+const inregistreaza = async () => {
+  const jeton = await cereJeton();
+  if (jeton === null) return;
+  const platforma = Platform.OS === "ios" ? "ios" : "android";
+  webview.current?.injectJavaScript(scriptDeInregistrare(jeton, platforma));
+};
 
-  useEffect(() => {
-    const abonament = Notifications.addNotificationResponseReceivedListener((raspuns) => {
-      const cale = raspuns.notification.request.content.data?.cale;
-      // Calea vine deja validată de bază (`check (link ~ '^/[^/\\]')` pe
-      // notifications.link) ȘI de `construiesteMesaj`. A treia verificare e aici
-      // pentru că asta e singura care rulează în procesul care chiar navighează.
-      if (typeof cale === "string" && /^\/[^/\\]/.test(cale)) {
-        webview.current?.injectJavaScript(`location.assign(${JSON.stringify(cale)}); true;`);
-      }
-    });
-    return () => abonament.remove();
-  }, []);
+useEffect(() => {
+  const abonament = Notifications.addNotificationResponseReceivedListener((raspuns) => {
+    const cale = raspuns.notification.request.content.data?.cale;
+    // Calea vine deja validată de bază (`check (link ~ '^/[^/\\]')` pe
+    // notifications.link) ȘI de `construiesteMesaj`. A treia verificare e aici
+    // pentru că asta e singura care rulează în procesul care chiar navighează.
+    if (typeof cale === "string" && /^\/[^/\\]/.test(cale)) {
+      webview.current?.injectJavaScript(`location.assign(${JSON.stringify(cale)}); true;`);
+    }
+  });
+  return () => abonament.remove();
+}, []);
 ```
 
 Și pe `<WebView>`: `onLoadEnd={inregistreaza}`.
@@ -2154,6 +2170,7 @@ git merge origin/main --no-edit && git push origin main
 ## Task 9: Descărcări și tipărire
 
 **Fișiere:**
+
 - Creează: `mobil/fisiere.ts`
 - Modifică: `mobil/App.tsx`
 
@@ -2287,6 +2304,7 @@ git merge origin/main --no-edit && git push origin main
 ## Task 10: Lacăt biometric și scanner QR
 
 **Fișiere:**
+
 - Creează: `mobil/lacat.tsx`, `mobil/scanner.tsx`
 - Modifică: `mobil/App.tsx`
 
@@ -2403,7 +2421,8 @@ export function Scanner({
               // Se acceptă DOAR calea de pontare de pe domeniul nostru. Un cod QR
               // e text scris de oricine: fără filtrul ăsta, un afiș lipit peste
               // al nostru ar duce aplicația semnată pe orice site.
-              const potrivire = /^https:\/\/administrativo\.ro(\/portal\/ponteaza\/[A-Za-z0-9_-]+)$/.exec(data);
+              const potrivire =
+                /^https:\/\/administrativo\.ro(\/portal\/ponteaza\/[A-Za-z0-9_-]+)$/.exec(data);
               if (potrivire?.[1] === undefined) return;
               setPrins(true);
               mergiLa(potrivire[1]);
@@ -2499,6 +2518,7 @@ git merge origin/main --no-edit && git push origin main
 ## Task 11: Build EAS și publicare
 
 **Fișiere:**
+
 - Creează: `mobil/eas.json`
 - Modifică: `mobil/app.config.ts` (completează `eas.projectId`)
 

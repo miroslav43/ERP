@@ -74,12 +74,12 @@ Pct. 2 cere pe fiecare document justificativ, între altele, „**numărul docum
 Pct. 58 enumeră criteriile minimale ale programului informatic. Patru dintre ele
 sunt constrângeri de implementare, nu recomandări:
 
-| Literă | Text | Ce impune în cod |
-| ------ | ---- | ---------------- |
-| **d)** | liste „**numerotate în ordine cronologică**, interzicându-se **inserări, intercalări**, precum și orice **eliminări sau adăugări ulterioare**" | registrul e append-only: fără `deleted_at`, fără politică DELETE, fără modificarea numărului sau a datei |
-| **h)** | „să nu permită inserări, modificări sau eliminări de date **pentru o perioadă închisă**" | închiderea exercițiului blochează anul (§7) |
-| **k)** | listări cu antet care conține: tipul documentului · denumirea entității · perioada · datarea listării · paginarea cronologică · **precizarea programului informatic și a versiunii utilizate** | antetul vederii de tipar (§9) |
-| **o)** | să nu permită „**editarea a două sau a mai multor documente de același tip, cu același număr și conținut diferit** de informații **în cadrul aceluiași exercițiu financiar**" | unicitate `(organization_id, an, numar)` |
+| Literă | Text                                                                                                                                                                                           | Ce impune în cod                                                                                         |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| **d)** | liste „**numerotate în ordine cronologică**, interzicându-se **inserări, intercalări**, precum și orice **eliminări sau adăugări ulterioare**"                                                 | registrul e append-only: fără `deleted_at`, fără politică DELETE, fără modificarea numărului sau a datei |
+| **h)** | „să nu permită inserări, modificări sau eliminări de date **pentru o perioadă închisă**"                                                                                                       | închiderea exercițiului blochează anul (§7)                                                              |
+| **k)** | listări cu antet care conține: tipul documentului · denumirea entității · perioada · datarea listării · paginarea cronologică · **precizarea programului informatic și a versiunii utilizate** | antetul vederii de tipar (§9)                                                                            |
+| **o)** | să nu permită „**editarea a două sau a mai multor documente de același tip, cu același număr și conținut diferit** de informații **în cadrul aceluiași exercițiu financiar**"                  | unicitate `(organization_id, an, numar)`                                                                 |
 
 Pct. 56: „Programele informatice utilizate în activitatea financiar-contabilă trebuie
 să asigure **listarea în orice moment** a documentelor financiar-contabile solicitate
@@ -105,14 +105,14 @@ verificate să nu-l șteargă mai devreme — vezi §12.
 
 ## 2. Deciziile luate și de ce
 
-| Decizie | Alegerea | Motivul |
-| ------- | -------- | ------- |
-| Resetarea contorului | **anuală**, 1 ianuarie | trei surse independente: Ordin 217 art. 9, OMFP pct. 24 („pentru fiecare exercițiu financiar"), OMFP pct. 58 lit. o). Resetarea zilnică ar produce „nr. 1" de ~250 de ori pe an, adică exact ce interzice lit. o) |
-| Raportul cu numerele existente | **registru unic PESTE ele** | art. 9 cere în registru **două** coloane distincte: „numărul de înregistrare" și „numărul și data documentului date de emitent". Aplicația are deja al doilea (patru mecanisme); îi lipsea primul. Contractele deja emise rămân valide |
-| Acoperirea | **ieșiri + uz intern + intrări** | art. 7 din L16/1996 enumeră toate trei; art. 81 Codul muncii obligă la înregistrarea demisiei |
-| Documentele anterioare | **backfill cronologic, o dată, la migrare** | un registru pe 2026 care începe în septembrie e un registru incomplet. Rândurile poartă `inregistrat_retroactiv = true`, ca inspectorul să vadă singur unde se termină hârtia și începe evidența |
-| Cine vede arhiva | cheie nouă **`registru:read`** — `org_admin` + `hr` | `hr` **nu are** `compliance:read` în seed. Păzită cu ea, pagina i-ar întoarce zero rânduri fără nicio eroare — chiar omului care emite documentele. Capcana e enumerată în `CLAUDE.md` |
-| Închiderea exercițiului | **da**, cu redeschidere posibilă pentru `org_admin`, cu motiv și cicatrice permanentă | pct. 58 lit. h). Varianta „imposibil de redeschis" se rezolvă în practică prin cineva care umblă direct în bază, unde nu se mai vede nimic |
+| Decizie                        | Alegerea                                                                              | Motivul                                                                                                                                                                                                                                |
+| ------------------------------ | ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Resetarea contorului           | **anuală**, 1 ianuarie                                                                | trei surse independente: Ordin 217 art. 9, OMFP pct. 24 („pentru fiecare exercițiu financiar"), OMFP pct. 58 lit. o). Resetarea zilnică ar produce „nr. 1" de ~250 de ori pe an, adică exact ce interzice lit. o)                      |
+| Raportul cu numerele existente | **registru unic PESTE ele**                                                           | art. 9 cere în registru **două** coloane distincte: „numărul de înregistrare" și „numărul și data documentului date de emitent". Aplicația are deja al doilea (patru mecanisme); îi lipsea primul. Contractele deja emise rămân valide |
+| Acoperirea                     | **ieșiri + uz intern + intrări**                                                      | art. 7 din L16/1996 enumeră toate trei; art. 81 Codul muncii obligă la înregistrarea demisiei                                                                                                                                          |
+| Documentele anterioare         | **backfill cronologic, o dată, la migrare**                                           | un registru pe 2026 care începe în septembrie e un registru incomplet. Rândurile poartă `inregistrat_retroactiv = true`, ca inspectorul să vadă singur unde se termină hârtia și începe evidența                                       |
+| Cine vede arhiva               | cheie nouă **`registru:read`** — `org_admin` + `hr`                                   | `hr` **nu are** `compliance:read` în seed. Păzită cu ea, pagina i-ar întoarce zero rânduri fără nicio eroare — chiar omului care emite documentele. Capcana e enumerată în `CLAUDE.md`                                                 |
+| Închiderea exercițiului        | **da**, cu redeschidere posibilă pentru `org_admin`, cu motiv și cicatrice permanentă | pct. 58 lit. h). Varianta „imposibil de redeschis" se rezolvă în practică prin cineva care umblă direct în bază, unde nu se mai vede nimic                                                                                             |
 
 ---
 
@@ -266,7 +266,7 @@ Un singur `insert … on conflict do update … returning`, ca în 0098: fără 
 între citire și scriere, deci fără două emiteri simultane cu același număr.
 
 **Capcana `lpad`, preluată din 0098 și obligatorie și aici:** pe ramura fără prefix
-**nu se cheamă `lpad`**. În PostgreSQL `lpad` *taie* când șirul e mai lung decât
+**nu se cheamă `lpad`**. În PostgreSQL `lpad` _taie_ când șirul e mai lung decât
 lungimea cerută — `lpad('10', 1, '0')` întoarce `'1'`. Cu `padding = 1`, de la al
 zecelea document al anului numerele s-ar trunchia la prima cifră, ar coliziona pe
 indexul unic, iar reîncercările ar arde numere la fiecare apăsare până la epuizare.
@@ -282,7 +282,7 @@ Deci alocatorul nu poate fi păzit de `registru:*` — angajatul nu are și nu t
 să aibă cheia aia.
 
 > **Înregistrarea se face din trigger `AFTER INSERT` pe tabela sursă.** Dreptul care
-> contează e dreptul de a scrie *documentul*, verificat deja de RLS-ul acelei tabele.
+> contează e dreptul de a scrie _documentul_, verificat deja de RLS-ul acelei tabele.
 > `internal.inregistreaza_document(...)` e `security definer` și **revocată complet
 > de la `authenticated`** — nu se poate chema din TypeScript.
 
@@ -307,10 +307,10 @@ asta din `0045`).
 Poarta ei nu e `registru:*`, ci **permisiunea modulului**, dedusă din `p_tip_document`
 printr-un `case` explicit, cu scope-ul verificat în cod pe fiecare pagină azi:
 
-| `tip_document` | Poartă | Sursa |
-| -------------- | ------ | ----- |
-| `fluturas`, `stat_plata`, `d112`, `nota_contabila`, `ordin_bancar` | `payroll:export` all | `api/export/salarizare/*` |
-| `afis_punct_lucru` | `departments:update` all | poarta reală a paginii, verificată în `puncte-lucru/[id]/afis/page.tsx:51` — **nu** `organizations:read` |
+| `tip_document`                                                     | Poartă                   | Sursa                                                                                                    |
+| ------------------------------------------------------------------ | ------------------------ | -------------------------------------------------------------------------------------------------------- |
+| `fluturas`, `stat_plata`, `d112`, `nota_contabila`, `ordin_bancar` | `payroll:export` all     | `api/export/salarizare/*`                                                                                |
+| `afis_punct_lucru`                                                 | `departments:update` all | poarta reală a paginii, verificată în `puncte-lucru/[id]/afis/page.tsx:51` — **nu** `organizations:read` |
 
 Un tip necunoscut ridică `P0001`, nu alocă tăcut.
 
@@ -333,19 +333,19 @@ după alocare.
 
 ## 5. Punctele de conectare
 
-| Sens | Sursă | Tip document | Drum |
-| ---- | ----- | ------------ | ---- |
-| ieșire | `hr_issued_documents` | `contract_munca`, `fisa_postului`, `nda`, `anexa_proprietate_intelectuala`, `act_aditional_telemunca` | trigger |
-| ieșire | `employment_contracts` | `contract_munca` | trigger |
-| ieșire | `course_completion_records` → adeverință absolvire | `adeverinta_curs` | trigger |
-| ieșire | afiș punct de lucru | `afis_punct_lucru` | RPC din `(app)/puncte-lucru/[id]/afis/page.tsx` |
-| ieșire | comunicare ITM accident | `comunicare_itm` | trigger |
-| intern | `inventory_allocations` | `pv_predare_primire` | trigger |
-| intern | `per_diem_calculations` | `decont_deplasare` | trigger |
-| intern | export salarizare | `fluturas`, `stat_plata`, `ordin_bancar`, `nota_contabila`, `d112` | RPC din `api/export/salarizare/*` |
-| intern | fișe instruire SSM, autorizații, PV stingătoare | `fisa_instruire`, `autorizatie`, `pv_verificare` | trigger |
-| **intrare** | `leave_requests` | `cerere_concediu` | trigger |
-| **intrare** | demisii | `demisie` | trigger |
+| Sens        | Sursă                                              | Tip document                                                                                          | Drum                                            |
+| ----------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| ieșire      | `hr_issued_documents`                              | `contract_munca`, `fisa_postului`, `nda`, `anexa_proprietate_intelectuala`, `act_aditional_telemunca` | trigger                                         |
+| ieșire      | `employment_contracts`                             | `contract_munca`                                                                                      | trigger                                         |
+| ieșire      | `course_completion_records` → adeverință absolvire | `adeverinta_curs`                                                                                     | trigger                                         |
+| ieșire      | afiș punct de lucru                                | `afis_punct_lucru`                                                                                    | RPC din `(app)/puncte-lucru/[id]/afis/page.tsx` |
+| ieșire      | comunicare ITM accident                            | `comunicare_itm`                                                                                      | trigger                                         |
+| intern      | `inventory_allocations`                            | `pv_predare_primire`                                                                                  | trigger                                         |
+| intern      | `per_diem_calculations`                            | `decont_deplasare`                                                                                    | trigger                                         |
+| intern      | export salarizare                                  | `fluturas`, `stat_plata`, `ordin_bancar`, `nota_contabila`, `d112`                                    | RPC din `api/export/salarizare/*`               |
+| intern      | fișe instruire SSM, autorizații, PV stingătoare    | `fisa_instruire`, `autorizatie`, `pv_verificare`                                                      | trigger                                         |
+| **intrare** | `leave_requests`                                   | `cerere_concediu`                                                                                     | trigger                                         |
+| **intrare** | demisii                                            | `demisie`                                                                                             | trigger                                         |
 
 `punct_lucru_id` se completează unde sursa îl are (pontaj, puncte de lucru, inventar);
 unde nu, rămâne `null` — pct. 24 cere să se „țină cont" de structura organizatorică,
@@ -385,7 +385,7 @@ schema `public`, poartă `app.can(…, 'registru', 'update', 'all')`:
 1. verifică **`p_an < extract(year from app.azi_local())`**;
 2. numără înregistrările anului, calculează `amprenta` = SHA-256 peste concatenarea
    ordonată a `(numar, data_inregistrare, tip_document, numar_document_emitent,
-   continut_rezumat)`;
+continut_rezumat)`;
 3. scrie `stare = 'inchis'`, `inchis_la`, `inchis_de`, `total_inregistrari`, `amprenta`.
 
 **Garda de la pasul 1 ține aplicația în viață.** Fără ea, cineva închide 2026 în
@@ -420,11 +420,11 @@ Mecanica existentă: funcții `internal.*` `security definer`, revocate de la
 **Deduplicare prin interogarea notificărilor recente**, ca în `0042` și `0103` — fără
 tabelă nouă de „ce am trimis deja", care ar trebui curățată, migrată și explicată.
 
-| Când | Cui | `kind` | Conținut |
-| ---- | --- | ------ | -------- |
+| Când                                                                                 | Cui                       | `kind`     | Conținut                                                                                |
+| ------------------------------------------------------------------------------------ | ------------------------- | ---------- | --------------------------------------------------------------------------------------- |
 | job `pg_cron` zilnic, activ **din 15 ianuarie**, cât timp anul precedent e `deschis` | `org_admin` + `hr` activi | `reminder` | „Registrul de documente pe 2026 nu e închis. 1.247 înregistrări." → `/registru?an=2026` |
-| `AFTER UPDATE` la închidere | `org_admin` + `hr` | `success` | „Registrul pe 2026 a fost închis de …. 1.247 înregistrări, amprentă `a3f1…`." |
-| `AFTER UPDATE` la redeschidere | `org_admin` + `hr` | `warning` | „Registrul pe 2026 a fost **redeschis** de …. Motiv: …" |
+| `AFTER UPDATE` la închidere                                                          | `org_admin` + `hr`        | `success`  | „Registrul pe 2026 a fost închis de …. 1.247 înregistrări, amprentă `a3f1…`."           |
+| `AFTER UPDATE` la redeschidere                                                       | `org_admin` + `hr`        | `warning`  | „Registrul pe 2026 a fost **redeschis** de …. Motiv: …"                                 |
 
 Destinatarii se aleg ca în `0056_concedii_hr_nu_aproba.sql`: din
 `organization_members` cu `status = 'active'`, `deleted_at is null`,
@@ -494,11 +494,11 @@ e forward-only și nu se editează, iar sursa de adevăr pentru RLS sunt rândur
 `role_permissions`, nu tipul din TypeScript. O cheie declarată doar în cod întoarce
 `none`, adică refuz tăcut.
 
-| Cheie | `super_admin` | `org_admin` | `hr` | `manager` | `employee` |
-| ----- | ------------- | ----------- | ---- | --------- | ---------- |
-| `registru:read` | all | all | all | — | — |
-| `registru:export` | all | all | all | — | — |
-| `registru:update` | all | all | — | — | — |
+| Cheie             | `super_admin` | `org_admin` | `hr` | `manager` | `employee` |
+| ----------------- | ------------- | ----------- | ---- | --------- | ---------- |
+| `registru:read`   | all           | all         | all  | —         | —          |
+| `registru:export` | all           | all         | all  | —         | —          |
+| `registru:update` | all           | all         | —    | —         | —          |
 
 Absența rândului = refuz.
 
@@ -511,7 +511,7 @@ Nimic nu se declară gata fără ieșirea comenzilor.
 1. `pnpm typecheck && pnpm lint && pnpm test && pnpm build` — **cu `build`**, care e
    singurul ce prinde granița server/client (`pnpm verify` nu-l include).
 2. **Proba reală de scriere per rol** (skill-ul `administrativo-proba`), în tranzacții
-   derulate înapoi: că `hr` chiar *poate* deschide registrul și *nu poate* închide
+   derulate înapoi: că `hr` chiar _poate_ deschide registrul și _nu poate_ închide
    anul; că `employee` produce o intrare când depune o cerere; că `manager` nu vede
    registrul. Poarta pozitivă e cea care lipsea în Faza 2, când `org_admin` nu putea
    insera un angajat și toate porțile negative treceau.
@@ -552,12 +552,12 @@ Nimic nu se declară gata fără ieșirea comenzilor.
 
 ## 13. Riscuri
 
-| Risc | Ce se întâmplă | Cum îl țin în frâu |
-| ---- | -------------- | ------------------ |
-| `lpad` trunchiază | de la al zecelea document, numerele coliziază și registrul se blochează pentru tot restul anului | ramura fără prefix concatenează direct; test de regresie explicit |
-| Închiderea anului curent | nu se mai poate emite niciun document în toată firma | gardă `an < anul curent`, cu `P0001` explicit |
-| Un ecran nou uită să înregistreze | document fără număr, exact ce cerea feature-ul să nu existe | înregistrarea e în trigger, nu în cod de interfață; cele șase excepții de la §4.3 sunt enumerate una câte una și testate |
-| Dubla înregistrare | numere arse la fiecare re-rulare | index unic pe `(organization_id, entitate_tip, entitate_id)` |
-| `registru:read` declarată doar în TypeScript | pagina întoarce zero rânduri fără eroare | seed-ul în migrare e obligatoriu, verificat de proba reală |
-| Coliziune de nume de migrare cu altă sesiune | migrarea nu se aplică | `git fetch origin main` înainte; se redenumește **propria** migrare |
-| `max_rows = 1000` | registrul mare arată complet și nu e | cursor keyset, nu `.range()` |
+| Risc                                         | Ce se întâmplă                                                                                   | Cum îl țin în frâu                                                                                                       |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `lpad` trunchiază                            | de la al zecelea document, numerele coliziază și registrul se blochează pentru tot restul anului | ramura fără prefix concatenează direct; test de regresie explicit                                                        |
+| Închiderea anului curent                     | nu se mai poate emite niciun document în toată firma                                             | gardă `an < anul curent`, cu `P0001` explicit                                                                            |
+| Un ecran nou uită să înregistreze            | document fără număr, exact ce cerea feature-ul să nu existe                                      | înregistrarea e în trigger, nu în cod de interfață; cele șase excepții de la §4.3 sunt enumerate una câte una și testate |
+| Dubla înregistrare                           | numere arse la fiecare re-rulare                                                                 | index unic pe `(organization_id, entitate_tip, entitate_id)`                                                             |
+| `registru:read` declarată doar în TypeScript | pagina întoarce zero rânduri fără eroare                                                         | seed-ul în migrare e obligatoriu, verificat de proba reală                                                               |
+| Coliziune de nume de migrare cu altă sesiune | migrarea nu se aplică                                                                            | `git fetch origin main` înainte; se redenumește **propria** migrare                                                      |
+| `max_rows = 1000`                            | registrul mare arată complet și nu e                                                             | cursor keyset, nu `.range()`                                                                                             |

@@ -423,10 +423,32 @@ jobs:
                 *) echo "::error title=Cale de revert refuzată::$pag"; exit 1 ;;
               esac
             done
-            node scripts/docs/lint-vault.mjs || {
-              echo "::error title=Vault-ul rămâne roșu după revert::nu public"
+            # Verificarea de după revert e RELATIVĂ, ca tot restul porții. Aici a
+            # stat un `lint-vault.mjs` absolut, care contrazicea exact regula
+            # scrisă de două ori mai sus: cerea „zero erori în tot vault-ul", nu
+            # „nicio eroare în plus". Trei nopți la rând (31.08, 01.09, 02.09)
+            # agenții au rescris corect cinci pagini, revertul a prins cele două
+            # regresii reale, iar publicarea a fost anulată pentru erori
+            # PREEXISTENTE pe pagini pe care noaptea aia nici nu le atinsese —
+            # `flota.md` avea deja una (a mers 1 → 2), `concedii.md` era deja
+            # peste plafon. Munca bună a fost aruncată din cauza unei roșeți pe
+            # care nocturna n-o produsese și n-o putea repara.
+            node scripts/docs/lint-vault.mjs --json > "$RUNNER_TEMP/lint-final.json" || true
+            node scripts/docs/lint-compara.mjs \
+              "$RUNNER_TEMP/lint-inainte.json" "$RUNNER_TEMP/lint-final.json" \
+              > "$RUNNER_TEMP/final.txt"
+            if grep -q '^REVERT: ' "$RUNNER_TEMP/final.txt"; then
+              echo "::error title=Revertul n-a curățat regresiile::nu public"
+              cat "$RUNNER_TEMP/final.txt"
               exit 1
-            }
+            fi
+          fi
+
+          # Erorile preexistente nu mai blochează publicarea, dar nu au voie nici
+          # să treacă tăcut: tăcerea le-ar transforma în datorie permanentă.
+          if ! node scripts/docs/lint-vault.mjs > "$RUNNER_TEMP/absolut.txt" 2>&1; then
+            echo "::warning title=Vault-ul are erori preexistente::publicarea continuă; erorile de mai jos existau ÎNAINTE de noaptea asta"
+            cat "$RUNNER_TEMP/absolut.txt" >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Comite și publică

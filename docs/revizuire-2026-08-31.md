@@ -18,20 +18,20 @@ re-raportate) și golurile de acoperire pe care analiza le-a scos la iveală.
 
 ## Reparat
 
-| Sev | Fișier | Ce se întâmpla |
-| --- | ------ | -------------- |
-| 🔴 | `tsconfig.tsbuildinfo` | `pnpm typecheck` era **orb**, nu doar roșu |
-| 🔴 | `pontaj/saptamana/actions.ts` + ambele `page.tsx` | weekendul lucrat se ștergea la a doua salvare |
-| 🔴 | `flota/[id]/campuri-document.tsx` | RCA se salva ca ITP |
-| 🟠 | `flota/foi/dialog-foaie-noua.tsx` | foaia se salva pe primul angajat alfabetic; buton mort la parc gol |
-| 🟠 | `flota/[id]/dialog-vehicul.tsx` | „Casat" supraviețuia lui Renunță |
-| 🟠 | `components/ui/formular-dialog.tsx` | Escape/backdrop/X închideau caseta în timpul trimiterii |
-| 🟠 | `inventar/[id]/dialog-returnare.tsx` | starea la returnare rămânea pe alegerea abandonată |
-| 🟠 | `flota/foi/date-foaie-noua.ts` | eroarea Postgres înghițită ⇒ listă goală tăcută |
-| 🟠 | `portal/ceas/page.tsx` | scurtătura de pe telefon ponta duminica |
-| 🟠 | `inventar/campuri-obiect.tsx` | `type="number"` făcea suportul de virgulă mort |
-| 🟠 | `lib/queries/inventory.ts` | `angajatiActivi` fără `.limit()` |
-| 🟠 | `tests/rls/izolare.sql` | poarta pozitivă proba doar UPDATE; calea reală e INSERT |
+| Sev | Fișier                                            | Ce se întâmpla                                                     |
+| --- | ------------------------------------------------- | ------------------------------------------------------------------ |
+| 🔴  | `tsconfig.tsbuildinfo`                            | `pnpm typecheck` era **orb**, nu doar roșu                         |
+| 🔴  | `pontaj/saptamana/actions.ts` + ambele `page.tsx` | weekendul lucrat se ștergea la a doua salvare                      |
+| 🔴  | `flota/[id]/campuri-document.tsx`                 | RCA se salva ca ITP                                                |
+| 🟠  | `flota/foi/dialog-foaie-noua.tsx`                 | foaia se salva pe primul angajat alfabetic; buton mort la parc gol |
+| 🟠  | `flota/[id]/dialog-vehicul.tsx`                   | „Casat" supraviețuia lui Renunță                                   |
+| 🟠  | `components/ui/formular-dialog.tsx`               | Escape/backdrop/X închideau caseta în timpul trimiterii            |
+| 🟠  | `inventar/[id]/dialog-returnare.tsx`              | starea la returnare rămânea pe alegerea abandonată                 |
+| 🟠  | `flota/foi/date-foaie-noua.ts`                    | eroarea Postgres înghițită ⇒ listă goală tăcută                    |
+| 🟠  | `portal/ceas/page.tsx`                            | scurtătura de pe telefon ponta duminica                            |
+| 🟠  | `inventar/campuri-obiect.tsx`                     | `type="number"` făcea suportul de virgulă mort                     |
+| 🟠  | `lib/queries/inventory.ts`                        | `angajatiActivi` fără `.limit()`                                   |
+| 🟠  | `tests/rls/izolare.sql`                           | poarta pozitivă proba doar UPDATE; calea reală e INSERT            |
 
 `portal/pontare-rapida.tsx` (butoanele dispărute la „numai cod QR") fusese deja
 reparat de `0d8b05f`, prin conducta proprie de revizuire — vezi §4, fiindcă
@@ -103,10 +103,10 @@ următoarea persoană care retrage un tip.
 **Migrare deja aplicată: nu se editează SQL-ul.** Se corectează comentariul, sau
 se pune nota în migrarea următoare care atinge nomenclatorul.
 
-Formularea corectă: *„`vdt_select` (rescrisă în 0020) nu filtrează nici
+Formularea corectă: _„`vdt_select` (rescrisă în 0020) nu filtrează nici
 `deleted_at`, nici `activ` — ambele filtre stau în `tipuriDocument()`.
 `activ = false` se alege fiindcă e reversibil printr-un UPDATE și fiindcă
-`deleted_at` ar intra în conflict cu indexul unic parțial pe `cod`."*
+`deleted_at` ar intra în conflict cu indexul unic parțial pe `cod`."_
 
 ### 1.4 Inventarul de rute e pe jumătate actualizat
 
@@ -164,10 +164,10 @@ grep -rlP '[\x{0163}\x{015F}]' src/ supabase/migrations/   # 26 de fișiere
 Aproape toate sunt în comentarii. **Două sunt date vizibile pe ecran**, în
 `supabase/migrations/0012_fleet.sql`:
 
-| linia | valoarea |
-| ----- | -------- |
-| 1112 | `'Inspecţie tehnică periodică (ITP)'` |
-| 1119 | `'Licenţă de transport'` |
+| linia | valoarea                              |
+| ----- | ------------------------------------- |
+| 1112  | `'Inspecţie tehnică periodică (ITP)'` |
+| 1119  | `'Licenţă de transport'`              |
 
 A doua e dezactivată de `0116`, deci rămâne una singură — și e chiar opțiunea pe
 care selectorul de tip document o alegea automat până azi.
@@ -183,12 +183,12 @@ linii care ar îneca orice altceva.
 
 Cinci findings au căzut la verificare. Se notează ca să nu fie re-raportate.
 
-| Findingul | De ce a căzut |
-| --------- | ------------- |
-| „0115 e o migrare comisă, editată acum" | Diff-ul e comment-only, verificat linie cu linie. Între timp `2c4c91e` a readus fișierul la octeții chiar aplicați. |
-| „Lipsește repausul de 24h după o zi de 12h+, art. 114 alin. 4" | Art. 114 din Legea 53/2003 reglementează plafonul de 48h/săptămână și perioada de referință, **nu** repausul gradual. Repausul zilnic e art. 135 (12h consecutive), deja implementat. Citare juridică fabricată. |
-| „Ecranul rămâne vechi după salvarea regulilor" (×2) | Demontat din sursa Next.js instalată — vezi §1.1. Simptomul nu există azi; a supraviețuit doar ca defect latent. |
-| „Pagina de vault a pontajului nu cunoaște `/pontaj/setari/reguli`" | `.claude/docs/modul/pontaj.md:53` are deja rândul; fusese adăugat în același diff. |
+| Findingul                                                          | De ce a căzut                                                                                                                                                                                                    |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| „0115 e o migrare comisă, editată acum"                            | Diff-ul e comment-only, verificat linie cu linie. Între timp `2c4c91e` a readus fișierul la octeții chiar aplicați.                                                                                              |
+| „Lipsește repausul de 24h după o zi de 12h+, art. 114 alin. 4"     | Art. 114 din Legea 53/2003 reglementează plafonul de 48h/săptămână și perioada de referință, **nu** repausul gradual. Repausul zilnic e art. 135 (12h consecutive), deja implementat. Citare juridică fabricată. |
+| „Ecranul rămâne vechi după salvarea regulilor" (×2)                | Demontat din sursa Next.js instalată — vezi §1.1. Simptomul nu există azi; a supraviețuit doar ca defect latent.                                                                                                 |
+| „Pagina de vault a pontajului nu cunoaște `/pontaj/setari/reguli`" | `.claude/docs/modul/pontaj.md:53` are deja rândul; fusese adăugat în același diff.                                                                                                                               |
 
 ---
 

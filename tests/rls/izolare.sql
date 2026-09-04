@@ -696,13 +696,29 @@ begin
   -- `an`/`luna` din perioada deschisă mai jos trebuie să acopere data folosită
   -- de linia de pontaj — triggerul `pontaj_intrare_pregateste` (0013) refuză
   -- orice înregistrare a cărei lună n-a fost deschisă explicit.
+  --
+  -- SE DESCHID DOUĂ LUNI, nu una. Verificarea (l) de la linia ~3400 pontează pe
+  -- `current_date - 5`, care în primele cinci zile ale oricărei luni cade în luna
+  -- PRECEDENTĂ. Cu o singură lună deschisă, izolare.sql pica din calendar: verde
+  -- pe 6–31, roșu pe 1–5, fără ca vreo linie de cod să se fi schimbat. Triggerul
+  -- caută strict după `(an, luna)`; `data_inceput`/`data_sfarsit` nu-l privesc.
   insert into public.attendance_periods (id, organization_id, an, luna, data_inceput, data_sfarsit)
   values ((select val from t_ids where cheie='aper_alfa'), v_alfa,
           extract(year from current_date)::smallint, extract(month from current_date)::smallint,
           current_date, current_date),
          ((select val from t_ids where cheie='aper_beta'), v_beta,
           extract(year from current_date)::smallint, extract(month from current_date)::smallint,
-          current_date, current_date);
+          current_date, current_date),
+         (gen_random_uuid(), v_alfa,
+          extract(year from current_date - interval '1 month')::smallint,
+          extract(month from current_date - interval '1 month')::smallint,
+          date_trunc('month', current_date - interval '1 month')::date,
+          date_trunc('month', current_date)::date - 1),
+         (gen_random_uuid(), v_beta,
+          extract(year from current_date - interval '1 month')::smallint,
+          extract(month from current_date - interval '1 month')::smallint,
+          date_trunc('month', current_date - interval '1 month')::date,
+          date_trunc('month', current_date)::date - 1);
 
   insert into public.attendance_approval_batches (organization_id, period_id, department_id, manager_employee_id)
   values (v_alfa, (select val from t_ids where cheie='aper_alfa'), (select val from t_ids where cheie='dep_alfa'),
@@ -1096,6 +1112,21 @@ begin
   insert into public.attendance_week_submission_days (organization_id, submission_id, data)
   values (v_alfa, (select val from t_ids where cheie='wsub_alfa'), date_trunc('week', current_date)::date),
          (v_beta, (select val from t_ids where cheie='wsub_beta'), date_trunc('week', current_date)::date);
+
+  -- Exercițiile registrului (0120). Tabela nu se populează singură: `registru_documente`
+  -- primește rânduri din triggerele de contract și de document HR, dar exercițiul e
+  -- OPȚIONAL prin construcție — `internal.aloca_numar_registru` face
+  -- `coalesce(numar_de_pornire, 1)`, iar `internal.registru_verifica_exercitiu` blochează
+  -- doar când există un rând cu `stare = 'inchis'`. O firmă care nu deschide niciodată un
+  -- exercițiu numerotează normal, deci nimic din fluxul obișnuit n-ar fi scris aici, iar
+  -- politicile tabelei ar fi rămas nedemonstrate — exact ce refuză verificarea (c).
+  --
+  -- Anul e 2098, nu anul curent, DELIBERAT: un exercițiu pe anul curent ar intra în
+  -- raza triggerului de mai sus pentru fiecare document înregistrat de restul
+  -- fixture-ului. La 2098 rândul e inert și probează strict izolarea.
+  insert into public.registru_exercitii (organization_id, an, stare, numar_de_pornire)
+  values (v_alfa, 2098, 'deschis', 1),
+         (v_beta, 2098, 'deschis', 1);
 
 end
 $$;
@@ -1872,7 +1903,10 @@ begin
       -- mai putea aproba pontajul deloc, iar verificările (a)-(k) ar rămâne
       -- toate verzi. `linii_aprobate` NU se trimite: WITH CHECK îl cere 0.
       ('manager', 'attendance_approval_batches (lot)', 'PERMIS',
-       'insert into public.attendance_approval_batches (organization_id, period_id) values ($1, (select p.id from public.attendance_periods p where p.organization_id=$1 and p.deleted_at is null order by p.created_at limit 1))'),
+      -- Ordonarea e pe `(an, luna)`, nu pe `created_at`: fixture-ul deschide DOUĂ
+      -- luni, iar `now()` e constant în tranzacție, deci `created_at` le dă
+      -- identic și `limit 1` ar alege arbitrar.
+       'insert into public.attendance_approval_batches (organization_id, period_id) values ($1, (select p.id from public.attendance_periods p where p.organization_id=$1 and p.deleted_at is null order by p.an, p.luna limit 1))'),
       -- Singura scriere pe care managerul o poate face în modulele active:
       -- `maintenance:create = all` îi deschide sesizarea de defect. Capcana 35
       -- avertizează că poarta BAZEI e mai largă decât cea a aplicației.

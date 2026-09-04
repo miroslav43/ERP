@@ -12,7 +12,7 @@ infrastructură nouă) · **Status:** spec, neimplementat
 Întrebat care clic doare, răspunsul a fost: **navigarea în meniu, salvarea unui formular, și
 „peste tot, uniform”.**
 
-Cuvântul care contează e *uniform*. Dacă lentoarea ar veni din interogările unei pagini anume, ar
+Cuvântul care contează e _uniform_. Dacă lentoarea ar veni din interogările unei pagini anume, ar
 fi inegală — Pontajul lent, Anunțurile instant. Uniformitatea e semnătura unui **cost fix pe
 cerere**, plătit înainte ca pagina să înceapă să-și ceară datele.
 
@@ -21,13 +21,13 @@ cerere**, plătit înainte ca pagina să înceapă să-și ceară datele.
 124 de măsurători, pe 7 straturi, executate pe VM-ul de producție și pe baza live
 (numai `SELECT`/`EXPLAIN`). Costurile unitare:
 
-| ce | cald | rece |
-| --- | --- | --- |
-| un apel GoTrue (`/auth/v1/user`) | 90 ms | 180 ms |
-| un apel PostgREST (`/rest/v1/…`) | 110 ms | 200 ms |
-| execuția în Postgres | **2,32 ms** medie ponderată pe 43 296 de apeluri (`pg_stat_statements`) | |
-| Redis local (`strawboss-app_redis`, deja pe VM) | avg **1,66 ms** | |
-| verificare locală a unui JWT ES256 | **1,7 ms** (`importKey` 0,433 + `verify` 1,269) | |
+| ce                                              | cald                                                                    | rece   |
+| ----------------------------------------------- | ----------------------------------------------------------------------- | ------ |
+| un apel GoTrue (`/auth/v1/user`)                | 90 ms                                                                   | 180 ms |
+| un apel PostgREST (`/rest/v1/…`)                | 110 ms                                                                  | 200 ms |
+| execuția în Postgres                            | **2,32 ms** medie ponderată pe 43 296 de apeluri (`pg_stat_statements`) |        |
+| Redis local (`strawboss-app_redis`, deja pe VM) | avg **1,66 ms**                                                         |        |
+| verificare locală a unui JWT ES256              | **1,7 ms** (`importKey` 0,433 + `verify` 1,269)                         |        |
 
 **Baza de date nu e problema.** Cel mai mare tabel are 2 795 de rânduri; Postgres răspunde în
 milisecunde. Problema e că aplicația vorbește cu el de 6–10 ori pe rând, prin HTTP, peste
@@ -39,17 +39,17 @@ Navigare simplă: **≈ 1,2 s**, ×2,5 dacă clicul cade în propria rafală de 
 
 Clic care salvează:
 
-| | ms |
-| --- | --- |
-| proxy `getUser` (socket rece) | 180 |
-| `createAction` → `resolveTenant` (getUser + `organization_members`) | 200 |
-| module + permisiuni, în lanț | 220 |
-| scrierea propriu-zisă | 110–330 |
-| `writeAuditLog` — **așteptat** (`create-action.ts:233`) | 110 |
-| `revalidatePath` → re-randare completă în același POST | 860 |
-| `router.refresh()` → a treia randare completă | 950 |
-| transport + client | 150 |
-| **total** | **≈ 2,8 – 3,3 s** (4–6 s sub rafală) |
+|                                                                     | ms                                   |
+| ------------------------------------------------------------------- | ------------------------------------ |
+| proxy `getUser` (socket rece)                                       | 180                                  |
+| `createAction` → `resolveTenant` (getUser + `organization_members`) | 200                                  |
+| module + permisiuni, în lanț                                        | 220                                  |
+| scrierea propriu-zisă                                               | 110–330                              |
+| `writeAuditLog` — **așteptat** (`create-action.ts:233`)             | 110                                  |
+| `revalidatePath` → re-randare completă în același POST              | 860                                  |
+| `router.refresh()` → a treia randare completă                       | 950                                  |
+| transport + client                                                  | 150                                  |
+| **total**                                                           | **≈ 2,8 – 3,3 s** (4–6 s sub rafală) |
 
 ### Trei constatări neașteptate
 
@@ -68,10 +68,10 @@ Clic care salvează:
 
 `node_modules/next/dist/docs/01-app/02-guides/prefetching.md:61-62`:
 
-| ruta | ce se prefetchează | TTL |
-| --- | --- | --- |
-| **fără** `loading.js` | pagina întreagă | 5 min (`staleTimes.static`) |
-| **cu** `loading.js` | layout → prima graniță | **oprit implicit** (`staleTimes.dynamic`) |
+| ruta                  | ce se prefetchează     | TTL                                       |
+| --------------------- | ---------------------- | ----------------------------------------- |
+| **fără** `loading.js` | pagina întreagă        | 5 min (`staleTimes.static`)               |
+| **cu** `loading.js`   | layout → prima graniță | **oprit implicit** (`staleTimes.dynamic`) |
 
 Proiectul are 88 de `loading.tsx` care acoperă toate cele 112 pagini din `(app)`. Corect făcute —
 și tocmai de asta fiecare prefetch cade în găleata `dynamic`, al cărei implicit e **0 secunde**
@@ -97,7 +97,7 @@ peste `createServerSupabase()`.
 expirat (`:2554`). Token valid ⇒ zero rețea. Token expirat ⇒ exact un apel de reînnoire, ca acum.
 `JwtPayload` conține `sub`, `email`, `user_metadata` — tot ce citește `current-user.ts` azi.
 
-**Ce se slăbește:** un cont blocat sau deconectat global rămâne acceptat de *aplicație* până
+**Ce se slăbește:** un cont blocat sau deconectat global rămâne acceptat de _aplicație_ până
 expiră access-tokenul.
 
 **De ce e acceptabil:** PostgREST verifică și el tot local, cu JWKS-ul, fără să întrebe GoTrue —
@@ -190,7 +190,7 @@ listă de rânduri identice. Afordantul local o dă: `aria-busy="true"` plus o e
 apucat, în același cadru cu clicul.
 
 `PRAG_VOAL` **nu se coboară.** Cu `DURATA_MINIMA_VOAL = 450` (`praguri.ts:35`), un prag mic face
-voalul să stea 450 ms peste o navigare de 200 ms — mai lent *perceput* decât fără voal. Iar după
+voalul să stea 450 ms peste o navigare de 200 ms — mai lent _perceput_ decât fără voal. Iar după
 intervențiile 2–6 navigarea aterizează la ~450 ms, exact în zona aceea.
 
 **Amânat, nu respins:** `SenzorLink` primește deja `pending` de la `useLinkStatus` și îl trimite
@@ -312,23 +312,23 @@ Cere rebuild de imagine. Atenție la capcana cunoscută: `NEXT_PUBLIC_APP_URL` s
 Trei tăieturi independente:
 
 a. **`/api/` înaintea sesiunii.** `:81` (`if (pathname.startsWith("/api/")) return response;`) rulează
-   azi **după** `:76` (`await updateSession(request)`). Rutele de API își verifică singure sesiunea;
-   plătesc un `getUser` pe care apoi îl aruncă. Se inversează ordinea.
+azi **după** `:76` (`await updateSession(request)`). Rutele de API își verifică singure sesiunea;
+plătesc un `getUser` pe care apoi îl aruncă. Se inversează ordinea.
 
 b. **Ieșire devreme pe prefetch.** Cererile cu antetul `Next-Router-Prefetch: 1` plătesc azi un
-   `getUser` fiecare (probă directă: o astfel de cerere primește 307 de la proxy). După schimbare,
-   prefetch-ul unui vizitator nelogat ajunge la pagină, care face `requireTenant()` →
-   `redirect("/autentificare")` — comportament corect, doar mutat un strat mai jos.
-   **Consecință de verificat:** cookie-ul de sesiune nu se mai reîmprospătează pe prefetch. Navigările
-   reale îl reîmprospătează în continuare; scenariul „o oră numai prefetch, zero navigare” nu e real.
+`getUser` fiecare (probă directă: o astfel de cerere primește 307 de la proxy). După schimbare,
+prefetch-ul unui vizitator nelogat ajunge la pagină, care face `requireTenant()` →
+`redirect("/autentificare")` — comportament corect, doar mutat un strat mai jos.
+**Consecință de verificat:** cookie-ul de sesiune nu se mai reîmprospătează pe prefetch. Navigările
+reale îl reîmprospătează în continuare; scenariul „o oră numai prefetch, zero navigare” nu e real.
 
 c. **Faviconurile în matcher.** `icon`, `icon1`, `apple-icon` sunt rute de metadate **fără extensie**,
-   deci regexul de la `:141` (care exclude doar `.*\.(png|svg|…)$`) nu le prinde. Sunt servite cu
-   `cache-control: public, max-age=0, must-revalidate` și `cf-cache-status: DYNAMIC`, deci browserul
-   le re-cere la fiecare încărcare. A/B pe origine, 8 perechi intercalate: fără cookie mediana ~21 ms,
-   cu cookie de sesiune mediana ~90 ms — **+69 ms fiecare, de 2–3 ori pe pagină**. În jurnal: 1 491
-   de cereri `/icon*` + `/manifest` din 11 745. Se adaugă lângă `manifest.webmanifest`, în aceeași
-   listă de excluderi, cu un comentariu care explică de ce rutele fără extensie scapă regexului.
+deci regexul de la `:141` (care exclude doar `.*\.(png|svg|…)$`) nu le prinde. Sunt servite cu
+`cache-control: public, max-age=0, must-revalidate` și `cf-cache-status: DYNAMIC`, deci browserul
+le re-cere la fiecare încărcare. A/B pe origine, 8 perechi intercalate: fără cookie mediana ~21 ms,
+cu cookie de sesiune mediana ~90 ms — **+69 ms fiecare, de 2–3 ori pe pagină**. În jurnal: 1 491
+de cereri `/icon*` + `/manifest` din 11 745. Se adaugă lângă `manifest.webmanifest`, în aceeași
+listă de excluderi, cu un comentariu care explică de ce rutele fără extensie scapă regexului.
 
 ### 5 · `src/instrumentation.ts` (fișier nou)
 
@@ -351,77 +351,77 @@ se măsoară înainte de a alege altă valoare.
 ### 6 · Paralelizare — `src/lib/actions/create-action.ts`
 
 a. `:133` (`getEnabledFeatures`) și `:145` (`getPermissionMap`) sunt două `await` înlănțuite pe
-   operații **independente** — ambele au nevoie doar de `tenant`. Se unesc într-un `Promise.all`.
-   Structura celor 8 straturi și ordinea refuzurilor rămân neschimbate: se paralelizează *citirile*,
-   nu *deciziile*. Verificarea modulului (`MODUL_DEZACTIVAT`) rămâne înaintea celei de permisiune
-   (`INTERZIS`), ca mesajul de eroare să nu se schimbe.
+operații **independente** — ambele au nevoie doar de `tenant`. Se unesc într-un `Promise.all`.
+Structura celor 8 straturi și ordinea refuzurilor rămân neschimbate: se paralelizează _citirile_,
+nu _deciziile_. Verificarea modulului (`MODUL_DEZACTIVAT`) rămâne înaintea celei de permisiune
+(`INTERZIS`), ca mesajul de eroare să nu se schimbe.
 
 b. Auditul de **succes** de la `:233` e `await`-uit pe calea fericită. Se mută în `after()` din
-   `next/server` — folosit azi de **zero** ori în proiect. Auditul de **refuz** (din `refuza()`,
-   `:101`) rămâne sincron: un refuz care se pierde e o gaură în urmă, un succes pierdut e o linie
-   lipsă dintr-un jurnal care are deja rândul de date.
+`next/server` — folosit azi de **zero** ori în proiect. Auditul de **refuz** (din `refuza()`,
+`:101`) rămâne sincron: un refuz care se pierde e o gaură în urmă, un succes pierdut e o linie
+lipsă dintr-un jurnal care are deja rândul de date.
 
 c. Același tipar la preambulul paginilor. **Corecție de scară față de prima versiune: sunt 110 din
-   117 de pagini, nu 10–15.** Tiparul e identic peste tot: `await requireFeature(...)` urmat pe linia
-   IMEDIAT următoare de `await getPermissionMap(...)` — două citiri independente, pe tabele diferite
-   (`organization_features` vs `role_permissions`), amândouă depinzând doar de `tenant`. Transformare
-   mecanică.
+117 de pagini, nu 10–15.** Tiparul e identic peste tot: `await requireFeature(...)` urmat pe linia
+IMEDIAT următoare de `await getPermissionMap(...)` — două citiri independente, pe tabele diferite
+(`organization_features` vs `role_permissions`), amândouă depinzând doar de `tenant`. Transformare
+mecanică.
 
-   **Se sparge pe subarbori de rute** (pontaj, concedii, angajați, ssm, mentenanță…), niciodată într-un
-   commit de 110 fișiere: repo-ul are sesiuni concurente, iar o singură sesiune care le atinge pe toate
-   se ciocnește aproape sigur de altcineva.
+**Se sparge pe subarbori de rute** (pontaj, concedii, angajați, ssm, mentenanță…), niciodată într-un
+commit de 110 fișiere: repo-ul are sesiuni concurente, iar o singură sesiune care le atinge pe toate
+se ciocnește aproape sigur de altcineva.
 
-   **Câștigul e zero la încărcarea completă, și asta trebuie spus.** `(app)/layout.tsx:92-95` cheamă deja
-   `getEnabledFeatures(tenant.organizationId)`, iar el și `getPermissionMap` sunt amândoi `React.cache()`.
-   Când layoutul se randează în același request cu pagina, `requireFeature` din pagină e cache hit.
-   Câștigul apare **exclusiv** acolo unde layoutul NU se re-randează — adică la navigarea pe client,
-   care e chiar plângerea. Deci poarta empirică se pune pe o navigare client, nu pe un `curl`.
+**Câștigul e zero la încărcarea completă, și asta trebuie spus.** `(app)/layout.tsx:92-95` cheamă deja
+`getEnabledFeatures(tenant.organizationId)`, iar el și `getPermissionMap` sunt amândoi `React.cache()`.
+Când layoutul se randează în același request cu pagina, `requireFeature` din pagină e cache hit.
+Câștigul apare **exclusiv** acolo unde layoutul NU se re-randează — adică la navigarea pe client,
+care e chiar plângerea. Deci poarta empirică se pune pe o navigare client, nu pe un `curl`.
 
-   **`requireFeature` nu întoarce boolean — face `notFound()`** (`features.ts:89`). Într-un `Promise.all`
-   cu `getPermissionMap`, dacă acesta din urmă aruncă primul (organizationId non-UUID la
-   `permissions.ts:68-70`), rejectul lui câștigă cursa și un 404 devine 500. Practic nereproductibil cu
-   un tenant valid, dar se scrie. Contra-partea e sigură: `Promise.all` atașează handler pe fiecare
-   element, deci al doilea reject nu devine unhandled rejection.
+**`requireFeature` nu întoarce boolean — face `notFound()`** (`features.ts:89`). Într-un `Promise.all`
+cu `getPermissionMap`, dacă acesta din urmă aruncă primul (organizationId non-UUID la
+`permissions.ts:68-70`), rejectul lui câștigă cursa și un 404 devine 500. Practic nereproductibil cu
+un tenant valid, dar se scrie. Contra-partea e sigură: `Promise.all` atașează handler pe fiecare
+element, deci al doilea reject nu devine unhandled rejection.
 
-   **Poarta `can()` rămâne DUPĂ await**, nu între cele două apeluri — altfel ordinea „modul dezactivat
-   (404) înaintea permisiunii lipsă (`AccesRestrictionat`)" se pierde.
+**Poarta `can()` rămâne DUPĂ await**, nu între cele două apeluri — altfel ordinea „modul dezactivat
+(404) înaintea permisiunii lipsă (`AccesRestrictionat`)" se pierde.
 
-   **Condiționalele nu se pierd.** Multe citiri sunt păzite de o permisiune. În `Promise.all` ele rămân
-   ternare în interiorul array-ului; tiparul există deja în cod:
-   `scope === "all" ? citesteRezumatDateSensibile(...) : null` (`angajati/[id]:220`) și
-   `poateAproba ? numarDeAprobat(...) : Promise.resolve(0)` (`concedii/echipa:71`).
+**Condiționalele nu se pierd.** Multe citiri sunt păzite de o permisiune. În `Promise.all` ele rămân
+ternare în interiorul array-ului; tiparul există deja în cod:
+`scope === "all" ? citesteRezumatDateSensibile(...) : null` (`angajati/[id]:220`) și
+`poateAproba ? numarDeAprobat(...) : Promise.resolve(0)` (`concedii/echipa:71`).
 
-   **`grep -c "await "` supraevaluează:** `await params`, `await searchParams` și
-   `await createServerSupabase()` (doar `await cookies()`) nu sunt dus-întorsuri de rețea. Două awaituri
-   din TOP 8 sunt deja cache hit-uri cu câștig zero: `pontaj/page.tsx:108` și `pontaj/aprobare/page.tsx:217`.
+**`grep -c "await "` supraevaluează:** `await params`, `await searchParams` și
+`await createServerSupabase()` (doar `await cookies()`) nu sunt dus-întorsuri de rețea. Două awaituri
+din TOP 8 sunt deja cache hit-uri cu câștig zero: `pontaj/page.tsx:108` și `pontaj/aprobare/page.tsx:217`.
 
-   **Ieșirile devreme blochează contopirea:** `pontaj/aprobare:195-214`, `pontaj/page.tsx:370-392`,
-   `mentenanta/echipamente/[id]:80`, `onboarding/[id]:48`. Mutarea unei citiri deasupra unei astfel de
-   ieșiri o face plătită degeaba pe ramura scurtă.
+**Ieșirile devreme blochează contopirea:** `pontaj/aprobare:195-214`, `pontaj/page.tsx:370-392`,
+`mentenanta/echipamente/[id]:80`, `onboarding/[id]:48`. Mutarea unei citiri deasupra unei astfel de
+ieșiri o face plătită degeaba pe ramura scurtă.
 
-   Lanțul „listă → nume angajați" e o dependență reală și rămâne serial. Iar `angajatiDupaId` există în
-   cinci module cu semnătură identică dar tipuri locale (`checklist.ts:666`, `maintenance.ts:901`,
-   `fleet.ts:678`, `per-diem.ts:525`, `ssm.ts:971`): importul rămâne din modulul paginii, o „unificare"
-   ar fi exact calea inventată de evitat.
+Lanțul „listă → nume angajați" e o dependență reală și rămâne serial. Iar `angajatiDupaId` există în
+cinci module cu semnătură identică dar tipuri locale (`checklist.ts:666`, `maintenance.ts:901`,
+`fleet.ts:678`, `per-diem.ts:525`, `ssm.ts:971`): importul rămâne din modulul paginii, o „unificare"
+ar fi exact calea inventată de evitat.
 
 ## 5. Ce s-a respins, cu motiv
 
-| Ce | De ce |
-| --- | --- |
-| **„Lipsesc `loading.tsx`”** | Respins prin numărătoare. Un raport intermediar susținea 36 de pagini fără schelet; testul număra pe director propriu, nu pe strămoși. Un `loading.tsx` acoperă tot subarborele: **0 din 112** pagini sunt fără graniță de încărcare. |
-| **Rescrierea celor 929 de apeluri RLS în `(select …)`** | Diferență măsurată: **0,08 ms** pe 357 de rânduri. PG 17 le ridică singur în One-Time Filter. 404 de politici atinse pentru zero câștig, cu risc de regresie de izolare. |
-| **Un RPC de rate-limit în `createAction`** | Respins: `rate-limit` nu apare în `create-action.ts`. Trăiește în `public-action.ts` (autentificare, invitație, resetare) și în email/invitații/cursuri. |
-| **Indexuri noi, plan Supabase mai mare** | Postgres e sub 3% din timpul unui clic. |
-| **Cele 89 de `count: "exact"`** | 1,3–8,7 ms în bază, deja în `Promise.all` alături de interogarea de date. Puse deliberat (vezi comentariile din `employees.ts:226`, `leave.ts:119`). |
-| **`optimizePackageImports`, `lucide-react`, `date-fns`, compresia RSC** | Deja corecte, verificate pe antete: `immutable` + `cf-cache-status: HIT`; RSC comprimat 50 981 → 6 514 octeți; `lucide-react` optimizat implicit; `date-fns` nu e importat niciodată. |
-| **`prefetch={false}` pe meniu, de sine stătător** | Ar face primul clic pe fiecare intrare vizibil mai lent — opusul plângerii. Acceptabil doar împreună cu `staleTimes`, și doar după ce preambulul e ieftin. |
-| **Scoaterea celor 152 `router.refresh()`** (105 fișiere) | Fiecare cere verificarea manuală că `revalidate:` acoperă calea afișată. Un ecran învechit după salvare e clasa de defecte cea mai scumpă. După A, sau niciodată. |
-| **`keepalive` spre upstream în nginx** | ~8 ms câștig contra riscului ca `nginx -t` să pice și reload-ul să dea jos cele 9 site-uri. |
-| **Mutarea aplicației lângă bază (AWS eu-west-1)** | ~8 ms din ~90–130. VM-ul e deja la 7,7 ms de o margine Cloudflare; restul e Kong + PostgREST, nu fir. |
-| **Mutarea bazei la Frankfurt** | ~30 ms din ~90–130, cu migrare de proiect, indisponibilitate, URL și chei noi. O treime din câștig pentru cel mai mare risc din listă. |
-| **Conexiune Postgres directă prin pooler, în locul PostgREST** | Singura idee din familie cu un câștig real (28–30 ms RTT față de 90–130 per apel REST), dar cere rescrierea întregului strat de date și reconstruirea manuală a RLS-prin-JWT — exact suprafața pe care proiectul își ține izolarea. **Amânată**, nu respinsă: se reia doar dacă, după A, interogările proprii ale paginilor rămân termenul dominant. |
-| **`cacheComponents` / `partialPrefetching`** | Firma activă vine dintr-un **cookie**, iar App Shell-ul s-ar cache-ui per sesiune pe client. Schimbă și semantica lui `force-dynamic` pe toate cele 112 pagini. Respinsă până există o probă de comutare A→B verificată explicit. |
-| **Redis, acum** | Nu greșit — **prematur**. Vezi §6. |
+| Ce                                                                      | De ce                                                                                                                                                                                                                                                                                                                                                |
+| ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **„Lipsesc `loading.tsx`”**                                             | Respins prin numărătoare. Un raport intermediar susținea 36 de pagini fără schelet; testul număra pe director propriu, nu pe strămoși. Un `loading.tsx` acoperă tot subarborele: **0 din 112** pagini sunt fără graniță de încărcare.                                                                                                                |
+| **Rescrierea celor 929 de apeluri RLS în `(select …)`**                 | Diferență măsurată: **0,08 ms** pe 357 de rânduri. PG 17 le ridică singur în One-Time Filter. 404 de politici atinse pentru zero câștig, cu risc de regresie de izolare.                                                                                                                                                                             |
+| **Un RPC de rate-limit în `createAction`**                              | Respins: `rate-limit` nu apare în `create-action.ts`. Trăiește în `public-action.ts` (autentificare, invitație, resetare) și în email/invitații/cursuri.                                                                                                                                                                                             |
+| **Indexuri noi, plan Supabase mai mare**                                | Postgres e sub 3% din timpul unui clic.                                                                                                                                                                                                                                                                                                              |
+| **Cele 89 de `count: "exact"`**                                         | 1,3–8,7 ms în bază, deja în `Promise.all` alături de interogarea de date. Puse deliberat (vezi comentariile din `employees.ts:226`, `leave.ts:119`).                                                                                                                                                                                                 |
+| **`optimizePackageImports`, `lucide-react`, `date-fns`, compresia RSC** | Deja corecte, verificate pe antete: `immutable` + `cf-cache-status: HIT`; RSC comprimat 50 981 → 6 514 octeți; `lucide-react` optimizat implicit; `date-fns` nu e importat niciodată.                                                                                                                                                                |
+| **`prefetch={false}` pe meniu, de sine stătător**                       | Ar face primul clic pe fiecare intrare vizibil mai lent — opusul plângerii. Acceptabil doar împreună cu `staleTimes`, și doar după ce preambulul e ieftin.                                                                                                                                                                                           |
+| **Scoaterea celor 152 `router.refresh()`** (105 fișiere)                | Fiecare cere verificarea manuală că `revalidate:` acoperă calea afișată. Un ecran învechit după salvare e clasa de defecte cea mai scumpă. După A, sau niciodată.                                                                                                                                                                                    |
+| **`keepalive` spre upstream în nginx**                                  | ~8 ms câștig contra riscului ca `nginx -t` să pice și reload-ul să dea jos cele 9 site-uri.                                                                                                                                                                                                                                                          |
+| **Mutarea aplicației lângă bază (AWS eu-west-1)**                       | ~8 ms din ~90–130. VM-ul e deja la 7,7 ms de o margine Cloudflare; restul e Kong + PostgREST, nu fir.                                                                                                                                                                                                                                                |
+| **Mutarea bazei la Frankfurt**                                          | ~30 ms din ~90–130, cu migrare de proiect, indisponibilitate, URL și chei noi. O treime din câștig pentru cel mai mare risc din listă.                                                                                                                                                                                                               |
+| **Conexiune Postgres directă prin pooler, în locul PostgREST**          | Singura idee din familie cu un câștig real (28–30 ms RTT față de 90–130 per apel REST), dar cere rescrierea întregului strat de date și reconstruirea manuală a RLS-prin-JWT — exact suprafața pe care proiectul își ține izolarea. **Amânată**, nu respinsă: se reia doar dacă, după A, interogările proprii ale paginilor rămân termenul dominant. |
+| **`cacheComponents` / `partialPrefetching`**                            | Firma activă vine dintr-un **cookie**, iar App Shell-ul s-ar cache-ui per sesiune pe client. Schimbă și semantica lui `force-dynamic` pe toate cele 112 pagini. Respinsă până există o probă de comutare A→B verificată explicit.                                                                                                                    |
+| **Redis, acum**                                                         | Nu greșit — **prematur**. Vezi §6.                                                                                                                                                                                                                                                                                                                   |
 
 ## 6. Redis: de ce nu acum, și când da
 
@@ -457,7 +457,7 @@ proiect predicatele citesc `auth.uid()`, `organization_id`, rolul, și pe unele 
    `firma:{organizationId}`, `apartenente:{userId}`. **Nicio cheie fără `organizationId`.**
 3. `apartenente:{userId}` primește cel mai scurt TTL (60 s) — e cheia care decide în ce firme are
    voie omul.
-4. Zero cache pe date de rând. Preambulul e cache-uibil fiindcă e *metadată despre chiriaș*.
+4. Zero cache pe date de rând. Preambulul e cache-uibil fiindcă e _metadată despre chiriaș_.
 5. Harta de permisiuni e **poartă de autorizare** (`create-action.ts:145`). Un cache învechit
    permisiv lasă acțiunea să treacă poarta de aplicație; RLS o refuză apoi, dar refuzul apare ca
    **UPDATE cu zero rânduri, fără eroare**. Deci `revalidateTag` obligatoriu în fiecare acțiune care
@@ -481,15 +481,15 @@ de imagine. Ambele sunt exact ce prinde `next build` și `tsc` tace.
 
 Poarta empirică, per intervenție:
 
-| # | TDD? | cum se dovedește |
-| --- | --- | --- |
-| 0 | nu | `rt=` apare în `/var/log/nginx/administrativo.log`; seria se **copiază în afara containerului** înainte de orice altă schimbare |
-| 1 | **da** | test Vitest pe `RandTabel`: clicul pune sursa în depozitar și `aria-busy` pe `<tr>` |
-| 2 | **da** | test unitar pe maparea claims → `AuthUser`, inclusiv varianta `{data: null, error: null}`; empiric: zero cereri `/auth/v1/user` în `query_logs` pentru o navigare, iar sesiunea supraviețuiește peste ora de expirare |
-| 3 | parțial | `tsc` prinde cheia dacă `NextConfig` o tipizează; empiric: proporția `?_rsc=` din jurnal scade sub 74,7% |
-| 4 | **da** | test pe `proxy()` cu `NextRequest` construit: `/api/*` și `Next-Router-Prefetch: 1` ies fără `updateSession`; empiric `/icon1` cu cookie revine la ~21 ms |
-| 5 | nu | două cereri la 6 s distanță: a doua nu mai plătește TLS |
-| 6 | **da** (6a) | test că `getEnabledFeatures` și `getPermissionMap` pornesc în același tick; 6b cere `vi.mock("next/server")` — testul dovedește că auditul e **programat**, nu că e în afara căii critice |
+| #   | TDD?        | cum se dovedește                                                                                                                                                                                                      |
+| --- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0   | nu          | `rt=` apare în `/var/log/nginx/administrativo.log`; seria se **copiază în afara containerului** înainte de orice altă schimbare                                                                                       |
+| 1   | **da**      | test Vitest pe `RandTabel`: clicul pune sursa în depozitar și `aria-busy` pe `<tr>`                                                                                                                                   |
+| 2   | **da**      | test unitar pe maparea claims → `AuthUser`, inclusiv varianta `{data: null, error: null}`; empiric: zero cereri `/auth/v1/user` în `query_logs` pentru o navigare, iar sesiunea supraviețuiește peste ora de expirare |
+| 3   | parțial     | `tsc` prinde cheia dacă `NextConfig` o tipizează; empiric: proporția `?_rsc=` din jurnal scade sub 74,7%                                                                                                              |
+| 4   | **da**      | test pe `proxy()` cu `NextRequest` construit: `/api/*` și `Next-Router-Prefetch: 1` ies fără `updateSession`; empiric `/icon1` cu cookie revine la ~21 ms                                                             |
+| 5   | nu          | două cereri la 6 s distanță: a doua nu mai plătește TLS                                                                                                                                                               |
+| 6   | **da** (6a) | test că `getEnabledFeatures` și `getPermissionMap` pornesc în același tick; 6b cere `vi.mock("next/server")` — testul dovedește că auditul e **programat**, nu că e în afara căii critice                             |
 
 **Trei intervenții nu sunt TDD-abile, și planul trebuie s-o spună în loc s-o mascheze:** 0 (nginx, în
 afara codului), 5 (`register()` e chemat de runtime; un test ar verifica cel mult că fișierul exportă

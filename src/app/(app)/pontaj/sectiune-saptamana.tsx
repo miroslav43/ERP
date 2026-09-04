@@ -210,9 +210,7 @@ export async function SectiuneSaptamana({
           })),
         )}
         config={config}
-        intervalPropus={
-          programStart === null ? null : intervalulPropus(programStart, config)
-        }
+        intervalPropus={programStart === null ? null : intervalulPropus(programStart, config)}
         angajatId={null}
         eticheta={stareFisa.fisa.full_name ?? stareFisa.fisa.marca}
         poateAproba={poateAproba}

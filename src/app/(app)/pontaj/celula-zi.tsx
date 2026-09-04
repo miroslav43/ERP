@@ -268,12 +268,7 @@ export function CelulaZi({
   }
 
   return (
-    <dialog
-      ref={dialogRef}
-      aria-labelledby={idTitlu}
-      onClose={onInchide}
-      className={CLASA_DIALOG}
-    >
+    <dialog ref={dialogRef} aria-labelledby={idTitlu} onClose={onInchide} className={CLASA_DIALOG}>
       <form onSubmit={trimite} className="space-y-4 p-5" noValidate>
         <h2 id={idTitlu} className="text-sectiune font-semibold">
           {eticheta}
