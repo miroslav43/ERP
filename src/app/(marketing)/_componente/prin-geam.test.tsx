@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { arePrinGeam, PrinGeam } from "./prin-geam";
+import { PrinGeam } from "./prin-geam";
 
 /**
  * `<dialog>` nu are `showModal()`/`close()` implementate în happy-dom —
@@ -17,10 +17,9 @@ beforeEach(() => {
 });
 
 describe("banda prin geam", () => {
-  it("știe pentru care module există vitrină", () => {
-    expect(arePrinGeam("leave")).toBe(true);
-    expect(arePrinGeam("courses")).toBe(false);
-  });
+  // Catalogul (`arePrinGeam`) s-a mutat în `vitrine.ts` și e verificat acolo:
+  // e apelat din graful de server, deci nu are voie să locuiască într-un fișier
+  // `"use client"` ca acesta.
 
   it("încadrează vitrina leneș, cu titlu și raport de aspect fix", () => {
     const { container } = render(<PrinGeam cheie="leave" titlu="Concedii" />);

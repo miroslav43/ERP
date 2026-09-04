@@ -25,14 +25,15 @@ import { useRef, useState } from "react";
  * din cel de marketing, iar elementul intră în TOP LAYER — stivuit peste
  * `<dialog>`-ul aplicației din interiorul iframe-ului ar fi al doilea element
  * în top layer. Aici e un `<dialog>` nativ propriu, cu popup-ul lui.
+ *
+ * ── DE CE CATALOGUL VITRINELOR STĂ ÎN `vitrine.ts`, NU AICI ───────────────
+ * `arePrinGeam` e chemat din `module/[modul]/page.tsx`, care e Server
+ * Component. Un export al unui fișier `"use client"` devine, în graful de
+ * server, o referință de client care ARUNCĂ la apel — deci apelul rupea
+ * prerandarea tuturor celor nouăsprezece pagini de modul. Catalogul s-a mutat
+ * într-un modul simplu; aici rămâne doar componenta, care se RANDEAZĂ, nu se
+ * apelează. Motivarea completă e în `vitrine.ts`.
  */
-
-/** Modulele care au vitrină. Restul nu randează banda deloc. */
-const CU_VITRINA: readonly string[] = ["leave"];
-
-export function arePrinGeam(cheie: string): boolean {
-  return CU_VITRINA.includes(cheie);
-}
 
 export function PrinGeam({ cheie, titlu }: { readonly cheie: string; readonly titlu: string }) {
   const [deschis, setDeschis] = useState(false);
