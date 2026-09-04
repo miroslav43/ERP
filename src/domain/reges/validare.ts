@@ -114,6 +114,19 @@ export function verificaContract(c: ContractIntern): readonly Problema[] {
       camp: "codCor",
       mesaj: "Codul COR lipsește sau nu are șase cifre. Se ia din funcția atașată contractului.",
     });
+  } else if (c.regesCorId === null || c.regesCorId.trim() === "") {
+    /*
+     * Codul e bine format, dar nu are corespondent în nomenclatorul REGES
+     * sincronizat local. Mesajul NU pleacă: `cor` e o referință, iar o
+     * referință inventată trece de validarea de schemă și e refuzată ASINCRON,
+     * ore mai târziu, cu termenul legal deja curgând.
+     */
+    probleme.push({
+      camp: "codCor",
+      mesaj:
+        `Codul COR ${c.codCor.trim()} nu există în nomenclatorul REGES sincronizat local. ` +
+        "Sincronizați nomenclatoarele din REGES → Setări, apoi încercați din nou.",
+    });
   }
   if (!(c.salariuBaza > 0)) {
     probleme.push({

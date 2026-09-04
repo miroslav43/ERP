@@ -36,7 +36,13 @@ import { ziCaMoment } from "@/domain/reges/formate";
 import type { Operatie } from "@/domain/reges/operatii";
 import type { AdminSupabase } from "@/lib/supabase/admin";
 import { cheamaReges, type Mediu } from "./client";
-import { compuneContract, compuneIncetare, compuneReactivare, compuneSuspendare } from "./compune";
+import {
+  compuneContract,
+  compuneIncetare,
+  compuneReactivare,
+  compuneSuspendare,
+  idCor,
+} from "./compune";
 import { citesteCredentiale, type CredentialeReges } from "./credentiale";
 import { jetonValid } from "./jeton";
 
@@ -184,7 +190,11 @@ async function trimiteUnul(
 
   let corp: unknown;
   if (mesaj.operatie === "AdaugareContract" || mesaj.operatie === "ModificareContract") {
-    const compus = compuneContract(rand, regesSalariatId, {
+    // Funcția se referențiază prin identificatorul din nomenclatorul `Cor`, nu
+    // prin perechea `{ cod, versiune }` din fișierele Revisal vechi. Citirea
+    // atinge oglinda locală, nu ITM.
+    const regesCorId = await idCor(db, rand.cod_cor);
+    const compus = compuneContract(rand, regesSalariatId, regesCorId, {
       ...ctx,
       operatie: mesaj.operatie,
     });

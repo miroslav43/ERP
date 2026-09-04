@@ -49,7 +49,7 @@ function contract(c: Partial<ContractIntern> = {}): ContractIntern {
     salariuBaza: 4000,
     moneda: "ron",
     codCor: "251401",
-    versiuneCor: 2024,
+    regesCorId: "11111111-1111-4111-8111-111111111111",
     regesContractId: null,
     ...c,
   };
@@ -143,10 +143,12 @@ describe("contract", () => {
     expect(determinat.continut?.dataSfarsitContract?.startsWith("2026-12-31")).toBe(true);
   });
 
-  it("duce codul COR cu versiunea lui", () => {
+  it("referențiază funcția prin identificatorul din nomenclator, nu prin cod", () => {
+    // REGES-Online cere UUID-ul poziției COR. Perechea `{ cod, versiune }` era
+    // forma din fișierele Revisal vechi, iar trimisă azi e respinsă.
     expect(mapeazaContract(contract(), "sal-1", CTX).continut?.cor).toEqual({
-      cod: "251401",
-      versiune: 2024,
+      $type: "referinta",
+      id: "11111111-1111-4111-8111-111111111111",
     });
   });
 

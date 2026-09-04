@@ -88,6 +88,33 @@ export async function numeTara(db: OriceSupabase, codIso2: string | null): Promi
   return data?.nume ?? TARI[cod] ?? cod;
 }
 
+/**
+ * Identificatorul poziției COR în nomenclatorul REGES, pentru un cod de șase cifre.
+ *
+ * REGES-Online referențiază funcția prin UUID-ul din nomenclator, nu prin
+ * perechea `{ cod, versiune }` din fișierele Revisal vechi. Căutarea se face în
+ * oglinda locală (`reges_nomenclatoare`, sincronizată din `/api/Nomenclator`),
+ * nu live: nomenclatorul COR are mii de poziții, iar un contract n-are de ce să
+ * depindă de disponibilitatea ITM ca să poată fi compus.
+ *
+ * `null` când codul lipsește din oglindă — caz în care `verificaContract` oprește
+ * mesajul cu un mesaj care spune ce trebuie făcut. Mai bine decât o referință
+ * inventată, care trece de schemă și e refuzată asincron.
+ */
+export async function idCor(db: OriceSupabase, codCor: string | null): Promise<string | null> {
+  const cod = (codCor ?? "").trim();
+  if (cod === "") return null;
+  const { data } = await db
+    .from("reges_nomenclatoare")
+    .select("reges_id")
+    .eq("tip", "Cor")
+    .eq("cod", cod)
+    .eq("activ", true)
+    .limit(1)
+    .maybeSingle();
+  return data?.reges_id ?? null;
+}
+
 export type RandAngajat = Readonly<{
   first_name: string;
   last_name: string;
@@ -157,7 +184,7 @@ export type RandContract = Readonly<{
   cod_cor: string | null;
 }>;
 
-function contractIntern(c: RandContract): ContractIntern {
+function contractIntern(c: RandContract, regesCorId: string | null): ContractIntern {
   return {
     numar: c.numar,
     dataContract: c.data_contract,
@@ -179,7 +206,7 @@ function contractIntern(c: RandContract): ContractIntern {
     salariuBaza: c.salariu_baza,
     moneda: c.moneda,
     codCor: c.cod_cor ?? "",
-    versiuneCor: null,
+    regesCorId,
     regesContractId: c.reges_contract_id,
   };
 }
@@ -187,11 +214,17 @@ function contractIntern(c: RandContract): ContractIntern {
 export function compuneContract(
   contract: RandContract,
   regesSalariatId: string,
+  /**
+   * Rezolvat de apelant cu `idCor`, nu aici: funcția rămâne sincronă, la fel ca
+   * `compuneIncetare` și `compuneSuspendare`, iar apelantul plătește o singură
+   * citire pentru tot lotul dacă vrea.
+   */
+  regesCorId: string | null,
   ctx: Omit<ContextAntet, "operatie"> & {
     readonly operatie?: "AdaugareContract" | "ModificareContract";
   },
 ): RezultatCompunere<MesajContract> {
-  const intern = contractIntern(contract);
+  const intern = contractIntern(contract, regesCorId);
   const probleme = verificaContract(intern);
   if (probleme.length > 0) return { ok: false, probleme };
   return { ok: true, mesaj: mapeazaContract(intern, regesSalariatId, ctx) };

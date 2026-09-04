@@ -63,8 +63,16 @@ export type ContractIntern = Readonly<{
   repartizare: Repartizare;
   salariuBaza: number;
   moneda: string;
+  /** Codul COR de șase cifre. Rămâne, pentru validare și pentru mesajele de eroare. */
   codCor: string;
-  versiuneCor: number | null;
+  /**
+   * Identificatorul poziției COR în nomenclatorul REGES.
+   *
+   * `null` = codul n-a fost găsit în oglinda locală, iar mesajul NU are voie să
+   * plece: un `cor` inventat trece de schemă și e refuzat asincron, ore mai
+   * târziu, cu termenul legal deja curgând.
+   */
+  regesCorId: string | null;
   regesContractId: string | null;
 }>;
 
@@ -146,10 +154,8 @@ export function mapeazaContract(
     timpMunca: { norma: contract.normaTimpMunca, repartizare: contract.repartizare },
     salariu: zecimal(contract.salariuBaza),
     moneda: contract.moneda.trim().toUpperCase(),
-    cor: {
-      cod: contract.codCor.trim(),
-      ...(contract.versiuneCor === null ? {} : { versiune: contract.versiuneCor }),
-    },
+    // `verificaContract` garantează că nu e null când s-a ajuns aici.
+    cor: referinta(contract.regesCorId ?? ""),
     // Se transmite doar pentru durată determinată. Un `dataSfarsitContract` pe un
     // contract nedeterminat e o contradicție pe care serverul o respinge.
     ...(contract.durataDeterminata && contract.valabilPana !== null
