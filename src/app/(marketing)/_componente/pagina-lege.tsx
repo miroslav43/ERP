@@ -161,10 +161,10 @@ export function RandarePaginaLege({ text }: { text: PaginaLege }) {
             {RO.hero.ctaPrimar.eticheta}
           </Link>
           <Link
-            href="/unelte/foaie-de-pontaj"
+            href={text.legaturaSecundara.href}
             className="border-mk-rigla hover:border-mk-text inline-flex h-12 items-center rounded border px-6 text-[0.9375rem] font-medium transition-colors"
           >
-            Foaie de pontaj gratuită
+            {text.legaturaSecundara.eticheta}
           </Link>
         </div>
       </Banda>

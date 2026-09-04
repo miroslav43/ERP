@@ -215,6 +215,8 @@ export const REGES: PaginaLege = {
     },
   ],
 
+  legaturaSecundara: { eticheta: "Ce se cere la un control ITM", href: "/ghid/control-itm" },
+
   actualizat: "septembrie 2026",
   actualizatIso: "2026-09-03",
 };

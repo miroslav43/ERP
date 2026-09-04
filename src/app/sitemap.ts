@@ -109,6 +109,13 @@ const PAGINI: readonly Pagina[] = [
     actualizat: "2026-09-03",
   },
   {
+    cale: "/ghid/control-itm",
+    prioritate: 0.8,
+    limba: "ro",
+    traducere: null,
+    actualizat: "2026-09-04",
+  },
+  {
     cale: "/unelte/foaie-de-pontaj",
     prioritate: 0.7,
     limba: "ro",

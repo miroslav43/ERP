@@ -50,6 +50,10 @@ const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
     "Termenele de transmitere din HG 295/2025, puse cap la cap, și cele trei contravenții distincte care circulă amestecate în presă.",
   ],
   [
+    "/ghid/control-itm",
+    "Ce documente se cer la un control de fond ITM, cele patru locuri unde apar de obicei problemele, și ce se poate sau nu se poate pregăti în ajun.",
+  ],
+  [
     "/unelte/foaie-de-pontaj",
     "Unealtă gratuită: generează o foaie de pontaj lunară cu sărbătorile legale calculate. Fără cont.",
   ],

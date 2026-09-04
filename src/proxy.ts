@@ -64,6 +64,7 @@ const RUTE_PUBLICE: readonly string[] = [
   // conținutul le are, adresa nu.
   "/evidenta-orelor-de-munca",
   "/reges-online",
+  "/ghid",
 ];
 
 /**

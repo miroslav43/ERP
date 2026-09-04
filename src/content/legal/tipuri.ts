@@ -75,6 +75,15 @@ export type PaginaLege = Readonly<{
   /** Secțiuni de proză, între tabele. */
   sectiuni: readonly Readonly<{ titlu: string; paragrafe: readonly string[] }>[];
   nesigur: readonly Nesigur[];
+  /**
+   * A doua acțiune, de la finalul paginii.
+   *
+   * Se declară per pagină fiindcă paginile astea se citesc în lanț: cine
+   * termină de citit ce cere art. 119 vrea de obicei să știe ce se întâmplă la
+   * un control, nu să se întoarcă la unealta gratuită. Un link fix ar fi trimis
+   * toate trei în același loc, iar două dintre ele ar fi rămas fundături.
+   */
+  legaturaSecundara: Readonly<{ eticheta: string; href: string }>;
   /** Luna și anul ultimei verificări a textelor de lege. Se scrie de mână. */
   actualizat: string;
   /** Data ISO a aceleiași verificări, pentru `dateModified`. */

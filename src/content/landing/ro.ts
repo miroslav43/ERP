@@ -968,6 +968,7 @@ export const RO: ContinutLanding = {
         legaturi: [
           { eticheta: "Evidența orelor (art. 119)", href: "/evidenta-orelor-de-munca" },
           { eticheta: "REGES-ONLINE: termene", href: "/reges-online" },
+          { eticheta: "Control ITM: ce se cere", href: "/ghid/control-itm" },
           { eticheta: "Ce nu facem", href: "/de-ce-nu" },
           { eticheta: "Conformitate", href: "/incredere" },
           { eticheta: "Întrebări frecvente", href: "/intrebari" },
