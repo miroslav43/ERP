@@ -60,6 +60,10 @@ const RUTE_PUBLICE: readonly string[] = [
   "/pontaj-pe-telefon",
   "/comparatie",
   "/unelte",
+  // Demonstrațiile interactive, încadrate în paginile de modul. Sunt publice
+  // prin construcție și `noindex` prin metadata: n-au ce indexa (conținutul e
+  // fictiv) și ar concura cu pagina de modul pe aceleași cuvinte.
+  "/vitrina",
   // Paginile care explică o obligație legală. Slug ASCII, fără diacritice —
   // conținutul le are, adresa nu.
   "/evidenta-orelor-de-munca",
