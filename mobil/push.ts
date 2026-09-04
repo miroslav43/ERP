@@ -121,11 +121,13 @@ export async function cereJeton(): Promise<string | null> {
  * care execută `fetch`-ul — e singurul cod din tot lanțul care știe sigur pe
  * ce pagină e, chiar atunci.
  *
- * DOAR calea („e pe /portal?") NU ajunge: `WebView` n-are `originWhitelist`
- * (implicitul pachetului e orice `http(s)://`), `onShouldStartLoadWithRequest`
- * din `App.tsx` lasă să treacă orice navigare care nu e descărcare sau
- * tipărire, iar portalul chiar are un link către un site din afară — deci
- * pagina curentă poate fi legitim pe alt origin. Un site străin cu o cale
+ * DOAR calea („e pe /portal?") NU ajunge. Când s-a scris verificarea asta,
+ * `onShouldStartLoadWithRequest` din `App.tsx` lăsa să treacă orice navigare
+ * care nu era descărcare sau tipărire, iar portalul chiar are linkuri către
+ * site-uri din afară — deci pagina curentă putea fi legitim pe alt origin.
+ * Poarta aia e închisă de la rundă 4 (linkurile externe pleacă în browserul
+ * telefonului), dar verificarea de mai jos rămâne: e ultimul cod din lanț care
+ * rulează CHIAR ÎN pagina care primește jetonul. Un site străin cu o cale
  * care conține `/portal` (banal de construit) ar fi trecut de o verificare
  * doar pe cale — scriptul ar fi injectat un `fetch` relativ
  * (`"/api/dispozitive"`), care s-ar fi rezolvat pe ORIGINEA ACELUI SITE, nu

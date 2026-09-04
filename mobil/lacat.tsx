@@ -98,6 +98,55 @@ const TIMP_LIMITA_VERIFICARE_MS = 4000;
  *    determinist corectă. Nedovedit dacă pierde vreodată cursa asta pe un
  *    telefon real — vezi „Ce rămâne de probat".
  *
+ * ── DE CE CONTORUL DE GENERAȚIE NU MAI ATINGE AUTENTIFICAREA (rundă 4) ──────
+ * Runda 3 a adăugat un contor de generație (`generatie`, mai jos) care se
+ * incrementa la ORICE tranziție de `AppState` ȘI la fiecare tap, iar
+ * `deblocheaza` își verifica generația și DUPĂ ce `authenticateAsync` se
+ * rezolva. Asta anula exact autentificarea pe care contorul o păzea, pe calea
+ * cea mai importantă din tot fișierul — PIN-ul telefonului:
+ *
+ *   tap (generația G) → apare ecranul de PIN → `"background"` (G+1) → omul
+ *   introduce PIN-ul CORECT → `"active"` (G+2) → `authenticateAsync` se
+ *   rezolvă cu `success: true` → verificarea vedea G+2 !== G → `return`, vălul
+ *   NU se ridica → ramura „active" îl redesena. Următorul tap reintra în
+ *   aceeași buclă, la infinit; repornirea nu ajuta.
+ *
+ * Ecranul de PIN e o ACTIVITATE separată de a noastră, nu un dialog în
+ * interiorul ei — verificat în sursa instalată:
+ * `expo-local-authentication/.../LocalAuthenticationModule.kt:262-265` îl
+ * pornește cu `startActivityForResult` (Android < 11; pe 11+ îl pornește
+ * framework-ul, tot ca activitate, prin `setAllowedAuthenticators(
+ * DEVICE_CREDENTIAL)`, `:277`) — deci `onHostPause()`, deci
+ * `react-native/.../AppStateModule.kt:46-48` emite `"background"`. Tranzițiile
+ * alea sunt produse de PROPRIUL nostru dialog, nu de omul care pleacă din
+ * aplicație.
+ *
+ * Iar cine ajunge la PIN ajunge acolo TOCMAI fiindcă biometria nu-i merge —
+ * degetul umed din primul paragraf. Un lacăt care se blochează exact pe calea
+ * de rezervă e mai rău decât unul care nu există: contrazicea direct garanția
+ * scrisă mai sus („PIN-ul telefonului deblochează întotdeauna").
+ *
+ * REPARAȚIA nu e „nu mai incrementa cât dialogul e deschis" (ar fi mutat
+ * problema: aceeași suprimare ar fi acoperit și verificarea de disponibilitate
+ * de DINAINTEA dialogului, unde invalidarea chiar e necesară), ci restrângerea
+ * contorului la SINGURUL lucru pentru care a fost inventat: o verificare de
+ * disponibilitate întârziată n-are voie să scrie peste o tranziție mai nouă.
+ * Deci:
+ * · contorul se incrementează DOAR la tranziții de `AppState`, niciodată la
+ *   tap — un tap nu e o tranziție a aplicației;
+ * · `deblocheaza` NU mai verifică generația după `authenticateAsync`. Un
+ *   succes de autentificare nu poate fi „vechi": înseamnă că proprietarul
+ *   telefonului tocmai și-a dovedit prezența, cu biometrie sau cu PIN. Iar
+ *   dialogul e oricum anulat de sistem la o trecere reală în fundal (iOS îl
+ *   respinge cu `system_cancel`; `androidx.biometric` anulează la `onStop`),
+ *   deci „succes întârziat peste un fundal mai nou" nici nu e o stare
+ *   accesibilă — era un risc imaginat, plătit cu o fundătură reală.
+ *
+ * Aceeași buclă e SUSPECTATĂ pe iOS, dacă promptul `LAContext` produce
+ * `willResignActive` — n-am putut s-o dovedesc din sursa instalată (evaluarea
+ * politicii trece în framework-ul de sistem, nu în codul pachetului). Reparația
+ * de mai sus o închide oricum, fiindcă nu depinde de ce emite platforma.
+ *
  * ── PORTIȚA DE SIGURANȚĂ, DACĂ TOT CE-I MAI SUS AR DA GREȘ ──────────────────
  * `blocat` e stare React simplă, ținută doar în memorie — niciodată scrisă pe
  * disc. Chiar dacă un bug neprevăzut ar bloca fluxul de mai sus, PIN-ul
@@ -123,19 +172,30 @@ export function Lacat({ copil }: { readonly copil: React.ReactNode }) {
   // doilea dialog nativ. Se eliberează pe SINGURA cale de ieșire —
   // `finally`, mai jos — indiferent de succes, eșec sau eroare.
   const autentificareInCurs = useRef(false);
-  // Contor de generație — reparație rundă 3 de revizuire (mărunțiș semnalat
-  // de revizor): `verificaDisponibilitatea` poate expira (la timeout) exact
-  // CĂLARE PE o tranziție de `AppState` mai nouă. Fără marcaj, o verificare
-  // VECHE ar rezolva DUPĂ ce tranziția nouă a pus deja starea corectă — iar
-  // fiindcă răspunsul ei ar fi `false` (timeout, nu un refuz real), ar ȘTERGE
-  // `necesitaAutentificare`/`blocat` peste starea corectă abia pusă, lăsând
-  // conținutul vizibil fără văl la revenire. Incrementat la ÎNCEPUTUL
-  // fiecărui eveniment `AppState` ȘI la începutul fiecărei `deblocheaza()` —
-  // orice verificare pornită înaintea celei mai recente tranziții/tap își
-  // ignoră singură rezultatul, oricând ar veni el.
+  // Contor de generație — rundă 3 de revizuire (mărunțiș semnalat de
+  // revizor), RESTRÂNS la rundă 4 după regresia descrisă în comentariul de
+  // sus. Păzește EXACT un lucru: `verificaDisponibilitatea` poate expira (la
+  // timeout) exact CĂLARE PE o tranziție de `AppState` mai nouă. Fără marcaj,
+  // o verificare VECHE ar rezolva DUPĂ ce tranziția nouă a pus deja starea
+  // corectă — iar fiindcă răspunsul ei ar fi `false` (timeout, nu un refuz
+  // real), ar ȘTERGE `necesitaAutentificare`/`blocat` peste starea corectă
+  // abia pusă, lăsând conținutul vizibil fără văl la revenire.
+  //
+  // Se incrementează DOAR la începutul fiecărui eveniment `AppState` — NU la
+  // tap (un tap nu e o tranziție a aplicației) și NU are voie să invalideze
+  // vreodată o autentificare reușită. Vezi comentariul de sus pentru ce s-a
+  // întâmplat cât timp făcea și una, și alta.
   const generatie = useRef(0);
 
-  const verificaDisponibilitatea = useCallback(async () => {
+  /**
+   * `generatieLaPornire` — generația de la care a pornit verificarea. Tot ce
+   * scrie funcția în stare PARTAJATĂ (`disponibil.current`) se face doar dacă
+   * între timp n-a apărut nicio tranziție mai nouă. Valoarea calculată se
+   * întoarce ÎNTOTDEAUNA: apelantul are propria lui verificare de generație și
+   * decide singur dacă mai are voie s-o folosească.
+   */
+  const verificaDisponibilitatea = useCallback(async (generatieLaPornire: number) => {
+    let rezultat = false;
     try {
       // `Promise.race` cu un timeout — reparație rundă 2 de revizuire.
       // `try/catch` de mai jos prindea deja o interogare care ARUNCĂ, dar nu
@@ -151,7 +211,7 @@ export function Lacat({ copil }: { readonly copil: React.ReactNode }) {
       // „indisponibil" — consecventă cu „fără biometrie, fără lacăt": în
       // incertitudine, alegem să NU blocăm omul definitiv afară.
       let idTemporizator: ReturnType<typeof setTimeout> | null = null;
-      const rezultat = await Promise.race([
+      rezultat = await Promise.race([
         (async () => {
           const are = await LocalAuthentication.hasHardwareAsync();
           return are ? await LocalAuthentication.isEnrolledAsync() : false;
@@ -164,17 +224,33 @@ export function Lacat({ copil }: { readonly copil: React.ReactNode }) {
       // tot pornește chiar dacă interogarea reală câștigă cursa, și rămâne
       // programat degeaba (efect zero, dar murdărie).
       if (idTemporizator !== null) clearTimeout(idTemporizator);
-      disponibil.current = rezultat;
     } catch {
       // Eroare nativă neașteptată la interogarea hardware-ului — tratăm ca
       // „nu e disponibil", nu ca „aplicația nu pornește".
-      disponibil.current = false;
+      rezultat = false;
     }
-    return disponibil.current;
+    // ── A DOUA JUMĂTATE A REPARAȚIEI DE GENERAȚIE (rundă 4) ─────────────────
+    // Până acum, contorul păzea scrierile de STARE (`setBlocat`,
+    // `necesitaAutentificare`), dar NU și scrierea asta — ref-ul partajat se
+    // scria necondiționat, chiar și de o verificare veche care tocmai expirase.
+    // Iar `disponibil.current` e EXACT ce citește ramura „background" de mai
+    // jos ca să decidă dacă desenează vălul: un `false` de timeout suprascris
+    // peste un `true` corect însemna „la următoarea trecere în fundal nu se
+    // mai acoperă nimic". Gaura era ascunsă tocmai fiindcă restul reparației
+    // arăta completă.
+    if (generatie.current === generatieLaPornire) disponibil.current = rezultat;
+    return rezultat;
   }, []);
 
   useEffect(() => {
-    void verificaDisponibilitatea().then((disp) => setBlocat(disp));
+    const generatieLaMontare = generatie.current;
+    void verificaDisponibilitatea(generatieLaMontare).then((disp) => {
+      // Dacă a apărut o tranziție între timp, ea deține starea — ramurile din
+      // efectul următor scriu ele însele, iar `blocat` nu poate rămâne blocat
+      // pe `null`: orice „active" pornește propria verificare, care scrie.
+      if (generatie.current !== generatieLaMontare) return;
+      setBlocat(disp);
+    });
   }, [verificaDisponibilitatea]);
 
   useEffect(() => {
@@ -192,7 +268,7 @@ export function Lacat({ copil }: { readonly copil: React.ReactNode }) {
         return;
       }
       if (stare === "active") {
-        void verificaDisponibilitatea().then((disp) => {
+        void verificaDisponibilitatea(generatieLaEveniment).then((disp) => {
           if (generatie.current !== generatieLaEveniment) return; // vezi „generatie", sus
           if (!disp) {
             setBlocat(false);
@@ -225,18 +301,17 @@ export function Lacat({ copil }: { readonly copil: React.ReactNode }) {
   const deblocheaza = useCallback(async () => {
     if (autentificareInCurs.current) return;
     autentificareInCurs.current = true;
-    // Un tap e tot o „tranziție" din perspectiva `generatie` — invalidează o
-    // verificare de fundal încă în zbor, și se auto-invalidează dacă
-    // aplicația trece în fundal CÂT dialogul nativ de autentificare e pe
-    // ecran (rar, dar posibil): în cazul ăla nu vrem ca un succes întârziat
-    // să ridice vălul peste o trecere în fundal mai nouă, care CERE din nou
-    // autentificare.
-    generatie.current += 1;
+    // Tap-ul CITEȘTE generația, nu o incrementează (corectat la rundă 4): un
+    // tap nu e o tranziție a aplicației, iar incrementarea de-aici era
+    // jumătate din mecanismul care bloca deblocarea cu PIN — vezi comentariul
+    // de sus. Ce rămâne e strict verificarea de mai jos: dacă între tap și
+    // răspunsul interogării de hardware apare o tranziție REALĂ de `AppState`,
+    // aceea deține starea, iar noi ieșim fără să scriem nimic.
     const generatieLaTap = generatie.current;
     try {
       // A doua reverificare, chiar înainte de cerere: fereastra dintre
       // revenirea în prim-plan și tap-ul pe văl e mică, dar tot există.
-      const disponibilAcum = await verificaDisponibilitatea();
+      const disponibilAcum = await verificaDisponibilitatea(generatieLaTap);
       if (generatie.current !== generatieLaTap) return; // vezi „generatie", sus
       if (!disponibilAcum) {
         setBlocat(false);
@@ -247,7 +322,12 @@ export function Lacat({ copil }: { readonly copil: React.ReactNode }) {
         promptMessage: "Deblocați Administrativo",
         cancelLabel: "Anulează",
       });
-      if (generatie.current !== generatieLaTap) return; // idem, verificat din nou după autentificare
+      // AICI NU MAI EXISTĂ NICIO VERIFICARE DE GENERAȚIE — și nu are voie să
+      // reapară. Dialogul de mai sus produce EL ÎNSUȘI tranziții de `AppState`
+      // atunci când sistemul cade pe PIN (ecran de PIN = activitate separată),
+      // deci o verificare aici respinge exact autentificarea reușită pe care o
+      // păzește. Vezi „DE CE CONTORUL DE GENERAȚIE NU MAI ATINGE
+      // AUTENTIFICAREA", în capul fișierului.
       if (rezultat.success) {
         setBlocat(false);
         necesitaAutentificare.current = false;

@@ -2,7 +2,16 @@ import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, AppState, Platform, Pressable, SafeAreaView, StyleSheet, Text } from "react-native";
+import {
+  Alert,
+  AppState,
+  Linking,
+  Platform,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+} from "react-native";
 import { WebView, type WebViewMessageEvent, type WebViewNavigation } from "react-native-webview";
 
 import { cereJeton, scriptDeInregistrare } from "./push";
@@ -85,11 +94,38 @@ function esteCaleInterna(cale: unknown): cale is string {
 }
 
 /**
+ * `url` vine de pe originea portalului — atât, fără nicio pretenție despre
+ * cale. `try/catch` fiindcă `url` vine din evenimente native (navigare,
+ * `postMessage`), nu dintr-o sursă controlată de noi — un URL malformat nu
+ * trebuie să arunce, doar să respingă.
+ *
+ * FUNCȚIA ASTA, NU `esteUrlPortal`, E CEA POTRIVITĂ PENTRU MESAJE (rundă 4).
+ * `nativeEvent.url` de pe un mesaj NU e același lucru pe cele două platforme,
+ * verificat în sursa instalată a `react-native-webview`:
+ * · iOS — `RNCWebViewImpl.m:788` pune URL-ul ÎNTREG al cadrului
+ *   (`message.frameInfo.request.URL`);
+ * · Android — `RNCWebView.java:256` pune `sourceOrigin.toString()`, adică
+ *   DOAR originea (`https://administrativo.ro`, fără cale), fiindcă puntea
+ *   modernă e un `WebMessageListener`, nu un `JavascriptInterface`. Doar
+ *   varianta de rezervă (`:449`, dispozitive fără `WEB_MESSAGE_LISTENER`)
+ *   trimite `getUrl()`, adică un URL întreg.
+ * O verificare care cere și calea „/portal" ar respinge deci TOATE mesajele pe
+ * Android modern — jeton, fluturaș, adeverință — adică ar rupe aplicația în
+ * loc s-o apere.
+ */
+function esteOrigineaPortalului(url: string): boolean {
+  try {
+    return new URL(url).origin === ORIGINEA_PORTALULUI;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * `url` e chiar portalul nostru — origine EXACTĂ, nu doar o cale care
  * conține „/portal" (rundă 3 de revizuire — un site străin poate avea orice
- * cale își dorește). `try/catch` fiindcă `url` vine dintr-un eveniment de
- * navigare al WebView-ului, nu dintr-o sursă controlată de noi — un URL
- * malformat nu trebuie să arunce, doar să respingă.
+ * cale își dorește). Se folosește acolo unde URL-ul e sigur întreg: filtrul de
+ * navigare pentru înregistrarea jetonului.
  */
 function esteUrlPortal(url: string): boolean {
   try {
@@ -98,6 +134,53 @@ function esteUrlPortal(url: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * ÎNCORPORĂRILE DE CURS — singurele origini străine care au voie să se încarce
+ * ÎN aplicație, și numai ca subcadru (`<iframe>`).
+ *
+ * Oglindesc EXACT `adresaIncorporare()` din `src/lib/media/link-extern.ts`
+ * (lecțiile cu film extern: YouTube, Vimeo, Loom). Dacă lista de acolo se
+ * schimbă, asta trebuie schimbată împreună cu ea — altfel filmul lecției nu se
+ * mai încarcă în aplicație, deși pe web merge.
+ *
+ * Calea e ancorată la începutul formei de ÎNCORPORARE, nu doar originea:
+ * pentru Loom, adresa publică (`/share/<id>`, deschisă de linkul „Deschideți la
+ * sursă") stă pe ACELAȘI host ca încorporarea (`/embed/<id>`) — fără verificarea
+ * de cale, linkul public ar rămâne în aplicație în loc să plece în browser,
+ * exact ce vrem să nu se mai întâmple.
+ */
+const INCORPORARI_CURS: readonly { readonly origine: string; readonly cale: RegExp }[] = [
+  { origine: "https://www.youtube-nocookie.com", cale: /^\/embed\// },
+  { origine: "https://player.vimeo.com", cale: /^\/video\// },
+  { origine: "https://www.loom.com", cale: /^\/embed\// },
+];
+
+function esteIncorporareDeCurs(url: string): boolean {
+  try {
+    const parsat = new URL(url);
+    return INCORPORARI_CURS.some(
+      (permis) => parsat.origin === permis.origine && permis.cale.test(parsat.pathname),
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Linkul extern pleacă în browserul telefonului, nu în aplicația semnată cu
+ * numele firmei. `Linking.openURL` poate respinge (schemă necunoscută, niciun
+ * browser instalat) — omul trebuie să afle, nu să atingă un link care pare
+ * mort.
+ */
+function deschideInBrowser(url: string): void {
+  void Linking.openURL(url).catch(() => {
+    Alert.alert(
+      "Nu am putut deschide linkul",
+      "Copiați adresa și deschideți-o în browserul telefonului.",
+    );
+  });
 }
 
 /**
@@ -343,7 +426,33 @@ export default function App() {
 
   // Dispecer pe `fel` — vezi `MesajDinPagina`. `"pdf"`/`"html"` (Task 9) merg
   // pe lângă `"jeton"`, fără să-l rescrie.
+  //
+  // ── CINE A TRIMIS MESAJUL, ÎNAINTE DE CE SPUNE MESAJUL (rundă 4) ──────────
+  // Până acum, dispecerul se uita DOAR la `nativeEvent.data` — niciodată la
+  // `nativeEvent.url`. Puntea `window.ReactNativeWebView.postMessage` nu e
+  // filtrată pe origine de niciuna din platforme, verificat în sursa
+  // instalată: iOS o injectează ca `WKUserScript` la `documentStart` în
+  // ORICE document ajuns în cadrul principal (`RNCWebViewImpl.m:1770-1790` —
+  // `forMainFrameOnly:YES` limitează CADRUL, nu ORIGINEA); Android o
+  // înregistrează cu `Set.of("*")`, adică pentru toate originile, și
+  // transmite mai departe fără să se uite măcar la `isMainFrame`
+  // (`RNCWebView.java:250-266`) — deci acolo poate scrie și un `<iframe>`.
+  //
+  // O pagină străină ajunsă în WebView putea deci trimite:
+  // · `{fel:"pdf", ok:true, date:"data:application/pdf;base64,…"}` → scriam
+  //   octeți controlați de ea în cache și deschideam foaia de partajare a
+  //   sistemului, SUB IDENTITATEA APLICAȚIEI SEMNATE;
+  // · `{fel:"html"}` → `Print.printAsync` randa HTML străin;
+  // · `{fel:"jeton", ok:true}` → `inregistrat.current` rămânea `true` pe toată
+  //   sesiunea, deci jetonul de push nu se mai înregistra deloc.
+  //
+  // Poarta de navigare de mai jos (`onShouldStartLoadWithRequest`) face acum
+  // ca pagina de sus să nu mai POATĂ fi străină — verificarea de aici rămâne
+  // fiindcă e apărare în adâncime, nu redundanță: pe Android puntea e
+  // deschisă și subcadrelor (filmul de curs!), iar acelea CHIAR sunt pe altă
+  // origine, cu tot cu drept legitim de a rula acolo.
   const primesteMesaj = useCallback((eveniment: WebViewMessageEvent) => {
+    if (!esteOrigineaPortalului(eveniment.nativeEvent.url)) return;
     const mesaj = parseazaMesaj(eveniment.nativeEvent.data);
     if (mesaj === null) return;
     switch (mesaj.fel) {
@@ -468,12 +577,13 @@ export default function App() {
   // Primește URL-ul ÎNTREG (absolut), NU doar o cale relativă — reparație de
   // la revizuire: `location.assign("/portal/...")` s-ar fi rezolvat pe
   // ORIGINEA DOCUMENTULUI curent din WebView, nu pe cea validată de
-  // `Scanner`. Dacă pagina din WebView ar fi navigat vreodată în afara
-  // domeniului nostru (interceptarea de mai jos lasă să treacă orice
-  // navigare care nu e descărcare sau tipărire), o cale relativă ar fi
-  // trimis codul de pontaj scanat către acel alt domeniu. Cu URL-ul absolut,
+  // `Scanner`. O cale relativă ar fi trimis codul de pontaj scanat către
+  // originea pe care s-ar fi întâmplat să fie pagina. Cu URL-ul absolut,
   // `location.assign` navighează unde a fost validat, indiferent de originea
-  // curentă a documentului.
+  // curentă a documentului. Poarta de origine de pe `WebView` (rundă 4, mai
+  // jos) face ca documentul de sus să nu mai poată fi străin — dar reparația
+  // rămâne: e ieftină, iar o poartă e o singură linie de cod care poate fi
+  // ștearsă din greșeală.
   const mergiLa = useCallback((url: string) => {
     webview.current?.injectJavaScript(`location.assign(${JSON.stringify(url)}); true;`);
   }, []);
@@ -593,15 +703,14 @@ export default function App() {
     // Construim un URL ABSOLUT (`ORIGINEA_PORTALULUI` + calea validată), nu
     // navigăm cu o cale relativă (reparație rundă 2 de revizuire — scăpată
     // la reparația inițială a lui `mergiLa`, deși comentariul de-atunci
-    // trimitea EXACT aici drept referință). `originWhitelist` nu e setat pe
-    // `WebView`, iar `onShouldStartLoadWithRequest` lasă să treacă orice
-    // navigare care nu e descărcare sau tipărire — deci WebView-ul poate fi
-    // legitim pe alt origin (un link extern din portal, de exemplu) în
-    // momentul în care omul atinge notificarea. O cale relativă s-ar fi
-    // rezolvat pe ORIGINEA DOCUMENTULUI curent, nu pe a noastră. Impactul e
-    // mai mic decât la codul QR — calea de notificare nu poartă un secret,
-    // doar o rută — dar forma defectului e identică, deci reparația e
-    // identică: `mergiLa`, care primește deja un URL absolut.
+    // trimitea EXACT aici drept referință). Motivul de-atunci: documentul din
+    // WebView putea fi legitim pe alt origin (un link extern din portal), deci
+    // o cale relativă s-ar fi rezolvat pe ORIGINEA DOCUMENTULUI curent, nu pe
+    // a noastră. Poarta de origine adăugată la rundă 4 (vezi
+    // `onShouldStartLoadWithRequest`, mai jos) închide premisa aia — linkurile
+    // externe pleacă acum în browser, nu în WebView — dar URL-ul absolut
+    // rămâne: nu depindem de o singură poartă pentru o corectitudine care ne
+    // costă zero.
     const abonament = Notifications.addNotificationResponseReceivedListener((raspuns) => {
       const cale = raspuns.notification.request.content.data?.cale;
       if (esteCaleInterna(cale)) {
@@ -651,6 +760,44 @@ export default function App() {
             // prin acest handler — dar `URL_PORTAL` nu conține `/api/export/` și
             // nu se potrivește cu regexul din `eTiparire`, deci ambele predicate
             // sunt false și `return true` o lasă să navigheze normal.
+            //
+            // ── POARTA DE ORIGINE (rundă 4) ────────────────────────────────
+            // Handler-ul ăsta întorcea `true` pentru ORICE nu era descărcare
+            // sau tipărire. Aia era cauza STRUCTURALĂ a patru reparații
+            // separate din rundele 1-3 (scanner, deep link, `push.ts`,
+            // `fisiere.ts`): fiecare compensa, în punctul ei, faptul că
+            // documentul din WebView putea fi legitim pe alt origin. Cât timp
+            // poarta rămâne deschisă, fiecare consumator NOU de URL sau de
+            // mesaj e o instanță viitoare a aceleiași clase de defect.
+            //
+            // DE CE NU `originWhitelist` (prop-ul pachetului), deși e uneltea
+            // evidentă — două motive, ambele verificate în sursa instalată:
+            // 1. E ORB LA CADRE. Filtrul rulează în
+            //    `WebViewShared.tsx:39-70`, ÎNAINTEA handler-ului nostru, pe
+            //    fiecare eveniment de navigare — iar evenimentele includ și
+            //    subcadrele (iOS: `RNCWebViewImpl.m:1364-1404` trimite
+            //    evenimentul indiferent de `isTopFrame`; Android:
+            //    `RNCWebViewClient.java:144-146` transmite
+            //    `shouldOverrideUrlLoading(view, request)` mai departe fără
+            //    să se uite la `isForMainFrame()`). Cu originea portalului ca
+            //    listă albă, `<iframe src="https://www.youtube-nocookie.com/
+            //    embed/…">` din lecția cu film (vezi `vizualizator-simplu.
+            //    tsx`) ar fi fost anulat ȘI deschis în browser — filmul rupt,
+            //    plus un browser care sare de la sine.
+            // 2. E O POTRIVIRE DE PREFIX, FĂRĂ ANCORĂ LA SFÂRȘIT.
+            //    `originWhitelistToRegex` (`WebViewShared.tsx:27-28`)
+            //    construiește `^https://administrativo\.ro` — care se
+            //    potrivește și cu originea `https://administrativo.ro.evil.
+            //    example`. Ca poartă de securitate ar fi fost, în același
+            //    timp, prea grosolană ȘI prea slabă.
+            // Poarta stă deci AICI, unde avem URL-ul întreg, `URL` adevărat
+            // (egalitate de origine, nu prefix) și, pe iOS, `isTopFrame`.
+            //
+            // SCHIMBARE DE COMPORTAMENT VIZIBILĂ: ce se deschidea în aplicație
+            // se deschide de acum în browserul telefonului. E intenția, nu un
+            // efect secundar — un material de curs de pe YouTube n-are ce
+            // căuta înăuntrul aplicației semnate cu numele firmei, iar linkul
+            // nu se pierde: `deschideInBrowser` îl duce unde trebuie.
             onShouldStartLoadWithRequest={(cerere) => {
               // Ambele verifică ACUM și originea, nu doar calea — rundă 3 de
               // revizuire, vezi comentariul din `fisiere.ts`.
@@ -662,7 +809,29 @@ export default function App() {
                 porneșteAducerea(cerere.url, "html");
                 return false;
               }
-              return true;
+              // SUBCADRU (iOS): pagina noastră a ales să încorporeze ceva, iar
+              // `<iframe sandbox>` de acolo îi ține lesa (fără
+              // `allow-top-navigation`, fără `allow-popups` — verificat în
+              // `vizualizator-simplu.tsx`). Nu-l scoatem în browser: ar
+              // însemna un browser care se deschide singur la fiecare
+              // încărcare de film. Câmpul EXISTĂ doar pe iOS
+              // (`RNCWebViewImpl.m:1398`); pe Android `createWebViewEvent`
+              // (`RNCWebViewClient.java:314-325`) nu-l trimite deloc, deci
+              // acolo rămâne `undefined` — de-aia mai jos vine și lista de
+              // încorporări, care nu depinde de el.
+              if (cerere.isTopFrame === false) return true;
+              if (esteOrigineaPortalului(cerere.url)) return true;
+              // `about:blank` — cadru gol, nu o destinație. `new URL` îi dă
+              // originea „null", deci ar fi căzut pe ramura de browser.
+              if (cerere.url === "about:blank") return true;
+              // ANDROID, unde nu știm dacă e cadru principal: lăsăm să treacă
+              // strict cele trei adrese de încorporare pe care le poate
+              // produce portalul, în forma lor de încorporare. Un `isTopFrame`
+              // adevărat (iOS) nu ajunge aici oricum — acolo linkul public
+              // Loom pleacă în browser, ca și celelalte.
+              if (cerere.isTopFrame !== true && esteIncorporareDeCurs(cerere.url)) return true;
+              deschideInBrowser(cerere.url);
+              return false;
             }}
             onMessage={primesteMesaj}
           />

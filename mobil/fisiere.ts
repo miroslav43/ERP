@@ -79,13 +79,16 @@ function cuTimpLimita<T>(promisiune: Promise<T>, timpLimitaMs: number): Promise<
  */
 /**
  * Amândouă funcțiile de mai jos verifică ACUM și originea, nu doar calea
- * (rundă 3 de revizuire — aceeași orbire ca la `push.ts`, impact mai mic:
- * `WebView` n-are `originWhitelist`, deci pagina curentă poate fi legitim pe
- * alt origin decât portalul — vezi `App.tsx`/`push.ts` pentru lanțul complet.
- * O cale care se potrivește pe un site străin ar fi adus conținutul ACELUI
- * site și l-ar fi dat lui `Sharing`/`Print`, crezând că e fluturașul sau
- * adeverința noastră). `try/catch` fiindcă `url` vine dintr-un eveniment de
- * navigare, nu dintr-o sursă controlată de noi.
+ * (rundă 3 de revizuire — aceeași orbire ca la `push.ts`, impact mai mic: la
+ * data scrierii, documentul din WebView putea fi legitim pe alt origin decât
+ * portalul, fiindcă poarta de navigare lăsa să treacă orice — vezi
+ * `App.tsx`/`push.ts` pentru lanțul complet. O cale care se potrivește pe un
+ * site străin ar fi adus conținutul ACELUI site și l-ar fi dat lui
+ * `Sharing`/`Print`, crezând că e fluturașul sau adeverința noastră). Poarta
+ * s-a închis la rundă 4; verificările de aici rămân ca apărare în adâncime —
+ * ele sunt cele care decid ce ajunge într-o fereastră a sistemului.
+ * `try/catch` fiindcă `url` vine dintr-un eveniment de navigare, nu dintr-o
+ * sursă controlată de noi.
  */
 export function eDescarcare(url: string, origineaPortalului: string): boolean {
   try {

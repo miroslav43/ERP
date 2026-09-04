@@ -45,14 +45,16 @@ import { AppState, Linking, Modal, Pressable, StyleSheet, Text, View } from "rea
  *    1 de revizuire) ──────────────────────────────────────────────────────
  * Prima formă extrăgea doar calea (`/portal/ponteaza/<cod>`) și o dădea lui
  * `location.assign` din `App.tsx`. O cale RELATIVĂ se rezolvă pe originea
- * DOCUMENTULUI curent din WebView, nu pe cea validată aici — iar
- * interceptarea din `App.tsx` (`onShouldStartLoadWithRequest`) lasă să
- * treacă orice navigare care nu e descărcare sau tipărire, deci WebView-ul
- * poate ajunge legitim pe alt domeniu (un link extern din portal, de
- * exemplu). Un cod BUN scanat cât pagina era pe alt domeniu i-ar fi trimis
- * ACELUI domeniu codul de pontaj. `laScanare`, mai jos, transportă acum
- * șirul ÎNTREG care a trecut validarea — deja un URL absolut — nu doar
- * grupul de cale.
+ * DOCUMENTULUI curent din WebView, nu pe cea validată aici — iar la data
+ * scrierii, interceptarea din `App.tsx` (`onShouldStartLoadWithRequest`)
+ * lăsa să treacă orice navigare care nu era descărcare sau tipărire, deci
+ * WebView-ul putea ajunge legitim pe alt domeniu (un link extern din portal).
+ * Un cod BUN scanat cât pagina era pe alt domeniu i-ar fi trimis ACELUI
+ * domeniu codul de pontaj. `laScanare`, mai jos, transportă acum șirul ÎNTREG
+ * care a trecut validarea — deja un URL absolut — nu doar grupul de cale.
+ * (Poarta de origine din `App.tsx` s-a închis la rundă 4 — linkurile externe
+ * pleacă în browserul telefonului — dar reparația rămâne: validarea de aici e
+ * lista albă care contează, nu poarta.)
  */
 const DOMENII_PERMISE = ["https://administrativo.ro"];
 const CALE_PONTARE = /^\/portal\/ponteaza\/[A-Za-z0-9_-]+$/;
