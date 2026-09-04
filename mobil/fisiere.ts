@@ -145,6 +145,21 @@ export function scriptDeAducere(url: string, fel: "pdf" | "html"): string {
  * raportul), fișierul tot rămâne scris local; omul doar nu primește foaia de
  * partajare. Un om care închide foaia fără să aleagă nimic NU e o cale de
  * eșec: fișierul e deja pe disc, foaia era doar o comoditate în plus.
+ *
+ * ── FEREASTRA NATIVĂ DE MAI JOS (ȘI CEA DIN `tipareste`) NU SE POATE ÎNCHIDE
+ *    DE AICI (găsit la revizuire, Task 10) ──────────────────────────────────
+ * `Sharing.shareAsync` prezintă `UIActivityViewController`
+ * (`Print.printAsync`, mai jos, prezintă `UIPrintInteractionController`) —
+ * aceeași clasă de fereastră nativă separată ca `Modal`-ul din
+ * `scanner.tsx`, care rămâne PESTE vălul biometric (`lacat.tsx`) dacă omul
+ * trimite aplicația în fundal cât una din ele e deschisă. Spre deosebire de
+ * `Scanner`, NU există niciun `dismiss()` de apelat aici: nici
+ * `expo-sharing`, nici `expo-print` nu expun așa ceva (verificat în sursa
+ * iOS a pachetelor instalate — niciun rezultat pentru „dismiss"). Mitigarea
+ * posibilă (o alertă nativă care iese deasupra pe iOS, prin propria
+ * `UIWindow` a `Alert.alert`; fără echivalent pe Android) trăiește în
+ * `App.tsx`, lângă restul logicii de `AppState` — vezi comentariul de acolo
+ * pentru detalii și verificările din sursă.
  */
 export async function salveazaPdf(nume: string, dataUri: string): Promise<void> {
   const base64 = dataUri.split(",")[1] ?? "";
@@ -157,6 +172,7 @@ export async function salveazaPdf(nume: string, dataUri: string): Promise<void> 
   }
 }
 
+/** Vezi comentariul de la `salveazaPdf` despre fereastra nativă de tipărire. */
 export async function tipareste(html: string): Promise<void> {
   await Print.printAsync({ html });
 }

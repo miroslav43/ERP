@@ -2,7 +2,7 @@ import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Platform, Pressable, SafeAreaView, StyleSheet, Text } from "react-native";
+import { Alert, AppState, Platform, Pressable, SafeAreaView, StyleSheet, Text } from "react-native";
 import { WebView, type WebViewMessageEvent, type WebViewNavigation } from "react-native-webview";
 
 import { cereJeton, scriptDeInregistrare } from "./push";
@@ -140,6 +140,10 @@ export default function App() {
     pdf: ReturnType<typeof setTimeout> | null;
     html: ReturnType<typeof setTimeout> | null;
   }>({ pdf: null, html: null });
+  // Gardă de reintrare pentru alerta de „fereastră de partajare/tipărire
+  // rămasă deschisă", mai jos (Task 10, rundă de revizuire) — vezi
+  // comentariul de la efectul care o folosește.
+  const alertaFisierAratata = useRef(false);
 
   // MOMENTUL ÎNREGISTRĂRII
   //
@@ -389,12 +393,84 @@ export default function App() {
   const [scannerDeschis, setScannerDeschis] = useState(false);
   const inchideScanner = useCallback(() => setScannerDeschis(false), []);
 
-  // Navigarea către calea de pontare validată de `Scanner` (deja verificată
-  // acolo, cu regex ancorat pe domeniul nostru) — același idiom ca la
-  // deep link-ul de notificare, mai jos: `location.assign` injectat, nu un
-  // apel nativ, ca sesiunea din cookie jar-ul WebView-ului să rămână intactă.
-  const mergiLa = useCallback((cale: string) => {
-    webview.current?.injectJavaScript(`location.assign(${JSON.stringify(cale)}); true;`);
+  // Navigarea către URL-ul de pontare validat de `Scanner` (deja verificat
+  // acolo, pe lista albă de domenii) — același idiom ca la deep link-ul de
+  // notificare, mai jos: `location.assign` injectat, nu un apel nativ, ca
+  // sesiunea din cookie jar-ul WebView-ului să rămână intactă.
+  //
+  // Primește URL-ul ÎNTREG (absolut), NU doar o cale relativă — reparație de
+  // la revizuire: `location.assign("/portal/...")` s-ar fi rezolvat pe
+  // ORIGINEA DOCUMENTULUI curent din WebView, nu pe cea validată de
+  // `Scanner`. Dacă pagina din WebView ar fi navigat vreodată în afara
+  // domeniului nostru (interceptarea de mai jos lasă să treacă orice
+  // navigare care nu e descărcare sau tipărire), o cale relativă ar fi
+  // trimis codul de pontaj scanat către acel alt domeniu. Cu URL-ul absolut,
+  // `location.assign` navighează unde a fost validat, indiferent de originea
+  // curentă a documentului.
+  const mergiLa = useCallback((url: string) => {
+    webview.current?.injectJavaScript(`location.assign(${JSON.stringify(url)}); true;`);
+  }, []);
+
+  // ACOPERIREA FOII DE PARTAJARE / PREVIZUALIZĂRII DE TIPĂRIRE LĂSATE
+  // DESCHISE PESTE O TRECERE ÎN FUNDAL (Task 9 + Task 10, reparație de la
+  // revizuire — același principiu ca la `Scanner`, aplicat unde se poate)
+  //
+  // `Sharing.shareAsync`/`Print.printAsync` (`fisiere.ts`) prezintă
+  // `UIActivityViewController`/`UIPrintInteractionController` — aceeași
+  // clasă de fereastră nativă separată ca `Modal`-ul din `scanner.tsx`. Dacă
+  // omul trimite aplicația în fundal cât una din ele e deschisă și revine,
+  // vălul biometric (`lacat.tsx`) se desenează dedesubt — la fel ca la
+  // scanner — DAR spre deosebire de `Scanner`, nu există nicio cale să le
+  // ÎNCHIDEM: nici `expo-sharing`, nici `expo-print` nu expun un `dismiss`
+  // (verificat: căutare în sursa iOS a ambelor pachete instalate, niciun
+  // rezultat), iar propriul nostru `<Modal>` n-ar reuși nici el să se
+  // arate PESTE una deja prezentată — pe iOS se prezintă din
+  // `[self reactViewController]`, care urcă lanțul de responderi până la
+  // controller-ul RĂDĂCINĂ al aplicației, nu până la cel AFIȘAT curent
+  // (verificat în sursa instalată a React Native:
+  // `RCTModalHostViewManager.m:69`, `RCTModalHostViewComponentView.mm:154`)
+  // — deci ar eșua exact ca orice altă încercare de a presenta peste o
+  // fereastră deja prezentată.
+  //
+  // Singurul mecanism din trusa asta care CHIAR iese deasupra: `Alert.alert`.
+  // `RCTAlertController` își creează propria `UIWindow`, cu
+  // `windowLevel = UIWindowLevelAlert + 1` (verificat în
+  // `RCTAlertController.mm:32`) — mai sus decât fereastra normală a
+  // aplicației, deci și decât orice foaie de partajare sau previzualizare de
+  // tipărire prezentată acolo. NU e o închidere: fereastra nativă rămâne
+  // prezentă dedesubt, doar acoperită (fundalul întunecat al alertei) și
+  // netangibilă cât alerta e pe ecran — dar blochează interacțiunea directă
+  // cu conținutul expus exact în momentul critic al revenirii din fundal,
+  // până omul confirmă.
+  //
+  // PE ANDROID NU EXISTĂ ECHIVALENT — verificat, nu presupus: `shareAsync`
+  // pornește un CHOOSER printr-un `Intent` separat
+  // (`SharingModule.kt`, `startActivityForResult`), iar tipărirea trece prin
+  // `PrintManager` (`PrintModule.kt`) — ambele sunt ACTIVITĂȚI/procese
+  // separate de a noastră, nu ferestre în interiorul ei. O alertă RN pe
+  // Android e legată de `FragmentManager`-ul PROPRIEI Activity
+  // (`DialogModule.kt`) și nu poate apărea peste o Activity străină. Rămâne
+  // o limitare cunoscută a platformei, nerezolvabilă din `mobil/` fără cod
+  // nativ propriu — semnalată în raport, nu ascunsă.
+  useEffect(() => {
+    if (Platform.OS !== "ios") return;
+    const abonament = AppState.addEventListener("change", (stare) => {
+      if (stare !== "active") return;
+      if (!inCursFisier.current.pdf && !inCursFisier.current.html) return;
+      // Gardă: „active" poate reveni de mai multe ori înainte ca omul să
+      // apuce să atingă „OK" (de exemplu o tranziție scurtă prin
+      // „inactive"→„active" imediat după cea care a declanșat deja alerta) —
+      // fără gardă, ar apărea o a doua alertă suprapusă peste prima.
+      if (alertaFisierAratata.current) return;
+      alertaFisierAratata.current = true;
+      Alert.alert(
+        "Reveniți în aplicație",
+        "O fereastră de partajare sau tipărire a rămas deschisă cât aplicația era în fundal.",
+        [{ text: "OK", onPress: () => { alertaFisierAratata.current = false; } }],
+        { cancelable: false },
+      );
+    });
+    return () => abonament.remove();
   }, []);
 
   useEffect(() => {
