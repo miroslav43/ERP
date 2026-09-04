@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useId, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 
 import { PlanificatorConcedii } from "@/app/(app)/concedii/calendar/planificator-concedii";
 import { CHEIE_CONCEDII, citesteDepozit, scrieDepozit } from "@/demo/depozit";
@@ -55,21 +55,57 @@ export function VitrinaConcedii({ azi }: { readonly azi: string }) {
   const [rol, setRol] = useState<RolDemo>("org_admin");
   const idGrup = useId();
 
-  // Cererile depuse ÎN ACEASTĂ SESIUNE, citite o singură dată la montare.
-  // `sessionStorage` (prin `citesteDepozit`) le ține peste o reîncărcare a
-  // filei, dar le uită la închiderea ei — exact promisiunea de pe pagina
-  // publică: „nimic nu pleacă spre server, nimic nu supraviețuiește sesiunii".
-  //
-  // Garda de formă e obligatorie aici: mai jos, `cereri` se iterează cu
-  // `for...of` — o valoare non-tablou stocată sub aceeași cheie (o sesiune
-  // veche, o schemă viitoare) ar arunca `TypeError` și ar căda tot ecranul
-  // public. `Array.isArray` nu verifică FORMA elementelor, doar că e tablou —
-  // suficient cât să evite prăbușirea; un element individual greșit tipat tot
-  // ar trece, dar acela e un defect de altă natură.
-  const [cereri, setCereri] = useState<readonly CerereDemo[]>(() =>
-    citesteDepozit<readonly CerereDemo[]>(CHEIE_CONCEDII, [], Array.isArray),
-  );
+  /*
+   * Cererile depuse ÎN ACEASTĂ SESIUNE. `sessionStorage` (prin
+   * `citesteDepozit`) le ține peste o reîncărcare a filei, dar le uită la
+   * închiderea ei — exact promisiunea de pe pagina publică: „nimic nu pleacă
+   * spre server, nimic nu supraviețuiește sesiunii".
+   *
+   * ── DE CE STAREA PORNEȘTE GOALĂ, ȘI NU CITITĂ DIN DEPOZIT ────────────────
+   * Inițializatorul lui `useState` rulează ȘI la randarea pe server, unde
+   * `sessionStorage` nu există: `catch`-ul din `citesteDepozit` întorcea `[]`,
+   * deci HTML-ul trimis are ÎNTOTDEAUNA zero cereri. Citit înapoi în
+   * inițializator, primul render de client putea găsi una și desena celule în
+   * plus — altă structură decât HTML-ul primit. În React 19 nepotrivirea de
+   * hidratare nu e un avertisment: aruncă, iar ce cade e tot arborele din
+   * iframe, adică chenarul „Ecran real" de pe pagina de vânzare.
+   *
+   * Tiparul e cel din `(marketing)/_componente/bara-consimtamant.tsx:42-48`:
+   * starea inițială e EXACT ce randează serverul, iar depozitul se citește
+   * după montare, într-un cadru de animație. Amânarea cu `requestAnimationFrame`
+   * nu e cosmetică — un `setState` sincron într-un efect e respins de lint și
+   * produce o a doua randare imediată la fiecare montare.
+   *
+   * (`useSyncExternalStore` cu instantaneu de server — tiparul din
+   * `(portal)/portal/indemn-instalare.tsx:92-95` — ar fi rezolvat la fel de
+   * corect nepotrivirea, dar e făcut pentru o sursă externă care SE SCHIMBĂ și
+   * trebuie ascultată. Aici depozitul e scris doar de componenta însăși, deci
+   * n-are cine să-l schimbe pe la spate: abonamentul ar fi fost mecanism fără
+   * întrebuințare. În plus, în acest proiect s-a măsurat că nu comuta de pe
+   * instantaneul de server după hidratare — vezi nota din `bara-consimtamant`.)
+   *
+   * Garda de formă rămâne obligatorie: mai jos, `cereri` se iterează cu
+   * `for...of` — o valoare non-tablou stocată sub aceeași cheie (o sesiune
+   * veche, o schemă viitoare) ar arunca `TypeError` și ar cădea tot ecranul
+   * public. `Array.isArray` nu verifică FORMA elementelor, doar că e tablou —
+   * suficient cât să evite prăbușirea; un element individual greșit tipat tot
+   * ar trece, dar acela e un defect de altă natură.
+   */
+  const [cereri, setCereri] = useState<readonly CerereDemo[]>([]);
   const [casetaDeschisa, setCasetaDeschisa] = useState(false);
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      // Se citește depozitul la execuția cadrului, nu o valoare capturată la
+      // montare: dacă vizitatorul a apucat să depună o cerere între timp,
+      // `scrieDepozit` a trecut deja prin `sessionStorage`, deci citirea de
+      // aici o conține — nu o pierde.
+      setCereri(citesteDepozit<readonly CerereDemo[]>(CHEIE_CONCEDII, [], Array.isArray));
+    });
+    return () => {
+      cancelAnimationFrame(id);
+    };
+  }, []);
 
   // `useCallback` cu deps goale: trece drept `laReusita` lui `Formular`
   // (`src/components/ui/formular.tsx:71`), care intră în lista de dependențe a
@@ -90,6 +126,11 @@ export function VitrinaConcedii({ azi }: { readonly azi: string }) {
   // Fără sărbători și fără zile nelucrătoare speciale: demonstrația nu pretinde
   // un calendar legal complet, iar `zilelePlanificatorului` le acceptă goale.
   const zile = zilelePlanificatorului(an, luna, [], [], []);
+  // Marginile formularului se iau din GRILA desenată, nu recalculate din `azi`:
+  // o cerere în afara lunii desenate s-ar scrie în depozit și n-ar apărea pe
+  // nicio celulă — reușită anunțată, calendar neschimbat.
+  const primaZi = zile[0]?.iso ?? azi;
+  const ultimaZi = zile[zile.length - 1]?.iso ?? azi;
   const angajati = angajatiVizibili(rol);
   const vizibili = new Set(angajati.map((a) => a.id));
 
@@ -181,7 +222,12 @@ export function VitrinaConcedii({ azi }: { readonly azi: string }) {
       ) : null}
 
       {casetaDeschisa ? (
-        <FormularCerereDemo angajatId={angajati[0]?.id ?? "d1"} laAdaugare={adauga} />
+        <FormularCerereDemo
+          angajatId={angajati[0]?.id ?? "d1"}
+          primaZi={primaZi}
+          ultimaZi={ultimaZi}
+          laAdaugare={adauga}
+        />
       ) : null}
 
       <PlanificatorConcedii zile={zile} angajati={angajati} celule={celuleCuCereri} azi={azi} />

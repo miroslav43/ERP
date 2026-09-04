@@ -23,9 +23,15 @@ export type CerereDemo = Readonly<{
  */
 export function FormularCerereDemo({
   angajatId,
+  primaZi,
+  ultimaZi,
   laAdaugare,
 }: {
   readonly angajatId: string;
+  /** Prima zi a lunii DESENATE (ISO). Vezi nota despre `min`/`max` de mai jos. */
+  readonly primaZi: string;
+  /** Ultima zi a lunii desenate (ISO). */
+  readonly ultimaZi: string;
   readonly laAdaugare: (cerere: CerereDemo) => void;
 }) {
   const idDeLa = useId();
@@ -40,6 +46,22 @@ export function FormularCerereDemo({
     if (panaLa === "") lipsa["data_sfarsit"] = ["Alegeți ziua de sfârșit."];
     if (panaLa !== "" && deLa !== "" && panaLa < deLa) {
       lipsa["data_sfarsit"] = ["Ziua de sfârșit e înaintea celei de început."];
+    }
+    /*
+     * Marginile se verifică ȘI aici, nu doar prin `min`/`max` pe câmp.
+     * Atributele opresc selectorul nativ, dar nu și o valoare pusă din
+     * devtools sau o autocompletare exotică — iar o cerere în afara lunii
+     * desenate se scrie în depozit și NU APARE nicăieri pe grilă: toast de
+     * reușită, calendar neschimbat. Exact clasa de defect tăcut pe care o
+     * vânează demonstrația. Mai bine un refuz care spune de ce.
+     */
+    for (const [camp, valoare] of [
+      ["data_inceput", deLa],
+      ["data_sfarsit", panaLa],
+    ] as const) {
+      if (valoare !== "" && (valoare < primaZi || valoare > ultimaZi)) {
+        lipsa[camp] = ["Demonstrația arată o singură lună — alegeți o zi din luna afișată."];
+      }
     }
     if (Object.keys(lipsa).length > 0) {
       return { refuz: "Cererea nu e completă.", campuri: lipsa };
@@ -75,6 +97,18 @@ export function FormularCerereDemo({
     >
       {({ inCurs, erori, valoriTrimise }) => (
         <div className="space-y-3">
+          {/*
+            ── DE CE `min`/`max` NU SUNT OPȚIONALE ─────────────────────────
+            Selectorul nativ de dată se deschide pe luna CURENTĂ a sistemului,
+            iar grila din spate desenează o singură lună. Fără margini,
+            vizitatorul putea alege liniștit o zi din luna următoare: cererea
+            intra în depozit, toastul confirma „Cerere înregistrată", și pe
+            calendar nu apărea NIMIC — nicio eroare, niciun indiciu. Un demo
+            care pare rupt e mai rău decât unul absent.
+
+            Marginile îl țin pe vizitator în luna desenată; validarea din
+            `trimite` prinde ce trece pe lângă atribute.
+          */}
           <div>
             <label htmlFor={idDeLa}>De la</label>
             <input
@@ -82,6 +116,8 @@ export function FormularCerereDemo({
               name="data_inceput"
               type="date"
               required
+              min={primaZi}
+              max={ultimaZi}
               defaultValue={valoriTrimise["data_inceput"] ?? ""}
               aria-invalid={erori["data_inceput"] !== undefined}
             />
@@ -99,6 +135,8 @@ export function FormularCerereDemo({
               name="data_sfarsit"
               type="date"
               required
+              min={primaZi}
+              max={ultimaZi}
               defaultValue={valoriTrimise["data_sfarsit"] ?? ""}
               aria-invalid={erori["data_sfarsit"] !== undefined}
             />
