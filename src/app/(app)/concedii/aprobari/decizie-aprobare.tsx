@@ -18,8 +18,13 @@ export function DecizieAprobare({ taskId }: { readonly taskId: string }) {
   const [motivRespingere, setMotivRespingere] = useState("");
   const [eroare, setEroare] = useState<string | null>(null);
   const [inCurs, porneste] = useTransition();
-  /** Avertisment care SUPRAVIEȚUIEȘTE închiderii panoului: e de acționat, nu de citit în trecere. */
-  const [atentie, setAtentie] = useState<string | null>(null);
+  /**
+   * Avertismente care SUPRAVIEȚUIESC închiderii panoului: sunt de acționat, nu
+   * de citit în trecere. Sunt mai multe fiindcă o aprobare poate lăsa în urmă
+   * două lucruri de reparat deodată — zile pontate dublu ȘI o declarație de
+   * suspendare nepregătită — iar al doilea nu are voie să-l ascundă pe primul.
+   */
+  const [atentii, setAtentii] = useState<readonly string[]>([]);
 
   const idComentariu = useId();
   const idMotiv = useId();
@@ -53,26 +58,45 @@ export function DecizieAprobare({ taskId }: { readonly taskId: string }) {
        * Aici e singurul moment în care cineva care poate face ceva se uită la
        * ecran, deci aici se spune.
        */
+      const adunate: string[] = [];
       if (rezultat.data.zilePastrate > 0) {
-        setAtentie(
+        adunate.push(
           rezultat.data.zilePastrate === 1
             ? "O zi din concediu era deja pontată și a rămas înregistrată ca zi lucrată. Verificați-o în pontaj — altfel se plătește de două ori."
             : `${String(rezultat.data.zilePastrate)} zile din concediu erau deja pontate și au rămas înregistrate ca zile lucrate. Verificați-le în pontaj — altfel se plătesc de două ori.`,
         );
       }
+      /*
+       * Concediul care suspendă contractul se declară la Inspecția Muncii cel
+       * târziu în ziua anterioară începerii, iar netransmiterea în termen e
+       * contravenție PER SALARIAT. Când declararea a reușit, se spune tot —
+       * altfel aprobatorul n-are de unde ști că mai există un termen de
+       * respectat și că evenimentul îl așteaptă în REGES, nepregătit.
+       */
+      const { suspendare } = rezultat.data;
+      if (suspendare.motiv !== null) {
+        adunate.push(suspendare.motiv);
+      } else if (suspendare.declarata && suspendare.termen !== null) {
+        adunate.push(
+          `Concediul suspendă contractul de muncă. Suspendarea a fost înregistrată, iar evenimentul de transmis în REGES este pregătit — termenul este ${suspendare.termen}.`,
+        );
+      }
+      setAtentii(adunate);
       setPanou("inchis");
       router.refresh();
     });
   }
 
   const avertisment =
-    atentie === null ? null : (
-      <p
+    atentii.length === 0 ? null : (
+      <div
         role="alert"
-        className="border-warning/40 bg-warning/12 text-foreground rounded-control text-corp mb-2 border p-3"
+        className="border-warning/40 bg-warning/12 text-foreground rounded-control text-corp mb-2 flex flex-col gap-2 border p-3"
       >
-        {atentie}
-      </p>
+        {atentii.map((text) => (
+          <p key={text}>{text}</p>
+        ))}
+      </div>
     );
 
   if (panou === "inchis") {

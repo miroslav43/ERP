@@ -36,6 +36,20 @@ import {
   type TipZiPontaj,
 } from "@/app/(app)/pontaj/sincronizare-concediu";
 import { traduEroare } from "./erori";
+import { declaraSuspendareaContractului, type RezultatSuspendare } from "./suspendare-contract";
+
+/**
+ * Ce se întoarce când nu s-a aprobat nimic acum, deci nu s-a declarat nimic.
+ *
+ * `ceruta: false` e citit de ecran ca „nu e nimic de arătat”, la fel ca pentru
+ * un concediu de odihnă, care nu suspendă contractul nimănui.
+ */
+const FARA_SUSPENDARE: RezultatSuspendare = {
+  ceruta: false,
+  declarata: false,
+  termen: null,
+  motiv: null,
+};
 
 /**
  * Rutele de portal atinse de orice mișcare pe o cerere de concediu.
@@ -395,7 +409,7 @@ async function poateAprobaPeLoc(ctx: ActionContext): Promise<boolean> {
  * Fără al treilea, jurnalul ar fi arătat doar „cerere creată”, iar aprobarea
  * ar fi trebuit dedusă din altă tabelă.
  */
-async function aprobaPeLoc(ctx: ActionContext, cerereId: string): Promise<number> {
+async function aprobaPeLoc(ctx: ActionContext, cerereId: string): Promise<RezultatAprobare> {
   const admin = createAdminSupabase();
   const acum = ctx.now.toISOString();
 
@@ -455,28 +469,48 @@ async function aprobaPeLoc(ctx: ActionContext, cerereId: string): Promise<number
     meta: await readRequestMeta(),
   });
 
-  return await sincronizeazaConcediulAprobat(
+  // Pontajul și REGES-ul, în ordinea asta: primul e evidența internă, al doilea
+  // e obligația către Inspecția Muncii. Niciunul nu aruncă — aprobarea e deja
+  // dată, iar amândouă își raportează eșecul prin valoarea întoarsă.
+  const zilePastrate = await sincronizeazaConcediulAprobat(
     admin,
     ctx.tenant.organizationId,
     cerereId,
     ctx.requestId,
   );
+  const suspendare = await declaraSuspendareaContractului(
+    admin,
+    ctx.tenant.organizationId,
+    cerereId,
+    ctx.user.id,
+    ctx.requestId,
+  );
+
+  return { zilePastrate, suspendare };
+}
+
+/** Ce lasă în urmă o aprobare, dincolo de schimbarea de status. */
+interface RezultatAprobare {
+  readonly zilePastrate: number;
+  readonly suspendare: RezultatSuspendare;
 }
 
 /**
  * Ce întorc creerea și trimiterea unei cereri.
  *
- * `aprobataInstant` și `zilePastrate` NU sunt decor: primul schimbă mesajul de
- * pe ecran (o cerere aprobată pe loc nu mai „a plecat spre aprobare”), al
- * doilea e numărul de zile care se vor plăti și ca lucrate, și ca zile de
- * concediu, dacă nimeni nu se uită la ele. Cine adaugă un apelant nou trebuie
- * să le afișeze pe amândouă.
+ * `aprobataInstant`, `zilePastrate` și `suspendare` NU sunt decor: primul
+ * schimbă mesajul de pe ecran (o cerere aprobată pe loc nu mai „a plecat spre
+ * aprobare”), al doilea e numărul de zile care se vor plăti și ca lucrate, și
+ * ca zile de concediu, dacă nimeni nu se uită la ele, iar al treilea spune
+ * dacă declarația către Inspecția Muncii a fost pregătită sau a rămas de făcut
+ * de mână. Cine adaugă un apelant nou trebuie să le afișeze pe toate trei.
  */
 interface CerereTrimisa {
   readonly id: string;
   readonly zileLucratoare: number;
   readonly aprobataInstant: boolean;
   readonly zilePastrate: number;
+  readonly suspendare: RezultatSuspendare;
 }
 
 /** Căile atinse de o aprobare — soldul, aprobările, calendarul, pontajul. */
@@ -669,13 +703,14 @@ export const creeazaCerereConcediu = createAction({
     // O CIORNĂ nu se aprobă: n-a plecat nicăieri, nu are lanț de aprobare și
     // `leave_request_days` îi poartă statusul. Se aprobă doar ce chiar a plecat.
     const aprobataInstant = input.trimite && (await poateAprobaPeLoc(ctx));
-    const zilePastrate = aprobataInstant ? await aprobaPeLoc(ctx, data.id) : 0;
+    const aprobare = aprobataInstant ? await aprobaPeLoc(ctx, data.id) : null;
 
     return {
       id: data.id,
       zileLucratoare: data.zile_lucratoare,
       aprobataInstant,
-      zilePastrate,
+      zilePastrate: aprobare?.zilePastrate ?? 0,
+      suspendare: aprobare?.suspendare ?? FARA_SUSPENDARE,
     };
   },
 });
@@ -950,13 +985,14 @@ export const trimiteCerere = createAction({
     // are pe cine să aștepte. Fără ramura asta, drumul „salvez ciornă, o
     // trimit mâine” ar fi ocolit tăcut comportamentul cerut.
     const aprobataInstant = await poateAprobaPeLoc(ctx);
-    const zilePastrate = aprobataInstant ? await aprobaPeLoc(ctx, data.id) : 0;
+    const aprobare = aprobataInstant ? await aprobaPeLoc(ctx, data.id) : null;
 
     return {
       id: data.id,
       zileLucratoare: data.zile_lucratoare,
       aprobataInstant,
-      zilePastrate,
+      zilePastrate: aprobare?.zilePastrate ?? 0,
+      suspendare: aprobare?.suspendare ?? FARA_SUSPENDARE,
     };
   },
 });
@@ -978,7 +1014,10 @@ export const decideCerere = createAction({
   // care handlerul îl întoarce.
   // Tipul se scrie explicit: `revalidate` e declarat ÎNAINTEA lui `handler` în
   // obiectul literal, deci TypeScript n-are încă de unde infera forma datelor.
-  revalidate: (_input, data: Readonly<{ id: string; zilePastrate: number }>) => [
+  revalidate: (
+    _input,
+    data: Readonly<{ id: string; zilePastrate: number; suspendare: RezultatSuspendare }>,
+  ) => [
     "/concedii",
     "/concedii/aprobari",
     "/concedii/sold",
@@ -988,7 +1027,10 @@ export const decideCerere = createAction({
     // angajatul vede concediul aprobat și pontajul nemodificat.
     "/portal/pontajul-meu",
   ],
-  handler: async (ctx, input): Promise<Readonly<{ id: string; zilePastrate: number }>> => {
+  handler: async (
+    ctx,
+    input,
+  ): Promise<Readonly<{ id: string; zilePastrate: number; suspendare: RezultatSuspendare }>> => {
     // (1) Sarcina, cu clientul utilizatorului: `approval_tasks_select` arată
     // doar sarcinile proprii (sau `leave:approve = all`), deci un aprobator
     // nu poate decide o sarcină care nu e a lui — RLS o ascunde, nu o refuză.
@@ -1055,6 +1097,9 @@ export const decideCerere = createAction({
     // rezultatul trebuie să ajungă la aprobator și când sincronizarea (care e
     // best-effort, într-un `try`) cade pe drum.
     let zilePastrate = 0;
+    // Idem, pentru declaratia catre Inspectia Muncii: pe ramura de respingere
+    // nu se suspenda nimic, deci valoarea neutra e cea corecta.
+    let suspendare: RezultatSuspendare = FARA_SUSPENDARE;
 
     // (4) Un manager cu `leave:approve = team` nu vede, prin RLS, sarcinile
     // colegilor din pașii următori — numărătoarea se face cu clientul admin,
@@ -1135,11 +1180,23 @@ export const decideCerere = createAction({
         sarcina.entity_id,
         ctx.requestId,
       );
+
+      // (7) Suspendarea contractului, pentru tipurile care o produc. Rulează
+      // DOAR pe ramura în care cererea a trecut efectiv pe „aprobată": o cerere
+      // care mai așteaptă un pas nu suspendă încă nimic, iar o declarație
+      // trimisă devreme ar trebui corectată cu un al doilea mesaj.
+      suspendare = await declaraSuspendareaContractului(
+        admin,
+        ctx.tenant.organizationId,
+        sarcina.entity_id,
+        ctx.user.id,
+        ctx.requestId,
+      );
     }
 
     // `zilePastrate` NU e un detaliu tehnic: e numărul de zile care se vor plăti
     // și ca lucrate, și ca zile de concediu, dacă nimeni nu se uită la ele.
-    return { id: sarcina.entity_id, zilePastrate };
+    return { id: sarcina.entity_id, zilePastrate, suspendare };
   },
 });
 

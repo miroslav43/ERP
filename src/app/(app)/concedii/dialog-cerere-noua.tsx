@@ -131,6 +131,17 @@ type CerereCreata = Readonly<{
    * cineva care poate repara.
    */
   zilePastrate: number;
+  /**
+   * Ce a rămas de făcut pentru declararea suspendării contractului, când tipul
+   * de concediu o produce. `motiv` non-null înseamnă că declararea a eșuat și
+   * trebuie făcută de mână, în termenul legal.
+   */
+  suspendare: Readonly<{
+    ceruta: boolean;
+    declarata: boolean;
+    termen: string | null;
+    motiv: string | null;
+  }>;
 }>;
 
 /**
@@ -358,6 +369,21 @@ function FormularCerereNoua({
               ? "zi de concediu era deja pontată ca lucrată și a rămas așa"
               : "zile de concediu erau deja pontate ca lucrate și au rămas așa"
           }. Verificați-le în pontaj — altfel se plătesc de două ori.`,
+        });
+      }
+      /*
+       * Aprobarea pe loc declară singură suspendarea contractului, pentru
+       * tipurile care o produc. Termenul e ziua anterioară începerii, iar
+       * ratarea lui e contravenție per salariat — deci și reușita se spune, nu
+       * doar eșecul: altfel nimeni nu știe că mai există un eveniment de
+       * transmis din REGES.
+       */
+      if (data.suspendare.motiv !== null) {
+        arataToast({ fel: "eroare", text: data.suspendare.motiv });
+      } else if (data.suspendare.declarata && data.suspendare.termen !== null) {
+        arataToast({
+          fel: "eroare",
+          text: `Concediul suspendă contractul de muncă. Suspendarea a fost înregistrată, iar evenimentul de transmis în REGES este pregătit — termenul este ${data.suspendare.termen}.`,
         });
       }
       laInchidere();
