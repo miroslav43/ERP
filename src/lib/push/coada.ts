@@ -1,5 +1,7 @@
 // src/lib/push/coada.ts
 import type { AdminSupabase } from "@/lib/supabase/admin";
+import { CONTEXT_GOL, contexteDestinatar } from "@/app/(portal)/portal/notificarile-mele/context";
+import type { ContextDestinatar } from "@/app/(portal)/portal/notificarile-mele/legaturi";
 
 import { trimiteLot } from "./expo";
 import { construiesteMesaj } from "./mesaj";
@@ -43,6 +45,55 @@ type RandCoada = {
   readonly link: string | null;
 };
 
+/**
+ * Contextul de proprietate al fiecărui DISPOZITIV din lot.
+ *
+ * Un lot amestecă destinatari — mai multe telefoane, mai multe firme — iar
+ * `push_ia_din_coada` întoarce doar `dispozitiv_id`, nu și cui aparține. Deci
+ * un drum în plus la `dispozitive_push`, pe chei primare, o dată pe lot.
+ *
+ * DE CE NU O MIGRARE care să adauge `user_id` în tipul întors: schimbarea
+ * tipului de retur al unei funcții cere `drop` + `create`, iar `0122` are DOUĂ
+ * semnături (`app.` și învelișul `public.`) — exact configurația care a produs
+ * deja o dată `42725, function is not unique`. Două citiri indexate pe lot, la
+ * volumele reale (câteva notificări pe zi), costă mai puțin decât riscul ăla.
+ *
+ * O citire picată NU oprește livrarea: contextul iese gol, legăturile
+ * `/concedii/<uuid>` rămân netraduse, iar notificarea aterizează în cutia
+ * poștală. Omul primește mesajul; pierde doar un tap.
+ */
+async function contextePeDispozitiv(
+  db: AdminSupabase,
+  randuri: readonly RandCoada[],
+): Promise<ReadonlyMap<string, ContextDestinatar>> {
+  const goale = new Map<string, ContextDestinatar>();
+  const dispozitiveIds = [...new Set(randuri.map((r) => r.dispozitiv_id))];
+
+  // ⚠ service_role: OCOLEȘTE RLS, ca tot restul funcției `golesteCoada`.
+  // Filtrul e `in (id-urile din lotul propriu)` — id-uri venite din coada
+  // însăși, nu dintr-o intrare de utilizator, deci lotul nu poate atinge alt
+  // dispozitiv decât cele pe care tocmai le-a preluat.
+  const { data, error } = await db
+    .from("dispozitive_push")
+    .select("id, user_id, organization_id")
+    .in("id", dispozitiveIds);
+  if (error !== null) {
+    logEsecScriere("citirea dispozitivelor pentru contextul legăturilor a eșuat", error);
+    return goale;
+  }
+
+  const dispozitive = data ?? [];
+  if (dispozitive.length === 0) return goale;
+
+  const contexte = await contexteDestinatar(
+    db,
+    [...new Set(dispozitive.map((d) => d.organization_id))],
+    randuri.map((r) => r.link),
+  );
+
+  return new Map(dispozitive.map((d) => [d.id, contexte.get(d.user_id) ?? CONTEXT_GOL] as const));
+}
+
 function logEsecScriere(context: string, eroare: { message: string }): void {
   // `console.error`, nu aruncare: o singură scriere picată nu trebuie să
   // oprească prelucrarea restului lotului. Rândul ei rămâne recuperabil.
@@ -71,9 +122,17 @@ export async function golesteCoada(
     return { luate: 0, trimise: 0, esuate: 0, abandonate: 0, jetoaneRetrase: 0 };
   }
 
+  const contexte = await contextePeDispozitiv(db, randuri);
+
   const rezultate = await trimiteLot(
     randuri.map((r) =>
-      construiesteMesaj({ jeton: r.jeton, titlu: r.titlu, corp: r.corp, link: r.link }),
+      construiesteMesaj({
+        jeton: r.jeton,
+        titlu: r.titlu,
+        corp: r.corp,
+        link: r.link,
+        context: contexte.get(r.dispozitiv_id) ?? CONTEXT_GOL,
+      }),
     ),
   );
 
