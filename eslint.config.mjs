@@ -92,6 +92,63 @@ const eslintConfig = defineConfig([
     rules: { "no-restricted-imports": "off" },
   },
 
+  {
+    /**
+     * Stratul de demonstrație publică nu are voie să atingă serverul.
+     *
+     * `/vitrina/*` randează ecranele REALE ale aplicației, alimentate cu date
+     * fabricate, și e încadrat prin `<iframe>` în paginile publice de modul.
+     * Pe pagina aceea scrie, negru pe alb: „Date fictive. Nimic din ce faci
+     * aici nu se salvează." Promisiunea e ținută azi de construcție — niciun
+     * `fetch`, nicio Server Action — dar construcția e o stare, nu o garanție:
+     * un singur import de `@/lib/supabase/server` într-un fișier de demo, la
+     * al optsprezecelea modul, ar transforma un text de vânzare într-o
+     * minciună publicată, fără ca nimic să cadă.
+     *
+     * Regula o face imposibilă mecanic, exact cum lista de mai sus ține
+     * `service_role` în șapte locuri numărate. Trei familii interzise:
+     *
+     *   `server-only`   — marca fișierelor care rup build-ul dacă ajung în
+     *                     bundle-ul de client; într-un demo n-are ce căuta;
+     *   `@/lib/supabase/*` — orice client de bază, cu sau fără RLS;
+     *   `next/headers`  — `cookies()`/`headers()` ar face pagina dinamică pe
+     *                     sesiunea vizitatorului, adică ar lega demonstrația de
+     *                     cine o privește.
+     *
+     * Blocul vine DUPĂ excepțiile de mai sus, deci le bate pentru fișierele
+     * lui; `@/lib/supabase/*` acoperă și clientul admin, care e tot acolo.
+     */
+    name: "administrativo/demo-fara-server",
+    files: ["src/demo/**", "src/app/(vitrina)/**"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "server-only",
+              message:
+                "Demonstrația rulează în browserul vizitatorului. Un modul `server-only` aici înseamnă că datele demo ating serverul — exact ce neagă textul de pe pagina publică.",
+            },
+            {
+              name: "next/headers",
+              message:
+                "`cookies()`/`headers()` leagă demonstrația de sesiunea vizitatorului. Vitrina trebuie să arate la fel pentru oricine, fără să știe cine privește.",
+            },
+          ],
+          patterns: [
+            {
+              group: ["**/lib/supabase/*", "@/lib/supabase/*"],
+              allowTypeImports: true,
+              message:
+                "Stratul de demonstrație nu atinge baza de date. Datele lui sunt fabricate (`src/demo/lume.ts`) și trăiesc doar în sesiunea de browser — pagina publică promite exact asta.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+
   // `.remember/` e directorul de lucru al plugin-ului cu același nume: fișiere
   // temporare, ignorate de git prin propriul `.remember/.gitignore`. ESLint nu
   // citește `.gitignore`, deci le parcurgea și raporta erori într-un cod pe

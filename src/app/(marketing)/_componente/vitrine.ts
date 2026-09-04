@@ -22,10 +22,27 @@
  * Poarta care păzește regula asta: `vitrine.test.ts`.
  */
 
-/** Modulele care au vitrină. Restul nu randează banda deloc. */
-const CU_VITRINA: readonly string[] = ["leave"];
+/**
+ * Modulele cu vitrină, fiecare cu nota care spune CÂT din modul arată.
+ *
+ * Nota nu e decor. `ro.ts` promite, în punctele modulului `leave`, „Unsprezece
+ * tipuri, fiecare cu temeiul legal notat", iar demonstrația are trei
+ * (`src/demo/lume.ts`). Ambele texte apar pe aceeași pagină, deci pagina s-ar
+ * contrazice singură sub ochii unui prospect. Textul din `ro.ts` e adevărat
+ * despre PRODUS; ce arată mai puțin e demonstrația — deci demonstrația își
+ * declară limita, nu produsul.
+ */
+const VITRINE: Readonly<Record<string, string>> = {
+  leave:
+    "Demonstrația arată un subset: trei tipuri de concediu din cele unsprezece ale modulului, pe o singură lună și pentru o firmă inventată.",
+};
 
-/** Are modulul o vitrină construită? */
+/** Are modulul o vitrină construită? Restul nu randează banda deloc. */
 export function arePrinGeam(cheie: string): boolean {
-  return CU_VITRINA.includes(cheie);
+  return Object.hasOwn(VITRINE, cheie);
+}
+
+/** Nota de subset a vitrinei, sau `undefined` dacă modulul n-are vitrină. */
+export function notaVitrinei(cheie: string): string | undefined {
+  return VITRINE[cheie];
 }

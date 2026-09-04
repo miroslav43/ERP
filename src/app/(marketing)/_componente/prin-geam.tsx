@@ -2,6 +2,8 @@
 
 import { useRef, useState } from "react";
 
+import { notaVitrinei } from "./vitrine";
+
 /**
  * Ecranul real, văzut PRIN GEAM.
  *
@@ -37,6 +39,7 @@ import { useRef, useState } from "react";
 
 export function PrinGeam({ cheie, titlu }: { readonly cheie: string; readonly titlu: string }) {
   const [deschis, setDeschis] = useState(false);
+  const nota = notaVitrinei(cheie);
   const caseta = useRef<HTMLDialogElement | null>(null);
 
   function deschide(): void {
@@ -91,8 +94,18 @@ export function PrinGeam({ cheie, titlu }: { readonly cheie: string; readonly ti
                 style={{ pointerEvents: "none" }}
               />
             </div>
+            {/*
+              Legenda spune DOUĂ lucruri, și al doilea nu e decorativ: punctele
+              modulului, tipărite pe aceeași pagină, promit unsprezece tipuri de
+              concediu, iar demonstrația are trei. Fără linia asta pagina se
+              contrazice singură sub ochii prospectului. Textul de vânzare e
+              adevărat despre produs — demonstrația e cea care arată mai puțin,
+              deci demonstrația își declară limita. Nota vine din `vitrine.ts`,
+              per modul, nu scrisă aici: a doua vitrină va avea alt subset.
+            */}
             <figcaption className="text-mk-text-slab mt-3 text-[0.8125rem]">
               Date fictive. Nimic din ce faci aici nu se salvează.
+              {nota === undefined ? null : <> {nota}</>}
             </figcaption>
           </figure>
 

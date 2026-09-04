@@ -61,6 +61,21 @@ describe("banda prin geam", () => {
     );
   });
 
+  it("legenda spune că demonstrația arată un subset", () => {
+    /*
+     * `ro.ts` promite „Unsprezece tipuri, fiecare cu temeiul legal notat" în
+     * punctele modulului `leave`; `src/demo/lume.ts` are trei. Ambele texte
+     * ajung pe `/module/leave`, deci pagina s-ar contrazice singură. Legenda e
+     * locul unde diferența e recunoscută — fără ea, prospectul numără trei și
+     * pune la îndoială restul paginii.
+     */
+    const { container } = render(<PrinGeam cheie="leave" titlu="Concedii" />);
+    const legenda = container.querySelector("figcaption")?.textContent ?? "";
+
+    expect(legenda).toMatch(/Date fictive/);
+    expect(legenda).toMatch(/subset/i);
+  });
+
   it("oferă o cale de deschidere accesibilă cu tastatura", () => {
     // Proiectul nu are `@testing-library/jest-dom` instalat, deci
     // `toBeInTheDocument()` nu există — convenția casei e `.not.toBeNull()`

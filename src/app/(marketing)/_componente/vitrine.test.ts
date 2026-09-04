@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
-import { arePrinGeam } from "./vitrine";
+import { arePrinGeam, notaVitrinei } from "./vitrine";
 
 /**
  * Poarta care ar fi prins defectul livrat în producție.
@@ -72,7 +72,19 @@ describe("catalogul vitrinelor", () => {
   });
 
   it("nu confundă cheile moștenite de pe `Object.prototype` cu module", () => {
+    // `"constructor" in VITRINE` ar fi fost `true` cu un `in` naiv, iar pagina
+    // /module/constructor — dacă ar exista vreodată o cheie cu numele ăsta —
+    // ar fi randat o bandă către o vitrină inexistentă.
     expect(arePrinGeam("constructor")).toBe(false);
     expect(arePrinGeam("toString")).toBe(false);
+  });
+
+  it("fiecare vitrină își declară subsetul, ca pagina să nu se contrazică", () => {
+    // `ro.ts` promite unsprezece tipuri de concediu; `src/demo/lume.ts` are
+    // trei. Nota e singurul loc unde diferența e spusă cu voce tare.
+    const nota = notaVitrinei("leave");
+    expect(nota).toBeDefined();
+    expect(nota ?? "").toMatch(/subset/i);
+    expect(notaVitrinei("courses")).toBeUndefined();
   });
 });
