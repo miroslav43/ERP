@@ -85,6 +85,22 @@ function esteCaleInterna(cale: unknown): cale is string {
 }
 
 /**
+ * `url` e chiar portalul nostru — origine EXACTĂ, nu doar o cale care
+ * conține „/portal" (rundă 3 de revizuire — un site străin poate avea orice
+ * cale își dorește). `try/catch` fiindcă `url` vine dintr-un eveniment de
+ * navigare al WebView-ului, nu dintr-o sursă controlată de noi — un URL
+ * malformat nu trebuie să arunce, doar să respingă.
+ */
+function esteUrlPortal(url: string): boolean {
+  try {
+    const parsat = new URL(url);
+    return parsat.origin === ORIGINEA_PORTALULUI && /\/portal(?:\/|$)/.test(parsat.pathname);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Mesajele venite din pagină, prin `window.ReactNativeWebView.postMessage`.
  * Câmpul `fel` le deosebește — vezi dispecerul din `primesteMesaj`. Valorile de
  * azi: `"jeton"` (înregistrarea push-ului, `push.ts`), `"pdf"` și `"html"`
@@ -228,6 +244,16 @@ export default function App() {
   // raportează înapoi prin `postMessage`, iar `primesteMesaj` (mai jos) pune
   // garda permanentă doar la confirmarea `ok: true`.
   //
+  // FILTRUL VERIFICĂ ȘI ORIGINEA, NU DOAR CALEA (corectare rundă 3 de
+  // revizuire) — `esteUrlPortal`, mai jos, cere `ORIGINEA_PORTALULUI` EXACT,
+  // nu doar o cale care conține „/portal". Fără asta, un site străin cu o
+  // cale potrivită (banal de construit) ar fi trecut acest filtru ieftin —
+  // inofensiv de unul singur (garda finală din `push.ts` era gândită să
+  // prindă exact asta), dar garda finală verifica ȘI EA doar calea, nu
+  // originea, până la aceeași rundă de revizuire. Cele două filtre — ăsta și
+  // cel din `scriptDeInregistrare` — trebuie să verifice originea AMÂNDOUĂ,
+  // fiindcă niciunul nu știe că celălalt a fost reparat.
+  //
   // RECUPEREAZĂ DIN „ÎN CURS" (a doua reparație, rundă separată de revizuire)
   // Comentariul de-aici spunea inițial că `inCurs` „nu poate rămâne blocată
   // la nesfârșit" pentru că scriptul injectat răspunde întotdeauna. Era GREȘIT:
@@ -246,7 +272,7 @@ export default function App() {
   // presupunem că răspunsul nu mai vine și eliberăm garda noi înșine.
   const inregistreazaDacaPePortal = useCallback((url: string) => {
     if (inregistrat.current || inCurs.current) return;
-    if (!/\/portal(?:\/|$)/.test(url)) return;
+    if (!esteUrlPortal(url)) return;
     inCurs.current = true;
     void (async () => {
       const jeton = await cereJeton();
@@ -259,7 +285,9 @@ export default function App() {
         return;
       }
       const platforma = Platform.OS === "ios" ? "ios" : "android";
-      webview.current?.injectJavaScript(scriptDeInregistrare(jeton, platforma));
+      webview.current?.injectJavaScript(
+        scriptDeInregistrare(jeton, platforma, ORIGINEA_PORTALULUI),
+      );
       // De-acum, DOUĂ căi eliberează `inCurs` — niciodată zero:
       // (a) confirmarea din pagină, prin `onMessage` (`primesteMesaj`, mai
       //     jos), care anulează și temporizatorul de mai jos; sau
@@ -624,11 +652,13 @@ export default function App() {
             // nu se potrivește cu regexul din `eTiparire`, deci ambele predicate
             // sunt false și `return true` o lasă să navigheze normal.
             onShouldStartLoadWithRequest={(cerere) => {
-              if (eDescarcare(cerere.url)) {
+              // Ambele verifică ACUM și originea, nu doar calea — rundă 3 de
+              // revizuire, vezi comentariul din `fisiere.ts`.
+              if (eDescarcare(cerere.url, ORIGINEA_PORTALULUI)) {
                 porneșteAducerea(cerere.url, "pdf");
                 return false;
               }
-              if (eTiparire(cerere.url)) {
+              if (eTiparire(cerere.url, ORIGINEA_PORTALULUI)) {
                 porneșteAducerea(cerere.url, "html");
                 return false;
               }

@@ -59,18 +59,31 @@ const CALE_PONTARE = /^\/portal\/ponteaza\/[A-Za-z0-9_-]+$/;
 
 /**
  * O intrare din `DOMENII_PERMISE` trebuie să fie EXACT schemă+host, nimic în
- * plus — `https://` urmat de orice nu conține `/`. Fără verificarea asta
- * (rundă 2 de revizuire — testat cu unsprezece liste malformate, trei au
- * eșuat DESCHIS), o intrare fără schemă (`"administrativo.ro"`), goală
- * (`""`) sau protocol-relativă (`"//administrativo.ro"`) ar face
- * `data.startsWith(domeniu)` să accepte un șir FĂRĂ nicio origine reală —
- * `location.assign` cu așa ceva se rezolvă pe originea curentă a
- * documentului, exact defectul închis la IMPORTANT 2 din runda 1,
- * reintrodus de o singură intrare greșită într-un tablou al cărui comentariu
- * invită explicit la completare.
+ * plus. Fără verificarea asta (rundă 2 de revizuire — testat cu unsprezece
+ * liste malformate, trei au eșuat DESCHIS), o intrare fără schemă
+ * (`"administrativo.ro"`), goală (`""`) sau protocol-relativă
+ * (`"//administrativo.ro"`) ar face `data.startsWith(domeniu)` să accepte
+ * un șir FĂRĂ nicio origine reală — `location.assign` cu așa ceva se
+ * rezolvă pe originea curentă a documentului, exact defectul închis la
+ * IMPORTANT 2 din runda 1, reintrodus de o singură intrare greșită
+ * într-un tablou al cărui comentariu invită explicit la completare.
+ *
+ * Regexul de la runda 2 (`/^https:\/\/[^/]+$/`) verifica FORMA, nu
+ * PARSAREA — o intrare cu autoritate `@` (`"https://administrativo.ro@evil.
+ * example"`) trecea de el (nu conține „/"), dar un `URL` real ar citi-o ca
+ * userinfo `administrativo.ro` PE HOST-UL `evil.example` (rundă 3 de
+ * revizuire). Reparație: cere ȘI rotund-trip prin `URL` — `new
+ * URL(domeniu).origin` trebuie să dea ÎNAPOI exact același șir. O intrare cu
+ * `@` (sau orice altă formă care „arată" ca hostul nostru dar se PARSEAZĂ
+ * diferit) nu supraviețuiește rotund-trip-ului.
  */
 function domeniuValid(domeniu: string): boolean {
-  return /^https:\/\/[^/]+$/.test(domeniu);
+  if (!domeniu.startsWith("https://")) return false;
+  try {
+    return new URL(domeniu).origin === domeniu;
+  } catch {
+    return false;
+  }
 }
 
 if (__DEV__) {

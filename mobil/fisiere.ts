@@ -11,6 +11,49 @@ import * as Sharing from "expo-sharing";
 import * as FileSystem from "expo-file-system/legacy";
 
 /**
+ * Cât așteptăm o operație rapidă, FĂRĂ interacțiune umană — scriere pe disc,
+ * interogarea `Sharing.isAvailableAsync` — înainte să presupunem că
+ * promisiunea nu se mai termină. Aceeași idee ca `TIMP_LIMITA_VERIFICARE_MS`
+ * din `lacat.tsx` (rundă 2), aplicată aici la rundă 3.
+ */
+const TIMP_LIMITA_RAPID_MS = 5000;
+
+/**
+ * Cât așteptăm o fereastră nativă care CERE o decizie umană —
+ * `Sharing.shareAsync` (foaia de partajare), `Print.printAsync`
+ * (previzualizarea de tipărire) — înainte să presupunem că promisiunea nu se
+ * mai termină NICIODATĂ. Mult mai generos decât `TIMP_LIMITA_RAPID_MS`, din
+ * același motiv ca `TIMP_LIMITA_CERERE_JETON_MS` din `push.ts`: un timeout
+ * scurt ar tăia un om care încă alege unde să trimită fluturașul, tratând o
+ * decizie normală drept eșec. Fără NICIUN timeout însă, o promisiune nativă
+ * blocată ar ține `ferestraFisierDeschisa`/`inCursFisier` din `App.tsx`
+ * `true` PE VIAȚĂ — alerta „o fereastră a rămas deschisă" ar apărea la
+ * fiecare revenire, la nesfârșit, iar felul acela nu s-ar mai putea
+ * descărca deloc (semnalat de revizor, rundă 3).
+ */
+const TIMP_LIMITA_FEREASTRA_MS = 5 * 60 * 1000;
+
+/**
+ * Înfășoară o promisiune nativă cu un timp limită. La expirare, RESPINGE
+ * (nu rezolvă cu o valoare de rezervă): `salveazaPdf`/`tipareste` rulează
+ * deja într-un `try/catch` în `App.tsx` (`primesteMesaj`), care arată deja
+ * un mesaj potrivit și eliberează gărzile de reintrare în `finally` — o
+ * respingere de-aici curge direct în mecanismul ăla existent, fără cod nou
+ * de tratare a erorii.
+ */
+function cuTimpLimita<T>(promisiune: Promise<T>, timpLimitaMs: number): Promise<T> {
+  let idTemporizator: ReturnType<typeof setTimeout> | null = null;
+  const cuTimeout = new Promise<T>((_rezolva, respinge) => {
+    idTemporizator = setTimeout(() => {
+      respinge(new Error(`Timp de așteptare depășit (${timpLimitaMs} ms)`));
+    }, timpLimitaMs);
+  });
+  return Promise.race([promisiune, cuTimeout]).finally(() => {
+    if (idTemporizator !== null) clearTimeout(idTemporizator);
+  });
+}
+
+/**
  * Cele două căi care se rup tăcut într-un WebView.
  *
  * Descărcarea și tipărirea nu sunt funcții „în plus": fără ele, un angajat care
@@ -34,12 +77,35 @@ import * as FileSystem from "expo-file-system/legacy";
  * al șirului — navigarea finală pornește din codul intern al routerului, nu
  * dintr-un `href` scris de noi.
  */
-export function eDescarcare(url: string): boolean {
-  return url.includes("/api/export/");
+/**
+ * Amândouă funcțiile de mai jos verifică ACUM și originea, nu doar calea
+ * (rundă 3 de revizuire — aceeași orbire ca la `push.ts`, impact mai mic:
+ * `WebView` n-are `originWhitelist`, deci pagina curentă poate fi legitim pe
+ * alt origin decât portalul — vezi `App.tsx`/`push.ts` pentru lanțul complet.
+ * O cale care se potrivește pe un site străin ar fi adus conținutul ACELUI
+ * site și l-ar fi dat lui `Sharing`/`Print`, crezând că e fluturașul sau
+ * adeverința noastră). `try/catch` fiindcă `url` vine dintr-un eveniment de
+ * navigare, nu dintr-o sursă controlată de noi.
+ */
+export function eDescarcare(url: string, origineaPortalului: string): boolean {
+  try {
+    const parsat = new URL(url);
+    return parsat.origin === origineaPortalului && parsat.pathname.includes("/api/export/");
+  } catch {
+    return false;
+  }
 }
 
-export function eTiparire(url: string): boolean {
-  return /\/portal\/cursurile-mele\/[^/]+\/adeverinta(?:[/?]|$)/.test(url);
+export function eTiparire(url: string, origineaPortalului: string): boolean {
+  try {
+    const parsat = new URL(url);
+    return (
+      parsat.origin === origineaPortalului &&
+      /\/portal\/cursurile-mele\/[^/]+\/adeverinta(?:[/?]|$)/.test(parsat.pathname)
+    );
+  } catch {
+    return false;
+  }
 }
 
 /** Nume de rezervă, derivat din URL, dacă serverul nu trimite `content-disposition`. */
@@ -155,24 +221,43 @@ export function scriptDeAducere(url: string, fel: "pdf" | "html"): string {
  * trimite aplicația în fundal cât una din ele e deschisă. Spre deosebire de
  * `Scanner`, NU există niciun `dismiss()` de apelat aici: nici
  * `expo-sharing`, nici `expo-print` nu expun așa ceva (verificat în sursa
- * iOS a pachetelor instalate — niciun rezultat pentru „dismiss"). Mitigarea
- * posibilă (o alertă nativă care iese deasupra pe iOS, prin propria
+ * iOS a pachetelor instalate — niciun rezultat pentru „dismiss"). Ce se
+ * poate mitiga (o alertă nativă care iese deasupra pe iOS, prin propria
  * `UIWindow` a `Alert.alert`; fără echivalent pe Android) trăiește în
  * `App.tsx`, lângă restul logicii de `AppState` — vezi comentariul de acolo
- * pentru detalii și verificările din sursă.
+ * pentru detalii, verificările din sursă ȘI limitarea EXACTĂ (corectare
+ * rundă 3 de revizuire, ca să nu rămână afirmația trunchiată doar aici):
+ * instantaneul din switcher/„Recente" se face ÎNAINTE ca alerta să apuce să
+ * ruleze — NU e acoperit de nimic din JavaScript, pe NICIO platformă. Ce
+ * acoperă alerta e strict fereastra de interacțiune de DUPĂ revenire, și
+ * doar pe iOS.
+ *
+ * Cele două `await`-uri native de mai jos (`Sharing.isAvailableAsync`,
+ * `Sharing.shareAsync`) — și cel din `tipareste` — trec printr-un timeout
+ * generos (`cuTimpLimita`, mai jos), aceeași clasă de reparație ca
+ * `verificaDisponibilitatea` din `lacat.tsx` (rundă 2): o promisiune nativă
+ * care nu se termină NICIODATĂ ar ține `ferestraFisierDeschisa`/
+ * `inCursFisier` din `App.tsx` `true` PE VIAȚĂ — alerta de mai sus ar
+ * apărea la fiecare revenire, la nesfârșit, iar felul acela nu s-ar mai
+ * putea descărca deloc. Semnalat de revizor la runda asta, aplicat acum și
+ * aici.
  */
 export async function salveazaPdf(nume: string, dataUri: string): Promise<void> {
   const base64 = dataUri.split(",")[1] ?? "";
   const cale = `${FileSystem.cacheDirectory}${numeSigur(nume)}`;
-  await FileSystem.writeAsStringAsync(cale, base64, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
-  if (await Sharing.isAvailableAsync()) {
-    await Sharing.shareAsync(cale, { mimeType: "application/pdf", UTI: "com.adobe.pdf" });
+  await cuTimpLimita(
+    FileSystem.writeAsStringAsync(cale, base64, { encoding: FileSystem.EncodingType.Base64 }),
+    TIMP_LIMITA_RAPID_MS,
+  );
+  if (await cuTimpLimita(Sharing.isAvailableAsync(), TIMP_LIMITA_RAPID_MS)) {
+    await cuTimpLimita(
+      Sharing.shareAsync(cale, { mimeType: "application/pdf", UTI: "com.adobe.pdf" }),
+      TIMP_LIMITA_FEREASTRA_MS,
+    );
   }
 }
 
 /** Vezi comentariul de la `salveazaPdf` despre fereastra nativă de tipărire. */
 export async function tipareste(html: string): Promise<void> {
-  await Print.printAsync({ html });
+  await cuTimpLimita(Print.printAsync({ html }), TIMP_LIMITA_FEREASTRA_MS);
 }

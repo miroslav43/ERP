@@ -81,7 +81,12 @@ const TIMP_LIMITA_VERIFICARE_MS = 4000;
  *    `stare === "inactive" || stare === "background"` de mai jos e deci, pe
  *    Android, echivalentă cu `stare === "background"`: acoperirea suplimentară
  *    n-are efect acolo. Miniatura din „Recente" pe Android rămâne apărată
- *    DOAR de cursa de pe „background", descrisă la punctul 2.
+ *    DOAR de `setBlocat(true)` din ramura „background" de mai jos — un
+ *    `setState` React simplu, declanșat direct de `onHostPause()`, FĂRĂ
+ *    tranziția intermediară „inactive" pe care se bazează punctul 2 de mai
+ *    jos (ăla e specific iOS: `applicationWillResignActive:`, care Android
+ *    n-o are). Nu e aceeași cursă — corectare de exactitate, rundă 3 de
+ *    revizuire, care greșise citând punctul 2 aici.
  * 2. CHIAR ȘI PE iOS, acoperirea pe „inactive" MĂREȘTE fereastra de risc, nu
  *    o ÎNCHIDE determinist. Vălul se desenează printr-un `setState` React,
  *    livrat spre partea nativă prin puntea JSI — asincron. Instantaneul
@@ -118,6 +123,17 @@ export function Lacat({ copil }: { readonly copil: React.ReactNode }) {
   // doilea dialog nativ. Se eliberează pe SINGURA cale de ieșire —
   // `finally`, mai jos — indiferent de succes, eșec sau eroare.
   const autentificareInCurs = useRef(false);
+  // Contor de generație — reparație rundă 3 de revizuire (mărunțiș semnalat
+  // de revizor): `verificaDisponibilitatea` poate expira (la timeout) exact
+  // CĂLARE PE o tranziție de `AppState` mai nouă. Fără marcaj, o verificare
+  // VECHE ar rezolva DUPĂ ce tranziția nouă a pus deja starea corectă — iar
+  // fiindcă răspunsul ei ar fi `false` (timeout, nu un refuz real), ar ȘTERGE
+  // `necesitaAutentificare`/`blocat` peste starea corectă abia pusă, lăsând
+  // conținutul vizibil fără văl la revenire. Incrementat la ÎNCEPUTUL
+  // fiecărui eveniment `AppState` ȘI la începutul fiecărei `deblocheaza()` —
+  // orice verificare pornită înaintea celei mai recente tranziții/tap își
+  // ignoră singură rezultatul, oricând ar veni el.
+  const generatie = useRef(0);
 
   const verificaDisponibilitatea = useCallback(async () => {
     try {
@@ -134,15 +150,20 @@ export function Lacat({ copil }: { readonly copil: React.ReactNode }) {
       // ajunge niciodată din `null`. La expirarea temporizatorului tratăm ca
       // „indisponibil" — consecventă cu „fără biometrie, fără lacăt": în
       // incertitudine, alegem să NU blocăm omul definitiv afară.
+      let idTemporizator: ReturnType<typeof setTimeout> | null = null;
       const rezultat = await Promise.race([
         (async () => {
           const are = await LocalAuthentication.hasHardwareAsync();
           return are ? await LocalAuthentication.isEnrolledAsync() : false;
         })(),
         new Promise<boolean>((rezolva) => {
-          setTimeout(() => rezolva(false), TIMP_LIMITA_VERIFICARE_MS);
+          idTemporizator = setTimeout(() => rezolva(false), TIMP_LIMITA_VERIFICARE_MS);
         }),
       ]);
+      // Curățenie — mărunțiș semnalat de revizor: fără asta, temporizatorul
+      // tot pornește chiar dacă interogarea reală câștigă cursa, și rămâne
+      // programat degeaba (efect zero, dar murdărie).
+      if (idTemporizator !== null) clearTimeout(idTemporizator);
       disponibil.current = rezultat;
     } catch {
       // Eroare nativă neașteptată la interogarea hardware-ului — tratăm ca
@@ -158,6 +179,10 @@ export function Lacat({ copil }: { readonly copil: React.ReactNode }) {
 
   useEffect(() => {
     const abonament = AppState.addEventListener("change", (stare) => {
+      // Orice tranziție invalidează o verificare mai veche încă în zbor —
+      // vezi comentariul de la `generatie`, sus.
+      generatie.current += 1;
+      const generatieLaEveniment = generatie.current;
       if (stare === "inactive" || stare === "background") {
         // Acoperim la AMBELE tranziții — vezi comentariul de sus despre
         // instantaneul din switcher — dar cerem autentificare doar la o
@@ -168,6 +193,7 @@ export function Lacat({ copil }: { readonly copil: React.ReactNode }) {
       }
       if (stare === "active") {
         void verificaDisponibilitatea().then((disp) => {
+          if (generatie.current !== generatieLaEveniment) return; // vezi „generatie", sus
           if (!disp) {
             setBlocat(false);
             necesitaAutentificare.current = false;
@@ -199,10 +225,19 @@ export function Lacat({ copil }: { readonly copil: React.ReactNode }) {
   const deblocheaza = useCallback(async () => {
     if (autentificareInCurs.current) return;
     autentificareInCurs.current = true;
+    // Un tap e tot o „tranziție" din perspectiva `generatie` — invalidează o
+    // verificare de fundal încă în zbor, și se auto-invalidează dacă
+    // aplicația trece în fundal CÂT dialogul nativ de autentificare e pe
+    // ecran (rar, dar posibil): în cazul ăla nu vrem ca un succes întârziat
+    // să ridice vălul peste o trecere în fundal mai nouă, care CERE din nou
+    // autentificare.
+    generatie.current += 1;
+    const generatieLaTap = generatie.current;
     try {
       // A doua reverificare, chiar înainte de cerere: fereastra dintre
       // revenirea în prim-plan și tap-ul pe văl e mică, dar tot există.
       const disponibilAcum = await verificaDisponibilitatea();
+      if (generatie.current !== generatieLaTap) return; // vezi „generatie", sus
       if (!disponibilAcum) {
         setBlocat(false);
         necesitaAutentificare.current = false;
@@ -212,6 +247,7 @@ export function Lacat({ copil }: { readonly copil: React.ReactNode }) {
         promptMessage: "Deblocați Administrativo",
         cancelLabel: "Anulează",
       });
+      if (generatie.current !== generatieLaTap) return; // idem, verificat din nou după autentificare
       if (rezultat.success) {
         setBlocat(false);
         necesitaAutentificare.current = false;
