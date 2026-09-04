@@ -24,8 +24,8 @@ feature: courses
 capcane: [17]
 citeste_daca:
   - "curs care nu acceptă înrolări → secțiunea „ce refuză baza”"
-scris_pe: 0815fbff2c885cd44b5768ee25f084f16a9e95b8
-scris_la: 2026-09-03
+scris_pe: 15d4ef4edaef4834d88bfbcc49db567d17f5bca4
+scris_la: 2026-09-04
 tags: [modul, hr]
 ---
 
@@ -42,19 +42,27 @@ echipa lui. `0075` a introdus resursa proprie `courses`, cu `manager` la scope `
 
 ## Rute și cine ajunge
 
-| Rută                                                                         | Poartă               |
-| ---------------------------------------------------------------------------- | -------------------- |
-| `/cursuri`, `/cursuri/nou`, `/cursuri/[id]`                                  | `courses:read` team  |
-| `/cursuri/[id]/editare`, `/cursuri/[id]/reguli`                              | `courses:read` team  |
-| `/cursuri/[id]/atribuire`, `/cursuri/[id]/stadiu`                            | `courses:read` team  |
-| `/cursuri/biblioteca`, `/cursuri/biblioteca/nou`, `/cursuri/biblioteca/[id]` | `courses:read` team  |
-| `/cursuri/conformitate`                                                      | `courses:read` team  |
-| `/portal/cursurile-mele/**`                                                  | portalul angajatului |
+| Rută                                                                        | Poartă                |
+| --------------------------------------------------------------------------- | --------------------- |
+| `/cursuri`, `/cursuri/[id]`, `/cursuri/[id]/reguli`, `/cursuri/[id]/stadiu` | `courses:read` team   |
+| `/cursuri/biblioteca`, `/cursuri/biblioteca/[id]`, `/cursuri/conformitate`  | `courses:read` team   |
+| `/cursuri/nou`, `/cursuri/[id]/atribuire`, `/cursuri/biblioteca/nou`        | `courses:create` team |
+| `/cursuri/[id]/editare`                                                     | `courses:update` team |
+| `/portal/cursurile-mele/**`                                                 | portalul angajatului  |
 
-Poarta e scrisă cu `scopeFor` **plus** `can`: `scope === null || scope === "none"` se
-respinge explicit, înainte de comparația de rang. Angajatul are `courses` la `own` cu
-`{read, update, export}` — nu compune cursuri, dar progresul și semnătura trec prin
-`update`, din portal.
+Rutele de citire scriu poarta cu `scopeFor` **plus** `can`: `scope === null || scope === "none"`
+se respinge explicit, înainte de comparația de rang. Rutele de scriere gardează pe `can`
+singur — cheia absentă din hartă face `can` fals oricum, iar `scopeFor` n-ar adăuga nimic.
+Ecranele de citire calculează apoi `poateEdita` / `poateCrea` / `poateAtribui` pe server, deci
+un `courses:read` fără `create` vede lista fără butoane, nu un ecran restricționat.
+
+Angajatul are `courses` la `own` cu `{read, update, export}` — nu compune cursuri, dar
+progresul și semnătura trec prin `update`, din portal.
+
+Preambulul rulează `requireFeature` și `getPermissionMap` **în paralel**, prin `Promise.all`,
+în toate paginile modulului — abatere deliberată de la înlănțuirea din rețeta canonică, fiindcă
+sunt două citiri independente și costul e rețea, nu bază. Ordinea observabilă nu se schimbă:
+`requireFeature` cheamă `notFound()`, iar `can()` rulează oricum după `await`.
 
 ## Server Actions
 
