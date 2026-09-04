@@ -13,6 +13,10 @@ export const TIPURI_EVENIMENT = [
   "modificare_durata",
   "suspendare",
   "reluare_activitate",
+  // 0128 — aceleași operații de protocol ca surorile lor de deasupra, dar cu
+  // termen propriu: absența nemotivată nu poate fi anunțată în ziua anterioară.
+  "suspendare_nemotivata",
+  "reluare_nemotivata",
   "detasare",
   "incetare",
   "corectie",

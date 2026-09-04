@@ -851,6 +851,13 @@ export interface PontajAgregat {
   readonly zile_concediu_odihna: number;
   readonly zile_concediu_medical: number;
   readonly zile_absenta_nemotivata: number;
+  /**
+   * Zile de suspendare FĂRĂ acoperire medicală — concediu fără plată, creștere
+   * copil, acomodare. Agregarea le numără de la 0064, dar până la 0126 numărul
+   * ieșea din RPC și se pierdea: `payroll_entries` n-avea coloană, iar D112
+   * declara `A_7 = 0` pentru toată lumea.
+   */
+  readonly zile_fara_plata: number;
   readonly zile_repaus_lucrate: number;
   readonly zile_sarbatoare_lucrate: number;
   readonly ore_lucrate: number;
@@ -868,6 +875,7 @@ export const PONTAJ_GOL: PontajAgregat = {
   zile_concediu_odihna: 0,
   zile_concediu_medical: 0,
   zile_absenta_nemotivata: 0,
+  zile_fara_plata: 0,
   zile_repaus_lucrate: 0,
   zile_sarbatoare_lucrate: 0,
   ore_lucrate: 0,
@@ -1078,6 +1086,10 @@ export interface CertificatMedicalCitit {
     readonly platitor: "angajator" | "fnuass" | "mixt";
     readonly luniBazaCalcul: number;
     readonly plafonSalariiMinime: number | null;
+    /** Ce se reține din indemnizația codului — v. 0127 și `indemnizatie-cm.ts`. */
+    readonly retineCas: boolean;
+    readonly retineImpozit: boolean;
+    readonly retineCass: boolean;
   };
 }
 
@@ -1137,12 +1149,15 @@ export async function certificateMedicaleLuna(
       platitor: string;
       luni_baza_calcul: number;
       plafon_salarii_minime: number | null;
+      retine_cas: boolean;
+      retine_impozit: boolean;
+      retine_cass: boolean;
     } | null;
   }
   const { data, error } = await db
     .from("leave_requests")
     .select(
-      "employee_id, data_inceput, data_sfarsit, zile_lucratoare, zile_calendaristice, serie_certificat, numar_certificat, cod:medical_leave_codes!medical_code_id(cod, procent, zile_angajator, platitor, luni_baza_calcul, plafon_salarii_minime)",
+      "employee_id, data_inceput, data_sfarsit, zile_lucratoare, zile_calendaristice, serie_certificat, numar_certificat, cod:medical_leave_codes!medical_code_id(cod, procent, zile_angajator, platitor, luni_baza_calcul, plafon_salarii_minime, retine_cas, retine_impozit, retine_cass)",
     )
     .eq("organization_id", organizationId)
     .eq("status", "aprobata")
@@ -1189,6 +1204,9 @@ export async function certificateMedicaleLuna(
             platitor: cod.platitor as "angajator" | "fnuass" | "mixt",
             luniBazaCalcul: cod.luni_baza_calcul,
             plafonSalariiMinime: cod.plafon_salarii_minime,
+            retineCas: cod.retine_cas,
+            retineImpozit: cod.retine_impozit,
+            retineCass: cod.retine_cass,
           },
         });
       } else {

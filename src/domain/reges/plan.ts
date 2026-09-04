@@ -29,6 +29,8 @@ export type TipEveniment =
   | "modificare_durata"
   | "suspendare"
   | "reluare_activitate"
+  | "suspendare_nemotivata"
+  | "reluare_nemotivata"
   | "detasare"
   | "incetare"
   | "corectie";
@@ -73,6 +75,11 @@ const OPERATIE_DUPA_EVENIMENT: Readonly<Partial<Record<TipEveniment, Operatie>>>
   corectie: "ModificareContract",
   suspendare: "SuspendareContract",
   reluare_activitate: "ReactivareContract",
+  // REGES nu cunoaște distincția: pentru ITM o suspendare din absență e tot o
+  // suspendare. Diferența e a noastră și e despre TERMEN, nu despre protocol —
+  // un vocabular inventat aici ar fi respins de server.
+  suspendare_nemotivata: "SuspendareContract",
+  reluare_nemotivata: "ReactivareContract",
   incetare: "IncetareContract",
   detasare: "PropunereDetasareContract",
 };

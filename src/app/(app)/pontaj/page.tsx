@@ -16,6 +16,7 @@ import { requireTenant } from "@/lib/tenant/resolve-tenant";
 import { formatMonthYear, todayInBucharest } from "@/lib/format/date";
 import { anDinUrl, filtreDinUrl } from "@/lib/rute/parametri";
 import {
+  absenteNemotivateFaraDecizie,
   citestePerioada,
   departamente,
   intrariLuna,
@@ -35,6 +36,7 @@ import { ziIso } from "@/domain/calendar/grila-lunara";
 import { NavPontaj } from "./nav-pontaj";
 import { fileDePontaj } from "./file-pontaj";
 import { FiltrePontaj } from "./filtre-pontaj";
+import { AlertaAbsente } from "./alerta-absente";
 import { FoaieColectiva } from "./foaie-colectiva";
 import { CalendarLuna, type OmZi } from "./calendar-luna";
 import { SectiuneSaptamana } from "./sectiune-saptamana";
@@ -425,10 +427,26 @@ export default async function PaginaPontaj({ searchParams }: ProprietatiPagina) 
   // (acela rămâne în `salarizare`, care poate citi aceleași cifre mai târziu).
   const oreAsteptateLuna = perioada === null ? 0 : config.orePeZi * zileLucratoare;
 
+  /*
+    Seriile de absențe nemotivate fără decizie de suspendare.
+
+    Poarta e `poateDeschide` (`attendance:create = all`), nu `poateEdita`:
+    panoul e pentru cine administrează pontajul firmei, nu pentru angajatul
+    care își vede propria lună — iar butonul din el cere oricum
+    `employees:update = all`, verificat din nou în acțiune. Un buton care se
+    vede și răspunde „nu aveți dreptul" e mai rău decât unul care lipsește.
+  */
+  const seriiAbsente =
+    perioada === null || !poateDeschide
+      ? []
+      : await absenteNemotivateFaraDecizie(tenant.organizationId, perioada.id);
+
   return (
     <div className="space-y-6">
       {antet}
       {comutator}
+
+      <AlertaAbsente serii={seriiAbsente} />
 
       {scope === "own" ? null : (
         <FiltrePontaj

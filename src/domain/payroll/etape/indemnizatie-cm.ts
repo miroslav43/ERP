@@ -70,6 +70,15 @@ export interface CodIndemnizatie {
   readonly luniBazaCalcul: number;
   /** Multiplu al salariului minim; `null` = fără plafon. */
   readonly plafonSalariiMinime: number | null;
+  /**
+   * Ce se REȚINE din indemnizația codului (0127). Cele trei nu merg împreună:
+   * CAS din toate, impozitul din toate în afară de maternitate (11) și risc
+   * maternal (15), CASS doar din boala obișnuită (01). Absente ⇒ implicitele
+   * majoritare, ca un cod vechi să nu schimbe comportamentul la citire.
+   */
+  readonly retineCas?: boolean;
+  readonly retineImpozit?: boolean;
+  readonly retineCass?: boolean;
 }
 
 export interface CertificatMedical {
@@ -120,6 +129,18 @@ export interface RezultatIndemnizatieCm {
   readonly totalAngajator: number;
   readonly totalFnuass: number;
   readonly total: number;
+  /**
+   * Cât din indemnizația lunii intră în FIECARE bază, după steagurile codului.
+   *
+   * Sunt trei numere, nu unul, fiindcă o lună poate purta certificate cu coduri
+   * diferite: 10 zile de boală obișnuită (CAS + CASS + impozit) urmate de 5 de
+   * risc maternal (doar CAS) dau trei sume distincte. `calc.ts` le adună la
+   * bazele lui — aici nu se aplică nicio cotă, fiindcă procentele sunt ale
+   * organizației, nu ale nomenclatorului.
+   */
+  readonly bazaCas: number;
+  readonly bazaCass: number;
+  readonly bazaImpozit: number;
   readonly bazaZilnica: number;
   readonly bazaZilnicaPlafonata: boolean;
   readonly luniFolosite: number;
@@ -145,6 +166,9 @@ const REZULTAT_GOL: RezultatIndemnizatieCm = {
   totalAngajator: 0,
   totalFnuass: 0,
   total: 0,
+  bazaCas: 0,
+  bazaCass: 0,
+  bazaImpozit: 0,
   bazaZilnica: 0,
   bazaZilnicaPlafonata: false,
   luniFolosite: 0,
@@ -254,6 +278,9 @@ export function calculeazaIndemnizatieCm(intrare: IntrareIndemnizatieCm): Rezult
   const peCertificat: IndemnizatiePeCertificat[] = [];
   let totalAngajator = 0;
   let totalFnuass = 0;
+  let bazaCas = 0;
+  let bazaCass = 0;
+  let bazaImpozit = 0;
 
   for (const [indice, certificat] of intrare.certificate.entries()) {
     const cod = certificat.cod;
@@ -311,6 +338,13 @@ export function calculeazaIndemnizatieCm(intrare: IntrareIndemnizatieCm): Rezult
     totalAngajator += sumaAngajator;
     totalFnuass += sumaFnuass;
 
+    // Indemnizația certificatului intră în bazele pe care le cere CODUL lui.
+    // Implicitele urmează majoritatea: CAS și impozit da, CASS nu.
+    const brutCertificat = sumaAngajator + sumaFnuass;
+    if (cod.retineCas ?? true) bazaCas += brutCertificat;
+    if (cod.retineImpozit ?? true) bazaImpozit += brutCertificat;
+    if (cod.retineCass ?? false) bazaCass += brutCertificat;
+
     peCertificat.push({
       serie: certificat.serie,
       numar: certificat.numar,
@@ -331,6 +365,9 @@ export function calculeazaIndemnizatieCm(intrare: IntrareIndemnizatieCm): Rezult
     totalAngajator: totalAngajatorRotunjit,
     totalFnuass: totalFnuassRotunjit,
     total: rotunjesteLaBani(totalAngajatorRotunjit + totalFnuassRotunjit),
+    bazaCas: rotunjesteLaBani(bazaCas),
+    bazaCass: rotunjesteLaBani(bazaCass),
+    bazaImpozit: rotunjesteLaBani(bazaImpozit),
     bazaZilnica: rotunjesteLaBani(bazaZilnicaExacta),
     bazaZilnicaPlafonata,
     luniFolosite: luniFolosite.length,

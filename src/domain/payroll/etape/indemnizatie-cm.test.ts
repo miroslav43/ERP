@@ -420,3 +420,85 @@ describe("calculeazaIndemnizatieCm — funcție pură", () => {
     expect(unu).toEqual(doi);
   });
 });
+
+describe("calculeazaIndemnizatieCm — cele trei rețineri (0127)", () => {
+  /** Boala obișnuită e singurul cod din care se reține și CASS. */
+  const COD_01_RETINERI: CodIndemnizatie = {
+    ...COD_01,
+    retineCas: true,
+    retineImpozit: true,
+    retineCass: true,
+  };
+  /** Maternitatea: CAS da, impozit NU (venit neimpozabil), CASS nu. */
+  const COD_11: CodIndemnizatie = {
+    cod: "11",
+    procent: 100,
+    zileAngajator: 0,
+    platitor: "fnuass",
+    luniBazaCalcul: 6,
+    plafonSalariiMinime: 12,
+    retineCas: true,
+    retineImpozit: false,
+    retineCass: false,
+  };
+
+  it("boala obișnuită intră în toate cele trei baze", () => {
+    const rezultat = calculeazaIndemnizatieCm(
+      intrare({ certificate: [certificat({ cod: COD_01_RETINERI })] }),
+    );
+
+    expect(rezultat.total).toBeGreaterThan(0);
+    expect(rezultat.bazaCas).toBe(rezultat.total);
+    expect(rezultat.bazaCass).toBe(rezultat.total);
+    expect(rezultat.bazaImpozit).toBe(rezultat.total);
+  });
+
+  it("maternitatea intră doar în baza CAS — nu se impozitează și nu poartă CASS", () => {
+    const rezultat = calculeazaIndemnizatieCm(
+      intrare({ certificate: [certificat({ cod: COD_11 })] }),
+    );
+
+    expect(rezultat.total).toBeGreaterThan(0);
+    expect(rezultat.bazaCas).toBe(rezultat.total);
+    expect(rezultat.bazaImpozit).toBe(0);
+    expect(rezultat.bazaCass).toBe(0);
+  });
+
+  it("o lună cu două coduri diferite dă trei baze distincte", () => {
+    const rezultat = calculeazaIndemnizatieCm(
+      intrare({
+        certificate: [
+          certificat({ serie: "AA", numar: "1", cod: COD_01_RETINERI }),
+          certificat({
+            serie: "BB",
+            numar: "2",
+            dataInceput: "2026-08-17",
+            dataSfarsit: "2026-08-21",
+            zileCalendaristice: 5,
+            zileLucratoare: 5,
+            cod: COD_11,
+          }),
+        ],
+      }),
+    );
+
+    const sumaCertificat = (serie: string): number => {
+      const linie = rezultat.peCertificat.find((l) => l.serie === serie);
+      return (linie?.sumaAngajator ?? 0) + (linie?.sumaFnuass ?? 0);
+    };
+
+    // CAS le ia pe amândouă, CASS și impozitul doar pe prima.
+    expect(rezultat.bazaCas).toBeCloseTo(rezultat.total, 2);
+    expect(rezultat.bazaCass).toBeCloseTo(sumaCertificat("AA"), 2);
+    expect(rezultat.bazaImpozit).toBeCloseTo(sumaCertificat("AA"), 2);
+    expect(rezultat.bazaCass).toBeLessThan(rezultat.bazaCas);
+  });
+
+  it("un cod fără steaguri cade pe implicitele majoritare: CAS și impozit, fără CASS", () => {
+    const rezultat = calculeazaIndemnizatieCm(intrare());
+
+    expect(rezultat.bazaCas).toBe(rezultat.total);
+    expect(rezultat.bazaImpozit).toBe(rezultat.total);
+    expect(rezultat.bazaCass).toBe(0);
+  });
+});

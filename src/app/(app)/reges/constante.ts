@@ -21,6 +21,8 @@ export const ETICHETE_TIP: Record<TipEvenimentReges, string> = {
   modificare_durata: "Modificare durată",
   suspendare: "Suspendare",
   reluare_activitate: "Reluare activitate",
+  suspendare_nemotivata: "Suspendare (absențe nemotivate)",
+  reluare_nemotivata: "Reluare după absențe nemotivate",
   detasare: "Detașare",
   incetare: "Încetare",
   corectie: "Corecție",

@@ -5,6 +5,7 @@
 
 import { createServerSupabase } from "@/lib/supabase/server";
 import type { RandPontareRapida } from "@/domain/attendance/pontare-rapida";
+import { seriiDeAbsente } from "@/domain/reges/absente";
 import type {
   FiltrePontaj,
   StareSaptamanaPontaj,
@@ -852,4 +853,97 @@ export async function afiseDePontare(organizationId: string): Promise<readonly A
     activ: p.activ,
     areCod: p.cod_pontaj !== null,
   }));
+}
+
+// ── Absențe nemotivate care cer o decizie ───────────────────────────────────
+
+export interface SerieAbsenteNemotivate {
+  readonly employeeId: string;
+  readonly numeAngajat: string;
+  readonly dataInceput: string;
+  readonly dataSfarsit: string;
+  readonly zile: number;
+}
+
+/**
+ * Seriile de absențe nemotivate din perioadă care NU au încă o suspendare.
+ *
+ * Trei pași, în ordinea asta din motive de cost: zilele perioadei (o citire),
+ * seriile calculate în memorie (`seriiDeAbsente`, modul pur, testat), apoi —
+ * doar pentru angajații rămași — suspendările active. Invers, s-ar fi citit
+ * suspendările tuturor ca să se afle că nimeni n-are nicio serie.
+ *
+ * Filtrul de suspendare e ce împiedică alerta să reapară după ce cineva a
+ * emis deja decizia: fără el, ecranul ar cere aceeași acțiune la nesfârșit,
+ * iar oamenii ar învăța să-l ignore.
+ */
+export async function absenteNemotivateFaraDecizie(
+  organizationId: string,
+  periodId: string,
+): Promise<readonly SerieAbsenteNemotivate[]> {
+  const db = await createServerSupabase();
+
+  const { data: zile, error: eroareZile } = await db
+    .from("attendance_entries")
+    .select("employee_id, data, tip_zi, ore_lucrate")
+    .eq("organization_id", organizationId)
+    .eq("period_id", periodId)
+    .is("deleted_at", null)
+    .order("employee_id")
+    .order("data")
+    .returns<
+      {
+        readonly employee_id: string;
+        readonly data: string;
+        readonly tip_zi: string;
+        readonly ore_lucrate: number;
+      }[]
+    >();
+  if (eroareZile !== null) throw eroareZile;
+
+  const serii = seriiDeAbsente(
+    (zile ?? []).map((z) => ({
+      employeeId: z.employee_id,
+      data: z.data,
+      tipZi: z.tip_zi,
+      oreLucrate: z.ore_lucrate,
+    })),
+  );
+  if (serii.length === 0) return [];
+
+  const idAngajati = [...new Set(serii.map((s) => s.employeeId))];
+
+  const [suspendari, angajati] = await Promise.all([
+    db
+      .from("contract_suspendari")
+      .select("employee_id")
+      .eq("organization_id", organizationId)
+      .eq("sursa", "absenta_nemotivata")
+      .eq("stare", "activa")
+      .is("deleted_at", null)
+      .in("employee_id", idAngajati),
+    db
+      .from("employees")
+      .select("id, full_name")
+      .eq("organization_id", organizationId)
+      .is("deleted_at", null)
+      .in("id", idAngajati),
+  ]);
+  if (suspendari.error !== null) throw suspendari.error;
+  if (angajati.error !== null) throw angajati.error;
+
+  const acoperiti = new Set((suspendari.data ?? []).map((r) => r.employee_id));
+  const nume = new Map((angajati.data ?? []).map((a) => [a.id, a.full_name ?? ""]));
+
+  return serii
+    .filter((s) => !acoperiti.has(s.employeeId))
+    .map((s) => ({
+      employeeId: s.employeeId,
+      // Numele poate lipsi: `employees_select` îl ascunde de cine n-are voie
+      // să-l vadă, iar embed-ul golit de RLS întoarce NULL, nu elimină rândul.
+      numeAngajat: nume.get(s.employeeId) ?? "Angajat necunoscut",
+      dataInceput: s.dataInceput,
+      dataSfarsit: s.dataSfarsit,
+      zile: s.zile,
+    }));
 }

@@ -121,6 +121,10 @@ export const trimiteSaptamanaPontaj = createAction<
 
     return {
       id: data,
+      // Planul săptămânal e în VIITOR: nu poate intra în conflict cu o
+      // suspendare pentru absențe, care se constată din pontajul realizat.
+      conflictSuspendare: null,
+      avertismentReluare: null,
       // Planul e scris; abia acum se spune ce e în neregulă cu el. Sursa sunt
       // zilele TRIMISE, nu `attendance_entries`: săptămâna planificată e în
       // viitor, unde nu există încă niciun pontaj de citit.

@@ -48,6 +48,8 @@ interface RandD112 {
   readonly cam_angajator: number;
   readonly brut: number;
   readonly ore_lucrate: number;
+  readonly zile_absenta_nemotivata: number;
+  readonly zile_fara_plata: number;
   readonly angajat: {
     readonly full_name: string | null;
     readonly first_name: string | null;
@@ -122,7 +124,9 @@ export async function GET(cerere: Request): Promise<Response> {
   const { data: randuri, error: eroareRanduri } = await db
     .from("payroll_entries")
     .select(
-      "employee_id, impozit, cas, cass, cam_angajator, brut, ore_lucrate, angajat:employees!employee_id(full_name, first_name, last_name, hired_on, terminated_on)",
+      "employee_id, impozit, cas, cass, cam_angajator, brut, ore_lucrate, " +
+        "zile_absenta_nemotivata, zile_fara_plata, " +
+        "angajat:employees!employee_id(full_name, first_name, last_name, hired_on, terminated_on)",
     )
     .eq("organization_id", tenant.organizationId)
     .eq("period_id", perioada.id)
@@ -196,7 +200,18 @@ export async function GET(cerere: Request): Promise<Response> {
       oreNormaZilnica: norma,
       bazaCam: rand.brut,
       oreLucrate: Math.round(rand.ore_lucrate),
-      oreSuspendate: 0,
+      /*
+       * `A_7` — orele suspendate FĂRĂ acoperire medicală: concediu fără plată,
+       * creștere copil, acomodare (toate `tip_zi = 'fara_plata'` în pontaj) și
+       * absențele nemotivate. Medicalul și maternitatea NU intră: au rubrica
+       * lor în declarație, iar numărate aici s-ar declara de două ori.
+       *
+       * Zilele se convertesc în ore cu norma contractului, ca `A_4`: o zi
+       * suspendată are `ore_lucrate = 0` prin definiție, deci nu există ore
+       * măsurate de adunat. Perioadele calculate ÎNAINTE de 0126 au coloana pe
+       * zero — pentru ele numărul chiar n-a fost măsurat niciodată.
+       */
+      oreSuspendate: Math.round((rand.zile_absenta_nemotivata + rand.zile_fara_plata) * norma),
     });
   }
 
