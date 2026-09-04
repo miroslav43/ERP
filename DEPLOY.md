@@ -205,10 +205,37 @@ pe „trimis", fiindcă evenimentele `delivered`/`bounced` nu mai ajung niciodat
 golesc `push_livrari` la un minut, prin `POST /api/push/livreaza`. Ruta nu se poate autoporni
 și nu poate fi chemată din `pg_cron`: `pg_net` nu e activat pe instanța noastră de Supabase
 (aceeași constrângere ca la ciclul REGES, ale cărui unități — `deploy/reges-reconciliere.*` —
-nu sunt încă documentate aici). Secretul e `PUSH_CRON_SECRET`, generat cu
-`openssl rand -base64 32` și pus în **două** locuri: `.env.production` pe VM și
-`/etc/administrativo/push.env` (`0600`, root) — pașii de instalare și verificare sunt în
-comentariul din `deploy/push-livrare.service`, nu repetați aici.
+**nu sunt instalate pe VM**; `systemctl list-timers --all` nu le conține, deci nu sunt un
+model verificat pentru nimic).
+
+Secretul e `PUSH_CRON_SECRET`, generat cu `openssl rand -base64 32`. Trebuie pus în **trei**
+locuri, nu în două — dacă lipsește din al treilea, lanțul tace fără nicio eroare:
+
+1. `.env.production` pe VM — de-acolo îl citește `stack:deploy`;
+2. `docker-stack.yml`, în blocul `environment:` al serviciului — **Swarm nu propagă în
+   container decât ce e enumerat acolo**. Linia există de la revizuirea finală; până atunci
+   secretul rămânea în shell-ul de deploy, `serverEnv.PUSH_CRON_SECRET` era `""` în
+   container, iar ruta răspundea `404` inclusiv la apelurile cu secretul corect;
+3. `/etc/administrativo/push.env` (`0600`, root) — mediul din care rulează timerul.
+
+Adresa pe care o folosește timerul e **nginx-ul local**, nu `127.0.0.1:3000`: serviciul Swarm
+nu publică porturi (nimeni nu ascultă pe 3000 pe gazdă), iar containerul se atinge doar prin
+overlay-ul `strawboss-net`, pe care gazda nu e. `curl --resolve administrativo.ro:443:127.0.0.1`
+păstrează numele — deci SNI, `Host:` și certificatul — și schimbă doar IP-ul, ocolind
+Cloudflare. **Fără `-L`**: vhost-ul de pe 80 face `return 301`, iar `curl -L` degradează
+POST-ul la GET.
+
+Verificarea de după deploy, de pe VM (fără secret pe linia de comandă):
+
+```bash
+curl -sS -o /dev/null -w '%{http_code}\n' --resolve administrativo.ro:443:127.0.0.1 \
+     -X POST https://administrativo.ro/api/push/livreaza
+```
+
+`404` = ruta răspunde, secretul e gol sau greșit (așteptat pentru un apel fără antet).
+`502` = containerul nu răspunde. `curl: (7)` = adresa e greșită. Pașii de instalare a
+unității și forma exactă a apelului cu secret sunt în comentariul din
+`deploy/push-livrare.service`, nu repetați aici.
 
 ---
 

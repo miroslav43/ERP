@@ -1,7 +1,7 @@
 import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   Alert,
   AppState,
@@ -84,13 +84,22 @@ Notifications.setNotificationHandler({
 
 /**
  * Aceeași formă ca `check (link ~ '^/[^/\\]')` de pe `notifications.link`
- * (0001_kernel.sql) și ca `caleInterna` din `src/lib/push/mesaj.ts`: o cale
+ * (0001_kernel.sql) și ca `caleDeDeschis` din `src/lib/push/mesaj.ts`: o cale
  * relativă simplă, nu un URL absolut sau protocol-relativ ascuns într-un
  * șir care începe din întâmplare cu `/`. Verificăm din nou aici pentru că
  * ăsta e singurul proces care chiar navighează.
+ *
+ * CERE ACUM ȘI „/portal" (revizuirea finală). Verificarea de FORMĂ, singură,
+ * accepta orice cale de aplicație mare — iar exact aia scriau, la revizuirea
+ * finală, toate cele 67 de notificări cu link din baza vie. Serverul le traduce
+ * de-acum prin `caleaDePortal` înainte să le pună în mesaj, deci calea sosită
+ * aici e întotdeauna de portal; poarta asta e a doua, pentru un server rămas în
+ * urmă sau o notificare fabricată. Ce nu trece nu navighează nicăieri: aplicația
+ * rămâne pe portal, unde a pornit — niciodată în ERP-ul de birou, în învelișul
+ * de telefon, fără cale de întoarcere.
  */
-function esteCaleInterna(cale: unknown): cale is string {
-  return typeof cale === "string" && /^\/[^/\\]/.test(cale);
+function esteCaleDePortal(cale: unknown): cale is string {
+  return typeof cale === "string" && /^\/[^/\\]/.test(cale) && /^\/portal(?:\/|$)/.test(cale);
 }
 
 /**
@@ -183,9 +192,9 @@ function esteIncorporareDeCurs(url: string): boolean {
  * vreun client, și îi predă navigarea. `shouldOverrideUrlLoading`-ul nostru
  * nu-l vede.
  *
- * Consecința: pe Android, singurele navigări care ar ajunge aici sunt
- * SUBCADRELE playerului de film (portalul n-are nicio navigare de prim-cadru
- * către altă origine — `src/app/(portal)/legaturi-portal.test.ts` o ține). Cu
+ * Consecința: pe Android, singurele navigări care ar ajunge aici sunt, în
+ * practică, SUBCADRELE playerului de film — portalul nu are AZI nicio navigare
+ * de prim-cadru către altă origine. Cu
  * alte cuvinte, `Linking.openURL` s-ar declanșa acolo EXACT pe cazurile în
  * care greșește: omul se uită la lecție, playerul își navighează un subcadru
  * (`googleads.g.doubleclick.net`, pe un film monetizat), și browserul
@@ -193,6 +202,20 @@ function esteIncorporareDeCurs(url: string): boolean {
  * — proprietatea de securitate e aceeași (navigarea nu se face), fără saltul
  * în browser. Linkul „Deschideți la sursă" era deja mort acolo, dinainte de
  * poarta asta.
+ *
+ * ── „AZI", NU „PRIN CONSTRUCȚIE" (corectat la revizuirea finală) ────────────
+ * Fraza de mai sus a citat o vreme `src/app/(portal)/legaturi-portal.test.ts`
+ * drept garanție că portalul n-are navigări de prim-cadru către altă origine.
+ * Nu ține atât. Testul e o capcană pe TEXTUL SURSEI — o spune și el, în capul
+ * lui — și vede doar `href`-uri LITERALE (`href="…"`, `href={`…`}`); un
+ * `href={variabila}` îi e invizibil, iar exact așa e scris singurul link extern
+ * de azi din portal (`vizualizator-simplu.tsx:132`, „Deschideți la sursă"). Pe
+ * deasupra, tiparul lui cerea până acum ca href-ul să înceapă cu `/`, deci nu
+ * vedea nici măcar un `https://` literal — adică fix forma pe care ar fi trebuit
+ * s-o prindă. Tiparul e lărgit la revizuirea finală (vede acum orice href
+ * literal, cu excepția ancorelor `#`), ceea ce închide cazul copierii unui ecran
+ * din `(app)`; dar rămâne o capcană, nu o dovadă. Afirmația onestă e cea de mai
+ * sus: portalul nu are AZI o astfel de navigare.
  */
 function deschideInBrowser(url: string): void {
   if (Platform.OS !== "ios") return;
@@ -210,7 +233,7 @@ function deschideInBrowser(url: string): void {
  * azi: `"jeton"` (înregistrarea push-ului, `push.ts`), `"pdf"` și `"html"`
  * (descărcarea/tipărirea, `fisiere.ts`). `nume`/`date` sunt tipate lax
  * (`unknown`) fiindcă doar `"pdf"`/`"html"` le populează — verificate cu
- * `typeof` la locul de folosire, ca la `esteCaleInterna`, nu presupuse.
+ * `typeof` la locul de folosire, ca la `esteCaleDePortal`, nu presupuse.
  */
 type MesajDinPagina = {
   readonly fel: string;
@@ -296,6 +319,17 @@ export default function App() {
     pdf: false,
     html: false,
   });
+  // DEEP LINK ÎN AȘTEPTARE — vezi efectul de la sfârșitul componentei.
+  // `null` când nu e nimic de deschis. Devine o cale de portal când o
+  // notificare a fost atinsă ÎNAINTE ca WebView-ul să aibă un document în care
+  // să se poată injecta `location.assign` — cazul cel mai obișnuit al funcției,
+  // pornirea la rece.
+  const caleInAsteptare = useRef<string | null>(null);
+  // `true` din clipa în care WebView-ul a TERMINAT o încărcare (orice URL, deci
+  // și ecranul de login). Sub el, `mergiLa` ar injecta într-un document care
+  // abia se încarcă, iar încărcarea inițială ar câștiga cursa — tap-ul ar
+  // părea fără efect.
+  const webviewIncarcat = useRef(false);
 
   // MOMENTUL ÎNREGISTRĂRII
   //
@@ -605,7 +639,20 @@ export default function App() {
   // jos) face ca documentul de sus să nu mai poată fi străin — dar reparația
   // rămâne: e ieftină, iar o poartă e o singură linie de cod care poate fi
   // ștearsă din greșeală.
+  //
+  // ── VERIFICAREA STĂ ACUM ÎN CHIUVETĂ, NU DOAR LA APELANȚI (revizuirea finală)
+  // Clasa „navigare fără verificarea originii" a fost închisă de PATRU ori, de
+  // fiecare dată la câte un apelant (scanner, deep link, `push.ts`,
+  // `fisiere.ts`) — niciodată AICI, unde `location.assign` chiar se execută.
+  // Comentariul de mai sus recunoștea singur riscul („o poartă e o singură linie
+  // de cod care poate fi ștearsă din greșeală") și tot lăsa chiuveta deschisă.
+  // Linia de mai jos face ca al cincilea apelant, oricare ar fi el, să nu mai
+  // POATĂ reintroduce clasa: un URL care nu e pe originea portalului nu
+  // navighează, indiferent cine cheamă și ce a verificat el înainte. Nu
+  // înlocuiește verificările de la apelanți — acelea știu și CALEA, nu doar
+  // originea — le face doar imposibil de ratat pe toate deodată.
   const mergiLa = useCallback((url: string) => {
+    if (!esteOrigineaPortalului(url)) return;
     webview.current?.injectJavaScript(`location.assign(${JSON.stringify(url)}); true;`);
   }, []);
 
@@ -715,31 +762,120 @@ export default function App() {
     };
   }, []);
 
-  useEffect(() => {
-    // Deep link la atingerea unei notificări. Calea vine în `data.cale`, deja
-    // validată de bază ȘI de `construiesteMesaj` — a treia verificare
-    // (`esteCaleInterna`, mai sus) e aici pentru că e singura care rulează în
-    // procesul care chiar navighează.
-    //
-    // Construim un URL ABSOLUT (`ORIGINEA_PORTALULUI` + calea validată), nu
-    // navigăm cu o cale relativă (reparație rundă 2 de revizuire — scăpată
-    // la reparația inițială a lui `mergiLa`, deși comentariul de-atunci
-    // trimitea EXACT aici drept referință). Motivul de-atunci: documentul din
-    // WebView putea fi legitim pe alt origin (un link extern din portal), deci
-    // o cale relativă s-ar fi rezolvat pe ORIGINEA DOCUMENTULUI curent, nu pe
-    // a noastră. Poarta de origine adăugată la rundă 4 (vezi
-    // `onShouldStartLoadWithRequest`, mai jos) închide premisa aia — linkurile
-    // externe pleacă acum în browser, nu în WebView — dar URL-ul absolut
-    // rămâne: nu depindem de o singură poartă pentru o corectitudine care ne
-    // costă zero.
-    const abonament = Notifications.addNotificationResponseReceivedListener((raspuns) => {
+  // Deep link la atingerea unei notificări. Calea vine în `data.cale`, deja
+  // validată de bază ȘI de `construiesteMesaj` — a treia verificare
+  // (`esteCaleDePortal`, mai sus) e aici pentru că e singura care rulează în
+  // procesul care chiar navighează.
+  //
+  // Construim un URL ABSOLUT (`ORIGINEA_PORTALULUI` + calea validată), nu
+  // navigăm cu o cale relativă (reparație rundă 2 de revizuire — scăpată
+  // la reparația inițială a lui `mergiLa`, deși comentariul de-atunci
+  // trimitea EXACT aici drept referință). Motivul de-atunci: documentul din
+  // WebView putea fi legitim pe alt origin (un link extern din portal), deci
+  // o cale relativă s-ar fi rezolvat pe ORIGINEA DOCUMENTULUI curent, nu pe
+  // a noastră. Poarta de origine adăugată la rundă 4 (vezi
+  // `onShouldStartLoadWithRequest`, mai jos) închide premisa aia — linkurile
+  // externe pleacă acum în browser, nu în WebView — dar URL-ul absolut
+  // rămâne: nu depindem de o singură poartă pentru o corectitudine care ne
+  // costă zero.
+  //
+  // ── NAVIGAREA SE AMÂNĂ PÂNĂ CÂND EXISTĂ UN DOCUMENT (revizuirea finală) ────
+  // `mergiLa` injectează `location.assign` în documentul CURENT al WebView-ului.
+  // La pornirea la rece, în clipa în care ascultătorul se declanșează, acel
+  // document abia se încarcă din `source={{ uri: URL_PORTAL }}` — iar încărcarea
+  // inițială câștigă cursa: assign-ul se pierde, aplicația rămâne pe `/portal`,
+  // tap-ul pare fără efect. De-aia calea nu se navighează direct, ci se pune în
+  // `caleInAsteptare` și se consumă la prima încărcare TERMINATĂ pe portal (vezi
+  // `deschideCaleInAsteptare` și cablajul de pe `onLoadEnd`/
+  // `onNavigationStateChange`, mai jos). Dacă acea primă încărcare se termină pe
+  // ecranul de login (om fără sesiune), calea rămâne în așteptare: `(portal)/
+  // layout.tsx` redirecționează spre un `/autentificare` FĂRĂ parametru de
+  // destinație, deci un assign de-acolo s-ar întoarce tot la login. Se consumă
+  // la tranziția de după autentificare, când URL-ul e în sfârșit `/portal`.
+  const trateazaRaspunsulLaNotificare = useCallback(
+    (raspuns: Notifications.NotificationResponse) => {
       const cale = raspuns.notification.request.content.data?.cale;
-      if (esteCaleInterna(cale)) {
-        mergiLa(`${ORIGINEA_PORTALULUI}${cale}`);
+      if (!esteCaleDePortal(cale)) return;
+      if (!webviewIncarcat.current) {
+        caleInAsteptare.current = cale;
+        return;
       }
+      mergiLa(`${ORIGINEA_PORTALULUI}${cale}`);
+    },
+    [mergiLa],
+  );
+
+  // ── RĂSPUNSUL SOSIT ÎNAINTE DE ABONARE (revizuirea finală) ─────────────────
+  // `addNotificationResponseReceivedListener` e un simplu `emitter.addListener`
+  // (verificat în sursa instalată, `expo-notifications@57.0.16`,
+  // `build/NotificationsEmitter.js:79`): NU reia un răspuns sosit înainte de
+  // abonare. La pornirea la rece — aplicația închisă, omul atinge notificarea —
+  // răspunsul e pus de codul NATIV la pornire (`NotificationsEmitter.kt`:
+  // `onNotificationResponseIntentReceived` scrie
+  // `lastNotificationResponseBundle` și emite evenimentul), cu mult înainte ca
+  // JS-ul nostru să existe. Adică fix cazul cel mai obișnuit al funcției se
+  // pierdea în întregime.
+  //
+  // DE CE `getLastNotificationResponse()` + ascultător, ȘI NU
+  // `useLastNotificationResponse()`: hook-ul pachetului rezolvă aceeași
+  // problemă (îl citim ca referință — `build/useLastNotificationResponse.js:
+  // 42-48`, cu `useLayoutEffect` „ensures the listener is registered as soon as
+  // possible" și citirea inițială „in case it was set earlier, even in native
+  // code on startup"), dar DEDUPLICĂ pe identificatorul cererii
+  // (`determineNextResponse`): un al doilea tap pe ACEEAȘI notificare întoarce
+  // exact obiectul dinainte, deci nu declanșează niciun efect nou. Omul care
+  // atinge notificarea, se plimbă prin portal și o atinge din nou ar primi un
+  // buton mort. Cu perechea de mai jos, fiecare tap navighează.
+  //
+  // `useLayoutEffect`, nu `useEffect`, din același motiv ca în hook-ul
+  // pachetului: abonarea trebuie să se facă cât mai devreme, înaintea primei
+  // vopsiri, ca fereastra în care un răspuns s-ar putea pierde să fie minimă.
+  useLayoutEffect(() => {
+    // Singura dublare posibilă: evenimentul nativ sosește DUPĂ abonare pentru
+    // răspunsul pe care `getLastNotificationResponse` tocmai ni l-a dat. Îl
+    // sărim O SINGURĂ DATĂ — un al doilea tap real pe aceeași notificare vine
+    // mai târziu, cu garda deja consumată.
+    let identificatorInitial: string | null = null;
+    try {
+      const initial = Notifications.getLastNotificationResponse();
+      if (initial !== null) {
+        identificatorInitial = initial.notification.request.identifier;
+        trateazaRaspunsulLaNotificare(initial);
+      }
+    } catch {
+      // `getLastNotificationResponse` ARUNCĂ `UnavailabilityError` dacă modulul
+      // nativ nu expune funcția (verificat în sursa instalată,
+      // `NotificationsEmitter.js`). Nu e motiv să rămânem și fără ascultător:
+      // pornirea la rece se pierde, dar tap-urile cu aplicația deschisă merg.
+    }
+    const abonament = Notifications.addNotificationResponseReceivedListener((raspuns) => {
+      if (identificatorInitial !== null) {
+        const acelasi = raspuns.notification.request.identifier === identificatorInitial;
+        identificatorInitial = null;
+        if (acelasi) return;
+      }
+      trateazaRaspunsulLaNotificare(raspuns);
     });
     return () => abonament.remove();
-  }, [mergiLa]);
+  }, [trateazaRaspunsulLaNotificare]);
+
+  // Consumă deep link-ul în așteptare, dar NUMAI pe o încărcare TERMINATĂ și
+  // NUMAI pe portal (nu pe ecranul de login — vezi mai sus). Întoarce `true`
+  // dacă a consumat evenimentul: apelantul nu mai pornește atunci
+  // înregistrarea jetonului, fiindcă `location.assign` e o navigare HARD care
+  // i-ar ucide `fetch`-ul din pagină. Înregistrarea se face oricum la
+  // încărcarea următoare — cea a destinației, tot pe portal.
+  const deschideCaleInAsteptare = useCallback(
+    (url: string): boolean => {
+      const cale = caleInAsteptare.current;
+      if (cale === null) return false;
+      if (!esteUrlPortal(url)) return false;
+      caleInAsteptare.current = null;
+      mergiLa(`${ORIGINEA_PORTALULUI}${cale}`);
+      return true;
+    },
+    [mergiLa],
+  );
 
   return (
     <Lacat
@@ -756,10 +892,30 @@ export default function App() {
             thirdPartyCookiesEnabled
             // Fără asta, un `history.back()` din portal închide aplicația.
             allowsBackForwardNavigationGestures
-            onLoadEnd={(eveniment) => inregistreazaDacaPePortal(eveniment.nativeEvent.url)}
-            onNavigationStateChange={(stare: WebViewNavigation) =>
-              inregistreazaDacaPePortal(stare.url)
-            }
+            // `webviewIncarcat` se pune AICI, nu în `onNavigationStateChange`:
+            // ăsta e singurul eveniment care înseamnă „documentul e gata", pe
+            // ambele platforme. Vezi deep link-ul de mai sus — sub el,
+            // `location.assign` s-ar injecta într-o pagină care abia se încarcă.
+            onLoadEnd={(eveniment) => {
+              webviewIncarcat.current = true;
+              if (deschideCaleInAsteptare(eveniment.nativeEvent.url)) return;
+              inregistreazaDacaPePortal(eveniment.nativeEvent.url);
+            }}
+            // `loading === false` e obligatoriu înainte de a consuma deep
+            // link-ul de-aici: pe iOS, evenimentul ăsta e alimentat ȘI de
+            // `decidePolicyForNavigationAction`, adică la ÎNCEPUTUL navigării
+            // (vezi MOMENTUL ÎNREGISTRĂRII, mai sus) — un assign de-atunci ar
+            // rula în documentul VECHI, iar navigarea în curs l-ar călca.
+            // Înregistrarea jetonului rămâne cablată necondiționat, ca înainte:
+            // ea are nevoie tocmai de evenimentul de tip SPA (login prin Server
+            // Action, fără reîncărcare completă), pe care `onLoadEnd` nu-l dă.
+            onNavigationStateChange={(stare: WebViewNavigation) => {
+              if (!stare.loading) {
+                webviewIncarcat.current = true;
+                if (deschideCaleInAsteptare(stare.url)) return;
+              }
+              inregistreazaDacaPePortal(stare.url);
+            }}
             // Fluturașul (`eDescarcare`) e o navigare directă spre `/api/export/`,
             // dintr-un `<a>` simplu — se vede imediat aici. Adeverința
             // (`eTiparire`) pleacă dintr-un `<Link>` (next/link) către un Route
