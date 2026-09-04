@@ -43,10 +43,30 @@ esac
 PAROLA="$(grep -m1 '^SUPABASE_DB_PASSWORD=' .env.local | cut -d= -f2- | tr -d '\r\n"')"
 [ -n "$PAROLA" ] || { echo "aplica-cloud: SUPABASE_DB_PASSWORD lipsește din .env.local"; exit 3; }
 
-# Clientul psql al stației. Pe Windows nu e în PATH (vezi memoria proiectului).
-PSQL="${ADMINISTRATIVO_PSQL:-/c/PostgreSQL/17/bin/psql.exe}"
-command -v "$PSQL" >/dev/null 2>&1 || [ -x "$PSQL" ] || {
-  echo "aplica-cloud: nu găsesc psql la „$PSQL”. Pune calea în ADMINISTRATIVO_PSQL."; exit 3;
+# Clientul psql al stației. Repo-ul e lucrat de pe mai multe mașini, iar `psql`
+# nu e în PATH pe niciuna în același fel: pe Windows stă în `C:\PostgreSQL`, pe
+# macOS vine din Postgres.app sau din `libpq` (keg-only, deci tot în afara
+# PATH-ului). O singură cale implicită, oricare ar fi ea, e greșită pe celelalte
+# mașini — de aceea se CAUTĂ, în ordinea de mai jos, iar `ADMINISTRATIVO_PSQL`
+# rămâne cuvântul final.
+gaseste_psql() {
+  if [ -n "${ADMINISTRATIVO_PSQL:-}" ]; then echo "$ADMINISTRATIVO_PSQL"; return; fi
+  if command -v psql >/dev/null 2>&1; then command -v psql; return; fi
+  for c in \
+    /Applications/Postgres.app/Contents/Versions/latest/bin/psql \
+    /opt/homebrew/opt/libpq/bin/psql \
+    /usr/local/opt/libpq/bin/psql \
+    /c/PostgreSQL/17/bin/psql.exe
+  do
+    [ -x "$c" ] && { echo "$c"; return; }
+  done
+  echo ""
+}
+PSQL="$(gaseste_psql)"
+[ -n "$PSQL" ] && { command -v "$PSQL" >/dev/null 2>&1 || [ -x "$PSQL" ]; } || {
+  echo "aplica-cloud: nu găsesc psql. Instalează-l (macOS: Postgres.app sau \`brew install libpq\`)"
+  echo "              sau pune calea exactă în ADMINISTRATIVO_PSQL."
+  exit 3
 }
 
 GAZDA="${ADMINISTRATIVO_DB_HOST:-aws-1-eu-west-1.pooler.supabase.com}"
