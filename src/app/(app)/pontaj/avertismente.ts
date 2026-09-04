@@ -44,9 +44,24 @@ import { tipZiAutomat } from "./etichete";
  * importate de client. Forma veche — `{ id }` — se păstrează întreagă;
  * `avertismente` se adaugă lângă ea, deci niciun apelant existent nu se rupe.
  */
+import type { ConflictSuspendare } from "./suspendare-absente";
+
 export interface RezultatCuAvertismente {
-  readonly id: string;
+  /**
+   * `null` înseamnă că NIMIC nu s-a salvat — singurul caz e conflictul de mai
+   * jos. Tipul e `string | null` tocmai ca fiecare apelant să fie obligat de
+   * `tsc` să decidă ce face atunci, în loc să primească un identificator gol.
+   */
+  readonly id: string | null;
   readonly avertismente: readonly AvertismentPontaj[];
+  /**
+   * Ziua nu s-a salvat fiindcă angajatul are contractul suspendat pentru
+   * absențe nemotivate, iar cererea aducea ore lucrate. Ecranul întreabă dacă
+   * se emite decizia de reluare, apoi retrimite cu `confirma_reluare`.
+   */
+  readonly conflictSuspendare: ConflictSuspendare | null;
+  /** Reluarea s-a înregistrat, dar ceva de pe drum a rămas de făcut manual. */
+  readonly avertismentReluare: string | null;
 }
 
 /** Ultima zi a lunii din care face parte `zi`, ca șir ISO. */

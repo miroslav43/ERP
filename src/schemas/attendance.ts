@@ -156,6 +156,15 @@ export const salveazaZiPontajSchema = z
      */
     tip_prezenta: enumOptional(TIPURI_PREZENTA, "Alegeți locul de muncă din listă."),
     observatii: textOptional(1000),
+    /*
+     * Răspunsul la întrebarea „contractul e suspendat pentru absențe
+     * nemotivate — generăm decizia de reluare cu data de azi?".
+     *
+     * `false` implicit, deci o cerere care nu știe de conflict primește
+     * conflictul, nu îl calcă. Un `<input type="hidden" value="true">` din
+     * dialogul de confirmare e tot ce trebuie pe partea de client.
+     */
+    confirma_reluare: z.coerce.boolean().default(false),
   })
   .refine((v) => v.ore_suplimentare <= v.ore_lucrate, {
     message: "Orele suplimentare nu pot depăși orele lucrate.",
@@ -422,3 +431,26 @@ const codPunctLucru = optional(
 export const pontezaIntrareaSchema = z.object({ cod_punct_lucru: codPunctLucru });
 export const pontezaIesireaSchema = z.object({ cod_punct_lucru: codPunctLucru });
 export const confirmaZiuaStandardSchema = z.object({ cod_punct_lucru: codPunctLucru });
+
+/**
+ * Decizia de suspendare pentru absențe nemotivate.
+ *
+ * `data_sfarsit` e nullable ȘI implicit null: decizia se ia de obicei cât timp
+ * omul încă lipsește, iar capătul vine abia când se întoarce. Un capăt explicit
+ * rămâne posibil, pentru înregistrarea retroactivă a unei perioade încheiate.
+ */
+export const emiteSuspendareAbsenteSchema = z
+  .object({
+    employee_id: z.uuid(),
+    data_inceput: z.iso.date(),
+    data_sfarsit: z.union([z.iso.date(), z.literal(""), z.null()]).nullable().default(null),
+  })
+  .transform((v) => ({
+    ...v,
+    data_sfarsit: v.data_sfarsit === "" ? null : v.data_sfarsit,
+  }))
+  .refine((v) => v.data_sfarsit === null || v.data_sfarsit >= v.data_inceput, {
+    message: "Sfârșitul suspendării nu poate fi înaintea începutului.",
+    path: ["data_sfarsit"],
+  });
+export type EmiteSuspendareAbsente = z.output<typeof emiteSuspendareAbsenteSchema>;

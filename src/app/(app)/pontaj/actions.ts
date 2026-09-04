@@ -35,10 +35,16 @@ import {
   sincronizeazaConcediileSchema,
   type ModPontareRapida,
   stergeZiPontajSchema,
+  emiteSuspendareAbsenteSchema,
 } from "@/schemas/attendance";
 
 import { refuzaCandAprobareaEStinsa } from "./aprobarea-firmei";
 import { avertismenteDupaZi, type RezultatCuAvertismente } from "./avertismente";
+import {
+  emiteSuspendarePentruAbsente,
+  inchideSuspendareaLaReluare,
+  suspendareaDinAbsente,
+} from "./suspendare-absente";
 import { tipZiAutomat } from "./etichete";
 import { traduEroare } from "./erori";
 import { sincronizeazaZileleDeConcediu, type TipZiPontaj } from "./sincronizare-concediu";
@@ -245,6 +251,61 @@ export const salveazaZiPontaj = createAction({
     // degeaba la fiecare zi salvată.
     const setari = await setariPontaj(ctx.tenant.organizationId, input.data);
 
+    /*
+     * ── Contractul suspendat pentru absențe nemotivate ─────────────────────
+     *
+     * Ore lucrate pe un contract suspendat sunt o CONTRADICȚIE, nu o greșeală
+     * de tastare: ori omul s-a întors — și atunci suspendarea trebuie închisă,
+     * iar reluarea transmisă la ITM — ori ziua e greșită. Aplicația nu poate
+     * alege singură, deci se oprește și întreabă.
+     *
+     * Verificarea se face cu clientul ADMIN: `contract_suspendari_select` cere
+     * drepturi pe care nici angajatul care se pontează, nici responsabilul de
+     * pontaj nu le au. Filtrul pe organizație e explicit, iar organizația vine
+     * din `ctx.tenant`.
+     *
+     * Costă o interogare pe fiecare zi salvată cu ore > 0. E acceptabil: e o
+     * citire pe index (`contract_suspendari_employee_idx`) care întoarce zero
+     * rânduri în absolut toate cazurile normale.
+     */
+    let avertismentReluare: string | null = null;
+    if (oreLucrate > 0) {
+      const adminSuspendari = createAdminSupabase();
+      const suspendata = await suspendareaDinAbsente(
+        adminSuspendari,
+        ctx.tenant.organizationId,
+        employeeId,
+      );
+      if (suspendata !== null) {
+        if (!input.confirma_reluare) {
+          return {
+            id: null,
+            avertismente: [],
+            avertismentReluare: null,
+            conflictSuspendare: {
+              suspendareId: suspendata.id,
+              dataInceput: suspendata.data_inceput,
+              mesaj:
+                `Contract suspendat pentru absențe nemotivate din ${suspendata.data_inceput}. ` +
+                "Doriți generarea deciziei de reluare a activității cu data de azi?",
+            },
+          };
+        }
+        // Confirmat: se închide suspendarea și se pregătește reluarea ÎNAINTE
+        // de a scrie ziua. Invers, o zi salvată pe un contract încă suspendat
+        // ar rămâne așa dacă închiderea cade.
+        avertismentReluare = await inchideSuspendareaLaReluare(
+          adminSuspendari,
+          ctx.tenant.organizationId,
+          employeeId,
+          suspendata.id,
+          input.data,
+          ctx.user.id,
+          ctx.requestId,
+        );
+      }
+    }
+
     if (ctx.scope !== "all") {
       if (input.ora_inceput !== null && input.ora_sfarsit !== null) {
         const derivate = oreleZilei(input.ora_inceput, input.ora_sfarsit, configZiDin(setari));
@@ -336,6 +397,8 @@ export const salveazaZiPontaj = createAction({
           data: input.data,
           setari,
         }),
+        conflictSuspendare: null,
+        avertismentReluare,
       };
     }
 
@@ -372,6 +435,8 @@ export const salveazaZiPontaj = createAction({
         data: input.data,
         setari,
       }),
+      conflictSuspendare: null,
+      avertismentReluare,
     };
   },
 });
@@ -1246,5 +1311,55 @@ export const decideZiPontaj = createAction({
       throw businessRule("Ziua de pontaj nu a putut fi decisă.");
     }
     return { id: data };
+  },
+});
+
+/**
+ * Emite decizia de suspendare a contractului pentru absențe nemotivate.
+ *
+ * Poarta e `employees:update` la scope `all` — EXACT permisiunea pe care o cere
+ * politica `contract_suspendari_insert` din bază. Acțiunea scrie apoi cu
+ * clientul de serviciu, fiindcă drumul trece prin `genereazaEvenimenteReges`,
+ * dar gardul de la intrare rămâne cel al datelor: o Server Action se poate
+ * chema direct, fără ecran, iar o poartă mai largă decât a tabelei ar fi
+ * singura barieră ocolită.
+ *
+ * NU se declanșează singură. Alerta din pontaj semnalează seriile de la a doua
+ * zi consecutivă; suspendarea rămâne o decizie de om, pe un interval ales de
+ * el — o suspendare transmisă la ITM și apoi retrasă e o corecție de registru
+ * pe care o vede toată lumea.
+ */
+export const emiteSuspendareAbsente = createAction({
+  name: "attendance.suspendare.emite",
+  feature: "attendance",
+  permission: "employees:update",
+  minScope: "all",
+  input: emiteSuspendareAbsenteSchema,
+  audit: {
+    action: "create",
+    entityType: "contract_suspendare",
+    entityId: (_input, data: Readonly<{ suspendareId: string | null }>) => data.suspendareId,
+    allow: ["employee_id", "data_inceput", "data_sfarsit"],
+  },
+  revalidate: [...CAI_REVALIDARE],
+  handler: async (
+    ctx,
+    input,
+  ): Promise<Readonly<{ suspendareId: string | null; motiv: string | null }>> => {
+    const admin = createAdminSupabase();
+    const rezultat = await emiteSuspendarePentruAbsente(
+      admin,
+      ctx.tenant.organizationId,
+      input.employee_id,
+      input.data_inceput,
+      input.data_sfarsit,
+      ctx.user.id,
+      ctx.requestId,
+    );
+    // Eșecul se ridică drept CONFLICT: aici, spre deosebire de aprobarea unui
+    // concediu, emiterea deciziei ESTE toată acțiunea. N-a rămas nimic în urmă
+    // care să merite păstrat dacă ea n-a reușit.
+    if (!rezultat.ok) throw businessRule(rezultat.motiv ?? "Decizia nu a putut fi emisă.");
+    return { suspendareId: rezultat.suspendareId, motiv: rezultat.motiv };
   },
 });

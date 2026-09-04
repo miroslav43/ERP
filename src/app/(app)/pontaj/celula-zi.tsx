@@ -153,14 +153,20 @@ export function CelulaZi({
   const idTipPrezenta = useId();
   const idObservatii = useId();
   const idMotivRespingere = useId();
+  /** Mesajul dialogului de conflict; `null` = nu există conflict de rezolvat. */
+  const [conflict, setConflict] = useState<string | null>(null);
 
   useEffect(() => {
     const el = dialogRef.current;
     if (el !== null && !el.open) el.showModal();
   }, []);
 
-  function trimite(eveniment: React.FormEvent<HTMLFormElement>): void {
-    eveniment.preventDefault();
+  /**
+   * Salvează ziua. `confirmaReluare` vine `true` doar din butonul dialogului de
+   * conflict — niciodată implicit: o cerere care nu știe de suspendare primește
+   * conflictul, nu îl calcă.
+   */
+  function salveaza(confirmaReluare: boolean): void {
     setEroare(null);
     porneste(async () => {
       const rezultat = await salveazaZiPontaj({
@@ -174,14 +180,35 @@ export function CelulaZi({
         tip_zi: tipZi.length === 0 ? null : (tipZi as TipZi),
         tip_prezenta: tipPrezenta.length === 0 ? null : (tipPrezenta as TipPrezenta),
         observatii: observatii.length === 0 ? null : observatii,
+        confirma_reluare: confirmaReluare,
       });
       if (!rezultat.ok) {
         setEroare(rezultat.error.message);
         return;
       }
+      /*
+       * Contractul e suspendat pentru absențe nemotivate și ziua aduce ore
+       * lucrate: NIMIC nu s-a salvat (`id` e null). Se întreabă, fiindcă
+       * aplicația nu poate ști singură dacă omul chiar s-a întors sau dacă
+       * ziua e greșită — iar reluarea, odată transmisă la ITM, se corectează
+       * cu un al doilea mesaj.
+       */
+      if (rezultat.data.conflictSuspendare !== null) {
+        setConflict(rezultat.data.conflictSuspendare.mesaj);
+        return;
+      }
+      if (rezultat.data.avertismentReluare !== null) {
+        setEroare(rezultat.data.avertismentReluare);
+        return;
+      }
       onInchide();
       router.refresh();
     });
+  }
+
+  function trimite(eveniment: React.FormEvent<HTMLFormElement>): void {
+    eveniment.preventDefault();
+    salveaza(false);
   }
 
   /**
@@ -466,6 +493,40 @@ export function CelulaZi({
         <div aria-live="polite">
           {eroare === null ? null : <p className="text-danger text-corp">{eroare}</p>}
         </div>
+
+        {/* Contractul e suspendat pentru absențe nemotivate. Ziua NU s-a
+            salvat: aplicația nu poate alege singură între „omul s-a întors" și
+            „ziua e greșită", iar reluarea, odată transmisă la ITM, se
+            corectează cu un al doilea mesaj. */}
+        {conflict === null ? null : (
+          <div
+            role="alert"
+            className="border-warning/40 bg-warning/12 rounded-control text-corp flex flex-col gap-3 border p-3"
+          >
+            <p>{conflict}</p>
+            <div className="flex flex-wrap gap-2">
+              <Buton
+                varianta="primar"
+                inCurs={inCurs}
+                textInCurs="Se emite…"
+                onClick={() => {
+                  setConflict(null);
+                  salveaza(true);
+                }}
+              >
+                Da, generează decizia de reluare
+              </Buton>
+              <Buton
+                varianta="secundar"
+                onClick={() => {
+                  setConflict(null);
+                }}
+              >
+                Nu, verific ziua
+              </Buton>
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-wrap justify-end gap-2">
           {intrare !== null && poateSterge ? (

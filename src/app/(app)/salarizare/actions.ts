@@ -591,6 +591,10 @@ export const calculeazaPerioada = createAction({
         zile_concediu_odihna: pontajAngajat.zile_concediu_odihna,
         zile_concediu_medical: pontajAngajat.zile_concediu_medical,
         zile_absenta_nemotivata: pontajAngajat.zile_absenta_nemotivata,
+        // Intră în A_7 al D112 împreună cu absențele nemotivate — v. 0126.
+        // Cheia e OBLIGATORIE în `payroll_scrie_rezultate`: omisă, lotul e
+        // refuzat, în loc să se scrie tăcut zero.
+        zile_fara_plata: pontajAngajat.zile_fara_plata,
         ore_lucrate: pontajAngajat.ore_lucrate,
         ore_suplimentare: pontajAngajat.ore_suplimentare_zi,
         ore_noapte: pontajAngajat.ore_noapte,

@@ -148,6 +148,7 @@ export async function declaraSuspendareaContractului(
         500,
       ),
       stare: "activa",
+      sursa: "concediu",
       created_by: userId,
       updated_by: userId,
     });

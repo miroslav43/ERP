@@ -525,6 +525,13 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
   let zileCmAngajator = 0;
   let zileCmFnuass = 0;
   let bazaZilnicaCm = 0;
+  // Porțiunile din indemnizație supuse fiecărei rețineri, după steagurile
+  // codului (0127). Până atunci, impozitul se aplica pe TOATĂ indemnizația —
+  // inclusiv pe maternitate și risc maternal, care sunt neimpozabile — iar CAS
+  // și CASS nu se rețineau deloc.
+  let cmBazaCas = 0;
+  let cmBazaCass = 0;
+  let cmBazaImpozit = 0;
   if (input.concediuMedical !== undefined) {
     const cm = calculeazaIndemnizatieCm({
       ...input.concediuMedical,
@@ -533,6 +540,9 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     indemnizatieCmAngajator = cm.totalAngajator;
     indemnizatieCmFnuass = cm.totalFnuass;
     bazaZilnicaCm = cm.bazaZilnica;
+    cmBazaCas = cm.bazaCas;
+    cmBazaCass = cm.bazaCass;
+    cmBazaImpozit = cm.bazaImpozit;
     for (const linie of cm.peCertificat) {
       zileCmAngajator += linie.zileAngajator;
       zileCmFnuass += linie.zileFnuass;
@@ -607,8 +617,11 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     );
   }
 
-  const bazaCas = inregistreaza("bazaCas", bazaComuna + primeInBazaCas);
-  const bazaCass = inregistreaza("bazaCass", bazaComuna + primeInBazaCass + ticheteInCass);
+  const bazaCas = inregistreaza("bazaCas", bazaComuna + primeInBazaCas + cmBazaCas);
+  const bazaCass = inregistreaza(
+    "bazaCass",
+    bazaComuna + primeInBazaCass + ticheteInCass + cmBazaCass,
+  );
   // Plafonul minim al bazei de contribuții. Legea prevede EXCEPȚII (elevi și
   // studenți sub 26 de ani, pensionari, persoane cu handicap, cumul de
   // contracte) pentru care schema nu are încă niciun câmp — de aceea motorul
@@ -666,8 +679,10 @@ export function calculatePayrollEntry(input: PayrollCalcInput): PayrollCalcResul
     Math.max(
       0,
       bazaCasFinala +
-        indemnizatieCmAngajator +
-        indemnizatieCmFnuass -
+        // NU toată indemnizația: doar partea codurilor impozabile. Maternitatea
+        // (11) și riscul maternal (15) sunt venituri neimpozabile, iar
+        // `bazaCasFinala` poartă deja partea supusă CAS.
+        (cmBazaImpozit - cmBazaCas) -
         cas -
         cass -
         deducerePersonala +

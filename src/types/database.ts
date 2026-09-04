@@ -2067,6 +2067,7 @@ export type Database = {
           organization_id: string
           reges_actiune_id: string | null
           stare: Database["public"]["Enums"]["reges_stare_suspendare"]
+          sursa: Database["public"]["Enums"]["reges_sursa_suspendare"]
           temei_legal: string
           updated_at: string
           updated_by: string | null
@@ -2084,6 +2085,7 @@ export type Database = {
           organization_id: string
           reges_actiune_id?: string | null
           stare?: Database["public"]["Enums"]["reges_stare_suspendare"]
+          sursa?: Database["public"]["Enums"]["reges_sursa_suspendare"]
           temei_legal: string
           updated_at?: string
           updated_by?: string | null
@@ -2101,6 +2103,7 @@ export type Database = {
           organization_id?: string
           reges_actiune_id?: string | null
           stare?: Database["public"]["Enums"]["reges_stare_suspendare"]
+          sursa?: Database["public"]["Enums"]["reges_sursa_suspendare"]
           temei_legal?: string
           updated_at?: string
           updated_by?: string | null
@@ -7302,6 +7305,9 @@ export type Database = {
           plafon_salarii_minime: number | null
           platitor: Database["public"]["Enums"]["medical_payer"]
           procent: number
+          retine_cas: boolean
+          retine_cass: boolean
+          retine_impozit: boolean
           temei_legal: string | null
           updated_at: string
           valabil_de_la: string
@@ -7318,6 +7324,9 @@ export type Database = {
           plafon_salarii_minime?: number | null
           platitor: Database["public"]["Enums"]["medical_payer"]
           procent: number
+          retine_cas?: boolean
+          retine_cass?: boolean
+          retine_impozit?: boolean
           temei_legal?: string | null
           updated_at?: string
           valabil_de_la: string
@@ -7334,6 +7343,9 @@ export type Database = {
           plafon_salarii_minime?: number | null
           platitor?: Database["public"]["Enums"]["medical_payer"]
           procent?: number
+          retine_cas?: boolean
+          retine_cass?: boolean
+          retine_impozit?: boolean
           temei_legal?: string | null
           updated_at?: string
           valabil_de_la?: string
@@ -8563,6 +8575,7 @@ export type Database = {
           zile_cm_fnuass: number
           zile_concediu_medical: number
           zile_concediu_odihna: number
+          zile_fara_plata: number
           zile_lucrate: number
           zile_lucratoare_luna: number
           zile_repaus_lucrate: number
@@ -8626,6 +8639,7 @@ export type Database = {
           zile_cm_fnuass?: number
           zile_concediu_medical?: number
           zile_concediu_odihna?: number
+          zile_fara_plata?: number
           zile_lucrate?: number
           zile_lucratoare_luna: number
           zile_repaus_lucrate?: number
@@ -8689,6 +8703,7 @@ export type Database = {
           zile_cm_fnuass?: number
           zile_concediu_medical?: number
           zile_concediu_odihna?: number
+          zile_fara_plata?: number
           zile_lucrate?: number
           zile_lucratoare_luna?: number
           zile_repaus_lucrate?: number
@@ -13249,6 +13264,7 @@ export type Database = {
         | "incetata"
         | "expirata"
       reges_stare_suspendare: "activa" | "incetata" | "anulata"
+      reges_sursa_suspendare: "manuala" | "concediu" | "absenta_nemotivata"
       reges_tip_eveniment:
         | "angajare"
         | "modificare_salariu"
@@ -13260,6 +13276,8 @@ export type Database = {
         | "detasare"
         | "incetare"
         | "corectie"
+        | "suspendare_nemotivata"
+        | "reluare_nemotivata"
       reges_tip_mesaj:
         | "salariat"
         | "contract"
@@ -13799,6 +13817,7 @@ export const Constants = {
         "expirata",
       ],
       reges_stare_suspendare: ["activa", "incetata", "anulata"],
+      reges_sursa_suspendare: ["manuala", "concediu", "absenta_nemotivata"],
       reges_tip_eveniment: [
         "angajare",
         "modificare_salariu",
@@ -13810,6 +13829,8 @@ export const Constants = {
         "detasare",
         "incetare",
         "corectie",
+        "suspendare_nemotivata",
+        "reluare_nemotivata",
       ],
       reges_tip_mesaj: [
         "salariat",
