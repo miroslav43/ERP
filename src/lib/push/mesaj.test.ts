@@ -134,6 +134,21 @@ describe("construiesteMesaj", () => {
     }
   });
 
+  it("respinge o cale cu caractere de control", () => {
+    // Cazul PURTĂTOR e `/portal/…`: lista albă îl lasă neatins
+    // (`link.startsWith("/portal/")` → se întoarce cum a venit), deci fără
+    // poarta asta un NUL sau un DEL ar ajunge intact în `data.cale`.
+    // Celelalte forme sunt oprite oricum de lista albă — sunt aici ca să
+    // documenteze clasa, nu ca dovadă: dacă poarta dispare, DOAR primele două
+    // aserțiuni de mai jos cad. Verificat prin mutație.
+    const purtatoare = ["/portal/\u0000", "/portal/x\u007f"];
+    const acoperiteDeListaAlba = ["/\t/evil.com", "/\n/evil.com", "/\r/evil.com"];
+    for (const link of [...purtatoare, ...acoperiteDeListaAlba]) {
+      const mesaj = construiesteMesaj({ jeton: JETON, titlu: "X.", corp: null, link });
+      expect(mesaj.data.cale, JSON.stringify(link)).toBe("/portal/notificarile-mele");
+    }
+  });
+
   it("taie titlul la 100 și corpul la 240 de caractere", () => {
     const mesaj = construiesteMesaj({
       jeton: JETON,

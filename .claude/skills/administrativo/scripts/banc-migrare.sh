@@ -102,5 +102,18 @@ else
   echo "  ✗"; tail -30 /tmp/banc.izo; exit 2
 fi
 
-echo "▶ TOT VERDE: $N migrări · 3/3 bariere · izolare"
+# Probele pe module. Fiecare își numără singură eșecurile și încheie cu
+# `raise exception` dacă are vreunul, deci `ON_ERROR_STOP=1` e de-ajuns.
+#
+# `proba-push.sql` a stat scrisă, cu 23 de verificări, fără să fie rulată de
+# nicio poartă — nici aici, nici în CI. O probă pe care n-o rulează nimeni
+# putrezește tăcut: prima migrare care îi rupe premisele n-o supără pe nimeni.
+echo "▶ probele pe module"
+for p in tests/rls/proba-push.sql; do
+  printf "  %-46s" "$(basename "$p")"
+  if psql "$URL" -v ON_ERROR_STOP=1 -f "$p" >/tmp/banc.proba 2>&1; then echo "✓"
+  else echo "✗"; tail -30 /tmp/banc.proba; exit 2; fi
+done
+
+echo "▶ TOT VERDE: $N migrări · 3/3 bariere · izolare · probe"
 exit 0

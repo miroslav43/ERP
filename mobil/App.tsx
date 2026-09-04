@@ -117,8 +117,29 @@ Notifications.setNotificationHandler({
  * rămâne pe portal, unde a pornit — niciodată în ERP-ul de birou, în învelișul
  * de telefon, fără cale de întoarcere.
  */
+function areCaractereDeControl(s: string): boolean {
+  // Buclă, nu `[\u0000-\u001f]`: un caracter de control într-un regex e, de
+  // obicei, un accident de copiere, iar linterele îl semnalează pe bună
+  // dreptate. Aici e intenționat, și bucla o spune fără o excepție de regulă.
+  for (const caracter of s) {
+    const cod = caracter.codePointAt(0) ?? 0;
+    if (cod < 0x20 || cod === 0x7f) return true;
+  }
+  return false;
+}
+
 function esteCaleDePortal(cale: unknown): cale is string {
-  return typeof cale === "string" && /^\/[^/\\]/.test(cale) && /^\/portal(?:\/|$)/.test(cale);
+  return (
+    typeof cale === "string" &&
+    /^\/[^/\\]/.test(cale) &&
+    // `^\/[^/\\]` singur acceptă `/\t/evil.com`: al doilea caracter e TAB,
+    // deci nu e `/` și trece — iar unele parsere elimină tab-ul și newline-ul
+    // înainte să interpreteze, obținând `//evil.com`. Oglindeste poarta din
+    // `src/lib/push/mesaj.ts`; ambele sunt mai stricte decât constrângerea din
+    // bază, care e într-o migrare aplicată și nu se mai atinge.
+    !areCaractereDeControl(cale) &&
+    /^\/portal(?:\/|$)/.test(cale)
+  );
 }
 
 /**
@@ -1049,7 +1070,14 @@ export default function App() {
             // · pe Android poarta CEDEAZĂ DESCHIS: `RNCWebViewClient.java:42`
             //   dă 250 ms firului JS să răspundă, iar la expirare
             //   `:111-113` scrie „defaulting to allow loading" și lasă
-            //   navigarea să treacă — exact la pornire, sub congestie.
+            //   navigarea să treacă — exact la pornire, sub congestie;
+            // · pe Android poarta NU VEDE DELOC trimiterile de formular prin
+            //   POST: `WebViewClient.shouldOverrideUrlLoading` e documentat
+            //   să nu fie chemat pentru ele, deci un `<form method="post">`
+            //   către altă origine ar naviga fără să treacă pe-aici. Azi nu
+            //   există în portal niciun formular care postează în altă parte
+            //   — toate merg la Server Actions, pe originea proprie — dar
+            //   asta e o proprietate a portalului de ACUM, nu a porții.
             // Închiderea completă ar cere `onOpenWindow` plus cod nativ
             // propriu; e altă amploare decât o rundă de reparații.
             onShouldStartLoadWithRequest={(cerere) => {

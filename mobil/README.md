@@ -20,6 +20,32 @@ pnpm install
 pnpm start
 ```
 
+### Ce NU se poate proba pe un build de dezvoltare
+
+**Scannerul QR e inert dacă `URL_PORTAL` e pe `http://`.** `urlPontareValidat`
+(`scanner.tsx`) iese pe prima linie: `domeniuValid()` cere `https://`, deci un
+build îndreptat spre `http://localhost:3000` întoarce `null` pentru ORICE cod —
+inclusiv pentru un afiș de producție perfect valid. Singurul semnal e indiciul
+generic de după opt rateuri, din care omul ar concluziona că e stricat scannerul
+sau afișul.
+
+Nu e un defect de reparat: fail-closed pe o origine care nu e `https` e exact
+comportamentul dorit pentru codul de pontaj. E o limitare de mediu. **Proba de
+scanare se face pe un build cu `URL_PORTAL=https://administrativo.ro/portal`.**
+
+**Notificările push nu ajung fără pașii de pe VM.** Aplicația își înregistrează
+jetonul corect, iar declanșatorul pune rândul în coadă — dar coada se golește
+dintr-un timer systemd care are nevoie de `PUSH_CRON_SECRET` în trei locuri
+(vezi `DEPLOY.md`). Cât timp lipsește, ruta răspunde 404 la orice apel și
+rândurile doar se adună, fără nicio eroare vizibilă.
+
+### Pluginul Claude activat de schelă
+
+`mobil/.claude/settings.json` a fost scris de `pnpm create expo-app`, nu de noi,
+și activează `expo@claude-plugins-official` pentru orice sesiune Claude care
+lucrează în `mobil/`. E notat aici fiindcă a intrat în depozit fără să fie
+alegerea nimănui. Ca să nu mai fie activ: ștergeți fișierul.
+
 ## Izolare de restul monorepo-ului
 
 `mobil/` are propriul `mobil/pnpm-workspace.yaml` (`packages: ["."]`), separat

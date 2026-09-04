@@ -94,7 +94,7 @@ lovește storage-ul _scriptabil_, nu `Set-Cookie` de la server.
 Lacătul biometric (`expo-local-authentication`) acoperă ecranul la revenire și **nu
 atinge sesiunea**. Biometrie eșuată = ecran acoperit, nu deconectare.
 
-## 5. Modificări în bază — migrarea `0121_push_dispozitive.sql`
+## 5. Modificări în bază — migrarea `0122_push_dispozitive.sql`
 
 Scheletul canonic din `0013_attendance.sql`: secțiuni numerotate, indexuri parțiale
 `where deleted_at is null`, trio `_select`/`_insert`/`_update`, **nicio politică

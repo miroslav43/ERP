@@ -136,3 +136,21 @@ jobs:
             exit 0
           fi
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f tests/rls/izolare.sql
+
+      # Probele pe module, pe lângă izolarea generală. Fiecare își numără
+      # singură eșecurile și încheie cu `raise exception`, deci `ON_ERROR_STOP`
+      # e de-ajuns ca poartă.
+      #
+      # `proba-push.sql` a stat scrisă, cu 23 de verificări, fără s-o ruleze
+      # nimeni — nici CI, nici bancul local. O probă pe care n-o rulează nimeni
+      # putrezește tăcut: prima migrare care îi rupe premisele trece verde.
+      - name: Probele pe module
+        run: |
+          if [ ! -d supabase/migrations ] || [ -z "$(ls -A supabase/migrations 2>/dev/null)" ]; then
+            exit 0
+          fi
+          for p in tests/rls/proba-*.sql; do
+            [ -e "$p" ] || continue
+            echo "── $p"
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$p"
+          done
