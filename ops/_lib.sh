@@ -185,6 +185,23 @@ _validate_prod_env() {
     *) warn "NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL} — nu e https://${ADM_DOMAIN}."
        warn "Valoarea se coace în bundle la build: redirecturile de login o vor folosi pe asta." ;;
   esac
+
+  # Secretele de timer NU intră în ADM_REQUIRED_ENV: aplicația pornește și
+  # funcționează fără ele, doar că ramura pe care o păzesc tace. Ar fi însă
+  # greșit să tacă și scriptul — lipsa lor e INDISTINCTĂ de „rută inexistentă"
+  # (ruta răspunde 404 la un secret gol), iar asta a costat deja o depanare.
+  for var in PUSH_CRON_SECRET REGES_CRON_SECRET; do
+    if [ -z "${!var:-}" ]; then
+      warn "${var} e gol în .env.production — ramura păzită de el e OPRITĂ."
+      case "$var" in
+        PUSH_CRON_SECRET)
+          warn "  Coada push_livrari nu se golește: nicio notificare pe telefoane." ;;
+        REGES_CRON_SECRET)
+          warn "  Ciclul de reconciliere REGES-Online nu pornește." ;;
+      esac
+      warn "  Vezi .env.production.example — aceeași valoare în TREI locuri."
+    fi
+  done
 }
 
 # ---------------------------------------------------------------------------

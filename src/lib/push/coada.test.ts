@@ -59,6 +59,15 @@ type ConfigClientFals = {
   tichete?: readonly { id: string; solicitant_employee_id: string | null }[];
   /** `employees`: fișa → contul. */
   fise?: readonly { id: string; user_id: string | null }[];
+
+  /* Curățenia și adâncimea cozii. */
+  /** Rânduri terminale eligibile pentru ștergere. */
+  vechi?: readonly { id: string }[];
+  eroareSelectVechi?: { message: string };
+  eroareStergere?: { message: string };
+  /** Ce întoarce numărătoarea de adâncime. */
+  adancime?: number;
+  eroareAdancime?: { message: string };
 };
 
 /**
@@ -108,6 +117,8 @@ function clientFals(config: ConfigClientFals = {}) {
   const audituri: Record<string, unknown>[] = [];
   const apeluriRpc: { nume: string; args: unknown }[] = [];
   const jurnalCereri = { filtre: [] as { coloana: string; valori: readonly string[] }[] };
+  const sterse: string[] = [];
+  const selectariCuratenie: number[] = [];
 
   return {
     actualizari,
@@ -115,6 +126,8 @@ function clientFals(config: ConfigClientFals = {}) {
     audituri,
     apeluriRpc,
     jurnalCereri,
+    sterse,
+    selectariCuratenie,
     rpc: (nume: string, args: unknown) => {
       apeluriRpc.push({ nume, args });
       if (config.eroareRpc) return Promise.resolve({ data: null, error: config.eroareRpc });
@@ -126,6 +139,58 @@ function clientFals(config: ConfigClientFals = {}) {
     from(tabela: string) {
       if (tabela === "push_livrari") {
         return {
+          // Două forme de `select` pe aceeași tabelă: cea cu `head: true`
+          // numără (adâncimea cozii), cea fără aduce id-urile de curățat.
+          select(_coloane: string, optiuni?: { count?: string; head?: boolean }) {
+            if (optiuni?.head === true) {
+              const nod = {
+                in: () => nod,
+                is: () => nod,
+                then<R>(rezolva: (v: { count: number | null; error: unknown }) => R): Promise<R> {
+                  return Promise.resolve(
+                    rezolva(
+                      config.eroareAdancime !== undefined
+                        ? { count: null, error: config.eroareAdancime }
+                        : { count: config.adancime ?? 0, error: null },
+                    ),
+                  );
+                },
+              };
+              return nod;
+            }
+            const nod = {
+              in: () => nod,
+              lt: () => nod,
+              limit(n: number) {
+                selectariCuratenie.push(n);
+                return {
+                  then<R>(
+                    rezolva: (v: { data: { id: string }[] | null; error: unknown }) => R,
+                  ): Promise<R> {
+                    return Promise.resolve(
+                      rezolva(
+                        config.eroareSelectVechi !== undefined
+                          ? { data: null, error: config.eroareSelectVechi }
+                          : { data: [...(config.vechi ?? [])].slice(0, n), error: null },
+                      ),
+                    );
+                  },
+                };
+              },
+            };
+            return nod;
+          },
+          delete() {
+            return {
+              in(_coloana: string, ids: readonly string[]) {
+                if (config.eroareStergere !== undefined) {
+                  return Promise.resolve({ error: config.eroareStergere });
+                }
+                sterse.push(...ids);
+                return Promise.resolve({ error: null });
+              },
+            };
+          },
           update(date: Record<string, unknown>) {
             return {
               eq(_coloana: string, id: string) {
@@ -258,7 +323,15 @@ describe("golesteCoada", () => {
     });
     const db = clientFals({ randuriRpc: [] });
     const raport = await golesteCoada(db as unknown as AdminSupabase);
-    expect(raport).toEqual({ luate: 0, trimise: 0, esuate: 0, abandonate: 0, jetoaneRetrase: 0 });
+    expect(raport).toEqual({
+      luate: 0,
+      trimise: 0,
+      esuate: 0,
+      abandonate: 0,
+      jetoaneRetrase: 0,
+      curatate: 0,
+      inCoada: 0,
+    });
     expect(apeluri).toHaveLength(0);
   });
 
@@ -273,7 +346,15 @@ describe("golesteCoada", () => {
     // niciun rând de dat.
     const db = clientFals({ randuriRpc: null });
     const raport = await golesteCoada(db as unknown as AdminSupabase);
-    expect(raport).toEqual({ luate: 0, trimise: 0, esuate: 0, abandonate: 0, jetoaneRetrase: 0 });
+    expect(raport).toEqual({
+      luate: 0,
+      trimise: 0,
+      esuate: 0,
+      abandonate: 0,
+      jetoaneRetrase: 0,
+      curatate: 0,
+      inCoada: 0,
+    });
     expect(apeluri).toHaveLength(0);
   });
 
@@ -419,7 +500,15 @@ describe("golesteCoada", () => {
       ],
     });
     const raport = await golesteCoada(db as unknown as AdminSupabase);
-    expect(raport).toEqual({ luate: 3, trimise: 1, esuate: 1, abandonate: 1, jetoaneRetrase: 1 });
+    expect(raport).toEqual({
+      luate: 3,
+      trimise: 1,
+      esuate: 1,
+      abandonate: 1,
+      jetoaneRetrase: 1,
+      curatate: 0,
+      inCoada: 0,
+    });
     expect(db.actualizari.find((a) => a.id === "l1")?.date.stare).toBe("trimis");
     expect(db.actualizari.find((a) => a.id === "l2")?.date.stare).toBe("abandonat");
     expect(db.actualizari.find((a) => a.id === "l3")?.date.stare).toBe("in_asteptare");
@@ -551,5 +640,85 @@ describe("golesteCoada — traducerea legăturii depinde de destinatar", () => {
     await golesteCoada(db as unknown as AdminSupabase);
     expect(caleaTrimisa()).toBe("/portal/pontajul-meu/saptamana");
     expect(db.jurnalCereri.filtre).toHaveLength(0);
+  });
+});
+
+/**
+ * Curățenia și adâncimea cozii.
+ *
+ * Până la 2026-09-04 nimic nu curăța `push_livrari`, iar `journalctl` nu putea
+ * distinge „nu e nimic de trimis" de „coada crește și nu se golește": ambele
+ * arătau ca `{"luate":0}`.
+ */
+describe("golesteCoada — curățenie și adâncime", () => {
+  it("șterge rândurile terminale vechi și le raportează", async () => {
+    const db = clientFals({ randuriRpc: [], vechi: [{ id: "v1" }, { id: "v2" }] });
+    const raport = await golesteCoada(db as unknown as AdminSupabase);
+    expect(raport.curatate).toBe(2);
+    expect(db.sterse).toEqual(["v1", "v2"]);
+  });
+
+  it("curățenia e PLAFONATĂ, ca Pasul 1 din push_ia_din_coada", async () => {
+    // Un DELETE fără limită superioară, pornit dintr-o rută cu termen, s-ar
+    // derula înapoi peste termen și n-ar curăța nimic — la fiecare rulare.
+    const db = clientFals({
+      randuriRpc: [],
+      vechi: [{ id: "v1" }, { id: "v2" }, { id: "v3" }, { id: "v4" }],
+    });
+    const raport = await golesteCoada(db as unknown as AdminSupabase, 2);
+    expect(db.selectariCuratenie).toEqual([2]);
+    expect(raport.curatate).toBe(2);
+    expect(db.sterse).toEqual(["v1", "v2"]);
+  });
+
+  it("curățenia rulează ȘI când coada e goală", async () => {
+    // E singura rulare garantată: timerul bate la un minut chiar și fără
+    // notificări de trimis. Dacă ar rula doar pe ramura cu rânduri, o coadă
+    // liniștită n-ar fi curățată niciodată.
+    const db = clientFals({ randuriRpc: [], vechi: [{ id: "v1" }] });
+    const raport = await golesteCoada(db as unknown as AdminSupabase);
+    expect(raport.luate).toBe(0);
+    expect(raport.curatate).toBe(1);
+  });
+
+  it("o ștergere picată NU oprește livrarea", async () => {
+    mockExpo([{ status: "ok", id: "b1" }]);
+    const db = clientFals({
+      randuriRpc: [rand()],
+      vechi: [{ id: "v1" }],
+      eroareStergere: { message: "fără drept de ștergere (simulat)." },
+    });
+    const raport = await golesteCoada(db as unknown as AdminSupabase);
+    expect(raport.curatate).toBe(0);
+    expect(raport.trimise).toBe(1);
+  });
+
+  it("o selectare picată NU oprește livrarea", async () => {
+    mockExpo([{ status: "ok", id: "b1" }]);
+    const db = clientFals({
+      randuriRpc: [rand()],
+      eroareSelectVechi: { message: "citire eșuată (simulat)." },
+    });
+    const raport = await golesteCoada(db as unknown as AdminSupabase);
+    expect(raport.curatate).toBe(0);
+    expect(raport.trimise).toBe(1);
+  });
+
+  it("raportează adâncimea cozii DUPĂ prelucrare", async () => {
+    mockExpo([{ status: "ok", id: "b1" }]);
+    const db = clientFals({ randuriRpc: [rand()], adancime: 17 });
+    const raport = await golesteCoada(db as unknown as AdminSupabase);
+    expect(raport.inCoada).toBe(17);
+  });
+
+  it("o numărătoare picată dă `null`, nu zero", async () => {
+    // Zero ar minți: ar arăta identic cu „coada e goală". `null` spune „nu
+    // știu", ceea ce e adevărat și se vede în jurnal.
+    const db = clientFals({
+      randuriRpc: [],
+      eroareAdancime: { message: "numărare eșuată (simulat)." },
+    });
+    const raport = await golesteCoada(db as unknown as AdminSupabase);
+    expect(raport.inCoada).toBeNull();
   });
 });

@@ -70,6 +70,25 @@ const TIMP_RECUPERARE_MS = 8000;
  */
 const TIMP_RECUPERARE_FISIER_MS = 20000;
 
+/**
+ * Plasa pentru fereastra NATIVĂ care nu se închide niciodată.
+ *
+ * `Sharing.shareAsync` și `Print.printAsync` întorc o promisiune care se
+ * rezolvă la închiderea ferestrei. Dacă nu se rezolvă vreodată — fereastra
+ * rămâne agățată, procesul de partajare al sistemului moare cu ea — atunci
+ * `finally` nu rulează, iar CELE DOUĂ steaguri rămân `true` PE VIAȚĂ:
+ *   · `inCursFisier` ⇒ butonul e mort definitiv, cu o alertă falsă la fiecare
+ *     tap următor;
+ *   · `ferestraFisierDeschisa` ⇒ vălul biometric nu se mai desenează NICIODATĂ
+ *     la revenirea din fundal — telefonul lăsat pe masă arată portalul.
+ * Al doilea e o regresie de securitate, nu doar un neajuns.
+ *
+ * ZECE MINUTE, nu douăzeci de secunde: o foaie de partajare deschisă legitim
+ * poate sta mult — omul alege aplicația, scrie un e-mail, atașează. Plasa nu
+ * trebuie să bată folosirea normală, doar să mărginească dauna.
+ */
+const TIMP_MAXIM_FEREASTRA_MS = 10 * 60 * 1000;
+
 // Notificarea primită cât aplicația e deschisă trebuie să se afișeze oricum —
 // altfel un om care stă în aplicație nu vede că i s-a aprobat o cerere decât
 // dacă navighează singur în portal ca s-o verifice.
@@ -219,6 +238,21 @@ function esteIncorporareDeCurs(url: string): boolean {
  */
 function deschideInBrowser(url: string): void {
   if (Platform.OS !== "ios") return;
+  // Poartă la CHIUVETĂ, nu la apelant — aceeași formă ca `mergiLa`. Azi există
+  // un singur apelant, iar el filtrează deja (`onShouldStartLoadWithRequest`
+  // vede doar navigări de prim-cadru pe scheme de rețea). Dar `Linking.openURL`
+  // acceptă ORICE schemă: `tel:`, `sms:`, `itms-apps:` (App Store), o schemă de
+  // aplicație terță — iar un `intent:`/schemă proprie strecurat printr-un
+  // redirect ar scoate omul din aplicație către altceva decât un browser.
+  // Clasa asta a fost închisă de patru ori la apelanți în ziua asta și
+  // reintrodusă de fiecare dată de un apelant nou; aici nu mai poate fi.
+  let schema: string;
+  try {
+    schema = new URL(url).protocol;
+  } catch {
+    return;
+  }
+  if (schema !== "https:" && schema !== "http:") return;
   void Linking.openURL(url).catch(() => {
     Alert.alert(
       "Nu am putut deschide linkul",
@@ -461,10 +495,19 @@ export default function App() {
   // sarcina asta trebuie să-l închidă, nu să-l reproducă sub altă formă. La
   // expirare, temporizatorul eliberează și garda de mai sus — altfel un
   // `fetch` mort ar bloca PERMANENT orice încercare ulterioară pe același fel.
+  //
+  // ORDINEA CONTEAZĂ: temporizatorul se armează ÎNAINTE de injectare, nu după.
+  // Invers — cum era scris — între punerea gărzii și armarea plasei stătea o
+  // chemare neîmpachetată (`injectJavaScript`). Dacă aceea ar arunca sincron,
+  // garda rămâne `true` fără ca nimeni să mai fie programat s-o elibereze:
+  // tăcere DEFINITIVĂ pe felul ăla de fișier, mai rău decât defectul original
+  // (o alertă falsă ocazională). Cu plasa întinsă întâi, orice ar face
+  // injectarea, la `TIMP_RECUPERARE_FISIER_MS` garda se eliberează și omul
+  // primește explicația. Probabilitatea e mică — dispatch fire-and-forget spre
+  // bridge — dar costul e o linie mutată.
   const porneșteAducerea = useCallback((url: string, fel: "pdf" | "html") => {
     if (inCursFisier.current[fel]) return;
     inCursFisier.current[fel] = true;
-    webview.current?.injectJavaScript(scriptDeAducere(url, fel));
     const activ = timpRecuperareFisier.current[fel];
     if (activ !== null) clearTimeout(activ);
     timpRecuperareFisier.current[fel] = setTimeout(() => {
@@ -477,6 +520,7 @@ export default function App() {
           : "Deschiderea adeverinței a durat prea mult. Încearcă din nou.",
       );
     }, TIMP_RECUPERARE_FISIER_MS);
+    webview.current?.injectJavaScript(scriptDeAducere(url, fel));
   }, []);
 
   // Dispecer pe `fel` — vezi `MesajDinPagina`. `"pdf"`/`"html"` (Task 9) merg
@@ -563,12 +607,26 @@ export default function App() {
         // prezentare peste prima — exact instabilitatea (share sheet dublu pe
         // iOS) pe care garda există s-o evite, nu doar dublarea `fetch`-ului.
         void (async () => {
+          // Paznicul ferestrei native — vezi `TIMP_MAXIM_FEREASTRA_MS`. Armat
+          // în clipa în care fereastra chiar se deschide, șters în `finally`.
+          // Ține de închiderea aceleiași clase ca `porneșteAducerea`: un steag
+          // pus înaintea unui `await` care s-ar putea să nu se întoarcă
+          // niciodată are nevoie de cineva programat să-l scoată.
+          let paznic: ReturnType<typeof setTimeout> | null = null;
+          const deschideFereastra = (): void => {
+            ferestraFisierDeschisa.current[fel] = true;
+            paznic = setTimeout(() => {
+              paznic = null;
+              inCursFisier.current[fel] = false;
+              ferestraFisierDeschisa.current[fel] = false;
+            }, TIMP_MAXIM_FEREASTRA_MS);
+          };
           try {
             if (fel === "pdf") {
               if (typeof mesaj.nume === "string" && typeof mesaj.date === "string") {
                 // Din acest punct chiar se scrie fișierul și se prezintă
                 // foaia de partajare — vezi `ferestraFisierDeschisa`, sus.
-                ferestraFisierDeschisa.current.pdf = true;
+                deschideFereastra();
                 await salveazaPdf(mesaj.nume, mesaj.date);
               } else {
                 // `ok: true`, dar scriptul n-a populat `nume`/`date` cum ar
@@ -583,7 +641,7 @@ export default function App() {
             } else if (typeof mesaj.date === "string") {
               // Din acest punct chiar se prezintă previzualizarea de
               // tipărire — vezi `ferestraFisierDeschisa`, sus.
-              ferestraFisierDeschisa.current.html = true;
+              deschideFereastra();
               await tipareste(mesaj.date);
             } else {
               Alert.alert(
@@ -603,6 +661,7 @@ export default function App() {
                 : "Adeverința a fost adusă, dar tipărirea nu a putut porni.",
             );
           } finally {
+            if (paznic !== null) clearTimeout(paznic);
             inCursFisier.current[fel] = false;
             ferestraFisierDeschisa.current[fel] = false;
           }
