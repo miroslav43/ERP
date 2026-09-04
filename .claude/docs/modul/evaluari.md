@@ -21,12 +21,13 @@ tabele:
     kpi_valori,
   ]
 permisiuni: [evaluations:read, evaluations:create, evaluations:update]
-feature: evaluations
+feature: [evaluations, kpi]
 capcane: [17]
 citeste_daca:
   - "manager care nu poate salva KPI deși vede echipa → secțiunea „managerul direct”"
-scris_pe: 0815fbff2c885cd44b5768ee25f084f16a9e95b8
-scris_la: 2026-09-03
+  - "ecran KPI care dă 404 deși evaluările merg → secțiunea „Rute și cine ajunge”"
+scris_pe: 00e37653eadf3e9d2827de0ebf88e9a043eec856
+scris_la: 2026-09-04
 tags: [modul, hr]
 ---
 
@@ -37,20 +38,36 @@ pe șablon (0038 → 0072) și KPI-ul lunar (0119). Nu există discriminant `tip
 `employee_evaluations` și nicio politică nu se condiționează pe el — separarea e prin
 tabele, nu printr-o coloană.
 
+De la desprinderea lui `kpi` ca modul propriu în `src/config/features.ts`, separarea e și
+**comercială**: cheile de facturare sunt două (`evaluations` și `kpi`), cheile de
+permisiune rămân una singură (`evaluations:*`). Cine caută o permisiune `kpi:*` n-o
+găsește — nu există.
+
 ## Rute și cine ajunge
 
-| Rută                   | Poarta paginii          | Ce deblochează în plus scrierea                  |
-| ---------------------- | ----------------------- | ------------------------------------------------ |
-| `/evaluari`            | `evaluations:read` team | `evaluations:create` team                        |
-| `/evaluari/sabloane`   | `evaluations:read` team | `evaluations:update` **all**                     |
-| `/evaluari/kpi`        | `evaluations:read` team | `evaluations:create` team                        |
-| `/evaluari/kpi/[id]`   | `evaluations:read` team | `evaluations:update` team **și** luna în `draft` |
-| `/evaluari/kpi/seturi` | `evaluations:read` team | `evaluations:update` team                        |
-| `/portal/kpi-ul-meu`   | portalul angajatului    | propria serie, citire                            |
+| Rută                   | `requireFeature` | Poarta paginii          | Ce deblochează în plus scrierea                  |
+| ---------------------- | ---------------- | ----------------------- | ------------------------------------------------ |
+| `/evaluari`            | `evaluations`    | `evaluations:read` team | `evaluations:create` team                        |
+| `/evaluari/sabloane`   | `evaluations`    | `evaluations:read` team | `evaluations:update` **all**                     |
+| `/evaluari/kpi`        | `kpi`            | `evaluations:read` team | `evaluations:create` team                        |
+| `/evaluari/kpi/[id]`   | `kpi`            | `evaluations:read` team | `evaluations:update` team **și** luna în `draft` |
+| `/evaluari/kpi/seturi` | `kpi`            | `evaluations:read` team | `evaluations:update` team                        |
+| `/portal/kpi-ul-meu`   | `kpi`            | portalul angajatului    | propria serie, citire                            |
 
-Toate paginile intră cu **aceeași** poartă — `evaluations:read` la scope `team`. Ce
-diferă e booleanul de scriere calculat pe server: cine n-are `update` vede ecranul complet
-și fără butoane, nu `AccesRestrictionat`.
+Toate paginile intră cu **aceeași** poartă de permisiune — `evaluations:read` la scope
+`team`. Ce diferă e booleanul de scriere calculat pe server: cine n-are `update` vede
+ecranul complet și fără butoane, nu `AccesRestrictionat`.
+
+Ce **nu** mai e comun e modulul. O organizație cu `evaluations` activ dar fără `kpi`
+deschide `/evaluari` și `/evaluari/sabloane`, iar ecranele de KPI îi dau **404**:
+`requireFeature` cheamă `notFound()`, nu `AccesRestrictionat`, deci nimic nu explică
+refuzul. Intrarea de meniu `portal-kpi` are și ea `featureKey: "kpi"` și dispare în același
+caz. Pentru ecranele KPI de administrare nu există element de meniu deloc — se ajunge la
+ele din `/evaluari`.
+
+În preambul, `requireFeature` și `getPermissionMap` se cheamă **paralel** (`Promise.all`),
+ca la pasul 3+4 din `src/lib/actions/create-action.ts`: citiri independente, decizii în
+aceeași ordine ca înainte — modul dezactivat înaintea permisiunii lipsă.
 
 Permisiunile `evaluations:*` sunt proprii modulului din `0070`: până atunci acțiunile
 cereau `employees:update`, pe care `manager` nu-l are la scope suficient, deci evaluările
@@ -59,7 +76,7 @@ scope `team`.
 
 ## Server Actions
 
-`src/app/(app)/evaluari/actions.ts` — anualele:
+`src/app/(app)/evaluari/actions.ts` — anualele, toate pe `feature: "evaluations"`:
 
 | Funcție                                                                        | Permisiune / minScope       |
 | ------------------------------------------------------------------------------ | --------------------------- |
@@ -69,9 +86,13 @@ scope `team`.
 | `actualizeazaEvaluare`, `finalizeazaEvaluare`                                  | `evaluations:update` / team |
 | `redeschideEvaluare`                                                           | `evaluations:update` / all  |
 
-`src/app/(app)/evaluari/kpi/actions.ts` — KPI lunar, toate pe `team`:
-`creeazaSetKpi`, `actualizeazaSetKpi`, `arhiveazaSetKpi`, `seteazaTintaKpi`,
-`stergeTintaKpi`, `deschideLunaKpi`, `salveazaLunaKpi`, `finalizeazaLunaKpi`.
+`src/app/(app)/evaluari/kpi/actions.ts` — KPI lunar, toate pe `feature: "kpi"` și
+`minScope: "team"`: `creeazaSetKpi`, `actualizeazaSetKpi`, `arhiveazaSetKpi`,
+`seteazaTintaKpi`, `stergeTintaKpi`, `deschideLunaKpi`, `salveazaLunaKpi`,
+`finalizeazaLunaKpi`. Toate cer `evaluations:update`, în afară de `deschideLunaKpi`, care
+cere `evaluations:create` — deschiderea lunii chiar inserează un rând. Cu modulul `kpi`
+inactiv se opresc toate în `MODUL_DEZACTIVAT`, înaintea oricărei verificări de permisiune;
+anualele, pe `evaluations`, nu sunt atinse.
 
 Redeschiderea unei evaluări anuale e singura care urcă la `all`: finalizarea o face
 managerul, anularea ei nu.

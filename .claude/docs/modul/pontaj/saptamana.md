@@ -10,8 +10,8 @@ tabele: [attendance_week_submissions, attendance_week_submission_days]
 permisiuni: [attendance:create, attendance:approve]
 feature: attendance
 capcane: [17]
-scris_pe: 2e9e70f178c4a0c33ce2e8ad0a4d0f7f9e3a4d68
-scris_la: 2026-08-31
+scris_pe: 00e37653eadf3e9d2827de0ebf88e9a043eec856
+scris_la: 2026-09-04
 tags: [modul, hr]
 ---
 
@@ -45,4 +45,3 @@ preia deloc: nota zilei lucrate și nota intenției sunt două texte diferite.
 
 Citirea e `intrariLuna(org, [fisa], …)`, **nu** `intrariProprii` — a doua nu filtrează pe
 `employee_id` și se bazează pe RLS, care pentru scope `all` nu îngustează nimic.
-

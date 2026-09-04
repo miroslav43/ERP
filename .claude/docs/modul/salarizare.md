@@ -25,8 +25,8 @@ capcane: [2, 17]
 citeste_daca:
   - "perioadă care nu se recalculează → [[date/pontaj]]"
   - "sumă greșită → src/domain/payroll/, nu pagina asta"
-scris_pe: 3c9747a4f30ad317e7ea4e01fe0a4e778381411e
-scris_la: 2026-08-30
+scris_pe: 00e37653eadf3e9d2827de0ebf88e9a043eec856
+scris_la: 2026-09-04
 tags: [modul, finance]
 ---
 
@@ -44,12 +44,23 @@ neconfirmate de contabil.
 | `/salarizare`                                   | `payroll:read`/`create`/`update`, toate **all**                           |
 | `/salarizare/[id]`                              | `payroll:read` all; butoanele cer `create`, `update`, `approve`, `export` |
 | `/salarizare/[id]/[entryId]`                    | `payroll:read` all                                                        |
-| `/salarizare/componente`, `/salarizare/popriri` | `payroll:create`/`update` all                                             |
+| `/salarizare/componente`, `/salarizare/popriri` | `payroll:read` la orice scope; butoanele cer `create`/`update` all        |
 | `/salarizare/istoric-venituri`                  | `payroll:create` all                                                      |
 | `/salarizare/setari`                            | `payroll:update` all                                                      |
 
-**Niciun scope sub `all`.** Modulul nu are noțiune de „echipă": cine îl vede, îl vede
-întreg.
+**Niciun scope de „echipă".** Modulul nu are noțiunea: cele patru ecrane
+administrative cer `all` direct, iar `manager` — care are `payroll` pe `none`
+(`0002_authz.sql:1191`) — nu trece de niciunul.
+
+Cele două nomenclatoare fac excepție: `componente/page.tsx:51-52` și
+`popriri/page.tsx:33-34` cer doar ca `payroll:read` să EXISTE, la orice scope, și lasă
+baza să îngusteze lista. Poarta compară cu `null` **și** cu `"none"`, fiindcă
+`getPermissionMap` scoate scope-ul `none` din hartă după rezolvare
+(`permissions.ts:127`), iar `scopeFor` întoarce `null` pentru o cheie absentă
+(`permissions.ts:142-144`) — o poartă scrisă doar pe `=== "none"` nu se închide
+niciodată. (Preambulul cere `requireFeature` și `getPermissionMap` prin `Promise.all`,
+în toate paginile modulului — două citiri independente; respingerea lui `requireFeature`
+se propagă la fel ca înlănțuită.)
 
 ## Server Actions
 
@@ -81,8 +92,9 @@ rămâne în pagină — e ecranul însuși, nu o adăugare.
 
 `src/lib/queries/payroll.ts` — cel mai mare fișier de citiri din proiect:
 `listeazaPerioade`, `citestePerioada`, `listeazaInregistrari`, `citesteInregistrare`,
-`citesteFluturasulPropriu`, `pontajAgregatPerioada`, `zileLucratoareLuna`,
-`angajatiActiviCuContract`, `scutiriActivePerioada`, `componenteSalarialeActivePerioada`,
+`citesteFluturasulPropriu`, `perioadaInregistrarii`, `pontajAgregatPerioada`,
+`zileLucratoareLuna`, `angajatiActiviCuContract`, `scutiriActivePerioada`,
+`componenteSalarialeActivePerioada`,
 `primeSiRetineriPerioada`, `istoricVenitPerAngajat`, `certificateMedicaleLuna`,
 `compensariLuna`, `diurnaLunaPerAngajat`, `plafoaneDiurnaLuna`, `popririActive`,
 `dosarePopriri`, plus setările valabile la o dată.
@@ -118,6 +130,19 @@ apare azi nicăieri pe ecran.
   `23505`, `42P10`, `23514`, `22003`, `22012`, `P0001` (`erori.ts`). `22003` și
   `22012` sunt depășire numerică și împărțire la zero — apar din calcul, nu din
   autorizare, și un mesaj generic ar trimite investigația în direcția greșită.
+- **`/salarizare/popriri` deschis nu înseamnă lista întreagă.**
+  `payroll_garnishments_select` trece prin `app.poate_accesa_salariul(…, 'read')`
+  (`0059_salarizare_popriri.sql:106-111`), deci sub `all` rămân doar dosarele proprii —
+  listă scurtă sau `StareGoala`, niciodată eroare. Catalogul de la
+  `/salarizare/componente` e invers: `salary_component_types_select`
+  (`0005_hr_rls.sql:751-759`) filtrează numai pe organizație — un șablon nu e salariul
+  nimănui.
+- **Funcția de pe fluturașul trimis pe e-mail vine din coloană, nu din embed.**
+  `0110_functia_pe_fisa.sql` a desființat nomenclatorul `job_positions` și a mutat
+  denumirea pe `employees.functie`. `job_position_id` a rămas pe tabelă, dar nu-l mai
+  populează nimeni, deci embed-ul vechi întorcea `null` — fără eroare — pentru fiecare
+  fișă creată după 0110. `COLOANE_FLUTURAS_EMAIL` (`actions.ts:230`) cere azi `functie`,
+  la fel ca `api/export/salarizare/fluturas/route.ts:68`.
 - **Valorile legale nu sunt adevăr.** Plafoanele și cotele din `payroll_settings` și
   `payroll_personal_deduction_brackets` sunt marcate în `NOTES.md` ca ⚠ de confirmat de
   contabil înainte de orice calcul real.

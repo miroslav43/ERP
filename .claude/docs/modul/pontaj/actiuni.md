@@ -11,8 +11,8 @@ tabele: [attendance_entries, attendance_periods, attendance_approval_batches]
 permisiuni: [attendance:read, attendance:create, attendance:update, attendance:approve]
 feature: attendance
 capcane: [2, 6, 7, 17]
-scris_pe: 2e9e70f178c4a0c33ce2e8ad0a4d0f7f9e3a4d68
-scris_la: 2026-08-31
+scris_pe: 00e37653eadf3e9d2827de0ebf88e9a043eec856
+scris_la: 2026-09-04
 tags: [modul, hr]
 ---
 
@@ -140,4 +140,3 @@ Regula după care ies cifrele o scrie în cuvinte `rezumatRegulaPontaj`
 săptămânii ca `regulaFirmei`: steagul `areSetari` nu se deduce din `config`, iar o firmă
 neconfigurată și una configurată pe exact valorile de rezervă ar da altfel același text.
 `src/app/(app)/pontaj/etichete.test.ts` leagă textul de `oreleZilei`.
-

@@ -13,9 +13,10 @@ feature: asistent
 capcane: []
 citeste_daca:
   - "bula nu apare nicăieri → verifică ÎNTÂI cele două comutatoare, secțiunea „Ce refuză baza tăcut”"
+  - "bula e în DOM dar nu se vede pe ecran → învelișul flotant s-a strâns la 0×0; același loc"
   - "o pastilă duce în 404 → imposibil prin construcție; citește „Lista închisă”"
-scris_pe: 719e27247b2dd149e7fac3e45c3116e95b4eeddd
-scris_la: 2026-08-31
+scris_pe: 00e37653eadf3e9d2827de0ebf88e9a043eec856
+scris_la: 2026-09-04
 tags: [modul, nucleu]
 ---
 
@@ -54,8 +55,8 @@ ori în `EXCLUSE` cu motiv scris.
 
 Modulul n-are pagini proprii. Are o singură rută de API și două puncte de montare.
 
-| Rută            | Poartă                                                                                        |
-| --------------- | --------------------------------------------------------------------------------------------- |
+| Rută            | Poartă                                                                                           |
+| --------------- | ------------------------------------------------------------------------------------------------ |
 | `/api/asistent` | cheie de mediu → `resolveTenant` → modul `asistent` → limite de rată → Zod → hartă de permisiuni |
 
 Ordinea nu e negociabilă și e comentată în `src/app/api/asistent/route.ts`: cheia lipsă
@@ -114,6 +115,12 @@ să poată fi greșită.
   marcate `cereFisaProprie` refuză cu un motiv scris, nu cu zero rânduri.
 - **Rol fără nicio unealtă permisă.** Secțiunea „UNELTE” lipsește cu totul din prompt: o
   listă de unelte inaccesibile e tot o hartă a aplicației.
+- **Învelișul flotant fără dimensiune explicită.** `zona-asistent.tsx` e un
+  `popover="manual"`, iar foaia de stil a browserului dă oricărui popover deschis
+  `width/height: fit-content` — și acelea bat un `inset-0` care n-are dimensiune lângă el:
+  învelișul se strânge la 0×0 în colțul din stânga-sus, cu bulă cu tot. `h-full w-full`
+  nu e dublaj. În happy-dom foaia aceea nu există, deci randarea pare corectă oricum ai
+  scrie clasele; de-aia `zona-asistent.test.tsx` verifică **clasele**, nu geometria.
 
 ## Ce se mișcă împreună
 
@@ -127,6 +134,14 @@ să poată fi greșită.
   `src/content/landing/continut.test.ts` o cere.
 - **`ZonaToast`** — banda de notificări urcă peste bulă. Ambele stau pe `z-plutitor`, în
   același colț; fără decalaj, un toast apare sub butonul rotund și nu se mai poate închide.
+  Decalajele sunt corelate de mână între `toast.tsx` și `zona-asistent.tsx`, iar cel al
+  bulei în portal e fixat ca valoare în `zona-asistent.test.tsx`: mutat pe o singură parte,
+  una o acoperă pe cealaltă.
+- **Iconițele pastilelor** — `referinta-ruta.tsx` indexează `NAV_ITEMS` și
+  `PORTAL_NAV_ITEMS` într-un tabel de modul, cu cheia `zonă:părinte`, în loc să caute la
+  randare. Nu e optimizare: `react-hooks/static-components` respinge o componentă întoarsă
+  de un apel de funcție în timpul randării. Un părinte inexistent cade tăcut pe săgeata
+  implicită — dar `destinatii.test.ts` prinde orfanul înainte.
 
 ## Ce NU e aici
 

@@ -24,8 +24,8 @@ capcane: [2, 6, 7, 9, 17]
 citeste_daca:
   - "buton de aprobare care nu apare → [[rol/manager]]"
   - "tranziție de perioadă respinsă → [[date/pontaj]]"
-scris_pe: 2e9e70f178c4a0c33ce2e8ad0a4d0f7f9e3a4d68
-scris_la: 2026-08-31
+scris_pe: 00e37653eadf3e9d2827de0ebf88e9a043eec856
+scris_la: 2026-09-04
 tags: [modul, hr]
 ---
 
@@ -45,11 +45,11 @@ Pagina asta e trunchiul: ce e modulul, cine ajunge unde, cum arată cele trei vi
 și ce refuză baza fără să spună. Restul s-a spart pe subarborele de rute, fiindcă trecuse
 de plafonul dur de 12 KB al convenției (`.claude/docs/meta/conventii.md`).
 
-| Pagină                     | Ce ține                                                                   |
-| -------------------------- | ------------------------------------------------------------------------- |
+| Pagină                     | Ce ține                                                                                                              |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | [[modul/pontaj/actiuni]]   | cele treisprezece Server Actions, citirile din `queries/attendance.ts`, ce se mișcă împreună la o schimbare de formă |
-| [[modul/pontaj/saptamana]] | planul săptămânal, RPC-ul care face `delete` + reinserare, legătura plan ↔ fapt |
-| [[modul/pontaj/setari]]    | pontarea rapidă (0115), aprobarea ca alegere a firmei (0118), limitele legale |
+| [[modul/pontaj/saptamana]] | planul săptămânal, RPC-ul care face `delete` + reinserare, legătura plan ↔ fapt                                      |
+| [[modul/pontaj/setari]]    | pontarea rapidă (0115), aprobarea ca alegere a firmei (0118), limitele legale                                        |
 
 ## Rute și cine ajunge
 

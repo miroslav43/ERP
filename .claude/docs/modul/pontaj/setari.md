@@ -10,8 +10,8 @@ tabele: [setari_pontare_rapida, attendance_settings, puncte_lucru]
 permisiuni: [attendance:update, attendance:read]
 feature: attendance
 capcane: [17]
-scris_pe: 2e9e70f178c4a0c33ce2e8ad0a4d0f7f9e3a4d68
-scris_la: 2026-08-31
+scris_pe: 00e37653eadf3e9d2827de0ebf88e9a043eec856
+scris_la: 2026-09-04
 tags: [modul, hr]
 ---
 
@@ -123,4 +123,3 @@ navigare imediată le-ar fi făcut să clipească); formularul săptămânii le 
 foaia colectivă le calculează în CLIENT, din luna deja încărcată, fără nicio citire nouă —
 de aceea acolo lipsesc media pe perioada de referință și repausul de la granița lunii, iar
 panoul o spune.
-
