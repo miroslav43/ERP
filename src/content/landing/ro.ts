@@ -954,10 +954,13 @@ export const RO: ContinutLanding = {
       {
         titlu: "Domenii",
         legaturi: [
-          { eticheta: "Construcții și instalații", href: "/domenii" },
-          { eticheta: "Producție și fabrici", href: "/domenii" },
-          { eticheta: "Transport și logistică", href: "/domenii" },
-          { eticheta: "Servicii, birouri și comerț", href: "/domenii" },
+          // Patru etichete, patru destinații. Au dus toate la aceeași ancoră
+          // până la împărțirea în pagini proprii — patru linkuri către o
+          // singură adresă sunt, pentru un crawler, un singur link.
+          { eticheta: "Construcții și instalații", href: "/domenii/constructii" },
+          { eticheta: "Producție și fabrici", href: "/domenii/productie" },
+          { eticheta: "Transport și logistică", href: "/domenii/transport" },
+          { eticheta: "Servicii, birouri și comerț", href: "/domenii/servicii" },
         ],
       },
       {

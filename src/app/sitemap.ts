@@ -59,7 +59,38 @@ const PAGINI: readonly Pagina[] = [
   { cale: "/incredere", prioritate: 0.6, limba: "ro", traducere: null, actualizat: "2026-09-03" },
   { cale: "/intrebari", prioritate: 0.6, limba: "ro", traducere: null, actualizat: "2026-09-03" },
   { cale: "/de-ce-nu", prioritate: 0.5, limba: "ro", traducere: null, actualizat: "2026-09-03" },
-  { cale: "/domenii", prioritate: 0.5, limba: "ro", traducere: null, actualizat: "2026-09-03" },
+  { cale: "/domenii", prioritate: 0.5, limba: "ro", traducere: null, actualizat: "2026-09-04" },
+  // Cele patru pagini de domeniu. Scrise literal, nu generate din `DOMENII`:
+  // `continut.test.ts` compară sitemap-ul cu `llms.txt` citind sursa ca text, iar
+  // o cale construită prin interpolare n-ar fi găsită de niciunul dintre tipare.
+  {
+    cale: "/domenii/constructii",
+    prioritate: 0.7,
+    limba: "ro",
+    traducere: null,
+    actualizat: "2026-09-04",
+  },
+  {
+    cale: "/domenii/productie",
+    prioritate: 0.7,
+    limba: "ro",
+    traducere: null,
+    actualizat: "2026-09-04",
+  },
+  {
+    cale: "/domenii/transport",
+    prioritate: 0.7,
+    limba: "ro",
+    traducere: null,
+    actualizat: "2026-09-04",
+  },
+  {
+    cale: "/domenii/servicii",
+    prioritate: 0.7,
+    limba: "ro",
+    traducere: null,
+    actualizat: "2026-09-04",
+  },
   // Paginile de obligație legală. Prioritate mare: sunt singurele care pot
   // câștiga o căutare pe un domeniu fără vechime, fiindcă răspund la o
   // întrebare precisă, cu articolul de lege lângă fiecare afirmație.

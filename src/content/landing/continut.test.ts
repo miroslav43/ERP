@@ -294,6 +294,25 @@ describe("legăturile interne duc undeva", () => {
     }),
   );
 
+  /**
+   * Potrivirea unei căi cu rutele găsite pe disc.
+   *
+   * O rută dinamică nu se poate compara ca șir: pe disc există un singur
+   * director, `/domenii/[domeniu]`, iar în conținut apar patru adrese concrete.
+   * Un segment între paranteze drepte se potrivește cu exact un segment, ca la
+   * Next.
+   *
+   * Tiparul e mai permisiv decât realitatea — `dynamicParams = false` face ca
+   * doar valorile din `generateStaticParams` să răspundă cu 200, nu orice
+   * segment. De aceea potrivirea de aici răspunde doar la întrebarea „există
+   * ruta?", iar faptul că slug-urile din hărți sunt EXACT cele generate se
+   * verifică separat, mai jos.
+   */
+  const TIPARE_RUTE = [...RUTE].map(
+    (ruta) => new RegExp(`^${ruta.replace(/\[[^\]]+\]/g, "[^/]+")}$`),
+  );
+  const existaRuta = (cale: string): boolean => TIPARE_RUTE.some((t) => t.test(cale));
+
   const PUBLICE = readFileSync("src/proxy.ts", "utf8");
 
   it("fiecare link intern din conținut are o pagină reală", () => {
@@ -303,7 +322,7 @@ describe("legăturile interne duc undeva", () => {
         .filter((href) => href !== "" && !href.startsWith("//"));
       for (const href of new Set(linkuri)) {
         const cale = href === "/" ? "/" : href.replace(/\/$/, "");
-        expect(RUTE.has(cale), `${limba}: ${href} nu are page.tsx`).toBe(true);
+        expect(existaRuta(cale), `${limba}: ${href} nu are page.tsx`).toBe(true);
       }
     }
   });
@@ -385,7 +404,7 @@ describe("legăturile interne duc undeva", () => {
       expect(inLlms.has(cale), `${cale} e în sitemap dar lipsește din llms.txt`).toBe(true);
     }
     for (const cale of inLlms) {
-      expect(RUTE.has(cale), `${cale} e în llms.txt dar n-are page.tsx`).toBe(true);
+      expect(existaRuta(cale), `${cale} e în llms.txt dar n-are page.tsx`).toBe(true);
     }
   });
 
@@ -399,9 +418,41 @@ describe("legăturile interne duc undeva", () => {
 
     expect(cai.length, "sitemap gol").toBeGreaterThan(0);
     for (const cale of cai) {
-      expect(RUTE.has(cale), `${cale} e în sitemap dar n-are page.tsx`).toBe(true);
+      expect(existaRuta(cale), `${cale} e în sitemap dar n-are page.tsx`).toBe(true);
       expect(estePublica(cale), `${cale} e în sitemap dar cere sesiune`).toBe(true);
     }
+  });
+
+  it("paginile de domeniu din hărți sunt exact cele generate", async () => {
+    /*
+     * Garanția pe care potrivirea cu tipar n-o poate da.
+     *
+     * `/domenii/[domeniu]` are `dynamicParams = false`, deci răspund cu 200
+     * exact slug-urile din `generateStaticParams`, adică din `DOMENII`. Tiparul
+     * `[^/]+` folosit mai sus ar accepta și `/domenii/orice`, iar o intrare
+     * greșită în sitemap ar trece neobservată — un 404 trimis chiar de noi
+     * motoarelor de căutare.
+     *
+     * Verificarea merge în ambele sensuri: nicio adresă inventată în hărți, și
+     * niciun domeniu adăugat în conținut și uitat din ele.
+     */
+    const { DOMENII } = await import("./domenii");
+    const { ADRESA_SITE } = await import("./contact");
+    const { default: sitemap } = await import("@/app/sitemap");
+
+    const asteptate = new Set(DOMENII.map((d) => `/domenii/${d.slug}`));
+    const dinSitemap = new Set(
+      sitemap()
+        .map((i) => i.url.replace(ADRESA_SITE, ""))
+        .filter((c) => c.startsWith("/domenii/")),
+    );
+    const sursa = readFileSync("src/app/llms.txt/route.ts", "utf8");
+    const bloc = sursa.slice(sursa.indexOf("const PAGINI"), sursa.indexOf("function construieste"));
+    const dinLlms = new Set([...bloc.matchAll(/"(\/domenii\/[^"]*)"/g)].map((m) => m[1] ?? ""));
+
+    expect(asteptate.size, "niciun domeniu definit").toBeGreaterThan(0);
+    expect([...dinSitemap].sort()).toEqual([...asteptate].sort());
+    expect([...dinLlms].sort()).toEqual([...asteptate].sort());
   });
 
   it("rutele de metadate sunt accesibile fără sesiune", () => {

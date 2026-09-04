@@ -58,6 +58,22 @@ const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
     "Pontaj în foaie de calcul față de aplicație: unde se rupe Excel-ul și unde nu.",
   ],
   ["/domenii", "Ce se schimbă pentru construcții, producție, transport și servicii."],
+  [
+    "/domenii/constructii",
+    "Construcții și instalații: echipe pe mai multe șantiere, instruiri și echipament cu scadență, evidența orelor ținută la punctul de lucru.",
+  ],
+  [
+    "/domenii/productie",
+    "Producție și fabrici: ture și schimburi, spor de noapte pe interval propriu, revizii scadențate calendaristic și pe contor.",
+  ],
+  [
+    "/domenii/transport",
+    "Transport și logistică: termenele mașinilor, foi de parcurs cu kilometraj verificat, diurne externe pe ferestre de 24 de ore.",
+  ],
+  [
+    "/domenii/servicii",
+    "Servicii, birouri și comerț: cereri de concediu cu aprobare ierarhică, sold recalculat, prag de absenți simultani, portal pentru fluturaș.",
+  ],
   ["/cere-demo", "Formular pentru o demonstrație cu un om."],
   ["/legal/termeni", "Termenii contractuali și anexa de prelucrare a datelor (RGPD art. 28)."],
   ["/legal/confidentialitate", "Ce date se colectează, de ce, și care sunt drepturile."],
