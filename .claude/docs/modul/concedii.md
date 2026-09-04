@@ -26,8 +26,8 @@ citeste_daca:
   - "cerere care rămâne în aceeași stare → [[date/pontaj]]"
   - "buton de aprobare absent → [[rol/manager]]"
   - "concediu aprobat care nu apare în foaia de prezență → [[modul/pontaj]]"
-scris_pe: 0815fbff2c885cd44b5768ee25f084f16a9e95b8
-scris_la: 2026-09-03
+scris_pe: 711e5225e1df2ceab9324037466c87fda8abd8a0
+scris_la: 2026-09-04
 tags: [modul, hr]
 ---
 
@@ -60,7 +60,11 @@ de 12 KB al convenției (`.claude/docs/meta/conventii.md`).
 | `/concedii/sold`                         | `leave:read` own/team/all                                       |
 | `/concedii/setari`                       | `leave:update` all — v. [[modul/concedii/setari]]               |
 
-Toate trec prin `requireFeature(tenant.organizationId, "leave")`.
+Toate trec prin `requireFeature(tenant.organizationId, "leave")`, dar **în paralel cu
+`getPermissionMap`**, într-un `Promise.all` — nu înlănțuite, cum arată preambulul
+canonic. Sunt două citiri independente, pe tabele diferite, iar costul înlănțuirii era
+integral rețea. Refuzul rămâne identic: o poartă căzută respinge tot `Promise.all`-ul,
+înainte de orice `can()`. Tiparul e la fel pe toate paginile modulului.
 
 **Cererea nouă NU mai are rută.** `/concedii/noua` a dispărut în favoarea unei casete
 deschise din listă (`dialog-cerere-noua.tsx`); datele formularului se citesc în
@@ -133,6 +137,14 @@ Cele șase scrieri de configurare și citirile lor: [[modul/concedii/setari]].
   citire, zero rânduri sub politica de SELECT nu se deosebesc de „nu există": ambele ies
   ca același `notFound`. — `verificaCaleaDocumentului` și `linkDocumentConcediu`, în
   `src/app/(app)/concedii/actions.ts`
+- **Angajatul și tipul din calendar pot veni NULL, fără eroare.** `calendarLunii` îi
+  aduce prin embed imbricat PostgREST (`angajat:employees!employee_id`,
+  `tip:leave_types!leave_requests_leave_type_id_fkey`), deliberat fără `!inner`: un embed
+  to-one filtrat de RLS întoarce NULL, nu elimină rândul. Ziua rămâne pe calendar, cu
+  „Angajat" și „Concediu" în locul numelui și al tipului — nu o citi ca pe date lipsă din
+  bază. `.returns<RandZiCalendar[]>()` e obligatoriu, fiindcă amândouă cheile străine au
+  `isOneToOne: false` și inferența supabase-js dă tablou, nu obiect.
+  — `calendarLunii`, în `src/lib/queries/leave.ts`
 - **Contorul de aprobat urmează lista, nu starea cererii.** `numarDeAprobat` și
   `deAprobat` se citesc din aceeași sursă; un `count()` naiv pe `approval_tasks` rămâne
   blocat pe un număr care nu scade.

@@ -151,6 +151,85 @@ describe("landing-ul nu poate minți despre module", () => {
   });
 });
 
+describe("fișele de modul nu promit ce nu există", () => {
+  /**
+   * Codul aplicației, fără stratul de conținut.
+   *
+   * Excluderea lui `src/content` e esențială: fișele însele conțin cheile, iar
+   * fără excludere testul s-ar potrivi cu propria sursă și ar trece întotdeauna.
+   */
+  const COD_APLICATIE = [...fisiere("src/app", [".ts", ".tsx"]), ...fisiere("src/lib", [".ts"])]
+    .filter((f) => !f.startsWith("src/content/"))
+    .map((f) => readFileSync(f, "utf8"))
+    .join("\n");
+
+  it("fiecare permisiune din tabel e verificată undeva în aplicație", async () => {
+    /*
+     * Tabelele de roluri au fost scrise din `role_permissions`, unde stau
+     * valorile efective. Dar baza acordă mai mult decât verifică aplicația: opt
+     * chei — `attendance:export`, `attendance:delete`, `ssm:approve`,
+     * `ssm:export`, `ssm:delete`, `payroll:delete`, `vehicles:export`,
+     * `per_diem:export` — sunt acordate unor roluri și nu sunt cerute de niciun
+     * fișier din `src/`.
+     *
+     * Publicate ca rânduri de tabel, ar fi promis funcții care nu există: un
+     * export de pontaj și o ștergere de pontaj pe care nimeni nu le poate
+     * apăsa. Prima variantă a fișelor chiar le conținea.
+     *
+     * Testul ăsta e singurul lucru care leagă ce SCRIEM pe pagină de ce FACE
+     * aplicația. Un grant nou în bază nu-l trece; îl trece doar o funcție reală.
+     */
+    const { FISE } = await import("./fise-module");
+    expect(FISE.length, "nicio fișă").toBeGreaterThan(0);
+
+    for (const fisa of FISE) {
+      for (const actiune of fisa.actiuni) {
+        expect(
+          COD_APLICATIE.includes(`"${actiune.cheie}"`),
+          `${fisa.cheie}: „${actiune.ce}" promite ${actiune.cheie}, dar nicio pagină și nicio acțiune n-o verifică`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("modulele și legăturile lor sunt chei reale din catalog", async () => {
+    const { FISE } = await import("./fise-module");
+    for (const fisa of FISE) {
+      expect(isFeatureKey(fisa.cheie), `fișă pentru un modul inexistent: ${fisa.cheie}`).toBe(true);
+      for (const legatura of fisa.legaturi) {
+        expect(
+          isFeatureKey(legatura.catre),
+          `${fisa.cheie} trimite către modulul inexistent ${legatura.catre}`,
+        ).toBe(true);
+        expect(legatura.catre, `${fisa.cheie} se leagă de el însuși`).not.toBe(fisa.cheie);
+      }
+    }
+  });
+
+  it("fiecare fișă are destul conținut propriu ca să merite indexată", () => {
+    /*
+     * Pragul nu e o cifră magică: paginile au pornit de la ~39 de cuvinte
+     * proprii, iar la volumul ăla verdictul obișnuit în Search Console e
+     * „crawled, currently not indexed". 250 e pragul sub care o fișă nouă,
+     * scrisă în grabă, ar readuce exact problema pentru care există fișele.
+     */
+    return import("./fise-module").then(({ FISE }) => {
+      for (const fisa of FISE) {
+        const cuvinte = [
+          ...fisa.intro,
+          fisa.notaPermisiuni,
+          ...fisa.legaturi.map((l) => l.text),
+          ...fisa.nuFace,
+        ]
+          .join(" ")
+          .split(/\s+/)
+          .filter(Boolean).length;
+        expect(cuvinte, `${fisa.cheie}: doar ${cuvinte} cuvinte proprii`).toBeGreaterThan(250);
+      }
+    });
+  });
+});
+
 describe("engleza nu e o traducere pe jumătate", () => {
   it("are aceeași structură ca româna", () => {
     expect(EN.module.grupuri).toHaveLength(RO.module.grupuri.length);
@@ -384,18 +463,20 @@ describe("legăturile interne duc undeva", () => {
      * Excepțiile sunt DECLARATE, nu tăcute: `/en*` lipsește din llms.txt
      * fiindcă rezumatul e în română și o dublură în engleză n-ar adăuga nimic.
      */
-    const { default: sitemap } = await import("@/app/sitemap");
+    const { intrariSitemap: sitemap } = await import("./harta");
     const { ADRESA_SITE } = await import("./contact");
-    const sursa = readFileSync("src/app/llms.txt/route.ts", "utf8");
 
     /*
-     * Se citește DOAR blocul `PAGINI`, iar căile se extrag fără să depindă de
-     * formatare: prettier rupe o intrare lungă pe trei rânduri, iar un tipar
-     * legat de `["` la început de pereche rata exact intrările lungi — adică
-     * pe cele cu descrieri bogate, cele care contează.
+     * Lista se IMPORTĂ, nu se mai citește ca text.
+     *
+     * Regexul peste sursă a funcționat cât timp fiecare intrare era un literal
+     * scris de mână. Fișele celor nouăsprezece module se generează acum din
+     * catalog, iar o cale construită prin interpolare nu apare nicăieri în
+     * sursă ca șir — regexul le-ar fi ratat pe toate și ar fi raportat că
+     * lipsesc din llms.txt, deși sunt acolo.
      */
-    const bloc = sursa.slice(sursa.indexOf("const PAGINI"), sursa.indexOf("function construieste"));
-    const inLlms = new Set([...bloc.matchAll(/"(\/[^"]*)"/g)].map((m) => m[1] ?? ""));
+    const { PAGINI: LLMS } = await import("@/app/llms.txt/route");
+    const inLlms = new Set(LLMS.map(([cale]) => cale));
     const inSitemap = sitemap()
       .map((i) => i.url.replace(ADRESA_SITE, "") || "/")
       .filter((c) => !c.startsWith("/en"));
@@ -413,7 +494,7 @@ describe("legăturile interne duc undeva", () => {
     // Console și buget de crawl aruncat. Se verifică amândouă condițiile: să
     // aibă `page.tsx` și să treacă de proxy.
     const { ADRESA_SITE } = await import("./contact");
-    const { default: sitemap } = await import("@/app/sitemap");
+    const { intrariSitemap: sitemap } = await import("./harta");
     const cai = sitemap().map((intrare) => intrare.url.replace(ADRESA_SITE, "") || "/");
 
     expect(cai.length, "sitemap gol").toBeGreaterThan(0);
@@ -421,6 +502,37 @@ describe("legăturile interne duc undeva", () => {
       expect(existaRuta(cale), `${cale} e în sitemap dar n-are page.tsx`).toBe(true);
       expect(estePublica(cale), `${cale} e în sitemap dar cere sesiune`).toBe(true);
     }
+  });
+
+  it("rândurile din sitemap vin grupate pe secțiuni, fără întreruperi", async () => {
+    /*
+     * Foaia de stil `sitemap.xsl` deduce eticheta grupei din prefixul adresei și
+     * scrie un cap de grupă ori de câte ori eticheta rândului curent diferă de a
+     * celui dinainte. Tiparul ăsta presupune că rândurile aceleiași secțiuni sunt
+     * ADIACENTE.
+     *
+     * Dacă cineva adaugă o pagină de domeniu la coada listei, nu cade nimic și nu
+     * se strică niciun XML: pagina randată capătă pur și simplu un al doilea cap
+     * „Domenii" mai jos, ca și cum ar fi altă secțiune. Un defect pur vizual, pe
+     * care nu-l vede nimeni până nu deschide fișierul în browser — adică rar.
+     *
+     * `sectiune` din `harta.ts` e sursa ordinii; testul verifică doar că ordinea
+     * chiar e respectată.
+     */
+    const { intrariSitemap } = await import("./harta");
+    const vazute = new Set<string>();
+    let anterioara: string | null = null;
+
+    for (const intrare of intrariSitemap()) {
+      if (intrare.sectiune === anterioara) continue;
+      expect(
+        vazute.has(intrare.sectiune),
+        `secțiunea „${intrare.sectiune}" reapare după ce s-a trecut la alta — ${intrare.url}`,
+      ).toBe(false);
+      vazute.add(intrare.sectiune);
+      anterioara = intrare.sectiune;
+    }
+    expect(vazute.size, "nicio secțiune").toBeGreaterThan(1);
   });
 
   it("paginile de domeniu din hărți sunt exact cele generate", async () => {
@@ -438,7 +550,7 @@ describe("legăturile interne duc undeva", () => {
      */
     const { DOMENII } = await import("./domenii");
     const { ADRESA_SITE } = await import("./contact");
-    const { default: sitemap } = await import("@/app/sitemap");
+    const { intrariSitemap: sitemap } = await import("./harta");
 
     const asteptate = new Set(DOMENII.map((d) => `/domenii/${d.slug}`));
     const dinSitemap = new Set(
@@ -446,9 +558,8 @@ describe("legăturile interne duc undeva", () => {
         .map((i) => i.url.replace(ADRESA_SITE, ""))
         .filter((c) => c.startsWith("/domenii/")),
     );
-    const sursa = readFileSync("src/app/llms.txt/route.ts", "utf8");
-    const bloc = sursa.slice(sursa.indexOf("const PAGINI"), sursa.indexOf("function construieste"));
-    const dinLlms = new Set([...bloc.matchAll(/"(\/domenii\/[^"]*)"/g)].map((m) => m[1] ?? ""));
+    const { PAGINI: LLMS } = await import("@/app/llms.txt/route");
+    const dinLlms = new Set(LLMS.map(([cale]) => cale).filter((c) => c.startsWith("/domenii/")));
 
     expect(asteptate.size, "niciun domeniu definit").toBeGreaterThan(0);
     expect([...dinSitemap].sort()).toEqual([...asteptate].sort());

@@ -13,12 +13,21 @@
 name: Documentație
 
 on:
-  schedule:
-    # Minut impar, DELIBERAT. GitHub avertizează că rulările programate pot fi
-    # întârziate — sau pierdute de tot — în perioadele de încărcare mare, iar fix
-    # ora rotundă e cel mai aglomerat slot care există: acolo își pun toți cronul.
-    # Prima rulare programată, cu `0 2 * * *`, chiar n-a pornit niciodată.
-    - cron: "37 2 * * *" # ~04:37–05:37 ora României
+  # ÎN LANȚ după `Revizuire`, nu pe cron propriu.
+  #
+  # Aici a fost `cron: "37 2 * * *"` — același minut cu al revizuirii — plus o
+  # gardă care ceda dacă revizuirea rula chiar atunci. Garda a și cedat, pe 3
+  # septembrie: rularea a durat 12 secunde, a raportat `success`, și n-a scris
+  # nimic, fiindcă „se reia mâine”. Două rulări programate la aceeași oră, cu o
+  # gardă care rezolvă coliziunea sărind una dintre ele, nu sunt o secvență —
+  # sunt o cursă cu un învins tăcut.
+  #
+  # `workflow_run` face ordinea structurală: documentația nici nu poate porni
+  # până nu s-a terminat revizuirea, inclusiv jobul ei de reparare. Nu mai
+  # există gardă fiindcă nu mai există ce păzi.
+  workflow_run:
+    workflows: ["Revizuire"]
+    types: [completed]
   workflow_dispatch:
     inputs:
       pagini:
@@ -48,6 +57,14 @@ jobs:
     name: Triaj — ce pagini s-au învechit
     runs-on: ubuntu-latest
     timeout-minutes: 6
+    # NU se filtrează pe `conclusion == 'success'`. `Revizuire` iese cu 1 ori de
+    # câte ori rămân findings critical/high — ăsta e semnalul ei normal de lucru,
+    # nu un eșec. Un filtru pe succes ar fi oprit documentația exact în zilele cu
+    # constatări reale, adică exact în zilele în care codul s-a mișcat cel mai
+    # mult. Se filtrează doar ramura.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.head_branch == 'main'
     permissions:
       contents: read
       actions: read
@@ -68,39 +85,22 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+          # `main`, nu `github.sha`. Pe `workflow_run`, `github.sha` e vârful pe
+          # care a PORNIT revizuirea — dinainte ca jobul ei de reparare să
+          # împingă. Fără asta, documentația ar descrie cod care nu mai există.
+          ref: main
 
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.VERSIUNE_NODE }}
 
-      - name: Documentația cedează revizuirii (doar pe rularea nocturnă)
-        id: prioritate
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -uo pipefail
-          # Bariera apără COTA de abonament, care e comună cu `revizuire.yml`. Un
-          # `workflow_dispatch` e o cerere explicită a omului, care știe ce cere —
-          # acolo bariera ar fi paternalistă, nu protectoare.
-          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
-            echo "cedam=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          # Cedăm doar dacă o revizuire RULEAZĂ chiar acum: două rulări Opus în
-          # paralel pe același abonament e singura suprapunere care doare.
-          #
-          # NU mai cedăm pe „a picat azi". `revizuire.yml` iese 1 ori de câte ori
-          # rămân findings critical/high — ăsta e semnalul ei normală de lucru, nu
-          # un semn că s-a terminat cota. Cu condiția aia, orice zi cu o constatare
-          # reală ar fi blocat documentația toată noaptea, exact în zilele în care
-          # codul s-a mișcat cel mai mult și paginile aveau cea mai mare nevoie.
-          activa=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow=revizuire.yml \
-            --status=in_progress --limit 1 --json databaseId --jq 'length' 2>/dev/null || echo 0)
-          if [ "$activa" != "0" ]; then
-            echo "cedam=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "cedam=false" >> "$GITHUB_OUTPUT"
-          fi
+      # Aici stătea pasul „Documentația cedează revizuirii”, care întreba dacă o
+      # revizuire rulează CHIAR ACUM și, dacă da, ieșea cu „se reia mâine”.
+      # Bariera apăra cota de abonament, comună cu `revizuire.yml`, împotriva a
+      # două rulări Opus în paralel. Cu declanșatorul `workflow_run` de mai sus,
+      # paralelismul nu mai e posibil: documentația pornește abia după ce
+      # revizuirea s-a încheiat. Bariera a fost ștearsă, nu dezactivată — o gardă
+      # care nu mai poate fi adevărată e doar un pas care minte în jurnal.
 
       - name: Decide
         id: decide
@@ -108,7 +108,6 @@ jobs:
           # Doar PREZENȚA secretului, niciodată valoarea: expresia se evaluează la
           # "true"/"false", secretul nu ajunge în mediu.
           ARE_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
-          CEDAM: ${{ steps.prioritate.outputs.cedam }}
           FORTATE: ${{ inputs.pagini }}
           ACTIV: ${{ vars.DOCS_ACTIV }}
         run: |
@@ -123,11 +122,6 @@ jobs:
           if [ "${ACTIV:-true}" = "false" ]; then
             { echo "rulam=false"; echo "motiv=DOCS_ACTIV=false"; } >> "$GITHUB_OUTPUT"
             echo "::notice::Întrerupătorul de urgență e pe oprit."
-            exit 0
-          fi
-          if [ "$CEDAM" = "true" ]; then
-            { echo "rulam=false"; echo "motiv=revizuirea rulează sau a picat azi"; } >> "$GITHUB_OUTPUT"
-            echo "::notice::O revizuire rulează chiar acum; documentația se reia mâine."
             exit 0
           fi
 
@@ -177,6 +171,10 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+          # `main`, nu `github.sha`. Pe `workflow_run`, `github.sha` e vârful pe
+          # care a PORNIT revizuirea — dinainte ca jobul ei de reparare să
+          # împingă. Fără asta, documentația ar descrie cod care nu mai există.
+          ref: main
 
       - uses: actions/setup-node@v4
         with:
@@ -289,6 +287,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: main # vezi nota de la triaj: `github.sha` e vârful de dinainte de reparare
 
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4

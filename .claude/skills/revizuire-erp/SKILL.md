@@ -1,6 +1,6 @@
 ---
 name: revizuire-erp
-description: Revizuire multi-agent a schimbărilor din Administrativo — securitate/RLS, bază de date, domeniu, Next.js și drift de contract între straturi, cu verificare adversarială a fiecărui finding. Rulează automat la fiecare push prin .github/workflows/revizuire.yml, sau manual pe un interval de commit-uri.
+description: Revizuire multi-agent a schimbărilor din Administrativo — securitate/RLS, bază de date, domeniu, Next.js și drift de contract între straturi, cu verificare adversarială a fiecărui finding. Rulează nocturn prin .github/workflows/revizuire.yml, câte o invocare pe fiecare bucată din ziua precedentă, sau manual pe un interval de commit-uri.
 ---
 
 Orchestrezi un review complet al schimbărilor recente. Tu **nu analizezi cod direct** — dispecerizezi agenți specializați, filtrezi rezultatele printr-un verificator adversarial și consolidezi raportul.

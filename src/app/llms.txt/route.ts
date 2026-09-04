@@ -26,11 +26,31 @@ import { RO } from "@/content/landing/ro";
  * despre produsul ăsta, iar ea nu se poate deduce de nicăieri altundeva.
  */
 
+/**
+ * Fișele celor nouăsprezece module, generate din catalog.
+ *
+ * Aceleași chei pe care `generateStaticParams` le prerandează în
+ * `/module/[modul]` și pe care `harta.ts` le pune în sitemap. Trei liste care
+ * trebuie să spună același lucru: scrise separat, s-ar fi despărțit la primul
+ * modul adăugat. Generate din aceeași sursă, nu pot.
+ */
+const FISE_MODULE: readonly (readonly [cale: string, descriere: string])[] =
+  RO.module.grupuri.flatMap((grup) =>
+    grup.module.map(
+      (modul) =>
+        // Doar titlul și grupul. Descrierea întreagă stă o singură dată, în
+        // secțiunea „Module" de mai jos — repetată și aici, ar fi dublat fișierul
+        // fără să adauge un fapt.
+        [`/module/${modul.cheie}`, `Fișa modulului ${modul.titlu} (${grup.titlu}).`] as const,
+    ),
+  );
+
 /** Ce se schimbă rar și e util într-un rezumat. */
-const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
+export const PAGINI: readonly (readonly [cale: string, descriere: string])[] = [
   ["/", "Ce face produsul, pentru cine e și cât costă."],
   ["/preturi", "Prețul fiecărui pachet și al fiecărui modul luat separat."],
   ["/module", "Cele nouăsprezece module, ce face fiecare, cum se leagă între ele."],
+  ...FISE_MODULE,
   [
     "/pontaj-pe-telefon",
     "Cum se pontează din browserul telefonului, fără instalare din magazinul de aplicații.",

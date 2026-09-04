@@ -45,32 +45,65 @@ import { AppState, Linking, Modal, Pressable, StyleSheet, Text, View } from "rea
  *    1 de revizuire) ──────────────────────────────────────────────────────
  * Prima formă extrăgea doar calea (`/portal/ponteaza/<cod>`) și o dădea lui
  * `location.assign` din `App.tsx`. O cale RELATIVĂ se rezolvă pe originea
- * DOCUMENTULUI curent din WebView, nu pe cea validată aici — iar
- * interceptarea din `App.tsx` (`onShouldStartLoadWithRequest`) lasă să
- * treacă orice navigare care nu e descărcare sau tipărire, deci WebView-ul
- * poate ajunge legitim pe alt domeniu (un link extern din portal, de
- * exemplu). Un cod BUN scanat cât pagina era pe alt domeniu i-ar fi trimis
- * ACELUI domeniu codul de pontaj. `laScanare`, mai jos, transportă acum
- * șirul ÎNTREG care a trecut validarea — deja un URL absolut — nu doar
- * grupul de cale.
+ * DOCUMENTULUI curent din WebView, nu pe cea validată aici — iar la data
+ * scrierii, interceptarea din `App.tsx` (`onShouldStartLoadWithRequest`)
+ * lăsa să treacă orice navigare care nu era descărcare sau tipărire, deci
+ * WebView-ul putea ajunge legitim pe alt domeniu (un link extern din portal).
+ * Un cod BUN scanat cât pagina era pe alt domeniu i-ar fi trimis ACELUI
+ * domeniu codul de pontaj. `laScanare`, mai jos, transportă acum un URL
+ * ABSOLUT, nu grupul de cale.
+ *
+ * ── CE ACCEPTĂM ȘI UNDE MERGEM SUNT DOUĂ LUCRURI DIFERITE (rundă 5) ─────────
+ * Până acum, URL-ul absolut transportat era chiar șirul de pe afiș. Asta lega
+ * tăcut destinația de `DOMENII_PERMISE` — o listă al cărei comentariu invită
+ * EXPLICIT la adăugarea unui domeniu vechi „cât timp mai există afișe cu el pe
+ * pereți". Din clipa în care lista ar fi avut o a doua intrare, un cod scanat
+ * de pe un afiș vechi ar fi trecut validarea, ar fi ajuns la poarta de origine
+ * din `App.tsx` — și, nefiind originea portalului, ar fi plecat DIN sesiune
+ * (în browser, pe iOS; blocat, pe Android). Adică exact codul de pontaj,
+ * scos afară. Aceeași capcană se declanșa în orice build cu `URL_PORTAL`
+ * diferit de producție. Dormant azi (un singur domeniu, egal cu implicitul) —
+ * dar fix în locul în care fișierul îți spune să scrii.
+ *
+ * Despărțirea: `DOMENII_PERMISE` rămâne lista a CE ACCEPTĂM de pe un afiș
+ * (literală, lizibilă la audit, extensibilă cu domenii vechi), iar DESTINAȚIA
+ * e întotdeauna `originePortal` — portalul configurat al buildului. Calea
+ * validată se remontează pe el. Proprietatea de securitate e neschimbată
+ * (cale ancorată, domeniu din listă albă), dar navigarea e garantat
+ * pe-originea-noastră, deci nu poate ieși niciodată din sesiune. Bonus: un
+ * afiș de producție devine scanabil și pe un build de dezvoltare, ceea ce
+ * înainte era imposibil (vezi nota 18 din „Ce rămâne de probat").
  */
 const DOMENII_PERMISE = ["https://administrativo.ro"];
 const CALE_PONTARE = /^\/portal\/ponteaza\/[A-Za-z0-9_-]+$/;
 
 /**
  * O intrare din `DOMENII_PERMISE` trebuie să fie EXACT schemă+host, nimic în
- * plus — `https://` urmat de orice nu conține `/`. Fără verificarea asta
- * (rundă 2 de revizuire — testat cu unsprezece liste malformate, trei au
- * eșuat DESCHIS), o intrare fără schemă (`"administrativo.ro"`), goală
- * (`""`) sau protocol-relativă (`"//administrativo.ro"`) ar face
- * `data.startsWith(domeniu)` să accepte un șir FĂRĂ nicio origine reală —
- * `location.assign` cu așa ceva se rezolvă pe originea curentă a
- * documentului, exact defectul închis la IMPORTANT 2 din runda 1,
- * reintrodus de o singură intrare greșită într-un tablou al cărui comentariu
- * invită explicit la completare.
+ * plus. Fără verificarea asta (rundă 2 de revizuire — testat cu unsprezece
+ * liste malformate, trei au eșuat DESCHIS), o intrare fără schemă
+ * (`"administrativo.ro"`), goală (`""`) sau protocol-relativă
+ * (`"//administrativo.ro"`) ar face `data.startsWith(domeniu)` să accepte
+ * un șir FĂRĂ nicio origine reală — `location.assign` cu așa ceva se
+ * rezolvă pe originea curentă a documentului, exact defectul închis la
+ * IMPORTANT 2 din runda 1, reintrodus de o singură intrare greșită
+ * într-un tablou al cărui comentariu invită explicit la completare.
+ *
+ * Regexul de la runda 2 (`/^https:\/\/[^/]+$/`) verifica FORMA, nu
+ * PARSAREA — o intrare cu autoritate `@` (`"https://administrativo.ro@evil.
+ * example"`) trecea de el (nu conține „/"), dar un `URL` real ar citi-o ca
+ * userinfo `administrativo.ro` PE HOST-UL `evil.example` (rundă 3 de
+ * revizuire). Reparație: cere ȘI rotund-trip prin `URL` — `new
+ * URL(domeniu).origin` trebuie să dea ÎNAPOI exact același șir. O intrare cu
+ * `@` (sau orice altă formă care „arată" ca hostul nostru dar se PARSEAZĂ
+ * diferit) nu supraviețuiește rotund-trip-ului.
  */
 function domeniuValid(domeniu: string): boolean {
-  return /^https:\/\/[^/]+$/.test(domeniu);
+  if (!domeniu.startsWith("https://")) return false;
+  try {
+    return new URL(domeniu).origin === domeniu;
+  } catch {
+    return false;
+  }
 }
 
 if (__DEV__) {
@@ -84,8 +117,19 @@ if (__DEV__) {
   }
 }
 
-/** `null` dacă `data` nu se potrivește exact cu niciun domeniu din lista albă. */
-function urlPontareValidat(data: string): string | null {
+/**
+ * `null` dacă `data` nu se potrivește exact cu niciun domeniu din lista albă.
+ * Altfel, calea validată REMONTATĂ pe `originePortal` — vezi „CE ACCEPTĂM ȘI
+ * UNDE MERGEM", sus.
+ */
+function urlPontareValidat(data: string, originePortal: string): string | null {
+  // Fail-closed, ca peste tot în fișierul ăsta: dacă originea configurată n-ar
+  // fi o origine adevărată, mai bine nu navigăm deloc decât să compunem un șir
+  // fără origine, pe care `location.assign` l-ar rezolva pe documentul curent
+  // (exact defectul închis la IMPORTANT 2, runda 1). Prin construcție nu se
+  // poate întâmpla — `ORIGINEA_PORTALULUI` din `App.tsx` vine dintr-un
+  // `new URL(...).origin` — dar verificarea costă un rând.
+  if (!domeniuValid(originePortal)) return null;
   for (const domeniu of DOMENII_PERMISE) {
     // A doua verificare, ȘI ÎN PRODUCȚIE — nu doar santinela de mai sus —
     // ca o intrare malformată să nu poată deveni niciodată un prefix
@@ -93,7 +137,7 @@ function urlPontareValidat(data: string): string | null {
     if (!domeniuValid(domeniu)) continue;
     if (!data.startsWith(domeniu)) continue;
     const rest = data.slice(domeniu.length);
-    if (CALE_PONTARE.test(rest)) return data;
+    if (CALE_PONTARE.test(rest)) return `${originePortal}${rest}`;
   }
   return null;
 }
@@ -106,10 +150,13 @@ export function Scanner({
   deschis,
   inchide,
   mergiLa,
+  originePortal,
 }: {
   readonly deschis: boolean;
   readonly inchide: () => void;
   readonly mergiLa: (url: string) => void;
+  /** Originea portalului configurat — DESTINAȚIA, nu filtrul de acceptare. */
+  readonly originePortal: string;
 }) {
   const [permisiune, cerePermisiune] = useCameraPermissions();
   // GARDĂ DE REINTRARE: `onBarcodeScanned` se poate declanșa de mai multe ori
@@ -181,7 +228,7 @@ export function Scanner({
 
   const laScanare = ({ data }: { readonly data: string }) => {
     if (prins) return;
-    const url = urlPontareValidat(data);
+    const url = urlPontareValidat(data, originePortal);
     if (url === null) {
       rateuriConsecutive.current += 1;
       // Doar la trecerea EXACTĂ a pragului — nu `>=` — ca `setState` să nu
@@ -193,8 +240,8 @@ export function Scanner({
     rateuriConsecutive.current = 0;
     setArataIndiciu(false);
     setPrins(true);
-    // URL-ul ÎNTREG, deja validat mai sus — nu doar calea. Vezi comentariul
-    // de la începutul fișierului.
+    // URL absolut, pe originea portalului configurat — nu șirul de pe afiș.
+    // Vezi comentariul de la începutul fișierului.
     mergiLa(url);
     inchide();
     if (eliberarePrins.current !== null) clearTimeout(eliberarePrins.current);

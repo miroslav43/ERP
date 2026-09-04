@@ -24,8 +24,8 @@ capcane: [16, 17]
 citeste_daca:
   - "aprobare respinsă cu 42501 → [[rol/manager]]"
   - "diurnă care nu apare în statul de plată → [[modul/salarizare]]"
-scris_pe: 0815fbff2c885cd44b5768ee25f084f16a9e95b8
-scris_la: 2026-09-03
+scris_pe: 15d4ef4edaef4834d88bfbcc49db567d17f5bca4
+scris_la: 2026-09-04
 tags: [modul, hr]
 ---
 
@@ -48,8 +48,14 @@ reface.
 | `/diurna/aprobari`      | `per_diem:approve` team                                           |
 | `/diurna/politica`      | `per_diem:read` own ca să vadă; `per_diem:update` all ca să scrie |
 
-Toate trec prin `requireFeature(tenant.organizationId, "per_diem")`. Angajatul are și
-`/portal/diurna-mea`, revalidată de fiecare acțiune prin `CAI_PORTAL_DIURNA`.
+Toate trec prin `requireFeature(tenant.organizationId, "per_diem")` — dar pornit în
+`Promise.all` alături de `getPermissionMap`, nu înaintea lui, cum arată preambulul
+canonic. Poarta rămâne întreagă: `requireFeature` cheamă `notFound()`, iar aruncarea
+respinge `Promise.all`-ul înainte să se ajungă la `can()`. Cele două citiri sunt
+independente, pe tabele diferite, și toate paginile modulului o fac la fel;
+readusă la serial, ordinea „canonică" plătește un dus-întors de rețea în plus, fără să
+verifice nimic în plus. Angajatul are și `/portal/diurna-mea`, revalidată de fiecare
+acțiune prin `CAI_PORTAL_DIURNA`.
 
 ## Server Actions
 

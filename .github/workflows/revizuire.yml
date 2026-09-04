@@ -1,16 +1,18 @@
 name: Revizuire
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Revizuire multi-agent la FIECARE push pe main. Fără PR, fără merge.
+# Revizuire multi-agent NOCTURNĂ, pe toate commit-urile de la ultima rulare.
+# Fără PR, fără merge. Un raport pe zi, pe WhatsApp, nu unul pe fiecare push.
 #
-# DE CE NU `anthropics/claude-code-action`: acțiunea NU suportă evenimentul
-# `push`. Nu e o scăpare de documentație, e o listă albă în cod —
-# `src/github/context.ts` acceptă doar issues, issue_comment, pull_request,
-# pull_request_review, pull_request_review_comment, workflow_dispatch,
-# repository_dispatch, schedule, workflow_run; orice altceva cade pe
-# `default: throw new Error("Unsupported event type")` înainte ca promptul să
-# fie măcar citit. Rulăm deci CLI-ul Claude Code direct, care nu are nicio
-# restricție de eveniment.
+# Ziua se taie în bucăți care încap sub pragul de triaj și se revizuiesc
+# secvențial — vezi pasul „Calculează intervalele de diff”. Fără tăiere, o zi
+# obișnuită depășește pragul și revizuirea s-ar sări în tăcere.
+#
+# DE CE NU `anthropics/claude-code-action`: acțiunea acceptă `schedule`, deci
+# restricția de eveniment nu ne-ar mai încurca azi — dar rămânem pe CLI pentru
+# motivul de mai jos, care e despre credențialul git, nu despre eveniment.
+# (Istoric: pe vremea declanșatorului `push`, acțiunea nici nu putea fi
+# folosită — `src/github/context.ts` respinge `push` printr-o listă albă în cod.)
 #
 # BONUS al rulării directe: acțiunea își înlocuiește propriul credențial git
 # peste cel pus de actions/checkout, cu un token de GitHub App — iar push-urile
@@ -20,24 +22,21 @@ name: Revizuire
 # ─────────────────────────────────────────────────────────────────────────────
 
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - "**/*.md"
-      - "docs/**"
-      - "public/**"
-      - "ops/**"
-      - "deploy/**"
-      - ".claude/**"
-      - "Dockerfile"
-      - ".dockerignore"
-      - "docker-stack.yml"
-      - "*.sh"
-      - ".gitignore"
+  # NOCTURNĂ, nu la push. Un raport pe zi, pe toate commit-urile ultimelor 24 h,
+  # în loc de câte unul pe fiecare push — la 20 de push-uri pe zi, notificarea
+  # devenea zgomot și nimeni nu mai citea niciunul.
+  #
+  # Minut impar, DELIBERAT, din aceeași lecție ca la `documentatie.yml`: GitHub
+  # întârzie rulările programate în orele aglomerate, iar ora rotundă e cel mai
+  # aglomerat slot care există. În practică, aici, cronul de 02:37 pornește
+  # între 07:20 și 08:50 UTC — deci raportul ajunge dimineața, ceea ce e exact
+  # ce vrem, dar nu conta pe minutul scris mai jos.
+  schedule:
+    - cron: "37 2 * * *"
   workflow_dispatch:
     inputs:
       interval:
-        description: "Interval de commit-uri (ex. HEAD~3..HEAD). Gol = ultimul commit."
+        description: "Interval de commit-uri (ex. HEAD~3..HEAD). Gol = ultimele 24 h."
         required: false
         default: ""
       repara:
@@ -46,11 +45,10 @@ on:
         default: false
 
 concurrency:
-  # Grup pe SHA, nu pe branch. Cu grup pe branch și `cancel-in-progress: true`
-  # (ca în ci.yml), un push venit la 90 de secunde după altul ar anula
-  # revizuirea commit-ului precedent — iar acel commit n-ar mai fi revizuit
-  # NICIODATĂ, fiindcă spre deosebire de un PR nu există o rulare ulterioară
-  # care să-l reacopere. Aici fiecare commit e propriul grup: nimic nu se anulează.
+  # Grup pe SHA. Cu `cancel-in-progress: false`, o rulare manuală pornită peste
+  # cea nocturnă se așază la coadă în loc să o omoare — iar noaptea revizuită
+  # n-ar mai fi reacoperită niciodată de altcineva, fiindcă nu mai există o
+  # rulare per push care să prindă din urmă.
   group: revizuire-${{ github.sha }}
   cancel-in-progress: false
 
@@ -71,19 +69,17 @@ jobs:
     permissions:
       contents: read
       actions: read
-    # Patru bariere independente împotriva buclelor. `github.event.commits.*`
-    # acoperă TOATE commit-urile din push, nu doar ultimul ca head_commit.
-    if: >-
-      github.event_name == 'workflow_dispatch' || (
-        github.actor != 'github-actions[bot]' &&
-        github.event.head_commit.author.name != 'claude-revizuire[bot]' &&
-        !contains(join(github.event.commits.*.message, ' '), '[skip review]') &&
-        !contains(join(github.event.commits.*.message, ' '), '[fara revizuire]') &&
-        !contains(join(github.event.commits.*.message, ' '), '[revizuire automata]')
-      )
+    # Aici stăteau patru bariere împotriva buclelor — toate citeau
+    # `github.event.commits.*` și `github.event.head_commit`, câmpuri care există
+    # DOAR pe evenimentul `push`. Pe `schedule` sunt null, iar `join(null, ' ')`
+    # întoarce șir gol: barierele s-ar fi evaluat mereu la „treci", adică ar fi
+    # fost teatru. Le-am scos, fiindcă bucla pe care o păzeau nu mai poate exista:
+    # singurul lucru care declanșa workflow-ul după push-ul jobului de reparare
+    # era chiar declanșatorul `push`, iar acela nu mai e.
     outputs:
       rulam: ${{ steps.decizie.outputs.rulam }}
-      interval: ${{ steps.decizie.outputs.interval }}
+      intervale: ${{ steps.decizie.outputs.intervale }}
+      bucati: ${{ steps.decizie.outputs.bucati }}
       motiv: ${{ steps.decizie.outputs.motiv }}
       bariere_sql: ${{ steps.ci.outputs.bariere_sql }}
     steps:
@@ -91,58 +87,134 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Calculează intervalul de diff
+      - name: Calculează intervalele de diff
         id: interval
         env:
-          BEFORE: ${{ github.event.before }}
           AFTER: ${{ github.sha }}
-          FORCED: ${{ github.event.forced }}
-          CREATED: ${{ github.event.created }}
-          DELETED: ${{ github.event.deleted }}
           MANUAL: ${{ inputs.interval }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -uo pipefail
-          ZERO=0000000000000000000000000000000000000000
 
-          # Rulare manuală cu interval explicit — are prioritate.
+          # Pragurile per BUCATĂ. Sunt aceleași cu cele pe care analiza le avea
+          # când rula per push, și rămân aceleași DELIBERAT: mutarea pe nocturn
+          # schimbă CÂND rulează revizuirea, nu cât de mare e diff-ul pe care îl
+          # citește un revizor. O zi întreagă într-o singură bucată ar fi fost
+          # 249 de fișiere și 15.726 de linii (3 septembrie, măsurat) — de două
+          # ori peste ce a fost calibrată analiza să ducă.
+          MAX_FISIERE=120
+          MAX_LINII=6000
+          MAX_BUCATI=8
+
+          FILTRE=( 'src/**' 'supabase/migrations/**' 'tests/**' 'scripts/**'
+                   '*.ts' '*.tsx' '*.mjs' '*.mts' '*.json' )
+
+          masoara() { # $1=bază $2=vârf → „nrFișiere nrLinii”
+            local f n
+            f=$(git diff --name-only --diff-filter=ACMR "$1" "$2" -- "${FILTRE[@]}" 2>/dev/null \
+                | grep -cv '^src/types/database.ts$' || true)
+            n=$(git diff --numstat "$1" "$2" -- "${FILTRE[@]}" 2>/dev/null \
+                | grep -v 'src/types/database\.ts$' \
+                | awk '{a+=$1; d+=$2} END {print (a+d)+0}')
+            echo "${f:-0} ${n:-0}"
+          }
+
+          # Rulare manuală cu interval explicit — are prioritate, o singură bucată.
           if [ -n "${MANUAL:-}" ]; then
-            echo "interval=${MANUAL}" >> "$GITHUB_OUTPUT"
-            echo "valid=true" >> "$GITHUB_OUTPUT"
+            printf 'intervale=%s\n' "$(jq -cn --arg i "$MANUAL" '[$i]')" >> "$GITHUB_OUTPUT"
+            { echo "valid=true"; echo "bucati=1"; } >> "$GITHUB_OUTPUT"
             echo "Interval manual: ${MANUAL}"
             exit 0
           fi
 
-          if [ "${DELETED:-false}" = "true" ] || [ "$AFTER" = "$ZERO" ]; then
-            { echo "interval="; echo "valid=false"; } >> "$GITHUB_OUTPUT"
+          # ── De unde reluăm ────────────────────────────────────────────────
+          # NU „acum minus 24 de ore”. GitHub chiar pierde rulări programate în
+          # orele aglomerate — `documentatie.yml` are asta scrisă în antet, de la
+          # o nocturnă care n-a pornit niciodată. Cu o fereastră fixă de 24 h, o
+          # noapte pierdută ar lăsa o zi de cod nerevizuită PENTRU TOTDEAUNA,
+          # fiindcă nu mai există revizuire per push care să prindă din urmă.
+          # Ancora e vârful ultimei rulări nocturne, oricât de veche ar fi.
+          baza=""
+          ultima=$(gh run list --workflow=revizuire.yml --event=schedule \
+                     --status=completed --limit=1 --json headSha \
+                     --jq '.[0].headSha // ""' 2>/dev/null || echo "")
+          if [ -n "$ultima" ] && git cat-file -e "${ultima}^{commit}" 2>/dev/null \
+             && git merge-base --is-ancestor "$ultima" "$AFTER" 2>/dev/null \
+             && [ "$ultima" != "$AFTER" ]; then
+            baza="$ultima"
+            echo "Ancoră: vârful ultimei nocturne ($ultima)."
+          else
+            baza=$(git rev-list -1 --before="24 hours ago" "$AFTER" 2>/dev/null || echo "")
+            echo "Fără ancoră utilizabilă — cad pe fereastra de 24 de ore."
+          fi
+
+          if [ -z "$baza" ] || [ "$baza" = "$AFTER" ]; then
+            { echo "intervale=[]"; echo "valid=false"; echo "bucati=0"; } >> "$GITHUB_OUTPUT"
+            echo "::notice title=Nimic de revizuit::Niciun commit nou de la ultima rulare."
             exit 0
           fi
 
-          baza=""
-          if [ "${CREATED:-false}" = "true" ] || [ "${BEFORE:-$ZERO}" = "$ZERO" ]; then
-            echo "Ref nou creat — se revizuiește doar vârful."
-          elif [ "${FORCED:-false}" = "true" ]; then
-            echo "Force-push — 'before' poate fi inaccesibil."
-          elif ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
-            echo "'before' ($BEFORE) nu există local (istoric rescris sau curățat)."
-          elif ! git merge-base --is-ancestor "$BEFORE" "$AFTER" 2>/dev/null; then
-            echo "'before' nu e strămoș al lui 'after' — istoric divergent."
-          else
-            baza="$BEFORE"
-          fi
+          mapfile -t comite < <(git rev-list --reverse "${baza}..${AFTER}")
+          echo "Commit-uri de acoperit: ${#comite[@]} (${baza:0:8}..${AFTER:0:8})"
 
-          # Rezervă: primul părinte. Pe un merge commit (istoricul are câteva),
-          # ^1 e linia lui main, deci intervalul acoperă exact ce a adus merge-ul.
-          if [ -z "$baza" ]; then
-            if git rev-parse --verify -q "${AFTER}^1" >/dev/null; then
-              baza=$(git rev-parse "${AFTER}^1")
+          # ── Împărțirea în bucăți ──────────────────────────────────────────
+          # Se taie ÎNAINTE de commit-ul care ar duce bucata peste prag, nu după:
+          # altfel prima bucată ar putea ieși oricât de mare. Un singur commit
+          # care sare singur peste prag rămâne bucata lui, prea mare — se
+          # raportează, nu se aruncă.
+          bucati=(); start="$baza"; ultim_bun=""
+          for c in "${comite[@]}"; do
+            read -r nf nl <<< "$(masoara "$start" "$c")"
+            if { [ "$nf" -gt "$MAX_FISIERE" ] || [ "$nl" -gt "$MAX_LINII" ]; } \
+               && [ -n "$ultim_bun" ]; then
+              bucati+=("${start}..${ultim_bun}")
+              start="$ultim_bun"
+              ultim_bun="$c"
             else
-              baza=4b825dc642cb6eb9a060e54bf8d69288fbee4904   # arborele vid
+              ultim_bun="$c"
             fi
+          done
+          [ -n "$ultim_bun" ] && bucati+=("${start}..${ultim_bun}")
+
+          # Prea multe bucăți ⇒ NU tăiem din acoperire, lărgim bucățile. A revizui
+          # doar ultimele N ar însemna cod nerevizuit fără ca nimeni să afle —
+          # exact felul de plafon tăcut din care se nasc defectele care „au trecut
+          # de revizuire”.
+          if [ "${#bucati[@]}" -gt "$MAX_BUCATI" ]; then
+            echo "::warning title=Zi foarte mare::${#bucati[@]} bucăți naturale, peste plafonul de ${MAX_BUCATI}; le comasez în ${MAX_BUCATI} bucăți mai mari. Fiecare revizor va citi un diff peste dimensiunea calibrată."
+            total=${#comite[@]}
+            pas=$(( (total + MAX_BUCATI - 1) / MAX_BUCATI ))
+            bucati=(); start="$baza"
+            for (( i=pas-1; i<total; i+=pas )); do
+              bucati+=("${start}..${comite[$i]}")
+              start="${comite[$i]}"
+            done
+            [ "$start" != "$AFTER" ] && bucati+=("${start}..${AFTER}")
           fi
 
-          echo "interval=${baza}..${AFTER}" >> "$GITHUB_OUTPUT"
-          echo "valid=true" >> "$GITHUB_OUTPUT"
-          echo "Interval: ${baza}..${AFTER}"
+          # Bucățile fără niciun fișier relevant (doar markdown, ops, public…) se
+          # scot aici: altfel ar porni Opus ca să constate că n-are ce citi.
+          pastrate=()
+          for b in "${bucati[@]}"; do
+            read -r nf nl <<< "$(masoara "${b%%..*}" "${b##*..}")"
+            if [ "$nf" -gt 0 ]; then
+              pastrate+=("$b")
+              printf '  bucată: %s..%s · %s fișiere · %s linii\n' \
+                "${b%%..*}" "${b##*..}" "$nf" "$nl" | sed 's/\([0-9a-f]\{8\}\)[0-9a-f]*/\1/g'
+            fi
+          done
+
+          if [ "${#pastrate[@]}" -eq 0 ]; then
+            { echo "intervale=[]"; echo "valid=false"; echo "bucati=0"; } >> "$GITHUB_OUTPUT"
+            echo "::notice title=Revizuire sărită::Niciun fișier relevant în ultimele commit-uri."
+            exit 0
+          fi
+
+          printf 'intervale=%s\n' \
+            "$(printf '%s\n' "${pastrate[@]}" | jq -Rsc 'split("\n") | map(select(length > 0))')" \
+            >> "$GITHUB_OUTPUT"
+          { echo "valid=true"; echo "bucati=${#pastrate[@]}"; } >> "$GITHUB_OUTPUT"
+          echo "Se revizuiesc ${#pastrate[@]} bucăți."
 
       - name: Barierele SQL din CI rulează?
         id: ci
@@ -165,20 +237,21 @@ jobs:
       - name: Decide
         id: decizie
         env:
-          INTERVAL: ${{ steps.interval.outputs.interval }}
+          INTERVALE: ${{ steps.interval.outputs.intervale }}
+          BUCATI: ${{ steps.interval.outputs.bucati }}
           VALID: ${{ steps.interval.outputs.valid }}
           # Doar prezența, niciodată valoarea — expresia se evaluează la
           # "true"/"false", secretul nu ajunge în mediu.
           ARE_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
         run: |
           set -uo pipefail
-          MAX_FISIERE=120
-          MAX_LINII=6000
 
-          echo "interval=${INTERVAL}" >> "$GITHUB_OUTPUT"
+          # Măsurarea și împărțirea s-au făcut în pasul de mai sus, care le are
+          # oricum pe toate în mână. Aici a mai rămas doar decizia.
+          printf 'intervale=%s\n' "${INTERVALE:-[]}" >> "$GITHUB_OUTPUT"
 
-          # Fără token, `analiza` ar porni și ar pica la primul apel de CLI, la
-          # fiecare push. Mai bine trece în gol, cu motivul scris explicit.
+          # Fără token, `analiza` ar porni și ar pica la primul apel de CLI.
+          # Mai bine trece în gol, cu motivul scris explicit.
           if [ "$ARE_TOKEN" != "true" ]; then
             { echo "rulam=false"
               echo "motiv=CLAUDE_CODE_OAUTH_TOKEN nu e configurat în secretele repo-ului"
@@ -187,34 +260,13 @@ jobs:
             exit 0
           fi
 
-          if [ "$VALID" != "true" ]; then
-            { echo "rulam=false"; echo "motiv=interval invalid"; } >> "$GITHUB_OUTPUT"
+          if [ "$VALID" != "true" ] || [ "${BUCATI:-0}" -eq 0 ]; then
+            { echo "rulam=false"; echo "motiv=nimic de revizuit"; } >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          baza="${INTERVAL%%..*}"; varf="${INTERVAL##*..}"
-          mapfile -t fisiere < <(git diff --name-only --diff-filter=ACMR "$baza" "$varf" -- \
-            'src/**' 'supabase/migrations/**' 'tests/**' 'scripts/**' \
-            '*.ts' '*.tsx' '*.mjs' '*.mts' '*.json' 2>/dev/null | grep -v '^src/types/database.ts$' || true)
-          nf=${#fisiere[@]}
-
-          if [ "$nf" -eq 0 ]; then
-            { echo "rulam=false"; echo "motiv=niciun fișier relevant în diff"; } >> "$GITHUB_OUTPUT"
-            echo "::notice title=Revizuire sărită::Niciun fișier relevant."
-            exit 0
-          fi
-
-          nl=$(git diff --numstat "$baza" "$varf" -- "${fisiere[@]}" 2>/dev/null \
-               | awk '{a+=$1; d+=$2} END {print (a+d)+0}')
-
-          if [ "$nf" -gt "$MAX_FISIERE" ] || [ "$nl" -gt "$MAX_LINII" ]; then
-            { echo "rulam=false"; echo "motiv=diff prea mare ($nf fișiere, $nl linii)"; } >> "$GITHUB_OUTPUT"
-            echo "::warning title=Revizuire sărită::Diff prea mare ($nf fișiere, $nl linii). Rulează manual din Actions → Revizuire → Run workflow."
-            exit 0
-          fi
-
-          { echo "rulam=true"; echo "motiv=$nf fișiere, $nl linii"; } >> "$GITHUB_OUTPUT"
-          echo "Se revizuiește: $nf fișiere, $nl linii."
+          { echo "rulam=true"; echo "motiv=${BUCATI} bucăți"; } >> "$GITHUB_OUTPUT"
+          echo "Se revizuiesc ${BUCATI} bucăți."
 
   # ───────────────────────────────────────────────────────────────────────────
   # 2. ANALIZA — Opus orchestrează 5 revizori Sonnet + verificare adversarială.
@@ -224,7 +276,14 @@ jobs:
     needs: triaj
     if: needs.triaj.outputs.rulam == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    # Bucățile se revizuiesc SECVENȚIAL, în același job, nu într-o matrice.
+    # Matricea ar fi fost mai rapidă, dar ar fi împrăștiat findings-urile în N
+    # artefacte și ar fi cerut un job de agregare — iar tot ce vine după analiză
+    # (comentariul, issue-ul, WhatsApp-ul, repararea) citește AZI un singur
+    # `findings.json` de la o cale fixă. Secvențial, acele patru consumatoare
+    # rămân neatinse. Noaptea nu se grăbește nimeni: 8 bucăți × ~18 min încap
+    # confortabil, iar plafonul GitHub pentru un job e de 6 ore.
+    timeout-minutes: 170
     permissions:
       contents: write # comentariul pe commit trăiește sub scope-ul Contents
       issues: write
@@ -256,50 +315,95 @@ jobs:
       - name: Analiză
         id: claude
         continue-on-error: true # pasul de numărare trebuie să ruleze oricum
-        timeout-minutes: 28
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          INTERVAL: ${{ needs.triaj.outputs.interval }}
+          INTERVALE: ${{ needs.triaj.outputs.intervale }}
           BARIERE_SQL: ${{ needs.triaj.outputs.bariere_sql }}
         run: |
           set -uo pipefail
           mkdir -p "$DIR_RAPORT"
 
-          # Promptul interpolează DOAR valori controlate de noi (SHA-uri, nume de
-          # repo). Mesajele de commit nu ajung niciodată în prompt — ar fi o cale
-          # de injecție într-un repo public.
-          PROMPT=$(cat <<PROMPT_EOF
+          mapfile -t bucati < <(printf '%s' "$INTERVALE" | jq -r '.[]')
+          echo "Bucăți de revizuit: ${#bucati[@]}"
+
+          esuate=0
+          for i in "${!bucati[@]}"; do
+            interval="${bucati[$i]}"
+            n=$((i + 1))
+            dir="$DIR_RAPORT/bucata-$n"
+            mkdir -p "$dir"
+            echo "::group::Bucata $n/${#bucati[@]} — ${interval}"
+
+            # Promptul interpolează DOAR valori controlate de noi (SHA-uri, nume
+            # de repo). Mesajele de commit nu ajung niciodată în prompt — ar fi o
+            # cale de injecție într-un repo public.
+            PROMPT=$(cat <<PROMPT_EOF
           Repo: ${GITHUB_REPOSITORY}
           Commit: ${GITHUB_SHA}
-          INTERVAL: ${INTERVAL}
-          RAPORT_DIR: ${DIR_RAPORT}
+          INTERVAL: ${interval}
+          RAPORT_DIR: ${dir}
           BARIERELE_SQL_RULEAZA: ${BARIERE_SQL}
 
           Invocă skill-ul \`revizuire-erp\` din .claude/skills/ și urmează-l exact.
 
-          Scrie rezultatele în ${DIR_RAPORT}/raport.md și ${DIR_RAPORT}/findings.json.
+          Scrie rezultatele în ${dir}/raport.md și ${dir}/findings.json.
           Nu modifica niciun fișier din arborele repo-ului. Nu comite, nu da push.
           PROMPT_EOF
-          )
+            )
 
-          # --strict-mcp-config cu o configurație goală ignoră .mcp.json din repo:
-          # MCP-ul Supabase de acolo cere autentificare interactivă, care în CI
-          # ar bloca rularea.
-          claude -p "$PROMPT" \
-            --model claude-opus-5 \
-            --effort xhigh \
-            --allowedTools "Read,Grep,Glob,Task,Write,Bash" \
-            --disallowedTools "Bash(git push:*),Bash(git commit:*),Bash(git config:*),Bash(gh:*)" \
-            --add-dir "$DIR_RAPORT" \
-            --max-turns 75 \
-            --mcp-config '{"mcpServers":{}}' \
-            --strict-mcp-config \
-            --permission-mode acceptEdits \
-            --output-format json \
-            > "${RUNNER_TEMP}/sesiune.json" 2> "${RUNNER_TEMP}/claude-stderr.log"
-          cod=$?
-          echo "claude exit: $cod"
-          tail -20 "${RUNNER_TEMP}/claude-stderr.log" || true
+            # `timeout` per bucată, nu `timeout-minutes` pe pas: pasul acoperă
+            # acum toate bucățile, deci un plafon de pas ar lăsa o singură bucată
+            # blocată să mănânce bugetul tuturor celorlalte. Așa, o bucată moartă
+            # costă 28 de minute și restul zilei se revizuiește oricum.
+            #
+            # --strict-mcp-config cu o configurație goală ignoră .mcp.json din
+            # repo: MCP-ul Supabase de acolo cere autentificare interactivă, care
+            # în CI ar bloca rularea.
+            timeout 28m claude -p "$PROMPT" \
+              --model claude-opus-5 \
+              --effort xhigh \
+              --allowedTools "Read,Grep,Glob,Task,Write,Bash" \
+              --disallowedTools "Bash(git push:*),Bash(git commit:*),Bash(git config:*),Bash(gh:*)" \
+              --add-dir "$dir" \
+              --max-turns 75 \
+              --mcp-config '{"mcpServers":{}}' \
+              --strict-mcp-config \
+              --permission-mode acceptEdits \
+              --output-format json \
+              > "$dir/sesiune.json" 2> "$dir/stderr.log"
+            cod=$?
+            echo "claude exit: $cod"
+            tail -20 "$dir/stderr.log" || true
+            if [ ! -s "$dir/findings.json" ]; then
+              esuate=$((esuate + 1))
+              echo "::warning title=Bucata $n fără raport::${interval} — analiza n-a produs findings.json (exit $cod)."
+            fi
+            echo "::endgroup::"
+          done
+
+          # ── Unirea ────────────────────────────────────────────────────────
+          # Tot ce vine după acest pas — comentariul pe commit, issue-ul,
+          # WhatsApp-ul și jobul de reparare — citește `$DIR_RAPORT/findings.json`
+          # și `raport.md`. Le producem exact acolo, ca niciunul să nu afle că
+          # între timp au fost mai multe bucăți.
+          mapfile -t fis < <(find "$DIR_RAPORT" -mindepth 2 -name findings.json -size +0c | sort)
+          if [ "${#fis[@]}" -gt 0 ]; then
+            jq -s '{findings: (map(.findings // []) | add | unique_by([.fisier, .linie, .titlu]))}' \
+              "${fis[@]}" > "$DIR_RAPORT/findings.json" 2>/dev/null \
+              || echo '{"findings":[]}' > "$DIR_RAPORT/findings.json"
+          fi
+
+          : > "$DIR_RAPORT/raport.md"
+          for i in "${!bucati[@]}"; do
+            n=$((i + 1)); dir="$DIR_RAPORT/bucata-$n"
+            {
+              printf '\n## Bucata %s/%s — `%s`\n\n' "$n" "${#bucati[@]}" "${bucati[$i]}"
+              if [ -s "$dir/raport.md" ]; then cat "$dir/raport.md"
+              else printf '_Analiza acestei bucăți nu a produs raport._\n'; fi
+            } >> "$DIR_RAPORT/raport.md"
+          done
+
+          [ "$esuate" -gt 0 ] && echo "::warning title=Acoperire parțială::$esuate din ${#bucati[@]} bucăți n-au produs raport."
           exit 0
 
       - name: Numără constatările
@@ -329,6 +433,12 @@ jobs:
 
       - name: Rezumat în pagina rulării
         if: always()
+        env:
+          # Prin `env:`, nu interpolat direct în shell. Valoarea e construită de
+          # noi și conține doar SHA-uri, dar regula casei e ca nimic să nu intre
+          # în `run:` prin `${{ }}` — o singură excepție tolerată devine tiparul
+          # pe care îl copiază pasul următor.
+          INTERVALE: ${{ needs.triaj.outputs.intervale }}
         run: |
           set -uo pipefail
           if [ -s "$DIR_RAPORT/raport.md" ]; then
@@ -337,10 +447,12 @@ jobs:
             {
               echo "## ⚠️ Revizuirea nu a produs raport"
               echo
-              echo "Interval: \`${{ needs.triaj.outputs.interval }}\`"
+              echo "Bucăți: \`${INTERVALE:-?}\`"
               echo
               echo '```'
-              tail -40 "${RUNNER_TEMP}/claude-stderr.log" 2>/dev/null || echo "(fără stderr)"
+              # stderr-ul e acum per bucată; se arată ultima care a scris ceva.
+              ultim=$(find "$DIR_RAPORT" -mindepth 2 -name stderr.log -size +0c 2>/dev/null | sort | tail -1)
+              if [ -n "$ultim" ]; then tail -40 "$ultim"; else echo "(fără stderr)"; fi
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
           fi
@@ -395,25 +507,51 @@ jobs:
         env:
           CALLMEBOT_PHONE: ${{ secrets.CALLMEBOT_PHONE }}
           CALLMEBOT_APIKEY: ${{ secrets.CALLMEBOT_APIKEY }}
+          BUCATI: ${{ needs.triaj.outputs.bucati }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -uo pipefail
           # Secretele nu au voie în `if:`, deci verificarea se face aici.
-          [ -n "${CALLMEBOT_PHONE:-}" ] && [ -n "${CALLMEBOT_APIKEY:-}" ] || exit 0
+          if [ -z "${CALLMEBOT_PHONE:-}" ] || [ -z "${CALLMEBOT_APIKEY:-}" ]; then
+            echo "::warning title=WhatsApp neconfigurat::Lipsesc CALLMEBOT_PHONE / CALLMEBOT_APIKEY; raportul nu pleacă nicăieri."
+            exit 0
+          fi
           F="$DIR_RAPORT/findings.json"
-          [ -s "$F" ] || exit 0
+          [ -s "$F" ] || { echo "::warning title=WhatsApp sărit::findings.json lipsește."; exit 0; }
+
           # Mesajul se construiește din JSON, nu prin parsarea markdown-ului.
-          MSG=$(jq -r --arg sha "$(git rev-parse --short "$GITHUB_SHA")" '
+          # Antetul spune ACUM peste ce a trecut noaptea — un singur SHA ar fi
+          # mințit, fiindcă raportul acoperă toate commit-urile de la ultima
+          # rulare, nu unul.
+          MSG=$(jq -r \
+            --arg varf "$(git rev-parse --short "$GITHUB_SHA")" \
+            --arg buc "${BUCATI:-?}" \
+            --arg url "$RUN_URL" '
             def sev(s): [.findings[]|select((.severitate//""|ascii_downcase)==s)];
             (sev("critical")) as $c | (sev("high")) as $h |
-            (["🔍 Revizuire — Administrativo", "commit \($sha)", ""]
+            (["🌙 Revizuire nocturnă — Administrativo",
+              "\($buc) bucăți, până la \($varf)", ""]
              + (if ($c|length)>0 then ["🔴 Critical (\($c|length)):"] + ([$c[]|"• \(.titlu)"][0:3]) + [""] else [] end)
              + (if ($h|length)>0 then ["🟠 High (\($h|length)):"]     + ([$h[]|"• \(.titlu)"][0:3]) + [""] else [] end)
              + (if ($c|length)==0 and ($h|length)==0 then ["✅ Fără constatări critice sau majore."] else [] end)
+             + [$url]
             ) | join("\n")' "$F")
-          curl -G -s --max-time 20 "https://api.callmebot.com/whatsapp.php" \
+
+          # Răspunsul CallMeBot se CITEȘTE. Pasul ăsta se termina cu
+          # `>/dev/null || true`, deci o cheie invalidă — exact ce s-a întâmplat
+          # la prima configurare — ar fi eșuat tăcut la fiecare rulare, iar
+          # singurul simptom ar fi fost că nu vine niciun mesaj. Un canal de
+          # notificare care poate muri fără să spună nimic nu e un canal.
+          raspuns=$(curl -G -s --max-time 25 "https://api.callmebot.com/whatsapp.php" \
             --data-urlencode "phone=${CALLMEBOT_PHONE}" \
             --data-urlencode "text=${MSG}" \
-            --data-urlencode "apikey=${CALLMEBOT_APIKEY}" >/dev/null || true
+            --data-urlencode "apikey=${CALLMEBOT_APIKEY}" 2>&1) || raspuns="curl a eșuat"
+          curat=$(printf '%s' "$raspuns" | sed 's/<[^>]*>//g' | tr -s ' \n' ' ')
+          if printf '%s' "$curat" | grep -qi 'queued\|sent'; then
+            echo "WhatsApp: trimis."
+          else
+            echo "::error title=WhatsApp NEtrimis::${curat:0:300}"
+          fi
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -429,9 +567,13 @@ jobs:
   reparare:
     name: Reparare automată
     needs: [triaj, analiza]
+    # `schedule`, nu `push` — declanșatorul s-a mutat. Fără schimbarea asta,
+    # repararea automată n-ar mai fi pornit NICIODATĂ pe rularea nocturnă, și
+    # tăcut: condiția s-ar fi evaluat pur și simplu la fals, iar jobul ar fi
+    # apărut „skipped”, ceea ce arată la fel cu „n-a avut ce repara”.
     if: >-
       needs.analiza.outputs.are_de_reparat == 'true' &&
-      (github.event_name == 'push' || inputs.repara)
+      (github.event_name == 'schedule' || inputs.repara)
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:

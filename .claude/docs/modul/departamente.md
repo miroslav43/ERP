@@ -5,16 +5,17 @@ aliases: [departamente, structura, organizare]
 cai:
   - "src/app/(app)/departamente/**"
   - "src/lib/queries/departments.ts"
+  - "src/lib/queries/profile.ts"
   - "src/schemas/department.ts"
   - "supabase/migrations/0004_hr.sql"
-tabele: [departments, employees]
+tabele: [departments, employees, profiles, organization_members]
 permisiuni: [departments:read, departments:create, departments:update, employees:update]
-capcane: [17]
+capcane: [2, 17]
 citeste_daca:
   - "departament care nu se poate dezactiva → secțiunea „ce refuză”"
   - "cine vede ce după o mutare → [[modul/organigrama]]"
-scris_pe: 0815fbff2c885cd44b5768ee25f084f16a9e95b8
-scris_la: 2026-09-03
+scris_pe: 711e5225e1df2ceab9324037466c87fda8abd8a0
+scris_la: 2026-09-04
 tags: [modul, hr]
 ---
 
@@ -32,6 +33,14 @@ Lanțul de subordonare **al oamenilor** (`manager_path`) e altceva și stă la
 `/departamente`, sub `requireFeature(..., "nucleu")`. Poarta de citire e
 `departments:read`, verificată cu `scopeFor` — o cheie absentă întoarce `null`, iar
 comparația doar cu `"none"` ar lăsa-o să treacă.
+
+`requireFeature` și `getPermissionMap` pleacă împreună, într-un `Promise.all`, nu
+înlănțuite ca în preambulul canonic: citesc tabele diferite și niciuna n-o alimentează pe
+cealaltă, deci înlănțuirea costa un dus-întors în plus, integral rețea. Ordinea porților
+rămâne aceeași — `requireFeature` cheamă `notFound()`, iar `Promise.all` respinge la prima
+respingere, deci un modul dezactivat dă tot 404 înainte ca harta de permisiuni să fie
+folosită la ceva. Cine „repară" forma la loc în varianta serială reintroduce latența, nu o
+verificare.
 
 Booleenii de scriere, toți la scope `all`: `poateCrea` și `poateEdita`
 (`departments:create` / `departments:update`), `poateMutaPersoane` (`employees:update`).
@@ -73,6 +82,27 @@ care nu exista: singura cale era formularul complet al fișei, om cu om.
 `revalidate:` se **declară** aici, spre deosebire de acțiunile de deasupra din același
 fișier, care cheamă `revalidatePath()` din handler. Forma declarativă e cea canonică:
 rulează după succesul complet, inclusiv după scrierea jurnalului.
+
+## Citiri
+
+`src/lib/queries/departments.ts` dă `structuraDepartamentelor`, `angajatiPentruStructura`
+și `rolurilePeUtilizator`. Pozele vin din `toateAvatarurile`
+(`src/lib/queries/profile.ts`), **nu** din `avataturiPeUtilizatori`: fără filtrul pe lista
+de conturi, citirea nu mai depinde de rezultatul celorlalte și încape în același
+`Promise.all` cu ele. Ecranul are astfel un singur val de citiri, nu unul urmat de al
+doilea. `avataturiPeUtilizatori` rămâne pe loc, cu ceilalți apelanți ai ei — nu i s-a
+schimbat semnătura.
+
+`toateAvatarurile` primește `organizationId` și filtrează pe el **explicit**. Filtrul nu e
+redundant și nu se scoate: un profil e vizibil pe CONT, nu pe firma din sesiune, iar
+conturile membre în două organizații există în producție — fără filtru, `/departamente` al
+uneia ar atinge și membrii celeilalte. Restrângerea se face în doi pași — întâi membrii
+activi ai organizației, apoi profilurile lor — fiindcă între `profiles` și
+`organization_members` nu există cheie străină, deci PostgREST n-are pe ce să facă embed;
+aceeași formă ca la `rolurileConturilor` din `src/lib/queries/employees.ts`.
+
+Ambii pași trec prin `citesteTot`, cu cursor keyset: lista nu se oprește tăcut la plafonul
+PostgREST. — capcana #2
 
 ## Ce refuză baza
 

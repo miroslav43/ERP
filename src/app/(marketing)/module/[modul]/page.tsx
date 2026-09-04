@@ -3,7 +3,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { isFeatureKey, type FeatureKey } from "@/config/features";
+import { FEATURES, isFeatureKey, type FeatureKey } from "@/config/features";
+import { type Domeniu, fisaModulului } from "@/content/landing/fise-module";
 import { lunar, MODULE_NUCLEU, PRETURI_MODULE } from "@/content/landing/preturi";
 import { RO } from "@/content/landing/ro";
 
@@ -28,15 +29,42 @@ import { RandRegistru, Registru } from "../../_componente/registru";
  * situl e în română. Compromis asumat, în favoarea faptului că o adresă greșită
  * dă 404 la build, nu în producție.
  *
- * ── DE CE NU E ÎN SITEMAP ─────────────────────────────────────────────────
- * Paginile astea sunt încă subțiri: două-trei propoziții și trei puncte, luate
- * din catalogul de pe `/module`. Trimise la indexare așa, ar concura cu pagina
- * părinte pe aceleași cuvinte și ar dilua-o. Intră în sitemap când fiecare
- * primește text propriu — până atunci sunt utile ca navigare și ca destinație de
- * link intern, ceea ce e deja mai mult decât aveau.
+ * ── FIȘA DETALIATĂ ────────────────────────────────────────────────────────
+ * Paginile au pornit cu ~39 de cuvinte proprii — două propoziții și trei puncte
+ * din catalogul de pe `/module`. La volumul ăla o pagină e găsită și necitită:
+ * verdictul obișnuit în Search Console e „crawled, currently not indexed".
+ *
+ * Modulele care au fișă în `fise-module.ts` primesc în plus proză proprie,
+ * matricea de roluri citită din `role_permissions`, legăturile către celelalte
+ * module și limitele asumate. Cele fără fișă rămân pe conținutul din catalog —
+ * mai puțin, dar nu greșit.
  */
 
 type Proprietati = Readonly<{ params: Promise<{ modul: string }> }>;
+
+/**
+ * Domeniul unei permisiuni, în română.
+ *
+ * `none` și absența rândului se afișează identic — pentru cine citește pagina,
+ * amândouă înseamnă „nu poate". Distincția se păstrează în date, fiindcă acolo
+ * contează: un `none` e o decizie scrisă, iar unde apare merită spus în proză.
+ */
+const ETICHETA_DOMENIU: Readonly<Record<"all" | "team" | "own" | "fara", string>> = {
+  all: "tot",
+  team: "echipa lui",
+  own: "ale lui",
+  fara: "—",
+};
+
+function eticheta(domeniu: Domeniu): string {
+  if (domeniu === null || domeniu === "none") return ETICHETA_DOMENIU.fara;
+  return ETICHETA_DOMENIU[domeniu];
+}
+
+/** Celulele goale se sting, ca ochiul să cadă pe ce SE poate, nu pe ce nu. */
+function clasaCelula(domeniu: Domeniu): string {
+  return domeniu === null || domeniu === "none" ? "text-mk-text-inv-slab/45" : "";
+}
 
 /** Modulul și grupul din care face parte, căutate o singură dată. */
 function gasesteModul(cheie: string) {
@@ -56,12 +84,13 @@ export async function generateMetadata({ params }: Proprietati): Promise<Metadat
   const gasit = gasesteModul(cheie);
   if (gasit === null) return { title: "Modul negăsit" };
 
+  // Titlul din fișă e mai lung și conține cuvintele care se tastează efectiv.
+  // Fără fișă se cade pe catalog: descrierea tăiată la lungimea pe care o
+  // afișează motoarele, ca să nu fie al doilea text de întreținut degeaba.
+  const fisa = fisaModulului(cheie);
   return {
-    title: `${gasit.modul.titlu} — modul Administrativo`,
-    // Descrierea vine din catalog, tăiată la lungimea pe care o afișează
-    // motoarele. Scrisă separat, ar fi al doilea text de întreținut pentru
-    // aceeași informație.
-    description: gasit.modul.text.slice(0, 155),
+    title: fisa?.titluPagina ?? `${gasit.modul.titlu} — modul Administrativo`,
+    description: fisa?.metaDescriere ?? gasit.modul.text.slice(0, 155),
     alternates: { canonical: `/module/${cheie}` },
   };
 }
@@ -75,6 +104,9 @@ export default async function PaginaModul({ params }: Proprietati) {
   const { modul, grup } = gasit;
   const pret = PRETURI_MODULE[cheie as FeatureKey];
   const inNucleu = (MODULE_NUCLEU as readonly string[]).includes(cheie);
+  // Fișa detaliată există deocamdată doar pentru o parte dintre module. Cele
+  // fără rămân pe conținutul din catalog — mai puțin, dar nu greșit.
+  const fisa = fisaModulului(cheie);
 
   // Celelalte module din același grup — navigarea laterală care lipsea.
   const vecini = grup.module.filter((m) => m.cheie !== cheie);
@@ -130,6 +162,134 @@ export default async function PaginaModul({ params }: Proprietati) {
           </Link>
         </div>
       </Banda>
+
+      {fisa !== undefined && (
+        <>
+          <Banda inaltime="medie" titlu="Cum funcționează">
+            <div className="mt-6 max-w-[68ch] space-y-4">
+              {fisa.intro.map((p) => (
+                <p key={p} className="text-mk-text-slab text-[0.9375rem] leading-[1.7]">
+                  {p}
+                </p>
+              ))}
+            </div>
+          </Banda>
+
+          {/*
+            Matricea de roluri. E partea care nu se poate copia de la altcineva,
+            fiindcă descrie chiar produsul ăsta — și e singura pagină din tot
+            situl unde se vede că refuzul e o decizie, nu o scăpare.
+          */}
+          <Banda
+            fundal="cerneala"
+            inaltime="medie"
+            supratitlu="Roluri"
+            titlu="Cine ce poate face"
+            aliniereTitlu="larg"
+            lead="Regulile de mai jos sunt impuse în baza de date, nu în interfață. Un rol fără permisiune nu primește un buton dezactivat: cererea lui e refuzată la sursă."
+          >
+            {/* `relative` pe containerul derulabil: fără el, orice conținut
+                poziționat absolut scapă și târăște pagina lateral. */}
+            <div className="relative mt-8 overflow-x-auto">
+              <table className="w-full border-collapse text-left">
+                <thead>
+                  <tr className="border-mk-rigla-inv/40 border-b">
+                    <th
+                      scope="col"
+                      className="font-mk-date text-mk-text-inv-slab py-2 pr-4 text-[0.6875rem] font-medium tracking-[0.12em] uppercase"
+                    >
+                      Acțiune
+                    </th>
+                    {["Admin", "HR", "Manager", "Angajat"].map((rol) => (
+                      <th
+                        key={rol}
+                        scope="col"
+                        className="font-mk-date text-mk-text-inv-slab py-2 pr-4 text-[0.6875rem] font-medium tracking-[0.12em] uppercase"
+                      >
+                        {rol}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {fisa.actiuni.map((actiune) => (
+                    <tr key={actiune.cheie} className="border-mk-rigla-inv/40 border-b">
+                      <th
+                        scope="row"
+                        className="py-2.5 pr-4 text-[0.9375rem] leading-[1.4] font-normal"
+                      >
+                        {actiune.ce}
+                        <span className="font-mk-date text-mk-text-inv-slab ml-2 text-[0.6875rem] tracking-[0.04em] whitespace-nowrap">
+                          {actiune.cheie}
+                        </span>
+                      </th>
+                      {[actiune.orgAdmin, actiune.hr, actiune.manager, actiune.angajat].map(
+                        (domeniu, i) => (
+                          <td
+                            key={`${actiune.cheie}-${String(i)}`}
+                            className={`py-2.5 pr-4 text-[0.875rem] whitespace-nowrap ${clasaCelula(domeniu)}`}
+                          >
+                            {eticheta(domeniu)}
+                          </td>
+                        ),
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <p className="text-mk-text-inv-slab mt-8 max-w-[72ch] text-[0.9375rem] leading-[1.7]">
+              {fisa.notaPermisiuni}
+            </p>
+          </Banda>
+
+          <Banda
+            inaltime="medie"
+            titlu="Ce se leagă de ce"
+            lead="Modulele nu sunt aplicații separate care se trimit date. E aceeași bază, iar ce se aprobă într-un loc apare în celălalt o singură dată."
+          >
+            <div className="border-mk-rigla/40 mt-8 border-t">
+              {fisa.legaturi.map((legatura) => (
+                <div
+                  key={legatura.catre}
+                  className="border-mk-rigla/40 grid gap-2 border-b py-5 md:grid-cols-12 md:gap-8"
+                >
+                  <h3 className="font-mk-display text-[1rem] leading-[1.25] font-semibold md:col-span-4">
+                    <Link
+                      href={`/module/${legatura.catre}`}
+                      className="underline-offset-4 hover:underline"
+                    >
+                      {FEATURES[legatura.catre].denumire}
+                    </Link>
+                  </h3>
+                  <p className="text-mk-text-slab text-[0.9375rem] leading-[1.6] md:col-span-8">
+                    {legatura.text}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </Banda>
+
+          {/*
+            Limitele, pe modul. Aceeași regulă ca pe `/de-ce-nu`: se scriu înainte
+            să fie descoperite, fiindcă altfel se descoperă oricum, mai târziu și
+            mai prost.
+          */}
+          <Banda inaltime="medie" titlu={`Ce nu face modulul ${modul.titlu}`}>
+            <ul className="mt-6 max-w-[72ch] space-y-3">
+              {fisa.nuFace.map((limita) => (
+                <li
+                  key={limita}
+                  className="border-mk-rigla/40 text-mk-text-slab border-l pl-4 text-[0.9375rem] leading-[1.65]"
+                >
+                  {limita}
+                </li>
+              ))}
+            </ul>
+          </Banda>
+        </>
+      )}
 
       {vecini.length > 0 && (
         <Banda inaltime="scurta" supratitlu="Din același grup" titlu={grup.titlu}>

@@ -6,12 +6,21 @@ cai:
   - "src/app/(app)/concedii/actions.ts"
   - "src/lib/queries/leave.ts"
   - "src/schemas/leave.ts"
-tabele: [leave_requests, leave_request_days, leave_balances, approval_tasks, notifications]
+tabele:
+  [
+    leave_requests,
+    leave_request_days,
+    leave_balances,
+    approval_tasks,
+    notifications,
+    employees,
+    leave_types,
+  ]
 permisiuni: [leave:read, leave:create, leave:update, leave:approve]
 feature: leave
 capcane: [11, 17, 33]
-scris_pe: 0815fbff2c885cd44b5768ee25f084f16a9e95b8
-scris_la: 2026-09-03
+scris_pe: 711e5225e1df2ceab9324037466c87fda8abd8a0
+scris_la: 2026-09-04
 tags: [modul, hr]
 ---
 
@@ -65,6 +74,17 @@ din portal, deci se schimbă pentru amândouă ecranele deodată.
 `configurareConcedii`, `previzualizeazaDrepturi`, `coduriIndemnizatieMedicala`,
 `varianteConcediu` — sunt în [[modul/concedii/setari]].
 
+`calendarLunii` își traduce singură angajatul și tipul, prin embed imbricat PostgREST
+(`angajat:employees!employee_id`, `tip:leave_types!leave_requests_leave_type_id_fkey`),
+nu printr-un al doilea val de interogări în `src/app/(app)/concedii/calendar/page.tsx`.
+Deliberat fără `!inner`: un embed to-one pe care RLS îl golește întoarce NULL, nu elimină
+rândul — v. [[modul/concedii]] pentru ce vede omul atunci. `.returns<RandZiCalendar[]>()`
+rămâne obligatoriu, dar **nu** fiindcă ar lipsi relațiile din tipurile generate: ambele
+chei străine au `isOneToOne: false`, deci inferența supabase-js dă tablou acolo unde
+rândul are obiect, iar `RandZiCalendar`, `AngajatEmbedCalendar` și `TipEmbedCalendar` o
+corectează de mână. Din embed au ieșit `id` și `status`-ul cererii, iar din selecția
+exterioară `leave_request_id`; `status`-ul ZILEI rămâne, e altul.
+
 `zileNelucratoare` e memoizată pe cerere cu `cache()` din React, ca `resolveTenant` și
 `getPermissionMap` — o pagină care o cheamă din corpul ei și din secțiunea streamată
 plătește un singur val. Memoizarea ține doar fiindcă argumentele sunt primitive
@@ -78,6 +98,12 @@ Forma returnată de o acțiune se mișcă în trei locuri deodată: tipul din `h
 scris explicit în `revalidate` (declarat înaintea handlerului, deci TypeScript n-are de
 unde-l infera) și componenta client care citește `rezultat.data`. `decideCerere` le are
 pe toate trei.
+
+O citire are propriul trio: șirul din `.select()`, interfața exportată pe care o impune
+`.returns<T>()` și consumatorul care umblă prin rânduri. Nimic nu leagă primele două —
+`.returns<T>()` afirmă, nu verifică — deci un câmp scos din `select` și lăsat în tip trece
+de `pnpm typecheck` și cade abia la rulare, ca `undefined`. `calendarLunii` cu
+`calendar/page.tsx` e cazul cu cele mai multe verigi.
 
 ## Când NU e suficientă pagina asta
 

@@ -11,8 +11,8 @@ tabele: [announcements, announcement_reads, notifications]
 permisiuni: [announcements:read, announcements:create, announcements:update]
 feature: announcements
 capcane: [17]
-scris_pe: 0815fbff2c885cd44b5768ee25f084f16a9e95b8
-scris_la: 2026-09-03
+scris_pe: 711e5225e1df2ceab9324037466c87fda8abd8a0
+scris_la: 2026-09-04
 tags: [modul]
 ---
 
@@ -22,6 +22,15 @@ Anunțuri publicate întregii firme, cu confirmare de citire per angajat. Modulu
 mic din proiect și, din cauza asta, **referința pentru preambulul unei pagini**: `CLAUDE.md`
 trimite la `src/app/(app)/anunturi/page.tsx` pentru lanțul canonic
 `requireTenant` → `requireFeature` → `getPermissionMap` → `can()` → `AccesRestrictionat`.
+
+Săgețile din lanț sunt ordinea deciziilor, nu ordinea așteptărilor. În
+`src/app/(app)/anunturi/page.tsx` și în `src/app/(app)/anunturi/[id]/page.tsx`,
+`requireFeature` și `getPermissionMap` pleacă împreună într-un `Promise.all`: citesc
+tabele diferite, niciuna n-are nevoie de rezultatul celeilalte, iar în serie erau două
+dus-întorsuri către PostgREST unul după altul. Refuzurile rămân în aceeași ordine —
+`notFound()` din `requireFeature` respinge `Promise.all`, deci un modul dezactivat dă
+404 înainte ca `can()` să ajungă să se uite la permisiuni. Doar `requireTenant` rămâne
+obligatoriu înaintea lor: le dă amândurora argumentele.
 
 ## Rute și cine ajunge
 

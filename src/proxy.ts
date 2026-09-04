@@ -178,7 +178,14 @@ export const config = {
      * mesagerie — WhatsApp, Facebook, LinkedIn, Slack — ar primi un redirect
      * către autentificare în loc de imagine, iar linkul ar apărea gol oriunde
      * e distribuit. Robotul nu are sesiune și nu va avea niciodată.
+     *
+     * `sitemap.xsl` e foaia de stil a sitemap-ului. Cererea pentru ea o face
+     * browserul DUPĂ ce a primit XML-ul, ca resursă separată — iar dacă primește
+     * un 307 către o pagină HTML, nu apare nicio eroare: transformarea eșuează
+     * în tăcere și fișierul se afișează nestilizat, adică exact simptomul pe
+     * care foaia trebuia să-l repare. Extensia `.xsl` nu e în lista de extensii
+     * de mai jos, deci trebuie numită separat.
      */
-    "/((?!_next/static|_next/image|healthz|readyz|favicon\.ico|robots\.txt|sitemap\.xml|llms\.txt|manifest\.webmanifest|icon|apple-icon|opengraph-image|twitter-image|.*\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|css|js|woff|woff2|ttf|otf|map)$).*)",
+    "/((?!_next/static|_next/image|healthz|readyz|favicon\.ico|robots\.txt|sitemap\.xml|sitemap\.xsl|llms\.txt|manifest\.webmanifest|icon|apple-icon|opengraph-image|twitter-image|.*\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|css|js|woff|woff2|ttf|otf|map)$).*)",
   ],
 };
