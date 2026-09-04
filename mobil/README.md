@@ -44,8 +44,11 @@ server/client din Next.js, restricția pe clientul admin — n-au niciun înțel
 `https://administrativo.ro/portal`). Nu se scrie literal în `App.tsx`: la
 trecerea pe subdomenii per firmă, aici e singurul loc care se schimbă.
 
-`extra.eas.projectId` rămâne gol până la `eas init` (Task 11) — nu se
-inventează o valoare.
+`extra.eas.projectId` rămâne gol până la `eas init` — nu se inventează o
+valoare. Task 11 a scris `eas.json` și a verificat pluginurile (secțiunea
+„Build EAS și publicare în magazine" de mai jos), dar n-a putut rula `eas
+init` — cere contul EAS al proprietarului. Rămâne gol până atunci, nu e o
+sarcină neterminată.
 
 Culorile din `App.tsx` (`#0f1e3d`) și `app.config.ts` (`#0f1e3d`,
 `#faf7f0`) sunt `theme_color` și `background_color` din
@@ -65,14 +68,19 @@ cineva care are conturile să nu trebuiască să ghicească nimic.
 `plugins` din `app.config.ts` conține azi `expo-camera` (cu
 `recordAudioAndroid: false` și `microphonePermission: false` — vezi
 comentariul de acolo), `expo-notifications`, `expo-local-authentication`.
-Restul pachetelor (`expo-file-system`, `expo-print`, `expo-sharing`,
-`expo-device`, `expo-constants`, `expo-linking`) **nu trebuie** adăugate: fiecare
-își aduce singur, prin `AndroidManifest.xml` propriu (mers verificat direct în
-`node_modules/<pachet>/android/src/main/AndroidManifest.xml`, care se combină
-automat la `prebuild`), tot ce-i trebuie pe Android — inclusiv `INTERNET` — și
-niciunul nu are text de permisiune de scris pe iOS. Verificarea s-a făcut
-citind sursa fiecărui pachet, nu brief-ul inițial al sarcinii (scris înainte
-ca push-ul, descărcările și scanner-ul să existe).
+Restul pachetelor instalate care ar putea avea un config plugin
+(`expo-file-system`, `expo-print`, `expo-sharing`, `expo-device`,
+`expo-constants`, `expo-linking`, `expo-status-bar`) **nu trebuie** adăugate:
+fiecare își aduce singur, prin `AndroidManifest.xml` propriu (mers verificat
+direct în `node_modules/<pachet>/android/src/main/AndroidManifest.xml`, care
+se combină automat la `prebuild`), tot ce-i trebuie pe Android — inclusiv
+`INTERNET` — și niciunul nu are text de permisiune de scris pe iOS.
+`expo-status-bar` are propriul `app.plugin.js`, dar fără opțiuni explicite
+rulează ca no-op (verificat în sursă: fără `style`/`hidden` primite, întoarce
+config-ul neatins) — stilul barei se dă la runtime, din `App.tsx`, nu la
+build. Verificarea s-a făcut citind sursa fiecărui pachet instalat, nu
+brief-ul inițial al sarcinii (scris înainte ca push-ul, descărcările și
+scanner-ul să existe).
 
 ### 1. Cont EAS + `eas init` — leagă proiectul
 

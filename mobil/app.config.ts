@@ -33,14 +33,20 @@ const config: ExpoConfig = {
     permissions: ["CAMERA", "USE_BIOMETRIC", "POST_NOTIFICATIONS"],
   },
   // `expo-file-system`, `expo-print`, `expo-sharing`, `expo-device`,
-  // `expo-constants` și `expo-linking` NU apar aici, deliberat: fiecare își
-  // aduce singur, prin AndroidManifest.xml propriu (merge automat la
-  // `prebuild`, verificat în `node_modules/<pachet>/android/.../AndroidManifest.xml`),
-  // tot ce-i trebuie — INTERNET și un FileProvider la `expo-file-system`,
-  // FileProvider + intent SEND la `expo-sharing`, nimic la `expo-print`/
-  // `expo-device`/`expo-constants`. Niciunul n-are `ios.infoPlist` de scris
-  // (nu ating camera rolă foto, nu cer bibliotecă media), deci n-au ce
-  // configura prin `plugins`. `salveazaPdf` (fisiere.ts) scrie doar în
+  // `expo-constants`, `expo-linking` și `expo-status-bar` NU apar aici,
+  // deliberat: fiecare își aduce singur, prin AndroidManifest.xml propriu
+  // (merge automat la `prebuild`, verificat în
+  // `node_modules/<pachet>/android/.../AndroidManifest.xml`), tot ce-i
+  // trebuie — INTERNET și un FileProvider la `expo-file-system`, FileProvider
+  // + intent SEND la `expo-sharing`, nimic la `expo-print`/`expo-device`/
+  // `expo-constants`/`expo-status-bar` (manifest gol la toate patru).
+  // `expo-status-bar` are `app.plugin.js`, dar fără opțiuni explicite (nu se
+  // dau aici) rulează ca no-op — verificat în sursă,
+  // `withStatusBar.js:resolveProps`: fără `style`/`hidden` primite, plugin-ul
+  // întoarce config-ul neatins; stilul barei se dă la runtime, din `App.tsx`.
+  // Niciunul dintre cele șase n-are `ios.infoPlist` de scris (nu ating camera
+  // rolă foto, nu cer bibliotecă media), deci n-au ce configura prin
+  // `plugins`. `salveazaPdf` (fisiere.ts) scrie doar în
   // `FileSystem.cacheDirectory` — director privat al aplicației — nu are
   // nevoie de READ/WRITE_EXTERNAL_STORAGE.
   plugins: [

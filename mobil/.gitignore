@@ -18,6 +18,13 @@ expo-env.d.ts
 *.key
 *.mobileprovision
 
+# Firebase — înregistrarea FCM a aplicației (identificator de proiect
+# Firebase). Nu e cheia de serviciu FCM V1 (aceea nu ajunge niciodată în
+# repo, se încarcă direct în EAS — vezi mobil/README.md, secțiunea de
+# operare) — e alt fișier, descărcat separat din Firebase Console și
+# referit din app.config.ts la android.googleServicesFile.
+google-services.json
+
 # Metro
 .metro-health-check*
 
