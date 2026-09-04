@@ -64,6 +64,13 @@ export function ActiuniCerere({
    * `DecizieAprobare` — supraviețuiește reîmprospătării paginii.
    */
   const [zilePastrate, setZilePastrate] = useState(0);
+  /**
+   * Ce a rămas de făcut pentru declararea suspendării, când concediul o produce.
+   * Aceeași natură ca `zilePastrate`: stare, nu notificare trecătoare — de
+   * partea cealaltă a tăcerii e o contravenție per salariat, nu o zi plătită de
+   * două ori.
+   */
+  const [suspendare, setSuspendare] = useState<string | null>(null);
   const [inCurs, porneste] = useTransition();
 
   function trimite(): void {
@@ -76,6 +83,12 @@ export function ActiuniCerere({
         return;
       }
       setZilePastrate(rezultat.data.zilePastrate);
+      setSuspendare(
+        rezultat.data.suspendare.motiv ??
+          (rezultat.data.suspendare.declarata && rezultat.data.suspendare.termen !== null
+            ? `Suspendarea a fost înregistrată, iar evenimentul de transmis în REGES este pregătit — termenul este ${rezultat.data.suspendare.termen}.`
+            : null),
+      );
       router.refresh();
     });
   }
@@ -182,6 +195,16 @@ export function ActiuniCerere({
             ? "O zi din acest concediu era deja pontată ca lucrată și a rămas așa."
             : `${String(zilePastrate)} zile din acest concediu erau deja pontate ca lucrate și au rămas așa.`}{" "}
           Verificați-le în pontaj: altfel se plătesc și ca muncă, și ca zile de concediu.
+        </Callout>
+      )}
+
+      {/* Concediile care suspendă contractul (fără plată, creștere copil,
+          paternal, acomodare) se declară la Inspecția Muncii cel târziu în ziua
+          anterioară începerii. Aprobarea le pregătește singură evenimentul; ce
+          se spune aici e dacă a reușit sau a rămas de făcut de mână. */}
+      {suspendare === null ? null : (
+        <Callout fel="atentie" titlu="Suspendarea contractului se declară în REGES">
+          {suspendare}
         </Callout>
       )}
     </div>
