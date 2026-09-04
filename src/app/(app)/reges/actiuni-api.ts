@@ -21,6 +21,7 @@ import { revalidatePath } from "next/cache";
 
 import { compuneSalariat } from "@/lib/reges/compune";
 import { mascheazaText } from "@/domain/reges/mascare";
+import { idNomenclatorDinRaspuns } from "@/domain/reges/nomenclator-raspuns";
 import { pregatesteMesaje } from "@/lib/reges/coada";
 import {
   citesteCredentiale,
@@ -53,6 +54,7 @@ import {
   pregatesteSchema,
   transmiteSchema,
   anuleazaMesajSchema,
+  sporAngajatorSchema,
   type ActiveazaInput,
   type AnuleazaMesajInput,
   type ClasificareInput,
@@ -60,6 +62,7 @@ import {
   type PregatesteInput,
   type PropunePlecareInput,
   type RaspundePropuneriiInput,
+  type SporAngajatorInput,
   type TransmiteInput,
 } from "./constante";
 
@@ -816,6 +819,159 @@ export async function salveazaClasificarea(
   input: ClasificareInput,
 ): Promise<ActionResult<{ id: string }>> {
   return actiuneClasifica(input);
+}
+
+// ── Sporurile proprii firmei ────────────────────────────────────────────────
+
+/**
+ * Endpoint-ul pe care se înregistrează un spor specific angajatorului.
+ *
+ * Sporurile din nomenclatorul NAȚIONAL (`TipSpor`) se citesc prin
+ * `/api/Nomenclator?tip=toate` și se mapează direct. Cele negociate intern —
+ * „spor de fidelitate" și rudele lui — nu există acolo: trebuie mai întâi
+ * create în registrul firmei, iar apelul întoarce UUID-ul cu care abia apoi pot
+ * fi referențiate în `referintaTipSpor`.
+ */
+const CALE_SPOR_ANGAJATOR = "/api/Nomenclatoare/SporAngajator";
+
+const actiuneSporAngajator = createAction<typeof sporAngajatorSchema, { regesId: string }>({
+  name: "reges.spor_angajator.creeaza",
+  feature: "reges",
+  // Aceeași poartă ca sincronizarea nomenclatoarelor și ca profilul: e un act de
+  // configurare a registrului firmei, nu o transmitere de contract.
+  permission: "reges:configure",
+  minScope: "all",
+  input: sporAngajatorSchema,
+  audit: {
+    action: "create",
+    entityType: "reges_nomenclator",
+    entityId: (_input, data) => data.regesId,
+    allow: ["componentTypeId", "dataInceputValabilitate"],
+  },
+  revalidate: RUTE,
+  handler: async (ctx, input) => {
+    const organizationId = idOrganizatie(ctx.tenant);
+    const admin = createAdminSupabase();
+
+    /*
+     * Tipul trebuie să fie AL FIRMEI, nu unul de platformă.
+     *
+     * `salary_component_types` cu `organization_id is null` sunt împărțite de
+     * toate firmele: scris acolo, un UUID obținut de o firmă ar fi folosit de
+     * toate celelalte în mesajele lor — o scurgere între chiriași, tăcută și
+     * imposibil de observat din ecran. Filtrul e egalitate strictă, nu
+     * `or(is.null)`.
+     */
+    const { data: tip, error: eroareTip } = await admin
+      .from("salary_component_types")
+      .select("id, denumire, kind, reges_tip_spor_id")
+      .eq("id", input.componentTypeId)
+      .eq("organization_id", organizationId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (eroareTip !== null) throw eroareTip;
+    if (tip === null) {
+      throw businessRule(
+        "Sporul nu a fost găsit printre tipurile proprii firmei. Sporurile de platformă se mapează la nomenclatorul național, nu se înregistrează ca sporuri de angajator.",
+      );
+    }
+    if (tip.kind !== "spor_procent" && tip.kind !== "spor_suma") {
+      throw businessRule(
+        "Doar sporurile se înregistrează în REGES. Indemnizațiile, primele recurente și beneficiile în natură sunt componente de salarizare internă.",
+      );
+    }
+    if (tip.reges_tip_spor_id !== null) {
+      throw businessRule(
+        "Sporul are deja un identificator REGES. Înregistrarea lui a doua oară ar crea un duplicat în registrul firmei.",
+      );
+    }
+
+    const cred = await citesteCredentiale(ctx.supabase, organizationId);
+    if (cred === null) {
+      throw businessRule("Completați întâi credențialele REGES în Setări.");
+    }
+    const jeton = await jetonValid(admin, cred);
+    if (!jeton.ok) throw businessRule(jeton.mesaj);
+
+    // Schema cere un moment complet, nu o zi: ziua aleasă se ancorează la
+    // miezul nopții UTC, ca `ziCaMoment` peste tot altundeva în modul.
+    const raspuns = await cheamaReges<unknown>({
+      mediu: cred.mediu as Mediu,
+      cale: CALE_SPOR_ANGAJATOR,
+      metoda: "POST",
+      jeton: jeton.jeton,
+      corp: {
+        denumire: tip.denumire,
+        dataInceputValabilitate: `${input.dataInceputValabilitate}T00:00:00Z`,
+      },
+    });
+
+    await admin.from("reges_apeluri").insert({
+      organization_id: organizationId,
+      mesaj_id: null,
+      metoda: "POST",
+      cale: CALE_SPOR_ANGAJATOR,
+      http_status: raspuns.status,
+      durata_ms: raspuns.durataMs,
+      consumer_id: cred.consumerId,
+      eroare: raspuns.ok ? null : mascheazaText(raspuns.mesaj),
+    });
+
+    if (!raspuns.ok) throw businessRule(raspuns.mesaj);
+
+    const regesId = idNomenclatorDinRaspuns(raspuns.date);
+    if (regesId === null) {
+      throw businessRule(
+        "Inspecția Muncii a acceptat sporul, dar nu a întors identificatorul lui. Verificați în portalul REGES dacă a fost creat, apoi completați maparea manual.",
+      );
+    }
+
+    /*
+     * Două scrieri, în ordinea asta: întâi oglinda nomenclatorului, apoi
+     * maparea. Invers, o cădere între ele ar lăsa un tip care trimite o
+     * referință pe care oglinda n-o cunoaște — iar ecranul de setări ar arăta
+     * un spor mapat la nimic.
+     */
+    const { error: eroareNomenclator } = await admin.from("reges_nomenclatoare").upsert(
+      {
+        organization_id: organizationId,
+        tip: "SporAngajator",
+        reges_id: regesId,
+        cod: null,
+        nume: tip.denumire,
+        activ: true,
+        continut: { dataInceputValabilitate: input.dataInceputValabilitate },
+        sincronizat_la: new Date().toISOString(),
+      },
+      { onConflict: "organization_id,tip,reges_id" },
+    );
+    if (eroareNomenclator !== null) throw eroareNomenclator;
+
+    const { data: mapat, error: eroareMapare } = await admin
+      .from("salary_component_types")
+      .update({ reges_tip_spor_id: regesId })
+      .eq("id", tip.id)
+      .eq("organization_id", organizationId)
+      // Gardă împotriva unei curse: dacă altcineva a mapat între timp, nu
+      // suprascriem cu un al doilea UUID pentru același spor.
+      .is("reges_tip_spor_id", null)
+      .select("id")
+      .maybeSingle();
+    if (eroareMapare !== null) throw eroareMapare;
+    if (mapat === null) {
+      throw businessRule(
+        "Sporul a fost creat în REGES, dar maparea locală a fost făcută între timp de altcineva. Verificați în Setări ce identificator poartă acum.",
+      );
+    }
+
+    return { regesId };
+  },
+});
+
+export async function creeazaSporAngajator(
+  input: SporAngajatorInput,
+): Promise<ActionResult<{ regesId: string }>> {
+  return actiuneSporAngajator(input);
 }
 
 export async function revalideazaReges(): Promise<void> {
