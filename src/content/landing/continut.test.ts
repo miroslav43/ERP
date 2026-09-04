@@ -604,3 +604,18 @@ describe("promisiuni contrazise de bază", () => {
     expect(`${modulEn?.text} ${modulEn?.puncte.join(" ")}`).not.toMatch(/half[- ]day/i);
   });
 });
+
+describe("vitrina", () => {
+  /**
+   * O rută publică ABSENTĂ din `RUTE_PUBLICE` nu dă 404 și nu dă eroare: dă un
+   * 307 către autentificare, pentru vizitator ȘI pentru robotul de indexare.
+   * Poarta se citește din sursa proxy-ului, ca tot restul fișierului — `PUBLICE`
+   * de la `describe("legăturile interne duc undeva", ...)` e local scopului lui,
+   * deci se recitește sursa aici, cu aceeași cale relativă la rădăcina
+   * repo-ului, nu prin `import.meta.url`.
+   */
+  it("este înregistrată ca rută publică în proxy", () => {
+    const sursa = readFileSync("src/proxy.ts", "utf8");
+    expect(sursa).toMatch(/"\/vitrina"/);
+  });
+});

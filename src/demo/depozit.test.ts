@@ -35,4 +35,25 @@ describe("depozitul de sesiune", () => {
     expect(() => scrieDepozit("proba", { n: 1 })).not.toThrow();
     expect(citesteDepozit("proba", { n: 9 })).toEqual({ n: 9 });
   });
+
+  /**
+   * `JSON.parse` reușește, dar forma nu e cea așteptată — o valoare de altă
+   * schemă scrisă sub aceeași cheie, de o versiune anterioară a demonstrației,
+   * sau o manipulare din devtools. Consumatorul (`vitrina-leave.tsx`) iterează
+   * rezultatul cu `for...of`: fără gardă, o valoare non-tablou ar arunca
+   * `TypeError` direct în randare și ar cădea tot ecranul public, fără
+   * recuperare. Garda întoarce implicitul în loc să dea mai departe o valoare
+   * greșit tipată.
+   */
+  it("întoarce implicitul când valoarea stocată nu trece garda de formă", () => {
+    window.sessionStorage.setItem("proba", JSON.stringify({ nu: "e un tablou" }));
+    const esteTablou = (x: unknown): x is readonly unknown[] => Array.isArray(x);
+    expect(citesteDepozit("proba", [], esteTablou)).toEqual([]);
+  });
+
+  it("întoarce valoarea stocată atunci când trece garda de formă", () => {
+    window.sessionStorage.setItem("proba", JSON.stringify([{ n: 1 }]));
+    const esteTablou = (x: unknown): x is readonly unknown[] => Array.isArray(x);
+    expect(citesteDepozit("proba", [], esteTablou)).toEqual([{ n: 1 }]);
+  });
 });
