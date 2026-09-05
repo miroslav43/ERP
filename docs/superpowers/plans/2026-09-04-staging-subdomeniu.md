@@ -45,7 +45,39 @@ Toate se aplică fiecărei sarcini, fără a fi repetate acolo.
   `~/.secrete/administrativo/`, cu drepturi `600`.
 - **Migrările** se aplică prin `psql`, byte-exact, forward-only.
 
-## Stare la 2026-09-05, ora 11:15 — nouă sarcini din zece
+## LIVRAT — 2026-09-05, ora 14:15
+
+Staging e viu și izolat, iar lanțul funcționează cap-coadă: un push în `main`
+declanșează workflow-ul pe VM, porțile trec, imaginea se construiește local și
+subdomeniul se actualizează.
+
+```
+staging.administrativo.ro          401 fără parolă · 200 cu parolă
+staging.administrativo.ro/_stare   200 — „8c3bf103 — a ajuns pe staging"
+administrativo.ro                  200 — neatinsă, 2/2
+
+administrativo-staging_…-staging   1/1  administrativo-web-staging:8c3bf10
+  secrete:  staging_supabase_service_role_key, staging_hr_encryption_keys,
+            staging_hr_hash_key, staging_tenant_cookie_secret
+  bază:     mjyuonhcltjoxektopcg          (producția: nybmhorngsajoqaxjlbr)
+
+Aliasuri pe strawboss-net, verificat din interiorul rețelei:
+  administrativo-web          → 1 adresă: 10.0.1.241
+  administrativo-web-staging  → 1 adresă: 10.0.1.28
+```
+
+Baza de staging: 135 de migrări aplicate, `db:check-rls` verde pe toate tabelele
+publice. Parola eșua printr-o singură literă (`Timis` în loc de `TImis`).
+
+Acces: utilizatorul `coleg`, parola în
+`~/.secrete/administrativo/parola-staging.txt`.
+
+**Rămâne de decis, separat:** producția are 5 migrări neaplicate (drift
+preexistent, neatins — aplicarea cere confirmarea explicită a utilizatorului), iar
+`cancel-in-progress` anulează des deploy-ul de staging fiindcă build-ul durează
+mai mult decât intervalul dintre push-urile sesiunilor concurente.
+
+## Istoric — starea de la ora 11:15
 
 | Sarcină                    | Stare         | Dovada                                               |
 | -------------------------- | ------------- | ---------------------------------------------------- |
