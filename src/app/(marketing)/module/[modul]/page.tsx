@@ -193,70 +193,80 @@ export default async function PaginaModul({ params }: Proprietati) {
             Matricea de roluri. E partea care nu se poate copia de la altcineva,
             fiindcă descrie chiar produsul ăsta — și e singura pagină din tot
             situl unde se vede că refuzul e o decizie, nu o scăpare.
+
+            Condiționată pe `actiuni.length`, fiindcă un modul poate să n-aibă
+            NICIO permisiune proprie: `asistent` e păzit doar de comutatorul de
+            modul, iar ce poate atinge depinde de permisiunile celui care
+            întreabă, nu de ale lui. Fără gardă, fișa lui ar randa antetul de
+            tabel gol sub un lead care promite „regulile de mai jos" — adică
+            exact genul de promisiune fără acoperire pe care fișele astea există
+            ca să-l elimine.
           */}
-          <Banda
-            fundal="cerneala"
-            inaltime="medie"
-            supratitlu="Roluri"
-            titlu="Cine ce poate face"
-            aliniereTitlu="larg"
-            lead="Regulile de mai jos sunt impuse în baza de date, nu în interfață. Un rol fără permisiune nu primește un buton dezactivat: cererea lui e refuzată la sursă."
-          >
-            {/* `relative` pe containerul derulabil: fără el, orice conținut
+          {fisa.actiuni.length > 0 && (
+            <Banda
+              fundal="cerneala"
+              inaltime="medie"
+              supratitlu="Roluri"
+              titlu="Cine ce poate face"
+              aliniereTitlu="larg"
+              lead="Regulile de mai jos sunt impuse în baza de date, nu în interfață. Un rol fără permisiune nu primește un buton dezactivat: cererea lui e refuzată la sursă."
+            >
+              {/* `relative` pe containerul derulabil: fără el, orice conținut
                 poziționat absolut scapă și târăște pagina lateral. */}
-            <div className="relative mt-8 overflow-x-auto">
-              <table className="w-full border-collapse text-left">
-                <thead>
-                  <tr className="border-mk-rigla-inv/40 border-b">
-                    <th
-                      scope="col"
-                      className="font-mk-date text-mk-text-inv-slab py-2 pr-4 text-[0.6875rem] font-medium tracking-[0.12em] uppercase"
-                    >
-                      Acțiune
-                    </th>
-                    {["Admin", "HR", "Manager", "Angajat"].map((rol) => (
+              <div className="relative mt-8 overflow-x-auto">
+                <table className="w-full border-collapse text-left">
+                  <thead>
+                    <tr className="border-mk-rigla-inv/40 border-b">
                       <th
-                        key={rol}
                         scope="col"
                         className="font-mk-date text-mk-text-inv-slab py-2 pr-4 text-[0.6875rem] font-medium tracking-[0.12em] uppercase"
                       >
-                        {rol}
+                        Acțiune
                       </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {fisa.actiuni.map((actiune) => (
-                    <tr key={actiune.cheie} className="border-mk-rigla-inv/40 border-b">
-                      <th
-                        scope="row"
-                        className="py-2.5 pr-4 text-[0.9375rem] leading-[1.4] font-normal"
-                      >
-                        {actiune.ce}
-                        <span className="font-mk-date text-mk-text-inv-slab ml-2 text-[0.6875rem] tracking-[0.04em] whitespace-nowrap">
-                          {actiune.cheie}
-                        </span>
-                      </th>
-                      {[actiune.orgAdmin, actiune.hr, actiune.manager, actiune.angajat].map(
-                        (domeniu, i) => (
-                          <td
-                            key={`${actiune.cheie}-${String(i)}`}
-                            className={`py-2.5 pr-4 text-[0.875rem] whitespace-nowrap ${clasaCelula(domeniu)}`}
-                          >
-                            {eticheta(domeniu)}
-                          </td>
-                        ),
-                      )}
+                      {["Admin", "HR", "Manager", "Angajat"].map((rol) => (
+                        <th
+                          key={rol}
+                          scope="col"
+                          className="font-mk-date text-mk-text-inv-slab py-2 pr-4 text-[0.6875rem] font-medium tracking-[0.12em] uppercase"
+                        >
+                          {rol}
+                        </th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {fisa.actiuni.map((actiune) => (
+                      <tr key={actiune.cheie} className="border-mk-rigla-inv/40 border-b">
+                        <th
+                          scope="row"
+                          className="py-2.5 pr-4 text-[0.9375rem] leading-[1.4] font-normal"
+                        >
+                          {actiune.ce}
+                          <span className="font-mk-date text-mk-text-inv-slab ml-2 text-[0.6875rem] tracking-[0.04em] whitespace-nowrap">
+                            {actiune.cheie}
+                          </span>
+                        </th>
+                        {[actiune.orgAdmin, actiune.hr, actiune.manager, actiune.angajat].map(
+                          (domeniu, i) => (
+                            <td
+                              key={`${actiune.cheie}-${String(i)}`}
+                              className={`py-2.5 pr-4 text-[0.875rem] whitespace-nowrap ${clasaCelula(domeniu)}`}
+                            >
+                              {eticheta(domeniu)}
+                            </td>
+                          ),
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
-            <p className="text-mk-text-inv-slab mt-8 max-w-[72ch] text-[0.9375rem] leading-[1.7]">
-              {fisa.notaPermisiuni}
-            </p>
-          </Banda>
+              <p className="text-mk-text-inv-slab mt-8 max-w-[72ch] text-[0.9375rem] leading-[1.7]">
+                {fisa.notaPermisiuni}
+              </p>
+            </Banda>
+          )}
 
           <Banda
             inaltime="medie"
