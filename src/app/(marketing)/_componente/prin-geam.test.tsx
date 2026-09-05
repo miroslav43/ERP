@@ -1,100 +1,93 @@
+import { readFileSync } from "node:fs";
+
 import { render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { PrinGeam } from "./prin-geam";
 
 /**
- * `<dialog>` nu are `showModal()`/`close()` implementate în happy-dom —
- * `PrinGeam` le cheamă la deschidere/închidere, iar fără cârjă testul ar cădea
- * dintr-un motiv fără legătură cu ce verifică. Tiparul e copiat din
- * `src/app/(app)/pontaj/grila-saptamana.test.tsx:130-133`.
+ * Ce apără fișierul ăsta: promisiunile pe care banda le face unei pagini
+ * PUBLICE de conversie, și pe care nici typecheck-ul, nici lint-ul nu le văd.
+ *
+ * Trei dintre ele sunt lecții plătite, nu precauții teoretice:
+ *
+ * 1. Nota „datele sunt inventate" trebuie să fie VIZIBILĂ. Într-o versiune
+ *    anterioară stătea într-un element cu `overflow-hidden` și raport de aspect
+ *    fix, iar 6,5px din ea ieșeau din casetă — măsurați în Chromium headless, pe
+ *    CSS-ul compilat real. Un avertisment tăiat nu apără pe nimeni.
+ * 2. Imaginea trebuie să-și declare dimensiunile. Fără ele, o imagine leneșă
+ *    aterizează după layout și împinge pagina — CLS pe pagina de vânzare.
+ * 3. Fișierul NU are voie să devină `"use client"`. Când era, un export al lui
+ *    chemat din Server Component rupea prerandarea tuturor celor nouăsprezece
+ *    pagini `/module/*`, iar singura poartă care vedea asta era `next build`.
  */
-beforeEach(() => {
-  if (typeof HTMLDialogElement !== "undefined") {
-    HTMLDialogElement.prototype.showModal = vi.fn();
-    HTMLDialogElement.prototype.close = vi.fn();
-  }
-});
-
-describe("banda prin geam", () => {
-  // Catalogul (`arePrinGeam`) s-a mutat în `vitrine.ts` și e verificat acolo:
-  // e apelat din graful de server, deci nu are voie să locuiască într-un fișier
-  // `"use client"` ca acesta.
-
-  it("încadrează vitrina leneș, cu titlu și raport de aspect fix", () => {
-    const { container } = render(<PrinGeam cheie="leave" titlu="Concedii" />);
-    const cadru = container.querySelector("iframe");
-
-    expect(cadru).not.toBeNull();
-    expect(cadru?.getAttribute("src")).toBe("/vitrina/leave");
-    expect(cadru?.getAttribute("loading")).toBe("lazy");
-    expect(cadru?.getAttribute("title")).toMatch(/Concedii/);
-    // Fără raport fix, iframe-ul sosește târziu și împinge pagina: CLS garantat.
-    // Raportul de aspect stă pe `div`-ul care înfășoară DOAR iframe-ul, nu pe
-    // `<figure>` — vezi testul de mai jos pentru motivul structural.
-    expect(cadru?.parentElement?.getAttribute("style") ?? "").toMatch(/aspect-ratio/);
+describe("banda cu captura ecranului", () => {
+  it("nu randează nimic pentru un modul fără captură", () => {
+    const { container } = render(<PrinGeam cheie="courses" titlu="Cursuri" />);
+    expect(container.firstChild).toBeNull();
   });
 
-  it("avertismentul de sub cadru nu e strămoșit de elementul cu overflow-hidden", () => {
-    /*
-     * happy-dom nu calculează layout real (dimensiuni și poziții rămân 0),
-     * deci un test de geometrie — cel folosit efectiv de revizor, cu CSS
-     * compilat real randat în Chromium headless — nu e posibil aici. Ce SE
-     * poate verifica e structura care garantează absența clipping-ului:
-     * elementul cu `overflow-hidden` (care poartă și raportul de aspect fix)
-     * nu trebuie să fie strămoșul lui `<figcaption>`. Dacă ar fi, iframe-ul
-     * `h-full` ar umple tot content-box-ul fixat de `aspect-ratio`, iar
-     * textul avertismentului — „Date fictive. Nimic din ce faci aici nu se
-     * salvează." — ar fi împins sub marginea vizibilă și tăiat de
-     * `overflow-hidden`. Regresie verificată empiric de revizor: la 600px
-     * lățime, raport 16:10, 6,5px din text ieșeau din casetă.
-     */
+  it("arată captura leneș, cu dimensiuni declarate", () => {
+    const { container } = render(<PrinGeam cheie="leave" titlu="Concedii" />);
+    const poza = container.querySelector("figure img");
+
+    expect(poza).not.toBeNull();
+    expect(poza?.getAttribute("src")).toBe("/capturi/leave-1920.webp");
+    // `srcset` cu două lățimi: pe telefon se descarcă 28 KB în loc de 71.
+    expect(poza?.getAttribute("srcset")).toMatch(/leave-960\.webp 960w/);
+    expect(poza?.getAttribute("loading")).toBe("lazy");
+    // Fără `width`/`height`, browserul nu știe raportul înainte să sosească
+    // fișierul, iar imaginea împinge pagina când aterizează.
+    expect(poza?.getAttribute("width")).toBe("1920");
+    expect(poza?.getAttribute("height")).toBe("1200");
+  });
+
+  it("spune că datele sunt inventate, într-un loc care nu poate fi tăiat", () => {
     const { container } = render(<PrinGeam cheie="leave" titlu="Concedii" />);
     const legenda = container.querySelector("figcaption");
-    const cuOverflow = container.querySelector(".overflow-hidden");
 
-    expect(legenda).not.toBeNull();
-    expect(cuOverflow).not.toBeNull();
-    expect(cuOverflow?.getAttribute("style") ?? "").toMatch(/aspect-ratio/);
-    expect(legenda === null || cuOverflow === null ? false : cuOverflow.contains(legenda)).toBe(
-      false,
-    );
+    // `/inventa/`, nu `/inventat/`: textul spune „inventați", cu ț cu virgulă
+    // dedesubt (U+021B) pe poziția a șaptea. Un tipar scris în grabă pe forma
+    // masculină n-ar fi potrivit niciodată.
+    expect(legenda?.textContent).toMatch(/inventa/i);
+
+    // Lecția din decembrie: legenda NU are voie să stea sub un strămoș care
+    // taie conținutul, fiindcă atunci dispare fără ca nimic să se plângă.
+    let parinte = legenda?.parentElement ?? null;
+    while (parinte !== null && parinte !== container) {
+      expect(parinte.className).not.toMatch(/overflow-hidden/);
+      parinte = parinte.parentElement;
+    }
   });
 
-  it("legenda spune că demonstrația arată un subset", () => {
-    /*
-     * `ro.ts` promite „Unsprezece tipuri, fiecare cu temeiul legal notat" în
-     * punctele modulului `leave`; `src/demo/lume.ts` are trei. Ambele texte
-     * ajung pe `/module/leave`, deci pagina s-ar contrazice singură. Legenda e
-     * locul unde diferența e recunoscută — fără ea, prospectul numără trei și
-     * pune la îndoială restul paginii.
-     */
+  it("se mărește printr-un control accesibil cu tastatura, legat de popover", () => {
     const { container } = render(<PrinGeam cheie="leave" titlu="Concedii" />);
-    const legenda = container.querySelector("figcaption")?.textContent ?? "";
+    const buton = screen.getByRole("button", { name: /apasă pentru a mări/i });
+    const tinta = buton.getAttribute("popovertarget");
 
-    expect(legenda).toMatch(/Date fictive/);
-    expect(legenda).toMatch(/subset/i);
+    expect(tinta).toBeTruthy();
+    // Ținta chiar există și chiar e un popover — un `popovertarget` care arată
+    // spre nimic nu dă nicio eroare, doar nu face nimic.
+    const marit = container.querySelector(`#${tinta ?? ""}`);
+    expect(marit).not.toBeNull();
+    expect(marit?.getAttribute("popover")).toBe("auto");
   });
 
-  it("oferă o cale de deschidere accesibilă cu tastatura", () => {
-    // Proiectul nu are `@testing-library/jest-dom` instalat, deci
-    // `toBeInTheDocument()` nu există — convenția casei e `.not.toBeNull()`
-    // pe rezultatul unui `queryBy*` (ex. `bara-filtre.test.tsx:137`).
+  it("varianta mărită are propriul buton de închidere", () => {
     render(<PrinGeam cheie="leave" titlu="Concedii" />);
-    expect(screen.queryByRole("button", { name: /Deschide/ })).not.toBeNull();
+    const inchide = screen.getByRole("button", { name: /închide/i });
+
+    // `Escape` și clicul în afară închid oricum, dar niciunul nu se VEDE:
+    // cine deschide cu degetul pe telefon are nevoie de un buton.
+    expect(inchide.getAttribute("popovertargetaction")).toBe("hide");
   });
 
-  it("deschide caseta pe tot ecranul la clic, cu al doilea iframe creat abia atunci", async () => {
-    const { default: userEvent } = await import("@testing-library/user-event");
-    const utilizator = userEvent.setup();
-    const { container } = render(<PrinGeam cheie="leave" titlu="Concedii" />);
+  it("fișierul nu e `use client` — altfel exporturile lui ar rupe build-ul", () => {
+    const sursa = readFileSync("src/app/(marketing)/_componente/prin-geam.tsx", "utf8");
 
-    // Înainte de deschidere există un singur iframe — cel din passe-partout.
-    expect(container.querySelectorAll("iframe")).toHaveLength(1);
-
-    await utilizator.click(screen.getByRole("button", { name: /Deschide demonstrația/ }));
-
-    expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled();
-    expect(container.querySelectorAll("iframe")).toHaveLength(2);
+    // Aceeași poartă ca în `vitrine.test.ts`, din același motiv: un fișier de
+    // client ale cărui exporturi sunt atinse din graful de server rupe
+    // prerandarea, iar `tsc`, ESLint și vitest tac toate trei.
+    expect(sursa).not.toMatch(/^\s*["']use client["']/m);
   });
 });

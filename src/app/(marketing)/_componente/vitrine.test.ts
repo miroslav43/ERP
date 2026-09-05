@@ -1,8 +1,8 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
-import { arePrinGeam, notaVitrinei } from "./vitrine";
+import { arePrinGeam, cheiCuCaptura, notaVitrinei } from "./vitrine";
 
 /**
  * Poarta care ar fi prins defectul livrat în producție.
@@ -53,14 +53,23 @@ describe("catalogul vitrinelor e citibil din graful de server", () => {
     ).toBe(false);
   });
 
-  it("componenta de client nu reexportă catalogul", () => {
+  it("componenta benzii nu e de client și nu reexportă catalogul", () => {
     /*
-     * Un `export { arePrinGeam } from "./vitrine"` scris în `prin-geam.tsx` ar
-     * arăta inofensiv și ar recrea defectul întocmai: reexportul dintr-un fișier
-     * `"use client"` e la fel de mult o referință de client ca definiția însăși.
+     * Când banda arăta un `<iframe>` cu demonstrație interactivă, avea nevoie de
+     * `<dialog>` + JavaScript, deci era `"use client"` — și de acolo a pornit
+     * defectul. Acum mărirea se face cu `popover` nativ, deci fișierul e
+     * Server Component, iar clasa de defect e imposibilă pe drumul ăsta.
+     *
+     * Testul păzește AMBELE capete: să nu redevină de client la o refactorizare
+     * care reintroduce JavaScript, și să nu reexporte catalogul — un
+     * `export { arePrinGeam } from "./vitrine"` ar arăta inofensiv și ar recrea
+     * defectul întocmai dacă fișierul ar fi vreodată marcat din nou.
      */
     const sursaComponenta = readFileSync("src/app/(marketing)/_componente/prin-geam.tsx", "utf8");
-    expect(sursaComponenta).toMatch(/^\s*["']use client["']/m);
+    expect(
+      /^\s*["']use client["']/m.test(sursaComponenta),
+      "Banda a redevenit `use client`. Dacă e nevoie de JavaScript, mută-l într-un copil dedicat — exporturile fișierului ăstuia sunt atinse din graful de server.",
+    ).toBe(false);
     expect(/export\s*\{[^}]*\barePrinGeam\b/.test(sursaComponenta)).toBe(false);
   });
 });
@@ -87,12 +96,49 @@ describe("catalogul vitrinelor", () => {
     expect(notaVitrinei("toString")).toBeUndefined();
   });
 
-  it("fiecare vitrină își declară subsetul, ca pagina să nu se contrazică", () => {
-    // `ro.ts` promite unsprezece tipuri de concediu; `src/demo/lume.ts` are
-    // trei. Nota e singurul loc unde diferența e spusă cu voce tare.
-    const nota = notaVitrinei("leave");
-    expect(nota).toBeDefined();
-    expect(nota ?? "").toMatch(/subset/i);
+  it("fiecare cheie din catalog are ambele fișiere pe disc", () => {
+    /*
+     * Poarta care prinde greșeala cea mai probabilă de aici înainte: cineva
+     * adaugă o cheie în catalog fără să genereze capturile, sau redenumește un
+     * fișier. Pagina publică ar randa o imagine ruptă — un pătrat cu alt-text
+     * pe pagina de vânzare a modulului — fără nicio eroare, fără niciun test
+     * roșu, fiindcă `<img>` nu se plânge de un `src` care dă 404.
+     */
+    for (const cheie of cheiCuCaptura()) {
+      for (const latime of [960, 1920]) {
+        const cale = `public/capturi/${cheie}-${String(latime)}.webp`;
+        expect(existsSync(cale), `lipsește ${cale}`).toBe(true);
+      }
+    }
+  });
+
+  it("nu există capturi orfane pe disc, fără cheie în catalog", () => {
+    // Reversul: fișiere rămase după ce o cheie a fost scoasă. Nu strică nimic
+    // vizibil, dar umflă imaginea de deployment și induc în eroare pe cine
+    // caută de ce nu se vede o captură care „există".
+    const peDisc = new Set(
+      readdirSync("public/capturi")
+        .filter((f) => f.endsWith(".webp"))
+        .map((f) => f.replace(/-\d+\.webp$/, "")),
+    );
+    expect([...peDisc].sort()).toEqual([...cheiCuCaptura()].sort());
+  });
+
+  it("captura modulului `leave` își declară limita, ca pagina să nu se contrazică", () => {
+    /*
+     * `ro.ts` promite, în punctele modulului, „Unsprezece tipuri, fiecare cu
+     * temeiul legal notat". Captura arată UN ecran, pe O lună. Ambele texte
+     * ajung pe aceeași pagină, la câțiva centimetri distanță, deci fără notă
+     * pagina s-ar contrazice sub ochii unui prospect.
+     *
+     * Asertarea nu cere un cuvânt anume — un tipar pe „subset" ar fi căzut la
+     * prima reformulare, fără ca nimic să se strice de fapt. Cere ca nota să
+     * existe, să fie o frază adevărată, și să numească explicit cele
+     * unsprezece tipuri față de care se declară mai mică.
+     */
+    const nota = notaVitrinei("leave") ?? "";
+    expect(nota.length).toBeGreaterThan(40);
+    expect(nota).toMatch(/unsprezece|11/i);
     expect(notaVitrinei("courses")).toBeUndefined();
   });
 });
