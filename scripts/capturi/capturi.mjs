@@ -80,6 +80,15 @@ const RUTE = {
   inventory: "/inventar",
   ticketing: "/ticketing/coada",
   announcements: "/anunturi",
+  courses: "/cursuri",
+  onboarding: "/onboarding",
+  evaluations: "/evaluari",
+  // `/evaluari/kpi` filtrează IMPLICIT pe luna curentă, care are o singură
+  // ciornă. Fără parametri, captura ar arăta un ecran aproape gol dintr-un
+  // modul care are douăsprezece luni de date.
+  kpi: "/evaluari/kpi?an=2026&luna=8",
+  maintenance: "/mentenanta",
+  per_diem: "/diurna",
 };
 
 /** Frazele cu care aplicația își anunță stările goale. */

@@ -75,6 +75,17 @@ const NOTE: Readonly<Record<string, string>> = {
   ticketing:
     "Aici se vede coada echipei; modulul mai are tichetele proprii, aprobările și istoricul fiecărei cereri.",
   announcements: "Aici se văd anunțurile publicate, cu cel fixat în capul listei.",
+  courses:
+    "Aici se văd cursurile firmei; modulul mai are biblioteca de materiale, atribuirea pe reguli și raportul de conformitate.",
+  onboarding:
+    "Aici se văd parcursurile în derulare; modulul mai are șabloanele cu pași reordonabili și dovada printabilă a parcurgerii.",
+  evaluations:
+    "Aici se văd evaluările anuale; modulul mai are indicatorii lunari și constructorul de șabloane.",
+  kpi: "Aici se vede o singură lună; indicatorii se urmăresc pe tot anul, cu ținta pusă pe funcție și ajustată pe om.",
+  maintenance:
+    "Aici se vede panoul; modulul mai are echipamentele, planurile pe contor, intervențiile și sesizările de defecțiune.",
+  per_diem:
+    "Aici se văd deplasările cu diurna estimată; modulul mai are politica de diurnă și lanțul de aprobare.",
 };
 
 /** Modulele care au captură pe disc, în `public/capturi/`. */
@@ -89,6 +100,12 @@ const CU_CAPTURA: readonly string[] = [
   "inventory",
   "ticketing",
   "announcements",
+  "courses",
+  "onboarding",
+  "evaluations",
+  "kpi",
+  "maintenance",
+  "per_diem",
 ];
 
 /** Are modulul o captură? Restul nu randează banda deloc. */

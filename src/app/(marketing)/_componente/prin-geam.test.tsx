@@ -23,7 +23,9 @@ import { PrinGeam } from "./prin-geam";
  */
 describe("banda cu captura ecranului", () => {
   it("nu randează nimic pentru un modul fără captură", () => {
-    const { container } = render(<PrinGeam cheie="courses" titlu="Cursuri" />);
+    // `reges` e azi unul dintre modulele fără captură — firma de demonstrație
+    // n-are încă evenimente REGES de arătat.
+    const { container } = render(<PrinGeam cheie="reges" titlu="REGES-Online" />);
     expect(container.firstChild).toBeNull();
   });
 

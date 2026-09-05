@@ -77,7 +77,12 @@ describe("catalogul vitrinelor e citibil din graful de server", () => {
 describe("catalogul vitrinelor", () => {
   it("știe pentru care module există vitrină", () => {
     expect(arePrinGeam("leave")).toBe(true);
-    expect(arePrinGeam("courses")).toBe(false);
+    // `reges`, nu `courses`: cursurile AU căpătat captură între timp, iar
+    // exemplul negativ trebuie să rămână unul real. Modulele fără captură sunt
+    // azi `reges`, `employee_portal` și `asistent` — primele două fiindcă firma
+    // de demonstrație n-are încă date acolo, al treilea fiindcă n-are ecran
+    // deloc: e un widget suprapus, nu o rută.
+    expect(arePrinGeam("reges")).toBe(false);
   });
 
   it("nu confundă cheile moștenite de pe `Object.prototype` cu module", () => {
@@ -139,6 +144,6 @@ describe("catalogul vitrinelor", () => {
     const nota = notaVitrinei("leave") ?? "";
     expect(nota.length).toBeGreaterThan(40);
     expect(nota).toMatch(/unsprezece|11/i);
-    expect(notaVitrinei("courses")).toBeUndefined();
+    expect(notaVitrinei("reges")).toBeUndefined();
   });
 });
