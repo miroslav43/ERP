@@ -67,10 +67,29 @@ const NOTE: Readonly<Record<string, string>> = {
     "Aici se vede calendarul de echipă pe o lună; modulul are unsprezece tipuri de concediu și încă patru ecrane.",
   payroll: "Aici se vede o singură perioadă de salarizare, deja aprobată, cu livrabilele ei.",
   rapoarte: "Aici se vede raportul anual agregat, construit din perioadele de salarizare închise.",
+  ssm: "Aici se vede matricea de instruiri; modulul mai acoperă medicina muncii, accidentele, stingătoarele, echipamentul individual și autorizațiile nominale.",
+  fleet:
+    "Aici se văd vehiculele cu documentul care expiră primul; modulul mai are foile de parcurs, alimentările și anomaliile de kilometraj.",
+  inventory:
+    "Aici se văd obiectele de inventar și cui sunt predate; modulul mai are procesele-verbale de predare-primire.",
+  ticketing:
+    "Aici se vede coada echipei; modulul mai are tichetele proprii, aprobările și istoricul fiecărei cereri.",
+  announcements: "Aici se văd anunțurile publicate, cu cel fixat în capul listei.",
 };
 
 /** Modulele care au captură pe disc, în `public/capturi/`. */
-const CU_CAPTURA: readonly string[] = ["nucleu", "attendance", "leave", "payroll", "rapoarte"];
+const CU_CAPTURA: readonly string[] = [
+  "nucleu",
+  "attendance",
+  "leave",
+  "payroll",
+  "rapoarte",
+  "ssm",
+  "fleet",
+  "inventory",
+  "ticketing",
+  "announcements",
+];
 
 /** Are modulul o captură? Restul nu randează banda deloc. */
 export function arePrinGeam(cheie: string): boolean {

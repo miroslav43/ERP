@@ -49,6 +49,25 @@ if (!URL_SUPABASE || !CHEIE_SERVICE) {
   throw new Error("Lipsesc NEXT_PUBLIC_SUPABASE_URL sau SUPABASE_SERVICE_ROLE_KEY din .env.local.");
 }
 
+/*
+ * `supabase-js` construiește un client de realtime în CONSTRUCTOR, iar acela
+ * cere un `WebSocket` global. Node 20 nu-l are (a apărut în 22) și `ws` nu e
+ * instalat, deci `createClient` arunca înainte de prima interogare — scriptul
+ * nu mai pornea deloc. Nu se vedea la review și nu se vede la `pnpm verify`:
+ * scripturile de seed nu sunt nici tipate, nici testate, nici rulate în CI.
+ *
+ * Ciotul e suficient fiindcă seed-ul nu deschide niciun canal; realtime-ul se
+ * conectează abia la `.channel()`. Dacă totuși cineva îl cheamă vreodată,
+ * constructorul aruncă explicit, în loc să eșueze tăcut.
+ */
+if (typeof globalThis.WebSocket === "undefined") {
+  globalThis.WebSocket = class {
+    constructor() {
+      throw new Error("Seed-ul nu folosește realtime — nu deschide canale.");
+    }
+  };
+}
+
 const db = createClient(URL_SUPABASE, CHEIE_SERVICE, {
   auth: { autoRefreshToken: false, persistSession: false },
 });

@@ -75,6 +75,11 @@ const RUTE = {
   leave: "/concedii/calendar",
   payroll: "/salarizare/44a8f5d4-c2c7-4f2f-ac5a-609817f33597",
   rapoarte: "/rapoarte?an=2026",
+  ssm: "/ssm/instruiri",
+  fleet: "/flota",
+  inventory: "/inventar",
+  ticketing: "/ticketing/coada",
+  announcements: "/anunturi",
 };
 
 /** Frazele cu care aplicația își anunță stările goale. */
