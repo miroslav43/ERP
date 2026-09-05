@@ -10,7 +10,7 @@ import { Buton, buton } from "@/components/ui/buton";
 import { Callout } from "@/components/ui/callout";
 import { RezumatErori } from "@/components/ui/rezumat-erori";
 import { inroleazaAngajatSchema, type InroleazaAngajatInput } from "@/schemas/employee";
-import { inroleazaAngajat } from "../actions";
+import { inroleazaAngajat, salveazaCiornaInrolare, stergeCiornaInrolare } from "../actions";
 import { radacinaCampului, rezumatulErorilor } from "./erori-formular";
 import { ProgresAsistent, ETICHETE_PASI } from "./progres-asistent";
 import { Pas1Identitate, CAMPURI_PAS_1 } from "./pas-1-identitate";
@@ -68,6 +68,17 @@ interface Proprietati {
   readonly numarUrmator: string | null;
   /** Tipurile de componentă salarială ale firmei, pentru pachetul de la pasul 3. */
   readonly sabloaneSalariale: readonly SablonSalarial[];
+  /**
+   * Înrolarea neterminată a acestui utilizator, dacă există (0131).
+   *
+   * Datele NU sunt validate: o ciornă e incompletă prin definiție. Se toarnă
+   * peste implicite, iar ce nu mai trece de schemă (un departament șters între
+   * timp) cade la prima trecere de pas, cu mesajul lui.
+   */
+  readonly ciorna: {
+    readonly pas: number;
+    readonly date: Record<string, unknown>;
+  } | null;
 }
 
 interface DocumentEmis {
@@ -95,9 +106,21 @@ export function AsistentAngajatNou({
   obiecteDisponibile,
   numarUrmator,
   sabloaneSalariale,
+  ciorna,
 }: Proprietati) {
   const refFormular = useRef<HTMLFormElement | null>(null);
-  const [pasCurent, setPasCurent] = useState(1);
+  const [pasCurent, setPasCurent] = useState(ciorna?.pas ?? 1);
+  /**
+   * Ciorna se salvează la fiecare trecere de pas, nu la fiecare tastă.
+   *
+   * Un debounce pe tastare ar fi scris CNP-ul în bază de zeci de ori pe minut,
+   * pentru un câștig pe care trecerea de pas îl dă oricum: nimeni nu pierde
+   * mai mult de un pas. `salvand` doar informează; eșecul ei NU blochează
+   * înaintarea — ciorna e o plasă, nu o poartă.
+   */
+  const [stareCiorna, setStareCiorna] = useState<"initial" | "salvata" | "esuata">(
+    ciorna === null ? "initial" : "salvata",
+  );
   const [eroareServer, setEroareServer] = useState<string | null>(null);
   const [rezultat, setRezultat] = useState<RezultatSucces | null>(null);
   /**
@@ -143,6 +166,16 @@ export function AsistentAngajatNou({
       zile_concediu_anual: zileConcediuImplicit,
       examen_tip: "angajare",
       examen_rezultat: "apt",
+      /*
+       * Ciorna se toarnă PESTE implicite, nu invers: ce a scris omul bate ce
+       * propune aplicația. Un `zile_concediu_anual` schimbat de el la 25 nu
+       * are voie să revină la implicitul firmei doar fiindcă a închis fila.
+       *
+       * Datele NU sunt validate aici — o ciornă e incompletă prin definiție.
+       * Ce nu mai trece de schemă (un departament dezactivat între timp) cade
+       * la prima trecere de pas, cu mesajul lui.
+       */
+      ...(ciorna?.date ?? {}),
     },
   });
   const {
@@ -169,11 +202,28 @@ export function AsistentAngajatNou({
     element?.scrollIntoView({ block: "center", behavior: "smooth" });
   }, [cerereFocus]);
 
+  /**
+   * Scrie ciorna. Nu aruncă și nu blochează: o salvare căzută înseamnă că omul
+   * pierde pașii dacă închide fila, nu că nu poate continua acum.
+   */
+  const salveazaCiorna = async (pasNou: number) => {
+    const valori = formular.getValues();
+    const nume = [valori.first_name, valori.last_name].filter(Boolean).join(" ").trim();
+    const raspuns = await salveazaCiornaInrolare({
+      pas: pasNou,
+      eticheta: nume.length === 0 ? null : nume,
+      date: valori as unknown as Record<string, unknown>,
+    });
+    setStareCiorna(raspuns.ok ? "salvata" : "esuata");
+  };
+
   const mergiInainte = async () => {
     const campuriPas = CAMPURI_PAS[pasCurent - 1];
     if (campuriPas === undefined || (await trigger(campuriPas))) {
       setDomeniuRezumat(null);
-      setPasCurent((p) => Math.min(TOTAL_PASI, p + 1));
+      const pasNou = Math.min(TOTAL_PASI, pasCurent + 1);
+      setPasCurent(pasNou);
+      void salveazaCiorna(pasNou);
       return;
     }
     // Ramura care lipsea. Fără ea, butonul pur și simplu nu făcea nimic.
@@ -188,6 +238,9 @@ export function AsistentAngajatNou({
     setEroareServer(null);
     const raspuns = await inroleazaAngajat(valori);
     if (raspuns.ok) {
+      // Ciorna și-a terminat treaba. Lăsată acolo, ar fi reapărut la următoarea
+      // înrolare ca „ai o înrolare neterminată" pentru un om deja angajat.
+      void stergeCiornaInrolare({});
       setRezultat({
         id: raspuns.data.id,
         nume: `${valori.first_name} ${valori.last_name}`.trim(),
@@ -351,6 +404,21 @@ export function AsistentAngajatNou({
       className="space-y-6"
     >
       <ProgresAsistent pasCurent={pasCurent} />
+
+      {/* Starea ciornei, lângă progres. Nu e un buton și nu cere nimic: spune
+          doar dacă închiderea filei costă sau nu. „Nesalvată" e informația care
+          contează — cealaltă e liniștitoare, dar nu acționabilă. */}
+      {stareCiorna === "initial" ? null : (
+        <p
+          className={
+            stareCiorna === "salvata" ? "text-corp-mic text-secundar" : "text-corp-mic text-danger"
+          }
+        >
+          {stareCiorna === "salvata"
+            ? "Înrolarea e salvată ca ciornă — o puteți relua de pe orice dispozitiv, în 30 de zile."
+            : "Ciorna nu s-a putut salva. Puteți continua, dar nu închideți fila: pașii completați s-ar pierde."}
+        </p>
+      )}
 
       {eroareServer !== null && eroriAfisate.length === 0 ? (
         // Mesajul general apare DOAR când nu e deja pe un câmp — altfel omul

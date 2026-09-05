@@ -53,7 +53,6 @@ export async function SectiuneSaptamana({
   saptamanaStart,
   poateEdita,
   poateAproba,
-  poateDeschide,
   parametri,
   azi,
 }: {
@@ -63,7 +62,6 @@ export async function SectiuneSaptamana({
   readonly saptamanaStart: string;
   readonly poateEdita: boolean;
   readonly poateAproba: boolean;
-  readonly poateDeschide: boolean;
   readonly parametri: ParametriAdresa;
   readonly azi: string;
 }) {
@@ -138,7 +136,6 @@ export async function SectiuneSaptamana({
 
   const config = configZiDin(setari);
   const programStart = configPontareRapida(randPontare).programStart;
-  const zileFaraPerioada: string[] = [];
 
   const zile: readonly ZiGrila[] = zileleSaptamanii(saptamanaStart).map((data, index) => {
     const intrare = peZi[data] ?? null;
@@ -147,25 +144,25 @@ export async function SectiuneSaptamana({
 
     // Aceleași porți ca în foaia colectivă — o zi nu poate fi editabilă într-un
     // ecran și blocată în celălalt.
-    const perioadaBlocata = perioada === null || perioada.status === "blocata";
+    //
+    // Perioada care LIPSEȘTE nu mai blochează nimic (0132): luna se naște
+    // deschisă la prima scriere, deci o săptămână din octombrie e pontabilă
+    // înainte să fi deschis cineva octombrie. Singura stare care blochează e
+    // `blocata`, pusă explicit de cineva cu drept de aprobare pe firmă.
+    const perioadaBlocata = perioada !== null && perioada.status === "blocata";
     const dinConcediu = intrare?.esteDinConcediu === true;
     const aprobataFaraDrept = intrare?.aprobat === true && !poateAproba;
     const editabila = poateEdita && !perioadaBlocata && !dinConcediu && !aprobataFaraDrept;
 
-    if (perioada === null) zileFaraPerioada.push(data);
-
-    const motivBlocare =
-      perioada === null
-        ? "luna nu a fost deschisă"
-        : perioada.status === "blocata"
-          ? "perioada este blocată"
-          : dinConcediu
-            ? "completat din concediul aprobat"
-            : aprobataFaraDrept
-              ? "ziua a fost deja aprobată"
-              : !poateEdita
-                ? "nu aveți dreptul de a înregistra pontaj"
-                : null;
+    const motivBlocare = perioadaBlocata
+      ? "perioada este blocată"
+      : dinConcediu
+        ? "completat din concediul aprobat"
+        : aprobataFaraDrept
+          ? "ziua a fost deja aprobată"
+          : !poateEdita
+            ? "nu aveți dreptul de a înregistra pontaj"
+            : null;
 
     const tipCalendar = tipZiAutomat(data, setNationale, setRecuperare, setLiber);
     const sarbatoare = denumiriSarbatori.get(data) ?? null;
@@ -186,21 +183,12 @@ export async function SectiuneSaptamana({
     <div className="space-y-4">
       {navigare}
 
-      {zileFaraPerioada.length === 0 ? null : (
-        <p className="border-border bg-surface text-corp rounded-control border px-3 py-2">
-          {zileFaraPerioada.length === 7
-            ? "Luna nu a fost deschisă, deci nu se poate ponta nicio zi din această săptămână."
-            : `Zilele ${zileFaraPerioada.map((z) => z.slice(8, 10)).join(", ")} nu se pot ponta: luna lor nu a fost deschisă.`}{" "}
-          {poateDeschide ? (
-            <Link href="/pontaj/perioade" className="underline">
-              Deschideți perioada
-            </Link>
-          ) : (
-            "Cereți responsabilului de pontaj să deschidă perioada."
-          )}
-        </p>
-      )}
-
+      {/*
+        Aici stătea avertismentul „luna nu a fost deschisă", cu link către
+        „Perioade". A dispărut odată cu 0132: nu mai există o lună nedeschisă în
+        care angajatul să nu poată ponta. Luna BLOCATĂ se anunță în continuare,
+        dar pe zi, prin `motivBlocare` — acolo unde omul chiar apasă.
+      */}
       <GrilaSaptamana
         zile={zile}
         interval={intervalulGrilei(

@@ -39,6 +39,7 @@ export default async function PaginaAngajatNou() {
     puncteLucru,
     contor,
     sabloaneSalariale,
+    ciorna,
   ] = await Promise.all([
     db
       .from("departments")
@@ -101,6 +102,20 @@ export default async function PaginaAngajatNou() {
       .is("deleted_at", null)
       .order("ordine")
       .order("denumire"),
+    /*
+     * Înrolarea neterminată a ACESTUI utilizator (0131).
+     *
+     * Politica de citire compară cu `auth.uid()`, nu cu o permisiune: ciorna
+     * e notița unui om, nu un document al firmei. Filtrul de mai jos e deci
+     * redundant cu RLS — și rămâne scris, fiindcă o citire care se bazează
+     * exclusiv pe politică se rupe tăcut dacă politica se schimbă.
+     */
+    db
+      .from("inrolare_ciorne")
+      .select("pas, date")
+      .eq("organization_id", tenant.organizationId)
+      .is("deleted_at", null)
+      .maybeSingle(),
   ]);
 
   /*
@@ -131,6 +146,14 @@ export default async function PaginaAngajatNou() {
         }
         obiecteDisponibile={obiecteInventar.data ?? []}
         sabloaneSalariale={sabloaneSalariale.data ?? []}
+        ciorna={
+          ciorna.data === null
+            ? null
+            : {
+                pas: ciorna.data.pas,
+                date: (ciorna.data.date ?? {}) as Record<string, unknown>,
+              }
+        }
         numarUrmator={numarUrmator}
       />
     </div>
