@@ -411,9 +411,7 @@ export function AsistentAngajatNou({
       {stareCiorna === "initial" ? null : (
         <p
           className={
-            stareCiorna === "salvata"
-              ? "text-corp-mic text-secundar"
-              : "text-corp-mic text-danger"
+            stareCiorna === "salvata" ? "text-corp-mic text-secundar" : "text-corp-mic text-danger"
           }
         >
           {stareCiorna === "salvata"

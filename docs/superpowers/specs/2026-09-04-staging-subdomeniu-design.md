@@ -117,12 +117,12 @@ următor: `32-`.
 
 ### 2.6 Resursele VM-ului
 
-| Resursă | Măsurat | Ce cere staging |
-| --- | --- | --- |
-| CPU | 8 nuclee, load 1,72 / 2,84 / 2,71 | ~0% în repaus |
-| RAM | 23 GB, 11 folosiți, **12 liberi** | ~175 MB per replică |
-| Containere | 18 pornite, **2,3 GB în total** | +2 (web + santinelă) |
-| Disc | 387 GB, 314 folosiți, **73 liberi (82%)** | vezi mai jos |
+| Resursă    | Măsurat                                   | Ce cere staging      |
+| ---------- | ----------------------------------------- | -------------------- |
+| CPU        | 8 nuclee, load 1,72 / 2,84 / 2,71         | ~0% în repaus        |
+| RAM        | 23 GB, 11 folosiți, **12 liberi**         | ~175 MB per replică  |
+| Containere | 18 pornite, **2,3 GB în total**           | +2 (web + santinelă) |
+| Disc       | 387 GB, 314 folosiți, **73 liberi (82%)** | vezi mai jos         |
 
 Cele 18 containere (Strawboss, Umami, n8n, budget, scoala-ai,
 serafullautonoma, administrativo) stau practic în repaus; cel mai lacom e Redis,
@@ -162,25 +162,25 @@ site-uri un `volume prune` e exact comanda care șterge baza altcuiva.
 
 `.env.local` și `.env.production` arată amândouă spre **același proiect
 Supabase** (`nybmhorn…`). Diferă doar `NEXT_PUBLIC_APP_URL`. Adică azi dev-ul
-*este* producția, iar migrările se aplică direct pe singura bază existentă.
+_este_ producția, iar migrările se aplică direct pe singura bază existentă.
 
 ---
 
 ## 3. Ce s-a decis cu utilizatorul
 
-| # | Întrebare | Decizie |
-| --- | --- | --- |
-| 1 | Spre ce bază scrie staging? | **Al doilea proiect Supabase, izolat** |
-| 2 | Unde rulează build-ul? | **Runner GitHub pe VM** (systemd) |
-| 3 | Ce suprafețe de feedback? | Rezumat în pagina rulării · pagină de stare pe subdomeniu · comentariu pe commit. **Fără WhatsApp.** |
-| 4 | Cât se împarte cu producția? | **Parametrizare: un lanț, două configurații** |
-| 5 | Migrări noi în commit? | **Se aplică automat pe baza de staging**, înaintea deploy-ului |
+| #   | Întrebare                    | Decizie                                                                                              |
+| --- | ---------------------------- | ---------------------------------------------------------------------------------------------------- |
+| 1   | Spre ce bază scrie staging?  | **Al doilea proiect Supabase, izolat**                                                               |
+| 2   | Unde rulează build-ul?       | **Runner GitHub pe VM** (systemd)                                                                    |
+| 3   | Ce suprafețe de feedback?    | Rezumat în pagina rulării · pagină de stare pe subdomeniu · comentariu pe commit. **Fără WhatsApp.** |
+| 4   | Cât se împarte cu producția? | **Parametrizare: un lanț, două configurații**                                                        |
+| 5   | Migrări noi în commit?       | **Se aplică automat pe baza de staging**, înaintea deploy-ului                                       |
 
 ### 3.1 Ce câștigă fiecare decizie, dincolo de scopul ei
 
 - **(1)** scoate constrângerea `HR_ENCRYPTION_KEYS` identice între medii. Cu
   proiecte separate, o cheie scăpată din staging nu descifrează niciun CNP real.
-- **(2)** inversează sensul conexiunii: agentul *iese* spre GitHub. Zero chei SSH
+- **(2)** inversează sensul conexiunii: agentul _iese_ spre GitHub. Zero chei SSH
   în secretele GitHub, zero porturi noi deschise. În plus, cache-ul Docker local
   e deja cald, iar pe `ubuntu-latest` ar porni gol la fiecare rulare.
 - **(4)** face ca staging să probeze **calea de deploy**, nu doar codul: o
@@ -195,22 +195,22 @@ Supabase** (`nybmhorn…`). Diferă doar `NEXT_PUBLIC_APP_URL`. Adică azi dev-u
 Un singur lanț, comutat de `ADM_MEDIU`. Implicit `productie`, deci un apel
 neparametrizat se comportă **exact** ca azi.
 
-| | producție | staging |
-| --- | --- | --- |
-| `ADM_MEDIU` | `productie` (implicit) | `staging` |
-| Domeniu | `administrativo.ro` | `staging.administrativo.ro` |
-| Stack Swarm | `administrativo` | `administrativo-staging` |
-| **Cheia serviciului** | `administrativo-web` | **`administrativo-web-staging`** |
-| Imagine | `administrativo-web:<sha>` | `administrativo-web-staging:<sha>` |
-| vhost | `30-administrativo.ro.conf` | `32-staging.administrativo.ro.conf` |
-| Fișier env | `.env.production` | `.env.staging` |
-| Secrete Docker | `hr_encryption_keys` … | `staging_hr_encryption_keys` … |
-| Replici | 2 | 1 |
-| Supabase | `nybmhorn…` | proiect nou |
+|                       | producție                   | staging                             |
+| --------------------- | --------------------------- | ----------------------------------- |
+| `ADM_MEDIU`           | `productie` (implicit)      | `staging`                           |
+| Domeniu               | `administrativo.ro`         | `staging.administrativo.ro`         |
+| Stack Swarm           | `administrativo`            | `administrativo-staging`            |
+| **Cheia serviciului** | `administrativo-web`        | **`administrativo-web-staging`**    |
+| Imagine               | `administrativo-web:<sha>`  | `administrativo-web-staging:<sha>`  |
+| vhost                 | `30-administrativo.ro.conf` | `32-staging.administrativo.ro.conf` |
+| Fișier env            | `.env.production`           | `.env.staging`                      |
+| Secrete Docker        | `hr_encryption_keys` …      | `staging_hr_encryption_keys` …      |
+| Replici               | 2                           | 1                                   |
+| Supabase              | `nybmhorn…`                 | proiect nou                         |
 
 Două rânduri din tabel nu sunt cosmetice și, dacă se ratează, defectul e tăcut:
 
-- **Cheia serviciului** — §2.4. Nu numele stack-ului: *cheia*.
+- **Cheia serviciului** — §2.4. Nu numele stack-ului: _cheia_.
 - **Secretele** — `docker-stack.yml:171-184` le declară `external: true` cu nume
   globale. Fără prefix, staging montează cheia `service_role` a producției, adică
   exact cheia care ocolește complet RLS.
@@ -219,17 +219,17 @@ Două rânduri din tabel nu sunt cosmetice și, dacă se ratează, defectul e t�
 
 ## 5. Parametrizarea lanțului
 
-| Fișier | Ce se schimbă |
-| --- | --- |
-| `ops/_lib.sh:11-22` | `readonly X="v"` → `: "${X:=v}"`, derivate din `ADM_MEDIU` |
-| `ops/_lib.sh:154` | `_env_file()` → `.env.${ADM_MEDIU}` (producția păstrează numele `.env.production`) |
-| `ops/05-docker.sh` | numele imaginii și al stack-ului din variabile |
-| `ops/06-nginx.sh` | vhost și domeniu din variabile; `ssl:issue` pe domeniul cerut |
-| `docker-stack.yml` | numărul de replici și `name:` la secrete (nu cheia serviciului — vezi §6) |
-| `.stack-staging.generat.yml` | **generat la fiecare deploy**, adăugat în `.gitignore`, niciodată editat de mână |
-| `deploy/nginx/32-staging.administrativo.ro.conf` | **nou**, copiat după `31-analitice…` |
-| `.github/workflows/staging.yml` | **nou** |
-| `ops/08-curatenie.sh` | **nou** (§11) |
+| Fișier                                           | Ce se schimbă                                                                      |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| `ops/_lib.sh:11-22`                              | `readonly X="v"` → `: "${X:=v}"`, derivate din `ADM_MEDIU`                         |
+| `ops/_lib.sh:154`                                | `_env_file()` → `.env.${ADM_MEDIU}` (producția păstrează numele `.env.production`) |
+| `ops/05-docker.sh`                               | numele imaginii și al stack-ului din variabile                                     |
+| `ops/06-nginx.sh`                                | vhost și domeniu din variabile; `ssl:issue` pe domeniul cerut                      |
+| `docker-stack.yml`                               | numărul de replici și `name:` la secrete (nu cheia serviciului — vezi §6)          |
+| `.stack-staging.generat.yml`                     | **generat la fiecare deploy**, adăugat în `.gitignore`, niciodată editat de mână   |
+| `deploy/nginx/32-staging.administrativo.ro.conf` | **nou**, copiat după `31-analitice…`                                               |
+| `.github/workflows/staging.yml`                  | **nou**                                                                            |
+| `ops/08-curatenie.sh`                            | **nou** (§11)                                                                      |
 
 Regula peste tot: implicitul este producția de azi, la byte. Un `git diff` pe
 `ops/` trebuie să arate doar `readonly X="v"` → `: "${X:=v}"`, nicio schimbare de
@@ -246,8 +246,9 @@ efemere, 2026-09-04 la 22:0x. Trei au căzut.
 
 ```yaml
 services:
-  ${ADM_SERVICE:-administrativo-web}:      # ← ce părea evident
+  ${ADM_SERVICE:-administrativo-web}: # ← ce părea evident
 ```
+
 ```
 services  Additional property ${ADM_SERVICIU:-nume-implicit} is not allowed
 ```
@@ -258,10 +259,11 @@ parametrizează. (Designul inițial pornise de la presupunerea contrară.)
 **(b) Alias explicit pe rețea, cheie identică — RESPINSĂ.**
 
 ```yaml
-    networks:
-      strawboss-net:
-        aliases: [administrativo-web-staging]
+networks:
+  strawboss-net:
+    aliases: [administrativo-web-staging]
 ```
+
 ```
 Aliasuri: [administrativo-web-staging administrativo-web]
 ```
@@ -283,6 +285,7 @@ sed 's/^  administrativo-web:$/  administrativo-web-staging:/' \
 grep -q '^  administrativo-web-staging:$' … || moarte "redenumirea nu a avut loc."
 grep -q '^  administrativo-web:$'         … && moarte "cheia veche a rămas."
 ```
+
 ```
 Aliasuri: [administrativo-web-staging]        ← singurul alias înregistrat
 ```
@@ -303,6 +306,7 @@ secrets:
     external: true
     name: ${ADM_SECRET_PREFIX:-}supabase_service_role_key
 ```
+
 ```
 Secret montat: staging_proba_cheie -> /run/secrets/proba_cheie
 ```
@@ -312,7 +316,7 @@ așteaptă `deploy/entrypoint.sh`. Codul aplicației rămâne neatins.
 
 **Variantă respinsă din alt motiv (nu probată, respinsă prin structură):** un
 singur stack cu ambele servicii, partajând configurația prin ancore YAML. Ar fi
-curat, dar `docker stack deploy` deployează *toate* serviciile din fișier — deci
+curat, dar `docker stack deploy` deployează _toate_ serviciile din fișier — deci
 fiecare deploy de staging ar reevalua și serviciul de producție. Cuplează exact
 ce separăm.
 
@@ -392,16 +396,16 @@ doar ce lipsește" înseamnă „aplică tot".
 Cele opt variabile cerute de `ADM_REQUIRED_ENV` (`ops/_lib.sh:143-152`), cu
 proveniența fiecăreia:
 
-| Variabilă | De unde vine |
-| --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` | proiectul de staging ✅ |
+| Variabilă                       | De unde vine                                                                                                    |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | proiectul de staging ✅                                                                                         |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | cheia publicabilă a proiectului ✅ (`env.ts:31` cere doar `min(1)`, deci formatul nou `sb_publishable_…` trece) |
-| `NEXT_PUBLIC_APP_URL` | `https://staging.administrativo.ro` ✅ |
-| `SUPABASE_SERVICE_ROLE_KEY` | **cheia secretă a proiectului — de furnizat** |
-| `HR_ENCRYPTION_KEYS` | generată pentru staging, JSON `{"1":"<base64>"}` |
-| `HR_ENCRYPTION_ACTIVE_KEY` | `1`, trebuie să existe în cheia de mai sus (`env.ts:130`) |
-| `HR_HASH_KEY` | generată, base64 de 32 de octeți (`env.ts:85`) |
-| `TENANT_COOKIE_SECRET` | generată, base64 de 32 de octeți (`env.ts:74`) |
+| `NEXT_PUBLIC_APP_URL`           | `https://staging.administrativo.ro` ✅                                                                          |
+| `SUPABASE_SERVICE_ROLE_KEY`     | **cheia secretă a proiectului — de furnizat**                                                                   |
+| `HR_ENCRYPTION_KEYS`            | generată pentru staging, JSON `{"1":"<base64>"}`                                                                |
+| `HR_ENCRYPTION_ACTIVE_KEY`      | `1`, trebuie să existe în cheia de mai sus (`env.ts:130`)                                                       |
+| `HR_HASH_KEY`                   | generată, base64 de 32 de octeți (`env.ts:85`)                                                                  |
+| `TENANT_COOKIE_SECRET`          | generată, base64 de 32 de octeți (`env.ts:74`)                                                                  |
 
 Cele patru generate sunt **diferite** de ale producției, intenționat (§3.1).
 
@@ -518,15 +522,15 @@ producție, unde problema există deja.
 
 ## 13. Ce se rupe și cum îl prindem
 
-| Defect | Simptom | Poarta |
-| --- | --- | --- |
-| Alias colizionat (§2.4) | trafic de producție ajunge în staging, intermitent | proba din §6, apoi `nslookup administrativo-web` după primul deploy de staging |
-| Secrete nepresfixate | staging scrie cu `service_role`-ul producției | `docker service inspect` pe secretele montate |
-| Vhost cu `proxy_pass` direct | `nginx -t` pică, reload-ul dă jos 9 site-uri | `nginx -t` din `cmd_nginx__vhost`, deja acolo |
-| Certificat lipsă la instalare | nginx nu mai pornește deloc | verificarea din `ops/06-nginx.sh:113`, deja acolo |
-| Staging indexat de Google | vitrina reală pierde poziții pe propriul conținut | `X-Robots-Tag` în vhost |
-| Disc plin | cad toate site-urile care scriu pe `/` | §11 + prag de avertizare în `doctor` |
-| Două builduri simultane | vârf de CPU/RAM peste ce s-a măsurat | `concurrency` cu `cancel-in-progress` |
+| Defect                        | Simptom                                            | Poarta                                                                         |
+| ----------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Alias colizionat (§2.4)       | trafic de producție ajunge în staging, intermitent | proba din §6, apoi `nslookup administrativo-web` după primul deploy de staging |
+| Secrete nepresfixate          | staging scrie cu `service_role`-ul producției      | `docker service inspect` pe secretele montate                                  |
+| Vhost cu `proxy_pass` direct  | `nginx -t` pică, reload-ul dă jos 9 site-uri       | `nginx -t` din `cmd_nginx__vhost`, deja acolo                                  |
+| Certificat lipsă la instalare | nginx nu mai pornește deloc                        | verificarea din `ops/06-nginx.sh:113`, deja acolo                              |
+| Staging indexat de Google     | vitrina reală pierde poziții pe propriul conținut  | `X-Robots-Tag` în vhost                                                        |
+| Disc plin                     | cad toate site-urile care scriu pe `/`             | §11 + prag de avertizare în `doctor`                                           |
+| Două builduri simultane       | vârf de CPU/RAM peste ce s-a măsurat               | `concurrency` cu `cancel-in-progress`                                          |
 
 ---
 

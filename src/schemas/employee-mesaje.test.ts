@@ -11,10 +11,7 @@
 // „nu este valid".
 import { describe, expect, it } from "vitest";
 
-import {
-  inroleazaAngajatSchema,
-  salveazaCiornaInrolareSchema,
-} from "@/schemas/employee";
+import { inroleazaAngajatSchema, salveazaCiornaInrolareSchema } from "@/schemas/employee";
 
 /** Urmele mesajelor implicite ale lui Zod, toate în engleză. */
 const IMPLICITE_ZOD = [
@@ -196,9 +193,9 @@ describe("ciorna de înrolare", () => {
   });
 
   it("eticheta e plafonată — e un nume, nu un câmp liber", () => {
-    expect(
-      salveazaCiornaInrolareSchema.safeParse({ eticheta: "x".repeat(201) }).success,
-    ).toBe(false);
+    expect(salveazaCiornaInrolareSchema.safeParse({ eticheta: "x".repeat(201) }).success).toBe(
+      false,
+    );
   });
 
   it("NU validează forma datelor: schema completă ar refuza exact ce vrem să salvăm", () => {

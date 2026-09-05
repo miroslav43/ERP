@@ -443,7 +443,10 @@ export const emiteSuspendareAbsenteSchema = z
   .object({
     employee_id: z.uuid(),
     data_inceput: z.iso.date(),
-    data_sfarsit: z.union([z.iso.date(), z.literal(""), z.null()]).nullable().default(null),
+    data_sfarsit: z
+      .union([z.iso.date(), z.literal(""), z.null()])
+      .nullable()
+      .default(null),
   })
   .transform((v) => ({
     ...v,

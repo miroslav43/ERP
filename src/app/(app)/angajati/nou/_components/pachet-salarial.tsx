@@ -94,11 +94,9 @@ export function PachetSalarial({
                         {...register(`componente_salariale.${i}.component_type_id`)}
                         onChange={(e) => {
                           const ales = sabloane.find((s) => s.id === e.target.value);
-                          setValue(
-                            `componente_salariale.${i}.component_type_id`,
-                            e.target.value,
-                            { shouldDirty: true },
-                          );
+                          setValue(`componente_salariale.${i}.component_type_id`, e.target.value, {
+                            shouldDirty: true,
+                          });
                           // Felul NU e o alegere separată: îl poartă șablonul.
                           // Lăsat pe seama omului, ar fi putut contrazice
                           // regimul fiscal al componentei alese.

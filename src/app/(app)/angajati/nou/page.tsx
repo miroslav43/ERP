@@ -41,82 +41,82 @@ export default async function PaginaAngajatNou() {
     sabloaneSalariale,
     ciorna,
   ] = await Promise.all([
-      db
-        .from("departments")
-        .select("id, denumire")
-        .eq("organization_id", tenant.organizationId)
-        .eq("activ", true)
-        .is("deleted_at", null)
-        .order("denumire"),
-      db
-        .from("employees")
-        .select("id, full_name")
-        .eq("organization_id", tenant.organizationId)
-        .eq("status", "activ")
-        .is("deleted_at", null)
-        .order("full_name"),
-      db
-        .from("organizations")
-        .select("zile_concediu_anual_implicit")
-        .eq("id", tenant.organizationId)
-        .maybeSingle(),
-      // Golul dacă modulul Inventar nu e activat: RLS filtrează tăcut, nu aruncă.
-      db
-        .from("inventory_items")
-        .select("id, denumire, numar_inventar")
-        .eq("organization_id", tenant.organizationId)
-        .eq("status", "in_stoc")
-        .order("denumire"),
-      db
-        .from("puncte_lucru")
-        .select("id, denumire")
-        .eq("organization_id", tenant.organizationId)
-        .eq("activ", true)
-        .is("deleted_at", null)
-        .order("denumire"),
-      /*
-       * Următorul număr de contract, CITIT — nu consumat.
-       *
-       * `public.aloca_numar_contract` avansează contorul, deci nu poate fi
-       * chemată ca să afișeze o previzualizare: fiecare deschidere de formular ar
-       * arde un număr. Aici se citește starea contorului; alocarea reală, atomică,
-       * se face la salvare. Numărul afișat poate fi depășit de o înrolare
-       * simultană — de aceea e text de ajutor, nu valoare precompletată.
-       */
-      db
-        .from("document_sequences")
-        .select("next_number")
-        .eq("organization_id", tenant.organizationId)
-        .eq("document_type", "contract_munca")
-        .eq("year", new Date().getFullYear())
-        .maybeSingle(),
-      /*
-       * Șabloanele de componentă salarială — sporuri, prime recurente, tichete,
-       * cadouri. `organization_id is null` sunt cele de PLATFORMĂ, comune
-       * tuturor firmelor; RLS le lasă vizibile, deci filtrul nu le exclude.
-       */
-      db
-        .from("salary_component_types")
-        .select("id, denumire, kind")
-        .eq("activ", true)
-        .is("deleted_at", null)
-        .order("ordine")
-        .order("denumire"),
-      /*
-       * Înrolarea neterminată a ACESTUI utilizator (0131).
-       *
-       * Politica de citire compară cu `auth.uid()`, nu cu o permisiune: ciorna
-       * e notița unui om, nu un document al firmei. Filtrul de mai jos e deci
-       * redundant cu RLS — și rămâne scris, fiindcă o citire care se bazează
-       * exclusiv pe politică se rupe tăcut dacă politica se schimbă.
-       */
-      db
-        .from("inrolare_ciorne")
-        .select("pas, date")
-        .eq("organization_id", tenant.organizationId)
-        .is("deleted_at", null)
-        .maybeSingle(),
-    ]);
+    db
+      .from("departments")
+      .select("id, denumire")
+      .eq("organization_id", tenant.organizationId)
+      .eq("activ", true)
+      .is("deleted_at", null)
+      .order("denumire"),
+    db
+      .from("employees")
+      .select("id, full_name")
+      .eq("organization_id", tenant.organizationId)
+      .eq("status", "activ")
+      .is("deleted_at", null)
+      .order("full_name"),
+    db
+      .from("organizations")
+      .select("zile_concediu_anual_implicit")
+      .eq("id", tenant.organizationId)
+      .maybeSingle(),
+    // Golul dacă modulul Inventar nu e activat: RLS filtrează tăcut, nu aruncă.
+    db
+      .from("inventory_items")
+      .select("id, denumire, numar_inventar")
+      .eq("organization_id", tenant.organizationId)
+      .eq("status", "in_stoc")
+      .order("denumire"),
+    db
+      .from("puncte_lucru")
+      .select("id, denumire")
+      .eq("organization_id", tenant.organizationId)
+      .eq("activ", true)
+      .is("deleted_at", null)
+      .order("denumire"),
+    /*
+     * Următorul număr de contract, CITIT — nu consumat.
+     *
+     * `public.aloca_numar_contract` avansează contorul, deci nu poate fi
+     * chemată ca să afișeze o previzualizare: fiecare deschidere de formular ar
+     * arde un număr. Aici se citește starea contorului; alocarea reală, atomică,
+     * se face la salvare. Numărul afișat poate fi depășit de o înrolare
+     * simultană — de aceea e text de ajutor, nu valoare precompletată.
+     */
+    db
+      .from("document_sequences")
+      .select("next_number")
+      .eq("organization_id", tenant.organizationId)
+      .eq("document_type", "contract_munca")
+      .eq("year", new Date().getFullYear())
+      .maybeSingle(),
+    /*
+     * Șabloanele de componentă salarială — sporuri, prime recurente, tichete,
+     * cadouri. `organization_id is null` sunt cele de PLATFORMĂ, comune
+     * tuturor firmelor; RLS le lasă vizibile, deci filtrul nu le exclude.
+     */
+    db
+      .from("salary_component_types")
+      .select("id, denumire, kind")
+      .eq("activ", true)
+      .is("deleted_at", null)
+      .order("ordine")
+      .order("denumire"),
+    /*
+     * Înrolarea neterminată a ACESTUI utilizator (0131).
+     *
+     * Politica de citire compară cu `auth.uid()`, nu cu o permisiune: ciorna
+     * e notița unui om, nu un document al firmei. Filtrul de mai jos e deci
+     * redundant cu RLS — și rămâne scris, fiindcă o citire care se bazează
+     * exclusiv pe politică se rupe tăcut dacă politica se schimbă.
+     */
+    db
+      .from("inrolare_ciorne")
+      .select("pas, date")
+      .eq("organization_id", tenant.organizationId)
+      .is("deleted_at", null)
+      .maybeSingle(),
+  ]);
 
   /*
    * Forma din 0130: numărul poartă DATA alocării, nu doar anul. Textul de

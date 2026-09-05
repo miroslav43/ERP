@@ -11,8 +11,7 @@ import { genereazaDocumenteInrolare, type DocumentEmis } from "@/lib/documents/i
 import { alegeSablon } from "@/domain/checklist/potrivire-sablon";
 import { creeazaInvitatie } from "@/lib/invitatii/creeaza";
 import { adresaRealaDinFisa } from "@/lib/invitatii/adresa";
-import {
-  salveazaCiornaInrolareSchema, inroleazaAngajatSchema } from "@/schemas/employee";
+import { salveazaCiornaInrolareSchema, inroleazaAngajatSchema } from "@/schemas/employee";
 import { predaObiect } from "@/app/(app)/inventar/actions";
 import { adaugaAutorizatieNominala, adaugaFisaAptitudine } from "@/app/(app)/ssm/actions";
 
