@@ -430,6 +430,878 @@ export const FISE: readonly FisaModul[] = [
       "Nu decontează cheltuieli din poze de bonuri. Sumele se completează, chitanțele se atașează.",
     ],
   },
+  {
+    cheie: "leave",
+    titluPagina: "Concedii: cererea, aprobarea și soldul de zile care se scade singur",
+    metaDescriere:
+      "Cum se cer și se aprobă concediile în Administrativo: soldul pe fiecare tip, aprobarea pe echipă, trecerea automată pe pontaj. Cine ce poate face, pe roluri.",
+    intro: [
+      "Concediul e locul unde se văd cel mai repede consecințele unei evidențe ținute în fișiere de calcul: două persoane din aceeași echipă plecate în aceeași săptămână, un sold de zile pe care fiecare îl calculează altfel și o cerere aprobată pe e-mail, care nu ajunge niciodată pe pontaj.",
+      "Aici cererea are un drum cu stări. Cât e ciornă, o poți schimba sau șterge. După trimitere trece la cine aprobă, iar decizia — da sau nu — rămâne cu numele și ora ei. Soldul se scade la aprobare, nu la cerere, și se pune la loc dacă cererea se anulează. Nimeni nu ține un al doilea calcul pe hârtie.",
+      "Tipurile de concediu se configurează pe firmă: câte zile dă fiecare, dacă cere document justificativ, dacă suspendă contractul. Concediul medical suspendă contractul și se raportează ca atare; odihna nu. Diferența nu e o etichetă, e o regulă pe care baza o aplică.",
+    ],
+    actiuni: [
+      {
+        ce: "Vede cererile de concediu",
+        cheie: "leave:read",
+        orgAdmin: "all",
+        hr: "all",
+        manager: "team",
+        angajat: "own",
+      },
+      {
+        ce: "Depune o cerere",
+        cheie: "leave:create",
+        orgAdmin: "all",
+        hr: "all",
+        manager: "own",
+        angajat: "own",
+      },
+      {
+        ce: "Modifică o cerere",
+        cheie: "leave:update",
+        orgAdmin: "all",
+        hr: "all",
+        manager: "own",
+        angajat: "own",
+      },
+      {
+        ce: "Aprobă sau respinge",
+        cheie: "leave:approve",
+        orgAdmin: "all",
+        hr: "none",
+        manager: "team",
+        angajat: null,
+      },
+      {
+        ce: "Șterge o cerere",
+        cheie: "leave:delete",
+        orgAdmin: "all",
+        hr: "all",
+        manager: null,
+        angajat: "own",
+      },
+    ],
+    notaPermisiuni:
+      "Managerul e cazul care surprinde. Vede cererile întregii echipe și le aprobă, dar poate depune și modifica numai pe ale lui: nu poate cere concediu în numele unui subordonat, oricât de bine ar cunoaște situația. Iar HR, care are acces la toate cererile și le poate chiar șterge, are refuz explicit pe aprobare — un „none” scris în tabel, nu o omisiune. Cine ține evidența nu e cine decide, și baza ține minte diferența.",
+    legaturi: [
+      {
+        catre: "attendance",
+        text: "Cererea aprobată devine automat zi de concediu pe foaia de pontaj, o singură dată și fără retastare.",
+      },
+      {
+        catre: "payroll",
+        text: "Zilele de concediu intră în calculul salarial cu media pe ultimele trei luni, separat de zilele lucrate.",
+      },
+      {
+        catre: "employee_portal",
+        text: "Angajatul își vede soldul rămas și depune cererea de pe telefon, fără să întrebe pe cineva câte zile mai are.",
+      },
+    ],
+    nuFace: [
+      "Nu dă concedii pe jumătate de zi. Baza refuză orice altceva decât zile întregi, printr-o constrângere, nu printr-o convenție.",
+      "Nu decide singură dacă o cerere se suprapune cu alta din echipă. Arată suprapunerea celui care aprobă și îl lasă pe el să hotărască.",
+      "Nu trimite concediul medical mai departe la Casa de Sănătate. Îl înregistrează, îl pune pe pontaj și îl pregătește pentru declarație.",
+    ],
+  },
+
+  {
+    cheie: "onboarding",
+    titluPagina: "Integrare angajați: lista de pași la angajare, cu dovezi și termene",
+    metaDescriere:
+      "Cum se face integrarea unui angajat nou în Administrativo: șabloane de pași, dovezi încărcate, confirmare de citire, termene urmărite. Cine ce poate face, pe roluri.",
+    intro: [
+      "Prima săptămână a unui angajat e locul în care se pierd cele mai multe documente. Fișa postului semnată, instruirea introductivă, predarea laptopului, cititul regulamentului intern — fiecare există undeva, la cineva, și nimeni nu are lista completă în ziua în care vine controlul.",
+      "Modulul face din lista aia un obiect cu stare. Se pornește un șablon pe angajatul nou, fiecare pas are un responsabil și un termen, iar pașii care cer o dovadă nu se pot bifa fără ea: documentul se încarcă, rămâne atașat pasului și se vede cine l-a pus și când.",
+      "Șabloanele se scriu o dată, pe firmă, și se refolosesc. Se poate porni de la unul de platformă și se poate rescrie cu totul — restabilirea la varianta inițială există, ca să nu rămâi blocat după o editare nefericită.",
+    ],
+    actiuni: [
+      {
+        ce: "Vede listele de integrare",
+        cheie: "checklists:read",
+        orgAdmin: "all",
+        hr: "all",
+        manager: "team",
+        angajat: "own",
+      },
+      {
+        ce: "Creează șabloane și pornește liste",
+        cheie: "checklists:create",
+        orgAdmin: "all",
+        hr: "all",
+        manager: null,
+        angajat: null,
+      },
+      {
+        ce: "Bifează un pas și încarcă dovada",
+        cheie: "checklists:update",
+        orgAdmin: "all",
+        hr: "all",
+        manager: "own",
+        angajat: "own",
+      },
+      {
+        ce: "Finalizează integrarea",
+        cheie: "checklists:approve",
+        orgAdmin: "all",
+        hr: "all",
+        manager: "team",
+        angajat: null,
+      },
+    ],
+    notaPermisiuni:
+      "Tabelul descrie un flux cu trei mâini. HR construiește șabloanele și pornește listele; managerul nu poate crea nimic, dar bifează pașii care îi revin lui și declară integrarea încheiată pentru oamenii din echipa lui; angajatul își vede propria listă și își bifează propriii pași — confirmarea că a citit regulamentul e o acțiune a lui, nu una făcută în numele lui. Nimeni nu poate bifa în locul altcuiva, fiindcă domeniul „own” e verificat pe rândul din bază, nu pe ecran.",
+    legaturi: [
+      {
+        catre: "courses",
+        text: "Un pas de integrare poate cere un curs parcurs, iar bifa vine din progresul real, nu dintr-o declarație.",
+      },
+      {
+        catre: "ssm",
+        text: "Instruirea introductivă de securitatea muncii se leagă de fișa SSM a omului, cu semnătura și data ei.",
+      },
+      {
+        catre: "employee_portal",
+        text: "Angajatul nou își vede lista de pași în portal din prima zi și încarcă singur ce i se cere.",
+      },
+    ],
+    nuFace: [
+      "Nu trimite singur e-mailuri de reamintire către responsabilii pașilor restanți. Termenele se văd în listă.",
+      "Nu generează contractul de muncă din pașii bifați. Contractul se face în fișa angajatului, separat.",
+      "Nu are pași condiționați unii de alții. Lista e o listă, nu un arbore de decizii.",
+    ],
+  },
+
+  {
+    cheie: "courses",
+    titluPagina: "Cursuri: materiale, lecții, teste și dovada că omul chiar a parcurs",
+    metaDescriere:
+      "Cum se țin cursurile interne în Administrativo: materiale versionate, lecții cu semnătură, teste cu prag, atribuire pe reguli. Cine ce poate face, pe roluri.",
+    intro: [
+      "Un curs intern se termină aproape întotdeauna cu aceeași întrebare la control: cine l-a făcut și cu ce dovadă. Un fișier trimis pe e-mail nu răspunde. O listă de prezență semnată pe hârtie răspunde pe jumătate, până se pierde.",
+      "Aici cursul are lecții, iar lecțiile au materiale versionate: când documentul se schimbă, versiunea veche rămâne, cu tot cu cine a parcurs-o. Progresul se raportează pe măsură ce omul citește, iar la final lecția se semnează. Testul, dacă există, are un prag și un rezultat păstrat.",
+      "Atribuirea nu se face de mână, om cu om. Se scriu reguli — după departament, după funcție — și cursul ajunge singur la cine trebuie, inclusiv la angajații care vin peste șase luni.",
+    ],
+    actiuni: [
+      {
+        ce: "Vede cursurile și materialele",
+        cheie: "courses:read",
+        orgAdmin: "all",
+        hr: "all",
+        manager: "team",
+        angajat: "own",
+      },
+      {
+        ce: "Creează cursuri și lecții",
+        cheie: "courses:create",
+        orgAdmin: "all",
+        hr: "all",
+        manager: "team",
+        angajat: null,
+      },
+      {
+        ce: "Raportează progres, semnează, dă testul",
+        cheie: "courses:update",
+        orgAdmin: "all",
+        hr: "all",
+        manager: "team",
+        angajat: "own",
+      },
+    ],
+    notaPermisiuni:
+      "Aici e singurul modul din aplicație în care managerul poate CONSTRUI ceva, nu doar aproba: are drept de creare pe echipa lui, deci își poate face propriile materiale de instruire fără să treacă prin HR. Angajatul are drept de scriere cu domeniul „own” — pare mult, până observi ce înseamnă: singurele lucruri pe care le poate schimba sunt propriul progres și propria semnătură pe lecție. Fără dreptul ăsta, cursul n-ar avea cine să-l parcurgă.",
+    legaturi: [
+      {
+        catre: "onboarding",
+        text: "Un pas din lista de integrare poate cere un curs, iar bifa se pune din progresul real.",
+      },
+      {
+        catre: "ssm",
+        text: "Instruirile periodice de securitatea muncii se pot ține ca materiale de curs, cu semnătura fiecăruia.",
+      },
+      {
+        catre: "employee_portal",
+        text: "Angajatul își parcurge cursurile din portal, de pe telefon, și își vede ce mai are de făcut.",
+      },
+    ],
+    nuFace: [
+      "Nu găzduiește video propriu și nu transcodează filme. Materialele sunt documente și linkuri.",
+      "Nu emite diplome sau certificate cu numărul lor. Rezultatul e o înregistrare, nu un act.",
+      "Nu are forum, comentarii sau discuții între cursanți. E o bibliotecă cu evidență, nu o platformă de învățare socială.",
+    ],
+  },
+
+  {
+    cheie: "reges",
+    titluPagina: "REGES-Online: transmiterea contractelor la inspecția muncii, cu termenele ei",
+    metaDescriere:
+      "Cum se transmit contractele la REGES-Online (fostul Revisal) din Administrativo: mesaje pregătite din fișa angajatului, termene legale urmărite, reconciliere. Cine ce poate face, pe roluri.",
+    intro: [
+      "REGES-Online a înlocuit Revisal, iar odată cu el s-a schimbat și felul în care greșești: nu mai uiți să exporți un fișier, ci ratezi un termen. Fiecare eveniment din viața unui contract — angajare, modificare de salariu, suspendare, încetare — are propriul lui număr de zile până la care trebuie transmis, iar unele se numără în zile lucrătoare.",
+      "Modulul ține termenele astea ca date, nu ca text în documentație. Angajarea se transmite cel târziu în ziua anterioară începerii activității; suspendarea pentru absențe nemotivate are trei zile lucrătoare, fiindcă nu se poate anunța dinainte; reluarea se transmite în ziua în care omul se prezintă. Fiecare termen are temeiul lui legal scris lângă el, iar o firmă care vrea altceva își pune propria regulă, fără să aștepte o versiune nouă.",
+      "Mesajul se compune din ce e deja în fișa angajatului — nu se retastează nimic. Înainte de trimitere se verifică, iar ce lipsește se spune pe nume: un tip de spor nemapat, un CNP absent, o funcție fără cod COR.",
+    ],
+    actiuni: [
+      {
+        ce: "Vede contractele și starea lor",
+        cheie: "reges:read",
+        orgAdmin: "all",
+        hr: "all",
+        manager: null,
+        angajat: null,
+      },
+      {
+        ce: "Pregătește un mesaj de transmis",
+        cheie: "reges:create",
+        orgAdmin: "all",
+        hr: "all",
+        manager: null,
+        angajat: null,
+      },
+      {
+        ce: "Corectează un mesaj înainte de trimitere",
+        cheie: "reges:update",
+        orgAdmin: "all",
+        hr: "all",
+        manager: null,
+        angajat: null,
+      },
+      {
+        ce: "Transmite efectiv la REGES",
+        cheie: "reges:transmit",
+        orgAdmin: "all",
+        hr: "all",
+        manager: null,
+        angajat: null,
+      },
+      {
+        ce: "Configurează accesul și nomenclatoarele",
+        cheie: "reges:configure",
+        orgAdmin: "all",
+        hr: "all",
+        manager: null,
+        angajat: null,
+      },
+      {
+        ce: "Exportă registrul",
+        cheie: "reges:export",
+        orgAdmin: "all",
+        hr: "all",
+        manager: null,
+        angajat: null,
+      },
+    ],
+    notaPermisiuni:
+      "Tabelul e cel mai închis din toată aplicația: două roluri au acces, celelalte două n-au absolut nimic — nici măcar dreptul de a citi. Nu e o scăpare, e forma corectă. Registrul de evidență a salariaților conține datele de identificare și salariile tuturor, iar un manager care își vede echipa în restul aplicației n-are ce căuta aici. Transmiterea are cheia ei separată de creare: se poate pregăti un mesaj fără dreptul de a-l trimite, ceea ce lasă loc pentru o verificare între cele două.",
+    legaturi: [
+      {
+        catre: "payroll",
+        text: "Sporurile transmise în obiectul de salariu sunt aceleași componente pe care le calculează statul de plată.",
+      },
+      {
+        catre: "attendance",
+        text: "Suspendarea pentru absențe nemotivate pornește dintr-o decizie luată pe baza pontajului, nu dintr-un text liber.",
+      },
+      {
+        catre: "leave",
+        text: "Concediile care suspendă contractul își generează singure evenimentul de transmis, cu termenul lui.",
+      },
+    ],
+    nuFace: [
+      "Nu transmite singur, pe fundal, fără ca cineva să apese. Termenele se arată, decizia rămâne a omului.",
+      "Nu înlocuiește verificarea contabilului. Spune ce lipsește dintr-un mesaj, nu dacă un contract e corect juridic.",
+      "Nu recuperează istoricul dinaintea intrării în aplicație. Contractele vechi se aduc la prima încărcare, apoi evidența curge de aici.",
+    ],
+  },
+  {
+    cheie: "evaluations",
+    titluPagina: "Evaluări: șabloane de criterii, note pe echipă și istoricul discuției",
+    metaDescriere:
+      "Cum se fac evaluările de performanță în Administrativo: șabloane duplicabile, evaluare pe echipă, finalizare cu istoric. Cine ce poate face, pe roluri.",
+    intro: [
+      "Evaluarea anuală ajunge de obicei un formular Word trimis pe e-mail, completat în grabă și salvat pe un desktop. Anul următor nimeni nu mai găsește ce s-a discutat, iar promisiunile făcute atunci n-au unde să fie verificate.",
+      "Aici șablonul de evaluare e un obiect al firmei: criterii, ponderi, scală. Se duplică pentru anul următor în loc să fie rescris, iar cel vechi se arhivează fără să dispară — evaluările făcute pe el rămân citibile exact în forma în care au fost completate.",
+      "Evaluarea în sine are stări. Cât e deschisă se completează; la finalizare se închide, iar redeschiderea e o acțiune separată, care lasă urmă. Nu e o măsură de neîncredere, e felul în care o discuție de anul trecut poate fi arătată anul acesta fără dubii că a fost modificată între timp.",
+    ],
+    actiuni: [
+      {
+        ce: "Vede evaluările",
+        cheie: "evaluations:read",
+        orgAdmin: "all",
+        hr: "all",
+        manager: "team",
+        angajat: "own",
+      },
+      {
+        ce: "Creează șabloane și evaluări",
+        cheie: "evaluations:create",
+        orgAdmin: "all",
+        hr: "all",
+        manager: "team",
+        angajat: null,
+      },
+      {
+        ce: "Completează, finalizează, redeschide",
+        cheie: "evaluations:update",
+        orgAdmin: "all",
+        hr: "all",
+        manager: "team",
+        angajat: null,
+      },
+    ],
+    notaPermisiuni:
+      "Angajatul apare în tabel o singură dată, cu drept de citire pe propria evaluare — și atât. Nu poate completa nimic, nici măcar o autoevaluare, fiindcă modulul nu are astăzi un pas de autoevaluare separat de restul formularului. E o limită reală, nu o alegere de securitate, și merită spusă ca atare. Managerul, în schimb, are drepturi complete pe echipa lui: creează, completează și finalizează fără să treacă prin HR.",
+    legaturi: [
+      {
+        catre: "kpi",
+        text: "Indicatorii lunari dau partea măsurabilă a discuției, ca să nu rămână doar pe impresii.",
+      },
+      {
+        catre: "employee_portal",
+        text: "Angajatul își citește evaluarea finalizată în portal, fără să o ceară de la nimeni.",
+      },
+      {
+        catre: "courses",
+        text: "Ce iese ca nevoie de instruire dintr-o evaluare se poate transforma într-un curs atribuit.",
+      },
+    ],
+    nuFace: [
+      "Nu are evaluare la 360 de grade. Nu se cer păreri de la colegi sau de la subordonați.",
+      "Nu calculează singură un bonus din nota finală. Legătura cu salarizarea o face un om.",
+      "Nu trimite reamintiri când o evaluare stă nefinalizată. Starea se vede în listă.",
+    ],
+  },
+
+  {
+    cheie: "kpi",
+    titluPagina: "KPI-uri: seturi de indicatori, ținte pe om și luna care se închide",
+    metaDescriere:
+      "Cum se urmăresc indicatorii de performanță în Administrativo: seturi de KPI, ținte individuale, luni deschise și închise. Cine ce poate face, pe roluri.",
+    intro: [
+      "Un indicator de performanță devine inutil în momentul în care nimeni nu mai știe ce valoare avea ținta când a fost stabilită. Foaia de calcul se rescrie peste, iar la discuția de final de an rămâne doar cifra de acum, nu și cea promisă atunci.",
+      "Modulul separă cele trei lucruri care se amestecă de obicei: setul de indicatori — ce se măsoară, cu ce unitate și cu ce sens al creșterii; ținta — pentru cine și cât, cu perioada ei; realizarea — valoarea lunii, completată și apoi finalizată.",
+      "Luna e unitatea de lucru și are stare, ca la pontaj. Se deschide, se completează, se finalizează. O lună finalizată nu se mai rescrie tăcut; iar setul de indicatori se arhivează în loc să fie șters, ca lunile trecute să rămână citibile.",
+    ],
+    actiuni: [
+      {
+        ce: "Vede seturile, țintele și lunile",
+        cheie: "evaluations:read",
+        orgAdmin: "all",
+        hr: "all",
+        manager: "team",
+        angajat: "own",
+      },
+      {
+        ce: "Creează seturi de indicatori și ținte",
+        cheie: "evaluations:create",
+        orgAdmin: "all",
+        hr: "all",
+        manager: "team",
+        angajat: null,
+      },
+      {
+        ce: "Completează și finalizează luna",
+        cheie: "evaluations:update",
+        orgAdmin: "all",
+        hr: "all",
+        manager: "team",
+        angajat: null,
+      },
+    ],
+    notaPermisiuni:
+      "Un lucru care nu se vede din interfață și pe care preferăm să-l spunem: KPI-urile nu au permisiuni proprii, ci le folosesc pe cele de evaluări. Cine poate evalua poate și seta ținte, iar cine nu poate evalua nu ajunge la indicatori. Consecința practică e că modulele astea două nu se pot despărți pe roluri — dacă vrei ca un manager să vadă KPI-urile fără să poată face evaluări, astăzi nu se poate. E o simplificare asumată, nu o scăpare.",
+    legaturi: [
+      {
+        catre: "evaluations",
+        text: "Indicatorii lunii intră în discuția de evaluare ca partea măsurabilă a ei.",
+      },
+      {
+        catre: "rapoarte",
+        text: "Valorile finalizate pe lună sunt cele care ajung mai departe în rapoarte.",
+      },
+      {
+        catre: "employee_portal",
+        text: "Omul își vede propriile ținte și cum stă față de ele, fără să întrebe.",
+      },
+    ],
+    nuFace: [
+      "Nu culege valorile singur din alte sisteme. Realizările se completează sau se importă, nu se sincronizează.",
+      "Nu are grafice de tendință pe mai mulți ani. Unitatea de lucru e luna, iar comparația se face pe ea.",
+      "Nu leagă indicatorul de un bonus calculat automat. Consecința rămâne o decizie de om.",
+    ],
+  },
+
+  {
+    cheie: "maintenance",
+    titluPagina: "Mentenanță: sesizări de la oricine, planuri pe echipamente și autorizații ISCIR",
+    metaDescriere:
+      "Cum se ține mentenanța în Administrativo: sesizări deschise de orice angajat, contoare, planuri periodice, autorizații ISCIR cu scadențe. Cine ce poate face, pe roluri.",
+    intro: [
+      "Defectul se vede primul de către omul care lucrează pe utilaj, nu de către cel care răspunde de el. Dacă sesizarea trebuie să treacă prin șeful de tură și printr-un telefon, jumătate din defecte nu ajung niciodată să fie scrise nicăieri.",
+      "De aceea aici oricine poate deschide o sesizare, pe orice echipament. Ea se triază, primește un responsabil, iar rezolvarea rămâne cu intervenția ei: ce s-a făcut, când și de către cine. Istoricul echipamentului nu mai e memoria cuiva.",
+      "Peste sesizări stau planurile: revizii la interval de timp sau la contor. Contorul se citește și se înregistrează, iar planul spune singur ce e scadent. Autorizațiile ISCIR își au scadențele lor, urmărite la fel — o autorizație expirată e o problemă legală, nu doar una de întreținere.",
+    ],
+    actiuni: [
+      {
+        ce: "Vede echipamentele și sesizările",
+        cheie: "maintenance:read",
+        orgAdmin: "all",
+        hr: null,
+        manager: "team",
+        angajat: "own",
+      },
+      {
+        ce: "Deschide o sesizare",
+        cheie: "maintenance:create",
+        orgAdmin: "all",
+        hr: null,
+        manager: "all",
+        angajat: "all",
+      },
+      {
+        ce: "Triază, rezolvă, administrează planuri",
+        cheie: "maintenance:update",
+        orgAdmin: "all",
+        hr: null,
+        manager: null,
+        angajat: null,
+      },
+    ],
+    notaPermisiuni:
+      "Rândul de mijloc e neobișnuit și e intenționat: la deschiderea unei sesizări, angajatul are domeniul „all”, nu „own”. Poate raporta un defect pe orice echipament din firmă, nu doar pe al lui — altfel utilajul de la care tocmai a trecut ar rămâne nesemnalat. În schimb citirea îi e limitată la ce îl privește. HR nu apare deloc în tabel, pe niciun rând: mentenanța nu e treaba lui, iar absența rândului înseamnă refuz, nu acces implicit.",
+    legaturi: [
+      {
+        catre: "inventory",
+        text: "Ce se predă unui om ca obiect de inventar și ce se întreține ca echipament sunt evidențe separate, dinadins.",
+      },
+      {
+        catre: "fleet",
+        text: "Mașinile au propriul lor modul, cu foi de parcurs și documente; aici stau utilajele și echipamentele fixe.",
+      },
+      {
+        catre: "ssm",
+        text: "Un echipament cu autorizație expirată apare și în evidența de conformitate, nu doar în listele de mentenanță.",
+      },
+    ],
+    nuFace: [
+      "Nu se leagă la senzori sau la sisteme SCADA. Contoarele se citesc și se introduc.",
+      "Nu ține stoc de piese de schimb și nu comandă nimic de la furnizori.",
+      "Nu calculează costul intervenției pe manoperă și materiale. Notează ce s-a făcut, nu cât a costat.",
+    ],
+  },
+
+  {
+    cheie: "inventory",
+    titluPagina: "Inventar: cine are ce obiect al firmei, de când, și cu ce semnătură",
+    metaDescriere:
+      "Cum se ține inventarul de obiecte în Administrativo: predare cu confirmare, returnare, casare, obiecte pe fiecare angajat. Cine ce poate face, pe roluri.",
+    intro: [
+      "Laptopul, telefonul, scula, cheia de la depozit — lucrurile firmei aflate la oameni sunt aproape întotdeauna scrise într-un fișier pe care îl ține o singură persoană, și care rămâne în urmă din prima lună. La plecarea unui angajat urmează o discuție incomodă despre ce mai avea la el.",
+      "Aici obiectul are un traseu complet: intră în stoc, se predă unei persoane, ea confirmă primirea, se returnează sau se casează. Fiecare pas rămâne cu data lui, iar starea curentă nu e o părere, ci rezultatul pașilor.",
+      "Confirmarea primirii e a angajatului, nu a celui care predă. Diferența pare mică, dar exact ea transformă o listă într-o dovadă: cine a primit a spus el că a primit.",
+    ],
+    actiuni: [
+      {
+        ce: "Vede obiectele și cine le are",
+        cheie: "inventory:read",
+        orgAdmin: "all",
+        hr: "all",
+        manager: "team",
+        angajat: "own",
+      },
+      {
+        ce: "Adaugă, predă, returnează, casează",
+        cheie: "inventory:update",
+        orgAdmin: "all",
+        hr: "all",
+        manager: null,
+        angajat: null,
+      },
+    ],
+    notaPermisiuni:
+      "Tabelul are doar două rânduri, și asta spune ceva despre modul: toate scrierile — adăugarea unui obiect nou, predarea, returnarea, casarea, readucerea în stoc — trec printr-o singură permisiune. Nu există un drept separat de „creare” față de unul de „mutare”, deci cine poate preda un laptop poate și adăuga unul nou în evidență. Managerul nu are nicio scriere aici: vede ce are echipa lui, dar predarea rămâne la HR sau la administrator. Confirmarea primirii, în schimb, o face angajatul din portal, pe rândul lui.",
+    legaturi: [
+      {
+        catre: "employee_portal",
+        text: "Angajatul își vede obiectele primite și confirmă primirea de pe telefon, cu data ei.",
+      },
+      {
+        catre: "onboarding",
+        text: "Predarea echipamentului la angajare poate fi un pas din lista de integrare, cu dovadă.",
+      },
+      {
+        catre: "ssm",
+        text: "Echipamentul individual de protecție se predă separat, în evidența SSM, cu regulile lui de înlocuire.",
+      },
+    ],
+    nuFace: [
+      "Nu ține gestiune contabilă, nu amortizează și nu are valoare de inventar în bilanț.",
+      "Nu citește coduri de bare sau etichete RFID. Obiectele se caută după nume și după serie.",
+      "Nu gestionează stocuri de consumabile pe cantități. Un obiect e o bucată, cu un traseu al ei.",
+    ],
+  },
+
+  {
+    cheie: "ticketing",
+    titluPagina:
+      "Ticketing intern: cererile către IT sau administrativ, cu o coadă și un responsabil",
+    metaDescriere:
+      "Cum funcționează tichetele interne în Administrativo: oricine deschide, coada pe echipă, preluare și rezolvare. Cine ce poate face, pe roluri.",
+    intro: [
+      "Cererile interne — „nu merge imprimanta”, „am nevoie de acces la dosarul X”, „îmi trebuie un monitor” — circulă de obicei pe chat și pe hol. Se rezolvă, uneori, dar nimeni nu poate spune la sfârșitul lunii câte au fost și cât au durat.",
+      "Un tichet aici are cine l-a deschis, pe cine cade, în ce stare e și ce s-a răspuns. Coada se vede pe echipă, nu pe persoană, deci un coleg poate prelua când altul lipsește, fără ca cererea să se piardă între doi oameni care presupun fiecare că se ocupă celălalt.",
+      "Modulul e deliberat mic. Nu încearcă să fie un sistem de ticketing pentru clienți externi; e locul unde cererile dintre colegi capătă un număr și un răspuns.",
+    ],
+    actiuni: [
+      {
+        ce: "Vede tichetele",
+        cheie: "tickets:read",
+        orgAdmin: "all",
+        hr: "own",
+        manager: "team",
+        angajat: "own",
+      },
+      {
+        ce: "Deschide un tichet",
+        cheie: "tickets:create",
+        orgAdmin: "own",
+        hr: "own",
+        manager: "own",
+        angajat: "own",
+      },
+      {
+        ce: "Răspunde și schimbă starea",
+        cheie: "tickets:update",
+        orgAdmin: "all",
+        hr: "own",
+        manager: "team",
+        angajat: "own",
+      },
+      {
+        ce: "Închide tichetul",
+        cheie: "tickets:approve",
+        orgAdmin: "all",
+        hr: null,
+        manager: "team",
+        angajat: null,
+      },
+    ],
+    notaPermisiuni:
+      "Două lucruri ies în evidență. Primul: la deschiderea unui tichet toate cele patru roluri au același domeniu, „own” — inclusiv administratorul. Nimeni nu poate deschide un tichet în numele altcuiva, fiindcă un tichet e o cerere, iar cererea aparține celui care o face. Al doilea: HR apare aici cu „own” peste tot, adică exact ca un angajat obișnuit. E singurul modul din aplicație în care HR nu are acces extins — nu e o omisiune, e recunoașterea că o cerere către IT nu ține de resurse umane.",
+    legaturi: [
+      {
+        catre: "employee_portal",
+        text: "Omul își deschide tichetul și își urmărește răspunsul din portal, de pe telefon.",
+      },
+      {
+        catre: "maintenance",
+        text: "Un defect la un utilaj se raportează ca sesizare de mentenanță, nu ca tichet; sunt evidențe separate.",
+      },
+      {
+        catre: "inventory",
+        text: "O cerere de echipament se poate termina cu o predare înregistrată în inventar, pe numele omului.",
+      },
+    ],
+    nuFace: [
+      "Nu are timpi de răspuns garantați, nici alarme când un tichet stă prea mult.",
+      "Nu primește tichete pe e-mail și nu răspunde pe e-mail. Totul stă în aplicație.",
+      "Nu e pentru clienți din afara firmei. Cine deschide un tichet trebuie să fie angajatul organizației.",
+    ],
+  },
+  {
+    cheie: "announcements",
+    titluPagina: "Anunțuri: comunicarea internă care se poate dovedi că a ajuns",
+    metaDescriere:
+      "Cum se transmit anunțurile interne în Administrativo: publicare, țintire pe departamente, confirmare de citire. Cine ce poate face, pe roluri.",
+    intro: [
+      "Anunțul intern trimis pe e-mail sau pe un grup de chat are o problemă pe care nimeni n-o observă până nu e nevoie de ea: nu se poate arăta cine l-a citit. Iar unele lucruri — o schimbare de program, o regulă nouă de acces, o notificare cerută de lege — chiar trebuie să poată fi dovedite.",
+      "Aici anunțul are o ciornă și o publicare distinctă. Cât e ciornă se scrie și se reformulează; la publicare pleacă spre oamenii vizați și rămâne cu data lui. Citirea se înregistrează pe fiecare persoană, deci lista celor care încă n-au deschis anunțul e o listă reală, nu o presupunere.",
+      "Anunțurile ajung și în aplicație, și în portalul angajatului, și ca notificare pe telefon dacă omul a pornit-o. Același conținut, un singur loc de scris.",
+    ],
+    actiuni: [
+      {
+        ce: "Citește anunțurile și confirmă citirea",
+        cheie: "announcements:read",
+        orgAdmin: "all",
+        hr: "all",
+        manager: "all",
+        angajat: "all",
+      },
+      {
+        ce: "Scrie un anunț nou",
+        cheie: "announcements:create",
+        orgAdmin: "all",
+        hr: "all",
+        manager: null,
+        angajat: null,
+      },
+      {
+        ce: "Modifică și publică",
+        cheie: "announcements:update",
+        orgAdmin: "all",
+        hr: "all",
+        manager: null,
+        angajat: null,
+      },
+    ],
+    notaPermisiuni:
+      "E singurul tabel din aplicație în care toate cele patru roluri au „all” pe același rând: anunțurile se citesc de toată lumea, fără excepție și fără domeniu restrâns. Scrisul, în schimb, e închis la două roluri — un manager nu poate publica un anunț pe firmă, oricât de mult l-ar privi echipa lui. Un detaliu care surprinde: marcarea unui anunț drept citit e o scriere, dar e păzită de permisiunea de CITIRE. Altfel n-ar avea logică — cine are voie să vadă anunțul trebuie să poată confirma că l-a văzut.",
+    legaturi: [
+      {
+        catre: "employee_portal",
+        text: "Anunțul apare în portal și ca notificare pe telefon, dacă omul și-a pornit notificările.",
+      },
+      {
+        catre: "onboarding",
+        text: "Regulamentul intern se dă la angajare ca pas cu confirmare, nu ca anunț către toți.",
+      },
+      {
+        catre: "nucleu",
+        text: "Cine a citit și când rămâne în jurnalul de audit, alături de restul acțiunilor.",
+      },
+    ],
+    nuFace: [
+      "Nu are răspunsuri, comentarii sau reacții. E un canal într-un singur sens.",
+      "Nu programează publicarea la o dată viitoare. Anunțul pleacă atunci când e publicat.",
+      "Nu trimite pe e-mail. Ajunge în aplicație, în portal și ca notificare pe telefon.",
+    ],
+  },
+
+  {
+    cheie: "employee_portal",
+    titluPagina: "Portal angajat: fiecare om își vede ale lui, de pe telefon, fără cont de Windows",
+    metaDescriere:
+      "Ce vede un angajat în portalul Administrativo: fluturașul, soldul de concediu, pontajul, cursurile, documentele. Cum e limitat accesul la propriile date.",
+    intro: [
+      "Cele mai multe întrebări care ajung la HR au același răspuns scris deja undeva: câte zile de concediu mai am, unde e adeverința de venit, ce am semnat luna trecută, cât mi-a intrat pe card. Fiecare dintre ele costă o întrerupere și un e-mail.",
+      "Portalul e locul unde omul își vede propriile lucruri, fără să ceară nimănui nimic. Se deschide în browserul telefonului, se poate adăuga pe ecranul principal ca o aplicație, și nu cere cont de domeniu, VPN sau instalare.",
+      "Nu e o aplicație separată cu datele ei. E aceeași bază, aceleași rânduri, văzute prin aceleași reguli — doar că restrânse la „ale mele”.",
+    ],
+    actiuni: [
+      {
+        ce: "Își vede propria fișă",
+        cheie: "employees:read",
+        orgAdmin: "all",
+        hr: "all",
+        manager: "team",
+        angajat: "own",
+      },
+      {
+        ce: "Își pontează ziua",
+        cheie: "attendance:create",
+        orgAdmin: "all",
+        hr: "all",
+        manager: null,
+        angajat: "own",
+      },
+      {
+        ce: "Își depune cererea de concediu",
+        cheie: "leave:create",
+        orgAdmin: "all",
+        hr: "all",
+        manager: "own",
+        angajat: "own",
+      },
+      {
+        ce: "Își vede fluturașul",
+        cheie: "payroll:read",
+        orgAdmin: "all",
+        hr: "all",
+        manager: "none",
+        angajat: "own",
+      },
+      {
+        ce: "Își face decontul de deplasare",
+        cheie: "per_diem:create",
+        orgAdmin: "all",
+        hr: null,
+        manager: null,
+        angajat: "own",
+      },
+    ],
+    notaPermisiuni:
+      "Portalul nu are permisiuni proprii, și asta e partea importantă. Fiecare ecran din el verifică exact cheia modulului din care își ia datele, cu domeniul „own”. Consecința: nu există un drum prin portal care să ocolească o regulă din aplicație, fiindcă e aceeași regulă, verificată în același loc. Coloana „Angajat” din tabelul de mai sus e, de fapt, definiția portalului. Iar restul coloanelor arată de ce nu e nevoie de un al doilea sistem: aceleași chei servesc și ecranele de birou.",
+    legaturi: [
+      {
+        catre: "attendance",
+        text: "Pontarea de pe telefon intră direct pe foaia lunară, ca orice altă zi.",
+      },
+      {
+        catre: "payroll",
+        text: "Fluturașul e cel generat de calculul lunii, nu o copie trimisă separat.",
+      },
+      {
+        catre: "leave",
+        text: "Cererea depusă din portal ajunge la același aprobator, cu același sold.",
+      },
+    ],
+    nuFace: [
+      "Nu e o aplicație din magazinul de aplicații. Se deschide în browser și se poate pune pe ecranul principal.",
+      "Nu arată CNP-ul sau IBAN-ul, nici măcar propriile. Datele sensibile rămân închise în fișa de birou.",
+      "Nu permite modificarea datelor personale. Schimbarea adresei sau a contului se cere, nu se face direct.",
+    ],
+  },
+
+  {
+    cheie: "rapoarte",
+    titluPagina: "Rapoarte: cifrele lunii scoase din datele care există deja",
+    metaDescriere:
+      "Ce rapoarte scoate Administrativo: situații pe salarizare și pe lună, din aceleași date care au fost aprobate. Cine ce poate vedea, pe roluri.",
+    intro: [
+      "Un raport făcut prin copierea datelor în altă foaie de calcul e greșit din momentul în care cineva mai corectează ceva la sursă. Iar corecțiile vin întotdeauna după ce raportul a fost trimis.",
+      "Aici raportul se calculează din rândurile care au trecut deja prin aprobare — luna închisă la pontaj, perioada de salarizare aprobată — nu dintr-o copie. Dacă sursa se redeschide și se schimbă, se schimbă și cifra.",
+      "Modulul e deliberat îngust astăzi: acoperă zona de salarizare și situațiile lunare care se cer cel mai des. Restul datelor se exportă din modulele lor, unde contextul e complet.",
+    ],
+    actiuni: [
+      {
+        ce: "Vede situațiile pe lună",
+        cheie: "payroll:read",
+        orgAdmin: "all",
+        hr: "all",
+        manager: "none",
+        angajat: "own",
+      },
+      {
+        ce: "Recalculează o perioadă",
+        cheie: "payroll:create",
+        orgAdmin: "all",
+        hr: "all",
+        manager: "none",
+        angajat: null,
+      },
+    ],
+    notaPermisiuni:
+      "Trebuie spus limpede, fiindcă nu se vede din interfață: rapoartele nu au permisiuni proprii. Ele sunt păzite de cheile datelor pe care le adună — astăzi cele de salarizare. Consecința e că accesul la rapoarte nu se poate acorda separat: cine vede rapoartele vede salarizarea, iar managerul, care are refuz explicit pe salarizare, nu ajunge la ele deloc. E o limită asumată a formei actuale, nu o regulă de securitate gândită dinainte, și se va schimba când modulul va acoperi și alte zone.",
+    legaturi: [
+      {
+        catre: "payroll",
+        text: "Sursa cifrelor e perioada de salarizare aprobată, cu componentele ei deja calculate.",
+      },
+      {
+        catre: "attendance",
+        text: "Orele care intră în raport sunt cele din lunile închise, nu din zilele în lucru.",
+      },
+      {
+        catre: "kpi",
+        text: "Indicatorii finalizați pe lună sunt o sursă separată, cu propria ei evidență.",
+      },
+    ],
+    nuFace: [
+      "Nu are constructor de rapoarte. Situațiile sunt cele definite, nu se compun din interfață.",
+      "Nu trimite rapoarte programate pe e-mail. Se deschid când sunt cerute.",
+      "Nu acoperă încă toate modulele. Zonele neacoperite se exportă din modulul lor.",
+    ],
+  },
+
+  {
+    cheie: "nucleu",
+    titluPagina: "Organizație, roluri și audit: temelia peste care stau celelalte module",
+    metaDescriere:
+      "Cum se administrează firma în Administrativo: utilizatori, roluri, permisiuni per om, jurnal de audit. Cine ce poate face, pe roluri.",
+    intro: [
+      "Nucleul nu e un modul care se cumpără, e ce rămâne când le scoți pe toate celelalte: firma, oamenii care intră în aplicație, rolurile lor și urma pe care o lasă fiecare acțiune.",
+      "Rolurile sunt cinci, iar permisiunile lor sunt rânduri într-o tabelă, nu cod. Se pot suprascrie pentru un singur om, când realitatea nu încape în rol — un contabil care trebuie să vadă un raport în plus nu cere o versiune nouă a aplicației.",
+      "Izolarea între firme nu se face prin filtre scrise în aplicație, ci prin reguli impuse de baza de date pe fiecare tabelă. Diferența contează: un filtru uitat într-o interogare devine o scurgere de date, o regulă de bază uitată nu returnează nimic. Greșeala eșuează în siguranță.",
+    ],
+    actiuni: [
+      {
+        ce: "Vede utilizatorii",
+        cheie: "users:read",
+        orgAdmin: "all",
+        hr: null,
+        manager: null,
+        angajat: "own",
+      },
+      {
+        ce: "Invită un utilizator",
+        cheie: "users:create",
+        orgAdmin: "all",
+        hr: null,
+        manager: null,
+        angajat: null,
+      },
+      {
+        ce: "Schimbă starea unui utilizator",
+        cheie: "users:update",
+        orgAdmin: "all",
+        hr: null,
+        manager: null,
+        angajat: null,
+      },
+      {
+        ce: "Schimbă rolul cuiva",
+        cheie: "roles:update",
+        orgAdmin: "all",
+        hr: null,
+        manager: "team",
+        angajat: null,
+      },
+      {
+        ce: "Citește jurnalul de audit",
+        cheie: "audit:read",
+        orgAdmin: "all",
+        hr: "none",
+        manager: "none",
+        angajat: "none",
+      },
+    ],
+    notaPermisiuni:
+      "Tabelul ăsta e cel mai instructiv din toate. HR — rolul care administrează oameni în toată aplicația — n-are absolut nicio permisiune pe utilizatori: poate ține fișa unui angajat, dar nu poate da pe nimeni în aplicație. Sunt două lucruri diferite, iar aici se vede că sunt tratate ca atare. Jurnalul de audit e închis cu „none” explicit pentru trei roluri din patru, adică refuz scris, nu rând lipsă. Iar managerul are un singur drept, pe roluri, cu domeniul „team”: poate schimba rolul cuiva din echipa lui — mecanismul prin care un șef de departament devine manager fără să treacă pe la administrator.",
+    legaturi: [
+      {
+        catre: "employee_portal",
+        text: "Invitația trimisă unui angajat îi deschide portalul, cu propriile lui date și nimic în plus.",
+      },
+      {
+        catre: "onboarding",
+        text: "Crearea contului e de obicei un pas din lista de integrare, cu responsabil și termen.",
+      },
+      {
+        catre: "asistent",
+        text: "Asistentul nu are drepturi proprii: ajunge exact unde ajunge omul care întreabă.",
+      },
+    ],
+    nuFace: [
+      "Nu se leagă la Active Directory sau la conturi de Google pentru autentificare unică.",
+      "Nu are roluri definite de client. Cele cinci sunt fixe; se ajustează permisiunile din ele, pe om.",
+      "Nu șterge date. Ce iese din uz se marchează ca șters și rămâne în jurnal.",
+    ],
+  },
+
+  {
+    cheie: "asistent",
+    titluPagina: "Asistent AI: întrebi în română și ajungi direct în ecranul potrivit",
+    metaDescriere:
+      "Ce face asistentul din Administrativo: răspunde la întrebări despre propriile date și duce în ecranul potrivit, fără să vadă mai mult decât vede utilizatorul.",
+    intro: [
+      "O aplicație cu douăzeci și două de module are o problemă pe care n-o rezolvă niciun meniu: omul știe ce vrea, dar nu știe unde se face. „Cum cer concediu”, „unde văd cine n-a făcut instruirea”, „de ce nu pot închide luna” — fiecare are un răspuns într-un ecran, iar drumul până la el e cunoscut doar de cine folosește aplicația zilnic.",
+      "Asistentul răspunde în română și, când răspunsul e un ecran, duce direct acolo. Nu e un chat separat de aplicație: vede aceleași date, prin aceleași reguli, pentru omul care întreabă.",
+      "Partea importantă e ce NU poate. Asistentul nu are permisiuni proprii — niciun rând într-o tabelă de roluri, nicio cheie a lui. Ce poate atinge se calculează din permisiunile celui care întreabă și din modulele pornite pe firmă. Un angajat care întreabă despre salariile colegilor primește același refuz pe care l-ar primi dacă ar deschide ecranul direct, fiindcă e exact același refuz, verificat în același loc. Nu există o cale ocolită prin întrebare.",
+      "Modulul se poate opri de tot, pe firmă, dintr-un singur comutator. Cu el stins, nu doar că butonul dispare — cererea către asistent primește „nu există”, deci nici cineva care ar ști adresa nu ajunge la el.",
+    ],
+    actiuni: [],
+    notaPermisiuni:
+      "Asistentul nu are un tabel de roluri fiindcă n-are permisiuni proprii: accesul lui e, literal, accesul celui care întreabă.",
+    legaturi: [
+      {
+        catre: "nucleu",
+        text: "Permisiunile care limitează asistentul sunt exact cele din rolul omului care întreabă.",
+      },
+      {
+        catre: "employee_portal",
+        text: "Din portal, întrebările unui angajat ajung tot la propriile lui date, niciodată la ale altcuiva.",
+      },
+      {
+        catre: "attendance",
+        text: "Cele mai multe întrebări duc în pontaj: cum se închide luna, de ce o zi nu se poate corecta.",
+      },
+    ],
+    nuFace: [
+      "Nu completează formulare și nu apasă butoane în locul omului. Duce în ecran, restul se face de mână.",
+      "Nu învață din datele firmei și nu antrenează nimic pe ele.",
+      "Nu funcționează fără cheia de acces la furnizorul de model, configurată separat de comutatorul de modul.",
+    ],
+  },
 ];
 
 /** Fișa unui modul, dacă are una. Cele fără fișă rămân pe conținutul din catalog. */
