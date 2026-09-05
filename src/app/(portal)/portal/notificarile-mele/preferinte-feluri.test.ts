@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import type { Database } from "@/types/database";
 
-import { FELURI_NOTIFICARE } from "./actions";
+import { FELURI_NOTIFICARE } from "./feluri";
 
 type FelGenerat = Database["public"]["Enums"]["notification_kind"];
 
 /**
- * Poarta pentru lista scrisă de mână din `actions.ts`.
+ * Poarta pentru lista scrisă de mână din `feluri.ts`.
  *
  * `notification_preferences` are un rând PE FEL, iar „oprește notificările pe
  * telefon" înseamnă toate felurile. Dacă cineva adaugă o valoare în enumul

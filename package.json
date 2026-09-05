@@ -16,10 +16,11 @@
     "test:izolare": "psql \"${DATABASE_URL:-postgresql://$USER@localhost:5433/adm_iz}\" -v ON_ERROR_STOP=1 -f tests/rls/izolare.sql",
     "test:e2e": "playwright test",
     "docs:lint": "node scripts/docs/lint-vault.mjs",
+    "check:server": "node scripts/checks/use-server-exports.mjs",
     "db:types": "supabase gen types typescript --linked > src/types/database.ts",
     "db:push": "supabase db push",
     "db:diff": "supabase db diff --linked",
-    "verify": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test"
+    "verify": "pnpm typecheck && pnpm check:server && pnpm lint && pnpm format:check && pnpm test"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

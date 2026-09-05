@@ -32,10 +32,16 @@ niciodată tot modulul. Convențiile vault-ului: `.claude/docs/meta/conventii.md
 pnpm typecheck && pnpm lint && pnpm test && pnpm build
 ```
 
-`pnpm verify` = typecheck + lint + format:check + test. **NU include `build`.**
-Build-ul e singurul care prinde granița server/client — de exemplu un fișier
-`"use server"` care exportă o constantă (Next refuză build-ul, `tsc` tace).
-Sunt 42 de fișiere `"use server"` în `src/`.
+`pnpm verify` = typecheck + **check:server** + lint + format:check + test.
+**NU include `build`.**
+
+Build-ul rămâne singurul care prinde granița server/client în general — dar
+cazul care a costat cel mai mult, un fișier `"use server"` care exportă o
+constantă, are de la 5 sept 2026 poartă proprie: `pnpm check:server`
+(`scripts/checks/use-server-exports.mjs`). O prinde în două secunde, cu fișier
+și linie, în loc de trei minute și un jurnal de „Collecting page data" —
+fiindcă `tsc`, `eslint` ȘI `vitest` tac toate trei. Vezi capcana 39.
+Numărătoarea pe loc: `grep -rl '^"use server"' src/ | wc -l`.
 
 Nu declara nimic „gata” fără ieșirea comenzilor. În Faza 2, proiectul a fost
 comis ca livrat în timp ce un `org_admin` nu putea insera un angajat: treceau
@@ -106,7 +112,8 @@ drept CONFLICT.
 
 ## Unde e restul
 
-- `docs/design/ecrane/capcane.md` — **38 de capcane** verificate empiric.
+- `docs/design/ecrane/capcane.md` — capcane verificate empiric (numărul se
+  schimbă; `grep -cE '^[0-9]+\. ' docs/design/ecrane/capcane.md`).
   Caută în ele: `node .claude/skills/administrativo/scripts/capcana.mjs <cod|--tabela X|--rol Y|--tacute>`
 - `tests/rls/izolare.sql` verificarea `(l)` — singura poartă POZITIVĂ din proiect
   („politicile nu blochează scrierile legitime”). Acoperă azi un singur rol.

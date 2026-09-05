@@ -45,6 +45,38 @@ Toate se aplică fiecărei sarcini, fără a fi repetate acolo.
   `~/.secrete/administrativo/`, cu drepturi `600`.
 - **Migrările** se aplică prin `psql`, byte-exact, forward-only.
 
+## Stare la 2026-09-05, ora 09:05 — șapte sarcini din zece, livrate
+
+| Sarcină | Stare | Dovada |
+| --- | --- | --- |
+| 1 · `ADM_MEDIU` | ✅ `6063618` | `scripts/checks/medii.sh` — 19/19 |
+| 2 · Stack generat + gărzi | ✅ `6063618` | `scripts/checks/stack-generat.sh` — 4/4 |
+| 3 · Secrete + replici | ✅ `6063618` | `docker stack config` pe ambele medii |
+| 4 · Curățenie + prag disc | ✅ `6063618` | apare în `help`; rulare în gol OK |
+| 5 · Vhost staging | ✅ `6063618` | `nginx -t` cu ambele vhost-uri |
+| 6 · Certificat + instalare | ✅ operațional | cert până la 2026-12-04; 11/11 site-uri sus |
+| 7 · Baza de staging | ⛔ blocată | credențiale respinse — vezi mai jos |
+| 8 · Runner systemd | ⏳ | cere jeton de înregistrare de la utilizator |
+| 9 · Workflow | ✅ scris `6063618` | neprobat — n-are runner pe care să ruleze |
+| 10 · Santinelă de stare | ✅ vie | https://staging.administrativo.ro/_stare → 200 |
+
+Starea rețelei, verificată: `staging.administrativo.ro` întoarce 401 fără parolă
+și 502 cu ea — vhost viu, upstream absent, exact ce se aștepta înainte de primul
+deploy al aplicației. Acces: utilizatorul `coleg`, parola în
+`~/.secrete/administrativo/parola-staging.txt`.
+
+**Două abateri de la textul planului, ambele necesare:**
+
+1. Sarcina 5 spunea „copiază vhost-ul de producție". NU se copiază: fișierul ăla
+   declară `log_format durate` și `map $http_upgrade` în contextul `http`, iar o
+   a doua declarație face `nginx -t` să pice cu „duplicate" și blochează
+   reload-ul pentru toate cele zece site-uri. Vhost-ul nou le folosește fără să
+   le redeclare, și are zonă proprie de `ssl_session_cache`.
+2. Sarcina 6 presupunea că provocarea ACME are nevoie de vhost instalat înainte.
+   Verificat empiric (fișier de probă scris în volumul `strawboss_certbot-webroot`,
+   cerut prin internet): calea e deja servită pentru orice subdomeniu, deci
+   certificatul se emite fără vhost temporar.
+
 ## Ce e deja făcut (nu reface)
 
 - DNS: `staging.administrativo.ro` → Cloudflare → `62.171.154.194`. Verificat.
